@@ -16,3 +16,4 @@
 .settings
 .vscode
 venv/
+python/dist/

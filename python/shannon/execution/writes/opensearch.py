@@ -33,9 +33,20 @@ class OpenSearchWriter(Write):
 
     def execute(self) -> Dataset:
         dataset = self.child().execute()
+        try:
+            client = OpenSearch(**self.os_client_args)
+            if not client.indices.exists(self.index_name):
+                if self.index_settings is not None:
+                    client.indices.create(self.index_name, **self.index_settings)
+                else:
+                    client.indices.create(self.index_name)
+
+        except Exception as e:
+            log.error("Exception occurred while creating an index:", e)
+            raise RuntimeError("Exception occurred while creating an index", e)
+
         dataset.write_datasource(OSDataSource(),
                                  index_name=self.index_name,
-                                 index_settings=self.index_settings,
                                  os_client_args=self.os_client_args,
                                  number_of_allowed_failures_per_block=self.number_of_allowed_failures_per_block,
                                  collect_failures_file_path=self.collect_failures_file_path or "failures.txt")
@@ -50,6 +61,7 @@ class OSDataSource(Datasource):
               ctx: TaskContext,
               **write_args,
               ) -> WriteResult:
+
         builder = DelegatingBlockBuilder()
         for block in blocks:
             builder.add_block(block)
@@ -65,21 +77,11 @@ class OSDataSource(Datasource):
                     os_client_args: Dict,
                     index_name: str,
                     collect_failures_file_path: str,
-                    number_of_allowed_failures_per_block: int,
-                    index_settings: Optional[Dict] = None):
+                    number_of_allowed_failures_per_block: int):
+
+        client = OpenSearch(**os_client_args)
 
         block = BlockAccessor.for_block(block).to_arrow().to_pylist()
-        try:
-            client = OpenSearch(**os_client_args)
-            if not client.indices.exists(index_name):
-                if index_settings is not None:
-                    client.indices.create(index_name, **index_settings)
-                else:
-                    client.indices.create(index_name)
-
-        except Exception as e:
-            log.error("Exception occurred while creating an index:", e)
-            raise RuntimeError("Exception occurred while creating an index", e)
 
         def create_actions():
             for i, row in enumerate(block):

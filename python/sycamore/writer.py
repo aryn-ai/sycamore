@@ -12,8 +12,13 @@ class DocSetWriter:
     def opensearch(
             self,
             *,
-            url: str,
-            index: str):
-        from shannon.execution.writes import OpenSearchWrite
-        os = OpenSearchWrite(self.plan, url=url, index=index)
+            os_client_args: Dict,
+            index_name: str,
+            index_settings: Dict = None) -> None:
+        from sycamore.execution.writes import OpenSearchWriter
+        os = OpenSearchWriter(
+            self.plan,
+            index_name,
+            os_client_args=os_client_args,
+            index_settings=index_settings)
         os.execute()

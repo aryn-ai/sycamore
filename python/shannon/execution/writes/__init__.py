@@ -1,5 +1,5 @@
-from shannon.execution.writes.opensearch import OpenSearchWrite
+from shannon.execution.writes.opensearch import OpenSearchWriter
 
 __all__ = [
-    OpenSearchWrite
+    OpenSearchWriter
 ]

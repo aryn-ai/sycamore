@@ -1,6 +1,7 @@
-from abc import ABC, abstractmethod
-from ray.data import Dataset
+from abc import (ABC, abstractmethod)
 from typing import (Callable, List, Optional, TypeVar, Union)
+
+from ray.data import Dataset
 
 
 class Node(ABC):
@@ -10,18 +11,15 @@ class Node(ABC):
     def __str__(self):
         return "node"
 
-    def resource_args(self, **resource_args) -> None:
-        self.resource_args = resource_args
-
     def child(self) -> Union[None, "Node", List["Node"]]:
         pass
 
     def execute(self) -> "Dataset":
         pass
 
-    T = TypeVar('T')
+    T = TypeVar('T', bound="Node", covariant=True)
 
-    def traverse_down(self, f: Callable[["Node"], T]) -> None:
+    def traverse_down(self, f: Callable[[T], T]) -> None:
         f(self)
         if self.child() is None:
             return
@@ -31,7 +29,7 @@ class Node(ABC):
             for c in self.child():
                 c.traverse_down(f)
 
-    def traverse_up(self, f: Callable[["Node"], T]) -> None:
+    def traverse_up(self, f: Callable[[T], T]) -> None:
         if self.child() is None:
             pass
         elif isinstance(self.child(), Node):
@@ -41,28 +39,20 @@ class Node(ABC):
                 c.traverse_up(f)
         f(self)
 
+    def clone(self) -> "Node":
+        # TODO:
+        return self
+
 
 class LeafNode(Node):
     def __init__(self, **resource_args):
         super().__init__(**resource_args)
 
-    def __str__(self):
+    def __str__(self, **resource_args):
         return "leaf"
 
     def child(self) -> Union[None, "Node", List["Node"]]:
         return None
-
-
-class Scan(LeafNode):
-    def __init__(self, **resource_args):
-        super().__init__(**resource_args)
-
-    def __str__(self):
-        return "scan"
-
-    @abstractmethod
-    def format(self):
-        pass
 
 
 class UnaryNode(Node):
@@ -75,6 +65,18 @@ class UnaryNode(Node):
 
     def child(self) -> Optional["Node"]:
         return self._child
+
+
+class Scan(LeafNode):
+    def __init__(self, **resource_args):
+        super().__init__(**resource_args)
+
+    def __str__(self):
+        return "scan"
+
+    @abstractmethod
+    def format(self):
+        pass
 
 
 class Transform(UnaryNode):

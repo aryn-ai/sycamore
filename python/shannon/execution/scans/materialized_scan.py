@@ -1,10 +1,11 @@
-import ray.data
+from typing import (List, Union)
+
 from pandas import DataFrame
 from pyarrow import Table
-from ray.data import Dataset
+from ray.data import (Dataset, from_arrow, from_items, from_pandas)
+
 from shannon.execution import Scan
 from shannon.data import Document
-from typing import (List, Union)
 
 
 class MaterializedScan(Scan):
@@ -25,7 +26,7 @@ class ArrowScan(MaterializedScan):
         self._tables = tables
 
     def execute(self) -> "Dataset":
-        return ray.data.from_arrow(tables=self._tables)
+        return from_arrow(tables=self._tables).map(lambda dict: Document(dict))
 
     def format(self):
         return "arrow"
@@ -37,7 +38,7 @@ class DocScan(MaterializedScan):
         self._dicts = docs
 
     def execute(self) -> "Dataset":
-        return ray.data.from_items(items=self._dicts)
+        return from_items(items=self._dicts)
 
     def format(self):
         return "document"
@@ -52,7 +53,7 @@ class PandasScan(MaterializedScan):
         self._dfs = dfs
 
     def execute(self) -> "Dataset":
-        return ray.data.from_pandas(dfs=self._dfs)
+        return from_pandas(dfs=self._dfs).map(lambda dict: Document(dict))
 
     def format(self):
         return "pandas"

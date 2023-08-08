@@ -1,15 +1,13 @@
-from shannon.execution.transforms.embedding import (
-    Embedding, SentenceTransformerEmbedding)
+from shannon.execution.transforms.embedding import SentenceTransformerEmbedding
+from shannon.execution.transforms.explode import Explode
 from shannon.execution.transforms.mapping import (Map, FlatMap, MapBatch)
-from shannon.execution.transforms.partition import (
-    Partition, PartitionPDF)
+from shannon.execution.transforms.partition import UnstructuredPartition
 
 __all__ = [
-    Embedding,
-    FlatMap,
-    Map,
-    MapBatch,
-    Partition,
-    SentenceTransformerEmbedding,
-    PartitionPDF
+    "Explode",
+    "FlatMap",
+    "Map",
+    "MapBatch",
+    "SentenceTransformerEmbedding",
+    "UnstructuredPartition"
 ]

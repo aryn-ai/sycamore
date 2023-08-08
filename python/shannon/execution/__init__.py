@@ -1,14 +1,14 @@
 from shannon.execution.basics import (
     LeafNode, Node, Rule, Scan, Transform, UnaryNode, Write)
-from shannon.execution.execution import Execution
+from shannon.execution.rewriter import Rewriter
 
 __all__ = [
-    Execution,
-    LeafNode,
-    Node,
-    Rule,
-    Scan,
-    Transform,
-    UnaryNode,
-    Write
+    "Rule",
+    "LeafNode",
+    "Node",
+    "Rewriter",
+    "Scan",
+    "Transform",
+    "UnaryNode",
+    "Write"
 ]

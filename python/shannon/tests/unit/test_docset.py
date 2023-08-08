@@ -2,7 +2,8 @@ from shannon import (DocSet, Context)
 from shannon.execution import Node
 from shannon.execution.scans import BinaryScan
 from shannon.execution.transforms import (
-    Embedding, FlatMap, Map, MapBatch, PartitionPDF)
+    SentenceTransformerEmbedding, FlatMap, Map, MapBatch,
+    UnstructuredPartition)
 
 
 class TestDocSet:
@@ -11,8 +12,8 @@ class TestDocSet:
         context = mocker.Mock(spec=Context)
         scan = mocker.Mock(spec=BinaryScan)
         docset = DocSet(context, scan)
-        docset = docset.partition_pdf(col_name="bytes")
-        assert (isinstance(docset.lineage(), PartitionPDF))
+        docset = docset.unstructured_partition(col_name="bytes")
+        assert (isinstance(docset.lineage(), UnstructuredPartition))
 
     def test_sentence_transformer_embedding(self, mocker):
         context = mocker.Mock(spec=Context)
@@ -21,7 +22,7 @@ class TestDocSet:
         docset = docset.sentence_transformer_embed(
             col_name="col_name",
             model_name="sentence-transformers/all-MiniLM-L6-v2")
-        assert (isinstance(docset.lineage(), Embedding))
+        assert (isinstance(docset.lineage(), SentenceTransformerEmbedding))
 
     def test_map(self, mocker):
         context = mocker.Mock(spec=Context)

@@ -1,10 +1,11 @@
 import logging
+from typing import (Callable, List)
 
-from shannon.data import Document
-from shannon.execution import Node
-from typing import (Callable, List, Optional)
+from pyarrow import Schema
 
 from shannon import Context
+from shannon.data import Document
+from shannon.execution import Node
 from shannon.writer import DocSetWriter
 
 logger = logging.getLogger(__name__)
@@ -25,47 +26,134 @@ class DocSet:
         pass
 
     def show(self, limit: int = 20) -> None:
-        dataset = self.context.execution.execute(self.plan)
+        from shannon import Execution
+        execution = Execution(self.context, self.plan)
+        dataset = execution.execute(self.plan)
         for row in dataset.take(limit):
             print(row)
 
-    def partition_pdf(
-            self,
-            col_name: str,
-            *,
-            include_page_breaks: bool = False,
-            strategy: str = "auto",
-            infer_table_structure: bool = False,
-            ocr_languages: str = "eng",
-            max_partition: Optional[int] = 1500,
-            include_metadata: bool = True,
-            **resource_args) -> "DocSet":
-        from shannon.execution.transforms.partition import PartitionPDF
-        plan = PartitionPDF(
-            self.plan, col_name,
-            include_page_breaks=include_page_breaks,
-            strategy=strategy,
-            infer_table_structure=infer_table_structure,
-            ocr_languages=ocr_languages,
-            max_partition=max_partition,
-            include_metadata=include_metadata, **resource_args)
+    @staticmethod
+    def schema() -> "Schema":
+        # TODO, enforce schema for document, also properties need to be
+        #   convert to MapType?
+        import pyarrow as pa
+        return pa.schema([
+            ('doc_id', pa.string()),
+            ('type', pa.string()),
+            ('content', pa.struct(
+                [('binary', pa.large_binary()), ('text', pa.large_string())])),
+            ('elements', pa.struct([('array', pa.large_list(pa.struct([
+                ('type', pa.string()),
+                ('content', pa.struct([
+                    'binary', pa.large_binary(),
+                    'text', pa.large_string()
+                ])),
+                ('properties', pa.map_(pa.string(), pa.string()))
+            ])))])),
+            ('embedding', pa.struct(
+                [('binary', pa.large_list(pa.large_list(pa.float64()))),
+                 ('text', pa.large_list(pa.large_list(pa.float64())))])),
+            ('parent_id', pa.string()),
+            ('properties', pa.map_(pa.string(), pa.string()))
+        ])
+
+    def unstructured_partition(self, **kwargs) -> "DocSet":
+        """Partition pdf using unstructured library
+        Returns: DocSet
+        Each Document has schema like below
+        {
+            "content": {"binary": xxx, "text": None}
+            "doc_id": uuid,
+            "elements": {
+                "array": [
+                    {"type": title, "content": {"binary": "xxx"}, ...},
+                    {"type": figure_caption, "content": {"text": "xxx"}},
+                    {"type": table, "content": {"text": "xxx"}},
+                    {"type": text, "content": {"text": "xxx"}},
+                    ...
+                ]
+            }
+            "properties": {
+                "path": "xxx"
+            }
+        }
+        """
+        from shannon.execution.transforms.partition import \
+            UnstructuredPartition
+        plan = UnstructuredPartition(self.plan, **kwargs)
         return DocSet(self.context, plan)
+
+    def explode(self):
+        """Explode a list column into top level document
+
+        To keep document has same schema, a document is
+
+        Returns: A DocSet
+        Each document has schema like below
+        {"type": "pdf", "content": {"binary": xxx, "text": None},
+         "doc_id": uuid, "parent_id": None, "properties": {
+         "path": xxx, "author": "xxx", "title": "xxx"}}
+        {"type": title, "content": {"binary": xxx, "text": None},
+         "doc_id": uuid-1, "parent_id": uuid},
+        {"type": figure_caption, "content": {"binary": xxx, "text": None},
+         "doc_id": uuid-2, "parent_id": uuid},
+        {"type": table, "content": {"binary": xxx, "text": None},
+         "doc_id": uuid-3, "parent_id": uuid},
+        {"type": text, "content": {"binary": xxx, "text": None},
+         "doc_id": uuid-4, "parent_id": uuid},
+        {"type": figure, "content": {"binary": xxx, "text": None},
+         "doc_id": uuid-5, "parent_id": uuid},
+        {"type": table, "content": {"binary": xxx, "text": None},
+         "doc_id": uuid-6, "parent_id": uuid}
+        """
+        from shannon.execution.transforms.explode import Explode
+        explode = Explode(self.plan)
+        return DocSet(self.context, explode)
 
     def sentence_transformer_embed(
             self,
-            col_name: str,
             *,
             model_name: str,
-            embed_name: str = None,
             batch_size: int = None,
             device: str = None,
             **resource_args) -> "DocSet":
+        """Embed using HuggingFace sentence transformer
+
+        Args:
+            model_name: model name to embed
+            batch_size: batch size
+            device: device needed
+            **resource_args: resource related args
+
+        Returns: A DocSet
+        Each document has schema like below
+        {"type": "pdf", "content": {"binary": xxx, "text": None},
+         "doc_id": uuid, "parent_id": None, "properties": {
+         "path": xxx, "author": "xxx", "title": "xxx"},
+          "embedding": {"binary": xxx, "text": "xxx"}},
+        {"type": title, "content": {"binary": xxx, "text": None},
+         "doc_id": uuid-1, "parent_id": uuid,
+          "embedding": {"binary": xxx, "text": "xxx"}},
+        {"type": figure_caption, "content": {"binary": xxx, "text": None},
+         "doc_id": uuid-2, "parent_id": uuid,
+          "embedding": {"binary": xxx, "text": "xxx"}},
+        {"type": table, "content": {"binary": xxx, "text": None},
+         "doc_id": uuid-3, "parent_id": uuid,
+          "embedding": {"binary": xxx, "text": "xxx"}},
+        {"type": text, "content": {"binary": xxx, "text": None},
+         "doc_id": uuid-4, "parent_id": uuid,
+          "embedding": {"binary": xxx, "text": "xxx"}},
+        {"type": figure, "content": {"binary": xxx, "text": None},
+         "doc_id": uuid-5, "parent_id": uuid,
+          "embedding": {"binary": xxx, "text": "xxx"}},
+        {"type": table, "content": {"binary": xxx, "text": None},
+         "doc_id": uuid-6, "parent_id": uuid,
+          "embedding": {"binary": xxx, "text": "xxx"}}
+        """
         from shannon.execution.transforms import SentenceTransformerEmbedding
         embedding = SentenceTransformerEmbedding(
             self.plan,
-            col_name=col_name,
             model_name=model_name,
-            embed_name=embed_name,
             batch_size=batch_size,
             device=device,
             **resource_args)

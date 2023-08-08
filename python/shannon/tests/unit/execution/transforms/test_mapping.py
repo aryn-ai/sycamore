@@ -1,9 +1,11 @@
+from typing import List
+
 import pytest
 import ray.data
+
 from shannon.data import Document
 from shannon.execution import Node
 from shannon.execution.transforms import (Map, FlatMap, MapBatch)
-from typing import List
 
 
 class TestMapping:

@@ -1,11 +1,12 @@
-from pandas import DataFrame
-from pyarrow import Table
-from shannon.data import Document
-from shannon.execution.scans import (ArrowScan, BinaryScan, DocScan, PandasScan)
-from shannon.docset import DocSet
 from typing import (List, Union)
 
-from shannon import Context
+from pandas import DataFrame
+from pyarrow import Table
+
+from shannon import (Context, DocSet)
+from shannon.data import Document
+from shannon.execution.scans import (
+    ArrowScan, BinaryScan, DocScan, PandasScan)
 
 
 class DocSetReader:

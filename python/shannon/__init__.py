@@ -4,6 +4,8 @@ import time
 
 from shannon.context import (init, Context)
 from shannon.docset import DocSet
+from shannon.executor import Execution
+
 
 logging.Formatter.converter = time.gmtime
 
@@ -22,5 +24,6 @@ loggers.addHandler(logger_handler)
 __all__ = [
     "DocSet",
     "init",
-    "Context"
+    "Context",
+    "Execution"
 ]

@@ -1,8 +1,10 @@
+from typing import (Any, Callable, Dict, Iterable, List, Optional, Type)
+
 from pyarrow import Table
 from ray.data import (ActorPoolStrategy, Dataset)
+
 from shannon.execution import (Node, UnaryNode)
 from shannon.data import Document
-from typing import (Any, Callable, Dict, Iterable, List, Optional, Type)
 
 
 def generate_map_function(f: Callable[[Document], Document]) -> Callable[
@@ -43,9 +45,8 @@ def generate_flat_map_function(
     return ray_callable
 
 
-def generate_flat_map_class(c: Type[Callable[[Document], List[Document]]]) -> Type[
-    Callable[[Dict[str, Any]], List[Dict[str, Any]]]
-]:
+def generate_flat_map_class(c: Type[Callable[[Document], List[Document]]]) ->\
+        Type[Callable[[Dict[str, Any]], List[Dict[str, Any]]]]:
 
     def ray_init(self):
         self.base = c()

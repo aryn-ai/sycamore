@@ -1,30 +1,35 @@
 import threading
-from typing import Optional
+from typing import (List, Optional)
 
 import ray
 
-from shannon.execution import Execution, Rule
+from shannon.execution import Rule
 
 
 class Context:
     def __init__(self):
         # TODO, we need to handle what exactly the conf we pass down to Ray
         ray.init()
-        self.execution = Execution()
-        self._internal_lock = threading.Lock
+        self.extension_rules: List[Rule] = []
+        self._internal_lock = threading.Lock()
 
     @property
     def read(self):
         from shannon.reader import DocSetReader
         return DocSetReader(self)
 
-    def register(self, phase: str, rule: Rule) -> None:
+    def register_rule(self, rule: Rule) -> None:
         with self._internal_lock:
-            self.execution.rules[phase].append(rule)
+            self.extension_rules.append(rule)
 
-    def deregister(self, phase: str, rule: Rule) -> None:
+    def get_extension_rule(self) -> List[Rule]:
         with self._internal_lock:
-            self.execution.rules[phase].remove(rule)
+            copied = self.extension_rules.copy()
+        return copied
+
+    def deregister_rule(self, rule: Rule) -> None:
+        with self._internal_lock:
+            self.extension_rules.remove(rule)
 
 
 _context_lock = threading.Lock()

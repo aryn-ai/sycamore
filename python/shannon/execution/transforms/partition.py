@@ -1,54 +1,68 @@
+import io
+from typing import (Any, Dict, Optional)
+
 from ray.data import Dataset
+
+from shannon.data import (Document, Element)
 from shannon.execution import (Node, Transform)
-from shannon.execution.kernels import UnstructuredPartitionPdfKernel
-from typing import Optional
 
 
-class Partition(Transform):
+class Partitioner:
+    @staticmethod
+    def to_element(dict: Dict[str, Any]) -> Element:
+        element = Element()
+        element.type = dict.pop("type")
+        element.content.update({"text": dict.pop("text")})
+        element.properties.update(dict.pop("metadata"))
+        element.properties.update(dict)
+        return element
+
+
+class PdfPartitioner(Partitioner):
     def __init__(
             self,
-            child: Node,
-            col_name: str,
-            max_partition: Optional[int],
-            **resource_args):
-        super().__init__(child, **resource_args)
-        self.col_name = col_name
-        self.max_partition = max_partition
-
-    def set_max_partition(self, max_partition) -> None:
-        self.max_partition = max_partition
-
-
-class PartitionPDF(Partition):
-    def __init__(
-            self,
-            child: Node,
-            col_name: str,
             include_page_breaks: bool = False,
             strategy: str = "auto",
             infer_table_structure: bool = False,
             ocr_languages: str = "eng",
             max_partition: Optional[int] = None,
             include_metadata: bool = True,
-            **resource_args):
-        super().__init__(
-            child, max_partition=max_partition,
-            col_name=col_name, **resource_args)
-        self.include_page_breaks = include_page_breaks
-        self.strategy = strategy
-        self.infer_table_structure = infer_table_structure
-        self.ocr_languages = ocr_languages
-        self.include_metadata = include_metadata
+            **kwargs):
+        self._include_page_breaks = include_page_breaks
+        self._strategy = strategy
+        self._infer_table_structure = infer_table_structure
+        self._ocr_languages = ocr_languages
+        self._max_partition = max_partition
+        self._include_metadata = include_metadata
+        self._unresolved = kwargs
+
+    def partition(self, dict: Dict[str, Any]) -> Dict[str, Any]:
+        document = Document(dict)
+        from unstructured.partition.pdf import partition_pdf
+        binary = io.BytesIO(document.content["binary"])
+        elements = partition_pdf(
+            file=binary,
+            include_page_breaks=self._include_page_breaks,
+            strategy=self._strategy,
+            infer_table_structure=self._infer_table_structure,
+            ocr_languages=self._ocr_languages,
+            max_partition=self._max_partition,
+            include_metadata=self._include_metadata)
+        elements = [self.to_element(element.to_dict()) for element in elements]
+        document.elements.extend(elements)
+        return document.to_dict()
+
+
+class UnstructuredPartition(Transform):
+    def __init__(self, child: Node, **kwargs):
+        super().__init__(child)
+        self._kwargs = kwargs
+        self.partitioner = None
 
     def execute(self) -> "Dataset":
+        # TODO, apply rule to bind partitioner dynamically during rewriting
+        if self.partitioner is None:
+            self.partitioner = PdfPartitioner(**self._kwargs)
         input_dataset = self.child().execute()
-        partitioner = UnstructuredPartitionPdfKernel(
-            col_name=self.col_name,
-            include_page_breaks=self.include_page_breaks,
-            strategy=self.strategy,
-            infer_table_structure=self.infer_table_structure,
-            ocr_languages=self.ocr_languages,
-            max_partition=self.max_partition,
-            include_metadata=self.include_metadata)
-        dataset = input_dataset.flat_map(partitioner.partition)
+        dataset = input_dataset.map(self.partitioner.partition)
         return dataset

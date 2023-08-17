@@ -1,5 +1,5 @@
 import threading
-from typing import (List, Optional)
+from typing import (Any, Dict, List, Optional)
 
 import ray
 
@@ -7,9 +7,8 @@ from sycamore.execution import Rule
 
 
 class Context:
-    def __init__(self):
-        # TODO, we need to handle what exactly the conf we pass down to Ray
-        ray.init()
+    def __init__(self, ray_args: Dict[str, Any] = None):
+        ray.init(**ray_args)
         self.extension_rules: List[Rule] = []
         self._internal_lock = threading.Lock()
 
@@ -36,10 +35,18 @@ _context_lock = threading.Lock()
 _global_context: Optional[Context] = None
 
 
-def init() -> Optional[Context]:
+def init(ray_args: Dict[str, Any] = None) -> Optional[Context]:
     global _global_context
     with _context_lock:
         if _global_context is None:
-            _global_context = Context()
+            if ray_args is None:
+                ray_args = {}
+
+            # Set Logger for driver only, we consider worker_process_setup_hook
+            # or runtime_env/config file for worker application log
+            from sycamore.utils import sycamore_logger
+            sycamore_logger.setup_logger()
+
+            _global_context = Context(ray_args)
 
         return _global_context

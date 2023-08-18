@@ -5,7 +5,7 @@ from sycamore.execution import Node
 
 class MockNode(Node):
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__([], **kwargs)
         self.value = 0
 
 
@@ -27,12 +27,11 @@ def mock_a_dag(mocker):
     root_node, inter_node1, inter_node2, leaf_node1, leaf_node2 = \
         MockNode(), MockNode(), MockNode(), MockNode(), MockNode()
 
-    mocker.patch.object(
-        root_node, "child", new=lambda: [inter_node1, inter_node2])
-    mocker.patch.object(inter_node1, "child", new=lambda: leaf_node1)
-    mocker.patch.object(inter_node2, "child", new=lambda: leaf_node2)
-    mocker.patch.object(leaf_node1, "child", new=lambda: None)
-    mocker.patch.object(leaf_node2, "child", new=lambda: None)
+    mocker.patch.object(root_node, "children", [inter_node1, inter_node2])
+    mocker.patch.object(inter_node1, "children", [leaf_node1])
+    mocker.patch.object(inter_node2, "children", [leaf_node2])
+    mocker.patch.object(leaf_node1, "children", [])
+    mocker.patch.object(leaf_node2, "children", [])
 
     return root_node, inter_node1, inter_node2, leaf_node1, leaf_node2
 

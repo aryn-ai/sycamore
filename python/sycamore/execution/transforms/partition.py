@@ -3,9 +3,10 @@ from typing import Any, Dict, Optional
 
 from ray.data import Dataset
 
-from execution.functions import reorder_elements
-from sycamore.data import Document, Element
-from sycamore.execution import Node, Transform
+from sycamore.execution.functions import reorder_elements
+from sycamore.data import (Document, Element)
+from sycamore.execution import (
+    Node, Transform, SingleThreadUser, NonGPUUser)
 
 
 class Partitioner:
@@ -48,7 +49,11 @@ def _elements_reorder_comparator(element1: Element, element2: Element) -> int:
             return 0
 
 
-class PdfPartitioner(Partitioner):
+class PartitionerOptions:
+    pass
+
+
+class PdfPartitionerOptions(PartitionerOptions):
     def __init__(
             self,
             include_page_breaks: bool = False,
@@ -56,16 +61,18 @@ class PdfPartitioner(Partitioner):
             infer_table_structure: bool = False,
             ocr_languages: str = "eng",
             max_partition: Optional[int] = None,
-            include_metadata: bool = True,
-            **kwargs
-    ):
-        self._include_page_breaks = include_page_breaks
-        self._strategy = strategy
-        self._infer_table_structure = infer_table_structure
-        self._ocr_languages = ocr_languages
-        self._max_partition = max_partition
-        self._include_metadata = include_metadata
-        self._unresolved = kwargs
+            include_metadata: bool = True):
+        self.include_page_breaks = include_page_breaks
+        self.strategy = strategy
+        self.infer_table_structure = infer_table_structure
+        self.ocr_languages = ocr_languages
+        self.max_partition = max_partition
+        self.include_metadata = include_metadata
+
+
+class PdfPartitioner(Partitioner):
+    def __init__(self, options: PdfPartitionerOptions):
+        self._options = options
 
     def partition(self, dict: Dict[str, Any]) -> Dict[str, Any]:
         document = Document(dict)
@@ -74,29 +81,29 @@ class PdfPartitioner(Partitioner):
         binary = io.BytesIO(document.content)
         elements = partition_pdf(
             file=binary,
-            include_page_breaks=self._include_page_breaks,
-            strategy=self._strategy,
-            infer_table_structure=self._infer_table_structure,
-            ocr_languages=self._ocr_languages,
-            max_partition=self._max_partition,
-            include_metadata=self._include_metadata,
-        )
+            include_page_breaks=self._options.include_page_breaks,
+            strategy=self._options.strategy,
+            infer_table_structure=self._options.infer_table_structure,
+            ocr_languages=self._options.ocr_languages,
+            max_partition=self._options.max_partition,
+            include_metadata=self._options.include_metadata)
         elements = [self.to_element(element.to_dict()) for element in elements]
         document.elements.extend(elements)
         document = reorder_elements(document, _elements_reorder_comparator)
         return document.to_dict()
 
 
-class UnstructuredPartition(Transform):
-    def __init__(self, child: Node, **kwargs):
-        super().__init__(child)
-        self._kwargs = kwargs
-        self.partitioner = None
+class UnstructuredPartition(SingleThreadUser, NonGPUUser, Transform):
+    def __init__(
+            self, child: Node, options: PartitionerOptions, **resource_args):
+        super().__init__(child, **resource_args)
+        match options:
+            case PdfPartitionerOptions():
+                self._partitioner = PdfPartitioner(options)
+            case _:
+                raise RuntimeError("Invalid Options")
 
     def execute(self) -> "Dataset":
-        # TODO, apply rule to bind partitioner dynamically during rewriting
-        if self.partitioner is None:
-            self.partitioner = PdfPartitioner(**self._kwargs)
         input_dataset = self.child().execute()
-        dataset = input_dataset.map(self.partitioner.partition)
+        dataset = input_dataset.map(self._partitioner.partition)
         return dataset

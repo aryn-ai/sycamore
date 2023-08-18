@@ -3,12 +3,13 @@ from typing import (Any, Dict, List)
 from ray.data import Dataset
 
 from sycamore.data import Document
-from sycamore.execution import (Node, Transform)
+from sycamore.execution import (
+    Node, Transform, SingleThreadUser, NonGPUUser)
 
 
-class Explode(Transform):
-    def __init__(self, child: Node):
-        super().__init__(child)
+class Explode(SingleThreadUser, NonGPUUser, Transform):
+    def __init__(self, child: Node, **resource_args):
+        super().__init__(child, **resource_args)
 
     class ExplodeCallable:
         @staticmethod

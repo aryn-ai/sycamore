@@ -6,7 +6,7 @@ from ray.data import Dataset
 from sycamore.execution.scans import BinaryScan
 from sycamore.execution.transforms import UnstructuredPartition
 from sycamore.execution.transforms.partition import \
-    (Partitioner, PdfPartitioner)
+    (Partitioner, PdfPartitioner, PdfPartitionerOptions)
 from sycamore.tests.config import TEST_DIR
 
 
@@ -48,7 +48,7 @@ class TestPartition:
 
     @pytest.mark.parametrize(
         "partitioner, read_local_binary, partition_count",
-        [(PdfPartitioner(),
+        [(PdfPartitioner(PdfPartitionerOptions()),
           TEST_DIR / "resources/data/pdfs/Transformer.pdf", 254)],
         indirect=["read_local_binary"])
     def test_pdf_partitioner(
@@ -61,11 +61,12 @@ class TestPartition:
         [(TEST_DIR / "resources/data/pdfs/Transformer.pdf", 254)])
     def test_partition_pdf(self, mocker, path, partition_count):
         scan = mocker.Mock(spec=BinaryScan)
-        partition = UnstructuredPartition(scan)
+        options = PdfPartitionerOptions()
+        partition = UnstructuredPartition(scan, options)
         execute: Callable[[], Dataset] = \
             lambda: BinaryScan(path, binary_format="pdf").execute()
         mocker.patch.object(scan, "execute", execute)
-        partition.partitioner = PdfPartitioner()
+        partition._partitioner = PdfPartitioner(options)
         docset = partition.execute()
         doc = docset.take(limit=1)[0]
         assert (len(doc["elements"]["array"]) == partition_count)

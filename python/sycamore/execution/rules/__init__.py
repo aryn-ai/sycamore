@@ -1,6 +1,7 @@
 from sycamore.execution.rules.optimize_resource_args import \
-    OptimizeResourceArgs
+    (EnforceResourceUsage, OptimizeResourceArgs)
 
 __all__ = [
+    "EnforceResourceUsage",
     "OptimizeResourceArgs"
 ]

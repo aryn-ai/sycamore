@@ -1,7 +1,7 @@
 import functools
 from typing import Callable
 
-from data import Document, Element
+from sycamore.data import Document, Element
 
 
 def reorder_elements(

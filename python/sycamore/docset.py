@@ -1,11 +1,10 @@
 import logging
 from typing import (Callable, List)
 
-from pyarrow import Schema
-
 from sycamore import Context
 from sycamore.data import Document
 from sycamore.execution import Node
+from sycamore.execution.transforms import PartitionerOptions
 from sycamore.writer import DocSetWriter
 
 logger = logging.getLogger(__name__)
@@ -32,32 +31,8 @@ class DocSet:
         for row in dataset.take(limit):
             print(row)
 
-    @staticmethod
-    def schema() -> "Schema":
-        # TODO, enforce schema for document, also properties need to be
-        #   convert to MapType?
-        import pyarrow as pa
-        return pa.schema([
-            ('doc_id', pa.string()),
-            ('type', pa.string()),
-            ('content', pa.struct(
-                [('binary', pa.large_binary()), ('text', pa.large_string())])),
-            ('elements', pa.struct([('array', pa.large_list(pa.struct([
-                ('type', pa.string()),
-                ('content', pa.struct([
-                    'binary', pa.large_binary(),
-                    'text', pa.large_string()
-                ])),
-                ('properties', pa.map_(pa.string(), pa.string()))
-            ])))])),
-            ('embedding', pa.struct(
-                [('binary', pa.large_list(pa.large_list(pa.float64()))),
-                 ('text', pa.large_list(pa.large_list(pa.float64())))])),
-            ('parent_id', pa.string()),
-            ('properties', pa.map_(pa.string(), pa.string()))
-        ])
-
-    def unstructured_partition(self, **kwargs) -> "DocSet":
+    def unstructured_partition(
+            self, options: PartitionerOptions, **resource_args) -> "DocSet":
         """Partition pdf using unstructured library
         Returns: DocSet
         Each Document has schema like below
@@ -80,10 +55,10 @@ class DocSet:
         """
         from sycamore.execution.transforms.partition import \
             UnstructuredPartition
-        plan = UnstructuredPartition(self.plan, **kwargs)
+        plan = UnstructuredPartition(self.plan, options, **resource_args)
         return DocSet(self.context, plan)
 
-    def explode(self):
+    def explode(self, **resource_args):
         """Explode a list column into top level document
 
         To keep document has same schema, a document is
@@ -107,7 +82,7 @@ class DocSet:
          "doc_id": uuid-6, "parent_id": uuid}
         """
         from sycamore.execution.transforms.explode import Explode
-        explode = Explode(self.plan)
+        explode = Explode(self.plan, **resource_args)
         return DocSet(self.context, explode)
 
     def sentence_transformer_embed(
@@ -181,5 +156,5 @@ class DocSet:
         return DocSet(self.context, map_batch)
 
     @property
-    def write(self) -> DocSetWriter:
-        return DocSetWriter(self.context, self.plan)
+    def write(self, **resource_args) -> DocSetWriter:
+        return DocSetWriter(self.context, self.plan, **resource_args)

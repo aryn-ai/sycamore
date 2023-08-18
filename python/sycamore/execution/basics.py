@@ -1,73 +1,66 @@
 from abc import (ABC, abstractmethod)
-from typing import (Callable, List, Optional, TypeVar, Union)
+from typing import (Callable, List, TypeVar)
 
 from ray.data import Dataset
 
 
 class Node(ABC):
-    def __init__(self, **resource_args):
+    def __init__(self, children: List["Node"], **resource_args):
+        self.children = children
         self.resource_args = resource_args
 
     def __str__(self):
         return "node"
-
-    def child(self) -> Union[None, "Node", List["Node"]]:
-        pass
 
     def execute(self) -> "Dataset":
         pass
 
     T = TypeVar('T', bound="Node", covariant=True)
 
-    def traverse_down(self, f: Callable[[T], T]) -> None:
+    def traverse_down(self, f: Callable[[T], T]) -> T:
         f(self)
-        if self.child() is None:
-            return
-        elif isinstance(self.child(), Node):
-            self.child().traverse_down(f)
-        else:
-            for c in self.child():
-                c.traverse_down(f)
+        self.children = [c.traverse_down(f) for c in self.children]
+        return self
 
-    def traverse_up(self, f: Callable[[T], T]) -> None:
-        if self.child() is None:
-            pass
-        elif isinstance(self.child(), Node):
-            self.child().traverse_up(f)
-        else:
-            for c in self.child():
-                c.traverse_up(f)
+    def traverse_up(self, f: Callable[[T], T]) -> T:
+        self.children = [c.traverse_up(f) for c in self.children]
         f(self)
+        return self
 
     def clone(self) -> "Node":
-        # TODO:
         return self
 
 
 class LeafNode(Node):
     def __init__(self, **resource_args):
-        super().__init__(**resource_args)
+        super().__init__([], **resource_args)
 
     def __str__(self, **resource_args):
         return "leaf"
 
-    def child(self) -> Union[None, "Node", List["Node"]]:
-        return None
-
 
 class UnaryNode(Node):
     def __init__(self, child: Node, **resource_args):
-        super().__init__(**resource_args)
-        self._child = child
+        super().__init__([child], **resource_args)
 
     def __str__(self):
         return "unary"
 
-    def child(self) -> Optional["Node"]:
-        return self._child
+    def child(self) -> Node:
+        return self.children[0]
 
 
-class Scan(LeafNode):
+class SingleThreadUser:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+class NonGPUUser:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+class Scan(SingleThreadUser, NonGPUUser, LeafNode):
     def __init__(self, **resource_args):
         super().__init__(**resource_args)
 
@@ -87,7 +80,7 @@ class Transform(UnaryNode):
         return "transform"
 
 
-class Write(UnaryNode):
+class Write(SingleThreadUser, NonGPUUser, UnaryNode):
     def __init__(self, child: Node, **resource_args):
         super().__init__(child, **resource_args)
 

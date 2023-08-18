@@ -3,7 +3,7 @@ from sycamore.execution import Node
 from sycamore.execution.scans import BinaryScan
 from sycamore.execution.transforms import (
     SentenceTransformerEmbedding, FlatMap, Map, MapBatch,
-    UnstructuredPartition)
+    UnstructuredPartition, PdfPartitionerOptions)
 
 
 class TestDocSet:
@@ -12,7 +12,7 @@ class TestDocSet:
         context = mocker.Mock(spec=Context)
         scan = mocker.Mock(spec=BinaryScan)
         docset = DocSet(context, scan)
-        docset = docset.unstructured_partition(col_name="bytes")
+        docset = docset.unstructured_partition(PdfPartitionerOptions())
         assert (isinstance(docset.lineage(), UnstructuredPartition))
 
     def test_sentence_transformer_embedding(self, mocker):

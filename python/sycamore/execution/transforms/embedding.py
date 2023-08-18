@@ -1,6 +1,8 @@
 from typing import Dict
+import math
 
 import numpy as np
+import ray
 from ray.data import (ActorPoolStrategy, Dataset)
 from sentence_transformers import SentenceTransformer
 
@@ -8,6 +10,7 @@ from sycamore.execution import (Node, Transform)
 
 
 class SentenceTransformerEmbedding(Transform):
+    """Embedding based on HuggingFace Sentence Transformer"""
     def __init__(
             self,
             child: Node,
@@ -18,7 +21,11 @@ class SentenceTransformerEmbedding(Transform):
         super().__init__(child, **resource_args)
         self.type = type
         self.model_name = model_name
-        self.device = device
+        if device is None:
+            import torch.cuda
+            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        else:
+            self.device = device
         self.batch_size = batch_size
 
     class SentenceTransformer:
@@ -43,14 +50,33 @@ class SentenceTransformerEmbedding(Transform):
 
     def execute(self) -> "Dataset":
         dataset = self.child().execute()
-        block_count = dataset.num_blocks()
-        output = dataset.map_batches(
-            SentenceTransformerEmbedding.SentenceTransformer,
-            batch_size=self.batch_size,
-            compute=ActorPoolStrategy(min_size=1, max_size=block_count),
-            fn_constructor_kwargs={
-                'model_name': self.model_name,
-                'batch_size': self.batch_size,
-                'device': self.device},
-            **self.resource_args)
+
+        if self.device == "cuda":
+            gpus = ray.available_resources().get("GPU")
+            if "num_gpus" not in self.resource_args or \
+                    self.resource_args["num_gpus"] <= 0:
+                raise RuntimeError("Invalid GPU Nums!")
+            gpu_per_task = self.resource_args["num_gpus"]
+
+            output = dataset.map_batches(
+                SentenceTransformerEmbedding.SentenceTransformer,
+                batch_size=self.batch_size,
+                compute=ActorPoolStrategy(
+                    min_size=1, max_size=math.ceil(gpus/gpu_per_task)),
+                fn_constructor_kwargs={
+                    'model_name': self.model_name,
+                    'batch_size': self.batch_size,
+                    'device': self.device},
+                num_gpus=gpu_per_task,
+                **self.resource_args)
+        else:
+            # in case of no gpu required, we use tasks to make it easier
+            # to be fusible
+            embedder = self.SentenceTransformer(
+                self.model_name, self.batch_size)
+            output = dataset.map_batches(
+                embedder.__call__,
+                batch_size=self.batch_size,
+                **self.resource_args)
+
         return output

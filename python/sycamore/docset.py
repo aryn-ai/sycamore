@@ -1,5 +1,5 @@
 import logging
-from typing import (Callable, List)
+from typing import (Callable, List, Dict, Optional)
 
 from pyarrow import Schema
 
@@ -158,6 +158,25 @@ class DocSet:
             device=device,
             **resource_args)
         return DocSet(self.context, embedding)
+
+    def llm_entity_extract(self,
+                           *,
+                           entities_to_extract: Dict,
+                           num_of_elements: int,
+                           model_name: str,
+                           model_args: Optional[Dict] = None,
+                           **kwargs
+                           ) -> "DocSet":
+        from sycamore.execution.transforms import LLMEntityExtraction
+        entities = LLMEntityExtraction(
+            self.plan,
+            entities_to_extract=entities_to_extract,
+            num_of_elements=num_of_elements,
+            model_name=model_name,
+            model_args=model_args,
+            **kwargs
+        )
+        return DocSet(self.context, entities)
 
     def map(self, f: Callable[[Document], Document]) -> "DocSet":
         from sycamore.execution.transforms.mapping import Map

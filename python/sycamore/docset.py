@@ -58,7 +58,7 @@ class DocSet:
         ])
 
     def unstructured_partition(self, **kwargs) -> "DocSet":
-        """Partition pdf using unstructured library
+        """Partition document using unstructured library
         Returns: DocSet
         Each Document has schema like below
         {

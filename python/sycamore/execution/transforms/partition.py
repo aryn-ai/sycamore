@@ -54,10 +54,10 @@ class PdfPartitioner(Partitioner):
 
 
 class UnstructuredPartition(Transform):
-    def __init__(self, child: Node, **kwargs):
+    def __init__(self, child: Node, partitioner: Partitioner = None, **kwargs):
         super().__init__(child)
         self._kwargs = kwargs
-        self.partitioner = None
+        self.partitioner = partitioner
 
     def execute(self) -> "Dataset":
         # TODO, apply rule to bind partitioner dynamically during rewriting

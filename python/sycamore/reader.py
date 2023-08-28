@@ -20,6 +20,15 @@ class DocSetReader:
         scan = BinaryScan(paths, binary_format=binary_format)
         return DocSet(self._context, scan)
 
+    def text(
+            self,
+            paths: Union[str, List[str]],
+            text_file_format: str,
+            text_encoding: str = "utf-8"
+            ) -> DocSet:
+        scan = BinaryScan(paths, as_text=True, text_encoding=text_encoding, binary_format=text_file_format)
+        return DocSet(self._context, scan)
+
     def arrow(
             self,
             tables: Union["Table", bytes, List[Union["Table", bytes]]]) \

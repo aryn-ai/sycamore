@@ -62,7 +62,38 @@ class Element(UserDict):
         return self.data
 
 
+class TableElement(Element):
+    def __init__(self, element=None, title: str = None, columns: List[str] = None, rows: List[Any] = None, **kwargs):
+        super().__init__(element, **kwargs)
+        self.data["type"] = "table"
+        self.data["properties"]["title"] = title
+        self.data["properties"]["columns"] = columns
+        self.data["properties"]["rows"] = rows
+
+    @property
+    def type(self) -> Optional[str]:
+        return "table"
+
+    @property
+    def rows(self) -> Optional[List[Any]]:
+        return self.data["properties"]["rows"]
+
+    @rows.setter
+    def rows(self, rows: List[Any] = None) -> None:
+        self.data["properties"]["rows"] = rows
+
+    @property
+    def columns(self) -> Optional[List[str]]:
+        return self.data["properties"]["columns"]
+
+    @columns.setter
+    def columns(self, columns: List[str] = None) -> None:
+        self.data["properties"]["columns"] = columns
+
+
 class Document(UserDict):
+    SERIALIZABLE_KEYS = []
+
     def __init__(self, document=None, /, **kwargs):
         super().__init__(document, **kwargs)
         default = {
@@ -130,6 +161,11 @@ class Document(UserDict):
     @property
     def elements(self) -> Optional[List[Element]]:
         return self.data["elements"]["array"]
+
+    @elements.setter
+    def elements(self, elements: List[Element]):
+
+        self.data["elements"] = {"array": elements}
 
     @elements.deleter
     def elements(self) -> None:

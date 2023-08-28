@@ -40,18 +40,22 @@ class BinaryScan(FileScan):
             *,
             binary_format: str,
             parallelism: Optional[int] = None,
+            as_text: bool = False,
+            text_encoding: str = "utf-8",
             **resource_args):
         super().__init__(paths, parallelism=parallelism, **resource_args)
         self._paths = paths
         self.parallelism = -1 if parallelism is None else parallelism
         self._binary_format = binary_format
+        self._as_text = as_text
+        self._text_encoding = text_encoding
 
     def _to_document(self, dict: Dict[str, Any]) -> Dict[str, Any]:
         document = Document()
         import uuid
         document.doc_id = str(uuid.uuid1())
         document.type = self._binary_format
-        document.content = dict["bytes"]
+        document.content = dict["bytes"].decode(self._text_encoding) if self._as_text else dict["bytes"]
         document.properties.update({"path": dict["path"]})
         return document.data
 
@@ -69,6 +73,8 @@ class BinaryScan(FileScan):
         return self._binary_format
 
 
+
+
 class JsonScan(FileScan):
     def __init__(
             self,
@@ -78,6 +84,7 @@ class JsonScan(FileScan):
             **resource_args):
         super().__init__(
             paths, parallelism=parallelism, **resource_args)
+        self.parallelism = -1 if parallelism is None else parallelism
 
     def execute(self) -> "Dataset":
         json = read_json(

@@ -5,6 +5,7 @@ from opensearchpy import OpenSearch
 from opensearchpy.helpers import parallel_bulk
 from ray.data import Datasource, Dataset
 from ray.data._internal.delegating_block_builder import DelegatingBlockBuilder
+from ray.data._internal.execution.interfaces import TaskContext
 from ray.data.block import Block, BlockAccessor
 from ray.data.datasource import WriteResult
 
@@ -62,7 +63,7 @@ class OpenSearchWriter(Write):
 class OSDataSource(Datasource):
 
     def write(
-            self, blocks: Iterable[Block], **write_args) -> WriteResult:
+            self, blocks: Iterable[Block], ctx: TaskContext, **write_args) -> WriteResult:
 
         builder = DelegatingBlockBuilder()
         for block in blocks:
@@ -87,6 +88,7 @@ class OSDataSource(Datasource):
 
         def create_actions():
             for i, row in enumerate(block):
+                row.pop("content")
                 action = {
                     "_index": index_name,
                     "_id": i,

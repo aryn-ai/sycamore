@@ -3,6 +3,7 @@ from typing import Callable
 import pytest
 from ray.data import Dataset
 
+from sycamore.execution.transforms.html.html_partitioner import HtmlPartitioner
 from sycamore.execution.scans import BinaryScan
 from sycamore.execution.transforms import UnstructuredPartition
 from sycamore.execution.transforms.partition import \
@@ -56,6 +57,7 @@ class TestPartition:
         document = partitioner.partition(read_local_binary)
         assert (len(document["elements"]["array"]) == partition_count)
 
+
     @pytest.mark.parametrize(
         "path, partition_count",
         [(TEST_DIR / "resources/data/pdfs/Transformer.pdf", 254)])
@@ -66,6 +68,20 @@ class TestPartition:
             lambda: BinaryScan(path, binary_format="pdf").execute()
         mocker.patch.object(scan, "execute", execute)
         partition.partitioner = PdfPartitioner()
+        docset = partition.execute()
+        doc = docset.take(limit=1)[0]
+        assert (len(doc["elements"]["array"]) == partition_count)
+
+    @pytest.mark.parametrize(
+        "path, partition_count",
+        [(TEST_DIR / "resources/data/htmls/wikipedia_binary_search.html", 583)])
+    def test_partition_html(self, mocker, path, partition_count):
+        scan = mocker.Mock(spec=BinaryScan)
+        partition = UnstructuredPartition(scan)
+        execute: Callable[[], Dataset] = \
+            lambda: BinaryScan(path, binary_format="html").execute()
+        mocker.patch.object(scan, "execute", execute)
+        partition.partitioner = HtmlPartitioner()
         docset = partition.execute()
         doc = docset.take(limit=1)[0]
         assert (len(doc["elements"]["array"]) == partition_count)

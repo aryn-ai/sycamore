@@ -1,9 +1,13 @@
 import logging
-from typing import (Callable, List)
+from typing import Callable, List, Dict, Optional, Union
 
+from data import Element
+from execution.transforms.entity import EntityExtractor
+from execution.transforms.llms import LLM
 from sycamore import Context
 from sycamore.data import Document
 from sycamore.execution import Node
+from sycamore.execution.transforms import LLMExtractEntity
 from sycamore.execution.transforms import PartitionerOptions
 from sycamore.writer import DocSetWriter
 
@@ -133,6 +137,29 @@ class DocSet:
             device=device,
             **resource_args)
         return DocSet(self.context, embedding)
+
+    def llm_extract_entity(
+        self,
+        *,
+        entity_to_extract: Union[str, Dict],
+        num_of_elements: int = 10,
+        llm: LLM,
+        prompt_template: str = None,
+        prompt_formatter: Callable[[List[Element]], str] = None,
+        entity_extractor: Optional[EntityExtractor] = None,
+        **kwargs
+    ) -> "DocSet":
+        entities = LLMExtractEntity(
+            self.plan,
+            entity_to_extract=entity_to_extract,
+            num_of_elements=num_of_elements,
+            llm=llm,
+            prompt_template=prompt_template,
+            prompt_formatter=prompt_formatter,
+            entity_extractor=entity_extractor,
+            **kwargs
+        )
+        return DocSet(self.context, entities)
 
     def map(self, f: Callable[[Document], Document]) -> "DocSet":
         from sycamore.execution.transforms.mapping import Map

@@ -73,12 +73,12 @@ class HtmlPartitioner(Partitioner):
                 table_element = TableElement()
 
                 # find headers if they exist
-                headers = soup.findAll("th")
+                headers = table.findAll("th")
                 if len(headers) > 0:
                     table_element.columns = [tag.text for tag in headers]
 
                 # parse all rows, use all text as content
-                rows = soup.findAll("tr")
+                rows = table.findAll("tr")
                 table_element.rows = []
                 for row in rows:
                     cols = row.findAll("td")

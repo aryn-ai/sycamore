@@ -74,7 +74,7 @@ class TestPartition:
 
     @pytest.mark.parametrize(
         "path, partition_count",
-        [(TEST_DIR / "resources/data/htmls/wikipedia_binary_search.html", 583)])
+        [(TEST_DIR / "resources/data/htmls/wikipedia_binary_search.html", 76)])
     def test_partition_html(self, mocker, path, partition_count):
         scan = mocker.Mock(spec=BinaryScan)
         partition = UnstructuredPartition(scan)

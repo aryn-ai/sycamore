@@ -92,7 +92,6 @@ class TableElement(Element):
 
 
 class Document(UserDict):
-    SERIALIZABLE_KEYS = []
 
     def __init__(self, document=None, /, **kwargs):
         super().__init__(document, **kwargs)

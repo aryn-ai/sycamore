@@ -62,6 +62,25 @@ class OpenSearchWriter(Write):
 
 class OSDataSource(Datasource):
 
+    # todo: make this type specific to extract properties
+    @staticmethod
+    def extract_os_document(data):
+        result = dict()
+        default = {
+            "doc_id": None,
+            "type": None,
+            "elements": {"array": []},
+            "embedding": None,
+            "parent_id": None,
+            "properties": {}
+        }
+        for k, v in default.items():
+            if k in data:
+                result[k] = data[k]
+            else:
+                result[k] = v
+        return result
+
     def write(
             self, blocks: Iterable[Block], ctx: TaskContext, **write_args) -> WriteResult:
 
@@ -88,11 +107,11 @@ class OSDataSource(Datasource):
 
         def create_actions():
             for i, row in enumerate(block):
-                row.pop("content")
+
                 action = {
                     "_index": index_name,
                     "_id": i,
-                    "_source": row
+                    "_source": OSDataSource.extract_os_document(row)
                 }
                 yield action
 

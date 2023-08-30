@@ -131,6 +131,10 @@ class Document(UserDict):
     def elements(self) -> Optional[List[Element]]:
         return self.data["elements"]["array"]
 
+    @elements.setter
+    def elements(self, elements: List[Element]):
+        self.data["elements"] = {"array": elements}
+
     @elements.deleter
     def elements(self) -> None:
         self.data["elements"] = {"array": []}

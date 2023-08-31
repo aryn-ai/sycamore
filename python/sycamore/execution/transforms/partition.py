@@ -17,6 +17,7 @@ class Partitioner:
         element = Element()
         element.type = dict.pop("type")
         element.content = dict.pop("text")
+        element.searchable_text = element.content
         element.properties.update(dict.pop("metadata"))
         element.properties.update(dict)
         return element
@@ -75,14 +76,6 @@ class HtmlPartitioner(Partitioner):
         self._tokenizer = tokenizer
         self._unresolved = kwargs
 
-    @staticmethod
-    def to_element(dict: Dict[str, Any]) -> Element:
-        element = Element()
-        element.type = dict.pop("type")
-        element.content = dict.pop("text")
-        element.properties.update(dict.pop("metadata"))
-        element.properties.update(dict)
-        return element
 
     def partition(self, dict: Dict[str, Any]) -> Dict[str, Any]:
         document = Document(dict)
@@ -103,9 +96,11 @@ class HtmlPartitioner(Partitioner):
         text = soup.get_text()
         tokens = self._tokenizer.tokenize(text)
         for chunk in self._text_chunker.chunk(tokens):
+            content = "".join(chunk)
             element = Element()
             element.type = "text"
-            element.content = "".join(chunk)
+            element.content = content
+            element.searchable_text = content
             elements += [element]
         document.elements.extend(elements)
 
@@ -122,6 +117,8 @@ class HtmlPartitioner(Partitioner):
                 headers = table.findAll("th")
                 if len(headers) > 0:
                     table_element.columns = [tag.text for tag in headers]
+
+                table_element.searchable_text = table.text
 
                 # parse all rows, use all text as content
                 rows = table.findAll("tr")

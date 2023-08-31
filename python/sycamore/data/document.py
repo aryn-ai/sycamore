@@ -7,6 +7,7 @@ class Element(UserDict):
         super().__init__(element, **kwargs)
         default = {
             "type": None,
+            "searchable_text": None,
             "content": {
                 "binary": None,
                 "text": None,
@@ -30,6 +31,14 @@ class Element(UserDict):
     @type.setter
     def type(self, value: str) -> None:
         self.data["type"] = value
+
+    @property
+    def searchable_text(self) -> Optional[str]:
+        return self.data["searchable_text"]
+
+    @searchable_text.setter
+    def searchable_text(self, value: str) -> None:
+        self.data["searchable_text"] = value
 
     @property
     def content(self) -> Union[None, bytes, str]:
@@ -98,6 +107,7 @@ class Document(UserDict):
         default = {
             "doc_id": None,
             "type": None,
+            "searchable_text": None,
             "content": {
                 "binary": None,
                 "text": None,
@@ -136,6 +146,14 @@ class Document(UserDict):
     @type.setter
     def type(self, value: str) -> None:
         self.data["type"] = value
+
+    @property
+    def searchable_text(self) -> Optional[str]:
+        return self.data["searchable_text"]
+
+    @searchable_text.setter
+    def searchable_text(self, value: str) -> None:
+        self.data["searchable_text"] = value
 
     @property
     def content(self) -> Union[None, bytes, str]:

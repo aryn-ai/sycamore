@@ -57,7 +57,7 @@ class DocSet:
             ('properties', pa.map_(pa.string(), pa.string()))
         ])
 
-    def unstructured_partition(self, **kwargs) -> "DocSet":
+    def partition(self, **kwargs) -> "DocSet":
         """Partition document using unstructured library
         Returns: DocSet
         Each Document has schema like below
@@ -79,8 +79,8 @@ class DocSet:
         }
         """
         from sycamore.execution.transforms.partition import \
-            UnstructuredPartition
-        plan = UnstructuredPartition(self.plan, **kwargs)
+            Partition
+        plan = Partition(self.plan, **kwargs)
         return DocSet(self.context, plan)
 
     def explode(self):

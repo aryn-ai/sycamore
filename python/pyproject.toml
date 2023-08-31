@@ -15,7 +15,7 @@ ray = "2.6.3"
 sentence-transformers = "2.2.2"
 pyarrow = "12.0.1"
 unstructured = "0.8.0"
-bs4 = "^0.0.1"
+beautifulsoup4 = "^4.12.2"
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"
 pytest = "7.4.0"

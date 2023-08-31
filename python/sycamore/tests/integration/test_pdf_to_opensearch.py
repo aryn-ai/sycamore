@@ -42,7 +42,7 @@ def test_pdf_to_opensearch():
     paths = str(TEST_DIR / "resources/data/pdfs/")
     context = sycamore.init()
     ds = context.read.binary(paths, binary_format="pdf") \
-        .unstructured_partition(max_partition=256) \
+        .partition(max_partition=256) \
         .explode() \
         .sentence_transformer_embed(
         batch_size=100,

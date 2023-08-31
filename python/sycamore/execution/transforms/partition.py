@@ -1,8 +1,12 @@
 import io
 from typing import (Any, Dict, Optional)
 
+from bs4 import BeautifulSoup
 from ray.data import Dataset
 
+from sycamore.execution.transforms.chunker.chunker import TokenOverlapChunker, Chunker
+from sycamore.execution.transforms.tokenizer.tokenizer import CharacterTokenizer, Tokenizer
+from sycamore.data.document import TableElement
 from sycamore.data import (Document, Element)
 from sycamore.execution import (Node, Transform)
 
@@ -53,7 +57,87 @@ class PdfPartitioner(Partitioner):
         return document.to_dict()
 
 
-class UnstructuredPartition(Transform):
+class HtmlPartitioner(Partitioner):
+    def __init__(
+            self,
+            include_page_breaks: bool = False,
+            skip_headers_and_footers: bool = True,
+            include_metadata: bool = False,
+            extract_tables: bool = False,
+            text_chunker: Chunker = TokenOverlapChunker(),
+            tokenizer: Tokenizer = CharacterTokenizer(),
+            **kwargs):
+        self._include_page_breaks = include_page_breaks
+        self._skip_headers_and_footers = skip_headers_and_footers
+        self._include_metadata = include_metadata
+        self._extract_tables = extract_tables
+        self._text_chunker = text_chunker
+        self._tokenizer = tokenizer
+        self._unresolved = kwargs
+
+    @staticmethod
+    def to_element(dict: Dict[str, Any]) -> Element:
+        element = Element()
+        element.type = dict.pop("type")
+        element.content = dict.pop("text")
+        element.properties.update(dict.pop("metadata"))
+        element.properties.update(dict)
+        return element
+
+    def partition(self, dict: Dict[str, Any]) -> Dict[str, Any]:
+        document = Document(dict)
+        raw_html = document.content
+
+        # note: if content is bytes, BeautifulSoup default to utf-8 encoding
+        soup = BeautifulSoup(raw_html, 'html.parser')
+
+        # extract title
+        titles = soup.find_all("title")
+        title = document["doc_id"]
+        if len(titles) > 0:
+            title = titles[0].text.replace("\n", "").strip()
+        document.properties["title"] = title
+
+        # chunk text and create text elements
+        elements = []
+        text = soup.get_text()
+        tokens = self._tokenizer.tokenize(text)
+        for chunk in self._text_chunker.chunk(tokens):
+            element = Element()
+            element.type = "text"
+            element.content = "".join(chunk)
+            elements += [element]
+        document.elements.extend(elements)
+
+        # extract tables
+        if self._extract_tables:
+            for table in soup.find_all("table"):
+                # ignore nested tables
+                if len(table.find_all("table")) > 0:
+                    continue
+
+                table_element = TableElement()
+
+                # find headers if they exist
+                headers = table.findAll("th")
+                if len(headers) > 0:
+                    table_element.columns = [tag.text for tag in headers]
+
+                # parse all rows, use all text as content
+                rows = table.findAll("tr")
+                table_element.rows = []
+                for row in rows:
+                    cols = row.findAll("td")
+                    if len(cols) > 0:
+                        row_vals = [tag.text for tag in cols]
+                        table_element.rows += [row_vals]
+
+                document.elements.extend([table_element])
+
+        return document.to_dict()
+
+
+class Partition(Transform):
     def __init__(self, child: Node, partitioner: Partitioner = None, **kwargs):
         super().__init__(child)
         self._kwargs = kwargs

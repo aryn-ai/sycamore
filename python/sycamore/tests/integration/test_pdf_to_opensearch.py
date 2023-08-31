@@ -1,5 +1,4 @@
 import sycamore
-from execution.functions import reorder_elements
 from sycamore.tests.config import TEST_DIR
 
 
@@ -40,7 +39,6 @@ def test_pdf_to_opensearch():
     ds = (
         context.read.binary(paths, binary_format="pdf")
         .unstructured_partition(max_partition=256)
-        .map(reorder_elements)
         .explode()
         .sentence_transformer_embed(
             batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2"

@@ -4,8 +4,8 @@ from typing import (Any, Dict, Optional)
 from bs4 import BeautifulSoup
 from ray.data import Dataset
 
-from sycamore.execution.transforms.chunker.chunker import TokenOverlapChunker, Chunker
-from sycamore.execution.transforms.tokenizer.tokenizer import CharacterTokenizer, Tokenizer
+from sycamore.execution.functions.chunker import TokenOverlapChunker, Chunker
+from sycamore.execution.functions.tokenizer import CharacterTokenizer, Tokenizer
 from sycamore.data.document import TableElement
 from sycamore.data import (Document, Element)
 from sycamore.execution import (Node, Transform)

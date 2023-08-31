@@ -1,6 +1,6 @@
 import pytest
 
-from sycamore.execution.transforms.chunker.chunker import TokenOverlapChunker
+from sycamore.execution.functions.chunker import TokenOverlapChunker
 
 
 class TestTokenOverlapChunker:

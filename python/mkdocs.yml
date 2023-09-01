@@ -1,0 +1,12 @@
+site_name: Sycamore
+
+theme:
+  name: "material"
+
+plugins:
+  - mkdocstrings
+
+nav:
+  - Introduction: index.md
+  - Concepts.md
+  - APIs.md

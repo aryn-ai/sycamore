@@ -7,15 +7,14 @@ from execution.transforms.llms import LLM
 from sycamore import Context
 from sycamore.data import Document
 from sycamore.execution import Node
-from sycamore.execution.transforms import LLMExtractEntity
-from sycamore.execution.transforms import PartitionerOptions
+from sycamore.execution.transforms import LLMExtractEntity, PartitionerOptions
 from sycamore.writer import DocSetWriter
 
 logger = logging.getLogger(__name__)
 
 
 class DocSet:
-    """DocFrame is a distributed computation framework for Documents."""
+    """DocSet is a distributed computation framework for Documents."""
 
     def __init__(self, context: Context, plan: Node):
         self.context = context
@@ -30,13 +29,15 @@ class DocSet:
 
     def show(self, limit: int = 20) -> None:
         from sycamore import Execution
+
         execution = Execution(self.context, self.plan)
         dataset = execution.execute(self.plan)
         for row in dataset.take(limit):
             print(row)
 
     def unstructured_partition(
-            self, options: PartitionerOptions, **resource_args) -> "DocSet":
+            self, options: PartitionerOptions, **resource_args
+    ) -> "DocSet":
         """Partition pdf using unstructured library
         Returns: DocSet
         Each Document has schema like below
@@ -59,6 +60,7 @@ class DocSet:
         """
         from sycamore.execution.transforms.partition import \
             UnstructuredPartition
+
         plan = UnstructuredPartition(self.plan, options, **resource_args)
         return DocSet(self.context, plan)
 
@@ -86,6 +88,7 @@ class DocSet:
          "doc_id": uuid-6, "parent_id": uuid}
         """
         from sycamore.execution.transforms.explode import Explode
+
         explode = Explode(self.plan, **resource_args)
         return DocSet(self.context, explode)
 
@@ -95,7 +98,8 @@ class DocSet:
             model_name: str,
             batch_size: int = None,
             device: str = None,
-            **resource_args) -> "DocSet":
+            **resource_args
+    ) -> "DocSet":
         """Embed using HuggingFace sentence transformer
 
         Args:
@@ -130,24 +134,26 @@ class DocSet:
           "embedding": {"binary": xxx, "text": "xxx"}}
         """
         from sycamore.execution.transforms import SentenceTransformerEmbedding
+
         embedding = SentenceTransformerEmbedding(
             self.plan,
             model_name=model_name,
             batch_size=batch_size,
             device=device,
-            **resource_args)
+            **resource_args
+        )
         return DocSet(self.context, embedding)
 
     def llm_extract_entity(
-        self,
-        *,
-        entity_to_extract: Union[str, Dict],
-        num_of_elements: int = 10,
-        llm: LLM,
-        prompt_template: str = None,
-        prompt_formatter: Callable[[List[Element]], str] = None,
-        entity_extractor: Optional[EntityExtractor] = None,
-        **kwargs
+            self,
+            *,
+            entity_to_extract: Union[str, Dict],
+            num_of_elements: int = 10,
+            llm: LLM,
+            prompt_template: str = None,
+            prompt_formatter: Callable[[List[Element]], str] = None,
+            entity_extractor: Optional[EntityExtractor] = None,
+            **kwargs
     ) -> "DocSet":
         entities = LLMExtractEntity(
             self.plan,
@@ -163,22 +169,22 @@ class DocSet:
 
     def map(self, f: Callable[[Document], Document]) -> "DocSet":
         from sycamore.execution.transforms.mapping import Map
+
         mapping = Map(self.plan, f=f)
         return DocSet(self.context, mapping)
 
-    def flat_map(
-            self,
-            f: Callable[[Document], List[Document]],
-            **kwargs) -> "DocSet":
+    def flat_map(self, f: Callable[[Document], List[Document]],
+                 **kwargs) -> "DocSet":
         from sycamore.execution.transforms.mapping import FlatMap
+
         flat_map = FlatMap(self.plan, f=f, **kwargs)
         return DocSet(self.context, flat_map)
 
     def map_batch(
-            self,
-            f: Callable[[List[Document]], List[Document]],
-            **kwargs) -> "DocSet":
+            self, f: Callable[[List[Document]], List[Document]], **kwargs
+    ) -> "DocSet":
         from sycamore.execution.transforms.mapping import MapBatch
+
         map_batch = MapBatch(self.plan, f=f, **kwargs)
         return DocSet(self.context, map_batch)
 

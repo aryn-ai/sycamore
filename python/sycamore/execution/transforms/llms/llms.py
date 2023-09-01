@@ -15,20 +15,8 @@ class OpenAIModels(Enum):
 
 
 class LLM(ABC):
-    def __init__(self, model_name, api_key=None, **kwargs):
-        if api_key is None:
-            api_key = os.environ.get("OPENAI_API_KEY", None)
-
-        assert api_key is not None, (
-            "You must provide an API key to "
-            "use the LLM. Either pass it in "
-            "the constructor or set the "
-            "OPENAI_API_KEY environment "
-            "variable."
-        )
-
+    def __init__(self, model_name, **kwargs):
         self._model_name = model_name
-        self._api_key = api_key
         self._kwargs = kwargs
 
     @abstractmethod
@@ -42,7 +30,18 @@ class LLM(ABC):
 
 class OpenAI(LLM):
     def __init__(self, model_name, api_key=None, **kwargs):
-        super().__init__(model_name, api_key, **kwargs)
+        super().__init__(model_name, **kwargs)
+        if api_key is None:
+            api_key = os.environ.get("OPENAI_API_KEY", None)
+
+        assert api_key is not None, (
+            "You must provide an API key to "
+            "use the LLM. Either pass it in "
+            "the constructor or set the "
+            "OPENAI_API_KEY environment "
+            "variable."
+        )
+        self._api_key = api_key
 
     def generate(self, *, prompt_kwargs: Dict, llm_kwargs: Dict = None) -> Any:
         if llm_kwargs is not None:

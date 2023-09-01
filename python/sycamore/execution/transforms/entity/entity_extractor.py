@@ -7,19 +7,9 @@ from execution.transforms.llms import LLM
 
 
 class EntityExtractor(ABC):
-    def __init__(
-        self,
-        entity_to_extract: Union[str, Dict],
-        num_of_elements: int,
-        llm_model: LLM,
-        prompt_template: str,
-        prompt_formatter: Callable[[List[Element]], str],
-    ):
+    def __init__(self, entity_to_extract: Union[str, Dict], llm_model: LLM):
         self._entity_to_extract = entity_to_extract
-        self._num_of_elements = num_of_elements
         self._model = llm_model
-        self._prompt_template = prompt_template
-        self._prompt_formatter = prompt_formatter
 
     @abstractmethod
     def extract_entity(self, record: Dict[str, Any]) -> Dict[str, Any]:
@@ -28,20 +18,20 @@ class EntityExtractor(ABC):
 
 class OpenAIEntityExtractor(EntityExtractor):
     def __init__(
-        self,
-        entity_to_extract: Union[str, Dict],
-        num_of_elements: int,
-        llm_model: LLM,
-        prompt_template: str,
-        prompt_formatter: Callable[[List[Element]], str],
+            self,
+            entity_to_extract: Union[str, Dict],
+            llm_model: LLM,
+            num_of_elements: int,
+            prompt_template: str,
+            prompt_formatter: Callable[[List[Element]], str],
     ):
         super().__init__(
             entity_to_extract,
-            num_of_elements,
             llm_model,
-            prompt_template,
-            prompt_formatter,
         )
+        self._num_of_elements = num_of_elements
+        self._prompt_template = prompt_template
+        self._prompt_formatter = prompt_formatter
 
     def extract_entity(self, record: Dict[str, Any]) -> Dict[str, Any]:
         document = Document(record)
@@ -59,7 +49,8 @@ class OpenAIEntityExtractor(EntityExtractor):
         return document.to_dict()
 
     def _handle_few_shot_prompting(self, document: Document) -> Any:
-        sub_elements = [document.elements[i] for i in range(self._num_of_elements)]
+        sub_elements = [document.elements[i] for i in
+                        range(self._num_of_elements)]
 
         if self._model.is_chat_mode():
             prompt = """
@@ -124,7 +115,8 @@ class OpenAIEntityExtractor(EntityExtractor):
 
     def _get_entity_extraction_function(self) -> Dict:
         def _convert_schema(schema: dict) -> dict:
-            props = {k: {"title": k, **v} for k, v in schema["entities"].items()}
+            props = {k: {"title": k, **v} for k, v in
+                     schema["entities"].items()}
             return {
                 "type": "object",
                 "properties": props,
@@ -147,4 +139,5 @@ class OpenAIEntityExtractor(EntityExtractor):
         }
 
     def _get_llm_kwargs(self, function: Dict) -> Dict:
-        return {"functions": [function], "function_call": {"name": function["name"]}}
+        return {"functions": [function],
+                "function_call": {"name": function["name"]}}

@@ -3,11 +3,11 @@ from typing import Callable
 import pytest
 from ray.data import Dataset
 
-from sycamore.execution.transforms.partition import HtmlPartitioner
+from sycamore.execution.transforms.partition import HtmlPartitioner, HtmlPartitionerOptions
 from sycamore.execution.scans import BinaryScan
 from sycamore.execution.transforms import Partition
 from sycamore.execution.transforms.partition import \
-    (Partitioner, PdfPartitioner)
+    (Partitioner, PdfPartitioner, PdfPartitionerOptions)
 from sycamore.tests.config import TEST_DIR
 
 
@@ -49,7 +49,7 @@ class TestPartition:
 
     @pytest.mark.parametrize(
         "partitioner, read_local_binary, partition_count",
-        [(PdfPartitioner(),
+        [(PdfPartitioner(PdfPartitionerOptions()),
           TEST_DIR / "resources/data/pdfs/Transformer.pdf", 254)],
         indirect=["read_local_binary"])
     def test_pdf_partitioner(
@@ -60,7 +60,7 @@ class TestPartition:
 
     @pytest.mark.parametrize(
         "partitioner, read_local_binary, expected_partition_count",
-        [(HtmlPartitioner(),
+        [(HtmlPartitioner(HtmlPartitionerOptions()),
           TEST_DIR / "resources/data/htmls/wikipedia_binary_search.html", 76)],
         indirect=["read_local_binary"])
     def test_html_partitioner(
@@ -70,7 +70,7 @@ class TestPartition:
 
     @pytest.mark.parametrize(
         "partitioner, read_local_binary, expected_partition_count, expected_table_count",
-        [(HtmlPartitioner(extract_tables=True),
+        [(HtmlPartitioner(HtmlPartitionerOptions(extract_tables=True)),
           TEST_DIR / "resources/data/htmls/wikipedia_binary_search.html", 77, 1)],
         indirect=["read_local_binary"])
     def test_html_partitioner_with_tables(
@@ -88,11 +88,11 @@ class TestPartition:
         [(TEST_DIR / "resources/data/pdfs/Transformer.pdf", 254)])
     def test_partition_pdf(self, mocker, path, partition_count):
         scan = mocker.Mock(spec=BinaryScan)
-        partition = Partition(scan)
+        options = PdfPartitionerOptions()
+        partition = Partition(scan, options)
         execute: Callable[[], Dataset] = \
             lambda: BinaryScan(path, binary_format="pdf").execute()
         mocker.patch.object(scan, "execute", execute)
-        partition.partitioner = PdfPartitioner()
         docset = partition.execute()
         doc = docset.take(limit=1)[0]
         assert (len(doc["elements"]["array"]) == partition_count)
@@ -102,11 +102,11 @@ class TestPartition:
         [(TEST_DIR / "resources/data/htmls/wikipedia_binary_search.html", 76)])
     def test_partition_html(self, mocker, path, partition_count):
         scan = mocker.Mock(spec=BinaryScan)
-        partition = Partition(scan)
+        options = HtmlPartitionerOptions()
+        partition = Partition(scan, options)
         execute: Callable[[], Dataset] = \
             lambda: BinaryScan(path, binary_format="html").execute()
         mocker.patch.object(scan, "execute", execute)
-        partition.partitioner = HtmlPartitioner()
         docset = partition.execute()
         doc = docset.take(limit=1)[0]
         assert (len(doc["elements"]["array"]) == partition_count)

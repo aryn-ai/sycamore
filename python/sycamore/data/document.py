@@ -181,7 +181,6 @@ class Document(UserDict):
 
     @elements.setter
     def elements(self, elements: List[Element]):
-
         self.data["elements"] = {"array": elements}
 
     @elements.deleter

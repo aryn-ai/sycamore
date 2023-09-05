@@ -1,11 +1,13 @@
 import logging
-from typing import (Callable, List)
-
-from pyarrow import Schema
+from typing import Callable, List, Dict, Optional, Union
 
 from sycamore import Context
-from sycamore.data import Document
+from sycamore.data import Document, Element
+from sycamore.execution.transforms.entity import EntityExtractor
+from sycamore.execution.transforms.llms import LLM
 from sycamore.execution import Node
+from sycamore.execution.transforms import LLMExtractEntity
+from sycamore.execution.transforms import PartitionerOptions
 from sycamore.writer import DocSetWriter
 
 logger = logging.getLogger(__name__)
@@ -57,7 +59,7 @@ class DocSet:
             ('properties', pa.map_(pa.string(), pa.string()))
         ])
 
-    def partition(self, **kwargs) -> "DocSet":
+    def partition(self, options: PartitionerOptions, **resource_args) -> "DocSet":
         """Partition document using unstructured library
         Returns: DocSet
         Each Document has schema like below
@@ -78,12 +80,11 @@ class DocSet:
             }
         }
         """
-        from sycamore.execution.transforms.partition import \
-            Partition
-        plan = Partition(self.plan, **kwargs)
+        from sycamore.execution.transforms.partition import Partition
+        plan = Partition(self.plan, options, **resource_args)
         return DocSet(self.context, plan)
 
-    def explode(self):
+    def explode(self, **resource_args):
         """Explode a list column into top level document
 
         To keep document has same schema, a document is
@@ -107,7 +108,7 @@ class DocSet:
          "doc_id": uuid-6, "parent_id": uuid}
         """
         from sycamore.execution.transforms.explode import Explode
-        explode = Explode(self.plan)
+        explode = Explode(self.plan, **resource_args)
         return DocSet(self.context, explode)
 
     def sentence_transformer_embed(
@@ -159,6 +160,29 @@ class DocSet:
             **resource_args)
         return DocSet(self.context, embedding)
 
+    def llm_extract_entity(
+        self,
+        *,
+        entity_to_extract: Union[str, Dict],
+        num_of_elements: int = 10,
+        llm: LLM,
+        prompt_template: str = None,
+        prompt_formatter: Callable[[List[Element]], str] = None,
+        entity_extractor: Optional[EntityExtractor] = None,
+        **kwargs
+    ) -> "DocSet":
+        entities = LLMExtractEntity(
+            self.plan,
+            entity_to_extract=entity_to_extract,
+            num_of_elements=num_of_elements,
+            llm=llm,
+            prompt_template=prompt_template,
+            prompt_formatter=prompt_formatter,
+            entity_extractor=entity_extractor,
+            **kwargs
+        )
+        return DocSet(self.context, entities)
+
     def map(self, f: Callable[[Document], Document]) -> "DocSet":
         from sycamore.execution.transforms.mapping import Map
         mapping = Map(self.plan, f=f)
@@ -181,5 +205,5 @@ class DocSet:
         return DocSet(self.context, map_batch)
 
     @property
-    def write(self) -> DocSetWriter:
-        return DocSetWriter(self.context, self.plan)
+    def write(self, **resource_args) -> DocSetWriter:
+        return DocSetWriter(self.context, self.plan, **resource_args)

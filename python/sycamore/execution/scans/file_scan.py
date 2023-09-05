@@ -63,7 +63,7 @@ class BinaryScan(FileScan):
             parallelism=self.parallelism,
             partition_filter=partition_filter,
             ray_remote_args=self.resource_args)
-        return files.map(self._to_document)
+        return files.map(self._to_document, **self.resource_args)
 
     def format(self):
         return self._binary_format

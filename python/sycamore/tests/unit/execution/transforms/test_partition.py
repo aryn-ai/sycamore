@@ -110,3 +110,4 @@ class TestPartition:
         docset = partition.execute()
         doc = docset.take(limit=1)[0]
         assert (len(doc["elements"]["array"]) == partition_count)
+

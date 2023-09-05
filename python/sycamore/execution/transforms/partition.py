@@ -17,7 +17,7 @@ class Partitioner:
         element = Element()
         element.type = dict.pop("type")
         element.content = dict.pop("text")
-        element.searchable_text = element.content
+        element.text_representation = element.content
         element.properties.update(dict.pop("metadata"))
         element.properties.update(dict)
         return element
@@ -76,9 +76,9 @@ class HtmlPartitioner(Partitioner):
         self._tokenizer = tokenizer
         self._unresolved = kwargs
 
-
     def partition(self, dict: Dict[str, Any]) -> Dict[str, Any]:
         document = Document(dict)
+        properties = document.properties
         raw_html = document.content
 
         # note: if content is bytes, BeautifulSoup default to utf-8 encoding
@@ -100,7 +100,10 @@ class HtmlPartitioner(Partitioner):
             element = Element()
             element.type = "text"
             element.content = content
-            element.searchable_text = content
+            element.text_representation = content
+            if "metadata" in dict:
+                element.properties.update(dict.pop("metadata"))
+            element.properties.update(properties)
             elements += [element]
         document.elements.extend(elements)
 
@@ -118,7 +121,11 @@ class HtmlPartitioner(Partitioner):
                 if len(headers) > 0:
                     table_element.columns = [tag.text for tag in headers]
 
-                table_element.searchable_text = table.text
+                table_element.text_representation = table.text
+                table_element.content = table.text
+                if "metadata" in dict:
+                    table_element.properties.update(dict.pop("metadata"))
+                table_element.properties.update(properties)
 
                 # parse all rows, use all text as content
                 rows = table.findAll("tr")

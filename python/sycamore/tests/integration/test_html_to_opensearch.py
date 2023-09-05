@@ -34,6 +34,9 @@ def test_html_to_opensearch():
                     },
                     "text": {
                         "type": "text"
+                    },
+                    "text_representation": {
+                        "type": "text"
                     }
                 }
             }

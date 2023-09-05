@@ -69,7 +69,7 @@ class OSDataSource(Datasource):
         default = {
             "doc_id": None,
             "type": None,
-            "searchable_text": None,
+            "text_representation": None,
             "elements": {"array": []},
             "embedding": None,
             "parent_id": None,

@@ -7,7 +7,7 @@ class Element(UserDict):
         super().__init__(element, **kwargs)
         default = {
             "type": None,
-            "searchable_text": None,
+            "text_representation": None,
             "content": {
                 "binary": None,
                 "text": None,
@@ -33,12 +33,12 @@ class Element(UserDict):
         self.data["type"] = value
 
     @property
-    def searchable_text(self) -> Optional[str]:
-        return self.data["searchable_text"]
+    def text_representation(self) -> Optional[str]:
+        return self.data["text_representation"]
 
-    @searchable_text.setter
-    def searchable_text(self, value: str) -> None:
-        self.data["searchable_text"] = value
+    @text_representation.setter
+    def text_representation(self, value: str) -> None:
+        self.data["text_representation"] = value
 
     @property
     def content(self) -> Union[None, bytes, str]:
@@ -107,7 +107,7 @@ class Document(UserDict):
         default = {
             "doc_id": None,
             "type": None,
-            "searchable_text": None,
+            "text_representation": None,
             "content": {
                 "binary": None,
                 "text": None,
@@ -148,12 +148,12 @@ class Document(UserDict):
         self.data["type"] = value
 
     @property
-    def searchable_text(self) -> Optional[str]:
-        return self.data["searchable_text"]
+    def text_representation(self) -> Optional[str]:
+        return self.data["text_representation"]
 
-    @searchable_text.setter
-    def searchable_text(self, value: str) -> None:
-        self.data["searchable_text"] = value
+    @text_representation.setter
+    def text_representation(self, value: str) -> None:
+        self.data["text_representation"] = value
 
     @property
     def content(self) -> Union[None, bytes, str]:

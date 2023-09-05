@@ -33,10 +33,9 @@ class SentenceTransformerEmbedding(Transform):
         def __call__(
                 self, doc_batch: Dict[str, np.ndarray]) -> \
                 Dict[str, np.ndarray]:
-            text_batch = doc_batch["content"].tolist()
-            text_list = [text["text"] for text in text_batch]
+            text_batch = doc_batch["text_representation"].tolist()
             embeddings = self._transformer.encode(
-                text_list, batch_size=self._batch_size, device=self._device)
+                text_batch, batch_size=self._batch_size, device=self._device)
             doc_batch.update({"embedding": embeddings.tolist()})
 
             return doc_batch

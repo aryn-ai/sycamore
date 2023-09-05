@@ -36,8 +36,7 @@ class TestEmbedding:
             self, model_name, dimension, texts):
         input_batch = {
             "embedding": None,
-            "content":
-                numpy.array([{"binary": None, "text": text} for text in texts])
+            "text_representation": numpy.array(texts)
         }
 
         embedder = SentenceTransformerEmbedding.SentenceTransformer(model_name)
@@ -54,16 +53,12 @@ class TestEmbedding:
         input_dataset = ray.data.from_items([
             {
                 "doc_id": 1,
-                "content": {
-                    "binary": None,
-                    "text": "Members of a strike at Yale University."},
+                "text_representation": "Members of a strike at Yale University.",
                 "embedding": None
             },
             {
                 "doc_id": 2,
-                "content": {
-                    "binary": None,
-                    "text": "A woman is speaking at a podium outdoors."},
+                "text_representation": "A woman is speaking at a podium outdoors.",
                 "embedding": None
             },
         ])

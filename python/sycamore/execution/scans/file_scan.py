@@ -69,6 +69,8 @@ class BinaryScan(FileScan):
         return self._binary_format
 
 
+
+
 class JsonScan(FileScan):
     def __init__(
             self,
@@ -78,6 +80,7 @@ class JsonScan(FileScan):
             **resource_args):
         super().__init__(
             paths, parallelism=parallelism, **resource_args)
+        self.parallelism = -1 if parallelism is None else parallelism
 
     def execute(self) -> "Dataset":
         json = read_json(

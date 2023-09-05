@@ -1,11 +1,10 @@
 import logging
 from typing import Callable, List, Dict, Optional, Union
 
-from data import Element
-from execution.transforms.entity import EntityExtractor
-from execution.transforms.llms import LLM
 from sycamore import Context
-from sycamore.data import Document
+from sycamore.data import Document, Element
+from sycamore.execution.transforms.entity import EntityExtractor
+from sycamore.execution.transforms.llms import LLM
 from sycamore.execution import Node
 from sycamore.execution.transforms import LLMExtractEntity
 from sycamore.execution.transforms import PartitionerOptions
@@ -35,9 +34,33 @@ class DocSet:
         for row in dataset.take(limit):
             print(row)
 
-    def unstructured_partition(
-            self, options: PartitionerOptions, **resource_args) -> "DocSet":
-        """Partition pdf using unstructured library
+    @staticmethod
+    def schema() -> "Schema":
+        # TODO, enforce schema for document, also properties need to be
+        #   convert to MapType?
+        import pyarrow as pa
+        return pa.schema([
+            ('doc_id', pa.string()),
+            ('type', pa.string()),
+            ('content', pa.struct(
+                [('binary', pa.large_binary()), ('text', pa.large_string())])),
+            ('elements', pa.struct([('array', pa.large_list(pa.struct([
+                ('type', pa.string()),
+                ('content', pa.struct([
+                    'binary', pa.large_binary(),
+                    'text', pa.large_string()
+                ])),
+                ('properties', pa.map_(pa.string(), pa.string()))
+            ])))])),
+            ('embedding', pa.struct(
+                [('binary', pa.large_list(pa.large_list(pa.float64()))),
+                 ('text', pa.large_list(pa.large_list(pa.float64())))])),
+            ('parent_id', pa.string()),
+            ('properties', pa.map_(pa.string(), pa.string()))
+        ])
+
+    def partition(self, options: PartitionerOptions, **resource_args) -> "DocSet":
+        """Partition document using unstructured library
         Returns: DocSet
         Each Document has schema like below
         {
@@ -57,9 +80,8 @@ class DocSet:
             }
         }
         """
-        from sycamore.execution.transforms.partition import \
-            UnstructuredPartition
-        plan = UnstructuredPartition(self.plan, options, **resource_args)
+        from sycamore.execution.transforms.partition import Partition
+        plan = Partition(self.plan, options, **resource_args)
         return DocSet(self.context, plan)
 
     def explode(self, **resource_args):

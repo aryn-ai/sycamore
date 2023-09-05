@@ -2,8 +2,7 @@ from sycamore.execution.transforms.embedding import SentenceTransformerEmbedding
 from sycamore.execution.transforms.entity_extraction import LLMExtractEntity
 from sycamore.execution.transforms.explode import Explode
 from sycamore.execution.transforms.mapping import Map, FlatMap, MapBatch
-from sycamore.execution.transforms.partition import (
-    PartitionerOptions, PdfPartitionerOptions, UnstructuredPartition)
+from sycamore.execution.transforms.partition import Partition, PartitionerOptions, PdfPartitionerOptions
 
 __all__ = [
     "Explode",
@@ -13,6 +12,6 @@ __all__ = [
     "PartitionerOptions",
     "PdfPartitionerOptions",
     "SentenceTransformerEmbedding",
-    "UnstructuredPartition",
+    "Partition",
     "LLMExtractEntity",
 ]

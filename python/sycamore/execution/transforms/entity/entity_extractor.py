@@ -2,8 +2,8 @@ import json
 from abc import ABC, abstractmethod
 from typing import Union, Dict, Any, Callable, List
 
-from data import Element, Document
-from execution.transforms.llms import LLM
+from sycamore.data import Element, Document
+from sycamore.execution.transforms.llms import LLM
 
 
 class EntityExtractor(ABC):

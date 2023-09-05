@@ -5,6 +5,7 @@ from opensearchpy import OpenSearch
 from opensearchpy.helpers import parallel_bulk
 from ray.data import Datasource, Dataset
 from ray.data._internal.delegating_block_builder import DelegatingBlockBuilder
+from ray.data._internal.execution.interfaces import TaskContext
 from ray.data.block import Block, BlockAccessor
 from ray.data.datasource import WriteResult
 
@@ -61,8 +62,28 @@ class OpenSearchWriter(Write):
 
 class OSDataSource(Datasource):
 
+    # todo: make this type specific to extract properties
+    @staticmethod
+    def extract_os_document(data):
+        result = dict()
+        default = {
+            "doc_id": None,
+            "type": None,
+            "text_representation": None,
+            "elements": {"array": []},
+            "embedding": None,
+            "parent_id": None,
+            "properties": {}
+        }
+        for k, v in default.items():
+            if k in data:
+                result[k] = data[k]
+            else:
+                result[k] = v
+        return result
+
     def write(
-            self, blocks: Iterable[Block], **write_args) -> WriteResult:
+            self, blocks: Iterable[Block], ctx: TaskContext, **write_args) -> WriteResult:
 
         builder = DelegatingBlockBuilder()
         for block in blocks:
@@ -87,10 +108,11 @@ class OSDataSource(Datasource):
 
         def create_actions():
             for i, row in enumerate(block):
+
                 action = {
                     "_index": index_name,
                     "_id": i,
-                    "_source": row
+                    "_source": OSDataSource.extract_os_document(row)
                 }
                 yield action
 

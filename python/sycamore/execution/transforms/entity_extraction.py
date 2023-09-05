@@ -2,9 +2,9 @@ from typing import Dict, Callable, List, Union, Optional
 
 from ray.data import Dataset
 
-from data import Element
-from execution.transforms.entity import EntityExtractor, OpenAIEntityExtractor
-from execution.transforms.llms import LLM
+from sycamore.data import Element
+from sycamore.execution.transforms.entity import EntityExtractor, OpenAIEntityExtractor
+from sycamore.execution.transforms.llms import LLM
 from sycamore.execution import Node, Transform
 
 
@@ -25,8 +25,8 @@ class LLMExtractEntity(Transform):
         if not entity_extractor:
             entity_extractor = OpenAIEntityExtractor(
                 entity_to_extract,
-                num_of_elements,
                 llm,
+                num_of_elements,
                 prompt_template,
                 prompt_formatter,
             )

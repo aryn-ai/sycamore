@@ -8,7 +8,7 @@ from sycamore.execution.transforms import (
     FlatMap,
     Map,
     MapBatch,
-    UnstructuredPartition,
+    Partition,
     PdfPartitionerOptions
 )
 
@@ -18,8 +18,8 @@ class TestDocSet:
         context = mocker.Mock(spec=Context)
         scan = mocker.Mock(spec=BinaryScan)
         docset = DocSet(context, scan)
-        docset = docset.unstructured_partition(PdfPartitionerOptions())
-        assert isinstance(docset.lineage(), UnstructuredPartition)
+        docset = docset.partition(PdfPartitionerOptions())
+        assert isinstance(docset.lineage(), Partition)
 
     def test_sentence_transformer_embedding(self, mocker):
         context = mocker.Mock(spec=Context)

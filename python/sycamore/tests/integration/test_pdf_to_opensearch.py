@@ -2,7 +2,8 @@ from typing import List
 
 import sycamore
 from data import Element
-from execution.transforms.llms.llms import OpenAIModels, OpenAI
+from sycamore.execution.transforms import PdfPartitionerOptions
+from sycamore.execution.transforms.llms.llms import OpenAIModels, OpenAI
 from sycamore.tests.config import TEST_DIR
 
 
@@ -94,15 +95,12 @@ def test_pdf_to_opensearch():
 
     paths = str(TEST_DIR / "resources/data/pdfs/")
 
-    openai_llm = OpenAI(
-        OpenAIModels.TEXT_DAVINCI.value,
-        "api-key",
-    )
+    openai_llm = OpenAI(OpenAIModels.TEXT_DAVINCI.value)
 
     context = sycamore.init()
     ds = (
         context.read.binary(paths, binary_format="pdf")
-        .unstructured_partition(max_partition=256)
+        .partition(max_partition=256, options=PdfPartitionerOptions())
         .llm_extract_entity(
             entity_to_extract="title",
             llm=openai_llm,

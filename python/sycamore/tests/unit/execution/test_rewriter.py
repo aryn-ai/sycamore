@@ -1,14 +1,13 @@
 from sycamore.execution.rules import EnforceResourceUsage
 from sycamore.execution.scans import BinaryScan
-from sycamore.execution.transforms import (
-    UnstructuredPartition, Explode, PdfPartitionerOptions)
+from sycamore.execution.transforms import (Partition, Explode, PdfPartitionerOptions)
 from sycamore.execution.writes import OpenSearchWriter
 
 
 class TestRewriter:
     def test_enforce_resource_usage(self):
         scan = BinaryScan("path", binary_format="pdf")
-        partition = UnstructuredPartition(scan, PdfPartitionerOptions())
+        partition = Partition(scan, PdfPartitionerOptions())
         explode = Explode(partition)
         writer = OpenSearchWriter(
                 explode, "test", os_client_args={"a": 1, "b": "str"})

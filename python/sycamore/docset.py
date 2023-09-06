@@ -34,6 +34,13 @@ class DocSet:
         for row in dataset.take(limit):
             print(row)
 
+    def count(self) -> int:
+        from sycamore import Execution
+        execution = Execution(self.context, self.plan)
+        dataset = execution.execute(self.plan)
+        return dataset.count()
+
+
     @staticmethod
     def schema() -> "Schema":
         # TODO, enforce schema for document, also properties need to be

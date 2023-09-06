@@ -108,11 +108,11 @@ class OSDataSource(Datasource):
 
         def create_actions():
             for i, row in enumerate(block):
-
+                doc = OSDataSource.extract_os_document(row)
                 action = {
                     "_index": index_name,
-                    "_id": i,
-                    "_source": OSDataSource.extract_os_document(row)
+                    "_id": doc["doc_id"],
+                    "_source": doc
                 }
                 yield action
 

@@ -1,7 +1,7 @@
 from typing import List
 
 import sycamore
-from data import Element
+from sycamore.data import Element
 from sycamore.execution.transforms import PdfPartitionerOptions
 from sycamore.execution.transforms.llms.llms import OpenAIModels, OpenAI
 from sycamore.tests.config import TEST_DIR

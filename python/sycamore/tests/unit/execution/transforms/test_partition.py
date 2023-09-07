@@ -91,7 +91,7 @@ class TestPartition:
         options = PdfPartitionerOptions()
         partition = Partition(scan, options)
         execute: Callable[[], Dataset] = \
-            lambda: BinaryScan(path, binary_format="pdf").execute()
+            lambda: BinaryScan(str(path), binary_format="pdf").execute()
         mocker.patch.object(scan, "execute", execute)
         docset = partition.execute()
         doc = docset.take(limit=1)[0]
@@ -105,7 +105,7 @@ class TestPartition:
         options = HtmlPartitionerOptions()
         partition = Partition(scan, options)
         execute: Callable[[], Dataset] = \
-            lambda: BinaryScan(path, binary_format="html").execute()
+            lambda: BinaryScan(str(path), binary_format="html").execute()
         mocker.patch.object(scan, "execute", execute)
         docset = partition.execute()
         doc = docset.take(limit=1)[0]

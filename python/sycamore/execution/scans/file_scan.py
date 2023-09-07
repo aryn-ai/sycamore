@@ -1,5 +1,6 @@
 from typing import (Any, Dict, List, Optional, Union)
 
+from pyarrow.filesystem import FileSystem
 from ray.data import (Dataset, read_binary_files, read_json)
 from ray.data.datasource import FileExtensionFilter
 
@@ -40,11 +41,13 @@ class BinaryScan(FileScan):
             *,
             binary_format: str,
             parallelism: Optional[int] = None,
+            filesystem: Optional["FileSystem"] = None,
             **resource_args):
         super().__init__(paths, parallelism=parallelism, **resource_args)
         self._paths = paths
         self.parallelism = -1 if parallelism is None else parallelism
         self._binary_format = binary_format
+        self._filesystem = filesystem
 
     def _to_document(self, dict: Dict[str, Any]) -> Dict[str, Any]:
         document = Document()
@@ -55,20 +58,33 @@ class BinaryScan(FileScan):
         document.properties.update({"path": dict["path"]})
         return document.data
 
+    def _is_s3_scheme(self):
+        if isinstance(self._paths, str):
+            return self._paths.startswith("s3:")
+        else:
+            return all(path.startswith("s3:") for path in self._paths)
+
     def execute(self) -> "Dataset":
         partition_filter = FileExtensionFilter(self.format())
         files = read_binary_files(
             self._paths,
             include_paths=True,
+            filesystem=self._filesystem,
             parallelism=self.parallelism,
             partition_filter=partition_filter,
             ray_remote_args=self.resource_args)
+
+        def prepend_scheme(file):
+            file["path"] = "s3://" + file["path"]
+            return file
+
+        if self._is_s3_scheme():
+            files = files.map(prepend_scheme, **self.resource_args)
+
         return files.map(self._to_document, **self.resource_args)
 
     def format(self):
         return self._binary_format
-
-
 
 
 class JsonScan(FileScan):

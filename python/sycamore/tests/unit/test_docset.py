@@ -1,5 +1,5 @@
-from execution.transforms import LLMExtractEntity
-from execution.transforms.llms import LLM
+from sycamore.execution.transforms import LLMExtractEntity
+from sycamore.execution.transforms.llms import LLM
 from sycamore import DocSet, Context
 from sycamore.execution import Node
 from sycamore.execution.scans import BinaryScan

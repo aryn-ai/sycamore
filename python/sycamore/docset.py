@@ -40,31 +40,11 @@ class DocSet:
         dataset = execution.execute(self.plan)
         return dataset.count()
 
-
-    @staticmethod
-    def schema() -> "Schema":
-        # TODO, enforce schema for document, also properties need to be
-        #   convert to MapType?
-        import pyarrow as pa
-        return pa.schema([
-            ('doc_id', pa.string()),
-            ('type', pa.string()),
-            ('content', pa.struct(
-                [('binary', pa.large_binary()), ('text', pa.large_string())])),
-            ('elements', pa.struct([('array', pa.large_list(pa.struct([
-                ('type', pa.string()),
-                ('content', pa.struct([
-                    'binary', pa.large_binary(),
-                    'text', pa.large_string()
-                ])),
-                ('properties', pa.map_(pa.string(), pa.string()))
-            ])))])),
-            ('embedding', pa.struct(
-                [('binary', pa.large_list(pa.large_list(pa.float64()))),
-                 ('text', pa.large_list(pa.large_list(pa.float64())))])),
-            ('parent_id', pa.string()),
-            ('properties', pa.map_(pa.string(), pa.string()))
-        ])
+    def take(self, limit: int = 20) -> List[Document]:
+        from sycamore import Execution
+        execution = Execution(self.context, self.plan)
+        dataset = execution.execute(self.plan)
+        return [Document(row) for row in dataset.take(limit)]
 
     def partition(self, options: PartitionerOptions, **resource_args) -> "DocSet":
         """Partition document using unstructured library
@@ -189,6 +169,15 @@ class DocSet:
             **kwargs
         )
         return DocSet(self.context, entities)
+
+    def extract_tables(
+            self, profile_name: str = None,
+            region_name: str = None,
+            kms_key_id: str = "", **kwargs) -> "DocSet":
+        from sycamore.execution.transforms import TableExtraction
+        table_extraction = TableExtraction(
+            self.plan, profile_name, region_name, kms_key_id, **kwargs)
+        return DocSet(self.context, table_extraction)
 
     def map(self, f: Callable[[Document], Document]) -> "DocSet":
         from sycamore.execution.transforms.mapping import Map

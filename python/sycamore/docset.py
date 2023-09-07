@@ -3,11 +3,10 @@ from typing import Callable, List, Dict, Optional, Union
 
 from sycamore import Context
 from sycamore.data import Document, Element
+from sycamore.execution import Node
+from sycamore.execution.transforms import LLMExtractEntity, PartitionerOptions
 from sycamore.execution.transforms.entity import EntityExtractor
 from sycamore.execution.transforms.llms import LLM
-from sycamore.execution import Node
-from sycamore.execution.transforms import LLMExtractEntity
-from sycamore.execution.transforms import PartitionerOptions
 from sycamore.writer import DocSetWriter
 
 logger = logging.getLogger(__name__)
@@ -27,19 +26,18 @@ class DocSet:
         # TODO, print out nice format DAG
         pass
 
-    def show(self, limit: int = 20) -> None:
+    def show(self, limit: int = 50) -> None:
         from sycamore import Execution
         execution = Execution(self.context, self.plan)
         dataset = execution.execute(self.plan)
         for row in dataset.take(limit):
-            print(row)
+            print(row.get("properties"), "\n")
 
     def count(self) -> int:
         from sycamore import Execution
         execution = Execution(self.context, self.plan)
         dataset = execution.execute(self.plan)
         return dataset.count()
-
 
     @staticmethod
     def schema() -> "Schema":
@@ -66,7 +64,8 @@ class DocSet:
             ('properties', pa.map_(pa.string(), pa.string()))
         ])
 
-    def partition(self, options: PartitionerOptions, **resource_args) -> "DocSet":
+    def partition(self, options: PartitionerOptions,
+                  **resource_args) -> "DocSet":
         """Partition document using unstructured library
         Returns: DocSet
         Each Document has schema like below
@@ -168,15 +167,15 @@ class DocSet:
         return DocSet(self.context, embedding)
 
     def llm_extract_entity(
-        self,
-        *,
-        entity_to_extract: Union[str, Dict],
-        num_of_elements: int = 10,
-        llm: LLM,
-        prompt_template: str = None,
-        prompt_formatter: Callable[[List[Element]], str] = None,
-        entity_extractor: Optional[EntityExtractor] = None,
-        **kwargs
+            self,
+            *,
+            entity_to_extract: Union[str, Dict],
+            num_of_elements: int = 10,
+            llm: LLM,
+            prompt_template: str = None,
+            prompt_formatter: Callable[[List[Element]], str] = None,
+            entity_extractor: Optional[EntityExtractor] = None,
+            **kwargs
     ) -> "DocSet":
         entities = LLMExtractEntity(
             self.plan,

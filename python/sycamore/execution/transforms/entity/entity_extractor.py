@@ -39,12 +39,12 @@ class OpenAIEntityExtractor(EntityExtractor):
         if isinstance(self._entity_to_extract, str):
             entities = self._handle_few_shot_prompting(document)
             document.properties.update(
-                {f"{self._entity_to_extract}": entities["answer"]}
+                {f"{self._entity_to_extract}": entities["answer"].strip()}
             )
         else:
             entities = self._handle_zero_shot_prompting(document)
             for key, value in entities.items():
-                document.properties.update({key: value})
+                document.properties.update({key: value.strip()})
 
         return document.to_dict()
 

@@ -1,9 +1,12 @@
 from sycamore.execution import (
-    Node, NonGPUUser, Rule, SingleThreadUser)
+    Node, NonCPUUser, NonGPUUser, Rule, SingleThreadUser)
 
 
 class EnforceResourceUsage(Rule):
     def __call__(self, plan: Node) -> Node:
+        if isinstance(plan, NonCPUUser):
+            plan.resource_args["num_cpus"] = 0
+
         if isinstance(plan, SingleThreadUser):
             plan.resource_args["num_cpus"] = 1
 

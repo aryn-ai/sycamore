@@ -1,7 +1,8 @@
-from typing import (List, Union)
+from typing import (List, Optional, Union)
 
 from pandas import DataFrame
 from pyarrow import Table
+from pyarrow.filesystem import FileSystem
 
 from sycamore import (Context, DocSet)
 from sycamore.data import Document
@@ -16,8 +17,12 @@ class DocSetReader:
     def binary(
             self,
             paths: Union[str, List[str]],
-            binary_format: str) -> DocSet:
-        scan = BinaryScan(paths, binary_format=binary_format)
+            binary_format: str,
+            parallelism: Optional[int] = None,
+            filesystem: Optional["FileSystem"] = None) -> DocSet:
+        scan = BinaryScan(
+            paths, binary_format=binary_format, parallelism=parallelism,
+            filesystem=filesystem)
         return DocSet(self._context, scan)
 
     def arrow(

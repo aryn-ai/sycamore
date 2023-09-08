@@ -10,6 +10,10 @@ from sycamore.execution.transforms.partition import \
     (Partitioner, PdfPartitioner, PdfPartitionerOptions)
 from sycamore.tests.config import TEST_DIR
 
+def _make_scan_executor(path, format) -> Callable[[], Dataset]:
+    def do_scan() -> Dataset:
+        return BinaryScan(str(path), binary_format=format).execute()
+    return do_scan
 
 class TestPartition:
     def test_partitioner(self):
@@ -90,8 +94,7 @@ class TestPartition:
         scan = mocker.Mock(spec=BinaryScan)
         options = PdfPartitionerOptions()
         partition = Partition(scan, options)
-        execute: Callable[[], Dataset] = \
-            lambda: BinaryScan(str(path), binary_format="pdf").execute()
+        execute: Callable[[], Dataset] = _make_scan_executor(path, "pdf")
         mocker.patch.object(scan, "execute", execute)
         docset = partition.execute()
         doc = docset.take(limit=1)[0]
@@ -104,8 +107,7 @@ class TestPartition:
         scan = mocker.Mock(spec=BinaryScan)
         options = HtmlPartitionerOptions()
         partition = Partition(scan, options)
-        execute: Callable[[], Dataset] = \
-            lambda: BinaryScan(str(path), binary_format="html").execute()
+        execute: Callable[[], Dataset] = _make_scan_executor(path, "html")
         mocker.patch.object(scan, "execute", execute)
         docset = partition.execute()
         doc = docset.take(limit=1)[0]

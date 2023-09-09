@@ -15,5 +15,5 @@ __all__ = [
     "SentenceTransformerEmbedding",
     "Partition",
     "LLMExtractEntity",
-    "TableExtraction"
+    "TableExtraction",
 ]

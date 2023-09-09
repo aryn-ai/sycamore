@@ -35,6 +35,12 @@ mypy = "^1.5.1"
 jupyterlab = "^4.0.5"
 ipywidgets = "^8.1.0"
 
+[tool.ruff]
+line-length = 120
+
+[tool.black]
+line-length = 120
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

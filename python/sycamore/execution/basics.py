@@ -1,5 +1,5 @@
-from abc import (ABC, abstractmethod)
-from typing import (Callable, List, TypeVar)
+from abc import ABC, abstractmethod
+from typing import Callable, List, TypeVar
 
 from ray.data import Dataset
 
@@ -15,7 +15,7 @@ class Node(ABC):
     def execute(self) -> "Dataset":
         pass
 
-    T = TypeVar('T', bound="Node", covariant=True)
+    T = TypeVar("T", bound="Node", covariant=True)
 
     def traverse_down(self, f: Callable[[T], T]) -> T:
         f(self)

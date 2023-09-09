@@ -14,19 +14,24 @@ class TestExplode:
         "embedding": {"binary": None, "text": None},
         "elements": {
             "array": [
-                {"type": "title", "content": {"binary": None, "text": "text1"},
-                 "properties": {"coordinates": [(1, 2)], "page_number": 1}},
-                {"type": "table", "content": {"binary": None, "text": "text2"},
-                 "properties": {"page_name": "name", "coordinates": [(1, 2)],
-                                "coordinate_system": "pixel"}}
+                {
+                    "type": "title",
+                    "content": {"binary": None, "text": "text1"},
+                    "properties": {"coordinates": [(1, 2)], "page_number": 1},
+                },
+                {
+                    "type": "table",
+                    "content": {"binary": None, "text": "text2"},
+                    "properties": {"page_name": "name", "coordinates": [(1, 2)], "coordinate_system": "pixel"},
+                },
             ]
-        }
+        },
     }
 
     def test_explode_callable(self):
         exploder = Explode.ExplodeCallable()
         docs = exploder.explode(self.doc)
-        assert(len(docs) == 3)
+        assert len(docs) == 3
 
     def test_explode(self, mocker):
         node = mocker.Mock(spec=Node)

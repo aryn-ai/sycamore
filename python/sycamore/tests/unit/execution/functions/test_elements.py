@@ -1,7 +1,6 @@
 from sycamore.data import Document, Element
 from sycamore.execution.functions import reorder_elements
-from sycamore.execution.transforms.partition import \
-    _elements_reorder_comparator
+from sycamore.execution.transforms.partition import _elements_reorder_comparator
 
 
 class TestElementFunctions:
@@ -112,8 +111,7 @@ class TestElementFunctions:
                 }
             }
         )
-        doc.elements = [element1, element2, element3, element4, element5,
-                        element6]
+        doc.elements = [element1, element2, element3, element4, element5, element6]
         comparator = _elements_reorder_comparator
         doc = reorder_elements(doc, comparator)
         assert doc.elements[2] == element4

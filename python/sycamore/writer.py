@@ -10,17 +10,10 @@ class DocSetWriter:
         self.plan = plan
         self.resource_args = resource_args
 
-    def opensearch(
-            self,
-            *,
-            os_client_args: Dict,
-            index_name: str,
-            index_settings: Dict = None) -> None:
+    def opensearch(self, *, os_client_args: Dict, index_name: str, index_settings: Dict = None) -> None:
         from sycamore.execution.writes import OpenSearchWriter
+
         os = OpenSearchWriter(
-            self.plan,
-            index_name,
-            os_client_args=os_client_args,
-            index_settings=index_settings,
-            **self.resource_args)
+            self.plan, index_name, os_client_args=os_client_args, index_settings=index_settings, **self.resource_args
+        )
         os.execute()

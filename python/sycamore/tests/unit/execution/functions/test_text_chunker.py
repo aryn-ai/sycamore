@@ -4,17 +4,20 @@ from sycamore.execution.functions.chunker import TokenOverlapChunker
 
 
 class TestTokenOverlapChunker:
-
     @pytest.mark.parametrize(
         "chunker, tokens, expected_chunks",
         [
-            (TokenOverlapChunker(chunk_token_count=2, chunk_overlap_token_count=1),
-             ["a", "b", "c", "d", "e"],
-             [["a", "b"], ["b", "c"], ["c", "d"], ["d", "e"], ["e"]]),
-            (TokenOverlapChunker(chunk_token_count=2, chunk_overlap_token_count=0),
-             ["a", "b", "c", "d", "e"],
-             [["a", "b"], ["c", "d"], ["e"]]),
-        ]
+            (
+                TokenOverlapChunker(chunk_token_count=2, chunk_overlap_token_count=1),
+                ["a", "b", "c", "d", "e"],
+                [["a", "b"], ["b", "c"], ["c", "d"], ["d", "e"], ["e"]],
+            ),
+            (
+                TokenOverlapChunker(chunk_token_count=2, chunk_overlap_token_count=0),
+                ["a", "b", "c", "d", "e"],
+                [["a", "b"], ["c", "d"], ["e"]],
+            ),
+        ],
     )
     def test_token_overlap_chunker(self, chunker, tokens, expected_chunks):
         chunks = chunker.chunk(tokens)

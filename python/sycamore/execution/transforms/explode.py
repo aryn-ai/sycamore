@@ -1,10 +1,9 @@
-from typing import (Any, Dict, List)
+from typing import Any, Dict, List
 
 from ray.data import Dataset
 
 from sycamore.data import Document
-from sycamore.execution import (
-    Node, Transform, SingleThreadUser, NonGPUUser)
+from sycamore.execution import Node, Transform, SingleThreadUser, NonGPUUser
 
 
 class Explode(SingleThreadUser, NonGPUUser, Transform):
@@ -18,6 +17,7 @@ class Explode(SingleThreadUser, NonGPUUser, Transform):
             documents = [parent]
 
             import uuid
+
             for element in parent.elements:
                 cur = Document(element.to_dict())
                 cur.doc_id = str(uuid.uuid1())

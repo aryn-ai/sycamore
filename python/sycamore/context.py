@@ -1,5 +1,5 @@
 import threading
-from typing import (Any, Dict, List, Optional)
+from typing import Any, Dict, List, Optional
 
 import ray
 
@@ -15,6 +15,7 @@ class Context:
     @property
     def read(self):
         from sycamore.reader import DocSetReader
+
         return DocSetReader(self)
 
     def register_rule(self, rule: Rule) -> None:
@@ -45,6 +46,7 @@ def init(ray_args: Dict[str, Any] = None) -> Optional[Context]:
             # Set Logger for driver only, we consider worker_process_setup_hook
             # or runtime_env/config file for worker application log
             from sycamore.utils import sycamore_logger
+
             sycamore_logger.setup_logger()
 
             _global_context = Context(ray_args)

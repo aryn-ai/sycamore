@@ -1,4 +1,4 @@
-from sycamore import (DocSet, Context)
+from sycamore import DocSet, Context
 from sycamore.execution import Node
 from sycamore.execution.writes import OpenSearchWriter
 

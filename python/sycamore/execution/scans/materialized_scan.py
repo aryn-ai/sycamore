@@ -1,8 +1,8 @@
-from typing import (List, Union)
+from typing import List, Union
 
 from pandas import DataFrame
 from pyarrow import Table
-from ray.data import (Dataset, from_arrow, from_items, from_pandas)
+from ray.data import Dataset, from_arrow, from_items, from_pandas
 
 from sycamore.execution import Scan
 from sycamore.data import Document
@@ -10,18 +10,16 @@ from sycamore.data import Document
 
 class MaterializedScan(Scan):
     """A base scan class for materialized data
-     e.g. arrow table, pandas dataframe, python dict list or even spark
-     dataset
+    e.g. arrow table, pandas dataframe, python dict list or even spark
+    dataset
     """
+
     def __init__(self, **resource_args):
         super().__init__(**resource_args)
 
 
 class ArrowScan(MaterializedScan):
-    def __init__(
-            self,
-            tables: Union["Table", bytes, List[Union["Table", bytes]]],
-            **resource_args):
+    def __init__(self, tables: Union["Table", bytes, List[Union["Table", bytes]]], **resource_args):
         super().__init__(**resource_args)
         self._tables = tables
 
@@ -45,10 +43,7 @@ class DocScan(MaterializedScan):
 
 
 class PandasScan(MaterializedScan):
-    def __init__(
-            self,
-            dfs: Union["DataFrame", List["DataFrame"]],
-            **resource_args):
+    def __init__(self, dfs: Union["DataFrame", List["DataFrame"]], **resource_args):
         super().__init__(**resource_args)
         self._dfs = dfs
 

@@ -7,6 +7,13 @@ class TestBinaryScan:
         paths = str(TEST_DIR / "resources/data/pdfs/")
         scan = BinaryScan(paths, binary_format="pdf")
         ds = scan.execute()
-        assert (ds.schema().names ==
-                ['doc_id', 'type', 'text_representation', 'content', 'elements',
-                 'embedding', 'parent_id', 'properties'])
+        assert ds.schema().names == [
+            "doc_id",
+            "type",
+            "text_representation",
+            "content",
+            "elements",
+            "embedding",
+            "parent_id",
+            "properties",
+        ]

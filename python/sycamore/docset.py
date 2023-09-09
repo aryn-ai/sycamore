@@ -29,6 +29,7 @@ class DocSet:
 
     def show(self, limit: int = 20) -> None:
         from sycamore import Execution
+
         execution = Execution(self.context, self.plan)
         dataset = execution.execute(self.plan)
         for row in dataset.take(limit):
@@ -36,12 +37,14 @@ class DocSet:
 
     def count(self) -> int:
         from sycamore import Execution
+
         execution = Execution(self.context, self.plan)
         dataset = execution.execute(self.plan)
         return dataset.count()
 
     def take(self, limit: int = 20) -> List[Document]:
         from sycamore import Execution
+
         execution = Execution(self.context, self.plan)
         dataset = execution.execute(self.plan)
         return [Document(row) for row in dataset.take(limit)]
@@ -68,6 +71,7 @@ class DocSet:
         }
         """
         from sycamore.execution.transforms.partition import Partition
+
         plan = Partition(self.plan, options, **resource_args)
         return DocSet(self.context, plan)
 
@@ -95,16 +99,13 @@ class DocSet:
          "doc_id": uuid-6, "parent_id": uuid}
         """
         from sycamore.execution.transforms.explode import Explode
+
         explode = Explode(self.plan, **resource_args)
         return DocSet(self.context, explode)
 
     def sentence_transformer_embed(
-            self,
-            *,
-            model_name: str,
-            batch_size: int = None,
-            device: str = None,
-            **resource_args) -> "DocSet":
+        self, *, model_name: str, batch_size: int = None, device: str = None, **resource_args
+    ) -> "DocSet":
         """Embed using HuggingFace sentence transformer
 
         Args:
@@ -139,12 +140,10 @@ class DocSet:
           "embedding": {"binary": xxx, "text": "xxx"}}
         """
         from sycamore.execution.transforms import SentenceTransformerEmbedding
+
         embedding = SentenceTransformerEmbedding(
-            self.plan,
-            model_name=model_name,
-            batch_size=batch_size,
-            device=device,
-            **resource_args)
+            self.plan, model_name=model_name, batch_size=batch_size, device=device, **resource_args
+        )
         return DocSet(self.context, embedding)
 
     def llm_extract_entity(
@@ -171,32 +170,28 @@ class DocSet:
         return DocSet(self.context, entities)
 
     def extract_tables(
-            self, profile_name: str = None,
-            region_name: str = None,
-            kms_key_id: str = "", **kwargs) -> "DocSet":
+        self, profile_name: str = None, region_name: str = None, kms_key_id: str = "", **kwargs
+    ) -> "DocSet":
         from sycamore.execution.transforms import TableExtraction
-        table_extraction = TableExtraction(
-            self.plan, profile_name, region_name, kms_key_id, **kwargs)
+
+        table_extraction = TableExtraction(self.plan, profile_name, region_name, kms_key_id, **kwargs)
         return DocSet(self.context, table_extraction)
 
     def map(self, f: Callable[[Document], Document]) -> "DocSet":
         from sycamore.execution.transforms.mapping import Map
+
         mapping = Map(self.plan, f=f)
         return DocSet(self.context, mapping)
 
-    def flat_map(
-            self,
-            f: Callable[[Document], List[Document]],
-            **kwargs) -> "DocSet":
+    def flat_map(self, f: Callable[[Document], List[Document]], **kwargs) -> "DocSet":
         from sycamore.execution.transforms.mapping import FlatMap
+
         flat_map = FlatMap(self.plan, f=f, **kwargs)
         return DocSet(self.context, flat_map)
 
-    def map_batch(
-            self,
-            f: Callable[[List[Document]], List[Document]],
-            **kwargs) -> "DocSet":
+    def map_batch(self, f: Callable[[List[Document]], List[Document]], **kwargs) -> "DocSet":
         from sycamore.execution.transforms.mapping import MapBatch
+
         map_batch = MapBatch(self.plan, f=f, **kwargs)
         return DocSet(self.context, map_batch)
 

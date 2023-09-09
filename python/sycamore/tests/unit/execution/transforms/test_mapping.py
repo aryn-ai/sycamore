@@ -5,7 +5,7 @@ import ray.data
 
 from sycamore.data import Document
 from sycamore.execution import Node
-from sycamore.execution.transforms import (Map, FlatMap, MapBatch)
+from sycamore.execution.transforms import Map, FlatMap, MapBatch
 
 
 class TestMapping:
@@ -23,15 +23,17 @@ class TestMapping:
     def test_map_function(self, mocker, function):
         node = mocker.Mock(spec=Node)
         mapping = Map(node, f=function)
-        input_dataset = ray.data.from_items([
-            {"index": 1, "doc": "Members of a strike at Yale University."},
-            {"index": 2, "doc": "A woman is speaking at a podium outdoors."}
-        ])
+        input_dataset = ray.data.from_items(
+            [
+                {"index": 1, "doc": "Members of a strike at Yale University."},
+                {"index": 2, "doc": "A woman is speaking at a podium outdoors."},
+            ]
+        )
         execute = mocker.patch.object(node, "execute")
         execute.return_value = input_dataset
         output_dataset = mapping.execute()
         dicts = output_dataset.take()
-        assert (dicts[0]["index"] == 2 and dicts[1]["index"] == 3)
+        assert dicts[0]["index"] == 2 and dicts[1]["index"] == 3
 
     @staticmethod
     def flat_map_func(doc: Document) -> List[Document]:
@@ -45,15 +47,17 @@ class TestMapping:
     def test_flat_map(self, mocker, function):
         node = mocker.Mock(spec=Node)
         mapping = FlatMap(node, f=function)
-        input_dataset = ray.data.from_items([
-            {"index": 1, "doc": "Members of a strike at Yale University."},
-            {"index": 2, "doc": "A woman is speaking at a podium outdoors."}
-        ])
+        input_dataset = ray.data.from_items(
+            [
+                {"index": 1, "doc": "Members of a strike at Yale University."},
+                {"index": 2, "doc": "A woman is speaking at a podium outdoors."},
+            ]
+        )
         execute = mocker.patch.object(node, "execute")
         execute.return_value = input_dataset
         output_dataset = mapping.execute()
         dicts = output_dataset.take()
-        assert (len(dicts) == 4)
+        assert len(dicts) == 4
 
     @staticmethod
     def map_batch_func(docs: List[Document]) -> List[Document]:
@@ -71,12 +75,14 @@ class TestMapping:
     def test_map_batch(self, mocker, function):
         node = mocker.Mock(spec=Node)
         mapping = MapBatch(node, f=function)
-        input_dataset = ray.data.from_items([
-            {"index": 1, "doc": "Members of a strike at Yale University."},
-            {"index": 2, "doc": "A woman is speaking at a podium outdoors."}
-        ])
+        input_dataset = ray.data.from_items(
+            [
+                {"index": 1, "doc": "Members of a strike at Yale University."},
+                {"index": 2, "doc": "A woman is speaking at a podium outdoors."},
+            ]
+        )
         execute = mocker.patch.object(node, "execute")
         execute.return_value = input_dataset
         output_dataset = mapping.execute()
         dicts = output_dataset.take()
-        assert (dicts[0]["index"] == 2 and dicts[1]["index"] == 3)
+        assert dicts[0]["index"] == 2 and dicts[1]["index"] == 3

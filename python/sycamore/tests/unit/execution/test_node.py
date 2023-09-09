@@ -24,8 +24,13 @@ class SetValueClass:
 
 @pytest.fixture
 def mock_a_dag(mocker):
-    root_node, inter_node1, inter_node2, leaf_node1, leaf_node2 = \
-        MockNode(), MockNode(), MockNode(), MockNode(), MockNode()
+    root_node, inter_node1, inter_node2, leaf_node1, leaf_node2 = (
+        MockNode(),
+        MockNode(),
+        MockNode(),
+        MockNode(),
+        MockNode(),
+    )
 
     mocker.patch.object(root_node, "children", [inter_node1, inter_node2])
     mocker.patch.object(inter_node1, "children", [leaf_node1])
@@ -37,25 +42,22 @@ def mock_a_dag(mocker):
 
 
 class TestNode:
-
     @pytest.mark.parametrize("direction", ["traverse_down", "traverse_up"])
     def test_traverse_function(self, mock_a_dag, direction):
-        root_node, inter_node1, inter_node2, leaf_node1, leaf_node2 =\
-            mock_a_dag
+        root_node, inter_node1, inter_node2, leaf_node1, leaf_node2 = mock_a_dag
         traverse = getattr(root_node, direction)
         traverse(f=set_value_function)
-        assert (root_node.value == 1)
-        assert (inter_node1.value == 1 and inter_node2.value == 1)
-        assert (leaf_node1.value == 1 and leaf_node2.value == 1)
+        assert root_node.value == 1
+        assert inter_node1.value == 1 and inter_node2.value == 1
+        assert leaf_node1.value == 1 and leaf_node2.value == 1
 
     @pytest.mark.parametrize("direction", ["traverse_down", "traverse_up"])
     def test_traverse_class(self, mock_a_dag, direction):
-        root_node, inter_node1, inter_node2, leaf_node1, leaf_node2 =\
-            mock_a_dag
+        root_node, inter_node1, inter_node2, leaf_node1, leaf_node2 = mock_a_dag
         set_value_class = SetValueClass()
         traverse = getattr(root_node, direction)
         traverse(f=set_value_class.set_value)
-        assert (set_value_class.value == 5)
-        assert (root_node.value == 1)
-        assert (inter_node1.value == 1 and inter_node2.value == 1)
-        assert (leaf_node1.value == 1 and leaf_node2.value == 1)
+        assert set_value_class.value == 5
+        assert root_node.value == 1
+        assert inter_node1.value == 1 and inter_node2.value == 1
+        assert leaf_node1.value == 1 and leaf_node2.value == 1

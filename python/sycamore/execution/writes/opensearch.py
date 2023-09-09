@@ -9,29 +9,29 @@ from ray.data._internal.execution.interfaces import TaskContext
 from ray.data.block import Block, BlockAccessor
 from ray.data.datasource import WriteResult
 
-from sycamore.execution.basics import (Node, Write)
+from sycamore.execution.basics import Node, Write
 
 log = logging.getLogger(__name__)
 
 
 class OpenSearchWriter(Write):
-
-    def __init__(self, plan: Node,
-                 index_name: str,
-                 *,
-                 os_client_args: Dict,
-                 index_settings: Optional[Dict] = None,
-                 number_of_allowed_failures_per_block: int = 100,
-                 collect_failures_file_path: str = None,
-                 **ray_remote_args):
+    def __init__(
+        self,
+        plan: Node,
+        index_name: str,
+        *,
+        os_client_args: Dict,
+        index_settings: Optional[Dict] = None,
+        number_of_allowed_failures_per_block: int = 100,
+        collect_failures_file_path: str = None,
+        **ray_remote_args,
+    ):
         super().__init__(plan, **ray_remote_args)
         self.index_name = index_name
         self.index_settings = index_settings
         self.os_client_args = os_client_args
-        self.number_of_allowed_failures_per_block = \
-            number_of_allowed_failures_per_block
-        self.collect_failures_file_path = \
-            collect_failures_file_path or "failures.txt"
+        self.number_of_allowed_failures_per_block = number_of_allowed_failures_per_block
+        self.collect_failures_file_path = collect_failures_file_path or "failures.txt"
 
     def execute(self) -> Dataset:
         dataset = self.child().execute()
@@ -39,8 +39,7 @@ class OpenSearchWriter(Write):
             client = OpenSearch(**self.os_client_args)
             if not client.indices.exists(self.index_name):
                 if self.index_settings is not None:
-                    client.indices.create(
-                        self.index_name, **self.index_settings)
+                    client.indices.create(self.index_name, **self.index_settings)
                 else:
                     client.indices.create(self.index_name)
 
@@ -52,16 +51,14 @@ class OpenSearchWriter(Write):
             OSDataSource(),
             index_name=self.index_name,
             os_client_args=self.os_client_args,
-            number_of_allowed_failures_per_block=
-            self.number_of_allowed_failures_per_block,
-            collect_failures_file_path=
-            self.collect_failures_file_path or "failures.txt")
+            number_of_allowed_failures_per_block=self.number_of_allowed_failures_per_block,
+            collect_failures_file_path=self.collect_failures_file_path or "failures.txt",
+        )
 
         return dataset
 
 
 class OSDataSource(Datasource):
-
     # todo: make this type specific to extract properties
     @staticmethod
     def extract_os_document(data):
@@ -73,7 +70,7 @@ class OSDataSource(Datasource):
             "elements": {"array": []},
             "embedding": None,
             "parent_id": None,
-            "properties": {}
+            "properties": {},
         }
         for k, v in default.items():
             if k in data:
@@ -82,9 +79,7 @@ class OSDataSource(Datasource):
                 result[k] = v
         return result
 
-    def write(
-            self, blocks: Iterable[Block], ctx: TaskContext, **write_args) -> WriteResult:
-
+    def write(self, blocks: Iterable[Block], ctx: TaskContext, **write_args) -> WriteResult:
         builder = DelegatingBlockBuilder()
         for block in blocks:
             builder.add_block(block)
@@ -95,13 +90,14 @@ class OSDataSource(Datasource):
         return "ok"
 
     @staticmethod
-    def write_block(block: Block,
-                    *,
-                    os_client_args: Dict,
-                    index_name: str,
-                    collect_failures_file_path: str,
-                    number_of_allowed_failures_per_block: int):
-
+    def write_block(
+        block: Block,
+        *,
+        os_client_args: Dict,
+        index_name: str,
+        collect_failures_file_path: str,
+        number_of_allowed_failures_per_block: int,
+    ):
         client = OpenSearch(**os_client_args)
 
         block = BlockAccessor.for_block(block).to_arrow().to_pylist()
@@ -109,11 +105,7 @@ class OSDataSource(Datasource):
         def create_actions():
             for i, row in enumerate(block):
                 doc = OSDataSource.extract_os_document(row)
-                action = {
-                    "_index": index_name,
-                    "_id": doc["doc_id"],
-                    "_source": doc
-                }
+                action = {"_index": index_name, "_id": doc["doc_id"], "_source": doc}
                 yield action
 
         failures = []
@@ -128,6 +120,7 @@ class OSDataSource(Datasource):
                             f.write(f"{doc}\n")
                     raise RuntimeError(
                         f"{number_of_allowed_failures_per_block} documents failed to index. "
-                        f"Refer to {collect_failures_file_path}.")
+                        f"Refer to {collect_failures_file_path}."
+                    )
 
         log.info("All the documents have been ingested!")

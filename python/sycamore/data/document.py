@@ -1,5 +1,5 @@
 from collections import UserDict
-from typing import (Any, Dict, List, Optional, Union)
+from typing import Any, Dict, List, Optional, Union
 
 
 class Element(UserDict):
@@ -12,7 +12,7 @@ class Element(UserDict):
                 "binary": None,
                 "text": None,
             },
-            "properties": {}
+            "properties": {},
         }
         for k, v in default.items():
             if k not in self.data:
@@ -101,7 +101,6 @@ class TableElement(Element):
 
 
 class Document(UserDict):
-
     def __init__(self, document=None, /, **kwargs):
         super().__init__(document, **kwargs)
         default = {
@@ -115,7 +114,7 @@ class Document(UserDict):
             "elements": {"array": []},
             "embedding": None,
             "parent_id": None,
-            "properties": {}
+            "properties": {},
         }
         for k, v in default.items():
             if k not in self.data:
@@ -127,8 +126,7 @@ class Document(UserDict):
         if "text" not in self.data["content"]:
             self.data["content"]["text"] = None
 
-        elements = \
-            [Element(element) for element in self.data["elements"]["array"]]
+        elements = [Element(element) for element in self.data["elements"]["array"]]
         self.data["elements"]["array"] = elements
 
     @property
@@ -212,7 +210,6 @@ class Document(UserDict):
         self.data["properties"] = {}
 
     def to_dict(self) -> Dict[str, Any]:
-        dicts = \
-            [element.to_dict() for element in self.data["elements"]["array"]]
+        dicts = [element.to_dict() for element in self.data["elements"]["array"]]
         self.data["elements"]["array"] = dicts
         return self.data

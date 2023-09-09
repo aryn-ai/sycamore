@@ -1,6 +1,3 @@
-from sycamore.data.document import (Document, Element)
+from sycamore.data.document import Document, Element
 
-__all__ = [
-    "Document",
-    "Element"
-]
+__all__ = ["Document", "Element"]

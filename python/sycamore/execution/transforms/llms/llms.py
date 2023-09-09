@@ -5,8 +5,7 @@ from enum import Enum
 from typing import Dict, Any
 
 import openai
-from tenacity import retry, stop_after_attempt, wait_random, \
-    retry_if_exception_type
+from tenacity import retry, stop_after_attempt, wait_random, retry_if_exception_type
 
 
 class OpenAIModels(Enum):
@@ -65,17 +64,13 @@ class OpenAI(LLM):
 
         prompt = prompt_kwargs.get("prompt")
         messages = [{"role": "user", "content": f"{prompt}"}]
-        completion = openai.ChatCompletion.create(
-            model=self._model_name, messages=messages, **kwargs
-        )
+        completion = openai.ChatCompletion.create(model=self._model_name, messages=messages, **kwargs)
         return completion.choices[0].message
 
     def _generate_using_guidance(self, prompt_kwargs) -> Any:
         import guidance
 
-        guidance.llm = guidance.llms.OpenAI(
-            model=self._model_name, api_key=self._api_key, **self._kwargs
-        )
+        guidance.llm = guidance.llms.OpenAI(model=self._model_name, api_key=self._api_key, **self._kwargs)
 
         entity_extractor = guidance(prompt_kwargs.pop("prompt"))
         entities = entity_extractor(**prompt_kwargs)

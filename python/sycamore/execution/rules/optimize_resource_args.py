@@ -1,5 +1,4 @@
-from sycamore.execution import (
-    Node, NonCPUUser, NonGPUUser, Rule, SingleThreadUser)
+from sycamore.execution import Node, NonCPUUser, NonGPUUser, Rule, SingleThreadUser
 
 
 class EnforceResourceUsage(Rule):

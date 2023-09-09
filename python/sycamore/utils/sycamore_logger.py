@@ -8,8 +8,7 @@ def setup_logger():
     logger = logging.getLogger("sycamore")
     logger.setLevel(logging.INFO)
 
-    logger_formatter = logging.Formatter(
-        '%(name)s - %(levelname)s - %(asctime)s - %(message)s')
+    logger_formatter = logging.Formatter("%(name)s - %(levelname)s - %(asctime)s - %(message)s")
     logger_formatter.converter = time.gmtime
 
     logger_handler = logging.StreamHandler(sys.stdout)

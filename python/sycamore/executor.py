@@ -9,6 +9,7 @@ class Execution:
         self._context = context
         self._plan = plan
         from sycamore.execution import Rewriter
+
         extension_rules = context.get_extension_rule()
         self.rewriter = Rewriter(extension_rules)
 

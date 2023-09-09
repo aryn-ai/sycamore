@@ -8,9 +8,8 @@ from sycamore.execution.functions.chunker import TokenOverlapChunker, Chunker
 from sycamore.execution.functions.tokenizer import CharacterTokenizer, Tokenizer
 from sycamore.data.document import TableElement
 from sycamore.execution.functions import reorder_elements
-from sycamore.data import (Document, Element)
-from sycamore.execution import (
-    Node, Transform, SingleThreadUser, NonGPUUser)
+from sycamore.data import Document, Element
+from sycamore.execution import Node, Transform, SingleThreadUser, NonGPUUser
 
 
 class Partitioner:
@@ -47,8 +46,7 @@ def _elements_reorder_comparator(element1: Element, element2: Element) -> int:
     else:
         if element_in_left_col(element1) and not element_in_left_col(element2):
             return -1
-        elif not element_in_left_col(element1) and element_in_left_col(
-                element2):
+        elif not element_in_left_col(element1) and element_in_left_col(element2):
             return 1
         else:
             return 0
@@ -60,13 +58,14 @@ class PartitionerOptions:
 
 class PdfPartitionerOptions(PartitionerOptions):
     def __init__(
-            self,
-            include_page_breaks: bool = False,
-            strategy: str = "auto",
-            infer_table_structure: bool = False,
-            ocr_languages: str = "eng",
-            max_partition: Optional[int] = None,
-            include_metadata: bool = True):
+        self,
+        include_page_breaks: bool = False,
+        strategy: str = "auto",
+        infer_table_structure: bool = False,
+        ocr_languages: str = "eng",
+        max_partition: Optional[int] = None,
+        include_metadata: bool = True,
+    ):
         self.include_page_breaks = include_page_breaks
         self.strategy = strategy
         self.infer_table_structure = infer_table_structure
@@ -91,7 +90,8 @@ class PdfPartitioner(Partitioner):
             infer_table_structure=self._options.infer_table_structure,
             ocr_languages=self._options.ocr_languages,
             max_partition=self._options.max_partition,
-            include_metadata=self._options.include_metadata)
+            include_metadata=self._options.include_metadata,
+        )
         elements = [self.to_element(element.to_dict()) for element in elements]
         document.elements.extend(elements)
         document = reorder_elements(document, _elements_reorder_comparator)
@@ -100,13 +100,14 @@ class PdfPartitioner(Partitioner):
 
 class HtmlPartitionerOptions(PartitionerOptions):
     def __init__(
-            self,
-            include_page_breaks: bool = False,
-            skip_headers_and_footers: bool = True,
-            include_metadata: bool = False,
-            extract_tables: bool = False,
-            text_chunker: Chunker = TokenOverlapChunker(),
-            tokenizer: Tokenizer = CharacterTokenizer()):
+        self,
+        include_page_breaks: bool = False,
+        skip_headers_and_footers: bool = True,
+        include_metadata: bool = False,
+        extract_tables: bool = False,
+        text_chunker: Chunker = TokenOverlapChunker(),
+        tokenizer: Tokenizer = CharacterTokenizer(),
+    ):
         self.include_page_breaks = include_page_breaks
         self.skip_headers_and_footers = skip_headers_and_footers
         self.include_metadata = include_metadata
@@ -116,9 +117,7 @@ class HtmlPartitionerOptions(PartitionerOptions):
 
 
 class HtmlPartitioner(Partitioner):
-    def __init__(
-            self,
-            options: HtmlPartitionerOptions):
+    def __init__(self, options: HtmlPartitionerOptions):
         self._options = options
 
     def partition(self, dict: Dict[str, Any]) -> Dict[str, Any]:
@@ -127,7 +126,7 @@ class HtmlPartitioner(Partitioner):
         raw_html = document.content
 
         # note: if content is bytes, BeautifulSoup default to utf-8 encoding
-        soup = BeautifulSoup(raw_html, 'html.parser')
+        soup = BeautifulSoup(raw_html, "html.parser")
 
         # extract title
         titles = soup.find_all("title")
@@ -187,8 +186,7 @@ class HtmlPartitioner(Partitioner):
 
 
 class Partition(SingleThreadUser, NonGPUUser, Transform):
-    def __init__(
-            self, child: Node, options: PartitionerOptions, **resource_args):
+    def __init__(self, child: Node, options: PartitionerOptions, **resource_args):
         super().__init__(child, **resource_args)
         match options:
             case PdfPartitionerOptions():

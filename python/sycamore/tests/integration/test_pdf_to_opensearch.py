@@ -39,6 +39,7 @@ def test_pdf_to_opensearch():
         }
     }
 
+    # ruff: noqa: E501
     title_context_template = """
     ELEMENT 1: Jupiter's Moons
     ELEMENT 2: Ganymede 2020
@@ -60,7 +61,7 @@ def test_pdf_to_opensearch():
     ELEMENT 10: V C . s c [
     ========
     "FLAVR: Flow-Agnostic Video Representations for Fast Frame Interpolation"
-    
+
     """
 
     author_context_template = """
@@ -115,9 +116,7 @@ def test_pdf_to_opensearch():
             model_name=OpenAIModels.TEXT_DAVINCI.value,
         )
         .explode()
-        .sentence_transformer_embed(
-            batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2"
-        )
+        .sentence_transformer_embed(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
     )
 
     ds.write.opensearch(

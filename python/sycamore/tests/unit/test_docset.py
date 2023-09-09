@@ -9,7 +9,7 @@ from sycamore.execution.transforms import (
     Map,
     MapBatch,
     Partition,
-    PdfPartitionerOptions
+    PdfPartitionerOptions,
 )
 
 
@@ -26,8 +26,7 @@ class TestDocSet:
         node = mocker.Mock(spec=Node)
         docset = DocSet(context, node)
         docset = docset.sentence_transformer_embed(
-            col_name="col_name",
-            model_name="sentence-transformers/all-MiniLM-L6-v2"
+            col_name="col_name", model_name="sentence-transformers/all-MiniLM-L6-v2"
         )
         assert isinstance(docset.lineage(), SentenceTransformerEmbedding)
 

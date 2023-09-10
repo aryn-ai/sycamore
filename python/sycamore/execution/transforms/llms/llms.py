@@ -2,7 +2,7 @@ import os
 import re
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Dict, Any
+from typing import Any, Optional
 
 import openai
 from tenacity import retry, stop_after_attempt, wait_random, retry_if_exception_type
@@ -19,7 +19,7 @@ class LLM(ABC):
         self._kwargs = kwargs
 
     @abstractmethod
-    def generate(self, *, prompt_kwargs: Dict, llm_kwargs: Dict) -> Any:
+    def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Any:
         pass
 
     def is_chat_mode(self):
@@ -42,7 +42,7 @@ class OpenAI(LLM):
         )
         self._api_key = api_key
 
-    def generate(self, *, prompt_kwargs: Dict, llm_kwargs: Dict = None) -> Any:
+    def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Any:
         if llm_kwargs is not None:
             return self._generate_using_openai(prompt_kwargs, llm_kwargs)
 

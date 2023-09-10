@@ -1,28 +1,27 @@
 from abc import ABC, abstractmethod
-from typing import Callable, List, TypeVar
+from typing import Callable
 
 from ray.data import Dataset
 
 
 class Node(ABC):
-    def __init__(self, children: List["Node"], **resource_args):
+    def __init__(self, children: list["Node"], **resource_args):
         self.children = children
         self.resource_args = resource_args
 
     def __str__(self):
         return "node"
 
-    def execute(self) -> "Dataset":
+    @abstractmethod
+    def execute(self) -> Dataset:
         pass
 
-    T = TypeVar("T", bound="Node", covariant=True)
-
-    def traverse_down(self, f: Callable[[T], T]) -> T:
+    def traverse_down(self, f: Callable[["Node"], "Node"]) -> "Node":
         f(self)
         self.children = [c.traverse_down(f) for c in self.children]
         return self
 
-    def traverse_up(self, f: Callable[[T], T]) -> T:
+    def traverse_up(self, f: Callable[["Node"], "Node"]) -> "Node":
         self.children = [c.traverse_up(f) for c in self.children]
         f(self)
         return self

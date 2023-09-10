@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any
 
 from ray.data import Dataset
 
@@ -12,7 +12,7 @@ class Explode(SingleThreadUser, NonGPUUser, Transform):
 
     class ExplodeCallable:
         @staticmethod
-        def explode(dict: Dict[str, Any]) -> List[Dict[str, Any]]:
+        def explode(dict: dict[str, Any]) -> list[dict[str, Any]]:
             parent = Document(dict)
             documents = [parent]
 
@@ -26,7 +26,7 @@ class Explode(SingleThreadUser, NonGPUUser, Transform):
             del parent.elements
             return [document.to_dict() for document in documents]
 
-    def execute(self) -> "Dataset":
+    def execute(self) -> Dataset:
         dataset = self.child().execute()
         exploder = Explode.ExplodeCallable()
         return dataset.flat_map(exploder.explode)

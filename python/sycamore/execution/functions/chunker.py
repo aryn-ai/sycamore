@@ -1,8 +1,10 @@
-from typing import List, Any
+from abc import abstractmethod
+from typing import Any
 
 
 class Chunker:
-    def chunk(self, tokens: List[Any]) -> List[Any]:
+    @abstractmethod
+    def chunk(self, tokens: list[Any]) -> list[Any]:
         pass
 
 
@@ -14,7 +16,7 @@ class TokenOverlapChunker(Chunker):
         self._chunk_token_count = chunk_token_count
         self._chunk_overlap_token_count = chunk_overlap_token_count
 
-    def chunk(self, tokens: List[Any]) -> List[Any]:
+    def chunk(self, tokens: list[Any]) -> list[Any]:
         return [
             tokens[a : a + self._chunk_token_count]
             for a in range(0, len(tokens), self._chunk_token_count - self._chunk_overlap_token_count)

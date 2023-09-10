@@ -35,7 +35,7 @@ class TestDocSet:
         node = mocker.Mock(spec=Node)
         llm = mocker.Mock(spec=LLM)
         docset = DocSet(context, node)
-        docset = docset.llm_extract_entity(entity_to_extract="title", llm=llm)
+        docset = docset.llm_extract_entity(entity_to_extract="title", llm=llm, prompt_template="")
         assert isinstance(docset.lineage(), LLMExtractEntity)
 
     def test_map(self, mocker):

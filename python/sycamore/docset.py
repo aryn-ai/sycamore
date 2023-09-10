@@ -1,5 +1,5 @@
 import logging
-from typing import Callable, List, Dict, Optional, Union
+from typing import Callable, Optional, Union
 
 from sycamore import Context
 from sycamore.data import Document, Element
@@ -8,6 +8,7 @@ from sycamore.execution.transforms.llms import LLM
 from sycamore.execution import Node
 from sycamore.execution.transforms import LLMExtractEntity
 from sycamore.execution.transforms import PartitionerOptions
+from sycamore.execution.transforms.entity_extraction import element_list_formatter
 from sycamore.writer import DocSetWriter
 
 logger = logging.getLogger(__name__)
@@ -42,7 +43,7 @@ class DocSet:
         dataset = execution.execute(self.plan)
         return dataset.count()
 
-    def take(self, limit: int = 20) -> List[Document]:
+    def take(self, limit: int = 20) -> list[Document]:
         from sycamore import Execution
 
         execution = Execution(self.context, self.plan)
@@ -104,7 +105,13 @@ class DocSet:
         return DocSet(self.context, explode)
 
     def sentence_transformer_embed(
-        self, *, model_name: str, batch_size: int = None, device: str = None, **resource_args
+        self,
+        *,
+        model_name: str,
+        batch_size: Optional[int] = None,
+        model_batch_size: int = 100,
+        device: Optional[str] = None,
+        **resource_args
     ) -> "DocSet":
         """Embed using HuggingFace sentence transformer
 
@@ -149,11 +156,11 @@ class DocSet:
     def llm_extract_entity(
         self,
         *,
-        entity_to_extract: Union[str, Dict],
+        entity_to_extract: Union[str, dict],
         num_of_elements: int = 10,
         llm: LLM,
-        prompt_template: str = None,
-        prompt_formatter: Callable[[List[Element]], str] = None,
+        prompt_template: str,
+        prompt_formatter: Callable[[list[Element]], str] = element_list_formatter,
         entity_extractor: Optional[EntityExtractor] = None,
         **kwargs
     ) -> "DocSet":
@@ -170,7 +177,7 @@ class DocSet:
         return DocSet(self.context, entities)
 
     def extract_tables(
-        self, profile_name: str = None, region_name: str = None, kms_key_id: str = "", **kwargs
+        self, profile_name: Optional[str] = None, region_name: Optional[str] = None, kms_key_id: str = "", **kwargs
     ) -> "DocSet":
         from sycamore.execution.transforms import TableExtraction
 
@@ -183,13 +190,13 @@ class DocSet:
         mapping = Map(self.plan, f=f)
         return DocSet(self.context, mapping)
 
-    def flat_map(self, f: Callable[[Document], List[Document]], **kwargs) -> "DocSet":
+    def flat_map(self, f: Callable[[Document], list[Document]], **kwargs) -> "DocSet":
         from sycamore.execution.transforms.mapping import FlatMap
 
         flat_map = FlatMap(self.plan, f=f, **kwargs)
         return DocSet(self.context, flat_map)
 
-    def map_batch(self, f: Callable[[List[Document]], List[Document]], **kwargs) -> "DocSet":
+    def map_batch(self, f: Callable[[list[Document]], list[Document]], **kwargs) -> "DocSet":
         from sycamore.execution.transforms.mapping import MapBatch
 
         map_batch = MapBatch(self.plan, f=f, **kwargs)

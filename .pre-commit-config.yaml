@@ -35,7 +35,7 @@ repos:
       - id: pytest-check
         name: pytest-check
         # Needed because otherwise it seems to always run pytest in the git root.
-        entry: bash -c 'cd python && poetry run pytest sycamore/tests/unit'
+        entry: poetry run pytest sycamore/tests/unit
         language: system
         pass_filenames: false
         always_run: true

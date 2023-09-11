@@ -72,6 +72,6 @@ class OpenAI(LLM):
 
         guidance.llm = guidance.llms.OpenAI(model=self._model_name, api_key=self._api_key, **self._kwargs)
 
-        entity_extractor = guidance(prompt_kwargs.pop("prompt"))
-        entities = entity_extractor(**prompt_kwargs)
-        return entities
+        guidance_program = guidance(prompt_kwargs.pop("prompt"))
+        prediction = guidance_program(**prompt_kwargs)
+        return prediction

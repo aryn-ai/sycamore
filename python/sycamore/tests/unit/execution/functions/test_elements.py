@@ -1,5 +1,8 @@
+import random
+import string
+
 from sycamore.data import Document, Element
-from sycamore.execution.functions import reorder_elements
+from sycamore.execution.functions import reorder_elements, filter_elements_on_length
 from sycamore.execution.transforms.partition import _elements_reorder_comparator
 
 
@@ -115,3 +118,16 @@ class TestElementFunctions:
         comparator = _elements_reorder_comparator
         doc = reorder_elements(doc, comparator)
         assert doc.elements[2] == element4
+
+    def test_filter_elements_on_length(self):
+        doc = Document()
+        element1 = Element()
+        element1.text_representation = "".join(random.choices(string.ascii_letters, k=10))
+
+        element2 = Element()
+        element2.text_representation = "".join(random.choices(string.ascii_letters, k=20))
+
+        doc.elements = [element1, element2]
+        elements = filter_elements_on_length(doc, 10)
+
+        assert elements[0] == element2

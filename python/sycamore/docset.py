@@ -3,11 +3,11 @@ from typing import Callable, List, Dict, Optional, Union
 
 from sycamore import Context
 from sycamore.data import Document, Element
+from sycamore.execution import Node
+from sycamore.execution.transforms import LLMExtractEntity, PartitionerOptions
 from sycamore.execution.transforms.entity import EntityExtractor
 from sycamore.execution.transforms.llms import LLM
-from sycamore.execution import Node
-from sycamore.execution.transforms import LLMExtractEntity
-from sycamore.execution.transforms import PartitionerOptions
+from sycamore.execution.transforms.summarize import SummarizeText
 from sycamore.writer import DocSetWriter
 
 logger = logging.getLogger(__name__)
@@ -176,6 +176,12 @@ class DocSet:
 
         table_extraction = TableExtraction(self.plan, profile_name, region_name, kms_key_id, **kwargs)
         return DocSet(self.context, table_extraction)
+
+    def summarize(
+        self, *, llm: LLM, element_operator: Callable[[Document], List[Element]] = None, **kwargs
+    ) -> "DocSet":
+        summaries = SummarizeText(self.plan, llm=llm, element_operator=element_operator, **kwargs)
+        return DocSet(self.context, summaries)
 
     def map(self, f: Callable[[Document], Document]) -> "DocSet":
         from sycamore.execution.transforms.mapping import Map

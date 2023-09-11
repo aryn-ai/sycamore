@@ -1,5 +1,5 @@
 import threading
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import ray
 
@@ -7,9 +7,12 @@ from sycamore.execution import Rule
 
 
 class Context:
-    def __init__(self, ray_args: Dict[str, Any] = None):
+    def __init__(self, ray_args: Optional[dict[str, Any]] = None):
+        if ray_args is None:
+            ray_args = {}
+
         ray.init(**ray_args)
-        self.extension_rules: List[Rule] = []
+        self.extension_rules: list[Rule] = []
         self._internal_lock = threading.Lock()
 
     @property
@@ -22,7 +25,7 @@ class Context:
         with self._internal_lock:
             self.extension_rules.append(rule)
 
-    def get_extension_rule(self) -> List[Rule]:
+    def get_extension_rule(self) -> list[Rule]:
         with self._internal_lock:
             copied = self.extension_rules.copy()
         return copied
@@ -36,7 +39,7 @@ _context_lock = threading.Lock()
 _global_context: Optional[Context] = None
 
 
-def init(ray_args: Dict[str, Any] = None) -> Optional[Context]:
+def init(ray_args: Optional[dict[str, Any]] = None) -> Optional[Context]:
     global _global_context
     with _context_lock:
         if _global_context is None:

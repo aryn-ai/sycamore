@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Callable
 
 import pytest
@@ -10,7 +11,7 @@ from sycamore.execution.transforms.partition import Partitioner, PdfPartitioner,
 from sycamore.tests.config import TEST_DIR
 
 
-def _make_scan_executor(path, format) -> Callable[[], Dataset]:
+def _make_scan_executor(path: Path, format: str) -> Callable[[], Dataset]:
     def do_scan() -> Dataset:
         return BinaryScan(str(path), binary_format=format).execute()
 
@@ -101,7 +102,7 @@ class TestPartition:
         assert expected_table_count == table_count
 
     @pytest.mark.parametrize("path, partition_count", [(TEST_DIR / "resources/data/pdfs/Transformer.pdf", 254)])
-    def test_partition_pdf(self, mocker, path, partition_count):
+    def test_partition_pdf(self, mocker, path, partition_count) -> None:
         scan = mocker.Mock(spec=BinaryScan)
         options = PdfPartitionerOptions()
         partition = Partition(scan, options)
@@ -114,7 +115,7 @@ class TestPartition:
     @pytest.mark.parametrize(
         "path, partition_count", [(TEST_DIR / "resources/data/htmls/wikipedia_binary_search.html", 76)]
     )
-    def test_partition_html(self, mocker, path, partition_count):
+    def test_partition_html(self, mocker, path, partition_count) -> None:
         scan = mocker.Mock(spec=BinaryScan)
         options = HtmlPartitionerOptions()
         partition = Partition(scan, options)

@@ -1,5 +1,5 @@
 from collections import UserDict
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 
 class Element(UserDict):
@@ -60,19 +60,26 @@ class Element(UserDict):
             self.data["content"]["text"] = content
 
     @property
-    def properties(self) -> Optional[Dict[str, Any]]:
+    def properties(self) -> dict[str, Any]:
         return self.data["properties"]
 
     @properties.deleter
     def properties(self) -> None:
         self.data["properties"] = {}
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return self.data
 
 
 class TableElement(Element):
-    def __init__(self, element=None, title: str = None, columns: List[str] = None, rows: List[Any] = None, **kwargs):
+    def __init__(
+        self,
+        element=None,
+        title: Optional[str] = None,
+        columns: Optional[list[str]] = None,
+        rows: Optional[list[Any]] = None,
+        **kwargs,
+    ):
         super().__init__(element, **kwargs)
         self.data["type"] = "table"
         self.data["properties"]["title"] = title
@@ -80,23 +87,19 @@ class TableElement(Element):
         self.data["properties"]["rows"] = rows
 
     @property
-    def type(self) -> Optional[str]:
-        return "table"
-
-    @property
-    def rows(self) -> Optional[List[Any]]:
+    def rows(self) -> Optional[list[Any]]:
         return self.data["properties"]["rows"]
 
     @rows.setter
-    def rows(self, rows: List[Any] = None) -> None:
+    def rows(self, rows: Optional[list[Any]] = None) -> None:
         self.data["properties"]["rows"] = rows
 
     @property
-    def columns(self) -> Optional[List[str]]:
+    def columns(self) -> Optional[list[str]]:
         return self.data["properties"]["columns"]
 
     @columns.setter
-    def columns(self, columns: List[str] = None) -> None:
+    def columns(self, columns: Optional[list[str]] = None) -> None:
         self.data["properties"]["columns"] = columns
 
 
@@ -174,11 +177,11 @@ class Document(UserDict):
             self.data["content"]["text"] = content
 
     @property
-    def elements(self) -> Optional[List[Element]]:
+    def elements(self) -> list[Element]:
         return self.data["elements"]["array"]
 
     @elements.setter
-    def elements(self, elements: List[Element]):
+    def elements(self, elements: list[Element]):
         self.data["elements"] = {"array": elements}
 
     @elements.deleter
@@ -186,11 +189,11 @@ class Document(UserDict):
         self.data["elements"] = {"array": []}
 
     @property
-    def embedding(self) -> Dict[None, List[List[float]]]:
+    def embedding(self) -> dict[None, list[list[float]]]:
         return self.data["embedding"]
 
     @embedding.setter
-    def embedding(self, embedding: List[List[float]]) -> None:
+    def embedding(self, embedding: list[list[float]]) -> None:
         self.data["embedding"] = embedding
 
     @property
@@ -202,14 +205,14 @@ class Document(UserDict):
         self.data["parent_id"] = value
 
     @property
-    def properties(self) -> Optional[Dict[str, Any]]:
+    def properties(self) -> dict[str, Any]:
         return self.data["properties"]
 
     @properties.deleter
     def properties(self) -> None:
         self.data["properties"] = {}
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         dicts = [element.to_dict() for element in self.data["elements"]["array"]]
         self.data["elements"]["array"] = dicts
         return self.data

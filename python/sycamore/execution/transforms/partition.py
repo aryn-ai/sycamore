@@ -1,5 +1,6 @@
+from abc import abstractmethod
 import io
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from bs4 import BeautifulSoup
 from ray.data import Dataset
@@ -14,14 +15,18 @@ from sycamore.execution import Node, Transform, SingleThreadUser, NonGPUUser
 
 class Partitioner:
     @staticmethod
-    def to_element(dict: Dict[str, Any]) -> Element:
+    def to_element(dict: dict[str, Any]) -> Element:
         element = Element()
         element.type = dict.pop("type")
         element.content = dict.pop("text")
-        element.text_representation = element.content
+        element.text_representation = str(element.content)
         element.properties.update(dict.pop("metadata"))
         element.properties.update(dict)
         return element
+
+    @abstractmethod
+    def partition(self, dict: dict[str, Any]) -> dict[str, Any]:
+        pass
 
 
 # This comparator helps sort the elements per page specifically when a page
@@ -32,12 +37,12 @@ def _elements_reorder_comparator(element1: Element, element2: Element) -> int:
     # following function checks if the x0 point of the element is in the
     # left column
     def element_in_left_col(e: Element) -> bool:
-        width = e.properties.get("coordinates").get("layout_width")
-        x0 = e.properties.get("coordinates").get("points")[0][0]
+        width = e.properties["coordinates"]["layout_width"]
+        x0 = e.properties["coordinates"]["points"][0][0]
         return x0 / width <= 0.5
 
-    page1 = element1.properties.get("page_number")
-    page2 = element2.properties.get("page_number")
+    page1 = element1.properties["page_number"]
+    page2 = element2.properties["page_number"]
 
     if page1 < page2:
         return -1
@@ -78,11 +83,11 @@ class PdfPartitioner(Partitioner):
     def __init__(self, options: PdfPartitionerOptions):
         self._options = options
 
-    def partition(self, dict: Dict[str, Any]) -> Dict[str, Any]:
+    def partition(self, dict: dict[str, Any]) -> dict[str, Any]:
         document = Document(dict)
         from unstructured.partition.pdf import partition_pdf
 
-        binary = io.BytesIO(document.content)
+        binary = io.BytesIO(document.data["content"]["binary"])
         elements = partition_pdf(
             file=binary,
             include_page_breaks=self._options.include_page_breaks,
@@ -120,10 +125,13 @@ class HtmlPartitioner(Partitioner):
     def __init__(self, options: HtmlPartitionerOptions):
         self._options = options
 
-    def partition(self, dict: Dict[str, Any]) -> Dict[str, Any]:
+    def partition(self, dict: dict[str, Any]) -> dict[str, Any]:
         document = Document(dict)
         properties = document.properties
         raw_html = document.content
+
+        if raw_html is None:
+            raise RuntimeError("Attempting to partition invalid document where content=None")
 
         # note: if content is bytes, BeautifulSoup default to utf-8 encoding
         soup = BeautifulSoup(raw_html, "html.parser")
@@ -190,13 +198,13 @@ class Partition(SingleThreadUser, NonGPUUser, Transform):
         super().__init__(child, **resource_args)
         match options:
             case PdfPartitionerOptions():
-                self._partitioner = PdfPartitioner(options)
+                self._partitioner: Partitioner = PdfPartitioner(options)
             case HtmlPartitionerOptions():
                 self._partitioner = HtmlPartitioner(options)
             case _:
                 raise RuntimeError("Invalid Options")
 
-    def execute(self) -> "Dataset":
+    def execute(self) -> Dataset:
         input_dataset = self.child().execute()
         dataset = input_dataset.map(self._partitioner.partition)
         return dataset

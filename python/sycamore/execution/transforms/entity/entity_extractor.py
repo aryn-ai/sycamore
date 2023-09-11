@@ -1,29 +1,29 @@
 import json
 from abc import ABC, abstractmethod
-from typing import Union, Dict, Any, Callable, List
+from typing import Union, Any, Callable, cast
 
 from sycamore.data import Element, Document
 from sycamore.execution.transforms.llms import LLM
 
 
 class EntityExtractor(ABC):
-    def __init__(self, entity_to_extract: Union[str, Dict], llm_model: LLM):
+    def __init__(self, entity_to_extract: Union[str, dict], llm_model: LLM):
         self._entity_to_extract = entity_to_extract
         self._model = llm_model
 
     @abstractmethod
-    def extract_entity(self, record: Dict[str, Any]) -> Dict[str, Any]:
+    def extract_entity(self, record: dict[str, Any]) -> dict[str, Any]:
         pass
 
 
 class OpenAIEntityExtractor(EntityExtractor):
     def __init__(
         self,
-        entity_to_extract: Union[str, Dict],
+        entity_to_extract: Union[str, dict],
         llm_model: LLM,
         num_of_elements: int,
         prompt_template: str,
-        prompt_formatter: Callable[[List[Element]], str],
+        prompt_formatter: Callable[[list[Element]], str],
     ):
         super().__init__(
             entity_to_extract,
@@ -33,7 +33,7 @@ class OpenAIEntityExtractor(EntityExtractor):
         self._prompt_template = prompt_template
         self._prompt_formatter = prompt_formatter
 
-    def extract_entity(self, record: Dict[str, Any]) -> Dict[str, Any]:
+    def extract_entity(self, record: dict[str, Any]) -> dict[str, Any]:
         document = Document(record)
 
         if isinstance(self._entity_to_extract, str):
@@ -92,7 +92,7 @@ class OpenAIEntityExtractor(EntityExtractor):
         )
         text_passage = ""
         for i in range(self._num_of_elements):
-            text_passage += f"{document.elements[i].get('content').get('text')} "
+            text_passage += f"{document.elements[i]['content']['text']} "
 
         prompt = (
             f"Extract and save the relevant entities mentioned in the following passage together with their "
@@ -107,7 +107,7 @@ class OpenAIEntityExtractor(EntityExtractor):
         entities = self._model.generate(prompt_kwargs={"prompt": prompt}, llm_kwargs=llm_kwargs)
         return json.loads(entities.function_call.arguments).get("query")[0]
 
-    def _get_entity_extraction_function(self) -> Dict:
+    def _get_entity_extraction_function(self) -> dict:
         def _convert_schema(schema: dict) -> dict:
             props = {k: {"title": k, **v} for k, v in schema["entities"].items()}
             return {
@@ -124,12 +124,15 @@ class OpenAIEntityExtractor(EntityExtractor):
                 "properties": {
                     "query": {
                         "type": "array",
-                        "items": _convert_schema(self._entity_to_extract),
+                        # TODO: Clean this up. We know that _entity_to_extract is a dict, becasue
+                        # this is only called in the few shot case, but still don't like having to
+                        # perform this cast.
+                        "items": _convert_schema(cast(dict[Any, Any], self._entity_to_extract)),
                     }
                 },
                 "required": ["query"],
             },
         }
 
-    def _get_llm_kwargs(self, function: Dict) -> Dict:
+    def _get_llm_kwargs(self, function: dict) -> dict:
         return {"functions": [function], "function_call": {"name": function["name"]}}

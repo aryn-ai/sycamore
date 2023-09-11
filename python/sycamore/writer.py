@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Optional
 
 from sycamore import Context
 from sycamore.execution import Node
@@ -10,7 +10,7 @@ class DocSetWriter:
         self.plan = plan
         self.resource_args = resource_args
 
-    def opensearch(self, *, os_client_args: Dict, index_name: str, index_settings: Dict = None) -> None:
+    def opensearch(self, *, os_client_args: dict, index_name: str, index_settings: Optional[dict] = None) -> None:
         from sycamore.execution.writes import OpenSearchWriter
 
         os = OpenSearchWriter(

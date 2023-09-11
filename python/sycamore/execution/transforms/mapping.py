@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, Iterable, List, Optional, Type
+from typing import Any, Callable, Iterable, Optional, Type
 
 from pyarrow import Table
 from ray.data import ActorPoolStrategy, Dataset
@@ -7,19 +7,19 @@ from sycamore.execution import Node, UnaryNode
 from sycamore.data import Document
 
 
-def generate_map_function(f: Callable[[Document], Document]) -> Callable[[Dict[str, Any]], Dict[str, Any]]:
-    def ray_callable(input_dict: Dict[str, Any]) -> Dict[str, Any]:
+def generate_map_function(f: Callable[[Document], Document]) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    def ray_callable(input_dict: dict[str, Any]) -> dict[str, Any]:
         document = f(Document(input_dict))
         return document.data
 
     return ray_callable
 
 
-def generate_map_class(c: Type[Callable[[Document], Document]]) -> Type[Callable[[Dict[str, Any]], Dict[str, Any]]]:
+def generate_map_class(c: Type[Callable[[Document], Document]]) -> Type[Callable[[dict[str, Any]], dict[str, Any]]]:
     def ray_init(self):
         self.base = c()
 
-    def ray_callable(self, input_dict: Dict[str, Any]) -> Dict[str, Any]:
+    def ray_callable(self, input_dict: dict[str, Any]) -> dict[str, Any]:
         document = self.base(Document(input_dict))
         return document.data
 
@@ -28,9 +28,9 @@ def generate_map_class(c: Type[Callable[[Document], Document]]) -> Type[Callable
 
 
 def generate_flat_map_function(
-    f: Callable[[Document], List[Document]]
-) -> Callable[[Dict[str, Any]], List[Dict[str, Any]]]:
-    def ray_callable(input_dict: Dict[str, Any]) -> List[Dict[str, Any]]:
+    f: Callable[[Document], list[Document]]
+) -> Callable[[dict[str, Any]], list[dict[str, Any]]]:
+    def ray_callable(input_dict: dict[str, Any]) -> list[dict[str, Any]]:
         documents = f(Document(input_dict))
         return [document.data for document in documents]
 
@@ -38,12 +38,12 @@ def generate_flat_map_function(
 
 
 def generate_flat_map_class(
-    c: Type[Callable[[Document], List[Document]]]
-) -> Type[Callable[[Dict[str, Any]], List[Dict[str, Any]]]]:
+    c: Type[Callable[[Document], list[Document]]]
+) -> Type[Callable[[dict[str, Any]], list[dict[str, Any]]]]:
     def ray_init(self):
         self.base = c()
 
-    def ray_callable(self, input_dict: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def ray_callable(self, input_dict: dict[str, Any]) -> list[dict[str, Any]]:
         documents = self.base(Document(input_dict))
         return [document.data for document in documents]
 
@@ -51,7 +51,7 @@ def generate_flat_map_class(
     return new_class
 
 
-def generate_map_batch_function(f: Callable[[List[Document]], List[Document]]) -> Callable[[Table], Table]:
+def generate_map_batch_function(f: Callable[[list[Document]], list[Document]]) -> Callable[[Table], Table]:
     def ray_callable(input_table: Table) -> Table:
         input_docs = [Document(t) for t in input_table.to_pylist()]
         output_docs = f(input_docs)
@@ -66,12 +66,12 @@ def generate_map_batch_function(f: Callable[[List[Document]], List[Document]]) -
 
 
 def generate_map_batch_class(
-    c: Type[Callable[[List[Document]], List[Document]]],
+    c: Type[Callable[[list[Document]], list[Document]]],
     f_args: Optional[Iterable[Any]] = None,
-    f_kwargs: Optional[Dict[str, Any]] = None,
+    f_kwargs: Optional[dict[str, Any]] = None,
     f_constructor_args: Optional[Iterable[Any]] = None,
-    f_constructor_kwargs: Optional[Dict[str, Any]] = None,
-) -> Type[Callable[[List[Dict[str, Any]]], List[Dict[str, Any]]]]:
+    f_constructor_kwargs: Optional[dict[str, Any]] = None,
+) -> Type[Callable[[list[dict[str, Any]]], list[dict[str, Any]]]]:
     if f_constructor_args is None:
         f_constructor_args = tuple()
     if f_constructor_kwargs is None:
@@ -114,7 +114,7 @@ class Map(UnaryNode):
 
 
 class FlatMap(UnaryNode):
-    def __init__(self, child: Node, *, f: Callable[[Document], List[Document]], **resource_args):
+    def __init__(self, child: Node, *, f: Callable[[Document], list[Document]], **resource_args):
         super().__init__(child, **resource_args)
         self._f = f
 
@@ -133,11 +133,11 @@ class MapBatch(UnaryNode):
         self,
         child: Node,
         *,
-        f: Callable[[List[Document]], List[Document]],
+        f: Callable[[list[Document]], list[Document]],
         f_args: Optional[Iterable[Any]] = None,
-        f_kwargs: Optional[Dict[str, Any]] = None,
+        f_kwargs: Optional[dict[str, Any]] = None,
         f_constructor_args: Optional[Iterable[Any]] = None,
-        f_constructor_kwargs: Optional[Dict[str, Any]] = None,
+        f_constructor_kwargs: Optional[dict[str, Any]] = None,
         **resource_args
     ):
         super().__init__(child, **resource_args)

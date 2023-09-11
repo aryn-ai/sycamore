@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 from pyarrow.filesystem import FileSystem
 from ray.data import Dataset, read_binary_files, read_json
@@ -8,7 +8,7 @@ from sycamore.data import Document
 from sycamore.execution import Scan
 
 
-def _set_id(doc: Dict[str, Any]) -> Dict[str, Any]:
+def _set_id(doc: dict[str, Any]) -> dict[str, Any]:
     import uuid
 
     doc["doc_id"] = str(uuid.uuid1())
@@ -18,7 +18,7 @@ def _set_id(doc: Dict[str, Any]) -> Dict[str, Any]:
 class FileScan(Scan):
     """A base scan class for file based data"""
 
-    def __init__(self, paths: Union[str, List[str]], *, parallelism: Optional[int] = None, **resource_args):
+    def __init__(self, paths: Union[str, list[str]], *, parallelism: Optional[int] = None, **resource_args):
         super().__init__(**resource_args)
         self._paths = paths
         self.parallelism = parallelism
@@ -35,7 +35,7 @@ class BinaryScan(FileScan):
 
     def __init__(
         self,
-        paths: Union[str, List[str]],
+        paths: Union[str, list[str]],
         *,
         binary_format: str,
         parallelism: Optional[int] = None,
@@ -48,7 +48,7 @@ class BinaryScan(FileScan):
         self._binary_format = binary_format
         self._filesystem = filesystem
 
-    def _to_document(self, dict: Dict[str, Any]) -> Dict[str, Any]:
+    def _to_document(self, dict: dict[str, Any]) -> dict[str, Any]:
         document = Document()
         import uuid
 
@@ -89,7 +89,7 @@ class BinaryScan(FileScan):
 
 
 class JsonScan(FileScan):
-    def __init__(self, paths: Union[str, List[str]], *, parallelism: Optional[int] = None, **resource_args):
+    def __init__(self, paths: Union[str, list[str]], *, parallelism: Optional[int] = None, **resource_args):
         super().__init__(paths, parallelism=parallelism, **resource_args)
         self.parallelism = -1 if parallelism is None else parallelism
 

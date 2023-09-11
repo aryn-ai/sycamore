@@ -8,8 +8,11 @@ class MockNode(Node):
         super().__init__([], **kwargs)
         self.value = 0
 
+    def execute(self):
+        pass
 
-def set_value_function(node: Node) -> None:
+
+def set_value_function(node: MockNode) -> None:
     node.value = 1
 
 
@@ -17,7 +20,7 @@ class SetValueClass:
     def __init__(self):
         self.value = 0
 
-    def set_value(self, node: Node) -> None:
+    def set_value(self, node: MockNode) -> None:
         node.value = 1
         self.value += 1
 

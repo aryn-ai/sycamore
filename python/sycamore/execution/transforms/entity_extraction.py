@@ -1,4 +1,4 @@
-from typing import Dict, Callable, List, Union, Optional
+from typing import Callable, Union, Optional
 
 from ray.data import Dataset
 
@@ -8,15 +8,22 @@ from sycamore.execution.transforms.llms import LLM
 from sycamore.execution import Node, Transform
 
 
+def element_list_formatter(elements: list[Element]) -> str:
+    query = ""
+    for i in range(len(elements)):
+        query += f"ELEMENT {i + 1}: {elements[i]['content']['text']}\n"
+    return query
+
+
 class LLMExtractEntity(Transform):
     def __init__(
         self,
         child: Node,
-        entity_to_extract: Union[str, Dict],
+        entity_to_extract: Union[str, dict],
         num_of_elements: int,
         llm: LLM,
         prompt_template: str,
-        prompt_formatter: Callable[[List[Element]], str],
+        prompt_formatter: Callable[[list[Element]], str],
         entity_extractor: Optional[EntityExtractor],
         **resource_args,
     ):

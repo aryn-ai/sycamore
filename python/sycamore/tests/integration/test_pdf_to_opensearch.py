@@ -1,7 +1,6 @@
-from typing import List
+from sycamore.execution.transforms.entity_extraction import element_list_formatter
 
 import sycamore
-from sycamore.data import Element
 from sycamore.execution.transforms import PdfPartitionerOptions
 from sycamore.execution.transforms.llms.llms import OpenAIModels, OpenAI
 from sycamore.tests.config import TEST_DIR
@@ -88,12 +87,6 @@ def test_pdf_to_opensearch():
 
         """
 
-    def prompt_formatter(elements: List[Element]) -> str:
-        query = ""
-        for i in range(len(elements)):
-            query += f"ELEMENT {i + 1}: {elements[i].get('content').get('text')}\n"
-        return query
-
     paths = str(TEST_DIR / "resources/data/pdfs/")
 
     openai_llm = OpenAI(OpenAIModels.TEXT_DAVINCI.value)
@@ -106,13 +99,13 @@ def test_pdf_to_opensearch():
             entity_to_extract="title",
             llm=openai_llm,
             prompt_template=title_context_template,
-            prompt_formatter=prompt_formatter,
+            prompt_formatter=element_list_formatter,
         )
         .llm_extract_entity(
             entity_to_extract="authors",
             llm=openai_llm,
             prompt_template=author_context_template,
-            prompt_formatter=prompt_formatter,
+            prompt_formatter=element_list_formatter,
             model_name=OpenAIModels.TEXT_DAVINCI.value,
         )
         .explode()

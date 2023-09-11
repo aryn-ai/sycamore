@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Optional
 
 from ray.data import Dataset
 from textractor import Textractor
@@ -11,12 +11,12 @@ from sycamore.execution.basics import NonCPUUser, Node, Transform
 
 
 class TextractorTableExtractor:
-    def __init__(self, profile_name: str = None, region_name: str = None, kms_key_id: str = ""):
+    def __init__(self, profile_name: Optional[str] = None, region_name: Optional[str] = None, kms_key_id: str = ""):
         self._profile_name = profile_name
         self._region_name = region_name
         self._kms_key_id: str = kms_key_id
 
-    def _extract_tables(self, document: Document) -> List[Element]:
+    def _extract_tables(self, document: Document) -> list[Element]:
         # https://docs.aws.amazon.com/textract/latest/dg/API_BoundingBox.html
         def bbox_to_coord(bbox):
             return [bbox.x, bbox.y, bbox.x + bbox.width, bbox.y + bbox.height]
@@ -48,7 +48,7 @@ class TextractorTableExtractor:
 
         return all_tables
 
-    def extract(self, dict: Dict[str, Any]) -> Dict[str, Any]:
+    def extract(self, dict: dict[str, Any]) -> dict[str, Any]:
         document = Document(dict)
         tables = self._extract_tables(document)
         document.elements.extend(tables)
@@ -57,7 +57,12 @@ class TextractorTableExtractor:
 
 class TableExtraction(NonCPUUser, NonGPUUser, Transform):
     def __init__(
-        self, child: Node, profile_name: str = None, region_name: str = None, kms_key_id: str = "", **resource_args
+        self,
+        child: Node,
+        profile_name: Optional[str] = None,
+        region_name: Optional[str] = None,
+        kms_key_id: str = "",
+        **resource_args
     ):
         super().__init__(child, **resource_args)
         self._table_extractor = TextractorTableExtractor(profile_name, region_name, kms_key_id)

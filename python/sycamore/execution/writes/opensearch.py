@@ -1,11 +1,10 @@
 import logging
-from typing import Dict, Optional, Iterable
+from typing import Optional, Iterable
 
 from opensearchpy import OpenSearch
 from opensearchpy.helpers import parallel_bulk
 from ray.data import Datasource, Dataset
 from ray.data._internal.delegating_block_builder import DelegatingBlockBuilder
-from ray.data._internal.execution.interfaces import TaskContext
 from ray.data.block import Block, BlockAccessor
 from ray.data.datasource import WriteResult
 
@@ -20,10 +19,10 @@ class OpenSearchWriter(Write):
         plan: Node,
         index_name: str,
         *,
-        os_client_args: Dict,
-        index_settings: Optional[Dict] = None,
+        os_client_args: dict,
+        index_settings: Optional[dict] = None,
         number_of_allowed_failures_per_block: int = 100,
-        collect_failures_file_path: str = None,
+        collect_failures_file_path: str = "failures.txt",
         **ray_remote_args,
     ):
         super().__init__(plan, **ray_remote_args)
@@ -31,7 +30,7 @@ class OpenSearchWriter(Write):
         self.index_settings = index_settings
         self.os_client_args = os_client_args
         self.number_of_allowed_failures_per_block = number_of_allowed_failures_per_block
-        self.collect_failures_file_path = collect_failures_file_path or "failures.txt"
+        self.collect_failures_file_path = collect_failures_file_path
 
     def execute(self) -> Dataset:
         dataset = self.child().execute()
@@ -52,7 +51,7 @@ class OpenSearchWriter(Write):
             index_name=self.index_name,
             os_client_args=self.os_client_args,
             number_of_allowed_failures_per_block=self.number_of_allowed_failures_per_block,
-            collect_failures_file_path=self.collect_failures_file_path or "failures.txt",
+            collect_failures_file_path=self.collect_failures_file_path,
         )
 
         return dataset
@@ -79,7 +78,7 @@ class OSDataSource(Datasource):
                 result[k] = v
         return result
 
-    def write(self, blocks: Iterable[Block], ctx: TaskContext, **write_args) -> WriteResult:
+    def write(self, blocks: Iterable[Block], **write_args) -> WriteResult:
         builder = DelegatingBlockBuilder()
         for block in blocks:
             builder.add_block(block)
@@ -93,7 +92,7 @@ class OSDataSource(Datasource):
     def write_block(
         block: Block,
         *,
-        os_client_args: Dict,
+        os_client_args: dict,
         index_name: str,
         collect_failures_file_path: str,
         number_of_allowed_failures_per_block: int,

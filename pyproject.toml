@@ -20,6 +20,10 @@ guidance = "^0.0.64"
 tenacity = "8.2.3"
 amazon-textract-textractor = "^1.3.2"
 
+# Skip 2.0.1 to address a Pytorch bug.
+# See https://stackoverflow.com/a/76647180
+torch = ">=2.0.0, !=2.0.1"
+
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"
 pytest = "7.4.0"

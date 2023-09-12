@@ -1,12 +1,12 @@
 import boto3
 
 import sycamore
-from execution.transforms import PdfPartitionerOptions
-from execution.transforms.table_extraction import TextractorTableExtractor
+from sycamore.execution.transforms import PdfPartitionerOptions
+from sycamore.execution.transforms.table_extraction import TextractorTableExtractor
 
 
 def get_s3_fs():
-    session = boto3.session.Session(profile_name="dev-admin")
+    session = boto3.session.Session()
     credentials = session.get_credentials()
     from pyarrow.fs import S3FileSystem
 
@@ -24,7 +24,7 @@ class TestTextExtraction:
         context = sycamore.init()
         docset = context.read.binary("s3://aryn-textract/10q-excerpt.pdf", binary_format="pdf", filesystem=get_s3_fs())
         document = docset.take(1)[0]
-        table_extractor = TextractorTableExtractor(profile_name="dev-admin")
+        table_extractor = TextractorTableExtractor(region_name="us-east-1")
         tables = table_extractor._extract_tables(document)
         assert len(tables) == 2
 
@@ -33,6 +33,6 @@ class TestTextExtraction:
         docset = context.read.binary("s3://aryn-textract/10q-excerpt.pdf", binary_format="pdf", filesystem=get_s3_fs())
         docset = docset.partition(options=PdfPartitionerOptions())
         priori = docset.take(1)[0]
-        docset = docset.extract_tables(profile_name="dev-admin")
+        docset = docset.extract_tables(region_name="us-east-1")
         post = docset.take(1)[0]
         assert len(post.elements) == len(priori.elements) + 2

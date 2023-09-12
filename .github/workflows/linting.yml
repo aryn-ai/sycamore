@@ -1,0 +1,47 @@
+name: Linting
+
+on:
+  push:
+    branches:
+      - development
+  pull_request:
+    paths:
+      - "**.py"
+      - "**/pyproject.toml"
+
+jobs:
+  mypy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install poetry
+        run: pipx install poetry
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'poetry'
+      - name: Install sycamore
+        run: poetry install
+      - name: Run mypy
+        run: |
+          mkdir .mypy_cache/
+          poetry run mypy --install-types --non-interactive .
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install poetry
+        run: pipx install poetry
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'poetry'
+      - name: Install sycamore
+        run: poetry install
+      - name: Lint with ruff
+        run: poetry run ruff check .
+      - name: Lint with black
+        run: poetry run black --check .

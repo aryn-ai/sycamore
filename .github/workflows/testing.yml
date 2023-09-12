@@ -1,0 +1,68 @@
+name: Testing
+
+on:
+  push:
+    branches:
+      - development
+  pull_request:
+    paths:
+      - "**.py"
+      - "**/pyproject.toml"
+
+env:
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+# Permissions for AWS access
+permissions:
+  id-token: write   # This is required for requesting the JWT
+  contents: read    # This is required for actions/checkout
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install poetry
+        run: pipx install poetry
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'poetry'
+      - name: Install sycamore
+        run: poetry install
+      - name: Run tests
+        run: poetry run pytest sycamore/tests/unit/
+
+  integ-tests:
+    runs-on: ubuntu-latest
+    services:
+      opensearch:
+        image: opensearchproject/opensearch:2.9.0
+        env:
+          discovery.type: "single-node"
+        ports:
+          - 9200:9200
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install poetry
+        run: pipx install poetry
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'poetry'
+      - name: Install sycamore
+        run: poetry install
+
+      - name: Install poppler
+        run: sudo apt-get install -y poppler-utils
+
+      - name: Configure AWS Credentials via OIDC provider.
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: us-east-1
+          role-to-assume: arn:aws:iam::237550789389:role/aryn-github-integ
+
+      - name: Run Integ tests
+        run: poetry run pytest sycamore/tests/integration

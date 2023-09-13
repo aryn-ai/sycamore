@@ -9,6 +9,7 @@ from sycamore.execution import Node
 from sycamore.execution.transforms import LLMExtractEntity
 from sycamore.execution.transforms import PartitionerOptions
 from sycamore.execution.transforms.entity_extraction import element_list_formatter
+from sycamore.execution.transforms.summarize import Summarizer, Summarize
 from sycamore.writer import DocSetWriter
 
 logger = logging.getLogger(__name__)
@@ -183,6 +184,10 @@ class DocSet:
 
         table_extraction = TableExtraction(self.plan, profile_name, region_name, kms_key_id, **kwargs)
         return DocSet(self.context, table_extraction)
+
+    def summarize(self, *, summarizer: Summarizer, **kwargs) -> "DocSet":
+        summaries = Summarize(self.plan, summarizer=summarizer, **kwargs)
+        return DocSet(self.context, summaries)
 
     def map(self, f: Callable[[Document], Document]) -> "DocSet":
         from sycamore.execution.transforms.mapping import Map

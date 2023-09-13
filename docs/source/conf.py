@@ -11,7 +11,7 @@ import sys
 sys.path.insert(0, os.path.abspath("../../sycamore"))
 
 project = 'Sycamore'
-copyright = '2023, The Aryn Team'
+copyright = '2023, Aryn Inc.'
 author = 'The Aryn Team'
 
 # -- General configuration ---------------------------------------------------

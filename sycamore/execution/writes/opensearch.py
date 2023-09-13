@@ -7,7 +7,7 @@ from ray.data import Datasource, Dataset
 from ray.data._internal.delegating_block_builder import DelegatingBlockBuilder
 from ray.data.block import Block, BlockAccessor
 from ray.data.datasource import WriteResult
-
+from ray.data._internal.execution.interfaces import TaskContext
 from sycamore.execution.basics import Node, Write
 
 log = logging.getLogger(__name__)
@@ -78,7 +78,12 @@ class OSDataSource(Datasource):
                 result[k] = v
         return result
 
-    def write(self, blocks: Iterable[Block], **write_args) -> WriteResult:
+    # The type: ignore is required for the ctx paramter, which is not part of the Datasource
+    # API spec, but is passed at runtime by Ray. This can be removed once this commit is
+    # included in Ray's release:
+    #
+    # https://github.com/ray-project/ray/commit/dae1d1f4a0f531fd8d0fbfca5e5cd2d1f21b551e
+    def write(self, blocks: Iterable[Block], ctx: TaskContext, **write_args) -> WriteResult:  # type: ignore
         builder = DelegatingBlockBuilder()
         for block in blocks:
             builder.add_block(block)

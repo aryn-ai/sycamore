@@ -11,7 +11,7 @@ from sycamore.execution.transforms import (
     Partition,
     PdfPartitionerOptions,
 )
-from sycamore.execution.transforms.summarize import TextSummarizer
+from sycamore.execution.transforms.summarize import LLMTextSummarizer
 
 
 class TestDocSet:
@@ -65,5 +65,5 @@ class TestDocSet:
         node = mocker.Mock(spec=Node)
         llm = mocker.Mock(spec=LLM)
         docset = DocSet(context, node)
-        docset = docset.summarize(llm=llm, summarizer=TextSummarizer(llm))
+        docset = docset.summarize(llm=llm, summarizer=LLMTextSummarizer(llm))
         assert isinstance(docset.lineage(), Summarize)

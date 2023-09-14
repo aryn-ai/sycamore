@@ -13,8 +13,7 @@ from sycamore.execution.transforms.prompts.default_prompts import (
 
 
 class Summarizer(ABC):
-    def __init__(self, llm: LLM, element_operator: Callable[[Document], list[Element]] | None = None):
-        self._llm = llm
+    def __init__(self, element_operator: Callable[[Document], list[Element]] | None = None):
         self._element_operator = element_operator
 
     @abstractmethod
@@ -22,9 +21,10 @@ class Summarizer(ABC):
         pass
 
 
-class TextSummarizer(Summarizer):
+class LLMTextSummarizer(Summarizer):
     def __init__(self, llm: LLM, element_operator: Callable[[Document], list[Element]] | None = None):
-        super().__init__(llm, element_operator)
+        super().__init__(element_operator)
+        self._llm = llm
 
     def summarize(self, row: dict[str, Any]) -> dict[str, Any]:
         document = Document(row)
@@ -45,8 +45,9 @@ class TextSummarizer(Summarizer):
             prompt = TEXT_SUMMARIZER_GUIDANCE_PROMPT
 
         for element in elements:
-            response = self._llm.generate(prompt_kwargs={"prompt": prompt, "query": element.text_representation})
-            element.properties["summary"] = response["summary"]
+            if element.text_representation:
+                response = self._llm.generate(prompt_kwargs={"prompt": prompt, "query": element.text_representation})
+                element.properties["summary"] = response["summary"]
 
 
 class Summarize(NonCPUUser, NonGPUUser, Transform):

@@ -47,7 +47,7 @@ line-length = 120
 line-length = 120
 
 [tool.mypy]
-exclude = ["notebooks"]
+exclude = ["notebooks", "docs"]
 ignore_missing_imports = true
 
 [build-system]

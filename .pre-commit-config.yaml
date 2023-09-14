@@ -29,7 +29,7 @@ repos:
     hooks:
         - id: mypy
           args: [--ignore-missing-imports]
-
+          exclude: docs/
   - repo: local
     hooks:
       - id: pytest-check

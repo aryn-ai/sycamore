@@ -9,11 +9,11 @@ def reorder_elements(
     comparator: Callable[[Element, Element], int],
 ):
     """
-           Reorders the elements.
-           Args:
-               document: Document for which the elements need to be re-ordered
-               comparator: A comparator function
-        """
+    Reorders the elements.
+    Args:
+        document: Document for which the elements need to be re-ordered
+        comparator: A comparator function
+    """
     elements = document.elements
     elements.sort(key=functools.cmp_to_key(comparator))
     return document

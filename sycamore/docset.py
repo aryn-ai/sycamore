@@ -1,14 +1,11 @@
 import logging
-from typing import Callable, Optional, Union
+from typing import Callable, Optional
 
 from sycamore import Context
-from sycamore.data import Document, Element
-from sycamore.execution.transforms.entity import EntityExtractor
-from sycamore.execution.transforms.llms import LLM
+from sycamore.data import Document
 from sycamore.execution import Node
-from sycamore.execution.transforms import LLMExtractEntity
 from sycamore.execution.transforms import PartitionerOptions
-from sycamore.execution.transforms.entity_extraction import element_list_formatter
+from sycamore.execution.transforms.entity_extraction import ExtractEntity, EntityExtractor
 from sycamore.execution.transforms.summarize import Summarizer, Summarize
 from sycamore.writer import DocSetWriter
 
@@ -154,27 +151,8 @@ class DocSet:
         )
         return DocSet(self.context, embedding)
 
-    def llm_extract_entity(
-        self,
-        *,
-        entity_to_extract: Union[str, dict],
-        num_of_elements: int = 10,
-        llm: LLM,
-        prompt_template: str,
-        prompt_formatter: Callable[[list[Element]], str] = element_list_formatter,
-        entity_extractor: Optional[EntityExtractor] = None,
-        **kwargs
-    ) -> "DocSet":
-        entities = LLMExtractEntity(
-            self.plan,
-            entity_to_extract=entity_to_extract,
-            num_of_elements=num_of_elements,
-            llm=llm,
-            prompt_template=prompt_template,
-            prompt_formatter=prompt_formatter,
-            entity_extractor=entity_extractor,
-            **kwargs
-        )
+    def extract_entity(self, entity_extractor: EntityExtractor, **kwargs) -> "DocSet":
+        entities = ExtractEntity(self.plan, entity_extractor=entity_extractor, **kwargs)
         return DocSet(self.context, entities)
 
     def extract_tables(

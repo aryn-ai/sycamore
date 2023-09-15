@@ -22,6 +22,7 @@ class LLM(ABC):
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Any:
         pass
 
+    @property
     def is_chat_mode(self):
         chat_model_pattern = r"^(gpt-3\.5-turbo|gpt-4)(-\d+k)?(-\d{4})?$"
         return re.match(chat_model_pattern, self._model_name)
@@ -72,6 +73,6 @@ class OpenAI(LLM):
 
         guidance.llm = guidance.llms.OpenAI(model=self._model_name, api_key=self._api_key, **self._kwargs)
 
-        entity_extractor = guidance(prompt_kwargs.pop("prompt"))
-        entities = entity_extractor(**prompt_kwargs)
-        return entities
+        guidance_program = guidance(prompt_kwargs.pop("prompt"))
+        prediction = guidance_program(**prompt_kwargs)
+        return prediction

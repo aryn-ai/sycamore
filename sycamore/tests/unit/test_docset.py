@@ -1,4 +1,4 @@
-from sycamore.execution.transforms import LLMExtractEntity
+from sycamore.execution.transforms import LLMExtractEntity, Summarize
 from sycamore.execution.transforms.llms import LLM
 from sycamore import DocSet, Context
 from sycamore.execution import Node
@@ -11,6 +11,7 @@ from sycamore.execution.transforms import (
     Partition,
     PdfPartitionerOptions,
 )
+from sycamore.execution.transforms.summarize import LLMElementTextSummarizer
 
 
 class TestDocSet:
@@ -58,3 +59,11 @@ class TestDocSet:
         docset = DocSet(context, node)
         docset = docset.map_batch(f=lambda doc: doc)
         assert isinstance(docset.lineage(), MapBatch)
+
+    def test_summarize(self, mocker):
+        context = mocker.Mock(spec=Context)
+        node = mocker.Mock(spec=Node)
+        llm = mocker.Mock(spec=LLM)
+        docset = DocSet(context, node)
+        docset = docset.summarize(llm=llm, summarizer=LLMElementTextSummarizer(llm))
+        assert isinstance(docset.lineage(), Summarize)

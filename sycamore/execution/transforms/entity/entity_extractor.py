@@ -4,6 +4,10 @@ from typing import Union, Any, Callable, cast
 
 from sycamore.data import Element, Document
 from sycamore.execution.transforms.llms import LLM
+from sycamore.execution.transforms.prompts.default_prompts import (
+    ENTITY_EXTRACTOR_GUIDANCE_PROMPT_CHAT,
+    ENTITY_EXTRACTOR_GUIDANCE_PROMPT,
+)
 
 
 class EntityExtractor(ABC):
@@ -49,32 +53,11 @@ class OpenAIEntityExtractor(EntityExtractor):
     def _handle_few_shot_prompting(self, document: Document) -> Any:
         sub_elements = [document.elements[i] for i in range(self._num_of_elements)]
 
-        if self._model.is_chat_mode():
-            prompt = """
-                {{#system~}}
-                You are a helpful entity extractor.
-                {{~/system}}
-
-                {{#user~}}
-                You are given a few text elements. The {{entity}} of the file is in these few text elements.Using
-                this context, FIND, COPY, and RETURN the {{entity}}. DO NOT REPHRASE OR MAKE UP AN ANSWER.
-                {{examples}}
-                {{query}}
-                {{~/user}}
-
-                {{#assistant~}}
-                {{gen "answer"}}
-                {{~/assistant}}
-                """
+        if self._model.is_chat_mode:
+            prompt = ENTITY_EXTRACTOR_GUIDANCE_PROMPT_CHAT
 
         else:
-            prompt = """You are given a few text elements. The {{entity}} of the file is in these few text elements.Using
-                    this context, FIND, COPY, and RETURN the {{entity}}. DO NOT REPHRASE OR MAKE UP AN ANSWER.
-                    {{examples}}
-                    {{query}}
-                    =========
-                    {{entity}}: {{gen "answer"}}
-                    """  # noqa: E501
+            prompt = ENTITY_EXTRACTOR_GUIDANCE_PROMPT
 
         entities = self._model.generate(
             prompt_kwargs={
@@ -87,7 +70,7 @@ class OpenAIEntityExtractor(EntityExtractor):
         return entities
 
     def _handle_zero_shot_prompting(self, document: Document) -> Any:
-        assert self._model.is_chat_mode(), (
+        assert self._model.is_chat_mode, (
             "Zero shot prompting is only supported for OpenAI models which " "support chat completion."
         )
         text_passage = ""

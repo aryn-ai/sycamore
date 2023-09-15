@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Any
+from typing import Callable, Any, Optional
 
 from ray.data import Dataset
 
@@ -19,7 +19,7 @@ class Summarizer(ABC):
 
 
 class LLMElementTextSummarizer(Summarizer):
-    def __init__(self, llm: LLM, element_operator: Callable[[Document], list[Element]] | None = None):
+    def __init__(self, llm: LLM, element_operator: Optional[Callable[[Document], list[Element]]] = None):
         self._llm = llm
         self._element_operator = element_operator
 

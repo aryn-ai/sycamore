@@ -13,18 +13,15 @@ from sycamore.execution.transforms.prompts.default_prompts import (
 
 
 class Summarizer(ABC):
-    def __init__(self, element_operator: Callable[[Document], list[Element]] | None = None):
-        self._element_operator = element_operator
-
     @abstractmethod
     def summarize(self, record: dict[str, Any]) -> dict[str, Any]:
         pass
 
 
-class LLMTextSummarizer(Summarizer):
+class LLMElementTextSummarizer(Summarizer):
     def __init__(self, llm: LLM, element_operator: Callable[[Document], list[Element]] | None = None):
-        super().__init__(element_operator)
         self._llm = llm
+        self._element_operator = element_operator
 
     def summarize(self, row: dict[str, Any]) -> dict[str, Any]:
         document = Document(row)

@@ -4,7 +4,7 @@ import string
 from sycamore.data import Document, Element
 from sycamore.execution.functions import filter_elements
 from sycamore.execution.transforms.llms import LLM
-from sycamore.execution.transforms.summarize import LLMTextSummarizer
+from sycamore.execution.transforms.summarize import LLMElementTextSummarizer
 
 
 class TestSummarize:
@@ -15,7 +15,7 @@ class TestSummarize:
         element1.text_representation = "".join(random.choices(string.ascii_letters, k=10))
         doc.elements = [element1]
 
-        text_summarizer = LLMTextSummarizer(llm, filter_elements_on_length)
+        text_summarizer = LLMElementTextSummarizer(llm, filter_elements_on_length)
         doc = text_summarizer.summarize(doc.to_dict())
 
         assert doc["elements"]["array"][0]["properties"] == {}
@@ -31,7 +31,7 @@ class TestSummarize:
         element2.text_representation = "".join(random.choices(string.ascii_letters, k=20))
         doc.elements = [element1, element2]
 
-        text_summarizer = LLMTextSummarizer(llm, filter_elements_on_length)
+        text_summarizer = LLMElementTextSummarizer(llm, filter_elements_on_length)
         doc = text_summarizer.summarize(doc.to_dict())
 
         assert doc["elements"]["array"][0]["properties"] == {}

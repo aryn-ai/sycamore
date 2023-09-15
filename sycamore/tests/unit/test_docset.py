@@ -1,4 +1,6 @@
-from sycamore.execution.transforms import LLMExtractEntity, Summarize
+from sycamore.execution.transforms import Summarize
+from sycamore.execution.transforms import ExtractEntity
+from sycamore.execution.transforms.entity_extraction import OpenAIEntityExtractor
 from sycamore.execution.transforms.llms import LLM
 from sycamore import DocSet, Context
 from sycamore.execution import Node
@@ -36,8 +38,8 @@ class TestDocSet:
         node = mocker.Mock(spec=Node)
         llm = mocker.Mock(spec=LLM)
         docset = DocSet(context, node)
-        docset = docset.llm_extract_entity(entity_to_extract="title", llm=llm, prompt_template="")
-        assert isinstance(docset.lineage(), LLMExtractEntity)
+        docset = docset.extract_entity(entity_extractor=OpenAIEntityExtractor("title", llm=llm, prompt_template=""))
+        assert isinstance(docset.lineage(), ExtractEntity)
 
     def test_map(self, mocker):
         context = mocker.Mock(spec=Context)

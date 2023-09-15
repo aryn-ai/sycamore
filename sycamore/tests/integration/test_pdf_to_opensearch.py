@@ -1,7 +1,6 @@
-from sycamore.execution.transforms.entity_extraction import element_list_formatter
-
 import sycamore
 from sycamore.execution.transforms import PdfPartitionerOptions
+from sycamore.execution.transforms.entity_extraction import OpenAIEntityExtractor
 from sycamore.execution.transforms.llms.llms import OpenAIModels, OpenAI
 from sycamore.tests.config import TEST_DIR
 
@@ -95,18 +94,11 @@ def test_pdf_to_opensearch():
     ds = (
         context.read.binary(paths, binary_format="pdf")
         .partition(max_partition=256, options=PdfPartitionerOptions())
-        .llm_extract_entity(
-            entity_to_extract="title",
-            llm=openai_llm,
-            prompt_template=title_context_template,
-            prompt_formatter=element_list_formatter,
+        .extract_entity(
+            entity_extractor=OpenAIEntityExtractor("title", llm=openai_llm, prompt_template=title_context_template)
         )
-        .llm_extract_entity(
-            entity_to_extract="authors",
-            llm=openai_llm,
-            prompt_template=author_context_template,
-            prompt_formatter=element_list_formatter,
-            model_name=OpenAIModels.TEXT_DAVINCI.value,
+        .extract_entity(
+            entity_extractor=OpenAIEntityExtractor("authors", llm=openai_llm, prompt_template=author_context_template)
         )
         .explode()
         .sentence_transformer_embed(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")

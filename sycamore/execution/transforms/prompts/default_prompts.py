@@ -1,12 +1,12 @@
-ENTITY_EXTRACTOR_GUIDANCE_PROMPT_CHAT = """
+ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT_CHAT = """
     {{#system~}}
     You are a helpful entity extractor.
     {{~/system}}
 
     {{#user~}}
-    You are given a few text elements. The {{entity}} of the file is in these few text elements.Using this context,
+    You are given a few text elements of a document. The {{entity}} of the document is in these few text elements.Using
+    this context,
     FIND,COPY, and RETURN the {{entity}}. DO NOT REPHRASE OR MAKE UP AN ANSWER.
-    {{examples}}
     {{query}}
     {{~/user}}
 
@@ -15,10 +15,37 @@ ENTITY_EXTRACTOR_GUIDANCE_PROMPT_CHAT = """
     {{~/assistant}}
     """
 
-ENTITY_EXTRACTOR_GUIDANCE_PROMPT = """
-    You are given a few text elements. The {{entity}} of the file is in these few text elements.Using this context,
+ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT = """
+    You are given a few text elements of a document. The {{entity}} of the document is in these few text elements.Using
+    this context,
     FIND,COPY, and RETURN the {{entity}}. DO NOT REPHRASE OR MAKE UP AN ANSWER.
-    {{examples}}
+    {{query}}
+    =========
+    {{gen "answer"}}
+    """
+
+
+ENTITY_EXTRACTOR_FEW_SHOT_GUIDANCE_PROMPT_CHAT = """
+    {{#system~}}
+    You are a helpful entity extractor.
+    {{~/system}}
+
+    {{#user~}}
+    You are given a few text elements of a document. The {{entity}} of the document is in these few text elements.Using
+    this context,
+    FIND,COPY, and RETURN the {{entity}}. DO NOT REPHRASE OR MAKE UP AN ANSWER.
+    {{query}}
+    {{~/user}}
+
+    {{#assistant~}}
+    {{gen "answer"}}
+    {{~/assistant}}
+    """
+
+ENTITY_EXTRACTOR_FEW_SHOT_GUIDANCE_PROMPT = """
+    You are given a few text elements of a document. The {{entity}} of the document is in these few text elements.Using
+    this context,
+    FIND,COPY, and RETURN the {{entity}}. DO NOT REPHRASE OR MAKE UP AN ANSWER.
     {{query}}
     =========
     {{gen "answer"}}

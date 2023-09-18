@@ -32,7 +32,7 @@ class TestEntityExtraction:
 
     def test_extract_entity_zero_shot(self, mocker):
         node = mocker.Mock(spec=Node)
-        llm = OpenAI("openAI")
+        llm = OpenAI("openAI", "mockAPIKey")
         extract_entity = ExtractEntity(node, entity_extractor=OpenAIEntityExtractor("title", llm=llm))
         input_dataset = ray.data.from_items([self.doc])
         execute = mocker.patch.object(node, "execute")
@@ -46,7 +46,7 @@ class TestEntityExtraction:
 
     def test_extract_entity_few_shot(self, mocker):
         node = mocker.Mock(spec=Node)
-        llm = OpenAI("openAI")
+        llm = OpenAI("openAI", "mockAPIKey")
         extract_entity = ExtractEntity(
             node, entity_extractor=OpenAIEntityExtractor("title", llm=llm, prompt_template="title")
         )

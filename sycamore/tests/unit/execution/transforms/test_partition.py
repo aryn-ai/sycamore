@@ -20,18 +20,20 @@ class TestPartition:
     def test_partitioner(self):
         dict = {
             "type": "Title",
-            "coordinates": (
-                (116.519, 70.34515579999993),
-                (116.519, 100.63135580000005),
-                (481.02724959999995, 100.63135580000005),
-                (481.02724959999995, 70.34515579999993),
-            ),
-            "coordinate_system": "PixelSpace",
-            "layout_width": 595.276,
-            "layout_height": 841.89,
+            "coordinates": {
+                "points": (
+                    (116.519, 70.34515579999993),
+                    (116.519, 100.63135580000005),
+                    (481.02724959999995, 100.63135580000005),
+                    (481.02724959999995, 70.34515579999993),
+                ),
+                "coordinate_system": "PixelSpace",
+                "layout_width": 595.276,
+                "layout_height": 841.89,
+            },
             "element_id": "af2a328be129ce50f85b7946c35d1cf1",
             "metadata": {"filename": "Bert.pdf", "filetype": "application/pdf", "page_number": 1},
-            "text": "BERT: Pre-training of Deep Bidirectional Transformers " "for Language Understanding",
+            "text": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
         }
         element = Partitioner.to_element(dict)
         assert element.type == "Title"
@@ -40,15 +42,17 @@ class TestPartition:
             " Language Understanding"
         )
         assert element.properties == {
-            "coordinates": (
-                (116.519, 70.34515579999993),
-                (116.519, 100.63135580000005),
-                (481.02724959999995, 100.63135580000005),
-                (481.02724959999995, 70.34515579999993),
-            ),
-            "coordinate_system": "PixelSpace",
-            "layout_width": 595.276,
-            "layout_height": 841.89,
+            "coordinates": {
+                "points": (
+                    (116.519, 70.34515579999993),
+                    (116.519, 100.63135580000005),
+                    (481.02724959999995, 100.63135580000005),
+                    (481.02724959999995, 70.34515579999993),
+                ),
+                "coordinate_system": "PixelSpace",
+                "layout_width": 595.276,
+                "layout_height": 841.89,
+            },
             "element_id": "af2a328be129ce50f85b7946c35d1cf1",
             "filename": "Bert.pdf",
             "filetype": "application/pdf",

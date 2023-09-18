@@ -43,7 +43,6 @@ class OpenSearchWriter(Write):
                     client.indices.create(self.index_name)
 
         except Exception as e:
-            log.error("Exception occurred while creating an index:", e)
             raise RuntimeError("Exception occurred while creating an index", e)
 
         dataset.write_datasource(

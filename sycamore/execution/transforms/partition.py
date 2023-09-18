@@ -51,6 +51,14 @@ class Partitioner(ABC):
         element.text_representation = str(element.binary_representation)
         element.properties.update(dict.pop("metadata"))
         element.properties.update(dict)
+
+        # TODO, we need handle cases of different types for same column
+        if element.properties.get("coordinates") is not None:
+            coordinates = element.properties["coordinates"]
+            if coordinates.get("layout_height") is not None:
+                coordinates["layout_height"] = float(coordinates["layout_height"])
+            if coordinates.get("layout_width") is not None:
+                coordinates["layout_width"] = float(coordinates["layout_width"])
         return element
 
     @abstractmethod
@@ -188,7 +196,7 @@ class Partition(SingleThreadUser, NonGPUUser, Transform):
 
     def execute(self) -> Dataset:
         input_dataset = self.child().execute()
-        dataset = input_dataset.map(self._partitioner.partition)
+        dataset = input_dataset.map(self._partitioner.partition, **self.resource_args)
         if self._table_extractor:
             dataset = dataset.map(self._table_extractor.extract_tables)
         return dataset

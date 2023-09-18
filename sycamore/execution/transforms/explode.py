@@ -29,4 +29,4 @@ class Explode(SingleThreadUser, NonGPUUser, Transform):
     def execute(self) -> Dataset:
         dataset = self.child().execute()
         exploder = Explode.ExplodeCallable()
-        return dataset.flat_map(exploder.explode)
+        return dataset.flat_map(exploder.explode, **self.resource_args)

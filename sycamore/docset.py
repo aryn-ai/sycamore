@@ -1,5 +1,5 @@
 import logging
-from typing import Callable, Optional
+from typing import Callable, Optional, Any, Iterable
 
 from sycamore import Context
 from sycamore.data import Document
@@ -51,6 +51,11 @@ class DocSet:
         dataset = execution.execute(self.plan)
         return [Document(row) for row in dataset.take(limit)]
 
+    def limit(self, limit: int = 20) -> "DocSet":
+        from sycamore.execution.transforms import Limit
+
+        return DocSet(self.context, Limit(self.plan, limit))
+
     def partition(self, partitioner: Partitioner, table_extractor: Optional[TableExtractor] = None, **kwargs):
         plan = Partition(self.plan, partitioner=partitioner, table_extractor=table_extractor, **kwargs)
         return DocSet(self.context, plan)
@@ -95,24 +100,40 @@ class DocSet:
         summaries = Summarize(self.plan, summarizer=summarizer, **kwargs)
         return DocSet(self.context, summaries)
 
-    def map(self, f: Callable[[Document], Document]) -> "DocSet":
+    def map(self, f: Callable[[Document], Document], **resource_args) -> "DocSet":
         from sycamore.execution.transforms.mapping import Map
 
-        mapping = Map(self.plan, f=f)
+        mapping = Map(self.plan, f=f, **resource_args)
         return DocSet(self.context, mapping)
 
-    def flat_map(self, f: Callable[[Document], list[Document]], **kwargs) -> "DocSet":
+    def flat_map(self, f: Callable[[Document], list[Document]], **resource_args) -> "DocSet":
         from sycamore.execution.transforms.mapping import FlatMap
 
-        flat_map = FlatMap(self.plan, f=f, **kwargs)
+        flat_map = FlatMap(self.plan, f=f, **resource_args)
         return DocSet(self.context, flat_map)
 
-    def map_batch(self, f: Callable[[list[Document]], list[Document]], **kwargs) -> "DocSet":
+    def map_batch(
+        self,
+        f: Callable[[list[Document]], list[Document]],
+        f_args: Optional[Iterable[Any]] = None,
+        f_kwargs: Optional[dict[str, Any]] = None,
+        f_constructor_args: Optional[Iterable[Any]] = None,
+        f_constructor_kwargs: Optional[dict[str, Any]] = None,
+        **resource_args
+    ) -> "DocSet":
         from sycamore.execution.transforms.mapping import MapBatch
 
-        map_batch = MapBatch(self.plan, f=f, **kwargs)
+        map_batch = MapBatch(
+            self.plan,
+            f=f,
+            f_args=f_args,
+            f_kwargs=f_kwargs,
+            f_constructor_args=f_constructor_args,
+            f_constructor_kwargs=f_constructor_kwargs,
+            **resource_args
+        )
         return DocSet(self.context, map_batch)
 
     @property
-    def write(self, **resource_args) -> DocSetWriter:
-        return DocSetWriter(self.context, self.plan, **resource_args)
+    def write(self) -> DocSetWriter:
+        return DocSetWriter(self.context, self.plan)

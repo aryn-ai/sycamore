@@ -19,8 +19,11 @@ class DocSetReader:
         binary_format: str,
         parallelism: Optional[int] = None,
         filesystem: Optional[FileSystem] = None,
+        **resource_args
     ) -> DocSet:
-        scan = BinaryScan(paths, binary_format=binary_format, parallelism=parallelism, filesystem=filesystem)
+        scan = BinaryScan(
+            paths, binary_format=binary_format, parallelism=parallelism, filesystem=filesystem, **resource_args
+        )
         return DocSet(self._context, scan)
 
     def arrow(self, tables: Union[Table, bytes, list[Union[Table, bytes]]]) -> DocSet:

@@ -1,5 +1,5 @@
 import sycamore
-from sycamore.execution.transforms.partition import HtmlPartitionerOptions
+from sycamore.execution.transforms.partition import HtmlPartitioner
 from sycamore.tests.config import TEST_DIR
 
 
@@ -36,7 +36,7 @@ def test_html_to_opensearch():
     context = sycamore.init()
     ds = (
         context.read.binary(paths, binary_format="html")
-        .partition(max_partition=256, options=HtmlPartitionerOptions())
+        .partition(partitioner=HtmlPartitioner())
         .explode()
         .sentence_transformer_embed(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
     )

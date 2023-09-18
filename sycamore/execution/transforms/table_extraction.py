@@ -1,22 +1,25 @@
+from abc import abstractmethod, ABC
 from typing import Any, Optional
 
-from ray.data import Dataset
 from textractor import Textractor
 from textractor.data.constants import TextractFeatures
 
-
 from sycamore.data import Document, Element
-from sycamore.execution import NonGPUUser
-from sycamore.execution.basics import NonCPUUser, Node, Transform
 
 
-class TextractorTableExtractor:
+class TableExtractor(ABC):
+    @abstractmethod
+    def extract_tables(self, record: dict[str, Any]) -> dict[str, Any]:
+        pass
+
+
+class TextractTableExtractor(TableExtractor):
     def __init__(self, profile_name: Optional[str] = None, region_name: Optional[str] = None, kms_key_id: str = ""):
         self._profile_name = profile_name
         self._region_name = region_name
         self._kms_key_id: str = kms_key_id
 
-    def _extract_tables(self, document: Document) -> list[Element]:
+    def _extract(self, document: Document) -> list[Element]:
         # https://docs.aws.amazon.com/textract/latest/dg/API_BoundingBox.html
         def bbox_to_coord(bbox):
             return [bbox.x, bbox.y, bbox.x + bbox.width, bbox.y + bbox.height]
@@ -48,26 +51,8 @@ class TextractorTableExtractor:
 
         return all_tables
 
-    def extract(self, dict: dict[str, Any]) -> dict[str, Any]:
+    def extract_tables(self, dict: dict[str, Any]) -> dict[str, Any]:
         document = Document(dict)
-        tables = self._extract_tables(document)
+        tables = self._extract(document)
         document.elements.extend(tables)
         return document.to_dict()
-
-
-class TableExtraction(NonCPUUser, NonGPUUser, Transform):
-    def __init__(
-        self,
-        child: Node,
-        profile_name: Optional[str] = None,
-        region_name: Optional[str] = None,
-        kms_key_id: str = "",
-        **resource_args
-    ):
-        super().__init__(child, **resource_args)
-        self._table_extractor = TextractorTableExtractor(profile_name, region_name, kms_key_id)
-
-    def execute(self) -> "Dataset":
-        input_dataset = self.child().execute()
-        dataset = input_dataset.map(self._table_extractor.extract)
-        return dataset

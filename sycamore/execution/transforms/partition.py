@@ -1,4 +1,4 @@
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 import io
 from typing import Any, Optional
 
@@ -11,22 +11,7 @@ from sycamore.data.document import TableElement
 from sycamore.execution.functions import reorder_elements
 from sycamore.data import Document, Element
 from sycamore.execution import Node, Transform, SingleThreadUser, NonGPUUser
-
-
-class Partitioner:
-    @staticmethod
-    def to_element(dict: dict[str, Any]) -> Element:
-        element = Element()
-        element.type = dict.pop("type")
-        element.content = dict.pop("text")
-        element.text_representation = str(element.content)
-        element.properties.update(dict.pop("metadata"))
-        element.properties.update(dict)
-        return element
-
-    @abstractmethod
-    def partition(self, dict: dict[str, Any]) -> dict[str, Any]:
-        pass
+from sycamore.execution.transforms.table_extraction import TableExtractor
 
 
 # This comparator helps sort the elements per page specifically when a page
@@ -57,45 +42,52 @@ def _elements_reorder_comparator(element1: Element, element2: Element) -> int:
             return 0
 
 
-class PartitionerOptions:
-    pass
+class Partitioner(ABC):
+    @staticmethod
+    def to_element(dict: dict[str, Any]) -> Element:
+        element = Element()
+        element.type = dict.pop("type")
+        element.content = dict.pop("text")
+        element.text_representation = str(element.content)
+        element.properties.update(dict.pop("metadata"))
+        element.properties.update(dict)
+        return element
+
+    @abstractmethod
+    def partition(self, record: dict[str, Any]) -> dict[str, Any]:
+        pass
 
 
-class PdfPartitionerOptions(PartitionerOptions):
+class UnstructuredPdfPartitioner(Partitioner):
     def __init__(
         self,
         include_page_breaks: bool = False,
         strategy: str = "auto",
         infer_table_structure: bool = False,
         ocr_languages: str = "eng",
-        max_partition: Optional[int] = None,
+        max_partition_length: Optional[int] = None,
         include_metadata: bool = True,
     ):
-        self.include_page_breaks = include_page_breaks
-        self.strategy = strategy
-        self.infer_table_structure = infer_table_structure
-        self.ocr_languages = ocr_languages
-        self.max_partition = max_partition
-        self.include_metadata = include_metadata
+        self._include_page_breaks = include_page_breaks
+        self._strategy = strategy
+        self._infer_table_structure = infer_table_structure
+        self._ocr_languages = ocr_languages
+        self._max_partition_length = max_partition_length
+        self._include_metadata = include_metadata
 
-
-class PdfPartitioner(Partitioner):
-    def __init__(self, options: PdfPartitionerOptions):
-        self._options = options
-
-    def partition(self, dict: dict[str, Any]) -> dict[str, Any]:
-        document = Document(dict)
+    def partition(self, record: dict[str, Any]) -> dict[str, Any]:
+        document = Document(record)
         from unstructured.partition.pdf import partition_pdf
 
         binary = io.BytesIO(document.data["content"]["binary"])
         elements = partition_pdf(
             file=binary,
-            include_page_breaks=self._options.include_page_breaks,
-            strategy=self._options.strategy,
-            infer_table_structure=self._options.infer_table_structure,
-            ocr_languages=self._options.ocr_languages,
-            max_partition=self._options.max_partition,
-            include_metadata=self._options.include_metadata,
+            include_page_breaks=self._include_page_breaks,
+            strategy=self._strategy,
+            infer_table_structure=self._infer_table_structure,
+            ocr_languages=self._ocr_languages,
+            max_partition=self._max_partition_length,
+            include_metadata=self._include_metadata,
         )
         elements = [self.to_element(element.to_dict()) for element in elements]
         document.elements.extend(elements)
@@ -103,7 +95,7 @@ class PdfPartitioner(Partitioner):
         return document.to_dict()
 
 
-class HtmlPartitionerOptions(PartitionerOptions):
+class HtmlPartitioner(Partitioner):
     def __init__(
         self,
         include_page_breaks: bool = False,
@@ -113,17 +105,12 @@ class HtmlPartitionerOptions(PartitionerOptions):
         text_chunker: Chunker = TokenOverlapChunker(),
         tokenizer: Tokenizer = CharacterTokenizer(),
     ):
-        self.include_page_breaks = include_page_breaks
-        self.skip_headers_and_footers = skip_headers_and_footers
-        self.include_metadata = include_metadata
-        self.extract_tables = extract_tables
-        self.text_chunker = text_chunker
-        self.tokenizer = tokenizer
-
-
-class HtmlPartitioner(Partitioner):
-    def __init__(self, options: HtmlPartitionerOptions):
-        self._options = options
+        self._include_page_breaks = include_page_breaks
+        self._skip_headers_and_footers = skip_headers_and_footers
+        self._include_metadata = include_metadata
+        self._extract_tables = extract_tables
+        self._text_chunker = text_chunker
+        self._tokenizer = tokenizer
 
     def partition(self, dict: dict[str, Any]) -> dict[str, Any]:
         document = Document(dict)
@@ -146,8 +133,8 @@ class HtmlPartitioner(Partitioner):
         # chunk text and create text elements
         elements = []
         text = soup.get_text()
-        tokens = self._options.tokenizer.tokenize(text)
-        for chunk in self._options.text_chunker.chunk(tokens):
+        tokens = self._tokenizer.tokenize(text)
+        for chunk in self._text_chunker.chunk(tokens):
             content = "".join(chunk)
             element = Element()
             element.type = "text"
@@ -160,7 +147,7 @@ class HtmlPartitioner(Partitioner):
         document.elements.extend(elements)
 
         # extract tables
-        if self._options.extract_tables:
+        if self._extract_tables:
             for table in soup.find_all("table"):
                 # ignore nested tables
                 if len(table.find_all("table")) > 0:
@@ -194,17 +181,16 @@ class HtmlPartitioner(Partitioner):
 
 
 class Partition(SingleThreadUser, NonGPUUser, Transform):
-    def __init__(self, child: Node, options: PartitionerOptions, **resource_args):
+    def __init__(
+        self, child: Node, partitioner: Partitioner, table_extractor: Optional[TableExtractor] = None, **resource_args
+    ):
         super().__init__(child, **resource_args)
-        match options:
-            case PdfPartitionerOptions():
-                self._partitioner: Partitioner = PdfPartitioner(options)
-            case HtmlPartitionerOptions():
-                self._partitioner = HtmlPartitioner(options)
-            case _:
-                raise RuntimeError("Invalid Options")
+        self._partitioner = partitioner
+        self._table_extractor = table_extractor
 
     def execute(self) -> Dataset:
         input_dataset = self.child().execute()
         dataset = input_dataset.map(self._partitioner.partition)
+        if self._table_extractor:
+            dataset = dataset.map(self._table_extractor.extract_tables)
         return dataset

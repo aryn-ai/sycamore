@@ -4,9 +4,11 @@ from typing import Callable, Optional
 from sycamore import Context
 from sycamore.data import Document
 from sycamore.execution import Node
-from sycamore.execution.transforms import PartitionerOptions
+from sycamore.execution.transforms import Partition
 from sycamore.execution.transforms.entity_extraction import ExtractEntity, EntityExtractor
+from sycamore.execution.transforms.partition import Partitioner
 from sycamore.execution.transforms.summarize import Summarizer, Summarize
+from sycamore.execution.transforms.table_extraction import TableExtractor
 from sycamore.writer import DocSetWriter
 
 logger = logging.getLogger(__name__)
@@ -48,30 +50,8 @@ class DocSet:
         dataset = execution.execute(self.plan)
         return [Document(row) for row in dataset.take(limit)]
 
-    def partition(self, options: PartitionerOptions, **resource_args) -> "DocSet":
-        """Partition document using unstructured library
-        Returns: DocSet
-        Each Document has schema like below
-        {
-            "content": {"binary": xxx, "text": None}
-            "doc_id": uuid,
-            "elements": {
-                "array": [
-                    {"type": title, "content": {"binary": "xxx"}, ...},
-                    {"type": figure_caption, "content": {"text": "xxx"}},
-                    {"type": table, "content": {"text": "xxx"}},
-                    {"type": text, "content": {"text": "xxx"}},
-                    ...
-                ]
-            }
-            "properties": {
-                "path": "xxx"
-            }
-        }
-        """
-        from sycamore.execution.transforms.partition import Partition
-
-        plan = Partition(self.plan, options, **resource_args)
+    def partition(self, partitioner: Partitioner, table_extractor: Optional[TableExtractor] = None, **kwargs):
+        plan = Partition(self.plan, partitioner=partitioner, table_extractor=table_extractor, **kwargs)
         return DocSet(self.context, plan)
 
     def explode(self, **resource_args):
@@ -154,14 +134,6 @@ class DocSet:
     def extract_entity(self, entity_extractor: EntityExtractor, **kwargs) -> "DocSet":
         entities = ExtractEntity(self.plan, entity_extractor=entity_extractor, **kwargs)
         return DocSet(self.context, entities)
-
-    def extract_tables(
-        self, profile_name: Optional[str] = None, region_name: Optional[str] = None, kms_key_id: str = "", **kwargs
-    ) -> "DocSet":
-        from sycamore.execution.transforms import TableExtraction
-
-        table_extraction = TableExtraction(self.plan, profile_name, region_name, kms_key_id, **kwargs)
-        return DocSet(self.context, table_extraction)
 
     def summarize(self, *, summarizer: Summarizer, **kwargs) -> "DocSet":
         summaries = Summarize(self.plan, summarizer=summarizer, **kwargs)

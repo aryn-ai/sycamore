@@ -1,77 +1,98 @@
-from typing import Optional
 import math
+from abc import ABC, abstractmethod
+from typing import Optional
 
-import numpy as np
 import ray
 from ray.data import ActorPoolStrategy, Dataset
 from sentence_transformers import SentenceTransformer
 
+from sycamore.data import Document
 from sycamore.execution import Node, Transform
+from sycamore.execution.transforms.mapping import generate_map_batch_function, generate_map_batch_class_from_callable
 
 
-class SentenceTransformerEmbedding(Transform):
-    """Embedding based on HuggingFace Sentence Transformer"""
-
+class Embedder(ABC):
     def __init__(
         self,
-        child: Node,
         model_name: str,
         batch_size: Optional[int] = None,
         model_batch_size: int = 100,
         device: Optional[str] = None,
-        **resource_args
     ):
-        super().__init__(child, **resource_args)
-        self.type = type
         self.model_name = model_name
+        self.batch_size = batch_size
+        self.model_batch_size = model_batch_size
+
         if device is None:
             import torch.cuda
 
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
         else:
             self.device = device
-        self.batch_size = batch_size
-        self.model_batch_size = model_batch_size
 
-    class SentenceTransformer:
-        def __init__(self, model_name: str, batch_size: int = 100, device: Optional[str] = None):
-            self._transformer = SentenceTransformer(model_name)
-            self._batch_size = batch_size
-            self._device = device
+    def __call__(self, doc_batch: list[Document]) -> list[Document]:
+        return self.generate_embeddings(doc_batch)
 
-        # TODO, embedding should consider entity type
-        def __call__(self, doc_batch: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
-            text_batch = doc_batch["text_representation"].tolist()
-            embeddings = self._transformer.encode(text_batch, batch_size=self._batch_size, device=self._device)
-            doc_batch.update({"embedding": embeddings.tolist()})
+    @abstractmethod
+    def generate_embeddings(self, doc_batch: list[Document]) -> list[Document]:
+        pass
 
-            return doc_batch
 
-    def execute(self) -> "Dataset":
+class SentenceTransformerEmbedder(Embedder):
+    def __init__(
+        self,
+        model_name: str,
+        batch_size: Optional[int] = None,
+        model_batch_size: int = 100,
+        device: Optional[str] = None,
+    ):
+        super().__init__(model_name, batch_size, model_batch_size, device)
+        self.type = type
+        self._transformer: Optional[SentenceTransformer] = None
+
+    def generate_embeddings(self, doc_batch: list[Document]) -> list[Document]:
+        if not self._transformer:
+            self._transformer = SentenceTransformer(self.model_name)
+
+        assert self._transformer is not None
+
+        text_batch = [doc.text_representation for doc in doc_batch]
+        embeddings = self._transformer.encode(text_batch, batch_size=self.model_batch_size, device=self.device)
+        for doc, embedding in zip(doc_batch, embeddings):
+            doc.embedding = embedding
+
+        return doc_batch
+
+
+class Embed(Transform):
+    def __init__(self, child: Node, embedder: Embedder, **resource_args):
+        super().__init__(child, **resource_args)
+        self._embedder = embedder
+
+    def execute(self) -> Dataset:
         dataset = self.child().execute()
-
-        if self.device == "cuda":
+        if self._embedder.device == "cuda":
             gpus = ray.available_resources().get("GPU")
             if "num_gpus" not in self.resource_args or self.resource_args["num_gpus"] <= 0:
                 raise RuntimeError("Invalid GPU Nums!")
             gpu_per_task = self.resource_args["num_gpus"]
 
             output = dataset.map_batches(
-                SentenceTransformerEmbedding.SentenceTransformer,
-                batch_size=self.batch_size,
+                generate_map_batch_class_from_callable(self._embedder.generate_embeddings),
+                batch_format="pyarrow",
+                batch_size=self._embedder.batch_size,
                 compute=ActorPoolStrategy(min_size=1, max_size=math.ceil(gpus / gpu_per_task)),
-                fn_constructor_kwargs={
-                    "model_name": self.model_name,
-                    "batch_size": self.model_batch_size,
-                    "device": self.device,
-                },
                 num_gpus=gpu_per_task,
                 **self.resource_args
             )
         else:
             # in case of no gpu required, we use tasks to make it easier
             # to be fusible
-            embedder = self.SentenceTransformer(self.model_name, self.model_batch_size)
-            output = dataset.map_batches(embedder.__call__, batch_size=self.batch_size, **self.resource_args)
+            output = dataset.map_batches(
+                generate_map_batch_function(self._embedder.generate_embeddings),
+                batch_format="pyarrow",
+                batch_size=self._embedder.batch_size,
+                **self.resource_args
+            )
 
         return output

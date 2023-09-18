@@ -2,10 +2,11 @@ from sycamore import DocSet, Context
 from sycamore.execution import Node
 from sycamore.execution.scans import BinaryScan
 from sycamore.execution.transforms import (
+    Embedder,
+    Embed,
     Partitioner,
     Summarize,
     ExtractEntity,
-    SentenceTransformerEmbedding,
     FlatMap,
     Map,
     MapBatch,
@@ -25,14 +26,13 @@ class TestDocSet:
         docset = docset.partition(partitioner=partitioner)
         assert isinstance(docset.lineage(), Partition)
 
-    def test_sentence_transformer_embedding(self, mocker):
+    def test_embedding(self, mocker):
         context = mocker.Mock(spec=Context)
         node = mocker.Mock(spec=Node)
         docset = DocSet(context, node)
-        docset = docset.sentence_transformer_embed(
-            col_name="col_name", model_name="sentence-transformers/all-MiniLM-L6-v2"
-        )
-        assert isinstance(docset.lineage(), SentenceTransformerEmbedding)
+        embedder = mocker.Mock(spec=Embedder)
+        docset = docset.embed(embedder=embedder)
+        assert isinstance(docset.lineage(), Embed)
 
     def test_llm_extract_entity(self, mocker):
         context = mocker.Mock(spec=Context)

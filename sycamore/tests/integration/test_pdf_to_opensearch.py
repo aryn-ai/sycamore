@@ -1,4 +1,5 @@
 import sycamore
+from sycamore.execution.transforms.embedding import SentenceTransformerEmbedder
 
 from sycamore.execution.transforms.entity_extraction import OpenAIEntityExtractor
 from sycamore.execution.transforms.llms.llms import OpenAIModels, OpenAI
@@ -102,7 +103,9 @@ def test_pdf_to_opensearch():
             entity_extractor=OpenAIEntityExtractor("authors", llm=openai_llm, prompt_template=author_context_template)
         )
         .explode()
-        .sentence_transformer_embed(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
+        .embed(
+            embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
+        )
     )
 
     ds.write.opensearch(

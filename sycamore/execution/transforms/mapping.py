@@ -98,6 +98,23 @@ def generate_map_batch_class(
     return new_class
 
 
+def generate_map_batch_class_from_callable(
+    f: Callable[[list[Document]], list[Document]],
+) -> Type[Callable[[list[dict[str, Any]]], list[dict[str, Any]]]]:
+    def ray_callable(self, input_table: Table) -> Table:
+        input_docs = [Document(t) for t in input_table.to_pylist()]
+        output_docs = f(input_docs)
+        output_dicts = [doc.data for doc in output_docs]
+        from pandas import DataFrame
+
+        df = DataFrame(output_dicts)
+        output_table = Table.from_pandas(df)
+        return output_table
+
+    new_class = type("CustomRay", (), {"__call__": ray_callable})
+    return new_class
+
+
 class Map(UnaryNode):
     def __init__(self, child: Node, *, f: Callable[[Document], Document], **resource_args):
         super().__init__(child, **resource_args)

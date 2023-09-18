@@ -2,10 +2,12 @@ from typing import List
 
 import pytest
 import ray.data
+from ray.data import ActorPoolStrategy
 
 from sycamore.data import Document
 from sycamore.execution import Node
 from sycamore.execution.transforms import Map, FlatMap, MapBatch
+from sycamore.execution.transforms.mapping import generate_map_batch_class_from_callable
 
 
 class TestMapping:
@@ -85,4 +87,22 @@ class TestMapping:
         execute.return_value = input_dataset
         output_dataset = mapping.execute()
         dicts = output_dataset.take()
+        assert dicts[0]["index"] == 2 and dicts[1]["index"] == 3
+
+    def test_generate_map_batch_class_from_callable(self):
+        class BatchClass:
+            def __call__(self, docs: List[Document]) -> List[Document]:
+                for doc in docs:
+                    doc["index"] += 1
+                return docs
+
+        ray_callable = generate_map_batch_class_from_callable(BatchClass())
+        input_dataset = ray.data.from_items(
+            [
+                {"index": 1, "doc": "Members of a strike at Yale University."},
+                {"index": 2, "doc": "A woman is speaking at a podium outdoors."},
+            ]
+        )
+        output = input_dataset.map_batches(ray_callable, batch_format="pyarrow", compute=ActorPoolStrategy())
+        dicts = output.take()
         assert dicts[0]["index"] == 2 and dicts[1]["index"] == 3

@@ -1,7 +1,8 @@
 import sycamore
-from sycamore.execution.transforms import PdfPartitionerOptions
+
 from sycamore.execution.transforms.entity_extraction import OpenAIEntityExtractor
 from sycamore.execution.transforms.llms.llms import OpenAIModels, OpenAI
+from sycamore.execution.transforms.partition import UnstructuredPdfPartitioner
 from sycamore.tests.config import TEST_DIR
 
 
@@ -93,7 +94,7 @@ def test_pdf_to_opensearch():
     context = sycamore.init()
     ds = (
         context.read.binary(paths, binary_format="pdf")
-        .partition(max_partition=256, options=PdfPartitionerOptions())
+        .partition(partitioner=UnstructuredPdfPartitioner())
         .extract_entity(
             entity_extractor=OpenAIEntityExtractor("title", llm=openai_llm, prompt_template=title_context_template)
         )

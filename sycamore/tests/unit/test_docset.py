@@ -1,18 +1,18 @@
-from sycamore.execution.transforms import Summarize
-from sycamore.execution.transforms import ExtractEntity
-from sycamore.execution.transforms.entity_extraction import OpenAIEntityExtractor
-from sycamore.execution.transforms.llms import LLM
 from sycamore import DocSet, Context
 from sycamore.execution import Node
 from sycamore.execution.scans import BinaryScan
 from sycamore.execution.transforms import (
+    Partitioner,
+    Summarize,
+    ExtractEntity,
     SentenceTransformerEmbedding,
     FlatMap,
     Map,
     MapBatch,
     Partition,
-    PdfPartitionerOptions,
 )
+from sycamore.execution.transforms.entity_extraction import OpenAIEntityExtractor
+from sycamore.execution.transforms.llms import LLM
 from sycamore.execution.transforms.summarize import LLMElementTextSummarizer
 
 
@@ -20,8 +20,9 @@ class TestDocSet:
     def test_partition_pdf(self, mocker):
         context = mocker.Mock(spec=Context)
         scan = mocker.Mock(spec=BinaryScan)
+        partitioner = mocker.Mock(spec=Partitioner)
         docset = DocSet(context, scan)
-        docset = docset.partition(PdfPartitionerOptions())
+        docset = docset.partition(partitioner=partitioner)
         assert isinstance(docset.lineage(), Partition)
 
     def test_sentence_transformer_embedding(self, mocker):

@@ -25,14 +25,15 @@ class TestTextExtraction:
         docset = context.read.binary("s3://aryn-textract/10q-excerpt.pdf", binary_format="pdf", filesystem=get_s3_fs())
         document = docset.take(1)[0]
         table_extractor = TextractTableExtractor(region_name="us-east-1")
-        tables = table_extractor.extract_tables(document)
+        tables = table_extractor._extract(document)
         assert len(tables) == 2
 
     def test_docset_extract_tables(self):
         context = sycamore.init()
         docset = context.read.binary("s3://aryn-textract/10q-excerpt.pdf", binary_format="pdf", filesystem=get_s3_fs())
-        docset = docset.partition(partitioner=UnstructuredPdfPartitioner())
-        priori = docset.take(1)[0]
-        docset = docset.extract_tables(region_name="us-east-1")
-        post = docset.take(1)[0]
-        assert len(post.elements) == len(priori.elements) + 2
+        docset_no_tables = docset.partition(partitioner=UnstructuredPdfPartitioner())
+        docset_with_tables = docset.partition(partitioner=UnstructuredPdfPartitioner(), table_extractor=TextractTableExtractor(region_name="us-east-1"))
+
+        total_elements = len(docset_no_tables.take(1)[0].elements)
+        total_elements_elements_with_tables = len(docset_with_tables.take(1)[0].elements)
+        assert total_elements_elements_with_tables == total_elements + 2

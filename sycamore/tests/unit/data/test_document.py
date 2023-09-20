@@ -5,14 +5,15 @@ class TestElement:
     def test_element(self):
         element = Element()
         assert element.type is None
-        assert element.content is None
+        assert element.text_representation is None
+        assert element.binary_representation is None
         assert element.properties == {}
 
         element.type = "table"
-        element.content = "text"
+        element.text_representation = "text"
         element.properties.update({"property1": 1})
         assert element.type == "table"
-        assert element.content == "text"
+        assert element.text_representation == "text"
         assert element.properties == {"property1": 1}
 
         element.properties.update({"property2": 2})
@@ -27,7 +28,8 @@ class TestDocument:
         document = Document()
         assert document.doc_id is None
         assert document.type is None
-        assert document.content is None
+        assert document.text_representation is None
+        assert document.binary_representation is None
         assert document.elements == []
         assert document.embedding is None
         assert document.parent_id is None
@@ -35,14 +37,14 @@ class TestDocument:
 
         document.doc_id = "doc_id"
         document.type = "table"
-        document.content = "text"
+        document.text_representation = "text"
         element = Element()
         document.elements.append(element)
         document.embedding = [[1.0, 2.0], [2.0, 3.0]]
         document.properties.update({"property1": 1})
         assert document.doc_id == "doc_id"
         assert document.type == "table"
-        assert document.content == "text"
+        assert document.text_representation == "text"
         assert document.elements == [element]
         assert document.embedding == [[1.0, 2.0], [2.0, 3.0]]
         assert document.properties == {"property1": 1}

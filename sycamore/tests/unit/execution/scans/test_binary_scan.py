@@ -11,7 +11,7 @@ class TestBinaryScan:
             "doc_id",
             "type",
             "text_representation",
-            "content",
+            "binary_representation",
             "elements",
             "embedding",
             "parent_id",

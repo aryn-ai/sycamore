@@ -47,8 +47,8 @@ class Partitioner(ABC):
     def to_element(dict: dict[str, Any]) -> Element:
         element = Element()
         element.type = dict.pop("type")
-        element.content = dict.pop("text")
-        element.text_representation = str(element.content)
+        element.binary_representation = dict.pop("text")
+        element.text_representation = str(element.binary_representation)
         element.properties.update(dict.pop("metadata"))
         element.properties.update(dict)
         return element
@@ -79,7 +79,7 @@ class UnstructuredPdfPartitioner(Partitioner):
         document = Document(record)
         from unstructured.partition.pdf import partition_pdf
 
-        binary = io.BytesIO(document.data["content"]["binary"])
+        binary = io.BytesIO(document.data["binary_representation"])
         elements = partition_pdf(
             file=binary,
             include_page_breaks=self._include_page_breaks,
@@ -115,7 +115,7 @@ class HtmlPartitioner(Partitioner):
     def partition(self, dict: dict[str, Any]) -> dict[str, Any]:
         document = Document(dict)
         properties = document.properties
-        raw_html = document.content
+        raw_html = document.binary_representation
 
         if raw_html is None:
             raise RuntimeError("Attempting to partition invalid document where content=None")
@@ -138,7 +138,6 @@ class HtmlPartitioner(Partitioner):
             content = "".join(chunk)
             element = Element()
             element.type = "text"
-            element.content = content
             element.text_representation = content
             if "metadata" in dict:
                 element.properties.update(dict.pop("metadata"))
@@ -161,7 +160,6 @@ class HtmlPartitioner(Partitioner):
                     table_element.columns = [tag.text for tag in headers]
 
                 table_element.text_representation = table.text
-                table_element.content = table.text
                 if "metadata" in dict:
                     table_element.properties.update(dict.pop("metadata"))
                 table_element.properties.update(properties)

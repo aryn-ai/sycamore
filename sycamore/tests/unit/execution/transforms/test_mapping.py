@@ -103,6 +103,6 @@ class TestMapping:
                 {"index": 2, "doc": "A woman is speaking at a podium outdoors."},
             ]
         )
-        output = input_dataset.map_batches(ray_callable, batch_format="pyarrow", compute=ActorPoolStrategy())
+        output = input_dataset.map_batches(ray_callable, compute=ActorPoolStrategy())
         dicts = output.take()
         assert dicts[0]["index"] == 2 and dicts[1]["index"] == 3

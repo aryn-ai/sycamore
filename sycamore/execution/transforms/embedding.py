@@ -79,7 +79,6 @@ class Embed(Transform):
 
             output = dataset.map_batches(
                 generate_map_batch_class_from_callable(self._embedder.generate_embeddings),
-                batch_format="pyarrow",
                 batch_size=self._embedder.batch_size,
                 compute=ActorPoolStrategy(min_size=1, max_size=math.ceil(gpus / gpu_per_task)),
                 num_gpus=gpu_per_task,
@@ -90,7 +89,6 @@ class Embed(Transform):
             # to be fusible
             output = dataset.map_batches(
                 generate_map_batch_function(self._embedder.generate_embeddings),
-                batch_format="pyarrow",
                 batch_size=self._embedder.batch_size,
                 **self.resource_args
             )

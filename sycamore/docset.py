@@ -83,7 +83,7 @@ class DocSet:
         explode = Explode(self.plan, **resource_args)
         return DocSet(self.context, explode)
 
-    def embed(self, *, embedder: Embedder, **kwargs):
+    def embed(self, embedder: Embedder, **kwargs):
         embeddings = Embed(self.plan, embedder=embedder, **kwargs)
         return DocSet(self.context, embeddings)
 
@@ -91,7 +91,7 @@ class DocSet:
         entities = ExtractEntity(self.plan, entity_extractor=entity_extractor, **kwargs)
         return DocSet(self.context, entities)
 
-    def summarize(self, *, summarizer: Summarizer, **kwargs) -> "DocSet":
+    def summarize(self, summarizer: Summarizer, **kwargs) -> "DocSet":
         summaries = Summarize(self.plan, summarizer=summarizer, **kwargs)
         return DocSet(self.context, summaries)
 

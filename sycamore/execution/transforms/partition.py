@@ -11,6 +11,7 @@ from sycamore.data.document import TableElement
 from sycamore.execution.functions import reorder_elements
 from sycamore.data import Document, Element
 from sycamore.execution import Node, Transform, SingleThreadUser, NonGPUUser
+from sycamore.execution.transforms.mapping import generate_map_function
 from sycamore.execution.transforms.table_extraction import TableExtractor
 
 
@@ -54,7 +55,7 @@ class Partitioner(ABC):
         return element
 
     @abstractmethod
-    def partition(self, record: dict[str, Any]) -> dict[str, Any]:
+    def partition(self, document: Document) -> Document:
         pass
 
 
@@ -75,8 +76,7 @@ class UnstructuredPdfPartitioner(Partitioner):
         self._max_partition_length = max_partition_length
         self._include_metadata = include_metadata
 
-    def partition(self, record: dict[str, Any]) -> dict[str, Any]:
-        document = Document(record)
+    def partition(self, document: Document) -> Document:
         from unstructured.partition.pdf import partition_pdf
 
         binary = io.BytesIO(document.data["binary_representation"])
@@ -92,7 +92,7 @@ class UnstructuredPdfPartitioner(Partitioner):
         elements = [self.to_element(element.to_dict()) for element in elements]
         document.elements.extend(elements)
         document = reorder_elements(document, _elements_reorder_comparator)
-        return document.to_dict()
+        return document
 
 
 class HtmlPartitioner(Partitioner):
@@ -112,8 +112,7 @@ class HtmlPartitioner(Partitioner):
         self._text_chunker = text_chunker
         self._tokenizer = tokenizer
 
-    def partition(self, dict: dict[str, Any]) -> dict[str, Any]:
-        document = Document(dict)
+    def partition(self, document: Document) -> Document:
         properties = document.properties
         raw_html = document.binary_representation
 
@@ -139,8 +138,6 @@ class HtmlPartitioner(Partitioner):
             element = Element()
             element.type = "text"
             element.text_representation = content
-            if "metadata" in dict:
-                element.properties.update(dict.pop("metadata"))
             element.properties.update(properties)
             elements += [element]
         document.elements.extend(elements)
@@ -160,8 +157,6 @@ class HtmlPartitioner(Partitioner):
                     table_element.columns = [tag.text for tag in headers]
 
                 table_element.text_representation = table.text
-                if "metadata" in dict:
-                    table_element.properties.update(dict.pop("metadata"))
                 table_element.properties.update(properties)
 
                 # parse all rows, use all text as content
@@ -175,7 +170,7 @@ class HtmlPartitioner(Partitioner):
 
                 document.elements.extend([table_element])
 
-        return document.to_dict()
+        return document
 
 
 class Partition(SingleThreadUser, NonGPUUser, Transform):
@@ -188,7 +183,7 @@ class Partition(SingleThreadUser, NonGPUUser, Transform):
 
     def execute(self) -> Dataset:
         input_dataset = self.child().execute()
-        dataset = input_dataset.map(self._partitioner.partition)
+        dataset = input_dataset.map(generate_map_function(self._partitioner.partition))
         if self._table_extractor:
-            dataset = dataset.map(self._table_extractor.extract_tables)
+            dataset = dataset.map(generate_map_function(self._table_extractor.extract_tables))
         return dataset

@@ -1,5 +1,5 @@
 from abc import abstractmethod, ABC
-from typing import Any, Optional
+from typing import Optional
 
 from textractor import Textractor
 from textractor.data.constants import TextractFeatures
@@ -9,7 +9,7 @@ from sycamore.data import Document, Element
 
 class TableExtractor(ABC):
     @abstractmethod
-    def extract_tables(self, record: dict[str, Any]) -> dict[str, Any]:
+    def extract_tables(self, document: Document) -> Document:
         pass
 
 
@@ -51,8 +51,7 @@ class TextractTableExtractor(TableExtractor):
 
         return all_tables
 
-    def extract_tables(self, dict: dict[str, Any]) -> dict[str, Any]:
-        document = Document(dict)
+    def extract_tables(self, document: Document) -> Document:
         tables = self._extract(document)
         document.elements.extend(tables)
-        return document.to_dict()
+        return document

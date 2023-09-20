@@ -7,7 +7,7 @@ from sycamore.data import Document, Element
 def reorder_elements(
     document: Document,
     comparator: Callable[[Element, Element], int],
-):
+) -> Document:
     """
     Reorders the elements.
     Args:

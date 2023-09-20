@@ -16,7 +16,7 @@ class TestSummarize:
         doc.elements = [element1]
 
         text_summarizer = LLMElementTextSummarizer(llm, filter_elements_on_length)
-        doc = text_summarizer.summarize(doc.to_dict())
+        doc = text_summarizer.summarize(doc)
 
         assert doc["elements"]["array"][0]["properties"] == {}
 
@@ -32,7 +32,7 @@ class TestSummarize:
         doc.elements = [element1, element2]
 
         text_summarizer = LLMElementTextSummarizer(llm, filter_elements_on_length)
-        doc = text_summarizer.summarize(doc.to_dict())
+        doc = text_summarizer.summarize(doc)
 
         assert doc["elements"]["array"][0]["properties"] == {}
         assert doc["elements"]["array"][1]["properties"] == {"summary": "summary"}

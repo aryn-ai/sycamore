@@ -1,9 +1,8 @@
-from typing import Any
-
 from ray.data import Dataset
 
 from sycamore.data import Document
 from sycamore.execution import Node, Transform, SingleThreadUser, NonGPUUser
+from sycamore.execution.transforms.mapping import generate_flat_map_function
 
 
 class Explode(SingleThreadUser, NonGPUUser, Transform):
@@ -12,9 +11,8 @@ class Explode(SingleThreadUser, NonGPUUser, Transform):
 
     class ExplodeCallable:
         @staticmethod
-        def explode(dict: dict[str, Any]) -> list[dict[str, Any]]:
-            parent = Document(dict)
-            documents = [parent]
+        def explode(parent: Document) -> list[Document]:
+            documents: list[Document] = [parent]
 
             import uuid
 
@@ -24,9 +22,9 @@ class Explode(SingleThreadUser, NonGPUUser, Transform):
                 cur.parent_id = parent.doc_id
                 documents.append(cur)
             del parent.elements
-            return [document.to_dict() for document in documents]
+            return documents
 
     def execute(self) -> Dataset:
         dataset = self.child().execute()
         exploder = Explode.ExplodeCallable()
-        return dataset.flat_map(exploder.explode)
+        return dataset.flat_map(generate_flat_map_function(exploder.explode))

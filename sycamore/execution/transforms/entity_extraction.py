@@ -6,6 +6,7 @@ from ray.data import Dataset
 from sycamore.data import Element, Document
 from sycamore.execution import Node, Transform
 from sycamore.execution.transforms.llms import LLM
+from sycamore.execution.transforms.mapping import generate_map_function
 from sycamore.execution.transforms.prompts.default_prompts import (
     ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT,
     ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT_CHAT,
@@ -26,7 +27,7 @@ class EntityExtractor(ABC):
         self._entity_name = entity_name
 
     @abstractmethod
-    def extract_entity(self, record: dict[str, Any]) -> dict[str, Any]:
+    def extract_entity(self, document: Document) -> Document:
         pass
 
 
@@ -45,16 +46,15 @@ class OpenAIEntityExtractor(EntityExtractor):
         self._prompt_template = prompt_template
         self._prompt_formatter = prompt_formatter
 
-    def extract_entity(self, record: dict[str, Any]) -> dict[str, Any]:
-        document = Document(record)
-
+    def extract_entity(self, document: Document) -> Document:
         if self._prompt_template:
             entities = self._handle_few_shot_prompting(document)
         else:
             entities = self._handle_zero_shot_prompting(document)
 
         document.properties.update({f"{self._entity_name}": entities["answer"]})
-        return document.to_dict()
+
+        return document
 
     def _handle_few_shot_prompting(self, document: Document) -> Any:
         sub_elements = [document.elements[i] for i in range((min(self._num_of_elements, len(document.elements))))]
@@ -102,5 +102,5 @@ class ExtractEntity(Transform):
 
     def execute(self) -> "Dataset":
         input_dataset = self.child().execute()
-        dataset = input_dataset.map(self._entity_extractor.extract_entity)
+        dataset = input_dataset.map(generate_map_function(self._entity_extractor.extract_entity))
         return dataset

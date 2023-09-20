@@ -35,7 +35,10 @@ class TestPartition:
         }
         element = Partitioner.to_element(dict)
         assert element.type == "Title"
-        assert element.content == "BERT: Pre-training of Deep Bidirectional Transformers for" " Language Understanding"
+        assert (
+            element.text_representation == "BERT: Pre-training of Deep Bidirectional Transformers for"
+            " Language Understanding"
+        )
         assert element.properties == {
             "coordinates": (
                 (116.519, 70.34515579999993),

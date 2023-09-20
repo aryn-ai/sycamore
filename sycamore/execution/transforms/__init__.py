@@ -1,4 +1,4 @@
-from sycamore.execution.transforms.embedding import SentenceTransformerEmbedding
+from sycamore.execution.transforms.embedding import Embed, Embedder
 from sycamore.execution.transforms.entity_extraction import ExtractEntity, EntityExtractor
 from sycamore.execution.transforms.explode import Explode
 from sycamore.execution.transforms.mapping import Map, FlatMap, MapBatch
@@ -12,7 +12,8 @@ __all__ = [
     "Map",
     "MapBatch",
     "Partitioner",
-    "SentenceTransformerEmbedding",
+    "Embed",
+    "Embedder",
     "Partition",
     "ExtractEntity",
     "EntityExtractor",

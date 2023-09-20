@@ -17,7 +17,7 @@ from sycamore.execution.transforms.prompts.default_prompts import (
 def element_list_formatter(elements: list[Element]) -> str:
     query = ""
     for i in range(len(elements)):
-        query += f"ELEMENT {i + 1}: {elements[i]['content']['text']}\n"
+        query += f"ELEMENT {i + 1}: {elements[i]['text_representation']}\n"
     return query
 
 

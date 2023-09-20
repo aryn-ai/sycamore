@@ -1,9 +1,10 @@
-import numpy
 import pytest
 import ray.data
 
+from sycamore.data import Document
 from sycamore.execution import Node
-from sycamore.execution.transforms import SentenceTransformerEmbedding
+from sycamore.execution.transforms import Embed
+from sycamore.execution.transforms.embedding import SentenceTransformerEmbedder
 
 
 class TestEmbedding:
@@ -50,17 +51,21 @@ class TestEmbedding:
         ],
     )
     def test_sentence_transformer(self, model_name, dimension, texts):
-        input_batch = {"embedding": None, "text_representation": numpy.array(texts)}
-
-        embedder = SentenceTransformerEmbedding.SentenceTransformer(model_name)
+        input_batch = []
+        for text in texts:
+            doc = Document()
+            doc.text_representation = text
+            input_batch.append(doc)
+        embedder = SentenceTransformerEmbedder(model_name)
         output_batch = embedder(doc_batch=input_batch)
-        for doc in output_batch["embedding"]:
-            assert len(doc) == dimension
+        for doc in output_batch:
+            assert len(doc.embedding) == dimension
 
     def test_sentence_transformer_embedding(self, mocker):
         node = mocker.Mock(spec=Node)
-        embedding = SentenceTransformerEmbedding(
-            node, model_name="sentence-transformers/all-MiniLM-L6-v2", batch_size=100
+        embedding = Embed(
+            node,
+            embedder=SentenceTransformerEmbedder(model_name="sentence-transformers/all-MiniLM-L6-v2", batch_size=100),
         )
         input_dataset = ray.data.from_items(
             [

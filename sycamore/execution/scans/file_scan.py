@@ -54,7 +54,7 @@ class BinaryScan(FileScan):
 
         document.doc_id = str(uuid.uuid1())
         document.type = self._binary_format
-        document.content = dict["bytes"]
+        document.binary_representation = dict["bytes"]
         document.properties.update({"path": dict["path"]})
         return document.data
 

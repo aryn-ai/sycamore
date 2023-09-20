@@ -1,10 +1,11 @@
+from collections import defaultdict
 from typing import Any, Callable, Iterable, Optional, Type
 
-from pyarrow import Table
+import numpy as np
 from ray.data import ActorPoolStrategy, Dataset
 
-from sycamore.execution import Node, UnaryNode
 from sycamore.data import Document
+from sycamore.execution import Node, UnaryNode
 
 
 def generate_map_function(f: Callable[[Document], Document]) -> Callable[[dict[str, Any]], dict[str, Any]]:
@@ -51,18 +52,40 @@ def generate_flat_map_class(
     return new_class
 
 
-def generate_map_batch_function(f: Callable[[list[Document]], list[Document]]) -> Callable[[Table], Table]:
-    def ray_callable(input_table: Table) -> Table:
-        input_docs = [Document(t) for t in input_table.to_pylist()]
+def generate_map_batch_function(
+    f: Callable[[list[Document]], list[Document]]
+) -> Callable[[dict[str, np.ndarray]], dict[str, list]]:
+    def ray_callable(doc_batch: dict[str, np.ndarray]) -> dict[str, list]:
+        input_docs = _get_documents_from_columnar_format(doc_batch)
         output_docs = f(input_docs)
-        output_dicts = [doc.data for doc in output_docs]
-        from pandas import DataFrame
 
-        df = DataFrame(output_dicts)
-        output_table = Table.from_pandas(df)
-        return output_table
+        return _get_columnar_format_from_documents(output_docs)
 
     return ray_callable
+
+
+def _get_documents_from_columnar_format(doc_batch: dict[str, np.ndarray]) -> list[Document]:
+    input_docs = []
+    cols = doc_batch.keys()
+    rows = doc_batch.values()
+
+    for row in zip(*rows):
+        document = {}
+        for i, col in enumerate(cols):
+            document[col] = row[i]
+        input_docs.append(Document(document))
+
+    return input_docs
+
+
+def _get_columnar_format_from_documents(doc_batch: list[Document]) -> dict[str, list]:
+    output = defaultdict(list)
+
+    for doc in doc_batch:
+        for key, value in doc.data.items():
+            output[key].append(value)
+
+    return output
 
 
 def generate_map_batch_class(
@@ -84,17 +107,26 @@ def generate_map_batch_class(
     def ray_init(self):
         self.base = c(*f_constructor_args, **f_constructor_kwargs)
 
-    def ray_callable(self, input_table: Table) -> Table:
-        input_docs = [Document(t) for t in input_table.to_pylist()]
+    def ray_callable(self, doc_batch: dict[str, np.ndarray]) -> dict[str, list]:
+        input_docs = _get_documents_from_columnar_format(doc_batch)
         output_docs = self.base(input_docs, *f_args, **f_kwargs)
-        output_dicts = [doc.data for doc in output_docs]
-        from pandas import DataFrame
 
-        df = DataFrame(output_dicts)
-        output_table = Table.from_pandas(df)
-        return output_table
+        return _get_columnar_format_from_documents(output_docs)
 
     new_class = type("CustomRay" + c.__name__, (), {"__init__": ray_init, "__call__": ray_callable})
+    return new_class
+
+
+def generate_map_batch_class_from_callable(
+    f: Callable[[list[Document]], list[Document]],
+) -> Type[Callable[[list[dict[str, Any]]], list[dict[str, Any]]]]:
+    def ray_callable(self, doc_batch: dict[str, np.ndarray]) -> dict[str, list]:
+        input_docs = _get_documents_from_columnar_format(doc_batch)
+        output_docs = f(input_docs)
+
+        return _get_columnar_format_from_documents(output_docs)
+
+    new_class = type("CustomRay", (), {"__call__": ray_callable})
     return new_class
 
 
@@ -153,9 +185,7 @@ class MapBatch(UnaryNode):
             ray_callable = generate_map_batch_class(
                 self._f, self._f_args, self._f_kwargs, self._f_constructor_args, self._f_constructor_kwargs
             )
-            return input_dataset.map_batches(
-                ray_callable, compute=ActorPoolStrategy(size=1), batch_format="pyarrow", **self.resource_args
-            )
+            return input_dataset.map_batches(ray_callable, compute=ActorPoolStrategy(size=1), **self.resource_args)
         else:
             ray_callable = generate_map_batch_function(self._f)
-            return input_dataset.map_batches(ray_callable, batch_format="pyarrow", **self.resource_args)
+            return input_dataset.map_batches(ray_callable, **self.resource_args)

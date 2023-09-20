@@ -37,14 +37,14 @@ class TextractTableExtractor(TableExtractor):
             element.properties["page"] = table.page
 
             if table.title:
-                element.content = table.title.text + "\n"
+                element.text_representation = table.title.text + "\n"
                 element.properties["boxes"].append(bbox_to_coord(table.title.bbox))
 
-            element.content = element.content + table.to_csv() + "\n"
+            element.text_representation = element.text_representation + table.to_csv() + "\n"
             element.properties["boxes"].append(bbox_to_coord(table.bbox))
 
             for footer in table.footers:
-                element.content = element.content + footer.text + "\n"
+                element.text_representation = element.text_representation + footer.text + "\n"
                 element.properties["boxes"].append(bbox_to_coord(footer.bbox))
 
             all_tables.append(element)

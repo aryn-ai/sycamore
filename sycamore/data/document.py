@@ -1,5 +1,5 @@
 from collections import UserDict
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
 
 class Element(UserDict):
@@ -8,21 +8,12 @@ class Element(UserDict):
         default = {
             "type": None,
             "text_representation": None,
-            "content": {
-                "binary": None,
-                "text": None,
-            },
+            "binary_representation": None,
             "properties": {},
         }
         for k, v in default.items():
             if k not in self.data:
                 self.data[k] = v
-
-        if "binary" not in self.data["content"]:
-            self.data["content"]["binary"] = None
-
-        if "text" not in self.data["content"]:
-            self.data["content"]["text"] = None
 
     @property
     def type(self) -> Optional[str]:
@@ -41,23 +32,12 @@ class Element(UserDict):
         self.data["text_representation"] = value
 
     @property
-    def content(self) -> Union[None, bytes, str]:
-        if self.data["content"]["binary"] is not None:
-            return self.data["content"]["binary"]
-        elif self.data["content"]["text"] is not None:
-            return self.data["content"]["text"]
-        else:
-            return None
+    def binary_representation(self) -> Optional[str]:
+        return self.data["binary_representation"]
 
-    @content.setter
-    def content(self, content: Union[bytes, str]) -> None:
-        if isinstance(content, bytes):
-            self.data["content"]["binary"] = content
-            self.data["content"]["text"] = None
-
-        if isinstance(content, str):
-            self.data["content"]["binary"] = None
-            self.data["content"]["text"] = content
+    @binary_representation.setter
+    def binary_representation(self, value: str) -> None:
+        self.data["binary_representation"] = value
 
     @property
     def properties(self) -> dict[str, Any]:
@@ -110,10 +90,7 @@ class Document(UserDict):
             "doc_id": None,
             "type": None,
             "text_representation": None,
-            "content": {
-                "binary": None,
-                "text": None,
-            },
+            "binary_representation": None,
             "elements": {"array": []},
             "embedding": None,
             "parent_id": None,
@@ -122,12 +99,6 @@ class Document(UserDict):
         for k, v in default.items():
             if k not in self.data:
                 self.data[k] = v
-
-        if "binary" not in self.data["content"]:
-            self.data["content"]["binary"] = None
-
-        if "text" not in self.data["content"]:
-            self.data["content"]["text"] = None
 
         elements = [Element(element) for element in self.data["elements"]["array"]]
         self.data["elements"]["array"] = elements
@@ -157,24 +128,12 @@ class Document(UserDict):
         self.data["text_representation"] = value
 
     @property
-    def content(self) -> Union[None, bytes, str]:
-        if self.data["content"]["binary"] is not None:
-            return self.data["content"]["binary"]
+    def binary_representation(self) -> Optional[str]:
+        return self.data["binary_representation"]
 
-        if self.data["content"]["text"] is not None:
-            return self.data["content"]["text"]
-
-        return None
-
-    @content.setter
-    def content(self, content: Union[bytes, str]) -> None:
-        if isinstance(content, bytes):
-            self.data["content"]["binary"] = content
-            self.data["content"]["text"] = None
-
-        if isinstance(content, str):
-            self.data["content"]["binary"] = None
-            self.data["content"]["text"] = content
+    @binary_representation.setter
+    def binary_representation(self, value: str) -> None:
+        self.data["binary_representation"] = value
 
     @property
     def elements(self) -> list[Element]:

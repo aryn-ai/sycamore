@@ -9,6 +9,9 @@ on:
       - "**.py"
       - "**/pyproject.toml"
 
+# We do type checking and linting only on one python version to
+# reduce time, since it is unlikely that linting will be version
+# specific.
 jobs:
   mypy:
     runs-on: ubuntu-latest
@@ -19,7 +22,7 @@ jobs:
         run: pipx install poetry
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.9'
           cache: 'poetry'
       - name: Install sycamore
         run: poetry install
@@ -37,7 +40,7 @@ jobs:
         run: pipx install poetry
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.9'
           cache: 'poetry'
       - name: Install sycamore
         run: poetry install

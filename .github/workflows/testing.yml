@@ -20,14 +20,19 @@ permissions:
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11"]
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install poetry
         run: pipx install poetry
-      - uses: actions/setup-python@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: ${{ matrix.python-version }}
           cache: 'poetry'
       - name: Install sycamore
         run: poetry install
@@ -36,6 +41,9 @@ jobs:
 
   integ-tests:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11"]
     services:
       opensearch:
         image: opensearchproject/opensearch:2.9.0
@@ -48,9 +56,10 @@ jobs:
         uses: actions/checkout@v4
       - name: Install poetry
         run: pipx install poetry
-      - uses: actions/setup-python@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: ${{ matrix.python-version }}
           cache: 'poetry'
       - name: Install sycamore
         run: poetry install

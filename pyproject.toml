@@ -7,7 +7,7 @@ readme = "README.md"
 repository = "https://github.com/aryn-ai/sycamore.git"
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = ">=3.9,<4.0"
 opensearch-py = "^2.2.0"
 pandas = "2.0.3"
 pdf2image = "^1.16.3"

@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Any, Optional
+from typing import Callable, Optional
 
 from ray.data import Dataset
 
 from sycamore.data import Element, Document
 from sycamore.execution import NonCPUUser, NonGPUUser, Transform, Node
 from sycamore.execution.transforms.llms import LLM
+from sycamore.execution.transforms.mapping import generate_map_function
 from sycamore.execution.transforms.prompts.default_prompts import (
     TEXT_SUMMARIZER_GUIDANCE_PROMPT_CHAT,
     TEXT_SUMMARIZER_GUIDANCE_PROMPT,
@@ -14,7 +15,7 @@ from sycamore.execution.transforms.prompts.default_prompts import (
 
 class Summarizer(ABC):
     @abstractmethod
-    def summarize(self, record: dict[str, Any]) -> dict[str, Any]:
+    def summarize(self, document: Document) -> Document:
         pass
 
 
@@ -23,8 +24,7 @@ class LLMElementTextSummarizer(Summarizer):
         self._llm = llm
         self._element_operator = element_operator
 
-    def summarize(self, row: dict[str, Any]) -> dict[str, Any]:
-        document = Document(row)
+    def summarize(self, document: Document) -> Document:
         if self._element_operator is not None:
             filtered_elements = self._element_operator(document)
         else:
@@ -32,7 +32,7 @@ class LLMElementTextSummarizer(Summarizer):
 
         if len(filtered_elements) > 0:
             self._summarize_text_element(filtered_elements)
-        return document.to_dict()
+        return document
 
     def _summarize_text_element(self, elements: list[Element]):
         if self._llm.is_chat_mode:
@@ -54,5 +54,5 @@ class Summarize(NonCPUUser, NonGPUUser, Transform):
 
     def execute(self) -> Dataset:
         input_dataset = self.child().execute()
-        dataset = input_dataset.map(self._summarizer.summarize)
+        dataset = input_dataset.map(generate_map_function(self._summarizer.summarize))
         return dataset

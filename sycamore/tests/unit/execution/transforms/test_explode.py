@@ -1,5 +1,6 @@
 import ray.data
 
+from sycamore.data import Document
 from sycamore.execution import Node
 from sycamore.execution.transforms import Explode
 
@@ -30,7 +31,7 @@ class TestExplode:
 
     def test_explode_callable(self):
         exploder = Explode.ExplodeCallable()
-        docs = exploder.explode(self.doc)
+        docs = exploder.explode(Document(self.doc))
         assert len(docs) == 3
 
     def test_explode(self, mocker):

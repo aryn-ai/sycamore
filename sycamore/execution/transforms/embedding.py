@@ -73,7 +73,9 @@ class Embed(Transform):
         dataset = self.child().execute()
         if self._embedder.device == "cuda":
             available_gpus = ray.available_resources().get("GPU")
-            if "num_gpus" not in self.resource_args or self.resource_args["num_gpus"] <= 0:
+            if "num_gpus" not in self.resource_args:
+                self.resource_args["num_gpus"] = 1
+            if self.resource_args["num_gpus"] <= 0:
                 raise RuntimeError("Invalid GPU Nums!")
             gpu_per_task = self.resource_args["num_gpus"]
 

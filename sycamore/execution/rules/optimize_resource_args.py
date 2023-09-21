@@ -6,7 +6,7 @@ class EnforceResourceUsage(Rule):
         if isinstance(plan, NonCPUUser):
             plan.resource_args["num_cpus"] = 0
 
-        if isinstance(plan, SingleThreadUser):
+        if isinstance(plan, SingleThreadUser) and "num_cpus" not in plan.resource_args:
             plan.resource_args["num_cpus"] = 1
 
         if isinstance(plan, NonGPUUser):

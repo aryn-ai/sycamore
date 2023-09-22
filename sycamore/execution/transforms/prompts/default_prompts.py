@@ -32,8 +32,8 @@ ENTITY_EXTRACTOR_FEW_SHOT_GUIDANCE_PROMPT_CHAT = """
 
     {{#user~}}
     You are given a few text elements of a document. The {{entity}} of the document is in these few text elements.Using
-    this context,
-    FIND,COPY, and RETURN the {{entity}}. DO NOT REPHRASE OR MAKE UP AN ANSWER.
+    this context, FIND,COPY, and RETURN the {{entity}}. Only return the {{entity}} as part of your answer. DO NOT 
+    REPHRASE OR MAKE UP AN ANSWER.
     {{query}}
     {{~/user}}
 
@@ -58,7 +58,7 @@ TEXT_SUMMARIZER_GUIDANCE_PROMPT_CHAT = """
 
     {{#user~}}
     Write a summary of the following. Use only the information provided.
-    Include as many key details as possible. Do not make up answer."
+    Include as many key details as possible. Do not make up answer. Only return the summary as part of your answer."
     {{query}}
     {{~/user}}
 

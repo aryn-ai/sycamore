@@ -135,6 +135,10 @@ class Document(UserDict):
     def binary_representation(self, value: str) -> None:
         self.data["binary_representation"] = value
 
+    @binary_representation.deleter
+    def binary_representation(self) -> None:
+        self.data["binary_representation"] = None
+
     @property
     def elements(self) -> list[Element]:
         return self.data["elements"]["array"]
@@ -148,7 +152,7 @@ class Document(UserDict):
         self.data["elements"] = {"array": []}
 
     @property
-    def embedding(self) -> dict[None, list[list[float]]]:
+    def embedding(self) -> list[list[float]]:
         return self.data["embedding"]
 
     @embedding.setter

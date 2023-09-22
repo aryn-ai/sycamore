@@ -1,11 +1,12 @@
 import logging
+import pprint
 from typing import Callable, Optional, Any, Iterable
 
 from sycamore import Context
 from sycamore.data import Document
 from sycamore.execution import Node
-from sycamore.execution.transforms.embedding import Embed, Embedder
 from sycamore.execution.transforms import Partition
+from sycamore.execution.transforms.embedding import Embed, Embedder
 from sycamore.execution.transforms.entity_extraction import ExtractEntity, EntityExtractor
 from sycamore.execution.transforms.partition import Partitioner
 from sycamore.execution.transforms.summarize import Summarizer, Summarize
@@ -29,13 +30,37 @@ class DocSet:
         # TODO, print out nice format DAG
         pass
 
-    def show(self, limit: int = 20) -> None:
+    def show(
+        self,
+        limit: int = 20,
+        show_elements: bool = True,
+        show_binary: bool = False,
+        truncate_content: bool = True,
+        truncate_length: int = 100,
+    ) -> None:
         from sycamore import Execution
 
         execution = Execution(self.context, self.plan)
         dataset = execution.execute(self.plan)
-        for row in dataset.take(limit):
-            print(row)
+        documents = [Document(row) for row in dataset.take(limit)]
+        for document in documents:
+            if not show_elements:
+                del document.elements
+            if not show_binary:
+                del document.binary_representation
+            if truncate_content:
+                if document.text_representation:
+                    document.text_representation = document.text_representation[:truncate_length]
+                if document.binary_representation:
+                    document.binary_representation = document.binary_representation[:truncate_length]
+                num_of_elements = len(document.elements)
+                if num_of_elements > 0:
+                    document.elements = document.elements[: min(truncate_length, num_of_elements)]
+                if document.embedding is not None:
+                    embedding_length = len(document.embedding)
+                    document.embedding = document.embedding[: min(truncate_length, embedding_length)]
+
+            pprint.pp(document, depth=2)
 
     def count(self) -> int:
         from sycamore import Execution

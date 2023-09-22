@@ -10,7 +10,7 @@ from tenacity import retry, stop_after_attempt, wait_random, retry_if_exception_
 
 class OpenAIModels(Enum):
     TEXT_DAVINCI = "text-davinci-003"
-    GPT_3_5_TURBO = "gpt-3.5-turbo-0613"
+    GPT_3_5_TURBO = "gpt-3.5-turbo"
 
 
 class LLM(ABC):

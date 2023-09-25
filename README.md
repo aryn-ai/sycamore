@@ -33,14 +33,14 @@ pip install sycamore-ai
 For certain PDF processing operations, you also need to install `poppler-utils`, which you can do with the OS-native package manager of your choice. For example, the command for Homebrew on Mac OS is
 
 ```bash
-brew install poppler-utils 
+brew install poppler-utils
 ```
 
 ## Getting Started
 
-The following shows a simple Sycamore script to read a collection of PDFs, partition them, compute vector embeddings, and load them into an OpenSearch cluster. 
+The following shows a simple Sycamore script to read a collection of PDFs, partition them, compute vector embeddings, and load them into an OpenSearch cluster.
 
-See our [documentation](https://sycamore.readthedocs.io) for lots more information and examples. 
+See our [documentation](https://sycamore.readthedocs.io) for lots more information and examples.
 
 ```python
 # Import and initialize the Sycamore library.
@@ -50,10 +50,10 @@ context = sycamore.init()
 # Read a collection of PDF documents into a DocSet.
 doc_set = context.read.binary(paths=["/path/to/pdfs/"], binary_format="pdf")
 
-# Segment the pdfs using the Unstructured partitioner. 
+# Segment the pdfs using the Unstructured partitioner.
 partitioned_doc_set = doc_set.partition(partitioner=UnstructuredPdfPartitioner())
 
-# Compute vector embeddings for the individual components of each document. 
+# Compute vector embeddings for the individual components of each document.
 embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
 embedded_doc_set = partitioned_doc_set.explode() \
                                       .embed(embedder)

@@ -128,11 +128,11 @@ class Document(UserDict):
         self.data["text_representation"] = value
 
     @property
-    def binary_representation(self) -> Optional[str]:
+    def binary_representation(self) -> Optional[bytes]:
         return self.data["binary_representation"]
 
     @binary_representation.setter
-    def binary_representation(self, value: str) -> None:
+    def binary_representation(self, value: bytes) -> None:
         self.data["binary_representation"] = value
 
     @binary_representation.deleter

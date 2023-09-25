@@ -7,7 +7,7 @@ from sycamore.data import Document, Element
 from PIL import Image as PImage, ImageDraw, ImageFont
 
 
-def split_and_convert_to_image(doc: Document) -> Document:
+def split_and_convert_to_image(doc: Document) -> list[Document]:
     images = pdf2image.convert_from_bytes(doc.binary_representation)
 
     elements_by_page: dict[int, list[Element]] = {}
@@ -23,7 +23,7 @@ def split_and_convert_to_image(doc: Document) -> Document:
         new_doc.properties.update(doc.properties)
         new_doc.properties.update({"size": list(image.size), "mode": image.mode, "page_number": page})
         new_docs.append(new_doc)
-    return new_docs[0]
+    return new_docs
 
 
 class DrawBoxes:
@@ -44,14 +44,13 @@ class DrawBoxes:
         return self.color_map.get(e_type, self.default_color)
 
     def _draw_boxes(self, doc: Document) -> Document:
-        new_doc = split_and_convert_to_image(doc)
-        size = tuple(new_doc.properties["size"])
+        size = tuple(doc.properties["size"])
         image_width, image_height = size
-        mode = new_doc.properties["mode"]
-        image = PImage.frombytes(mode=mode, size=size, data=new_doc.binary_representation)
+        mode = doc.properties["mode"]
+        image = PImage.frombytes(mode=mode, size=size, data=doc.binary_representation)
         canvas = ImageDraw.Draw(image)
 
-        for i, e in enumerate(new_doc.elements):
+        for i, e in enumerate(doc.elements):
             layout_width = e.properties["coordinates"]["layout_width"]
             layout_height = e.properties["coordinates"]["layout_height"]
 

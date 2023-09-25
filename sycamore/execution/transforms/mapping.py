@@ -64,6 +64,18 @@ def generate_map_batch_function(
     return ray_callable
 
 
+def generate_map_batch_filter_function(
+    f: Callable[[Document], bool]
+) -> Callable[[dict[str, np.ndarray]], dict[str, list]]:
+    def ray_callable(doc_batch: dict[str, np.ndarray]) -> dict[str, list]:
+        input_docs = _get_documents_from_columnar_format(doc_batch)
+        output_docs = list(filter(f, input_docs))
+
+        return _get_columnar_format_from_documents(output_docs)
+
+    return ray_callable
+
+
 def _get_documents_from_columnar_format(doc_batch: dict[str, np.ndarray]) -> list[Document]:
     input_docs = []
     cols = doc_batch.keys()
@@ -143,6 +155,17 @@ class Map(UnaryNode):
         else:
             ray_callable = generate_map_function(self._f)
             return input_dataset.map(ray_callable, **self.resource_args)
+
+
+class Filter(UnaryNode):
+    def __init__(self, child: Node, *, f: Callable[[Document], bool], **resource_args):
+        super().__init__(child, **resource_args)
+        self._f = f
+
+    def execute(self) -> Dataset:
+        input_dataset = self.child().execute()
+        ray_callable = generate_map_batch_filter_function(self._f)
+        return input_dataset.map_batches(ray_callable, **self.resource_args)
 
 
 class FlatMap(UnaryNode):

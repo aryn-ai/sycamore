@@ -8,7 +8,10 @@ from PIL import Image as PImage, ImageDraw, ImageFont
 
 
 def split_and_convert_to_image(doc: Document) -> list[Document]:
-    images = pdf2image.convert_from_bytes(doc.binary_representation)
+    if doc.binary_representation is not None:
+        images = pdf2image.convert_from_bytes(doc.binary_representation)
+    else:
+        return [doc]
 
     elements_by_page: dict[int, list[Element]] = {}
 

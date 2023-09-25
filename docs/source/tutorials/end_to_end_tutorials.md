@@ -1,52 +1,49 @@
 # Read from s3 and write to OpenSearch
 
+This tutorial provides a walkthrough of how to use Sycamore to prepare, enhance, and embed a PDF dataset from S3 and load it into a local OpenSearch cluster. We encourage to go over Sycamore's [key concepts](https://sycamore.readthedocs.io/en/stable/key_concepts/concepts.html) before you work through this tutorial. We will be using unstructured pdfs from the Sort Benchmark (sortbenchmark.org) website. This data is publicly available in S3 at `s3://aryn-public/sort-benchmakr/pdf/`.
 
-We strongly encourage to go over Key Concepts[Link] before you work through this tutorial. 
+## Steps
 
-This tutorial gives a walk through over how you can leverage Sycamore to prepare, enhance and embed your data and eventually write it to a local OpenSearch cluster. We will be using unstructured data from the Sort Benchmark (sortbenchmark.org) website, including HTML webpages and PDF documents that include tables and figures for this tutorial. The data is available at s3Location for you to download. 
-
-We will be using OpenSearch as a VectorStore. Please install and spin up OpenSearch locally using Docker by following the instructions [here](https://opensearch.org/docs/latest/install-and-configure/install-opensearch/docker/).
-
-1. Install Sycamore using Pypi
+1. Install Sycamore using pip
 
 ```bash
 pip install sycamore-ai
 ```
 
-1. Create a python script and import Sycamore. In the following code snippet, we are initializing sycamore and creating a DocSet by reading all the files from a local path. 
+2. Create a python script and import Sycamore. In the following code snippet, we are initializing sycamore and creating a DocSet by reading all the files from a local path.
 
 ```python
 import sycamore
 
 # local file path to the SortBenchmark dataset
-paths = "data/pdfs/"
+paths = "s3://aryn-public/sort-benchmark/pdf/"
 
 # Initializng sycamore which also initializes Ray underneath
 context = sycamore.init()
 
-# Creating a DocSet 
+# Creating a DocSet
 docset = context.context.read.binary(paths, binary_format="pdf")
 ```
 
 *Note: At any point if you want to inspect the docset, you can use docset.show() method*
 
-1. Next, we want to partition all the pdfs and generate elements so that we can extract relevant entities later on. We will use the partition transform to achieve this.
+3. Next, we want to partition all the pdfs and generate elements so that we can extract relevant entities later on. We will use the partition transform to achieve this.
 
 ```python
-from sycamore.execution.transforms.partition import UnstructuredPdfPartitioner
+from sycamore.transforms.partition import UnstructuredPdfPartitioner
 
 # We are using UnstructuredPdfPartitioner to partion the documents.
-# You can write your ownn partitioner as well. 
+# Sycamore supports pluggable partitioners for different formats.
 docset = docset.partition(partitioner=UnstructuredPdfPartitioner())
 ```
 
-1. Now, since we know that Titles and Authors are important entities of our dataset, lets extract them using the extract_entity transform. The extracted entities will be added as properties of each document.
+4. Now, since we know that titles and authors are important entities in our dataset, let's extract them using OpenAI with the `extract_entity` transform. In this case, we are going to use *few shot entity extraction*, where we provide some examples to the model of what to extract:
 
 ```python
-from sycamore.execution.transforms.entity_extraction import OpenAIEntityExtractor
-from sycamore.execution.transforms.llms.llms import OpenAIModels, OpenAI
+from sycamore.transforms.entity_extraction import OpenAIEntityExtractor
+from sycamore.llms import OpenAIModels, OpenAI
 
-# The following prompt templates will be used to extract the relevant entities 
+# The following prompt templates will be used to extract the relevant entities
 title_prompt_template = """
     ELEMENT 1: Jupiter's Moons
     ELEMENT 2: Ganymede 2020
@@ -109,10 +106,10 @@ docset = docset.extract_entity(
         )
 ```
 
-1. Next, we want to convert each element of a document into a top/parent level document. Additionally, we also want to generate embeddings for these documents. We will use the explode and embed transform respectively to achieve this.
+5. Next, we want to convert each element of a document into a top/parent level document. Additionally, we also want to generate embeddings for these documents. We will use the explode and embed transform respectively to achieve this.
 
 ```python
-from sycamore.execution.transforms.embedding import SentenceTransformerEmbedder
+from sycamore.transforms.embedding import SentenceTransformerEmbedder
 
 # We are using SentenceTransformerEmbedder to embed the content of each document; which
 # uses the SentenceTransformer model. You can write your own Embedder as well.
@@ -120,7 +117,7 @@ docset = docset.explode()
 		.embed(embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
 ```
 
-1. Lastly, we want to write these documents into OpenSearch to query. Make sure that you have OpenSearch running locally.
+6. Lastly, we want to write these documents into OpenSearch to query. Make sure that you have OpenSearch running locally.
 
 ```python
 openSearch_client_args = {

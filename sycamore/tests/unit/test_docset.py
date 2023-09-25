@@ -1,3 +1,5 @@
+from typing import Callable
+
 from sycamore import DocSet, Context
 from sycamore.execution import Node
 from sycamore.execution.scans import BinaryScan
@@ -14,6 +16,7 @@ from sycamore.execution.transforms import (
 )
 from sycamore.execution.transforms.entity_extraction import OpenAIEntityExtractor
 from sycamore.execution.transforms.llms import LLM
+from sycamore.execution.transforms.mapping import Filter
 from sycamore.execution.transforms.summarize import LLMElementTextSummarizer
 
 
@@ -70,3 +73,11 @@ class TestDocSet:
         docset = DocSet(context, node)
         docset = docset.summarize(llm=llm, summarizer=LLMElementTextSummarizer(llm))
         assert isinstance(docset.lineage(), Summarize)
+
+    def test_filter(self, mocker):
+        context = mocker.Mock(spec=Context)
+        node = mocker.Mock(spec=Node)
+        func = mocker.Mock(spec=Callable)
+        docset = DocSet(context, node)
+        docset = docset.filter(func)
+        assert isinstance(docset.lineage(), Filter)

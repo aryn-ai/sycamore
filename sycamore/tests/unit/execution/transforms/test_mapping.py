@@ -7,7 +7,7 @@ from ray.data import ActorPoolStrategy
 from sycamore.data import Document
 from sycamore.execution import Node
 from sycamore.execution.transforms import Map, FlatMap, MapBatch
-from sycamore.execution.transforms.mapping import generate_map_batch_class_from_callable
+from sycamore.execution.transforms.mapping import generate_map_batch_class_from_callable, Filter
 
 
 def map_func(doc: Document) -> Document:
@@ -23,6 +23,10 @@ def map_batch_func(docs: List[Document]) -> List[Document]:
     for doc in docs:
         doc["index"] += 1
     return docs
+
+
+def filter_func(doc: Document) -> bool:
+    return doc.properties["page_number"] == 1
 
 
 class TestMapping:
@@ -106,3 +110,20 @@ class TestMapping:
         output = input_dataset.map_batches(ray_callable, compute=ActorPoolStrategy())
         dicts = output.take()
         assert dicts[0]["index"] == 2 and dicts[1]["index"] == 3
+
+    def test_generate_map_batch_filter_function(self, mocker):
+        node = mocker.Mock(spec=Node)
+        filtered = Filter(node, f=filter_func)
+        input_dataset = ray.data.from_items(
+            [
+                {"index": 1, "doc": "Members of a strike at Yale University.", "properties": {"page_number": 1}},
+                {"index": 2, "doc": "A woman is speaking at a podium outdoors.", "properties": {"page_number": 2}},
+            ]
+        )
+        execute = mocker.patch.object(node, "execute")
+        execute.return_value = input_dataset
+        output = filtered.execute()
+
+        dicts = output.take()
+        assert len(dicts) == 1
+        assert dicts[0]["properties"]["page_number"] == 1

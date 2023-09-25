@@ -1,3 +1,4 @@
+import logging
 import threading
 from typing import Any, Optional
 
@@ -11,7 +12,11 @@ class Context:
         if ray_args is None:
             ray_args = {}
 
+        if "logging_level" not in ray_args:
+            ray_args.update({"logging_level": logging.WARNING})
+
         ray.init(**ray_args)
+
         self.extension_rules: list[Rule] = []
         self._internal_lock = threading.Lock()
 

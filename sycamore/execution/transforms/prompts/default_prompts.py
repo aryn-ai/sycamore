@@ -32,7 +32,7 @@ ENTITY_EXTRACTOR_FEW_SHOT_GUIDANCE_PROMPT_CHAT = """
 
     {{#user~}}
     You are given a few text elements of a document. The {{entity}} of the document is in these few text elements.Using
-    this context, FIND,COPY, and RETURN the {{entity}}. Only return the {{entity}} as part of your answer. DO NOT 
+    this context, FIND,COPY, and RETURN the {{entity}}. Only return the {{entity}} as part of your answer. DO NOT
     REPHRASE OR MAKE UP AN ANSWER.
     {{query}}
     {{~/user}}

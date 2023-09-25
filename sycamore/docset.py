@@ -8,6 +8,7 @@ from sycamore.execution import Node
 from sycamore.execution.transforms import Partition
 from sycamore.execution.transforms.embedding import Embed, Embedder
 from sycamore.execution.transforms.entity_extraction import ExtractEntity, EntityExtractor
+from sycamore.execution.transforms.mapping import Filter
 from sycamore.execution.transforms.partition import Partitioner
 from sycamore.execution.transforms.summarize import Summarizer, Summarize
 from sycamore.execution.transforms.table_extraction import TableExtractor
@@ -136,6 +137,10 @@ class DocSet:
 
         flat_map = FlatMap(self.plan, f=f, **resource_args)
         return DocSet(self.context, flat_map)
+
+    def filter(self, f: Callable[[Document], bool], **resource_args) -> "DocSet":
+        filtered = Filter(self.plan, f=f, **resource_args)
+        return DocSet(self.context, filtered)
 
     def map_batch(
         self,

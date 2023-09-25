@@ -37,6 +37,12 @@ poetry install --all-extras
 
 ```
 
+In addition, some pdf processing methods require [Poppler](https://poppler.freedesktop.org/). You can install this with the OS-native package manager of your choice. For example, the command for Homebrew on Mac OS is
+
+```bash
+brew install poppler
+```
+
 ### Linting
 
 We use `ruff` to lint sycamore and `black` to automatically format our code. You can run these tools from the root of the repository using

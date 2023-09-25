@@ -30,10 +30,10 @@ Sycamore currently runs on Python 3.9+ for Linux and Mac OS. To install, run
 pip install sycamore-ai
 ```
 
-For certain PDF processing operations, you also need to install `poppler-utils`, which you can do with the OS-native package manager of your choice. For example, the command for Homebrew on Mac OS is
+For certain PDF processing operations, you also need to install `poppler`, which you can do with the OS-native package manager of your choice. For example, the command for Homebrew on Mac OS is
 
 ```bash
-brew install poppler-utils
+brew install poppler
 ```
 
 ## Getting Started

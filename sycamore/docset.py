@@ -1,5 +1,6 @@
 import logging
 import pprint
+import sys
 from typing import Callable, Optional, Any, Iterable
 
 from sycamore import Context
@@ -33,9 +34,12 @@ class DocSet:
         self,
         limit: int = 20,
         show_elements: bool = True,
+        num_elements: int = -1,  # -1 shows all elements
         show_binary: bool = False,
+        show_embedding: bool = False,
         truncate_content: bool = True,
         truncate_length: int = 100,
+        stream=sys.stdout,
     ) -> None:
         from sycamore import Execution
 
@@ -44,22 +48,29 @@ class DocSet:
         documents = [Document(row) for row in dataset.take(limit)]
         for document in documents:
             if not show_elements:
+                num_elems = len(document.elements)
+                document.data["elements"] = f"<{num_elems} elements>"
                 del document.elements
-            if not show_binary:
-                del document.binary_representation
-            if truncate_content:
-                if document.text_representation:
-                    document.text_representation = document.text_representation[:truncate_length]
-                if document.binary_representation:
-                    document.binary_representation = document.binary_representation[:truncate_length]
-                num_of_elements = len(document.elements)
-                if num_of_elements > 0:
-                    document.elements = document.elements[: min(truncate_length, num_of_elements)]
-                if document.embedding is not None:
-                    embedding_length = len(document.embedding)
-                    document.embedding = document.embedding[: min(truncate_length, embedding_length)]
 
-            pprint.pp(document, depth=2)
+            if not show_binary and document.binary_representation is not None:
+                binary_length = len(document.binary_representation)
+                document.binary_representation = f"<{binary_length} bytes>".encode("utf-8")
+
+            if truncate_content and document.text_representation is not None:
+                amount_truncated = len(document.text_representation) - truncate_length
+                if amount_truncated > 0:
+                    document.text_representation = (
+                        document.text_representation[:truncate_length] + f" <{amount_truncated} chars>"
+                    )
+
+            if document.elements is not None and num_elements >= 0 and len(document.elements) > num_elements:
+                document.elements = document.elements[:num_elements]
+
+            if not show_embedding and document.embedding is not None:
+                embedding_length = len(document.embedding)
+                document.data["embedding"] = f"<{embedding_length} floats>"
+
+            pprint.pp(document, stream=stream)
 
     def count(self) -> int:
         from sycamore import Execution
@@ -157,7 +168,7 @@ class DocSet:
         f_kwargs: Optional[dict[str, Any]] = None,
         f_constructor_args: Optional[Iterable[Any]] = None,
         f_constructor_kwargs: Optional[dict[str, Any]] = None,
-        **resource_args
+        **resource_args,
     ) -> "DocSet":
         from sycamore.transforms import MapBatch
 
@@ -168,7 +179,7 @@ class DocSet:
             f_kwargs=f_kwargs,
             f_constructor_args=f_constructor_args,
             f_constructor_kwargs=f_constructor_kwargs,
-            **resource_args
+            **resource_args,
         )
         return DocSet(self.context, map_batch)
 

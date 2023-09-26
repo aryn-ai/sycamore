@@ -1,8 +1,8 @@
 from ray.data import Dataset
 
 from sycamore.data import Document
-from sycamore.execution import Node, Transform, SingleThreadUser, NonGPUUser
-from sycamore.execution.transforms.mapping import generate_flat_map_function
+from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
+from sycamore.transforms.mapping import generate_flat_map_function
 
 
 class Explode(SingleThreadUser, NonGPUUser, Transform):

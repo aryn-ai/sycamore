@@ -1,4 +1,9 @@
-from sycamore.execution import Node, NonCPUUser, NonGPUUser, Rule, SingleThreadUser
+from sycamore.plan_nodes import Node, NonCPUUser, NonGPUUser, SingleThreadUser
+
+
+class Rule:
+    def __call__(self, plan: Node) -> Node:
+        raise NotImplementedError
 
 
 class EnforceResourceUsage(Rule):

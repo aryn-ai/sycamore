@@ -4,10 +4,10 @@ from typing import Callable, Optional
 from ray.data import Dataset
 
 from sycamore.data import Element, Document
-from sycamore.execution import NonCPUUser, NonGPUUser, Transform, Node
-from sycamore.execution.transforms.llms import LLM
-from sycamore.execution.transforms.mapping import generate_map_function
-from sycamore.execution.transforms.prompts.default_prompts import (
+from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Transform, Node
+from sycamore.llms import LLM
+from sycamore.transforms.mapping import generate_map_function
+from sycamore.llms.prompts import (
     TEXT_SUMMARIZER_GUIDANCE_PROMPT_CHAT,
     TEXT_SUMMARIZER_GUIDANCE_PROMPT,
 )

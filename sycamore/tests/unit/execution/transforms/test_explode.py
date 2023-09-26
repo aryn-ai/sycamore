@@ -1,8 +1,8 @@
 import ray.data
 
 from sycamore.data import Document
-from sycamore.execution import Node
-from sycamore.execution.transforms import Explode
+from sycamore.plan_nodes import Node
+from sycamore.transforms import Explode
 
 
 class TestExplode:

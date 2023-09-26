@@ -2,9 +2,9 @@ import pytest
 import ray.data
 
 from sycamore.data import Document
-from sycamore.execution import Node
-from sycamore.execution.transforms import Embed
-from sycamore.execution.transforms.embedding import SentenceTransformerEmbedder
+from sycamore.plan_nodes import Node
+from sycamore.transforms import Embed
+from sycamore.transforms.embedding import SentenceTransformerEmbedder
 
 
 class TestEmbedding:

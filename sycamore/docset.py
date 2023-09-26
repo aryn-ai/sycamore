@@ -4,14 +4,12 @@ from typing import Callable, Optional, Any, Iterable
 
 from sycamore import Context
 from sycamore.data import Document
-from sycamore.execution import Node
-from sycamore.execution.transforms import Partition
-from sycamore.execution.transforms.embedding import Embed, Embedder
-from sycamore.execution.transforms.entity_extraction import ExtractEntity, EntityExtractor
-from sycamore.execution.transforms.mapping import Filter
-from sycamore.execution.transforms.partition import Partitioner
-from sycamore.execution.transforms.summarize import Summarizer, Summarize
-from sycamore.execution.transforms.table_extraction import TableExtractor
+from sycamore.plan_nodes import Node
+from sycamore.transforms.embedding import Embedder
+from sycamore.transforms.entity_extraction import EntityExtractor
+from sycamore.transforms.partition import Partitioner
+from sycamore.transforms.summarize import Summarizer
+from sycamore.transforms.table_extraction import TableExtractor
 from sycamore.writer import DocSetWriter
 
 logger = logging.getLogger(__name__)
@@ -78,11 +76,13 @@ class DocSet:
         return [Document(row) for row in dataset.take(limit)]
 
     def limit(self, limit: int = 20) -> "DocSet":
-        from sycamore.execution.transforms import Limit
+        from sycamore.transforms import Limit
 
         return DocSet(self.context, Limit(self.plan, limit))
 
     def partition(self, partitioner: Partitioner, table_extractor: Optional[TableExtractor] = None, **kwargs):
+        from sycamore.transforms import Partition
+
         plan = Partition(self.plan, partitioner=partitioner, table_extractor=table_extractor, **kwargs)
         return DocSet(self.context, plan)
 
@@ -109,36 +109,44 @@ class DocSet:
         {"type": table, "content": {"binary": xxx, "text": None},
          "doc_id": uuid-6, "parent_id": uuid}
         """
-        from sycamore.execution.transforms.explode import Explode
+        from sycamore.transforms.explode import Explode
 
         explode = Explode(self.plan, **resource_args)
         return DocSet(self.context, explode)
 
     def embed(self, embedder: Embedder, **kwargs):
+        from sycamore.transforms import Embed
+
         embeddings = Embed(self.plan, embedder=embedder, **kwargs)
         return DocSet(self.context, embeddings)
 
     def extract_entity(self, entity_extractor: EntityExtractor, **kwargs) -> "DocSet":
+        from sycamore.transforms import ExtractEntity
+
         entities = ExtractEntity(self.plan, entity_extractor=entity_extractor, **kwargs)
         return DocSet(self.context, entities)
 
     def summarize(self, summarizer: Summarizer, **kwargs) -> "DocSet":
+        from sycamore.transforms import Summarize
+
         summaries = Summarize(self.plan, summarizer=summarizer, **kwargs)
         return DocSet(self.context, summaries)
 
     def map(self, f: Callable[[Document], Document], **resource_args) -> "DocSet":
-        from sycamore.execution.transforms.mapping import Map
+        from sycamore.transforms import Map
 
         mapping = Map(self.plan, f=f, **resource_args)
         return DocSet(self.context, mapping)
 
     def flat_map(self, f: Callable[[Document], list[Document]], **resource_args) -> "DocSet":
-        from sycamore.execution.transforms.mapping import FlatMap
+        from sycamore.transforms import FlatMap
 
         flat_map = FlatMap(self.plan, f=f, **resource_args)
         return DocSet(self.context, flat_map)
 
     def filter(self, f: Callable[[Document], bool], **resource_args) -> "DocSet":
+        from sycamore.transforms import Filter
+
         filtered = Filter(self.plan, f=f, **resource_args)
         return DocSet(self.context, filtered)
 
@@ -151,7 +159,7 @@ class DocSet:
         f_constructor_kwargs: Optional[dict[str, Any]] = None,
         **resource_args
     ) -> "DocSet":
-        from sycamore.execution.transforms.mapping import MapBatch
+        from sycamore.transforms import MapBatch
 
         map_batch = MapBatch(
             self.plan,

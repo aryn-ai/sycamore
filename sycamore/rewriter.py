@@ -1,5 +1,5 @@
-from sycamore.execution import Node, Rule
-from sycamore.execution.rules import OptimizeResourceArgs, EnforceResourceUsage
+from sycamore.plan_nodes import Node
+from sycamore.rules import Rule, OptimizeResourceArgs, EnforceResourceUsage
 
 
 class Rewriter:

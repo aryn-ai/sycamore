@@ -1,6 +1,6 @@
 import pytest
 
-from sycamore.execution import Node
+from sycamore.plan_nodes import Node
 
 
 class MockNode(Node):

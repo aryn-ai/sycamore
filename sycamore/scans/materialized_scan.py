@@ -4,7 +4,7 @@ from pandas import DataFrame
 from pyarrow import Table
 from ray.data import Dataset, from_arrow, from_items, from_pandas
 
-from sycamore.execution import Scan
+from sycamore.plan_nodes import Scan
 from sycamore.data import Document
 
 

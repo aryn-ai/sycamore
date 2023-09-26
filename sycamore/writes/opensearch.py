@@ -8,7 +8,7 @@ from ray.data._internal.delegating_block_builder import DelegatingBlockBuilder
 from ray.data.block import Block, BlockAccessor
 from ray.data.datasource import WriteResult
 from ray.data._internal.execution.interfaces import TaskContext
-from sycamore.execution.basics import Node, Write
+from sycamore.plan_nodes import Node, Write
 
 log = logging.getLogger(__name__)
 

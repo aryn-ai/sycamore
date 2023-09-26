@@ -1,6 +1,6 @@
 import pytest
 
-from sycamore.execution.functions.tokenizer import CharacterTokenizer
+from sycamore.functions import CharacterTokenizer
 
 
 class TestTokenOverlapChunker:

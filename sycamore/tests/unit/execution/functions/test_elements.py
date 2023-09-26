@@ -1,6 +1,6 @@
 from sycamore.data import Document, Element
-from sycamore.execution.functions import reorder_elements
-from sycamore.execution.transforms.partition import _elements_reorder_comparator
+from sycamore.functions import reorder_elements
+from sycamore.transforms.partition import _elements_reorder_comparator
 
 
 class TestElementFunctions:

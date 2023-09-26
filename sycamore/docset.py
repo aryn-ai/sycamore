@@ -49,8 +49,7 @@ class DocSet:
         for document in documents:
             if not show_elements:
                 num_elems = len(document.elements)
-                document.data["elements"] = f"<{num_elems} elements>"
-                del document.elements
+                document.data["elements"]["array"] = f"<{num_elems} elements>"
 
             if not show_binary and document.binary_representation is not None:
                 binary_length = len(document.binary_representation)

@@ -37,6 +37,6 @@ html_title = "Sycamore"
 html_static_path = ["_static"]
 html_theme_options = {
     "source_repository": "https://github.com/aryn-ai/sycamore",
-    "source_branch": "development",
+    "source_branch": "main",
     "source_directory": "docs/",
 }

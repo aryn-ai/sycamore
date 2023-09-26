@@ -10,7 +10,7 @@ To avoid duplicate or unnecessary work, please follow this process to make contr
 - Create a fork of Sycamore and start development in a feature branch. You can find information about how to set up Sycamore for development below. More information about development patterns in Github can be found [here](https://docs.github.com/en/get-started/quickstart/contributing-to-projects).
 - Make sure linting rules and all existing tests pass. Consider whether your changes need new tests, and make sure those pass as well.
 - Larger features may need new documentation. When in doubt, start a discussion on the associated issue.
-- Create a pull request against the `development` branch of this repository. Pull requests are lightweight, and we encourage you to create a draft PR early to get feedback.
+- Create a pull request against the `main` branch of this repository. Pull requests are lightweight, and we encourage you to create a draft PR early to get feedback.
 
 ## What to Contribute
 
@@ -104,4 +104,4 @@ Similar checks run in our CI environment on new pull requests and check-ins. New
 
 ## Releases
 
-Release branches will be cut from the development branch following semantic versioning. The release process is currently manual, though we plan to automate it over time.
+Release branches will be cut from the main branch following semantic versioning. The release process is currently manual, though we plan to automate it over time.

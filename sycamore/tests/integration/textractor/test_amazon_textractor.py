@@ -1,8 +1,8 @@
 import boto3
 
 import sycamore
-from sycamore.execution.transforms.partition import UnstructuredPdfPartitioner
-from sycamore.execution.transforms.table_extraction import TextractTableExtractor
+from sycamore.transforms.partition import UnstructuredPdfPartitioner
+from sycamore.transforms.table_extraction import TextractTableExtractor
 
 
 def get_s3_fs():

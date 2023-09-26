@@ -2,9 +2,9 @@ import random
 import string
 
 from sycamore.data import Document, Element
-from sycamore.execution.functions import filter_elements
-from sycamore.execution.transforms.llms import LLM
-from sycamore.execution.transforms.summarize import LLMElementTextSummarizer
+from sycamore.functions import filter_elements
+from sycamore.llms import LLM
+from sycamore.transforms.summarize import LLMElementTextSummarizer
 
 
 class TestSummarize:

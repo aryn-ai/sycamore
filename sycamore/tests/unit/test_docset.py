@@ -1,9 +1,9 @@
 from typing import Callable
 
 from sycamore import DocSet, Context
-from sycamore.execution import Node
-from sycamore.execution.scans import BinaryScan
-from sycamore.execution.transforms import (
+from sycamore.plan_nodes import Node
+from sycamore.scans import BinaryScan
+from sycamore.transforms import (
     Embedder,
     Embed,
     Partitioner,
@@ -14,10 +14,10 @@ from sycamore.execution.transforms import (
     MapBatch,
     Partition,
 )
-from sycamore.execution.transforms.entity_extraction import OpenAIEntityExtractor
-from sycamore.execution.transforms.llms import LLM
-from sycamore.execution.transforms.mapping import Filter
-from sycamore.execution.transforms.summarize import LLMElementTextSummarizer
+from sycamore.transforms.entity_extraction import OpenAIEntityExtractor
+from sycamore.llms import LLM
+from sycamore.transforms import Filter
+from sycamore.transforms.summarize import LLMElementTextSummarizer
 
 
 class TestDocSet:

@@ -1,8 +1,8 @@
-from sycamore.execution.rules import EnforceResourceUsage
-from sycamore.execution.scans import BinaryScan
-from sycamore.execution.transforms import Partition, Explode
-from sycamore.execution.transforms.partition import UnstructuredPdfPartitioner
-from sycamore.execution.writes import OpenSearchWriter
+from sycamore.rules import EnforceResourceUsage
+from sycamore.scans import BinaryScan
+from sycamore.transforms import Partition, Explode
+from sycamore.transforms.partition import UnstructuredPdfPartitioner
+from sycamore.writes import OpenSearchWriter
 
 
 class TestRewriter:

@@ -2,7 +2,7 @@ import pytest
 from pandas import DataFrame
 from pyarrow import Table
 
-from sycamore.execution.scans import ArrowScan, DocScan, PandasScan
+from sycamore.scans import ArrowScan, DocScan, PandasScan
 from sycamore.data import Document
 
 

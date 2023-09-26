@@ -5,9 +5,9 @@ import ray.data
 from ray.data import ActorPoolStrategy
 
 from sycamore.data import Document
-from sycamore.execution import Node
-from sycamore.execution.transforms import Map, FlatMap, MapBatch
-from sycamore.execution.transforms.mapping import generate_map_batch_class_from_callable, Filter
+from sycamore.plan_nodes import Node
+from sycamore.transforms import Map, FlatMap, MapBatch, Filter
+from sycamore.transforms.mapping import generate_map_batch_class_from_callable
 
 
 def map_func(doc: Document) -> Document:

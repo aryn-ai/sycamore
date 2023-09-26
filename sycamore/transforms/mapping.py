@@ -5,7 +5,7 @@ import numpy as np
 from ray.data import ActorPoolStrategy, Dataset
 
 from sycamore.data import Document
-from sycamore.execution import Node, UnaryNode
+from sycamore.plan_nodes import Node, UnaryNode
 
 
 def generate_map_function(f: Callable[[Document], Document]) -> Callable[[dict[str, Any]], dict[str, Any]]:
@@ -155,17 +155,6 @@ class Map(UnaryNode):
         else:
             ray_callable = generate_map_function(self._f)
             return input_dataset.map(ray_callable, **self.resource_args)
-
-
-class Filter(UnaryNode):
-    def __init__(self, child: Node, *, f: Callable[[Document], bool], **resource_args):
-        super().__init__(child, **resource_args)
-        self._f = f
-
-    def execute(self) -> Dataset:
-        input_dataset = self.child().execute()
-        ray_callable = generate_map_batch_filter_function(self._f)
-        return input_dataset.map_batches(ray_callable, **self.resource_args)
 
 
 class FlatMap(UnaryNode):

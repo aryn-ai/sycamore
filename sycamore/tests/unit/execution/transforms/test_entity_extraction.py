@@ -1,9 +1,9 @@
 import ray.data
 
-from sycamore.execution import Node
-from sycamore.execution.transforms import ExtractEntity
-from sycamore.execution.transforms.entity_extraction import OpenAIEntityExtractor
-from sycamore.execution.transforms.llms import OpenAI
+from sycamore.plan_nodes import Node
+from sycamore.transforms import ExtractEntity
+from sycamore.transforms.entity_extraction import OpenAIEntityExtractor
+from sycamore.llms import OpenAI
 
 
 class TestEntityExtraction:

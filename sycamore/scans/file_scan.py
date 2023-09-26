@@ -5,7 +5,7 @@ from ray.data import Dataset, read_binary_files, read_json
 from ray.data.datasource import FileExtensionFilter
 
 from sycamore.data import Document
-from sycamore.execution import Scan
+from sycamore.plan_nodes import Scan
 
 
 def _set_id(doc: dict[str, Any]) -> dict[str, Any]:

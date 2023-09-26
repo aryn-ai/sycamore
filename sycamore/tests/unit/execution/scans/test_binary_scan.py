@@ -1,4 +1,4 @@
-from sycamore.execution.scans import BinaryScan
+from sycamore.scans import BinaryScan
 from sycamore.tests.config import TEST_DIR
 
 

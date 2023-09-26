@@ -5,14 +5,14 @@ from typing import Any, Optional
 from bs4 import BeautifulSoup
 from ray.data import Dataset
 
-from sycamore.execution.functions.chunker import TokenOverlapChunker, Chunker
-from sycamore.execution.functions.tokenizer import CharacterTokenizer, Tokenizer
+from sycamore.functions import TokenOverlapChunker, Chunker
+from sycamore.functions import CharacterTokenizer, Tokenizer
 from sycamore.data.document import TableElement
-from sycamore.execution.functions import reorder_elements
+from sycamore.functions import reorder_elements
 from sycamore.data import Document, Element
-from sycamore.execution import Node, Transform, SingleThreadUser, NonGPUUser
-from sycamore.execution.transforms.mapping import generate_map_function
-from sycamore.execution.transforms.table_extraction import TableExtractor
+from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
+from sycamore.transforms.mapping import generate_map_function
+from sycamore.transforms.table_extraction import TableExtractor
 
 
 # This comparator helps sort the elements per page specifically when a page

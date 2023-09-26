@@ -4,8 +4,8 @@ from typing import Callable
 import pytest
 from ray.data import Dataset
 
-from sycamore.execution.transforms.partition import Partition, Partitioner, HtmlPartitioner, UnstructuredPdfPartitioner
-from sycamore.execution.scans import BinaryScan
+from sycamore.transforms.partition import Partition, Partitioner, HtmlPartitioner, UnstructuredPdfPartitioner
+from sycamore.scans import BinaryScan
 from sycamore.tests.config import TEST_DIR
 
 

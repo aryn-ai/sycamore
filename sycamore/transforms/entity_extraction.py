@@ -4,10 +4,10 @@ from typing import Callable, Any, Optional
 from ray.data import Dataset
 
 from sycamore.data import Element, Document
-from sycamore.execution import Node, Transform
-from sycamore.execution.transforms.llms import LLM
-from sycamore.execution.transforms.mapping import generate_map_function
-from sycamore.execution.transforms.prompts.default_prompts import (
+from sycamore.plan_nodes import Node, Transform
+from sycamore.llms import LLM
+from sycamore.transforms.mapping import generate_map_function
+from sycamore.llms.prompts import (
     ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT,
     ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT_CHAT,
     ENTITY_EXTRACTOR_FEW_SHOT_GUIDANCE_PROMPT_CHAT,

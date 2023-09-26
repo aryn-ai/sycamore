@@ -1,9 +1,9 @@
 import sycamore
-from sycamore.execution.transforms.embedding import SentenceTransformerEmbedder
+from sycamore.transforms.embedding import SentenceTransformerEmbedder
 
-from sycamore.execution.transforms.entity_extraction import OpenAIEntityExtractor
-from sycamore.execution.transforms.llms.llms import OpenAIModels, OpenAI
-from sycamore.execution.transforms.partition import UnstructuredPdfPartitioner
+from sycamore.transforms.entity_extraction import OpenAIEntityExtractor
+from sycamore.llms import OpenAIModels, OpenAI
+from sycamore.transforms.partition import UnstructuredPdfPartitioner
 from sycamore.tests.config import TEST_DIR
 
 

@@ -1,6 +1,6 @@
 import sycamore
-from sycamore.execution.transforms.embedding import SentenceTransformerEmbedder
-from sycamore.execution.transforms.partition import HtmlPartitioner
+from sycamore.transforms.embedding import SentenceTransformerEmbedder
+from sycamore.transforms.partition import HtmlPartitioner
 from sycamore.tests.config import TEST_DIR
 
 

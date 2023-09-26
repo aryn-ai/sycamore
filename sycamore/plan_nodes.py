@@ -90,8 +90,3 @@ class Write(SingleThreadUser, NonGPUUser, UnaryNode):
 
     def __str__(self):
         return "write"
-
-
-class Rule:
-    def __call__(self, plan: Node) -> Node:
-        raise NotImplementedError

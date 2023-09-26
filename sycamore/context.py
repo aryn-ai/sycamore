@@ -4,7 +4,7 @@ from typing import Any, Optional
 
 import ray
 
-from sycamore.execution import Rule
+from sycamore.rules import Rule
 
 
 class Context:

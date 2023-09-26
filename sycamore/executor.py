@@ -1,14 +1,14 @@
 from ray.data import Dataset
 
 from sycamore import Context
-from sycamore.execution.basics import Node
+from sycamore.plan_nodes import Node
 
 
 class Execution:
     def __init__(self, context: Context, plan: Node):
         self._context = context
         self._plan = plan
-        from sycamore.execution import Rewriter
+        from sycamore.rewriter import Rewriter
 
         extension_rules = context.get_extension_rule()
         self.rewriter = Rewriter(extension_rules)

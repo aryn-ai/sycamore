@@ -6,7 +6,7 @@ from pyarrow.filesystem import FileSystem
 
 from sycamore import Context, DocSet
 from sycamore.data import Document
-from sycamore.execution.scans import ArrowScan, BinaryScan, DocScan, PandasScan
+from sycamore.scans import ArrowScan, BinaryScan, DocScan, PandasScan
 
 
 class DocSetReader:

@@ -75,6 +75,7 @@ class UnstructuredPdfPartitioner(Partitioner):
         infer_table_structure: bool = False,
         ocr_languages: str = "eng",
         max_partition_length: Optional[int] = None,
+        min_partition_length: Optional[int] = None,
         include_metadata: bool = True,
     ):
         self._include_page_breaks = include_page_breaks
@@ -82,6 +83,7 @@ class UnstructuredPdfPartitioner(Partitioner):
         self._infer_table_structure = infer_table_structure
         self._ocr_languages = ocr_languages
         self._max_partition_length = max_partition_length
+        self._min_partition_length = min_partition_length
         self._include_metadata = include_metadata
 
     def partition(self, document: Document) -> Document:
@@ -95,6 +97,7 @@ class UnstructuredPdfPartitioner(Partitioner):
             infer_table_structure=self._infer_table_structure,
             ocr_languages=self._ocr_languages,
             max_partition=self._max_partition_length,
+            min_partition=self._min_partition_length,
             include_metadata=self._include_metadata,
         )
         elements = [self.to_element(element.to_dict()) for element in elements]

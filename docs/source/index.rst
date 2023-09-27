@@ -1,34 +1,36 @@
-Welcome to Sycamore!
+.. image:: images/sycamore_logo.svg
+   :alt: Sycamore
 ====================================
 
-**Sycamore is an Open Source Semantic ETL Framework For Natural Language Search Apps**
 
-Sycamore is an open source semantic ETL framework purpose-built for unlocking the semantic meaning of unstructured data
-and preparing it for search applications. It provides a high-level API in Python to construct pipelines for data
-extraction, enrichment, vector embedding, and loading into OpenSearch, a leading Apache v2.0 licensed search platform
-with vector database and indexing capabilities.
+Welcome to Sycamore!
+--------------------
 
-- Document type support: Current support for PDF and HTML files with text, images, and tables. Word documents, Excel
-  sheets, and PowerPoint decks coming soon.
+Sycamore is an open source semantic ETL system for building sophisticated search applications. With Sycamore, you can easily understand the structure of complex documents, use LLMs to extract semantic information, and create vector embeddings for semantic search.
 
-- AI-enabled entity extraction: Use the large language model (LLM) of your choice, including LLAMA 2, OpenAI GPT-4, or
-  Falcon, for extracting information from documents to improve semantic understanding and provide more relevant search
-  results.
+Sycamore has some key properties make it particularly well-suited for these tasks.
 
-- Pre-built transforms: Easily prepare documents for search applications with functions built for chunking,
-  manipulating, and adding search factes for unstructured data.
+- **Set-based abstraction for unstructured documents.** Sycamore introduces an abstraction called the *DocSet* to represent a collection of unstructured documents. You can think of docsets like Dataframes in Apache Spark, except that they are designed specifically for complex unstructured documents. With docsets, you can easily apply operations to a large collection of documents or perform transformations directly on the entire collection.
 
-- Create vector embeddings: Seamlessly use a variety of LLMs, including miniLM, OpenAI GPT-4, or LLAMA 2, to create
-  vector embeddings and embed them with your documents.
+- **Scalable dataflow execution platform.** Sycamore executes on the `Ray <https://ray.io>` distributed compute framework. Ray is purpose built for running machine learning applications at scale and provides fine-grained scheduling on both CPUs and GPUs. Sycamore leverages Ray to scale data preparation pipelines automatically.
 
-- Load OpenSearch: Load processed data into OpenSearch for semantic/vector and keyword (hybrid) search.
+- **Easy integration with LLMs.** Sycamore makes it easy to incorporate LLMs into your dataflow pipeline where appropriate for operations like rich entity extraction.
 
-- Scale up: Integration with Apache Ray, an open source compute framework, for scaling up your processing workloads.
 
-- Data sources: Ingest data from Amazon S3. Connectors to more data sources are coming soon, and please create an issue
-  here for requesting a new source.
+Getting Started
+--------------------
 
-For more information visit `aryn.ai <https://www.aryn.ai>`_.
+     pip install sycamore-ai
+
+For certain PDF processing operations, you also need to install `poppler`, which you can do with the OS-native package manager of your choice. For example, the command for Homebrew on Mac OS is ``brew install poppler``
+
+
+
+More Resources
+--------------------
+- Join the Sycamore Slack workspace: https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg
+- View the `Aryn docs <https://docs.aryn.ai>` to learn more about how to built end-to-end conversational search with Sycamore and OpenSearch.
+
 
 .. toctree::
    :maxdepth: 1

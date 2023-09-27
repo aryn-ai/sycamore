@@ -1,11 +1,11 @@
 ![SycamoreLogoFinal.svg](docs/source/images/sycamore_logo.svg)
 
 [![PyPI](https://img.shields.io/pypi/v/sycamore)](https://pypi.org/project/sycamore/)
-[![Slack](https://img.shields.io/badge/slack-aryn-brightgreen.svg?logo=slack)](https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg)
+[![Slack](https://img.shields.io/badge/slack-sycamore-brightgreen.svg?logo=slack)](https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg)
 [![Docs](https://readthedocs.org/projects/sycamore/badge/?version=stable)](https://sycamore.readthedocs.io/en/stable/?badge=stable)
 ![License](https://img.shields.io/github/license/aryn-ai/sycamore)
 
-Sycamore is a semantic data preparation library that makes it easy to transform and enrich your unstructured data and prepare it for search applications. It introduces a novel set-based abstraction that makes processing a large document collection as easy as reading a single document, and it comes with a scalable distributed runtime that makes it easy to go from prototype to production.
+Sycamore is a semantic data preparation system that makes it easy to transform and enrich your unstructured data and prepare it for search applications. It introduces a novel set-based abstraction that makes processing a large document collection as easy as reading a single document, and it comes with a scalable distributed runtime that makes it easy to go from prototype to production.
 
 ## Features
 
@@ -20,7 +20,7 @@ Sycamore is a semantic data preparation library that makes it easy to transform 
 - PyPi: [https://pypi.org/project/sycamore-ai/](https://pypi.org/project/sycamore-ai/)
 - Documentation: [https://sycamore.readthedocs.io](https://www.notion.so/Remaining-Sycamore-Items-f6a27a83864048d3a634c3299685f61f?pvs=21)
 - Slack: [https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg](https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg)
-- Aryn Docs: [https://github.io/aryn-docs](https://github.io/aryn-docs) Instructions for setting up an end-to-end conversational search application with Sycamore and OpenSearch.
+- Aryn Docs: [https://docs.aryn.ai](https://docs.aryn.ai) Instructions for setting up an end-to-end conversational search application with Sycamore and OpenSearch.
 
 ## Installation
 
@@ -38,13 +38,16 @@ brew install poppler
 
 ## Getting Started
 
-The following shows a simple Sycamore script to read a collection of PDFs, partition them, compute vector embeddings, and load them into an OpenSearch cluster.
+The following shows a simple Sycamore script to read a collection of PDFs, partition them, compute vector embeddings, and load them into a local OpenSearch cluster. This script currently expects that you configured OpenSearch locally as described in the [OpenSearch Docker documentation](https://opensearch.org/docs/latest/install-and-configure/install-opensearch/docker/#run-opensearch-in-a-docker-container). You should adjust based on your setup.
 
 See our [documentation](https://sycamore.readthedocs.io) for lots more information and examples.
 
 ```python
 # Import and initialize the Sycamore library.
 import sycamore
+from sycamore.transforms.partition import UnstructuredPdfPartitioner
+from sycamore.transforms.embedding import SentenceTransformerEmbedder
+
 context = sycamore.init()
 
 # Read a collection of PDF documents into a DocSet.
@@ -59,10 +62,15 @@ embedded_doc_set = partitioned_doc_set.explode() \
                                       .embed(embedder)
 
 # Write the embedded documents to a local OpenSearch index.
-os_client_args = {"hosts": [{"host": "localhost", "port": 9200}]}
+os_client_args = {
+    "hosts": [{"host": "localhost", "port": 9200}],
+    use_ssl=True,
+    verify_certs=False,
+    http_auth=("admin", "admin")
+}
 embedded_doc_set.write.opensearch(os_client_args, "my_index_name")
 ```
 
 ## Contributing
 
-Check out our [Contributing Guide](https://github.com/aryn-ai/sycamore/CONTRIBUTING.md) for more information about how to contribute to Sycamore and set up your environment for development.
+Check out our [Contributing Guide](https://github.com/aryn-ai/sycamore/blob/main/CONTRIBUTING.md) for more information about how to contribute to Sycamore and set up your environment for development.

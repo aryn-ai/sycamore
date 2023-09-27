@@ -1,10 +1,10 @@
-from sycamore.transforms.embedding import Embed, Embedder
+from sycamore.transforms.embed import Embed, Embedder
 from sycamore.transforms.basics import Limit, Filter
-from sycamore.transforms.entity_extraction import ExtractEntity, EntityExtractor
+from sycamore.transforms.extract_entity import ExtractEntity, EntityExtractor
 from sycamore.transforms.explode import Explode
-from sycamore.transforms.mapping import Map, FlatMap, MapBatch
+from sycamore.transforms.map import Map, FlatMap, MapBatch
 from sycamore.transforms.partition import Partition, Partitioner
-from sycamore.transforms.table_extraction import TableExtractor
+from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.summarize import Summarize
 
 __all__ = [

@@ -6,11 +6,11 @@ from typing import Callable, Optional, Any, Iterable
 from sycamore import Context
 from sycamore.data import Document
 from sycamore.plan_nodes import Node
-from sycamore.transforms.embedding import Embedder
-from sycamore.transforms.entity_extraction import EntityExtractor
+from sycamore.transforms.embed import Embedder
+from sycamore.transforms.extract_entity import EntityExtractor
 from sycamore.transforms.partition import Partitioner
 from sycamore.transforms.summarize import Summarizer
-from sycamore.transforms.table_extraction import TableExtractor
+from sycamore.transforms.extract_table import TableExtractor
 from sycamore.writer import DocSetWriter
 
 logger = logging.getLogger(__name__)

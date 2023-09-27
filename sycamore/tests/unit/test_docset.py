@@ -14,7 +14,7 @@ from sycamore.transforms import (
     MapBatch,
     Partition,
 )
-from sycamore.transforms.entity_extraction import OpenAIEntityExtractor
+from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.llms import LLM
 from sycamore.transforms import Filter
 from sycamore.transforms.summarize import LLMElementTextSummarizer

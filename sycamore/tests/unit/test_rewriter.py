@@ -2,7 +2,7 @@ from sycamore.rules import EnforceResourceUsage
 from sycamore.scans import BinaryScan
 from sycamore.transforms import Partition, Explode
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
-from sycamore.writes import OpenSearchWriter
+from sycamore.writers import OpenSearchWriter
 
 
 class TestRewriter:

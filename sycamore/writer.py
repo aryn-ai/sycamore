@@ -12,7 +12,7 @@ class DocSetWriter:
     def opensearch(
         self, *, os_client_args: dict, index_name: str, index_settings: Optional[dict] = None, **resource_args
     ) -> None:
-        from sycamore.writes import OpenSearchWriter
+        from sycamore.writers import OpenSearchWriter
 
         os = OpenSearchWriter(
             self.plan, index_name, os_client_args=os_client_args, index_settings=index_settings, **resource_args

@@ -40,7 +40,7 @@ docset = docset.partition(partitioner=UnstructuredPdfPartitioner())
 4. Now, since we know that titles and authors are important entities in our dataset, let's extract them using OpenAI with the `extract_entity` transform. In this case, we are going to use *few shot entity extraction*, where we provide some examples to the model of what to extract:
 
 ```python
-from sycamore.transforms.entity_extraction import OpenAIEntityExtractor
+from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.llms import OpenAIModels, OpenAI
 
 # The following prompt templates will be used to extract the relevant entities
@@ -99,22 +99,22 @@ author_prompt_template = """
 openai = OpenAI(OpenAIModels.GPT_3_5_TURBO.value, "api-key")
 
 docset = docset.extract_entity(
-            entity_extractor=OpenAIEntityExtractor("title", llm=openai_llm, prompt_template=title_prompt_template)
-        )
-        .extract_entity(
-            entity_extractor=OpenAIEntityExtractor("authors", llm=openai_llm, prompt_template=author_prompt_template)
-        )
+    entity_extractor=OpenAIEntityExtractor("title", llm=openai_llm, prompt_template=title_prompt_template)
+)
+.extract_entity(
+    entity_extractor=OpenAIEntityExtractor("authors", llm=openai_llm, prompt_template=author_prompt_template)
+)
 ```
 
 5. Next, we want to convert each element of a document into a top/parent level document. Additionally, we also want to generate embeddings for these documents. We will use the explode and embed transform respectively to achieve this.
 
 ```python
-from sycamore.transforms.embedding import SentenceTransformerEmbedder
+from sycamore.transforms.embed import SentenceTransformerEmbedder
 
 # We are using SentenceTransformerEmbedder to embed the content of each document; which
 # uses the SentenceTransformer model. You can write your own Embedder as well.
 docset = docset.explode()
-		.embed(embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
+.embed(embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
 ```
 
 6. Lastly, we want to write these documents into OpenSearch to query. Make sure that you have OpenSearch running locally.

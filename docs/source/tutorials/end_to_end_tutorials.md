@@ -1,6 +1,6 @@
 # Read from s3 and write to OpenSearch
 
-This tutorial provides a walkthrough of how to use Sycamore to prepare, enhance, and embed a PDF dataset from S3 and load it into a local OpenSearch cluster. We encourage to go over Sycamore's [key concepts](https://sycamore.readthedocs.io/en/stable/key_concepts/concepts.html) before you work through this tutorial. We will be using unstructured pdfs from the Sort Benchmark (sortbenchmark.org) website. This data is publicly available in S3 at `s3://aryn-public/sort-benchmark/pdf/`.
+This tutorial provides a walkthrough of how to use Sycamore to prepare, enhance, and embed a PDF dataset from S3 and load it into a local OpenSearch cluster. We encourage to go over Sycamore's [Key Concepts](../key_concepts/concepts.md) before you work through this tutorial. We will be using unstructured pdfs from the [Sort Benchmark](http://sortbenchmark.org/) website. This data is publicly available in S3 here : ***s3://aryn-public/sort-benchmakr/pdf/***.
 
 ## Steps
 
@@ -25,7 +25,9 @@ context = sycamore.init()
 docset = context.read.binary(paths, parallelism=1, binary_format="pdf")
 ```
 
-*Note: At any point if you want to inspect the docset, you can use docset.show() method*
+```{note}
+At any point if you want to inspect the docset, you can use docset.show() method
+```
 
 3. Next, we want to partition all the pdfs and generate elements so that we can extract relevant entities later on. We will use the partition transform to achieve this.
 

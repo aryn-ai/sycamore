@@ -8,7 +8,7 @@ from sentence_transformers import SentenceTransformer
 
 from sycamore.data import Document
 from sycamore.plan_nodes import Node, Transform
-from sycamore.transforms.mapping import generate_map_batch_function, generate_map_batch_class_from_callable
+from sycamore.transforms.map import generate_map_batch_function, generate_map_batch_class_from_callable
 
 
 class Embedder(ABC):

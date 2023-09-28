@@ -2,7 +2,7 @@ import ray.data
 
 from sycamore.plan_nodes import Node
 from sycamore.transforms import ExtractEntity
-from sycamore.transforms.entity_extraction import OpenAIEntityExtractor
+from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.llms import OpenAI
 
 

@@ -6,7 +6,7 @@ from sycamore.plan_nodes import Node, NonGPUUser, NonCPUUser, Transform
 
 from sycamore.data import Document
 from sycamore.plan_nodes import UnaryNode
-from sycamore.transforms.mapping import generate_map_batch_filter_function
+from sycamore.transforms.map import generate_map_batch_filter_function
 
 
 class Limit(NonCPUUser, NonGPUUser, Transform):

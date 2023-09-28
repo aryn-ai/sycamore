@@ -11,8 +11,8 @@ from sycamore.data.document import TableElement
 from sycamore.functions import reorder_elements
 from sycamore.data import Document, Element
 from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
-from sycamore.transforms.mapping import generate_map_function
-from sycamore.transforms.table_extraction import TableExtractor
+from sycamore.transforms.map import generate_map_function
+from sycamore.transforms.extract_table import TableExtractor
 
 
 # This comparator helps sort the elements per page specifically when a page

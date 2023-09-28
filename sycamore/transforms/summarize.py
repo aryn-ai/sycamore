@@ -6,7 +6,7 @@ from ray.data import Dataset
 from sycamore.data import Element, Document
 from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Transform, Node
 from sycamore.llms import LLM
-from sycamore.transforms.mapping import generate_map_function
+from sycamore.transforms.map import generate_map_function
 from sycamore.llms.prompts import (
     TEXT_SUMMARIZER_GUIDANCE_PROMPT_CHAT,
     TEXT_SUMMARIZER_GUIDANCE_PROMPT,

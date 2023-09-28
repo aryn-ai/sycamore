@@ -1,6 +1,6 @@
 from sycamore import DocSet, Context
 from sycamore.plan_nodes import Node
-from sycamore.writes import OpenSearchWriter
+from sycamore.writers import OpenSearchWriter
 
 
 class TestDocSetWriter:

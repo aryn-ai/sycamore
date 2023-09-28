@@ -1,32 +1,30 @@
 # Transforms
 
-Sycamore has various transforms which operate on the docset to prepare and enhance your unstructured data. Majority of the
-transforms are designed such that you can easily pass in your implementation of the transform.
+In Sycamore, a transform is a method that operates on a ``DocSet`` and returns a new ``DocSet``. Sycamore provides a number of these transforms directly in the ``DocSet`` class to prepare and enhance your unstructured data. In order to support a variety of data types and machine learning models, many of these transforms are customizable with different implementations.
 
 ## Embed
-The Embed Transform is responsible for generating embeddings for your documents or specific document segments.
-These generated embeddings are then incorporated into the document structure under the designated "embedding" property.
-Sycamore will automatically batch records and leverage GPUs where appropriate during the embedding generation process.
-Furthermore, you have the flexibility to seamlessly integrate various embedding models by implementing the Embedder class.
-For example, the SentenceTransformerEmbedder uses SentenceTransformer model to generate embeddings.
+The Embed Transform is responsible for generating embeddings for your Documents or Elements. These embeddings are stored in a special ``embedding`` property on each document. 
+The initial embedding implementation is the ``SentenceTransformerEmbedder``, which embeds the text representation of each document using any of the models from the popular [SentenceTransformers framework](https://www.sbert.net/). For example, the following code embeds a ``DocSet`` with the [all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) model:
 
 ```python
 embedder = SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
 embedded_doc_set = docset.embed(embedder)
 ```
 
+During execution, Sycamore will automatically batch records and leverage GPUs where appropriate.
+
 ## Explode
-The Explode Transform converts document elements into higher-level parent documents. This is primarily useful when
-you want to ingest chunks of your document as independent records into a data store like OpenSearch.
+
+The Explode transform converts the elements of each document into top-level documents. For example, if you explode a ``DocSet`` with a single document containing two elements, the resulting ``DocSet`` will have three documents -- the original plus a new ``Document`` for each of the elements.
 
 ```python
 exploded_doc_set = docset.explode()
 ```
-## Extract_Entity
-The Extract Entity Transform extracts semantically meaningful information from your documents with just a few examples
-by leveraging LLMs. These extracted entities are then incorporated into the document structure under the properties.
-You can easily configure this transform by providing your implementation of the EntityExtractor class. For instance, in the following example
-the OpenAIEntityExtractor utilizes an OpenAI model gpt-3.5-turbo to extract the entity "title" :
+
+The primary use of the explode transform is to embed and ingest chunks of your document, the elements, as independent records in a data store like OpenSearch.
+
+## ExtractEntity
+The Extract Entity Transform extracts semantically meaningful information from your documents. The ``OpenAIEntityExtractor`` leverages one of OpenAI's LLMs to perform this extraction with just a few examples. These extracted entities are then incorporated as properties into the document structure. The following code shows how to provide an example template for extracting a title using the gpt-3.5-turbo model. 
 
 ```python
 openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
@@ -40,12 +38,11 @@ title_prompt_template = """
     "Ganymede 2020
 """
 
-docset = docset.extract_entity("title", llm=openai_llm, prompt_template=title_context_template)
+docset = docset.extract_entity(entity_extractor=OpenAIEntityExtractor("title", llm=openai_llm, prompt_template=title_context_template))
 ```
 
 ## FlatMap
-As the name suggests, the FlatMap transform operates on each document and outputs a list of document by applying the
-user defined function on each document. In the following example, the FlatMap transform outputs a new list of documents
+The FlatMap transform takes a function from a single ``Document`` to a list of ``Documents``, and returns then "flattens" the result into a single ``DocSet``. In the following example, the FlatMap transform outputs a new list of documents
 where each document includes elements from a single page only.
 ```python
 def split_and_convert_to_image(doc: Document) -> list[Document]:
@@ -72,29 +69,23 @@ docset = docset.flat_map(split_and_convert_to_image)
 ```
 
 ## Map
-The Map transform
-```python
+The Map transform takes a function that takes a ``Document`` and returns a ``Document``, 
+and applies it to each document in the ``DocSet``. 
 
-```
+
 ## MapBatch
-The MapBatch transform
-```python
+The MapBatch transform is similar to ``Map``, except that it processes a list of documents and returns a list of documents. ``MapBatches`` is ideal for transformations that get performance benefits from batching. 
 
-```
 
 ## Partition
-The Partition Transform breaks raw documents into standard, structured chunks or elements. The generated elements are put
-into the document under "elements". The partition transform takes in Partitioner to chunk the documents. In the following example,
-we are using an open source pdf partitioner from Unstructured.io to chunk the documents.
+The Partition transform segments documents into elements. For example, a typical partitioner might chunk a document into elements corresponding to paragraphs, images, and tables. Partitioners are format specific, so for instance for HTML you can use the ``HtmlPartitioner`` and for PDFs, we provide the ``UnstructuredPdfPartitioner``, which utilizes the unstructured open-source library. 
 
 ```python
  partitioned_docset = docset.partition(partitioner=UnstructuredPdfPartitioner())
 ```
+
 ## Summarize
-Similar to the Extract Entity transform, Summarize transform helps summarize your documents or part of your documents
-leveraging LLMs. Just like other transforms, you can easily configure this transform by providing your implementation of
-the Summarizer class. For instance, in the following example, we are using LLMElementTextSummarizer with the summarize transform
-to create the summaries of the elements which are longer than a certain length.
+Similar to the extract entity transform, the summarize transform generates summaries of documents or elements. The ``LLMElementTextSummarizer`` summarizes a subset of the elements from each Document. It takes an LLM implementation and a callable specifying the subset of elements to summarize. The following examples shows how to use this transform to summarize elements that are longer than a certain length. 
 
 ```python
 def filter_elements_on_length(

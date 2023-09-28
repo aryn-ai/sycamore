@@ -18,7 +18,7 @@ Sycamore is a semantic data preparation system that makes it easy to transform a
 ## Resources
 
 - PyPi: [https://pypi.org/project/sycamore-ai/](https://pypi.org/project/sycamore-ai/)
-- Documentation: [https://sycamore.readthedocs.io](https://www.notion.so/Remaining-Sycamore-Items-f6a27a83864048d3a634c3299685f61f?pvs=21)
+- Documentation: [https://sycamore.readthedocs.io](https://sycamore.readthedocs.io)
 - Slack: [https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg](https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg)
 - Aryn Docs: [https://docs.aryn.ai](https://docs.aryn.ai) Instructions for setting up an end-to-end conversational search application with Sycamore and OpenSearch.
 

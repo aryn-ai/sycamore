@@ -46,7 +46,7 @@ See our [documentation](https://sycamore.readthedocs.io) for lots more informati
 # Import and initialize the Sycamore library.
 import sycamore
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
-from sycamore.transforms.embedding import SentenceTransformerEmbedder
+from sycamore.transforms.embed import SentenceTransformerEmbedder
 
 context = sycamore.init()
 
@@ -64,9 +64,9 @@ embedded_doc_set = partitioned_doc_set.explode() \
 # Write the embedded documents to a local OpenSearch index.
 os_client_args = {
     "hosts": [{"host": "localhost", "port": 9200}],
-    use_ssl=True,
-    verify_certs=False,
-    http_auth=("admin", "admin")
+    "use_ssl":True,
+    "verify_certs":False,
+    "http_auth":("admin", "admin")
 }
 embedded_doc_set.write.opensearch(os_client_args, "my_index_name")
 ```

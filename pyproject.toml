@@ -5,6 +5,8 @@ description = "Sycamore is an LLM-powered semantic data preparation system for b
 authors = ["aryn.ai <opensource@aryn.ai>"]
 readme = "README.md"
 repository = "https://github.com/aryn-ai/sycamore.git"
+packages = [{include = "sycamore"}]
+
 
 [tool.poetry.urls]
 "Repository" = "https://github.com/aryn-ai/sycamore.git"

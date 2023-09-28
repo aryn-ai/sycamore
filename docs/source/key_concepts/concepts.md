@@ -2,7 +2,7 @@
 
 ## DocSet
 
-A DocSet, short for "documentation set," is a distributed collection of documents bundled together for processing. Sycamore provides transformations on DocSet like partition, embedding, explode to help customers handle unstructured data easily.
+A DocSet, short for "documentation set," is a distributed collection of documents bundled together for processing. Sycamore provides a variety of transformations on DocSets to help customers handle unstructured data easily. For example, the following code snippet shows several transforms chained together to process a collection of PDF documents.
 
 ```python
 context = sycamore.init()
@@ -17,30 +17,24 @@ docset = context.read\
 
 ## Document:
 
-A document is a generic structural representation over unstructured data like PDF, HTML. Though different types of document may have different schema, basically all document contains following common fields:
+A `Document` is a generic representation of an unstructured document in a format like PDF, HTML. Though different types of document may have different properties, they all contain the following common fields in Sycamore:
 
-- **doc_id** : short for document id, it uniquely identifies a document
+- *doc_id*: A unique identifier for the document. Defaults to a uuid.
 
-- **parent_id** : in sycamore, documents might maintain relationship between each other, for instance, if we promote elements of a document into document using transformation explode, these newly promoted documents would be the children of the original parent document. We keep this parent-child relationship by adding a parent_id field in each child document. For those documents which have no parent, parent_id is None.
+- *parent\_id*: In Sycamore, certain operations create parent-child relationships between documents. For example, the `explode` transform promotes elements to be top-level documents, and these documents retain a pointer to the document from which they were created using the parent\_id field. For those documents which have no parent, parent_id is `None`.
 
-- **binary_representation** : the raw content of this document in binary format if possible.
+- *binary\_representation*, text\_representation: The raw content of the document in stored in the appropriate format. For example, the content of a PDF document will be stored as the binary\_representation, while an HTML page will be stored as text\_representation. 
 
-- **properties** : a bag of system or customer defined properties, for instance, a PDF document might have title, authors as its property.
+- *elements*: a list of elements belonging to this document. A document does not necessarily always have elements, for instance, before a document is chunked.
 
-- **elements** : a list of elements belonging to this document. A document does not necessarily always have elements, for instance, before a document is chunked.
+- *properties*: A collection of system or customer defined properties, for instance, a PDF document might have title and author properties.
 
 ## Element
 
-In sycamore, a document could be chunked into smaller pieces for further processing like embedding, reordering etc. We call each of these small chunk elements. Similarly to document, each element might have following common fields:
-
-binary_representation: the raw content of this element in binary format if possible.
-
-text_representation: text representation of this element if possible.
-
-properties: a bag of system or customer defined properties, e.g. page number of the element in current document
+It is often useful to process different parts of a document separately. For example, you might want to process tables differently than text paragraphs, and typically small chunks of text are embedded separately for vector search. In Sycamore, these chunks are called *elements*. Like documents, elements contain a text or binary representations and collection of properties that can be set by the user or by built-in transforms. 
 
 ## Query Execution
 
-In sycamore, DocSet execution is lazy, this means that transformations on DocSet aren’t executed until we call an action operation like limit, show or write. Internally, the transformations are converted to an execution plan in the backend. This lazy execution framework provides opportunities to sanitize and optimize the query execution. For instance, we could convert the above DocSet query into following execution plan.
+In Sycamore, DocSet evaluation is lazy, which means that transforms on DocSet aren’t executed until needed by an operation like `show` or `write`. Internally, the transforms are converted to an execution plan in the backend. This lazy execution framework provides opportunities to sanitize and optimize the query execution. For instance, we could convert the above DocSet query into following execution plan.
 
-![Image](../images/query_execution.svg)
+![Execution plan](../images/query_execution.svg)

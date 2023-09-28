@@ -1,6 +1,6 @@
 # Read from s3 and write to OpenSearch
 
-This tutorial provides a walkthrough of how to use Sycamore to prepare, enhance, and embed a PDF dataset from S3 and load it into a local OpenSearch cluster. We encourage to go over Sycamore's [key concepts](https://sycamore.readthedocs.io/en/stable/key_concepts/concepts.html) before you work through this tutorial. We will be using unstructured pdfs from the Sort Benchmark (sortbenchmark.org) website. This data is publicly available in S3 at `s3://aryn-public/sort-benchmakr/pdf/`.
+This tutorial provides a walkthrough of how to use Sycamore to prepare, enhance, and embed a PDF dataset from S3 and load it into a local OpenSearch cluster. We encourage to go over Sycamore's [key concepts](https://sycamore.readthedocs.io/en/stable/key_concepts/concepts.html) before you work through this tutorial. We will be using unstructured pdfs from the Sort Benchmark (sortbenchmark.org) website. This data is publicly available in S3 at `s3://aryn-public/sort-benchmark/pdf/`.
 
 ## Steps
 
@@ -22,7 +22,7 @@ paths = "s3://aryn-public/sort-benchmark/pdf/"
 context = sycamore.init()
 
 # Creating a DocSet
-docset = context.context.read.binary(paths, binary_format="pdf")
+docset = context.read.binary(paths, parallelism=1, binary_format="pdf")
 ```
 
 *Note: At any point if you want to inspect the docset, you can use docset.show() method*
@@ -42,6 +42,7 @@ docset = docset.partition(partitioner=UnstructuredPdfPartitioner())
 ```python
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.llms import OpenAIModels, OpenAI
+import os
 
 # The following prompt templates will be used to extract the relevant entities
 title_prompt_template = """
@@ -96,7 +97,7 @@ author_prompt_template = """
 # You can write your own EntityExtractor as well.
 
 # Replace the "api-key" with your API Key.
-openai = OpenAI(OpenAIModels.GPT_3_5_TURBO.value, "api-key")
+openai = OpenAI(OpenAIModels.GPT_3_5_TURBO.value, api-key=os.environ.get("OPENAI_API_KEY"))
 
 docset = docset.extract_entity(
     entity_extractor=OpenAIEntityExtractor("title", llm=openai_llm, prompt_template=title_prompt_template)
@@ -153,7 +154,7 @@ openSearch_client_args = {
 
 docset.write.opensearch(
         os_client_args=openSearch_client_args,
-        index_name="sycamoreindex",
+        index_name="sort-benchmark",
         index_settings=index_settings,
     )
 ```

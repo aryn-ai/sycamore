@@ -1,5 +1,5 @@
 ## ExtractEntity
-The Extract Entity Transform extracts semantically meaningful information from your documents. The ``OpenAIEntityExtractor`` leverages one of OpenAI's LLMs to perform this extraction with just a few examples. These extracted entities are then incorporated as properties into the document structure. The following code shows how to provide an example template for extracting a title using the gpt-3.5-turbo model. 
+The Extract Entity Transform extracts semantically meaningful information from your documents. The ``OpenAIEntityExtractor`` leverages one of OpenAI's LLMs to perform this extraction with just a few examples. These extracted entities are then incorporated as properties into the document structure. The following code shows how to provide an example template for extracting a title using the gpt-3.5-turbo model.
 
 ```python
 openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)

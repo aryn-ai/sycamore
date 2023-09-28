@@ -1,0 +1,16 @@
+name: Doc Lint
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  doclint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Grep Lint
+        uses: ./.github/actions/greplint

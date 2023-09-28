@@ -33,7 +33,6 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'poetry'
       - name: Install sycamore
         run: poetry install
       - name: Run tests

@@ -30,6 +30,7 @@ More Resources
 --------------------
 - Join the Sycamore Slack workspace: `Link <https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg>`_
 - View the `Aryn docs <https://docs.aryn.ai>`_ to learn more about how to built end-to-end conversational search with Sycamore and OpenSearch.
+- Watch the `Demo video <https://www.loom.com/share/53e68b0eb5ab49948111a3fcf6286b7f?sid=8627ff2a-db36-46ef-9762-a01b37e20ced>`_ to learn what sycamore can do and how to use it.
 
 
 .. toctree::

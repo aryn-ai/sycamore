@@ -6,7 +6,7 @@
 Welcome to Sycamore!
 --------------------
 
-Sycamore is an open source semantic ETL system for building sophisticated search applications. With Sycamore, you can easily understand the structure of complex documents, use LLMs to extract semantic information, and create vector embeddings for semantic search.
+Sycamore is an open source semantic data preparation system for building sophisticated search applications. With Sycamore, you can easily understand the structure of complex documents, use LLMs to extract semantic information, and create vector embeddings for semantic search.
 
 Sycamore has some key properties make it particularly well-suited for these tasks.
 

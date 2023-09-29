@@ -15,6 +15,10 @@ Sycamore is a semantic data preparation system that makes it easy to transform a
 - Easily embed your data using a variety of popular embedding models. Sycamore will automatically batch records and leverage GPUs where appropriate.
 - Scale your processing workloads from your laptop to the cloud without changing your application code. Sycamore is built on [Ray](https://ray.io), a distributed compute framework that can scale to hundreds of nodes.
 
+## Demo
+
+[Hosted on Loom](https://www.loom.com/share/53e68b0eb5ab49948111a3fcf6286b7f?sid=8627ff2a-db36-46ef-9762-a01b37e20ced)
+
 ## Resources
 
 - PyPi: [https://pypi.org/project/sycamore-ai/](https://pypi.org/project/sycamore-ai/)

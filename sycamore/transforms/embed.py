@@ -82,7 +82,7 @@ class SentenceTransformerEmbedder(Embedder):
 
         assert self._transformer is not None
 
-        text_batch = [doc.text_representation for doc in doc_batch]
+        text_batch = ["" if doc.text_representation is None else doc.text_representation for doc in doc_batch]
         embeddings = self._transformer.encode(text_batch, batch_size=self.model_batch_size, device=self.device)
         for doc, embedding in zip(doc_batch, embeddings):
             doc.embedding = embedding

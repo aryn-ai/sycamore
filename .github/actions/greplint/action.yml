@@ -1,0 +1,16 @@
+name: Grep Lint
+description: Checks the docs for unwanted strings
+
+branding:
+  icon: eye
+  color: blue
+
+runs:
+  using: composite
+  steps:
+    - name: Find notion.so references
+      run: |
+        set +e
+        find . \( -path ./.github -o -path ./sycamore/tests \) -prune -o -type f \( -iname '*.md' -o -iname '*.rst' -o -iname '*.html' \) -print0 | xargs -r0 grep -i 'notion[.]so/' >> "${GITHUB_OUTPUT}"
+        exit $(wc -l < "${GITHUB_OUTPUT}")
+      shell: bash

@@ -17,7 +17,10 @@ logger = logging.getLogger(__name__)
 
 
 class DocSet:
-    """DocFrame is a distributed computation framework for Documents."""
+    """
+    A DocSet, short for “documentation set,” is a distributed collection of documents bundled together for processing.
+    Sycamore provides a variety of transformations on DocSets to help customers handle unstructured data easily.
+    """
 
     def __init__(self, context: Context, plan: Node):
         self.context = context
@@ -97,28 +100,6 @@ class DocSet:
         return DocSet(self.context, plan)
 
     def explode(self, **resource_args):
-        """Explode a list column into top level document
-
-        To keep document has same schema, a document is
-
-        Returns: A DocSet
-        Each document has schema like below
-        {"type": "pdf", "content": {"binary": xxx, "text": None},
-         "doc_id": uuid, "parent_id": None, "properties": {
-         "path": xxx, "author": "xxx", "title": "xxx"}}
-        {"type": title, "content": {"binary": xxx, "text": None},
-         "doc_id": uuid-1, "parent_id": uuid},
-        {"type": figure_caption, "content": {"binary": xxx, "text": None},
-         "doc_id": uuid-2, "parent_id": uuid},
-        {"type": table, "content": {"binary": xxx, "text": None},
-         "doc_id": uuid-3, "parent_id": uuid},
-        {"type": text, "content": {"binary": xxx, "text": None},
-         "doc_id": uuid-4, "parent_id": uuid},
-        {"type": figure, "content": {"binary": xxx, "text": None},
-         "doc_id": uuid-5, "parent_id": uuid},
-        {"type": table, "content": {"binary": xxx, "text": None},
-         "doc_id": uuid-6, "parent_id": uuid}
-        """
         from sycamore.transforms.explode import Explode
 
         explode = Explode(self.plan, **resource_args)

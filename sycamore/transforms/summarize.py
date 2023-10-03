@@ -20,6 +20,24 @@ class Summarizer(ABC):
 
 
 class LLMElementTextSummarizer(Summarizer):
+    """
+    LLMElementTextSummarizer uses a specified LLM) to summarize text data within elements of a document.
+
+    Args:
+        llm: An instance of an LLM class to use for text summarization.
+        element_operator: A callable function that operates on the document and returns a list of elements to be
+            summarized. Default is None.
+
+    Example:
+        .. testcode::
+
+            llm_model = OpenAILanguageModel("gpt-3.5-turbo")
+            element_operator = my_element_selector  # A custom element selection function
+            summarizer = LLMElementTextSummarizer(llm_model, element_operator)
+            summarized_document = summarizer.summarize(input_document)
+
+    """
+
     def __init__(self, llm: LLM, element_operator: Optional[Callable[[Document], list[Element]]] = None):
         self._llm = llm
         self._element_operator = element_operator
@@ -48,6 +66,10 @@ class LLMElementTextSummarizer(Summarizer):
 
 
 class Summarize(NonCPUUser, NonGPUUser, Transform):
+    """
+    The summarize transform generates summaries of documents or elements.
+    """
+
     def __init__(self, child: Node, summarizer: Summarizer, **kwargs):
         super().__init__(child, **kwargs)
         self._summarizer = summarizer

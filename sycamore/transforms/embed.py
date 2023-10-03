@@ -39,6 +39,25 @@ class Embedder(ABC):
 
 
 class SentenceTransformerEmbedder(Embedder):
+    """
+    SentenceTransformerEmbedder is an Embedder class for generating sentence embeddings using the
+    SentenceTransformer model.
+
+    Args:
+        model_name: The name or path of the SentenceTransformer model to use for embedding.
+        batch_size: The dataset batch size for embedding, if specified. Default is None.
+        model_batch_size: The batch size used by the underlying SentenceTransformer model for embedding.
+        device: The device (e.g., "cpu" or "cuda") on which to perform embedding.
+
+    Example:
+        .. testcode::
+
+            model_name = "bert-base-nli-mean-tokens"
+            embedder = SentenceTransformerEmbedder(model_name)
+            embedded_documents = embedder.generate_embeddings(document_batch)
+
+    """
+
     def __init__(
         self,
         model_name: str,
@@ -65,6 +84,26 @@ class SentenceTransformerEmbedder(Embedder):
 
 
 class Embed(Transform):
+    """
+    Embed is a transformation that generates embeddings a docset using an Embedder.
+
+    The generated embeddings are stored in a special embedding property on each document.
+    It utilizes an Embedder to perform the embedding process.
+
+    Args:
+        child: The source node or component that provides the dataset to be embedded.
+        embedder: An instance of an Embedder class that defines the embedding method to be applied.
+        resource_args: Additional resource-related arguments that can be passed to the embedding operation.
+
+    Example:
+        .. testcode::
+
+            source_node = ...  # Define a source node or component that provides a dataset.
+            custom_embedder = MyEmbedder(embedding_params)
+            embed_transform = Embed(child=source_node, embedder=custom_embedder)
+            embedded_dataset = embed_transform.execute()
+    """
+
     def __init__(self, child: Node, embedder: Embedder, **resource_args):
         super().__init__(child, **resource_args)
         self._embedder = embedder

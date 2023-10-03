@@ -3,5 +3,5 @@
 Functions
 ===========
 
-.. automodule:: sycamore.functions.elements
+.. automodule:: sycamore.functions
    :members:

@@ -68,6 +68,33 @@ class Partitioner(ABC):
 
 
 class UnstructuredPdfPartitioner(Partitioner):
+    """
+    UnstructuredPdfPartitioner utilizes open-source Unstructured library to extract structured elements from
+    unstructured PDFs.
+
+    Args:
+        include_page_breaks: Whether to include page breaks as separate elements.
+        strategy: The partitioning strategy to use ("auto" for automatic detection).
+        infer_table_structure: Whether to infer table structures in the document.
+        ocr_languages: The languages to use for OCR. Default is "eng" (English).
+        max_partition_length: The maximum length of each partition (in characters).
+        include_metadata: Whether to include metadata in the partitioned elements.
+
+    Example:
+        .. testcode::
+
+            pdf_partitioner = UnstructuredPdfPartitioner(
+                include_page_breaks=True,
+                strategy="auto",
+                infer_table_structure=True,
+                ocr_languages="eng",
+                max_partition_length=2000,
+                include_metadata=True,
+            )
+            partitioned_document = pdf_partitioner.partition(input_pdf_document)
+
+    """
+
     def __init__(
         self,
         include_page_breaks: bool = False,
@@ -119,18 +146,35 @@ class UnstructuredPdfPartitioner(Partitioner):
 
 
 class HtmlPartitioner(Partitioner):
+    """
+    HtmlPartitioner processes HTML documents and extracting structured content.
+
+    Args:
+        skip_headers_and_footers: Whether to skip headers and footers in the document. Default is True.
+        extract_tables: Whether to extract tables from the HTML document. Default is False.
+        text_chunker: The text chunking strategy to use for processing text content.
+        tokenizer: The tokenizer to use for tokenizing text content.
+
+    Example:
+        .. testcode::
+
+            html_partitioner = HtmlPartitioner(
+                skip_headers_and_footers=True,
+                extract_tables=True,
+                text_chunker=TokenOverlapChunker(chunk_token_count=1000, chunk_overlap_token_count=100),
+                tokenizer=CharacterTokenizer(),
+            )
+            partitioned_document = html_partitioner.partition(input_html_document)
+    """
+
     def __init__(
         self,
-        include_page_breaks: bool = False,
         skip_headers_and_footers: bool = True,
-        include_metadata: bool = False,
         extract_tables: bool = False,
         text_chunker: Chunker = TokenOverlapChunker(),
         tokenizer: Tokenizer = CharacterTokenizer(),
     ):
-        self._include_page_breaks = include_page_breaks
         self._skip_headers_and_footers = skip_headers_and_footers
-        self._include_metadata = include_metadata
         self._extract_tables = extract_tables
         self._text_chunker = text_chunker
         self._tokenizer = tokenizer
@@ -197,6 +241,13 @@ class HtmlPartitioner(Partitioner):
 
 
 class Partition(SingleThreadUser, NonGPUUser, Transform):
+    """
+    The Partition transform segments documents into elements. For example, a typical partitioner might chunk a document
+    into elements corresponding to paragraphs, images, and tables. Partitioners are format specific, so for instance for
+    HTML you can use the HtmlPartitioner and for PDFs, we provide the UnstructuredPdfPartitioner, which utilizes the
+    unstructured open-source library.
+    """
+
     def __init__(
         self, child: Node, partitioner: Partitioner, table_extractor: Optional[TableExtractor] = None, **resource_args
     ):

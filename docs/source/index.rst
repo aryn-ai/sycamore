@@ -2,7 +2,6 @@
    :alt: Sycamore
 ====================================
 
-
 Welcome to Sycamore!
 --------------------
 
@@ -47,3 +46,10 @@ More Resources
    :hidden:
 
    ../tutorials/end_to_end_tutorials.md
+
+.. toctree::
+   :caption: APIS
+   :maxdepth: 2
+   :hidden:
+
+   ../APIs/index.rst

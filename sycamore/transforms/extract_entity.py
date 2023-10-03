@@ -32,6 +32,30 @@ class EntityExtractor(ABC):
 
 
 class OpenAIEntityExtractor(EntityExtractor):
+    """
+    OpenAIEntityExtractor uses one of OpenAI's language model (LLM) for entity extraction.
+
+    This class inherits from EntityExtractor and is designed for extracting a specific entity from a document using
+    OpenAI's language model. It can use either zero-shot prompting or few-shot prompting to extract the entity.
+    The extracted entities from the input document are put into the document properties.
+
+    Args:
+        entity_name: The name of the entity to be extracted.
+        llm: An instance of an OpenAI language model for text processing.
+        prompt_template: A template for constructing prompts for few-shot prompting. Default is None.
+        num_of_elements: The number of elements to consider for entity extraction. Default is 10.
+        prompt_formatter: A callable function to format prompts based on document elements.
+
+    Example:
+        .. testcode::
+
+            llm_model = OpenAILanguageModel("gpt-3.5-turbo")
+            entity_extractor = OpenAIEntityExtractor("person_name", llm_model, num_of_elements=10)
+            extracted_document = entity_extractor.extract_entity(input_document)
+
+
+    """
+
     def __init__(
         self,
         entity_name: str,
@@ -91,6 +115,28 @@ class OpenAIEntityExtractor(EntityExtractor):
 
 
 class ExtractEntity(Transform):
+    """
+    ExtractEntity is a transformation class for extracting entities from a dataset using an EntityExtractor.
+
+    The Extract Entity Transform extracts semantically meaningful information from your documents.These extracted
+    entities are then incorporated as properties into the document structure.
+
+    Args:
+        child: The source node or component that provides the dataset containing text data.
+        entity_extractor: An instance of an EntityExtractor class that defines the entity extraction method to be
+        applied.
+        resource_args: Additional resource-related arguments that can be passed to the extraction operation.
+
+    Example:
+        .. testcode::
+
+            source_node = ...  # Define a source node or component that provides a dataset with text data.
+            custom_entity_extractor = MyEntityExtractor(entity_extraction_params)
+            extraction_transform = ExtractEntity(child=source_node, entity_extractor=custom_entity_extractor)
+            extracted_entities_dataset = extraction_transform.execute()
+
+    """
+
     def __init__(
         self,
         child: Node,

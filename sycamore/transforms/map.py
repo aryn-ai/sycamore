@@ -143,6 +143,20 @@ def generate_map_batch_class_from_callable(
 
 
 class Map(UnaryNode):
+    """
+    Map is a transformation class for applying a callable function to each document in a dataset.
+
+    Example:
+        .. testcode::
+
+            def custom_mapping_function(document: Document) -> Document:
+                # Custom logic to transform the document
+                return transformed_document
+
+            map_transformer = Map(input_dataset_node, f=custom_mapping_function)
+            transformed_dataset = map_transformer.execute()
+    """
+
     def __init__(self, child: Node, *, f: Callable[[Document], Document], **resource_args):
         super().__init__(child, **resource_args)
         self._f = f
@@ -158,6 +172,21 @@ class Map(UnaryNode):
 
 
 class FlatMap(UnaryNode):
+    """
+    FlatMap is a transformation class for applying a callable function to each document in a dataset and flattening
+    the resulting list of documents.
+
+    Example:
+        .. testcode::
+            def custom_flat_mapping_function(document: Document) -> list[Document]:
+                # Custom logic to transform the document and return a list of documents
+                return [transformed_document_1, transformed_document_2]
+
+            flat_map_transformer = FlatMap(input_dataset_node, f=custom_flat_mapping_function)
+            flattened_dataset = flat_map_transformer.execute()
+
+    """
+
     def __init__(self, child: Node, *, f: Callable[[Document], list[Document]], **resource_args):
         super().__init__(child, **resource_args)
         self._f = f
@@ -173,6 +202,11 @@ class FlatMap(UnaryNode):
 
 
 class MapBatch(UnaryNode):
+    """
+    The MapBatch transform is similar to Map, except that it processes a list of documents and returns a list of
+    documents. MapBatches is ideal for transformations that get performance benefits from batching.
+    """
+
     def __init__(
         self,
         child: Node,

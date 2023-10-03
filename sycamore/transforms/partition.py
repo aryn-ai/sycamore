@@ -97,8 +97,23 @@ class UnstructuredPdfPartitioner(Partitioner):
             max_partition=self._max_partition_length,
             include_metadata=self._include_metadata,
         )
-        elements = [self.to_element(element.to_dict()) for element in elements]
-        document.elements.extend(elements)
+
+        # Here we convert unstructured.io elements into our elements and
+        # append them as child elements to the document.  We copy the
+        # document path from parent to children so we can access it
+        # efficiently at retrieval time.
+        inherit_properties = ["path"]
+        inherit_dict = {}
+        for inherit_property in inherit_properties:
+            inherit_val = document.properties.get(inherit_property)
+            if inherit_val is not None:
+                inherit_dict[inherit_property] = inherit_val
+        for element in elements:
+            new_element = self.to_element(element.to_dict())
+            new_element.properties.update(inherit_dict)
+            document.elements.append(new_element)
+        del elements
+
         document = reorder_elements(document, _elements_reorder_comparator)
         return document
 

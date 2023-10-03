@@ -44,7 +44,7 @@ _context_lock = threading.Lock()
 _global_context: Optional[Context] = None
 
 
-def init(ray_args: Optional[dict[str, Any]] = None) -> Optional[Context]:
+def init(ray_args: Optional[dict[str, Any]] = None) -> Context:
     global _global_context
     with _context_lock:
         if _global_context is None:

@@ -68,7 +68,7 @@ class TestPartition:
         document = partitioner.partition(read_local_binary)
         assert len(document["elements"]["array"]) == partition_count
         for elem in document["elements"]["array"]:
-            assert(len(elem.properties["path"]) > 0)
+            assert len(elem.properties["path"]) > 0
 
     @pytest.mark.parametrize(
         "partitioner, read_local_binary, expected_partition_count",

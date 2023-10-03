@@ -39,6 +39,8 @@ class TextractTableExtractor(TableExtractor):
             if table.title:
                 element.text_representation = table.title.text + "\n"
                 element.properties["boxes"].append(bbox_to_coord(table.title.bbox))
+            else:
+                element.text_representation = ""
 
             element.text_representation = element.text_representation + table.to_csv() + "\n"
             element.properties["boxes"].append(bbox_to_coord(table.bbox))

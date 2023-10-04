@@ -13,7 +13,7 @@ def test_html_to_opensearch():
         "hosts": [{"host": "localhost", "port": 9200}],
         "http_compress": True,
         "http_auth": ("admin", "admin"),
-        "use_ssl": False,
+        "use_ssl": True,
         "verify_certs": False,
         "ssl_assert_hostname": False,
         "ssl_show_warn": False,
@@ -42,27 +42,12 @@ def test_html_to_opensearch():
     remote_url = "https://en.wikipedia.org/wiki/Binary_search_algorithm"
     indexed_at = "2023-10-04"
     manifest = {
-        base_path + "/wikipedia_binary_search.html": {
-            "remote_url": remote_url,
-            "indexed_at": indexed_at
-        },
-        "other file.html": {
-            "remote_url": "value",
-            "indexed_at": "date"
-        },
-        "non-dict element": {
-            "key1": "value1",
-            "key2": [
-                "listItem1",
-                "listItem2"
-            ]
-        },
-        "list property": [
-            "listItem1",
-            "listItem2"
-        ]
+        base_path + "/wikipedia_binary_search.html": {"remote_url": remote_url, "indexed_at": indexed_at},
+        "other file.html": {"remote_url": "value", "indexed_at": "date"},
+        "non-dict element": {"key1": "value1", "key2": ["listItem1", "listItem2"]},
+        "list property": ["listItem1", "listItem2"],
     }
-    tmp_manifest = tempfile.NamedTemporaryFile(mode='w+')
+    tmp_manifest = tempfile.NamedTemporaryFile(mode="w+")
     try:
         json.dump(manifest, tmp_manifest)
         tmp_manifest.flush()
@@ -70,10 +55,9 @@ def test_html_to_opensearch():
 
         context = sycamore.init()
         ds = (
-            context.read.binary(base_path,
-                                binary_format="html",
-                                metadata_provider=JsonManifestMetadataProvider(manifest_path)
-                                )
+            context.read.binary(
+                base_path, binary_format="html", metadata_provider=JsonManifestMetadataProvider(manifest_path)
+            )
             .partition(partitioner=HtmlPartitioner())
             .explode()
             .embed(SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2"))

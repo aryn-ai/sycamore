@@ -15,13 +15,13 @@ class DocSetReader:
         self._context = context
 
     def binary(
-            self,
-            paths: Union[str, list[str]],
-            binary_format: str,
-            parallelism: Optional[int] = None,
-            filesystem: Optional[FileSystem] = None,
-            metadata_provider: Optional[FileMetadataProvider] = None,
-            **resource_args
+        self,
+        paths: Union[str, list[str]],
+        binary_format: str,
+        parallelism: Optional[int] = None,
+        filesystem: Optional[FileSystem] = None,
+        metadata_provider: Optional[FileMetadataProvider] = None,
+        **resource_args
     ) -> DocSet:
         scan = BinaryScan(
             paths,

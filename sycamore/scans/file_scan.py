@@ -17,16 +17,13 @@ def _set_id(doc: dict[str, Any]) -> dict[str, Any]:
     return doc
 
 
-
 class FileMetadataProvider(ABC):
-
     @abstractmethod
     def get_metadata(self, file_path: str) -> dict[str, Any]:
         pass
 
 
 class JsonManifestMetadataProvider(FileMetadataProvider):
-
     def __init__(self, manifest_path: str) -> None:
         super().__init__()
         self._manifest_path = manifest_path
@@ -37,12 +34,11 @@ class JsonManifestMetadataProvider(FileMetadataProvider):
 
     def _load_json_manifest(self) -> dict[str, Any]:
         try:
-            with open(self._manifest_path, 'r') as manifest_file:
+            with open(self._manifest_path, "r") as manifest_file:
                 metadata_map = json.load(manifest_file)
             return metadata_map
         except FileNotFoundError:
             raise FileNotFoundError(f"JSON manifest file not found at '{self._manifest_path}'")
-
 
 
 class FileScan(Scan):
@@ -64,14 +60,14 @@ class BinaryScan(FileScan):
     """
 
     def __init__(
-            self,
-            paths: Union[str, list[str]],
-            *,
-            binary_format: str,
-            parallelism: Optional[int] = None,
-            filesystem: Optional["FileSystem"] = None,
-            metadata_provider: Optional[FileMetadataProvider] = None,
-            **resource_args
+        self,
+        paths: Union[str, list[str]],
+        *,
+        binary_format: str,
+        parallelism: Optional[int] = None,
+        filesystem: Optional["FileSystem"] = None,
+        metadata_provider: Optional[FileMetadataProvider] = None,
+        **resource_args,
     ):
         super().__init__(paths, parallelism=parallelism, **resource_args)
         self._paths = paths

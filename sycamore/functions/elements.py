@@ -19,6 +19,7 @@ def reorder_elements(
     """
     elements = document.elements
     elements.sort(key=functools.cmp_to_key(comparator))
+    document.elements = elements
     return document
 
 

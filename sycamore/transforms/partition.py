@@ -9,7 +9,7 @@ from sycamore.functions import TextOverlapChunker, Chunker
 from sycamore.functions import CharacterTokenizer, Tokenizer
 from sycamore.data.document import TableElement
 from sycamore.functions import reorder_elements
-from sycamore.data import Document, Element
+from sycamore.data import BoundingBox, Document, Element
 from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import generate_map_function
 from sycamore.transforms.extract_table import TableExtractor
@@ -23,9 +23,9 @@ def _elements_reorder_comparator(element1: Element, element2: Element) -> int:
     # following function checks if the x0 point of the element is in the
     # left column
     def element_in_left_col(e: Element) -> bool:
-        width = e.properties["coordinates"]["layout_width"]
-        x0 = e.properties["coordinates"]["points"][0][0]
-        return x0 / width <= 0.5
+        if e.bbox is None:
+            raise RuntimeError("Element BBox is None")
+        return e.bbox.x1 <= 0.5
 
     page1 = element1.properties["page_number"]
     page2 = element2.properties["page_number"]
@@ -44,31 +44,6 @@ def _elements_reorder_comparator(element1: Element, element2: Element) -> int:
 
 
 class Partitioner(ABC):
-    @staticmethod
-    def to_element(dict: dict[str, Any]) -> Element:
-        text = dict.pop("text")
-        if isinstance(text, str):
-            binary = text.encode("utf-8")
-        else:
-            binary = text
-            text = str(binary, "utf-8")
-
-        element = Element()
-        element.type = dict.pop("type")
-        element.binary_representation = binary
-        element.text_representation = text
-        element.properties.update(dict.pop("metadata"))
-        element.properties.update(dict)
-
-        # TODO, we need handle cases of different types for same column
-        if element.properties.get("coordinates") is not None:
-            coordinates = element.properties["coordinates"]
-            if coordinates.get("layout_height") is not None:
-                coordinates["layout_height"] = float(coordinates["layout_height"])
-            if coordinates.get("layout_width") is not None:
-                coordinates["layout_width"] = float(coordinates["layout_width"])
-        return element
-
     @abstractmethod
     def partition(self, document: Document) -> Document:
         pass
@@ -123,6 +98,32 @@ class UnstructuredPdfPartitioner(Partitioner):
         self._min_partition_length = min_partition_length
         self._include_metadata = include_metadata
 
+    @staticmethod
+    def to_element(dict: dict[str, Any]) -> Element:
+        text = dict.pop("text")
+        if isinstance(text, str):
+            binary = text.encode("utf-8")
+        else:
+            binary = text
+            text = str(binary, "utf-8")
+
+        element = Element()
+        element.type = dict.pop("type", "unknown")
+        element.binary_representation = binary
+        element.text_representation = text
+        element.properties.update(dict.pop("metadata"))
+        element.properties.update(dict)
+
+        coordinates = element.properties.pop("coordinates")
+        if coordinates is not None:
+            x1 = coordinates.get("points")[0][0] / coordinates.get("layout_width")
+            y1 = coordinates.get("points")[0][1] / coordinates.get("layout_height")
+            x2 = coordinates.get("points")[2][0] / coordinates.get("layout_width")
+            y2 = coordinates.get("points")[2][1] / coordinates.get("layout_height")
+            element.bbox = BoundingBox(x1, y1, x2, y2)
+
+        return element
+
     def partition(self, document: Document) -> Document:
         from unstructured.partition.pdf import partition_pdf
 
@@ -148,10 +149,13 @@ class UnstructuredPdfPartitioner(Partitioner):
             inherit_val = document.properties.get(inherit_property)
             if inherit_val is not None:
                 inherit_dict[inherit_property] = inherit_val
+
+        new_elements = []
         for element in elements:
             new_element = self.to_element(element.to_dict())
             new_element.properties.update(inherit_dict)
-            document.elements.append(new_element)
+            new_elements.append(new_element)
+        document.elements = new_elements
         del elements
 
         document = reorder_elements(document, _elements_reorder_comparator)
@@ -223,7 +227,6 @@ class HtmlPartitioner(Partitioner):
             element.text_representation = content
             element.properties.update(properties)
             elements += [element]
-        document.elements.extend(elements)
 
         # extract tables
         if self._extract_tables:
@@ -250,8 +253,8 @@ class HtmlPartitioner(Partitioner):
                     if len(cols) > 0:
                         row_vals = [tag.text for tag in cols]
                         table_element.rows += [row_vals]
-
-                document.elements.extend([table_element])
+                elements.append(table_element)
+        document.elements = document.elements + elements
 
         return document
 

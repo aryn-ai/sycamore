@@ -19,6 +19,7 @@ class TestBinaryScan:
             "elements",
             "embedding",
             "parent_id",
+            "bbox",
             "properties",
         ]
 

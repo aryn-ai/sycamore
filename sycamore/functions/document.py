@@ -105,17 +105,14 @@ class DrawBoxes:
         canvas = ImageDraw.Draw(image)
 
         for i, e in enumerate(doc.elements):
-            layout_width = e.properties["coordinates"]["layout_width"]
-            layout_height = e.properties["coordinates"]["layout_height"]
-
-            box = [
-                e.properties["coordinates"]["points"][0][0] / layout_width,
-                e.properties["coordinates"]["points"][0][1] / layout_height,
-                e.properties["coordinates"]["points"][2][0] / layout_width,
-                e.properties["coordinates"]["points"][2][1] / layout_height,
-            ]
-
-            bbox = [box[0] * image_width, box[1] * image_height, box[2] * image_width, box[3] * image_height]
+            if e.bbox is None:
+                continue
+            bbox = (
+                e.bbox.x1 * image_width,
+                e.bbox.y1 * image_height,
+                e.bbox.x2 * image_width,
+                e.bbox.y2 * image_height,
+            )
 
             canvas.rectangle(bbox, fill=None, outline=self._get_color(e.type), width=3)
             font_box = canvas.textbbox(

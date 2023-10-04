@@ -4,7 +4,7 @@ from typing import Callable
 import pytest
 from ray.data import Dataset
 
-from sycamore.transforms.partition import Partition, Partitioner, HtmlPartitioner, UnstructuredPdfPartitioner
+from sycamore.transforms.partition import Partition, HtmlPartitioner, UnstructuredPdfPartitioner
 from sycamore.scans import BinaryScan
 from sycamore.tests.config import TEST_DIR
 
@@ -35,24 +35,19 @@ class TestPartition:
             "metadata": {"filename": "Bert.pdf", "filetype": "application/pdf", "page_number": 1},
             "text": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
         }
-        element = Partitioner.to_element(dict)
+        element = UnstructuredPdfPartitioner.to_element(dict)
         assert element.type == "Title"
         assert (
             element.text_representation == "BERT: Pre-training of Deep Bidirectional Transformers for"
             " Language Understanding"
         )
+        assert element.bbox.coordinates == (
+            0.1957394553114858,
+            0.08355623157419607,
+            0.8080743211552288,
+            0.11953028994286671,
+        )
         assert element.properties == {
-            "coordinates": {
-                "points": (
-                    (116.519, 70.34515579999993),
-                    (116.519, 100.63135580000005),
-                    (481.02724959999995, 100.63135580000005),
-                    (481.02724959999995, 70.34515579999993),
-                ),
-                "coordinate_system": "PixelSpace",
-                "layout_width": 595.276,
-                "layout_height": 841.89,
-            },
             "element_id": "af2a328be129ce50f85b7946c35d1cf1",
             "filename": "Bert.pdf",
             "filetype": "application/pdf",
@@ -66,8 +61,8 @@ class TestPartition:
     )
     def test_pdf_partitioner(self, partitioner, read_local_binary, partition_count):
         document = partitioner.partition(read_local_binary)
-        assert len(document["elements"]["array"]) == partition_count
-        for elem in document["elements"]["array"]:
+        assert len(document.elements) == partition_count
+        for elem in document.elements:
             assert len(elem.properties["path"]) > 0
 
     @pytest.mark.parametrize(

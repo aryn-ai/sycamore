@@ -1,5 +1,35 @@
+from abc import ABC
 from collections import UserDict
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
+
+
+class BoundingBox(ABC):
+    """
+    Defines a bounding box by top left and bottom right coordinates, coordinates units are ratio over the whole
+     document width or height.
+        (x1, y1) ------
+        |             |
+        |             |
+        -------(x2, y2)
+    """
+
+    def __init__(self, x1: float, y1: float, x2: float, y2: float):
+        self.x1 = x1
+        self.y1 = y1
+        self.x2 = x2
+        self.y2 = y2
+
+    @property
+    def height(self) -> float:
+        return self.y2 - self.y1
+
+    @property
+    def width(self) -> float:
+        return self.x2 - self.x1
+
+    @property
+    def coordinates(self) -> Tuple[float, float, float, float]:
+        return self.x1, self.y1, self.x2, self.y2
 
 
 class Element(UserDict):
@@ -16,8 +46,10 @@ class Element(UserDict):
             "type": None,
             "text_representation": None,
             "binary_representation": None,
+            "bbox": None,
             "properties": {},
         }
+
         for k, v in default.items():
             if k not in self.data:
                 self.data[k] = v
@@ -45,6 +77,14 @@ class Element(UserDict):
     @binary_representation.setter
     def binary_representation(self, value: str) -> None:
         self.data["binary_representation"] = value
+
+    @property
+    def bbox(self) -> Optional[BoundingBox]:
+        return None if self.data.get("bbox") is None else BoundingBox(*self.data["bbox"])
+
+    @bbox.setter
+    def bbox(self, bbox: BoundingBox) -> None:
+        self.data["bbox"] = bbox.coordinates
 
     @property
     def properties(self) -> dict[str, Any]:
@@ -106,14 +146,13 @@ class Document(UserDict):
             "elements": {"array": []},
             "embedding": None,
             "parent_id": None,
+            "bbox": None,
             "properties": {},
         }
+
         for k, v in default.items():
             if k not in self.data:
                 self.data[k] = v
-
-        elements = [Element(element) for element in self.data["elements"]["array"]]
-        self.data["elements"]["array"] = elements
 
     @property
     def doc_id(self) -> Optional[str]:
@@ -158,11 +197,11 @@ class Document(UserDict):
     def elements(self) -> list[Element]:
         """A list of elements belonging to this document. A document does not necessarily always have
         elements, for instance, before a document is chunked."""
-        return self.data["elements"]["array"]
+        return [Element(element) for element in self.data["elements"]["array"]]
 
     @elements.setter
     def elements(self, elements: list[Element]):
-        self.data["elements"] = {"array": elements}
+        self.data["elements"] = {"array": [element.to_dict() for element in elements]}
 
     @elements.deleter
     def elements(self) -> None:
@@ -189,6 +228,14 @@ class Document(UserDict):
         self.data["parent_id"] = value
 
     @property
+    def bbox(self) -> Optional[BoundingBox]:
+        return None if self.data.get("bbox") is None else BoundingBox(*self.data["bbox"])
+
+    @bbox.setter
+    def bbox(self, bbox: BoundingBox) -> None:
+        self.data["bbox"] = bbox.coordinates
+
+    @property
     def properties(self) -> dict[str, Any]:
         """A collection of system or customer defined properties, for instance, a PDF document might have
         title and author properties."""
@@ -199,6 +246,4 @@ class Document(UserDict):
         self.data["properties"] = {}
 
     def to_dict(self) -> dict[str, Any]:
-        dicts = [element.to_dict() for element in self.data["elements"]["array"]]
-        self.data["elements"]["array"] = dicts
         return self.data

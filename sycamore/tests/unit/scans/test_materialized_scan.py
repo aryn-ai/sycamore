@@ -23,5 +23,6 @@ class TestMaterializedScan:
             "elements",
             "embedding",
             "parent_id",
+            "bbox",
             "properties",
         ]

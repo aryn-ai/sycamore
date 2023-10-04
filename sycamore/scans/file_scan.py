@@ -1,3 +1,5 @@
+import json
+from abc import ABC, abstractmethod
 from typing import Any, Optional, Union
 
 from pyarrow.filesystem import FileSystem
@@ -13,6 +15,36 @@ def _set_id(doc: dict[str, Any]) -> dict[str, Any]:
 
     doc["doc_id"] = str(uuid.uuid1())
     return doc
+
+
+
+class FileMetadataProvider(ABC):
+
+    @abstractmethod
+    def get_metadata(self, file_path: str) -> dict[str, Any]:
+        pass
+
+
+class JsonManifestMetadataProvider(FileMetadataProvider):
+
+    def __init__(self, manifest_path: str) -> None:
+        super().__init__()
+        self._manifest_path = manifest_path
+        self._path_to_metadata_map = self._load_json_manifest()
+        print("INITIALIZED MANIFEST", self._path_to_metadata_map)
+
+    def get_metadata(self, file_path: str) -> dict[str, Any]:
+        print("Looking up ", file_path)
+        return self._path_to_metadata_map.get(file_path, {})
+
+    def _load_json_manifest(self) -> dict[str, Any]:
+        try:
+            with open(self._manifest_path, 'r') as manifest_file:
+                metadata_map = json.load(manifest_file)
+            return metadata_map
+        except FileNotFoundError:
+            raise FileNotFoundError(f"JSON manifest file not found at '{self._manifest_path}'")
+
 
 
 class FileScan(Scan):
@@ -34,19 +66,21 @@ class BinaryScan(FileScan):
     """
 
     def __init__(
-        self,
-        paths: Union[str, list[str]],
-        *,
-        binary_format: str,
-        parallelism: Optional[int] = None,
-        filesystem: Optional["FileSystem"] = None,
-        **resource_args
+            self,
+            paths: Union[str, list[str]],
+            *,
+            binary_format: str,
+            parallelism: Optional[int] = None,
+            filesystem: Optional["FileSystem"] = None,
+            metadata_provider: Optional[FileMetadataProvider] = None,
+            **resource_args
     ):
         super().__init__(paths, parallelism=parallelism, **resource_args)
         self._paths = paths
         self.parallelism = -1 if parallelism is None else parallelism
         self._binary_format = binary_format
         self._filesystem = filesystem
+        self._metadata_provider = metadata_provider
 
     def _to_document(self, dict: dict[str, Any]) -> dict[str, Any]:
         document = Document()
@@ -56,6 +90,7 @@ class BinaryScan(FileScan):
         document.type = self._binary_format
         document.binary_representation = dict["bytes"]
         document.properties.update({"path": dict["path"]})
+        document.properties.update(self._metadata_provider.get_metadata(dict["path"]))
         return document.data
 
     def _is_s3_scheme(self):

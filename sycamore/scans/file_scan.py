@@ -88,7 +88,8 @@ class BinaryScan(FileScan):
         document.type = self._binary_format
         document.binary_representation = dict["bytes"]
         document.properties.update({"path": dict["path"]})
-        document.properties.update(self._metadata_provider.get_metadata(dict["path"]))
+        if self._metadata_provider:
+            document.properties.update(self._metadata_provider.get_metadata(dict["path"]))
         return document.data
 
     def _is_s3_scheme(self):

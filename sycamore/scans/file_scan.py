@@ -31,10 +31,8 @@ class JsonManifestMetadataProvider(FileMetadataProvider):
         super().__init__()
         self._manifest_path = manifest_path
         self._path_to_metadata_map = self._load_json_manifest()
-        print("INITIALIZED MANIFEST", self._path_to_metadata_map)
 
     def get_metadata(self, file_path: str) -> dict[str, Any]:
-        print("Looking up ", file_path)
         return self._path_to_metadata_map.get(file_path, {})
 
     def _load_json_manifest(self) -> dict[str, Any]:

@@ -78,9 +78,10 @@ def test_html_to_opensearch():
             .explode()
             .embed(SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2"))
         )
-        doc = ds.take(1)[0]
-        assert doc.properties["remote_url"] == remote_url
-        assert doc.properties["indexed_at"] == indexed_at
+        # assert metadata properties are propagated to child elements
+        for doc in ds.take(5):
+            assert doc.properties["remote_url"] == remote_url
+            assert doc.properties["indexed_at"] == indexed_at
 
         ds.write.opensearch(os_client_args=os_client_args, index_name="toyindex", index_settings=index_settings)
     finally:

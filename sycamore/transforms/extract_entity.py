@@ -47,11 +47,17 @@ class OpenAIEntityExtractor(EntityExtractor):
         prompt_formatter: A callable function to format prompts based on document elements.
 
     Example:
-        .. testcode::
+        .. code-block:: python
 
-            llm_model = OpenAILanguageModel("gpt-3.5-turbo")
-            entity_extractor = OpenAIEntityExtractor("person_name", llm_model, num_of_elements=10)
-            extracted_document = entity_extractor.extract_entity(input_document)
+            title_context_template = "template"
+
+            openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
+            entity_extractor = OpenAIEntityExtractor("title", llm=openai_llm, prompt_template=title_context_template)
+
+            context = sycamore.init()
+            pdf_docset = context.read.binary(paths, binary_format="pdf")
+                .partition(partitioner=UnstructuredPdfPartitioner())
+                .extract_entity(entity_extractor=entity_extractor)
 
 
     """
@@ -128,7 +134,7 @@ class ExtractEntity(Transform):
         resource_args: Additional resource-related arguments that can be passed to the extraction operation.
 
     Example:
-        .. testcode::
+         .. code-block:: python
 
             source_node = ...  # Define a source node or component that provides a dataset with text data.
             custom_entity_extractor = MyEntityExtractor(entity_extraction_params)

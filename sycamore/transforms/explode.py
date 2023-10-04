@@ -16,7 +16,7 @@ class Explode(SingleThreadUser, NonGPUUser, Transform):
         resource_args: Additional resource-related arguments that can be passed to the explosion operation.
 
     Example:
-        .. testcode::
+        .. code-block:: python
 
             source_node = ...  # Define a source node or component that provides hierarchical documents.
             explode_transform = Explode(child=source_node)

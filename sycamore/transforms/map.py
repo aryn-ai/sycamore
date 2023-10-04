@@ -147,7 +147,7 @@ class Map(UnaryNode):
     Map is a transformation class for applying a callable function to each document in a dataset.
 
     Example:
-        .. testcode::
+         .. code-block:: python
 
             def custom_mapping_function(document: Document) -> Document:
                 # Custom logic to transform the document
@@ -177,7 +177,8 @@ class FlatMap(UnaryNode):
     the resulting list of documents.
 
     Example:
-        .. testcode::
+         .. code-block:: python
+
             def custom_flat_mapping_function(document: Document) -> list[Document]:
                 # Custom logic to transform the document and return a list of documents
                 return [transformed_document_1, transformed_document_2]
@@ -205,6 +206,16 @@ class MapBatch(UnaryNode):
     """
     The MapBatch transform is similar to Map, except that it processes a list of documents and returns a list of
     documents. MapBatches is ideal for transformations that get performance benefits from batching.
+
+    Example:
+         .. code-block:: python
+
+            def custom_map_batch_function(documents: list[Document]) -> list[Document]:
+                # Custom logic to transform the documents
+                return transformed_documents
+
+            map_transformer = Map(input_dataset_node, f=custom_map_batch_function)
+            transformed_dataset = map_transformer.execute()
     """
 
     def __init__(

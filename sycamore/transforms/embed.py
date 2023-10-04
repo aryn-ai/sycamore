@@ -50,11 +50,18 @@ class SentenceTransformerEmbedder(Embedder):
         device: The device (e.g., "cpu" or "cuda") on which to perform embedding.
 
     Example:
-        .. testcode::
+        .. code-block:: python
 
-            model_name = "bert-base-nli-mean-tokens"
-            embedder = SentenceTransformerEmbedder(model_name)
-            embedded_documents = embedder.generate_embeddings(document_batch)
+            model_name="sentence-transformers/all-MiniLM-L6-v2"
+            embedder = SentenceTransformerEmbedder(batch_size=100, model_name=model_name)
+
+            context = sycamore.init()
+            pdf_docset = context.read.binary(paths, binary_format="pdf")
+                .partition(partitioner=UnstructuredPdfPartitioner())
+                .explode()
+                .embed(embedder=embedder)
+
+
 
     """
 
@@ -96,7 +103,7 @@ class Embed(Transform):
         resource_args: Additional resource-related arguments that can be passed to the embedding operation.
 
     Example:
-        .. testcode::
+         .. code-block:: python
 
             source_node = ...  # Define a source node or component that provides a dataset.
             custom_embedder = MyEmbedder(embedding_params)

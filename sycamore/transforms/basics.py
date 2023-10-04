@@ -18,7 +18,7 @@ class Limit(NonCPUUser, NonGPUUser, Transform):
         limit: The maximum number of records to include in the resulting dataset.
 
     Example:
-        .. testcode::
+         .. code-block:: python
 
             source_node = ...  # Define a source node or component that provides a dataset.
             limit_transform = Limit(child=source_node, limit=100)
@@ -45,7 +45,7 @@ class Filter(UnaryNode):
         resource_args: Additional resource-related arguments that can be passed to the filtering operation.
 
     Example:
-        .. testcode::
+         .. code-block:: python
 
             source_node = ...  # Define a source node or component that provides a dataset.
             def custom_filter(doc: Document) -> bool:

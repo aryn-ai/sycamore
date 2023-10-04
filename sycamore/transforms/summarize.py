@@ -29,13 +29,16 @@ class LLMElementTextSummarizer(Summarizer):
             summarized. Default is None.
 
     Example:
-        .. testcode::
+         .. code-block:: python
 
             llm_model = OpenAILanguageModel("gpt-3.5-turbo")
             element_operator = my_element_selector  # A custom element selection function
             summarizer = LLMElementTextSummarizer(llm_model, element_operator)
-            summarized_document = summarizer.summarize(input_document)
 
+            context = sycamore.init()
+            pdf_docset = context.read.binary(paths, binary_format="pdf")
+                .partition(partitioner=UnstructuredPdfPartitioner())
+                .summarize(summarizer=summarizer)
     """
 
     def __init__(self, llm: LLM, element_operator: Optional[Callable[[Document], list[Element]]] = None):

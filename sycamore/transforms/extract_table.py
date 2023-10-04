@@ -26,10 +26,13 @@ class TextractTableExtractor(TableExtractor):
         kms_key_id: The AWS Key Management Service (KMS) key ID for encryption.
 
     Example:
-        .. testcode::
+         .. code-block:: python
 
             table_extractor = TextractTableExtractor(profile_name="my-profile", region_name="us-east-1")
-            document_with_tables = table_extractor.extract_tables(input_document)
+
+            context = sycamore.init()
+            pdf_docset = context.read.binary(paths, binary_format="pdf")
+                .partition(partitioner=UnstructuredPdfPartitioner(), table_extractor=table_extractor)
     """
 
     def __init__(self, profile_name: Optional[str] = None, region_name: Optional[str] = None, kms_key_id: str = ""):

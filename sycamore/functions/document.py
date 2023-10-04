@@ -15,10 +15,9 @@ def split_and_convert_to_image(doc: Document) -> list[Document]:
     list contains these new Document objects, each representing one page of the original document and elements making
     up the page.
 
-    The input Document object should have a binary_representation attribute containing the binary data of the
-    document (e.g., a PDF).Each page's elements are preserved in the new Document objects, and page-specific properties
-    are updated to
-    reflect the image's size, mode, and page number.
+    The input Document object should have a binary_representation attribute containing the binary data of the pdf
+    document. Each page's elements are preserved in the new Document objects, and page-specific properties
+    are updated to reflect the image's size, mode, and page number.
 
     Args:
         doc: The input Document to split and convert.
@@ -28,7 +27,7 @@ def split_and_convert_to_image(doc: Document) -> list[Document]:
         elements making up the page.
 
     Example:
-        .. testcode::
+         .. code-block:: python
 
             input_doc = Document(binary_representation=pdf_bytes, elements=elements, properties={"author": "John Doe"})
             page_docs = split_and_convert_to_image(input_doc)
@@ -70,12 +69,16 @@ class DrawBoxes:
 
     Example:
 
-         .. testcode::
+          .. code-block:: python
 
-            drawer = DrawBoxes(font_path="path/to/font.ttf", default_color="blue")
-            image_docs =
-                [Document(binary_representation=image_data, properties={"size": (width, height), "mode": "RGB"})]
-            labeled_image_docs = drawer(image_docs)
+            context = sycamore.init()
+
+            font_path="path/to/font.ttf"
+
+            pdf_docset = context.read.binary(paths, binary_format="pdf")
+                .partition(partitioner=UnstructuredPdfPartitioner())
+                .flat_map(split_and_convert_to_image)
+                .map_batch(DrawBoxes, f_constructor_args=[font_path])
     """
 
     def __init__(self, font_path: str, default_color: str = "blue"):

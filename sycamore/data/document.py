@@ -143,7 +143,7 @@ class Document(UserDict):
     @property
     def binary_representation(self) -> Optional[bytes]:
         """The raw content of the document in stored in the appropriate format.For example, the
-            content of a PDF document will be stored as the binary_representation."""
+        content of a PDF document will be stored as the binary_representation."""
         return self.data["binary_representation"]
 
     @binary_representation.setter
@@ -157,7 +157,7 @@ class Document(UserDict):
     @property
     def elements(self) -> list[Element]:
         """A list of elements belonging to this document. A document does not necessarily always have
-            elements, for instance, before a document is chunked."""
+        elements, for instance, before a document is chunked."""
         return self.data["elements"]["array"]
 
     @elements.setter
@@ -179,9 +179,9 @@ class Document(UserDict):
     @property
     def parent_id(self) -> Optional[str]:
         """In Sycamore, certain operations create parent-child relationships between documents. For
-            example, the explode transform promotes elements to be top-level documents, and these documents retain a
-            pointer to the document from which they were created using the parent_id field. For those documents which
-            have no parent, parent_id is None."""
+        example, the explode transform promotes elements to be top-level documents, and these documents retain a
+        pointer to the document from which they were created using the parent_id field. For those documents which
+        have no parent, parent_id is None."""
         return self.data["parent_id"]
 
     @parent_id.setter
@@ -191,7 +191,7 @@ class Document(UserDict):
     @property
     def properties(self) -> dict[str, Any]:
         """A collection of system or customer defined properties, for instance, a PDF document might have
-            title and author properties."""
+        title and author properties."""
         return self.data["properties"]
 
     @properties.deleter

@@ -5,7 +5,7 @@ from typing import Any, Optional
 from bs4 import BeautifulSoup
 from ray.data import Dataset
 
-from sycamore.functions import TokenOverlapChunker, Chunker
+from sycamore.functions import TextOverlapChunker, Chunker
 from sycamore.functions import CharacterTokenizer, Tokenizer
 from sycamore.data.document import TableElement
 from sycamore.functions import reorder_elements
@@ -81,7 +81,7 @@ class UnstructuredPdfPartitioner(Partitioner):
         include_metadata: Whether to include metadata in the partitioned elements.
 
     Example:
-        .. testcode::
+         .. code-block:: python
 
             pdf_partitioner = UnstructuredPdfPartitioner(
                 include_page_breaks=True,
@@ -91,7 +91,10 @@ class UnstructuredPdfPartitioner(Partitioner):
                 max_partition_length=2000,
                 include_metadata=True,
             )
-            partitioned_document = pdf_partitioner.partition(input_pdf_document)
+
+            context = sycamore.init()
+            pdf_docset = context.read.binary(paths, binary_format="pdf")
+                .partition(partitioner=pdf_partitioner)
 
     """
 
@@ -147,7 +150,7 @@ class UnstructuredPdfPartitioner(Partitioner):
 
 class HtmlPartitioner(Partitioner):
     """
-    HtmlPartitioner processes HTML documents and extracting structured content.
+    HtmlPartitioner processes HTML documents extracting structured content.
 
     Args:
         skip_headers_and_footers: Whether to skip headers and footers in the document. Default is True.
@@ -156,7 +159,7 @@ class HtmlPartitioner(Partitioner):
         tokenizer: The tokenizer to use for tokenizing text content.
 
     Example:
-        .. testcode::
+         .. code-block:: python
 
             html_partitioner = HtmlPartitioner(
                 skip_headers_and_footers=True,
@@ -164,14 +167,17 @@ class HtmlPartitioner(Partitioner):
                 text_chunker=TokenOverlapChunker(chunk_token_count=1000, chunk_overlap_token_count=100),
                 tokenizer=CharacterTokenizer(),
             )
-            partitioned_document = html_partitioner.partition(input_html_document)
+
+            context = sycamore.init()
+            pdf_docset = context.read.binary(paths, binary_format="html")
+                .partition(partitioner=html_partitioner)
     """
 
     def __init__(
         self,
         skip_headers_and_footers: bool = True,
         extract_tables: bool = False,
-        text_chunker: Chunker = TokenOverlapChunker(),
+        text_chunker: Chunker = TextOverlapChunker(),
         tokenizer: Tokenizer = CharacterTokenizer(),
     ):
         self._skip_headers_and_footers = skip_headers_and_footers
@@ -246,6 +252,19 @@ class Partition(SingleThreadUser, NonGPUUser, Transform):
     into elements corresponding to paragraphs, images, and tables. Partitioners are format specific, so for instance for
     HTML you can use the HtmlPartitioner and for PDFs, we provide the UnstructuredPdfPartitioner, which utilizes the
     unstructured open-source library.
+
+    Args:
+        child: The source node or component that provides the dataset to be embedded.
+        partitioner: An instance of a Partitioner class to be applied
+        resource_args: Additional resource-related arguments that can be passed to the Partition operation.
+
+    Example:
+         .. code-block:: python
+
+            source_node = ...  # Define a source node or component that provides a dataset.
+            custom_partitioner = MyPartitioner(partitioner_params)
+            partition_transform = Partition(child=source_node, partitioner=custom_partitioner)
+            partitioned_dataset = partition_transform.execute()
     """
 
     def __init__(

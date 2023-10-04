@@ -8,9 +8,9 @@ class Chunker:
         pass
 
 
-class TokenOverlapChunker(Chunker):
+class TextOverlapChunker(Chunker):
     """
-    TokenOverlapChunker is a class for chunking tokens into smaller segments while allowing for token overlap.
+    TextOverlapChunker is a class for chunking text into smaller segments while allowing for token overlap.
 
     This class inherits from the Chunker class and is designed to divide long text tokens into chunks, each containing
     a specified number of tokens. It allows for a controlled overlap of tokens between adjacent chunks.
@@ -21,9 +21,9 @@ class TokenOverlapChunker(Chunker):
             This value must be less than the `chunk_token_count` to ensure meaningful chunking.
 
     Example:
-        .. testcode::
+         .. code-block:: python
 
-            chunker = TokenOverlapChunker(chunk_token_count=1000, chunk_overlap_token_count=100)
+            chunker = TextOverlapChunker(chunk_token_count=1000, chunk_overlap_token_count=100)
             chunks = chunker.chunk(data)
     """
 

@@ -1,6 +1,6 @@
 import pytest
 
-from sycamore.functions import TokenOverlapChunker
+from sycamore.functions import TextOverlapChunker
 
 
 class TestTokenOverlapChunker:
@@ -8,12 +8,12 @@ class TestTokenOverlapChunker:
         "chunker, tokens, expected_chunks",
         [
             (
-                TokenOverlapChunker(chunk_token_count=2, chunk_overlap_token_count=1),
+                TextOverlapChunker(chunk_token_count=2, chunk_overlap_token_count=1),
                 ["a", "b", "c", "d", "e"],
                 [["a", "b"], ["b", "c"], ["c", "d"], ["d", "e"], ["e"]],
             ),
             (
-                TokenOverlapChunker(chunk_token_count=2, chunk_overlap_token_count=0),
+                TextOverlapChunker(chunk_token_count=2, chunk_overlap_token_count=0),
                 ["a", "b", "c", "d", "e"],
                 [["a", "b"], ["c", "d"], ["e"]],
             ),
@@ -25,9 +25,9 @@ class TestTokenOverlapChunker:
 
     def test_token_overlap_is_greater_than_chunk_size(self):
         with pytest.raises(Exception) as exception:
-            TokenOverlapChunker(chunk_token_count=2, chunk_overlap_token_count=2)
+            TextOverlapChunker(chunk_token_count=2, chunk_overlap_token_count=2)
         assert str(exception.value) == "Token overlap count between chunks must be lesser than chunk token count"
 
         with pytest.raises(Exception) as exception:
-            TokenOverlapChunker(chunk_token_count=2, chunk_overlap_token_count=3)
+            TextOverlapChunker(chunk_token_count=2, chunk_overlap_token_count=3)
         assert str(exception.value) == "Token overlap count between chunks must be lesser than chunk token count"

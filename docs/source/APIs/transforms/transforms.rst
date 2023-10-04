@@ -3,6 +3,10 @@
 Transforms
 ===========
 
+.. note::
+   Most users of Sycamore won't need to interact with these classes. The transform classes are primarily of interest to
+   developers looking to extend Sycamore.
+
 .. toctree::
    :maxdepth: 1
 

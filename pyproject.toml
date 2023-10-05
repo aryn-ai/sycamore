@@ -13,14 +13,14 @@ packages = [{include = "sycamore"}]
 "Documentation" = "https://sycamore.readthedocs.io"
 
 [tool.poetry.dependencies]
-python = ">=3.9,<4.0"
+python = ">=3.9,<3.13"
 opensearch-py = "^2.2.0"
-pandas = "2.0.3"
+pandas = "2.1.1"
 pdf2image = "^1.16.3"
 ray = { extras = ["default"], version = "^2.6.3" }
 sentence-transformers = "2.2.2"
-pyarrow = "12.0.1"
-unstructured = "0.8.0"
+pyarrow = "13.0.0"
+unstructured = "0.10.19"
 beautifulsoup4 = "^4.12.2"
 guidance = "^0.0.64"
 tenacity = "8.2.3"
@@ -29,6 +29,7 @@ amazon-textract-textractor = "^1.3.2"
 # Skip 2.0.1 to address a Pytorch bug.
 # See https://stackoverflow.com/a/76647180
 torch = ">=2.0.0, !=2.0.1"
+pdfminer-six = "20221105"
 
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"

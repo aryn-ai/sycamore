@@ -46,10 +46,17 @@ def _elements_reorder_comparator(element1: Element, element2: Element) -> int:
 class Partitioner(ABC):
     @staticmethod
     def to_element(dict: dict[str, Any]) -> Element:
+        text = dict.pop("text")
+        if isinstance(text, str):
+            binary = text.encode("utf-8")
+        else:
+            binary = text
+            text = str(binary, "utf-8")
+
         element = Element()
         element.type = dict.pop("type")
-        element.binary_representation = dict.pop("text")
-        element.text_representation = str(element.binary_representation)
+        element.binary_representation = binary
+        element.text_representation = text
         element.properties.update(dict.pop("metadata"))
         element.properties.update(dict)
 

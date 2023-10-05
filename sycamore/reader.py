@@ -7,6 +7,7 @@ from pyarrow.filesystem import FileSystem
 from sycamore import Context, DocSet
 from sycamore.data import Document
 from sycamore.scans import ArrowScan, BinaryScan, DocScan, PandasScan
+from sycamore.scans.file_scan import FileMetadataProvider
 
 
 class DocSetReader:
@@ -19,10 +20,16 @@ class DocSetReader:
         binary_format: str,
         parallelism: Optional[int] = None,
         filesystem: Optional[FileSystem] = None,
+        metadata_provider: Optional[FileMetadataProvider] = None,
         **resource_args
     ) -> DocSet:
         scan = BinaryScan(
-            paths, binary_format=binary_format, parallelism=parallelism, filesystem=filesystem, **resource_args
+            paths,
+            binary_format=binary_format,
+            parallelism=parallelism,
+            filesystem=filesystem,
+            metadata_provider=metadata_provider,
+            **resource_args
         )
         return DocSet(self._context, scan)
 

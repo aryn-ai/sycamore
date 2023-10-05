@@ -32,7 +32,7 @@ class Element(UserDict):
         self.data["text_representation"] = value
 
     @property
-    def binary_representation(self) -> Optional[str]:
+    def binary_representation(self) -> Optional[bytes]:
         return self.data["binary_representation"]
 
     @binary_representation.setter

@@ -56,7 +56,12 @@ def test_html_to_opensearch():
         context = sycamore.init()
         ds = (
             context.read.binary(
-                base_path, binary_format="html", metadata_provider=JsonManifestMetadataProvider(manifest_path)
+                base_path,
+                binary_format="html",
+                metadata_provider=JsonManifestMetadataProvider(
+                    "s3://aryn-datasets-us-east-1/sort_benchmark/manifest.json"
+                )
+                # base_path, binary_format="html", metadata_provider=JsonManifestMetadataProvider(manifest_path)
             )
             .partition(partitioner=HtmlPartitioner())
             .explode()

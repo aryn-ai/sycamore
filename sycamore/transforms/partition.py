@@ -141,14 +141,11 @@ class UnstructuredPdfPartitioner(Partitioner):
 
         # Here we convert unstructured.io elements into our elements and
         # append them as child elements to the document.  We copy the
-        # document path from parent to children, so we can access it
-        # efficiently at retrieval time.
-        inherit_properties = ["path"]
+        # system properties (prefixed with _) to child elements as well.
         inherit_dict = {}
-        for inherit_property in inherit_properties:
-            inherit_val = document.properties.get(inherit_property)
-            if inherit_val is not None:
-                inherit_dict[inherit_property] = inherit_val
+        for doc_property in document.properties.keys():
+            if doc_property.startswith("_"):
+                inherit_dict[doc_property] = document.properties[doc_property]
 
         new_elements = []
         for element in elements:

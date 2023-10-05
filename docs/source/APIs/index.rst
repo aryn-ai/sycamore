@@ -1,7 +1,9 @@
-API Reference
-===============
+API References
+=================
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
-   functions.rst
+   data/data.rst
+   transforms/transforms.rst
+   functions/functions.rst

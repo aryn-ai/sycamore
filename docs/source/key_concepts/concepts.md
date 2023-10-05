@@ -23,7 +23,7 @@ A `Document` is a generic representation of an unstructured document in a format
 
 - *parent\_id*: In Sycamore, certain operations create parent-child relationships between documents. For example, the `explode` transform promotes elements to be top-level documents, and these documents retain a pointer to the document from which they were created using the parent\_id field. For those documents which have no parent, parent_id is `None`.
 
-- *binary\_representation*, text\_representation: The raw content of the document in stored in the appropriate format. For example, the content of a PDF document will be stored as the binary\_representation, while an HTML page will be stored as text\_representation. 
+- *binary\_representation*, text\_representation: The raw content of the document in stored in the appropriate format. For example, the content of a PDF document will be stored as the binary\_representation, while an HTML page will be stored as text\_representation.
 
 - *elements*: a list of elements belonging to this document. A document does not necessarily always have elements, for instance, before a document is chunked.
 
@@ -31,7 +31,7 @@ A `Document` is a generic representation of an unstructured document in a format
 
 ## Element
 
-It is often useful to process different parts of a document separately. For example, you might want to process tables differently than text paragraphs, and typically small chunks of text are embedded separately for vector search. In Sycamore, these chunks are called *elements*. Like documents, elements contain a text or binary representations and collection of properties that can be set by the user or by built-in transforms. 
+It is often useful to process different parts of a document separately. For example, you might want to process tables differently than text paragraphs, and typically small chunks of text are embedded separately for vector search. In Sycamore, these chunks are called *elements*. Like documents, elements contain a text or binary representations and collection of properties that can be set by the user or by built-in transforms.
 
 ## Query Execution
 

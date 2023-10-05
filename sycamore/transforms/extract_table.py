@@ -14,6 +14,27 @@ class TableExtractor(ABC):
 
 
 class TextractTableExtractor(TableExtractor):
+    """
+    TextractTableExtractor utilizes Amazon Textract to extract tables from documents.
+
+    This class inherits from TableExtractor and is designed for extracting tables from documents using Amazon Textract,
+    a cloud-based document text and data extraction service from AWS.
+
+    Args:
+        profile_name: The AWS profile name to use for authentication. Default is None.
+        region_name: The AWS region name where the Textract service is available.
+        kms_key_id: The AWS Key Management Service (KMS) key ID for encryption.
+
+    Example:
+         .. code-block:: python
+
+            table_extractor = TextractTableExtractor(profile_name="my-profile", region_name="us-east-1")
+
+            context = sycamore.init()
+            pdf_docset = context.read.binary(paths, binary_format="pdf")
+                .partition(partitioner=UnstructuredPdfPartitioner(), table_extractor=table_extractor)
+    """
+
     def __init__(self, profile_name: Optional[str] = None, region_name: Optional[str] = None, kms_key_id: str = ""):
         self._profile_name = profile_name
         self._region_name = region_name

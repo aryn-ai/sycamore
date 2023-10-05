@@ -5,7 +5,7 @@ from typing import Any, Optional
 from bs4 import BeautifulSoup
 from ray.data import Dataset
 
-from sycamore.functions import TokenOverlapChunker, Chunker
+from sycamore.functions import TextOverlapChunker, Chunker
 from sycamore.functions import CharacterTokenizer, Tokenizer
 from sycamore.data.document import TableElement
 from sycamore.functions import reorder_elements
@@ -75,6 +75,36 @@ class Partitioner(ABC):
 
 
 class UnstructuredPdfPartitioner(Partitioner):
+    """
+    UnstructuredPdfPartitioner utilizes open-source Unstructured library to extract structured elements from
+    unstructured PDFs.
+
+    Args:
+        include_page_breaks: Whether to include page breaks as separate elements.
+        strategy: The partitioning strategy to use ("auto" for automatic detection).
+        infer_table_structure: Whether to infer table structures in the document.
+        ocr_languages: The languages to use for OCR. Default is "eng" (English).
+        max_partition_length: The maximum length of each partition (in characters).
+        include_metadata: Whether to include metadata in the partitioned elements.
+
+    Example:
+         .. code-block:: python
+
+            pdf_partitioner = UnstructuredPdfPartitioner(
+                include_page_breaks=True,
+                strategy="auto",
+                infer_table_structure=True,
+                ocr_languages="eng",
+                max_partition_length=2000,
+                include_metadata=True,
+            )
+
+            context = sycamore.init()
+            pdf_docset = context.read.binary(paths, binary_format="pdf")
+                .partition(partitioner=pdf_partitioner)
+
+    """
+
     def __init__(
         self,
         include_page_breaks: bool = False,
@@ -126,18 +156,38 @@ class UnstructuredPdfPartitioner(Partitioner):
 
 
 class HtmlPartitioner(Partitioner):
+    """
+    HtmlPartitioner processes HTML documents extracting structured content.
+
+    Args:
+        skip_headers_and_footers: Whether to skip headers and footers in the document. Default is True.
+        extract_tables: Whether to extract tables from the HTML document. Default is False.
+        text_chunker: The text chunking strategy to use for processing text content.
+        tokenizer: The tokenizer to use for tokenizing text content.
+
+    Example:
+         .. code-block:: python
+
+            html_partitioner = HtmlPartitioner(
+                skip_headers_and_footers=True,
+                extract_tables=True,
+                text_chunker=TokenOverlapChunker(chunk_token_count=1000, chunk_overlap_token_count=100),
+                tokenizer=CharacterTokenizer(),
+            )
+
+            context = sycamore.init()
+            pdf_docset = context.read.binary(paths, binary_format="html")
+                .partition(partitioner=html_partitioner)
+    """
+
     def __init__(
         self,
-        include_page_breaks: bool = False,
         skip_headers_and_footers: bool = True,
-        include_metadata: bool = False,
         extract_tables: bool = False,
-        text_chunker: Chunker = TokenOverlapChunker(),
+        text_chunker: Chunker = TextOverlapChunker(),
         tokenizer: Tokenizer = CharacterTokenizer(),
     ):
-        self._include_page_breaks = include_page_breaks
         self._skip_headers_and_footers = skip_headers_and_footers
-        self._include_metadata = include_metadata
         self._extract_tables = extract_tables
         self._text_chunker = text_chunker
         self._tokenizer = tokenizer
@@ -204,6 +254,26 @@ class HtmlPartitioner(Partitioner):
 
 
 class Partition(SingleThreadUser, NonGPUUser, Transform):
+    """
+    The Partition transform segments documents into elements. For example, a typical partitioner might chunk a document
+    into elements corresponding to paragraphs, images, and tables. Partitioners are format specific, so for instance for
+    HTML you can use the HtmlPartitioner and for PDFs, we provide the UnstructuredPdfPartitioner, which utilizes the
+    unstructured open-source library.
+
+    Args:
+        child: The source node or component that provides the dataset to be embedded.
+        partitioner: An instance of a Partitioner class to be applied
+        resource_args: Additional resource-related arguments that can be passed to the Partition operation.
+
+    Example:
+         .. code-block:: python
+
+            source_node = ...  # Define a source node or component that provides a dataset.
+            custom_partitioner = MyPartitioner(partitioner_params)
+            partition_transform = Partition(child=source_node, partitioner=custom_partitioner)
+            partitioned_dataset = partition_transform.execute()
+    """
+
     def __init__(
         self, child: Node, partitioner: Partitioner, table_extractor: Optional[TableExtractor] = None, **resource_args
     ):

@@ -3,6 +3,13 @@ from typing import Any, Optional
 
 
 class Element(UserDict):
+    """
+    It is often useful to process different parts of a document separately. For example, you might want to process
+    tables differently than text paragraphs, and typically small chunks of text are embedded separately for vector
+    search. In Sycamore, these chunks are called elements. Like documents, elements contain a text or binary
+    representations and collection of properties that can be set by the user or by built-in transforms.
+    """
+
     def __init__(self, element=None, /, **kwargs):
         super().__init__(element, **kwargs)
         default = {
@@ -84,6 +91,11 @@ class TableElement(Element):
 
 
 class Document(UserDict):
+    """
+    A Document is a generic representation of an unstructured document in a format like PDF, HTML. Though different
+    types of document may have different properties, they all contain the following common fields in Sycamore:
+    """
+
     def __init__(self, document=None, /, **kwargs):
         super().__init__(document, **kwargs)
         default = {
@@ -105,6 +117,7 @@ class Document(UserDict):
 
     @property
     def doc_id(self) -> Optional[str]:
+        """A unique identifier for the document. Defaults to a uuid."""
         return self.data["doc_id"]
 
     @doc_id.setter
@@ -129,6 +142,8 @@ class Document(UserDict):
 
     @property
     def binary_representation(self) -> Optional[bytes]:
+        """The raw content of the document in stored in the appropriate format.For example, the
+        content of a PDF document will be stored as the binary_representation."""
         return self.data["binary_representation"]
 
     @binary_representation.setter
@@ -141,6 +156,8 @@ class Document(UserDict):
 
     @property
     def elements(self) -> list[Element]:
+        """A list of elements belonging to this document. A document does not necessarily always have
+        elements, for instance, before a document is chunked."""
         return self.data["elements"]["array"]
 
     @elements.setter
@@ -161,6 +178,10 @@ class Document(UserDict):
 
     @property
     def parent_id(self) -> Optional[str]:
+        """In Sycamore, certain operations create parent-child relationships between documents. For
+        example, the explode transform promotes elements to be top-level documents, and these documents retain a
+        pointer to the document from which they were created using the parent_id field. For those documents which
+        have no parent, parent_id is None."""
         return self.data["parent_id"]
 
     @parent_id.setter
@@ -169,6 +190,8 @@ class Document(UserDict):
 
     @property
     def properties(self) -> dict[str, Any]:
+        """A collection of system or customer defined properties, for instance, a PDF document might have
+        title and author properties."""
         return self.data["properties"]
 
     @properties.deleter

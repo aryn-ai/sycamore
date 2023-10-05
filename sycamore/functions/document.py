@@ -8,6 +8,32 @@ from PIL import Image as PImage, ImageDraw, ImageFont
 
 
 def split_and_convert_to_image(doc: Document) -> list[Document]:
+    """Split a document into individual pages as images and convert them into Document objects.
+
+    This function takes a Document object, which may represent a multi-page document, and splits it into individual
+    pages. Each page is converted into an image, and a new Document object is created for each page. The resulting
+    list contains these new Document objects, each representing one page of the original document and elements making
+    up the page.
+
+    The input Document object should have a binary_representation attribute containing the binary data of the pdf
+    document. Each page's elements are preserved in the new Document objects, and page-specific properties
+    are updated to reflect the image's size, mode, and page number.
+
+    Args:
+        doc: The input Document to split and convert.
+
+    Returns:
+        A list of Document objects, each representing a single page of the original document as an image and
+        elements making up the page.
+
+    Example:
+         .. code-block:: python
+
+            input_doc = Document(binary_representation=pdf_bytes, elements=elements, properties={"author": "John Doe"})
+            page_docs = split_and_convert_to_image(input_doc)
+
+    """
+
     if doc.binary_representation is not None:
         images = pdf2image.convert_from_bytes(doc.binary_representation)
     else:
@@ -30,6 +56,31 @@ def split_and_convert_to_image(doc: Document) -> list[Document]:
 
 
 class DrawBoxes:
+    """
+    DrawBoxes is a class for adding/drawing boxes around elements within images represented as Document objects.
+
+    This class is designed to enhance Document objects representing images with elements (e.g., text boxes, tables)
+    by drawing bounding boxes around each element. It also allows you to customize the color mapping for different
+    element types.
+
+    Args:
+        font_path: The path to the TrueType font file to be used for labeling.
+        default_color: The default color for bounding boxes when the element type is unknown.
+
+    Example:
+
+          .. code-block:: python
+
+            context = sycamore.init()
+
+            font_path="path/to/font.ttf"
+
+            pdf_docset = context.read.binary(paths, binary_format="pdf")
+                .partition(partitioner=UnstructuredPdfPartitioner())
+                .flat_map(split_and_convert_to_image)
+                .map_batch(DrawBoxes, f_constructor_args=[font_path])
+    """
+
     def __init__(self, font_path: str, default_color: str = "blue"):
         self.font = ImageFont.truetype(font_path, 20)
         self.color_map = {

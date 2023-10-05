@@ -38,7 +38,6 @@ def test_html_to_opensearch():
     ds = (
         context.read.binary(paths, binary_format="html")
         .partition(partitioner=HtmlPartitioner())
-        .filter()
         .explode()
         .embed(SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2"))
     )

@@ -75,6 +75,9 @@ class DocSet:
             if not show_elements:
                 num_elems = len(document.elements)
                 document.data["elements"]["array"] = f"<{num_elems} elements>"
+            else:
+                if document.elements is not None and 0 <= num_elements < len(document.elements):
+                    document.elements = document.elements[:num_elements]
 
             if not show_binary and document.binary_representation is not None:
                 binary_length = len(document.binary_representation)
@@ -86,9 +89,6 @@ class DocSet:
                     document.text_representation = (
                         document.text_representation[:truncate_length] + f" <{amount_truncated} chars>"
                     )
-
-            if document.elements is not None and num_elements >= 0 and len(document.elements) > num_elements:
-                document.elements = document.elements[:num_elements]
 
             if not show_embedding and document.embedding is not None:
                 embedding_length = len(document.embedding)

@@ -32,6 +32,12 @@ boto3 = ">=1.28.61"
 torch = "2.0.0"
 pdfminer-six = "20221105"
 
+# Dependencies for building docs. Defined as an extra
+# so they can be installed using pip on RTD.
+furo = { version = "^2023.9.10", optional = true }
+myst-parser = { version = "^2.0.0", optional = true }
+sphinx = { version = "^7.2.5", optional = true }
+
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"
 pytest = "7.4.0"
@@ -47,10 +53,8 @@ mypy = "^1.5.1"
 jupyterlab = "^4.0.5"
 ipywidgets = "^8.1.0"
 
-[tool.poetry.group.docs.dependencies]
-furo = "^2023.9.10"
-myst-parser = "2.0.0"
-sphinx = "^7.2.5"
+[tool.poetry.extras]
+docs = ["furo", "myst-parser", "sphinx"]
 
 [tool.ruff]
 line-length = 120

@@ -12,6 +12,7 @@ from sycamore.transforms.partition import Partitioner
 from sycamore.transforms.summarize import Summarizer
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.writer import DocSetWriter
+from transforms.coalesce import Coalescer
 
 logger = logging.getLogger(__name__)
 
@@ -272,6 +273,34 @@ class DocSet:
 
         summaries = Summarize(self.plan, summarizer=summarizer, **kwargs)
         return DocSet(self.context, summaries)
+
+    def coalesce(self, coalescer: Coalescer, **kwargs) -> "DocSet":
+        """
+        Applies the Coalescer transform on the Docset.
+
+        Args:
+            coalescer: An instance of a Coalescer class that executes the coalescing strategy.
+
+        Example:
+             .. code-block:: python
+
+                 title_context_template = "template"
+
+                 openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
+                 entity_extractor = OpenAIEntityExtractor("title",
+                                        llm=openai_llm,
+                                        prompt_template=title_context_template)
+
+                 context = sycamore.init()
+                 pdf_docset = context.read.binary(paths, binary_format="pdf")
+                     .partition(partitioner=UnstructuredPdfPartitioner())
+                     .coalesce(coalescer=BBoxCoalescer(tokenizer=CharacterTokenizer(), max_tokens_per_element=1000))
+
+        """
+        from sycamore.transforms import Coalesce
+
+        coalesce = Coalesce(self.plan, coalscer=coalescer, **kwargs)
+        return DocSet(self.context, coalesce)
 
     def map(self, f: Callable[[Document], Document], **resource_args) -> "DocSet":
         """

@@ -1,5 +1,6 @@
 from sycamore.transforms.embed import Embed, Embedder
 from sycamore.transforms.basics import Limit, Filter
+from sycamore.transforms.coalesce import Coalesce
 from sycamore.transforms.extract_entity import ExtractEntity, EntityExtractor
 from sycamore.transforms.explode import Explode
 from sycamore.transforms.map import Map, FlatMap, MapBatch
@@ -8,6 +9,7 @@ from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.summarize import Summarize
 
 __all__ = [
+    "Coalesce"
     "Explode",
     "FlatMap",
     "Limit",

@@ -37,6 +37,9 @@ class Explode(SingleThreadUser, NonGPUUser, Transform):
                 cur = Document(element.to_dict())
                 cur.doc_id = str(uuid.uuid1())
                 cur.parent_id = parent.doc_id
+                for doc_property in parent.properties.keys():
+                    if doc_property.startswith("_"):
+                        cur.properties[doc_property] = parent.properties[doc_property]
                 documents.append(cur)
             del parent.elements
             return documents

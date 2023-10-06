@@ -1,9 +1,9 @@
 from ray.util.client import ray
 
-from functions import CharacterTokenizer
-from plan_nodes import Node
-from transforms import Coalesce
-from transforms.coalesce import BBoxCoalescer
+from sycamore.functions import CharacterTokenizer
+from sycamore.plan_nodes import Node
+from sycamore.transforms import Coalesce
+from sycamore.transforms.coalesce import BBoxCoalescer
 
 
 class TestCoalesce:

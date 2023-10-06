@@ -12,7 +12,7 @@ from sycamore.transforms.partition import Partitioner
 from sycamore.transforms.summarize import Summarizer
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.writer import DocSetWriter
-from transforms.coalesce import Coalescer
+from sycamore.transforms.coalesce import Coalescer
 
 logger = logging.getLogger(__name__)
 
@@ -283,13 +283,6 @@ class DocSet:
 
         Example:
              .. code-block:: python
-
-                 title_context_template = "template"
-
-                 openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
-                 entity_extractor = OpenAIEntityExtractor("title",
-                                        llm=openai_llm,
-                                        prompt_template=title_context_template)
 
                  context = sycamore.init()
                  pdf_docset = context.read.binary(paths, binary_format="pdf")

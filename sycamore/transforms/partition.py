@@ -13,7 +13,6 @@ from sycamore.data import BoundingBox, Document, Element
 from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import generate_map_function
 from sycamore.transforms.extract_table import TableExtractor
-from sycamore.transforms.coalesce import DefaultCoalescer, Coalescer
 
 
 # This comparator helps sort the elements per page specifically when a page

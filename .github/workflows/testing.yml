@@ -75,3 +75,6 @@ jobs:
 
       - name: Run Integ tests
         run: poetry run pytest sycamore/tests/integration
+
+      - name: Run Notebook tests
+        run: poetry run pytest --nbmake notebooks/*.ipynb

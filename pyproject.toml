@@ -48,6 +48,7 @@ ruff = "^0.0.287"
 black = "^23.7.0"
 pre-commit = "^3.4.0"
 mypy = "^1.5.1"
+nbmake = "^1.4.5"
 
 [tool.poetry.group.notebook.dependencies]
 jupyterlab = "^4.0.5"

@@ -98,8 +98,8 @@ author_prompt_template = """
 # We are using OpenAIEntityExtractor which utilizes OpenAI and gpt-3.5-turbo model.
 # You can write your own EntityExtractor as well.
 
-# Replace the "api-key" with your API Key.
-openai = OpenAI(OpenAIModels.GPT_3_5_TURBO.value, api-key=os.environ.get("OPENAI_API_KEY"))
+# Replace the "api_key" with your API Key.
+openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value, api_key=os.environ.get("OPENAI_API_KEY"))
 
 docset = docset.extract_entity(
     entity_extractor=OpenAIEntityExtractor("title", llm=openai_llm, prompt_template=title_prompt_template)

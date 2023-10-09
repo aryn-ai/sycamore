@@ -24,27 +24,27 @@ ELEMENT 10: V C . s c [
 """
 
 osrch_args = {
-  "hosts": [{"host": "localhost", "port": 9200}],
-  "http_compress": True,
-  "http_auth": ("admin", "admin"),
-  "use_ssl": False,
-  "verify_certs": False,
-  "ssl_assert_hostname": False,
-  "ssl_show_warn": False,
-  "timeout": 120,
+    "hosts": [{"host": "localhost", "port": 9200}],
+    "http_compress": True,
+    "http_auth": ("admin", "admin"),
+    "use_ssl": False,
+    "verify_certs": False,
+    "ssl_assert_hostname": False,
+    "ssl_show_warn": False,
+    "timeout": 120,
 }
 
 idx_settings = {
-  "body": {
-    "mappings": {
-      "properties": {
-        "embedding": {
-          "type": "knn_vector",
-          "dimension": 384,
-          "method": {"name": "hnsw", "engine": "nmslib"},
+    "body": {
+        "mappings": {
+            "properties": {
+                "embedding": {
+                    "type": "knn_vector",
+                    "dimension": 384,
+                    "method": {"name": "hnsw", "engine": "nmslib"},
+                },
+                "text_representation": {"type": "text"},
+            }
         },
-        "text_representation": {"type": "text"},
-      }
-    },
-  }
+    }
 }

@@ -87,7 +87,7 @@ class UnstructuredPdfPartitioner(Partitioner):
         infer_table_structure: bool = False,
         ocr_languages: str = "eng",
         max_partition_length: Optional[int] = None,
-        min_partition_length: Optional[int] = None,
+        min_partition_length: Optional[int] = 500,
         include_metadata: bool = True,
     ):
         self._include_page_breaks = include_page_breaks

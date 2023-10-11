@@ -69,6 +69,7 @@ class OSDataSource(Datasource):
             "embedding": None,
             "parent_id": None,
             "properties": {},
+            "bbox": None,
         }
         for k, v in default.items():
             if k in data:

@@ -41,31 +41,36 @@ class LLMElementTextSummarizer(Summarizer):
                 .summarize(summarizer=summarizer)
     """
 
-    def __init__(self, llm: LLM, element_operator: Optional[Callable[[Document], list[Element]]] = None):
+    def __init__(self, llm: LLM, element_operator: Optional[Callable[[Element], bool]] = None):
         self._llm = llm
         self._element_operator = element_operator
 
     def summarize(self, document: Document) -> Document:
+        elements = []
         if self._element_operator is not None:
-            filtered_elements = self._element_operator(document)
+            for element in document.elements:
+                if self._element_operator(element):
+                    elements.append(self._summarize_text_element(element))
+                else:
+                    elements.append(element)
         else:
-            filtered_elements = document.elements
+            elements = [self._summarize_text_element(element) for element in document.elements]
 
-        if len(filtered_elements) > 0:
-            self._summarize_text_element(filtered_elements)
+        document.elements = elements
         return document
 
-    def _summarize_text_element(self, elements: list[Element]):
+    def _summarize_text_element(self, element: Element) -> Element:
         if self._llm.is_chat_mode:
             prompt = TEXT_SUMMARIZER_GUIDANCE_PROMPT_CHAT
-
         else:
             prompt = TEXT_SUMMARIZER_GUIDANCE_PROMPT
 
-        for element in elements:
-            if element.text_representation:
-                response = self._llm.generate(prompt_kwargs={"prompt": prompt, "query": element.text_representation})
-                element.properties["summary"] = response["summary"]
+        if element.text_representation:
+            response = self._llm.generate(prompt_kwargs={"prompt": prompt, "query": element.text_representation})
+            properties = element.properties
+            properties["summary"] = response["summary"]
+            element.properties = properties
+        return element
 
 
 class Summarize(NonCPUUser, NonGPUUser, Transform):

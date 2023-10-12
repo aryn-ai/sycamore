@@ -5,24 +5,14 @@ from sycamore.plan_nodes import Node
 from sycamore.transforms import SpreadProperties
 
 
-class FakeNode(Node):
-    def __init__(self, doc: dict):
-        self.doc = doc
-
-    def execute(self) -> ray.data.Dataset:
-        return ray.data.from_items([self.doc])
-
-
 class TestSpreadProperties:
-    dict0 = {
-        "doc_id": "doc_id",
-        "type": "pdf",
-        "text_representation": "text",
-        "binary_representation": None,
-        "parent_id": None,
-        "properties": {"path": "/docs/foo.txt", "title": "bar"},
-        "elements": {
-            "array": [
+    doc = Document(
+        {
+            "doc_id": "doc_id",
+            "type": "pdf",
+            "text_representation": "text",
+            "properties": {"path": "/docs/foo.txt", "title": "bar"},
+            "elements": [
                 {
                     "type": "UncategorizedText",
                     "text_representation": "text1",
@@ -33,26 +23,28 @@ class TestSpreadProperties:
                     "text_representation": "text2",
                     "properties": {"filetype": "text/plain", "page_number": 2},
                 },
-            ]
-        },
-    }
+            ],
+        }
+    )
 
     def test_spread_properties(self):
-        doc0 = Document(self.dict0)
         sp = SpreadProperties(None, [])
         spc = sp.SpreadPropertiesCallable(["path", "title"])
-        doc1 = spc.spreadProperties(doc0)
+        doc1 = spc.spreadProperties(self.doc)
         for elem in doc1.elements:
             assert elem.properties["filetype"] == "text/plain"
             assert elem.properties["path"] == "/docs/foo.txt"
             assert elem.properties["title"] == "bar"
 
-    def test_via_execute(self):
-        plan = FakeNode(self.dict0)
-        sp = SpreadProperties(plan, ["path", "title"])
+    def test_via_execute(self, mocker):
+        node = mocker.Mock(spec=Node)
+        sp = SpreadProperties(node, ["path", "title"])
+        input_dataset = ray.data.from_items([{"doc": self.doc.serialize()}])
+        execute = mocker.patch.object(node, "execute")
+        execute.return_value = input_dataset
         ds = sp.execute()
         for row in ds.iter_rows():
-            doc = Document(row)
+            doc = Document.from_row(row)
             for elem in doc.elements:
                 assert elem.properties["filetype"] == "text/plain"
                 assert elem.properties["path"] == "/docs/foo.txt"

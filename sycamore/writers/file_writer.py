@@ -191,7 +191,7 @@ class _WritableFilePerRowDataSource(FileBasedDatasource):
             fs = _unwrap_s3_serialization_workaround(filesystem)
 
             for row in block.iter_rows(public_row_format=True):
-                doc = Document(row)
+                doc = Document.from_row(row)
                 filename = filename_fn(doc)
 
                 write_path = os.path.join(path, filename)

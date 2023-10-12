@@ -4,7 +4,7 @@ from ray.data import Dataset, ActorPoolStrategy
 
 from sycamore.data import Document, Element, BoundingBox
 from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Transform, Node
-from sycamore.transforms.map import generate_map_class_from_callable
+from sycamore.utils import generate_map_class_from_callable
 from sycamore.functions.tokenizer import Tokenizer
 
 
@@ -117,11 +117,13 @@ class GreedyTextElementMerger(ElementMerger):
                 max(elt1.bbox.y2, elt2.bbox.y2),
             )
         # Merge properties by taking the union of the keys
+        properties = new_elt.properties
         for k, v in elt1.properties.items():
-            new_elt.properties[k] = v
+            properties[k] = v
         for k, v in elt2.properties.items():
-            if new_elt.properties.get(k) is None:
-                new_elt.properties[k] = v
+            if properties.get(k) is None:
+                properties[k] = v
+        new_elt.properties = properties
 
         return new_elt
 

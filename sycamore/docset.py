@@ -182,6 +182,23 @@ class DocSet:
         plan = Partition(self.plan, partitioner=partitioner, table_extractor=table_extractor, **kwargs)
         return DocSet(self.context, plan)
 
+    def spread_properties(self, props: list[str], **resource_args) -> "DocSet":
+        """
+        Copies listed properties from parent document to child elements.
+
+        Example:
+            .. code-block:: python
+
+               pdf_docset = context.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=UnstructuredPdfPartitioner())
+                    .spread_properties(["title"])
+                    .explode()
+        """
+        from sycamore.transforms import SpreadProperties
+
+        plan = SpreadProperties(self.plan, props, **resource_args)
+        return DocSet(self.context, plan)
+
     def explode(self, **resource_args) -> "DocSet":
         """
         Applies the Explode transform on the Docset.

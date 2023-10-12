@@ -25,6 +25,7 @@ ds = (
     ctx.read.binary(paths, binary_format="pdf")
     .partition(partitioner=UnstructuredPdfPartitioner())
     .extract_entity(entity_extractor=OpenAIEntityExtractor("title", llm=davinci_llm, prompt_template=title_template))
+    .spread_properties(["path", "title"])
     .explode()
     .embed(embedder=SentenceTransformerEmbedder(model_name="all-MiniLM-L6-v2", batch_size=100))
 )

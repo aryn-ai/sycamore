@@ -5,6 +5,7 @@ from sycamore.transforms.explode import Explode
 from sycamore.transforms.map import Map, FlatMap, MapBatch
 from sycamore.transforms.partition import Partition, Partitioner
 from sycamore.transforms.extract_table import TableExtractor
+from sycamore.transforms.spread_properties import SpreadProperties
 from sycamore.transforms.summarize import Summarize
 
 __all__ = [
@@ -20,6 +21,7 @@ __all__ = [
     "ExtractEntity",
     "EntityExtractor",
     "TableExtractor",
+    "SpreadProperties",
     "Summarize",
     "Filter",
 ]

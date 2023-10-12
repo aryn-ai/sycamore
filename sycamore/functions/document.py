@@ -48,9 +48,11 @@ def split_and_convert_to_image(doc: Document) -> list[Document]:
     sorted_elements_by_page = sorted(elements_by_page.items(), key=lambda x: x[0])
     new_docs = []
     for image, (page, elements) in zip(images, sorted_elements_by_page):
-        new_doc = Document(binary_representation=image.tobytes(), elements={"array": elements})
-        new_doc.properties.update(doc.properties)
-        new_doc.properties.update({"size": list(image.size), "mode": image.mode, "page_number": page})
+        new_doc = Document(binary_representation=image.tobytes(), elements=elements)
+        properties = {}
+        properties.update(doc.properties)
+        properties.update({"size": list(image.size), "mode": image.mode, "page_number": page})
+        new_doc.properties = properties
         new_docs.append(new_doc)
     return new_docs
 

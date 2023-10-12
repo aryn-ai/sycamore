@@ -1,6 +1,7 @@
 import json
 import tempfile
 
+from sycamore.data import Document
 from sycamore.scans.file_scan import JsonManifestMetadataProvider
 from sycamore.scans import BinaryScan
 from sycamore.tests.config import TEST_DIR
@@ -11,17 +12,7 @@ class TestBinaryScan:
         paths = str(TEST_DIR / "resources/data/pdfs/")
         scan = BinaryScan(paths, binary_format="pdf")
         ds = scan.execute()
-        assert ds.schema().names == [
-            "doc_id",
-            "type",
-            "text_representation",
-            "binary_representation",
-            "elements",
-            "embedding",
-            "parent_id",
-            "bbox",
-            "properties",
-        ]
+        assert ds.schema().names == ["doc"]
 
     def test_json_manifest(self):
         base_path = str(TEST_DIR / "resources/data/htmls/")
@@ -43,8 +34,8 @@ class TestBinaryScan:
                 base_path, binary_format="html", metadata_provider=JsonManifestMetadataProvider(manifest_path)
             )
             ds = scan.execute()
-            doc = ds.take(1)[0]
-            assert doc["properties"]["remote_url"] == remote_url
-            assert doc["properties"]["indexed_at"] == indexed_at
+            doc = Document.from_row(ds.take(1)[0])
+            assert doc.properties["remote_url"] == remote_url
+            assert doc.properties["indexed_at"] == indexed_at
         finally:
             tmp_manifest.close()

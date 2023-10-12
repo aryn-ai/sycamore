@@ -34,7 +34,7 @@ class Explode(SingleThreadUser, NonGPUUser, Transform):
             import uuid
 
             for element in parent.elements:
-                cur = Document(element.to_dict())
+                cur = Document(element.data)
                 cur.doc_id = str(uuid.uuid1())
                 cur.parent_id = parent.doc_id
                 documents.append(cur)

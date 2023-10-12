@@ -8,6 +8,8 @@ from ray.data._internal.delegating_block_builder import DelegatingBlockBuilder
 from ray.data.block import Block, BlockAccessor
 from ray.data.datasource import WriteResult
 from ray.data._internal.execution.interfaces import TaskContext
+
+from sycamore.data import Document
 from sycamore.plan_nodes import Node, Write
 
 log = logging.getLogger(__name__)
@@ -65,7 +67,7 @@ class OSDataSource(Datasource):
             "doc_id": None,
             "type": None,
             "text_representation": None,
-            "elements": {"array": []},
+            "elements": [],
             "embedding": None,
             "parent_id": None,
             "properties": {},
@@ -78,7 +80,7 @@ class OSDataSource(Datasource):
                 result[k] = v
         return result
 
-    # The type: ignore is required for the ctx paramter, which is not part of the Datasource
+    # The type: ignore is required for the ctx parameter, which is not part of the Datasource
     # API spec, but is passed at runtime by Ray. This can be removed once this commit is
     # included in Ray's release:
     #
@@ -108,7 +110,7 @@ class OSDataSource(Datasource):
 
         def create_actions():
             for i, row in enumerate(block):
-                doc = OSDataSource.extract_os_document(row)
+                doc = OSDataSource.extract_os_document(Document.from_row(row).data)
                 action = {"_index": index_name, "_id": doc["doc_id"], "_source": doc}
                 yield action
 

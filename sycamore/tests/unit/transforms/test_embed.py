@@ -67,12 +67,11 @@ class TestEmbedding:
             node,
             embedder=SentenceTransformerEmbedder(model_name="sentence-transformers/all-MiniLM-L6-v2", batch_size=100),
         )
-        input_dataset = ray.data.from_items(
-            [
-                {"doc_id": 1, "text_representation": "Members of a strike at Yale University.", "embedding": None},
-                {"doc_id": 2, "text_representation": "A woman is speaking at a podium outdoors.", "embedding": None},
-            ]
-        )
+        dicts = [
+            {"doc_id": 1, "text_representation": "Members of a strike at Yale University.", "embedding": None},
+            {"doc_id": 2, "text_representation": "A woman is speaking at a podium outdoors.", "embedding": None},
+        ]
+        input_dataset = ray.data.from_items([{"doc": Document(dict).serialize()} for dict in dicts])
         execute = mocker.patch.object(node, "execute")
         execute.return_value = input_dataset
         input_dataset.show()

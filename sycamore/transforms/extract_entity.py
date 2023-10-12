@@ -18,7 +18,7 @@ from sycamore.llms.prompts import (
 def element_list_formatter(elements: list[Element]) -> str:
     query = ""
     for i in range(len(elements)):
-        query += f"ELEMENT {i + 1}: {elements[i]['text_representation']}\n"
+        query += f"ELEMENT {i + 1}: {elements[i].text_representation}\n"
     return query
 
 
@@ -82,7 +82,9 @@ class OpenAIEntityExtractor(EntityExtractor):
         else:
             entities = self._handle_zero_shot_prompting(document)
 
-        document.properties.update({f"{self._entity_name}": entities["answer"]})
+        properties = document.properties
+        properties.update({f"{self._entity_name}": entities["answer"]})
+        document.properties = properties
 
         return document
 

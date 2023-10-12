@@ -7,9 +7,8 @@ from ray.data import Dataset
 
 from sycamore.functions import TextOverlapChunker, Chunker
 from sycamore.functions import CharacterTokenizer, Tokenizer
-from sycamore.data.document import TableElement
 from sycamore.functions import reorder_elements
-from sycamore.data import BoundingBox, Document, Element
+from sycamore.data import BoundingBox, Document, Element, TableElement
 from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import generate_map_function
 from sycamore.transforms.extract_table import TableExtractor
@@ -92,8 +91,10 @@ class UnstructuredPPTXPartitioner(Partitioner):
         element.type = dict.pop("type", "unknown")
         element.binary_representation = binary
         element.text_representation = text
-        element.properties.update(dict.pop("metadata"))
-        element.properties.update(dict)
+        properties = element.properties
+        properties.update(dict.pop("metadata"))
+        properties.update(dict)
+        element.properties = properties
 
         return element
 
@@ -195,10 +196,12 @@ class UnstructuredPdfPartitioner(Partitioner):
         element.type = dict.pop("type", "unknown")
         element.binary_representation = binary
         element.text_representation = text
-        element.properties.update(dict.pop("metadata"))
-        element.properties.update(dict)
+        properties = element.properties
+        properties.update(dict.pop("metadata"))
+        properties.update(dict)
+        coordinates = properties.pop("coordinates")
+        element.properties = properties
 
-        coordinates = element.properties.pop("coordinates")
         if coordinates is not None:
             x1 = coordinates.get("points")[0][0] / coordinates.get("layout_width")
             y1 = coordinates.get("points")[0][1] / coordinates.get("layout_height")
@@ -270,7 +273,6 @@ class HtmlPartitioner(Partitioner):
         self._tokenizer = tokenizer
 
     def partition(self, document: Document) -> Document:
-        properties = document.properties
         raw_html = document.binary_representation
 
         if raw_html is None:
@@ -281,10 +283,12 @@ class HtmlPartitioner(Partitioner):
 
         # extract title
         titles = soup.find_all("title")
-        title = document["doc_id"]
+        title = document.doc_id
         if len(titles) > 0:
             title = titles[0].text.replace("\n", "").strip()
-        document.properties["title"] = title
+        properties = document.properties
+        properties["title"] = title
+        document.properties = properties
 
         # chunk text and create text elements
         elements = []
@@ -295,7 +299,10 @@ class HtmlPartitioner(Partitioner):
             element = Element()
             element.type = "text"
             element.text_representation = content
-            element.properties.update(properties)
+
+            element_properties = element.properties
+            element_properties.update(properties)
+            element.properties = element_properties
             elements += [element]
 
         # extract tables
@@ -313,7 +320,9 @@ class HtmlPartitioner(Partitioner):
                     table_element.columns = [tag.text for tag in headers]
 
                 table_element.text_representation = table.text
-                table_element.properties.update(properties)
+                table_properties = table_element.properties
+                table_properties.update(properties)
+                table_element.properties = table_properties
 
                 # parse all rows, use all text as content
                 rows = table.findAll("tr")

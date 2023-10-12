@@ -36,6 +36,9 @@ osrch_args = {
 
 idx_settings = {
     "body": {
+        "settings": {
+            "index.knn": True,
+        },
         "mappings": {
             "properties": {
                 "embedding": {

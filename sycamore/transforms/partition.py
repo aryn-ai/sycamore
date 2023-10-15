@@ -85,7 +85,7 @@ class UnstructuredPdfPartitioner(Partitioner):
         include_page_breaks: bool = False,
         strategy: str = "auto",
         infer_table_structure: bool = False,
-        ocr_languages: str = "eng",
+        languages: list[str] = ["eng"],
         max_partition_length: Optional[int] = None,
         min_partition_length: Optional[int] = 500,
         include_metadata: bool = True,
@@ -93,7 +93,7 @@ class UnstructuredPdfPartitioner(Partitioner):
         self._include_page_breaks = include_page_breaks
         self._strategy = strategy
         self._infer_table_structure = infer_table_structure
-        self._ocr_languages = ocr_languages
+        self._languages = languages
         self._max_partition_length = max_partition_length
         self._min_partition_length = min_partition_length
         self._include_metadata = include_metadata
@@ -133,7 +133,7 @@ class UnstructuredPdfPartitioner(Partitioner):
             include_page_breaks=self._include_page_breaks,
             strategy=self._strategy,
             infer_table_structure=self._infer_table_structure,
-            ocr_languages=self._ocr_languages,
+            languages=self._languages,
             max_partition=self._max_partition_length,
             min_partition=self._min_partition_length,
             include_metadata=self._include_metadata,

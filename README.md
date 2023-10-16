@@ -72,7 +72,7 @@ os_client_args = {
     "verify_certs":False,
     "http_auth":("admin", "admin")
 }
-embedded_doc_set.write.opensearch(os_client_args, "my_index_name")
+embedded_doc_set.write.opensearch(os_client_args=os_client_args, index_name="my_index_name")
 ```
 
 ## Contributing

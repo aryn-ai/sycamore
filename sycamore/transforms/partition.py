@@ -66,12 +66,11 @@ class UnstructuredPPTXPartitioner(Partitioner):
          .. code-block:: python
 
             pptx_partitioner = UnstructuredPPTXPartitioner(
-                include_page_breaks=True,
-                strategy="auto",
-                infer_table_structure=True,
-                ocr_languages="eng",
-                max_partition_length=2000,
+                include_page_breaks=False,
                 include_metadata=True,
+                include_slide_notes=False,
+                chunking_strategy=None,
+                **kwargs
             )
 
             context = sycamore.init()

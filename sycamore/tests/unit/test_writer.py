@@ -1,15 +1,21 @@
 from sycamore import DocSet, Context
 import sycamore
-from sycamore.data import Document
+from sycamore.data import Document, Element
 from sycamore.plan_nodes import Node
 from sycamore.writers import OpenSearchWriter
 
+import json
 from pathlib import Path
 
-from sycamore.writers.file_writer import default_filename, default_doc_to_bytes, json_properties_content
+from sycamore.writers.file_writer import (
+    default_filename,
+    default_doc_to_bytes,
+    elements_to_bytes,
+    json_properties_content,
+)
 
 
-def generate_docs(num: int, type: str = "test", text=True, binary=False) -> list[Document]:
+def generate_docs(num: int, type: str = "test", text=True, binary=False, num_elements=0) -> list[Document]:
     docs = []
     for i in range(num):
         doc = Document(
@@ -21,6 +27,18 @@ def generate_docs(num: int, type: str = "test", text=True, binary=False) -> list
             }
         )
 
+        elements = []
+        for j in range(num_elements):
+            element = Element({"type": "test", "properties": {"element_num": j}})
+
+            if text:
+                element.text_representation = f"This is element text content {j} for doc {i}"
+            if binary:
+                element.binary_representation = f"This is element binary content {j} for doc {i}".encode("utf-8")
+            elements.append(element)
+
+        doc.elements = elements
+
         if text:
             doc["text_representation"] = f"This is text content {i}"
         if binary:
@@ -31,8 +49,27 @@ def generate_docs(num: int, type: str = "test", text=True, binary=False) -> list
     return docs
 
 
+def _compare_exact(expected: bytes, actual: bytes):
+    assert expected == actual
+
+
+def _compare_as_jsonl(expected: bytes, actual: bytes):
+    expected_rows = expected.decode("utf-8").split("\n")
+    actual_rows = actual.decode("utf-8").split("\n")
+
+    assert len(expected_rows) == len(actual_rows)
+
+    for erow, arow in zip(expected_rows, actual_rows):
+        if len(erow.strip()) != 0 or len(arow.strip()) != 0:
+            assert json.loads(erow) == json.loads(arow)
+
+
 def _check_doc_path(
-    docs: list[Document], path: Path, filename_fn=default_filename, doc_to_bytes_fn=default_doc_to_bytes
+    docs: list[Document],
+    path: Path,
+    filename_fn=default_filename,
+    doc_to_bytes_fn=default_doc_to_bytes,
+    comparison_fn=_compare_exact,
 ):
     docs_by_filename = {filename_fn(doc): doc for doc in docs}
     paths = [p for p in path.iterdir() if p.is_file()]
@@ -42,8 +79,7 @@ def _check_doc_path(
         with open(p, "rb") as infile:
             expected = doc_to_bytes_fn(docs_by_filename[p.name])
             actual = infile.read()
-
-            assert expected == actual
+            comparison_fn(expected, actual)
 
 
 def _test_filename(doc: Document) -> str:
@@ -84,4 +120,11 @@ class TestDocSetWriter:
         context = sycamore.init()
         doc_set = context.read.document(docs)
         doc_set.write.files(str(tmp_path), doc_to_bytes_fn=json_properties_content)
-        _check_doc_path(docs, tmp_path, doc_to_bytes_fn=json_properties_content)
+        _check_doc_path(docs, tmp_path, doc_to_bytes_fn=json_properties_content, comparison_fn=_compare_as_jsonl)
+
+    def test_file_writer_elements_to_bytes(self, tmp_path: Path):
+        docs = generate_docs(5, num_elements=5)
+        context = sycamore.init()
+        doc_set = context.read.document(docs)
+        doc_set.write.files(str(tmp_path), doc_to_bytes_fn=elements_to_bytes)
+        _check_doc_path(docs, tmp_path, doc_to_bytes_fn=elements_to_bytes, comparison_fn=_compare_as_jsonl)

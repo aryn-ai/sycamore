@@ -290,7 +290,7 @@ class DocSet:
 
         summaries = Summarize(self.plan, summarizer=summarizer, **kwargs)
         return DocSet(self.context, summaries)
-    
+
     def merge(self, merger: ElementMerger, **kwargs) -> "DocSet":
         """
         Applies merge operation on each list of elements of the Docset

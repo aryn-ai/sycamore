@@ -9,25 +9,19 @@ from sycamore.transforms.map import generate_map_function
 from typing import Tuple
 
 
-
 class ElementMerger(ABC):
     @abstractmethod
     def merge_elements(self, document: Document) -> Document:
         pass
 
-class GreedyElementMerger(ElementMerger):
 
-    def __init__(
-        self,
-        tokenizer,
-        max_tokens
-    ):
+class GreedyElementMerger(ElementMerger):
+    def __init__(self, tokenizer, max_tokens):
         self.tokenizer = tokenizer
         self.max_tokens = max_tokens
 
-
     def _should_merge(self, element1: Tuple[Element, int], element2: Tuple[Element, int]) -> bool:
-        if element2[0].type == 'Title':
+        if element2[0].type == "Title":
             return False
         if element1[1] + 1 + element2[1] > self.max_tokens:
             return False
@@ -36,14 +30,14 @@ class GreedyElementMerger(ElementMerger):
     def _merge(self, element1: Tuple[Element, int], element2: Tuple[Element, int]) -> Tuple[Element, int]:
         """
         Merge two elements; the new element's fields will be set as:
-        
+
             type: "Section"
             binary_representation: elt1.binary_representation + elt2.binary_representation
             text_representation: elt1.text_representation + '\n' + elt2.text_representation
             bbox: the minimal bbox that contains both elt1's and elt2's bboxes
             properties: elt1's properties + any of elt2's properties that are not in elt1
                 > note: if elt1 and elt2 have different values for the same property, we take elt1's value
-            
+
             > note: if any input field is None we take the other element's field without merge logic
 
         Args:
@@ -59,28 +53,28 @@ class GreedyElementMerger(ElementMerger):
         new_elt = Element()
         new_elt.type = "Section"
         # Merge binary representations by concatenation
-        if elt1.binary_representation == None or elt2.binary_representation == None:
+        if elt1.binary_representation is None or elt2.binary_representation is None:
             new_elt.binary_representation = elt1.binary_representation or elt2.binary_representation
         else:
             new_elt.binary_representation = elt1.binary_representation + elt2.binary_representation
         # Merge text representations by concatenation with a newline
-        if elt1.text_representation == None or elt2.text_representation == None:
+        if elt1.text_representation is None or elt2.text_representation is None:
             new_elt.text_representation = elt1.text_representation or elt2.text_representation
             new_toks = max(tok1, tok2)
         else:
-            new_elt.text_representation = elt1.text_representation + '\n' + elt2.text_representation
+            new_elt.text_representation = elt1.text_representation + "\n" + elt2.text_representation
             new_toks = tok1 + 1 + tok2
         # Merge bbox by taking the coords that make the largest box
-        if elt1.bbox == None and elt2.bbox == None:
+        if elt1.bbox is None and elt2.bbox is None:
             pass
-        elif elt1.bbox == None or elt2.bbox == None:
+        elif elt1.bbox is None or elt2.bbox is None:
             new_elt.bbox = elt1.bbox or elt2.bbox
         else:
             new_elt.bbox = BoundingBox(
                 min(elt1.bbox.x1, elt2.bbox.x1),
                 min(elt1.bbox.y1, elt2.bbox.y1),
                 max(elt1.bbox.x2, elt2.bbox.x2),
-                max(elt1.bbox.y2, elt2.bbox.y2)
+                max(elt1.bbox.y2, elt2.bbox.y2),
             )
         # Merge properties by taking the union of the keys
         for k, v in elt1.properties.items():
@@ -90,15 +84,13 @@ class GreedyElementMerger(ElementMerger):
                 new_elt.properties[k] = v
 
         return (new_elt, new_toks)
-        
-        
 
     def merge_elements(self, document: Document) -> Document:
         """Use self._should_merge and self._merge to greedily merge consecutive elements.
         If the next element should be merged into the last 'accumulation' element, merge it.
 
         Args:
-            document (Document): A document with elements to be merged. 
+            document (Document): A document with elements to be merged.
 
         Returns:
             Document: The same document, with its elements merged
@@ -114,6 +106,7 @@ class GreedyElementMerger(ElementMerger):
                 new_elts.append((element, tokens))
         document.elements = [x[0] for x in new_elts]
         return document
+
 
 class Merge(NonCPUUser, NonGPUUser, Transform):
     """

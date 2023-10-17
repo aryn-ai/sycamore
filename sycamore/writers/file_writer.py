@@ -8,6 +8,8 @@ from ray.data.block import Block, BlockAccessor
 from ray.data.datasource import FileBasedDatasource, WriteResult
 from ray.data._internal.execution.interfaces import TaskContext
 
+from collections import UserDict
+from io import StringIO
 import json
 import logging
 import os
@@ -16,6 +18,16 @@ import uuid
 from typing import Callable, Iterable, Optional, no_type_check
 
 logger = logging.getLogger(__name__)
+
+
+class JSONEncodeWithUserDict(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, UserDict):
+            return obj.data
+        elif isinstance(obj, bytes):
+            return obj.decode("utf-8")
+        else:
+            return json.JSONEncoder.default(self, obj)
 
 
 def default_filename(doc: Document, extension: Optional[str] = None) -> str:
@@ -75,6 +87,19 @@ def default_doc_to_bytes(doc: Document) -> bytes:
 def json_properties_content(doc: Document) -> bytes:
     """Return just the properties of the document as a json object"""
     return json.dumps(doc.properties).encode("utf-8")
+
+
+def elements_to_bytes(doc: Document) -> bytes:
+    """Returns a utf-8 encoded json string containing the elements of the document.
+
+    The elements are line-delimited.
+    """
+
+    out = StringIO()
+    for element in doc.elements:
+        json.dump(element, out, cls=JSONEncodeWithUserDict)
+        out.write("\n")
+    return out.getvalue().encode("utf-8")
 
 
 class FileWriter(Write):

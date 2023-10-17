@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 
-from ray.data import Dataset
+from ray.data import Dataset, ActorPoolStrategy
 
 from sycamore.data import Document, Element, BoundingBox
 from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Transform, Node
-from sycamore.transforms.map import generate_map_function
+from sycamore.transforms.map import generate_map_class_from_callable
 from sycamore.functions.tokenizer import Tokenizer
 
 from typing import Tuple
@@ -120,5 +120,9 @@ class Merge(NonCPUUser, NonGPUUser, Transform):
 
     def execute(self) -> Dataset:
         input_dataset = self.child().execute()
-        dataset = input_dataset.map(generate_map_function(self._merger.merge_elements))
+        dataset = input_dataset.map(
+            generate_map_class_from_callable(self._merger.merge_elements),
+            compute=ActorPoolStrategy(min_size=1),
+            **self.resource_args
+        )
         return dataset

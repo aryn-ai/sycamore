@@ -1,6 +1,17 @@
+import ray.data
+
 from sycamore.data import Document
-from sycamore.transforms.merge_elements import GreedyTextElementMerger
+from sycamore.transforms.merge_elements import GreedyTextElementMerger, Merge
 from sycamore.functions.tokenizer import HuggingFaceTokenizer
+from sycamore.plan_nodes import Node
+
+
+class FakeNode(Node):
+    def __init__(self, doc: dict):
+        self.doc = doc
+
+    def execute(self) -> ray.data.Dataset:
+        return ray.data.from_items([self.doc])
 
 
 class TestMergeElements:
@@ -94,3 +105,10 @@ class TestMergeElements:
         assert e.bbox.coordinates == (0.17, 0.40, 0.82, 0.47)
         assert e.binary_representation == b"title1"
         assert e.properties == {"doc_title": "title"}
+
+    def test_merge_elements_via_execute(self):
+        plan = FakeNode(self.dict0)
+        tokenizer = HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2")
+        merger = GreedyTextElementMerger(tokenizer, 120)
+        merge = Merge(plan, merger)
+        merge.execute()

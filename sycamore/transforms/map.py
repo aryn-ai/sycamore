@@ -8,7 +8,16 @@ from sycamore.data import Document
 from sycamore.plan_nodes import Node, UnaryNode
 
 
+def rename(new_function_name: str):
+    def decorator(f):
+        f.__name__ = new_function_name
+        return f
+
+    return decorator
+
+
 def generate_map_function(f: Callable[[Document], Document]) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    @rename(f.__name__)
     def ray_callable(input_dict: dict[str, Any]) -> dict[str, Any]:
         document = f(Document(input_dict))
         return document.data
@@ -31,6 +40,7 @@ def generate_map_class(c: Type[Callable[[Document], Document]]) -> Type[Callable
 def generate_flat_map_function(
     f: Callable[[Document], list[Document]]
 ) -> Callable[[dict[str, Any]], list[dict[str, Any]]]:
+    @rename(f.__name__)
     def ray_callable(input_dict: dict[str, Any]) -> list[dict[str, Any]]:
         documents = f(Document(input_dict))
         return [document.data for document in documents]
@@ -55,6 +65,7 @@ def generate_flat_map_class(
 def generate_map_batch_function(
     f: Callable[[list[Document]], list[Document]]
 ) -> Callable[[dict[str, np.ndarray]], dict[str, list]]:
+    @rename(f.__name__)
     def ray_callable(doc_batch: dict[str, np.ndarray]) -> dict[str, list]:
         input_docs = _get_documents_from_columnar_format(doc_batch)
         output_docs = f(input_docs)
@@ -67,6 +78,7 @@ def generate_map_batch_function(
 def generate_map_batch_filter_function(
     f: Callable[[Document], bool]
 ) -> Callable[[dict[str, np.ndarray]], dict[str, list]]:
+    @rename(f.__name__)
     def ray_callable(doc_batch: dict[str, np.ndarray]) -> dict[str, list]:
         input_docs = _get_documents_from_columnar_format(doc_batch)
         output_docs = list(filter(f, input_docs))

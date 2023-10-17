@@ -5,6 +5,7 @@ from ray.data import Dataset
 from sycamore.data import Document, Element, BoundingBox
 from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Transform, Node
 from sycamore.transforms.map import generate_map_function
+from sycamore.functions.tokenizer import Tokenizer
 
 from typing import Tuple
 
@@ -15,8 +16,8 @@ class ElementMerger(ABC):
         pass
 
 
-class GreedyElementMerger(ElementMerger):
-    def __init__(self, tokenizer, max_tokens):
+class GreedyTextElementMerger(ElementMerger):
+    def __init__(self, tokenizer: Tokenizer, max_tokens: int):
         self.tokenizer = tokenizer
         self.max_tokens = max_tokens
 
@@ -97,7 +98,7 @@ class GreedyElementMerger(ElementMerger):
         """
         if len(document.elements) < 2:
             return document
-        token_counts = [len(self.tokenizer.encode(e.text_representation or "")) for e in document.elements]
+        token_counts = [len(self.tokenizer.tokenize(e.text_representation or "")) for e in document.elements]
         new_elts = [(document.elements[0], token_counts[0])]
         for element, tokens in zip(document.elements[1:], token_counts[1:]):
             if self._should_merge(new_elts[-1], (element, tokens)):

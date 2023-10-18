@@ -4,7 +4,12 @@ from typing import Callable
 import pytest
 from ray.data import Dataset
 
-from sycamore.transforms.partition import Partition, HtmlPartitioner, UnstructuredPdfPartitioner
+from sycamore.transforms.partition import (
+    Partition,
+    HtmlPartitioner,
+    UnstructuredPdfPartitioner,
+    UnstructuredPPTXPartitioner,
+)
 from sycamore.scans import BinaryScan
 from sycamore.tests.config import TEST_DIR
 
@@ -118,6 +123,16 @@ class TestPartition:
         scan = mocker.Mock(spec=BinaryScan)
         partition = Partition(scan, partitioner=HtmlPartitioner())
         execute: Callable[[], Dataset] = _make_scan_executor(path, "html")
+        mocker.patch.object(scan, "execute", execute)
+        docset = partition.execute()
+        doc = docset.take(limit=1)[0]
+        assert len(doc["elements"]["array"]) == partition_count
+
+    @pytest.mark.parametrize("path, partition_count", [(TEST_DIR / "resources/data/pptx/design.pptx", 71)])
+    def test_partition_pptx(self, mocker, path, partition_count) -> None:
+        scan = mocker.Mock(spec=BinaryScan)
+        partition = Partition(scan, partitioner=UnstructuredPPTXPartitioner())
+        execute: Callable[[], Dataset] = _make_scan_executor(path, "pptx")
         mocker.patch.object(scan, "execute", execute)
         docset = partition.execute()
         doc = docset.take(limit=1)[0]

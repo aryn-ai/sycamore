@@ -49,6 +49,90 @@ class Partitioner(ABC):
         pass
 
 
+class UnstructuredPPTXPartitioner(Partitioner):
+    """
+    UnstructuredPPTXPartitioner utilizes open-source Unstructured library to extract structured elements from
+    unstructured PPTX files.
+
+    Args:
+        include_page_breaks: Whether to include page breaks as separate elements.
+        strategy: The partitioning strategy to use ("auto" for automatic detection).
+        infer_table_structure: Whether to infer table structures in the document.
+        ocr_languages: The languages to use for OCR. Default is "eng" (English).
+        max_partition_length: The maximum length of each partition (in characters).
+        include_metadata: Whether to include metadata in the partitioned elements.
+
+    Example:
+         .. code-block:: python
+
+            pptx_partitioner = UnstructuredPPTXPartitioner(
+                include_page_breaks=False,
+                include_metadata=True,
+                include_slide_notes=False,
+                chunking_strategy=None,
+                **kwargs
+            )
+
+            context = sycamore.init()
+            pdf_docset = context.read.binary(paths, binary_format="pptx")
+                .partition(partitioner=pptx_partitioner)
+
+    """
+
+    @staticmethod
+    def to_element(dict: dict[str, Any]) -> Element:
+        text = dict.pop("text")
+        if isinstance(text, str):
+            binary = text.encode("utf-8")
+        else:
+            binary = text
+            text = str(binary, "utf-8")
+
+        element = Element()
+        element.type = dict.pop("type", "unknown")
+        element.binary_representation = binary
+        element.text_representation = text
+        element.properties.update(dict.pop("metadata"))
+        element.properties.update(dict)
+
+        return element
+
+    def __init__(
+        self,
+        include_page_breaks: bool = False,
+        include_metadata: bool = True,
+        include_slide_notes: bool = False,
+        chunking_strategy: Optional[str] = None,
+        **kwargs
+    ):
+        self._include_page_breaks = include_page_breaks
+        self._include_metadata = include_metadata
+        self._include_slide_notes = include_slide_notes
+        self._chunking_strategy = chunking_strategy
+        self._kwargs = kwargs
+
+    def partition(self, document: Document) -> Document:
+        from unstructured.partition.pptx import partition_pptx
+
+        binary_file = io.BytesIO(document.data["binary_representation"])
+
+        elements = partition_pptx(
+            file=binary_file,
+            include_page_breaks=self._include_page_breaks,
+            include_metadata=self._include_metadata,
+            include_slide_notes=self._include_slide_notes,
+            chunking_strategy=self._chunking_strategy,
+            **self._kwargs
+        )
+
+        # Here we convert unstructured.io elements into our elements and
+        # append them as child elements to the document.
+        document.elements = [self.to_element(element.to_dict()) for element in elements]
+        del elements
+
+        return document
+
+
 class UnstructuredPdfPartitioner(Partitioner):
     """
     UnstructuredPdfPartitioner utilizes open-source Unstructured library to extract structured elements from

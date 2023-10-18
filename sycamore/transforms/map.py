@@ -142,14 +142,12 @@ def generate_map_batch_class_from_callable(
     return new_class
 
 
-def generate_map_class_from_callable(
-    f: Callable[[Document], Document]
-) -> Type[Callable[[dict[str, Any]], dict[str, Any]]]:
+def generate_map_class_from_callable(f: Callable[[Document], Document]) -> Callable[[dict[str, Any]], dict[str, Any]]:
     def ray_callable(self, input_dict: dict[str, Any]) -> dict[str, Any]:
         document = f(Document(input_dict))
         return document.data
 
-    new_class = type("CustomRay", (), {"__call__": ray_callable})
+    new_class = type(f.__name__, (), {"__call__": ray_callable})
     return new_class
 
 

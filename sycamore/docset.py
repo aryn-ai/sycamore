@@ -11,6 +11,7 @@ from sycamore.transforms.extract_entity import EntityExtractor
 from sycamore.transforms.partition import Partitioner
 from sycamore.transforms.summarize import Summarizer
 from sycamore.transforms.extract_table import TableExtractor
+from sycamore.transforms.merge_elements import ElementMerger
 from sycamore.writer import DocSetWriter
 
 logger = logging.getLogger(__name__)
@@ -289,6 +290,26 @@ class DocSet:
 
         summaries = Summarize(self.plan, summarizer=summarizer, **kwargs)
         return DocSet(self.context, summaries)
+
+    def merge(self, merger: ElementMerger, **kwargs) -> "DocSet":
+        """
+        Applies merge operation on each list of elements of the Docset
+
+        Example:
+            .. code-block:: python
+                from transformers import AutoTokenizer
+                tk = AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
+                merger = GreedyElementMerger(tk, 512)
+
+                context = sycamore.init()
+                pdf_docset = context.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=UnstructuredPdfPartitioner())
+                    .merge(merger=merger)
+        """
+        from sycamore.transforms import Merge
+
+        merged = Merge(self.plan, merger=merger, **kwargs)
+        return DocSet(self.context, merged)
 
     def map(self, f: Callable[[Document], Document], **resource_args) -> "DocSet":
         """

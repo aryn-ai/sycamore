@@ -25,7 +25,7 @@ def generate_map_function(f: Callable[[Document], Document]) -> Callable[[dict[s
     return ray_callable
 
 
-def generate_map_class(c: Type[Callable[[Document], Document]]) -> Type[Callable[[dict[str, Any]], dict[str, Any]]]:
+def generate_map_class(c: Type[Callable[[Document], Document]]) -> Callable[[dict[str, Any]], dict[str, Any]]:
     def ray_init(self):
         self.base = c()
 
@@ -50,7 +50,7 @@ def generate_flat_map_function(
 
 def generate_flat_map_class(
     c: Type[Callable[[Document], list[Document]]]
-) -> Type[Callable[[dict[str, Any]], list[dict[str, Any]]]]:
+) -> Callable[[dict[str, Any]], list[dict[str, Any]]]:
     def ray_init(self):
         self.base = c()
 
@@ -118,7 +118,7 @@ def generate_map_batch_class(
     f_kwargs: Optional[dict[str, Any]] = None,
     f_constructor_args: Optional[Iterable[Any]] = None,
     f_constructor_kwargs: Optional[dict[str, Any]] = None,
-) -> Type[Callable[[list[dict[str, Any]]], list[dict[str, Any]]]]:
+) -> Callable[[list[dict[str, Any]]], list[dict[str, Any]]]:
     if f_constructor_args is None:
         f_constructor_args = tuple()
     if f_constructor_kwargs is None:
@@ -143,7 +143,7 @@ def generate_map_batch_class(
 
 def generate_map_batch_class_from_callable(
     f: Callable[[list[Document]], list[Document]],
-) -> Type[Callable[[list[dict[str, Any]]], list[dict[str, Any]]]]:
+) -> Callable[[list[dict[str, Any]]], list[dict[str, Any]]]:
     def ray_callable(self, doc_batch: dict[str, np.ndarray]) -> dict[str, list]:
         input_docs = _get_documents_from_columnar_format(doc_batch)
         output_docs = f(input_docs)
@@ -151,6 +151,15 @@ def generate_map_batch_class_from_callable(
         return _get_columnar_format_from_documents(output_docs)
 
     new_class = type("CustomRay", (), {"__call__": ray_callable})
+    return new_class
+
+
+def generate_map_class_from_callable(f: Callable[[Document], Document]) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    def ray_callable(self, input_dict: dict[str, Any]) -> dict[str, Any]:
+        document = f(Document(input_dict))
+        return document.data
+
+    new_class = type(f.__name__, (), {"__call__": ray_callable})
     return new_class
 
 

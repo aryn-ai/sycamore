@@ -7,6 +7,7 @@ from sycamore.transforms.partition import Partition, Partitioner
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.spread_properties import SpreadProperties
 from sycamore.transforms.summarize import Summarize
+from sycamore.transforms.merge_elements import Merge
 
 __all__ = [
     "Explode",
@@ -24,4 +25,5 @@ __all__ = [
     "SpreadProperties",
     "Summarize",
     "Filter",
+    "Merge",
 ]

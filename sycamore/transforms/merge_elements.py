@@ -7,13 +7,45 @@ from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Transform, Node
 from sycamore.transforms.map import generate_map_class_from_callable
 from sycamore.functions.tokenizer import Tokenizer
 
-from typing import Tuple
-
 
 class ElementMerger(ABC):
     @abstractmethod
-    def merge_elements(self, document: Document) -> Document:
+    def should_merge(self, element1: Element, element2: Element) -> bool:
         pass
+
+    @abstractmethod
+    def merge(self, element1: Element, element2: Element) -> Element:
+        pass
+
+    @abstractmethod
+    def preprocess_element(self, element: Element) -> Element:
+        pass
+
+    @abstractmethod
+    def postprocess_element(self, element: Element) -> Element:
+        pass
+
+    def merge_elements(self, document: Document) -> Document:
+        """Use self._should_merge and self._merge to greedily merge consecutive elements.
+        If the next element should be merged into the last 'accumulation' element, merge it.
+
+        Args:
+            document (Document): A document with elements to be merged.
+
+        Returns:
+            Document: The same document, with its elements merged
+        """
+        if len(document.elements) < 2:
+            return document
+        to_merge = [self.preprocess_element(e) for e in document.elements]
+        new_elements = [to_merge[0]]
+        for element in to_merge[1:]:
+            if self.should_merge(new_elements[-1], element):
+                new_elements[-1] = self.merge(new_elements[-1], element)
+            else:
+                new_elements.append(element)
+        document.elements = [self.postprocess_element(e) for e in new_elements]
+        return document
 
 
 class GreedyTextElementMerger(ElementMerger):
@@ -21,14 +53,22 @@ class GreedyTextElementMerger(ElementMerger):
         self.tokenizer = tokenizer
         self.max_tokens = max_tokens
 
-    def _should_merge(self, element1: Tuple[Element, int], element2: Tuple[Element, int]) -> bool:
-        if element2[0].type == "Title":
+    def preprocess_element(self, element: Element) -> Element:
+        element.data["token_count"] = len(self.tokenizer.tokenize(element.text_representation or ""))
+        return element
+
+    def postprocess_element(self, element: Element) -> Element:
+        del element.data["token_count"]
+        return element
+
+    def should_merge(self, element1: Element, element2: Element) -> bool:
+        if element2.type == "Title":
             return False
-        if element1[1] + 1 + element2[1] > self.max_tokens:
+        if element1.data["token_count"] + 1 + element2.data["token_count"] > self.max_tokens:
             return False
         return True
 
-    def _merge(self, element1: Tuple[Element, int], element2: Tuple[Element, int]) -> Tuple[Element, int]:
+    def merge(self, elt1: Element, elt2: Element) -> Element:
         """
         Merge two elements; the new element's fields will be set as:
 
@@ -48,9 +88,8 @@ class GreedyTextElementMerger(ElementMerger):
         Returns:
             Tuple[Element, int]: a new merged element from the inputs (and number of tokens in it)
         """
-        elt1, tok1 = element1
-        elt2, tok2 = element2
-        new_toks = 0
+        tok1 = elt1.data["token_count"]
+        tok2 = elt2.data["token_count"]
         new_elt = Element()
         new_elt.type = "Section"
         # Merge binary representations by concatenation
@@ -61,10 +100,10 @@ class GreedyTextElementMerger(ElementMerger):
         # Merge text representations by concatenation with a newline
         if elt1.text_representation is None or elt2.text_representation is None:
             new_elt.text_representation = elt1.text_representation or elt2.text_representation
-            new_toks = max(tok1, tok2)
+            new_elt.data["token_count"] = max(tok1, tok2)
         else:
             new_elt.text_representation = elt1.text_representation + "\n" + elt2.text_representation
-            new_toks = tok1 + 1 + tok2
+            new_elt.data["token_count"] = tok1 + 1 + tok2
         # Merge bbox by taking the coords that make the largest box
         if elt1.bbox is None and elt2.bbox is None:
             pass
@@ -84,29 +123,7 @@ class GreedyTextElementMerger(ElementMerger):
             if new_elt.properties.get(k) is None:
                 new_elt.properties[k] = v
 
-        return (new_elt, new_toks)
-
-    def merge_elements(self, document: Document) -> Document:
-        """Use self._should_merge and self._merge to greedily merge consecutive elements.
-        If the next element should be merged into the last 'accumulation' element, merge it.
-
-        Args:
-            document (Document): A document with elements to be merged.
-
-        Returns:
-            Document: The same document, with its elements merged
-        """
-        if len(document.elements) < 2:
-            return document
-        token_counts = [len(self.tokenizer.tokenize(e.text_representation or "")) for e in document.elements]
-        new_elts = [(document.elements[0], token_counts[0])]
-        for element, tokens in zip(document.elements[1:], token_counts[1:]):
-            if self._should_merge(new_elts[-1], (element, tokens)):
-                new_elts[-1] = self._merge(new_elts[-1], (element, tokens))
-            else:
-                new_elts.append((element, tokens))
-        document.elements = [x[0] for x in new_elts]
-        return document
+        return new_elt
 
 
 class Merge(NonCPUUser, NonGPUUser, Transform):

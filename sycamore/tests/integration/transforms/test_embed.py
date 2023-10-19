@@ -1,6 +1,6 @@
 import sycamore
 from sycamore.data import Document
-from sycamore.transforms.embed import OpenAIEmbedder
+from sycamore.transforms.embed import Embedder, BedrockEmbedder, OpenAIEmbedder
 
 passages = [
     (
@@ -23,7 +23,7 @@ passages = [
 ]
 
 
-def test_openai_embedding():
+def check_embedder(embedder: Embedder, expected_dim: int):
     docs = [
         Document(
             {
@@ -37,17 +37,20 @@ def test_openai_embedding():
         for i, passage in enumerate(passages)
     ]
 
-    context = sycamore.init()
-    doc_set = context.read.document(docs)
-
-    embedded_doc_set = doc_set.embed(embedder=OpenAIEmbedder())
-
-    new_docs = embedded_doc_set.take()
-
+    new_docs = embedder.generate_embeddings(docs)
     assert len(new_docs) == len(docs)
 
     for doc in new_docs:
-        assert len(doc.embedding) == 1536
+        assert doc.embedding is not None
+        assert len(doc.embedding) == expected_dim
+
+
+def test_openai_embedding():
+    check_embedder(embedder=OpenAIEmbedder(), expected_dim=1536)
+
+
+def test_bedrock_embedding():
+    check_embedder(embedder=BedrockEmbedder(), expected_dim=1536)
 
 
 def test_openai_embedding_batches():

@@ -1,14 +1,20 @@
 import math
+import os
 from abc import ABC, abstractmethod
+from enum import Enum
 from typing import Optional
+
+import openai
 
 import ray
 from ray.data import ActorPoolStrategy, Dataset
 from sentence_transformers import SentenceTransformer
 
+from tenacity import retry, stop_after_attempt, wait_random, retry_if_exception_type
+
 from sycamore.data import Document
 from sycamore.plan_nodes import Node, Transform
-from sycamore.utils import generate_map_batch_function, generate_map_batch_class_from_callable
+from sycamore.utils import batched, generate_map_batch_function, generate_map_batch_class_from_callable
 
 
 class Embedder(ABC):
@@ -85,7 +91,69 @@ class SentenceTransformerEmbedder(Embedder):
         text_batch = ["" if doc.text_representation is None else doc.text_representation for doc in doc_batch]
         embeddings = self._transformer.encode(text_batch, batch_size=self.model_batch_size, device=self.device)
         for doc, embedding in zip(doc_batch, embeddings):
-            doc.embedding = embedding
+            doc.embedding = embedding.tolist()
+
+        return doc_batch
+
+
+class OpenAIEmbeddingModels(Enum):
+    TEXT_EMBEDDING_ADA_002 = "text-embedding-ada-002"
+
+
+class OpenAIEmbedder(Embedder):
+    """Embedder implementation using the OpenAI embedding API.
+
+    Args:
+        model_name: The name of the OpenAI embedding model to use.
+        batch_size: The Ray batch size.
+        model_batch_size: The number of documents to send in a single OpenAI request.
+    """
+
+    def __init__(
+        self,
+        model_name: str = OpenAIEmbeddingModels.TEXT_EMBEDDING_ADA_002.value,
+        batch_size: Optional[int] = None,
+        model_batch_size: int = 100,
+        api_key: Optional[str] = None,
+    ):
+        super().__init__(model_name, batch_size, model_batch_size, device="cpu")
+
+        if api_key is None:
+            api_key = os.environ.get("OPENAI_API_KEY", None)
+
+        assert api_key is not None, (
+            "You must provide an API key to "
+            "use the LLM. Either pass it in "
+            "the constructor or set the "
+            "OPENAI_API_KEY environment "
+            "variable."
+        )
+        self.api_key = api_key
+        self.model_name = model_name
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_random(min=1, max=2),
+        retry=retry_if_exception_type(openai.error.RateLimitError),
+    )
+    def _openai_embeddings(self, text_to_embed: list[str]) -> list:
+        return openai.Embedding.create(input=text_to_embed, engine=self.model_name).data
+
+    def generate_embeddings(self, doc_batch: list[Document]) -> list[Document]:
+        # TODO: Add some input validation here.
+        # The OpenAI docs are quite vague on acceptable values for model_batch_size.
+
+        for batch in batched(doc_batch, self.model_batch_size):
+            text_to_embed = [
+                doc.text_representation.replace("\n", " ") for doc in batch if doc.text_representation is not None
+            ]
+
+            embeddings = self._openai_embeddings(text_to_embed)
+
+            i = 0
+            for doc in batch:
+                if doc.text_representation is not None:
+                    doc.embedding = embeddings[i].embedding
 
         return doc_batch
 

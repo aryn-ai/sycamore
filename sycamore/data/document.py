@@ -71,11 +71,11 @@ class Document(UserDict):
         self.data["elements"] = []
 
     @property
-    def embedding(self) -> Optional[list[list[float]]]:
+    def embedding(self) -> Optional[list[float]]:
         return self.data.get("embedding")
 
     @embedding.setter
-    def embedding(self, embedding: list[list[float]]) -> None:
+    def embedding(self, embedding: list[float]) -> None:
         self.data["embedding"] = embedding
 
     @property

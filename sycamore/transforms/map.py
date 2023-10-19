@@ -15,14 +15,6 @@ from sycamore.utils import (
 )
 
 
-def rename(new_function_name: str):
-    def decorator(f):
-        f.__name__ = new_function_name
-        return f
-
-    return decorator
-
-
 class Map(UnaryNode):
     """
     Map is a transformation class for applying a callable function to each document in a dataset.

@@ -81,3 +81,13 @@ class TestDocSet:
         docset = DocSet(context, node)
         docset = docset.filter(func)
         assert isinstance(docset.lineage(), Filter)
+
+    def test_mutable(self, mocker):
+        context = mocker.Mock(spec=Context)
+        node = mocker.Mock(spec=Node)
+        func = mocker.Mock(spec=Callable)
+        docset = DocSet(context, node)
+        docset.map_batch(f=lambda doc: doc)
+        assert isinstance(docset.lineage(), MapBatch)
+        docset.filter(func)
+        assert isinstance(docset.lineage(), Filter)

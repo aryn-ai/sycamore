@@ -1,4 +1,4 @@
-Extract Entity
+Merge Elements
 ==============
 .. autoclass:: sycamore.transforms.merge_elements.Merge
    :members:

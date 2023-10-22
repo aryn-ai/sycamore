@@ -69,17 +69,14 @@ class GreedyTextElementMerger(ElementMerger):
         return True
 
     def merge(self, elt1: Element, elt2: Element) -> Element:
-        """
-        Merge two elements; the new element's fields will be set as:
-
-            type: "Section"
-            binary_representation: elt1.binary_representation + elt2.binary_representation
-            text_representation: elt1.text_representation + '\n' + elt2.text_representation
-            bbox: the minimal bbox that contains both elt1's and elt2's bboxes
-            properties: elt1's properties + any of elt2's properties that are not in elt1
-                > note: if elt1 and elt2 have different values for the same property, we take elt1's value
-
-            > note: if any input field is None we take the other element's field without merge logic
+        """Merge two elements; the new element's fields will be set as:
+            - type: "Section"
+            - binary_representation: elt1.binary_representation + elt2.binary_representation
+            - text_representation: elt1.text_representation + elt2.text_representation
+            - bbox: the minimal bbox that contains both elt1's and elt2's bboxes
+            - properties: elt1's properties + any of elt2's properties that are not in elt1
+            note: if elt1 and elt2 have different values for the same property, we take elt1's value
+            note: if any input field is None we take the other element's field without merge logic
 
         Args:
             element1 (Tuple[Element, int]): the first element (and number of tokens in it)

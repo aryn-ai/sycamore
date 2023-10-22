@@ -296,7 +296,8 @@ class DocSet:
         Applies merge operation on each list of elements of the Docset
 
         Example:
-            .. code-block:: python
+             .. code-block:: python
+
                 from transformers import AutoTokenizer
                 tk = AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
                 merger = GreedyElementMerger(tk, 512)

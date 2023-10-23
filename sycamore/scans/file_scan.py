@@ -1,6 +1,7 @@
 import json
 from abc import ABC, abstractmethod
-from typing import Any, Optional, Union
+import boto3
+from typing import Any, Optional, Union, Tuple
 
 from pyarrow.filesystem import FileSystem
 from ray.data import Dataset, read_binary_files, read_json
@@ -33,12 +34,27 @@ class JsonManifestMetadataProvider(FileMetadataProvider):
         return self._path_to_metadata_map.get(file_path, {})
 
     def _load_json_manifest(self) -> dict[str, Any]:
-        try:
-            with open(self._manifest_path, "r") as manifest_file:
-                metadata_map = json.load(manifest_file)
+        if self._manifest_path.startswith("s3://"):
+            s3 = boto3.client("s3")
+            bucket_name, key = self._parse_s3_path(self._manifest_path)
+            response = s3.get_object(Bucket=bucket_name, Key=key)
+            content = response["Body"].read().decode("utf-8")
+            metadata_map = json.loads(content)
             return metadata_map
-        except FileNotFoundError:
-            raise FileNotFoundError(f"JSON manifest file not found at '{self._manifest_path}'")
+        else:
+            try:
+                with open(self._manifest_path, "r") as manifest_file:
+                    metadata_map = json.load(manifest_file)
+                return metadata_map
+            except FileNotFoundError:
+                raise FileNotFoundError(f"JSON manifest file not found at '{self._manifest_path}'")
+
+    @staticmethod
+    def _parse_s3_path(s3_path: str) -> Tuple[str, str]:
+        parts = s3_path[len("s3://") :].split("/", 1)
+        bucket_name = parts[0]
+        key = parts[1] if len(parts) > 1 else ""
+        return bucket_name, key
 
 
 class FileScan(Scan):

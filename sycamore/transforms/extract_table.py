@@ -56,7 +56,7 @@ class TextractTableExtractor(TableExtractor):
             properties = element.properties
             properties["boxes"] = []
             properties["id"] = table.id
-            properties["page"] = table.page
+            properties["page_number"] = table.page
             element.properties = properties
 
             if table.title:

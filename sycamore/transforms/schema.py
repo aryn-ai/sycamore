@@ -31,33 +31,7 @@ class SchemaExtractor(ABC):
 
 class OpenAISchema(SchemaExtractor):
     """
-    OpenAIEntityExtractor uses one of OpenAI's language model (LLM) for entity extraction.
-
-    This class inherits from EntityExtractor and is designed for extracting a specific entity from a document using
-    OpenAI's language model. It can use either zero-shot prompting or few-shot prompting to extract the entity.
-    The extracted entities from the input document are put into the document properties.
-
-    Args:
-        entity_name: The name of the entity to be extracted.
-        llm: An instance of an OpenAI language model for text processing.
-        prompt_template: A template for constructing prompts for few-shot prompting. Default is None.
-        num_of_elements: The number of elements to consider for entity extraction. Default is 10.
-        prompt_formatter: A callable function to format prompts based on document elements.
-
-    Example:
-        .. code-block:: python
-
-            title_context_template = "template"
-
-            openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
-            entity_extractor = OpenAIEntityExtractor("title", llm=openai_llm, prompt_template=title_context_template)
-
-            context = sycamore.init()
-            pdf_docset = context.read.binary(paths, binary_format="pdf")
-                .partition(partitioner=UnstructuredPdfPartitioner())
-                .extract_entity(entity_extractor=entity_extractor)
-
-
+    OpenAISchema uses one of OpenAI's language model (LLM) for schema extraction.
     """
 
     def __init__(
@@ -99,25 +73,7 @@ class OpenAISchema(SchemaExtractor):
 
 class ExtractSchema(Transform):
     """
-    ExtractEntity is a transformation class for extracting entities from a dataset using an EntityExtractor.
-
-    The Extract Entity Transform extracts semantically meaningful information from your documents.These extracted
-    entities are then incorporated as properties into the document structure.
-
-    Args:
-        child: The source node or component that provides the dataset containing text data.
-        entity_extractor: An instance of an EntityExtractor class that defines the entity extraction method to be
-        applied.
-        resource_args: Additional resource-related arguments that can be passed to the extraction operation.
-
-    Example:
-         .. code-block:: python
-
-            source_node = ...  # Define a source node or component that provides a dataset with text data.
-            custom_entity_extractor = MyEntityExtractor(entity_extraction_params)
-            extraction_transform = ExtractEntity(child=source_node, entity_extractor=custom_entity_extractor)
-            extracted_entities_dataset = extraction_transform.execute()
-
+    ExtractEntity is a transformation class for extracting a schema from a dataset using an SchemaExtractor.
     """
 
     def __init__(

@@ -28,15 +28,15 @@ class TestMergeElements:
     effectively learns which information might be needed later on in a sequence and when that information is no
     longer needed. For instance, in the context of natural language processing, the network can learn grammatical
     dependencies.[17]"""
-    dict0 = {
-        "doc_id": "doc_id",
-        "type": "pdf",
-        "text_representation": "text",
-        "binary_representation": None,
-        "parent_id": None,
-        "properties": {"path": "/docs/foo.txt", "title": "bar"},
-        "elements": {
-            "array": [
+    doc = Document(
+        {
+            "doc_id": "doc_id",
+            "type": "pdf",
+            "text_representation": "text",
+            "binary_representation": None,
+            "parent_id": None,
+            "properties": {"path": "/docs/foo.txt", "title": "bar"},
+            "elements": [
                 {
                     "type": "UncategorizedText",
                     "text_representation": "text1",
@@ -74,15 +74,15 @@ class TestMergeElements:
                     "properties": {"doc_title": "title"},
                 },
                 {},
-            ]
-        },
-    }
+            ],
+        }
+    )
 
     def test_merge_elements(self):
-        doc = Document(self.dict0)
         tokenizer = HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2")
         merger = GreedyTextElementMerger(tokenizer, 120)
-        new_doc = merger.merge_elements(doc)
+
+        new_doc = merger.merge_elements(self.doc)
         assert len(new_doc.elements) == 2
 
         e = new_doc.elements[0]
@@ -103,9 +103,13 @@ class TestMergeElements:
         assert e.text_representation == (self.passage2 + "\ntitle2")
         assert e.properties == {"doc_title": "other title", "prop2": "prop 2 value"}
 
-    def test_merge_elements_via_execute(self):
-        plan = FakeNode(self.dict0)
+    def test_merge_elements_via_execute(self, mocker):
+        node = mocker.Mock(spec=Node)
+        input_dataset = ray.data.from_items([{"doc": self.doc.serialize()}])
+        execute = mocker.patch.object(node, "execute")
+        execute.return_value = input_dataset
         tokenizer = HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2")
         merger = GreedyTextElementMerger(tokenizer, 120)
-        merge = Merge(plan, merger)
-        merge.execute()
+        merge = Merge(node, merger)
+        output_dataset = merge.execute()
+        output_dataset.show()

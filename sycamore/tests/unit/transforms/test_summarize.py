@@ -2,7 +2,6 @@ import random
 import string
 
 from sycamore.data import Document, Element
-from sycamore.functions import filter_elements
 from sycamore.llms import LLM
 from sycamore.transforms.summarize import LLMElementTextSummarizer
 
@@ -18,7 +17,7 @@ class TestSummarize:
         text_summarizer = LLMElementTextSummarizer(llm, filter_elements_on_length)
         doc = text_summarizer.summarize(doc)
 
-        assert doc["elements"]["array"][0]["properties"] == {}
+        assert doc.elements[0].properties == {}
 
     def test_summarize_text_calls_llm(self, mocker):
         llm = mocker.Mock(spec=LLM)
@@ -34,16 +33,9 @@ class TestSummarize:
         text_summarizer = LLMElementTextSummarizer(llm, filter_elements_on_length)
         doc = text_summarizer.summarize(doc)
 
-        assert doc["elements"]["array"][0]["properties"] == {}
-        assert doc["elements"]["array"][1]["properties"] == {"summary": "summary"}
+        assert doc.elements[0].properties == {}
+        assert doc.elements[1].properties == {"summary": "summary"}
 
 
-def filter_elements_on_length(
-    document: Document,
-    minimum_length: int = 10,
-) -> list[Element]:
-    def filter_func(element: Element):
-        if element.text_representation is not None:
-            return len(element.text_representation) > minimum_length
-
-    return filter_elements(document, filter_func)
+def filter_elements_on_length(element: Element) -> bool:
+    return False if element.text_representation is None else len(element.text_representation) > 10

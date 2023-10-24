@@ -4,6 +4,7 @@ from typing import Callable
 import pytest
 from ray.data import Dataset
 
+from sycamore.data import Document
 from sycamore.transforms.partition import (
     Partition,
     HtmlPartitioner,
@@ -81,7 +82,7 @@ class TestPartition:
     )
     def test_html_partitioner(self, partitioner, read_local_binary, expected_partition_count):
         document = partitioner.partition(read_local_binary)
-        assert len(document["elements"]["array"]) == expected_partition_count
+        assert len(document["elements"]) == expected_partition_count
 
     @pytest.mark.parametrize(
         "partitioner, read_local_binary, expected_partition_count, expected_table_count",
@@ -99,9 +100,9 @@ class TestPartition:
         self, partitioner, read_local_binary, expected_partition_count, expected_table_count
     ):
         document = partitioner.partition(read_local_binary)
-        assert len(document["elements"]["array"]) == expected_partition_count
+        assert len(document["elements"]) == expected_partition_count
         table_count = 0
-        for partition in document["elements"]["array"]:
+        for partition in document["elements"]:
             if partition["type"] == "table":
                 table_count += 1
         assert expected_table_count == table_count
@@ -113,8 +114,8 @@ class TestPartition:
         execute: Callable[[], Dataset] = _make_scan_executor(path, "pdf")
         mocker.patch.object(scan, "execute", execute)
         docset = partition.execute()
-        doc = docset.take(limit=1)[0]
-        assert len(doc["elements"]["array"]) == partition_count
+        doc = Document.from_row(docset.take(limit=1)[0])
+        assert len(doc.elements) == partition_count
 
     @pytest.mark.parametrize(
         "path, partition_count", [(TEST_DIR / "resources/data/htmls/wikipedia_binary_search.html", 76)]
@@ -125,8 +126,8 @@ class TestPartition:
         execute: Callable[[], Dataset] = _make_scan_executor(path, "html")
         mocker.patch.object(scan, "execute", execute)
         docset = partition.execute()
-        doc = docset.take(limit=1)[0]
-        assert len(doc["elements"]["array"]) == partition_count
+        doc = Document.from_row(docset.take(limit=1)[0])
+        assert len(doc.elements) == partition_count
 
     @pytest.mark.parametrize("path, partition_count", [(TEST_DIR / "resources/data/pptx/design.pptx", 71)])
     def test_partition_pptx(self, mocker, path, partition_count) -> None:
@@ -135,5 +136,5 @@ class TestPartition:
         execute: Callable[[], Dataset] = _make_scan_executor(path, "pptx")
         mocker.patch.object(scan, "execute", execute)
         docset = partition.execute()
-        doc = docset.take(limit=1)[0]
-        assert len(doc["elements"]["array"]) == partition_count
+        doc = Document.from_row(docset.take(limit=1)[0])
+        assert len(doc.elements) == partition_count

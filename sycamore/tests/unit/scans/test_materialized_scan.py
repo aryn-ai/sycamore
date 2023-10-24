@@ -15,14 +15,4 @@ class TestMaterializedScan:
     )
     def test_materialized_scan(self, scanner):
         ds = scanner.execute()
-        assert ds.schema().names == [
-            "doc_id",
-            "type",
-            "text_representation",
-            "binary_representation",
-            "elements",
-            "embedding",
-            "parent_id",
-            "bbox",
-            "properties",
-        ]
+        assert ds.schema().names == ["doc"]

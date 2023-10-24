@@ -16,5 +16,6 @@ Transforms
    extract_entity.rst
    extract_table.rst
    map.rst
+   merge_elements.rst
    partition.rst
    summarize.rst

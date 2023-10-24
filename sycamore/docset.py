@@ -71,11 +71,11 @@ class DocSet:
 
         execution = Execution(self.context, self.plan)
         dataset = execution.execute(self.plan)
-        documents = [Document(row) for row in dataset.take(limit)]
+        documents = [Document.from_row(row) for row in dataset.take(limit)]
         for document in documents:
             if not show_elements:
                 num_elems = len(document.elements)
-                document.data["elements"]["array"] = f"<{num_elems} elements>"
+                document.data["elements"] = f"<{num_elems} elements>"
             else:
                 if document.elements is not None and 0 <= num_elements < len(document.elements):
                     document.elements = document.elements[:num_elements]
@@ -142,7 +142,7 @@ class DocSet:
 
         execution = Execution(self.context, self.plan)
         dataset = execution.execute(self.plan)
-        return [Document(row) for row in dataset.take(limit)]
+        return [Document.from_row(row) for row in dataset.take(limit)]
 
     def limit(self, limit: int = 20) -> "DocSet":
         """
@@ -296,7 +296,8 @@ class DocSet:
         Applies merge operation on each list of elements of the Docset
 
         Example:
-            .. code-block:: python
+             .. code-block:: python
+
                 from transformers import AutoTokenizer
                 tk = AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
                 merger = GreedyElementMerger(tk, 512)

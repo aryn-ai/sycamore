@@ -1,14 +1,22 @@
-import math
 from abc import ABC, abstractmethod
-from typing import Optional
+from enum import Enum
+import json
+import math
+import os
+from typing import Any, Optional
+
+import openai
 
 import ray
 from ray.data import ActorPoolStrategy, Dataset
 from sentence_transformers import SentenceTransformer
 
+
+from tenacity import retry, stop_after_attempt, wait_random, retry_if_exception_type
+
 from sycamore.data import Document
 from sycamore.plan_nodes import Node, Transform
-from sycamore.transforms.map import generate_map_batch_function, generate_map_batch_class_from_callable
+from sycamore.utils import batched, generate_map_batch_function, generate_map_batch_class_from_callable
 
 
 class Embedder(ABC):
@@ -85,8 +93,126 @@ class SentenceTransformerEmbedder(Embedder):
         text_batch = ["" if doc.text_representation is None else doc.text_representation for doc in doc_batch]
         embeddings = self._transformer.encode(text_batch, batch_size=self.model_batch_size, device=self.device)
         for doc, embedding in zip(doc_batch, embeddings):
-            doc.embedding = embedding
+            doc.embedding = embedding.tolist()
 
+        return doc_batch
+
+
+class OpenAIEmbeddingModels(Enum):
+    TEXT_EMBEDDING_ADA_002 = "text-embedding-ada-002"
+
+
+class OpenAIEmbedder(Embedder):
+    """Embedder implementation using the OpenAI embedding API.
+
+    Args:
+        model_name: The name of the OpenAI embedding model to use.
+        batch_size: The Ray batch size.
+        model_batch_size: The number of documents to send in a single OpenAI request.
+    """
+
+    def __init__(
+        self,
+        model_name: str = OpenAIEmbeddingModels.TEXT_EMBEDDING_ADA_002.value,
+        batch_size: Optional[int] = None,
+        model_batch_size: int = 100,
+        api_key: Optional[str] = None,
+    ):
+        super().__init__(model_name, batch_size, model_batch_size, device="cpu")
+
+        if api_key is None:
+            api_key = os.environ.get("OPENAI_API_KEY", None)
+
+        assert api_key is not None, (
+            "You must provide an API key to "
+            "use the LLM. Either pass it in "
+            "the constructor or set the "
+            "OPENAI_API_KEY environment "
+            "variable."
+        )
+        self.api_key = api_key
+        self.model_name = model_name
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_random(min=1, max=2),
+        retry=retry_if_exception_type(openai.error.RateLimitError),
+    )
+    def _openai_embeddings(self, text_to_embed: list[str]) -> list:
+        return openai.Embedding.create(input=text_to_embed, engine=self.model_name).data
+
+    def generate_embeddings(self, doc_batch: list[Document]) -> list[Document]:
+        # TODO: Add some input validation here.
+        # The OpenAI docs are quite vague on acceptable values for model_batch_size.
+
+        for batch in batched(doc_batch, self.model_batch_size):
+            text_to_embed = [
+                doc.text_representation.replace("\n", " ") for doc in batch if doc.text_representation is not None
+            ]
+
+            embeddings = self._openai_embeddings(text_to_embed)
+
+            i = 0
+            for doc in batch:
+                if doc.text_representation is not None:
+                    doc.embedding = embeddings[i].embedding
+
+        return doc_batch
+
+
+class BedrockEmbeddingModels(Enum):
+    TITAN_EMBED_TEXT_V1 = "amazon.titan-embed-text-v1"
+
+
+class BedrockEmbedder(Embedder):
+    """Embedder implementation using Amazon Bedrock.
+
+    Args:
+        model_name: The Bedrock embedding model to use. Currently the only available
+            model is amazon.titan-embed-text-v1
+        batch_size: The Ray batch size.
+        boto_session_args: Arg parameters to pass to the boto3.session.Session constructor.
+            These will be used to create a boto3 session on each executor.
+        boto_session_kwargs: Keyword arg parameters pass to the boto3.session.Session constructor.
+
+    Example:
+         .. code-block:: python
+
+            embedder = BedrockEmbedder(boto_session_kwargs={'profile_name': 'my_profile'})
+            docset_with_embeddings = docset.embed(embedder=embedder)
+    """
+
+    def __init__(
+        self,
+        model_name: str = BedrockEmbeddingModels.TITAN_EMBED_TEXT_V1.value,
+        batch_size: Optional[int] = None,
+        boto_session_args: list[Any] = [],
+        boto_session_kwargs: dict[str, Any] = {},
+    ):
+        # Bedrock embedding curently doesn't support batching
+        super().__init__(model_name=model_name, batch_size=batch_size, model_batch_size=1, device="cpu")
+        self.boto_session_args = boto_session_args
+        self.boto_session_kwargs = boto_session_kwargs
+
+    def _generate_embedding(self, client, text: str) -> list[float]:
+        response = client.invoke_model(
+            body=json.dumps({"inputText": text.replace("\n", " ")}),
+            modelId=self.model_name,
+            accept="application/json",
+            contentType="application/json",
+        )
+        body_dict = json.loads(response.get("body").read())
+        return body_dict["embedding"]
+
+    def generate_embeddings(self, doc_batch: list[Document]) -> list[Document]:
+        import boto3
+
+        boto3.session.Session(*self.boto_session_args, **self.boto_session_kwargs)
+        client = boto3.client("bedrock-runtime")
+
+        for doc in doc_batch:
+            if doc.text_representation is not None:
+                doc.embedding = self._generate_embedding(client, doc.text_representation)
         return doc_batch
 
 

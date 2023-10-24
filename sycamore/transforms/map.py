@@ -1,166 +1,18 @@
-from collections import defaultdict
-from typing import Any, Callable, Iterable, Optional, Type
+from typing import Any, Callable, Iterable, Optional
 
-import numpy as np
 from ray.data import ActorPoolStrategy, Dataset
 
 from sycamore.data import Document
 from sycamore.plan_nodes import Node, UnaryNode
 
-
-def rename(new_function_name: str):
-    def decorator(f):
-        f.__name__ = new_function_name
-        return f
-
-    return decorator
-
-
-def generate_map_function(f: Callable[[Document], Document]) -> Callable[[dict[str, Any]], dict[str, Any]]:
-    @rename(f.__name__)
-    def ray_callable(input_dict: dict[str, Any]) -> dict[str, Any]:
-        document = f(Document(input_dict))
-        return document.data
-
-    return ray_callable
-
-
-def generate_map_class(c: Type[Callable[[Document], Document]]) -> Callable[[dict[str, Any]], dict[str, Any]]:
-    def ray_init(self):
-        self.base = c()
-
-    def ray_callable(self, input_dict: dict[str, Any]) -> dict[str, Any]:
-        document = self.base(Document(input_dict))
-        return document.data
-
-    new_class = type("CustomRay" + c.__name__, (), {"__init__": ray_init, "__call__": ray_callable})
-    return new_class
-
-
-def generate_flat_map_function(
-    f: Callable[[Document], list[Document]]
-) -> Callable[[dict[str, Any]], list[dict[str, Any]]]:
-    @rename(f.__name__)
-    def ray_callable(input_dict: dict[str, Any]) -> list[dict[str, Any]]:
-        documents = f(Document(input_dict))
-        return [document.data for document in documents]
-
-    return ray_callable
-
-
-def generate_flat_map_class(
-    c: Type[Callable[[Document], list[Document]]]
-) -> Callable[[dict[str, Any]], list[dict[str, Any]]]:
-    def ray_init(self):
-        self.base = c()
-
-    def ray_callable(self, input_dict: dict[str, Any]) -> list[dict[str, Any]]:
-        documents = self.base(Document(input_dict))
-        return [document.data for document in documents]
-
-    new_class = type("CustomRay" + c.__name__, (), {"__init__": ray_init, "__call__": ray_callable})
-    return new_class
-
-
-def generate_map_batch_function(
-    f: Callable[[list[Document]], list[Document]]
-) -> Callable[[dict[str, np.ndarray]], dict[str, list]]:
-    @rename(f.__name__)
-    def ray_callable(doc_batch: dict[str, np.ndarray]) -> dict[str, list]:
-        input_docs = _get_documents_from_columnar_format(doc_batch)
-        output_docs = f(input_docs)
-
-        return _get_columnar_format_from_documents(output_docs)
-
-    return ray_callable
-
-
-def generate_map_batch_filter_function(
-    f: Callable[[Document], bool]
-) -> Callable[[dict[str, np.ndarray]], dict[str, list]]:
-    @rename(f.__name__)
-    def ray_callable(doc_batch: dict[str, np.ndarray]) -> dict[str, list]:
-        input_docs = _get_documents_from_columnar_format(doc_batch)
-        output_docs = list(filter(f, input_docs))
-
-        return _get_columnar_format_from_documents(output_docs)
-
-    return ray_callable
-
-
-def _get_documents_from_columnar_format(doc_batch: dict[str, np.ndarray]) -> list[Document]:
-    input_docs = []
-    cols = doc_batch.keys()
-    rows = doc_batch.values()
-
-    for row in zip(*rows):
-        document = {}
-        for i, col in enumerate(cols):
-            document[col] = row[i]
-        input_docs.append(Document(document))
-
-    return input_docs
-
-
-def _get_columnar_format_from_documents(doc_batch: list[Document]) -> dict[str, list]:
-    output = defaultdict(list)
-
-    for doc in doc_batch:
-        for key, value in doc.data.items():
-            output[key].append(value)
-
-    return output
-
-
-def generate_map_batch_class(
-    c: Type[Callable[[list[Document]], list[Document]]],
-    f_args: Optional[Iterable[Any]] = None,
-    f_kwargs: Optional[dict[str, Any]] = None,
-    f_constructor_args: Optional[Iterable[Any]] = None,
-    f_constructor_kwargs: Optional[dict[str, Any]] = None,
-) -> Callable[[list[dict[str, Any]]], list[dict[str, Any]]]:
-    if f_constructor_args is None:
-        f_constructor_args = tuple()
-    if f_constructor_kwargs is None:
-        f_constructor_kwargs = {}
-    if f_args is None:
-        f_args = tuple()
-    if f_kwargs is None:
-        f_kwargs = {}
-
-    def ray_init(self):
-        self.base = c(*f_constructor_args, **f_constructor_kwargs)
-
-    def ray_callable(self, doc_batch: dict[str, np.ndarray]) -> dict[str, list]:
-        input_docs = _get_documents_from_columnar_format(doc_batch)
-        output_docs = self.base(input_docs, *f_args, **f_kwargs)
-
-        return _get_columnar_format_from_documents(output_docs)
-
-    new_class = type("CustomRay" + c.__name__, (), {"__init__": ray_init, "__call__": ray_callable})
-    return new_class
-
-
-def generate_map_batch_class_from_callable(
-    f: Callable[[list[Document]], list[Document]],
-) -> Callable[[list[dict[str, Any]]], list[dict[str, Any]]]:
-    def ray_callable(self, doc_batch: dict[str, np.ndarray]) -> dict[str, list]:
-        input_docs = _get_documents_from_columnar_format(doc_batch)
-        output_docs = f(input_docs)
-
-        return _get_columnar_format_from_documents(output_docs)
-
-    new_class = type("CustomRay", (), {"__call__": ray_callable})
-    return new_class
-
-
-def generate_map_class_from_callable(f: Callable[[Document], Document]) -> Callable[[dict[str, Any]], dict[str, Any]]:
-    def ray_callable(self, input_dict: dict[str, Any]) -> dict[str, Any]:
-        document = f(Document(input_dict))
-        return document.data
-
-    new_class = type(f.__name__, (), {"__call__": ray_callable})
-    return new_class
+from sycamore.utils import (
+    generate_map_function,
+    generate_map_class,
+    generate_flat_map_function,
+    generate_flat_map_class,
+    generate_map_batch_function,
+    generate_map_batch_class,
+)
 
 
 class Map(UnaryNode):

@@ -92,23 +92,29 @@ class BinaryScan(FileScan):
         self._filesystem = filesystem
         self._metadata_provider = metadata_provider
 
-    def _to_document(self, dict: dict[str, Any]) -> dict[str, Any]:
+    def _is_s3_scheme(self):
+        if isinstance(self._paths, str):
+            return self._paths.startswith("s3:")
+        else:
+            return all(path.startswith("s3:") for path in self._paths)
+
+    def _to_document(self, dict: dict[str, Any]) -> dict[str, bytes]:
         document = Document()
         import uuid
 
         document.doc_id = str(uuid.uuid1())
         document.type = self._binary_format
         document.binary_representation = dict["bytes"]
-        document.properties.update({"path": dict["path"]})
-        if self._metadata_provider:
-            document.properties.update(self._metadata_provider.get_metadata(dict["path"]))
-        return document.data
 
-    def _is_s3_scheme(self):
-        if isinstance(self._paths, str):
-            return self._paths.startswith("s3:")
-        else:
-            return all(path.startswith("s3:") for path in self._paths)
+        properties = document.properties
+        if self._is_s3_scheme():
+            dict["path"] = "s3://" + dict["path"]
+        properties.update({"path": dict["path"]})
+        if self._metadata_provider:
+            properties.update(self._metadata_provider.get_metadata(dict["path"]))
+        document.properties = properties
+
+        return {"doc": document.serialize()}
 
     def execute(self) -> "Dataset":
         partition_filter = FileExtensionFilter(self.format())
@@ -120,13 +126,6 @@ class BinaryScan(FileScan):
             partition_filter=partition_filter,
             ray_remote_args=self.resource_args,
         )
-
-        def prepend_scheme(file):
-            file["path"] = "s3://" + file["path"]
-            return file
-
-        if self._is_s3_scheme():
-            files = files.map(prepend_scheme, **self.resource_args)
 
         return files.map(self._to_document, **self.resource_args)
 

@@ -22,7 +22,7 @@ def generate_docs(num: int, type: str = "test", text=True, binary=False, num_ele
             {
                 "doc_id": f"doc_{i}",
                 "type": "test",
-                "elements": {"array": []},
+                "elements": [],
                 "properties": {"filename": f"doc_{i}.dat"},
             }
         )

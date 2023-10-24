@@ -23,14 +23,11 @@ class TestMergeElements:
                                             Numerous efforts have since continued to push the boundaries
                                             of recurrent language models and encoder-decoder architectures
                                             [31, 21, 13]."""
-    passage2 = """Recurrent neural networks, long short-term memory [12]
-                                            and gated recurrent [7] neural networks in particular,
-                                            have been ﬁrmly established as state of the art approaches
-                                            in sequence modeling and transduction problems such as
-                                            language modeling and machine translation [29, 2, 5].
-                                            Numerous efforts have since continued to push the boundaries
-                                            of recurrent language models and encoder-decoder architectures
-                                            [31, 21, 13]."""
+    passage2 = """The intuition behind the LSTM architecture is to create an additional module in a neural network
+    that learns when to remember and when to forget pertinent information.[15] In other words, the network
+    effectively learns which information might be needed later on in a sequence and when that information is no
+    longer needed. For instance, in the context of natural language processing, the network can learn grammatical
+    dependencies.[17]"""
     dict0 = {
         "doc_id": "doc_id",
         "type": "pdf",

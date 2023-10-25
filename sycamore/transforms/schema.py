@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Callable, Any, Optional
+import json
 
 from ray.data import Dataset
 
@@ -49,8 +50,11 @@ class OpenAISchema(SchemaExtractor):
     def extract_schema(self, document: Document) -> Document:
         entities = self._handle_zero_shot_prompting(document)
 
+        answer = json.loads(entities["answer"])
+        answer = list(answer.keys())
+
         properties = document.properties
-        properties.update({f"{self._entity_name}": entities["answer"]})
+        properties.update({"schema": answer})
         document.properties = properties
 
         return document

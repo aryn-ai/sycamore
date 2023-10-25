@@ -80,8 +80,8 @@ SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT_CHAT = """
     {{~/system}}
 
     {{#user~}}
-    You are given a few text elements of a document. Extract JSON representing an entity of class {{entity}} from the document.
-    Using this context, FIND, FORMAT, and RETURN the {{entity}} JSON. Only return JSON as part of your answer.
+    You are given a few text elements of a document. Extract JSON representing one entity of class {{entity}} from the document.
+    Using this context, FIND, FORMAT, and RETURN the JSON representing one {{entity}}. Only return JSON as part of your answer.
     {{query}}
     {{~/user}}
 
@@ -91,8 +91,8 @@ SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT_CHAT = """
     """
 
 SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT = """
-    You are given a few text elements of a document. Extract JSON representing an entity of class {{entity}} from the document.
-    Using this context, FIND, FORMAT, and RETURN the {{entity}} JSON. Only return JSON as part of your answer.
+    You are given a few text elements of a document. Extract JSON representing one entity of class {{entity}} from the document.
+    Using this context, FIND, FORMAT, and RETURN the JSON representing one {{entity}}. Only return JSON as part of your answer.
     {{query}}
     =========
     {{gen "answer"}}

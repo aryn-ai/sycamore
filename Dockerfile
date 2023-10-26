@@ -10,4 +10,4 @@ RUN apt install -y poppler-utils
 RUN pip3 install --no-cache-dir sycamore-ai
 COPY . .
 
-CMD [ "python3", "examples/docker_local_ingest.py" ]
+CMD [ "python3", "examples/docker_local_ingest.py", "/app/.scrapy" ]

@@ -33,6 +33,25 @@ class DocSetReader:
         )
         return DocSet(self._context, scan)
 
+    def manifest(
+        self,
+        metadata_provider: FileMetadataProvider,
+        binary_format: str,
+        parallelism: Optional[int] = None,
+        filesystem: Optional[FileSystem] = None,
+        **resource_args
+    ) -> DocSet:
+        paths = metadata_provider.get_paths()
+        scan = BinaryScan(
+            paths,
+            binary_format=binary_format,
+            parallelism=parallelism,
+            filesystem=filesystem,
+            metadata_provider=metadata_provider,
+            **resource_args
+        )
+        return DocSet(self._context, scan)
+
     def arrow(self, tables: Union[Table, bytes, list[Union[Table, bytes]]]) -> DocSet:
         scan = ArrowScan(tables)
         return DocSet(self._context, scan)

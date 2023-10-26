@@ -15,42 +15,58 @@ from sycamore.transforms.embed import SentenceTransformerEmbedder
 
 from simple_config import idx_settings, osrch_args, title_template
 
-root_path = "/app/.scrapy"
-if len(sys.argv) <= 1:
-    if not os.path.isdir(root_path):
-        raise RuntimeError("Missing " + root_path + "; run with single path argument if not in container")
-elif len(sys.argv) != 2:
-    raise RuntimeError("Usage: docker_local_injest.py [directory_root]")
-else:
-    root_path = sys.argv[1]
-    if not os.path.isdir(root_path):
-        raise RuntimeError("Missing specified path " + root_path + "; correct argument or remove if in container")
+osrch_args['hosts'][0]['host'] = 'aryn_opensearch'
 
-root = Path(root_path)
-    
+# TODO: eric - detect that the opensearch cluster has dropped documents and reload them
+# TODO: eric - figure out how to deal with documents that are deleted
+# TODO: eric - adjust the way we do importing so that the files have a permanent name so the viewPdf UI option works
 def main():
+    root_path = '/app/.scrapy'
+    if len(sys.argv) <= 1:
+        if not os.path.isdir(root_path):
+            raise RuntimeError('Missing ' + root_path + '; run with single path argument if not in container')
+    elif len(sys.argv) != 2:
+        raise RuntimeError('Usage: docker_local_injest.py [directory_root]')
+    else:
+        root_path = sys.argv[1]
+        if not os.path.isdir(root_path):
+            raise RuntimeError('Missing specified path ' + root_path + '; correct argument or remove if in container')
+
+    if root_path == '/app/.scrapy' and 'OPENAI_API_KEY' in os.environ:
+        print ('WARNING: OPENAI_API_KEY in environment was probably passed insecurely into docker.')
+        # TODO: eric - switch over to docker swarm so we can use docker secrets
+        # Then enable the sleep since we shouldn't get the env var any more.
+        #print "sleep(300)"
+        #time.sleep(300)
+
+    if 'OPENAI_API_KEY' not in os.environ:
+        raise RuntimeError('Missing OPENAI_API_KEY')
+    
+    root = Path(root_path)
+
     while True:
         files = find_files(root)
-        print("Files:", files)
+        print('Files:', files)
         if len(files) > 0:
             import_files(root, files)
+            time.sleep(1)
         else:
-            print("No changes, sleeping")
+            print('No changes, sleeping')
             time.sleep(5)
 
 def find_files(root):
     downloads = root.joinpath('downloads')
-    pdf_files = find_recursive(downloads, "pdf")
-    html_files = find_recursive(downloads, "html")
+    pdf_files = find_recursive(downloads, 'pdf')
+    html_files = find_recursive(downloads, 'html')
     ret = []
     for i in pdf_files + html_files:
         t = reimport_timestamp(root, i['suffix'])
         if t > 0:
-            print("DEBUG1 reimport", i['suffix'])
+            print('DEBUG1 reimport', i['suffix'])
             i['timestamp'] = t
             ret.append(i)
         else:
-            print("DEBUG1 unchanged", i['suffix'])
+            print('DEBUG1 unchanged', i['suffix'])
 
     return ret
     
@@ -64,18 +80,36 @@ def find_recursive(root, file_type):
     return ret
 
 def import_files(root, files):
+    pending_paths = {}
     for i in files:
         suffix = i['suffix']
-        imported = root.joinpath('imported', suffix)
-        os.makedirs(os.path.dirname(imported), exist_ok=True)
-        if not os.path.isfile(imported):
-            imported.touch()
-        os.utime(imported, (time.time(), i['timestamp']))
+        pending = root.joinpath('pending', suffix)
+        os.makedirs(os.path.dirname(pending), exist_ok=True)
+        if os.path.isfile(pending):
+            pending.unlink()
+        os.link(i['path'], pending)
+        if not i['type'] in pending_paths:
+            pending_paths[i['type']] = []
+
+        pending_paths[i['type']].append(str(pending))
+
+    if 'pdf' in pending_paths:
+        import_PDF(pending_paths['pdf'])
+
+    if 'html' in pending_paths:
+        import_HTML(pending_paths['html'])
+    
+    for i in files:
+       imported = root.joinpath('imported', i['suffix'])
+       os.makedirs(os.path.dirname(imported), exist_ok=True)
+       if not os.path.isfile(imported):
+           imported.touch()
+       os.utime(imported, (time.time(), i['timestamp']))
 
 def reimport_timestamp(root, suffix):
     s = os.lstat(root.joinpath('downloads', suffix))
     if not stat.S_ISREG(s.st_mode):
-        print("DEBUG3 download notfile", suffix)
+        print('DEBUG3 download notfile', suffix)
         return -1
     
     file_timestamp = s.st_mtime
@@ -83,44 +117,48 @@ def reimport_timestamp(root, suffix):
     try:
         s = os.lstat(root.joinpath('imported', suffix))
     except FileNotFoundError:
-        print("DEBUG4 missing")
+        print('DEBUG4 missing')
         return file_timestamp
 
     if s.st_mtime < file_timestamp:
-        print("DEBUG5 newer")
+        print('DEBUG5 newer')
         return file_timestamp
 
     if s.st_mtime > file_timestamp:
-        print("ERROR file got older", root, suffix, file_timestamp, s.st_mtime)
-        raise Exxception('download got older', root, suffix, file_timestamp, s.st_mtime)
+        print('WARNING file got older', root, suffix, file_timestamp, s.st_mtime)
+        return file_timestamp
 
-    print("DEBUG6 unchanged")
+    print('DEBUG6 unchanged')
     return 0
 
+def import_PDF(paths):
+    index = 'demoindex0'
+
+    davinci_llm = OpenAI(OpenAIModels.TEXT_DAVINCI.value)
+    
+    ctx = sycamore.init()
+    ds = (
+        ctx.read.binary(paths, binary_format='pdf')
+        .partition(partitioner=UnstructuredPdfPartitioner())
+        .extract_entity(entity_extractor=OpenAIEntityExtractor('title', llm=davinci_llm, prompt_template=title_template))
+        .spread_properties(['path', 'title'])
+        .explode()
+        .embed(embedder=SentenceTransformerEmbedder(model_name='all-MiniLM-L6-v2', batch_size=100))
+    )
+
+    # If you enable this line you break parallelism
+    # ds.show(limit=1000, truncate_length=500)
+
+    ds.write.opensearch(
+        os_client_args=osrch_args,
+        index_name=index,
+        index_settings=idx_settings,
+    )
+
+def import_HTML(root):
+    pass
 
 ####################################3
 
 main()
 sys.exit(0)
-
-index = "demoindex0"
-
-davinci_llm = OpenAI(OpenAIModels.TEXT_DAVINCI.value)
-
-ctx = sycamore.init()
-
-ds = (
-    ctx.read.binary(paths, binary_format="pdf")
-    .partition(partitioner=UnstructuredPdfPartitioner())
-    .extract_entity(entity_extractor=OpenAIEntityExtractor("title", llm=davinci_llm, prompt_template=title_template))
-    .spread_properties(["path", "title"])
-    .explode()
-    .embed(embedder=SentenceTransformerEmbedder(model_name="all-MiniLM-L6-v2", batch_size=100))
-)
-
-# ds.show(limit=1000, truncate_length=500)
-ds.write.opensearch(
-    os_client_args=osrch_args,
-    index_name=index,
-    index_settings=idx_settings,
-)

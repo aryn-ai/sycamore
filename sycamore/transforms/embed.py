@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 import json
+import logging
 import math
-import os
 from typing import Any, Optional
 
 import openai
@@ -10,6 +10,7 @@ import openai
 import ray
 from ray.data import ActorPoolStrategy, Dataset
 from sentence_transformers import SentenceTransformer
+from sycamore.llms.llms import OpenAIClientParameters
 
 
 from tenacity import retry, stop_after_attempt, wait_random, retry_if_exception_type
@@ -17,6 +18,8 @@ from tenacity import retry, stop_after_attempt, wait_random, retry_if_exception_
 from sycamore.data import Document
 from sycamore.plan_nodes import Node, Transform
 from sycamore.utils import batched, generate_map_batch_function, generate_map_batch_class_from_callable
+
+logger = logging.getLogger(__name__)
 
 
 class Embedder(ABC):
@@ -117,20 +120,23 @@ class OpenAIEmbedder(Embedder):
         batch_size: Optional[int] = None,
         model_batch_size: int = 100,
         api_key: Optional[str] = None,
+        params: OpenAIClientParameters = OpenAIClientParameters(),
     ):
         super().__init__(model_name, batch_size, model_batch_size, device="cpu")
 
-        if api_key is None:
-            api_key = os.environ.get("OPENAI_API_KEY", None)
+        self._params = params
 
-        assert api_key is not None, (
+        if api_key is not None:
+            self._params.api_key = api_key
+
+        assert self._params.api_key is not None, (
             "You must provide an API key to "
             "use the LLM. Either pass it in "
             "the constructor or set the "
             "OPENAI_API_KEY environment "
             "variable."
         )
-        self.api_key = api_key
+
         self.model_name = model_name
 
     @retry(
@@ -139,11 +145,15 @@ class OpenAIEmbedder(Embedder):
         retry=retry_if_exception_type(openai.error.RateLimitError),
     )
     def _openai_embeddings(self, text_to_embed: list[str]) -> list:
-        return openai.Embedding.create(input=text_to_embed, engine=self.model_name).data
+        return openai.Embedding.create(**self._params.merge(self.model_name, input=text_to_embed)).data
 
     def generate_embeddings(self, doc_batch: list[Document]) -> list[Document]:
         # TODO: Add some input validation here.
         # The OpenAI docs are quite vague on acceptable values for model_batch_size.
+
+        if self._params.is_azure() and self.model_batch_size > 16:
+            logger.warn("The maximum batch size for emeddings on Azure Open AI is 16.")
+            self.model_batch_size = 16
 
         for batch in batched(doc_batch, self.model_batch_size):
             text_to_embed = [

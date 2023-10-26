@@ -13,7 +13,6 @@ from ray.data import ActorPoolStrategy, Dataset
 from sentence_transformers import SentenceTransformer
 from sycamore.llms.llms import OpenAIClientParameters
 
-
 from tenacity import retry, stop_after_attempt, wait_random, retry_if_exception_type
 
 from sycamore.data import Document
@@ -101,7 +100,7 @@ class SentenceTransformerEmbedder(Embedder):
 
         assert self._transformer is not None
 
-        text_batch = [self.pre_process_document(doc) for doc in doc_batch]
+        text_batch = [self.pre_process_document(doc) for doc in doc_batch if doc.text_representation is not None]
         embeddings = self._transformer.encode(text_batch, batch_size=self.model_batch_size, device=self.device)
         for doc, embedding in zip(doc_batch, embeddings):
             doc.embedding = embedding.tolist()

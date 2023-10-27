@@ -6,6 +6,7 @@ import time
 
 # ruff: noqa: E402
 sys.path.append("../sycamore")
+sys.path.append("/app")
 
 import sycamore
 from sycamore.llms import OpenAIModels, OpenAI
@@ -14,8 +15,6 @@ from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 
 from simple_config import idx_settings, osrch_args, title_template
-
-osrch_args['hosts'][0]['host'] = 'aryn_opensearch'
 
 # TODO: eric - detect that the opensearch cluster has dropped documents and reload them
 # TODO: eric - figure out how to deal with documents that are deleted
@@ -31,6 +30,10 @@ def main():
         root_path = sys.argv[1]
         if not os.path.isdir(root_path):
             raise RuntimeError('Missing specified path ' + root_path + '; correct argument or remove if in container')
+
+    if root_path == '/app/.scrapy':
+        print('Assuming execution is in container, using adjusted host')
+        osrch_args['hosts'][0]['host'] = 'aryn_opensearch'
 
     if root_path == '/app/.scrapy' and 'OPENAI_API_KEY' in os.environ:
         print ('WARNING: OPENAI_API_KEY in environment was probably passed insecurely into docker.')

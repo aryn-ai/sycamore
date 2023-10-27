@@ -7,7 +7,9 @@ COPY docker-install-packages.sh .
 RUN ls /app
 RUN /bin/sh /app/docker-install-packages.sh
 RUN apt install -y poppler-utils
-RUN pip3 install --no-cache-dir sycamore-ai
+COPY pyproject.toml .
+COPY poetry.lock .
+RUN poetry install -vvv --no-root
 COPY . .
 
-CMD [ "python3", "examples/docker_local_ingest.py", "/app/.scrapy" ]
+CMD [ "poetry", "run", "python", "examples/docker_local_ingest.py", "/app/.scrapy" ]

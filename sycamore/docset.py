@@ -398,6 +398,22 @@ class DocSet:
         )
         return DocSet(self.context, map_batch)
 
+    def random_sample(self, fraction: float, seed: Optional[int] = None) -> "DocSet":
+        """
+        Retain a random sample of documents from this DocSet.
+
+        The number of documents in the output will be approximately `fraction * self.count()`
+
+        Args:
+            fraction: The fraction of documents to retain.
+            seed: Optional seed to use for the RNG.
+
+        """
+        from sycamore.transforms import RandomSample
+
+        sampled = RandomSample(self.plan, fraction=fraction, seed=seed)
+        return DocSet(self.context, sampled)
+
     @property
     def write(self) -> DocSetWriter:
         return DocSetWriter(self.context, self.plan)

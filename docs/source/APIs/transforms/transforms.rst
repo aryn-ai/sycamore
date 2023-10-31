@@ -18,4 +18,5 @@ Transforms
    map.rst
    merge_elements.rst
    partition.rst
+   random_sample.rst
    summarize.rst

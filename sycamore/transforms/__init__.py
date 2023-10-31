@@ -8,6 +8,7 @@ from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.spread_properties import SpreadProperties
 from sycamore.transforms.summarize import Summarize
 from sycamore.transforms.merge_elements import Merge
+from sycamore.transforms.random_sample import RandomSample
 
 __all__ = [
     "Explode",
@@ -26,4 +27,5 @@ __all__ = [
     "Summarize",
     "Filter",
     "Merge",
+    "RandomSample",
 ]

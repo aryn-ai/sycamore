@@ -146,6 +146,8 @@ class UnstructuredPdfPartitioner(Partitioner):
         ocr_languages: The languages to use for OCR. Default is "eng" (English).
         max_partition_length: The maximum length of each partition (in characters).
         include_metadata: Whether to include metadata in the partitioned elements.
+        retain_coordinates: Whether to keep the coordinates property from unstructured.
+            Default is False. In either case, bbox will be popuplated.
 
     Example:
          .. code-block:: python
@@ -174,6 +176,7 @@ class UnstructuredPdfPartitioner(Partitioner):
         max_partition_length: Optional[int] = None,
         min_partition_length: Optional[int] = 500,
         include_metadata: bool = True,
+        retain_coordinates: bool = False,
     ):
         self._include_page_breaks = include_page_breaks
         self._strategy = strategy
@@ -182,9 +185,10 @@ class UnstructuredPdfPartitioner(Partitioner):
         self._max_partition_length = max_partition_length
         self._min_partition_length = min_partition_length
         self._include_metadata = include_metadata
+        self._retain_coordinates = retain_coordinates
 
     @staticmethod
-    def to_element(dict: dict[str, Any]) -> Element:
+    def to_element(dict: dict[str, Any], retain_coordinates=False) -> Element:
         text = dict.pop("text")
         if isinstance(text, str):
             binary = text.encode("utf-8")
@@ -199,7 +203,10 @@ class UnstructuredPdfPartitioner(Partitioner):
         properties = element.properties
         properties.update(dict.pop("metadata"))
         properties.update(dict)
-        coordinates = properties.pop("coordinates")
+        coordinates = properties.get("coordinates")
+        if not retain_coordinates:
+            properties.pop("coordinates")
+
         element.properties = properties
 
         if coordinates is not None:
@@ -228,7 +235,7 @@ class UnstructuredPdfPartitioner(Partitioner):
 
         # Here we convert unstructured.io elements into our elements and
         # set them as the child elements of the document.
-        document.elements = [self.to_element(ee.to_dict()) for ee in elements]
+        document.elements = [self.to_element(ee.to_dict(), self._retain_coordinates) for ee in elements]
         del elements
 
         document = reorder_elements(document, _elements_reorder_comparator)

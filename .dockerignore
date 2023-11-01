@@ -1,0 +1,6 @@
+.scrapy
+.ruff_cache
+.mypy_cache
+.pytest_cache
+downloads
+**/*~

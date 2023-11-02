@@ -33,4 +33,4 @@ class TestDocSetReader:
         context = sycamore.init()
         docset = context.read.manifest(JsonManifestMetadataProvider(manifest_loc), binary_format="html")
         assert isinstance(docset, DocSet)
-        assert docset.plan.format() == "html"
+        assert docset.plan.format() == "html"  # type: ignore

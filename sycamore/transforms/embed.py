@@ -1,21 +1,18 @@
-from abc import ABC, abstractmethod
-from enum import Enum
 import json
 import logging
 import math
-import os
+from abc import ABC, abstractmethod
+from enum import Enum
 from typing import Any, Optional, Callable
 
 import openai
-
 import ray
 from ray.data import ActorPoolStrategy, Dataset
 from sentence_transformers import SentenceTransformer
-from sycamore.llms.llms import OpenAIClientParameters
-
 from tenacity import retry, stop_after_attempt, wait_random, retry_if_exception_type
 
 from sycamore.data import Document
+from sycamore.llms.llms import OpenAIClientParameters
 from sycamore.plan_nodes import Node, Transform
 from sycamore.utils import batched, generate_map_batch_function, generate_map_batch_class_from_callable
 

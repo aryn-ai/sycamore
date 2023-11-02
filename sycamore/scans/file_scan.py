@@ -23,6 +23,10 @@ class FileMetadataProvider(ABC):
     def get_metadata(self, file_path: str) -> dict[str, Any]:
         pass
 
+    @abstractmethod
+    def get_paths(self) -> list[str]:
+        pass
+
 
 class JsonManifestMetadataProvider(FileMetadataProvider):
     def __init__(self, manifest_path: str) -> None:
@@ -32,6 +36,9 @@ class JsonManifestMetadataProvider(FileMetadataProvider):
 
     def get_metadata(self, file_path: str) -> dict[str, Any]:
         return self._path_to_metadata_map.get(file_path, {})
+
+    def get_paths(self) -> list[str]:
+        return list(self._path_to_metadata_map.keys())
 
     def _load_json_manifest(self) -> dict[str, Any]:
         if self._manifest_path.startswith("s3://"):

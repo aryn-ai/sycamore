@@ -102,8 +102,12 @@ class SentenceTransformerEmbedder(Embedder):
 
         text_batch = [self.pre_process_document(doc) for doc in doc_batch if doc.text_representation is not None]
         embeddings = self._transformer.encode(text_batch, batch_size=self.model_batch_size, device=self.device)
-        for doc, embedding in zip(doc_batch, embeddings):
-            doc.embedding = embedding.tolist()
+
+        i = 0
+        for doc in doc_batch:
+            if doc.text_representation is not None:
+                doc.embedding = embeddings[i].tolist()
+                i += 1
 
         return doc_batch
 
@@ -176,6 +180,7 @@ class OpenAIEmbedder(Embedder):
             for doc in batch:
                 if doc.text_representation is not None:
                     doc.embedding = embeddings[i].embedding
+                    i += 1
 
         return doc_batch
 

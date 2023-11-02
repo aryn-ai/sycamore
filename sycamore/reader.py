@@ -33,6 +33,7 @@ class DocSetReader:
         )
         return DocSet(self._context, scan)
 
+    # TODO: Support including the metadata attributes in the manifest file directly
     def manifest(
         self,
         metadata_provider: FileMetadataProvider,

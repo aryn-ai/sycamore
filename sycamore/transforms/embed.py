@@ -1,25 +1,26 @@
-from abc import ABC, abstractmethod
-from enum import Enum
 import json
 import logging
 import math
-from typing import Any, Optional
+from abc import ABC, abstractmethod
+from enum import Enum
+from typing import Any, Optional, Callable
 
 import openai
-
 import ray
 from ray.data import ActorPoolStrategy, Dataset
 from sentence_transformers import SentenceTransformer
-from sycamore.llms.llms import OpenAIClientParameters
-
-
 from tenacity import retry, stop_after_attempt, wait_random, retry_if_exception_type
 
 from sycamore.data import Document
+from sycamore.llms.llms import OpenAIClientParameters
 from sycamore.plan_nodes import Node, Transform
 from sycamore.utils import batched, generate_map_batch_function, generate_map_batch_class_from_callable
 
 logger = logging.getLogger(__name__)
+
+
+def _pre_process_document(document: Document) -> str:
+    return document.text_representation if document.text_representation is not None else ""
 
 
 class Embedder(ABC):
@@ -28,11 +29,13 @@ class Embedder(ABC):
         model_name: str,
         batch_size: Optional[int] = None,
         model_batch_size: int = 100,
+        pre_process_document: Optional[Callable[[Document], str]] = None,
         device: Optional[str] = None,
     ):
         self.model_name = model_name
         self.batch_size = batch_size
         self.model_batch_size = model_batch_size
+        self.pre_process_document = pre_process_document if pre_process_document else _pre_process_document
 
         if device is None:
             import torch.cuda
@@ -81,9 +84,10 @@ class SentenceTransformerEmbedder(Embedder):
         model_name: str,
         batch_size: Optional[int] = None,
         model_batch_size: int = 100,
+        pre_process_document: Optional[Callable[[Document], str]] = None,
         device: Optional[str] = None,
     ):
-        super().__init__(model_name, batch_size, model_batch_size, device)
+        super().__init__(model_name, batch_size, model_batch_size, pre_process_document, device)
         self.type = type
         self._transformer: Optional[SentenceTransformer] = None
 
@@ -93,10 +97,14 @@ class SentenceTransformerEmbedder(Embedder):
 
         assert self._transformer is not None
 
-        text_batch = ["" if doc.text_representation is None else doc.text_representation for doc in doc_batch]
+        text_batch = [self.pre_process_document(doc) for doc in doc_batch if doc.text_representation is not None]
         embeddings = self._transformer.encode(text_batch, batch_size=self.model_batch_size, device=self.device)
-        for doc, embedding in zip(doc_batch, embeddings):
-            doc.embedding = embedding.tolist()
+
+        i = 0
+        for doc in doc_batch:
+            if doc.text_representation is not None:
+                doc.embedding = embeddings[i].tolist()
+                i += 1
 
         return doc_batch
 
@@ -119,10 +127,11 @@ class OpenAIEmbedder(Embedder):
         model_name: str = OpenAIEmbeddingModels.TEXT_EMBEDDING_ADA_002.value,
         batch_size: Optional[int] = None,
         model_batch_size: int = 100,
+        pre_process_document: Optional[Callable[[Document], str]] = None,
         api_key: Optional[str] = None,
         params: OpenAIClientParameters = OpenAIClientParameters(),
     ):
-        super().__init__(model_name, batch_size, model_batch_size, device="cpu")
+        super().__init__(model_name, batch_size, model_batch_size, pre_process_document, device="cpu")
 
         self._params = params
 
@@ -157,7 +166,9 @@ class OpenAIEmbedder(Embedder):
 
         for batch in batched(doc_batch, self.model_batch_size):
             text_to_embed = [
-                doc.text_representation.replace("\n", " ") for doc in batch if doc.text_representation is not None
+                self.pre_process_document(doc).replace("\n", " ")
+                for doc in batch
+                if doc.text_representation is not None
             ]
 
             embeddings = self._openai_embeddings(text_to_embed)
@@ -166,6 +177,7 @@ class OpenAIEmbedder(Embedder):
             for doc in batch:
                 if doc.text_representation is not None:
                     doc.embedding = embeddings[i].embedding
+                    i += 1
 
         return doc_batch
 
@@ -196,11 +208,18 @@ class BedrockEmbedder(Embedder):
         self,
         model_name: str = BedrockEmbeddingModels.TITAN_EMBED_TEXT_V1.value,
         batch_size: Optional[int] = None,
+        pre_process_document: Optional[Callable[[Document], str]] = None,
         boto_session_args: list[Any] = [],
         boto_session_kwargs: dict[str, Any] = {},
     ):
         # Bedrock embedding curently doesn't support batching
-        super().__init__(model_name=model_name, batch_size=batch_size, model_batch_size=1, device="cpu")
+        super().__init__(
+            model_name=model_name,
+            batch_size=batch_size,
+            model_batch_size=1,
+            pre_process_document=pre_process_document,
+            device="cpu",
+        )
         self.boto_session_args = boto_session_args
         self.boto_session_kwargs = boto_session_kwargs
 
@@ -222,7 +241,7 @@ class BedrockEmbedder(Embedder):
 
         for doc in doc_batch:
             if doc.text_representation is not None:
-                doc.embedding = self._generate_embedding(client, doc.text_representation)
+                doc.embedding = self._generate_embedding(client, self.pre_process_document(doc))
         return doc_batch
 
 

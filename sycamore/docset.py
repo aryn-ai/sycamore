@@ -144,6 +144,22 @@ class DocSet:
         dataset = execution.execute(self.plan)
         return [Document.from_row(row) for row in dataset.take(limit)]
 
+    def take_all(self, limit: Optional[int] = None) -> list[Document]:
+        """
+        Returns all of the rows in this DocSet.
+
+        If limit is set, this method will raise an error if this Docset
+        has more than `limit` Documents.
+
+        Args:
+            limit: The number of Documents above which this method will raise an error.
+        """
+        from sycamore import Execution
+
+        execution = Execution(self.context, self.plan)
+        dataset = execution.execute(self.plan)
+        return [Document.from_row(row) for row in dataset.take_all(limit)]
+
     def limit(self, limit: int = 20) -> "DocSet":
         """
         Applies the Limit transforms on the Docset.

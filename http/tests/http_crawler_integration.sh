@@ -25,7 +25,11 @@ main() {
 }
 
 setup() {
-    WORK_DIR=$(mktemp -d --tmpdir crawler_test.XXXXXXXXX)
+    if [ "$(uname -s)" = "Darwin" ]; then
+	WORK_DIR=$(mktemp -d -t crawler_test.XXXXXXXXX)
+    else
+	WORK_DIR=$(mktemp -d --tmpdir crawler_test.XXXXXXXXX)
+    fi
     echo "Using workdir ${WORK_DIR}"
     SRC_DIR="${PWD}"
     cd "${WORK_DIR}"
@@ -38,14 +42,14 @@ EOF
     echo 'Go to http://aryn.ai/' >http_serve/example1.txt
     echo '<A HREF="http://aryn.ai/">Visit Aryn</A>' >http_serve/example2.html
     cp "${SRC_DIR}/tests/visit_aryn.pdf" http_serve/example3.pdf
-    python3 -m http.server -d http_serve -b localhost 13756 >http_server.log 2>&1 &
+    python3 -m http.server -d http_serve -b 127.0.0.1 13756 >http_server.log 2>&1 &
     HTTP_PID=$!
 }
 
 scrape() {
     local log="${WORK_DIR}/scrape.log.$1"
     echo "Scraping for $1"
-    (cd "${SRC_DIR}" && poetry run scrapy crawl aryn -a dest_dir="${WORK_DIR}/work" \
+    (cd "${SRC_DIR}" && poetry run scrapy crawl sycamore -a dest_dir="${WORK_DIR}/work" \
                                -a preset=integration_test >"${log}" 2>&1) \
         || die "scrape failed"
 }
@@ -81,9 +85,9 @@ pause() {
 check_only_localhost() {
     # only files matching localhost should have been downloaded even though there is a link to
     # aryn.ai in the html sample
-    [[ $(find work -type f -print | grep -v localhost | wc -l) == 0 ]] || die "Found non localhost files"
+    [[ $(find work -type f -print | grep -c -v localhost) == 0 ]] || die "Found non localhost files"
     # expect to have downloaded exactly 5 files (root, robots.txt, 3 examples)
-    [[ $(find work -type f -print | grep localhost | wc -l) == 5 ]] || die "Found non localhost files"
+    [[ $(find work -type f -print | grep -c localhost) == 5 ]] || die "Did not download exactly 5 files"
 }
 
 main

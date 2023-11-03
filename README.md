@@ -6,9 +6,9 @@ Crawler component
 
 ### HTTP crawler
 
-The Aryn HTTP crawler is based on [scrapy](http://scrapy.org), a framework for writing web
+The Sycamore HTTP crawler is based on [scrapy](http://scrapy.org), a framework for writing web
 crawlers.  We override the crawl class to follow links within a single domain starting from a
-single root and store those files locally to match with how the Aryn importer wants them.  The
+single root and store those files locally to match with how the Sycamore importer wants them.  The
 crawler uses scrapy's RFC2616 caching in order to reduce the load from crawling.
 
 ## Branches

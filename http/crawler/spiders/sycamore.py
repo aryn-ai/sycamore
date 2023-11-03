@@ -7,8 +7,8 @@ import time
 import urllib.parse
 
 
-class ArynSpider(scrapy.Spider):
-    name = "aryn"
+class SycamoreSpider(scrapy.Spider):
+    name = "sycamore"
 
     def __init__(self, category=None, *args, **kwargs):
         self.dest_dir = kwargs.get("dest_dir", ".scrapy/downloads")

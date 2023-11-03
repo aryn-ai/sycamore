@@ -1,2 +1,2 @@
 #!/bin/sh
-poetry run scrapy crawl aryn "$@"
+poetry run scrapy crawl sycamore "$@"

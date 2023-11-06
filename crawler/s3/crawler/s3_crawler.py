@@ -4,7 +4,6 @@ from typing import Any
 
 import boto3
 import botocore.client
-from dateutil.tz import tzutc
 import sys
 
 
@@ -34,7 +33,7 @@ class S3Crawler:
                 if not object_key.endswith("/"):
                     self._download_if_new_object(s3_object)
                 else:
-                    print("WARNING, skipping", object_key)
+                    print("WARNING, ignoring directory-like", object_key)
 
     # TODO: Parth - Rewrite this using s3.get_object API instead and handle the content type.
     def _download_if_new_object(self, object_metadata: dict[str, Any]) -> None:
@@ -44,13 +43,17 @@ class S3Crawler:
         )
         try:
             if self._is_new_object(object_metadata, file_path):
+                print("Downloading", object_key, "as", file_path)
                 os.makedirs(os.path.dirname(file_path), exist_ok=True)
                 self._s3_client.download_file(self._bucket_location, object_key, file_path)
+            else:
+                # print("Skipping up-to-date", object_key)
+                pass
         except Exception:
             raise
 
     def _get_file_name(self, object_key: str) -> str:
-        return object_key.split("/")[1]
+        return object_key.replace("/", "_")
 
     def _get_file_extension(self, object_key: str) -> str:
         extension = os.path.splitext(object_key)[1][1:]
@@ -63,11 +66,15 @@ class S3Crawler:
 
     def _is_new_object(self, object_metadata: dict[str, Any], file_path: str) -> bool:
         try:
-            last_modified_s3: datetime.datetime = object_metadata.get("LastModified")
-            last_modified_os = datetime.datetime.fromtimestamp(os.path.getmtime(file_path), tzutc())
+            last_modified_os = datetime.datetime.fromtimestamp(os.path.getmtime(file_path), datetime.UTC)
+            last_modified_s3 = object_metadata.get("LastModified")
+            if last_modified_s3 is None:
+                print("WARNING: missing LastModified on object metadata, assuming newer", object_metadata["Key"])
+                return False
 
             return last_modified_os < last_modified_s3
         except FileNotFoundError:
+            # TODO: parth - if I change this to return False, no test fails
             return True
 
     def _get_s3_client(
@@ -78,12 +85,12 @@ class S3Crawler:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 3 or sys.argv[1] == "-h":
+    if len(sys.argv) > 3 or (len(sys.argv) > 1 and sys.argv[1] == "-h"):
         print("Usage : poetry run python s3_crawler.py bucket_name prefix_value")
     else:
         if len(sys.argv) == 1:
             bucket = "aryn-public"
-            prefix = "sort_benchmark"
+            prefix = "sort-benchmark"
         elif len(sys.argv) == 2:
             bucket = sys.argv[1]
             prefix = ""

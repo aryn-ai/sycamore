@@ -1,12 +1,11 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from pathlib import Path
 from typing import Any
 
 import botocore.paginate
-from dateutil.tz import tzutc
 
-from s3.crawler import s3_crawler
-from s3.crawler import S3Crawler
+from crawler.s3.crawler import s3_crawler
+from crawler.s3.crawler.s3_crawler import S3Crawler
 
 
 # TODO : Parth - investigate doing an integration test similar to the http one. Maybe using minio or localstack
@@ -26,7 +25,7 @@ class TestS3Crawler:
         paginate.return_value = mock_page_iterator
 
         mock_os = mocker.patch.object(s3_crawler.os.path, "getmtime")
-        mock_os.return_value = (datetime.now(tzutc()) - timedelta(1)).timestamp()
+        mock_os.return_value = (datetime.now(UTC) - timedelta(1)).timestamp()
 
         def mock_download_func(bucket, key, file):
             downloaded_files.append(key)
@@ -37,7 +36,7 @@ class TestS3Crawler:
     def test_s3_crawler_first_crawl(self, mocker, tmp_path: Path):
         s3_crawler = S3Crawler("bucket", "prefix")
         mock_page_iterator = [
-            {"Contents": [{"Key": "folder/key1", "Etag": "etag1", "LastModified": datetime.now(tzutc()), "Size": "0"}]}
+            {"Contents": [{"Key": "folder/key1", "Etag": "etag1", "LastModified": datetime.now(UTC), "Size": "0"}]}
         ]
 
         downloaded_objects: list[str] = []
@@ -54,13 +53,13 @@ class TestS3Crawler:
                     {
                         "Key": "folder/key1.pdf",
                         "Etag": "etag1",
-                        "LastModified": datetime.now(tzutc()) + timedelta(1),
+                        "LastModified": datetime.now(UTC) + timedelta(1),
                         "Size": "0",
                     },
                     {
                         "Key": "folder/key2.pdf",
                         "Etag": "etag2",
-                        "LastModified": datetime.now(tzutc()) - timedelta(2),
+                        "LastModified": datetime.now(UTC) - timedelta(2),
                         "Size": "0",
                     },
                 ]
@@ -82,13 +81,13 @@ class TestS3Crawler:
                     {
                         "Key": "folder/key1",
                         "Etag": "etag1",
-                        "LastModified": datetime.now(tzutc()) - timedelta(2),
+                        "LastModified": datetime.now(UTC) - timedelta(2),
                         "Size": "0",
                     },
                     {
                         "Key": "folder/key2",
                         "Etag": "etag2",
-                        "LastModified": datetime.now(tzutc()) - timedelta(2),
+                        "LastModified": datetime.now(UTC) - timedelta(2),
                         "Size": "0",
                     },
                 ]

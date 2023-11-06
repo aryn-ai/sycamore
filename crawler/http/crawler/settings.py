@@ -14,7 +14,7 @@ NEWSPIDER_MODULE = "crawler.spiders"
 
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-USER_AGENT = "sycamore crawler (+https://github.com/aryn-ai/crawler)"
+USER_AGENT = "sycamore crawler (+https://github.com/aryn-ai/sycamore)"
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = True

@@ -22,16 +22,16 @@ crawler uses scrapy's RFC2616 caching in order to reduce the load from crawling.
 docker volume create crawl_data
 
 ### To update the http crawler
-docker build -t crawler_http Dockerfile.http
+docker build -t crawler_http crawler/http/Dockerfile
 
 ### To update the S3 crawler, from root directory run
-docker build -t crawler_s3 -f s3/Dockerfile .
+docker build -t crawler_s3 -f crawler/s3/Dockerfile .
 
 ### To use the http crawler
 docker run -v crawl_data:/app/.data/.scrapy crawler_http
 
 ### To use s3 crawler
-docker run -v crawl_data:/app/.data/.s3 -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY crawler_s3
+docker run -v crawl_data:/app/.data/.s3 -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_SESSION_TOKEN crawler_s3
 
 ### To look at the data
 docker run -it -v crawl_data:/app/.data ubuntu bash

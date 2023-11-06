@@ -1,0 +1,23 @@
+# In the root directory:
+# docker build -t sycamore_crawler_s3 -f crawler/s3/Dockerfile
+# docker run -it -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_SESSION_TOKEN sycamore_crawler_s3
+FROM python:3
+
+WORKDIR /app
+
+RUN pip install poetry
+
+ENV POETRY_NO_INTERACTION=1 \
+    POETRY_VIRTUALENVS_IN_PROJECT=1 \
+    POETRY_VIRTUALENVS_CREATE=1 \
+    POETRY_CACHE_DIR=/tmp/poetry_cache
+
+COPY pyproject.toml poetry.lock crawler/README.md ./
+RUN poetry install --only main,crawler_s3 --no-root && rm -rf $POETRY_CACHE_DIR
+
+COPY crawler/s3 .
+# Hack beccause pyproject.toml expects a sycamore directory
+RUN mkdir sycamore && touch sycamore/__init__.py
+RUN poetry install --only-root && rm -rf $POETRY_CACHE_DIR
+
+ENTRYPOINT [ "poetry", "run", "python", "./crawler/s3_crawler.py"]

@@ -1,0 +1,17 @@
+# Make sure that your compose is down, you can check with docker ps
+# % docker compose -f reset.yaml up
+# ignore the warnings about orphan containers
+
+version: '3'
+
+services:
+  reset:
+    image: ubuntu
+    volumes:
+      - opensearch_data:/tmp/opensearch_data
+      - crawl_data:/tmp/crawl_data
+    command: /bin/sh -c 'echo size-before && du -s /tmp/* && rm -rf /tmp/opensearch_data/* /tmp/crawl_data/* && echo size-after && du -s /tmp/*'
+
+volumes:
+  opensearch_data:
+  crawl_data:

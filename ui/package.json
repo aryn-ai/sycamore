@@ -1,0 +1,62 @@
+{
+  "name": "ui",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@emotion/react": "^11.11.1",
+    "@mantine/core": "^6.0.20",
+    "@mantine/form": "^6.0.20",
+    "@mantine/hooks": "^6.0.20",
+    "@mantine/prism": "^6.0.20",
+    "@opensearch-project/opensearch": "^2.3.1",
+    "@react-pdf/renderer": "^3.1.12",
+    "@tabler/icons-react": "^2.34.0",
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0",
+    "assert": "^2.0.0",
+    "axios": "^1.4.0",
+    "hpagent": "^1.2.0",
+    "jquery": "^3.7.0",
+    "mocha": "^10.2.0",
+    "openai": "^3.3.0",
+    "os": "^0.1.2",
+    "querystring": "^0.2.1",
+    "raw-loader": "^4.0.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-pdf": "^7.3.3",
+    "react-router-dom": "^6.16.0",
+    "react-scripts": "^5.0.1",
+    "react-touch-events": "^3.0.0",
+    "serve": "14.2.1",
+    "stream": "^0.0.2",
+    "url": "^0.11.1",
+    "v8": "^0.1.0",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "start": "react-scripts --openssl-legacy-provider start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}

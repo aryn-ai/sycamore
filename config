@@ -1,0 +1,27 @@
+Host bastion
+    HostName 3.93.61.114
+    User ec2-user
+    IdentitiesOnly yes
+    IdentityFile ~/.ssh/developer.pem
+    ForwardAgent yes
+Host falcon
+    HostName 10.0.10.95
+    IdentityFile ~/.ssh/developer.pem
+    ProxyJump bastion
+    User ec2-user
+Host falcon2
+    HostName 10.0.10.147
+    IdentityFile ~/.ssh/developer.pem
+    ProxyJump bastion
+    User ec2-user
+Host js-demo
+    HostName 3.93.61.114
+    User ec2-user
+    IdentitiesOnly yes
+    IdentityFile ~/.ssh/developer.pem
+    LocalForward 8867 10.0.10.95:8867
+    LocalForward 9200 10.0.10.56:9200
+    LocalForward 5601 10.0.10.56:5601
+    LocalForward 3000 10.0.10.29:3000
+    LocalForward 3001 10.0.10.29:3001
+    ServerAliveInterval 60

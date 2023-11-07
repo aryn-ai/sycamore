@@ -1,5 +1,7 @@
 # Make sure the general compose.yaml is already up (and the crawler has exited)
+# While it will work without that, the files won't be imported and so nothing else will change.
 # You can check with docker ps
+#
 # % docker compose -f sort-all.yaml up
 # ignore the warnings about orphan containers
 
@@ -9,7 +11,7 @@ services:
   sycamore_crawler_http:
     image: arynai/sycamore-crawler-http
     volumes:
-      - crawl_data:/app/.scrapy 
+      - crawl_data:/app/.scrapy
     command: -a preset=sort
 
 volumes:

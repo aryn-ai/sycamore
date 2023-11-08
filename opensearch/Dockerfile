@@ -1,5 +1,5 @@
 ARG TAG=2.11.0
-FROM opensearchstaging/opensearch:$TAG
+FROM opensearchproject/opensearch:$TAG
 USER 0
 RUN yum install -y jq && yum clean all
 USER 1000

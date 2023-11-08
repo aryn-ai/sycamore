@@ -1,24 +1,23 @@
 #!/bin/bash
-# TODO: eric - detect low disk space and error out.
+# TODO: https://github.com/aryn-ai/sycamore/issues/150 - detect low disk space and error out.
 # on macos you fix it in docker desktop > settings > resources > scroll down > virtual disk limit
 main() {
     local http_status_port=43477 # from rand
     local http_server_dir=/tmp/http_server
     local http_status_file="${http_server_dir}/statusz"
     [[ ! -f "${http_status_file}" ]] || rm -f "${http_status_file}"
-    
+
     BASE_URL=http://localhost:9200
     ARYN_STATUSDIR=/usr/share/opensearch/data/aryn_status
     mkdir -p "${ARYN_STATUSDIR}"
 
     set -e
-    # TODO: eric - figure out how we can get the Aryn logs during startup
-    # and switchover to the opensearch ones once we've got everything running
+    # TODO: https://github.com/aryn-ai/sycamore/issues/151 - show aryn logs then opensearch
 
     LOG_BASE="${ARYN_STATUSDIR}/opensearch.log"
     if opensearch_up; then
         echo "OpenSearch appears to already be running, not starting it again"
-    else 
+    else
         echo "Should start opensearch"
         LOG_FILE="${LOG_BASE}.$(date +%Y-%m-%d--%H:%M:%S)"
         ln -snf "${LOG_FILE}" "${LOG_BASE}"
@@ -42,7 +41,7 @@ main() {
     echo "${pid}" >/tmp/http_server.pid
     trap "kill -TERM $(cat /tmp/http_server.pid)" EXIT
     disown "${pid}" # don't wait for it to exit
-    
+
     if [[ -z "${LOG_FILE}" ]]; then
         echo "Did not start opensearch, should exit shortly"
         echo "Opensearch log may be at ${LOG_BASE}"
@@ -75,7 +74,7 @@ wait_or_die() {
     echo " Failed!"
     die "$2 did not return true with $max_reps tries"
 }
-    
+
 die() {
     echo "ERROR: " "$@" 1>&2
     exit 1
@@ -102,15 +101,13 @@ setup_persistent() {
     rm -f "${PERSISTENT_ENV}" "${PERSISTENT_ENV_TMP}" 2>/dev/null
     touch "${PERSISTENT_ENV_TMP}"
     sp_register_model_group
-    # TODO: eric - figure out if embedding task id should be stable.
-    # model group reported an error when trying to reregister but returned the existing id
-    # EMBEDDING_TASK_ID kept making new IDs, and those new IDs would fail.
+    # TODO: https://github.com/aryn-ai/sycamore/issues/152 - debug task id stability
     sp_setup_embedding_model
     sp_setup_openai_model
 
     sp_create_rag_pipeline
     sp_create_non_rag_pipeline
-    
+
     mv "${PERSISTENT_ENV_TMP}" "${PERSISTENT_ENV}"
     echo "Setup Persistent env:"
     cat "${PERSISTENT_ENV}"
@@ -156,13 +153,11 @@ END
         cat "${file}"
         echo "---------------------------"
     fi
-    # TODO: eric - figure out how to continue if we get this error; we can re-fetch the
-    # model group id, but when we do the sp_setup_embedding_model, it makes a new task
-    # and that task fails.
+    # TODO: https://github.com/aryn-ai/sycamore/issues/152 - debug embedding task id stability
     local err='The name you provided is already being used by a model group with ID:'
     [[ "$(grep -c "${err}" <"${file}")" = 1 ]] && \
         die "model was already in use; something went wrong in setup"
-    
+
     MODEL_GROUP_ID=$(jq -r '.model_group_id' "${file}")
     [[ -z "${MODEL_GROUP_ID}" || "${MODEL_GROUP_ID}" == "null" ]] &&  die "No model group ID"
     echo "MODEL_GROUP_ID='${MODEL_GROUP_ID}'" >>"${PERSISTENT_ENV_TMP}"
@@ -239,7 +234,7 @@ sp_setup_openai_model() {
 
 sp_create_openai_connector() {
     local file="${ARYN_STATUSDIR}/curl.openai_connector"
-    
+
     local RB0='{
 "model":"${parameters.model}",
 "messages":${parameters.messages},
@@ -324,8 +319,7 @@ deploy_model() {
     DEPLOY_MODEL_LOG_FILE="${ARYN_STATUSDIR}/curl.deploy_model_task.${name}"
     wait_or_die deploy_model_try "deploy of model ${MODEL_ID}, task ${task_id}, name ${name}" 60
     wait_task "${DEPLOY_MODEL_DEP_TASK_ID}" "$name model to deploy"
-    # TODO: eric - unclear if we're waiting for the deploy to finish; log message about task done shows up in opensearch after
-    # restart logic finishes
+    # TODO: https://github.com/aryn-ai/sycamore/issues/153 - debug task waiting
 }
 
 wait_task() {

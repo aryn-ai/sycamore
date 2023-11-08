@@ -2,12 +2,12 @@
 # % docker compose up
 #
 # What you should see:
-#   1. lots of waiting while containers are downloaded (or nothing if cached)
+#   1. wait while containers are downloaded (speed depends on your network), or nothing once cached
 #   2a. crawler should run and download 1 sample pdf
 #   2b. demo ui starting (in parallel with 2a)
-#   3. lots of logging as opensearch get started eventually 'Waiting for opensearch to exit.'
-#   4. sycamore container downloading pytorch files then running to import
-#   5. UI ready to go on port localhost:3000
+#   3. lots of logging as opensearch starts. Eventually 'Waiting for opensearch to exit.'
+#   4. sycamore container downloading pytorch files then running ray to import
+#   5. UI ready to go on port localhost:3000 (it's accessible before this but won't work)
 #
 # Troubleshooting/Extensions:
 #   1. Something is messed up, I just want to reset:

@@ -143,7 +143,7 @@ export const openSearchNoBodyCall = async (url: string, http_method: string = "G
         });
         if (!response.ok) {
             return response.text().then(text => {
-                throw new Error(`Request rejected with status ${response.status} and message ${text}`);
+                throw new Error(`OpenSearchRequest rejected with status ${response.status} and message ${text}`);
             })
         }
 
@@ -152,7 +152,7 @@ export const openSearchNoBodyCall = async (url: string, http_method: string = "G
         return data;
     } catch (error: any) {
         console.error('Error sending query:', error);
-        throw new Error("Error making OpenSearch query: " + error.message);
+        throw new Error("Error making OpenSearch query to " + url + " without body: " + error.message);
     }
 }
 export const openSearchCall = async (query: any, url: string, http_method: string = "POST") => {
@@ -167,7 +167,7 @@ export const openSearchCall = async (query: any, url: string, http_method: strin
         });
         if (!response.ok) {
             return response.text().then(text => {
-                throw new Error(`Request rejected with status ${response.status} and message ${text}`);
+                throw new Error(`Request to ${url}:\n` + JSON.stringify(query) + `\nrejected with status ${response.status} and message ${text}`);
             })
         }
 
@@ -176,7 +176,7 @@ export const openSearchCall = async (query: any, url: string, http_method: strin
         return data;
     } catch (error: any) {
         console.error('Error sending query:', error);
-        throw new Error("Error making OpenSearch query: " + error.message);
+        throw new Error("Error making OpenSearch to " + url + " query with body: " + error.message);
     }
 }
 

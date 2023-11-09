@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Callable, Any, Optional
 import json
+import re
 
 from ray.data import Dataset
 
@@ -50,7 +51,7 @@ class OpenAISchema(SchemaExtractor):
         self,
         entity_name: str,
         llm: LLM,
-        num_of_elements: int = 10,
+        num_of_elements: int = 35,
         prompt_formatter: Callable[[list[Element]], str] = element_list_formatter,
     ):
         super().__init__(entity_name)
@@ -61,9 +62,13 @@ class OpenAISchema(SchemaExtractor):
     def extract_schema(self, document: Document) -> Document:
         entities = self._handle_zero_shot_prompting(document)
 
-        # TODO: caution, this may fail
-        answer = json.loads(entities["answer"])
-        answer = list(answer.keys())
+        try:
+            payload = entities["answer"]
+            pattern = r'```json([\s\S]*?)```'
+            match = re.match(pattern, payload).group(1)
+            answer = json.loads(match)
+        except:
+            answer = entities["answer"]
 
         properties = document.properties
         properties.update({"_schema": answer, "_schema_class": self._entity_name})
@@ -78,11 +83,12 @@ class OpenAISchema(SchemaExtractor):
             prompt = SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT_CHAT
 
         else:
-            prompt = SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT 
+            prompt = SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT
 
         entities = self._llm.generate(
             prompt_kwargs={"prompt": prompt, "entity": self._entity_name, "query": self._prompt_formatter(sub_elements)}
         )
+
         return entities
 
 class OpenAIPropertyExtractor(PropertyExtractor):
@@ -106,7 +112,10 @@ class OpenAIPropertyExtractor(PropertyExtractor):
         entities = self._handle_zero_shot_prompting(document)
 
         try:
-            answer = json.loads(entities["answer"])
+            payload = entities["answer"]
+            pattern = r'```json([\s\S]*?)```'
+            match = re.match(pattern, payload).group(1)
+            answer = json.loads(match)
         except:
             answer = entities["answer"]
 
@@ -117,17 +126,18 @@ class OpenAIPropertyExtractor(PropertyExtractor):
         return document
 
     def _handle_zero_shot_prompting(self, document: Document) -> Any:
-        sub_elements = [document.elements[i] for i in range((min(self._num_of_elements, len(document.elements))))]
+        text = document.text_representation
 
         if self._llm.is_chat_mode:
             prompt = PROPERTIES_ZERO_SHOT_GUIDANCE_PROMPT_CHAT
         else:
-            prompt = PROPERTIES_ZERO_SHOT_GUIDANCE_PROMPT 
+            prompt = PROPERTIES_ZERO_SHOT_GUIDANCE_PROMPT
 
+        schema_name = document.properties["_schema_class"]
         schema = document.properties["_schema"]
 
         entities = self._llm.generate(
-            prompt_kwargs={"prompt": prompt, "entity": document.properties["_schema_class"], "properties": schema, "query": self._prompt_formatter(sub_elements)}
+            prompt_kwargs={"prompt": prompt, "entity": schema_name, "properties": schema, "query": text}
         )
         return entities
 

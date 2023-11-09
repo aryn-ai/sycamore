@@ -9,13 +9,16 @@ ENV POETRY_NO_INTERACTION=1 \
     POETRY_VIRTUALENVS_CREATE=1 \
     POETRY_CACHE_DIR=/tmp/poetry_cache
 
-COPY docker-install-packages.sh .
-RUN /bin/sh /app/docker-install-packages.sh
-COPY examples/docker-preload-models.pdf docker-download-data.sh ./
-COPY pyproject.toml poetry.lock ./
-RUN poetry install --only main,docker --no-root -v && rm -rf $POETRY_CACHE_DIR
-COPY . .
-RUN poetry install --only-root && rm -rf $POETRY_CACHE_DIR
-RUN /bin/sh /app/docker-download-data.sh
+COPY importer/docker-apt-packages.sh .
+RUN /bin/bash /app/docker-apt-packages.sh
 
-CMD [ "poetry", "run", "python", "examples/docker_local_ingest.py", "/app/.scrapy" ]
+COPY pyproject.toml poetry.lock README.md importer/docker-poetry-packages.sh ./
+RUN /bin/bash /app/docker-poetry-packages.sh
+
+COPY importer ./importer
+COPY sycamore ./sycamore
+COPY examples/simple_config.py ./importer
+
+RUN poetry install --only-root && rm -rf $POETRY_CACHE_DIR
+
+CMD [ "poetry", "run", "python", "importer/docker_local_import.py", "/app/.scrapy" ]

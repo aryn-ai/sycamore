@@ -28,7 +28,8 @@ repos:
     rev: v1.5.1
     hooks:
         - id: mypy
-          args: [--ignore-missing-imports]
+          # same args as used in .github/workflows/linting.yml
+          args: [--install-types, --non-interactive]
           exclude: docs/
   - repo: local
     hooks:

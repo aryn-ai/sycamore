@@ -21,10 +21,14 @@ from simple_config import idx_settings, osrch_args, title_template
 running_in_container = False
 
 
-# TODO: eric - detect that the opensearch cluster has dropped documents and reload them
-# TODO: eric - figure out how to deal with documents that are deleted
-# TODO: eric - adjust the way we do importing so that the files have a permanent name so the viewPdf UI option works
-# TODO: eric - detect that we have insufficient memory and give up if we just keep ooming.
+# TODO: https://github.com/aryn-ai/sycamore/issues/155 - detect that the opensearch cluster
+#       has dropped documents and reload them
+# TODO: https://github.com/aryn-ai/sycamore/issues/156 - figure out how to deal with documents
+#       that are deleted
+# TODO: https://github.com/aryn-ai/sycamore/issues/157 - adjust the way we do importing so
+#       that the files have a permanent name so the viewPdf UI option works
+# TODO: https://github.com/aryn-ai/sycamore/issues/158 - handle importing problems in a more
+#       clever way than blind retry.
 def main():
     root_path = "/app/.scrapy"
     if len(sys.argv) <= 1:
@@ -45,8 +49,10 @@ def main():
 
     if root_path == "/app/.scrapy" and "OPENAI_API_KEY" in os.environ:
         print("WARNING: OPENAI_API_KEY in environment is potentially insecure.")
-        # TODO: eric - switch over to docker swarm so we can use docker secrets
+        # TODO: https://github.com/aryn-ai/sycamore/issues/159 - use docker secrets,
+        # if necessary via docker swarm.
         # Then enable the sleep since we shouldn't get the env var any more.
+
         # print "sleep(300)"
         # time.sleep(300)
 
@@ -216,7 +222,7 @@ def import_pdf(paths):
 
 
 def import_html(root):
-    # TODO: eric - implement HTML import
+    # TODO: https://github.com/aryn-ai/sycamore/issues/160 - implement HTML import
     print("WARNING, HTML import unimplmented")
     pass
 

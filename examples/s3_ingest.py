@@ -6,7 +6,9 @@ import pyarrow.fs
 sys.path.append("../sycamore")
 
 import sycamore
+from sycamore.functions.tokenizer import HuggingFaceTokenizer
 from sycamore.llms import OpenAIModels, OpenAI
+from sycamore.transforms.merge_elements import GreedyTextElementMerger
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.transforms.embed import SentenceTransformerEmbedder
@@ -29,12 +31,14 @@ fsys = pyarrow.fs.S3FileSystem(
 )
 
 davinci_llm = OpenAI(OpenAIModels.TEXT_DAVINCI.value)
+tokenizer = HuggingFaceTokenizer("thenlper/gte-small")
 
 ctx = sycamore.init()
 
 ds = (
     ctx.read.binary(paths, binary_format="pdf", filesystem=fsys)
     .partition(partitioner=UnstructuredPdfPartitioner())
+    .merge(merger=GreedyTextElementMerger(tokenizer=tokenizer, max_tokens=512))
     .extract_entity(entity_extractor=OpenAIEntityExtractor("title", llm=davinci_llm, prompt_template=title_template))
     .explode()
     .embed(embedder=SentenceTransformerEmbedder(model_name="all-MiniLM-L6-v2", batch_size=100))

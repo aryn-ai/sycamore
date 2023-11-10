@@ -19,7 +19,7 @@ python = ">=3.9,<3.12"
 opensearch-py = "^2.3.1"
 pandas = "2.1.1"
 pdf2image = "^1.16.3"
-ray = { extras = ["default"], version = "^2.7.0" }
+ray = { extras = ["default"], version = "^2.7.1" }
 sentence-transformers = "2.2.2"
 pyarrow = "13.0.0"
 unstructured = "0.10.20"
@@ -64,6 +64,10 @@ nbmake = "^1.4.5"
 [tool.poetry.group.notebook.dependencies]
 jupyterlab = "^4.0.5"
 ipywidgets = "^8.1.0"
+
+[tool.poetry.group.docker.dependencies]
+requests = "^2"
+redis-om = "^0.2"
 
 [tool.poetry.extras]
 docs = ["furo", "myst-parser", "sphinx"]

@@ -41,7 +41,6 @@ services:
       - crawl_data:/app/.scrapy
     environment:
       - OPENAI_API_KEY
-    shm_size: "4gb"
   sycamore_crawler_http:
     image: arynai/sycamore-crawler-http
     volumes:

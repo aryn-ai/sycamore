@@ -30,7 +30,7 @@ mkdir "${POETRY_CACHE_DIR}"
     fi
 )
 find "${POETRY_CACHE_DIR}" >/tmp/poetry.cache.before
-poetry install --only main,docker --no-root -v
+poetry install --only main,sycamore_library,docker --no-root -v
 find "${POETRY_CACHE_DIR}" >/tmp/poetry.cache.after
 
 diff -u /tmp/poetry.cache.before /tmp/poetry.cache.after >/tmp/poetry.cache.diff || true

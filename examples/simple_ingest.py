@@ -31,7 +31,7 @@ ds = (
     .merge(merger=GreedyTextElementMerger(tokenizer=tokenizer, max_tokens=512))
     .spread_properties(["path", "title"])
     .explode()
-    .embed(embedder=SentenceTransformerEmbedder(model_name="all-MiniLM-L6-v2", batch_size=100))
+    .embed(embedder=SentenceTransformerEmbedder(model_name="thenlper/gte-small", batch_size=100))
 )
 
 # ds.show(limit=1000, truncate_length=500)

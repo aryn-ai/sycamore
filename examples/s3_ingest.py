@@ -41,7 +41,7 @@ ds = (
     .merge(merger=GreedyTextElementMerger(tokenizer=tokenizer, max_tokens=512))
     .extract_entity(entity_extractor=OpenAIEntityExtractor("title", llm=davinci_llm, prompt_template=title_template))
     .explode()
-    .embed(embedder=SentenceTransformerEmbedder(model_name="all-MiniLM-L6-v2", batch_size=100))
+    .embed(embedder=SentenceTransformerEmbedder(model_name="thenlper/gte-small", batch_size=100))
 )
 
 ds.write.opensearch(

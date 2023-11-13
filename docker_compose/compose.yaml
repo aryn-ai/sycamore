@@ -42,6 +42,7 @@ services:
     environment:
       - OPENAI_API_KEY
       # a bucket prefix like s3://example or s3://example/prefix/bits
+      # recommend setting lifecycle rules on the bucket to delete old documents
       - SYCAMORE_TEXTRACT_PREFIX
       # to get the next 4 environment variables:
       # % aws sso login

@@ -7,7 +7,7 @@ export DEBIAN_FRONTEND=noninteractive
 proxy=http://172.17.0.1:3128/
 
 http_proxy="${proxy}" curl -o /tmp/proxy http://deb.debian.org/debian || true
-ls -l /tmp/proxy
+ls -l /tmp/proxy || true
 if [[ $(grep -c debian.org /tmp/proxy) -ge 1 ]]; then
     export http_proxy="${proxy}"
 fi

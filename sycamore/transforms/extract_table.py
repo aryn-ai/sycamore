@@ -7,6 +7,11 @@ from textractor.data.constants import TextractFeatures
 from sycamore.data import BoundingBox, Document, Element
 
 
+class MissingS3UploadPath(Exception):
+    "Raised when an S3 upload path is needed but one wasn't provided"
+    pass
+
+
 class TableExtractor(ABC):
     @abstractmethod
     def extract_tables(self, document: Document) -> Document:
@@ -35,10 +40,17 @@ class TextractTableExtractor(TableExtractor):
                 .partition(partitioner=UnstructuredPdfPartitioner(), table_extractor=table_extractor)
     """
 
-    def __init__(self, profile_name: Optional[str] = None, region_name: Optional[str] = None, kms_key_id: str = ""):
+    def __init__(
+        self,
+        profile_name: Optional[str] = None,
+        region_name: Optional[str] = None,
+        kms_key_id: str = "",
+        s3_upload_root: str = "",
+    ):
         self._profile_name = profile_name
         self._region_name = region_name
         self._kms_key_id: str = kms_key_id
+        self._s3_upload_root: str = s3_upload_root
 
     def _extract(self, document: Document) -> list[Element]:
         # https://docs.aws.amazon.com/textract/latest/dg/API_BoundingBox.html
@@ -46,7 +58,25 @@ class TextractTableExtractor(TableExtractor):
             return bbox.x, bbox.y, bbox.x + bbox.width, bbox.y + bbox.height
 
         extractor = Textractor(self._profile_name, self._region_name, self._kms_key_id)
-        result = extractor.start_document_analysis(document.properties["path"], TextractFeatures.TABLES)
+        path = document.properties["path"]
+        if path.startswith("s3://"):  # if document is already in s3, don't upload it again
+            result = extractor.start_document_analysis(document.properties["path"], TextractFeatures.TABLES)
+        elif not self._s3_upload_root.startswith("s3://"):
+            raise MissingS3UploadPath()
+        else:
+            # TODO: eric - do this with a content based hash upload so that we're only uploading
+            # documents once rather than on every test run.
+            tmp_path = path
+            if not tmp_path.startswith("/"):
+                tmp_path = "/" + path
+
+            # os.path.join("s3://foo", "/abc") -> "/abc"; which is not what we want.
+            dest = self._s3_upload_root + tmp_path
+            print("ERIC DEBUG uploading", path, "to", dest)
+
+            result = extractor.start_document_analysis(
+                document.properties["path"], TextractFeatures.TABLES, s3_upload_path=dest
+            )
 
         # map page_number -> list of tables on that page number
         all_tables = []

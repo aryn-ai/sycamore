@@ -41,6 +41,15 @@ services:
       - crawl_data:/app/.scrapy
     environment:
       - OPENAI_API_KEY
+      # a bucket prefix like s3://example or s3://example/prefix/bits
+      - SYCAMORE_TEXTRACT_PREFIX
+      # to get the next 4 environment variables:
+      # % aws sso login
+      # % eval "$(aws configure export-credentials --format env)"
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_SESSION_TOKEN
+      - AWS_CREDENTIAL_EXPIRATION
   sycamore_crawler_http:
     image: arynai/sycamore-crawler-http
     volumes:

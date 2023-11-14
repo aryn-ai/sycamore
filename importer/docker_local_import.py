@@ -281,7 +281,7 @@ def import_pdf(paths):
                 "authors", llm=openai_llm, prompt_template=get_author_context_template()
             )
         )
-        .spread_properties(["title"])
+        .spread_properties(["path", "title"])
         .explode()
         .embed(
             embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")

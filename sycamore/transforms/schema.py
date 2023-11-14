@@ -126,7 +126,10 @@ class OpenAIPropertyExtractor(PropertyExtractor):
         return document
 
     def _handle_zero_shot_prompting(self, document: Document) -> Any:
-        text = document.text_representation
+        if document.text_representation:
+            text = document.text_representation
+        else:
+            text = [document.elements[i] for i in range((min(self._num_of_elements, len(document.elements))))]
 
         if self._llm.is_chat_mode:
             prompt = PROPERTIES_ZERO_SHOT_GUIDANCE_PROMPT_CHAT

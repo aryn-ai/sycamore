@@ -1,4 +1,5 @@
 from pathlib import Path
+import datetime
 import math
 import numpy
 import os
@@ -91,13 +92,14 @@ def main():
 
     while True:
         files = find_files(root)
-        print("Files:", files, flush=True)
         if len(files) > 0:
             try:
                 if len(files) > max_files_per_run:
+                    print("Have {} remaining files, too many to process in one run.".format(len(files)))
                     print("Limiting number of files in single run to {}".format(max_files_per_run))
                     numpy.random.shuffle(files)
                     files = files[0:max_files_per_run]
+                print("Files:", [str(f["path"]) for f in files], flush=True)
                 import_files(root, files)
                 time.sleep(1)
                 if failures == -1:
@@ -132,7 +134,7 @@ def main():
                 print("WARNING: sleep(" + str(sleep_time) + ") in case this is persistent")
                 time.sleep(sleep_time)
         else:
-            print("No changes, sleeping", flush=True)
+            print("No changes at", datetime.datetime.now(), "sleeping", flush=True)
             time.sleep(5)
 
 
@@ -147,6 +149,12 @@ def get_ray_task_count():
         print("WARNING: Want 2GiB of RAM/ray-task.")
         print("WARNING: Available memory (50% of total) is only {:.2f} GiB".format(usable_mem_bytes / gib))
         print("WARNING: Will run on single core and hope to not use too much swap")
+
+    if ray_tasks <= 1:
+        ray_tasks = 2
+        print("WARNING: import_pdf_sort_benchmark requires 2 simultaneous ray tasks to not hang.")
+        print("WARNING: on low-memory containers, the logic to adjust the number of files to process")
+        print("WARNING: in a batch will clamp the number of files to 1 which will allow for importing")
 
     return ray_tasks
 

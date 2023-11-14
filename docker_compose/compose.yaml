@@ -25,6 +25,8 @@ services:
     environment:
       - OPENAI_API_KEY
       - OPENSEARCH_HOST=opensearch
+    volumes:
+      - crawl_data:/app/.scrapy
   opensearch:
     image: arynai/opensearch
     ports:

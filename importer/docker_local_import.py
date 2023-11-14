@@ -19,7 +19,7 @@ from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.transforms.extract_table import TextractTableExtractor
 from sycamore.transforms.merge_elements import GreedyTextElementMerger
-from sycamore.transforms.partition import UnstructuredPdfPartitioner
+from sycamore.transforms.partition import UnstructuredPdfPartitioner, HtmlPartitioner
 
 # from simple_config import idx_settings, osrch_args, title_template
 
@@ -252,50 +252,6 @@ def wait_for_opensearch_ready():
 
 
 def import_pdf(paths):
-    if False:
-        import_pdf_simple_ingest(paths)
-    if True:
-        import_pdf_sort_benchmark(paths)
-
-
-def import_pdf_simple_ingest(paths):
-    print("ERROR: Broken")
-    return False
-    print("Importing PDF files:", paths)
-
-    davinci_llm = OpenAI(OpenAIModels.TEXT_DAVINCI.value)
-
-    ctx = sycamore_init()
-    ds = (
-        ctx.read.binary(paths, binary_format="pdf")
-        .partition(partitioner=UnstructuredPdfPartitioner())
-        .extract_entity(
-            entity_extractor=OpenAIEntityExtractor(
-                "title", llm=davinci_llm, prompt_template=get_title_context_template()
-            )
-        )
-        .spread_properties(["path", "title"])
-        .explode()
-        .embed(embedder=SentenceTransformerEmbedder(model_name="all-MiniLM-L6-v2", batch_size=100))
-    )
-
-    # If you enable this line you break parallelism
-    # ds.show(limit=1000, truncate_length=500)
-
-    ds.write.opensearch(
-        os_client_args=get_os_client_args(),
-        index_name=index,
-        index_settings=get_index_settings(),
-    )
-
-
-def sycamore_init():
-    ray_tasks = get_ray_task_count()
-    print("Using", ray_tasks, "CPUs for execution")
-    return sycamore.init(ray_args={"num_cpus": ray_tasks})
-
-
-def import_pdf_sort_benchmark(paths):
     openai_llm = OpenAI(OpenAIModels.TEXT_DAVINCI.value)
     tokenizer = HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2")
     merger = GreedyTextElementMerger(tokenizer, 30)
@@ -304,7 +260,7 @@ def import_pdf_sort_benchmark(paths):
     (
         # TODO: eric - implement manifest generation from file
         # so like s3://aryn-datasets-us-east-1/sort_benchmark/manifest.json read by
-        # JsonManifestMetadataProvider
+        # JsonManifestMetadataProvider; same below for HTML importing
         ctx.read.binary(paths, binary_format="pdf")
         # TODO: eric - figure out how to cache the results of the textract runs so that we can
         # 1) speed up testing; and 2) let people try out sycamore without also having to set up S3
@@ -334,9 +290,26 @@ def import_pdf_sort_benchmark(paths):
     )
 
 
-def import_html(root):
+def sycamore_init():
+    ray_tasks = get_ray_task_count()
+    print("Using", ray_tasks, "CPUs for execution")
+    return sycamore.init(ray_args={"num_cpus": ray_tasks})
+
+
+def import_html(paths):
+    ctx = sycamore_init()
+    (
+        ctx.read.binary(paths, binary_format="html")
+        .partition(partitioner=HtmlPartitioner())
+        .spread_properties(["title"])
+        .explode()
+        .embed(
+            embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
+        )
+        .write.opensearch(os_client_args=get_os_client_args(), index_name=index, index_settings=get_index_settings())
+    )
+
     # TODO: https://github.com/aryn-ai/sycamore/issues/160 - implement HTML import
-    print("WARNING, HTML import unimplmented")
     pass
 
 

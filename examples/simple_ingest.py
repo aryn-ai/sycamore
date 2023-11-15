@@ -7,8 +7,7 @@ import sycamore
 from sycamore.functions.tokenizer import HuggingFaceTokenizer
 from sycamore.llms import OpenAIModels, OpenAI
 from sycamore.transforms import COALESCE_WHITESPACE
-from sycamore.transforms.bbox_merge import BboxMerger
-from sycamore.transforms.merge_elements import GreedyTextElementMerger
+from sycamore.transforms.merge_elements import GreedyTextElementMerger, MarkedMerger
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.transforms.embed import SentenceTransformerEmbedder
@@ -31,7 +30,8 @@ ds = (
     .partition(partitioner=UnstructuredPdfPartitioner())
     .regex_replace(COALESCE_WHITESPACE)
     .extract_entity(entity_extractor=OpenAIEntityExtractor("title", llm=davinci_llm, prompt_template=title_template))
-    .merge(merger=BboxMerger(tokenizer=tokenizer))
+    .mark_bbox_preset(tokenizer=tokenizer)
+    .merge(merger=MarkedMerger())
     .spread_properties(["path", "title"])
     .explode()
     .embed(embedder=SentenceTransformerEmbedder(model_name="thenlper/gte-small", batch_size=100))

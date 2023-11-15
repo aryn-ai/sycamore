@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
+from typing import Any, Dict
 
 from ray.data import Dataset, ActorPoolStrategy
 
 from sycamore.data import Document, Element, BoundingBox
-from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Transform, Node
+from sycamore.plan_nodes import SingleThreadUser, NonGPUUser, Transform, Node
 from sycamore.utils import generate_map_class_from_callable
 from sycamore.functions.tokenizer import Tokenizer
 
@@ -123,7 +124,71 @@ class GreedyTextElementMerger(ElementMerger):
         return new_elt
 
 
-class Merge(NonCPUUser, NonGPUUser, Transform):
+class MarkedMerger(ElementMerger):
+    def should_merge(self, element1: Element, element2: Element) -> bool:
+        return False
+
+    def merge(self, element1: Element, element2: Element) -> Element:
+        return element1
+
+    def preprocess_element(self, elem: Element) -> Element:
+        return elem
+
+    def postprocess_element(self, elem: Element) -> Element:
+        return elem
+
+    def merge_elements(self, document: Document) -> Document:
+        if len(document.elements) < 1:
+            return document
+
+        # merge elements, honoring marked breaks and drops
+        merged = []
+        bin = b""
+        text = ""
+        props: Dict[str, Any] = {}
+        bbox = None
+
+        for elem in document.elements:
+            if elem.data.get("_drop"):
+                continue
+            if elem.data.get("_break"):
+                ee = Element()
+                ee.binary_representation = bin
+                ee.text_representation = text
+                ee.properties = props
+                ee.data["bbox"] = bbox
+                merged.append(ee)
+                bin = b""
+                text = ""
+                props = {}
+                bbox = None
+            if elem.binary_representation:
+                bin += elem.binary_representation + b"\n"
+            if elem.text_representation:
+                text += elem.text_representation + "\n"
+            for k, v in elem.properties.items():
+                if k not in props:  # ??? order may matter here
+                    props[k] = v
+            ebb = elem.data.get("bbox")
+            if ebb is not None:
+                if bbox is None:
+                    bbox = ebb
+                else:
+                    bbox = (min(bbox[0], ebb[0]), min(bbox[1], ebb[1]), max(bbox[2], ebb[2]), max(bbox[3], ebb[3]))
+
+        if text:
+            ee = Element()
+            ee.binary_representation = bin
+            ee.text_representation = text
+            ee.properties = props
+            ee.data["bbox"] = bbox
+            merged.append(ee)
+
+        document.elements = merged
+        return document
+
+
+class Merge(SingleThreadUser, NonGPUUser, Transform):
     """
     Merge Elements into fewer large elements
     """

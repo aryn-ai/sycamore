@@ -1,11 +1,8 @@
-from typing import Any, Dict
-from sycamore.data import Document, Element
-from sycamore.functions.tokenizer import Tokenizer
-from sycamore.transforms.merge_elements import ElementMerger
+from ray.data import Dataset
 
-# TODO:
-# - overlap?
-# - 3 columns, N columns
+from sycamore.data import Document, Element
+from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
+from sycamore.transforms.map import generate_map_function
 
 
 def validBbox(bbox):
@@ -16,31 +13,33 @@ def validBbox(bbox):
     return True
 
 
-def getBboxTop(elem: Element):
-    return elem.data["bbox"][1]
-
-
-def getBboxLeft(elem: Element):
-    return elem.data["bbox"][0]
-
-
 def getBboxLeftTop(elem: Element):
-    bb = elem.data["bbox"]
-    return (bb[0], bb[1])
+    bbox = elem.data.get("bbox")
+    if bbox is None:
+        return (0.0, 0.0)
+    else:
+        return (bbox[0], bbox[1])
 
 
 def getPageTopLeft(elem: Element):
-    bb = elem.data["bbox"]
-    return (elem.properties["page_number"], bb[1], bb[0])
+    bbox = elem.data.get("bbox")
+    if bbox is None:
+        return (elem.properties["page_number"], 0.0, 0.0)
+    else:
+        return (elem.properties["page_number"], bbox[1], bbox[0])
 
 
 def getRow(elem: Element, elements: list[Element]) -> list[Element]:
-    page = elem.properties["page_number"]
-    bbox = elem.data["bbox"]
+    rv = [elem]
+
+    bbox = elem.data.get("bbox")
+    if bbox is None:
+        return rv
     left = bbox[0]
     top = bbox[1]
     right = bbox[2]
     bottom = bbox[3]
+    page = elem.properties["page_number"]
 
     # !!! assuming elements are sorted by y-values
     n = len(elements)
@@ -67,7 +66,6 @@ def getRow(elem: Element, elements: list[Element]) -> list[Element]:
             else:
                 break
 
-    rv = [elem]
     for idx in range(idx, n):
         ee = elements[idx]
         bb = ee.data["bbox"]
@@ -99,167 +97,184 @@ def partOfTwoCol(elem: Element, xmin, xmax) -> bool:
     return (frac <= 0.1) or ((frac >= 0.45) and (frac <= 0.6))
 
 
-class BboxMerger(ElementMerger):
-    def __init__(self, tokenizer: Tokenizer, maxToks: int = 512):
-        self.tokenizer = tokenizer
-        self.maxToks = maxToks
+###############################################################################
 
-    def should_merge(self, element1: Element, element2: Element) -> bool:
-        return False
 
-    def merge(self, element1: Element, element2: Element) -> Element:
-        return element1
+class SortByPageBbox(SingleThreadUser, NonGPUUser, Transform):
+    """
+    SortByPageBbox is a transform to add reorder the Elements
+    in 'natural order', top to bottom using page_number and bbox.
 
-    def preprocess_element(self, elem: Element) -> Element:
-        if elem.text_representation:
-            n = len(self.tokenizer.tokenize(elem.text_representation))
-        else:
-            n = 0
-        elem.data["_tokCnt"] = n
-        return elem
+    Args:
+        child: The source Node or component that provides the Elements
 
-    def postprocess_element(self, elem: Element) -> Element:
-        del elem.data["token_count"]
-        return elem
+    Example:
+        .. code-block:: python
+            source_node = ...
+            sorter = SortByPageBbox(child=source_node)
+            dataset = sorter.execute()
+    """
 
-    def merge_elements(self, document: Document) -> Document:
-        if len(document.elements) < 2:
-            return document
-        elements = document.elements
+    def __init__(self, child: Node, **resource_args):
+        super().__init__(child, **resource_args)
 
-        # FIXME: make separate transforms to mark/remove these
-        for elem in elements:
-            tr = elem.text_representation or ""
-            if len(tr) <= 1:  # specks of lint
-                elem.data["_drop"] = True
-        for elem in elements:
-            bbox = elem.data["bbox"]  # must be defined for this merger
-            if (bbox[1] > 0.95) or (bbox[3] < 0.05):  # headers and footers
-                elem.data["_drop"] = True
+    class Callable:
+        def run(self, parent: Document) -> Document:
+            elementsCopy = parent.elements
+            elementsCopy.sort(key=getPageTopLeft)
+            parent.elements = elementsCopy
+            return parent
 
-        for elem in elements:
-            self.preprocess_element(elem)
+    def execute(self) -> Dataset:
+        dataset = self.child().execute()
+        sorter = SortByPageBbox.Callable()
+        return dataset.map(generate_map_function(sorter.run))
 
-        # measure width in-use
-        xmin = 1.0  # FIXME are these global?
-        xmax = 0.0
-        for elem in elements:
-            bbox = elem.data["bbox"]  # make sure it's defined
-            if validBbox(bbox):  # avoid bug
-                xmin = min(xmin, bbox[0])
-                xmax = max(xmax, bbox[2])
-        fullWidth = (xmax - xmin) * 0.8  # fudge
 
-        # sort entire document top-to-bottom
-        elements.sort(key=getPageTopLeft)
+###############################################################################
 
-        # mark break at page breaks
-        lastPage = elements[0].properties["page_number"]
-        for elem in elements:
-            page = elem.properties["page_number"]
-            if page != lastPage:
-                elem.data["_break"] = True
-                lastPage = page
 
-        # tag elements by column
-        for elem in elements:
-            if elem.data.get("_colIdx") is None:
-                row = getRow(elem, elements)
-                if len(row) == 1:
-                    bbox = elem.data["bbox"]
-                    width = bbox[2] - bbox[0]
-                    if width > fullWidth:
-                        cnt = 0  # signal full-width
+class MarkDropHeaderFooter(SingleThreadUser, NonGPUUser, Transform):
+    """
+    MarkDropHeaderFooter is a transform to add the '_drop' data attribute to
+    each Element at the top or bottom X fraction of the page.  Requires
+    the 'bbox' attribute.
+
+    Args:
+        child: The source Node or component that provides the Elements
+        top: The fraction of the page to exclude from the top (def 0.05)
+        bottom: The fraction of the page to exclude from the bottom (0.05)
+
+    Example:
+        .. code-block:: python
+            source_node = ...
+            marker = MarkDropHeaderFooter(child=source_node, top=0.05)
+            dataset = marker.execute()
+    """
+
+    def __init__(self, child: Node, top: float = 0.05, bottom: float = None, **resource_args):
+        super().__init__(child, **resource_args)
+        if bottom is None:
+            bottom = top
+        self.top = top
+        self.bottom = bottom
+
+    class Callable:
+        def __init__(self, top: float, bottom: float):
+            self.top = top
+            self.bottom = bottom
+
+        def run(self, parent: Document) -> Document:
+            lo = self.top
+            hi = 1.0 - self.bottom
+            elements = parent.elements  # makes a copy
+            for elem in elements:
+                bbox = elem.data.get("bbox")
+                if (bbox is not None) and ((bbox[1] > hi) or (bbox[3] < lo)):
+                    elem.data["_drop"] = True  # mark for removal
+            parent.elements = elements  # copy back
+            return parent
+
+    def execute(self) -> Dataset:
+        dataset = self.child().execute()
+        marker = MarkDropHeaderFooter.Callable(self.top, self.bottom)
+        return dataset.map(generate_map_function(marker.run))
+
+
+###############################################################################
+
+
+class MarkBreakByColumn(SingleThreadUser, NonGPUUser, Transform):
+    """
+    MarkBreakByColumn is a transform that marks '_break' where
+    two-column layout changes to full-width layout.  Ranges of two-
+    column Elements are also re-sorted left to right.  Elements must
+    already be sorted top-to-bottom.
+
+    Args:
+        child: The source Node or component that provides the Elements
+
+    Example:
+        .. code-block:: python
+            source_node = ...
+            marker = MarkBreakByColumn(child=source_node)
+            dataset = marker.execute()
+    """
+
+    def __init__(self, child: Node, **resource_args):
+        super().__init__(child, **resource_args)
+
+    class Callable:
+        def run(self, parent: Document) -> Document:
+            elements = parent.elements  # makes a copy
+
+            # measure width in-use
+            xmin = 1.0  # FIXME are these global?
+            xmax = 0.0
+            for elem in elements:
+                bbox = elem.data.get("bbox")
+                if (bbox is not None) and validBbox(bbox):
+                    xmin = min(xmin, bbox[0])
+                    xmax = max(xmax, bbox[2])
+            if xmin < xmax:
+                fullWidth = (xmax - xmin) * 0.8  # fudge
+            else:
+                fullWidth = 0.8
+
+            # tag elements by column
+            for elem in elements:
+                if elem.data.get("_colIdx") is None:
+                    row = getRow(elem, elements)
+                    if len(row) == 1:
+                        bbox = elem.data.get("bbox")
+                        if bbox is None:
+                            width = 0.0
+                        else:
+                            width = bbox[2] - bbox[0]
+                        if width > fullWidth:
+                            cnt = 0  # signal full-width
+                        else:
+                            cnt = 1
+                        elem.data["_colIdx"] = 0
+                        elem.data["_colCnt"] = cnt
                     else:
-                        cnt = 1
-                    elem.data["_colIdx"] = 0
-                    elem.data["_colCnt"] = cnt
-                else:
-                    idx = -1
-                    last = 0.0
-                    for ee in row:
-                        bbox = ee.data["bbox"]
-                        if bbox[0] >= last:  # may be stacked vertically
-                            idx += 1
-                        last = bbox[2]
-                        if ee.data.get("_colIdx") is None:
-                            ee.data["_colIdx"] = idx
-                    for ee in row:
-                        if ee.data.get("_colCnt") is None:
-                            ee.data["_colCnt"] = idx + 1
+                        idx = -1
+                        last = 0.0
+                        for ee in row:
+                            bbox = ee.data["bbox"]
+                            if bbox[0] >= last:  # may be stacked vertically
+                                idx += 1
+                            last = bbox[2]
+                            if ee.data.get("_colIdx") is None:
+                                ee.data["_colIdx"] = idx
+                        for ee in row:
+                            if ee.data.get("_colCnt") is None:
+                                ee.data["_colCnt"] = idx + 1
 
-        # re-sort ranges of two-column text
-        last = 0
-        ranges = []
-        for idx, elem in enumerate(elements):
-            if not partOfTwoCol(elem, xmin, xmax):
-                if (idx - last) > 4:
-                    ranges.append((last + 1, idx))
-                last = idx
-        for xx, yy in ranges:
-            elements[xx:yy] = sorted(elements[xx:yy], key=getBboxLeftTop)
+            # re-sort ranges of two-column text
+            last = 0
+            ranges = []
+            for idx, elem in enumerate(elements):
+                if not partOfTwoCol(elem, xmin, xmax):
+                    if (idx - last) > 4:
+                        ranges.append((last + 1, idx))
+                    last = idx
+            for xx, yy in ranges:
+                elements[xx:yy] = sorted(elements[xx:yy], key=getBboxLeftTop)
 
-        # mark breaks due to column transitions
-        lastCols = 0
-        for elem in elements:
-            ecols = elem.data["_colCnt"]
-            if ecols != lastCols:
-                if ecols == 0:
-                    elem.data["_break"] = True
-                lastCols = ecols
+            # mark breaks due to column transitions
+            lastCols = 0
+            for elem in elements:
+                ecols = elem.data["_colCnt"]
+                if ecols != lastCols:
+                    if ecols == 0:
+                        elem.data["_break"] = True
+                    lastCols = ecols
 
-        # mark breaks to keep within token limit
-        # FIXME: do this in a balanced way
-        toks = 0
-        for elem in elements:
-            etoks = elem.data["_tokCnt"]
-            if elem.data.get("_break") or ((toks + etoks) > self.maxToks):
-                elem.data["_break"] = True
-                toks = 0
-            toks += etoks
+            parent.elements = elements  # must copy back in
+            return parent
 
-        # merge elements, honoring marked breaks and drops
-        merged = []
-        bin = b""
-        text = ""
-        props: Dict[str, Any] = {}
-        bbox = None
-
-        for elem in elements:
-            if elem.data.get("_drop"):
-                continue
-            if elem.data.get("_break"):
-                ee = Element()
-                ee.binary_representation = bin
-                ee.text_representation = text
-                ee.properties = props
-                ee.data["bbox"] = bbox
-                merged.append(ee)
-                bin = b""
-                text = ""
-                props = {}
-                bbox = None
-            if elem.binary_representation:
-                bin += elem.binary_representation + b"\n"
-            if elem.text_representation:
-                text += elem.text_representation + "\n"
-            for k, v in elem.properties.items():
-                if k not in props:  # FIXME: order may matter here
-                    props[k] = v
-            ebb = elem.data.get("bbox")
-            if ebb is not None:
-                if bbox is None:
-                    bbox = ebb
-                else:
-                    bbox = (min(bbox[0], ebb[0]), min(bbox[1], ebb[1]), max(bbox[2], ebb[2]), max(bbox[3], ebb[3]))
-
-        if text:
-            ee = Element()
-            ee.binary_representation = bin
-            ee.text_representation = text
-            ee.properties = props
-            ee.data["bbox"] = bbox
-            merged.append(ee)
-
-        document.elements = merged
-        return document
+    def execute(self) -> Dataset:
+        dataset = self.child().execute()
+        xform = MarkBreakByColumn.Callable()
+        return dataset.map(generate_map_function(xform.run))

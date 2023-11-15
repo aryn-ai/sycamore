@@ -1,8 +1,15 @@
 import ray.data
 
 from sycamore.data import Document
-from sycamore.transforms.bbox_merge import BboxMerger
-from sycamore.transforms.merge_elements import Merge
+from sycamore.transforms import (
+    MarkBreakByColumn,
+    MarkBreakByTokens,
+    MarkBreakPage,
+    MarkDropHeaderFooter,
+    MarkDropTiny,
+    SortByPageBbox,
+)
+from sycamore.transforms.merge_elements import Merge, MarkedMerger
 from sycamore.functions.tokenizer import HuggingFaceTokenizer
 from sycamore.plan_nodes import Node
 
@@ -62,9 +69,14 @@ class TestBboxMerge:
     tokenizer = HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2")
 
     def testMergeElements(self):
-        merger = BboxMerger(self.tokenizer, 512)
-        mdoc = merger.merge_elements(self.doc)
-        merged = mdoc.elements
+        doc = SortByPageBbox.Callable().run(self.doc)
+        doc = MarkDropTiny.Callable(2).run(doc)
+        doc = MarkDropHeaderFooter.Callable(0.05, 0.05).run(doc)
+        doc = MarkBreakPage.Callable().run(doc)
+        doc = MarkBreakByColumn.Callable().run(doc)
+        doc = MarkBreakByTokens.Callable(self.tokenizer, 512).run(doc)
+        doc = MarkedMerger().merge_elements(doc)
+        merged = doc.elements
         assert len(merged) == 5
 
         assert merged[0].text_representation.startswith("previous page")
@@ -81,7 +93,14 @@ class TestBboxMerge:
         input = ray.data.from_items([{"doc": self.doc.serialize()}])
         execMock = mocker.patch.object(node, "execute")
         execMock.return_value = input
-        merger = BboxMerger(self.tokenizer, 512)
+
+        plan = SortByPageBbox(node)
+        plan = MarkDropTiny(plan, 2)
+        plan = MarkDropHeaderFooter(plan, 0.05)
+        plan = MarkBreakPage(plan)
+        plan = MarkBreakByColumn(plan)
+        plan = MarkBreakByTokens(plan, self.tokenizer, 512)
+        merger = MarkedMerger()
         merge = Merge(node, merger)
         output = merge.execute()
         output.show()

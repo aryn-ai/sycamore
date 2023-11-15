@@ -72,7 +72,6 @@ class TextractTableExtractor(TableExtractor):
 
             # os.path.join("s3://foo", "/abc") -> "/abc"; which is not what we want.
             dest = self._s3_upload_root + tmp_path
-            print("ERIC DEBUG uploading", path, "to", dest)
 
             result = extractor.start_document_analysis(
                 document.properties["path"], TextractFeatures.TABLES, s3_upload_path=dest

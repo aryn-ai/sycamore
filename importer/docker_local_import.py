@@ -109,6 +109,8 @@ def main():
                     failures = failures - 1
                 else:
                     max_files_per_run = min(max_files_per_run * 2, files_per_run_limit)
+                print("Successfully imported:", [str(f["path"]) for f in files], flush=True)
+
                 print(
                     "Successful run adjusted failure count to {} and max_files_per_run to {}".format(
                         failures, max_files_per_run
@@ -210,6 +212,12 @@ def reimport_timestamp(root, suffix):
 def import_files(root, files):
     pending_paths = {}
     for i in files:
+        # textractor uses PIL.Image.open to identify images, and it fails with an
+        # UnidentifiedImageError on a pdf file that doesn't end in .pdf.
+        if i["type"] == "pdf" and not str(i["path"]).endswith(".pdf"):
+            print("ERROR: Unable to import", str(i["path"]), "-- pdf files must end in .pdf; fix the crawler")
+            continue
+
         if i["type"] not in pending_paths:
             pending_paths[i["type"]] = []
 
@@ -252,6 +260,10 @@ def wait_for_opensearch_ready():
 
 
 def import_pdf(paths):
+    if len(paths) == 0:
+        print("WARNING: import_html called with empty paths")
+        return
+
     openai_llm = OpenAI(OpenAIModels.TEXT_DAVINCI.value)
     tokenizer = HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2")
     merger = GreedyTextElementMerger(tokenizer, 30)
@@ -261,7 +273,7 @@ def import_pdf(paths):
         # TODO: eric - implement manifest generation from file
         # so like s3://aryn-datasets-us-east-1/sort_benchmark/manifest.json read by
         # JsonManifestMetadataProvider; same below for HTML importing
-        ctx.read.binary(paths, binary_format="pdf")
+        ctx.read.binary(paths, binary_format="pdf", filter_paths_by_extension=False)
         # TODO: eric - figure out how to cache the results of the textract runs so that we can
         # 1) speed up testing; and 2) let people try out sycamore without also having to set up S3
         .partition(
@@ -297,11 +309,15 @@ def sycamore_init():
 
 
 def import_html(paths):
+    if len(paths) == 0:
+        print("WARNING: import_html called with empty paths")
+        return
+
     ctx = sycamore_init()
     (
-        ctx.read.binary(paths, binary_format="html")
+        ctx.read.binary(paths, binary_format="html", filter_paths_by_extension=False)
         .partition(partitioner=HtmlPartitioner())
-        .spread_properties(["title"])
+        .spread_properties(["path", "title"])
         .explode()
         .embed(
             embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")

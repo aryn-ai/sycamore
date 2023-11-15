@@ -48,6 +48,9 @@ class SycamoreSpider(scrapy.Spider):
         name = os.path.join(ct, re.sub("/", "_", response.url))
 
         file = os.path.join(self.dest_dir, name)
+        if ct == "pdf" and not file.endswith(".pdf"):
+            file = file + ".pdf"
+
         if self._possibly_modified(lm, file):
             print("Store ", response.url, " as ", file)
             os.makedirs(os.path.dirname(file), exist_ok=True)

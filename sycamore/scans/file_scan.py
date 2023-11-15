@@ -103,13 +103,16 @@ class BinaryScan(FileScan):
         parallelism: Optional[int] = None,
         filesystem: Optional[FileSystem] = None,
         metadata_provider: Optional[FileMetadataProvider] = None,
+        filter_paths_by_extension: bool = True,
         **resource_args,
     ):
+        print("ERIC DEBUG resource args", resource_args, ";", filter_paths_by_extension)
         super().__init__(paths, parallelism=parallelism, filesystem=filesystem, **resource_args)
         self._paths = paths
         self.parallelism = -1 if parallelism is None else parallelism
         self._binary_format = binary_format
         self._metadata_provider = metadata_provider
+        self._filter_paths_by_extension = filter_paths_by_extension
 
     def _to_document(self, dict: dict[str, Any]) -> dict[str, bytes]:
         document = Document()
@@ -129,7 +132,10 @@ class BinaryScan(FileScan):
         return {"doc": document.serialize()}
 
     def execute(self) -> "Dataset":
-        partition_filter = FileExtensionFilter(self.format())
+        if self._filter_paths_by_extension:
+            partition_filter = FileExtensionFilter(self.format())
+        else:
+            partition_filter = None
         files = read_binary_files(
             self._paths,
             include_paths=True,

@@ -71,13 +71,15 @@ def main():
 
     if enable_textract:
         if "SYCAMORE_TEXTRACT_PREFIX" not in os.environ:
-            raise RuntimeError("Missing SYCAMORE_TEXTRACT_PREFIX (e.g. s3://example or s3://example/dir)")
+            raise RuntimeError(
+                "Missing SYCAMORE_TEXTRACT_PREFIX (e.g. s3://example or s3://example/dir); or you can export ENABLE_TEXTRACT=false"
+            )
 
         if "AWS_ACCESS_KEY_ID" not in os.environ:
-            raise RuntimeError("Missing AWS_ACCESS_KEY_ID")
+            raise RuntimeError("Missing AWS_ACCESS_KEY_ID; or you can export ENABLE_TEXTRACT=false")
 
         if "AWS_SECRET_ACCESS_KEY" not in os.environ:
-            raise RuntimeError("missing AWS_SECRET_ACCESS_KEY")
+            raise RuntimeError("missing AWS_SECRET_ACCESS_KEY; or you can export ENABLE_TEXTRACT=false")
 
         if "AWS_SESSION_TOKEN" not in os.environ:
             print("WARNING: AWS_SESSION_TOKEN not present; secret key may not work if it is a short term sso token")

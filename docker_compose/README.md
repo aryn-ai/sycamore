@@ -2,11 +2,12 @@
 
 Runs the entire Sycamore stack + Aryn demo UI.
 
-1. Download Docker & Docker compose
+1. Download Docker & Docker compose V2
    1. Either https://www.docker.com/products/docker-desktop/
    1. Or via your local package manager, e.g. `apt install docker-compose-v2`
-1. Get an OpenAI API Key from https://platform.openai.com/account/api-keys
-1. If you want to use textract to get good results on the sort benchmark sample data:
+1. Get an OpenAI API Key from https://platform.openai.com/account/api-keys if you
+   don't already have one as $OPENAI_API_KEY
+1. If you want to use Amazon Textract to get good results on the sort benchmark sample data:
    1. Get an AWS account from https://repost.aws/knowledge-center/create-and-activate-aws-account
    1. Create an S3 bucket in that account, e.g. s3://_username_-textract-bucket
    1. Note: We recommend you set up lifecycle rules to delete the uploaded files automatically
@@ -14,10 +15,11 @@ Runs the entire Sycamore stack + Aryn demo UI.
    1. You may have already done this since this README is one of the files
    1. https://github.com/aryn-ai/sycamore/tree/main/docker_compose
 1. Setup your environment
+   1. export OPENAI_API_KEY=key-you-got-above
    1. export SYCAMORE_TEXTRACT_PREFIX=s3://_username_-textract-bucket
-   1. If you are skipping textract
+   1. If you are skipping Amazon Textract
       1. % export ENABLE_TEXTRACT=false
-   1. If you are enabling textract
+   1. If you are enabling Amazon Textract
       1. % aws sso login
       1. % eval "$(aws configure export-credentials --format env)"
       1. \# or any other way to setup AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and if needed AWS_SESSION_TOKEN
@@ -31,12 +33,11 @@ Runs the entire Sycamore stack + Aryn demo UI.
 1. Wait until the service has finished importing a single sort benchmark pdf
    1. You will see messages like 'No changes at <date> sleeping'
 1. Try out the Aryn conversational UI
-   1. Visit http://localhost:3000
+   1. Visit http://localhost:3000 on an internet browser such as Google Chrome, Mozilla Firefox,
+      Apple Safari, or Microsoft Edge
 1. Load more files into the service
    1. % docker compose -f sort-all.yaml up
    1. You can interact with the UI while it is loading, but the data won't all be there
-1. Load your files into the service
-   1. TBA
 
 # Troubleshooting
 

@@ -43,7 +43,7 @@ services:
       - crawl_data:/app/.scrapy
     environment:
       - OPENAI_API_KEY
-      - ENABLE_TEXTRACT=true
+      - ENABLE_TEXTRACT
       # Textract is enabled by default to get good results on the sort benchmark pdf files.
       # However, if you enable it you need to setup the textract prefix and the aws credentials
       # shown in the variables below.

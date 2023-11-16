@@ -31,7 +31,7 @@ ENV GIT_BRANCH=${GIT_BRANCH}
 ENV GIT_COMMIT=${GIT_COMMIT}
 ENV GIT_DIFF=${GIT_DIFF}
 
-LABEL org.opencontainers.image.authors="aryn-team@aryn.ai"
+LABEL org.opencontainers.image.authors="opensource@aryn.ai"
 LABEL git_branch=${GIT_BRANCH}
 LABEL git_commit=${GIT_COMMIT}
 LABEL git_diff=${GIT_DIFF}

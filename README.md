@@ -6,6 +6,10 @@ The quickstart will deploy the Aryn platform, consisting of four containers: Syc
 
 The quickstart configuration of Aryn automactially runs an example workload that crawls XXXXX and loads it into the Aryn platform. This gives you a out-of-the-box example for conversational search. Please [see below](###add-your-own-data) for instructions on how to load your own data.
 
+
+<GET http://sortbenchmark.org/robots.txt> (referer: None) ['cached']
+arynquickstart-sycamore_crawler_http-1  | 2023-11-16 21:08:46 [scrapy.core.engine] DEBUG: Crawled (200) <GET http://sortbenchmark.org/2004_Nsort_Minutesort.pdf> (referer: None) ['cached']
+
 The quickstart requires:
 
 1. An OpenAI Key for LLM access. You can create an OpenAI account [here](https://platform.openai.com/signup), or if you already have one, you can retrieve your key [here](https://platform.openai.com/account/api-keys)
@@ -23,7 +27,8 @@ UPDATE TO NEW LOCATION!
 2. Set up your Aryn Search environment:
 
 ```
-export SYCAMORE_TEXTRACT_PREFIX=[s3://your-bucket-name-here]
+export SYCAMORE_TEXTRACT_PREFIX=s3://your-bucket-name-here
+export OPENAI_API_KEY=YOUR-KEY
 ```
 
 a. Textract is used by default with the demo Sycamore script, and you can choose to configure it or disable it. To use it, you need to configure your AWS credentials. You can enable AWS SSO login with [these instructions](https://docs.aws.amazon.com/cli/latest/userguide/sso-configure-profile-token.html#sso-configure-profile-token-auto-sso), or you can use other methods to set up AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and if needed AWS_SESSION_TOKEN. 

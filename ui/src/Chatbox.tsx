@@ -67,6 +67,8 @@ const SystemChatBox = ({ systemChat }: { systemChat: SystemChat }) => {
     const replaceCitationsWithLinks = (text: string) => {
         const elements: React.ReactNode[] = new Array();
         var lastIndex = 0;
+        if (text == null)
+            return elements;
         text.replace(citationRegex, (substring: string, citationNumberRaw: any, index: number) => {
             elements.push(text.slice(lastIndex, index));
             const citationNumber = parseInt(citationNumberRaw)
@@ -206,7 +208,7 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
                 if ('query' in chat) {
                     return { role: "user", content: chat.query }
                 } else {
-                    return { role: "system", content: chat.response }
+                    return { role: "system", content: chat.response ?? "" }
                 }
             })
             // console.log("history: ", chatHistoryText)

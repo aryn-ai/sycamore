@@ -51,11 +51,11 @@ If you do not want to use Textract in your Sycamore job, then you can disable it
 export ENABLE_TEXTRACT=false
 ```
 
-3. Start the Docker service
-   a. On MacOS or Windows, start Docker desktop
-   b. On Linux, if you used your local package manager, it should be started
+3. Start the Docker service  
+   a. On MacOS or Windows, start Docker desktop  
+   b. On Linux, if you used your local package manager, it should be started  
 
-5. Adjust Docker service memory settings
+5. Adjust Docker service memory settings  
 In Docker, go to "Settings" - on MacOS, it's the gear icon in the top right of the UI. Next, click on "Resources" and adjust Memory limit to 6 GB and Swap to 4 GB.
 
 6. Start Aryn Search

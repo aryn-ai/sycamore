@@ -60,7 +60,7 @@ pip install sycamore-ai
 
 For certain PDF processing operations, you also need to install poppler, which you can do with the OS-native package manager of your choice. For example, the command for Homebrew on Mac OS is brew install poppler.
 
-To conifgure Sycamore to load the Aryn OpenSearch container:
+To conifgure Sycamore to load the local Aryn OpenSearch container:
 
 ```
 # Write the embedded documents to a local OpenSearch index.

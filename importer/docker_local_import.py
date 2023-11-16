@@ -69,7 +69,6 @@ def main():
     if "OPENAI_API_KEY" not in os.environ:
         raise RuntimeError("Missing OPENAI_API_KEY")
 
-    print("ERIC", enable_textract)
     if enable_textract:
         if "SYCAMORE_TEXTRACT_PREFIX" not in os.environ:
             raise RuntimeError("Missing SYCAMORE_TEXTRACT_PREFIX (e.g. s3://example or s3://example/dir)")

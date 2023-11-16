@@ -106,7 +106,6 @@ class BinaryScan(FileScan):
         filter_paths_by_extension: bool = True,
         **resource_args,
     ):
-        print("ERIC DEBUG resource args", resource_args, ";", filter_paths_by_extension)
         super().__init__(paths, parallelism=parallelism, filesystem=filesystem, **resource_args)
         self._paths = paths
         self.parallelism = -1 if parallelism is None else parallelism

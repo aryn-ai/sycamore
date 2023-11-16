@@ -76,10 +76,14 @@ Then Aryn Search has properly processed the PDF and loaded it into the index.
 
 7. Use the demo UI for conversational search
 
-a. Using your internet browser, visit http://localhost:3000.   
-b. Create a new conversation. Enter the name for your conversation in the text box in the left "Conversations" panel, and hit enter or click the "add convo" icon on the right of the text box.  
-c. Select your conversation, and then write a question into the text box in the middle panel. Hit enter.
-d. Ask follow up questions. You'll see the actual results from the Aryn Search hybrid search for your question in the right panel, and the conversational search in the middle panel.
+- Using your internet browser, visit http://localhost:3000.
+- Create a new conversation. Enter the name for your conversation in the text box in the left "Conversations" panel, and hit enter or click the "add convo" icon on the right of the text box.
+- Select your conversation, and then write a question into the text box in the middle panel. Hit enter.
+- Ask follow up questions. You'll see the actual results from the Aryn Search hybrid search for your question in the right panel, and the conversational search in the middle panel.  
+
+Congrats! You've deployed Aryn Search and enabled conversational search over a document. Next, you can choose to ingest the rest of the documents from the [Sort Benchmark website](##add-sort-benchmark-dataset) or your own data(##add-your-own-data). 
+
+## Add Sort Benchmark Dataset
 
 ## Add your own data
 

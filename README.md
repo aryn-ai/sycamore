@@ -4,11 +4,7 @@ You can easily get started with the Aryn Search Platform locally using Docker. I
 
 The quickstart will deploy the Aryn platform, consisting of four containers: Sycamore importer, Sycamore HTTP crawler, Aryn OpenSearch, and Aryn demo conversational search UI. Our images currently support XXXX hardware, and we tag each image with XXXXXX. 
 
-The quickstart configuration of Aryn automactially runs an example workload that crawls XXXXX and loads it into the Aryn platform. This gives you a out-of-the-box example for conversational search. Please [see below](###add-your-own-data) for instructions on how to load your own data.
-
-
-<GET http://sortbenchmark.org/robots.txt> (referer: None) ['cached']
-arynquickstart-sycamore_crawler_http-1  | 2023-11-16 21:08:46 [scrapy.core.engine] DEBUG: Crawled (200) <GET http://sortbenchmark.org/2004_Nsort_Minutesort.pdf> (referer: None) ['cached']
+The quickstart configuration of Aryn automatically runs an example workload that crawls www.sortbenchmark.org, downloads [this PDF](http://sortbenchmark.org/2004_Nsort_Minutesort.pdf), and loads it into the Aryn platform. This gives you a out-of-the-box example for conversational search. Please [see below](###add-your-own-data) for instructions on how to load your own data.
 
 The quickstart requires:
 
@@ -21,8 +17,7 @@ The quickstart requires:
 
 Now, let's get started:  
 
-1. Download the Docker compose files for the Quickstart [here](https://github.com/aryn-ai/quickstart/tree/main/docker_compose)
-UPDATE TO NEW LOCATION!  
+1. Download the Docker compose files for the Quickstart [here](https://github.com/aryn-ai/quickstart/tree/main/docker_compose)  
 
 2. Set up your Aryn Search environment:
 
@@ -65,26 +60,14 @@ In the directory where you downloaded the Docker compose files, run:
 docker compose up 
 ```
 
-If OOM issues...XYZ...
+Once you see log messages similar to 'No changes at [datetime] sleeping', Aryn Search has properly processed the PDF and loaded it into the index.
 
-Once you see
+7. Use the demo UI for conversational search
 
-arynquickstart-sycamore-1               | No changes at 2023-11-16 22:09:55.020185 sleeping
-
-Good to go
-
-
-
-To run the quickstart:
-
-```
-cd path/to/quickstart/docker_compose
-Set OPENAI_API_KEY, e.g. export OPENAI_API_KEY=sk-...XXXXX
-NEED TO SETUP AWS CREDENTIALS
-docker compose up
-```
-
-You can then visit http://localhost:3000/ for conversational search on the sample dataset.
+a. Using your internet browser, visit http://localhost:3000.   
+b. Create a new conversation. Enter the name for your conversation in the text box in the left "Conversations" panel, and hit enter or click the "add convo" icon on the right of the text box.  
+c. Select your conversation, and then write a question into the text box in the middle panel. Hit enter.
+d. Ask follow up questions. You'll see the actual results from the Aryn Search hybrid search for your question in the right panel, and the conversational search in the middle panel.
 
 ### Add your own data
 

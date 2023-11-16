@@ -81,7 +81,7 @@ def main():
 
         if "AWS_SESSION_TOKEN" not in os.environ:
             print("WARNING: AWS_SESSION_TOKEN not present; secret key may not work if it is a short term sso token")
-        # TODO: eric - check for AWS_CREDENTIAL_EXIRATION
+        # TODO: https://github.com/aryn-ai/quickstart/issues/1 - check for AWS_CREDENTIAL_EXIRATION
 
     root = Path(root_path)
 
@@ -283,11 +283,12 @@ def import_pdf(paths):
         print("WARNING: Textract disabled, results on sort benchmark website will be mediocre")
 
     (
-        # TODO: eric - implement manifest generation from file
+        # TODO: https://github.com/aryn-ai/quickstart/issues/2 - implement manifest generation
         # so like s3://aryn-datasets-us-east-1/sort_benchmark/manifest.json read by
         # JsonManifestMetadataProvider; same below for HTML importing
         ctx.read.binary(paths, binary_format="pdf", filter_paths_by_extension=False)
-        # TODO: eric - figure out how to cache the results of the textract runs so that we can
+        # TODO: https://github.com/aryn-ai/quickstart/issues/3 - cache textract results
+        # so that we can
         # 1) speed up testing; and 2) let people try out sycamore without also having to set up S3
         .partition(
             partitioner=UnstructuredPdfPartitioner(),

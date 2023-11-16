@@ -64,8 +64,9 @@ class TextractTableExtractor(TableExtractor):
         elif not self._s3_upload_root.startswith("s3://"):
             raise MissingS3UploadPath()
         else:
-            # TODO: eric - do this with a content based hash upload so that we're only uploading
-            # documents once rather than on every test run.
+            # TODO: https://github.com/aryn-ai/sycamore/issues/173 - implement content-hash uploading
+            # If we manually upload based on a hash, we can avoid repeated uploads and storage
+            # of the same file.
             tmp_path = path
             if not tmp_path.startswith("/"):
                 tmp_path = "/" + path

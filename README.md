@@ -10,9 +10,38 @@ The quickstart requires:
 
 1. An OpenAI Key for LLM access. You can create an OpenAI account [here](https://platform.openai.com/signup), or if you already have one, you can retrieve your key [here](https://platform.openai.com/account/api-keys)
 
-2. AWS credentials for Amazon Textract. The demo Sycamore processing job uses Textract for table extraction. You will accrue AWS charges for Textract usage.
-    a. If you do not have an AWS account, sign up [here](https://portal.aws.amazon.com/billing/signup).
-    b. Create an Amazon S3 bucket in that account for use with Textract (e.g.  e.g. s3://username-textract-bucket). We recommend you set up bucket lifecycle rules that automatically delete files in this bucket, as the data stored here is only needed temporarily during a Sycamore data processing job.
+2. For the highest quality answers, AWS credentials for Amazon Textract and an Amazon S3 bucket for Textract input/output. The demo Sycamore processing job uses Textract for table extraction. You will accrue AWS charges for Textract usage. When setting up your environment below, you can choose to disable Textract access for simplicity, but the processing and answer quality will be lower quality. 
+    a. If you do not have an AWS account, sign up [here](https://portal.aws.amazon.com/billing/signup).  
+    b. Create an Amazon S3 bucket in that account for use with Textract (e.g.  e.g. s3://username-textract-bucket). We recommend you set up bucket lifecycle rules that automatically delete files in this bucket, as the data stored here is only needed temporarily during a Sycamore data processing job.  
+
+Now, let's get started:  
+
+1. Download the Docker compose files for the Quickstart [here](https://github.com/aryn-ai/quickstart/tree/main/docker_compose)
+UPDATE TO NEW LOCATION!  
+
+2. Set up your Aryn Search environment:
+
+```
+export SYCAMORE_TEXTRACT_PREFIX=[s3://your-bucket-name-here]
+```
+
+Textract is used by default with the demo Sycamore script, and to use it, you need to configure your AWS credentials. You can enable AWS SSO login with [these instructions](https://docs.aws.amazon.com/cli/latest/userguide/sso-configure-profile-token.html#sso-configure-profile-token-auto-sso), if you have not already done so.  
+
+'''
+% aws sso login
+% eval "$(aws configure export-credentials --format env)"
+# or any other way to setup AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and if needed AWS_SESSION_TOKEN
+You can verify it is working by running aws s3 ls; you should see the bucket you created for $SYCAMORE_TEXTRACT_PREFIX
+'''
+
+If you do not want to use Textract in your Sycamore job, then you can disable it by:
+
+```
+% export ENABLE_TEXTRACT=false
+```
+
+
+
 
 To run the quickstart:
 

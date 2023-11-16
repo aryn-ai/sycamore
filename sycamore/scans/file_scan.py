@@ -93,6 +93,10 @@ class BinaryScan(FileScan):
     {"doc_id": uuid,
      "content": {"binary": xxx, "text": None},
       "properties": {"path": xxx}}.
+
+    Note: if you specify filter_paths_by_extension = False, you need to make sure
+    all the files that are scanned can be processed by the pipeline. Many pipelines
+    include file-type specific steps.
     """
 
     def __init__(

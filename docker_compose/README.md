@@ -20,7 +20,7 @@ Runs the entire Sycamore stack + Aryn demo UI.
    1. If you are enabling textract
       1. % aws sso login
       1. % eval "$(aws configure export-credentials --format env)"
-      1. # or any other way to setup AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and if needed AWS_SESSION_TOKEN
+      1. \# or any other way to setup AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and if needed AWS_SESSION_TOKEN
       1. You can verify it is working by running aws s3 ls; you should see the bucket you created for $SYCAMORE_TEXTRACT_PREFIX
 1. Start docker service
    1. On MacOS or Windows, start Docker desktop

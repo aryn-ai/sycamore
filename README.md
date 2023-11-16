@@ -8,9 +8,11 @@ The quickstart configuration of Aryn automactially runs an example workload that
 
 The quickstart requires:
 
-- An OpenAI Key for LLM access
-- AWS credentials for Amazon Textract. The demo Sycamore processing job uses Textract for table extraction. You will accrue AWS charges for Textract usage.
-- What else??
+1. An OpenAI Key for LLM access. You can create an OpenAI account [here](https://platform.openai.com/signup), or if you already have one, you can retrieve your key [here](https://platform.openai.com/account/api-keys)
+
+2. AWS credentials for Amazon Textract. The demo Sycamore processing job uses Textract for table extraction. You will accrue AWS charges for Textract usage.
+    a. If you do not have an AWS account, sign up [here](https://portal.aws.amazon.com/billing/signup).
+    b. Create an Amazon S3 bucket in that account for use with Textract (e.g.  e.g. s3://username-textract-bucket). We recommend you set up bucket lifecycle rules that automatically delete files in this bucket, as the data stored here is only needed temporarily during a Sycamore data processing job.
 
 To run the quickstart:
 

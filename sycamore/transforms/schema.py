@@ -8,7 +8,7 @@ from ray.data import Dataset
 from sycamore.data import Element, Document
 from sycamore.plan_nodes import Node, Transform
 from sycamore.llms import LLM
-from sycamore.transforms.map import generate_map_function
+from sycamore.transforms.map import generate_map_function, generate_map_batch_function
 from sycamore.llms.prompts import (
     SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT,
     SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT_CHAT,
@@ -42,7 +42,7 @@ class PropertyExtractor(ABC):
         pass
 
 
-class OpenAISchema(SchemaExtractor):
+class OpenAISchemaExtractor(SchemaExtractor):
     """
     OpenAISchema uses one of OpenAI's language model (LLM) for schema extraction.
     """
@@ -60,7 +60,12 @@ class OpenAISchema(SchemaExtractor):
         self._prompt_formatter = prompt_formatter
 
     def extract_schema(self, document: Document) -> Document:
-        entities = self._handle_zero_shot_prompting(document)
+        if isinstance(document, list):
+            target = document[0]
+        else:
+            target = document
+
+        entities = self._handle_zero_shot_prompting(target)
 
         try:
             payload = entities["answer"]
@@ -70,9 +75,15 @@ class OpenAISchema(SchemaExtractor):
         except:
             answer = entities["answer"]
 
-        properties = document.properties
-        properties.update({"_schema": answer, "_schema_class": self._entity_name})
-        document.properties = properties
+        if isinstance(document, list):
+            entries = document
+        else:
+            entries = [ document ]
+
+        for x in entries:
+            properties = x.properties
+            properties.update({"_schema": answer, "_schema_class": self._entity_name})
+            x.properties = properties
 
         return document
 
@@ -146,7 +157,7 @@ class OpenAIPropertyExtractor(PropertyExtractor):
 
 class ExtractSchema(Transform):
     """
-    ExtractEntity is a transformation class for extracting a schema from a dataset using an SchemaExtractor.
+    ExtractSchema is a transformation class for extracting a schema from a document using an SchemaExtractor.
     """
 
     def __init__(
@@ -162,6 +173,28 @@ class ExtractSchema(Transform):
         input_dataset = self.child().execute()
         dataset = input_dataset.map(generate_map_function(self._schema_extractor.extract_schema))
         return dataset
+
+class ExtractBatchSchema(Transform):
+    """
+    ExtractBatchSchema is a transformation class for extracting a schema from a dataset using an SchemaExtractor.
+    This assumes all documents in the dataset share a common schema.
+    """
+
+    def __init__(self, child: Node, schema_extractor: SchemaExtractor, **resource_args):
+        super().__init__(child, **resource_args)
+        self._schema_extractor = schema_extractor
+
+    def execute(self) -> Dataset:
+        dataset = self.child().execute()
+        n = dataset.count()
+
+        output = dataset.map_batches(
+            generate_map_batch_function(self._schema_extractor.extract_schema),
+            batch_size=n,
+            **self.resource_args
+        )
+
+        return output
 
 class ExtractProperties(Transform):
     """

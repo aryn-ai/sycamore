@@ -277,6 +277,12 @@ class DocSet:
         schema = ExtractSchema(self.plan, schema_extractor=schema_extractor)
         return DocSet(self.context, schema)
     
+    def extract_batch_schema(self, schema_extractor: SchemaExtractor, **kwargs) -> "DocSet":
+        from sycamore.transforms import ExtractBatchSchema
+
+        schema = ExtractBatchSchema(self.plan, schema_extractor=schema_extractor)
+        return DocSet(self.context, schema)
+    
     def extract_properties(self, property_extractor: PropertyExtractor, **kwargs) -> "DocSet":
         from sycamore.transforms import ExtractProperties
 

@@ -4,7 +4,7 @@ You can easily get started with the Aryn Search Platform locally using Docker. T
 
 The quickstart will deploy the Aryn platform, consisting of four containers: Sycamore importer, Sycamore HTTP crawler, Aryn OpenSearch, and Aryn demo conversational search UI. Our images currently support XXXX hardware, and we tag each image with XXXXXX. 
 
-The quickstart configuration of Aryn automactially runs an example workload that crawls XXXXX and loads it into the Aryn platform. This gives you a out-of-the-box example for conversational search. Please visit XXXXhere for instructions on how to load your own data.
+The quickstart configuration of Aryn automactially runs an example workload that crawls XXXXX and loads it into the Aryn platform. This gives you a out-of-the-box example for conversational search. Please [see below](###add-your-own-data) for instructions on how to load your own data.
 
 The quickstart requires:
 

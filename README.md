@@ -55,12 +55,24 @@ export ENABLE_TEXTRACT=false
    a. On MacOS or Windows, start Docker desktop
    b. On Linux, if you used your local package manager, it should be started
 
-4. Start Aryn Search
+5. Adjust Docker service memory settings
+In Docker, go to "Settings" - on MacOS, it's the gear icon in the top right of the UI. Next, click on "Resources" and adjust Memory limit to 6 GB and Swap to 4 GB.
+
+6. Start Aryn Search
 In the directory where you downloaded the Docker compose files, run:
 
 ```
 docker compose up 
 ```
+
+If OOM issues...XYZ...
+
+Once you see
+
+arynquickstart-sycamore-1               | No changes at 2023-11-16 22:09:55.020185 sleeping
+
+Good to go
+
 
 
 To run the quickstart:

@@ -24,6 +24,7 @@ from sycamore.transforms.partition import UnstructuredPdfPartitioner, HtmlPartit
 # from simple_config import idx_settings, osrch_args, title_template
 
 running_in_container = False
+enable_textract = os.environ.get("ENABLE_TEXTRACT", "true") == "true"
 index = "demoindex0"
 
 
@@ -36,6 +37,10 @@ index = "demoindex0"
 # TODO: https://github.com/aryn-ai/sycamore/issues/158 - handle importing problems in a more
 #       clever way than blind retry.
 def main():
+    print("Version-Info, Sycamore Importer Branch:", os.environ["GIT_BRANCH"])
+    print("Version-Info, Sycamore Importer Commit:", os.environ["GIT_COMMIT"])
+    print("Version-Info, Sycamore Importer Diff:", os.environ["GIT_DIFF"])
+    print(flush=True)
     root_path = "/app/.scrapy"
     if len(sys.argv) <= 1:
         if not os.path.isdir(root_path):
@@ -64,19 +69,20 @@ def main():
     if "OPENAI_API_KEY" not in os.environ:
         raise RuntimeError("Missing OPENAI_API_KEY")
 
-    if "SYCAMORE_TEXTRACT_PREFIX" not in os.environ:
-        raise RuntimeError("Missing SYCAMORE_TEXTRACT_PREFIX (e.g. s3://example or s3://example/dir)")
+    print("ERIC", enable_textract)
+    if enable_textract:
+        if "SYCAMORE_TEXTRACT_PREFIX" not in os.environ:
+            raise RuntimeError("Missing SYCAMORE_TEXTRACT_PREFIX (e.g. s3://example or s3://example/dir)")
 
-    if "AWS_ACCESS_KEY_ID" not in os.environ:
-        raise RuntimeError("Missing AWS_ACCESS_KEY_ID")
+        if "AWS_ACCESS_KEY_ID" not in os.environ:
+            raise RuntimeError("Missing AWS_ACCESS_KEY_ID")
 
-    if "AWS_SECRET_ACCESS_KEY" not in os.environ:
-        raise RuntimeError("missing AWS_SECRET_ACCESS_KEY")
+        if "AWS_SECRET_ACCESS_KEY" not in os.environ:
+            raise RuntimeError("missing AWS_SECRET_ACCESS_KEY")
 
-    if "AWS_SESSION_TOKEN" not in os.environ:
-        print("WARNING: AWS_SESSION_TOKEN not present; secret key may not work if it is a short term sso token")
-
-    # TODO: eric - check for AWS_CREDENTIAL_EXIRATION
+        if "AWS_SESSION_TOKEN" not in os.environ:
+            print("WARNING: AWS_SESSION_TOKEN not present; secret key may not work if it is a short term sso token")
+        # TODO: eric - check for AWS_CREDENTIAL_EXIRATION
 
     root = Path(root_path)
 
@@ -269,6 +275,14 @@ def import_pdf(paths):
     merger = GreedyTextElementMerger(tokenizer, 30)
 
     ctx = sycamore_init()
+    if enable_textract:
+        table_extractor = TextractTableExtractor(
+            region_name="us-east-1", s3_upload_root=os.environ["SYCAMORE_TEXTRACT_PREFIX"]
+        )
+    else:
+        table_extractor = None
+        print("WARNING: Textract disabled, results on sort benchmark website will be mediocre")
+
     (
         # TODO: eric - implement manifest generation from file
         # so like s3://aryn-datasets-us-east-1/sort_benchmark/manifest.json read by
@@ -278,9 +292,7 @@ def import_pdf(paths):
         # 1) speed up testing; and 2) let people try out sycamore without also having to set up S3
         .partition(
             partitioner=UnstructuredPdfPartitioner(),
-            table_extractor=TextractTableExtractor(
-                region_name="us-east-1", s3_upload_root=os.environ["SYCAMORE_TEXTRACT_PREFIX"]
-            ),
+            table_extractor=table_extractor,
         )
         .merge(merger)
         .extract_entity(

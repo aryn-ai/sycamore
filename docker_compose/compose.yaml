@@ -43,7 +43,13 @@ services:
       - crawl_data:/app/.scrapy
     environment:
       - OPENAI_API_KEY
+      - ENABLE_TEXTRACT=true
+      # Textract is enabled by default to get good results on the sort benchmark pdf files.
+      # However, if you enable it you need to setup the textract prefix and the aws credentials
+      # shown in the variables below.
+
       # a bucket prefix like s3://example or s3://example/prefix/bits
+      # textract uploaded files will be under the prefix
       # recommend setting lifecycle rules on the bucket to delete old documents
       - SYCAMORE_TEXTRACT_PREFIX
       # to get the next 4 environment variables:

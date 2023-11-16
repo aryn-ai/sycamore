@@ -22,3 +22,15 @@ docker compose up
 
 You can then visit http://localhost:3000/ for conversational search on the sample dataset.
 
+### Add your own data with demo Sycamore script
+
+You can create additional indexes in the quickstart with your own data and have conversational search on it. The quickstart includes a sample Sycamore script that loads and prepares an example dataset from www.sortbenchmark.org. You can also have Aryn use this script to process your own data by configuring the quickstart to ingest it:
+
+STEPS TO DO THIS
+
+Please note that the sample Sycamore script was created to process the data found in the Sort Benchmark dataset, and not optimized for preparing your private data for search. We recommend iterating on the Sycamore script to find the best way to prepare and enrich your data for the best quality results.
+
+### Add your own data with demo Sycamore script
+
+
+

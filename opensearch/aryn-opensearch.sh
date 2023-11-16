@@ -356,6 +356,9 @@ deploy_model_try() {
 }
 
 sp_create_rag_pipeline() {
+    # Weights approximate a 1:8 ratio which got good results in the
+    # Linear combination experiment results of
+    # https://opensearch.org/blog/semantic-science-benchmarks/
     _curl_json -X PUT "${BASE_URL}/_search/pipeline/hybrid_rag_pipeline" \
           -o "${ARYN_STATUSDIR}/curl.create_rag_pipeline" \
           --data @- <<END || die "Error registering hybrid RAG pipeline"
@@ -390,6 +393,9 @@ END
 }
 
 sp_create_non_rag_pipeline() {
+    # Weights approximate a 1:8 ratio which got good results in the
+    # Linear combination experiment results of
+    # https://opensearch.org/blog/semantic-science-benchmarks/
     _curl_json -X PUT "${BASE_URL}/_search/pipeline/hybrid_pipeline" \
                -o "${ARYN_STATUSDIR}/curl.create_non_rag_pipeline" \
                --data @- <<END || die "Error registering non-RAG pipeline"

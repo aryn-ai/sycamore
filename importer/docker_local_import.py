@@ -1,5 +1,7 @@
 from pathlib import Path
+import datetime
 import math
+import numpy
 import os
 import requests
 import stat
@@ -11,14 +13,19 @@ sys.path.append("../sycamore")
 sys.path.append("/app")
 
 import sycamore
-from sycamore.llms import OpenAIModels, OpenAI
-from sycamore.transforms.partition import UnstructuredPdfPartitioner
-from sycamore.transforms.extract_entity import OpenAIEntityExtractor
+from sycamore.functions import HuggingFaceTokenizer
+from sycamore.llms import OpenAI, OpenAIModels
 from sycamore.transforms.embed import SentenceTransformerEmbedder
+from sycamore.transforms.extract_entity import OpenAIEntityExtractor
+from sycamore.transforms.extract_table import TextractTableExtractor
+from sycamore.transforms.merge_elements import GreedyTextElementMerger
+from sycamore.transforms.partition import UnstructuredPdfPartitioner, HtmlPartitioner
 
-from simple_config import idx_settings, osrch_args, title_template
+# from simple_config import idx_settings, osrch_args, title_template
 
 running_in_container = False
+enable_textract = os.environ.get("ENABLE_TEXTRACT", "true") == "true"
+index = "demoindex0"
 
 
 # TODO: https://github.com/aryn-ai/sycamore/issues/155 - detect that the opensearch cluster
@@ -30,6 +37,10 @@ running_in_container = False
 # TODO: https://github.com/aryn-ai/sycamore/issues/158 - handle importing problems in a more
 #       clever way than blind retry.
 def main():
+    print("Version-Info, Sycamore Importer Branch:", os.environ["GIT_BRANCH"])
+    print("Version-Info, Sycamore Importer Commit:", os.environ["GIT_COMMIT"])
+    print("Version-Info, Sycamore Importer Diff:", os.environ["GIT_DIFF"])
+    print(flush=True)
     root_path = "/app/.scrapy"
     if len(sys.argv) <= 1:
         if not os.path.isdir(root_path):
@@ -45,7 +56,6 @@ def main():
     if root_path == "/app/.scrapy":
         print("Assuming execution is in container, using adjusted host")
         running_in_container = True
-        osrch_args["hosts"][0]["host"] = "opensearch"
 
     if root_path == "/app/.scrapy" and "OPENAI_API_KEY" in os.environ:
         print("WARNING: OPENAI_API_KEY in environment is potentially insecure.")
@@ -59,24 +69,72 @@ def main():
     if "OPENAI_API_KEY" not in os.environ:
         raise RuntimeError("Missing OPENAI_API_KEY")
 
+    if enable_textract:
+        if "SYCAMORE_TEXTRACT_PREFIX" not in os.environ:
+            raise RuntimeError(
+                "Missing SYCAMORE_TEXTRACT_PREFIX (e.g. s3://example or s3://example/dir); or you can export ENABLE_TEXTRACT=false"
+            )
+
+        if "AWS_ACCESS_KEY_ID" not in os.environ:
+            raise RuntimeError("Missing AWS_ACCESS_KEY_ID; or you can export ENABLE_TEXTRACT=false")
+
+        if "AWS_SECRET_ACCESS_KEY" not in os.environ:
+            raise RuntimeError("missing AWS_SECRET_ACCESS_KEY; or you can export ENABLE_TEXTRACT=false")
+
+        if "AWS_SESSION_TOKEN" not in os.environ:
+            print("WARNING: AWS_SESSION_TOKEN not present; secret key may not work if it is a short term sso token")
+        # TODO: https://github.com/aryn-ai/quickstart/issues/1 - check for AWS_CREDENTIAL_EXIRATION
+
     root = Path(root_path)
 
-    failures = 0
-    loaded_models = False
+    failures = -1  # special marker for first try
+    ray_tasks = get_ray_task_count()
+    max_files_per_run = 1
+
+    # Make sure that we spend ~75% of the time running at full parallelism 75% because the tasks
+    # should finish in 4 units, and the first 3 of those will be at full parallelism.
+    files_per_run_limit = math.floor(ray_tasks * 4)
+    if ray_tasks == 1:  # If we only have 1 tasks in parallel, no point in doing more than 1 task/run
+        files_per_run_limit = 1
+
     while True:
         files = find_files(root)
-        print("Files:", files)
         if len(files) > 0:
             try:
-                if not loaded_models:
-                    print("First time trying to run, only running on a single file so model loading is less flaky")
-                    files = files[0:1]
+                if len(files) > max_files_per_run:
+                    print("Have {} remaining files, too many to process in one run.".format(len(files)))
+                    print("Limiting number of files in single run to {}".format(max_files_per_run))
+                    numpy.random.shuffle(files)
+                    files = files[0:max_files_per_run]
+                print("Files:", [str(f["path"]) for f in files], flush=True)
                 import_files(root, files)
                 time.sleep(1)
-                failures = 0
-                loaded_models = True
+                if failures == -1:
+                    max_files_per_run = min(ray_tasks * 2, files_per_run_limit)
+                    failures = 0
+                elif failures > 0:
+                    failures = failures - 1
+                else:
+                    max_files_per_run = min(max_files_per_run * 2, files_per_run_limit)
+                print("Successfully imported:", [str(f["path"]) for f in files], flush=True)
+
+                print(
+                    "Successful run adjusted failure count to {} and max_files_per_run to {}".format(
+                        failures, max_files_per_run
+                    )
+                )
             except Exception as e:
-                failures = failures + 1
+                if failures == -1:
+                    failures = 0
+                if max_files_per_run > 1:
+                    max_files_per_run = max(1, math.floor(max_files_per_run / 2))
+                else:
+                    failures = failures + 1
+                print(
+                    "Failed run adjusted failure count to {} and max_files_per_run to {}".format(
+                        failures, max_files_per_run
+                    )
+                )
                 print("WARNING: caught and tolerating exception")
                 print("WARNING: exception type:", type(e))
                 print("WARNING: exception args:", e.args)
@@ -85,8 +143,29 @@ def main():
                 print("WARNING: sleep(" + str(sleep_time) + ") in case this is persistent")
                 time.sleep(sleep_time)
         else:
-            print("No changes, sleeping")
+            print("No changes at", datetime.datetime.now(), "sleeping", flush=True)
             time.sleep(5)
+
+
+def get_ray_task_count():
+    mem_bytes = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+    usable_mem_bytes = 0.5 * mem_bytes  # use at most half of hosts RAM
+    gib = 1024 * 1024 * 1024
+    bytes_per_task = 2 * gib  # Importing sort benchmark varies between 1-2GB while running
+    ray_tasks = math.floor(usable_mem_bytes / bytes_per_task)
+    if ray_tasks <= 0:
+        ray_tasks = 1
+        print("WARNING: Want 2GiB of RAM/ray-task.")
+        print("WARNING: Available memory (50% of total) is only {:.2f} GiB".format(usable_mem_bytes / gib))
+        print("WARNING: Will run on single core and hope to not use too much swap")
+
+    if ray_tasks <= 1:
+        ray_tasks = 2
+        print("WARNING: import_pdf_sort_benchmark requires 2 simultaneous ray tasks to not hang.")
+        print("WARNING: on low-memory containers, the logic to adjust the number of files to process")
+        print("WARNING: in a batch will clamp the number of files to 1 which will allow for importing")
+
+    return ray_tasks
 
 
 def find_files(root):
@@ -140,6 +219,12 @@ def reimport_timestamp(root, suffix):
 def import_files(root, files):
     pending_paths = {}
     for i in files:
+        # textractor uses PIL.Image.open to identify images, and it fails with an
+        # UnidentifiedImageError on a pdf file that doesn't end in .pdf.
+        if i["type"] == "pdf" and not str(i["path"]).endswith(".pdf"):
+            print("ERROR: Unable to import", str(i["path"]), "-- pdf files must end in .pdf; fix the crawler")
+            continue
+
         if i["type"] not in pending_paths:
             pending_paths[i["type"]] = []
 
@@ -182,49 +267,177 @@ def wait_for_opensearch_ready():
 
 
 def import_pdf(paths):
-    print("Importing PDF files:", paths)
-    index = "demoindex0"
+    if len(paths) == 0:
+        print("WARNING: import_html called with empty paths")
+        return
 
-    davinci_llm = OpenAI(OpenAIModels.TEXT_DAVINCI.value)
+    openai_llm = OpenAI(OpenAIModels.TEXT_DAVINCI.value)
+    tokenizer = HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2")
+    merger = GreedyTextElementMerger(tokenizer, 30)
 
-    mem_bytes = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
-    usable_mem_bytes = 0.5 * mem_bytes  # use at most half of hosts RAM
-    gib = 1024 * 1024 * 1024
-    bytes_per_task = 2 * gib  # Importing sort benchmark varies between 1-2GB while running
-    ray_tasks = math.floor(usable_mem_bytes / bytes_per_task)
-    if ray_tasks <= 0:
-        ray_tasks = 1
-        print("WARNING: Want 2GiB of RAM/ray-task.")
-        print("WARNING: Available memory (50% of total) is only {:.2f} GiB".format(usable_mem_bytes / gib))
-        print("WARNING: Will run on single core and hope to not use too much swap")
+    ctx = sycamore_init()
+    if enable_textract:
+        table_extractor = TextractTableExtractor(
+            region_name="us-east-1", s3_upload_root=os.environ["SYCAMORE_TEXTRACT_PREFIX"]
+        )
+    else:
+        table_extractor = None
+        print("WARNING: Textract disabled, results on sort benchmark website will be mediocre")
 
-    print("Using", ray_tasks, "CPUs for execution")
-    ctx = sycamore.init(ray_args={"num_cpus": ray_tasks})
-    ds = (
-        ctx.read.binary(paths, binary_format="pdf")
-        .partition(partitioner=UnstructuredPdfPartitioner())
+    (
+        # TODO: https://github.com/aryn-ai/quickstart/issues/2 - implement manifest generation
+        # so like s3://aryn-datasets-us-east-1/sort_benchmark/manifest.json read by
+        # JsonManifestMetadataProvider; same below for HTML importing
+        ctx.read.binary(paths, binary_format="pdf", filter_paths_by_extension=False)
+        # TODO: https://github.com/aryn-ai/quickstart/issues/3 - cache textract results
+        # so that we can
+        # 1) speed up testing; and 2) let people try out sycamore without also having to set up S3
+        .partition(
+            partitioner=UnstructuredPdfPartitioner(),
+            table_extractor=table_extractor,
+        )
+        .merge(merger)
         .extract_entity(
-            entity_extractor=OpenAIEntityExtractor("title", llm=davinci_llm, prompt_template=title_template)
+            entity_extractor=OpenAIEntityExtractor(
+                "title", llm=openai_llm, prompt_template=get_title_context_template()
+            )
+        )
+        .extract_entity(
+            entity_extractor=OpenAIEntityExtractor(
+                "authors", llm=openai_llm, prompt_template=get_author_context_template()
+            )
         )
         .spread_properties(["path", "title"])
         .explode()
-        .embed(embedder=SentenceTransformerEmbedder(model_name="all-MiniLM-L6-v2", batch_size=100))
-    )
-
-    # If you enable this line you break parallelism
-    # ds.show(limit=1000, truncate_length=500)
-
-    ds.write.opensearch(
-        os_client_args=osrch_args,
-        index_name=index,
-        index_settings=idx_settings,
+        .embed(
+            embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
+        )
+        .write.opensearch(os_client_args=get_os_client_args(), index_name=index, index_settings=get_index_settings())
     )
 
 
-def import_html(root):
+def sycamore_init():
+    ray_tasks = get_ray_task_count()
+    print("Using", ray_tasks, "CPUs for execution")
+    return sycamore.init(ray_args={"num_cpus": ray_tasks})
+
+
+def import_html(paths):
+    if len(paths) == 0:
+        print("WARNING: import_html called with empty paths")
+        return
+
+    ctx = sycamore_init()
+    (
+        ctx.read.binary(paths, binary_format="html", filter_paths_by_extension=False)
+        .partition(partitioner=HtmlPartitioner())
+        .spread_properties(["path", "title"])
+        .explode()
+        .embed(
+            embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
+        )
+        .write.opensearch(os_client_args=get_os_client_args(), index_name=index, index_settings=get_index_settings())
+    )
+
     # TODO: https://github.com/aryn-ai/sycamore/issues/160 - implement HTML import
-    print("WARNING, HTML import unimplmented")
     pass
+
+
+def get_index_settings():
+    return {
+        "body": {
+            "settings": {"index.knn": True, "number_of_shards": 5, "number_of_replicas": 1},
+            "mappings": {
+                "properties": {
+                    "text": {"type": "text"},
+                    "embedding": {
+                        "dimension": 384,
+                        "method": {"engine": "nmslib", "space_type": "l2", "name": "hnsw", "parameters": {}},
+                        "type": "knn_vector",
+                    },
+                    "title": {"type": "text"},
+                    "searchable_text": {"type": "text"},
+                    "title_embedding": {
+                        "dimension": 384,
+                        "method": {"engine": "nmslib", "space_type": "l2", "name": "hnsw", "parameters": {}},
+                        "type": "knn_vector",
+                    },
+                    "url": {"type": "text"},
+                }
+            },
+        }
+    }
+
+
+def get_os_client_args():
+    args = {
+        "hosts": [{"host": "localhost", "port": 9200}],
+        "http_compress": True,
+        "http_auth": ("admin", "admin"),
+        "use_ssl": False,
+        "verify_certs": False,
+        "ssl_assert_hostname": False,
+        "ssl_show_warn": False,
+        "timeout": 120,
+    }
+    if running_in_container:
+        args["hosts"][0]["host"] = "opensearch"
+
+    return args
+
+
+def get_title_context_template():
+    # ruff: noqa: E501
+    return """
+        ELEMENT 1: Jupiter's Moons
+        ELEMENT 2: Ganymede 2020
+        ELEMENT 3: by Audi Lauper and Serena K. Goldberg. 2011
+        ELEMENT 4: From Wikipedia, the free encyclopedia
+        ELEMENT 5: Ganymede, or Jupiter III, is the largest and most massive natural satellite of Jupiter as well as in the Solar System, being a planetary-mass moon. It is the largest Solar System object without an atmosphere, despite being the only moon of the Solar System with a magnetic field. Like Titan, it is larger than the planet Mercury, but has somewhat less surface gravity than Mercury, Io or the Moon.
+        =========
+        "Ganymede 2020"
+
+        ELEMENT 1: FLAVR: Flow-Agnostic Video Representations for Fast Frame Interpolation
+        ELEMENT 2: Tarun Kalluri * UCSD
+        ELEMENT 3: Deepak Pathak CMU
+        ELEMENT 4: Manmohan Chandraker UCSD
+        ELEMENT 5: Du Tran Facebook AI
+        ELEMENT 6: https://tarun005.github.io/FLAVR/
+        ELEMENT 7: 2 2 0 2
+        ELEMENT 8: b e F 4 2
+        ELEMENT 9: ]
+        ELEMENT 10: V C . s c [
+        ========
+        "FLAVR: Flow-Agnostic Video Representations for Fast Frame Interpolation"
+
+        """
+
+
+def get_author_context_template():
+    # ruff: noqa: E501
+    return """
+            ELEMENT 1: Jupiter's Moons
+            ELEMENT 2: Ganymede 2020
+            ELEMENT 3: by Audi Lauper and Serena K. Goldberg. 2011
+            ELEMENT 4: From Wikipedia, the free encyclopedia
+            ELEMENT 5: Ganymede, or Jupiter III, is the largest and most massive natural satellite of Jupiter as well as in the Solar System, being a planetary-mass moon. It is the largest Solar System object without an atmosphere, despite being the only moon of the Solar System with a magnetic field. Like Titan, it is larger than the planet Mercury, but has somewhat less surface gravity than Mercury, Io or the Moon.
+            =========
+            Audi Laupe, Serena K. Goldberg
+
+            ELEMENT 1: FLAVR: Flow-Agnostic Video Representations for Fast Frame Interpolation
+            ELEMENT 2: Tarun Kalluri * UCSD
+            ELEMENT 3: Deepak Pathak CMU
+            ELEMENT 4: Manmohan Chandraker UCSD
+            ELEMENT 5: Du Tran Facebook AI
+            ELEMENT 6: https://tarun005.github.io/FLAVR/
+            ELEMENT 7: 2 2 0 2
+            ELEMENT 8: b e F 4 2
+            ELEMENT 9: ]
+            ELEMENT 10: V C . s c [
+            ========
+            Tarun Kalluri, Deepak Pathak, Manmohan Chandraker, Du Tran
+
+            """
 
 
 ####################################

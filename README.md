@@ -4,7 +4,7 @@ You can easily get started with the Aryn Search Platform locally using Docker. I
 
 The quickstart will deploy the Aryn platform, consisting of four containers: Sycamore importer, Sycamore HTTP crawler, Aryn OpenSearch, and Aryn demo conversational search UI. Our images currently support linux/amd64 and linux/arm64 hardware.
 
-The quickstart configuration of Aryn automatically runs an example workload that crawls the [Sort Benchmark website](http://www.sortbenchmark.org), downloads [this PDF](http://sortbenchmark.org/2004_Nsort_Minutesort.pdf), and loads it into the Aryn platform. This gives you a out-of-the-box example for conversational search. Please [see below](###add-your-own-data) for instructions on how to load your own data.
+The quickstart configuration of Aryn automatically runs an example workload that crawls the [Sort Benchmark website](http://www.sortbenchmark.org), downloads [this PDF](http://sortbenchmark.org/2004_Nsort_Minutesort.pdf), and loads it into the Aryn platform. This gives you a out-of-the-box example for conversational search. Please [see below](##add-your-own-data) for instructions on how to load your own data.
 
 ## Deploying Aryn Search
 
@@ -108,9 +108,10 @@ Then Aryn Search has properly processed the data and loaded it into the index. Y
 
 You can create additional indexes in the quickstart with your own data and have conversational search on it. The quickstart includes a sample Sycamore script that loads and prepares an example dataset from https://sortbenchmark.org. You can also have Aryn use this script to process your own data by configuring the quickstart to ingest it:
 
-STEPS TO DO THIS
+STEPS TO DO THIS - NEED YAML FROM ERIC
 
 Please note that the sample Sycamore script was created to process the data found in the Sort Benchmark dataset and not optimized for preparing your private data for search. We recommend iterating on the Sycamore script to find the best way to prepare and enrich your data for the best quality results.
+
 
 ## Improve search quality on your data
 
@@ -154,15 +155,20 @@ os_client_args = {
 }
 ```
 
+## Clean up
+
+Stop the containers, and delete the temporary files 
+
+
 ## Troubleshooting
 
 ### Nothing is importing
 
 Look at the log messages for the sycamore container: `docker compose logs sycamore`
 
-1. If you are missing environment variables, follow the instructions above to set them up.
+1. Check to see if you are missing environment variables. If so, please set them using the instructions earlier in the guide.
 
-1. If it is constantly OOMing, increase the memory for your docker container
+1. If it is constantly OOMing, increase the memory for your Docker container
    1. Via Docker Desktop: Settings > Resources > scroll down > ...
    1. The minimum successfully tested resources were 4GB RAM, 4GB Swap, 64GB disk space
 
@@ -170,8 +176,16 @@ Look at the log messages for the sycamore container: `docker compose logs sycamo
 
 If the persistent data is in a confused state, you can reset it back to a blank state:
 
-`% docker compose -f reset.yaml up`
+```
+docker compose -f reset.yaml up
+```
 
-### Reach out for help on the sycamore slack channel
+## Reach out for help via email or on the Sycamore Slack channel
+
+Feel free to reach out if you have any issues or feedback:
+
+info@aryn.ai 
+
+Or on Slack:
 
 https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg

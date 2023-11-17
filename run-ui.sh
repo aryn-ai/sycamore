@@ -1,4 +1,9 @@
 #!/bin/bash
+
+echo "Version-Info, Demo UI Branch: ${GIT_BRANCH}"
+echo "Version-Info, Demo UI Commit: ${GIT_COMMIT}"
+echo "Version-Info, Demo UI Diff: ${GIT_DIFF}"
+
 # run python proxy
 if [[ -z "${OPENAI_API_KEY}" ]]; then
     echo "ERROR: Missing OPENAI_API_KEY; will not work"

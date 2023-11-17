@@ -16,6 +16,7 @@
     "@testing-library/user-event": "^13.5.0",
     "assert": "^2.0.0",
     "axios": "^1.4.0",
+    "crypto-js": "^4.2.0",
     "hpagent": "^1.2.0",
     "jquery": "^3.7.0",
     "mocha": "^10.2.0",

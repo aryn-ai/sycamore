@@ -133,15 +133,9 @@ XXXXX
 **2. Iterate with a local version of Sycamore:**
 You may prefer to use a local IDE or notebook to iterate on your Sycamore script. You can install Scyamore locally, and configure it to load the output to the Aryn OpenSearch container from the quickstart.
 
-To install Syscamore:
+1. Install Sycamore locally. You can find the instructions [here](https://github.com/aryn-ai/sycamore#installation).
 
-```
-pip install sycamore-ai
-```
-
-For certain PDF processing operations, you also need to install poppler, which you can do with the OS-native package manager of your choice. For example, the command for Homebrew on Mac OS is brew install poppler.
-
-To conifgure Sycamore to ingest into the local Aryn OpenSearch container:
+2. To conifgure Sycamore to ingest into the local Aryn OpenSearch container:
 
 ```
 # Write the embedded documents to a local OpenSearch index.

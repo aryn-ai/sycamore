@@ -4,7 +4,7 @@ You can easily get started with the Aryn Search Platform locally using Docker. I
 
 The quickstart will deploy the Aryn platform, consisting of four containers: Sycamore importer, Sycamore HTTP crawler, Aryn OpenSearch, and Aryn demo conversational search UI. Our images currently support linux/amd64 and linux/arm64 hardware.
 
-The quickstart configuration of Aryn automatically runs an example workload that crawls www.sortbenchmark.org, downloads [this PDF](http://sortbenchmark.org/2004_Nsort_Minutesort.pdf), and loads it into the Aryn platform. This gives you a out-of-the-box example for conversational search. Please [see below](###add-your-own-data) for instructions on how to load your own data.
+The quickstart configuration of Aryn automatically runs an example workload that crawls the [Sort Benchmark website](http://www.sortbenchmark.org), downloads [this PDF](http://sortbenchmark.org/2004_Nsort_Minutesort.pdf), and loads it into the Aryn platform. This gives you a out-of-the-box example for conversational search. Please [see below](###add-your-own-data) for instructions on how to load your own data.
 
 ## Deploying Aryn Search
 
@@ -84,6 +84,25 @@ Then Aryn Search has properly processed the PDF and loaded it into the index.
 Congrats! You've deployed Aryn Search and enabled conversational search over a document. Next, you can choose to ingest the rest of the documents from the [Sort Benchmark website](##add-sort-benchmark-dataset) or your own data(##add-your-own-data). 
 
 ## Add Sort Benchmark Dataset
+
+By default, the Quickstart crawls the [Sort Benchmark website](http://www.sortbenchmark.org), downloads [this PDF](http://sortbenchmark.org/2004_Nsort_Minutesort.pdf). However, you may want to ingest the whole Sort Benchmark website dataset to search over more documents. This dataset includes many PDFs and the acutal HTML pages themselves, and has a variety of tables (some very poorly formatted!) and figures. After loading this data, you can experiment with how Aryn Search can answer questions on this unstructured dataset.
+
+Keep the Aryn Stack running from the previous example, and then:
+
+1. Run the Sycamore HTTP Crawler container with an additional parameter:
+```
+docker compose -f sort-all.yaml up
+```
+This will crawl and download the data from the Sort Benchmark website. 
+
+2. Sycamore will automatically start processing the new data. Once you see log messages similar to:
+
+```
+No changes at [datetime] sleeping
+```
+
+Then Aryn Search has properly processed the data and loaded it into the index. You can interact with the UI while it is loading, but the data won't all be available.
+
 
 ## Add your own data
 

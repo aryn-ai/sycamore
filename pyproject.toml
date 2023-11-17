@@ -14,8 +14,6 @@ packages = [{include = "sycamore"}]
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.12"
-
-[tool.poetry.group.sycamore_library.dependencies]
 opensearch-py = "^2.3.1"
 pandas = "2.1.1"
 pdf2image = "^1.16.3"

@@ -111,7 +111,7 @@ STEPS TO DO THIS - NEED YAML FROM ERIC
 Please note that the sample Sycamore script was created to process the data found in the Sort Benchmark dataset and not optimized for preparing your private data for search. We recommend iterating on the Sycamore script to find the best way to prepare and enrich your data for the best quality results.
 
 
-## Improve search quality on your data
+## Write your own Sycamore data prep scripts
 
 Enterprise data is diverse, and Sycamore makes it easy to prepare your data for high-quality search responses. Do do this, you will likely need to have a few iterations on your Sycamore processing script, and create several indexes to test the quality of your search results. We recommend two options for this process:
 

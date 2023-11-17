@@ -157,7 +157,10 @@ os_client_args = {
 
 ## Clean up
 
-To clean up resources created in the Quickstart:
+To clean up resources created in the Quickstart
+
+1. Stop the containers
+2. Run the reset script:
 
 ```
 docker compose -v -f reset.yaml up

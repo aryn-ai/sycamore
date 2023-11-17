@@ -12,11 +12,9 @@ The quickstart configuration of Aryn automatically runs an example workload that
 
 1. An OpenAI Key for LLM access. You can create an OpenAI account [here](https://platform.openai.com/signup), or if you already have one, you can retrieve your key [here](https://platform.openai.com/account/api-keys)
 
-2. For the highest quality answers, AWS credentials for Amazon Textract and an Amazon S3 bucket for Textract input/output. The demo Sycamore processing job uses Textract for table extraction. You will accrue AWS charges for Textract usage. When setting up your environment below, you can choose to disable Textract access for simplicity, but the processing and answer quality will be lower quality.
+2. For the highest quality table extraction (and better answers), the demo Sycamore script needs AWS credentials for Amazon Textract and an Amazon S3 bucket for Textract input/output. You can optionally disable Textract. You will accrue AWS charges for Textract usage. If you want to enable Textract:
 
-For using Textract:
-
-- If you do not have an AWS account, sign up [here](https://portal.aws.amazon.com/billing/signup).  
+- If you do not have an AWS account, sign up [here](https://portal.aws.amazon.com/billing/signup). You will need this during configuration.
 - Create an Amazon S3 bucket in that account for use with Textract (e.g.  e.g. s3://username-textract-bucket). We recommend you set up bucket lifecycle rules that automatically delete files in this bucket, as the data stored here is only needed temporarily during a Sycamore data processing job.  
 
 ### Now, let's get started  

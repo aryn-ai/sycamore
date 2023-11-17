@@ -115,7 +115,7 @@ Please note that the sample Sycamore script was created to process the data foun
 
 Enterprise data is diverse, and Sycamore makes it easy to prepare your data for high-quality search responses. Do do this, you will likely need to have a few iterations on your Sycamore processing script, and create several indexes to test the quality of your search results. We recommend two options for this process:
 
-**1. Iterate in the Sycamore Importer container:**
+### 1. Iterate in the Sycamore Importer container:
 You can edit or supply a new Sycamore script to process your data in the Sycamore Importer container. You can install a text editor in the container, and then edit the script:
 
 ```
@@ -130,12 +130,15 @@ To run the script:
 XXXXX
 ````
 
-**2. Iterate with a local version of Sycamore:**
+### 2. Iterate with a local version of Sycamore
 You may prefer to use a local IDE or notebook to iterate on your Sycamore script. You can install Scyamore locally, and configure it to load the output to the Aryn OpenSearch container from the quickstart.
 
 1. Install Sycamore locally. You can find the instructions [here](https://github.com/aryn-ai/sycamore#installation).
 
-2. To conifgure Sycamore to ingest into the local Aryn OpenSearch container:
+2. [Optional] Install Jupyter to easily iterate on your script with a notebook. Instructions are [here](https://jupyter.org/install).
+
+
+3. To configure Sycamore to ingest into the local Aryn OpenSearch container:
 
 ```
 # Write the embedded documents to a local OpenSearch index.

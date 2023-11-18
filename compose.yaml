@@ -1,0 +1,69 @@
+# To start, run:
+# % docker compose up
+#
+# What you should see:
+#   1. wait while containers are downloaded (speed depends on your network), or nothing once cached
+#   2a. crawler should run and download 1 sample pdf
+#   2b. demo ui starting (in parallel with 2a)
+#   3. lots of logging as opensearch starts. Eventually 'Waiting for opensearch to exit.'
+#   4. sycamore container downloading pytorch files then running ray to import
+#   5. UI ready to go on port localhost:3000 (it's accessible before this but won't work)
+#
+# Troubleshooting/Extensions:
+#   1. Something is messed up, I just want to reset:
+#      Follow the instructions in reset.yaml
+#   2. I want more sort benchmark files:
+#      Follow the instructions in sort-all.yaml
+version: '3'
+
+services:
+  demo-ui:
+    image: arynai/demo-ui
+    ports:
+      - 127.0.0.1:3000:3000 # UI port
+      - 127.0.0.1:3001:3001 # proxy port
+    environment:
+      - OPENAI_API_KEY
+      - OPENSEARCH_HOST=opensearch
+    volumes:
+      - crawl_data:/app/.scrapy
+  opensearch:
+    image: arynai/opensearch
+    ports:
+      - 127.0.0.1:9200:9200 # opensearch port, directly accessed by UI
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    environment:
+      - OPENAI_API_KEY
+  sycamore:
+    image: arynai/sycamore
+    ports:
+      - 127.0.0.1:8265:8265 # ray console port
+    volumes:
+      - crawl_data:/app/.scrapy
+    environment:
+      - OPENAI_API_KEY
+      - ENABLE_TEXTRACT
+      # Textract is enabled by default to get good results on the sort benchmark pdf files.
+      # However, if you enable it you need to setup the textract prefix and the aws credentials
+      # shown in the variables below.
+
+      # a bucket prefix like s3://example or s3://example/prefix/bits
+      # textract uploaded files will be under the prefix
+      # recommend setting lifecycle rules on the bucket to delete old documents
+      - SYCAMORE_TEXTRACT_PREFIX
+      # to get the next 4 environment variables:
+      # % aws sso login
+      # % eval "$(aws configure export-credentials --format env)"
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_SESSION_TOKEN
+      - AWS_CREDENTIAL_EXPIRATION
+  sycamore_crawler_http:
+    image: arynai/sycamore-crawler-http
+    volumes:
+      - crawl_data:/app/.scrapy
+
+volumes:
+  opensearch_data:
+  crawl_data:

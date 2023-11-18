@@ -85,6 +85,10 @@ class S3Crawler:
 
 
 if __name__ == "__main__":
+    print("Version-Info, Sycamore Crawler S3 Branch:", os.environ.get("GIT_BRANCH", "unset"))
+    print("Version-Info, Sycamore Crawler S3 Commit:", os.environ.get("GIT_COMMIT", "unset"))
+    print("Version-Info, Sycamore Crawler S3 Diff:", os.environ.get("GIT_DIFF", "unset"))
+
     if len(sys.argv) > 3 or (len(sys.argv) > 1 and sys.argv[1] == "-h"):
         print("Usage : poetry run python s3_crawler.py bucket_name prefix_value")
     else:

@@ -6556,9 +6556,9 @@ test = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 
 [extras]
-docs = []
+docs = ["furo", "myst-parser", "sphinx"]
 
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.12"
-content-hash = "247c31f7f5f9efcdeef1965a874f6c5c8d652ac7481f216819b38d28c90f8297"
+content-hash = "88d74879379697ce462770181f05803efa27a45a609d9545481b464c218eafd8"

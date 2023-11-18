@@ -3,7 +3,7 @@
 FROM nikolaik/python-nodejs:python3.11-nodejs20
 
 WORKDIR /home/pn/js-ui
-COPY ui/package.json ui/package-lock.json ui/npm-install.sh ./
+COPY ui/package.json ui/package-lock.json ui/npm-install.sh ui/pdf.worker.js.patch ./
 RUN /bin/bash npm-install.sh
 
 ENV POETRY_NO_INTERACTION=1 \

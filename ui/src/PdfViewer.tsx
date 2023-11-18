@@ -8,7 +8,7 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import "pdfjs-dist/build/pdf.worker.entry";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-    'pdfjs-dist/build/pdf.worker.min.js',
+    'pdfjs-dist/build/pdf.worker.js',
     import.meta.url,
 ).toString();
 

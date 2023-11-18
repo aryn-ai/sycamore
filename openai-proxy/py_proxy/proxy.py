@@ -133,12 +133,14 @@ def proxy():
     else:
         response = requests.get(url=url)
         source = io.BytesIO(response.content)
+
+    download_name = os.path.basename(url)
     
     return send_file(
         source,
         mimetype='application/pdf',
         as_attachment=True,
-        download_name= "elsar.pdf"
+        download_name = download_name
     )
 
 @app.route('/opensearch/<path:os_path>', methods=['GET','POST','PUT','DELETE','HEAD','OPTIONS'])
@@ -170,6 +172,7 @@ def proxy_opensearch(os_path):
 
 
 if __name__ == '__main__':
+    print("Serving...")
     # Use gevent WSGIServer for asynchronous behavior
     http_server = WSGIServer(('0.0.0.0', 3001), app)
     http_server.serve_forever()

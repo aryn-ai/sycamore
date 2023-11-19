@@ -47,3 +47,24 @@ class TestSplitElements:
         assert elems[6].text_representation == "thirtyfive thirtysix thirtyseven thirtyeight thirtynine "
         assert elems[7].text_representation == "forty fortyone fortytwo fortythree fortyfour "
         assert elems[8].text_representation == "fortyfive fortysix fortyseven fortyeight fortynine"
+
+    def test_via_execute(self, mocker):
+        tokenizer = HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2")
+        node = mocker.Mock(spec=Node)
+        se = SplitElements(node, tokenizer, 15)
+        input_dataset = ray.data.from_items([{"doc": self.doc.serialize()}])
+        execute = mocker.patch.object(node, "execute")
+        execute.return_value = input_dataset
+        ds = se.execute()
+        doc = Document.from_row(ds.take(limit=1)[0])
+        elems = doc.elements
+        assert len(elems) == 9
+        assert elems[0].text_representation == "One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen "
+        assert elems[1].text_representation == "sixteen seventeen eighteen nineteen twenty "
+        assert elems[2].text_representation == "twentyone twentytwo twentythree twentyfour;"
+        assert elems[3].text_representation == " twentyfive, twentysix."
+        assert elems[4].text_representation == " twentyseven twentyeight, twentynine;"
+        assert elems[5].text_representation == " thirty thirtyone thirtytwo thirtythree thirtyfour "
+        assert elems[6].text_representation == "thirtyfive thirtysix thirtyseven thirtyeight thirtynine "
+        assert elems[7].text_representation == "forty fortyone fortytwo fortythree fortyfour "
+        assert elems[8].text_representation == "fortyfive fortysix fortyseven fortyeight fortynine"

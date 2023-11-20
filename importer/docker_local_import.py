@@ -273,7 +273,7 @@ def import_pdf(paths):
 
     openai_llm = OpenAI(OpenAIModels.TEXT_DAVINCI.value)
     tokenizer = HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2")
-    merger = GreedyTextElementMerger(tokenizer, 30)
+    merger = GreedyTextElementMerger(tokenizer, 256)
 
     ctx = sycamore_init()
     if enable_textract:

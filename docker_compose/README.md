@@ -24,6 +24,9 @@ Runs the entire Sycamore stack + Aryn demo UI.
       1. % eval "$(aws configure export-credentials --format env)"
       1. \# or any other way to setup AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and if needed AWS_SESSION_TOKEN
       1. You can verify it is working by running aws s3 ls; you should see the bucket you created for $SYCAMORE_TEXTRACT_PREFIX
+   1. Modify the .env file to override the default bind mounts for Sycamore scripts and data
+      1. The default location for the scripts bind mount is /tmp/sycamore/scripts
+      1. The default location for the data bind mount is /tmp/sycamore/data
 1. Start docker service
    1. On MacOS or Windows, start Docker desktop
    1. On Linux if you used your local package manager it should already be started

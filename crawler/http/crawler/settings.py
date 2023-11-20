@@ -16,6 +16,9 @@ NEWSPIDER_MODULE = "crawler.spiders"
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 USER_AGENT = "sycamore crawler (+https://github.com/aryn-ai/sycamore)"
 
+# Crawl at about 1 QPS
+DOWNLOAD_DELAY = 1
+
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = True
 

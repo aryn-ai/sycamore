@@ -41,6 +41,18 @@ services:
       - 127.0.0.1:8265:8265 # ray console port
     volumes:
       - crawl_data:/app/.scrapy
+      - type: bind
+        source: ${SRC_SCRIPTS_DIR:-/tmp/sycamore/scripts}
+        target: /app/sycamore_scripts
+        bind:
+          # noinspection ComposeUnknownKeys
+          create_host_path: true
+      - type: bind
+        source: ${LOCAL_DATA_DIR:-/tmp/sycamore/data}
+        target: /app/data
+        bind:
+          # noinspection ComposeUnknownKeys
+          create_host_path: true
     environment:
       - OPENAI_API_KEY
       - ENABLE_TEXTRACT

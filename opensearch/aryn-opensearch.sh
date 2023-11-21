@@ -1,4 +1,8 @@
 #!/bin/bash
+echo "Version-Info, Aryn Opensearch HTTP Branch: ${GIT_BRANCH}"
+echo "Version-Info, Aryn Opensearch HTTP Commit: ${GIT_COMMIT}"
+echo "Version-Info, Aryn Opensearch HTTP Diff: ${GIT_DIFF}"
+
 # TODO: https://github.com/aryn-ai/sycamore/issues/150 - detect low disk space and error out.
 # on macos you fix it in docker desktop > settings > resources > scroll down > virtual disk limit
 main() {

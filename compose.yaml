@@ -27,6 +27,7 @@ services:
       - OPENSEARCH_HOST=opensearch
     volumes:
       - crawl_data:/app/.scrapy
+
   opensearch:
     image: arynai/opensearch
     ports:
@@ -35,6 +36,7 @@ services:
       - opensearch_data:/usr/share/opensearch/data
     environment:
       - OPENAI_API_KEY
+
   sycamore:
     image: arynai/sycamore
     ports:
@@ -59,16 +61,29 @@ services:
       - AWS_SECRET_ACCESS_KEY
       - AWS_SESSION_TOKEN
       - AWS_CREDENTIAL_EXPIRATION
-  sycamore_crawler_http:
+
+  sycamore_crawler_http_sort_one:
     image: arynai/sycamore-crawler-http
     volumes:
       - crawl_data:/app/.scrapy
+
+
+### Optional profiles below here
+
   sycamore_crawler_http_sort_all:
     profiles: ['sort-all']
     image: arynai/sycamore-crawler-http
     volumes:
       - crawl_data:/app/.scrapy
     command: -a preset=sort
+
+  sycamore_crawler_http:
+    profiles: ['crawl-http']
+    image: arynai/sycamore-crawler-http
+    volumes:
+      - crawl_data:/app/.scrapy
+    command: help
+
   reset:
     profiles: ['reset']
     image: ubuntu

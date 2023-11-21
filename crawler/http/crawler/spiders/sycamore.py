@@ -4,7 +4,7 @@ import os
 import re
 import scrapy
 import time
-import urllib.parse
+import urllib
 
 
 class SycamoreSpider(scrapy.Spider):
@@ -12,16 +12,23 @@ class SycamoreSpider(scrapy.Spider):
 
     def __init__(self, category=None, *args, **kwargs):
         self.dest_dir = kwargs.get("dest_dir", ".scrapy/downloads")
+        self.prefix = None
         if "preset" in kwargs:
             self._setup_by_preset(kwargs["preset"])
-        elif "domain" in kwargs and "url" in kwargs:
-            self.allowed_domains = [kwargs["domain"]]
+        elif "url" in kwargs:
             self.start_urls = [kwargs["url"]]
-        elif "domain" in kwargs or "url" in kwargs:
-            raise RuntimeError("Should have both -a domain=... and -a url=...")
+            if "prefix" in kwargs:
+                self.prefix = kwargs["prefix"]
+            if "domain" in kwargs:
+                self.allowed_domains = [kwargs["domain"]]
+            else:
+                u = urllib.parse.urlparse(kwargs["url"])
+                d = u.hostname.removeprefix("www.")
+                print("Using inferred domain", d)
+                self.allowed_domains = [d]
         else:
             print(
-                "Neither -a preset=<choice> or -a domain=... and -a url=... set.\n"
+                "Neither -a preset=<choice> or -a url=... and an optional -a prefix=... or -a domain=... set.\n"
                 + "Using default, tiny single document crawl"
             )
             self._setup_by_preset("sort_single")
@@ -65,8 +72,13 @@ class SycamoreSpider(scrapy.Spider):
             print("Link to follow: ", links)
             for i in links:
                 i = urllib.parse.urljoin(response.url, i)
-                if i.startswith("http"):
-                    yield scrapy.Request(i, callback=self.parse)
+                if not i.startswith("http"):
+                    continue
+
+                if self.prefix is not None and not i.startswith(self.prefix):
+                    print("Skipping", i, "as it does not start with", self.prefix)
+
+                yield scrapy.Request(i, callback=self.parse)
 
     def _content_type(self, response):
         ctk = "Content-Type"

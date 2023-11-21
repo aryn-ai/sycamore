@@ -72,6 +72,11 @@ Aryn Search will start up and run the demo Sycamore script, process the data, an
 No changes at [datetime] sleeping
 ```
 
+NOTE: by default the docker compose uses the stable version of the containers. You can choose a
+specific version to run, e.g. latest (last build pushed), latest_rc (last release candidate), or
+0.YYYY.MM.DD (date-stamped release). To specify a version set the VERSION environment variable,
+e.g. `VERSION=latest_rc docker compose up`. See the .env file if you want to specify different
+versions for the separate containers.
 
 7. Use the demo UI for conversational search
 

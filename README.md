@@ -4,7 +4,11 @@ You can easily get started with the Aryn Search Platform locally using Docker. I
 
 The Quickstart will deploy the Aryn platform, consisting of four containers: Sycamore importer, Sycamore HTTP crawler, Aryn OpenSearch, and Aryn demo conversational search UI. Our images currently support linux/amd64 and linux/arm64 hardware.
 
-The Quickstart configuration of Aryn automatically runs an example workload that crawls the [Sort Benchmark website](http://www.sortbenchmark.org), downloads [this PDF](http://sortbenchmark.org/2004_Nsort_Minutesort.pdf), uses [Sycamore](https://github.com/aryn-ai/sycamore) to prepare the data, and loads it into the Aryn platform. This gives you a out-of-the-box example for conversational search. Please [see below](##add-your-own-data) for instructions on how to load your own data.
+The Quickstart configuration of Aryn automatically runs an example workload that downloads [this PDF](http://sortbenchmark.org/2004_Nsort_Minutesort.pdf) from the [Sort Benchmark website](http://www.sortbenchmark.org), uses [Sycamore](https://github.com/aryn-ai/sycamore) to prepare the data, and loads it into the Aryn platform. This gives you a out-of-the-box example for conversational search. 
+
+You can then choose to crawl the rest of the [Sort Benchmark website](http://www.sortbenchmark.org) and load this data into your index. Instructions are [here](#Add-the-full-Sort-Benchmark-Dataset). Then, you can search over the whole dataset.
+
+Finally, [see below](#add-your-own-data) for instructions on how to crawl and load data from any website using this Sycamore processing script.
 
 ## Deploying Aryn Search
 
@@ -15,7 +19,7 @@ The Quickstart configuration of Aryn automatically runs an example workload that
 2. For the highest quality table extraction (and better answers), the demo Sycamore script needs AWS credentials for Amazon Textract and an Amazon S3 bucket for Textract input/output. You can optionally disable Textract. You will accrue AWS charges for Textract usage. If you want to enable Textract:
 
 - If you do not have an AWS account, sign up [here](https://portal.aws.amazon.com/billing/signup). You will need this during configuration.
-- Create an Amazon S3 bucket in your AWS account for use with Textract (e.g.  e.g. s3://username-textract-bucket). We recommend you set up bucket lifecycle rules that automatically delete files in this bucket, as the data stored here is only needed temporarily during a Sycamore data processing job.  
+- Create an Amazon S3 bucket in your AWS account for use with Textract (e.g. s3://username-textract-bucket). We recommend you set up bucket lifecycle rules that automatically delete files in this bucket, as the data stored here is only needed temporarily during a Sycamore data processing job.  
 
 ### Now, let's get started  
 

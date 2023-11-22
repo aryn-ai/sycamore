@@ -63,8 +63,12 @@ In Docker, go to "Settings" (e.g. on MacOS, it's the gear icon in the top right 
 In the directory where you downloaded the Docker compose files, run:
 
 ```
-docker compose up 
+docker compose up --pull=always
 ```
+
+NOTE: You can alternately remove the `--pull=always` and instead run `docker compose pull` to
+control when new images are downloaded. `--pull=always` guarantees you have the most recent images
+for the specified version.
 
 Aryn Search will start up and run the demo Sycamore script, process the data, and load the index. You will know when these steps are completed when you see log messages similar to:
 
@@ -75,8 +79,8 @@ No changes at [datetime] sleeping
 NOTE: by default the docker compose uses the stable version of the containers. You can choose a
 specific version to run, e.g. latest (last build pushed), latest_rc (last release candidate), or
 0.YYYY.MM.DD (date-stamped release). To specify a version set the VERSION environment variable,
-e.g. `VERSION=latest_rc docker compose up`. See the .env file if you want to specify different
-versions for the separate containers.
+e.g. `VERSION=latest_rc docker compose up --pull=always`. See the .env file if you want to specify
+different versions for the separate containers.
 
 7. Use the demo UI for conversational search
 

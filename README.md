@@ -113,7 +113,11 @@ This will crawl and download the data from the Sort Benchmark website.
 No changes at [datetime] sleeping
 ```
 
-You can interact with the demo UI while data is being added to the index, but the data won't all be available until the job is done.
+You can interact with the demo UI while data is being added to the index, but the data won't all be available until the job is done. Once this is complete, some sample questions to ask are:
+
+- Who are the most recent winners of the Sort Benchmark?
+- What are the hardware costs for ELSAR? Return as a table.
+- What is CloudSort?
 
 
 ## Add a dataset from an arbitrary website

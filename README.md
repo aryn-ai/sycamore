@@ -16,10 +16,10 @@ Finally, [see below](#add-your-own-data) for instructions on how to crawl and lo
 
 1. An OpenAI Key for LLM access. You can create an OpenAI account [here](https://platform.openai.com/signup), or if you already have one, you can retrieve your key [here](https://platform.openai.com/account/api-keys).
 
-2. For the highest quality table extraction (and better answers), the demo Sycamore script needs AWS credentials for Amazon Textract and an Amazon S3 bucket for Textract input/output. You can optionally disable Textract. You will accrue AWS charges for Textract usage. If you want to enable Textract:
+2. For the highest quality table extraction (and better answers), the demo Sycamore script needs AWS credentials for Amazon Textract and an Amazon S3 bucket for Textract input/output. This script uses Textract and Amazon S3 in the US-East-1 region. You can optionally disable Textract. You will accrue AWS charges for Textract usage. If you want to enable Textract:
 
 - If you do not have an AWS account, sign up [here](https://portal.aws.amazon.com/billing/signup). You will need this during configuration.
-- Create an Amazon S3 bucket in your AWS account for use with Textract (e.g. s3://username-textract-bucket). We recommend you set up bucket lifecycle rules that automatically delete files in this bucket, as the data stored here is only needed temporarily during a Sycamore data processing job.  
+- Create an Amazon S3 bucket in your AWS account in the US-East-1 region for use with Textract (e.g. s3://username-textract-bucket). We recommend you set up bucket lifecycle rules that automatically delete files in this bucket, as the data stored here is only needed temporarily during a Sycamore data processing job.  
 
 ### Now, let's get started  
 

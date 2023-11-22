@@ -99,7 +99,7 @@ Keep the Aryn Stack running from the previous example. You will now add the rest
 
 1. Run the Sycamore HTTP Crawler container with an additional parameter:
 ```
-docker compose --profile sort-all up
+docker compose run sycamore_crawler_http_sort_all
 ```
 This will crawl and download the data from the Sort Benchmark website. 
 
@@ -170,6 +170,21 @@ docker compose down
 docker compose run reset
 ```
 
+### Opensearch isn't starting
+
+If you see an error message like: `opensearch to start did not return true with 60 tries`
+
+We have seen this happen on MacOS for two reasons:
+
+1. Out of disk space.
+   1. Try `docker system prune` to free up disk space
+   1. Increase the disk space available via Docker Desktop: Settings > Resources > scroll down > ...
+1. VM in a weird state.
+   1. Restart docker desktop
+
+You may also want to reset the configuration entirely, although in all the cases where we have seen
+these problems, no persistent state existed to be reset.
+
 ## Reach out for help via email or on the Sycamore Slack channel
 
 Feel free to reach out if you have any questions, issues, or feedback:
@@ -179,3 +194,6 @@ info@aryn.ai
 Or on Slack:
 
 https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg
+
+It will help to have the output from `docker compose logs | grep Version-Info` to identify which
+versions of the containers you are running.

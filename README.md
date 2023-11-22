@@ -97,9 +97,9 @@ Congrats! You've deployed Aryn Search and enabled conversational search over a d
 
 ## Add the full Sort Benchmark Dataset
 
-By default, the Quickstart crawls the [Sort Benchmark website](http://www.sortbenchmark.org) and downloads and ingests [this PDF](http://sortbenchmark.org/2004_Nsort_Minutesort.pdf). However, you may want to ingest the whole Sort Benchmark website dataset to search over more documents. This dataset includes many PDFs and the acutal HTML pages themselves, and has a variety of tables (some very poorly formatted!) and figures. After loading this data, you can experiment with how Aryn Search can answer questions on this unstructured dataset.
+By default, the Quickstart downloads and ingests [this PDF](http://sortbenchmark.org/2004_Nsort_Minutesort.pdf) from the [Sort Benchmark website](http://www.sortbenchmark.org). However, you may want to ingest the whole Sort Benchmark website dataset to search over more documents. This dataset includes many PDFs and the acutal HTML pages themselves, and has a variety of tables (some very poorly formatted!) and figures. After loading this data, you can experiment with how Aryn Search can answer questions on this unstructured dataset.
 
-Keep the Aryn Stack running from the previous example. You will now add the rest of the documents from the Sort Benchmark website.
+Keep the Aryn Stack running from the previous example. You will now crawl the the Sort Benchmark website and add the rest of the data:
 
 1. Run the Sycamore HTTP Crawler container with an additional parameter:
 ```

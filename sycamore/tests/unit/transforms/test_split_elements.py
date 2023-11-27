@@ -37,16 +37,7 @@ class TestSplitElements:
         spc = sp.Callable(tokenizer, 15)
         doc = spc.run(self.doc)
         elems = doc.elements
-        assert len(elems) == 9
-        assert elems[0].text_representation == "One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen "
-        assert elems[1].text_representation == "sixteen seventeen eighteen nineteen twenty "
-        assert elems[2].text_representation == "twentyone twentytwo twentythree twentyfour;"
-        assert elems[3].text_representation == " twentyfive, twentysix."
-        assert elems[4].text_representation == " twentyseven twentyeight, twentynine;"
-        assert elems[5].text_representation == " thirty thirtyone thirtytwo thirtythree thirtyfour "
-        assert elems[6].text_representation == "thirtyfive thirtysix thirtyseven thirtyeight thirtynine "
-        assert elems[7].text_representation == "forty fortyone fortytwo fortythree fortyfour "
-        assert elems[8].text_representation == "fortyfive fortysix fortyseven fortyeight fortynine"
+        self.validateElems(elems)
 
     def test_via_execute(self, mocker):
         tokenizer = HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2")
@@ -58,13 +49,17 @@ class TestSplitElements:
         ds = se.execute()
         doc = Document.from_row(ds.take(limit=1)[0])
         elems = doc.elements
-        assert len(elems) == 9
-        assert elems[0].text_representation == "One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen "
-        assert elems[1].text_representation == "sixteen seventeen eighteen nineteen twenty "
-        assert elems[2].text_representation == "twentyone twentytwo twentythree twentyfour;"
-        assert elems[3].text_representation == " twentyfive, twentysix."
+        self.validateElems(elems)
+
+    def validateElems(self, elems):
+        assert len(elems) == 10
+        assert elems[0].text_representation == "One two three four five six seven eight nine ten "
+        assert elems[1].text_representation == "eleven twelve thirteen fourteen fifteen sixteen "
+        assert elems[2].text_representation == "seventeen eighteen nineteen twenty twentyone twentytwo "
+        assert elems[3].text_representation == "twentythree twentyfour; twentyfive, twentysix."
         assert elems[4].text_representation == " twentyseven twentyeight, twentynine;"
-        assert elems[5].text_representation == " thirty thirtyone thirtytwo thirtythree thirtyfour "
-        assert elems[6].text_representation == "thirtyfive thirtysix thirtyseven thirtyeight thirtynine "
-        assert elems[7].text_representation == "forty fortyone fortytwo fortythree fortyfour "
-        assert elems[8].text_representation == "fortyfive fortysix fortyseven fortyeight fortynine"
+        assert elems[5].text_representation == " thirty thirtyone thirtytwo thirtythree "
+        assert elems[6].text_representation == "thirtyfour thirtyfive thirtysix thirtyseven "
+        assert elems[7].text_representation == "thirtyeight thirtynine forty fortyone fortytwo fortythree "
+        assert elems[8].text_representation == "fortyfour fortyfive fortysix "
+        assert elems[9].text_representation == "fortyseven fortyeight fortynine"

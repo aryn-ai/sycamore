@@ -13,7 +13,7 @@ sys.path.append("../sycamore")
 sys.path.append("/app")
 
 import sycamore
-from sycamore.functions import HuggingFaceTokenizer
+from sycamore.functions import HuggingFaceTokenizer, TextOverlapChunker
 from sycamore.llms import OpenAI, OpenAIModels
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
@@ -330,7 +330,12 @@ def import_html(paths):
     ctx = sycamore_init()
     (
         ctx.read.binary(paths, binary_format="html", filter_paths_by_extension=False)
-        .partition(partitioner=HtmlPartitioner())
+        .partition(
+            partitioner=HtmlPartitioner(
+                extract_tables=True,
+                text_chunker=TextOverlapChunker(chunk_token_count=4000, chunk_overlap_token_count=400),
+            )
+        )
         .spread_properties(["path", "title"])
         .explode()
         .embed(

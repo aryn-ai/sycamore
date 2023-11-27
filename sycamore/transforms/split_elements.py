@@ -8,8 +8,8 @@ from sycamore.transforms.map import generate_map_function
 
 class SplitElements(SingleThreadUser, NonGPUUser, Transform):
     """
-    The SplitElements transform divides elements such that no Element
-    exceeds a maximum number of tokens.
+    The SplitElements transform recursively divides elements such that no
+    Element exceeds a maximum number of tokens.
 
     Args:
         child: The source node or component that provides the elements to be split
@@ -55,61 +55,56 @@ class SplitElements(SingleThreadUser, NonGPUUser, Transform):
             half = len(txt) // 2
             left = half
             right = half + 1
-            period = None
-            semi = None
-            comma = None
-            space = None
 
-            for i in range(half - 2):  # avoid the ends
-                ll = txt[left]
-                rr = txt[right]
-                if ll == '.':
-                    period = left
+            # FIXME: make this work with asian languages
+            predicates = [  # in precedence order
+                lambda c: c in '.!?',
+                lambda c: c == ';',
+                lambda c: c in '()',
+                lambda c: c == ':',
+                lambda c: c == ',',
+                str.isspace,
+            ]
+            results = [None] * len(predicates)
+
+            for jj in range(half // 2):  # stay near middle; avoid the ends
+                lchar = txt[left]
+                rchar = txt[right]
+
+                go = True
+                for ii, predicate in enumerate(predicates):
+                    if predicate(lchar):
+                        if results[ii] is None:
+                            results[ii] = left
+                        go = (ii != 0)
+                        break
+                    elif predicate(rchar):
+                        if results[ii] is None:
+                            results[ii] = right
+                        go = (ii != 0)
+                        break
+                if not go:
                     break
-                elif rr == '.':
-                    period = right
-                    break
-                elif ll == ';':
-                    if semi is None:
-                        semi = left
-                elif rr == ';':
-                    if semi is None:
-                        semi = right
-                elif ll == ',':
-                    if comma is None:
-                        comma = left
-                elif rr == ',':
-                    if comma is None:
-                        comma = right
-                elif ll.isspace():
-                    if space is None:
-                        space = left
-                elif rr.isspace():
-                    if space is None:
-                        space = right
+
                 left -= 1
                 right += 1
 
-            idx = half
-            if period is not None:
-                idx = period + 1
-            elif semi is not None:
-                idx = semi + 1
-            elif comma is not None:
-                idx = comma + 1
-            elif space is not None:
-                idx = space + 1
+            idx = half + 1
+            for res in results:
+                if res is not None:
+                    idx = res + 1
+                    break
 
             one = txt[ : idx]
             two = txt[idx : ]
 
-            elem2 = elem.copy()
+            ment = elem.copy()
             elem.text_representation = one
             elem.binary_representation = bytes(one, "utf-8")
-            elem2.text_representation = two
-            elem2.binary_representation = bytes(two, "utf-8")
+            ment.text_representation = two
+            ment.binary_representation = bytes(two, "utf-8")
             aa = self.splitUp(elem)
-            bb = self.splitUp(elem2)
+            bb = self.splitUp(ment)
             aa.extend(bb)
             return aa
 

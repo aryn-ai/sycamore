@@ -30,6 +30,7 @@ ds = (
     .extract_entity(entity_extractor=OpenAIEntityExtractor("title", llm=davinci_llm, prompt_template=title_template))
     .merge(merger=GreedyTextElementMerger(tokenizer=tokenizer, max_tokens=512))
     .spread_properties(["path", "title"])
+    .split_elements(tokenizer=tokenizer, max_tokens=512)
     .explode()
     .embed(embedder=SentenceTransformerEmbedder(model_name="all-MiniLM-L6-v2", batch_size=100))
 )

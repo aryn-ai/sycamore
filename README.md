@@ -2,7 +2,7 @@
 
 You can easily get started with the Aryn Search Platform locally using Docker. If you don't have Docker already installed, visit [here](https://docs.docker.com/get-docker/). 
 
-The Quickstart will deploy the Aryn platform, consisting of four containers: Sycamore importer, Sycamore HTTP crawler, Aryn OpenSearch, and Aryn demo conversational search UI. Our images currently support linux/amd64 and linux/arm64 hardware.
+The Quickstart will deploy the Aryn platform, consisting of four containers: Sycamore importer, Sycamore HTTP crawler, Aryn OpenSearch, and Aryn demo conversational search UI. Our images currently support amd64 and arm64 hardware.
 
 The Quickstart configuration of Aryn automatically runs an example workload that downloads [this PDF](http://sortbenchmark.org/2004_Nsort_Minutesort.pdf) from the [Sort Benchmark website](http://www.sortbenchmark.org), uses [Sycamore](https://github.com/aryn-ai/sycamore) to prepare the data, and loads it into the Aryn platform. This gives you a out-of-the-box example for conversational search. 
 
@@ -23,7 +23,11 @@ Finally, [see below](#add-your-own-data) for instructions on how to crawl and lo
 
 ### Now, let's get started  
 
-1. Download the Docker compose files for the Quickstart [here](https://github.com/aryn-ai/quickstart/tree/main/docker_compose)  
+1. Download the Docker compose files from the Quickstart repo. You will need the [compose](https://github.com/aryn-ai/quickstart/blob/main/compose.yaml) and [.env](https://github.com/aryn-ai/quickstart/blob/main/.env) files.
+
+```
+git clone git@github.com:aryn-ai/quickstart.git
+```
 
 2. Set up your Aryn Search environment:
 
@@ -60,10 +64,10 @@ export ENABLE_TEXTRACT=false
    a. On MacOS or Windows, start Docker desktop  
    b. On Linux, if you used your local package manager, it should be started  
 
-5. Adjust Docker service memory settings  
+4. Adjust Docker service memory settings  
 In Docker, go to "Settings" (e.g. on MacOS, it's the gear icon in the top right of the UI). Next, click on "Resources" and adjust Memory limit to 6 GB and Swap to 4 GB. If you are seeing memory issues while running Aryn Search, you can add adjust memory allocation here.
 
-6. Start Aryn Search
+5. Start Aryn Search
 In the directory where you downloaded the Docker compose files, run:
 
 ```
@@ -86,7 +90,7 @@ specific version to run, e.g. latest (last build pushed), latest_rc (last releas
 e.g. `VERSION=latest_rc docker compose up --pull=always`. See the .env file if you want to specify
 different versions for the separate containers.
 
-7. Use the demo UI for conversational search
+6. Use the demo UI for conversational search
 
 - Using your internet browser, visit http://localhost:3000.
 - Create a new conversation. Enter the name for your conversation in the text box in the left "Conversations" panel, and hit enter or click the "add convo" icon on the right of the text box.
@@ -99,7 +103,9 @@ Congrats! You've deployed Aryn Search and enabled conversational search over a d
 
 By default, the Quickstart downloads and ingests [this PDF](http://sortbenchmark.org/2004_Nsort_Minutesort.pdf) from the [Sort Benchmark website](http://www.sortbenchmark.org). However, you may want to ingest the whole Sort Benchmark website dataset to search over more documents. This dataset includes many PDFs and the acutal HTML pages themselves, and has a variety of tables (some very poorly formatted!) and figures. After loading this data, you can experiment with how Aryn Search can answer questions on this unstructured dataset.
 
-Keep the Aryn Stack running from the previous example. You will now crawl the the Sort Benchmark website and add the rest of the data:
+Optional: Keep the Aryn Stack running from the previous example. If you shut it down, restart it using the compose command from the prior section.
+
+You will now crawl the the Sort Benchmark website and add the rest of the data:
 
 1. Run the Sycamore HTTP Crawler container with an additional parameter:
 ```

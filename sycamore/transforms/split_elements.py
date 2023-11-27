@@ -38,16 +38,14 @@ class SplitElements(SingleThreadUser, NonGPUUser, Transform):
             result = []
             elements = parent.elements  # makes a copy
             for elem in elements:
-                if elem.text_representation:
-                    splits = self.splitUp(elem)
-                    result.extend(splits)
-                else:
-                    result.append(elem)
+                result.extend(self.splitUp(elem))
             parent.elements = result
             return parent
 
         def splitUp(self, elem: Element) -> list[Element]:
             txt = elem.text_representation
+            if not txt:
+                return [elem]
             num = len(self.tokenizer.tokenize(txt))
             if num <= self.max:
                 return [elem]
@@ -58,14 +56,14 @@ class SplitElements(SingleThreadUser, NonGPUUser, Transform):
 
             # FIXME: make this work with asian languages
             predicates = [  # in precedence order
-                lambda c: c in '.!?',
-                lambda c: c == ';',
-                lambda c: c in '()',
-                lambda c: c == ':',
-                lambda c: c == ',',
+                lambda c: c in ".!?",
+                lambda c: c == ";",
+                lambda c: c in "()",
+                lambda c: c == ":",
+                lambda c: c == ",",
                 str.isspace,
             ]
-            results = [None] * len(predicates)
+            results: list[int | None] = [None] * len(predicates)
 
             for jj in range(half // 2):  # stay near middle; avoid the ends
                 lchar = txt[left]
@@ -76,12 +74,12 @@ class SplitElements(SingleThreadUser, NonGPUUser, Transform):
                     if predicate(lchar):
                         if results[ii] is None:
                             results[ii] = left
-                        go = (ii != 0)
+                        go = ii != 0
                         break
                     elif predicate(rchar):
                         if results[ii] is None:
                             results[ii] = right
-                        go = (ii != 0)
+                        go = ii != 0
                         break
                 if not go:
                     break
@@ -95,8 +93,8 @@ class SplitElements(SingleThreadUser, NonGPUUser, Transform):
                     idx = res + 1
                     break
 
-            one = txt[ : idx]
-            two = txt[idx : ]
+            one = txt[:idx]
+            two = txt[idx:]
 
             ment = elem.copy()
             elem.text_representation = one

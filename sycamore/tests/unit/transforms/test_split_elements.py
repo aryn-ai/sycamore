@@ -1,7 +1,6 @@
 import ray.data
 
 from sycamore.data import Document
-from sycamore.transforms.merge_elements import Merge
 from sycamore.transforms.split_elements import SplitElements
 from sycamore.functions.tokenizer import HuggingFaceTokenizer
 from sycamore.plan_nodes import Node
@@ -16,20 +15,22 @@ class FakeNode(Node):
 
 
 class TestSplitElements:
-    doc = Document({
-        "doc_id": "doc_id",
-        "type": "pdf",
-        "text_representation": "foobar",
-        "binary_representation": None,
-        "parent_id": None,
-        "properties": {"path": "/docs/foo.txt", "title": "bar"},
-        "elements": [
-            {
-                "type": "UncategorizedText",
-                "text_representation": "One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone twentytwo twentythree twentyfour; twentyfive, twentysix. twentyseven twentyeight, twentynine; thirty thirtyone thirtytwo thirtythree thirtyfour thirtyfive thirtysix thirtyseven thirtyeight thirtynine forty fortyone fortytwo fortythree fortyfour fortyfive fortysix fortyseven fortyeight fortynine"
-            },
-        ]
-    })
+    doc = Document(
+        {
+            "doc_id": "doc_id",
+            "type": "pdf",
+            "text_representation": "foobar",
+            "binary_representation": None,
+            "parent_id": None,
+            "properties": {"path": "/docs/foo.txt", "title": "bar"},
+            "elements": [
+                {
+                    "type": "UncategorizedText",
+                    "text_representation": "One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone twentytwo twentythree twentyfour; twentyfive, twentysix. twentyseven twentyeight, twentynine; thirty thirtyone thirtytwo thirtythree thirtyfour thirtyfive thirtysix thirtyseven thirtyeight thirtynine forty fortyone fortytwo fortythree fortyfour fortyfive fortysix fortyseven fortyeight fortynine",  # noqa: E501
+                },
+            ],
+        }
+    )
 
     def test_split_elements(self):
         tokenizer = HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2")

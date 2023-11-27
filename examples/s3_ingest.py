@@ -43,6 +43,7 @@ ds = (
     .mark_bbox_preset(tokenizer=tokenizer)
     .merge(merger=MarkedMerger())
     .spread_properties(["path", "title"])
+    .split_elements(tokenizer=tokenizer, max_tokens=512)
     .explode()
     .embed(embedder=SentenceTransformerEmbedder(model_name="thenlper/gte-small", batch_size=100))
 )

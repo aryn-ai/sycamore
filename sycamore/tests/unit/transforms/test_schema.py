@@ -6,7 +6,7 @@ import ray.data
 from sycamore.data import Document, Element
 from sycamore.llms import LLM
 from sycamore.plan_nodes import Node
-from sycamore.transforms.schema import ExtractSchema, ExtractBatchSchema, ExtractProperties
+from sycamore.transforms.schema import ExtractBatchSchema
 from sycamore.transforms.schema import OpenAISchemaExtractor, OpenAIPropertyExtractor
 
 
@@ -26,7 +26,12 @@ class TestSchema:
         schema_extractor = OpenAISchemaExtractor("AircraftIncident", llm)
         doc = schema_extractor.extract_schema(doc)
 
-        ground_truth = {"_schema": {'accidentNumber': 'string',}, "_schema_class": "AircraftIncident"}
+        ground_truth = {
+            "_schema": {
+                "accidentNumber": "string",
+            },
+            "_schema_class": "AircraftIncident",
+        }
         print(doc.properties)
         assert doc.properties == ground_truth
 
@@ -49,7 +54,12 @@ class TestSchema:
         output_dataset = batch_extractor.execute()
         dicts = [Document.from_row(doc).data for doc in output_dataset.take()]
 
-        ground_truth = {"_schema": {'accidentNumber': 'string',}, "_schema_class": "AircraftIncident"}
+        ground_truth = {
+            "_schema": {
+                "accidentNumber": "string",
+            },
+            "_schema_class": "AircraftIncident",
+        }
         assert dicts[0]["properties"] == ground_truth and dicts[1]["properties"] == ground_truth
 
     def test_extract_properties(self, mocker):
@@ -63,7 +73,12 @@ class TestSchema:
         element2 = Element()
         element2.text_representation = "".join(random.choices(string.ascii_letters, k=20))
         doc.elements = [element1, element2]
-        doc.properties = {"_schema": {'accidentNumber': 'string',}, "_schema_class": "AircraftIncident"}
+        doc.properties = {
+            "_schema": {
+                "accidentNumber": "string",
+            },
+            "_schema_class": "AircraftIncident",
+        }
 
         property_extractor = OpenAIPropertyExtractor(llm)
         doc = property_extractor.extract_properties(doc)

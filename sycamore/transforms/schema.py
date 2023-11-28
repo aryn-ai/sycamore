@@ -1,15 +1,14 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Any, Optional
+from typing import Callable, Any
 import json
 import re
 
 from ray.data import Dataset
-from ray.data.aggregate import AggregateFn
 
 from sycamore.data import Element, Document
 from sycamore.plan_nodes import Node, Transform
 from sycamore.llms import LLM
-from sycamore.transforms.map import generate_map_function, generate_map_batch_function
+from sycamore.transforms.map import generate_map_function
 from sycamore.llms.prompts import (
     SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT,
     SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT_CHAT,
@@ -33,10 +32,13 @@ class SchemaExtractor(ABC):
     def extract_schema(self, document: Document) -> Document:
         pass
 
+
 class PropertyExtractor(ABC):
-    def __init__(self,):# properties: list[str]):
-       # self._properties = properties
-       pass
+    def __init__(
+        self,
+    ):  # properties: list[str]):
+        # self._properties = properties
+        pass
 
     @abstractmethod
     def extract_properties(self, document: Document) -> Document:
@@ -65,10 +67,10 @@ class OpenAISchemaExtractor(SchemaExtractor):
 
         try:
             payload = entities["answer"]
-            pattern = r'```json([\s\S]*?)```'
-            match = re.match(pattern, payload).group(1)
+            pattern = r"```json([\s\S]*?)```"
+            match = re.g(pattern, payload).group(1)
             answer = json.loads(match)
-        except:
+        except (json.JSONDecodeError, AttributeError):
             answer = entities["answer"]
 
         properties = document.properties
@@ -92,6 +94,7 @@ class OpenAISchemaExtractor(SchemaExtractor):
 
         return entities
 
+
 class OpenAIPropertyExtractor(PropertyExtractor):
     """
     OpenAISchema uses one of OpenAI's language model (LLM) to extract property values once schema is established.
@@ -99,7 +102,7 @@ class OpenAIPropertyExtractor(PropertyExtractor):
 
     def __init__(
         self,
-        #properties: list[str],
+        # properties: list[str],
         llm: LLM,
         num_of_elements: int = 10,
         prompt_formatter: Callable[[list[Element]], str] = element_list_formatter,
@@ -114,10 +117,10 @@ class OpenAIPropertyExtractor(PropertyExtractor):
 
         try:
             payload = entities["answer"]
-            pattern = r'```json([\s\S]*?)```'
+            pattern = r"```json([\s\S]*?)```"
             match = re.match(pattern, payload).group(1)
             answer = json.loads(match)
-        except:
+        except (json.JSONDecodeError, AttributeError):
             answer = entities["answer"]
 
         properties = document.properties
@@ -145,6 +148,7 @@ class OpenAIPropertyExtractor(PropertyExtractor):
         )
         return entities
 
+
 class ExtractSchema(Transform):
     """
     ExtractSchema is a transformation class for extracting a schema from a document using an SchemaExtractor.
@@ -163,6 +167,7 @@ class ExtractSchema(Transform):
         input_dataset = self.child().execute()
         dataset = input_dataset.map(generate_map_function(self._schema_extractor.extract_schema))
         return dataset
+
 
 class ExtractBatchSchema(Transform):
     """
@@ -191,6 +196,7 @@ class ExtractBatchSchema(Transform):
 
         dataset = dataset.map(generate_map_function(apply_schema))
         return dataset
+
 
 class ExtractProperties(Transform):
     """

@@ -270,25 +270,24 @@ class DocSet:
 
         entities = ExtractEntity(self.plan, entity_extractor=entity_extractor, **kwargs)
         return DocSet(self.context, entities)
-    
+
     def extract_schema(self, schema_extractor: SchemaExtractor, **kwargs) -> "DocSet":
         from sycamore.transforms import ExtractSchema
 
         schema = ExtractSchema(self.plan, schema_extractor=schema_extractor)
         return DocSet(self.context, schema)
-    
+
     def extract_batch_schema(self, schema_extractor: SchemaExtractor, **kwargs) -> "DocSet":
         from sycamore.transforms import ExtractBatchSchema
 
         schema = ExtractBatchSchema(self.plan, schema_extractor=schema_extractor)
         return DocSet(self.context, schema)
-    
+
     def extract_properties(self, property_extractor: PropertyExtractor, **kwargs) -> "DocSet":
         from sycamore.transforms import ExtractProperties
 
         schema = ExtractProperties(self.plan, property_extractor=property_extractor)
         return DocSet(self.context, schema)
-
 
     def summarize(self, summarizer: Summarizer, **kwargs) -> "DocSet":
         """

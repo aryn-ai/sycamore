@@ -15,7 +15,7 @@ from sycamore.transforms import (
     Partition,
     ExtractSchema,
     ExtractBatchSchema,
-    ExtractProperties
+    ExtractProperties,
 )
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.llms import LLM

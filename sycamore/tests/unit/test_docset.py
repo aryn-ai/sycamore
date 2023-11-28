@@ -13,6 +13,9 @@ from sycamore.transforms import (
     Map,
     MapBatch,
     Partition,
+    ExtractSchema,
+    ExtractBatchSchema,
+    ExtractProperties
 )
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.llms import LLM
@@ -81,3 +84,27 @@ class TestDocSet:
         docset = DocSet(context, node)
         docset = docset.filter(func)
         assert isinstance(docset.lineage(), Filter)
+
+    def test_extract_schema(self, mocker):
+        context = mocker.Mock(spec=Context)
+        node = mocker.Mock(spec=Node)
+        func = mocker.Mock(spec=Callable)
+        docset = DocSet(context, node)
+        docset = docset.extract_schema(func)
+        assert isinstance(docset.lineage(), ExtractSchema)
+
+    def test_extract_batch_schema(self, mocker):
+        context = mocker.Mock(spec=Context)
+        node = mocker.Mock(spec=Node)
+        func = mocker.Mock(spec=Callable)
+        docset = DocSet(context, node)
+        docset = docset.extract_batch_schema(func)
+        assert isinstance(docset.lineage(), ExtractBatchSchema)
+
+    def test_extract_properties(self, mocker):
+        context = mocker.Mock(spec=Context)
+        node = mocker.Mock(spec=Node)
+        func = mocker.Mock(spec=Callable)
+        docset = DocSet(context, node)
+        docset = docset.extract_properties(func)
+        assert isinstance(docset.lineage(), ExtractProperties)

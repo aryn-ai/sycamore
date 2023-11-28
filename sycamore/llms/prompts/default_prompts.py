@@ -103,7 +103,7 @@ SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT = """
 
 PROPERTIES_ZERO_SHOT_GUIDANCE_PROMPT = """
     You are given a few text elements of a document. Extract JSON representing one entity of
-    class {{entity}} from the document. The class only has properties {{properties}}. Using 
+    class {{entity}} from the document. The class only has properties {{properties}}. Using
     this context, FIND, FORMAT, and RETURN the JSON representing one {{entity}}.
     Only return JSON as part of your answer. If no entity is in the text, return "None".
     {{query}}
@@ -122,7 +122,7 @@ PROPERTIES_ZERO_SHOT_GUIDANCE_PROMPT_CHAT = """
     Only return JSON as part of your answer. If no entity is in the text, return "None".
     {{query}}
     {{~/user}}
-    
+
     {{#assistant~}}
     {{gen "answer"}}
     {{~/assistant}}

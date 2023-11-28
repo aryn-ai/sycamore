@@ -68,9 +68,12 @@ class OpenAISchemaExtractor(SchemaExtractor):
         try:
             payload = entities["answer"]
             pattern = r"```json([\s\S]*?)```"
-            match = re.g(pattern, payload).group(1)
-            answer = json.loads(match)
-        except (json.JSONDecodeError, AttributeError):
+            match = re.match(pattern, payload)
+            if match:
+                answer = json.loads(match.group(1))
+            else:
+                raise ValueError("JSON block not found in LLM response")
+        except (json.JSONDecodeError, ValueError):
             answer = entities["answer"]
 
         properties = document.properties
@@ -118,8 +121,11 @@ class OpenAIPropertyExtractor(PropertyExtractor):
         try:
             payload = entities["answer"]
             pattern = r"```json([\s\S]*?)```"
-            match = re.match(pattern, payload).group(1)
-            answer = json.loads(match)
+            match = re.match(pattern, payload)
+            if match:
+                answer = json.loads(match.group(1))
+            else:
+                raise ValueError("JSON block not found in LLM response")
         except (json.JSONDecodeError, AttributeError):
             answer = entities["answer"]
 
@@ -133,7 +139,9 @@ class OpenAIPropertyExtractor(PropertyExtractor):
         if document.text_representation:
             text = document.text_representation
         else:
-            text = [document.elements[i] for i in range((min(self._num_of_elements, len(document.elements))))]
+            text = self._prompt_formatter(
+                [document.elements[i] for i in range((min(self._num_of_elements, len(document.elements))))]
+            )
 
         if self._llm.is_chat_mode:
             prompt = PROPERTIES_ZERO_SHOT_GUIDANCE_PROMPT_CHAT

@@ -4,6 +4,7 @@ import json
 import re
 
 from ray.data import Dataset
+from ray.data.aggregate import AggregateFn
 
 from sycamore.data import Element, Document
 from sycamore.plan_nodes import Node, Transform
@@ -60,12 +61,7 @@ class OpenAISchemaExtractor(SchemaExtractor):
         self._prompt_formatter = prompt_formatter
 
     def extract_schema(self, document: Document) -> Document:
-        if isinstance(document, list):
-            target = document[0]
-        else:
-            target = document
-
-        entities = self._handle_zero_shot_prompting(target)
+        entities = self._handle_zero_shot_prompting(document)
 
         try:
             payload = entities["answer"]
@@ -75,15 +71,9 @@ class OpenAISchemaExtractor(SchemaExtractor):
         except:
             answer = entities["answer"]
 
-        if isinstance(document, list):
-            entries = document
-        else:
-            entries = [ document ]
-
-        for x in entries:
-            properties = x.properties
-            properties.update({"_schema": answer, "_schema_class": self._entity_name})
-            x.properties = properties
+        properties = document.properties
+        properties.update({"_schema": answer, "_schema_class": self._entity_name})
+        document.properties = properties
 
         return document
 
@@ -186,15 +176,21 @@ class ExtractBatchSchema(Transform):
 
     def execute(self) -> Dataset:
         dataset = self.child().execute()
-        n = dataset.count()
+        sample = dataset.take(1)[0]["doc"]
+        sample = Document.deserialize(sample)
+        schema = self._schema_extractor.extract_schema(sample)
 
-        output = dataset.map_batches(
-            generate_map_batch_function(self._schema_extractor.extract_schema),
-            batch_size=n,
-            **self.resource_args
-        )
+        schema_json = schema.properties["_schema"]
+        schema_name = schema.properties["_schema_class"]
 
-        return output
+        def apply_schema(doc):
+            properties = doc.properties
+            properties.update({"_schema": schema_json, "_schema_class": schema_name})
+            doc.properties = properties
+            return doc
+
+        dataset = dataset.map(generate_map_function(apply_schema))
+        return dataset
 
 class ExtractProperties(Transform):
     """

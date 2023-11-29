@@ -27,18 +27,16 @@ ctx = sycamore.init()
 ds = (
     ctx.read.binary(paths, binary_format="pdf")
     .partition(partitioner=UnstructuredPdfPartitioner())
-    .coalesce_whitespace()
     .extract_entity(entity_extractor=OpenAIEntityExtractor("title", llm=davinci_llm, prompt_template=title_template))
     .merge(merger=GreedyTextElementMerger(tokenizer=tokenizer, max_tokens=512))
     .spread_properties(["path", "title"])
-    
     .explode()
     .embed(embedder=SentenceTransformerEmbedder(model_name="thenlper/gte-small", batch_size=100))
 )
 
-ds.show(limit=1000, truncate_length=500)
-#ds.write.opensearch(
-#    os_client_args=osrch_args,
-#    index_name=index,
-#    index_settings=idx_settings,
-#)
+# ds.show(limit=1000, truncate_length=500)
+ds.write.opensearch(
+    os_client_args=osrch_args,
+    index_name=index,
+    index_settings=idx_settings,
+)

@@ -12,8 +12,6 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
     import.meta.url,
 ).toString();
 
-const HOST = "http://localhost:3001"
-
 function isValid(left: string, top: string, ranges = []) {
     const l = parseFloat(left.replace('%', '')) * 0.01;
     const t = parseFloat(top.replace('%', '')) * 0.01;
@@ -29,7 +27,7 @@ function isValid(left: string, top: string, ranges = []) {
 const fetchPDFThroughProxy = async (url: string) => {
     try {
         console.log("Getting pdf for: ", url)
-        const response = await fetch(HOST + '/v1/pdf', {
+        const response = await fetch('/v1/pdf', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

@@ -1,6 +1,5 @@
 import { SearchResultDocument } from "./Types";
 
-const PROXY_ENDPOINT = "http://localhost:3001/v1"
 export const rephrase_question_prompt = (text: string, conversation: any[]) => {
     // const sys = "You are a helpful assistant that takes the conversation into context and rephrases sentences by request correcting grammar and spelling mistakes. This question will be fed into a query search engine. \n"
     // const prompt = "Rephrase this question: \n" + text
@@ -21,7 +20,7 @@ export const rephraseQuestion = async (question: string, conversation: any[], mo
     console.log("sending rephrase prompt: ", chatJson)
     try {
         return fetch(
-            `${PROXY_ENDPOINT}/chat/completions`,
+            "/v1/chat/completions",
             { body: chatJson, method: 'POST', headers: { "Content-Type": "application/json" } })
     } catch (e: any) {
         throw new Error("Error making OpenAI summarize call: " + e.message)
@@ -52,7 +51,7 @@ export const getAnswer = async (question: string, docs: SearchResultDocument[]) 
     })
     try {
         return fetch(
-            `${PROXY_ENDPOINT}/chat/completions`,
+            "/v1/chat/completions",
             { body: chatJson, method: 'POST', headers: { "Content-Type": "application/json" } })
     } catch (e: any) {
         throw new Error("Error making OpenAI RAG call: " + e.message)

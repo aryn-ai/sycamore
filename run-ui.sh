@@ -15,13 +15,13 @@ poetry run python py_proxy/proxy.py &
 
 # run node ui
 cd /home/pn/js-ui
-find src -type f -print0 | xargs -r0 sed -i "s/localhost/${LOAD_BALANCER:-localhost}/g"
 # Running the UI this way means that the html is unminified and hence easy to read
 # Since the UI is open source, there's little downside of doing this and it helps with
 # debugging.
-npm start
+PORT=3001 BROWSER=none npm start
 
-# These are the steps that would build the UI and serve it minified.  Most likely
-# we would want to move the npm run build into the dockerfile so that it can happen once.
+# These are the steps that would build the UI and serve it minified.  We
+# should move the build back into the Dockerfile now that we no longer need
+# to patch 'localhost' in the source.
 #npm run build
 #npx serve -n -s build

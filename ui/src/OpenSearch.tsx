@@ -1,8 +1,3 @@
-const host = "localhost";
-const protocol = "http";
-const port = "3001/opensearch";
-const auth = "admin:admin";
-
 const SOURCES = ["type", "_id", "doc_id", "properties", "title", "text_representation", "bbox"]
 // const SEARCH_PIPELINE = "ga-demo-pipeline-hybrid"
 const SEARCH_PIPELINE = "hybrid_rag_pipeline"
@@ -34,7 +29,7 @@ export const hybridConversationSearchNoRag = async (rephrasedQuestion: string, i
         },
         "size": 20
     }
-    const url = protocol + "://" + host + ":" + port + "/" + index_name + "/_search?search_pipeline=" + NO_RAG_SEARCH_PIPELINE
+    const url = "/opensearch/" + index_name + "/_search?search_pipeline=" + NO_RAG_SEARCH_PIPELINE
     return openSearchCall(query, url)
 }
 
@@ -72,11 +67,11 @@ export const hybridConversationSearch = async (question: string, rephrasedQuesti
         },
         "size": 20
     }
-    const url = protocol + "://" + host + ":" + port + "/" + index_name + "/_search?search_pipeline=" + SEARCH_PIPELINE
+    const url = "/opensearch/" + index_name + "/_search?search_pipeline=" + SEARCH_PIPELINE
     return openSearchCall(query, url)
 }
 export const getIndices = async () => {
-    const url = protocol + "://" + host + ":" + port + "/_aliases?pretty"
+    const url = "/opensearch/_aliases?pretty"
     return openSearchNoBodyCall(url)
 }
 export const getEmbeddingModels = async () => {
@@ -97,28 +92,28 @@ export const getEmbeddingModels = async () => {
         }
       }
     }
-    const url = protocol + "://" + host + ":" + port + "/_plugins/_ml/models/_search"
+    const url = "/opensearch/_plugins/_ml/models/_search"
     return openSearchCall(body, url)
 }
 export const createConversation = async (conversationId: string) => {
     const body = {
         "name": conversationId
     }
-    const url = protocol + "://" + host + ":" + port + "/_plugins/_ml/memory/conversation"
+    const url = "/opensearch/_plugins/_ml/memory/conversation"
     return openSearchCall(body, url)
 }
 export const getInteractions = async (conversationId: any) => {
-    const url = protocol + "://" + host + ":" + port + "/_plugins/_ml/memory/conversation/" + conversationId
+    const url = "/opensearch/_plugins/_ml/memory/conversation/" + conversationId
     return openSearchNoBodyCall(url)
 }
 export const getConversations = () => {
-    const url = protocol + "://" + host + ":" + port + "/_plugins/_ml/memory/conversation/"
+    const url = "/opensearch/_plugins/_ml/memory/conversation/"
     return openSearchNoBodyCall(url)
 }
 export const deleteConversation = async (conversation_id: string) => {
     // hack for empty conversation delete:
     console.log("Going to delete", conversation_id)
-    const url = protocol + "://" + host + ":" + port + "/_plugins/_ml/memory/conversation/" + conversation_id
+    const url = "/opensearch/_plugins/_ml/memory/conversation/" + conversation_id
 
     const body = {
         input: "",
@@ -183,7 +178,7 @@ export const openSearchCall = async (query: any, url: string, http_method: strin
 
 // Legacy for local RAG
 export const sendQuery = async (query: any, index_name: string) => {
-    const url = protocol + "://" + host + ":" + port + "/" + index_name + `/_search/`;
+    const url = "/opensearch/" + index_name + `/_search/`;
     return openSearchCall(query, url)
 }
 

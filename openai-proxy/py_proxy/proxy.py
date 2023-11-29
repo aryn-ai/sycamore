@@ -12,16 +12,29 @@ from werkzeug.datastructures import Headers
 import io
 import logging
 
-app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})  # Allow requests from http://localhost:3000 to any route
+app = Flask('proxy', static_folder=None)
+PORT=3000
+
+CORS(app, resources={r"/*": {"origins": "*"}})  # Allow requests from http://localhost:3001 to any route
 
 # Replace this with your actual OpenAI API key
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 
 # API endpoint of the OpenAI service
-OPENAI_API_URL = "https://api.openai.com/v1/"
+OPENAI_API_BASE = "https://api.openai.com"
 
-OPENSEARCH_URL = "http://" + os.environ.get("OPENSEARCH_HOST", "localhost") + ":9200/"
+OPENSEARCH_HOST = os.environ.get("OPENSEARCH_HOST", "localhost")
+OPENSEARCH_URL = f"http://{OPENSEARCH_HOST}:9200/"
+
+UI_HOST = os.environ.get("LOAD_BALANCER", "localhost")
+UI_BASE = f"http://{UI_HOST}:3001"
+
+badHeaders = [
+    'content-encoding',
+    'content-length',
+    'transfer-encoding',
+    'connection',
+]
 
 # qa_logger = logging.getLogger("qa_log")
 # qa_logger.setLevel(logging.WARNING)
@@ -30,16 +43,21 @@ OPENSEARCH_URL = "http://" + os.environ.get("OPENSEARCH_HOST", "localhost") + ":
 # qalfh.setFormatter(logging.Formatter('[%(asctime)s]\t[%(levelname)s]\t%(message)s'))
 # qa_logger.addHandler(qalfh)
 
+
+def optionsResp(methods: str):
+    # Respond to CORS preflight request
+    resp = jsonify({})
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    resp.headers['Access-Control-Allow-Methods'] = methods
+    resp.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    return resp
+
+
+@app.route('/v1/completions', methods=['POST', 'OPTIONS'])
 @app.route('/v1/chat/completions', methods=['POST', 'OPTIONS'])
 def proxy_stream_request():
-    path = "/chat/completions"
     if request.method == 'OPTIONS':
-        # Respond to CORS preflight request
-        response = jsonify({})
-        response.headers['Access-Control-Allow-Origin'] = '*'
-        response.headers['Access-Control-Allow-Methods'] = 'POST'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-        return response
+        return optionsResp('POST')
 
     headers = Headers()
     headers["Content-Type"] = "application/json"
@@ -47,7 +65,7 @@ def proxy_stream_request():
 
     # Forward the incoming request to OpenAI API with stream enabled
     response = requests.post(
-        url=f"{OPENAI_API_URL}{path}",  # Use the captured path parameter
+        url=f"{OPENAI_API_BASE}{request.path}",
         headers=headers,
         json=request.json,
         stream=True  # Enable streaming
@@ -73,59 +91,11 @@ def proxy_stream_request():
         # Return the non-streaming response as a complete JSON object
         return (response.content, response.status_code, response.headers.items())
 
-@app.route('/v1/completions', methods=['POST', 'OPTIONS'])
-def proxy_request():
-    path = "completions"
-    if request.method == 'OPTIONS':
-        # Respond to CORS preflight request
-        response = jsonify({})
-        response.headers['Access-Control-Allow-Origin'] = '*'
-        response.headers['Access-Control-Allow-Methods'] = 'POST'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-        return response
-
-    headers = Headers()
-    headers["Content-Type"] = "application/json"
-    headers['Authorization'] = f"Bearer {OPENAI_API_KEY}"
-
-    # Forward the incoming request to OpenAI API with stream enabled
-    response = requests.post(
-        url=f"{OPENAI_API_URL}{path}",  # Use the captured path parameter
-        headers=headers,
-        json=request.json,
-        stream=False  # Enable streaming
-    )
-    print(f"Outgoing Request - URL: {response.url}, Status Code: {response.status_code}")
-
-    # Check if the response is a streaming response
-    is_streaming_response = 'Transfer-Encoding' in response.headers and response.headers['Transfer-Encoding'] == 'chunked'
-
-    if is_streaming_response:
-        print("Streaming response detected")
-        # Stream the OpenAI API response back to the client
-        def stream_response():
-            def generate_chunks():
-                for chunk in response.iter_content(chunk_size=1024):
-                    yield chunk
-
-            return Response(generate_chunks(), response.status_code, response.headers.items())
-
-        return stream_response()
-    else:
-        # Return the non-streaming response as a complete JSON object
-        print(response.content)
-        return (response.content, response.status_code, response.headers.items())
-
 @app.route('/v1/pdf', methods=['POST', 'OPTIONS'])
 def proxy():
     path = "pdf"
     if request.method == 'OPTIONS':
-        # Respond to CORS preflight request
-        response = jsonify({})
-        response.headers['Access-Control-Allow-Origin'] = '*'
-        response.headers['Access-Control-Allow-Methods'] = 'POST'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-        return response
+        return optionsResp('POST')
 
     url = request.json.get('url')
     if url.startswith('/'):
@@ -146,12 +116,7 @@ def proxy():
 @app.route('/opensearch/<path:os_path>', methods=['GET','POST','PUT','DELETE','HEAD','OPTIONS'])
 def proxy_opensearch(os_path):
     if request.method == 'OPTIONS':
-        # Respond to CORS preflight request
-        response = jsonify({})
-        response.headers['Access-Control-Allow-Origin'] = '*'
-        response.headers['Access-Control-Allow-Methods'] = 'POST,GET,PUT,DELETE,HEAD'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-        return response
+        return optionsResp('GET, POST, PUT, DELETE, HEAD')
     
     # log = request.method + " " + OPENSEARCH_URL + os_path
     # if request.is_json and request.content_length is not None:
@@ -171,8 +136,34 @@ def proxy_opensearch(os_path):
     return response.json()
 
 
+@app.route('/', methods=['GET', 'OPTIONS'])
+@app.route('/manifest.json', methods=['GET', 'OPTIONS'])
+@app.route('/static/<path:arg>', methods=['GET', 'OPTIONS'])
+@app.route('/viewPdf', methods=['GET', 'OPTIONS'])
+@app.route('/favicon.ico', methods=['GET', 'OPTIONS'])
+@app.route('/<arg>.png', methods=['GET', 'OPTIONS'])
+@app.route('/robots.txt', methods=['GET', 'OPTIONS'])
+def proxy_ui(arg=None):
+    if request.method == 'OPTIONS':
+        return optionsResp('GET')
+
+    resp = requests.request(
+        method=request.method,
+        params=request.args,
+        url=UI_BASE + request.path,
+        headers=request.headers,
+    )
+
+    headers = [
+        (k, v) for k, v in resp.headers.items()
+        if k.lower() not in badHeaders
+    ]
+
+    return (resp.content, resp.status_code, headers)
+
+
 if __name__ == '__main__':
-    print("Serving...")
     # Use gevent WSGIServer for asynchronous behavior
-    http_server = WSGIServer(('0.0.0.0', 3001), app)
+    http_server = WSGIServer(('0.0.0.0', PORT), app)
+    print(f"Serving on {PORT}...")
     http_server.serve_forever()

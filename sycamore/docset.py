@@ -335,39 +335,17 @@ class DocSet:
 
         Example:
             .. code-block:: python
+            from sycamore.transforms import COALESCE_WHITESPACE
             ds = context.read.binary(paths, binary_format="pdf")
                 .partition(partitioner=UnstructuredPdfPartitioner())
-                .regex_replace([
-                    (r"\d+", "1313"),
-                    (r"old", "new"),
-                ])
+                .regex_replace(COALESCE_WHITESPACE)
+                .regex_replace([(r"\d+", "1313"), (r"old", "new")])
                 .explode()
         """
         from sycamore.transforms import RegexReplace
 
         plan = RegexReplace(self.plan, spec, **kwargs)
         return DocSet(self.context, plan)
-
-    def coalesce_whitespace(self, **kwargs) -> "DocSet":
-        """
-        Reduce long repetitions of whitespace characters to a single space
-        in the text_representation of every Element in each Document.
-
-        Example:
-            .. code-block:: python
-            ds = context.read.binary(paths, binary_format="pdf")
-                .partition(partitioner=UnstructuredPdfPartitioner())
-                .coalesce_whitespace()
-                .explode()
-        """
-        return self.regex_replace(
-            [
-                (r"\s+", " "),
-                (r"^ ", ""),
-                (r" $", ""),
-            ],
-            **kwargs,
-        )
 
     def map(self, f: Callable[[Document], Document], **resource_args) -> "DocSet":
         """

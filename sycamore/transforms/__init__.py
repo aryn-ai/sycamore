@@ -5,13 +5,14 @@ from sycamore.transforms.explode import Explode
 from sycamore.transforms.map import Map, FlatMap, MapBatch
 from sycamore.transforms.partition import Partition, Partitioner
 from sycamore.transforms.extract_table import TableExtractor
-from sycamore.transforms.regex_replace import RegexReplace
+from sycamore.transforms.regex_replace import COALESCE_WHITESPACE, RegexReplace
 from sycamore.transforms.spread_properties import SpreadProperties
 from sycamore.transforms.summarize import Summarize
 from sycamore.transforms.merge_elements import Merge
 from sycamore.transforms.random_sample import RandomSample
 
 __all__ = [
+    "COALESCE_WHITESPACE",
     "Explode",
     "FlatMap",
     "Limit",

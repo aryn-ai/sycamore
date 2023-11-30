@@ -6,6 +6,12 @@ from sycamore.data import Document
 from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import generate_map_function
 
+COALESCE_WHITESPACE = [
+    (r"\s+", " "),
+    (r"^ ", ""),
+    (r" $", ""),
+]
+
 
 class RegexReplace(SingleThreadUser, NonGPUUser, Transform):
     """

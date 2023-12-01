@@ -29,7 +29,7 @@ ds = (
     ctx.read.binary(paths, binary_format="html")
     .partition(partitioner=HtmlPartitioner(
         extract_tables=True,
-        text_chunker=TextOverlapChunker(chunk_token_count=400, chunk_overlap_token_count=40),
+        text_chunker=TextOverlapChunker(chunk_token_count=1200, chunk_overlap_token_count=120),
     ))
     .extract_entity(entity_extractor=OpenAIEntityExtractor("title", llm=davinci_llm, prompt_template=title_template))
     .merge(merger=GreedyTextElementMerger(tokenizer=tokenizer, max_tokens=512))

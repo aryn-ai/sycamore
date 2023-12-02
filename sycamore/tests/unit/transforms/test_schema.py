@@ -6,8 +6,8 @@ import ray.data
 from sycamore.data import Document, Element
 from sycamore.llms import LLM
 from sycamore.plan_nodes import Node
-from sycamore.transforms.schema import ExtractBatchSchema
-from sycamore.transforms.schema import OpenAISchemaExtractor, OpenAIPropertyExtractor
+from sycamore.transforms.extract_schema import ExtractBatchSchema
+from sycamore.transforms.extract_schema import OpenAISchemaExtractor, OpenAIPropertyExtractor
 
 
 class TestSchema:

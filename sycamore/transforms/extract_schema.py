@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Callable, Any
 import json
-import re
 
 from ray.data import Dataset
 
@@ -15,6 +14,7 @@ from sycamore.llms.prompts import (
     PROPERTIES_ZERO_SHOT_GUIDANCE_PROMPT,
     PROPERTIES_ZERO_SHOT_GUIDANCE_PROMPT_CHAT,
 )
+from sycamore.utils.extract_json import extract_json
 
 
 def element_list_formatter(elements: list[Element]) -> str:
@@ -67,12 +67,7 @@ class OpenAISchemaExtractor(SchemaExtractor):
 
         try:
             payload = entities["answer"]
-            pattern = r"```json([\s\S]*?)```"
-            match = re.match(pattern, payload)
-            if match:
-                answer = json.loads(match.group(1))
-            else:
-                raise ValueError("JSON block not found in LLM response")
+            answer = extract_json(payload)
         except (json.JSONDecodeError, ValueError):
             answer = entities["answer"]
 
@@ -120,12 +115,7 @@ class OpenAIPropertyExtractor(PropertyExtractor):
 
         try:
             payload = entities["answer"]
-            pattern = r"```json([\s\S]*?)```"
-            match = re.match(pattern, payload)
-            if match:
-                answer = json.loads(match.group(1))
-            else:
-                raise ValueError("JSON block not found in LLM response")
+            answer = extract_json(payload)
         except (json.JSONDecodeError, AttributeError):
             answer = entities["answer"]
 

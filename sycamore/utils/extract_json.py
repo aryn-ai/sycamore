@@ -1,4 +1,6 @@
-import re, json
+import re
+import json
+
 
 def extract_json(payload):
     pattern = r"```json([\s\S]*?)```"

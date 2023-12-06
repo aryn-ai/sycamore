@@ -32,6 +32,13 @@ class RegexReplace(SingleThreadUser, NonGPUUser, Transform):
 
     def __init__(self, child: Node, spec: list[tuple[str, str]], **kwargs):
         super().__init__(child, **kwargs)
+        try:
+            for x, y in spec:  # make sure it's iterable as pairs
+                s = str()
+                s += x  # only strings can be added to strings
+                s += y
+        except Exception:
+            raise RuntimeError("RegexReplace spec is not list[tuple[str, str]]")
         self.spec = spec
 
     class Callable:

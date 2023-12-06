@@ -38,6 +38,15 @@ class TestRegexReplace:
         elems = doc.elements
         self.validateElems(elems)
 
+    def test_regex_replace_validity(self):
+        self.expectValid([])
+        self.expectValid([("foo", "bar")])
+        self.expectInvalid("foo")
+        self.expectInvalid(["foo"])
+        self.expectInvalid(["foo", "bar"])
+        self.expectInvalid([(1, 2)])
+        self.expectInvalid([("foo", 2)])
+
     def test_via_execute(self, mocker):
         node = mocker.Mock(spec=Node)
         rr = RegexReplace(node, [(r"\s+", " "), (r"^ ", ""), (r" $", "")])
@@ -52,3 +61,13 @@ class TestRegexReplace:
     def validateElems(self, elems: list[Element]):
         assert len(elems) == 1
         assert elems[0].text_representation == "foo bar"
+
+    def expectValid(self, spec):
+        RegexReplace(None, spec)
+
+    def expectInvalid(self, spec):
+        try:
+            RegexReplace(None, spec)
+            raise AssertionError("RegexReplace accepted bad spec")
+        except Exception:
+            pass

@@ -69,5 +69,5 @@ class TestRegexReplace:
         try:
             RegexReplace(None, spec)
             raise AssertionError("RegexReplace accepted bad spec")
-        except Exception:
+        except TypeError:
             pass

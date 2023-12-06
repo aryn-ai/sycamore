@@ -38,7 +38,7 @@ class RegexReplace(SingleThreadUser, NonGPUUser, Transform):
                 s += x  # only strings can be added to strings
                 s += y
         except Exception:
-            raise RuntimeError("RegexReplace spec is not list[tuple[str, str]]")
+            raise TypeError("RegexReplace spec is not list[tuple[str, str]]")
         self.spec = spec
 
     class Callable:

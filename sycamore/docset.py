@@ -328,6 +328,25 @@ class DocSet:
         merged = Merge(self.plan, merger=merger, **kwargs)
         return DocSet(self.context, merged)
 
+    def regex_replace(self, spec: list[tuple[str, str]], **kwargs) -> "DocSet":
+        """
+        Performs regular expression replacement (using re.sub()) on the
+        text_representation of every Element in each Document.
+
+        Example:
+            .. code-block:: python
+            from sycamore.transforms import COALESCE_WHITESPACE
+            ds = context.read.binary(paths, binary_format="pdf")
+                .partition(partitioner=UnstructuredPdfPartitioner())
+                .regex_replace(COALESCE_WHITESPACE)
+                .regex_replace([(r"\d+", "1313"), (r"old", "new")])
+                .explode()
+        """
+        from sycamore.transforms import RegexReplace
+
+        plan = RegexReplace(self.plan, spec, **kwargs)
+        return DocSet(self.context, plan)
+
     def map(self, f: Callable[[Document], Document], **resource_args) -> "DocSet":
         """
         Applies the Map transformation on the Docset.

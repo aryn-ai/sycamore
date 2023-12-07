@@ -327,7 +327,7 @@ class DocSet:
         plan = MarkDropTiny(self.plan, minimum, **kwargs)
         return DocSet(self.context, plan)
 
-    def mark_drop_header_footer(self, top: float = 0.05, bottom: float = None, **kwargs) -> "DocSet":
+    def mark_drop_header_footer(self, top: float = 0.05, bottom: float | None = None, **kwargs) -> "DocSet":
         """
         Marks for removal elements very close to the top or bottom of pages.
         Requires bbox.
@@ -369,22 +369,29 @@ class DocSet:
     def mark_bbox_preset(self, tokenizer: Tokenizer, **kwargs) -> "DocSet":
         """
         Convenience composition of:
-          sort_top_to_bottom()
-          mark_drop_tiny(2)
-          mark_drop_header_footer(0.05)
-          mark_break_page()
-          mark_break_column()
-          mark_break_tokens(tokenizer, 512)
+            SortByPageBbox
+            MarkDropTiny minimum=2
+            MarkDropHeaderFooter top=0.05 bottom=0.05
+            MarkBreakPage
+            MarkBreakByColumn
+            MarkBreakByTokens limit=512
         Meant to work in concert with MarkedMerger.
         """
-        return (
-            self.sort_top_to_bottom(**kwargs)
-            .mark_drop_tiny(2, **kwargs)
-            .mark_drop_header_footer(0.05, 0.05, **kwargs)
-            .mark_break_page(**kwargs)
-            .mark_break_column(**kwargs)
-            .mark_break_tokens(tokenizer, 512, **kwargs)
+        from sycamore.transforms import (
+            SortByPageBbox,
+            MarkDropTiny,
+            MarkDropHeaderFooter,
+            MarkBreakPage,
+            MarkBreakByColumn,
+            MarkBreakByTokens,
         )
+        plan = SortByPageBbox(self.plan, **kwargs)
+        plan = MarkDropTiny(plan, 2, **kwargs)
+        plan = MarkDropHeaderFooter(plan, 0.05, 0.05, **kwargs)
+        plan = MarkBreakPage(plan, **kwargs)
+        plan = MarkBreakByColumn(plan, **kwargs)
+        plan = MarkBreakByTokens(plan, tokenizer, 512, **kwargs)
+        return DocSet(self.context, plan)
 
     def merge(self, merger: ElementMerger, **kwargs) -> "DocSet":
         """

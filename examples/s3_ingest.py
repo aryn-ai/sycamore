@@ -8,7 +8,6 @@ sys.path.append("../sycamore")
 import sycamore
 from sycamore.functions.tokenizer import HuggingFaceTokenizer
 from sycamore.llms import OpenAIModels, OpenAI
-from sycamore.reader import DocSetReader
 from sycamore.scans.file_scan import JsonManifestMetadataProvider
 from sycamore.transforms import COALESCE_WHITESPACE
 from sycamore.transforms.merge_elements import MarkedMerger
@@ -43,7 +42,7 @@ ds = (
     .extract_entity(entity_extractor=OpenAIEntityExtractor("title", llm=davinci_llm, prompt_template=title_template))
     .mark_bbox_preset(tokenizer=tokenizer)
     .merge(merger=MarkedMerger())
-    .spread_properties(["title", "path"])
+    .spread_properties(["path", "title"])
     .explode()
     .embed(embedder=SentenceTransformerEmbedder(model_name="thenlper/gte-small", batch_size=100))
 )

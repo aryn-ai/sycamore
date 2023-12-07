@@ -1,3 +1,5 @@
+from typing import Optional
+
 from ray.data import Dataset
 
 from sycamore.data import Document, Element
@@ -152,7 +154,7 @@ class MarkDropHeaderFooter(SingleThreadUser, NonGPUUser, Transform):
             dataset = marker.execute()
     """
 
-    def __init__(self, child: Node, top: float = 0.05, bottom: float | None = None, **resource_args):
+    def __init__(self, child: Node, top: float = 0.05, bottom: Optional[float] = None, **resource_args):
         super().__init__(child, **resource_args)
         if bottom is None:
             bottom = top

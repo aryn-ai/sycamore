@@ -149,7 +149,29 @@ class OpenAIPropertyExtractor(PropertyExtractor):
 
 class ExtractSchema(Transform):
     """
-    ExtractSchema is a transformation class for extracting a schema from a document using an SchemaExtractor.
+    ExtractSchema is a transformation class for extracting schemas from documents using an SchemaExtractor.
+
+    This method will extract a unique schema for each document in the DocSet independently. If the documents in the
+    DocSet represent instances with a common schema, consider `ExtractBatchSchema` which will extract a common
+    schema for all documents.
+
+    The dataset is returned with an additional `_schema` property that contains JSON-encoded schema, if any
+    is detected.
+
+    Args:
+        child: The source node or component that provides the dataset text for schema suggestion
+        schema_extractor: An instance of an SchemaExtractor class that provides the schema extraction method
+        resource_args: Additional resource-related arguments that can be passed to the extraction operation
+
+    Example:
+         .. code-block:: python
+
+            documents = ...  # Define a source node or component that provides a dataset with text data.
+            custom_schema_extractor = ExampleSchemaExtractor(entity_extraction_params)
+            documents_with_schema = documents.extract_schema(
+                schema_extractor=custom_schema_extractor
+            )
+            documents_with_schema = documents_with_schema.execute()
     """
 
     def __init__(

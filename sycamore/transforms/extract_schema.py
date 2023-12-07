@@ -199,11 +199,10 @@ class ExtractSchema(Transform):
     Example:
          .. code-block:: python
 
-            documents = ...  # Define a source node or component that provides a dataset with text data.
             custom_schema_extractor = ExampleSchemaExtractor(entity_extraction_params)
-            documents_with_schema = documents.extract_schema(
-                schema_extractor=custom_schema_extractor
-            )
+            
+            documents = ...  # Define a source node or component that provides a dataset with text data.
+            documents_with_schema = ExtractSchema(child=documents, schema_extractor=custom_schema_extractor)
             documents_with_schema = documents_with_schema.execute()
     """
 
@@ -241,11 +240,10 @@ class ExtractBatchSchema(Transform):
     Example:
          .. code-block:: python
 
-            documents = ...  # Define a source node or component that provides a dataset with text data.
             custom_schema_extractor = ExampleSchemaExtractor(entity_extraction_params)
-            documents_with_schema = documents.extract_batch_schema(
-                schema_extractor=custom_schema_extractor
-            )
+            
+            documents = ...  # Define a source node or component that provides a dataset with text data.
+            documents_with_schema = ExtractBatchSchema(child=documents, schema_extractor=custom_schema_extractor)
             documents_with_schema = documents_with_schema.execute()
     """
 
@@ -274,7 +272,25 @@ class ExtractBatchSchema(Transform):
 
 class ExtractProperties(Transform):
     """
-    ExtractEntity is a transformation class for extracting a schema from a dataset using an SchemaExtractor.
+    ExtractProperties is a transformation class for extracting property values from a document once a schema has
+    been established.
+
+    The schema may be detected by `ExtractSchema` or provided manually under the `_schema` key of `Document.properties`.
+
+    Args:
+        child: The source node or component that provides the dataset text for schema suggestion
+        property_extractor: An instance of an PropertyExtractor class that provides the property detection method
+        resource_args: Additional resource-related arguments that can be passed to the extraction operation
+
+    Example:
+         .. code-block:: python
+
+            documents = ...  # Define a source node or component that provides a dataset with text data.
+            custom_property_extractor = ExamplePropertyExtractor(entity_extraction_params)
+
+            documents_with_schema = ...
+            documents_with_properties = ExtractProperties(child=documents_with_schema, property_extractor=custom_property_extractor)
+            documents_with_properties = documents_with_properties.execute()
     """
 
     def __init__(

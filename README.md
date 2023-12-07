@@ -151,6 +151,14 @@ try "who are the Aryn founders?"
 No changes at [datetime] sleeping
 ```
 
+## Start a Jupyter notebook
+
+A [Jupyter](https://jupyter.org/) notebook is a local development environment that lets you
+interact with Sycamore and experiment with different segmentations to improve the results of
+processing your documents. The [local development
+instructions](sycamore-local-development-example.md) will walk you through setting up Jupyter or
+running it in a container, and analyzing a new set of documents.
+
 ## Clean up
 
 To clean up resources created in the Quickstart

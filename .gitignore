@@ -23,3 +23,13 @@
 venv/
 python/dist/
 __pycache__/
+bin
+etc
+lib
+lib64
+pyenv.cfg
+share
+tmp
+.ipynb_checkpoints
+pyvenv.cfg
+jupyter/bind_dir/redirect.html

@@ -92,7 +92,25 @@ services:
       - crawl_data:/tmp/crawl_data
     command: /bin/sh -c 'echo size-before && du -s /tmp/* && rm -rf /tmp/opensearch_data/* /tmp/crawl_data/* && echo size-after && du -s /tmp/*'
     
+  jupyter:
+    profiles: ['jupyter']
+    image: arynai/jupyter:${JUPYTER_VERSION}
+    ports:
+      - 127.0.0.1:8888:8888
+    volumes:
+      - crawl_data:/app/work/crawl_data
+      - jupyter_data:/app/work/docker_volume
+      - type: bind
+        source: ./jupyter/bind_dir
+        target: /app/work/bind_dir
+    environment:
+      - OPENAI_API_KEY
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_SESSION_TOKEN
+      - AWS_CREDENTIAL_EXPIRATION
 
 volumes:
   opensearch_data:
   crawl_data:
+  jupyter_data:

@@ -9,6 +9,13 @@ from sycamore.transforms.regex_replace import COALESCE_WHITESPACE, RegexReplace
 from sycamore.transforms.spread_properties import SpreadProperties
 from sycamore.transforms.summarize import Summarize
 from sycamore.transforms.merge_elements import Merge
+from sycamore.transforms.extract_schema import (
+    ExtractSchema,
+    ExtractBatchSchema,
+    SchemaExtractor,
+    ExtractProperties,
+    PropertyExtractor,
+)
 from sycamore.transforms.random_sample import RandomSample
 
 __all__ = [
@@ -30,5 +37,10 @@ __all__ = [
     "Summarize",
     "Filter",
     "Merge",
+    "ExtractSchema",
+    "ExtractBatchSchema",
+    "SchemaExtractor",
+    "PropertyExtractor",
+    "ExtractProperties",
     "RandomSample",
 ]

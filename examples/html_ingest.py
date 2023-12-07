@@ -28,15 +28,16 @@ ctx = sycamore.init()
 
 ds = (
     ctx.read.binary(paths, binary_format="html")
-    .partition(partitioner=HtmlPartitioner(
-        extract_tables=True,
-        text_chunker=TextOverlapChunker(chunk_token_count=1200, chunk_overlap_token_count=120),
-    ))
+    .partition(
+        partitioner=HtmlPartitioner(
+            extract_tables=True,
+            text_chunker=TextOverlapChunker(chunk_token_count=1200, chunk_overlap_token_count=120),
+        )
+    )
     .regex_replace(COALESCE_WHITESPACE)
     .extract_entity(entity_extractor=OpenAIEntityExtractor("title", llm=davinci_llm, prompt_template=title_template))
     .merge(merger=GreedyTextElementMerger(tokenizer=tokenizer, max_tokens=512))
     .spread_properties(["path", "title"])
-    
     .explode()
     .embed(embedder=SentenceTransformerEmbedder(model_name="thenlper/gte-small", batch_size=100))
 )

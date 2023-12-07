@@ -8,6 +8,7 @@ from sycamore.data import Document
 from sycamore.plan_nodes import Node
 from sycamore.transforms.embed import Embedder
 from sycamore.transforms.extract_entity import EntityExtractor
+from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
 from sycamore.transforms.partition import Partitioner
 from sycamore.transforms.summarize import Summarizer
 from sycamore.transforms.extract_table import TableExtractor
@@ -285,6 +286,24 @@ class DocSet:
 
         entities = ExtractEntity(self.plan, entity_extractor=entity_extractor, **kwargs)
         return DocSet(self.context, entities)
+
+    def extract_schema(self, schema_extractor: SchemaExtractor, **kwargs) -> "DocSet":
+        from sycamore.transforms import ExtractSchema
+
+        schema = ExtractSchema(self.plan, schema_extractor=schema_extractor)
+        return DocSet(self.context, schema)
+
+    def extract_batch_schema(self, schema_extractor: SchemaExtractor, **kwargs) -> "DocSet":
+        from sycamore.transforms import ExtractBatchSchema
+
+        schema = ExtractBatchSchema(self.plan, schema_extractor=schema_extractor)
+        return DocSet(self.context, schema)
+
+    def extract_properties(self, property_extractor: PropertyExtractor, **kwargs) -> "DocSet":
+        from sycamore.transforms import ExtractProperties
+
+        schema = ExtractProperties(self.plan, property_extractor=property_extractor)
+        return DocSet(self.context, schema)
 
     def summarize(self, summarizer: Summarizer, **kwargs) -> "DocSet":
         """

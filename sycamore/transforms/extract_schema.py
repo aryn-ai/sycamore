@@ -113,9 +113,9 @@ class OpenAISchemaExtractor(SchemaExtractor):
 
 class OpenAIPropertyExtractor(PropertyExtractor):
     """
-    OpenAISchema uses one of OpenAI's language model (LLM) to extract actual property values once schema has been detected
-    or provided.
-    
+    OpenAISchema uses one of OpenAI's language model (LLM) to extract actual property values once
+    a schema has been detected or provided.
+
     Args:
         llm: An instance of an OpenAI language model for text processing.
         num_of_elements: The number of elements to consider for property extraction. Default is 10.
@@ -200,7 +200,7 @@ class ExtractSchema(Transform):
          .. code-block:: python
 
             custom_schema_extractor = ExampleSchemaExtractor(entity_extraction_params)
-            
+
             documents = ...  # Define a source node or component that provides a dataset with text data.
             documents_with_schema = ExtractSchema(child=documents, schema_extractor=custom_schema_extractor)
             documents_with_schema = documents_with_schema.execute()
@@ -241,7 +241,7 @@ class ExtractBatchSchema(Transform):
          .. code-block:: python
 
             custom_schema_extractor = ExampleSchemaExtractor(entity_extraction_params)
-            
+
             documents = ...  # Define a source node or component that provides a dataset with text data.
             documents_with_schema = ExtractBatchSchema(child=documents, schema_extractor=custom_schema_extractor)
             documents_with_schema = documents_with_schema.execute()
@@ -289,7 +289,10 @@ class ExtractProperties(Transform):
             custom_property_extractor = ExamplePropertyExtractor(entity_extraction_params)
 
             documents_with_schema = ...
-            documents_with_properties = ExtractProperties(child=documents_with_schema, property_extractor=custom_property_extractor)
+            documents_with_properties = ExtractProperties(
+                child=documents_with_schema,
+                property_extractor=custom_property_extractor
+            )
             documents_with_properties = documents_with_properties.execute()
     """
 

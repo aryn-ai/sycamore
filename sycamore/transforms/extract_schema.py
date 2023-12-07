@@ -47,7 +47,25 @@ class PropertyExtractor(ABC):
 
 class OpenAISchemaExtractor(SchemaExtractor):
     """
-    OpenAISchema uses one of OpenAI's language model (LLM) for schema extraction.
+    OpenAISchema uses one of OpenAI's language model (LLM) for schema extraction,
+    given a suggested entity type to be extracted.
+
+    Args:
+        entity_name: A natural-language name of the class to be extracted (e.g. `Corporation`)
+        llm: An instance of an OpenAI language model for text processing.
+        num_of_elements: The number of elements to consider for schema extraction. Default is 10.
+        prompt_formatter: A callable function to format prompts based on document elements.
+
+    Example:
+        .. code-block:: python
+
+            openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
+            schema_extractor=OpenAISchemaExtractor("Corporation", llm=openai, num_of_elements=35)
+
+            context = sycamore.init()
+            pdf_docset = context.read.binary(paths, binary_format="pdf")
+                .partition(partitioner=UnstructuredPdfPartitioner())
+                .extract_schema(schema_extractor=schema_extractor)
     """
 
     def __init__(
@@ -95,7 +113,22 @@ class OpenAISchemaExtractor(SchemaExtractor):
 
 class OpenAIPropertyExtractor(PropertyExtractor):
     """
-    OpenAISchema uses one of OpenAI's language model (LLM) to extract property values once schema is established.
+    OpenAISchema uses one of OpenAI's language model (LLM) to extract actual property values once schema has been detected
+    or provided.
+    
+    Args:
+        llm: An instance of an OpenAI language model for text processing.
+        num_of_elements: The number of elements to consider for property extraction. Default is 10.
+        prompt_formatter: A callable function to format prompts based on document elements.
+
+    Example:
+        .. code-block:: python
+
+            openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
+            property_extractor = OpenAIPropertyExtractor(llm=openai, num_of_elements=35)
+
+            docs_with_schema = ...
+            docs_with_schema = docs_with_schema.extract_properties(property_extractor=property_extractor)
     """
 
     def __init__(
@@ -193,6 +226,27 @@ class ExtractBatchSchema(Transform):
     """
     ExtractBatchSchema is a transformation class for extracting a schema from a dataset using an SchemaExtractor.
     This assumes all documents in the dataset share a common schema.
+
+    If it is more appropriate to provide a unique schema for each document (such as in a hetreogenous PDF collection)
+    consider using `ExtractSchema` instead.
+
+    The dataset is returned with an additional `_schema` property that contains JSON-encoded schema, if any
+    is detected. This schema will be the same for all elements of the dataest.
+
+    Args:
+        child: The source node or component that provides the dataset text for schema suggestion
+        schema_extractor: An instance of an SchemaExtractor class that provides the schema extraction method
+        resource_args: Additional resource-related arguments that can be passed to the extraction operation
+
+    Example:
+         .. code-block:: python
+
+            documents = ...  # Define a source node or component that provides a dataset with text data.
+            custom_schema_extractor = ExampleSchemaExtractor(entity_extraction_params)
+            documents_with_schema = documents.extract_batch_schema(
+                schema_extractor=custom_schema_extractor
+            )
+            documents_with_schema = documents_with_schema.execute()
     """
 
     def __init__(self, child: Node, schema_extractor: SchemaExtractor, **resource_args):

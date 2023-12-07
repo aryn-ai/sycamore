@@ -5,6 +5,7 @@ from typing import Callable, Optional, Any, Iterable
 
 from sycamore import Context
 from sycamore.data import Document
+from sycamore.functions.tokenizer import Tokenizer
 from sycamore.plan_nodes import Node
 from sycamore.transforms.embed import Embedder
 from sycamore.transforms.extract_entity import EntityExtractor
@@ -325,6 +326,34 @@ class DocSet:
 
         summaries = Summarize(self.plan, summarizer=summarizer, **kwargs)
         return DocSet(self.context, summaries)
+
+    def mark_bbox_preset(self, tokenizer: Tokenizer, **kwargs) -> "DocSet":
+        """
+        Convenience composition of:
+            SortByPageBbox
+            MarkDropTiny minimum=2
+            MarkDropHeaderFooter top=0.05 bottom=0.05
+            MarkBreakPage
+            MarkBreakByColumn
+            MarkBreakByTokens limit=512
+        Meant to work in concert with MarkedMerger.
+        """
+        from sycamore.transforms import (
+            SortByPageBbox,
+            MarkDropTiny,
+            MarkDropHeaderFooter,
+            MarkBreakPage,
+            MarkBreakByColumn,
+            MarkBreakByTokens,
+        )
+
+        plan0 = SortByPageBbox(self.plan, **kwargs)
+        plan1 = MarkDropTiny(plan0, 2, **kwargs)
+        plan2 = MarkDropHeaderFooter(plan1, 0.05, 0.05, **kwargs)
+        plan3 = MarkBreakPage(plan2, **kwargs)
+        plan4 = MarkBreakByColumn(plan3, **kwargs)
+        plan5 = MarkBreakByTokens(plan4, tokenizer, 512, **kwargs)
+        return DocSet(self.context, plan5)
 
     def merge(self, merger: ElementMerger, **kwargs) -> "DocSet":
         """

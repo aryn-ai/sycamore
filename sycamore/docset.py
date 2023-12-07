@@ -308,64 +308,6 @@ class DocSet:
         summaries = Summarize(self.plan, summarizer=summarizer, **kwargs)
         return DocSet(self.context, summaries)
 
-    def sort_top_to_bottom(self, **kwargs) -> "DocSet":
-        """
-        Uses page_number and bbox to reorder elements top to bottom.
-        """
-        from sycamore.transforms import SortByPageBbox
-
-        plan = SortByPageBbox(self.plan, **kwargs)
-        return DocSet(self.context, plan)
-
-    def mark_drop_tiny(self, minimum: int = 2, **kwargs) -> "DocSet":
-        """
-        Marks for removal elements with text_representation shorter than
-        a specified minimum length.
-        """
-        from sycamore.transforms import MarkDropTiny
-
-        plan = MarkDropTiny(self.plan, minimum, **kwargs)
-        return DocSet(self.context, plan)
-
-    def mark_drop_header_footer(self, top: float = 0.05, bottom: float | None = None, **kwargs) -> "DocSet":
-        """
-        Marks for removal elements very close to the top or bottom of pages.
-        Requires bbox.
-        """
-        from sycamore.transforms import MarkDropHeaderFooter
-
-        plan = MarkDropHeaderFooter(self.plan, top, bottom, **kwargs)
-        return DocSet(self.context, plan)
-
-    def mark_break_page(self, **kwargs) -> "DocSet":
-        """
-        Marks element breaks before start of each new page.
-        """
-        from sycamore.transforms import MarkBreakPage
-
-        plan = MarkBreakPage(self.plan, **kwargs)
-        return DocSet(self.context, plan)
-
-    def mark_break_column(self, **kwargs) -> "DocSet":
-        """
-        Marks element breaks at transitions from columnar to full-width
-        layout.  Requires bbox.
-        """
-        from sycamore.transforms import MarkBreakByColumn
-
-        plan = MarkBreakByColumn(self.plan, **kwargs)
-        return DocSet(self.context, plan)
-
-    def mark_break_tokens(self, tokenizer: Tokenizer, limit: int = 512, **kwargs) -> "DocSet":
-        """
-        Marks element breaks in order to keep each element from exceeding
-        the token limit specified.
-        """
-        from sycamore.transforms import MarkBreakByTokens
-
-        plan = MarkBreakByTokens(self.plan, tokenizer, limit, **kwargs)
-        return DocSet(self.context, plan)
-
     def mark_bbox_preset(self, tokenizer: Tokenizer, **kwargs) -> "DocSet":
         """
         Convenience composition of:
@@ -385,13 +327,14 @@ class DocSet:
             MarkBreakByColumn,
             MarkBreakByTokens,
         )
-        plan = SortByPageBbox(self.plan, **kwargs)
-        plan = MarkDropTiny(plan, 2, **kwargs)
-        plan = MarkDropHeaderFooter(plan, 0.05, 0.05, **kwargs)
-        plan = MarkBreakPage(plan, **kwargs)
-        plan = MarkBreakByColumn(plan, **kwargs)
-        plan = MarkBreakByTokens(plan, tokenizer, 512, **kwargs)
-        return DocSet(self.context, plan)
+
+        plan0 = SortByPageBbox(self.plan, **kwargs)
+        plan1 = MarkDropTiny(plan0, 2, **kwargs)
+        plan2 = MarkDropHeaderFooter(plan1, 0.05, 0.05, **kwargs)
+        plan3 = MarkBreakPage(plan2, **kwargs)
+        plan4 = MarkBreakByColumn(plan3, **kwargs)
+        plan5 = MarkBreakByTokens(plan4, tokenizer, 512, **kwargs)
+        return DocSet(self.context, plan5)
 
     def merge(self, merger: ElementMerger, **kwargs) -> "DocSet":
         """

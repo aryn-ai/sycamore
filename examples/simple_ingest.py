@@ -37,7 +37,7 @@ ds = (
     .embed(embedder=SentenceTransformerEmbedder(model_name="thenlper/gte-small", batch_size=100))
 )
 
-# ds.show(limit=1000, truncate_length=500)
+ds.show(limit=1000, truncate_length=500)
 ds.write.opensearch(
     os_client_args=osrch_args,
     index_name=index,

@@ -3,16 +3,49 @@ import tempfile
 
 from sycamore.data import Document
 from sycamore.scans.file_scan import JsonManifestMetadataProvider
-from sycamore.scans import BinaryScan
+from sycamore.scans import BinaryScan, JsonScan
 from sycamore.tests.config import TEST_DIR
 
 
-class TestBinaryScan:
-    def test_partition(self):
+class TestFileScan:
+    def test_binary_scan(self):
         paths = str(TEST_DIR / "resources/data/pdfs/")
         scan = BinaryScan(paths, binary_format="pdf")
         ds = scan.execute()
         assert ds.schema().names == ["doc"]
+
+    def test_json_scan(self):
+        paths = str(TEST_DIR / "resources/data/json/")
+        scan = JsonScan(paths, properties="props")
+        ds = scan.execute()
+        raw_doc = ds.take(1)[0]
+
+        doc = Document.from_row(raw_doc)
+
+        assert set(doc.properties.keys()) == set(["props", "path"])
+        assert doc.properties["props"] == "propValue"
+
+    def test_json_scan_all_props(self):
+        paths = str(TEST_DIR / "resources/data/json/example.json")
+        scan = JsonScan(paths)
+        ds = scan.execute()
+        raw_doc = ds.take(1)[0]
+
+        doc = Document.from_row(raw_doc)
+
+        assert set(doc.properties.keys()) == set(["web-app", "props", "path"])
+        assert doc.properties["props"] == "propValue"
+        assert isinstance(doc.properties["web-app"], dict)
+
+    def test_json_scan_body_field(self):
+        paths = str(TEST_DIR / "resources/data/json/example.json")
+        scan = JsonScan(paths, document_body_field="props")
+        ds = scan.execute()
+        raw_doc = ds.take(1)[0]
+
+        doc = Document.from_row(raw_doc)
+
+        assert doc.text_representation == "propValue"
 
     def test_json_manifest(self):
         base_path = str(TEST_DIR / "resources/data/htmls/")

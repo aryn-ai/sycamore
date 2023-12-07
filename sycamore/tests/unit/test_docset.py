@@ -1,6 +1,10 @@
 from typing import Callable
 
+import pytest
+
+import sycamore
 from sycamore import DocSet, Context
+from sycamore.data import Document
 from sycamore.plan_nodes import Node
 from sycamore.scans import BinaryScan
 from sycamore.transforms import (
@@ -108,3 +112,18 @@ class TestDocSet:
         docset = DocSet(context, node)
         docset = docset.extract_properties(func)
         assert isinstance(docset.lineage(), ExtractProperties)
+
+    def test_take_all(self):
+        num_docs = 30
+
+        docs = []
+        for i in range(num_docs):
+            docs.append(Document(text_representation=f"Document {i}", doc_id=i, properties={"document_number": i}))
+
+        context = sycamore.init()
+        docset = context.read.document(docs)
+
+        assert len(docset.take_all()) == num_docs
+
+        with pytest.raises(ValueError):
+            docset.take_all(limit=20)

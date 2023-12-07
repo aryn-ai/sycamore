@@ -46,7 +46,6 @@ idx_settings = {
                     "dimension": 384,
                     "method": {"name": "hnsw", "engine": "nmslib"},
                 },
-                "text_representation": {"type": "text"},
             }
         },
     }

@@ -145,6 +145,22 @@ class DocSet:
         dataset = execution.execute(self.plan)
         return [Document.from_row(row) for row in dataset.take(limit)]
 
+    def take_all(self, limit: Optional[int] = None) -> list[Document]:
+        """
+        Returns all of the rows in this DocSet.
+
+        If limit is set, this method will raise an error if this Docset
+        has more than `limit` Documents.
+
+        Args:
+            limit: The number of Documents above which this method will raise an error.
+        """
+        from sycamore import Execution
+
+        execution = Execution(self.context, self.plan)
+        dataset = execution.execute(self.plan)
+        return [Document.from_row(row) for row in dataset.take_all(limit)]
+
     def limit(self, limit: int = 20) -> "DocSet":
         """
         Applies the Limit transforms on the Docset.
@@ -331,6 +347,25 @@ class DocSet:
         merged = Merge(self.plan, merger=merger, **kwargs)
         return DocSet(self.context, merged)
 
+    def regex_replace(self, spec: list[tuple[str, str]], **kwargs) -> "DocSet":
+        """
+        Performs regular expression replacement (using re.sub()) on the
+        text_representation of every Element in each Document.
+
+        Example:
+            .. code-block:: python
+            from sycamore.transforms import COALESCE_WHITESPACE
+            ds = context.read.binary(paths, binary_format="pdf")
+                .partition(partitioner=UnstructuredPdfPartitioner())
+                .regex_replace(COALESCE_WHITESPACE)
+                .regex_replace([(r"\d+", "1313"), (r"old", "new")])
+                .explode()
+        """
+        from sycamore.transforms import RegexReplace
+
+        plan = RegexReplace(self.plan, spec, **kwargs)
+        return DocSet(self.context, plan)
+
     def map(self, f: Callable[[Document], Document], **resource_args) -> "DocSet":
         """
         Applies the Map transformation on the Docset.
@@ -416,6 +451,22 @@ class DocSet:
             **resource_args,
         )
         return DocSet(self.context, map_batch)
+
+    def random_sample(self, fraction: float, seed: Optional[int] = None) -> "DocSet":
+        """
+        Retain a random sample of documents from this DocSet.
+
+        The number of documents in the output will be approximately `fraction * self.count()`
+
+        Args:
+            fraction: The fraction of documents to retain.
+            seed: Optional seed to use for the RNG.
+
+        """
+        from sycamore.transforms import RandomSample
+
+        sampled = RandomSample(self.plan, fraction=fraction, seed=seed)
+        return DocSet(self.context, sampled)
 
     @property
     def write(self) -> DocSetWriter:

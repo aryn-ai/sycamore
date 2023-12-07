@@ -29,7 +29,7 @@ Sycamore is a semantic data preparation system that makes it easy to transform a
 
 ## Installation
 
-Sycamore currently runs on Python 3.9+ for Linux and Mac OS. To install, run
+Sycamore currently runs on for Linux and Mac OS, and please see the top of the README for Python version compatibility. To install, run
 
 ```bash
 pip install sycamore-ai

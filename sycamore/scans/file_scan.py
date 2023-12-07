@@ -2,9 +2,10 @@ import json
 from abc import ABC, abstractmethod
 import boto3
 from typing import Any, Optional, Union, Tuple
+import uuid
 
 from pyarrow.filesystem import FileSystem
-from ray.data import Dataset, read_binary_files, read_json
+from ray.data import Dataset, read_binary_files
 from ray.data.datasource import FileExtensionFilter
 
 from sycamore.data import Document
@@ -12,8 +13,6 @@ from sycamore.plan_nodes import Scan
 
 
 def _set_id(doc: dict[str, Any]) -> dict[str, Any]:
-    import uuid
-
     doc["doc_id"] = str(uuid.uuid1())
     return doc
 
@@ -21,6 +20,10 @@ def _set_id(doc: dict[str, Any]) -> dict[str, Any]:
 class FileMetadataProvider(ABC):
     @abstractmethod
     def get_metadata(self, file_path: str) -> dict[str, Any]:
+        pass
+
+    @abstractmethod
+    def get_paths(self) -> list[str]:
         pass
 
 
@@ -32,6 +35,9 @@ class JsonManifestMetadataProvider(FileMetadataProvider):
 
     def get_metadata(self, file_path: str) -> dict[str, Any]:
         return self._path_to_metadata_map.get(file_path, {})
+
+    def get_paths(self) -> list[str]:
+        return list(self._path_to_metadata_map.keys())
 
     def _load_json_manifest(self) -> dict[str, Any]:
         if self._manifest_path.startswith("s3://"):
@@ -60,10 +66,24 @@ class JsonManifestMetadataProvider(FileMetadataProvider):
 class FileScan(Scan):
     """A base scan class for file based data"""
 
-    def __init__(self, paths: Union[str, list[str]], *, parallelism: Optional[int] = None, **resource_args):
+    def __init__(
+        self,
+        paths: Union[str, list[str]],
+        *,
+        filesystem: Optional[FileSystem] = None,
+        parallelism: Optional[int] = None,
+        **resource_args,
+    ):
         super().__init__(**resource_args)
         self._paths = paths
+        self._filesystem = filesystem
         self.parallelism = parallelism
+
+    def _is_s3_scheme(self) -> bool:
+        if isinstance(self._paths, str):
+            return self._paths.startswith("s3:")
+        else:
+            return all(path.startswith("s3:") for path in self._paths)
 
 
 class BinaryScan(FileScan):
@@ -73,6 +93,10 @@ class BinaryScan(FileScan):
     {"doc_id": uuid,
      "content": {"binary": xxx, "text": None},
       "properties": {"path": xxx}}.
+
+    Note: if you specify filter_paths_by_extension = False, you need to make sure
+    all the files that are scanned can be processed by the pipeline. Many pipelines
+    include file-type specific steps.
     """
 
     def __init__(
@@ -81,26 +105,20 @@ class BinaryScan(FileScan):
         *,
         binary_format: str,
         parallelism: Optional[int] = None,
-        filesystem: Optional["FileSystem"] = None,
+        filesystem: Optional[FileSystem] = None,
         metadata_provider: Optional[FileMetadataProvider] = None,
+        filter_paths_by_extension: bool = True,
         **resource_args,
     ):
-        super().__init__(paths, parallelism=parallelism, **resource_args)
+        super().__init__(paths, parallelism=parallelism, filesystem=filesystem, **resource_args)
         self._paths = paths
         self.parallelism = -1 if parallelism is None else parallelism
         self._binary_format = binary_format
-        self._filesystem = filesystem
         self._metadata_provider = metadata_provider
-
-    def _is_s3_scheme(self):
-        if isinstance(self._paths, str):
-            return self._paths.startswith("s3:")
-        else:
-            return all(path.startswith("s3:") for path in self._paths)
+        self._filter_paths_by_extension = filter_paths_by_extension
 
     def _to_document(self, dict: dict[str, Any]) -> dict[str, bytes]:
         document = Document()
-        import uuid
 
         document.doc_id = str(uuid.uuid1())
         document.type = self._binary_format
@@ -117,7 +135,10 @@ class BinaryScan(FileScan):
         return {"doc": document.serialize()}
 
     def execute(self) -> "Dataset":
-        partition_filter = FileExtensionFilter(self.format())
+        if self._filter_paths_by_extension:
+            partition_filter = FileExtensionFilter(self.format())
+        else:
+            partition_filter = None
         files = read_binary_files(
             self._paths,
             include_paths=True,
@@ -133,14 +154,82 @@ class BinaryScan(FileScan):
         return self._binary_format
 
 
+# Note: We currently handle JSON by reading binary and then parsing it into fields in the _to_document method
+# Ideally we would use the underlying read_json from Ray, but it doesn't support the the include_paths option.
+# Since the path is pretty important for us for lineage, among other things, we take the performance hit of
+# parsing this way, rather than using the pyarrow JSON parser that Ray calls.
 class JsonScan(FileScan):
-    def __init__(self, paths: Union[str, list[str]], *, parallelism: Optional[int] = None, **resource_args):
-        super().__init__(paths, parallelism=parallelism, **resource_args)
+    def __init__(
+        self,
+        paths: Union[str, list[str]],
+        *,
+        properties: Optional[Union[str, list[str]]] = None,
+        parallelism: Optional[int] = None,
+        filesystem: Optional[FileSystem] = None,
+        metadata_provider: Optional[FileMetadataProvider] = None,
+        document_body_field: Optional[str] = None,
+        **resource_args,
+    ):
+        super().__init__(paths, parallelism=parallelism, filesystem=filesystem, **resource_args)
+        self._properties = properties
         self.parallelism = -1 if parallelism is None else parallelism
+        self._metadata_provider = metadata_provider
+        self._document_body_field = document_body_field
 
-    def execute(self) -> "Dataset":
-        json = read_json(paths=self._paths, parallelism=self.parallelism, **self.resource_args)
-        return json
+    def _to_document(self, dict: dict[str, Any]) -> dict[str, Any]:
+        document = Document()
+
+        document.doc_id = str(uuid.uuid1())
+        document.type = "json"
+
+        json_str = dict["bytes"].decode("utf-8")
+        json_dict = json.loads(json_str)
+
+        if self._document_body_field is not None:
+            body = json_dict.pop(self._document_body_field, None)
+        else:
+            body = json_str
+
+        if body is not None:
+            document.text_representation = body
+            document.binary_representation = dict["bytes"]
+
+        document.properties = self._extract_properties(json_dict)
+
+        # TODO: What to do about name conflicts here?
+        if self._is_s3_scheme():
+            dict["path"] = "s3://" + dict["path"]
+        document.properties.update({"path": dict["path"]})
+
+        if self._metadata_provider:
+            document.properties.update(self._metadata_provider.get_metadata(dict["path"]))
+
+        return {"doc": document.serialize()}
+
+    def _extract_properties(self, record: dict[str, Any]) -> dict[str, Any]:
+        properties = {}
+        if self._properties is None:
+            return record
+        elif isinstance(self._properties, str):
+            if self._properties in record:
+                properties[self._properties] = record.get(self._properties)
+        else:
+            for prop in self._properties:
+                if prop in record:
+                    properties[prop] = record.get(prop)
+
+        return properties
+
+    def execute(self) -> Dataset:
+        binary_data = read_binary_files(
+            self._paths,
+            include_paths=True,
+            filesystem=self._filesystem,
+            parallelism=self.parallelism,
+            ray_remote_args=self.resource_args,
+        )
+
+        return binary_data.map(self._to_document, **self.resource_args)
 
     def format(self):
         return "json"

@@ -15,6 +15,7 @@ Transforms
    explode.rst
    extract_entity.rst
    extract_table.rst
+   extract_schema.rst
    map.rst
    merge_elements.rst
    partition.rst

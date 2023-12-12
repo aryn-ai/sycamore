@@ -2,6 +2,14 @@
 set -eu
 set -x
 
+groupadd --gid 1000 app
+useradd -d /app --uid 1000 --gid app app
+chown -R app:app /app
+
+# Once we chown over as part of fixuser, sudo will be unhappy because the user won't exist.
+echo 'app1000:x:1000:1000::/app:/bin/sh' >>/etc/passwd
+echo 'app1000:!:19697:0:99999:7:::' >>/etc/shadow
+
 export DEBIAN_FRONTEND=noninteractive
 
 proxy=http://172.17.0.1:3128/

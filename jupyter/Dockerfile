@@ -5,15 +5,10 @@ FROM arynai/sycamore:$TAG
 
 # TODO: eric - remove this once we switch other containers over to non-root
 # Note user/group should be 1000 to match with likely defaults on hosts.
-RUN groupadd --gid 1000 app
-RUN useradd -d /app --uid 1000 --gid app app
-RUN chown -R app:app /app
-
-COPY jupyter/docker-apt-packages.sh ./
-RUN /bin/bash docker-apt-packages.sh
-
+COPY jupyter/docker-root-setup.sh /root
+RUN /bin/bash /root/docker-root-setup.sh
 COPY jupyter/sudoers /etc/sudoers
-COPY jupyter/fixuser.py /fixuser.py
+COPY jupyter/fixuser.py /root/fixuser.py
 
 USER 1000
 RUN poetry run pip install notebook ipywidgets 'opensearch-py>=2.4' && rm -rf /app/.cache
@@ -37,4 +32,4 @@ LABEL git_branch=${GIT_BRANCH}
 LABEL git_commit=${GIT_COMMIT}
 LABEL git_diff=${GIT_DIFF}
 
-ENTRYPOINT sudo -E /fixuser.py
+ENTRYPOINT sudo -E /root/fixuser.py

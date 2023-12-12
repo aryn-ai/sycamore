@@ -26,3 +26,4 @@ root	ALL=(ALL:ALL) ALL
 # Since you can do docker run -u root, there is little point in restricting what can be sudoed
 app ALL = (ALL:ALL) NOPASSWD:SETENV: ALL
 
+app1000 ALL = (ALL:ALL) NOPASSWD:SETENV: ALL

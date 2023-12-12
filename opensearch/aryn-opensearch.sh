@@ -29,7 +29,7 @@ main() {
         ./opensearch-docker-entrypoint.sh >"${LOG_FILE}" 2>&1 &
         echo $! >/tmp/opensearch.pid
         trap "kill -TERM $(cat /tmp/opensearch.pid)" EXIT
-        wait_or_die opensearch_up "opensearch to start"
+        wait_or_die opensearch_up "opensearch to start" 300
     fi
 
     PERSISTENT_ENV="${ARYN_STATUSDIR}/persistent_env"
@@ -66,18 +66,16 @@ wait_or_die() {
     local max_reps=$3
     [[ -z "${max_reps}" ]] && max_reps=60
 
-    echo -n "Waiting for $2..."
     local i
     for i in $(seq "${max_reps}"); do
         if "$1"; then
-            echo " Success"
+            echo "Waiting for $2... Success"
             return 0
         fi
-        echo -n .
+        echo "Waiting for $2... Sleeping. Try $i/${max_reps}"
         sleep 1
     done
-    echo " Failed!"
-    die "$2 did not return true with $max_reps tries"
+    die "$2 did not happen within $max_reps seconds"
 }
 
 die() {

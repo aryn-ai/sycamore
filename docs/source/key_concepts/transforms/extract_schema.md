@@ -34,5 +34,5 @@ The values will be extracted from the document:
 ```json
 {"creditCardName": "Dollar Bank Secured Credit Card - Variable Rate Line of Credit Agreement",
   "aprPurchases": "12.24%",
-  "annualFee": '$15.00'},
+  "annualFee": "$15.00"},
 ```

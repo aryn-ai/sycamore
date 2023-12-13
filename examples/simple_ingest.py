@@ -6,7 +6,11 @@ sys.path.append("../sycamore")
 import sycamore
 from sycamore.functions.tokenizer import HuggingFaceTokenizer
 from sycamore.llms import OpenAIModels, OpenAI
-from sycamore.transforms import COALESCE_WHITESPACE
+from sycamore.transforms import (
+    COALESCE_WHITESPACE,
+    Sketcher,
+    SketchUniquify,
+)
 from sycamore.transforms.merge_elements import MarkedMerger
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
@@ -34,12 +38,15 @@ ds = (
     .merge(merger=MarkedMerger())
     .spread_properties(["path", "title"])
     .explode()
-    .embed(embedder=SentenceTransformerEmbedder(model_name="thenlper/gte-small", batch_size=100))
+#   .embed(embedder=SentenceTransformerEmbedder(model_name="thenlper/gte-small", batch_size=100))
+    .chain(cls=Sketcher)
+    .chain(cls=SketchUniquify)
 )
 
+ds.show()
 # ds.show(limit=1000, truncate_length=500)
-ds.write.opensearch(
-    os_client_args=osrch_args,
-    index_name=index,
-    index_settings=idx_settings,
-)
+#ds.write.opensearch(
+#    os_client_args=osrch_args,
+#    index_name=index,
+#    index_settings=idx_settings,
+#)

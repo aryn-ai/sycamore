@@ -1,7 +1,7 @@
 import logging
 import pprint
 import sys
-from typing import Callable, Optional, Any, Iterable
+from typing import Callable, Optional, Any, Iterable, Type
 
 from sycamore import Context
 from sycamore.data import Document
@@ -393,6 +393,13 @@ class DocSet:
         from sycamore.transforms import RegexReplace
 
         plan = RegexReplace(self.plan, spec, **kwargs)
+        return DocSet(self.context, plan)
+
+    def chain(self, cls: Type[Node], **kwargs) -> "DocSet":
+        """
+        Add arbitrary transformer to pipeline.
+        """
+        plan = cls(self.plan, **kwargs)
         return DocSet(self.context, plan)
 
     def map(self, f: Callable[[Document], Document], **resource_args) -> "DocSet":

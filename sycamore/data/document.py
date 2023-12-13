@@ -90,6 +90,14 @@ class Document(UserDict):
         self.data["embedding"] = embedding
 
     @property
+    def simHashes(self) -> Optional[list[int]]:
+        return self.data.get("simHashes")
+
+    @simHashes.setter
+    def simHashes(self, simHashes: list[int]) -> None:
+        self.data["simHashes"] = simHashes
+
+    @property
     def parent_id(self) -> Optional[str]:
         """In Sycamore, certain operations create parent-child relationships between documents. For
         example, the explode transform promotes elements to be top-level documents, and these documents retain a

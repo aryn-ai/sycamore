@@ -117,6 +117,7 @@ class DocSet:
         """
         from sycamore import Execution
 
+        print("ERIC", self.context, self.plan)
         execution = Execution(self.context, self.plan)
         dataset = execution.execute(self.plan)
         return dataset.count()

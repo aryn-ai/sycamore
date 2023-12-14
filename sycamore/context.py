@@ -39,6 +39,30 @@ class Context:
         with self._internal_lock:
             self.extension_rules.remove(rule)
 
+class LocalContext:
+    def __init__(self, **kwargs):
+        self.extension_rules: list[Rule] = []
+        self._internal_lock = threading.Lock()
+        print("ERIC LocalContext")
+
+    @property
+    def read(self):
+        from sycamore.reader import DocSetReader
+        
+        return DocSetReader(self)
+
+    def register_rule(self, rule: Rule) -> None:
+        with self._internal_lock:
+            self.extension_rules.append(rule)
+
+    def get_extension_rule(self) -> list[Rule]:
+        with self._internal_lock:
+            copied = self.extension_rules.copy()
+        return copied
+
+    def deregister_rule(self, rule: Rule) -> None:
+        with self._internal_lock:
+            self.extension_rules.remove(rule)
 
 _context_lock = threading.Lock()
 _global_context: Optional[Context] = None

@@ -20,10 +20,13 @@ if not paths:
 
 index = "demoindex0"
 
+print("ERIC1")
 davinci_llm = OpenAI(OpenAIModels.TEXT_DAVINCI.value)
 tokenizer = HuggingFaceTokenizer("thenlper/gte-small")
+print("ERIC2")
 
 ctx = sycamore.init()
+print("ERIC3")
 
 ds = (
     ctx.read.binary(paths, binary_format="pdf")
@@ -36,6 +39,11 @@ ds = (
     .explode()
     .embed(embedder=SentenceTransformerEmbedder(model_name="thenlper/gte-small", batch_size=100))
 )
+
+from pprint import pprint
+pprint(vars(vars(ds)['plan']))
+print("ERIC4", ds)
+exit(0)
 
 # ds.show(limit=1000, truncate_length=500)
 ds.write.opensearch(

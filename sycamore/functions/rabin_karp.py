@@ -241,25 +241,24 @@ def simHash(vec: list[int]) -> int:
     return rv
 
 
-def simHashesDist(aa: list[int], bb: list[int]) -> int:
+def simHashesDist(aa: list[int], bb: list[int]) -> float:
     """
     simHashesDist() compares two lists of SimHashes are returns a distance
     metric.  Each list of SimHashes represents a document.  Corresponding
     elements in each list represent variants or "tabs" of shingles.
     With a SimHash, the most bits in common means the most similar.
-    This returns the minimum of the count of differing bits.
+    This returns the average of the count of differing bits.
     """
 
     aLen = len(aa)
     bLen = len(bb)
     assert aLen == bLen
+    tot = 0
     low = 0xffffffffffffffff
     for ii in range(aLen):
         x = aa[ii] ^ bb[ii]
-        cnt = x.bit_count()
-        if cnt < low:
-            low = cnt
-    return cnt
+        tot += x.bit_count()
+    return tot / aLen
 
 
 def simHashText(text: bytes, window: int = 32, courses: int = 15, tabs: int = 8) -> list[int]:

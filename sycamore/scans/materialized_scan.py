@@ -9,9 +9,8 @@ from sycamore.data import Document
 
 
 class MaterializedScan(Scan):
-    """A base scan class for materialized data
-    e.g. arrow table, pandas dataframe, python dict list or even spark
-    dataset
+    """
+    A base scan class for materialized data
     """
 
     def __init__(self, **resource_args):

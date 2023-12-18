@@ -6,7 +6,7 @@ import sycamore
 from sycamore import DocSet, Context
 from sycamore.data import Document
 from sycamore.plan_nodes import Node
-from sycamore.scans import BinaryScan
+from sycamore.scans.file_scan import BinaryScan
 from sycamore.transforms import (
     Embedder,
     Embed,

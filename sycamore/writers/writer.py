@@ -9,6 +9,10 @@ from sycamore.writers.file_writer import default_doc_to_bytes, default_filename,
 
 
 class DocSetWriter:
+    """
+    Write DocSet into different targets.
+    """
+
     def __init__(self, context: Context, plan: Node):
         self.context = context
         self.plan = plan
@@ -16,7 +20,14 @@ class DocSetWriter:
     def opensearch(
         self, *, os_client_args: dict, index_name: str, index_settings: Optional[dict] = None, **resource_args
     ) -> None:
-        from sycamore.writers import OpenSearchWriter
+        """Write a docset into opensearch
+        Args:
+            os_client_args: opensearch client arguments like host address, port number etc.
+            index_name: opensearch index name
+            index_settings: index setting such as number of shards, index mapping
+            resource_args: Additional resource-related arguments that can be passed
+        """
+        from sycamore.writers.opensearch import OpenSearchWriter
 
         os = OpenSearchWriter(
             self.plan, index_name, os_client_args=os_client_args, index_settings=index_settings, **resource_args
@@ -42,6 +53,12 @@ class DocSetWriter:
                 Defaults to using text_representation if available, or binary_representation
                 if not.
             resource_args: Arguments to pass to the underlying execution environment.
+
+        Example
+            >>> import sycamore
+            >>> context = sycamore.init()
+            >>> docset = context.read.json("s3://bucket/prefix1")
+            >>> docset.write.files("s3://bucket/prefix2")
         """
         file_writer = FileWriter(
             self.plan,

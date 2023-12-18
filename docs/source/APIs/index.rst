@@ -6,4 +6,6 @@ API References
 
    data/data.rst
    transforms/transforms.rst
+   readers/readers.rst
+   writers/writers.rst
    functions/functions.rst

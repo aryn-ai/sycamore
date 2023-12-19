@@ -14,7 +14,7 @@ from sycamore.transforms.partition import Partitioner
 from sycamore.transforms.summarize import Summarizer
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.merge_elements import ElementMerger
-from sycamore.writer import DocSetWriter
+from sycamore.writers.writer import DocSetWriter
 
 logger = logging.getLogger(__name__)
 

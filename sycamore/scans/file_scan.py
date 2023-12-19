@@ -64,7 +64,12 @@ class JsonManifestMetadataProvider(FileMetadataProvider):
 
 
 class FileScan(Scan):
-    """A base scan class for file based data"""
+    """
+    The base scan class for file based data
+
+    This class should not be used directly, and should instead be subclassed
+    and tailored to particular file formats.
+    """
 
     def __init__(
         self,
@@ -87,13 +92,7 @@ class FileScan(Scan):
 
 
 class BinaryScan(FileScan):
-    """Scan data file into raw bytes
-
-    For each file, BinaryScan creates one Document in the form of
-    {"doc_id": uuid,
-     "content": {"binary": xxx, "text": None},
-      "properties": {"path": xxx}}.
-
+    """
     Note: if you specify filter_paths_by_extension = False, you need to make sure
     all the files that are scanned can be processed by the pipeline. Many pipelines
     include file-type specific steps.

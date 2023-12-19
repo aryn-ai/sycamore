@@ -2,7 +2,7 @@ from sycamore import DocSet, Context
 import sycamore
 from sycamore.data import Document, Element
 from sycamore.plan_nodes import Node
-from sycamore.writers import OpenSearchWriter
+from sycamore.writers.opensearch import OpenSearchWriter
 
 import json
 from pathlib import Path

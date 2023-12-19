@@ -3,7 +3,7 @@ import tempfile
 
 from sycamore.data import Document
 from sycamore.scans.file_scan import JsonManifestMetadataProvider
-from sycamore.scans import BinaryScan, JsonScan
+from sycamore.scans.file_scan import BinaryScan, JsonScan
 from sycamore.tests.config import TEST_DIR
 
 

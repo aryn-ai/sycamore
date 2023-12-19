@@ -22,7 +22,7 @@ class Context:
 
     @property
     def read(self):
-        from sycamore.reader import DocSetReader
+        from sycamore.scans.reader import DocSetReader
 
         return DocSetReader(self)
 

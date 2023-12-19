@@ -11,7 +11,7 @@ from sycamore.transforms.partition import (
     UnstructuredPdfPartitioner,
     UnstructuredPPTXPartitioner,
 )
-from sycamore.scans import BinaryScan
+from sycamore.scans.file_scan import BinaryScan
 from sycamore.tests.config import TEST_DIR
 
 

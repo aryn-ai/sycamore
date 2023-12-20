@@ -397,9 +397,20 @@ class DocSet:
 
     def chain(self, cls: Type[Node], **kwargs) -> "DocSet":
         """
-        Add arbitrary transformer to pipeline.
+        Add specified transform class to pipeline.
+
+        Args:
+            cls: Class of transform to instantiate into pipeline
+            ...: Other keyword arguments are passed to class constructor
+
+        Example:
+            .. code-block:: python
+            from sycamore.transforms import FooBar
+            ds = context.read.binary(paths, binary_format="pdf")
+                .partition(partitioner=UnstructuredPdfPartitioner())
+                .chain(cls=FooBar, arg=123)
         """
-        plan = cls(self.plan, **kwargs)
+        plan = cls(self.plan, **kwargs)  # type: ignore
         return DocSet(self.context, plan)
 
     def map(self, f: Callable[[Document], Document], **resource_args) -> "DocSet":

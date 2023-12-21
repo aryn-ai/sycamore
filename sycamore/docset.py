@@ -1,12 +1,12 @@
 import logging
 import pprint
 import sys
-from typing import Callable, Optional, Any, Iterable
+from typing import Callable, Optional, Any, Iterable, Type
 
 from sycamore import Context
 from sycamore.data import Document
 from sycamore.functions.tokenizer import Tokenizer
-from sycamore.plan_nodes import Node
+from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.embed import Embedder
 from sycamore.transforms.extract_entity import EntityExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
@@ -393,6 +393,24 @@ class DocSet:
         from sycamore.transforms import RegexReplace
 
         plan = RegexReplace(self.plan, spec, **kwargs)
+        return DocSet(self.context, plan)
+
+    def transform(self, cls: Type[Transform], **kwargs) -> "DocSet":
+        """
+        Add specified transform class to pipeline.
+
+        Args:
+            cls: Class of transform to instantiate into pipeline
+            ...: Other keyword arguments are passed to class constructor
+
+        Example:
+            .. code-block:: python
+            from sycamore.transforms import FooBar
+            ds = context.read.binary(paths, binary_format="pdf")
+                .partition(partitioner=UnstructuredPdfPartitioner())
+                .transform(cls=FooBar, arg=123)
+        """
+        plan = cls(self.plan, **kwargs)  # type: ignore
         return DocSet(self.context, plan)
 
     def map(self, f: Callable[[Document], Document], **resource_args) -> "DocSet":

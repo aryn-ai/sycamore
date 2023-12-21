@@ -1,9 +1,10 @@
+import sys
 import re
 import unicodedata
 
-from typing import Optional
+from typing import Any, Optional
 
-from ray.data import Dataset
+from ray.data import ActorPoolStrategy, Dataset
 
 from sycamore.data import Document
 from sycamore.functions.simhash import simHashText, simHashesDist
@@ -95,30 +96,38 @@ class SketchUniquify(SingleThreadUser, NonGPUUser, Transform):
            dataset = xform.execute()
     """
 
-    def __init__(self, child: Node, threshold: float = 16, **kwargs):
+    def __init__(self, child: Node, threshold: float = 16, **kwargs) -> None:
         super().__init__(child, **kwargs)
         self.threshold = threshold
 
-    def execute(self) -> Dataset:
-        ds = self.child().execute()
-        ds = ds.materialize()
-        seenSketches: list[Optional[list[int]]] = []  # gonna use a chunk of memory
-        nuke: set[Optional[str]] = set()
-        for row in ds.iter_rows():
+    class Predicate:
+        def __init__(self, threshold: float) -> None:
+            self.threshold = threshold
+            self.total = 0
+            self.drops = 0
+            # This is a significant amount of memory...
+            self.seenSketches: list[list[int]] = []
+
+        def good(self, row: dict[str, Any]) -> bool:
+            self.total += 1
             doc = Document.from_row(row)
-            docId = doc.doc_id
             docSims = doc.simHashes
             if docSims:
-                ii = 0
-                for prevSims in seenSketches:
-                    if prevSims:
-                        dist = simHashesDist(docSims, prevSims)
-                        if dist <= self.threshold:
-                            nuke.add(docId)
-                            docSims = None  # don't remember deleted
-                            break
-                    ii += 1
-            seenSketches.append(docSims)
-        del seenSketches
-        ds = ds.filter(lambda row: Document.from_row(row).doc_id not in nuke)
+                for prevSims in self.seenSketches:
+                    dist = simHashesDist(docSims, prevSims)
+                    if dist <= self.threshold:
+                        self.drops += 1
+                        print(f"SketchUniquify dropped {self.drops} of {self.total}",
+                              file=sys.stderr)
+                        return False
+                self.seenSketches.append(docSims)
+            return True
+
+    def execute(self) -> Dataset:
+        ds = self.child().execute()
+        ds = ds.materialize()  # force previous to finish to free up memory
+        pred = SketchUniquify.Predicate(self.threshold)
+        # Size is 1 here to use a global view of previous sketches...
+        ds = ds.filter(pred.good, compute=ActorPoolStrategy(size=1))
+        ds = ds.materialize()  # force filter to finish before moving on
         return ds

@@ -36,7 +36,7 @@ ds = (
     .explode()
     .embed(embedder=SentenceTransformerEmbedder(model_name="thenlper/gte-small", batch_size=100))
     .chain(cls=Sketcher, window=32)
-    .chain(cls=SketchUniquify, threshold=16)
+    .chain(cls=SketchUniquify, threshold=13.5)
 )
 
 # ds.show(limit=1000, truncate_length=500)

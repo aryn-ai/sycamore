@@ -6,7 +6,7 @@ from typing import Callable, Optional, Any, Iterable, Type
 from sycamore import Context
 from sycamore.data import Document
 from sycamore.functions.tokenizer import Tokenizer
-from sycamore.plan_nodes import Node
+from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.embed import Embedder
 from sycamore.transforms.extract_entity import EntityExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
@@ -395,7 +395,7 @@ class DocSet:
         plan = RegexReplace(self.plan, spec, **kwargs)
         return DocSet(self.context, plan)
 
-    def chain(self, cls: Type[Node], **kwargs) -> "DocSet":
+    def transform(self, cls: Type[Transform], **kwargs) -> "DocSet":
         """
         Add specified transform class to pipeline.
 
@@ -408,7 +408,7 @@ class DocSet:
             from sycamore.transforms import FooBar
             ds = context.read.binary(paths, binary_format="pdf")
                 .partition(partitioner=UnstructuredPdfPartitioner())
-                .chain(cls=FooBar, arg=123)
+                .transform(cls=FooBar, arg=123)
         """
         plan = cls(self.plan, **kwargs)  # type: ignore
         return DocSet(self.context, plan)

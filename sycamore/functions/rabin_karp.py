@@ -9,8 +9,6 @@ class RkHash:
     be removed.  This makes it efficient for sliding-window applications.
     """
 
-    __slots__ = ["shift", "prime", "primeShift", "val", "inv"]
-
     def __init__(self, width: int) -> None:
         if width < 1:
             raise ValueError
@@ -41,8 +39,6 @@ class RkWindow:
     of the resulting hashes.  Aim for a minimum size of 7 or 8.
     """
 
-    __slots__ = ["hasher", "width", "ary", "idx"]
-
     def __init__(self, width: int) -> None:
         if width < 1:
             raise ValueError
@@ -59,12 +55,7 @@ class RkWindow:
 
     def __str__(self) -> str:
         h = str(self.hasher)
-        a = ""
-        for ii, ch in enumerate(self.ary):
-            if ii == self.idx:
-                a += ",[%d]" % ch
-            else:
-                a += ",%d" % ch
+        a = ",".join(["[%d]" % ch if ii == self.idx else "%d" % ch for ii, ch in enumerate(self.ary)])
         return "(w%s%s)" % (h, a)
 
     def hash(self, ch: int) -> None:

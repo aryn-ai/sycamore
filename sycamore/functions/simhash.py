@@ -1,3 +1,4 @@
+import sys
 from sycamore.functions.rabin_karp import RkWindow
 
 __all__ = ["shinglesCalc", "shinglesDist", "simHash", "simHashesDist", "simHashText"]
@@ -207,13 +208,14 @@ def simHash(tab: list[int]) -> int:
     return rv
 
 
-def simHashesDist(aa: list[int], bb: list[int]) -> float:
+def simHashesDistFast(aa: list[int], bb: list[int]) -> float:
     """
-    simHashesDist() compares two lists of SimHashes and returns a distance
-    metric.  Each list of SimHashes represents a document.  Corresponding
-    elements in each list represent variants or "tabs" of shingles.
-    With a SimHash, the most bits in common means the most similar.
-    This returns the average of the count of differing bits.
+    simHashesDistFast() compares two lists of SimHashes and returns a
+    distance metric.  Each list of SimHashes represents a document.
+    Corresponding elements in each list represent variants or "tabs" of
+    shingles.  With a SimHash, the most bits in common means the most
+    similar.  This returns the average of the count of differing bits.
+    This fast version for Python >=3.10 takes 50% less time than the slow.
     """
 
     aLen = len(aa)
@@ -222,8 +224,35 @@ def simHashesDist(aa: list[int], bb: list[int]) -> float:
     tot = 0
     for ii in range(aLen):
         x = aa[ii] ^ bb[ii]
-        tot += x.bit_count()
+        tot += x.bit_count()  # type: ignore[attr-defined]
     return tot / aLen
+
+
+def simHashesDistSlow(aa: list[int], bb: list[int]) -> float:
+    """
+    simHashesDistSlow() compares two lists of SimHashes and returns a
+    distance metric.  Each list of SimHashes represents a document.
+    Corresponding elements in each list represent variants or "tabs" of
+    shingles.  With a SimHash, the most bits in common means the most
+    similar.  This returns the average of the count of differing bits.
+    This slow version for Python <=3.9 takes 50% more time than the fast.
+    """
+
+    aLen = len(aa)
+    bLen = len(bb)
+    assert aLen == bLen
+    tot = 0
+    for ii in range(aLen):
+        x = aa[ii] ^ bb[ii]
+        tot += bin(x).count("1")  # slow way to count set bits
+    return tot / aLen
+
+
+# Python lacks int.bit_count() until version 3.10
+if (sys.version_info.major < 3) or ((sys.version_info.major == 3) and (sys.version_info.minor < 10)):
+    simHashesDist = simHashesDistSlow
+else:
+    simHashesDist = simHashesDistFast
 
 
 def simHashText(text: bytes, window: int = 32, courses: int = 15, tabs: int = 8) -> list[int]:

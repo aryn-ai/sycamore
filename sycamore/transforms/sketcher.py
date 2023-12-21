@@ -2,7 +2,7 @@ import sys
 import re
 import unicodedata
 
-from typing import Any, Optional
+from typing import Any
 
 from ray.data import ActorPoolStrategy, Dataset
 
@@ -117,8 +117,7 @@ class SketchUniquify(SingleThreadUser, NonGPUUser, Transform):
                     dist = simHashesDist(docSims, prevSims)
                     if dist <= self.threshold:
                         self.drops += 1
-                        print(f"SketchUniquify dropped {self.drops} of {self.total}",
-                              file=sys.stderr)
+                        print(f"SketchUniquify dropped {self.drops} of {self.total}", file=sys.stderr)
                         return False
                 self.seenSketches.append(docSims)
             return True

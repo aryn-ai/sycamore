@@ -13,6 +13,8 @@ import platform
 import subprocess
 import sys
 
+from pathlib import Path
+
 print("Version-Info, Aryn Jupyter Branch:", os.environ.get("GIT_BRANCH", "missing"))
 print("Version-Info, Aryn Jupyter Commit:", os.environ.get("GIT_COMMIT", "missing"))
 print("Version-Info, Aryn Jupyter Diff:", os.environ.get("GIT_DIFF", "missing"))
@@ -21,7 +23,6 @@ print("Version-Info, Aryn Jupyter Architecture:", platform.uname().machine)
 def main():
     app_stat = os.lstat("/app")
     bind_stat = os.lstat("/app/work/bind_dir")
-    
     if app_stat.st_uid != bind_stat.st_uid or app_stat.st_gid != bind_stat.st_gid:
         fix_ids(bind_stat.st_uid, bind_stat.st_gid)
     else:
@@ -32,6 +33,14 @@ def main():
 
 def fix_ids(uid, gid):
     if uid == 0 or gid == 0:
+        testname = "/app/work/bind_dir/.fixuser.test"
+        subprocess.run(["sudo", "-u", "app", "touch", testname])
+        if Path(testname).is_file():
+            subprocess.run(["sudo", "-u", "app", "rm", testname])
+            print("WARNING: On a machine doing weirdness with the bind_mount.")
+            print("WARNING: owner or group is root, but able to write files as app.")
+            print("WARNING: this happens on MacOS with a special driver, so leaving ids alone.")
+            return
         raise Exception("Refusing to change id to uid == 0 or gid == 0\n" +
                         "Make sure bind dir has a non-root uid and gid")
     print("WARNING: Fixing IDs. This step can take a long time", flush=True)

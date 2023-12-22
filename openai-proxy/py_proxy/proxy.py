@@ -170,6 +170,9 @@ def proxy_ui(arg=None):
 
     return (resp.content, resp.status_code, headers)
 
+@app.route('/healthz', methods=['GET'])
+def healthz(arg=None):
+    return 'OK'
 
 if __name__ == '__main__':
     # Use gevent WSGIServer for asynchronous behavior

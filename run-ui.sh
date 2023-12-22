@@ -13,6 +13,16 @@ fi
 cd /home/pn/py-proxy
 poetry run python py_proxy/proxy.py &
 
+tries=0
+while ! curl localhost:3000/healthz >/dev/null 2>&1; do
+    echo "Demo-UI proxy not running after $tries seconds"
+    if [[ $tries -ge 30 ]]; then
+        echo "Demo UI probably broken, report a bug on slack"
+    fi
+    tries=$(expr ${tries} + 1)
+    sleep 1
+done
+
 # run node ui
 cd /home/pn/js-ui
 # Running the UI this way means that the html is unminified and hence easy to read

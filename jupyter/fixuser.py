@@ -18,7 +18,7 @@ from pathlib import Path
 print("Version-Info, Aryn Jupyter Branch:", os.environ.get("GIT_BRANCH", "missing"))
 print("Version-Info, Aryn Jupyter Commit:", os.environ.get("GIT_COMMIT", "missing"))
 print("Version-Info, Aryn Jupyter Diff:", os.environ.get("GIT_DIFF", "missing"))
-print("Version-Info, Aryn Jupyter Architecture:", platform.uname().machine)
+print("Version-Info, Aryn Jupyter Architecture:", platform.uname().machine, flush=True)
 
 def main():
     app_stat = os.lstat("/app")
@@ -53,7 +53,8 @@ def fix_ids(uid, gid):
     print("SUCCESS: uid & gid fixed", flush=True)
 
 def exec_run_jupyter(uid, gid):
-    print(sys.argv[1:])
+    sys.stdout.flush()
+    sys.stderr.flush()
     args = ["/usr/bin/sudo", "-E", "-u", "app", "/app/run-jupyter.sh"] + sys.argv[1:]
     os.execv(args[0], args)
 

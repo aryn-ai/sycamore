@@ -92,7 +92,6 @@ services:
     command: /bin/sh -c 'echo size-before && du -s /tmp/* && rm -rf /tmp/opensearch_data/* /tmp/crawl_data/* && echo size-after && du -s /tmp/*'
     
   jupyter:
-    profiles: ['jupyter']
     image: arynai/jupyter:${JUPYTER_VERSION}
     ports:
       - 127.0.0.1:${JUPYTER_PORT}:8888

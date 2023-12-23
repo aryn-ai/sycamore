@@ -19,14 +19,14 @@ flexible.
 
 ### In a container
 
-1. Add the --profile=jupyter argument to launch Aryn Search using the containerized Quickstart following [these instructions](https://github.com/aryn-ai/quickstart#readme). However, a few notes on this step specific to this example:
+1. Launch Aryn Search using the containerized Quickstart following [these instructions](https://github.com/aryn-ai/quickstart#readme). However, a few notes on this step specific to this example:
 
 - This example doesn't need Amazon Textract or Amazon S3, so you do not need to have or provide AWS credentials.
 - You do not need to load the full Sort Benchmark sample dataset referred to in the Quickstart README.
 
 Full command:
 ```shell
-ENABLE_TEXTRACT=false docker compose --profile=jupyter up --pull=always
+ENABLE_TEXTRACT=false docker compose up --pull=always
 ```
 
 NOTE: If you downloaded the .env and compose.yaml files directly rather than via git, you will need

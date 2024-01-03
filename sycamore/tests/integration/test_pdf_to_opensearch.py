@@ -90,7 +90,7 @@ def test_pdf_to_opensearch():
 
     paths = str(TEST_DIR / "resources/data/pdfs/")
 
-    openai_llm = OpenAI(OpenAIModels.TEXT_DAVINCI.value)
+    openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
 
     context = sycamore.init()
     ds = (

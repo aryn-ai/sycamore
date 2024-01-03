@@ -9,8 +9,10 @@ from tenacity import retry, stop_after_attempt, wait_random, retry_if_exception_
 
 
 class OpenAIModels(Enum):
-    TEXT_DAVINCI = "text-davinci-003"
+    TEXT_DAVINCI = "text-davinci-003"  # Deprecated
     GPT_3_5_TURBO = "gpt-3.5-turbo-1106"
+    GPT_4_TURBO = "gpt-4-turbo"
+    GPT_3_5_TURBO_INSTRUCT = "gpt-3.5-turbo-instruct"
 
 
 class LLM(ABC):
@@ -50,6 +52,10 @@ class OpenAIClientParameters:
 
 class OpenAI(LLM):
     def __init__(self, model_name, api_key=None, params: OpenAIClientParameters = OpenAIClientParameters(), **kwargs):
+        if model_name == OpenAIModels.TEXT_DAVINCI.value:
+            print("text-davinci-003 is deprecated. Falling back to gpt-3.5-turbo-instruct")
+            model_name = OpenAIModels.GPT_3_5_TURBO_INSTRUCT
+
         super().__init__(model_name, **kwargs)
 
         self._params = params

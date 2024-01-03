@@ -271,7 +271,7 @@ def import_pdf(paths):
         print("WARNING: import_html called with empty paths")
         return
 
-    openai_llm = OpenAI(OpenAIModels.TEXT_DAVINCI.value)
+    openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
     tokenizer = HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2")
     merger = GreedyTextElementMerger(tokenizer, 256)
 

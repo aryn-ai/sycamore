@@ -1,0 +1,21 @@
+name: HTTP Crawler Docker Image CI
+
+on:
+  push:
+      branches: [ "main" ]
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        run: docker login -u ${{ secrets.ARYN_DOCKERHUB_USERNAME }} -p ${{ secrets.ARYN_DOCKERHUB_PASSWORD }}
+
+      - name: Create a new docker builder
+        run: docker buildx create --name arynbuilder --use
+
+      - name: Build Docker image
+        run: docker buildx build -t  ${{ secrets.ARYN_DOCKERHUB_USERNAME }}/${{ secrets.ARYN_DOCKERHUB_HTTP_CRAWLER }}:latest -f crawler/http/Dockerfile --platform linux/amd64,linux/arm64 --push .

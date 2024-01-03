@@ -30,7 +30,7 @@ fsys = pyarrow.fs.S3FileSystem(
     session_token=cred.token,
 )
 
-davinci_llm = OpenAI(OpenAIModels.TEXT_DAVINCI.value)
+davinci_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
 tokenizer = HuggingFaceTokenizer("thenlper/gte-small")
 
 ctx = sycamore.init()

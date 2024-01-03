@@ -20,7 +20,7 @@ if not paths:
 
 index = "demoindex0"
 
-davinci_llm = OpenAI(OpenAIModels.TEXT_DAVINCI.value)
+davinci_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
 tokenizer = HuggingFaceTokenizer("thenlper/gte-small")
 
 ctx = sycamore.init()

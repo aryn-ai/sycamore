@@ -51,10 +51,12 @@ class OpenAIClientParameters:
 
 
 class OpenAI(LLM):
-    def __init__(self, model_name, api_key=None, params: OpenAIClientParameters = OpenAIClientParameters(), **kwargs):
+    def __init__(
+        self, model_name: str, api_key=None, params: OpenAIClientParameters = OpenAIClientParameters(), **kwargs
+    ):
         if model_name == OpenAIModels.TEXT_DAVINCI.value:
             print("text-davinci-003 is deprecated. Falling back to gpt-3.5-turbo-instruct")
-            model_name = OpenAIModels.GPT_3_5_TURBO_INSTRUCT
+            model_name = OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value
 
         super().__init__(model_name, **kwargs)
 

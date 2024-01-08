@@ -2,14 +2,13 @@ import sys
 import re
 import unicodedata
 
-from typing import Any
-
 from ray.data import ActorPoolStrategy, Dataset
 
 from sycamore.data import Document
 from sycamore.functions.simhash import simHashText, simHashesDist
 from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import generate_map_function
+from sycamore.utils.generate_ray_func import generate_map_batch_filter_class_from_callable
 
 
 unwantedRe = re.compile(r"\W+")
@@ -108,9 +107,8 @@ class SketchUniquify(SingleThreadUser, NonGPUUser, Transform):
             # This is a significant amount of memory...
             self.seenSketches: list[list[int]] = []
 
-        def good(self, row: dict[str, Any]) -> bool:
+        def good(self, doc: Document) -> bool:
             self.total += 1
-            doc = Document.from_row(row)
             docSims = doc.simHashes
             if docSims:
                 for prevSims in self.seenSketches:
@@ -126,7 +124,10 @@ class SketchUniquify(SingleThreadUser, NonGPUUser, Transform):
         ds = self.child().execute()
         ds = ds.materialize()  # force previous to finish to free up memory
         pred = SketchUniquify.Predicate(self.threshold)
+
+        filter_class = generate_map_batch_filter_class_from_callable(pred.good)
+
         # Size is 1 here to use a global view of previous sketches...
-        ds = ds.filter(pred.good, compute=ActorPoolStrategy(size=1))
+        ds = ds.map_batches(filter_class, compute=ActorPoolStrategy(size=1))
         ds = ds.materialize()  # force filter to finish before moving on
         return ds

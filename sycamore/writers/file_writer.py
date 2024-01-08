@@ -2,20 +2,18 @@ from sycamore.data import Document
 from sycamore.plan_nodes import Node, Write
 
 from pyarrow.fs import FileSystem
+from pyarrow import NativeFile
 
 from ray.data import Dataset
-from ray.data.block import Block, BlockAccessor
-from ray.data.datasource import FileBasedDatasource, WriteResult
-from ray.data._internal.execution.interfaces import TaskContext
+from ray.data.datasource import FilenameProvider, RowBasedFileDatasink
 
 from collections import UserDict
 from io import StringIO
 import json
 import logging
-import os
 from pathlib import Path
 import uuid
-from typing import Callable, Iterable, Optional, no_type_check
+from typing import Any, Callable, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -142,63 +140,39 @@ class FileWriter(Write):
     def execute(self) -> Dataset:
         dataset = self.child().execute()
 
-        dataset.write_datasource(
-            _WritableFilePerRowDataSource(),
-            path=self.path,
-            dataset_uuid=uuid.uuid4(),
-            filesystem=self.filesystem,
-            filename_fn=self.filename_fn,
-            doc_to_bytes_fn=self.doc_to_bytes_fn,
+        dataset.write_datasink(
+            _WritableFilePerRowDataSink(
+                self.path,
+                filesystem=self.filesystem,
+                filename_fn=self.filename_fn,
+                doc_to_bytes_fn=self.doc_to_bytes_fn,
+            ),
             ray_remote_args=self.ray_remote_args,
         )
 
         return dataset
 
 
-# Some of this code is taken from Ray's FileBasedDatasource. We should switch to using that
-# Once it supports using a custom filename.
-class _WritableFilePerRowDataSource(FileBasedDatasource):
-    _WRITE_FILE_PER_ROW = True
+class DocToRowFilenameProvider(FilenameProvider):
+    def __init__(self, filename_fn: Callable[[Document], str]):
+        self._filename_fn = filename_fn
 
-    # This will not typecheck correctly because the parameters don't match the superclass.
-    # It turns out this is a problem in ray itself -- the parameters in
-    # FileBasedDatasource::write don't match the parameters of Datasource::write. This
-    # isn't a correctness problem, but it means there is no way to get mypy to check this.
-    @no_type_check
-    def write(
+    def get_filename_for_row(self, row: dict[str, Any], task_index: int, block_index: int, row_index: int) -> str:
+        return self._filename_fn(Document.from_row(row))
+
+
+class _WritableFilePerRowDataSink(RowBasedFileDatasink):
+    def __init__(
         self,
-        blocks: Iterable[Block],
-        ctx: TaskContext,
         path: str,
         filesystem: Optional[FileSystem] = None,
         filename_fn: Callable[[Document], str] = default_filename,
         doc_to_bytes_fn: Callable[[Document], bytes] = default_doc_to_bytes,
-        prefer_text: bool = True,
-        **write_args,
-    ) -> WriteResult:
-        from ray.data.datasource.file_based_datasource import (
-            _open_file_with_retry,
-            _resolve_paths_and_filesystem,
-            _unwrap_s3_serialization_workaround,
-        )
+    ):
+        super().__init__(path, filesystem=filesystem, filename_provider=DocToRowFilenameProvider(filename_fn))
 
-        path, filesystem = _resolve_paths_and_filesystem(path, filesystem)
-        path = path[0]
+        self._doc_to_bytes_fn = doc_to_bytes_fn
 
-        for block in blocks:
-            block = BlockAccessor.for_block(block)  # .to_arrow().to_pylist()
-
-            fs = _unwrap_s3_serialization_workaround(filesystem)
-
-            for row in block.iter_rows(public_row_format=True):
-                doc = Document.from_row(row)
-                filename = filename_fn(doc)
-
-                write_path = os.path.join(path, filename)
-                logger.debug(f"Writing file at {write_path}")
-
-                # with fs.open_output_stream(write_path) as outfile:
-                with _open_file_with_retry(write_path, lambda: fs.open_output_stream(write_path)) as outfile:
-                    outfile.write(doc_to_bytes_fn(doc))
-
-        return "ok"
+    def write_row_to_file(self, row: dict[str, Any], file: NativeFile):
+        binary = self._doc_to_bytes_fn(Document.from_row(row))
+        file.write(binary)

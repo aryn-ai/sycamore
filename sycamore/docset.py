@@ -327,7 +327,7 @@ class DocSet:
         summaries = Summarize(self.plan, summarizer=summarizer, **kwargs)
         return DocSet(self.context, summaries)
 
-    def mark_bbox_preset(self, tokenizer: Tokenizer, **kwargs) -> "DocSet":
+    def mark_bbox_preset(self, tokenizer: Tokenizer, token_limit: int = 512, **kwargs) -> "DocSet":
         """
         Convenience composition of:
             SortByPageBbox
@@ -352,7 +352,7 @@ class DocSet:
         plan2 = MarkDropHeaderFooter(plan1, 0.05, 0.05, **kwargs)
         plan3 = MarkBreakPage(plan2, **kwargs)
         plan4 = MarkBreakByColumn(plan3, **kwargs)
-        plan5 = MarkBreakByTokens(plan4, tokenizer, 512, **kwargs)
+        plan5 = MarkBreakByTokens(plan4, tokenizer, token_limit, **kwargs)
         return DocSet(self.context, plan5)
 
     def merge(self, merger: ElementMerger, **kwargs) -> "DocSet":

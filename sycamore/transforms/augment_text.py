@@ -35,13 +35,15 @@ class FStringTextAugmentor(TextAugmentor):
     Example:
          .. code-block:: python
 
-            augmentor = FStringTextAugmentor(sentences = [
-                "This pertains to the part {doc.properties['part_name']}.",
+            from sycamore.transforms.augment_text import FStringTextAugmentor
+            import pathlib
+            augmentor = FStringTextAugmentor([
+                "This is from {pathlib.Path(doc.properties['path']).name}.",
+                "The title of this paper is {doc.properties['title']}.",
+                "The authors are {doc.properties['authors']}.",
                 "{doc.text_representation}"
-            ])
-            context = sycamore.init()
-            pdf_docset = context.read.binary(paths, binary_format="pdf")
-                .augment_text(augmentor)
+            ], modules=[pathlib])
+            aug_docset = exp_docset.augment_text(augmentor=augmentor)
     """
 
     def __init__(self, sentences: list[str], modules: list = []):

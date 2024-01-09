@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Any
+from typing import Callable, Any, Optional
 
 from ray.data import Dataset
 
@@ -10,7 +10,7 @@ from sycamore.utils.generate_ray_func import generate_map_function
 
 class TextAugmentor(ABC):
     @abstractmethod
-    def augment_text(self, doc: Document) -> str | None:
+    def augment_text(self, doc: Document) -> Optional[str]:
         pass
 
 
@@ -50,7 +50,7 @@ class FStringTextAugmentor(TextAugmentor):
         self._sentences = [compile('f"' + s + '"', "<string>", "eval") for s in sentences]
         self._modules = {m.__name__: m for m in modules}
 
-    def augment_text(self, doc: Document) -> str | None:
+    def augment_text(self, doc: Document) -> Optional[str]:
         formatted = []
         for s in self._sentences:
             try:
@@ -95,7 +95,7 @@ class UDFTextAugmentor(TextAugmentor):
         super().__init__()
         self._fn = fn
 
-    def augment_text(self, doc: Document) -> str | None:
+    def augment_text(self, doc: Document) -> Optional[str]:
         return self._fn(doc)
 
 
@@ -137,7 +137,7 @@ class JinjaTextAugmentor(TextAugmentor):
         self._modules = modules
         self._template = template
 
-    def augment_text(self, doc: Document) -> str | None:
+    def augment_text(self, doc: Document) -> Optional[str]:
         return self._env.from_string(source=self._template, globals=self._modules).render(doc=doc)
 
 

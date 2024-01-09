@@ -120,7 +120,7 @@ class JinjaTextAugmentor(TextAugmentor):
             {% endif %}
             '''
             aug = JinjaTextAugmentor(template=template, modules={"pathlib": pathlib})
-            aug_docset = exp_docset.augment_text(aug3).regex_replace(COALESCE_WHITESPACE)
+            aug_docset = exp_docset.augment_text(aug).regex_replace(COALESCE_WHITESPACE)
             aug_docset.show(show_binary=False, truncate_content=False)
     """
     def __init__(self, template: str, modules: dict[str, Any] = {}):

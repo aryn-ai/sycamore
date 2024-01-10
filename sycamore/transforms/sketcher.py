@@ -85,7 +85,7 @@ class SketchUniquify(SingleThreadUser, NonGPUUser, Transform):
 
     Args:
         child: The source node or component that provides the documents
-        threshold: Largest distance to be considered a duplicate (15)
+        threshold: Largest distance to be considered a duplicate (14)
 
     Example:
         .. code-block:: python
@@ -95,7 +95,7 @@ class SketchUniquify(SingleThreadUser, NonGPUUser, Transform):
            dataset = xform.execute()
     """
 
-    def __init__(self, child: Node, threshold: int = 15, **kwargs) -> None:
+    def __init__(self, child: Node, threshold: int = 14, **kwargs) -> None:
         super().__init__(child, **kwargs)
         self.threshold = threshold
 

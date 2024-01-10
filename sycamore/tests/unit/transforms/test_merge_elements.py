@@ -49,9 +49,9 @@ class TestMergeElements:
                 },
                 {
                     "type": "Title",
-                    "text_representation": "title1",
+                    "text_representation": "title3",
                     "bbox": [0.17, 0.40, 0.82, 0.47],
-                    "binary_representation": b"title1",
+                    "binary_representation": b"title3",
                     "properties": {"doc_title": "title"},
                 },
                 {
@@ -87,7 +87,7 @@ class TestMergeElements:
 
         e = new_doc.elements[0]
         assert e.type == "Section"
-        assert e.text_representation == ("text1\ntext2\ntitle1\n" + self.passage1)
+        assert e.text_representation == ("text1\ntext2\ntitle3\n" + self.passage1)
         assert e.bbox.coordinates == (0.17, 0.40, 0.92, 0.67)
         assert e.properties == {
             "filetype": "text/plain",

@@ -46,7 +46,7 @@ class TestShingles:
 
         # make sure examples measure as expected
         assert sh.shinglesDist(shingles[0], shingles[1]) < 0.3
-        assert sh.shinglesDist(shingles[0], shingles[2]) < 0.2
+        assert sh.shinglesDist(shingles[0], shingles[2]) < 0.3
         assert sh.shinglesDist(shingles[1], shingles[2]) < 0.4
         assert sh.shinglesDist(shingles[0], shingles[3]) > 0.9
         assert sh.shinglesDist(shingles[1], shingles[3]) > 0.9
@@ -58,16 +58,16 @@ class TestShingles:
         assert sim == 0x09
 
     def test_sim_dist(self):
-        aa = [0x12, 0x34, 0x56, 0x78]
-        bb = [0x12, 0x34, 0x56, 0x70]
-        cc = [0x12, 0x34, 0x54, 0x70]
-        dd = [0x12, 0x30, 0x54, 0x70]
-        ee = [0x10, 0x30, 0x54, 0x70]
-        assert sh.simHashesDist(aa, aa) == 0.0
-        assert sh.simHashesDist(aa, bb) == 0.25
-        assert sh.simHashesDist(aa, cc) == 0.5
-        assert sh.simHashesDist(aa, dd) == 0.75
-        assert sh.simHashesDist(aa, ee) == 1.0
+        aa = [0x1111, 0x2222, 0x4444, 0xFFFF]
+        bb = [0x1110, 0x2202, 0x4044, 0x0000]
+        cc = [0x1100, 0x2002, 0x0044, 0x0000]
+        dd = [0x1000, 0x0002, 0x0040, 0x0000]
+        ee = [0x0000, 0x0000, 0x0000, 0x0000]
+        assert sh.simHashesDist(aa, aa) == 0
+        assert sh.simHashesDist(aa, bb) == 1
+        assert sh.simHashesDist(aa, cc) == 2
+        assert sh.simHashesDist(aa, dd) == 3
+        assert sh.simHashesDist(aa, ee) == 4
 
     def test_simhashes(self):
         simHashes = []
@@ -84,9 +84,9 @@ class TestShingles:
             assert sh.simHashesDist(simHashes[ii], simHashes[ii]) == 0.0
 
         # make sure examples measure as expected
-        assert sh.simHashesDist(simHashes[0], simHashes[1]) < 15
-        assert sh.simHashesDist(simHashes[0], simHashes[2]) < 11
-        assert sh.simHashesDist(simHashes[1], simHashes[2]) < 18
-        assert sh.simHashesDist(simHashes[0], simHashes[3]) > 28
-        assert sh.simHashesDist(simHashes[1], simHashes[3]) > 28
-        assert sh.simHashesDist(simHashes[2], simHashes[3]) > 28
+        assert sh.simHashesDist(simHashes[0], simHashes[1]) < 12
+        assert sh.simHashesDist(simHashes[0], simHashes[2]) < 12
+        assert sh.simHashesDist(simHashes[1], simHashes[2]) < 12
+        assert sh.simHashesDist(simHashes[0], simHashes[3]) > 18
+        assert sh.simHashesDist(simHashes[1], simHashes[3]) > 18
+        assert sh.simHashesDist(simHashes[2], simHashes[3]) > 18

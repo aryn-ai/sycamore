@@ -123,7 +123,7 @@ def sortedVectorCmp(aVec: list[int], bVec: list[int]) -> tuple[int, int]:
 ###############################################################################
 
 
-def shinglesCalc(text: bytes, window: int = 32, courses: int = 15, tabs: int = 8) -> list[list[int]]:
+def shinglesCalc(text: bytes, window: int = 36, courses: int = 27, tabs: int = 10) -> list[list[int]]:
     """
     shinglesCalc() will process `text` and return a list of variants of
     lists of hashes.  The inner list is often referred to as "shingles"
@@ -133,7 +133,6 @@ def shinglesCalc(text: bytes, window: int = 32, courses: int = 15, tabs: int = 8
     `window` is the number of bytes in the sliding window that's hashed.
     """
 
-    nn = len(text)
     ww = RkWindow(window)
     seed = ww.filler()
     heaps = [[0xFFFFFFFFFFFFFFFF for i in range(courses + 1)] for j in range(tabs)]
@@ -143,13 +142,12 @@ def shinglesCalc(text: bytes, window: int = 32, courses: int = 15, tabs: int = 8
         for heap in heaps:
             hh = scramble(hh)
             heapUpdate(heap, hh)
-    if nn < window:
-        for _ in range(window - nn):  # ensure small text gets full singles
-            ww.hash(seed)
-            hh = ww.get()
-            for heap in heaps:
-                hh = scramble(hh)
-                heapUpdate(heap, hh)
+    for _ in range(window - 1):  # ensure last byte is fully represented
+        ww.hash(seed)
+        hh = ww.get()
+        for heap in heaps:
+            hh = scramble(hh)
+            heapUpdate(heap, hh)
     for heap in heaps:
         heap.pop(0)
         heap.sort()
@@ -208,7 +206,7 @@ def simHash(tab: list[int]) -> int:
     return rv
 
 
-def simHashesDistFast(aa: list[int], bb: list[int]) -> float:
+def simHashesDistFast(aa: list[int], bb: list[int]) -> int:
     """
     simHashesDistFast() compares two lists of SimHashes and returns a
     distance metric.  Each list of SimHashes represents a document.
@@ -218,17 +216,16 @@ def simHashesDistFast(aa: list[int], bb: list[int]) -> float:
     This fast version for Python >=3.10 takes 50% less time than the slow.
     """
 
-    aLen = len(aa)
-    bLen = len(bb)
-    assert aLen == bLen
-    tot = 0
-    for ii in range(aLen):
-        x = aa[ii] ^ bb[ii]
-        tot += x.bit_count()  # type: ignore[attr-defined]
-    return tot / aLen
+    assert len(aa) == len(bb)
+    low = 64
+    for a, b in zip(aa, bb):
+        x = a ^ b
+        pop = x.bit_count()  # type: ignore[attr-defined]
+        low = min(low, pop)
+    return low
 
 
-def simHashesDistSlow(aa: list[int], bb: list[int]) -> float:
+def simHashesDistSlow(aa: list[int], bb: list[int]) -> int:
     """
     simHashesDistSlow() compares two lists of SimHashes and returns a
     distance metric.  Each list of SimHashes represents a document.
@@ -238,14 +235,13 @@ def simHashesDistSlow(aa: list[int], bb: list[int]) -> float:
     This slow version for Python <=3.9 takes 50% more time than the fast.
     """
 
-    aLen = len(aa)
-    bLen = len(bb)
-    assert aLen == bLen
-    tot = 0
-    for ii in range(aLen):
-        x = aa[ii] ^ bb[ii]
-        tot += bin(x).count("1")  # slow way to count set bits
-    return tot / aLen
+    assert len(aa) == len(bb)
+    low = 64
+    for a, b in zip(aa, bb):
+        x = a ^ b
+        pop = bin(x).count("1")  # slow way to count set bits
+        low = min(low, pop)
+    return low
 
 
 # Python lacks int.bit_count() until version 3.10
@@ -255,7 +251,7 @@ else:
     simHashesDist = simHashesDistFast
 
 
-def simHashText(text: bytes, window: int = 32, courses: int = 15, tabs: int = 8) -> list[int]:
+def simHashText(text: bytes, window: int = 36, courses: int = 27, tabs: int = 10) -> list[int]:
     """
     Takes text and returns a list of SimHashes.  Arguments:
 

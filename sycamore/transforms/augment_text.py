@@ -13,59 +13,8 @@ class TextAugmentor(ABC):
     def augment_text(self, doc: Document) -> Optional[str]:
         pass
 
-
-class FStringTextAugmentor(TextAugmentor):
-    """
-    FStringTextAugmentor augments text by means of a list of python format-strings.
-    The only top-level replacement variable available for use in such strings is `doc`,
-    which represents a document object. The inputted format-strings will be joined with
-    whitespace separators. Any format-strings that fail due to a missing property will
-    be silently dropped, but any format strings that ask for other replacement variables
-    will throw errors.
-
-    Note: do not include the "f" prefix for the f-string. i.e. instead of
-        `f"expression: {doc.text_representation}"`
-    use
-        `"expression: {doc.text_representation}"`
-
-    Args:
-        sentences (list[str]): List of sentences that optionally contain `doc` replacement variable
-
-    Example:
-         .. code-block:: python
-
-            from sycamore.transforms.augment_text import FStringTextAugmentor
-            import pathlib
-            augmentor = FStringTextAugmentor([
-                "This is from {pathlib.Path(doc.properties['path']).name}.",
-                "The title of this paper is {doc.properties['title']}.",
-                "The authors are {doc.properties['authors']}.",
-                "{doc.text_representation}"
-            ], modules=[pathlib])
-            aug_docset = exp_docset.augment_text(augmentor=augmentor)
-    """
-
-    def __init__(self, sentences: list[str], modules: list = []):
-        super().__init__()
-        self._sentences = [compile('f"' + s + '"', "<string>", "eval") for s in sentences]
-        self._modules = {m.__name__: m for m in modules}
-
-    def augment_text(self, doc: Document) -> Optional[str]:
-        formatted = []
-        for s in self._sentences:
-            try:
-                evaluated = eval(s, self._modules, {"doc": doc})
-                formatted.append(evaluated)
-            except Exception as e:
-                print(f"augment_text: Document {doc.doc_id} failed in sentence {s} with error {e}")
-
-        if len(formatted) == 0:
-            print(
-                f"augment_text: Document {doc.doc_id} ended up with empty text \
-                    representation. Using original text instead"
-            )
-            return doc.text_representation
-        return " ".join(formatted)
+    def __call__(self, doc: Document) -> Optional[str]:
+        return self.augment_text(doc)
 
 
 class UDFTextAugmentor(TextAugmentor):

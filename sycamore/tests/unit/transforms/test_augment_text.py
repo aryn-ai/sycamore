@@ -1,7 +1,7 @@
 import pathlib
 import textwrap
 from sycamore.data import Document
-from sycamore.transforms.augment_text import FStringTextAugmentor, UDFTextAugmentor, JinjaTextAugmentor
+from sycamore.transforms.augment_text import UDFTextAugmentor, JinjaTextAugmentor
 
 
 class TestAugmentText:
@@ -13,20 +13,6 @@ class TestAugmentText:
             "properties": {"path": "/docs/foo.txt", "title": "bar"},
         }
     )
-
-    def test_fstring_augmentation(self):
-        aug = FStringTextAugmentor(
-            sentences=[
-                "path: {pathlib.Path(doc.properties['path']).name}.",
-                "title: {doc.properties['title']}.",
-                "exotherm: {doc.properties['exotherm']}.",
-                "pure text.",
-                "{doc.text_representation}",
-            ],
-            modules=[pathlib],
-        )
-        text = aug.augment_text(self.doc)
-        assert text == "path: foo.txt. title: bar. pure text. text"
 
     def test_udf_augmentation(self, mocker):
         def f(doc: Document) -> str:

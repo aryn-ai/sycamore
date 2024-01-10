@@ -1,3 +1,3 @@
-from sycamore.writers.opensearch import OpenSearchWriter
+from sycamore.writers.writer import DocSetWriter
 
-__all__ = ["OpenSearchWriter"]
+__all__ = ["DocSetWriter"]

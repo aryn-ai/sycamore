@@ -38,9 +38,9 @@ class Sketcher(SingleThreadUser, NonGPUUser, Transform):
 
     Args:
         child: The source node or component that provides the documents
-        window: Number of bytes in the sliding window that is hashed (32)
-        courses: Number of hashes comprising a shingle (15, must be odd)
-        tabs: Number of permutation variants in each shingle (8)
+        window: Number of bytes in the sliding window that is hashed (36)
+        courses: Number of hashes comprising a shingle (27, must be odd)
+        tabs: Number of permutation variants in each shingle (10)
 
     Example:
         .. code-block:: python
@@ -50,7 +50,7 @@ class Sketcher(SingleThreadUser, NonGPUUser, Transform):
             dataset = xform.execute()
     """
 
-    def __init__(self, child: Node, window: int = 32, courses: int = 15, tabs: int = 8, **kwargs):
+    def __init__(self, child: Node, window: int = 36, courses: int = 27, tabs: int = 10, **kwargs):
         super().__init__(child, **kwargs)
         self.window = window
         self.courses = courses
@@ -85,7 +85,7 @@ class SketchUniquify(SingleThreadUser, NonGPUUser, Transform):
 
     Args:
         child: The source node or component that provides the documents
-        threshold: Largest distance to be considered a duplicate (16)
+        threshold: Largest distance to be considered a duplicate (15)
 
     Example:
         .. code-block:: python
@@ -95,7 +95,7 @@ class SketchUniquify(SingleThreadUser, NonGPUUser, Transform):
            dataset = xform.execute()
     """
 
-    def __init__(self, child: Node, threshold: float = 16, **kwargs) -> None:
+    def __init__(self, child: Node, threshold: int = 15, **kwargs) -> None:
         super().__init__(child, **kwargs)
         self.threshold = threshold
 

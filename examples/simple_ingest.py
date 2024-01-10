@@ -35,8 +35,8 @@ ds = (
     .spread_properties(["path", "title"])
     .explode()
     .embed(embedder=SentenceTransformerEmbedder(model_name="thenlper/gte-small", batch_size=100))
-    .transform(cls=Sketcher, window=32)
-    .transform(cls=SketchUniquify, threshold=13.5)
+    .transform(cls=Sketcher, window=36)
+    .transform(cls=SketchUniquify, threshold=15)
 )
 
 # ds.show(limit=1000, truncate_length=500)

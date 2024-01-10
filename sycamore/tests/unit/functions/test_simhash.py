@@ -10,14 +10,14 @@ class TestShingles:
     ]
 
     def test_order(self):
-        s = "The quick brown fox jumps over t"
+        s = "The quick brown fox jumps over the lazy dog"
         shingles = sh.shinglesCalc(s.encode("utf-8"))
         for tab in shingles:
             for ii in range(1, len(tab)):
                 assert tab[ii - 1] <= tab[ii]
 
     def test_nonzero(self):
-        s = "The quick brown fox jumps over t"
+        s = "The quick brown fox jumps over the lazy dog"
         shingles = sh.shinglesCalc(s.encode("utf-8"))
         for tab in shingles:
             assert min(tab) > 0  # zeros are almost always a bug

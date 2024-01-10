@@ -38,8 +38,8 @@ class Sketcher(SingleThreadUser, NonGPUUser, Transform):
 
     Args:
         child: The source node or component that provides the documents
-        window: Number of bytes in the sliding window that is hashed (36)
-        courses: Number of hashes comprising a shingle (27, must be odd)
+        window: Number of bytes in the sliding window that is hashed (32)
+        courses: Number of hashes comprising a shingle (29, must be odd)
         tabs: Number of permutation variants in each shingle (10)
 
     Example:
@@ -50,7 +50,7 @@ class Sketcher(SingleThreadUser, NonGPUUser, Transform):
             dataset = xform.execute()
     """
 
-    def __init__(self, child: Node, window: int = 36, courses: int = 27, tabs: int = 10, **kwargs):
+    def __init__(self, child: Node, window: int = 32, courses: int = 29, tabs: int = 10, **kwargs):
         super().__init__(child, **kwargs)
         self.window = window
         self.courses = courses

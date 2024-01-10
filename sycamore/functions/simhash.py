@@ -123,7 +123,7 @@ def sortedVectorCmp(aVec: list[int], bVec: list[int]) -> tuple[int, int]:
 ###############################################################################
 
 
-def shinglesCalc(text: bytes, window: int = 36, courses: int = 27, tabs: int = 10) -> list[list[int]]:
+def shinglesCalc(text: bytes, window: int = 32, courses: int = 29, tabs: int = 10) -> list[list[int]]:
     """
     shinglesCalc() will process `text` and return a list of variants of
     lists of hashes.  The inner list is often referred to as "shingles"
@@ -134,24 +134,29 @@ def shinglesCalc(text: bytes, window: int = 36, courses: int = 27, tabs: int = 1
     """
 
     ww = RkWindow(window)
-    seed = ww.filler()
     heaps = [[0xFFFFFFFFFFFFFFFF for i in range(courses + 1)] for j in range(tabs)]
     for x in text:
         ww.hash(x)
         hh = ww.get()
-        for heap in heaps:
-            hh = scramble(hh)
-            heapUpdate(heap, hh)
-    for _ in range(window - 1):  # ensure last byte is fully represented
-        ww.hash(seed)
-        hh = ww.get()
-        for heap in heaps:
-            hh = scramble(hh)
-            heapUpdate(heap, hh)
+        if hh is not None:
+            for heap in heaps:
+                hh = scramble(hh)
+                heapUpdate(heap, hh)
+    rv = []
     for heap in heaps:
-        heap.pop(0)
-        heap.sort()
-    return heaps
+        heap = list(filter(lambda x: x != 0xFFFFFFFFFFFFFFFF, heap))
+        nn = len(heap)
+        if nn == courses:
+            heap.sort()
+        elif nn == 0:
+            heap = [0] * courses
+        else:
+            copies = (courses + nn - 1) // nn
+            heap *= copies
+            heap.sort()
+            heap = heap[: courses + 1]
+        rv.append(heap)
+    return rv
 
 
 def shinglesDist(aa: list[list[int]], bb: list[list[int]]) -> float:
@@ -251,7 +256,7 @@ else:
     simHashesDist = simHashesDistFast
 
 
-def simHashText(text: bytes, window: int = 36, courses: int = 27, tabs: int = 10) -> list[int]:
+def simHashText(text: bytes, window: int = 32, courses: int = 29, tabs: int = 10) -> list[int]:
     """
     Takes text and returns a list of SimHashes.  Arguments:
 

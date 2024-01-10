@@ -64,6 +64,9 @@ jobs:
       - name: Install sycamore
         run: poetry install
 
+      - name: Download nltk punkt
+        run: poetry run python -m nltk.downloader punkt
+
       - name: Install poppler
         run: sudo apt-get install -y poppler-utils
 

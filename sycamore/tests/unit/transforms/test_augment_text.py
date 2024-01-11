@@ -14,7 +14,7 @@ class TestAugmentText:
         }
     )
 
-    def test_udf_augmentation(self, mocker):
+    def test_udf_augmentation(self):
         def f(doc: Document) -> str:
             if doc.doc_id == "doc_id":
                 return "doc_id"
@@ -27,7 +27,7 @@ class TestAugmentText:
         text2 = aug.augment_text(Document())
         assert text2 == "not doc id"
 
-    def test_jinja_augmentation(self, mocker):
+    def test_jinja_augmentation(self):
         template = textwrap.dedent(
             """\
                     {% if doc.properties['path'] %}path: {{ pathlib.Path(doc.properties['path']).name }}.{% endif %}

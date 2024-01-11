@@ -10,9 +10,12 @@ from sycamore.transforms.partition import (
     HtmlPartitioner,
     UnstructuredPdfPartitioner,
     UnstructuredPPTXPartitioner,
+    SycamorePartitioner,
 )
 from sycamore.scans import BinaryScan
 from sycamore.tests.config import TEST_DIR
+
+import torch
 
 
 def _make_scan_executor(path: Path, format: str) -> Callable[[], Dataset]:
@@ -134,6 +137,18 @@ class TestPartition:
         scan = mocker.Mock(spec=BinaryScan)
         partition = Partition(scan, partitioner=UnstructuredPPTXPartitioner())
         execute: Callable[[], Dataset] = _make_scan_executor(path, "pptx")
+        mocker.patch.object(scan, "execute", execute)
+        docset = partition.execute()
+        doc = Document.from_row(docset.take(limit=1)[0])
+        assert len(doc.elements) == partition_count
+
+    @pytest.mark.skipif(not torch.cuda.is_available(), reason="SycamorePartitioner requires CUDA")
+    @pytest.mark.skip(reason="Model File is not available")
+    @pytest.mark.parametrize("path, partition_count", [(TEST_DIR / "resources/data/pdfs/Ray.pdf", 267)])
+    def test_deformable_detr_partition(self, mocker, path, partition_count) -> None:
+        scan = mocker.Mock(spec=BinaryScan)
+        partition = Partition(scan, partitioner=SycamorePartitioner(""))
+        execute: Callable[[], Dataset] = _make_scan_executor(path, "pdf")
         mocker.patch.object(scan, "execute", execute)
         docset = partition.execute()
         doc = Document.from_row(docset.take(limit=1)[0])

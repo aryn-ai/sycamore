@@ -28,6 +28,7 @@ from sycamore.transforms.extract_schema import (
     PropertyExtractor,
 )
 from sycamore.transforms.random_sample import RandomSample
+from sycamore.transforms.detr_partitioner import SycamorePDFPartitioner
 
 __all__ = [
     "COALESCE_WHITESPACE",
@@ -62,4 +63,5 @@ __all__ = [
     "PropertyExtractor",
     "ExtractProperties",
     "RandomSample",
+    "SycamorePDFPartitioner",
 ]

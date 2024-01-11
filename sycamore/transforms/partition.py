@@ -1,17 +1,20 @@
+import math
 from abc import abstractmethod, ABC
 import io
 from typing import Any, Optional
 
+import ray
 from bs4 import BeautifulSoup
-from ray.data import Dataset
+from ray.data import Dataset, ActorPoolStrategy
 
 from sycamore.functions import TextOverlapChunker, Chunker
 from sycamore.functions import CharacterTokenizer, Tokenizer
 from sycamore.functions import reorder_elements
 from sycamore.data import BoundingBox, Document, Element, TableElement
-from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
+from sycamore.plan_nodes import Node, Transform, SingleThreadUser
 from sycamore.transforms.map import generate_map_function
 from sycamore.transforms.extract_table import TableExtractor
+from sycamore.utils import generate_map_class_from_callable
 
 
 # This comparator helps sort the elements per page specifically when a page
@@ -345,7 +348,32 @@ class HtmlPartitioner(Partitioner):
         return document
 
 
-class Partition(SingleThreadUser, NonGPUUser, Transform):
+class SycamorePartitioner(Partitioner):
+    def __init__(self, model_name_or_path, threshold: float = 0.4):
+        self._model_name_or_path = model_name_or_path
+        self._threshold = threshold
+        pass
+
+    def partition(self, document: Document) -> Document:
+        from sycamore.transforms import SycamorePDFPartitioner
+
+        binary = io.BytesIO(document.data["binary_representation"])
+        partitioner = SycamorePDFPartitioner(self._model_name_or_path)
+        result = partitioner.partition_pdf(binary, self._threshold)
+
+        elements = []
+        for i, r in enumerate(result):
+            for ele in r:
+                properties = ele.properties
+                properties["page_number"] = i
+                elements.append(ele)
+
+        document.elements = elements
+        document = reorder_elements(document, _elements_reorder_comparator)
+        return document
+
+
+class Partition(SingleThreadUser, Transform):
     """
     The Partition transform segments documents into elements. For example, a typical partitioner might chunk a document
     into elements corresponding to paragraphs, images, and tables. Partitioners are format specific, so for instance for
@@ -375,7 +403,16 @@ class Partition(SingleThreadUser, NonGPUUser, Transform):
 
     def execute(self) -> Dataset:
         input_dataset = self.child().execute()
-        dataset = input_dataset.map(generate_map_function(self._partitioner.partition))
+        if isinstance(self._partitioner, SycamorePartitioner):
+            available_gpus = ray.available_resources().get("GPU")
+            assert available_gpus > 0, "Sycamore Partitioner requires running on CUDA."
+            dataset = input_dataset.map(
+                generate_map_class_from_callable(self._partitioner.partition),
+                compute=ActorPoolStrategy(min_size=1, max_size=math.ceil(available_gpus / 1)),
+                num_gpus=1,
+            )
+        else:
+            dataset = input_dataset.map(generate_map_function(self._partitioner.partition))
         if self._table_extractor:
             dataset = dataset.map(generate_map_function(self._table_extractor.extract_tables))
         return dataset

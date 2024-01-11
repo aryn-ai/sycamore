@@ -29,3 +29,15 @@ class BoundingBox(ABC):
     @property
     def coordinates(self) -> Tuple[float, float, float, float]:
         return self.x1, self.y1, self.x2, self.y2
+
+    def iou(self, other: "BoundingBox") -> float:
+        """
+        Intersection over union, we usually use this for detecting if two bbox cover the same entity.
+        """
+        x1 = max(self.x1, other.x1)
+        x2 = min(self.x2, other.x2)
+        y1 = max(self.y1, other.y1)
+        y2 = min(self.y2, other.y2)
+        i = 0 if x1 > x2 or y1 > y2 else (x2 - x1) * (y2 - y1)
+        u = (self.y2 - self.y1) * (self.x2 - self.x1) + (other.y2 - other.y1) * (other.x2 - other.x1) - i
+        return i / u

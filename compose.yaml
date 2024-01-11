@@ -83,6 +83,18 @@ services:
       - crawl_data:/app/.scrapy
     command: help
 
+  sycamore_crawler_s3:
+    profiles: ['crawl-s3']
+    image: arynai/sycamore-crawler-s3:${SYCAMORE_CRAWLER_S3_VERSION}
+    volumes:
+      - crawl_data:/app/.data/.s3
+    environment:
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_SESSION_TOKEN
+      - AWS_CREDENTIAL_EXPIRATION
+    command: -h
+
   reset:
     profiles: ['reset']
     image: ubuntu

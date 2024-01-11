@@ -1,4 +1,5 @@
 from functools import reduce
+from typing import Optional
 
 
 class RkHash:
@@ -43,7 +44,7 @@ class RkWindow:
         if width < 1:
             raise ValueError
         hasher = RkHash(width)
-        seed = self.filler()
+        seed = 149  # 8-bit prime with 4 bits set
         ary = []
         for ii in range(width):
             hasher.hashIn(seed)
@@ -55,25 +56,18 @@ class RkWindow:
 
     def __str__(self) -> str:
         h = str(self.hasher)
-        a = ",".join(["[%d]" % ch if ii == self.idx else "%d" % ch for ii, ch in enumerate(self.ary)])
+        idx = self.idx % self.width
+        a = ",".join(["[%d]" % ch if ii == idx else "%d" % ch for ii, ch in enumerate(self.ary)])
         return "(w%s%s)" % (h, a)
 
     def hash(self, ch: int) -> None:
         hasher = self.hasher
         ary = self.ary
-        idx = self.idx
+        idx = self.idx % self.width
         hasher.hashOut(ary[idx])
         hasher.hashIn(ch)
         ary[idx] = ch
-        idx += 1
-        if idx < self.width:
-            self.idx = idx
-        else:
-            self.idx = 0
+        self.idx += 1
 
-    def get(self) -> int:
-        return self.hasher.val
-
-    @staticmethod
-    def filler():
-        return 149  # 8-bit prime with 4 bits set
+    def get(self) -> Optional[int]:
+        return self.hasher.val if self.idx >= self.width else None

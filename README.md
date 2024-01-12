@@ -6,75 +6,48 @@
 [![Docs](https://readthedocs.org/projects/sycamore/badge/?version=stable)](https://sycamore.readthedocs.io/en/stable/?badge=stable)
 ![License](https://img.shields.io/github/license/aryn-ai/sycamore)
 
-Sycamore is a semantic data preparation system that makes it easy to transform and enrich your unstructured data and prepare it for search applications. It introduces a novel set-based abstraction that makes processing a large document collection as easy as reading a single document, and it comes with a scalable distributed runtime that makes it easy to go from prototype to production.
+Sycamore is a conversational search and analytics platform for complex unstructured data, such as documents, presentations, transcripts, embedded tables, and internal knowledge repositories. It retrieves and synthesizes high-quality answers through bringing AI to data preparation, indexing, and retrieval. Sycamore makes it easy to prepare unstructured data for search and analytics, providing a toolkit for data cleaning, information extraction, enrichment, summarization, and generation of vector embeddings that encapsulate the semantics of data. Sycamore uses your choice of generative AI models to make these operations simple and effective, and it enables quick experimentation and iteration. Additionally, Sycamore uses OpenSearch for indexing, enabling hybrid (vector + keyword) search, retrieval-augmented generation (RAG) pipelining, filtering, analytical functions, conversational memory, and other features to improve information retrieval.
+
+![Untitled](docs/source/images/SycamoreDiagram2.png)
 
 ## Features
 
-- Support for a variety of unstructured document formats, starting with PDF and HTML. More formats coming soon!
-- LLM-enabled entity extraction to automatically pull out semantically meaningful information from your documents with just a few examples.
-- Built-in data structures and transforms to make it easy to process large document collections. Sycamore is built around a data structure called the `DocSet` that represents a collection of unstructured documents, and supports transforms for chunking, manipulating, and augmenting these documents.
-- Easily embed your data using a variety of popular embedding models. Sycamore will automatically batch records and leverage GPUs where appropriate.
-- Scale your processing workloads from your laptop to the cloud without changing your application code. Sycamore is built on [Ray](https://ray.io), a distributed compute framework that can scale to hundreds of nodes.
+- Natural language, conversational interface to ask complex questions on unstructured data. Includes citations to source passages and conversational memory.
+- Includes a variety of query operations over unstructured data, including hybrid search, retrieval augmented generation (RAG), and analytical functions.
+- Prepares and enriches complex unstructured data for search and analytics through advanced data segmentation, LLM-powered UDFs for data enrichment, performant data manipulation with Python, and vector embeddings using a variety of AI models.
+- Helpful features like automatic data crawlers (Amazon S3 and HTTP) and Jupyter notebook support to create and iterate on data preparation scripts.
+- Scalable, secure, and customizable OpenSearch backend for indexing and data retrieval.
 
 ## Demo
 
 [Hosted on Loom](https://www.loom.com/share/53e68b0eb5ab49948111a3fcf6286b7f?sid=8627ff2a-db36-46ef-9762-a01b37e20ced)
 
+## Get Started
+
+You can easily deploy Sycamore locally or on a virtual machine using Docker. 
+
+With Docker installed:
+
+1.	Clone the Sycamore repo: git clone https://github.com/aryn-ai/sycamore
+2.	Set OpenAI Key: export OPENAI_API_KEY=YOUR-KEY
+3.	Go to /sycamore/deployment/docker_compose
+4.	Launch Sycamore. Conatainers will be pulled from DockerHub:
+- Docker compose up --pull-always
+5.	The Sycamore demo UI will be at localhost:3000
+
+You can next choose to run a demo that [prepares and ingests data from the Sort Benchmark website](docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-sort-benchmark-dataset), [crawl data from a public website](docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-data-from-an-arbitrary-website), or write your own data preparation script. 
+
+NEED LINK
+
+For more info about Sycamore’s data ingestion and preparation feature set, visit the [Sycamore documentation](docs/source/data_ingestion_and_preparation/data_preparation_concepts.md).
+
+
 ## Resources
 
-- PyPi: [https://pypi.org/project/sycamore-ai/](https://pypi.org/project/sycamore-ai/)
-- Documentation: [https://sycamore.readthedocs.io](https://sycamore.readthedocs.io)
-- Slack: [https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg](https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg)
-- Aryn Docs: [https://docs.aryn.ai](https://docs.aryn.ai) Instructions for setting up an end-to-end conversational search application with Sycamore and OpenSearch.
-
-## Installation
-
-Sycamore currently runs on for Linux and Mac OS, and please see the top of the README for Python version compatibility. To install, run
-
-```bash
-pip install sycamore-ai
-```
-
-For certain PDF processing operations, you also need to install `poppler`, which you can do with the OS-native package manager of your choice. For example, the command for Homebrew on Mac OS is
-
-```bash
-brew install poppler
-```
-
-## Getting Started
-
-The following shows a simple Sycamore script to read a collection of PDFs, partition them, compute vector embeddings, and load them into a local OpenSearch cluster. This script currently expects that you configured OpenSearch locally as described in the [OpenSearch Docker documentation](https://opensearch.org/docs/latest/install-and-configure/install-opensearch/docker/#run-opensearch-in-a-docker-container). You should adjust based on your setup.
-
-See our [documentation](https://sycamore.readthedocs.io) for lots more information and examples.
-
-```python
-# Import and initialize the Sycamore library.
-import sycamore
-from sycamore.transforms.partition import UnstructuredPdfPartitioner
-from sycamore.transforms.embed import SentenceTransformerEmbedder
-
-context = sycamore.init()
-
-# Read a collection of PDF documents into a DocSet.
-doc_set = context.read.binary(paths=["/path/to/pdfs/"], binary_format="pdf")
-
-# Segment the pdfs using the Unstructured partitioner.
-partitioned_doc_set = doc_set.partition(partitioner=UnstructuredPdfPartitioner())
-
-# Compute vector embeddings for the individual components of each document.
-embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
-embedded_doc_set = partitioned_doc_set.explode() \
-                                      .embed(embedder)
-
-# Write the embedded documents to a local OpenSearch index.
-os_client_args = {
-    "hosts": [{"host": "localhost", "port": 9200}],
-    "use_ssl":True,
-    "verify_certs":False,
-    "http_auth":("admin", "admin")
-}
-embedded_doc_set.write.opensearch(os_client_args=os_client_args, index_name="my_index_name")
-```
+- Documentation: https://sycamore.readthedocs.io
+- Slack: https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg
+- Data preparation toolkit (PyPi): https://pypi.org/project/sycamore-ai/
+- Contact us: info@aryn.ai
 
 ## Contributing
 

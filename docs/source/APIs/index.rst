@@ -7,3 +7,4 @@ API References
    data/data.rst
    transforms/transforms.rst
    functions/functions.rst
+   conversational_memory/functions.md

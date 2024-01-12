@@ -11,6 +11,7 @@ Transforms
    :maxdepth: 1
 
    basics.rst
+   augment_text.rst
    embed.rst
    explode.rst
    extract_entity.rst

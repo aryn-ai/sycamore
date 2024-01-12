@@ -7,6 +7,7 @@ from sycamore import Context
 from sycamore.data import Document
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.plan_nodes import Node, Transform
+from sycamore.transforms.augment_text import TextAugmentor
 from sycamore.transforms.embed import Embedder
 from sycamore.transforms.extract_entity import EntityExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
@@ -218,6 +219,35 @@ class DocSet:
         plan = SpreadProperties(self.plan, props, **resource_args)
         return DocSet(self.context, plan)
 
+    def augment_text(self, augmentor: TextAugmentor, **resource_args) -> "DocSet":
+        """
+        Augments text_representation with external information.
+
+        Args:
+            augmentor (TextAugmentor): A TextAugmentor instance that defines how to augment the text
+
+        Example:
+         .. code-block:: python
+
+            augmentor = FStringTextAugmentor(sentences = [
+                "This pertains to the part {doc.properties['part_name']}.",
+                "{doc.text_representation}"
+            ])
+            entity_extractor = OpenAIEntityExtractor("part_name",
+                                        llm=openai_llm,
+                                        prompt_template=part_name_template)
+            context = sycamore.init()
+            pdf_docset = context.read.binary(paths, binary_format="pdf")
+                .partition(partitioner=UnstructuredPdfPartitioner())
+                .extract_entity(entity_extractor)
+                .explode()
+                .augment_text(augmentor)
+        """
+        from sycamore.transforms.augment_text import AugmentText
+
+        plan = AugmentText(self.plan, augmentor, **resource_args)
+        return DocSet(self.context, plan)
+
     def explode(self, **resource_args) -> "DocSet":
         """
         Applies the Explode transform on the Docset.
@@ -327,7 +357,7 @@ class DocSet:
         summaries = Summarize(self.plan, summarizer=summarizer, **kwargs)
         return DocSet(self.context, summaries)
 
-    def mark_bbox_preset(self, tokenizer: Tokenizer, **kwargs) -> "DocSet":
+    def mark_bbox_preset(self, tokenizer: Tokenizer, token_limit: int = 512, **kwargs) -> "DocSet":
         """
         Convenience composition of:
             SortByPageBbox
@@ -352,7 +382,7 @@ class DocSet:
         plan2 = MarkDropHeaderFooter(plan1, 0.05, 0.05, **kwargs)
         plan3 = MarkBreakPage(plan2, **kwargs)
         plan4 = MarkBreakByColumn(plan3, **kwargs)
-        plan5 = MarkBreakByTokens(plan4, tokenizer, 512, **kwargs)
+        plan5 = MarkBreakByTokens(plan4, tokenizer, token_limit, **kwargs)
         return DocSet(self.context, plan5)
 
     def merge(self, merger: ElementMerger, **kwargs) -> "DocSet":

@@ -5,7 +5,7 @@ from typing import Any, Optional, Union, Tuple
 import uuid
 
 from pyarrow.filesystem import FileSystem
-from ray.data import Dataset, read_binary_files
+from ray.data import Dataset, read_binary_files, read_json
 from ray.data.datasource import FileExtensionFilter
 
 from sycamore.data import Document
@@ -154,10 +154,6 @@ class BinaryScan(FileScan):
         return self._binary_format
 
 
-# Note: We currently handle JSON by reading binary and then parsing it into fields in the _to_document method
-# Ideally we would use the underlying read_json from Ray, but it doesn't support the the include_paths option.
-# Since the path is pretty important for us for lineage, among other things, we take the performance hit of
-# parsing this way, rather than using the pyarrow JSON parser that Ray calls.
 class JsonScan(FileScan):
     def __init__(
         self,
@@ -176,33 +172,30 @@ class JsonScan(FileScan):
         self._metadata_provider = metadata_provider
         self._document_body_field = document_body_field
 
-    def _to_document(self, dict: dict[str, Any]) -> dict[str, Any]:
+    def _to_document(self, json_dict: dict[str, Any]) -> dict[str, Any]:
         document = Document()
 
         document.doc_id = str(uuid.uuid1())
         document.type = "json"
 
-        json_str = dict["bytes"].decode("utf-8")
-        json_dict = json.loads(json_str)
-
         if self._document_body_field is not None:
             body = json_dict.pop(self._document_body_field, None)
         else:
-            body = json_str
+            body = json.dumps(json_dict)
 
         if body is not None:
             document.text_representation = body
-            document.binary_representation = dict["bytes"]
+            document.binary_representation = body.encode("utf-8")
 
         document.properties = self._extract_properties(json_dict)
 
         # TODO: What to do about name conflicts here?
         if self._is_s3_scheme():
-            dict["path"] = "s3://" + dict["path"]
-        document.properties.update({"path": dict["path"]})
+            json_dict["path"] = "s3://" + json_dict["path"]
+        document.properties.update({"path": json_dict["path"]})
 
         if self._metadata_provider:
-            document.properties.update(self._metadata_provider.get_metadata(dict["path"]))
+            document.properties.update(self._metadata_provider.get_metadata(json_dict["path"]))
 
         return {"doc": document.serialize()}
 
@@ -221,7 +214,7 @@ class JsonScan(FileScan):
         return properties
 
     def execute(self) -> Dataset:
-        binary_data = read_binary_files(
+        json_dataset = read_json(
             self._paths,
             include_paths=True,
             filesystem=self._filesystem,
@@ -229,7 +222,7 @@ class JsonScan(FileScan):
             ray_remote_args=self.resource_args,
         )
 
-        return binary_data.map(self._to_document, **self.resource_args)
+        return json_dataset.map(self._to_document, **self.resource_args)
 
     def format(self):
         return "json"

@@ -90,12 +90,12 @@ class Document(UserDict):
         self.data["embedding"] = embedding
 
     @property
-    def simHashes(self) -> Optional[list[int]]:
-        return self.data.get("simHashes")
+    def shingles(self) -> Optional[list[int]]:
+        return self.data.get("shingles")
 
-    @simHashes.setter
-    def simHashes(self, simHashes: list[int]) -> None:
-        self.data["simHashes"] = simHashes
+    @shingles.setter
+    def shingles(self, shingles: list[int]) -> None:
+        self.data["shingles"] = shingles
 
     @property
     def parent_id(self) -> Optional[str]:

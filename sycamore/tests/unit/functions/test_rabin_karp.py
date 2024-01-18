@@ -25,8 +25,7 @@ class TestRabinKarp:
         bb = RkHash(32)
         for ch in range(100, 132):
             bb.hashIn(ch)
-        bb.hashOut(100)
-        bb.hashIn(132)
+        bb.hashOutIn(100, 132)
 
         assert aa.get() == bb.get()
 

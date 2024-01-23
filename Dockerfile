@@ -1,4 +1,4 @@
-# Repo name: arynai/sycamore
+# Repo name: arynai/sycamore-importer
 
 # Doesn't work with 3.12
 # depends on pyarrow==12.0.1 and ray[default]<3.0.0 and >=2.7.0

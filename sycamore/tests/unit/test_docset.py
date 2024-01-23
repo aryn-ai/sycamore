@@ -1,10 +1,12 @@
+import random
+import string
 from typing import Callable
 
 import pytest
 
 import sycamore
 from sycamore import DocSet, Context
-from sycamore.data import Document
+from sycamore.data import Document, Element
 from sycamore.plan_nodes import Node
 from sycamore.scans import BinaryScan
 from sycamore.transforms import (
@@ -127,3 +129,77 @@ class TestDocSet:
 
         with pytest.raises(ValueError):
             docset.take_all(limit=20)
+
+    def random_string(self, min_size: int, max_size: int) -> str:
+        k = random.randrange(min_size, max_size)
+        return "".join(random.choices(string.ascii_letters, k=k))
+
+    def text_len(self, doc: Document) -> int:
+        if not doc.text_representation:
+            return 0
+        return len(doc.text_representation)
+
+    def num_as(self, doc: Document) -> int:
+        if not doc.text_representation:
+            return 0
+
+        count = 0
+        for c in doc.text_representation:
+            if c == "a":
+                count += 1
+
+        return count
+
+    def test_with_property(self):
+        texts = [self.random_string(min_size=20, max_size=100) for _ in range(10)]
+        docs = [Document(text_representation=t, doc_id=i, properties={}) for i, t in enumerate(texts)]
+
+        context = sycamore.init()
+
+        docset = context.read.document(docs).with_property("text_size", self.text_len)
+
+        expected = [len(t) for t in texts]
+        actual = [d.properties["text_size"] for d in docset.take_all()]
+
+        assert sorted(expected) == sorted(actual)
+
+    def test_with_properties(self):
+        texts = [self.random_string(min_size=20, max_size=100) for _ in range(10)]
+        docs = [Document(text_representation=t, doc_id=i, properties={}) for i, t in enumerate(texts)]
+
+        context = sycamore.init()
+        docset = context.read.document(docs).with_properties({"text_size": self.text_len, "num_as": self.num_as})
+
+        expected_length = [len(t) for t in texts]
+        expected_as = [len(list(filter(lambda x: x == "a", t))) for t in texts]
+
+        post_docs = docset.take_all()
+
+        actual_length = [d.properties["text_size"] for d in post_docs]
+        actual_as = [d.properties["num_as"] for d in post_docs]
+
+        assert sorted(expected_length) == sorted(actual_length)
+        assert sorted(expected_as) == sorted(actual_as)
+
+    def double_element(self, elem: Element) -> Element:
+        props = elem.properties
+        props["element_double"] = props["element_val"] * 2
+        elem.properties = props
+        return elem
+
+    def test_map_elements(self):
+        docs = []
+        for i in range(10):
+            doc = Document(text_representation=f"Document {i}", doc_id=i, properties={"document_number": i})
+            doc.elements = [
+                Element(text_representation=f"Document {i} Element {j}", properties={"element_val": i})
+                for j in range(10)
+            ]
+
+        context = sycamore.init()
+        docset = context.read.document(docs).map_elements(self.double_element)
+
+        all_docs = docset.take_all()
+        for doc in all_docs:
+            for elem in doc.elements:
+                assert elem.properties["element_double"] == elem.properties["element_val"] * 2

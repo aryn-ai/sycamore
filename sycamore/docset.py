@@ -1,10 +1,11 @@
+from collections.abc import Mapping
 import logging
 import pprint
 import sys
 from typing import Callable, Optional, Any, Iterable, Type
 
 from sycamore import Context
-from sycamore.data import Document
+from sycamore.data import Document, Element
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.augment_text import TextAugmentor
@@ -201,6 +202,46 @@ class DocSet:
 
         plan = Partition(self.plan, partitioner=partitioner, table_extractor=table_extractor, **kwargs)
         return DocSet(self.context, plan)
+
+    def with_property(self, name, f: Callable[[Document], Any], **resource_args) -> "DocSet":
+        """
+        Applies a function to each document and adds the result as a property.
+
+        Args:
+            name: The name of the property to add to each Document.
+            f: The function to apply to each Document.
+
+        Example:
+             To add a property that contains the length of the text representation as a new property:
+             .. code-block:: python
+
+                docset.with_property("text_size", lambda doc: len(doc.text_representation))
+        """
+        return self.with_properties({name: f}, **resource_args)
+
+    def with_properties(self, property_map: Mapping[str, Callable[[Document], Any]], **resource_args) -> "DocSet":
+        """
+        Adds multiple properties to each Document.
+
+        Args:
+            property_map: A mapping of property names to functions to generate those properties
+
+        Example:
+            .. code-block:: python
+
+               docset.with_properties({
+                   "text_size": lambda doc: len(doc.text_representation),
+                   "truncated_text": lambda doc: doc.text_representation[0:256]
+               })
+        """
+
+        def add_properties_fn(doc: Document) -> Document:
+            new_props = doc.properties
+            new_props.update({k: f(doc) for k, f in property_map.items()})
+            doc.properties = new_props
+            return doc
+
+        return self.map(add_properties_fn, **resource_args)
 
     def spread_properties(self, props: list[str], **resource_args) -> "DocSet":
         """
@@ -528,6 +569,26 @@ class DocSet:
             **resource_args,
         )
         return DocSet(self.context, map_batch)
+
+    def map_elements(self, f: Callable[[Element], Element], **resource_args) -> "DocSet":
+        """
+        Applies the given mapping function to each element in the each Document in this DocsSet.
+
+        Args:
+            f: A Callable that takes an Element and returns an Element. Elements for which
+                f evaluates to None are dropped.
+        """
+
+        def process_doc(doc: Document) -> Document:
+            new_elements = []
+            for e in doc.elements:
+                new_element = f(e)
+                if new_element is not None:
+                    new_elements.append(new_element)
+            doc.elements = new_elements
+            return doc
+
+        return self.map(process_doc, **resource_args)
 
     def random_sample(self, fraction: float, seed: Optional[int] = None) -> "DocSet":
         """

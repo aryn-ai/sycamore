@@ -1,4 +1,4 @@
-# Repo name: arynai/demo-ui
+# Repo name: arynai/sycamore-demo-ui
 
 FROM nikolaik/python-nodejs:python3.11-nodejs20
 

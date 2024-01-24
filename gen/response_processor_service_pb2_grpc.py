@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import response_processor_service_pb2 as response__processor__service__pb2
+from gen import response_processor_service_pb2 as gen_dot_response__processor__service__pb2
 
 
 class RemoteProcessorServiceStub(object):
@@ -16,8 +16,8 @@ class RemoteProcessorServiceStub(object):
         """
         self.ProcessResponse = channel.unary_unary(
                 '/RemoteProcessorService/ProcessResponse',
-                request_serializer=response__processor__service__pb2.ProcessResponseRequest.SerializeToString,
-                response_deserializer=response__processor__service__pb2.ProcessResponseResponse.FromString,
+                request_serializer=gen_dot_response__processor__service__pb2.ProcessResponseRequest.SerializeToString,
+                response_deserializer=gen_dot_response__processor__service__pb2.ProcessResponseResponse.FromString,
                 )
 
 
@@ -36,8 +36,8 @@ def add_RemoteProcessorServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'ProcessResponse': grpc.unary_unary_rpc_method_handler(
                     servicer.ProcessResponse,
-                    request_deserializer=response__processor__service__pb2.ProcessResponseRequest.FromString,
-                    response_serializer=response__processor__service__pb2.ProcessResponseResponse.SerializeToString,
+                    request_deserializer=gen_dot_response__processor__service__pb2.ProcessResponseRequest.FromString,
+                    response_serializer=gen_dot_response__processor__service__pb2.ProcessResponseResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -61,7 +61,7 @@ class RemoteProcessorService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/RemoteProcessorService/ProcessResponse',
-            response__processor__service__pb2.ProcessResponseRequest.SerializeToString,
-            response__processor__service__pb2.ProcessResponseResponse.FromString,
+            gen_dot_response__processor__service__pb2.ProcessResponseRequest.SerializeToString,
+            gen_dot_response__processor__service__pb2.ProcessResponseResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

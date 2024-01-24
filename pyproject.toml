@@ -22,4 +22,5 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-server = "service.cli:read_cfg"
+test_cfg = "service.cli:read_cfg"
+server = "service.cli:serve"

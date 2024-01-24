@@ -1,4 +1,1 @@
-
-
-class SearchRequest:
-    pass
+from gen.search_request_pb2 import SearchRequest

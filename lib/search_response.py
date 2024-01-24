@@ -1,0 +1,4 @@
+
+
+class SearchResponse:
+    pass

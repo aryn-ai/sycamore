@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "remote-processor-service"
+version = "0.1.0"
+description = "A service for hosting search processors extrnal to opensearch"
+authors = ["HenryL27 <hmlindeman@yahoo.com>"]
+readme = "README.md"
+packages = [
+    { include = "lib" },
+    { include = "service" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+click = "^8.1.7"
+pyyaml = "^6.0.1"
+grpcio = "^1.60.0"
+grpcio-tools = "^1.60.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+server = "service.cli:read_cfg"

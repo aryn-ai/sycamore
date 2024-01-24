@@ -1,0 +1,4 @@
+
+
+class SearchRequest:
+    pass

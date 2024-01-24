@@ -1,0 +1,6 @@
+- debug:
+    processors:
+      - debug-response:
+- other-debug:
+    processors:
+      - debug-request:

@@ -24,7 +24,7 @@ from sycamore.transforms.partition import UnstructuredPdfPartitioner, HtmlPartit
 # from simple_config import idx_settings, osrch_args, title_template
 
 running_in_container = False
-enable_textract = os.environ.get("ENABLE_TEXTRACT", "true") == "true"
+enable_textract = "SYCAMORE_TEXTRACT_PREFIX" in os.environ and os.environ["SYCAMORE_TEXTRACT_PREFIX"]
 index = "demoindex0"
 
 
@@ -70,11 +70,6 @@ def main():
         raise RuntimeError("Missing OPENAI_API_KEY")
 
     if enable_textract:
-        if "SYCAMORE_TEXTRACT_PREFIX" not in os.environ:
-            raise RuntimeError(
-                "Missing SYCAMORE_TEXTRACT_PREFIX (e.g. s3://example or s3://example/dir); or you can export ENABLE_TEXTRACT=false"
-            )
-
         if "AWS_ACCESS_KEY_ID" not in os.environ:
             raise RuntimeError("Missing AWS_ACCESS_KEY_ID; or you can export ENABLE_TEXTRACT=false")
 

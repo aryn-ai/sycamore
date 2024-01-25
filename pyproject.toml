@@ -7,6 +7,7 @@ readme = "README.md"
 packages = [
     { include = "lib" },
     { include = "service" },
+    { include = "gen" }
 ]
 
 [tool.poetry.dependencies]

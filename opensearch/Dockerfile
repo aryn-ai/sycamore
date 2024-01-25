@@ -9,6 +9,7 @@ COPY opensearch/opensearch.yml /usr/share/opensearch/config/
 COPY opensearch/aryn-opensearch.sh .
 ENV discovery.type=single-node
 ENV DISABLE_SECURITY_PLUGIN=true
+ENV DISABLE_INSTALL_DEMO_CONFIG=true
 
 ARG GIT_BRANCH="main"
 ARG GIT_COMMIT="unknown"

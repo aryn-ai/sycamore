@@ -100,7 +100,7 @@ export default function App() {
               maw="1rem"
               mr="xl"
             />
-            <Image width="14em" src="./ArynDemoLogo.png" />
+            <Image width="14em" src="./SycamoreDemoQueryUI_Logo.png" />
 
 
             <Container pos="absolute" right="0rem">

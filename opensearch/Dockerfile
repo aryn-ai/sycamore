@@ -6,7 +6,7 @@ USER 0
 RUN yum install -y jq && yum clean all
 USER 1000
 COPY opensearch/opensearch.yml /usr/share/opensearch/config/
-COPY opensearch/aryn-opensearch.sh .
+COPY opensearch/sycamore-opensearch.sh .
 ENV discovery.type=single-node
 ENV DISABLE_SECURITY_PLUGIN=true
 ENV DISABLE_INSTALL_DEMO_CONFIG=true
@@ -24,4 +24,4 @@ LABEL git_branch=${GIT_BRANCH}
 LABEL git_commit=${GIT_COMMIT}
 LABEL git_diff=${GIT_DIFF}
 
-CMD ./aryn-opensearch.sh
+CMD ./sycamore-opensearch.sh

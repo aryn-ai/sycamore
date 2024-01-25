@@ -1,4 +1,4 @@
-# Repo name: arynai/jupyter
+# Repo name: arynai/sycamore-jupyter
 
 ARG TAG=stable
 FROM arynai/sycamore:$TAG

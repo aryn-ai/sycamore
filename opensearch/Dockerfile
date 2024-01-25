@@ -1,4 +1,4 @@
-# Repo name: arynai/opensearch
+# Repo name: arynai/sycamore-opensearch
 
 ARG TAG=2.11.0
 FROM opensearchproject/opensearch:$TAG

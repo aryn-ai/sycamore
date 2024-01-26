@@ -63,13 +63,13 @@ services:
       - AWS_SESSION_TOKEN
       - AWS_CREDENTIAL_EXPIRATION
 
+### Optional profiles below here
+
   sycamore_crawler_http_sort_one:
+    profiles: ['sort-one']
     image: arynai/sycamore-crawler-http:${SYCAMORE_CRAWLER_HTTP_VERSION}
     volumes:
       - crawl_data:/app/.scrapy
-
-
-### Optional profiles below here
 
   sycamore_crawler_http_sort_all:
     profiles: ['sort-all']

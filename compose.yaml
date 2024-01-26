@@ -1,3 +1,5 @@
+# For more detailed documentation, see README.md
+#
 # To start, run:
 # % docker compose up
 #
@@ -11,9 +13,9 @@
 #
 # Troubleshooting/Extensions:
 #   1. Something is messed up, I just want to reset:
-#      Follow the instructions in reset.yaml
+#      docker compose run reset
 #   2. I want more sort benchmark files:
-#      Follow the instructions in sort-all.yaml
+#      docker compose run sycamore_crawler_http_sort_all
 version: '3'
 
 services:

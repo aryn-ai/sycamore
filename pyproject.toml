@@ -14,8 +14,8 @@ packages = [
 python = "^3.11"
 click = "^8.1.7"
 pyyaml = "^6.0.1"
-grpcio = "^1.60.0"
-grpcio-tools = "^1.60.0"
+grpcio = "1.60.0"
+grpcio-tools = "1.60.0"
 
 
 [build-system]

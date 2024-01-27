@@ -1,0 +1,21 @@
+version: '3'
+services:
+  opensearch:
+    image: rps-os
+    container_name: opensearch
+    environment:
+      - discovery.type=single-node
+    ports:
+      - 9200:9200
+      - 9600:9600
+    networks:
+      - os-net
+  rps:
+    image: rps
+    container_name: rps
+    ports: 
+      - 2796:2796
+    networks:
+      - os-net
+networks:
+  os-net:

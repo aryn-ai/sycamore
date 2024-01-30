@@ -3,7 +3,7 @@ import string
 
 import ray.data
 
-from llms.prompts import SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT_CHAT
+from sycamore.llms.prompts import SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT_CHAT
 from sycamore.data import Document, Element
 from sycamore.llms import LLM
 from sycamore.plan_nodes import Node

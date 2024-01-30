@@ -1,7 +1,7 @@
 # Repo name: arynai/sycamore-jupyter
 
 ARG TAG=stable
-FROM arynai/sycamore:$TAG
+FROM arynai/sycamore-importer:$TAG
 
 # TODO: eric - remove this once we switch other containers over to non-root
 # Note user/group should be 1000 to match with likely defaults on hosts.

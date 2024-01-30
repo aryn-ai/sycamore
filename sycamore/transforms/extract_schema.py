@@ -107,7 +107,12 @@ class OpenAISchemaExtractor(SchemaExtractor):
             prompt = SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT
 
         entities = self._llm.generate(
-            prompt_kwargs={"prompt": prompt, "entity": self._entity_name, "max_num_properties": self._max_num_properties, "query": self._prompt_formatter(sub_elements)}
+            prompt_kwargs={
+                "prompt": prompt,
+                "entity": self._entity_name,
+                "max_num_properties": self._max_num_properties,
+                "query": self._prompt_formatter(sub_elements),
+            }
         )
 
         return entities

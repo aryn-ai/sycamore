@@ -28,8 +28,9 @@ class TestSchema:
         element2.text_representation = "".join(random.choices(string.ascii_letters, k=20))
         doc.elements = [element1, element2]
 
-        schema_extractor = OpenAISchemaExtractor(class_name, llm, num_of_elements=num_of_elements,
-                                                 max_num_properties=max_num_properties)
+        schema_extractor = OpenAISchemaExtractor(
+            class_name, llm, num_of_elements=num_of_elements, max_num_properties=max_num_properties
+        )
         doc = schema_extractor.extract_schema(doc)
 
         ground_truth = {
@@ -40,21 +41,20 @@ class TestSchema:
         }
         print(doc.properties)
         assert doc.properties == ground_truth
-        generate.assert_called_once_with(prompt_kwargs={
-                                                    "prompt": SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT_CHAT,
-                                                    "entity": class_name,
-                                                    "max_num_properties": max_num_properties,
-                                                    "query": schema_extractor._prompt_formatter(doc.elements)
-                                                }
+        generate.assert_called_once_with(
+            prompt_kwargs={
+                "prompt": SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT_CHAT,
+                "entity": class_name,
+                "max_num_properties": max_num_properties,
+                "query": schema_extractor._prompt_formatter(doc.elements),
+            }
         )
-
 
     def test_extract_batch_schema(self, mocker):
         llm = mocker.Mock(spec=LLM)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = {"answer": '```json {"accidentNumber": "string"}```'}
         schema_extractor = OpenAISchemaExtractor("AircraftIncident", llm)
-
 
         node = mocker.Mock(spec=Node)
         dicts = [

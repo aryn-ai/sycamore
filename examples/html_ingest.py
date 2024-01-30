@@ -1,5 +1,9 @@
 import sys
 
+import stanza
+from ray.cloudpickle import cloudpickle
+from ray.cloudpickle.cloudpickle_fast import pickle
+
 # ruff: noqa: E402
 sys.path.append("../sycamore")
 
@@ -15,16 +19,24 @@ from sycamore.transforms.embed import SentenceTransformerEmbedder
 
 from simple_config import idx_settings, osrch_args, title_template
 
-paths = sys.argv[1:]
+from sycamore.functions.tokenizer import StanzaTokenizer
+from sycamore.functions.chunker import SentenceAwareChunker
+
+paths = "."  # sys.argv[1:]
 if not paths:
     raise RuntimeError("No paths supplied.")
 
 index = "demoindex0"
 
-davinci_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
+davinci_llm = None  # OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
 tokenizer = HuggingFaceTokenizer("thenlper/gte-small")
 
 ctx = sycamore.init()
+# nlp = stanza.Pipeline(lang="en", processors="tokenize,mwt,pos")
+tokenizer = StanzaTokenizer()
+pickle.dumps(tokenizer)
+chunker = SentenceAwareChunker()
+pickle.dumps(chunker)
 
 ds = (
     ctx.read.binary(paths, binary_format="html")

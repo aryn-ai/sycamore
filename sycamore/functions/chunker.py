@@ -1,11 +1,62 @@
 from abc import abstractmethod
 from typing import Any
+from sycamore.functions.tokenizer import Tokenizer, StanzaTokenizer
 
 
 class Chunker:
     @abstractmethod
     def chunk(self, tokens: list[Any]) -> list[Any]:
         pass
+
+
+class SentenceAwareChunker(Chunker):
+    """
+    TODO:
+    try clinical model on chunks to produce NER at the chunk level and store this information in properties.
+    We could move that logic into the Writer class.
+
+    """
+
+    def __init__(self, tokenizer: Tokenizer = StanzaTokenizer(), max_chunk_size: int = 200):
+        super().__init__()
+        self._tokenizer = tokenizer
+        self._max_chunk_size = max_chunk_size
+
+    def chunk(self, tokens: list[Any]) -> list[Any]:
+        chunks = []
+        total = 0
+        sentences = []
+
+        for sentence in tokens:
+            total += len(sentence)
+            if total >= self._max_chunk_size:
+                # print(f'Combining {len(sentences)} into a chunk')
+                chunks.append(" ".join(sentences))
+                sentences.clear()
+                total = 0
+
+            sentences.append(sentence)
+            # print(len(' '.join(sentences)))
+
+        return chunks
+
+    def get_chunks(self):
+        chunks = []
+        total = 0
+        sentences = []
+
+        for sentence in self._tokenizer.sentences():
+            total += len(sentence)
+            if total >= self._max_chunk_size:
+                # print(f'Combining {len(sentences)} into a chunk')
+                chunks.append(" ".join(sentences))
+                sentences.clear()
+                total = 0
+
+            sentences.append(sentence)
+            # print(len(' '.join(sentences)))
+
+        return chunks
 
 
 class TextOverlapChunker(Chunker):

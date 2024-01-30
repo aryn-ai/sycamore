@@ -13,6 +13,8 @@ from sycamore.transforms.partition import (
 )
 from sycamore.scans import BinaryScan
 from sycamore.tests.config import TEST_DIR
+from sycamore.functions.tokenizer import StanzaTokenizer
+from sycamore.functions.chunker import SentenceAwareChunker
 
 
 def _make_scan_executor(path: Path, format: str) -> Callable[[], Dataset]:
@@ -138,3 +140,18 @@ class TestPartition:
         docset = partition.execute()
         doc = Document.from_row(docset.take(limit=1)[0])
         assert len(doc.elements) == partition_count
+
+    @pytest.mark.parametrize(
+        "partitioner, read_local_binary, expected_partition_count",
+        [
+            (
+                HtmlPartitioner(tokenizer=StanzaTokenizer(), text_chunker=SentenceAwareChunker()),
+                TEST_DIR / "resources/data/htmls/pt_1.html",
+                42,
+            )
+        ],
+        indirect=["read_local_binary"],
+    )
+    def test_html_nlp_partitioner(self, partitioner, read_local_binary, expected_partition_count):
+        document = partitioner.partition(read_local_binary)
+        assert len(document["elements"]) == expected_partition_count

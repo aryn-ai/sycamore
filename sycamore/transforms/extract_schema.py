@@ -73,12 +73,14 @@ class OpenAISchemaExtractor(SchemaExtractor):
         entity_name: str,
         llm: LLM,
         num_of_elements: int = 35,
+        max_num_properties: int = 7,
         prompt_formatter: Callable[[list[Element]], str] = element_list_formatter,
     ):
         super().__init__(entity_name)
         self._llm = llm
         self._num_of_elements = num_of_elements
         self._prompt_formatter = prompt_formatter
+        self._max_num_properties = max_num_properties
 
     def extract_schema(self, document: Document) -> Document:
         entities = self._handle_zero_shot_prompting(document)
@@ -105,7 +107,7 @@ class OpenAISchemaExtractor(SchemaExtractor):
             prompt = SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT
 
         entities = self._llm.generate(
-            prompt_kwargs={"prompt": prompt, "entity": self._entity_name, "query": self._prompt_formatter(sub_elements)}
+            prompt_kwargs={"prompt": prompt, "entity": self._entity_name, "max_num_properties": self._max_num_properties, "query": self._prompt_formatter(sub_elements)}
         )
 
         return entities

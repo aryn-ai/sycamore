@@ -35,4 +35,4 @@ structure Interaction {
 }
 ```
 
-For details on the APIs please refer to the [API Spec](../APIs/conversation_memory/functions.md) or the official OpenSearch [documentation](https://opensearch.org/docs/2.10/ml-commons-plugin/conversational-search/) on conversational search.
+For details on the APIs please refer to the [API Spec](../APIs/conversation_memory/functions.md) or the official OpenSearch [documentation](https://opensearch.org/docs/latest/search-plugins/conversational-search/) on conversational search.

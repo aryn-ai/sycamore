@@ -5,6 +5,7 @@ from lib.search_response import SearchResponse
 
 import logging
 import sys
+import cbor2
 
 class DebugResponseProcessor(ResponseProcessor):
 
@@ -30,6 +31,14 @@ class DebugResponseProcessor(ResponseProcessor):
     
 class DebugRequestProcessor(RequestProcessor):
 
+    def __init__(self): 
+        self._log = logging.getLogger("debug-processor")
+        self._log.setLevel(logging.DEBUG)
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setLevel(logging.DEBUG)
+        handler.setFormatter(logging.Formatter('[%(asctime)s][%(levelname)-5s][%(name)-12s] %(message)s'))
+        self._log.addHandler(handler)
+
     def from_config(configuration_chunk) -> RequestProcessor:
         return DebugRequestProcessor()
     
@@ -37,5 +46,5 @@ class DebugRequestProcessor(RequestProcessor):
         return "debug-request"
     
     def process_request(self, search_request: SearchRequest) -> SearchRequest:
-        print(str(search_request))
+        self._log.info(f"search request:  \n{search_request}")
         return search_request

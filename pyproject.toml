@@ -7,7 +7,8 @@ readme = "README.md"
 packages = [
     { include = "lib" },
     { include = "service" },
-    { include = "gen" }
+    { include = "gen" },
+    { include = "test" }
 ]
 
 [tool.poetry.dependencies]
@@ -16,7 +17,12 @@ click = "^8.1.7"
 pyyaml = "^6.0.1"
 grpcio = "1.60.0"
 grpcio-tools = "1.60.0"
+cbor2 = "^5.6.0"
 
+
+[tool.poetry.group.test.dependencies]
+pytest = "^8.0.0"
+pytest-mock = "^3.12.0"
 
 [build-system]
 requires = ["poetry-core"]

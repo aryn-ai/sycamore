@@ -2,10 +2,18 @@ from typing import Union
 from lib.processors import RequestProcessor, ResponseProcessor
 
 
-
 class ProcessorRegistry:
+    """Class to hold references to all the processor classes by name for 
+    easy lookup and use during pipeline configuration
+    """
 
     def __init__(self):
+        """Collects the processors by looking at the subclasses of RequestProcessor and ResponseProcessor.
+        Note that this only loads processor classes imported (or in files imported) by lib/processors/__init__.py
+
+        Raises:
+            DuplicatedProcessorNameError: two processors cannot have the same name
+        """
         all_subclasses = [c for c in RequestProcessor.__subclasses__() + ResponseProcessor.__subclasses__()]
         names = {c.get_class_name() for c in all_subclasses}
         if len(names) < len(all_subclasses):
@@ -26,8 +34,15 @@ class ProcessorRegistry:
 
     
 class DuplicatedProcessorNameError(Exception):
+    """Two processors may not have the same name
+    """
 
     def __init__(self, classes: list[Union[RequestProcessor, ResponseProcessor]], *args) -> None:
+        """Builds message that shows alll duplicated processor names
+
+        Args:
+            classes (list[Union[RequestProcessor, ResponseProcessor]]): List of all found processor classes
+        """
         super().__init__(*args)
         seen = set()
         duplicate_names = [c.get_class_name() for c in classes \

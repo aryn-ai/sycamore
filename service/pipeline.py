@@ -53,6 +53,7 @@ class Pipeline:
             raise BadPipelineConfigError(f"{PROCESSOR_LIST_FIELD} field for {self._name} must be a list of processor configurations")
         if len(proc_configs) == 0:
             raise BadPipelineConfigError(f"Pipeline {self._name} must have at least one processor")
+        # construct each processor in the pipeline
         for i, processor_cfg in enumerate(proc_configs):
             if not isinstance(processor_cfg, dict):
                 raise BadPipelineConfigError(f"Configuration for processor {i} in pipeline {self._name} must be a map")

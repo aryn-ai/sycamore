@@ -1,6 +1,8 @@
 - debug:
     processors:
       - debug-response:
-- other-debug:
-    processors:
-      - debug-request:
+          prefix: "in debug processor"
+      - debug-response:
+          prefix: "in second debug processor"
+      - debug-response:
+      

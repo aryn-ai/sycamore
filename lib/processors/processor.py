@@ -11,7 +11,7 @@ class ResponseProcessor(ABC):
         raise NotImplementedError("abstract method `from_config` is not implemented")
     
     @abstractmethod
-    def process_response(search_request: SearchRequest, search_response: SearchResponse) -> SearchResponse:
+    def process_response(self, search_request: SearchRequest, search_response: SearchResponse) -> SearchResponse:
         raise NotImplementedError("abstract method `process_response` is not implemented")
     
     @staticmethod
@@ -28,7 +28,7 @@ class RequestProcessor(ABC):
         raise NotImplementedError("abstract method `from_config` is not implemented")
     
     @abstractmethod
-    def process_request(search_request: SearchRequest) -> SearchRequest:
+    def process_request(self, search_request: SearchRequest) -> SearchRequest:
         raise NotImplementedError("abstract method `process_request` is not implemented")
     
     @staticmethod

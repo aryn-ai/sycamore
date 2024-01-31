@@ -42,10 +42,28 @@ curl -XPUT localhost:9200/_search/pipeline/remote_pipeline -H "Content-Type: app
     "response_processors": [
         {
             "remote_processor": {
-                "endpoint": "https://rps:2796/RemoteProcessorService/ProcessResponse",
+                "endpoint": "rps:2796/RemoteProcessorService/ProcessResponse",
                 "processor_name": "debug"
             }
         }
     ]
 }' | jq
+```
+
+Test the processor server in pure python with:
+```
+from gen.response_processor_service_pb2_grpc import RemoteProcessorServiceStub
+import grpc
+from gen.response_processor_service_pb2 import ProcessResponseRequest
+
+chan = grpc.insecure_channel('localhost:2796')
+stub = RemoteProcessorServiceStub(chan)
+req = ProcessResponseResponse()
+req.processor_name = "debug"
+res = stub.ProcessResponse(req)
+print(res)
+```
+```
+search_response {
+}
 ```

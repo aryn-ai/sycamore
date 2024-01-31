@@ -289,6 +289,22 @@ class DocSet:
         plan = AugmentText(self.plan, augmentor, **resource_args)
         return DocSet(self.context, plan)
 
+    def split_elements(self, tokenizer: Tokenizer, max_tokens: int = 512, **kwargs) -> "DocSet":
+        """
+        Splits elements if they are larger than the maximum number of tokens.
+
+        Example:
+            .. code-block:: python
+               pdf_docset = context.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=UnstructuredPdfPartitioner())
+                    .split_elements(tokenizer=tokenizer, max_tokens=512)
+                    .explode()
+        """
+        from sycamore.transforms import SplitElements
+
+        plan = SplitElements(self.plan, tokenizer, max_tokens, **kwargs)
+        return DocSet(self.context, plan)
+
     def explode(self, **resource_args) -> "DocSet":
         """
         Applies the Explode transform on the Docset.

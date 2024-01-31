@@ -1,3 +1,5 @@
+from typing import Optional
+
 from ray.data import Dataset
 
 from sycamore.data import Document, Element
@@ -63,7 +65,7 @@ class SplitElements(SingleThreadUser, NonGPUUser, Transform):
                 lambda c: c == ",",
                 str.isspace,
             ]
-            results: list[int | None] = [None] * len(predicates)
+            results: list[Optional[int]] = [None] * len(predicates)
 
             for jj in range(half // 2):  # stay near middle; avoid the ends
                 lchar = txt[left]

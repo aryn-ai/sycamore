@@ -39,7 +39,7 @@ GET <index-name>/_search?search_pipeline=hybrid_pipeline
 
 ## Customize your hybrid search
 
-You can also customize your hybrid search settings by creating your own hybrid search procesor. For instance, Sycamore's default settings use a `min_max` normalization with an `arithmetic_mean` (weighted `[0.111,0.889]` towards the neural vs. keyword score), but you may find that your use case works better with diffrent wieghting. 
+You can also customize your hybrid search settings by creating your own hybrid search procesor. For instance, Sycamore's default settings use a `min_max` normalization with an `arithmetic_mean` (weighted `[0.111,0.889]` towards the neural vs. keyword score), but you may find that your use case works better with diffrent wieghting. More information about weighting can be found in the [OpenSearch documentation](https://opensearch.org/blog/semantic-science-benchmarks/).
 
 For an example to create a new hybrid search pipeline with different configuration (weighted 0.2 for keyword, 0.8 for nerual):
 

@@ -15,7 +15,7 @@ class RemoteProcessorService(RemoteProcessorServiceServicer):
     """
 
     def __init__(self, configuration_file: Path):
-        """Constructorr. Parses configuration file to create served pipelines
+        """Constructor. Parses configuration file to create served pipelines
 
         Args:
             configuration_file (Path): path to a yaml config file that contains all pipeline definitions for this instance

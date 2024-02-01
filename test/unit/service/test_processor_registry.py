@@ -2,6 +2,7 @@ import pytest
 import gc
 from gen.search_request_pb2 import SearchRequest
 from gen.search_response_pb2 import SearchResponse
+from lib.processors.debug_processor import DebugRequestProcessor, DebugResponseProcessor
 from lib.processors.processor import ResponseProcessor
 from service.processor_registry import ProcessorRegistry, DuplicatedProcessorNameError
 
@@ -54,3 +55,8 @@ class TestProcessorRegistry:
         """Make sure Proc1 and Proc2 aren't forever lodged in the runtime
         """
         pr = ProcessorRegistry()
+
+    def test_processor_registry_contains_known_processors(self):
+        pr = ProcessorRegistry()
+        assert pr.get_processor(DebugRequestProcessor.get_class_name()) is DebugRequestProcessor
+        assert pr.get_processor(DebugResponseProcessor.get_class_name()) is DebugResponseProcessor

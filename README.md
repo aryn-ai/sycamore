@@ -29,15 +29,18 @@ You can easily deploy Sycamore locally or on a virtual machine using Docker.
 With Docker installed:
 
 1.	Clone the Sycamore repo: git clone https://github.com/aryn-ai/sycamore
-2.	Set OpenAI Key: export OPENAI_API_KEY=YOUR-KEY
+2.	Set OpenAI Key
+
+```export OPENAI_API_KEY=YOUR-KEY```
+
 3.	Go to /sycamore/deployment/docker_compose
 4.	Launch Sycamore. Conatainers will be pulled from DockerHub:
-- Docker compose up --pull-always
-5.	The Sycamore demo UI will be at localhost:3000
+
+```Docker compose up --pull-always```
+
+5.	The Sycamore demo query UI will be at localhost:3000
 
 You can next choose to run a demo that [prepares and ingests data from the Sort Benchmark website](docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-sort-benchmark-dataset), [crawl data from a public website](docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-data-from-an-arbitrary-website), or write your own data preparation script. 
-
-NEED LINK
 
 For more info about Sycamore’s data ingestion and preparation feature set, visit the [Sycamore documentation](docs/source/data_ingestion_and_preparation/data_preparation_concepts.md).
 
@@ -46,7 +49,7 @@ For more info about Sycamore’s data ingestion and preparation feature set, vis
 
 - Documentation: https://sycamore.readthedocs.io
 - Slack: https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg
-- Data preparation toolkit (PyPi): https://pypi.org/project/sycamore-ai/
+- Data preparation libraries (PyPi): https://pypi.org/project/sycamore-ai/
 - Contact us: info@aryn.ai
 
 ## Contributing

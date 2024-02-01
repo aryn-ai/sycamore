@@ -1,6 +1,6 @@
 # Using with conversational search
 
-You can use Sycamore's conversation memory to store the state of a conversation and use it for context for the next user interaction. This is critical when creating a chat experience. When using [Sycamore RAG pipeline](../querying_data/using_rag_pipelines.md), you can easily specify a 'conversation_id' parameter in your request to add the interaction to that conversation. For example:
+You can use Sycamore's conversation memory to store the state of a conversation and use it for context for the next user interaction. This is critical when creating a chat experience. When using [Sycamore's RAG pipeline](../querying_data/using_rag_pipelines.md), you can easily specify a 'conversation_id' parameter in your request to add the interaction to that conversation. For example:
 
 
 ```javascript

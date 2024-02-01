@@ -25,12 +25,13 @@ class SycamorePDFPartitioner:
         # I feel a naive algorithm is good enough here, for each inferred element from model, we iterate through the
         # text entity extracted by pdfminer, as long as one text entity has bbox IOU greater than threshold, we believe
         # it's a solid mapping.
-        for ele in inferred:
+        for i in inferred:
             matched = None
-            for extracted_region in text:
-                if ele.bbox and extracted_region.bbox and ele.bbox.iou(extracted_region.bbox) > threshold:
-                    ele.text_representation = extracted_region.text_representation
-                    matched = extracted_region
+            for t in text:
+                if i.bbox and t.bbox and i.bbox.iou(t.bbox) > threshold:
+                    i.text_representation = t.text_representation
+                    matched = t
+                    break
             if matched:
                 text.remove(matched)
         return inferred

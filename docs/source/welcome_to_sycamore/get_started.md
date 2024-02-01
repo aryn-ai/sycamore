@@ -8,17 +8,17 @@ Sycamore is deployed using Docker, and you can launch it locally or on a virtual
 
 `git clone https://github.com/aryn-ai/sycamore` 
 
-4. Create OpenAI Key for LLM access. Sycamore’s default configuration uses OpenAI for RAG and entity extraction. You can create an OpenAI account [here](https://platform.openai.com/signup), or if you already have one, you can retrieve your key [here](https://platform.openai.com/account/api-keys). 
+2. Create OpenAI Key for LLM access. Sycamore’s default configuration uses OpenAI for RAG and entity extraction. You can create an OpenAI account [here](https://platform.openai.com/signup), or if you already have one, you can retrieve your key [here](https://platform.openai.com/account/api-keys). 
 
-5. Set OpenAI Key:
+3. Set OpenAI Key:
 
 `export OPENAI_API_KEY=YOUR-KEY`
 
-6. Go to:
+4. Go to:
 
 `/sycamore` 
 
-9. Launch Sycamore. Containers will be pulled from DockerHub: 
+5. Launch Sycamore. Containers will be pulled from DockerHub: 
 
 `Docker compose up --pull-always` 
 
@@ -118,7 +118,7 @@ This will crawl and download the data from the specified website. If you import 
 3. Go to the demo query UI at localhost:3000. You can interact with the demo UI while data is being added to the index, but the data won't all be available until the job is done. 
 
 
-If you want to prepare you data with custom code, you can use a Jupyter notebook to iterate and test it. NEED LINK 
+If you want to prepare you data with custom code, you can use a Jupyter notebook to iterate and test it. 
 
  
 
@@ -177,10 +177,6 @@ We have seen this happen on MacOS for two reasons:
 * Restart docker desktop 
 
 You may also want to reset the configuration entirely, although in all the cases where we have seen these problems, no persistent state existed to be reset. 
-
- 
-
-Reach out for help via email or on the Sycamore Slack channel 
 
 ## Contact us
 

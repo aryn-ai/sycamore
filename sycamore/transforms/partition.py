@@ -225,16 +225,20 @@ class UnstructuredPdfPartitioner(Partitioner):
         from unstructured.partition.pdf import partition_pdf
 
         binary = io.BytesIO(document.data["binary_representation"])
-        elements = partition_pdf(
-            file=binary,
-            include_page_breaks=self._include_page_breaks,
-            strategy=self._strategy,
-            infer_table_structure=self._infer_table_structure,
-            languages=self._languages,
-            max_partition=self._max_partition_length,
-            min_partition=self._min_partition_length,
-            include_metadata=self._include_metadata,
-        )
+        try:
+            elements = partition_pdf(
+                file=binary,
+                include_page_breaks=self._include_page_breaks,
+                strategy=self._strategy,
+                infer_table_structure=self._infer_table_structure,
+                languages=self._languages,
+                max_partition=self._max_partition_length,
+                min_partition=self._min_partition_length,
+                include_metadata=self._include_metadata,
+            )
+        except Exception as e:
+            path = document.properties["path"]
+            raise RuntimeError(f"UnstructuredPartitioner Error processing {path}") from e
 
         # Here we convert unstructured.io elements into our elements and
         # set them as the child elements of the document.
@@ -359,13 +363,18 @@ class SycamorePartitioner(Partitioner):
 
         binary = io.BytesIO(document.data["binary_representation"])
         partitioner = SycamorePDFPartitioner(self._model_name_or_path)
-        result = partitioner.partition_pdf(binary, self._threshold)
+
+        try:
+            result = partitioner.partition_pdf(binary, self._threshold)
+        except Exception as e:
+            path = document.properties["path"]
+            raise RuntimeError(f"SycamorePartitioner Error processing {path}") from e
 
         elements = []
         for i, r in enumerate(result):
             for ele in r:
                 properties = ele.properties
-                properties["page_number"] = i
+                properties["page_number"] = i + 1
                 elements.append(ele)
 
         document.elements = elements
@@ -406,10 +415,16 @@ class Partition(SingleThreadUser, Transform):
         if isinstance(self._partitioner, SycamorePartitioner):
             available_gpus = ray.available_resources().get("GPU")
             assert available_gpus > 0, "Sycamore Partitioner requires running on CUDA."
+            if "num_gpus" not in self.resource_args:
+                self.resource_args["num_gpus"] = 1
+            if self.resource_args["num_gpus"] <= 0:
+                raise RuntimeError("Invalid GPU Nums!")
+            gpu_per_task = self.resource_args["num_gpus"]
+
             dataset = input_dataset.map(
                 generate_map_class_from_callable(self._partitioner.partition),
-                compute=ActorPoolStrategy(min_size=1, max_size=math.ceil(available_gpus / 1)),
-                num_gpus=1,
+                compute=ActorPoolStrategy(min_size=1, max_size=math.ceil(available_gpus / gpu_per_task)),
+                **self.resource_args
             )
         else:
             dataset = input_dataset.map(generate_map_function(self._partitioner.partition))

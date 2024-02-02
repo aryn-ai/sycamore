@@ -1,0 +1,123 @@
+# For more detailed documentation, see README.md
+#
+# To start, run:
+# % docker compose up
+#
+# What you should see:
+#   1. wait while containers are downloaded (speed depends on your network), or nothing once cached
+#   2a. crawler should run and download 1 sample pdf
+#   2b. demo ui starting (in parallel with 2a)
+#   3. lots of logging as opensearch starts. Eventually 'Waiting for opensearch to exit.'
+#   4. sycamore container downloading pytorch files then running ray to import
+#   5. UI ready to go on port localhost:3000 (it's accessible before this but won't work)
+#
+# Troubleshooting/Extensions:
+#   1. Something is messed up, I just want to reset:
+#      docker compose run reset
+#   2. I want more sort benchmark files:
+#      docker compose run sycamore_crawler_http_sort_all
+version: '3'
+
+services:
+  demo-ui:
+    image: arynai/sycamore-demo-ui:${UI_VERSION}
+    ports:
+      - 127.0.0.1:${UI_PORT}:3000 # UI port
+    environment:
+      - OPENAI_API_KEY
+      - OPENSEARCH_HOST=opensearch
+    volumes:
+      - crawl_data:/app/.scrapy
+
+  opensearch:
+    image: arynai/sycamore-opensearch:${OPENSEARCH_VERSION}
+    ports:
+      - 127.0.0.1:${OPENSEARCH_PORT}:9200 # opensearch port, directly accessed by UI
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    environment:
+      - OPENAI_API_KEY
+
+  sycamore:
+    image: arynai/sycamore-importer:${SYCAMORE_VERSION}
+    ports:
+      - 127.0.0.1:${RAY_CONSOLE_PORT}:8265 # note, not working right now
+    volumes:
+      - crawl_data:/app/.scrapy
+    environment:
+      - OPENAI_API_KEY
+      # a bucket prefix like s3://example or s3://example/prefix/bits
+      # textract uploaded files will be under the prefix
+      # recommend setting lifecycle rules on the bucket to delete old documents
+      - SYCAMORE_TEXTRACT_PREFIX
+      # to get the next 4 environment variables:
+      # % aws sso login
+      # % eval "$(aws configure export-credentials --format env)"
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_SESSION_TOKEN
+      - AWS_CREDENTIAL_EXPIRATION
+
+### Optional profiles below here
+
+  sycamore_crawler_http_sort_one:
+    profiles: ['sort-one']
+    image: arynai/sycamore-crawler-http:${SYCAMORE_CRAWLER_HTTP_VERSION}
+    volumes:
+      - crawl_data:/app/.scrapy
+
+  sycamore_crawler_http_sort_all:
+    profiles: ['sort-all']
+    image: arynai/sycamore-crawler-http:${SYCAMORE_CRAWLER_HTTP_VERSION}
+    volumes:
+      - crawl_data:/app/.scrapy
+    command: -a preset=sort
+
+  sycamore_crawler_http:
+    profiles: ['crawl-http']
+    image: arynai/sycamore-crawler-http:${SYCAMORE_CRAWLER_HTTP_VERSION}
+    volumes:
+      - crawl_data:/app/.scrapy
+    command: help
+
+  sycamore_crawler_s3:
+    profiles: ['crawl-s3']
+    image: arynai/sycamore-crawler-s3:${SYCAMORE_CRAWLER_S3_VERSION}
+    volumes:
+      - crawl_data:/app/.data/.s3
+    environment:
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_SESSION_TOKEN
+      - AWS_CREDENTIAL_EXPIRATION
+    command: -h
+
+  reset:
+    profiles: ['reset']
+    image: ubuntu
+    volumes:
+      - opensearch_data:/tmp/opensearch_data
+      - crawl_data:/tmp/crawl_data
+    command: /bin/sh -c 'echo size-before && du -s /tmp/* && rm -rf /tmp/opensearch_data/* /tmp/crawl_data/* && echo size-after && du -s /tmp/*'
+    
+  jupyter:
+    image: arynai/sycamore-jupyter:${JUPYTER_VERSION}
+    ports:
+      - 127.0.0.1:${JUPYTER_PORT}:8888
+    volumes:
+      - crawl_data:/app/work/crawl_data
+      - jupyter_data:/app/work/docker_volume
+      - type: bind
+        source: ${JUPYTER_BIND_DIR}
+        target: /app/work/bind_dir
+    environment:
+      - OPENAI_API_KEY
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_SESSION_TOKEN
+      - AWS_CREDENTIAL_EXPIRATION
+
+volumes:
+  opensearch_data:
+  crawl_data:
+  jupyter_data:

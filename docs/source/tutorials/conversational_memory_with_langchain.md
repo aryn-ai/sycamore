@@ -29,9 +29,9 @@ class ConversationMemoryOpensearchClient(NamespacedClient):
             url=_make_path("_plugins", "_ml", "memory", "conversation"),
             body=({"name": name} if name is not None else None)
         )
-    
-    def create_interaction(self, conversation_id: str, input: str, 
-                    prompt: str, response: str, origin: str, 
+
+    def create_interaction(self, conversation_id: str, input: str,
+                    prompt: str, response: str, origin: str,
                     additional_info: dict):
         return self.transport.perform_request(
             method="POST",
@@ -44,21 +44,21 @@ class ConversationMemoryOpensearchClient(NamespacedClient):
                 "additional_info": json.dumps(additional_info)
             }
         )
-    
+
     def get_conversations(self, max_results: int = None, next_token: int = None):
         params = {}
         if max_results:
             params["max_results"] = max_results
         if next_token:
             params["next_token"] = next_token
-        
+
         return self.transport.perform_request(
             method="GET",
             url=_make_path("_plugins", "_ml", "memory", "conversation"),
             params=params if len(params) != 0 else None
         )
-    
-    def get_interactions(self, conversation_id: str, max_results: int = None, 
+
+    def get_interactions(self, conversation_id: str, max_results: int = None,
 												next_token: int = None):
         params = {}
         if max_results:
@@ -71,7 +71,7 @@ class ConversationMemoryOpensearchClient(NamespacedClient):
             url=_make_path("_plugins", "_ml", "memory", "conversation", conversation_id),
             params=params if len(params) != 0 else None
         )
-    
+
     def delete_conversation(self, conversation_id: str):
         return self.transport.perform_request(
             method="DELETE",
@@ -246,14 +246,14 @@ opensearch_client = OpenSearch(
 message_history = OpenSearchChatMessageHistory(opensearch_client)
 
 memory = ConversationBufferMemory(
-	memory_key="chat_history", 
+	memory_key="chat_history",
 	chat_memory=message_history
 )
 
 llm_chain = LLMChain(
-	llm=OpenAI(temperature=0), 
-	prompt=prompt, 
-	verbose=True, 
+	llm=OpenAI(temperature=0),
+	prompt=prompt,
+	verbose=True,
 	memory=memory
 )
 ```

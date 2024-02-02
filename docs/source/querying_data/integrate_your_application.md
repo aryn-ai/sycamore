@@ -146,7 +146,7 @@ try {
 
 ### Document highlighting
 
-Certain documents, like PDFs, will contain additional metadata about what section of the documents were used to generate a response. 
+Certain documents, like PDFs, will contain additional metadata about what section of the documents were used to generate a response.
 
 For a PDF search result, the document contains a `properties` attribute, that will optionally contains `boxes`. Each box represents a page number, and the 4 coordinates of a bounding box within that page that represent the text, image, or table that was used as data. You can use a library like `react-pdf` to visualize this client side. Your component might look like this
 

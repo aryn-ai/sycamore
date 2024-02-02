@@ -28,7 +28,7 @@ rm /app/.local/share/jupyter/runtime/jpserver-*-open.html 2>/dev/null
         echo "ERROR: Multiple jpsterver-*-open.html files"
         exit 1
     fi
-    
+
     sleep 1 # reduce race with file being written
     REDIRECT=/app/work/bind_dir/redirect.html
     perl -ne 's,http://\S+:8888/tree,http://localhost:8888/tree,;print' < "${FILE}" >"${REDIRECT}"

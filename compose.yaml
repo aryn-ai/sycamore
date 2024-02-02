@@ -99,7 +99,7 @@ services:
       - opensearch_data:/tmp/opensearch_data
       - crawl_data:/tmp/crawl_data
     command: /bin/sh -c 'echo size-before && du -s /tmp/* && rm -rf /tmp/opensearch_data/* /tmp/crawl_data/* && echo size-after && du -s /tmp/*'
-    
+
   jupyter:
     image: arynai/sycamore-jupyter:${JUPYTER_VERSION}
     ports:

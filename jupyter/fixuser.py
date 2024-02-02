@@ -20,16 +20,17 @@ print("Version-Info, Aryn Jupyter Commit:", os.environ.get("GIT_COMMIT", "missin
 print("Version-Info, Aryn Jupyter Diff:", os.environ.get("GIT_DIFF", "missing"))
 print("Version-Info, Aryn Jupyter Architecture:", platform.uname().machine, flush=True)
 
+
 def main():
     app_stat = os.lstat("/app")
     bind_stat = os.lstat("/app/work/bind_dir")
     if app_stat.st_uid != bind_stat.st_uid or app_stat.st_gid != bind_stat.st_gid:
         fix_ids(bind_stat.st_uid, bind_stat.st_gid)
     else:
-        print("uid", app_stat.st_uid, "and gid", app_stat.st_gid,
-              "already match between /app and /app/work/bind_dir")
-        
+        print("uid", app_stat.st_uid, "and gid", app_stat.st_gid, "already match between /app and /app/work/bind_dir")
+
     exec_run_jupyter(bind_stat.st_uid, bind_stat.st_gid)
+
 
 def fix_ids(uid, gid):
     if uid == 0 or gid == 0:
@@ -41,8 +42,9 @@ def fix_ids(uid, gid):
             print("WARNING: owner or group is root, but able to write files as app.")
             print("WARNING: this happens on MacOS with a special driver, so leaving ids alone.")
             return
-        raise Exception("Refusing to change id to uid == 0 or gid == 0\n" +
-                        "Make sure bind dir has a non-root uid and gid")
+        raise Exception(
+            "Refusing to change id to uid == 0 or gid == 0\n" + "Make sure bind dir has a non-root uid and gid"
+        )
     print("WARNING: Fixing IDs. This step can take a long time", flush=True)
     print("  Fixing app group to have gid", gid, flush=True)
     subprocess.run(["groupmod", "--gid", str(gid), "app"])
@@ -52,10 +54,12 @@ def fix_ids(uid, gid):
     subprocess.run(["chown", "-R", "app:app", "/app"])
     print("SUCCESS: uid & gid fixed", flush=True)
 
+
 def exec_run_jupyter(uid, gid):
     sys.stdout.flush()
     sys.stderr.flush()
     args = ["/usr/bin/sudo", "-E", "-u", "app", "/app/run-jupyter.sh"] + sys.argv[1:]
     os.execv(args[0], args)
+
 
 main()

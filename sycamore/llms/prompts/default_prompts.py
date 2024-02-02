@@ -82,7 +82,7 @@ SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT_CHAT = """
     {{#user~}}
     You are given a few text elements of a document. Extract JSON Schema representing one entity of
     class {{entity}} from the document. Using this context, FIND, FORMAT, and RETURN the JSON-LD Schema.
-    Return a flat schema, without nested properties. Return at most 7 properties.
+    Return a flat schema, without nested properties. Return at most {{max_num_properties}} properties.
     Only return JSON Schema as part of your answer.
     {{query}}
     {{~/user}}

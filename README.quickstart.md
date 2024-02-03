@@ -1,10 +1,10 @@
 # Quickstart for Aryn Search - Docker compose
 
-You can easily get started with the Aryn Search Platform locally using Docker. If you don't have Docker already installed, visit [here](https://docs.docker.com/get-docker/). 
+You can easily get started with the Aryn Search Platform locally using Docker. If you don't have Docker already installed, visit [here](https://docs.docker.com/get-docker/).
 
 The Quickstart will deploy the Aryn platform, consisting of four containers: Sycamore importer, Sycamore HTTP crawler, Aryn OpenSearch, and Aryn demo conversational search UI. Our images currently support amd64 and arm64 hardware.
 
-The Quickstart configuration of Aryn automatically runs an example workload that downloads [this PDF](http://sortbenchmark.org/2004_Nsort_Minutesort.pdf) from the [Sort Benchmark website](http://www.sortbenchmark.org), uses [Sycamore](https://github.com/aryn-ai/sycamore) to prepare the data, and loads it into the Aryn platform. This gives you a out-of-the-box example for conversational search. 
+The Quickstart configuration of Aryn automatically runs an example workload that downloads [this PDF](http://sortbenchmark.org/2004_Nsort_Minutesort.pdf) from the [Sort Benchmark website](http://www.sortbenchmark.org), uses [Sycamore](https://github.com/aryn-ai/sycamore) to prepare the data, and loads it into the Aryn platform. This gives you a out-of-the-box example for conversational search.
 
 You can then choose to crawl the rest of the [Sort Benchmark website](http://www.sortbenchmark.org) and load this data into your index. Instructions are [here](#Add-the-full-Sort-Benchmark-Dataset). Then, you can search over the whole dataset.
 
@@ -19,9 +19,9 @@ Finally, [see below](#add-your-own-data) for instructions on how to crawl and lo
 2. For the highest quality table extraction (and better answers), the demo Sycamore script needs AWS credentials for Amazon Textract and an Amazon S3 bucket for Textract input/output. This script uses Textract and Amazon S3 in the US-East-1 region. You can optionally disable Textract. You will accrue AWS charges for Textract usage. If you want to enable Textract:
 
 - If you do not have an AWS account, sign up [here](https://portal.aws.amazon.com/billing/signup). You will need this during configuration.
-- Create an Amazon S3 bucket in your AWS account in the US-East-1 region for use with Textract (e.g. s3://username-textract-bucket). We recommend you set up bucket lifecycle rules that automatically delete files in this bucket, as the data stored here is only needed temporarily during a Sycamore data processing job.  
+- Create an Amazon S3 bucket in your AWS account in the US-East-1 region for use with Textract (e.g. s3://username-textract-bucket). We recommend you set up bucket lifecycle rules that automatically delete files in this bucket, as the data stored here is only needed temporarily during a Sycamore data processing job.
 
-### Now, let's get started  
+### Now, let's get started
 
 1. Download the Docker compose files from the Quickstart repo. You will need the [compose](https://github.com/aryn-ai/quickstart/blob/main/compose.yaml) and [.env](https://github.com/aryn-ai/quickstart/blob/main/.env) files.
 
@@ -36,7 +36,7 @@ export SYCAMORE_TEXTRACT_PREFIX=s3://your-bucket-name-here
 export OPENAI_API_KEY=YOUR-KEY
 ```
 
-Textract is used by default with the demo Sycamore script, and you can choose to enable it or disable it. 
+Textract is used by default with the demo Sycamore script, and you can choose to enable it or disable it.
 
 - To use it, you need to configure your AWS credentials. You can enable AWS SSO login with [these instructions](https://docs.aws.amazon.com/cli/latest/userguide/sso-configure-profile-token.html#sso-configure-profile-token-auto-sso), or you can use other methods to set up AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and if needed AWS_SESSION_TOKEN.
 
@@ -52,7 +52,7 @@ You can verify it is working by running:
 ```
 aws s3 ls --profile YOUR-PROFILE-NAME
 ```
-You should see the bucket you created for $SYCAMORE_TEXTRACT_PREFIX.  
+You should see the bucket you created for $SYCAMORE_TEXTRACT_PREFIX.
 
 - To disable Textract in your Sycamore job, then you can turn it off by:
 
@@ -60,11 +60,11 @@ You should see the bucket you created for $SYCAMORE_TEXTRACT_PREFIX.
 export ENABLE_TEXTRACT=false
 ```
 
-3. Start the Docker service  
-   a. On MacOS or Windows, start Docker desktop  
-   b. On Linux, if you used your local package manager, it should be started  
+3. Start the Docker service
+   a. On MacOS or Windows, start Docker desktop
+   b. On Linux, if you used your local package manager, it should be started
 
-4. Adjust Docker service memory settings  
+4. Adjust Docker service memory settings
 In Docker, go to "Settings" (e.g. on MacOS, it's the gear icon in the top right of the UI). Next, click on "Resources" and adjust Memory limit to 6 GB and Swap to 4 GB. If you are seeing memory issues while running Aryn Search, you can add adjust memory allocation here.
 
 5. Start Aryn Search
@@ -95,9 +95,9 @@ different versions for the separate containers.
 - Using your internet browser, visit http://localhost:3000.
 - Create a new conversation. Enter the name for your conversation in the text box in the left "Conversations" panel, and hit enter or click the "add convo" icon on the right of the text box.
 - Select your conversation, and then write a question into the text box in the middle panel. Hit enter.
-- Ask follow up questions. You'll see the actual results from the Aryn Search hybrid search for your question in the right panel, and the conversational search in the middle panel.  
+- Ask follow up questions. You'll see the actual results from the Aryn Search hybrid search for your question in the right panel, and the conversational search in the middle panel.
 
-Congrats! You've deployed Aryn Search and enabled conversational search over a document. Next, you can choose to ingest the rest of the documents from the [Sort Benchmark website](##add-the-full-sort-benchmark-dataset) to search over more data. 
+Congrats! You've deployed Aryn Search and enabled conversational search over a document. Next, you can choose to ingest the rest of the documents from the [Sort Benchmark website](##add-the-full-sort-benchmark-dataset) to search over more data.
 
 ## Add the full Sort Benchmark Dataset
 
@@ -111,7 +111,7 @@ You will now crawl the the Sort Benchmark website and add the rest of the data:
 ```
 docker compose run sycamore_crawler_http_sort_all
 ```
-This will crawl and download the data from the Sort Benchmark website. 
+This will crawl and download the data from the Sort Benchmark website.
 
 2. Sycamore will automatically start processing the new data. The processing job is complete and the data is loaded into the index once you see log messages similar to:
 
@@ -245,7 +245,7 @@ these problems, no persistent state existed to be reset.
 
 Feel free to reach out if you have any questions, issues, or feedback:
 
-info@aryn.ai 
+info@aryn.ai
 
 Or on Slack:
 

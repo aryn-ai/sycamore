@@ -70,7 +70,7 @@ Then install Sycamore
 pip install sycamore-ai
 ```
 
-For certain PDF processing operations, you also need to install poppler, which you can do with the OS-native package manager of your choice. 
+For certain PDF processing operations, you also need to install poppler, which you can do with the OS-native package manager of your choice.
 
 For example, the command for Homebrew on Mac OS is:
 
@@ -99,7 +99,7 @@ If you haven't set your OpenAI Key, do so before starting your notebook:
 export OPENAI_API_KEY=YOUR-KEY
 ```
 
-Before you start up the notebook, make sure OpenSearch is running.  
+Before you start up the notebook, make sure OpenSearch is running.
 
 ```
 curl localhost:9200
@@ -205,7 +205,7 @@ pdf_docset.show(show_binary = False)
 
 The output of this cell will show information about the DocSet, and show that there are two documents included in it.
 
-1f. This cell will segment the PDFs and visually show how a few pages are segmented. 
+1f. This cell will segment the PDFs and visually show how a few pages are segmented.
 
 ```python
 # Note: these fonts aren't correct, but are close enough for the visualization
@@ -345,7 +345,7 @@ the old processing.
     ELEMENT 10: V C . s c [
     ========
     "FLAVR: Flow-Agnostic Video Representations for Fast Frame Interpolation"
-    
+
     """
 author_context_template = """
     ELEMENT 1: Jupiter's Moons

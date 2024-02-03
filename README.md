@@ -24,7 +24,7 @@ Sycamore is a conversational search and analytics platform for complex unstructu
 
 ## Get Started
 
-You can easily deploy Sycamore locally or on a virtual machine using Docker. 
+You can easily deploy Sycamore locally or on a virtual machine using Docker.
 
 With Docker installed:
 
@@ -40,7 +40,7 @@ With Docker installed:
 
 5.	The Sycamore demo query UI will be at localhost:3000
 
-You can next choose to run a demo that [prepares and ingests data from the Sort Benchmark website](docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-sort-benchmark-dataset), [crawl data from a public website](docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-data-from-an-arbitrary-website), or write your own data preparation script. 
+You can next choose to run a demo that [prepares and ingests data from the Sort Benchmark website](docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-sort-benchmark-dataset), [crawl data from a public website](docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-data-from-an-arbitrary-website), or write your own data preparation script.
 
 For more info about Sycamore’s data ingestion and preparation feature set, visit the [Sycamore documentation](docs/source/data_ingestion_and_preparation/data_preparation_concepts.md).
 

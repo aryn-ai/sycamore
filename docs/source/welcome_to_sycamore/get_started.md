@@ -121,6 +121,39 @@ This will crawl and download the data from the specified website. If you import 
 If you want to prepare you data with custom code, you can use a Jupyter notebook to iterate and test it. NEED LINK
 
 
+## Add a dataset from a S3 bucket
+
+You can try using an arbitrary PRF and HTML data from an S3 bucket with the Sort Benchmark
+importing script. This script is not optimized for new datasets, so the answer quality may
+vary. However we have found positive results with some experiments.
+
+WARNING: Processing data using the Sort Benchmark importing script will send your data to OpenAI,
+and optionally Amazon Textract for calls to their AI services. Consider whether this is acceptable
+if you are using a non-public website for testing.
+
+1. Run the Sycamore S3 Crawler container with one or two additional parameters:
+```
+docker compose run sycamore_crawler_s3 _bucket_ _prefix_
+# for example to load the single file that's automatically downloaded via HTTP:
+docker compose run sycamore_crawler_s3 aryn-public sort-benchmark/pdf/2004_Nsort
+# or to load all the PDFs that are in the S3 bucket:
+docker compose run sycamore_crawler_s3 aryn-public sort-benchmark/pdf
+```
+
+This will crawl and download the data from the specified S3 bucket and prefix. Note, you will need
+to have the S3 authorization environment variables and be able to access the bucket.  You can check
+that by running:
+```
+aws s3 ls _bucket_
+# and to check the prefix works:
+aws s3 ls _bucket_/_prefix_
+```
+
+2. Sycamore will automatically start processing the new data into the existing index. The processing job is complete and the data is loaded into the index once you see log messages similar to:
+
+```
+No changes at [datetime] sleeping
+```
 
 ## Clean Up
 

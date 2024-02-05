@@ -23,7 +23,6 @@ Sycamore is an open-source conversational search and analytics platform for comp
 
 * **Plug-and-Play LLMs.** Use different LLMs for entity extraction, vector embedding, RAG, and post-processing steps. Currently supporting OpenAI and Amazon Bedrock, and more to come!
 
-ADD DEMO VIDEO!!!
 
 Getting Started
 --------------------
@@ -32,49 +31,54 @@ You can easily deploy Sycamore locally or on a virtual machine using Docker.
 
 With Docker installed:
 
-
-
-1. Clone the Sycamore repo:
+1.	Clone the Sycamore repo: 
 
 ``git clone https://github.com/aryn-ai/sycamore``
 
-2. Set OpenAI Key:
+2.	Set OpenAI Key:
 
 ``export OPENAI_API_KEY=YOUR-KEY``
 
-3. Go to:
+3.	Go to: 
 
 ``/sycamore``
 
-4. Launch Sycamore. Containers will be pulled from DockerHub:
+4.	Launch Sycamore. Conatainers will be pulled from DockerHub:
 
-``docker compose up --pull=always``
+``Docker compose up --pull=always``
+
+5.	The Sycamore demo query UI will be at localhost:3000
+
+You can next choose to run a demo that `prepares and ingests data from the Sort Benchmark website<docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-sort-benchmark-dataset>`_, [crawl data from a public website](docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-data-from-an-arbitrary-website), or write your own data preparation script.
+
+For more info about Sycamore’s data ingestion and preparation feature set, visit the [Sycamore documentation](docs/source/data_ingestion_and_preparation/data_preparation_concepts.md).
 
 
-**Use the service:**
+Run a demo
+--------------------
 
-a. Load demo dataset via (NEED LINK tutorial here):
+a. Load demo dataset using the HTTP crawler (visit tutorial)[docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-sort-benchmark-dataset]:
 
 ``docker compose run crawl_sort_benchmark``
 
-b. Load custom data via (NEED LINK tutorial here):
+b. Load website data via HTTP crawler (visit tutorial)[docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-data-from-an-arbitrary-website]:
 
 ``docker compose run crawl_http http://my.website.example.com``
 
-c. Write custom data ingestion and preparation code using the Jupyter container (NEED LINK tutorial here). Access it via the URL from:
+c. Write custom data ingestion and preparation code using the Jupyter container. Access it via the URL from:
 
 ``docker compose logs jupyter | grep Visit``
 
-
 Once you've loaded data, you can run conversational search on your data with the Sycamore demo UI at localhost:3000
 
+For more details about getting started, visit the (Sycamore Getting Started page)[docs/source/welcome_to_sycamore/get_started.md].
 
 More Resources
 --------------------
-- Join the Sycamore Slack workspace: Link
-- View the Sycamore GitHub
-- To learn more about Sycamore’s architecture, click here NEED LINK
-- For more info about data preparation in Sycamore, visit here [link to docs]
+- Join the Sycamore Slack workspace: https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg
+- View the Sycamore GitHub: https://github.com/aryn-ai/sycamore
+- To learn more about Sycamore’s architecture: NEED LINK
+- For more info about data preparation in Sycamore: NEED LINK
 - To integrate your own query front-end to Sycamore, visit here  NEED LINK
 
 

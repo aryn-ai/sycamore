@@ -30,6 +30,7 @@ from sycamore.transforms.extract_schema import (
 from sycamore.transforms.random_sample import RandomSample
 from sycamore.transforms.detr_partitioner import SycamorePDFPartitioner
 from sycamore.transforms.split_elements import SplitElements
+from sycamore.transforms.query import Query
 
 __all__ = [
     "COALESCE_WHITESPACE",
@@ -67,4 +68,5 @@ __all__ = [
     "RandomSample",
     "SplitElements",
     "SycamorePDFPartitioner",
+    "Query",
 ]

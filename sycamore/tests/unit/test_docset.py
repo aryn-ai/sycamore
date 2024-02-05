@@ -22,11 +22,13 @@ from sycamore.transforms import (
     ExtractSchema,
     ExtractBatchSchema,
     ExtractProperties,
+    Query,
 )
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.llms import LLM
 from sycamore.transforms import Filter
 from sycamore.transforms.summarize import LLMElementTextSummarizer
+from sycamore.transforms.query import QueryExecutor
 
 
 class TestDocSet:
@@ -53,6 +55,15 @@ class TestDocSet:
         docset = DocSet(context, node)
         docset = docset.extract_entity(entity_extractor=OpenAIEntityExtractor("title", llm=llm, prompt_template=""))
         assert isinstance(docset.lineage(), ExtractEntity)
+
+    def test_query(self, mocker):
+        context = mocker.Mock(spec=Context)
+        node = mocker.Mock(spec=Node)
+        query_executor = mocker.Mock(spec=QueryExecutor)
+        docset = DocSet(context, node)
+        docset = docset.query(query_executor=query_executor)
+        a = docset.lineage()
+        assert isinstance(docset.lineage(), Query)
 
     def test_map(self, mocker):
         context = mocker.Mock(spec=Context)

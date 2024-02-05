@@ -2,7 +2,7 @@ import json
 import tempfile
 
 from sycamore.data import Document
-from sycamore.scans.file_scan import JsonManifestMetadataProvider
+from sycamore.scans.file_scan import JsonManifestMetadataProvider, NestedJsonScan
 from sycamore.scans import BinaryScan, JsonScan
 from sycamore.tests.config import TEST_DIR
 
@@ -46,6 +46,17 @@ class TestFileScan:
         doc = Document.from_row(raw_doc)
 
         assert doc.text_representation == "propValue"
+
+    def test_nested_json_scan(self):
+        paths = str(TEST_DIR / "resources/data/nested_json/")
+        scan = NestedJsonScan(paths)
+        ds = scan.execute()
+        raw_doc = ds.take(1)[0]
+
+        doc = Document.from_row(raw_doc)
+
+        assert "row" in doc.data
+        assert "question" in doc.data["row"]
 
     def test_json_manifest(self):
         base_path = str(TEST_DIR / "resources/data/htmls/")

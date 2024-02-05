@@ -157,3 +157,83 @@ class Document(UserDict):
     def to_row(self) -> dict[str, bytes]:
         """Serialize this document into a row for use with Ray."""
         return {"doc": self.serialize()}
+
+
+class OpenSearchQuery(Document):
+    def __init__(
+        self,
+        document=None,
+        **kwargs,
+    ):
+        super().__init__(document, **kwargs)
+        self.data["type"] = "OpenSearchQuery"
+
+    @property
+    def query(self) -> Optional[dict[str, Any]]:
+        """A unique identifier for the document. Defaults to a uuid."""
+        return self.data.get("query")
+
+    @query.setter
+    def query(self, value: dict[str, Any]) -> None:
+        """Set the unique identifier of the document."""
+        self.data["query"] = value
+
+    @property
+    def url_params(self) -> Optional[str]:
+        """A unique identifier for the document. Defaults to a uuid."""
+        return self.data.get("url_params")
+
+    @url_params.setter
+    def url_params(self, value: str) -> None:
+        """Set the unique identifier of the document."""
+        self.data["url_params"] = value
+
+
+class OpenSearchQueryResult(Document):
+    def __init__(
+        self,
+        document=None,
+        **kwargs,
+    ):
+        super().__init__(document, **kwargs)
+        self.data["type"] = "OpenSearchQueryResult"
+
+    @property
+    def query(self) -> Optional[dict[str, Any]]:
+        """A unique identifier for the document. Defaults to a uuid."""
+        return self.data.get("query")
+
+    @query.setter
+    def query(self, value: dict[str, Any]) -> None:
+        """Set the unique identifier of the document."""
+        self.data["query"] = value
+
+    @property
+    def hits(self) -> list[Element]:
+        """A unique identifier for the document. Defaults to a uuid."""
+        return self.data.get("hits", [])
+
+    @hits.setter
+    def hits(self, value: list[Element]) -> None:
+        """Set the unique identifier of the document."""
+        self.data["hits"] = value
+
+    @property
+    def generated_answer(self) -> Optional[str]:
+        """A unique identifier for the document. Defaults to a uuid."""
+        return self.data.get("generated_answer")
+
+    @generated_answer.setter
+    def generated_answer(self, value: str) -> None:
+        """Set the unique identifier of the document."""
+        self.data["generated_answer"] = value
+
+    @property
+    def result(self) -> Optional[str]:
+        """A unique identifier for the document. Defaults to a uuid."""
+        return self.data.get("result")
+
+    @result.setter
+    def result(self, value: str) -> None:
+        """Set the unique identifier of the document."""
+        self.data["result"] = value

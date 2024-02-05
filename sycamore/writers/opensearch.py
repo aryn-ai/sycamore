@@ -72,6 +72,7 @@ class OSDataSource(Datasource):
             "parent_id": None,
             "properties": {},
             "bbox": None,
+            "shingles": None,
         }
         for k, v in default.items():
             if k in data:

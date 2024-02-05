@@ -12,20 +12,18 @@ class TestShingles:
     def test_order(self):
         s = "The quick brown fox jumps over the lazy dog"
         shingles = sh.shinglesCalc(s.encode("utf-8"))
-        for tab in shingles:
-            for ii in range(1, len(tab)):
-                assert tab[ii - 1] <= tab[ii]
+        for ii in range(1, len(shingles)):
+            assert shingles[ii - 1] <= shingles[ii]
 
     def test_nonzero(self):
         s = "The quick brown fox jumps over the lazy dog"
         shingles = sh.shinglesCalc(s.encode("utf-8"))
-        for tab in shingles:
-            assert min(tab) > 0  # zeros are almost always a bug
+        assert min(shingles) > 0  # zeros are almost always a bug
 
     def test_shingle_dist(self):
-        aa = [[1, 2, 3, 4]]
-        bb = [[1, 2, 4, 5]]
-        cc = [[5, 6, 7, 8]]
+        aa = [1, 2, 3, 4]
+        bb = [1, 2, 4, 5]
+        cc = [5, 6, 7, 8]
         assert sh.shinglesDist(aa, aa) == 0.0
         assert sh.shinglesDist(aa, bb) == 0.25
         assert sh.shinglesDist(aa, cc) == 1.0
@@ -53,8 +51,8 @@ class TestShingles:
         assert sh.shinglesDist(shingles[2], shingles[3]) > 0.9
 
     def test_sim(self):
-        tab = list(range(0x07, 0x16))
-        sim = sh.simHash(tab)
+        shingle = list(range(0x07, 0x16))
+        sim = sh.simHash(shingle)
         assert sim == 0x09
 
     def test_sim_dist(self):
@@ -64,10 +62,10 @@ class TestShingles:
         dd = [0x1000, 0x0002, 0x0040, 0x0000]
         ee = [0x0000, 0x0000, 0x0000, 0x0000]
         assert sh.simHashesDist(aa, aa) == 0
-        assert sh.simHashesDist(aa, bb) == 1
-        assert sh.simHashesDist(aa, cc) == 2
-        assert sh.simHashesDist(aa, dd) == 3
-        assert sh.simHashesDist(aa, ee) == 4
+        assert sh.simHashesDist(aa, bb) == 19 / 256
+        assert sh.simHashesDist(aa, cc) == 22 / 256
+        assert sh.simHashesDist(aa, dd) == 25 / 256
+        assert sh.simHashesDist(aa, ee) == 28 / 256
 
     def test_simhashes(self):
         simHashes = []
@@ -84,9 +82,9 @@ class TestShingles:
             assert sh.simHashesDist(simHashes[ii], simHashes[ii]) == 0.0
 
         # make sure examples measure as expected
-        assert sh.simHashesDist(simHashes[0], simHashes[1]) < 12
-        assert sh.simHashesDist(simHashes[0], simHashes[2]) < 12
-        assert sh.simHashesDist(simHashes[1], simHashes[2]) < 12
-        assert sh.simHashesDist(simHashes[0], simHashes[3]) > 18
-        assert sh.simHashesDist(simHashes[1], simHashes[3]) > 18
-        assert sh.simHashesDist(simHashes[2], simHashes[3]) > 18
+        assert sh.simHashesDist(simHashes[0], simHashes[1]) < 0.2
+        assert sh.simHashesDist(simHashes[0], simHashes[2]) < 0.2
+        assert sh.simHashesDist(simHashes[1], simHashes[2]) < 0.2
+        assert sh.simHashesDist(simHashes[0], simHashes[3]) > 0.5
+        assert sh.simHashesDist(simHashes[1], simHashes[3]) > 0.5
+        assert sh.simHashesDist(simHashes[2], simHashes[3]) > 0.5

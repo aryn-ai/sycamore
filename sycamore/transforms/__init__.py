@@ -6,7 +6,7 @@ from sycamore.transforms.map import Map, FlatMap, MapBatch
 from sycamore.transforms.partition import Partition, Partitioner
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.regex_replace import COALESCE_WHITESPACE, RegexReplace
-from sycamore.transforms.sketcher import Sketcher, SketchUniquify
+from sycamore.transforms.sketcher import Sketcher, SketchUniquify, SketchDebug
 from sycamore.transforms.spread_properties import SpreadProperties
 from sycamore.transforms.summarize import Summarize
 from sycamore.transforms.bbox_merge import (
@@ -49,6 +49,7 @@ __all__ = [
     "RegexReplace",
     "Sketcher",
     "SketchUniquify",
+    "SketchDebug",
     "Summarize",
     "SortByPageBbox",
     "MarkBreakByColumn",

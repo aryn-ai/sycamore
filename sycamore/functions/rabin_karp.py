@@ -28,6 +28,11 @@ class RkHash:
     def hashOut(self, ch: int) -> None:
         self.val = (self.val + self.primeShift - (ch * self.inv)) % self.prime
 
+    def hashOutIn(self, chOut: int, chIn: int) -> None:
+        self.val = (
+            (((self.val + self.primeShift - (chOut * self.inv)) % self.prime) << self.shift) + chIn
+        ) % self.prime
+
     def get(self) -> int:
         return self.val
 
@@ -44,11 +49,10 @@ class RkWindow:
         if width < 1:
             raise ValueError
         hasher = RkHash(width)
-        seed = 149  # 8-bit prime with 4 bits set
         ary = []
         for ii in range(width):
-            hasher.hashIn(seed)
-            ary.append(seed)
+            hasher.hashIn(0)
+            ary.append(0)
         self.hasher = hasher
         self.ary = ary
         self.idx = 0
@@ -60,14 +64,14 @@ class RkWindow:
         a = ",".join(["[%d]" % ch if ii == idx else "%d" % ch for ii, ch in enumerate(self.ary)])
         return "(w%s%s)" % (h, a)
 
-    def hash(self, ch: int) -> None:
+    def hash(self, ch: int) -> Optional[int]:
         hasher = self.hasher
         ary = self.ary
         idx = self.idx % self.width
-        hasher.hashOut(ary[idx])
-        hasher.hashIn(ch)
+        hasher.hashOutIn(ary[idx], ch)
         ary[idx] = ch
         self.idx += 1
+        return hasher.val if self.idx >= self.width else None
 
     def get(self) -> Optional[int]:
-        return self.hasher.val if self.idx >= self.width else None
+        return self.hasher.val

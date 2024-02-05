@@ -1,4 +1,6 @@
 import sys
+import operator
+from functools import reduce
 from sycamore.functions.rabin_karp import RkWindow
 
 __all__ = ["shinglesCalc", "shinglesDist", "simHash", "simHashesDist", "simHashText"]
@@ -10,42 +12,6 @@ __all__ = ["shinglesCalc", "shinglesDist", "simHash", "simHashesDist", "simHashT
 ###############################################################################
 
 
-def downHeap(heap, idx):
-    """
-    downHeap() implements the down-heap operation on a binary max-heap
-    represented as a 1-based list.  If the list represents a valid heap
-    except that the element at `idx` may be too small, downHeap() will fix
-    the heap in log(N) time.
-    """
-
-    nn = len(heap) - 1
-    limit = nn // 2
-    val = heap[idx]
-
-    while idx <= limit:
-        kid = 2 * idx
-        if (kid < nn) and (heap[kid] < heap[kid + 1]):
-            kid += 1
-        kidVal = heap[kid]
-        if kidVal < val:
-            break
-        heap[idx] = kidVal
-        idx = kid
-    heap[idx] = val
-
-
-def heapUpdate(heap, item):
-    """
-    heapUpdate() does the equivalent of a pop() and push() if the new
-    item is less than the max value in the heap.  This is useful when
-    using a max-heap to keep track of the N lowest values.
-    """
-
-    if item < heap[1]:
-        heap[1] = item
-        downHeap(heap, 1)
-
-
 def scramble(val: int) -> int:
     """
     scramble() takes an existing 64-bit hash value and permutes the bits
@@ -54,7 +20,7 @@ def scramble(val: int) -> int:
     9223372036854775783 = largest prime < 2^63
     """
 
-    return ((val * 6364136223846793005) + 9223372036854775783) & 0xFFFFFFFFFFFFFFFF
+    return ((val * 6364136223846793005) + 9223372036854775783) & 0x7FFFFFFFFFFFFFFF
 
 
 def sortedVectorCmp(aVec: list[int], bVec: list[int]) -> tuple[int, int]:
@@ -86,24 +52,18 @@ def sortedVectorCmp(aVec: list[int], bVec: list[int]) -> tuple[int, int]:
 #
 # Shingles Functions
 #
-# The terminology used below is based on basic roofing singles.  A
-# standard shingle has 3 "tabs" at the bottom.  These are what is visible
-# after the next higher shingle overlaps it.  Each horizonal row of
-# shingles is called a "course".
+# The analogy here is to shingles on a house.  They overlap each other.
+# Conceptually, a set of shingles looks like this:
 #
-#               +--------+
-# A standard    |        |
-# 3-tab shingle |  |  |  |
-#               +--+--+--+
-#
-#           |  |  |  |
-#           +--+--+--+
-# 4 courses  |  |  |  |
-# of 3-tab   +--+--+--+
-# shingles    |  |  |  |
-#             +--+--+--+
-#              |  |  |  |
-#              +--+--+--+
+# +--+
+# |  |
+# +--+
+#  |  |
+#  +--+   = shingles, with "number" = 4
+#   |  |
+#   +--+
+#    |  |
+#    +--+
 #
 # Each box above represents a single hash.  The hashes are made using a
 # sliding window.  For example, if the "window" is 5:
@@ -116,65 +76,50 @@ def sortedVectorCmp(aVec: list[int], bVec: list[int]) -> tuple[int, int]:
 # This code uses a hash function that is efficient for sliding windows
 # (Rabin-Karp).  The end result is a list of hashes, with length proportional
 # to the size of the input.  They are sorted and the first N constitute a
-# vertical shingle one-tab wide.  The next tab over is represents the same
-# process with a different permutation of the hash values.  Each tab shares
-# the same permutation.
+# set of shingles.
 #
 ###############################################################################
 
 
-def shinglesCalc(text: bytes, window: int = 32, courses: int = 29, tabs: int = 10) -> list[list[int]]:
+def shinglesCalc(text: bytes, window: int = 17, number: int = 16) -> list[int]:
     """
-    shinglesCalc() will process `text` and return a list of variants of
-    lists of hashes.  The inner list is often referred to as "shingles"
-    and consists for the lowest-value `courses` hashes.  Each top-level
-    list represents shingles scrambled `tabs` times.  Conceptually, when
-    looking at a section of roof, it's `courses` high and `tabs` wide.
-    `window` is the number of bytes in the sliding window that's hashed.
+    shinglesCalc() will process `text` and return a list of hashes.
+    This list is often referred to as "shingles" and consists of the
+    lowest-value `number` hashes.  Parameter `window` is the number of
+    bytes in the sliding window that's hashed.
+
+    text    - The text to process, in UTF-8 bytes
+    window  - Width in bytes of the sliding window used for shingles
+    number  - The number of least-value shingles to retain
     """
 
+    seen = set()
     ww = RkWindow(window)
-    heaps = [[0xFFFFFFFFFFFFFFFF for i in range(courses + 1)] for j in range(tabs)]
+
     for x in text:
-        ww.hash(x)
-        hh = ww.get()
+        hh = ww.hash(x)
         if hh is not None:
-            for heap in heaps:
-                hh = scramble(hh)
-                heapUpdate(heap, hh)
-    rv = []
-    for heap in heaps:
-        heap = list(filter(lambda x: x != 0xFFFFFFFFFFFFFFFF, heap))
-        nn = len(heap)
-        if nn == courses:
-            heap.sort()
-        elif nn == 0:
-            heap = [0] * courses
-        else:
-            copies = (courses + nn - 1) // nn
-            heap *= copies
-            heap.sort()
-            heap = heap[: courses + 1]
-        rv.append(heap)
-    return rv
+            seen.add(scramble(hh))
+
+    ary = sorted(seen)
+    nn = len(ary)
+    if nn == 0:
+        return [0] * number
+    elif nn < number:
+        copies = (number + nn - 1) // nn
+        ary *= copies
+        ary.sort()
+    return ary[:number]
 
 
-def shinglesDist(aa: list[list[int]], bb: list[list[int]]) -> float:
+def shinglesDist(aa: list[int], bb: list[int]) -> float:
     """
     shinglesDist() is a distance function for two sets of shingles.
     The outputs of shinglesCalc() can be used here.  The return value
     is a real number [0, 1.0] indicating dissimilarity.
     """
 
-    aLen = len(aa)
-    bLen = len(bb)
-    assert aLen == bLen
-    numer = 0
-    denom = 0
-    for ii in range(aLen):
-        n, d = sortedVectorCmp(aa[ii], bb[ii])
-        numer += n
-        denom += d
+    numer, denom = sortedVectorCmp(aa, bb)
     if denom == 0:
         return 1.0
     return (denom - numer) / denom
@@ -211,42 +156,42 @@ def simHash(tab: list[int]) -> int:
     return rv
 
 
-def simHashesDistFast(aa: list[int], bb: list[int]) -> int:
+def simHashesDistFast(aa: list[int], bb: list[int]) -> float:
     """
     simHashesDistFast() compares two lists of SimHashes and returns a
     distance metric.  Each list of SimHashes represents a document.
-    Corresponding elements in each list represent variants or "tabs" of
+    Corresponding elements in each list represent variants of
     shingles.  With a SimHash, the most bits in common means the most
-    similar.  This returns the average of the count of differing bits.
+    similar.  This returns the average of the count of differing bits / 64.
     This fast version for Python >=3.10 takes 50% less time than the slow.
     """
 
-    assert len(aa) == len(bb)
-    low = 64
+    nn = len(aa)
+    assert len(bb) == nn
+    tot = 0
     for a, b in zip(aa, bb):
         x = a ^ b
-        pop = x.bit_count()  # type: ignore[attr-defined]
-        low = min(low, pop)
-    return low
+        tot += x.bit_count()  # type: ignore[attr-defined]
+    return (tot / nn) / 64.0
 
 
-def simHashesDistSlow(aa: list[int], bb: list[int]) -> int:
+def simHashesDistSlow(aa: list[int], bb: list[int]) -> float:
     """
     simHashesDistSlow() compares two lists of SimHashes and returns a
     distance metric.  Each list of SimHashes represents a document.
-    Corresponding elements in each list represent variants or "tabs" of
+    Corresponding elements in each list represent variants of
     shingles.  With a SimHash, the most bits in common means the most
-    similar.  This returns the average of the count of differing bits.
+    similar.  This returns the average of the count of differing bits / 64.
     This slow version for Python <=3.9 takes 50% more time than the fast.
     """
 
-    assert len(aa) == len(bb)
-    low = 64
+    nn = len(aa)
+    assert len(bb) == nn
+    tot = 0
     for a, b in zip(aa, bb):
         x = a ^ b
-        pop = bin(x).count("1")  # slow way to count set bits
-        low = min(low, pop)
-    return low
+        tot += bin(x).count("1")  # slow way to count set bits
+    return (tot / nn) / 64.0
 
 
 # Python lacks int.bit_count() until version 3.10
@@ -256,15 +201,310 @@ else:
     simHashesDist = simHashesDistFast
 
 
-def simHashText(text: bytes, window: int = 32, courses: int = 29, tabs: int = 10) -> list[int]:
+def simHashText(text: bytes, window: int = 17, number: int = 16) -> list[int]:
     """
     Takes text and returns a list of SimHashes.  Arguments:
 
     text    - The text to process, in UTF-8 bytes
     window  - Width in bytes of the sliding window used for shingles
-    courses - The number of least-value shingles to retain
-    tabs    - The number of variants of each shingle to process
+    number  - The number of variant SimHashes to generate
     """
-    assert (courses & 1) == 1
-    shingles = shinglesCalc(text, window, courses, tabs)
-    return [simHash(hh) for hh in shingles]
+
+    ww = RkWindow(window)
+    countVecVec = [[0] * 64 for t in range(number)]
+
+    for x in text:
+        hh = ww.hash(x)
+        if hh is not None:
+            for countVec in countVecVec:
+                hh = scramble(hh)
+                # use lookup table, list appending, and element-wise addition
+                countVec[:] = map(
+                    operator.add,
+                    countVec,
+                    simTbl[hh & 0xFF]
+                    + simTbl[(hh >> 8) & 0xFF]
+                    + simTbl[(hh >> 16) & 0xFF]
+                    + simTbl[(hh >> 24) & 0xFF]
+                    + simTbl[(hh >> 32) & 0xFF]
+                    + simTbl[(hh >> 40) & 0xFF]
+                    + simTbl[(hh >> 48) & 0xFF]
+                    + simTbl[(hh >> 56) & 0xFF],
+                )
+
+    sims = []
+    if len(text) < window:
+        hh = ww.get()
+        for i in range(number):
+            hh = scramble(hh)  # type: ignore[arg-type]
+            sims.append(hh)
+        return sims
+
+    for countVec in countVecVec:
+        # convert array of 64 counts to binary string, to int, and append
+        sims.append(int(reduce(lambda s, x: ("1" if x >= 0 else "0") + s, countVec, ""), 2))
+    return sims
+
+
+# Lookup table to speed up SimHash calculation.  For each byte, for each bit,
+# value is 1 if bit is set, -1 if not set.  Bit 0 is least-significant.
+# fmt: off
+simTbl = [
+    [-1, -1, -1, -1, -1, -1, -1, -1],  # 00
+    [ 1, -1, -1, -1, -1, -1, -1, -1],  # 01
+    [-1,  1, -1, -1, -1, -1, -1, -1],  # 02
+    [ 1,  1, -1, -1, -1, -1, -1, -1],  # 03
+    [-1, -1,  1, -1, -1, -1, -1, -1],  # 04
+    [ 1, -1,  1, -1, -1, -1, -1, -1],  # 05
+    [-1,  1,  1, -1, -1, -1, -1, -1],  # 06
+    [ 1,  1,  1, -1, -1, -1, -1, -1],  # 07
+    [-1, -1, -1,  1, -1, -1, -1, -1],  # 08
+    [ 1, -1, -1,  1, -1, -1, -1, -1],  # 09
+    [-1,  1, -1,  1, -1, -1, -1, -1],  # 0a
+    [ 1,  1, -1,  1, -1, -1, -1, -1],  # 0b
+    [-1, -1,  1,  1, -1, -1, -1, -1],  # 0c
+    [ 1, -1,  1,  1, -1, -1, -1, -1],  # 0d
+    [-1,  1,  1,  1, -1, -1, -1, -1],  # 0e
+    [ 1,  1,  1,  1, -1, -1, -1, -1],  # 0f
+    [-1, -1, -1, -1,  1, -1, -1, -1],  # 10
+    [ 1, -1, -1, -1,  1, -1, -1, -1],  # 11
+    [-1,  1, -1, -1,  1, -1, -1, -1],  # 12
+    [ 1,  1, -1, -1,  1, -1, -1, -1],  # 13
+    [-1, -1,  1, -1,  1, -1, -1, -1],  # 14
+    [ 1, -1,  1, -1,  1, -1, -1, -1],  # 15
+    [-1,  1,  1, -1,  1, -1, -1, -1],  # 16
+    [ 1,  1,  1, -1,  1, -1, -1, -1],  # 17
+    [-1, -1, -1,  1,  1, -1, -1, -1],  # 18
+    [ 1, -1, -1,  1,  1, -1, -1, -1],  # 19
+    [-1,  1, -1,  1,  1, -1, -1, -1],  # 1a
+    [ 1,  1, -1,  1,  1, -1, -1, -1],  # 1b
+    [-1, -1,  1,  1,  1, -1, -1, -1],  # 1c
+    [ 1, -1,  1,  1,  1, -1, -1, -1],  # 1d
+    [-1,  1,  1,  1,  1, -1, -1, -1],  # 1e
+    [ 1,  1,  1,  1,  1, -1, -1, -1],  # 1f
+    [-1, -1, -1, -1, -1,  1, -1, -1],  # 20
+    [ 1, -1, -1, -1, -1,  1, -1, -1],  # 21
+    [-1,  1, -1, -1, -1,  1, -1, -1],  # 22
+    [ 1,  1, -1, -1, -1,  1, -1, -1],  # 23
+    [-1, -1,  1, -1, -1,  1, -1, -1],  # 24
+    [ 1, -1,  1, -1, -1,  1, -1, -1],  # 25
+    [-1,  1,  1, -1, -1,  1, -1, -1],  # 26
+    [ 1,  1,  1, -1, -1,  1, -1, -1],  # 27
+    [-1, -1, -1,  1, -1,  1, -1, -1],  # 28
+    [ 1, -1, -1,  1, -1,  1, -1, -1],  # 29
+    [-1,  1, -1,  1, -1,  1, -1, -1],  # 2a
+    [ 1,  1, -1,  1, -1,  1, -1, -1],  # 2b
+    [-1, -1,  1,  1, -1,  1, -1, -1],  # 2c
+    [ 1, -1,  1,  1, -1,  1, -1, -1],  # 2d
+    [-1,  1,  1,  1, -1,  1, -1, -1],  # 2e
+    [ 1,  1,  1,  1, -1,  1, -1, -1],  # 2f
+    [-1, -1, -1, -1,  1,  1, -1, -1],  # 30
+    [ 1, -1, -1, -1,  1,  1, -1, -1],  # 31
+    [-1,  1, -1, -1,  1,  1, -1, -1],  # 32
+    [ 1,  1, -1, -1,  1,  1, -1, -1],  # 33
+    [-1, -1,  1, -1,  1,  1, -1, -1],  # 34
+    [ 1, -1,  1, -1,  1,  1, -1, -1],  # 35
+    [-1,  1,  1, -1,  1,  1, -1, -1],  # 36
+    [ 1,  1,  1, -1,  1,  1, -1, -1],  # 37
+    [-1, -1, -1,  1,  1,  1, -1, -1],  # 38
+    [ 1, -1, -1,  1,  1,  1, -1, -1],  # 39
+    [-1,  1, -1,  1,  1,  1, -1, -1],  # 3a
+    [ 1,  1, -1,  1,  1,  1, -1, -1],  # 3b
+    [-1, -1,  1,  1,  1,  1, -1, -1],  # 3c
+    [ 1, -1,  1,  1,  1,  1, -1, -1],  # 3d
+    [-1,  1,  1,  1,  1,  1, -1, -1],  # 3e
+    [ 1,  1,  1,  1,  1,  1, -1, -1],  # 3f
+    [-1, -1, -1, -1, -1, -1,  1, -1],  # 40
+    [ 1, -1, -1, -1, -1, -1,  1, -1],  # 41
+    [-1,  1, -1, -1, -1, -1,  1, -1],  # 42
+    [ 1,  1, -1, -1, -1, -1,  1, -1],  # 43
+    [-1, -1,  1, -1, -1, -1,  1, -1],  # 44
+    [ 1, -1,  1, -1, -1, -1,  1, -1],  # 45
+    [-1,  1,  1, -1, -1, -1,  1, -1],  # 46
+    [ 1,  1,  1, -1, -1, -1,  1, -1],  # 47
+    [-1, -1, -1,  1, -1, -1,  1, -1],  # 48
+    [ 1, -1, -1,  1, -1, -1,  1, -1],  # 49
+    [-1,  1, -1,  1, -1, -1,  1, -1],  # 4a
+    [ 1,  1, -1,  1, -1, -1,  1, -1],  # 4b
+    [-1, -1,  1,  1, -1, -1,  1, -1],  # 4c
+    [ 1, -1,  1,  1, -1, -1,  1, -1],  # 4d
+    [-1,  1,  1,  1, -1, -1,  1, -1],  # 4e
+    [ 1,  1,  1,  1, -1, -1,  1, -1],  # 4f
+    [-1, -1, -1, -1,  1, -1,  1, -1],  # 50
+    [ 1, -1, -1, -1,  1, -1,  1, -1],  # 51
+    [-1,  1, -1, -1,  1, -1,  1, -1],  # 52
+    [ 1,  1, -1, -1,  1, -1,  1, -1],  # 53
+    [-1, -1,  1, -1,  1, -1,  1, -1],  # 54
+    [ 1, -1,  1, -1,  1, -1,  1, -1],  # 55
+    [-1,  1,  1, -1,  1, -1,  1, -1],  # 56
+    [ 1,  1,  1, -1,  1, -1,  1, -1],  # 57
+    [-1, -1, -1,  1,  1, -1,  1, -1],  # 58
+    [ 1, -1, -1,  1,  1, -1,  1, -1],  # 59
+    [-1,  1, -1,  1,  1, -1,  1, -1],  # 5a
+    [ 1,  1, -1,  1,  1, -1,  1, -1],  # 5b
+    [-1, -1,  1,  1,  1, -1,  1, -1],  # 5c
+    [ 1, -1,  1,  1,  1, -1,  1, -1],  # 5d
+    [-1,  1,  1,  1,  1, -1,  1, -1],  # 5e
+    [ 1,  1,  1,  1,  1, -1,  1, -1],  # 5f
+    [-1, -1, -1, -1, -1,  1,  1, -1],  # 60
+    [ 1, -1, -1, -1, -1,  1,  1, -1],  # 61
+    [-1,  1, -1, -1, -1,  1,  1, -1],  # 62
+    [ 1,  1, -1, -1, -1,  1,  1, -1],  # 63
+    [-1, -1,  1, -1, -1,  1,  1, -1],  # 64
+    [ 1, -1,  1, -1, -1,  1,  1, -1],  # 65
+    [-1,  1,  1, -1, -1,  1,  1, -1],  # 66
+    [ 1,  1,  1, -1, -1,  1,  1, -1],  # 67
+    [-1, -1, -1,  1, -1,  1,  1, -1],  # 68
+    [ 1, -1, -1,  1, -1,  1,  1, -1],  # 69
+    [-1,  1, -1,  1, -1,  1,  1, -1],  # 6a
+    [ 1,  1, -1,  1, -1,  1,  1, -1],  # 6b
+    [-1, -1,  1,  1, -1,  1,  1, -1],  # 6c
+    [ 1, -1,  1,  1, -1,  1,  1, -1],  # 6d
+    [-1,  1,  1,  1, -1,  1,  1, -1],  # 6e
+    [ 1,  1,  1,  1, -1,  1,  1, -1],  # 6f
+    [-1, -1, -1, -1,  1,  1,  1, -1],  # 70
+    [ 1, -1, -1, -1,  1,  1,  1, -1],  # 71
+    [-1,  1, -1, -1,  1,  1,  1, -1],  # 72
+    [ 1,  1, -1, -1,  1,  1,  1, -1],  # 73
+    [-1, -1,  1, -1,  1,  1,  1, -1],  # 74
+    [ 1, -1,  1, -1,  1,  1,  1, -1],  # 75
+    [-1,  1,  1, -1,  1,  1,  1, -1],  # 76
+    [ 1,  1,  1, -1,  1,  1,  1, -1],  # 77
+    [-1, -1, -1,  1,  1,  1,  1, -1],  # 78
+    [ 1, -1, -1,  1,  1,  1,  1, -1],  # 79
+    [-1,  1, -1,  1,  1,  1,  1, -1],  # 7a
+    [ 1,  1, -1,  1,  1,  1,  1, -1],  # 7b
+    [-1, -1,  1,  1,  1,  1,  1, -1],  # 7c
+    [ 1, -1,  1,  1,  1,  1,  1, -1],  # 7d
+    [-1,  1,  1,  1,  1,  1,  1, -1],  # 7e
+    [ 1,  1,  1,  1,  1,  1,  1, -1],  # 7f
+    [-1, -1, -1, -1, -1, -1, -1,  1],  # 80
+    [ 1, -1, -1, -1, -1, -1, -1,  1],  # 81
+    [-1,  1, -1, -1, -1, -1, -1,  1],  # 82
+    [ 1,  1, -1, -1, -1, -1, -1,  1],  # 83
+    [-1, -1,  1, -1, -1, -1, -1,  1],  # 84
+    [ 1, -1,  1, -1, -1, -1, -1,  1],  # 85
+    [-1,  1,  1, -1, -1, -1, -1,  1],  # 86
+    [ 1,  1,  1, -1, -1, -1, -1,  1],  # 87
+    [-1, -1, -1,  1, -1, -1, -1,  1],  # 88
+    [ 1, -1, -1,  1, -1, -1, -1,  1],  # 89
+    [-1,  1, -1,  1, -1, -1, -1,  1],  # 8a
+    [ 1,  1, -1,  1, -1, -1, -1,  1],  # 8b
+    [-1, -1,  1,  1, -1, -1, -1,  1],  # 8c
+    [ 1, -1,  1,  1, -1, -1, -1,  1],  # 8d
+    [-1,  1,  1,  1, -1, -1, -1,  1],  # 8e
+    [ 1,  1,  1,  1, -1, -1, -1,  1],  # 8f
+    [-1, -1, -1, -1,  1, -1, -1,  1],  # 90
+    [ 1, -1, -1, -1,  1, -1, -1,  1],  # 91
+    [-1,  1, -1, -1,  1, -1, -1,  1],  # 92
+    [ 1,  1, -1, -1,  1, -1, -1,  1],  # 93
+    [-1, -1,  1, -1,  1, -1, -1,  1],  # 94
+    [ 1, -1,  1, -1,  1, -1, -1,  1],  # 95
+    [-1,  1,  1, -1,  1, -1, -1,  1],  # 96
+    [ 1,  1,  1, -1,  1, -1, -1,  1],  # 97
+    [-1, -1, -1,  1,  1, -1, -1,  1],  # 98
+    [ 1, -1, -1,  1,  1, -1, -1,  1],  # 99
+    [-1,  1, -1,  1,  1, -1, -1,  1],  # 9a
+    [ 1,  1, -1,  1,  1, -1, -1,  1],  # 9b
+    [-1, -1,  1,  1,  1, -1, -1,  1],  # 9c
+    [ 1, -1,  1,  1,  1, -1, -1,  1],  # 9d
+    [-1,  1,  1,  1,  1, -1, -1,  1],  # 9e
+    [ 1,  1,  1,  1,  1, -1, -1,  1],  # 9f
+    [-1, -1, -1, -1, -1,  1, -1,  1],  # a0
+    [ 1, -1, -1, -1, -1,  1, -1,  1],  # a1
+    [-1,  1, -1, -1, -1,  1, -1,  1],  # a2
+    [ 1,  1, -1, -1, -1,  1, -1,  1],  # a3
+    [-1, -1,  1, -1, -1,  1, -1,  1],  # a4
+    [ 1, -1,  1, -1, -1,  1, -1,  1],  # a5
+    [-1,  1,  1, -1, -1,  1, -1,  1],  # a6
+    [ 1,  1,  1, -1, -1,  1, -1,  1],  # a7
+    [-1, -1, -1,  1, -1,  1, -1,  1],  # a8
+    [ 1, -1, -1,  1, -1,  1, -1,  1],  # a9
+    [-1,  1, -1,  1, -1,  1, -1,  1],  # aa
+    [ 1,  1, -1,  1, -1,  1, -1,  1],  # ab
+    [-1, -1,  1,  1, -1,  1, -1,  1],  # ac
+    [ 1, -1,  1,  1, -1,  1, -1,  1],  # ad
+    [-1,  1,  1,  1, -1,  1, -1,  1],  # ae
+    [ 1,  1,  1,  1, -1,  1, -1,  1],  # af
+    [-1, -1, -1, -1,  1,  1, -1,  1],  # b0
+    [ 1, -1, -1, -1,  1,  1, -1,  1],  # b1
+    [-1,  1, -1, -1,  1,  1, -1,  1],  # b2
+    [ 1,  1, -1, -1,  1,  1, -1,  1],  # b3
+    [-1, -1,  1, -1,  1,  1, -1,  1],  # b4
+    [ 1, -1,  1, -1,  1,  1, -1,  1],  # b5
+    [-1,  1,  1, -1,  1,  1, -1,  1],  # b6
+    [ 1,  1,  1, -1,  1,  1, -1,  1],  # b7
+    [-1, -1, -1,  1,  1,  1, -1,  1],  # b8
+    [ 1, -1, -1,  1,  1,  1, -1,  1],  # b9
+    [-1,  1, -1,  1,  1,  1, -1,  1],  # ba
+    [ 1,  1, -1,  1,  1,  1, -1,  1],  # bb
+    [-1, -1,  1,  1,  1,  1, -1,  1],  # bc
+    [ 1, -1,  1,  1,  1,  1, -1,  1],  # bd
+    [-1,  1,  1,  1,  1,  1, -1,  1],  # be
+    [ 1,  1,  1,  1,  1,  1, -1,  1],  # bf
+    [-1, -1, -1, -1, -1, -1,  1,  1],  # c0
+    [ 1, -1, -1, -1, -1, -1,  1,  1],  # c1
+    [-1,  1, -1, -1, -1, -1,  1,  1],  # c2
+    [ 1,  1, -1, -1, -1, -1,  1,  1],  # c3
+    [-1, -1,  1, -1, -1, -1,  1,  1],  # c4
+    [ 1, -1,  1, -1, -1, -1,  1,  1],  # c5
+    [-1,  1,  1, -1, -1, -1,  1,  1],  # c6
+    [ 1,  1,  1, -1, -1, -1,  1,  1],  # c7
+    [-1, -1, -1,  1, -1, -1,  1,  1],  # c8
+    [ 1, -1, -1,  1, -1, -1,  1,  1],  # c9
+    [-1,  1, -1,  1, -1, -1,  1,  1],  # ca
+    [ 1,  1, -1,  1, -1, -1,  1,  1],  # cb
+    [-1, -1,  1,  1, -1, -1,  1,  1],  # cc
+    [ 1, -1,  1,  1, -1, -1,  1,  1],  # cd
+    [-1,  1,  1,  1, -1, -1,  1,  1],  # ce
+    [ 1,  1,  1,  1, -1, -1,  1,  1],  # cf
+    [-1, -1, -1, -1,  1, -1,  1,  1],  # d0
+    [ 1, -1, -1, -1,  1, -1,  1,  1],  # d1
+    [-1,  1, -1, -1,  1, -1,  1,  1],  # d2
+    [ 1,  1, -1, -1,  1, -1,  1,  1],  # d3
+    [-1, -1,  1, -1,  1, -1,  1,  1],  # d4
+    [ 1, -1,  1, -1,  1, -1,  1,  1],  # d5
+    [-1,  1,  1, -1,  1, -1,  1,  1],  # d6
+    [ 1,  1,  1, -1,  1, -1,  1,  1],  # d7
+    [-1, -1, -1,  1,  1, -1,  1,  1],  # d8
+    [ 1, -1, -1,  1,  1, -1,  1,  1],  # d9
+    [-1,  1, -1,  1,  1, -1,  1,  1],  # da
+    [ 1,  1, -1,  1,  1, -1,  1,  1],  # db
+    [-1, -1,  1,  1,  1, -1,  1,  1],  # dc
+    [ 1, -1,  1,  1,  1, -1,  1,  1],  # dd
+    [-1,  1,  1,  1,  1, -1,  1,  1],  # de
+    [ 1,  1,  1,  1,  1, -1,  1,  1],  # df
+    [-1, -1, -1, -1, -1,  1,  1,  1],  # e0
+    [ 1, -1, -1, -1, -1,  1,  1,  1],  # e1
+    [-1,  1, -1, -1, -1,  1,  1,  1],  # e2
+    [ 1,  1, -1, -1, -1,  1,  1,  1],  # e3
+    [-1, -1,  1, -1, -1,  1,  1,  1],  # e4
+    [ 1, -1,  1, -1, -1,  1,  1,  1],  # e5
+    [-1,  1,  1, -1, -1,  1,  1,  1],  # e6
+    [ 1,  1,  1, -1, -1,  1,  1,  1],  # e7
+    [-1, -1, -1,  1, -1,  1,  1,  1],  # e8
+    [ 1, -1, -1,  1, -1,  1,  1,  1],  # e9
+    [-1,  1, -1,  1, -1,  1,  1,  1],  # ea
+    [ 1,  1, -1,  1, -1,  1,  1,  1],  # eb
+    [-1, -1,  1,  1, -1,  1,  1,  1],  # ec
+    [ 1, -1,  1,  1, -1,  1,  1,  1],  # ed
+    [-1,  1,  1,  1, -1,  1,  1,  1],  # ee
+    [ 1,  1,  1,  1, -1,  1,  1,  1],  # ef
+    [-1, -1, -1, -1,  1,  1,  1,  1],  # f0
+    [ 1, -1, -1, -1,  1,  1,  1,  1],  # f1
+    [-1,  1, -1, -1,  1,  1,  1,  1],  # f2
+    [ 1,  1, -1, -1,  1,  1,  1,  1],  # f3
+    [-1, -1,  1, -1,  1,  1,  1,  1],  # f4
+    [ 1, -1,  1, -1,  1,  1,  1,  1],  # f5
+    [-1,  1,  1, -1,  1,  1,  1,  1],  # f6
+    [ 1,  1,  1, -1,  1,  1,  1,  1],  # f7
+    [-1, -1, -1,  1,  1,  1,  1,  1],  # f8
+    [ 1, -1, -1,  1,  1,  1,  1,  1],  # f9
+    [-1,  1, -1,  1,  1,  1,  1,  1],  # fa
+    [ 1,  1, -1,  1,  1,  1,  1,  1],  # fb
+    [-1, -1,  1,  1,  1,  1,  1,  1],  # fc
+    [ 1, -1,  1,  1,  1,  1,  1,  1],  # fd
+    [-1,  1,  1,  1,  1,  1,  1,  1],  # fe
+    [ 1,  1,  1,  1,  1,  1,  1,  1],  # ff
+]
+# fmt: on

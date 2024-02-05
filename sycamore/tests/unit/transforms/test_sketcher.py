@@ -28,25 +28,25 @@ class TestSketcher:
 
     def test_sketch(self):
         sk = Sketcher(None)
-        obj = sk.Callable(window=32, courses=15, tabs=8)
+        obj = sk.Callable(window=32, number=8)
         doc = obj.run(self.doc)
-        sims = doc.simHashes
-        self.validateSimHashes(sims)
+        shingles = doc.shingles
+        self.validateShingles(shingles)
 
     def test_sketch_via_execute(self, mocker):
         node = mocker.Mock(spec=Node)
-        sk = Sketcher(node, window=32, courses=15, tabs=8)
+        sk = Sketcher(node, window=32, number=8)
         in_ds = ray.data.from_items([{"doc": self.doc.serialize()}])
         execute = mocker.patch.object(node, "execute")
         execute.return_value = in_ds
         ds = sk.execute()
         doc = Document.from_row(ds.take(limit=1)[0])
-        sims = doc.simHashes
-        self.validateSimHashes(sims)
+        shingles = doc.shingles
+        self.validateShingles(shingles)
 
-    def validateSimHashes(self, sims: list[int]):
-        assert len(sims) == 8
-        assert min(sims) > 0  # generally true
+    def validateShingles(self, shingles: list[int]):
+        assert len(shingles) == 8
+        assert min(shingles) > 0  # generally true
 
 
 class TestSketchUniquify:
@@ -59,7 +59,7 @@ class TestSketchUniquify:
             "parent_id": None,
             "properties": {"path": "/docs/bar.txt", "title": "foo"},
             "elements": [],
-            "simHashes": [
+            "shingles": [
                 0x1111111111111111,
                 0x2222222222222222,
                 0x3333333333333333,
@@ -80,22 +80,22 @@ class TestSketchUniquify:
             "parent_id": None,
             "properties": {"path": "/docs/bar.txt", "title": "foo"},
             "elements": [],
-            "simHashes": [
-                0x0101010101010101,  # 8  bit diff
-                0x0202020202020202,  # 8  bit diff
-                0x0303030303030303,  # 16 bit diff
-                0x0404040404040404,  # 8  bit diff
-                0x0505050505050505,  # 16 bit diff
-                0x0606060606060606,  # 16 bit diff
-                0x0707070707070707,  # 24 bit diff
-                0x0808080808080808,  # 8  bit diff
+            "shingles": [
+                0x0000000000000001,
+                0x0000000000000002,
+                0x0000000000000003,
+                0x4444444444444444,
+                0x5555555555555555,
+                0x6666666666666666,
+                0x7777777777777777,
+                0x8888888888888888,
             ],
         }
     )
 
     def test_dedup_via_execute(self, mocker):
         node = mocker.Mock(spec=Node)
-        uq = SketchUniquify(node, threshold=16)
+        uq = SketchUniquify(node, threshold=0.4)
         in_ds = ray.data.from_items(
             [
                 {"doc": self.doc0.serialize()},

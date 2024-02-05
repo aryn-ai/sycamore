@@ -41,7 +41,7 @@ Sycamore’s default data ingestion and preparation code can optionally use Amaz
 
 2. Create an Amazon S3 bucket in your AWS account in the US-East-1 region for use with Textract (e.g. s3://username-textract-bucket). We recommend you set up bucket lifecycle rules that automatically delete files in this bucket, as the data stored here is only needed temporarily during a Sycamore data processing job.
 
-3. Configure Sycamore and Textract to use the S3 bucket:
+3. Enable Sycamore to use Textract by setting the S3 prefix/bucket name for Textract to use:
 
 `export SYCAMORE_TEXTRACT_PREFIX=s3://your-bucket-name-here`
 
@@ -59,12 +59,6 @@ You can verify it is working by running:
 `aws s3 ls --profile YOUR-PROFILE-NAME`
 
 You should see the bucket you created for $SYCAMORE_TEXTRACT_PREFIX.
-
-5. Enable Textract usage with Sycamore:
-
-`export ENABLE_TEXTRACT=true`
-
-NOTE WE MIGHT NOT NEED 5 ANYMORE
 
 
 ## Demo: Ingest and Query Sort Benchmark dataset

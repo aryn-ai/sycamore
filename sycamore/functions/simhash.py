@@ -20,7 +20,7 @@ def scramble(val: int) -> int:
     9223372036854775783 = largest prime < 2^63
     """
 
-    return ((val * 6364136223846793005) + 9223372036854775783) & 0xFFFFFFFFFFFFFFFF
+    return ((val * 6364136223846793005) + 9223372036854775783) & 0x7FFFFFFFFFFFFFFF
 
 
 def sortedVectorCmp(aVec: list[int], bVec: list[int]) -> tuple[int, int]:

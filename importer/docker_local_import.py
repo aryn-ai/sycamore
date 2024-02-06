@@ -246,8 +246,7 @@ def wait_for_opensearch_ready():
     print("Waiting for opensearch to become ready...", end="")
     while True:
         try:
-            r = requests.get("https://opensearch:9200/_cluster/settings",
-                             verify=False)
+            r = requests.get("https://opensearch:9200/_cluster/settings", verify=False)
             if r.status_code == 200 and "aryn_deploy_complete" in r.text:
                 print("Ready")
                 return True

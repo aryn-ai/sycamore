@@ -16,6 +16,13 @@ ln -snf "${JUPYTER_CONFIG_DOCKER}" $HOME/.jupyter
 
 rm /app/.local/share/jupyter/runtime/jpserver-*-open.html 2>/dev/null
 
+: ${HOST:=localhost}
+openssl req -batch -x509 -newkey rsa:4096 -days 10000 \
+-subj "/C=US/ST=California/O=Aryn.ai/CN=${HOST}" \
+-extensions v3_req -addext "subjectAltName=DNS:${HOST}" \
+-noenc -keyout "/app/${HOST}-key.pem" -out "/app/${HOST}-cert.pem" 2> /dev/null
+echo "Created ${HOST} certificate"
+
 (
     while [[ $(ls /app/.local/share/jupyter/runtime/jpserver-*-open.html 2>/dev/null | wc -w) = 0 ]]; do
         echo "Waiting for jpserver-*-open.html to appear"
@@ -31,8 +38,8 @@ rm /app/.local/share/jupyter/runtime/jpserver-*-open.html 2>/dev/null
 
     sleep 1 # reduce race with file being written
     REDIRECT=/app/work/bind_dir/redirect.html
-    perl -ne 's,http://\S+:8888/tree,http://localhost:8888/tree,;print' < "${FILE}" >"${REDIRECT}"
-    URL=$(perl -ne 'print $1 if m,url=(http://localhost:8888/tree\S+)",;' <"${REDIRECT}")
+    perl -ne 's,https://\S+:8888/tree,https://localhost:8888/tree,;print' < "${FILE}" >"${REDIRECT}"
+    URL=$(perl -ne 'print $1 if m,url=(https://localhost:8888/tree\S+)",;' <"${REDIRECT}")
 
     for i in $(seq 10); do
         echo
@@ -49,4 +56,6 @@ rm /app/.local/share/jupyter/runtime/jpserver-*-open.html 2>/dev/null
 ) &
 
 cd /app/work
-poetry run jupyter notebook --no-browser --ip 0.0.0.0 "$@"
+poetry run jupyter notebook \
+--certfile="/app/${HOST}-cert.pem" --keyfile="/app/${HOST}-key.pem" \
+--no-browser --ip 0.0.0.0 "$@"

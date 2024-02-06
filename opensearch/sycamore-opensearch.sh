@@ -38,7 +38,7 @@ main() {
     setup_transient
 
     # Semaphore to signal completion
-    _curl -X PUT "${BASE_URL}/_cluster/settings" --json \
+    _curl -X PUT "${BASE_URL}/_cluster/settings" -o /dev/null --json \
     '{"persistent":{"cluster":{"metadata":{"aryn_deploy_complete":1}}}}'
 
     if [[ -z "${LOG_FILE}" ]]; then
@@ -445,30 +445,33 @@ create_certificates() {
     # requires a root certificate to be specified.
     openssl req -batch -x509 -newkey rsa:4096 -days "${DAYS}" \
     -subj "/C=US/ST=California/O=Aryn.ai/CN=Fake CA" \
-    -extensions v3_ca -noenc -keyout cakey.pem -out cacert.pem
+    -extensions v3_ca -noenc -keyout cakey.pem -out cacert.pem 2> /dev/null
+    echo "Created CA certificate"
 
     # 2a. Create certificate signing request (CSR) for the node certificate.
     openssl req -batch -newkey rsa:4096 \
     -subj "/C=US/ST=California/O=Aryn.ai/CN=${HOST}" \
     -extensions v3_req -addext "basicConstraints=critical,CA:FALSE" \
     -addext "subjectAltName=DNS:${HOST}" \
-    -noenc -keyout node-key.pem -out node-req.pem
+    -noenc -keyout node-key.pem -out node-req.pem 2> /dev/null
 
     # 2b. Use the fake CA to sign the node CSR, yielding a certificate.
     openssl x509 -req -CA cacert.pem -CAkey cakey.pem \
     -copy_extensions copy -days "${DAYS}" \
-    -in node-req.pem -out node-cert.pem
+    -in node-req.pem -out node-cert.pem 2> /dev/null
+    echo "Created node certificate"
 
     # 3a. Create certificate signing request (CSR) for the admin certificate.
     openssl req -batch -newkey rsa:4096 \
     -subj "/C=US/ST=California/O=Aryn.ai/CN=Admin" \
     -extensions v3_req -addext "basicConstraints=critical,CA:FALSE" \
-    -noenc -keyout admin-key.pem -out admin-req.pem
+    -noenc -keyout admin-key.pem -out admin-req.pem 2> /dev/null
 
     # 3b. Use the fake CA to sign the admin CSR, yielding a certificate.
     openssl x509 -req -CA cacert.pem -CAkey cakey.pem \
     -copy_extensions copy -days "${DAYS}" \
-    -in admin-req.pem -out admin-cert.pem
+    -in admin-req.pem -out admin-cert.pem 2> /dev/null
+    echo "Created admin certificate"
 
     rm -f node-req.pem admin-req.pem
 
@@ -483,7 +486,7 @@ setup_security() {
     -cert config/admin-cert.pem -key config/admin-key.pem
 
     # Semaphore to signal completion
-    _curl -X PUT "${BASE_URL}/_cluster/settings" --json \
+    _curl -X PUT "${BASE_URL}/_cluster/settings" -o /dev/null --json \
     '{"persistent":{"cluster":{"metadata":{"aryn_ssl_setup_complete":1}}}}'
 }
 

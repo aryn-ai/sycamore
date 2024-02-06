@@ -3,7 +3,7 @@ from sycamore.data.document import OpenSearchQuery
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
-from transforms.query import OpenSearchQueryExecutor
+from sycamore.transforms.query import OpenSearchQueryExecutor
 
 
 class TestQueryOpenSearch:

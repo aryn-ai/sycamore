@@ -62,7 +62,6 @@ class TestDocSet:
         query_executor = mocker.Mock(spec=QueryExecutor)
         docset = DocSet(context, node)
         docset = docset.query(query_executor=query_executor)
-        a = docset.lineage()
         assert isinstance(docset.lineage(), Query)
 
     def test_map(self, mocker):

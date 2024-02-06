@@ -115,9 +115,7 @@ This will crawl and download the data from the specified website. If you import 
 
 3. Go to the demo query UI at localhost:3000. You can interact with the demo UI while data is being added to the index, but the data won't all be available until the job is done.
 
-
-If you want to prepare you data with custom code, you can use a Jupyter notebook to iterate and test it. NEED LINK
-
+If you want to prepare you data with custom code, you can [use a Jupyter notebook to iterate and test it](##Use-a-Jupyter-notebook).
 
 ## Add a dataset from a S3 bucket
 

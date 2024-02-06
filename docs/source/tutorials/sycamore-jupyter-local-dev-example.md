@@ -8,7 +8,7 @@ In this example, we will:
 - [Write an initial Sycamore job](#Write-an-initial-Sycamore-job)
 - [Add metadata extraction using GenAI](#Add-metadata-extraction-using-GenAI)
 
-The full notebook that includes the final code of the Sycamore job is [here](https://github.com/aryn-ai/quickstart/blob/main/sycamore_local_dev_example.ipynb).
+The full notebook that includes the final code of the Sycamore job is [here](https://github.com/aryn-ai/sycamore/blob/main/notebooks/sycamore_local_dev_example.ipynb).
 
 ## Run a Jupyter notebook
 

@@ -105,18 +105,29 @@ More Resources
    /data_ingestion_and_preparation/generative_ai_configuration.md
    /data_ingestion_and_preparation/transforms.rst
 
+
 .. toctree::
    :caption: Querying Data
    :maxdepth: 2
    :hidden:
 
-   /welcome_to_sycamore/get_started.md
-   /welcome_to_sycamore/architecture.md
-   /welcome_to_sycamore/hardware.md
+   /querying_data/demo_query_ui.md
+   /querying_data/using_rag_pipelines.md
+   /querying_data/hybrid_search.md
+   /querying_data/integrate_your_application.md
+   /querying_data/generative_ai_configurations.md
+   
 
 
+.. toctree::
+   :caption: Conversation Memory
+   :maxdepth: 2
+   :hidden:
 
 
+   /conversation_memory/overview.md
+   /conversation_memory/storage_for_genai_agents.md
+   /conversation_memory/using_with_conversational_search.md
 
 
 .. toctree::
@@ -124,11 +135,14 @@ More Resources
    :caption: Tutorials
    :hidden:
 
-   ../tutorials/end_to_end_tutorials.md
+   /tutorials/sycamore-jupyter-dev-example.md
+   /tutorials/sycamore_data_prep_local.md
+   /tutorials/conversational_memory_with_langchain.md
+
 
 .. toctree::
-   :caption: APIS
+   :caption: APIs
    :maxdepth: 2
    :hidden:
 
-   ../APIs/index.rst
+   /APIs/index.rst

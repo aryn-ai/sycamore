@@ -17,6 +17,7 @@ from sycamore.transforms.summarize import Summarizer
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.merge_elements import ElementMerger
 from sycamore.writer import DocSetWriter
+from sycamore.transforms.query import QueryExecutor, Query
 
 logger = logging.getLogger(__name__)
 
@@ -621,6 +622,18 @@ class DocSet:
 
         sampled = RandomSample(self.plan, fraction=fraction, seed=seed)
         return DocSet(self.context, sampled)
+
+    def query(self, query_executor: QueryExecutor, **resource_args) -> "DocSet":
+        """
+        Applies a query execution transform on a DocSet of queries.
+
+        Args:
+            query_executor: Implementation for the query execution.
+
+        """
+
+        query = Query(self.plan, query_executor, **resource_args)
+        return DocSet(self.context, query)
 
     @property
     def write(self) -> DocSetWriter:

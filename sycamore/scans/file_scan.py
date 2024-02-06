@@ -1,7 +1,7 @@
 import json
 from abc import ABC, abstractmethod
 import boto3
-from typing import Any, Optional, Union, Tuple
+from typing import Any, Optional, Union, Tuple, Callable
 import uuid
 
 from pyarrow.filesystem import FileSystem
@@ -164,6 +164,7 @@ class JsonScan(FileScan):
         filesystem: Optional[FileSystem] = None,
         metadata_provider: Optional[FileMetadataProvider] = None,
         document_body_field: Optional[str] = None,
+        doc_extractor: Optional[Callable] = None,
         **resource_args,
     ):
         super().__init__(paths, parallelism=parallelism, filesystem=filesystem, **resource_args)
@@ -171,8 +172,9 @@ class JsonScan(FileScan):
         self.parallelism = -1 if parallelism is None else parallelism
         self._metadata_provider = metadata_provider
         self._document_body_field = document_body_field
+        self._doc_extractor = doc_extractor
 
-    def _to_document(self, json_dict: dict[str, Any]) -> dict[str, Any]:
+    def _to_document(self, json_dict: dict[str, Any]) -> list[dict[str, Any]]:
         document = Document()
 
         document.doc_id = str(uuid.uuid1())
@@ -197,7 +199,7 @@ class JsonScan(FileScan):
         if self._metadata_provider:
             document.properties.update(self._metadata_provider.get_metadata(json_dict["path"]))
 
-        return {"doc": document.serialize()}
+        return [{"doc": document.serialize()}]
 
     def _extract_properties(self, record: dict[str, Any]) -> dict[str, Any]:
         properties = {}
@@ -222,7 +224,8 @@ class JsonScan(FileScan):
             ray_remote_args=self.resource_args,
         )
 
-        return json_dataset.map(self._to_document, **self.resource_args)
+        doc_extractor = self._doc_extractor if self._doc_extractor else self._to_document
+        return json_dataset.flat_map(doc_extractor, **self.resource_args)
 
     def format(self):
         return "json"

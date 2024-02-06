@@ -157,3 +157,110 @@ class Document(UserDict):
     def to_row(self) -> dict[str, bytes]:
         """Serialize this document into a row for use with Ray."""
         return {"doc": self.serialize()}
+
+
+class OpenSearchQuery(Document):
+    def __init__(
+        self,
+        document=None,
+        **kwargs,
+    ):
+        super().__init__(document, **kwargs)
+        self.data["type"] = "OpenSearchQuery"
+
+    @property
+    def query(self) -> Optional[dict[str, Any]]:
+        """OpenSearch query body."""
+        return self.data.get("query")
+
+    @query.setter
+    def query(self, value: dict[str, Any]) -> None:
+        """Set the OpenSearch query body."""
+        self.data["query"] = value
+
+    @property
+    def index(self) -> Optional[str]:
+        """OpenSearch index."""
+        return self.data.get("index")
+
+    @index.setter
+    def index(self, value: str) -> None:
+        """Set the OpenSearch index."""
+        self.data["index"] = value
+
+    @property
+    def params(self) -> Optional[dict[str, Any]]:
+        """Dict of additional parameters to send to the OpenSearch endpoint."""
+        return self.data.get("params")
+
+    @params.setter
+    def params(self, value: dict[str, Any]) -> None:
+        """Set the list of additional parameters to send to the OpenSearch endpoint."""
+        self.data["params"] = value
+
+    @property
+    def headers(self) -> Optional[dict[str, Any]]:
+        """Dict of additional headers to send to the OpenSearch endpoint."""
+        return self.data.get("headers")
+
+    @headers.setter
+    def headers(self, value: dict[str, Any]) -> None:
+        """Set the list of additional headers to send to the OpenSearch endpoint."""
+        self.data["headers"] = value
+
+    @staticmethod
+    def deserialize(raw: bytes) -> "OpenSearchQuery":
+        """Deserialize from bytes to a OpenSearchQuery."""
+        from pickle import loads
+
+        return OpenSearchQuery(loads(raw))
+
+
+class OpenSearchQueryResult(Document):
+    def __init__(
+        self,
+        document=None,
+        **kwargs,
+    ):
+        super().__init__(document, **kwargs)
+        self.data["type"] = "OpenSearchQueryResult"
+
+    @property
+    def query(self) -> Optional[dict[str, Any]]:
+        """The unmodified query used."""
+        return self.data.get("query")
+
+    @query.setter
+    def query(self, value: dict[str, Any]) -> None:
+        """Set the unmodified query."""
+        self.data["query"] = value
+
+    @property
+    def hits(self) -> list[Element]:
+        """List of documents retrieved by the query."""
+        return self.data.get("hits", [])
+
+    @hits.setter
+    def hits(self, value: list[Element]) -> None:
+        """Set the list of document retrieved."""
+        self.data["hits"] = value
+
+    @property
+    def generated_answer(self) -> Optional[str]:
+        """RAG generated answer."""
+        return self.data.get("generated_answer")
+
+    @generated_answer.setter
+    def generated_answer(self, value: str) -> None:
+        """Set the RAG generated answer."""
+        self.data["generated_answer"] = value
+
+    @property
+    def result(self) -> Optional[Any]:
+        """Raw result from OpenSearch"""
+        return self.data.get("result")
+
+    @result.setter
+    def result(self, value: Any) -> None:
+        """Set the raw result from OpenSearch."""
+        self.data["result"] = value

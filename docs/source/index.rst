@@ -23,7 +23,6 @@ Sycamore is an open-source conversational search and analytics platform for comp
 
 * **Plug-and-Play LLMs.** Use different LLMs for entity extraction, vector embedding, RAG, and post-processing steps. Currently supporting OpenAI and Amazon Bedrock, and more to come!
 
-ADD DEMO VIDEO!!!
 
 Getting Started
 --------------------
@@ -32,72 +31,118 @@ You can easily deploy Sycamore locally or on a virtual machine using Docker.
 
 With Docker installed:
 
-
-
-1. Clone the Sycamore repo:
+1.	Clone the Sycamore repo: 
 
 ``git clone https://github.com/aryn-ai/sycamore``
 
-2. Set OpenAI Key:
+2.	Set OpenAI Key:
 
 ``export OPENAI_API_KEY=YOUR-KEY``
 
-3. Go to:
+3.	Go to: 
 
 ``/sycamore``
 
-4. Launch Sycamore. Containers will be pulled from DockerHub:
+4.	Launch Sycamore. Containers will be pulled from DockerHub:
 
 ``docker compose up --pull=always``
 
+5.	The Sycamore demo query UI will be at localhost:3000
 
-**Use the service:**
+You can next choose to run a demo that [prepares and ingests data from the Sort Benchmark website](docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-sort-benchmark-dataset), [crawl data from a public website](docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-data-from-an-arbitrary-website), or write your own data preparation script.
 
-a. Load demo dataset via (NEED LINK tutorial here):
+For more info about Sycamore’s data ingestion and preparation feature set, visit the [Sycamore documentation](docs/source/data_ingestion_and_preparation/data_preparation_concepts.md).
+
+
+Run a demo
+--------------------
+
+a. Load demo dataset using the HTTP crawler (as shown in this tutorial)[docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-sort-benchmark-dataset]:
 
 ``docker compose run crawl_sort_benchmark``
 
-b. Load custom data via (NEED LINK tutorial here):
+b. Load website data via HTTP crawler (as shown in this tutorial)[docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-data-from-an-arbitrary-website]:
 
 ``docker compose run crawl_http http://my.website.example.com``
 
-c. Write custom data ingestion and preparation code using the Jupyter container (NEED LINK tutorial here). Access it via the URL from:
+c. Write custom data ingestion and preparation code using the Jupyter container. Access it via the URL from:
 
 ``docker compose logs jupyter | grep Visit``
 
-
 Once you've loaded data, you can run conversational search on your data with the Sycamore demo UI at localhost:3000
 
+For more details about getting started, visit the (Sycamore Getting Started page)[docs/source/welcome_to_sycamore/get_started.md].
 
 More Resources
 --------------------
-- Join the Sycamore Slack workspace: Link
-- View the Sycamore GitHub
-- To learn more about Sycamore’s architecture, click here NEED LINK
-- For more info about data preparation in Sycamore, visit here [link to docs]
+- Join the Sycamore Slack workspace: https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg
+- View the Sycamore GitHub: https://github.com/aryn-ai/sycamore
+- To learn more about Sycamore’s architecture: NEED LINK
+- For more info about data preparation in Sycamore: NEED LINK
 - To integrate your own query front-end to Sycamore, visit here  NEED LINK
 
 
-
-
 .. toctree::
-   :caption: Key Concepts
+   :caption: Welcome to Sycamore
    :maxdepth: 2
    :hidden:
 
-   ../key_concepts/concepts.md
-   ../key_concepts/transforms.rst
+   /welcome_to_sycamore/get_started.md
+   /welcome_to_sycamore/architecture.md
+   /welcome_to_sycamore/hardware.md
+
+
+.. toctree::
+   :caption: Data Ingestion and Preparation
+   :maxdepth: 2
+   :hidden:
+
+   /data_ingestion_and_preparation/data_preparation_concepts.md
+   /data_ingestion_and_preparation/load_data.md
+   /data_ingestion_and_preparation/running_a_data_preparation_job.md
+   /data_ingestion_and_preparation/installing_sycamore_libraries_locally.md
+   /data_ingestion_and_preparation/using_jupyter.md
+   /data_ingestion_and_preparation/generative_ai_configuration.md
+   /data_ingestion_and_preparation/transforms.rst
+
+
+.. toctree::
+   :caption: Querying Data
+   :maxdepth: 2
+   :hidden:
+
+   /querying_data/demo_query_ui.md
+   /querying_data/using_rag_pipelines.md
+   /querying_data/hybrid_search.md
+   /querying_data/integrate_your_application.md
+   /querying_data/generative_ai_configurations.md
+   
+
+
+.. toctree::
+   :caption: Conversation Memory
+   :maxdepth: 2
+   :hidden:
+
+
+   /conversation_memory/overview.md
+   /conversation_memory/storage_for_genai_agents.md
+   /conversation_memory/using_with_conversational_search.md
+
 
 .. toctree::
    :maxdepth: 1
    :caption: Tutorials
    :hidden:
 
-   ../tutorials/end_to_end_tutorials.md
+   /tutorials/sycamore-jupyter-dev-example.md
+   /tutorials/sycamore_data_prep_local.md
+   /tutorials/conversational_memory_with_langchain.md
+
 
 .. toctree::
-   :caption: APIS
+   :caption: APIs
    :maxdepth: 2
    :hidden:
 
-   ../APIs/index.rst
+   /APIs/index.rst

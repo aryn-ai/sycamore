@@ -22,7 +22,7 @@ Sycamore is deployed using Docker, and you can launch it locally or on a virtual
 
 `Docker compose up --pull-always`
 
-Note: You can alternately remove the `--pull=always` and instead run docker compose pull to control when new images are downloaded. `--pull=always` guarantees you have the most recent images for the specified version.
+Note: You can alternately remove the `--pull=always` and instead run docker compose pull to control when new images are downloaded. `--pull=always` guarantees you have the most recent images for the specified version. 
 
 Congrats – you have launched Sycamore! Now, it’s time to ingest and prepare some data, and run conversational search on it. Continue on to the next section to do this with a sample dataset or a website that you specify.
 
@@ -32,6 +32,7 @@ For more info:
 * Querying your data
 * Using Jupyter notebook to customize data preparation code
 
+*Note: By default, the Docker compose uses the stable version of the containers. You can choose a specific version to run, e.g. latest (last build pushed), latest_rc (last release candidate), or 0.YYYY.MM.DD (date-stamped release). To specify a version, set the VERSION environment variable, e.g. VERSION=latest_rc docker compose up --pull=always. See the .env file if you want to specify different versions for the separate containers.*
 
 ### Optional: Configure AWS Credentials for Amazon Textract usage
 
@@ -41,7 +42,7 @@ Sycamore’s default data ingestion and preparation code can optionally use Amaz
 
 2. Create an Amazon S3 bucket in your AWS account in the US-East-1 region for use with Textract (e.g. s3://username-textract-bucket). We recommend you set up bucket lifecycle rules that automatically delete files in this bucket, as the data stored here is only needed temporarily during a Sycamore data processing job.
 
-3. Configure Sycamore and Textract to use the S3 bucket:
+3. Enable Sycamore to use Textract by setting the S3 prefix/bucket name for Textract to use:
 
 `export SYCAMORE_TEXTRACT_PREFIX=s3://your-bucket-name-here`
 
@@ -60,12 +61,6 @@ You can verify it is working by running:
 
 You should see the bucket you created for $SYCAMORE_TEXTRACT_PREFIX.
 
-5. Enable Textract usage with Sycamore:
-
-`export ENABLE_TEXTRACT=true`
-
-NOTE WE MIGHT NOT NEED 5 ANYMORE
-
 
 ## Demo: Ingest and Query Sort Benchmark dataset
 
@@ -77,7 +72,7 @@ To answer these questions, you will need to process the data using Sycamore’s 
 
 `docker compose run sycamore_crawler_http_sort_all`
 
-Note: If you just want to ingest a few PDFs instead of the whole dataset, run:
+Note: If you just want to ingest one PDF instead of the whole dataset (to save time), run:
 
 `docker compose run sycamore_crawler_http_sort_one`
 
@@ -85,10 +80,13 @@ Sycamore will automatically start processing the new data. The processing job is
 
 `No changes at [datetime] sleeping`
 
-3. Go to the demo query UI at localhost:3000. You can interact with the demo UI while data is being added to the index, but the data won't all be available until the job is done.
+3. Use the demo UI for conversational search. Using your internet browser, visit http://localhost:3000. You can interact with the demo UI while data is being added to the index, but the data won't all be available until the job is done.
 
+* Create a new conversation. Enter the name for your conversation in the text box in the left "Conversations" panel, and hit enter or click the "add convo" icon on the right of the text box.
+* Select your conversation, and then write a question into the text box in the middle panel. Hit enter.
+* Ask follow up questions. You'll see the actual results from the Sycamore's hybrid search for your question in the right panel, and the conversational search in the middle panel.
 
-Once this is complete, some sample questions to ask are:
+Once the data has been loaded, some sample questions to ask are:
 
 * Who are the most recent winners of the Sort Benchmark?
 * What are the hardware costs for ELSAR? Return as a table.
@@ -117,9 +115,51 @@ This will crawl and download the data from the specified website. If you import 
 
 3. Go to the demo query UI at localhost:3000. You can interact with the demo UI while data is being added to the index, but the data won't all be available until the job is done.
 
+If you want to prepare you data with custom code, you can [use a Jupyter notebook to iterate and test it](##Use-a-Jupyter-notebook).
 
-If you want to prepare you data with custom code, you can use a Jupyter notebook to iterate and test it. NEED LINK
+## Add a dataset from a S3 bucket
 
+You can try adding arbitrary PDF and HTML data from an S3 bucket with the data preparation script used in the Sort Benchmark
+demo above. This script is not optimized for arbitrary datasets, so the answer quality may
+vary if the data needs to be prepared differently from the demo.
+
+WARNING: Processing data using the Sort Benchmark data preparation script will send your data to OpenAI,
+and optionally Amazon Textract for calls to their AI services. Consider whether this is acceptable
+if you are using a non-public website for testing.
+
+1. Run the Sycamore S3 Crawler container with additional parameters:
+```
+docker compose run sycamore_crawler_s3 _bucket_ _prefix_
+
+# for example to load the single file that's automatically downloaded via HTTP:
+docker compose run sycamore_crawler_s3 aryn-public sort-benchmark/pdf/2004_Nsort
+
+# or to load all the PDFs that are in the S3 bucket:
+docker compose run sycamore_crawler_s3 aryn-public sort-benchmark/pdf
+```
+
+This will crawl and download the data from the specified S3 bucket and prefix. Note, you will need
+to have the S3 authorization environment variables and be able to access the bucket.  You can check
+that by running:
+```
+aws s3 ls _bucket_
+# and to check the prefix works:
+aws s3 ls _bucket_/_prefix_
+```
+
+2. Sycamore will automatically start processing the new data into the existing index. The processing job is complete and the data is loaded into the index once you see log messages similar to:
+
+```
+No changes at [datetime] sleeping
+```
+
+## Use a Jupyter notebook
+
+A [Jupyter](https://jupyter.org/) notebook is a local development environment that lets you
+interact with Sycamore and experiment with different segmentations to improve the results of
+processing your documents. The [using Jupyter 
+tutorial](../tutorials/sycamore-jupyter-dev-example.md) will walk you through setting up Jupyter or
+running it in a container, and analyzing a new set of documents.
 
 
 ## Clean Up

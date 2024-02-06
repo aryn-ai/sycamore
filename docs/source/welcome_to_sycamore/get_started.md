@@ -121,17 +121,19 @@ If you want to prepare you data with custom code, you can [use a Jupyter noteboo
 
 You can try adding arbitrary PDF and HTML data from an S3 bucket with the data preparation script used in the Sort Benchmark
 demo above. This script is not optimized for arbitrary datasets, so the answer quality may
-vary. However, we have found positive results with data similar to the academic research papers and HTML data from the Sort Benchmark dataset.
+vary if the data needs to be prepared differently from the demo.
 
 WARNING: Processing data using the Sort Benchmark data preparation script will send your data to OpenAI,
 and optionally Amazon Textract for calls to their AI services. Consider whether this is acceptable
 if you are using a non-public website for testing.
 
-1. Run the Sycamore S3 Crawler container with one or two additional parameters:
+1. Run the Sycamore S3 Crawler container with additional parameters:
 ```
 docker compose run sycamore_crawler_s3 _bucket_ _prefix_
+
 # for example to load the single file that's automatically downloaded via HTTP:
 docker compose run sycamore_crawler_s3 aryn-public sort-benchmark/pdf/2004_Nsort
+
 # or to load all the PDFs that are in the S3 bucket:
 docker compose run sycamore_crawler_s3 aryn-public sort-benchmark/pdf
 ```
@@ -155,11 +157,9 @@ No changes at [datetime] sleeping
 
 A [Jupyter](https://jupyter.org/) notebook is a local development environment that lets you
 interact with Sycamore and experiment with different segmentations to improve the results of
-processing your documents. The [local development
-instructions](sycamore-local-development-example.md) will walk you through setting up Jupyter or
+processing your documents. The [using Jupyter 
+tutorial](../tutorials/sycamore-jupyter-dev-example.md) will walk you through setting up Jupyter or
 running it in a container, and analyzing a new set of documents.
-
-NEED LINKS!
 
 
 ## Clean Up

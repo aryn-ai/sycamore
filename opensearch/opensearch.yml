@@ -3,3 +3,13 @@ http.cors.enabled : true
 http.cors.allow-origin: "*"
 http.cors.allow-methods: OPTIONS,HEAD,GET,POST,PUT,DELETE
 http.cors.allow-headers: X-Requested-With,X-Auth-Token,Content-Type,Content-Length
+plugins.security.ssl.transport.enforce_hostname_verification: false
+plugins.security.ssl.transport.pemcert_filepath: node-cert.pem
+plugins.security.ssl.transport.pemkey_filepath: node-key.pem
+plugins.security.ssl.transport.pemtrustedcas_filepath: cacert.pem
+plugins.security.ssl.http.enabled: true
+plugins.security.ssl.http.pemcert_filepath: node-cert.pem
+plugins.security.ssl.http.pemkey_filepath: node-key.pem
+plugins.security.ssl.http.pemtrustedcas_filepath: cacert.pem
+plugins.security.authcz.admin_dn:
+  - 'CN=Admin,O=Aryn.ai,ST=California,C=US'

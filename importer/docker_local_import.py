@@ -244,11 +244,11 @@ def import_files(root, files):
 
 def wait_for_opensearch_ready():
     print("Waiting for opensearch to become ready...", end="")
-    # magic port number needs to match the status port from the aryn-opensearch.sh docker script
     while True:
         try:
-            r = requests.get("http://opensearch:43477/statusz")
-            if r.status_code == 200 and r.text == "OK\n":
+            r = requests.get("https://opensearch:9200/_cluster/settings",
+                             verify=False)
+            if r.status_code == 200 and "aryn_deploy_complete" in r.text:
                 print("Ready")
                 return True
             else:

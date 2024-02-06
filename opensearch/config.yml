@@ -1,0 +1,8 @@
+_meta:
+  type: config
+  config_version: 2
+
+config:
+  dynamic:
+    http:
+      anonymous_auth_enabled: true

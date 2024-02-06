@@ -5,12 +5,13 @@ FROM arynai/sycamore-importer:$TAG
 
 # TODO: eric - remove this once we switch other containers over to non-root
 # Note user/group should be 1000 to match with likely defaults on hosts.
+USER root
 COPY jupyter/docker-root-setup.sh /root
 RUN /bin/bash /root/docker-root-setup.sh
 COPY jupyter/sudoers /etc/sudoers
 COPY jupyter/fixuser.py /root/fixuser.py
 
-USER 1000
+USER app
 RUN poetry run pip install notebook ipywidgets 'opensearch-py>=2.4' && rm -rf /app/.cache
 RUN mkdir -p /app/work/docker_volume /app/work/bind_dir /app/work/examples
 RUN touch /app/work/AAA_SEE_README_FOR_PERSISTENT_DATA_DIRECTORIES

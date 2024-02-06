@@ -7,12 +7,7 @@ echo "Version-Info, Aryn Opensearch Architecture: $(uname -m)"
 # TODO: https://github.com/aryn-ai/sycamore/issues/150 - detect low disk space and error out.
 # on macos you fix it in docker desktop > settings > resources > scroll down > virtual disk limit
 main() {
-    local http_status_port=43477 # from rand
-    local http_server_dir=/tmp/http_server
-    local http_status_file="${http_server_dir}/statusz"
-    [[ ! -f "${http_status_file}" ]] || rm -f "${http_status_file}"
-
-    BASE_URL=http://localhost:9200
+    BASE_URL=https://localhost:9200
     ARYN_STATUSDIR=/usr/share/opensearch/data/aryn_status
     mkdir -p "${ARYN_STATUSDIR}"
 
@@ -20,8 +15,10 @@ main() {
     # TODO: https://github.com/aryn-ai/sycamore/issues/151 - show aryn logs then opensearch
 
     LOG_BASE="${ARYN_STATUSDIR}/opensearch.log"
-    if opensearch_up; then
+    if opensearch_up_ssl; then
         echo "OpenSearch appears to already be running, not starting it again"
+    elif opensearch_up_insecure; then
+        die "OpenSearch appears insecure"
     else
         echo "Should start opensearch"
         LOG_FILE="${LOG_BASE}.$(date +%Y-%m-%d--%H:%M:%S)"
@@ -29,7 +26,9 @@ main() {
         ./opensearch-docker-entrypoint.sh >"${LOG_FILE}" 2>&1 &
         echo $! >/tmp/opensearch.pid
         trap "kill -TERM $(cat /tmp/opensearch.pid)" EXIT
-        wait_or_die opensearch_up "opensearch to start" 300
+        create_certificates
+        wait_or_die opensearch_up_net "opensearch to start" 300
+        setup_security
     fi
 
     PERSISTENT_ENV="${ARYN_STATUSDIR}/persistent_env"
@@ -38,14 +37,9 @@ main() {
 
     setup_transient
 
-    mkdir -p "${http_server_dir}"
-    echo "OK" >"${http_status_file}"
-    python3 -m http.server -d http_serve "${http_status_port}" -d "${http_server_dir}" \
-            >/tmp/http_server.log 2>&1 &
-    local pid=$!
-    echo "${pid}" >/tmp/http_server.pid
-    trap "kill -TERM $(cat /tmp/http_server.pid)" EXIT
-    disown "${pid}" # don't wait for it to exit
+    # Semaphore to signal completion
+    _curl -X PUT "${BASE_URL}/_cluster/settings" --json \
+    '{"persistent":{"cluster":{"metadata":{"aryn_deploy_complete":1}}}}'
 
     if [[ -z "${LOG_FILE}" ]]; then
         echo "Did not start opensearch, should exit shortly"
@@ -83,19 +77,31 @@ die() {
     exit 1
 }
 
-opensearch_up() {
-    local file="${ARYN_STATUSDIR}/opensearch.status"
-    rm "${file}" 2>/dev/null
-    _curl "${BASE_URL}" -o "${file}" || return 1
-    [[ -r "${file}" ]] || return 1
-    local name="$(jq -r '.name' "${file}")"
-    [[ -z "${name}" ]] && return 1
+opensearch_up_insecure() {
+    local out=$(_curl http://localhost:9200/)
+    [[ -z ${out} ]] && return 1
+    local name=$(jq -r '.name' <<< ${out})
+    [[ -z ${name} ]] && return 1
+    return 0
+}
+
+opensearch_up_ssl() {
+    local out=$(_curl https://localhost:9200/)
+    [[ -z ${out} ]] && return 1
+    local name=$(jq -r '.name' <<< ${out})
+    [[ -z ${name} ]] && return 1
+    return 0
+}
+
+opensearch_up_net() {
+    _curl http://localhost:9200/ -o /dev/null
+    [[ ($? != 0) && ($? != 52) ]] && return 1
     return 0
 }
 
 _curl() {
     # Warning: some error output is suppressed by the -s
-    /usr/bin/curl -s "$@"
+    /usr/bin/curl -ks "$@"
 }
 
 setup_persistent() {
@@ -425,6 +431,60 @@ END
 setup_transient() {
     deploy_model "${EMBEDDING_MODEL_ID}" "${EMBEDDING_TASK_ID}" "embedding"
     deploy_model "${OPENAI_MODEL_ID}" "${OPENAI_TASK_ID}" "OpenAI"
+}
+
+create_certificates() {
+    local HOST="${SSL_HOSTNAME:-localhost}"
+    local DAYS=10000
+
+    pushd config
+    local OLDMASK=$(umask -p)
+    umask 077
+
+    # 1. Make fake certificate authority (CA) certificate.  OpenSearch
+    # requires a root certificate to be specified.
+    openssl req -batch -x509 -newkey rsa:4096 -days "${DAYS}" \
+    -subj "/C=US/ST=California/O=Aryn.ai/CN=Fake CA" \
+    -extensions v3_ca -noenc -keyout cakey.pem -out cacert.pem
+
+    # 2a. Create certificate signing request (CSR) for the node certificate.
+    openssl req -batch -newkey rsa:4096 \
+    -subj "/C=US/ST=California/O=Aryn.ai/CN=${HOST}" \
+    -extensions v3_req -addext "basicConstraints=critical,CA:FALSE" \
+    -addext "subjectAltName=DNS:${HOST}" \
+    -noenc -keyout node-key.pem -out node-req.pem
+
+    # 2b. Use the fake CA to sign the node CSR, yielding a certificate.
+    openssl x509 -req -CA cacert.pem -CAkey cakey.pem \
+    -copy_extensions copy -days "${DAYS}" \
+    -in node-req.pem -out node-cert.pem
+
+    # 3a. Create certificate signing request (CSR) for the admin certificate.
+    openssl req -batch -newkey rsa:4096 \
+    -subj "/C=US/ST=California/O=Aryn.ai/CN=Admin" \
+    -extensions v3_req -addext "basicConstraints=critical,CA:FALSE" \
+    -noenc -keyout admin-key.pem -out admin-req.pem
+
+    # 3b. Use the fake CA to sign the admin CSR, yielding a certificate.
+    openssl x509 -req -CA cacert.pem -CAkey cakey.pem \
+    -copy_extensions copy -days "${DAYS}" \
+    -in admin-req.pem -out admin-cert.pem
+
+    rm -f node-req.pem admin-req.pem
+
+    ${OLDMASK}
+    popd
+}
+
+setup_security() {
+    # Set up security plugin configuration
+    plugins/opensearch-security/tools/securityadmin.sh \
+    -cd config/opensearch-security -icl -nhnv -cacert config/cacert.pem \
+    -cert config/admin-cert.pem -key config/admin-key.pem
+
+    # Semaphore to signal completion
+    _curl -X PUT "${BASE_URL}/_cluster/settings" --json \
+    '{"persistent":{"cluster":{"metadata":{"aryn_ssl_setup_complete":1}}}}'
 }
 
 main

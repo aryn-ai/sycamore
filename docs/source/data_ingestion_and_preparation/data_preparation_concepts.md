@@ -4,7 +4,7 @@ You can use the default data preparation code NEED LINK to segment, process, enr
 
 Sycamore provides a toolkit for data cleaning, information extraction, enrichment, summarization, and generation of vector embeddings that encapsulate the semantics of your data. It uses your choice of generative AI models to make these operations simple and effective, and it enables quick experimentation and iteration. You write your data preparation code in Python, and Sycamore uses Ray to easily scale as your workloads grow.
 
-Sycamore data preparation code uses the concepts below, and available transforms are here. [LINK] Also, as an example, you can view the code for the default data preparation code here. [LINK] To learn more about how to run your custom code, click here. [LINK]
+Sycamore data preparation code uses the concepts below, and available transforms are [here](/transforms.rst). Also, as an example, you can view the code for the default data preparation code here [LINK] and learn more about how to run your custom code [here](/running_a_data_preparation_job.md).
 
 ## Sycamore data preparation concepts
 
@@ -25,24 +25,24 @@ docset = context.read\
 
 ### Document
 
-A Document is a generic representation of an unstructured document in a format like PDF, HTML. Though different types of document may have different properties, they all contain the following common fields:
+A Document is a generic representation of an unstructured document in a format like PDF or HTML. Though different types of Documents may have different properties, they all contain the following common fields:
 
-* **doc_id:** A unique identifier for the document. Defaults to a uuid.
+* **doc_id:** A unique identifier for the document. Defaults to a UUID.
 
-* **parent_id:** In Sycamore, certain operations create parent-child relationships between documents. For example, the explode transform promotes elements to be top-level documents, and these documents retain a pointer to the document from which they were created using the parent_id field. For those documents which have no parent, parent_id is None.
+* **parent_id:** In Sycamore, certain operations create parent-child relationships between Documents. For example, the explode transform promotes elements to be top-level documents, and these documents retain a pointer to the document from which they were created using the parent_id field. For those Documents which have no parent, parent_id is None.
 
-* **binary_representation, text_representation:** The raw content of the document in stored in the appropriate format. For example, the content of a PDF document will be stored as the binary_representation, while an HTML page will be stored as text_representation.
+* **binary_representation, text_representation:** The raw content of the Document in stored in the appropriate format. For example, the content of a PDF document will be stored as the binary_representation, while an HTML page will be stored as text_representation.
 
-* **elements:** a list of elements belonging to this document. A document does not necessarily always have elements, for instance, before a document is chunked.
+* **elements:** A list of elements belonging to this Document. A Document does not necessarily always have elements. For instance, before a Document is chunked it will not have any elements.
 
-* **properties:** A collection of system or customer defined properties, for instance, a PDF document might have title and author properties.
+* **properties:** A collection of system or customer defined properties. For instance, a PDF document might have title and author properties.
 
 ### Element
 
-It is often useful to process different parts of a document separately. For example, you might want to process tables differently than text paragraphs, and typically small chunks of text are embedded separately for vector search. In Sycamore, these chunks are called elements. Like documents, elements contain a text or binary representations and collection of properties that can be set by the user or by built-in transforms.
+It is often useful to process different parts of a Document separately. For example, you might want to process tables differently than text paragraphs, and typically small chunks of text are embedded separately for vector search. In Sycamore, these chunks are called Elements. Like Documents, Elements contain a text or binary representations and collection of properties that can be set by the user or by built-in transforms.
 
 ### Query Execution
 
-In Sycamore, DocSet evaluation is lazy, which means that transforms on DocSet aren’t executed until needed by an operation like show or write. Internally, the transforms are converted to an execution plan in the backend. This lazy execution framework provides opportunities to sanitize and optimize the query execution. For instance, we could convert the above DocSet query into following execution plan.
+In Sycamore, DocSet evaluation is lazy, which means that transforms on DocSet aren’t executed until needed by an operation like show or write. Internally, the transforms are converted to an execution plan in the backend. This lazy execution framework provides opportunities to sanitize and optimize the query execution. For instance, we could convert the above exampe DocSet transformations into following execution plan.
 
 ![Untitled](imgs/query_execution.svg)

@@ -164,6 +164,7 @@ class JsonScan(FileScan):
         filesystem: Optional[FileSystem] = None,
         metadata_provider: Optional[FileMetadataProvider] = None,
         document_body_field: Optional[str] = None,
+        doc_extractor: Optional[Callable] = None,
         **resource_args,
     ):
         super().__init__(paths, parallelism=parallelism, filesystem=filesystem, **resource_args)
@@ -171,8 +172,9 @@ class JsonScan(FileScan):
         self.parallelism = -1 if parallelism is None else parallelism
         self._metadata_provider = metadata_provider
         self._document_body_field = document_body_field
+        self._doc_extractor = doc_extractor
 
-    def _to_document(self, json_dict: dict[str, Any]) -> dict[str, Any]:
+    def _to_document(self, json_dict: dict[str, Any]) -> list[dict[str, Any]]:
         document = Document()
 
         document.doc_id = str(uuid.uuid1())
@@ -197,7 +199,7 @@ class JsonScan(FileScan):
         if self._metadata_provider:
             document.properties.update(self._metadata_provider.get_metadata(json_dict["path"]))
 
-        return {"doc": document.serialize()}
+        return [{"doc": document.serialize()}]
 
     def _extract_properties(self, record: dict[str, Any]) -> dict[str, Any]:
         properties = {}
@@ -222,46 +224,8 @@ class JsonScan(FileScan):
             ray_remote_args=self.resource_args,
         )
 
-        return json_dataset.map(self._to_document, **self.resource_args)
+        doc_extractor = self._doc_extractor if self._doc_extractor else self._to_document
+        return json_dataset.flat_map(doc_extractor, **self.resource_args)
 
     def format(self):
         return "json"
-
-
-class NestedJsonScan(FileScan):
-    def __init__(
-        self,
-        paths: Union[str, list[str]],
-        *,
-        parallelism: Optional[int] = None,
-        filesystem: Optional[FileSystem] = None,
-        doc_extractor: Optional[Callable] = None,
-        **resource_args,
-    ):
-        super().__init__(paths, parallelism=parallelism, filesystem=filesystem, **resource_args)
-        self.parallelism = -1 if parallelism is None else parallelism
-        self._doc_extractor = doc_extractor
-
-    # This is a sample implementation to parse documents from a json file with a top-level key called 'rows'
-    @staticmethod
-    def _to_document(json_dict: dict[str, Any]) -> list[dict[str, Any]]:
-        rows = json_dict["rows"]
-        result = []
-        for row in rows:
-            document = Document(row)
-            result += [{"doc": document.serialize()}]
-        return result
-
-    def execute(self) -> Dataset:
-        json_dataset = read_json(
-            self._paths,
-            include_paths=True,
-            filesystem=self._filesystem,
-            parallelism=self.parallelism,
-            ray_remote_args=self.resource_args,
-        )
-        row_parser = self._doc_extractor if self._doc_extractor is not None else self._to_document
-        return json_dataset.flat_map(row_parser, **self.resource_args)
-
-    def format(self):
-        return "nested_json"

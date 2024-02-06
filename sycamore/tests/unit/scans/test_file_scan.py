@@ -1,8 +1,9 @@
 import json
 import tempfile
+from typing import Any
 
 from sycamore.data import Document
-from sycamore.scans.file_scan import JsonManifestMetadataProvider, NestedJsonScan
+from sycamore.scans.file_scan import JsonManifestMetadataProvider
 from sycamore.scans import BinaryScan, JsonScan
 from sycamore.tests.config import TEST_DIR
 
@@ -48,8 +49,16 @@ class TestFileScan:
         assert doc.text_representation == "propValue"
 
     def test_nested_json_scan(self):
+        def _to_document(json_dict: dict[str, Any]) -> list[dict[str, Any]]:
+            rows = json_dict["rows"]
+            result = []
+            for row in rows:
+                document = Document(row)
+                result += [{"doc": document.serialize()}]
+            return result
+
         paths = str(TEST_DIR / "resources/data/nested_json/")
-        scan = NestedJsonScan(paths)
+        scan = JsonScan(paths, doc_extractor=_to_document)
         ds = scan.execute()
         raw_doc = ds.take(1)[0]
 

@@ -256,11 +256,11 @@ class OpenSearchQueryResult(Document):
         self.data["generated_answer"] = value
 
     @property
-    def result(self) -> Optional[str]:
+    def result(self) -> Optional[Any]:
         """Raw result from OpenSearch"""
         return self.data.get("result")
 
     @result.setter
-    def result(self, value: str) -> None:
+    def result(self, value: Any) -> None:
         """Set the raw result from OpenSearch."""
         self.data["result"] = value

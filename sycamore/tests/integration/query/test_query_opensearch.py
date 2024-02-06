@@ -64,7 +64,7 @@ class TestQueryOpenSearch:
         )
 
     def test_single_query(self):
-        query_executor = OpenSearchQueryExecutor("http://localhost:9200")
+        query_executor = OpenSearchQueryExecutor("https://localhost:9200")
         query = OpenSearchQuery()
         query.query = {"query": {"match_all": {}}, "size": 100}
         query.url_params = f"/{self.INDEX}/_search"
@@ -74,7 +74,7 @@ class TestQueryOpenSearch:
         assert len(result.hits) > 0
 
     def test_query_docset(self):
-        query_executor = OpenSearchQueryExecutor("http://localhost:9200")
+        query_executor = OpenSearchQueryExecutor("https://localhost:9200")
 
         query1 = OpenSearchQuery()
         query1.query = {"query": {"match_all": {}}}

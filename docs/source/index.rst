@@ -82,15 +82,42 @@ More Resources
 - To integrate your own query front-end to Sycamore, visit here  NEED LINK
 
 
-
-
 .. toctree::
-   :caption: Key Concepts
+   :caption: Welcome to Sycamore
    :maxdepth: 2
    :hidden:
 
-   ../key_concepts/concepts.md
-   ../key_concepts/transforms.rst
+   /welcome_to_sycamore/get_started.md
+   /welcome_to_sycamore/architecture.md
+   /welcome_to_sycamore/hardware.md
+
+
+.. toctree::
+   :caption: Data Ingestion and Preparation
+   :maxdepth: 2
+   :hidden:
+
+   /data_ingestion_and_preparation/data_preparation_concepts.md
+   /data_ingestion_and_preparation/load_data.md
+   /data_ingestion_and_preparation/running_a_data_preparation_job.md
+   /data_ingestion_and_preparation/installing_sycamore_libraries_locally.md
+   /data_ingestion_and_preparation/using_jupyter.md
+   /data_ingestion_and_preparation/generative_ai_configuration.md
+   /data_ingestion_and_preparation/transforms.rst
+
+.. toctree::
+   :caption: Querying Data
+   :maxdepth: 2
+   :hidden:
+
+   /welcome_to_sycamore/get_started.md
+   /welcome_to_sycamore/architecture.md
+   /welcome_to_sycamore/hardware.md
+
+
+
+
+
 
 .. toctree::
    :maxdepth: 1

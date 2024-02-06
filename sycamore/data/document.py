@@ -179,14 +179,34 @@ class OpenSearchQuery(Document):
         self.data["query"] = value
 
     @property
-    def url_params(self) -> Optional[str]:
-        """List of additional url parameters to send to the OpenSearch endpoint, e.g. index"""
-        return self.data.get("url_params")
+    def index(self) -> Optional[str]:
+        """OpenSearch index."""
+        return self.data.get("index")
 
-    @url_params.setter
-    def url_params(self, value: str) -> None:
-        """Set the list of additional url parameters to send to the OpenSearch endpoint."""
-        self.data["url_params"] = value
+    @index.setter
+    def index(self, value: str) -> None:
+        """Set the OpenSearch index."""
+        self.data["index"] = value
+
+    @property
+    def params(self) -> Optional[dict[str, Any]]:
+        """Dict of additional parameters to send to the OpenSearch endpoint."""
+        return self.data.get("params")
+
+    @params.setter
+    def params(self, value: dict[str, Any]) -> None:
+        """Set the list of additional parameters to send to the OpenSearch endpoint."""
+        self.data["params"] = value
+
+    @property
+    def headers(self) -> Optional[dict[str, Any]]:
+        """Dict of additional headers to send to the OpenSearch endpoint."""
+        return self.data.get("headers")
+
+    @headers.setter
+    def headers(self, value: dict[str, Any]) -> None:
+        """Set the list of additional headers to send to the OpenSearch endpoint."""
+        self.data["headers"] = value
 
     @staticmethod
     def deserialize(raw: bytes) -> "OpenSearchQuery":

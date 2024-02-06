@@ -1,7 +1,7 @@
 from abc import abstractmethod, ABC
 from typing import Any
 
-import requests
+from opensearchpy import OpenSearch
 from ray.data import Dataset
 
 from sycamore.data import OpenSearchQueryResult, Element, OpenSearchQuery
@@ -19,26 +19,26 @@ class QueryExecutor(ABC):
 
 
 class OpenSearchQueryExecutor(QueryExecutor):
-    def __init__(self, opensearch_endpoint) -> None:
+    def __init__(self, os_client_args: dict) -> None:
         super().__init__()
-        self._opensearch_endpoint = opensearch_endpoint
+        self._os_client_args = os_client_args
 
     def query(self, query: OpenSearchQuery) -> OpenSearchQueryResult:
-        params = {
-            "q": query["query"],
-        }
-        url = self._opensearch_endpoint + (query["url_params"] if "url_params" in query else "")
-        response = requests.get(url, params=params)
+        client = OpenSearch(**self._os_client_args)
+
+        os_result = client.transport.perform_request(
+            "POST",
+            url=f"/{query['index']}/_search",
+            params=query.get("params", None),
+            headers=query.get("headers", None),
+            body=query["query"],
+        )
+
         result = OpenSearchQueryResult()
-        result.query = {"url": url, "params": params}
-        result.result = response.json()
-        if response.status_code == 200:
-            content = response.json()
-            result.hits = [Element(hit["_source"]) for hit in content["hits"]["hits"]]
-            if "ext" in content and "retrieval_augmented_generation" in content["ext"]:
-                result.generated_answer = content["ext"]["retrieval_augmented_generation"]["answer"]
-        else:
-            print(f"Error: {response.status_code}")
+        result.result = os_result
+        result.hits = [Element(hit["_source"]) for hit in os_result["hits"]["hits"]]
+        if "ext" in os_result and "retrieval_augmented_generation" in os_result["ext"]:
+            result.generated_answer = os_result["ext"]["retrieval_augmented_generation"]["answer"]
         return result
 
 

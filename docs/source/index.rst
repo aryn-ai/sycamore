@@ -43,13 +43,13 @@ With Docker installed:
 
 ``/sycamore``
 
-4.	Launch Sycamore. Conatainers will be pulled from DockerHub:
+4.	Launch Sycamore. Containers will be pulled from DockerHub:
 
-``Docker compose up --pull=always``
+``docker compose up --pull=always``
 
 5.	The Sycamore demo query UI will be at localhost:3000
 
-You can next choose to run a demo that `prepares and ingests data from the Sort Benchmark website<docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-sort-benchmark-dataset>`_, [crawl data from a public website](docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-data-from-an-arbitrary-website), or write your own data preparation script.
+You can next choose to run a demo that [prepares and ingests data from the Sort Benchmark website](docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-sort-benchmark-dataset), [crawl data from a public website](docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-data-from-an-arbitrary-website), or write your own data preparation script.
 
 For more info about Sycamore’s data ingestion and preparation feature set, visit the [Sycamore documentation](docs/source/data_ingestion_and_preparation/data_preparation_concepts.md).
 
@@ -57,11 +57,11 @@ For more info about Sycamore’s data ingestion and preparation feature set, vis
 Run a demo
 --------------------
 
-a. Load demo dataset using the HTTP crawler (visit tutorial)[docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-sort-benchmark-dataset]:
+a. Load demo dataset using the HTTP crawler (as shown in this tutorial)[docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-sort-benchmark-dataset]:
 
 ``docker compose run crawl_sort_benchmark``
 
-b. Load website data via HTTP crawler (visit tutorial)[docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-data-from-an-arbitrary-website]:
+b. Load website data via HTTP crawler (as shown in this tutorial)[docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-data-from-an-arbitrary-website]:
 
 ``docker compose run crawl_http http://my.website.example.com``
 

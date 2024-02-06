@@ -1,4 +1,4 @@
-# Write and iterate on Sycamore jobs locally
+# Use Jupyer to write and iterate on Sycamore jobs locally
 
 The Quickstart configuration for Aryn Search easily launches containers for the full stack. However, you may prefer to write and iterate on your Sycamore data processing scripts locally, and load the output of these tests into the containerized Aryn stack. A benefit of this approach is that you can use a local Jupyter Notebook to develop your scripts.
 

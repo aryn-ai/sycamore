@@ -119,11 +119,11 @@ If you want to prepare you data with custom code, you can [use a Jupyter noteboo
 
 ## Add a dataset from a S3 bucket
 
-You can try using an arbitrary PRF and HTML data from an S3 bucket with the Sort Benchmark
-importing script. This script is not optimized for new datasets, so the answer quality may
-vary. However we have found positive results with some experiments.
+You can try adding arbitrary PDF and HTML data from an S3 bucket with the data preparation script used in the Sort Benchmark
+demo above. This script is not optimized for arbitrary datasets, so the answer quality may
+vary. However, we have found positive results with data similar to the academic research papers and HTML data from the Sort Benchmark dataset.
 
-WARNING: Processing data using the Sort Benchmark importing script will send your data to OpenAI,
+WARNING: Processing data using the Sort Benchmark data preparation script will send your data to OpenAI,
 and optionally Amazon Textract for calls to their AI services. Consider whether this is acceptable
 if you are using a non-public website for testing.
 

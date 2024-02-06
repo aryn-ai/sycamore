@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Optional, Union, Callable
 
 from pandas import DataFrame
 from pyarrow import Table
@@ -7,7 +7,7 @@ from pyarrow.filesystem import FileSystem
 from sycamore import Context, DocSet
 from sycamore.data import Document
 from sycamore.scans import ArrowScan, BinaryScan, DocScan, PandasScan, JsonScan
-from sycamore.scans.file_scan import FileMetadataProvider
+from sycamore.scans.file_scan import FileMetadataProvider, NestedJsonScan
 
 
 class DocSetReader:
@@ -68,6 +68,12 @@ class DocSetReader:
             document_body_field=document_body_field,
             **resource_args
         )
+        return DocSet(self._context, json_scan)
+
+    def nested_json(
+        self, paths: Union[str, list[str]], doc_extractor: Optional[Callable] = None, **resource_args
+    ) -> DocSet:
+        json_scan = NestedJsonScan(paths, doc_extractor=doc_extractor, **resource_args)
         return DocSet(self._context, json_scan)
 
     def arrow(self, tables: Union[Table, bytes, list[Union[Table, bytes]]]) -> DocSet:

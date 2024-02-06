@@ -233,20 +233,18 @@ class NestedJsonScan(FileScan):
         self,
         paths: Union[str, list[str]],
         *,
-        properties: Optional[Union[str, list[str]]] = None,
         parallelism: Optional[int] = None,
         filesystem: Optional[FileSystem] = None,
-        metadata_provider: Optional[FileMetadataProvider] = None,
         doc_extractor: Optional[Callable] = None,
         **resource_args,
     ):
         super().__init__(paths, parallelism=parallelism, filesystem=filesystem, **resource_args)
-        self._properties = properties
         self.parallelism = -1 if parallelism is None else parallelism
-        self._metadata_provider = metadata_provider
         self._doc_extractor = doc_extractor
 
-    def _to_document(self, json_dict: dict[str, Any]) -> list[dict[str, Any]]:
+    # This is a sample implementation to parse documents from a json file with a top-level key called 'rows'
+    @staticmethod
+    def _to_document(json_dict: dict[str, Any]) -> list[dict[str, Any]]:
         rows = json_dict["rows"]
         result = []
         for row in rows:
@@ -266,4 +264,4 @@ class NestedJsonScan(FileScan):
         return json_dataset.flat_map(row_parser, **self.resource_args)
 
     def format(self):
-        return "json"
+        return "nested_json"

@@ -170,22 +170,22 @@ class OpenSearchQuery(Document):
 
     @property
     def query(self) -> Optional[dict[str, Any]]:
-        """A unique identifier for the document. Defaults to a uuid."""
+        """OpenSearch query body."""
         return self.data.get("query")
 
     @query.setter
     def query(self, value: dict[str, Any]) -> None:
-        """Set the unique identifier of the document."""
+        """Set the OpenSearch query body."""
         self.data["query"] = value
 
     @property
     def url_params(self) -> Optional[str]:
-        """A unique identifier for the document. Defaults to a uuid."""
+        """List of additional url parameters to send to the OpenSearch endpoint, e.g. index"""
         return self.data.get("url_params")
 
     @url_params.setter
     def url_params(self, value: str) -> None:
-        """Set the unique identifier of the document."""
+        """Set the list of additional url parameters to send to the OpenSearch endpoint."""
         self.data["url_params"] = value
 
 
@@ -200,40 +200,40 @@ class OpenSearchQueryResult(Document):
 
     @property
     def query(self) -> Optional[dict[str, Any]]:
-        """A unique identifier for the document. Defaults to a uuid."""
+        """The unmodified query used."""
         return self.data.get("query")
 
     @query.setter
     def query(self, value: dict[str, Any]) -> None:
-        """Set the unique identifier of the document."""
+        """Set the unmodified query."""
         self.data["query"] = value
 
     @property
     def hits(self) -> list[Element]:
-        """A unique identifier for the document. Defaults to a uuid."""
+        """List of documents retrieved by the query."""
         return self.data.get("hits", [])
 
     @hits.setter
     def hits(self, value: list[Element]) -> None:
-        """Set the unique identifier of the document."""
+        """Set the list of document retrieved."""
         self.data["hits"] = value
 
     @property
     def generated_answer(self) -> Optional[str]:
-        """A unique identifier for the document. Defaults to a uuid."""
+        """RAG generated answer."""
         return self.data.get("generated_answer")
 
     @generated_answer.setter
     def generated_answer(self, value: str) -> None:
-        """Set the unique identifier of the document."""
+        """Set the RAG generated answer."""
         self.data["generated_answer"] = value
 
     @property
     def result(self) -> Optional[str]:
-        """A unique identifier for the document. Defaults to a uuid."""
+        """Raw result from OpenSearch"""
         return self.data.get("result")
 
     @result.setter
     def result(self, value: str) -> None:
-        """Set the unique identifier of the document."""
+        """Set the raw result from OpenSearch."""
         self.data["result"] = value

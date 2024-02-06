@@ -188,6 +188,13 @@ class OpenSearchQuery(Document):
         """Set the list of additional url parameters to send to the OpenSearch endpoint."""
         self.data["url_params"] = value
 
+    @staticmethod
+    def deserialize(raw: bytes) -> "OpenSearchQuery":
+        """Deserialize from bytes to a OpenSearchQuery."""
+        from pickle import loads
+
+        return OpenSearchQuery(loads(raw))
+
 
 class OpenSearchQueryResult(Document):
     def __init__(

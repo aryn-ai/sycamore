@@ -1,21 +1,21 @@
 from abc import abstractmethod, ABC
+from typing import Any
 
 import requests
 from ray.data import Dataset
 
-from sycamore.data import Element
-from sycamore.data.document import OpenSearchQueryResult, Document, OpenSearchQuery
+from sycamore.data import OpenSearchQueryResult, Element, OpenSearchQuery
 from sycamore.plan_nodes import Node, NonCPUUser, NonGPUUser, Transform
 from sycamore.utils.generate_ray_func import generate_map_function
 
 
 class QueryExecutor(ABC):
     @abstractmethod
-    def query(self, doc: Document) -> Document:
+    def query(self, query: Any) -> Any:
         pass
 
-    def __call__(self, doc: Document) -> Document:
-        return self.query(doc)
+    def __call__(self, query: Any) -> Any:
+        return self.query(query)
 
 
 class OpenSearchQueryExecutor(QueryExecutor):
@@ -23,12 +23,11 @@ class OpenSearchQueryExecutor(QueryExecutor):
         super().__init__()
         self._opensearch_endpoint = opensearch_endpoint
 
-    def query(self, doc: Document) -> Document:
-        assert isinstance(doc, OpenSearchQuery)
+    def query(self, query: OpenSearchQuery) -> OpenSearchQueryResult:
         params = {
-            "q": doc.query,
+            "q": query["query"],
         }
-        url = self._opensearch_endpoint + (doc.url_params if doc.url_params is not None else "")
+        url = self._opensearch_endpoint + (query["url_params"] if "url_params" in query else "")
         response = requests.get(url, params=params)
         result = OpenSearchQueryResult()
         result.query = {"url": url, "params": params}

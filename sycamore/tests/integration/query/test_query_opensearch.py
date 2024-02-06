@@ -8,7 +8,7 @@ from transforms.query import OpenSearchQueryExecutor
 INDEX = "toyindex"
 
 
-def test_simple_query():
+def test_single_query():
     setup()
     query_executor = OpenSearchQueryExecutor("http://localhost:9200")
     query = OpenSearchQuery()
@@ -18,6 +18,30 @@ def test_simple_query():
     assert result.query["params"]["q"] == query.query
     assert result.query["url"] == "http://localhost:9200" + query.url_params
     assert len(result.hits) > 0
+
+
+def test_query_docset():
+    query_executor = OpenSearchQueryExecutor("http://localhost:9200")
+
+    query1 = OpenSearchQuery()
+    query1.query = {"query": {"match_all": {}}}
+    query1.url_params = f"/{INDEX}/_search?size=1"
+
+    query2 = OpenSearchQuery()
+    query2.query = {"query": {"match_all": {}}}
+    query2.url_params = f"/{INDEX}/_search?size=2"
+
+    queries = [query1, query2]
+
+    context = sycamore.init()
+    result = context.read.document(queries).query(query_executor=query_executor)
+
+    assert result.count() == 2
+
+    query_results = result.take(2)
+    print(query_results[0])
+    assert len(query_results[0]["hits"]) == 1
+    assert len(query_results[1]["hits"]) == 2
 
 
 def setup():

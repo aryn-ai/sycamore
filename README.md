@@ -28,15 +28,21 @@ You can easily deploy Sycamore locally or on a virtual machine using Docker.
 
 With Docker installed:
 
-1.	Clone the Sycamore repo: git clone https://github.com/aryn-ai/sycamore
-2.	Set OpenAI Key
+1.	Clone the Sycamore repo: 
+
+```git clone https://github.com/aryn-ai/sycamore```
+
+2.	Set OpenAI Key:
 
 ```export OPENAI_API_KEY=YOUR-KEY```
 
-3.	Go to /sycamore/deployment/docker_compose
+3.	Go to: 
+
+```/sycamore```
+
 4.	Launch Sycamore. Conatainers will be pulled from DockerHub:
 
-```Docker compose up --pull-always```
+```Docker compose up --pull=always```
 
 5.	The Sycamore demo query UI will be at localhost:3000
 

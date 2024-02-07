@@ -23,8 +23,6 @@ You can provide your AWS keys as arguments in this command, SSO, or the other wa
 
 ```-e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_SESSION_TOKEN```
 
-The `-v` specifies the volume being mounted to store crawled documents.
-
 ### Load data from websites
 
 The Sycamore HTTP crawler is based on scrapy, a framework for writing web crawlers. The crawler uses scrapy's RFC2616 caching in order to reduce the load from crawling.
@@ -37,7 +35,6 @@ docker compose run sycamore_crawler_http [URL]
 #example
 docker compose run sycamore_crawler_http http://www.aryn.ai
 ```
-
 
 ## Load PDFs from local machine
 

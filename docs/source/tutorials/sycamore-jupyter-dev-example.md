@@ -249,7 +249,7 @@ Though we are getting good results back from hybrid search, it would be nice if 
 
 ## Add metadata extraction using GenAI
 
-Next, we are going to edit our existing notebook to add an additional processing step. We will be making changes to the cells partway through the notebook, and then editing some of the nearby cells to connect the new processing steps into the exisitng steps.
+Next, we are going to edit our existing notebook to add an additional processing step. We will be making changes to the cells partway through the notebook, and then editing some of the nearby cells to connect the new processing steps into the existing steps.
 
 3a. Scroll back in the notebook and add a cell between the `visualized_docset` cell and before the `merged_docset` cell. The new cell is between the ones you added in step 1f and 1g.
 

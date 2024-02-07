@@ -1,6 +1,6 @@
 # Hybrid Search
 
-You can use an OpenSearch client version 2.10+ to query your Sycamore stack, and you can run direct hybrid searches (vector + keyword) on your data.
+Sycamore is compatible with the OpenSearch query API. You can use an OpenSearch client version 2.10+ to query your Sycamore stack to run direct hybrid search queries (vector + keyword) on your data.
 
 Hybrid search is implemented an [OpenSearch search processor](https://opensearch.org/docs/latest/search-plugins/hybrid-search/) that enables relevancy score normalization and combination of search results from both semantic and keyword search approaches. This allows you to make the best of both keyword and semantic (neural) search, giving higher-quality results. You can use Sycamore's default hybrid search configuration, or you can customize the way your search relevancy is calculated.
 

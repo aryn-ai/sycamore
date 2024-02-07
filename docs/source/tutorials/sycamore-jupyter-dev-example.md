@@ -1,96 +1,42 @@
-# Use Jupyer to write and iterate on Sycamore jobs locally
+# Use Jupyter to write and iterate on Sycamore jobs
 
-The Quickstart configuration for Aryn Search easily launches containers for the full stack. However, you may prefer to write and iterate on your Sycamore data processing scripts locally, and load the output of these tests into the containerized Aryn stack. A benefit of this approach is that you can use a local Jupyter Notebook to develop your scripts.
+Jupyter notebooks provide an easy way to create, iterate on, and run Sycamore data preparation scripts. Sycamore includes a containerized Jupyter notebook, or you can install and run Jupyter locally.
 
 In this example, we will:
 
-- [Install and run components](#Run-a-Jupyter-notebook)
-- [Write an initial Sycamore job](#Write-an-initial-Sycamore-job)
-- [Add metadata extraction using GenAI](#Add-metadata-extraction-using-GenAI)
+- [Install and run components](#Access-your-Jupyter-notebook)
+- [Write a data preparation job](#Write-an-data-preparation-job)
+- [Add metadata extraction to the job using a GenAI transform](#Add-metadata-extraction-using-GenAI)
 
-The full notebook that includes the final code of the Sycamore job is [here](https://github.com/aryn-ai/sycamore/blob/main/notebooks/sycamore_local_dev_example.ipynb).
+The full notebook that includes the final code of the job is [here](https://github.com/aryn-ai/sycamore/blob/main/notebooks/jupyter_dev_example.ipynb).
 
-## Run a Jupyter notebook
+## Access your Jupyter notebook
 
-In order to complete these instructions you will need to run a Jupyter notebook either in a
-container, or in your local development environment. The container is easier, but somewhat less
-efficient on MacOS and Windows. The local development environment is harder but more efficient and
-flexible.
+### Using the Jupyter container
 
-### In a container
+1. Launch Sycamore using the [get started instructions](../welcome_to_sycamore/get_started.md#launch-sycamore).
 
-1. Launch Aryn Search using the containerized Quickstart following [these instructions](https://github.com/aryn-ai/quickstart#readme). However, a few notes on this step specific to this example:
+2. Access Jupyter using the URL specified in the logs. The token is stable
+over restarts of the container. If you cannot find the URL, follow [these instructions](../data_ingestion_and_preparation/using_jupyter.md#jupyter-notebook).
 
-- This example doesn't need Amazon Textract or Amazon S3, so you do not need to have or provide AWS credentials.
-- You do not need to load the full Sort Benchmark sample dataset referred to in the Quickstart README.
+The script you will develop is also present as a notebook file in the `examples` directory for convenience. We recommend that you write your script in either the docker_volume or bind_dir directory so that your script persists over container restarts.
 
-Full command:
-```shell
-ENABLE_TEXTRACT=false docker compose up --pull=always
-```
+### Install Jupyter locally
 
-NOTE: If you downloaded the .env and compose.yaml files directly rather than via git, you will need
-to create a jupyter/bind_dir directory to start the Jupyter container.
+The instructions for installing Jupyter locally have been tested on MacOS 14.0, MacOS 13.4.1, and Ubuntu 23.10; they may have to be tweaked for other environments
 
-In order to maintain security, Jupyter uses a token to limit access to the notebook. For the first
-5 minutes the Jupyter container will periodically print out instructions for connecting. If you
-can't see them, you can get them by running:
+1. Launch Sycamore using the [get started instructions](../welcome_to_sycamore/get_started.md#launch-sycamore).
 
-```shell
-docker compose logs jupyter
-```
+2. Install the Sycamore data preparation libraries locally [using these instructions](../data_ingestion_and_preparation/installing_sycamore_libraries_locally.md).
 
-Then connect to the notebook using the specified URL or via the redirect file.  The token is stable
-over restarts of the container.
-
-The script you will develop is present in the examples directory. We recommend that you write your
-script in either the docker_volume or bind_dir directory so that your script persists over
-container restarts.
-
-### In your local development environment
-
-The instructions for installing locally have been tested on MacOS 14.0, MacOS 13.4.1, and Ubuntu 23.10; they may have to be tweaked for other environments
-
-1. Launch Aryn Search using the containerized Quickstart following [these instructions](https://github.com/aryn-ai/quickstart#readme). However, a few notes on this step specific to this example:
-
-- This example doesn't need Amazon Textract or Amazon S3, so you do not need to have or provide AWS credentials.
-- You do not need to load the full Sort Benchmark sample dataset referred to in the Quickstart README.
-
-2. Install [Sycamore](https://github.com/aryn-ai/sycamore) locally.
-
-Optionally setup a virtual environment
-```
-python3 -m venv .
-. bin/activate
-```
-
-Then install Sycamore
-
-```
-pip install sycamore-ai
-```
-
-For certain PDF processing operations, you also need to install poppler, which you can do with the OS-native package manager of your choice.
-
-For example, the command for Homebrew on Mac OS is:
-
-```
-brew install poppler
-```
-
-For Linux:
-```
-sudo apt install poppler-utils
-```
-
-3. Install [Jupyter Notebook](https://jupyter.org/). If you already have a python notebook environment, you can choose to use that instead.
+3. Install [Jupyter Notebook](https://jupyter.org/). If you already have a Python notebook environment, you can choose to use that instead.
 
 ```
 pip install notebook
 ```
 
-NOTE: If you are installing on linux you will also need `pip install async_timeout` to complete
-these instructions.
+*Note: If you are installing on linux you will also need `pip install async_timeout` to complete
+these instructions.*
 
 4. Launch Jupyter Notebook
 
@@ -99,26 +45,13 @@ If you haven't set your OpenAI Key, do so before starting your notebook:
 export OPENAI_API_KEY=YOUR-KEY
 ```
 
-Before you start up the notebook, make sure OpenSearch is running.
-
-```
-curl localhost:9200
-```
-
-If it's not, then start up the container using the [Quickstart instructions](https://github.com/aryn-ai/quickstart).
-
-If the OpenSearch is running (and you get a response), then run:
-```
-jupyter notebook
-```
-
 In the browser window that appears, navigate to File -> New -> Notebook; and then choose the
 preferred kernel.
 
 
-## Write an initial Sycamore job
+## Write a data preparation job
 
-1. Write initial Sycamore Job.
+1. First, we will write an initial data preparation job in a new notebook file. We'll then iterate on the job later in this tutorial.
 
 1a. First, we will import our dependencies from IPython, JSON, Pillow, and Sycamore:
 
@@ -161,10 +94,10 @@ NOTE: If you are running in the container, we recommend instead `work_dir = "/ap
 
 1c. Now we download the pdf files we're going to process and create metadata for them. We will use
 two journal articles, "Attention Is All You Need" and "A Comprehensive Survey On Applications Of
-Transformers For Deep Learning Tasks." The metadata file enables our demo UI to show and highlight
-the source documents when clicking on a search result. In this example, the demo UI will pull the
+Transformers For Deep Learning Tasks." The metadata file enables our demo query UI to show and highlight
+the source documents when clicking on a search result. In this example, the demo query UI will pull the
 document from a publicly accessible URL. However, you could choose to host the documents in Amazon
-S3 (common for enterprise data) or other locations accessible by the demo UI container.
+S3 (common for enterprise data) or other locations accessible by the demo query UI container.
 
 ```python
 os.makedirs(work_dir, exist_ok = True)
@@ -192,7 +125,7 @@ IFrame(str(metadata[os.path.join(work_dir, "1706.03762.pdf")]["_location"]), wid
 IFrame(str(metadata[os.path.join(work_dir, "2306.07303.pdf")]["_location"]), width=700, height=600)
 ```
 
-1e. Now, we initialize Sycamore, and create a [DocSet](https://sycamore.readthedocs.io/en/stable/key_concepts/concepts.html):
+1e. Now, we initialize a Sycamore context, and create a [DocSet](../data_ingestion_and_preparation/data_preparation_concepts.md#docset):
 
 ```python
 openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
@@ -256,17 +189,17 @@ st_embed_docset.show(show_binary = False)
 
 The output should show the DocSet with vector embeddings, e.g. `'embedding': '<384 floats>'` should be added to each of the sections.
 
-1j. Before loading the OpenSearch component of Aryn Search, we need to configure the Sycamore job to: 1/communicate with the Aryn OpenSearch container and 2/have the proper configuration for the vector and keyword indexes for hybrid search. Sycamore will then create and load those indexes in the final step.
+1j. Before loading the Sycamore indexes, we need to configure the data preparation job to: 1/have the endpoint for the Sycamore stack and 2/have the configuration for creating the Sycamore vector and keyword indexes for hybrid search. The data preparation job will then instruct Sycamore to create these indexes and load them in the final step.
 
-The rest endpoint for the Aryn OpenSearch container from the Quickstart is at localhost:9200.  Make sure to provide the name for the index you will create. OpenSearch is a enterprise-grade, customizable search engine and vector database, and you can adjust these settings depending on your use case.
+The rest endpoint for loading data for the Sycamore stack we launched is at port 9200. Make sure to provide the name for the index you will create. Sycamore uses [OpenSearch](https://opensearch.org/) for indexing. OpenSearch is a enterprise-grade, customizable search engine and vector database. Sycamore exposes many OpenSearch settings, and you can adjust them depending on your use case.
 
-NOTE: If you are running in the container, you need to change the host from "localhost" to "opensearch" so that the jupyter container can talk to the opensearch container.
+*Note: If you are running Jupyter locally, you need to change the host from `opensearch` to `localhost` so that the Jupyter notebook can talk to Sycamore's OpenSearch container.
 
 ```python
 index = "local_development_example_index" # You can change this to something else if you'd like
 
 os_client_args = {
-        "hosts": [{"host": "localhost", "port": 9200}],
+        "hosts": [{"host": "opensearch", "port": 9200}],
         "http_compress": True,
         "http_auth": ("admin", "admin"),
         "use_ssl": False,
@@ -292,7 +225,7 @@ index_settings =  {
     }
 ```
 
-1k. This is the final part of the Sycamore job. We will load the data and vector embeddings into the OpenSearch container using the configuration supplied above.
+1k. This is the final part of the data preparation job. We will load the data and vector embeddings into the Sycamore using the configuration supplied above.
 
 ```python
 st_embed_docset.write.opensearch(os_client_args=os_client_args, index_name=index, index_settings=index_settings)
@@ -301,27 +234,26 @@ st_embed_docset.write.opensearch(os_client_args=os_client_args, index_name=index
 1l. Finally, add a cell to tell you where to go next and which index you should be querying.  This cell is also useful when you re-execute the script as the output appears when all cells are done.
 
 ```python
-print("Visit http://localhost:3000 and use the", index, " index to query these results in the UI")
+print("Visit http://localhost:3000 and use the", index, " index to query these results in the demo UI")
 ```
 
-2. Once the data is loaded into OpenSearch, you can use the demo UI for conversational search on it.
-- Using your internet browser, visit http://localhost:3000 . Make sure the demo UI container is still running from the Quickstart.
-- Make sure the index selected in the dropdown has the same name you provided in step 1j
-- Create a new conversation. Enter the name for your conversation in the text box in the left "Conversations" panel, and hit enter or click the "add convo" icon on the right of the text box.
+2. Once the data is loaded into Sycamore, you can use the [demo query UI](../querying_data/demo_query_ui.md) for conversational search on it.
+- Using your internet browser, visit `http://localhost:3000`. 
+- Make sure the index selected in the dropdown at the bottom of the UI has the same name you provided in step 1j
+- Create a new conversation. Enter the name for your conversation in the text box in the left "Conversations" panel, and hit enter or click the "Add convo" icon on the right of the text box.
 - As a sample question, you can ask "Who wrote Attention Is All You Need?"
 
-The results of the hybrid search are in the right hand panel, and you can click through to find the highlighted passage (step 3b enabled this). Though we are getting good results back from hybrid search, it would be nice if we could have the titles and other information for each passage. In the next section, we will iterate on our Sycamore job, and use generative AI to extract some metadata.
+The results of the hybrid search are in the right hand panel, and you can click through to find the highlighted passage (step 1c enabled this). 
+
+Though we are getting good results back from hybrid search, it would be nice if we could have the titles and other information for each passage. In the next section, we will iterate on our Sycamore job, and use a Sycamore transform that leverages generative AI to extract some metadata.
 
 ## Add metadata extraction using GenAI
 
-Now we are going to edit our existing notebook to show how you could adjust the Sycamore
-processing.  Because we are editing the notebook, we will be making changes to the cells partway
-through the notebook, and then editing some of the nearby cells to connect the new processing into
-the old processing.
+Next, we are going to edit our existing notebook to add an additional processing step. We will be making changes to the cells partway through the notebook, and then editing some of the nearby cells to connect the new processing steps into the existing steps.
 
 3a. Scroll back in the notebook and add a cell between the `visualized_docset` cell and before the `merged_docset` cell. The new cell is between the ones you added in step 1f and 1g.
 
-3b. In this cell, we will add prompt templates for extracting titles and authors. These prompts train a generative AI model to identify a title (or author) by giving examples, and then we will use the trained model to identify and extract them for each document.
+3b. In this cell, we will add LLM prompt templates for extracting titles and authors. These prompts train a generative AI model to identify a title (or author) by giving examples, and then we will use the trained model to identify and extract them for each document.
 
 ```python
  title_context_template = """
@@ -372,7 +304,7 @@ author_context_template = """
   """
 ```
 
-3c. Add a following cell. In this cell, we will use Sycamore's entity extractor with the prompt templates. We are selecting OpenAI as the generative AI model to use for this extraction.
+3c. Add a following cell. In this cell, we will use Sycamore's entity extractor transform with the prompt templates. We are selecting OpenAI as the generative AI model to use for this extraction.
 
 ```python
 entity_docset = (partitioned_docset
@@ -394,13 +326,12 @@ merged_docset = entity_docset.merge(GreedyTextElementMerger(tokenizer=HuggingFac
 merged_docset.show(show_binary = False)
 ```
 
-3e. Change the index name set below (e.g. to `index = "local_development_example_index_withentity"`) that you added in step 3j so that when you run the remaining cells it will load into a new index. Otherwise the old and new data processed data would be intermingled.
+3e. Change the index name set below (e.g. to `index = "local_development_example_index_withentity"`) that you added in step 3j so that when you run the remaining cells it will load into a new index. Otherwise the old and new data processed data would be intermingled in the same index.
 
-3f. Run the rest of the cells in the notebook, and load the data into OpenSearch.
+3f. Run the rest of the cells in the notebook, and load the data into Sycamore.
 
-3g. Once the data is loaded into OpenSearch, you can use the demo UI for conversational search on it.
-- Using your internet browser, visit http://localhost:3000 . Make sure the demo UI container is still running from the Quickstart
-- Make sure the index selected in the dropdown has the same name you provided in the previous step
+3g. Once the data is loaded into OpenSearch, you can use the demo query UI for conversational search on it.
+- Using your internet browser, visit `http://localhost:3000` .
 - The titles should appear with the hybrid search results in the right panel. If they don't check that you both a) changed the index name, and b) used the new index in the UI.
 
-Congrats! You've developed and iterated on a Sycamore data preparation script locally, and used generative AI to extract metadata and enrich your dataset. As your datatset changes, you could automate this processing job using the Sycamore container deployed in the Quickstart configuration.
+Congrats! You've developed and iterated on a Sycamore data preparation script using Jupyter, and used generative AI to extract metadata and enrich your dataset.

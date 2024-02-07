@@ -243,7 +243,7 @@ print("Visit http://localhost:3000 and use the", index, " index to query these r
 - Create a new conversation. Enter the name for your conversation in the text box in the left "Conversations" panel, and hit enter or click the "Add convo" icon on the right of the text box.
 - As a sample question, you can ask "Who wrote Attention Is All You Need?"
 
-The results of the hybrid search are in the right hand panel, and you can click through to find the highlighted passage (step 3b enabled this). 
+The results of the hybrid search are in the right hand panel, and you can click through to find the highlighted passage (step 1c enabled this). 
 
 Though we are getting good results back from hybrid search, it would be nice if we could have the titles and other information for each passage. In the next section, we will iterate on our Sycamore job, and use a Sycamore transform that leverages generative AI to extract some metadata.
 

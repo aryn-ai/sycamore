@@ -54,4 +54,4 @@ To copy a local HTML file, run:
 
 ## Use data preparation libraries to load data
 
-You can write data preparation jobs [using the Sycamore libraries](/installing_sycamore_libraries_locally.md) direclty or [Jupyter](/using_jupyter.md) and [load this data into your Sycamore stack](/running_a_data_preparation_job.md). 
+You can write data preparation jobs [using the Sycamore libraries](/installing_sycamore_libraries_locally.md) directly or [Jupyter](/using_jupyter.md) and [load this data into your Sycamore stack](/running_a_data_preparation_job.md). 

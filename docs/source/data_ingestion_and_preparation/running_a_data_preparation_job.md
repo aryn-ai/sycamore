@@ -14,7 +14,7 @@ The easiest way to run your data preparation code is to use the Jupyter notebook
 
 3. In the terminal, run this command:
 
-```python /bind-dir/your-file-name.py'''
+```python /bind-dir/your-file-name.py```
 
 
 ## Using the Sycamore-Importer container

@@ -4,7 +4,7 @@
 
 ## Prepare OpenSearch client for Sycamore
 
-Since the conversation memory API is a new feature in OpenSearch, it isn't yet available in the various language clients. Luckily, it’s super easy to just create it. First, for dependencies: this requires the `opensearchpy` package, OpenSearch’s python client:
+Sycamore is compatible with the OpenSearch conversation memory APIs, and you can use an OpenSearch client to access them. However, these APIs are not yet available in the various language clients at the time we wrote this tutorial. Luckily, it’s super easy to just create it. First, for dependencies: this requires the `opensearchpy` package, OpenSearch’s python client:
 
 ```bash
 pip install opensearch-py

@@ -4,8 +4,8 @@ Jupyter notebooks provide an easy way to create, iterate on, and run Sycamore da
 
 In this example, we will:
 
-- [Install and run components](#Run-a-Jupyter-notebook)
-- [Write a data preparation job](#Write-an-initial-Sycamore-job)
+- [Install and run components](#Access-your-Jupyter-notebook)
+- [Write a data preparation job](#Write-an-data-preparation-job)
 - [Add metadata extraction to the job using a GenAI transform](#Add-metadata-extraction-using-GenAI)
 
 The full notebook that includes the final code of the job is [here](https://github.com/aryn-ai/sycamore/blob/main/notebooks/jupyter_dev_example.ipynb).

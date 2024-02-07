@@ -1,10 +1,10 @@
 # Integrating a chat UI with Sycamore
 
-The UI is a key component in many conversational search applications. A good UI enables users to search for data and see natural langauge answers and relevant search results in an easy to use interface. Additionally, UIs can show the source information for natural language answers. This tutorial will provide an overview of how you can create a simple web application that uses Sycamore's APIs for conversational search. The application will be built using React, TypeScript, and OpenAI.
+The UI is a key component in many conversational search applications. A good UI enables users to search for data and see natural langauge answers and relevant search results in an easy to use interface. Additionally, UIs can show the source information for natural language answers. This section provides an overview of how you can create a simple web application that uses Sycamore's APIs for conversational search. The application will be built using React, TypeScript, and OpenAI.
 
 ## Prerequisites
 
-This tutorial requires an already configured Sycamore stack. You can follow the steps in the [get started guide](../welcome_to_sycamore/get_started.md) to set it up. The specific components and steps are:
+This tutorial requires a running Sycamore stack. You can follow the steps in the [get started guide](../welcome_to_sycamore/get_started.md) to set it up. The specific components and steps are:
 
 1. Running Sycamore stack
 2. Ingest the Sort Benchmark data into your stack
@@ -70,7 +70,7 @@ try {
 }
 ```
 
-**********Note:********** By default, all conversations are visible to every client accessing the cluster. In a production setup, you will want to [use access control](https://opensearch.org/docs/latest/security/access-control/index/) to restrict the conversations a user can see.
+*Note: By default, all conversations are visible to every client accessing the cluster. In a production setup, you will want to [use access control](https://opensearch.org/docs/latest/security/access-control/index/) to restrict the conversations a user can see.*
 
 ### Queries and interactions
 
@@ -148,7 +148,7 @@ try {
 
 Certain documents, like PDFs, will contain additional metadata about what section of the documents were used to generate a response.
 
-For a PDF search result, the document contains a `properties` attribute, that will optionally contains `boxes`. Each box represents a page number, and the 4 coordinates of a bounding box within that page that represent the text, image, or table that was used as data. You can use a library like `react-pdf` to visualize this client side. Your component might look like this
+For a PDF search result, the document contains a `properties` attribute, that will optionally contains `boxes`. Each box represents a page number, and the 4 coordinates of a bounding box within that page that represent the text, image, or table that was used as data. You can use a library like `react-pdf` to visualize this client side. Your component might look like this:
 
 ```typescript
 <Document file={url} onLoadSuccess={onDocumentLoadSuccess}>
@@ -195,4 +195,4 @@ const prompt = generate_question_rewriting_prompt("when was it created?", conver
 
 ## Conclusion
 
-This tutorial showed how you can use Sycamore’s conversational APIs to easily implement the core components of a client side conversational search application. For more details about the conversational APIs leveraged by Sycamore, see the [OpenSearch documentation](https://opensearch.org/docs/latest/ml-commons-plugin/conversational-search/).
+This tutorial showed how you can use Sycamore’s conversational APIs to easily implement the core components of a client side conversational search application. For more details about the conversation APIs leveraged by Sycamore, see the [OpenSearch documentation](https://opensearch.org/docs/latest/ml-commons-plugin/conversational-search/).

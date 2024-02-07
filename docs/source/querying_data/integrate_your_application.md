@@ -70,7 +70,7 @@ try {
 }
 ```
 
-*Note: By default, all conversations are visible to every client accessing the cluster. In a production setup, you will want to [use access control](https://opensearch.org/docs/latest/security/access-control/index/) to restrict the conversations a user can see.*
+> Note: By default, all conversations are visible to every client accessing the cluster. In a production setup, you will want to [use access control](https://opensearch.org/docs/latest/security/access-control/index/) to restrict the conversations a user can see.
 
 ### Queries and interactions
 

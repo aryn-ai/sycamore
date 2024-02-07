@@ -31,7 +31,7 @@ docker cp . [name-of-your-Sycamore-Importer-Container]:/sycamore-jobs```
 
 2. Run your code:
 
-```docker exec --workdir /sycamore-jobs [name-of-your-Sycamore-Importer-Container] 'python /your-file-name.py`
+```docker exec --workdir /sycamore-jobs [name-of-your-Sycamore-Importer-Container] 'python /your-file-name.py````
 
 
 

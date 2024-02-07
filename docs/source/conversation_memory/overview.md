@@ -2,9 +2,9 @@
 
 ## Overview
 
-When using Sycamore for conversational search applications, you need to store the state of the conversation to use with the next user interaction. Scyamore uses the [conversation memory feature set in OpenSearch](https://opensearch.org/docs/latest/search-plugins/conversational-search/#conversation-memory) (contributed by Aryn) for this purpose, enabling you to easily create conversations and add interactions to those conversations.
+In conversational search, Sycamore can store the state of a user conversation to use with the next user interaction. Sycamore uses the [conversation memory feature set in OpenSearch](https://opensearch.org/docs/latest/search-plugins/conversational-search/#conversation-memory) (contributed by [Aryn](http://www.aryn.ai)) for this purpose, enabling you to easily create conversations and add interactions to those conversations. Sycamore automatically implements this when using conversations in the demo query UI.
 
-You can also use Sycamore's conversion memory feature set as a scalable conversation storage for generative AI agenets and other applications. It also makes it easy to debug and tune your LLM applications by saving the prompt and response from the LLM. When prompt engineering, tuning, and debugging an LLM-based app, this is critical information - as the exact wording of a prompt can grealty effect the response.
+You can also use Sycamore's conversion memory feature set directly as a scalable conversation storage for generative AI agenets and other applications. It also makes it easy to debug and tune your LLM applications by saving the prompt and response from the LLM. When prompt engineering, tuning, and debugging an LLM-based app, this is critical information - as the exact wording of a prompt can grealty effect the response.
 
 ## Architecture
 
@@ -13,6 +13,8 @@ Sycamore's conversation memory uses the ml-commons plugin in OpenSearch. It is a
 
 ![Untitled](imgs/resource-diagram.png)
 
+
+The structures are:
 
 ```javascript
 structure ConversationMetadata {

@@ -1,55 +1,60 @@
 # Running Custom Data Preparation Code
 
-Once you have written your data preparation code, you can now use it to process data when loading it into Sycamore.
+If you have chosen to write you data preparation code with an editor, you can run it using the terminal in the Jupyter container or the Sycamore-Importer container. You can also write and run code using a [Jupyter notebook](using_Jupyter.md).
 
-## Using Jupyter container
+## Using the terminal in the Jupyter container
 
-The easiest way to use your data processing code is to use the Jupyter notebook shell in the Sycamore-Jupyter container. You enable this container when deploying Sycamore. [LINK]
+The easiest way to run your data preparation code is to use the Jupyter notebook shell in the Jupyter container, which is launched by default.
 
-Add your code to the bind-dir XXX NEED THIS INFO!
+1. Add your data preparation code to the bind directory so you can access it in the Jupyter container. On your local machine, add your files to:
 
-Go to your Jupyter notebook server and go to Jupyter shell
+```../jupyter/bind_dir```
 
-Run this command:
+2. In your browser, go to the URL for your [Jupyter container](using_jupyter.md) and create a new terminal. You can do this by clicking on "File" in the menu, going to "New," and then selecting "Terminal".
 
-XXXXXXXXXXXXX
+3. In the terminal, run this command:
 
-You can also choose to run your data processing code from the Docker terminal by:
-
-
-XXXXXXXXX
+```python /bind-dir/your-file-name.py'''
 
 
-## Using Sycamore-Importer container
+## Using the Sycamore-Importer container
 
-If you do not choose to run the Jupyter container, you can copy your code to the Sycamore-Importer container and run it there. However, we don’t recommend this, as there is no bind-dir configured for this container.
+You can also copy your code to the Sycamore-Importer container and run it there. However, we don’t recommend this, as there is no bind directory configured for this container and your code will be lost if the container is terminated.
 
-To run your code:
-
-
-Copy your code to the Sycamore-Importer container:
+1. Copy your file to the Sycamore-Importer container:
 
 
+```
+docker exec [name-of-your-Sycamore-Importer-Container] 'mkdir /sycamore-jobs`
+docker cp . [name-of-your-Sycamore-Importer-Container]:/sycamore-jobs```
 
-XXXXXX
 
+2. Run your code:
 
+```docker exec --workdir /sycamore-jobs [name-of-your-Sycamore-Importer-Container] 'python /your-file-name.py`
 
-Run the code using this command:
 
 
 ## Running Sycamore locally
 
-You can run Sycamore’s data processing library locally and load the output into your Sycamore stack. To do this, run:
+You can run Sycamore’s data processing library locally and load the output into your Sycamore stack. Make sure to set your os_client_args in your code to the endpoint of your Sycamore stack, which is port 9200:
 
+```
+#example configured to load a Sycamore stack running locally
 
+os_client_args = {
+        "hosts": [{"host": "opensearch", "port": 9200}],
+        "http_compress": True,
+        "http_auth": ("admin", "admin"),
+        "use_ssl": False,
+        "verify_certs": False,
+        "ssl_assert_hostname": False,
+        "ssl_show_warn": False,
+        "timeout": 120,
+    }
+```
 
-XXXXXXXXXXX
+To run your Sycamore job:
 
+```python /path/to/your-file-name.py```
 
-
-Note: Make sure your code has the proper configuration for your Sycamore stack’s endpoint.
-
-
-
-You can also use Jupyter locally for this, and an example is here. [NEED LINK]

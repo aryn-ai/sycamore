@@ -1,7 +1,7 @@
 # Using Retrieval-Augmented Generation (RAG) pipelines
 
 ## Overview
-[Retrieval-augmented generation (RAG)](https://arxiv.org/abs/2005.11401) is a popular method to generate natural language answers to questions using LLMs and indexed data. It retreives relevant data to a query, and then sends it along with a prompt to a LLM to sythensize an answer. Sycamore implements RAG using an [OpenSearch Search Pipeline](https://opensearch.org/docs/latest/search-plugins/conversational-search/#rag-pipeline) to orchestrate interactions with LLMs.
+[Retrieval-augmented generation (RAG)](https://arxiv.org/abs/2005.11401) is a popular method to generate natural language answers to questions using LLMs and indexed data. It retreives relevant data to a query, and then sends it along with a prompt to a LLM to sythensize an answer. Sycamore implements RAG using an [OpenSearch Search Pipeline](https://opensearch.org/docs/latest/search-plugins/conversational-search/#rag-pipeline) to orchestrate interactions with LLMs, and is compatible with those APIs.
 
 ![Untitled](imgs/pipeline-architecture.png)
 
@@ -13,11 +13,11 @@ The diagram above showes the flow of the RAG Search Processor.
 4. The response is added to the question and additional metadata, and saved in conversational memory as an interaction
 5. The generative response and list of hybrid search results are returned to the application
 
-If a conversation ID wasn't supplied (see [here](../conversational_memory/using_with_conversational_search.md)), then the processor will not retrieve the conversational context or add an interactoin to conversational memory.
+If a [conversation ID](../conversational_memory/using_with_conversational_search.md) wasn't supplied, then the processor will not retrieve the conversation context or add an interaction to the conversation memory.
 
 ## Using the RAG pipeline
 
-Sycamore has a default RAG pipeline named `hybrid_rag_pipeline`, and it uses OpenAI GPT-3.5-TURBO as the LLM by default. To use the pipeline, specify it in your request and add the 'generative_qa_parameters':
+Sycamore has a default RAG pipeline named `hybrid_rag_pipeline`, and it uses OpenAI GPT-3.5-TURBO as the LLM by default. Sycamore is compatible with the OpenSearch query API. To use the pipeline, specify it in your search query and add the `generative_qa_parameters`:
 
 ```javascript
 GET <index_name>/_search?search_pipeline=hybrid_rag_pipeline
@@ -88,7 +88,7 @@ GET <index_name>/_search?search_pipeline=hybrid_rag_pipeline
 ```
 
 ## Customize the RAG pipeline
-To create a RAG pipeline, you must first have a [remote LLM-wrapper deployed with ml-commons](https://opensearch.org/docs/latest/ml-commons-plugin/remote-models/index/). Then, for example, to create a RAG pipeline called `rag_pipeline` using OpenAI GPT-4:
+To create a RAG pipeline, you must first have a [remote LLM-wrapper deployed with ml-commons](https://opensearch.org/docs/latest/ml-commons-plugin/remote-models/index/). Then, for example, to create a RAG pipeline called `my_rag_pipeline` using OpenAI GPT-4:
 
 ```javascript
 PUT /_search/pipeline/my_rag_pipeline

@@ -17,7 +17,7 @@ The full notebook that includes the final code of the job is [here](https://gith
 1. Launch Sycamore using the [get started instructions](../welcome_to_sycamore/get_started.md#launch-sycamore).
 
 2. Access Jupyter using the URL specified in the logs. The token is stable
-over restarts of the container. If you cannot find the URL, follow [these instructions] (../data_ingestion_and_preparation/using_jupyter.md#jupyter-notebook).
+over restarts of the container. If you cannot find the URL, follow [these instructions}(../data_ingestion_and_preparation/using_jupyter.md#jupyter-notebook).
 
 The script you will develop is also present as a notebook file in the `examples` directory for convenience. We recommend that you write your script in either the docker_volume or bind_dir directory so that your script persists over container restarts.
 

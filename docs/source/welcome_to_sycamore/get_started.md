@@ -85,7 +85,7 @@ Sycamore will automatically start processing the new data. The processing job is
 
 3. Use the demo query UI for conversational search. Using your internet browser, visit: `http://localhost:3000`. You can interact with the demo query UI while data is being added to the index, but the data won't all be available until the job is done. How to use the UI:
 
-* Create a new conversation. Enter the name for your conversation in the text box in the left "Conversations" panel, and hit enter or click the "Add convo" icon on the right of the text box. 
+* Create a new conversation. Enter the name for your conversation in the text box in the left "Conversations" panel, and hit enter or click the "Add conversation" icon on the right of the text box. 
 * Select your conversation, and then write a question into the text box in the middle panel. Hit enter.
 * Ask follow up questions. You'll see the actual results from the Sycamore's hybrid search for your question in the right panel, and the conversational search in the middle panel.
 
@@ -111,7 +111,7 @@ docker compose run sycamore_crawler_http <url>
 # docker compose run sycamore_crawler_http http://www.aryn.ai
 ```
 
-This will crawl and download the data from the specified website(s).
+This will crawl and download the data from the specified website.
 
 2. Sycamore will automatically start processing the new data and loading it into Sycamore's default index (which is also used in the previous example). The processing job is complete and the data is loaded into the index once you see log messages similar to:
 

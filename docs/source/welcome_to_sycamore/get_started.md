@@ -32,17 +32,17 @@ For more info:
 * [Querying your data](/querying_data/demo_query_ui.md)
 * [Using Jupyter notebook to customize data preparation code](/data_ingestion_and_preparation/using_jupyter.md)
 
-*Note: By default, the Docker compose uses the stable version of the containers. You can choose a specific version to run, e.g. latest (last build pushed), latest_rc (last release candidate), or 0.YYYY.MM.DD (date-stamped release). To specify a version, set the VERSION environment variable, e.g. VERSION=latest_rc docker compose up --pull=always. See the .env file if you want to specify different versions for the separate containers.*
+>By default, the Docker compose uses the stable version of the containers. You can choose a specific version to run, e.g. latest (last build pushed), latest_rc (last release candidate), or 0.YYYY.MM.DD (date-stamped release). To specify a version, set the VERSION environment variable, e.g. VERSION=latest_rc docker compose up --pull=always. See the .env file if you want to specify different versions for the separate containers.*
 
 ### Optional: Configure AWS Credentials for Amazon Textract usage
 
 Sycamore’s default data ingestion and preparation code can optionally use [Amazon Textract](https://aws.amazon.com/textract/) for table extraction, which will give higher quality answers for questions on embedded tables in documents. To enable it, Sycamore needs AWS credentials for Amazon Textract and an Amazon S3 bucket for Textract input/output. The default code will use Textract and Amazon S3 in the US-East-1 region, and you will accrue AWS charges for Textract usage.
 
-If you have starte Sycamore already, you'll need to restart it after following these instructions.
+If you have started Sycamore already, you'll need to restart it after following these instructions.
 
 1. If you do not have an AWS account, sign up [here](https://portal.aws.amazon.com/billing/signup). You will need this during configuration. 
 
-2. Create an Amazon S3 bucket in your AWS account in the US-East-1 region for use with Textract (e.g. `s3://username-textract-bucket`). We recommend you set up bucket lifecycle rules that automatically delete files in this bucket, as the data stored here is only needed temporarily during a Sycamore data processing job. 
+2. Create an Amazon S3 bucket in your AWS account in the us-east-1 region for use with Textract (e.g. `s3://username-textract-bucket`). We recommend you set up bucket lifecycle rules that automatically delete files in this bucket, as the data stored here is only needed temporarily during a Sycamore data processing job. 
 
 3. Enable Sycamore to use Textract by setting the S3 prefix/bucket name for Textract to use:
 
@@ -100,7 +100,8 @@ Once the data has been loaded, some sample questions to ask are:
 
 You can crawl and ingest a website with the Sycamore default data preparation code. However, this code is not not optimized for any given dataset, so the answer quality may vary on websites that have different characteristics.
 
-*Note: Processing data using the default code will send your data to OpenAI, and optionally Amazon Textract, for calls to their AI services. Consider whether this is acceptable if you are using a non-public website for testing.*
+>[!WARNING]
+>Processing data using the default code will send your data to OpenAI, and optionally Amazon Textract, for calls to their AI services. Consider whether this is acceptable if you are using a non-public website for testing.*
 
 1. Run the Sycamore HTTP Crawler container with an additional parameter:
 
@@ -126,9 +127,10 @@ If you want to prepare your data with custom code, you can [use a Jupyter notebo
 
 You can add PDF and HTML data from an S3 bucket with the default data preparation script used in the demos above. This script is not optimized for arbitrary datasets, so the answer quality may vary if the data needs to be prepared differently from the demo.
 
-*Note: Processing data using the Sort Benchmark data preparation script will send your data to OpenAI,
+> [!WARNING]
+> Processing data using the Sort Benchmark data preparation script will send your data to OpenAI,
 and optionally Amazon Textract for calls to their AI services. Consider whether this is acceptable
-if you are using a non-public website for testing.*
+if you are using a non-public website for testing.
 
 1. Run the Sycamore S3 Crawler container with additional parameters:
 ```

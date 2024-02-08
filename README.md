@@ -28,7 +28,7 @@ You can easily deploy Sycamore locally or on a virtual machine using Docker.
 
 With Docker installed:
 
-1.	Clone the Sycamore repo: 
+1.	Clone the Sycamore repo:
 
 ```git clone https://github.com/aryn-ai/sycamore```
 
@@ -36,7 +36,7 @@ With Docker installed:
 
 ```export OPENAI_API_KEY=YOUR-KEY```
 
-3.	Go to: 
+3.	Go to:
 
 ```/sycamore```
 

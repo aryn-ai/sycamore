@@ -1,10 +1,10 @@
 # Data Preparation Concepts
 
-You can use the [default data preparation code](../../../notebooks/default-prep-script.ipnb) to segment, process, enrich, embed, and load your data into Sycamore. This runs automatically when using the [crawlers to load data](..//load_data.md#using-a-crawler), and is used in the [Get Started examples](../welcome_to_sycamore/get_started.md). However, to get the best results on complex data, you will likely need to write custom code specific for your data to prepare it for search and analytics.
+You can use the [default data preparation code](../../../notebooks/default-prep-script.ipynb) to segment, process, enrich, embed, and load your data into Sycamore. This runs automatically when using the [crawlers to load data](..//load_data.md#using-a-crawler), and is used in the [Get Started examples](../welcome_to_sycamore/get_started.md). However, to get the best results on complex data, you will likely need to write custom code specific for your data to prepare it for search and analytics.
 
 Sycamore provides a toolkit for data cleaning, information extraction, enrichment, summarization, and generation of vector embeddings that encapsulate the semantics of your data. It uses your choice of generative AI models to make these operations simple and effective, and it enables quick experimentation and iteration. You write your data preparation code in Python, and Sycamore uses Ray to easily scale as your workloads grow.
 
-Sycamore data preparation code uses the concepts below, and available transforms are [here](/transforms.rst). Also, as an example, you can view the code for the default data preparation code [here](https://github.com/aryn-ai/sycamore/blob/main/notebooks/default-prep-script.ipnb) and learn more about how to run your custom code [here](/running_a_data_preparation_job.md).
+Sycamore data preparation code uses the concepts below, and available transforms are [here](/transforms.rst). Also, as an example, you can view the code for the default data preparation code [here](https://github.com/aryn-ai/sycamore/blob/main/notebooks/default-prep-script.ipynb) and learn more about how to run your custom code [here](/running_a_data_preparation_job.md).
 
 ## Sycamore data preparation concepts
 
@@ -28,7 +28,7 @@ docset = context.read\
 A Document is a generic representation of an unstructured document in a format like PDF or HTML. Though different types of Documents may have different properties, they all contain [the following common fields](https://sycamore.readthedocs.io/en/stable/APIs/data/data.html#sycamore.data.document.Document):
 
 * **binary_representation:** The raw content of the document. May not be present in elements after partitioning of non-binary inputs such as HTML.
-    
+
 * **doc_id:** A unique identifier for the Document. Defaults to a UUID.
 
 * **elements:** A list of elements belonging to this Document. If the document has no elements, for example before it is chunked, this field will be [].

@@ -8,4 +8,3 @@ Information on supported generative AI models for each operation are in the spec
 * [Entity extraction](/transforms/extract_entity.md)
 * [Schema extraction](/transforms/extract_schema.md)
 * [Summarize](/transforms/summarize.md)
-

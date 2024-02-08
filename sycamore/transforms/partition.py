@@ -107,7 +107,7 @@ class UnstructuredPPTXPartitioner(Partitioner):
         include_metadata: bool = True,
         include_slide_notes: bool = False,
         chunking_strategy: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ):
         self._include_page_breaks = include_page_breaks
         self._include_metadata = include_metadata
@@ -126,7 +126,7 @@ class UnstructuredPPTXPartitioner(Partitioner):
             include_metadata=self._include_metadata,
             include_slide_notes=self._include_slide_notes,
             chunking_strategy=self._chunking_strategy,
-            **self._kwargs
+            **self._kwargs,
         )
 
         # Here we convert unstructured.io elements into our elements and
@@ -424,7 +424,7 @@ class Partition(SingleThreadUser, Transform):
             dataset = input_dataset.map(
                 generate_map_class_from_callable(self._partitioner.partition),
                 compute=ActorPoolStrategy(min_size=1, max_size=math.ceil(available_gpus / gpu_per_task)),
-                **self.resource_args
+                **self.resource_args,
             )
         else:
             dataset = input_dataset.map(generate_map_function(self._partitioner.partition))

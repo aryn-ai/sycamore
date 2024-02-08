@@ -31,7 +31,7 @@ You can easily deploy Sycamore locally or on a virtual machine using Docker.
 
 With Docker installed:
 
-1.	Clone the Sycamore repo: 
+1.	Clone the Sycamore repo:
 
 ``git clone https://github.com/aryn-ai/sycamore``
 
@@ -39,7 +39,7 @@ With Docker installed:
 
 ``export OPENAI_API_KEY=YOUR-KEY``
 
-3.	Go to: 
+3.	Go to:
 
 ``/sycamore``
 
@@ -47,7 +47,7 @@ With Docker installed:
 
 ``docker compose up --pull=always``
 
-5.	The Sycamore demo query UI is located at: 
+5.	The Sycamore demo query UI is located at:
 
 ``http://localhost:3000/``
 
@@ -118,7 +118,7 @@ More Resources
    /querying_data/hybrid_search.md
    /querying_data/integrate_your_application.md
    /querying_data/generative_ai_configurations.md
-   
+
 
 
 .. toctree::

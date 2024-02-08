@@ -40,13 +40,13 @@ If you have local PDF or HTML files to load into Sycamore, you can copy them to 
 
 To copy a local PDF file, run:
 
-`docker cp . [name-of-your-Sycamore-Importer-container]:/app/.scrapy/downloads/pdf`
+`docker compose cp your-file.pdf importer:/app/.scrapy/downloads/pdf`
 
 To copy a local HTML file, run:
 
-`docker cp . [name-of-your-Sycamore-Importer-container]:/app/.scrapy/downloads/html`
+`docker compose cp your-file.html importer:/app/.scrapy/downloads/html`
 
 
 ## Use data preparation libraries to load data
 
-You can write data preparation jobs [using the Sycamore libraries](/installing_sycamore_libraries_locally.md) directly or [Jupyter](/using_jupyter.md) and [load this data into your Sycamore stack](/running_a_data_preparation_job.md). 
+You can write data preparation jobs [using the Sycamore libraries](/installing_sycamore_libraries_locally.md) directly or [using Jupyter](/using_jupyter.md) and [load this data into your Sycamore stack](/running_a_data_preparation_job.md). 

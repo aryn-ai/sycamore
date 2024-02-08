@@ -31,7 +31,7 @@ A Document is a generic representation of an unstructured document in a form
     
 * **doc_id:** A unique identifier for the Document. Defaults to a UUID.
 
-* **elements:** A list of elements belonging to this Document. A Document does not necessarily always have elements. For instance, before a Document is chunked it will not have any elements.
+* **elements:** A list of elements belonging to this Document. If the document has no elements, for example before it is chunked, this field will be [].
 
 * **embedding:** The embedding associated with the document (usually after it is partitioned) or None if it hasn't been set.
 

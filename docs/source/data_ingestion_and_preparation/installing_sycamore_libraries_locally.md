@@ -12,4 +12,4 @@ For certain PDF processing operations, you also need to install poppler, which
 
 `brew install poppler`
 
-For an example Sycamore script, you visit the [default preparation script](https://github.com/aryn-ai/sycamore/blob/main/notebooks/default-prep-script.ipnb). 
+For an example Sycamore script, check out the [default preparation script](https://github.com/aryn-ai/sycamore/blob/main/notebooks/default-prep-script.ipnb). 

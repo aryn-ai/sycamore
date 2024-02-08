@@ -25,7 +25,7 @@ docset = context.read\
 
 ### Document
 
-A Document is a generic representation of an unstructured document in a format like PDF or HTML. Though different types of Documents may have different properties, they all contain [the following common fields](https://github.com/aryn-ai/sycamore/blob/main/sycamore/data/document.py#L20):
+A Document is a generic representation of an unstructured document in a format like PDF or HTML. Though different types of Documents may have different properties, they all contain [the following common fields](https://sycamore.readthedocs.io/en/stable/APIs/data/data.html#sycamore.data.document.Document):
 
 * **binary_representation:** The raw content of the document. May not be present in elements after partitioning of non-binary inputs such as HTML.
     

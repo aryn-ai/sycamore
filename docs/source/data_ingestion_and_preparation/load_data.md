@@ -19,9 +19,7 @@ docker compose run sycamore_crawler_s3 [your-bucket-name] [optional-folder-name]
 docker compose run sycamore_crawler_s3 aryn-public sort-benchmark/pdf
 ```
 
-You can provide your AWS keys as arguments in this command, SSO, or the other ways the CLI resolves AWS credentials. For instance, you can manually add these variables:
-
-```-e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_SESSION_TOKEN```
+If AWS credentials are required to access the S3 bucket, make sure they are properly configured before running the crawler.
 
 ### Load data from websites
 

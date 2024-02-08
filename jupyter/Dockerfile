@@ -11,6 +11,7 @@ RUN /bin/bash /root/docker-root-setup.sh
 COPY jupyter/sudoers /etc/sudoers
 COPY jupyter/fixuser.py /root/fixuser.py
 
+# User 'app' must be id number 1000 (the default) for all to work properly.
 USER app
 RUN poetry run pip install notebook ipywidgets 'opensearch-py>=2.4' && rm -rf /app/.cache
 RUN mkdir -p /app/work/docker_volume /app/work/bind_dir /app/work/examples

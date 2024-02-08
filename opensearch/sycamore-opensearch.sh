@@ -37,9 +37,9 @@ main() {
 
     setup_transient
 
-    # Semaphore to signal completion
+    # Semaphore to signal completion, until next restart
     _curl -X PUT "${BASE_URL}/_cluster/settings" -o /dev/null --json \
-    '{"persistent":{"cluster":{"metadata":{"aryn_deploy_complete":1}}}}'
+    '{"transient":{"cluster":{"metadata":{"aryn_deploy_complete":1}}}}'
 
     if [[ -z "${LOG_FILE}" ]]; then
         echo "Did not start opensearch, should exit shortly"
@@ -94,14 +94,15 @@ opensearch_up_ssl() {
 }
 
 opensearch_up_net() {
+    # This checks for any activity at the host:port.  No error (zero return)
+    # is obviously good, but 52 meaning empty response is also indicative.
     _curl http://localhost:9200/ -o /dev/null
     [[ ($? != 0) && ($? != 52) ]] && return 1
     return 0
 }
 
 _curl() {
-    # Warning: some error output is suppressed by the -s
-    /usr/bin/curl -ks "$@"
+    /usr/bin/curl --insecure --silent --show-error "$@"
 }
 
 setup_persistent() {
@@ -144,7 +145,8 @@ END
 }
 
 _curl_json() {
-    _curl --header "Content-Type: application/json" --header "Accept:application/json" "$@"
+    # FIXME: make sure this works in Debian/Ubuntu
+    _curl --json "$@"
 }
 
 sp_register_model_group() {
@@ -436,51 +438,61 @@ setup_transient() {
 create_certificates() {
     local HOST="${SSL_HOSTNAME:-localhost}"
     local DAYS=10000
-
-    pushd config
-    local OLDMASK=$(umask -p)
-    umask 077
+    local LOG="${ARYN_STATUSDIR}/openssl.err"
 
     # 1. Make fake certificate authority (CA) certificate.  OpenSearch
     # requires a root certificate to be specified.
-    openssl req -batch -x509 -newkey rsa:4096 -days "${DAYS}" \
-    -subj "/C=US/ST=California/O=Aryn.ai/CN=Fake CA" \
-    -extensions v3_ca -noenc -keyout cakey.pem -out cacert.pem 2> /dev/null
-    echo "Created CA certificate"
+    if [[ (! -f data/cakey.pem) || (! -f data/cacert.pem) ]]; then
+	openssl req -batch -x509 -newkey rsa:4096 -days "${DAYS}" \
+	-subj "/C=US/ST=California/O=Aryn.ai/CN=Fake CA" \
+	-extensions v3_ca -noenc -keyout data/cakey.pem -out data/cacert.pem \
+	2>> "${LOG}" || die "Failed to create CA certificate"
+	echo "Created CA certificate"
+    fi
 
     # 2a. Create certificate signing request (CSR) for the node certificate.
-    openssl req -batch -newkey rsa:4096 \
-    -subj "/C=US/ST=California/O=Aryn.ai/CN=${HOST}" \
-    -extensions v3_req -addext "basicConstraints=critical,CA:FALSE" \
-    -addext "subjectAltName=DNS:${HOST}" \
-    -noenc -keyout node-key.pem -out node-req.pem 2> /dev/null
+    if [[ (! -f data/node-key.pem) || (! -f data/node-cert.pem) ]]; then
+	openssl req -batch -newkey rsa:4096 \
+	-subj "/C=US/ST=California/O=Aryn.ai/CN=${HOST}" \
+	-extensions v3_req -addext "basicConstraints=critical,CA:FALSE" \
+	-addext "subjectAltName=DNS:${HOST}" \
+	-noenc -keyout data/node-key.pem -out data/node-req.pem \
+	2>> "${LOG}" || die "Failed to create node CSR"
 
-    # 2b. Use the fake CA to sign the node CSR, yielding a certificate.
-    openssl x509 -req -CA cacert.pem -CAkey cakey.pem \
-    -copy_extensions copy -days "${DAYS}" \
-    -in node-req.pem -out node-cert.pem 2> /dev/null
-    echo "Created node certificate"
+	# 2b. Use the fake CA to sign the node CSR, yielding a certificate.
+	openssl x509 -req -CA data/cacert.pem -CAkey data/cakey.pem \
+	-copy_extensions copy -days "${DAYS}" \
+	-in data/node-req.pem -out data/node-cert.pem \
+	2>> "${LOG}" || die "Failed to create node certificate"
+	echo "Created node certificate"
+    fi
 
     # 3a. Create certificate signing request (CSR) for the admin certificate.
-    openssl req -batch -newkey rsa:4096 \
-    -subj "/C=US/ST=California/O=Aryn.ai/CN=Admin" \
-    -extensions v3_req -addext "basicConstraints=critical,CA:FALSE" \
-    -noenc -keyout admin-key.pem -out admin-req.pem 2> /dev/null
+    if [[ (! -f data/admin-key.pem) || (! -f data/admin-cert.pem) ]]; then
+	openssl req -batch -newkey rsa:4096 \
+	-subj "/C=US/ST=California/O=Aryn.ai/CN=Admin" \
+	-extensions v3_req -addext "basicConstraints=critical,CA:FALSE" \
+	-noenc -keyout data/admin-key.pem -out data/admin-req.pem \
+	2>> "${LOG}" || die "Failed to create admin CSR"
 
-    # 3b. Use the fake CA to sign the admin CSR, yielding a certificate.
-    openssl x509 -req -CA cacert.pem -CAkey cakey.pem \
-    -copy_extensions copy -days "${DAYS}" \
-    -in admin-req.pem -out admin-cert.pem 2> /dev/null
-    echo "Created admin certificate"
+	# 3b. Use the fake CA to sign the admin CSR, yielding a certificate.
+	openssl x509 -req -CA data/cacert.pem -CAkey data/cakey.pem \
+	-copy_extensions copy -days "${DAYS}" \
+	-in data/admin-req.pem -out data/admin-cert.pem \
+	2>> "${LOG}" || die "Failed to create admin certificate"
+	echo "Created admin certificate"
+    fi
 
-    rm -f node-req.pem admin-req.pem
-
-    ${OLDMASK}
-    popd
+    rm -f data/node-req.pem data/admin-req.pem
+    for X in cakey.pem cacert.pem node-key.pem node-cert.pem admin-key.pem admin-cert.pem; do
+	chmod 600 "data/${X}"
+	ln -sfn "../data/${X}" "config/${X}"
+    done
 }
 
 setup_security() {
-    # Set up security plugin configuration
+    # Set up security plugin configuration as described here:
+    # https://opensearch.org/docs/latest/security/configuration/security-admin/
     plugins/opensearch-security/tools/securityadmin.sh \
     -cd config/opensearch-security -icl -nhnv -cacert config/cacert.pem \
     -cert config/admin-cert.pem -key config/admin-key.pem

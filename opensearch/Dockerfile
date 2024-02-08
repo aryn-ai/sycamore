@@ -2,6 +2,11 @@
 
 ARG TAG=2.11.0
 FROM opensearchproject/opensearch:$TAG
+
+USER root
+RUN yum install -yq openssl jq && yum clean all
+USER opensearch
+
 COPY opensearch/opensearch.yml /usr/share/opensearch/config/
 COPY opensearch/config.yml opensearch/roles_mapping.yml \
      /usr/share/opensearch/config/opensearch-security/
@@ -25,8 +30,7 @@ LABEL git_commit=${GIT_COMMIT}
 LABEL git_diff=${GIT_DIFF}
 
 USER root
-RUN yum install -yq openssl jq && yum clean all
-RUN chown 1000:1000 \
+RUN chown opensearch:opensearch \
     /usr/share/opensearch/sycamore-opensearch.sh \
     /usr/share/opensearch/config/*.yml
 RUN chmod 600 /usr/share/opensearch/config/*.yml

@@ -17,11 +17,15 @@ ln -snf "${JUPYTER_CONFIG_DOCKER}" $HOME/.jupyter
 rm /app/.local/share/jupyter/runtime/jpserver-*-open.html 2>/dev/null
 
 : ${HOST:=localhost}
-openssl req -batch -x509 -newkey rsa:4096 -days 10000 \
--subj "/C=US/ST=California/O=Aryn.ai/CN=${HOST}" \
--extensions v3_req -addext "subjectAltName=DNS:${HOST}" \
--noenc -keyout "/app/${HOST}-key.pem" -out "/app/${HOST}-cert.pem" 2> /dev/null
-echo "Created ${HOST} certificate"
+SSLPFX="/app/work/docker_volume/${HOST}"
+if [[ (! -f ${SSLPFX}-key.pem) || (! -f ${SSLPFX}-cert.pem) ]]; then
+    openssl req -batch -x509 -newkey rsa:4096 -days 10000 \
+    -subj "/C=US/ST=California/O=Aryn.ai/CN=${HOST}" \
+    -extensions v3_req -addext "subjectAltName=DNS:${HOST}" \
+    -noenc -keyout "${SSLPFX}-key.pem" -out "${SSLPFX}-cert.pem" \
+    2> /dev/null
+    echo "Created ${HOST} certificate"
+fi
 
 (
     while [[ $(ls /app/.local/share/jupyter/runtime/jpserver-*-open.html 2>/dev/null | wc -w) = 0 ]]; do
@@ -57,5 +61,5 @@ echo "Created ${HOST} certificate"
 
 cd /app/work
 poetry run jupyter notebook \
---certfile="/app/${HOST}-cert.pem" --keyfile="/app/${HOST}-key.pem" \
+--certfile="${SSLPFX}-cert.pem" --keyfile="${SSLPFX}-key.pem" \
 --no-browser --ip 0.0.0.0 "$@"

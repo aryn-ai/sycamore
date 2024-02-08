@@ -8,7 +8,7 @@ Using a [Jupyter notebook](https://jupyter.org/) makes it easy to write and iter
 
 Sycamore includes a default container with Jupyter. In order to maintain security, Jupyter uses a token to limit access to the notebook. For the first 5 minutes after launching, the Jupyter container will periodically print out instructions for connecting. If you can't find these instructions, you can get them by running:
 
-`docker compose logs jupyter`
+`docker compose logs jupyter | grep Visit`
 
 Then connect to the notebook using the specified URL or via the redirect file. The token is stable over restarts of the container.
 
@@ -18,7 +18,7 @@ For a tutorial on creating a data preparation script in a notebook, [click here]
 
 ### Jupyter shell
 
-If you already have custom data preparation code, the easiest way to run it is using the Juypter shell in the Jupyter container. The Jupyter container is configured with a bind direcotry, making it easy to add your script and make it accessible in the container. Once you have added your script to the bind_dir, you can [run it using the Jupyter shell](/running_a_data_preparation_job.md#using-jupyter-container).
+If you already have custom data preparation code, the easiest way to run it is using the Juypter shell in the Jupyter container. The Jupyter container is configured with a bind directory, making it easy to add your script and make it accessible in the container. Once you have added your script to the bind_dir, you can [run it using the Jupyter shell](/running_a_data_preparation_job.md#using-jupyter-container).
 
 ## Running Jupyter locally
 

@@ -1,6 +1,6 @@
 # Data Preparation Concepts
 
-You can use the default data preparation code NEED LINK to segment, process, enrich, embed, and load your data into Sycamore. However, to get the best results on complex data, you will likely need to write custom code specific for your data to prepare it for search and analytics.
+You can use the [default data preparation code](../../../notebooks/default-prep-script.ipnb) to segment, process, enrich, embed, and load your data into Sycamore. This runs automatically when using the [crawlers to load data](..//load_data.md#using-a-crawler), and is used in the [Get Started examples](../welcome_to_sycamore/get_started.md). However, to get the best results on complex data, you will likely need to write custom code specific for your data to prepare it for search and analytics.
 
 Sycamore provides a toolkit for data cleaning, information extraction, enrichment, summarization, and generation of vector embeddings that encapsulate the semantics of your data. It uses your choice of generative AI models to make these operations simple and effective, and it enables quick experimentation and iteration. You write your data preparation code in Python, and Sycamore uses Ray to easily scale as your workloads grow.
 

@@ -102,7 +102,8 @@ opensearch_up_net() {
 }
 
 _curl() {
-    /usr/bin/curl --insecure --silent --show-error "$@"
+    # Warning: some error output is suppressed by --silent
+    /usr/bin/curl --insecure --silent "$@"
 }
 
 setup_persistent() {
@@ -145,8 +146,7 @@ END
 }
 
 _curl_json() {
-    # FIXME: make sure this works in Debian/Ubuntu
-    _curl --json "$@"
+    _curl --header "Content-Type: application/json" --header "Accept:application/json" "$@"
 }
 
 sp_register_model_group() {
@@ -443,50 +443,50 @@ create_certificates() {
     # 1. Make fake certificate authority (CA) certificate.  OpenSearch
     # requires a root certificate to be specified.
     if [[ (! -f data/cakey.pem) || (! -f data/cacert.pem) ]]; then
-	openssl req -batch -x509 -newkey rsa:4096 -days "${DAYS}" \
-	-subj "/C=US/ST=California/O=Aryn.ai/CN=Fake CA" \
-	-extensions v3_ca -noenc -keyout data/cakey.pem -out data/cacert.pem \
-	2>> "${LOG}" || die "Failed to create CA certificate"
-	echo "Created CA certificate"
+        openssl req -batch -x509 -newkey rsa:4096 -days "${DAYS}" \
+        -subj "/C=US/ST=California/O=Aryn.ai/CN=Fake CA" \
+        -extensions v3_ca -noenc -keyout data/cakey.pem -out data/cacert.pem \
+        2>> "${LOG}" || die "Failed to create CA certificate"
+        echo "Created CA certificate"
     fi
 
     # 2a. Create certificate signing request (CSR) for the node certificate.
     if [[ (! -f data/node-key.pem) || (! -f data/node-cert.pem) ]]; then
-	openssl req -batch -newkey rsa:4096 \
-	-subj "/C=US/ST=California/O=Aryn.ai/CN=${HOST}" \
-	-extensions v3_req -addext "basicConstraints=critical,CA:FALSE" \
-	-addext "subjectAltName=DNS:${HOST}" \
-	-noenc -keyout data/node-key.pem -out data/node-req.pem \
-	2>> "${LOG}" || die "Failed to create node CSR"
+        openssl req -batch -newkey rsa:4096 \
+        -subj "/C=US/ST=California/O=Aryn.ai/CN=${HOST}" \
+        -extensions v3_req -addext "basicConstraints=critical,CA:FALSE" \
+        -addext "subjectAltName=DNS:${HOST}" \
+        -noenc -keyout data/node-key.pem -out data/node-req.pem \
+        2>> "${LOG}" || die "Failed to create node CSR"
 
-	# 2b. Use the fake CA to sign the node CSR, yielding a certificate.
-	openssl x509 -req -CA data/cacert.pem -CAkey data/cakey.pem \
-	-copy_extensions copy -days "${DAYS}" \
-	-in data/node-req.pem -out data/node-cert.pem \
-	2>> "${LOG}" || die "Failed to create node certificate"
-	echo "Created node certificate"
+        # 2b. Use the fake CA to sign the node CSR, yielding a certificate.
+        openssl x509 -req -CA data/cacert.pem -CAkey data/cakey.pem \
+        -copy_extensions copy -days "${DAYS}" \
+        -in data/node-req.pem -out data/node-cert.pem \
+        2>> "${LOG}" || die "Failed to create node certificate"
+        echo "Created node certificate"
     fi
 
     # 3a. Create certificate signing request (CSR) for the admin certificate.
     if [[ (! -f data/admin-key.pem) || (! -f data/admin-cert.pem) ]]; then
-	openssl req -batch -newkey rsa:4096 \
-	-subj "/C=US/ST=California/O=Aryn.ai/CN=Admin" \
-	-extensions v3_req -addext "basicConstraints=critical,CA:FALSE" \
-	-noenc -keyout data/admin-key.pem -out data/admin-req.pem \
-	2>> "${LOG}" || die "Failed to create admin CSR"
+        openssl req -batch -newkey rsa:4096 \
+        -subj "/C=US/ST=California/O=Aryn.ai/CN=Admin" \
+        -extensions v3_req -addext "basicConstraints=critical,CA:FALSE" \
+        -noenc -keyout data/admin-key.pem -out data/admin-req.pem \
+        2>> "${LOG}" || die "Failed to create admin CSR"
 
-	# 3b. Use the fake CA to sign the admin CSR, yielding a certificate.
-	openssl x509 -req -CA data/cacert.pem -CAkey data/cakey.pem \
-	-copy_extensions copy -days "${DAYS}" \
-	-in data/admin-req.pem -out data/admin-cert.pem \
-	2>> "${LOG}" || die "Failed to create admin certificate"
-	echo "Created admin certificate"
+        # 3b. Use the fake CA to sign the admin CSR, yielding a certificate.
+        openssl x509 -req -CA data/cacert.pem -CAkey data/cakey.pem \
+        -copy_extensions copy -days "${DAYS}" \
+        -in data/admin-req.pem -out data/admin-cert.pem \
+        2>> "${LOG}" || die "Failed to create admin certificate"
+        echo "Created admin certificate"
     fi
 
     rm -f data/node-req.pem data/admin-req.pem
     for X in cakey.pem cacert.pem node-key.pem node-cert.pem admin-key.pem admin-cert.pem; do
-	chmod 600 "data/${X}"
-	ln -sfn "../data/${X}" "config/${X}"
+        chmod 600 "data/${X}"
+        ln -sfn "../data/${X}" "config/${X}"
     done
 }
 

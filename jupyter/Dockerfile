@@ -18,8 +18,8 @@ RUN mkdir -p /app/work/docker_volume /app/work/bind_dir /app/work/examples
 RUN touch /app/work/AAA_SEE_README_FOR_PERSISTENT_DATA_DIRECTORIES
 COPY jupyter/run-jupyter.sh ./
 COPY jupyter/README.md ./work
-COPY sycamore_local_dev_example.ipynb ./work/examples
-RUN perl -i -pe 's/localhost/opensearch/ if /9200/;s,tmp/sycamore/data,/app/work/docker_volume,' /app/work/examples/sycamore_local_dev_example.ipynb
+COPY notebooks/jupyter_dev_example.ipynb ./work/examples
+RUN perl -i -pe 's/localhost/opensearch/ if /9200/;s,tmp/sycamore/data,/app/work/docker_volume,' /app/work/examples/jupyter_dev_example.ipynb
 
 ARG GIT_BRANCH="unknown"
 ARG GIT_COMMIT="unknown"

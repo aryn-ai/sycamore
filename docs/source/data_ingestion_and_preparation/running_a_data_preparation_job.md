@@ -19,7 +19,7 @@ The easiest way to run your data preparation code is to use the Jupyter notebook
 
 ## Using the Sycamore-Importer container
 
-You can also copy your code to the Sycamore-Importer container and run it there. However, we don’t recommend this method, and instead we suggest you use the Jupyter methods above. If you do copy your file to the Sycamore-Importer container, we recommend you save it to `/app/.scrapy` so it persists. 
+You can also copy your code to the Sycamore-Importer container and run it there. However, we don’t recommend this method, and instead we suggest you use the Jupyter methods above. If you do copy your file to the Sycamore-Importer container, we recommend you save it to `/app/.scrapy` so it persists.
 
 1. Copy your file to the Sycamore-Importer container:
 
@@ -60,4 +60,3 @@ os_client_args = {
 To run your Sycamore job:
 
 ```python /path/to/your-file-name.py```
-

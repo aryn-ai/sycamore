@@ -8,7 +8,7 @@ Sycamore is deployed using Docker, and you can launch it locally or on a virtual
 
 `git clone https://github.com/aryn-ai/sycamore`
 
-2. Create OpenAI Key for LLM access. Sycamore’s default configuration uses OpenAI for RAG and entity extraction. You can create an OpenAI account [here](https://platform.openai.com/signup), or if you already have one, you can retrieve your key [here](https://platform.openai.com/account/api-keys). 
+2. Create OpenAI Key for LLM access. Sycamore’s default configuration uses OpenAI for RAG and entity extraction. You can create an OpenAI account [here](https://platform.openai.com/signup), or if you already have one, you can retrieve your key [here](https://platform.openai.com/account/api-keys).
 
 3. Set OpenAI Key:
 
@@ -22,7 +22,7 @@ Sycamore is deployed using Docker, and you can launch it locally or on a virtual
 
 `Docker compose up --pull=always`
 
-Note: You can alternately remove the `--pull=always` and instead run `docker compose pull` to control when new images are downloaded. `--pull=always` guarantees you have the most recent images for the specified version. 
+Note: You can alternately remove the `--pull=always` and instead run `docker compose pull` to control when new images are downloaded. `--pull=always` guarantees you have the most recent images for the specified version.
 
 Congrats – you have launched Sycamore! Now, it’s time to ingest and prepare some data, and run conversational search on it. Continue on to the next section to do this with a sample dataset or a website that you specify.
 
@@ -40,15 +40,15 @@ Sycamore’s default data ingestion and preparation code can optionally use [Ama
 
 If you have started Sycamore already, you'll need to restart it after following these instructions.
 
-1. If you do not have an AWS account, sign up [here](https://portal.aws.amazon.com/billing/signup). You will need this during configuration. 
+1. If you do not have an AWS account, sign up [here](https://portal.aws.amazon.com/billing/signup). You will need this during configuration.
 
-2. Create an Amazon S3 bucket in your AWS account in the us-east-1 region for use with Textract (e.g. `s3://username-textract-bucket`). We recommend you set up bucket lifecycle rules that automatically delete files in this bucket, as the data stored here is only needed temporarily during a Sycamore data processing job. 
+2. Create an Amazon S3 bucket in your AWS account in the us-east-1 region for use with Textract (e.g. `s3://username-textract-bucket`). We recommend you set up bucket lifecycle rules that automatically delete files in this bucket, as the data stored here is only needed temporarily during a Sycamore data processing job.
 
 3. Enable Sycamore to use Textract by setting the S3 prefix/bucket name for Textract to use:
 
-`export SYCAMORE_TEXTRACT_PREFIX=s3://your-bucket-name-here` 
+`export SYCAMORE_TEXTRACT_PREFIX=s3://your-bucket-name-here`
 
-4. Configure your AWS credentials. You can enable AWS SSO login with [these instructions](https://docs.aws.amazon.com/cli/latest/userguide/sso-configure-profile-token.html#sso-configure-profile-token-auto-sso), or you can use other methods to set up AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and if needed AWS_SESSION_TOKEN. 
+4. Configure your AWS credentials. You can enable AWS SSO login with [these instructions](https://docs.aws.amazon.com/cli/latest/userguide/sso-configure-profile-token.html#sso-configure-profile-token-auto-sso), or you can use other methods to set up AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and if needed AWS_SESSION_TOKEN.
 
 If using AWS SSO:
 
@@ -85,7 +85,7 @@ Sycamore will automatically start processing the new data. The processing job is
 
 3. Use the demo query UI for conversational search. Using your internet browser, visit: `http://localhost:3000`. You can interact with the demo query UI while data is being added to the index, but the data won't all be available until the job is done. How to use the UI:
 
-* Create a new conversation. Enter the name for your conversation in the text box in the left "Conversations" panel, and hit enter or click the "Add conversation" icon on the right of the text box. 
+* Create a new conversation. Enter the name for your conversation in the text box in the left "Conversations" panel, and hit enter or click the "Add conversation" icon on the right of the text box.
 * Select your conversation, and then write a question into the text box in the middle panel. Hit enter.
 * Ask follow up questions. You'll see the actual results from the Sycamore's hybrid search for your question in the right panel, and the conversational search in the middle panel.
 
@@ -161,7 +161,7 @@ No changes at [datetime] sleeping
 
 A [Jupyter](https://jupyter.org/) notebook is a development environment that lets you
 write and experiment with different data preparation jobs to improve the results of
-processing your documents. The [using Jupyter 
+processing your documents. The [using Jupyter
 tutorial](../tutorials/sycamore-jupyter-dev-example.md) will walk you through using the containerized Jupyter notebook included with Sycamore or installing it locally, and preparing a new set of documents.
 
 

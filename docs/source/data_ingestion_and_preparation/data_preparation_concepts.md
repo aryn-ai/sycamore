@@ -4,7 +4,7 @@ You can use the [default data preparation code](../../../notebooks/default-prep-
 
 Sycamore provides a toolkit for data cleaning, information extraction, enrichment, summarization, and generation of vector embeddings that encapsulate the semantics of your data. It uses your choice of generative AI models to make these operations simple and effective, and it enables quick experimentation and iteration. You write your data preparation code in Python, and Sycamore uses Ray to easily scale as your workloads grow.
 
-Sycamore data preparation code uses the concepts below, and available transforms are [here](/transforms.rst). Also, as an example, you can view the code for the default data preparation code here [LINK] and learn more about how to run your custom code [here](/running_a_data_preparation_job.md).
+Sycamore data preparation code uses the concepts below, and available transforms are [here](/transforms.rst). Also, as an example, you can view the code for the default data preparation code [here](https://github.com/aryn-ai/sycamore/blob/main/notebooks/default-prep-script.ipnb) and learn more about how to run your custom code [here](/running_a_data_preparation_job.md).
 
 ## Sycamore data preparation concepts
 

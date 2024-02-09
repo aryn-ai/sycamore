@@ -24,39 +24,39 @@ class EvaluationDataPoint(Document):
         self.data["question"] = value
 
     @property
-    def answer(self) -> Optional[str]:
+    def ground_truth_answer(self) -> Optional[str]:
         """Natural language answer."""
-        return self.data.get("index")
+        return self.data.get("ground_truth_answer")
 
-    @answer.setter
-    def answer(self, value: str) -> None:
+    @ground_truth_answer.setter
+    def ground_truth_answer(self, value: str) -> None:
         """Set the Natural language answer."""
-        self.data["answer"] = value
+        self.data["ground_truth_answer"] = value
 
     @property
-    def document_url(self) -> Optional[str]:
+    def ground_truth_document_url(self) -> Optional[str]:
         """Source document url."""
-        return self.data.get("document_url")
+        return self.data.get("ground_truth_document_url")
 
-    @document_url.setter
-    def document_url(self, value: str) -> None:
+    @ground_truth_document_url.setter
+    def ground_truth_document_url(self, value: str) -> None:
         """Set the document url."""
-        self.data["document_url"] = value
+        self.data["ground_truth_document_url"] = value
 
     @property
-    def source_documents(self) -> list[Element]:
+    def ground_truth_source_documents(self) -> list[Element]:
         """List of documents required to answer this question."""
-        return self.data.get("source_documents", [])
+        return self.data.get("ground_truth_source_documents", [])
 
-    @source_documents.setter
-    def source_documents(self, value: list[Element]) -> None:
+    @ground_truth_source_documents.setter
+    def ground_truth_source_documents(self, value: list[Element]) -> None:
         """Set the list of documents required to answer this question"""
-        self.data["hits"] = value
+        self.data["ground_truth_source_documents"] = value
 
     @property
     def generated_answer(self) -> Optional[str]:
         """Natural language generated answer."""
-        return self.data.get("index")
+        return self.data.get("generated_answer")
 
     @generated_answer.setter
     def generated_answer(self, value: str) -> None:

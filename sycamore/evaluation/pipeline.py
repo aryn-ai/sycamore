@@ -1,8 +1,7 @@
 from typing import Tuple
 
 from sycamore import DocSet
-from sycamore.data import Document
-from sycamore.data import OpenSearchQuery
+from sycamore.data import Document, OpenSearchQuery
 from sycamore.evaluation.data import EvaluationDataPoint
 from sycamore.evaluation.metrics import EvaluationMetric
 from sycamore.transforms.query import OpenSearchQueryExecutor
@@ -23,6 +22,7 @@ class EvaluationPipeline:
         self._os_config = os_config
 
     def _build_opensearch_query(self, doc: Document) -> Document:
+        assert doc.type == "EvaluationDataPoint"
         query = OpenSearchQuery()
         query["index"] = self._index
         if "llm" in self._os_config:
@@ -91,8 +91,9 @@ class EvaluationPipeline:
             }
         return query
 
-    def _evaluate_queries(self, query: Document) -> Document:
-        result = EvaluationDataPoint(query)
+    def _evaluate_queries(self, query_result: Document) -> Document:
+        assert query_result.type == "OpenSearchQueryResult"
+        result = EvaluationDataPoint(query_result)
         metrics = {}
         for metric in self._metrics:
             metrics[metric.metric_name()] = metric.evaluate(result)

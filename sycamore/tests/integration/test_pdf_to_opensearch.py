@@ -1,10 +1,12 @@
 import sycamore
+from functions import HuggingFaceTokenizer
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.llms import OpenAIModels, OpenAI
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 from sycamore.tests.config import TEST_DIR
+from sycamore.transforms.merge_elements import GreedyTextElementMerger
 
 
 def test_pdf_to_opensearch():
@@ -12,7 +14,7 @@ def test_pdf_to_opensearch():
         "hosts": [{"host": "localhost", "port": 9200}],
         "http_compress": True,
         "http_auth": ("admin", "admin"),
-        "use_ssl": True,
+        "use_ssl": False,
         "verify_certs": False,
         "ssl_assert_hostname": False,
         "ssl_show_warn": False,
@@ -28,7 +30,7 @@ def test_pdf_to_opensearch():
             },
             "mappings": {
                 "properties": {
-                    "embeddings": {
+                    "embedding": {
                         "type": "knn_vector",
                         "dimension": 384,
                         "method": {"name": "hnsw", "engine": "nmslib"},
@@ -91,6 +93,7 @@ def test_pdf_to_opensearch():
     paths = str(TEST_DIR / "resources/data/pdfs/")
 
     openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
+    tokenizer = HuggingFaceTokenizer("thenlper/gte-small")
 
     context = sycamore.init()
     ds = (
@@ -102,6 +105,7 @@ def test_pdf_to_opensearch():
         .extract_entity(
             entity_extractor=OpenAIEntityExtractor("authors", llm=openai_llm, prompt_template=author_context_template)
         )
+        .merge(GreedyTextElementMerger(tokenizer=tokenizer, max_tokens=300))
         .explode()
         .embed(
             embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")

@@ -4,7 +4,7 @@ Service and library for remote processors
 ## Instructions 
 Setting this up takes a couple steps. First, get the protocols submodule with
 ```
-git submodule update --remote
+git submodule update --init --remote
 ```
 
 Also install the poetry packages and stuff
@@ -14,7 +14,7 @@ poetry install
 
 Next, generate the grpc/protobuf code. Due to some weirdness in the way protobuf python handles imports I wrote a script that screws with the directory structure (only for the grpc generate call)
 ```
-./make
+./genrpc
 ```
 
 Now, assemble a zip for the opensearch plugin by following the directions in [that repo](https://github.com/aryn-ai/opensearch-remote-processor). Copy the resulting zip into `docker/` and then build an opensearch image

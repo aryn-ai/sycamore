@@ -29,7 +29,7 @@ The RAG pipeline will retrieve up to the last 10 of interactions from the conver
 
 ## Question rewriting
 
-We recommend using "question rewriting" when building a conversational search application, which also requires conversation memory. Question rewriting takes a user quesiton submitted to the application and changes it to reflect the context of the conversation. This can make the question more clear for Sycamore to return a better answer, especially if the question is vague or requires context from a prior interaction (e.g. using prepositions that refer to things in previous interactions). This also creates more of a natural conversational experience.
+We recommend using question rewriting when building a conversational search application, which also requires conversation memory. Question rewriting takes a user quesiton submitted to the application and changes it to reflect the context of the conversation. This can make the question more clear for Sycamore to return a better answer, especially if the question is vague or requires context from a prior interaction (e.g. using pronouns that refer to things in previous interactions). This also creates more of a natural conversational experience.
 
 You can use the conversation memory APIs with the LLM of your choice (e.g. OpenAI), and ask the LLM to rephrase the user’s original question in the context of the specified conversation. The [Sycamore demo query UI](../querying_data/demo_query_ui.md) uses this process for question rewriting.
 

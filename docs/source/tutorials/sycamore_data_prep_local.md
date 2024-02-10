@@ -1,6 +1,6 @@
 # Using Sycamore's data prep libraries locally
 
-This tutorial provides a walkthrough of how to use Sycamore's data preparation libraries locally to prepare, enhance, and embed a PDF dataset from S3 and load it into a local Sycamore stack. We encourage to go over [Sycamore's architecture](../welcome_to_sycamore/architecture.md) before you work through this tutorial. We will be using unstructured PDFs from the [Sort Benchmark](http://sortbenchmark.org/) website. This data is publicly available in S3 here, so you do not need AWS credentials to access it: s3://aryn-public/sort-benchmark/pdf/
+This tutorial provides a walkthrough of how to use Sycamore's data preparation libraries locally to prepare, enhance, and embed a PDF dataset from S3 and load it into a local Sycamore stack. We encourage to go over [Sycamore's architecture](../welcome_to_sycamore/architecture.md) before you work through this tutorial. We will be using unstructured PDFs from the [Sort Benchmark](http://sortbenchmark.org/) website. This data is publicly available in S3 here, so you do not need AWS credentials to access it: `s3://aryn-public/sort-benchmark/pdf/`
 
 ## Steps
 

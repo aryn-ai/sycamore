@@ -12,9 +12,14 @@ Once data is crawled, Sycamore will use the default data preparation code to pro
 
 To use the S3 crawler, run this command and specify your S3 bucket (and optional folder):
 
-```docker run -v crawl_data:/app/.data/.s3 -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_SESSION_TOKEN crawler_s3 [your-bucket-name]/[your-folder-name]```
+```
+docker compose run sycamore_crawler_s3 [your-bucket-name] [optional-folder-name]
 
-You can provide your AWS keys as arguments in this command, SSO, or the other ways the CLI resolves AWS credentials.
+#example
+docker compose run sycamore_crawler_s3 aryn-public sort-benchmark/pdf
+```
+
+If AWS credentials are required to access the S3 bucket, make sure they are properly configured before running the crawler.
 
 ### Load data from websites
 
@@ -22,21 +27,26 @@ The Sycamore HTTP crawler is based on scrapy, a framework for writing web craw
 
 To use the HTTP crawler, run:
 
-`docker run -v crawl_data:/app/.data/.scrapy crawler_http [URL]`
+```
+docker compose run sycamore_crawler_http [URL]
+
+#example
+docker compose run sycamore_crawler_http http://www.aryn.ai
+```
 
 ## Load PDFs from local machine
 
 If you have local PDF or HTML files to load into Sycamore, you can copy them to the directory where the HTTP crawler saves the PDF or HTML files, respectively. Adding files to this directory will trigger the Sycamore-Importer to process them.
 
-To copy a local PDF file to this directory, run:
+To copy a local PDF file, run:
 
-`docker cp . [name-of-your-Sycamore-Importer-Container]:/app/.scrapy/downloads/pdf`
+`docker compose cp your-file.pdf importer:/app/.scrapy/downloads/pdf`
 
-To copy a local HTML file to this directory, run:
+To copy a local HTML file, run:
 
-`docker cp . [name-of-your-Sycamore-Importer-Container]:/app/.scrapy/downloads/html`
+`docker compose cp your-file.html importer:/app/.scrapy/downloads/html`
 
 
 ## Use data preparation libraries to load data
 
-You can write data preparation jobs using the Sycamore libraries direclty and load this data into your Sycamore stack. For more information, visit LINK HERE.
+You can write data preparation jobs [using the Sycamore libraries](/installing_sycamore_libraries_locally.md) directly or [using Jupyter](/using_jupyter.md) and [load this data into your Sycamore stack](/running_a_data_preparation_job.md).

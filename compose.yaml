@@ -38,7 +38,7 @@ services:
     environment:
       - OPENAI_API_KEY
 
-  sycamore:
+  importer:
     image: arynai/sycamore-importer:${SYCAMORE_VERSION}
     ports:
       - 127.0.0.1:${RAY_CONSOLE_PORT}:8265 # note, not working right now

@@ -1,5 +1,5 @@
 # Sycamore Architecture
-Sycamore provides a one-stop shop for search and analytics on complex unstructured data, and has several high-level components. You can also view an [architecture diagram below.](#Architecture-Diagram)
+Sycamore provides a one-stop shop for search and analytics on complex unstructured data, and has several high-level components. You can also view an [architecture diagram below.](#architecture-diagram)
 
 ## Data Ingestion and Preparation
 

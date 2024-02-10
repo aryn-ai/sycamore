@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sycamore-ai"
-version = "0.1.11"
+version = "0.1.12"
 description = "Sycamore is an LLM-powered semantic data preparation system for building search applications."
 authors = ["aryn.ai <opensource@aryn.ai>"]
 readme = "README.md"
@@ -43,6 +43,7 @@ myst-parser = { version = "^2.0.0", optional = true }
 sphinx = { version = "^7.2.5", optional = true }
 jinja2 = "^3.1.2"
 datasets = "^2.16.1"
+timm = "^0.9.12"
 
 [tool.poetry.group.crawler_s3.dependencies]
 boto3 = "^1.28.70"

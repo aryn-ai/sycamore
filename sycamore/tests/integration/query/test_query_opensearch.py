@@ -68,7 +68,7 @@ class TestQueryOpenSearch:
     def test_single_query(self):
         query_executor = OpenSearchQueryExecutor(self.OS_CLIENT_ARGS)
         query = OpenSearchQuery()
-        query.query = {"query": {"match_all": {}}, "size": 2}
+        query.query = {"query": {"match_all": {}}, "size": 1}
         query.index = self.INDEX
         result = query_executor.query(query)
         assert len(result.hits) > 0

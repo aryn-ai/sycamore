@@ -1,5 +1,5 @@
 import sycamore
-from functions import HuggingFaceTokenizer
+from sycamore.functions import HuggingFaceTokenizer
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor

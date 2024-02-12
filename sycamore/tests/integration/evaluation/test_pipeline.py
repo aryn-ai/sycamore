@@ -1,4 +1,5 @@
 import datasets
+import pytest
 
 import sycamore
 from sycamore.evaluation.datasets import EvaluationDataSetReader
@@ -29,6 +30,7 @@ class TestEvaluationPipeline:
         "context_window": "5",
     }
 
+    @pytest.mark.skip(reason="Requires named models to configure os pipeline unless we setup the cluster on each run")
     def test_hf(self):
         context = sycamore.init()
         reader = EvaluationDataSetReader(context)

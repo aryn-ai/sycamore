@@ -32,9 +32,10 @@ Finally, docker compose up
 ```
 docker compose -f docker/compse.yml up
 ```
-Alternately, just start the OpenSearch container and run RPS locally:
+Alternately, one can start the OpenSearch container and run RPS locally.
+Be sure to change `rps` to `localhost` in the endpoint below.
 ```
-docker run -it --rm --network=host -e discovery.type=single-node rps-os
+docker run -d --rm --network=host -e discovery.type=single-node rps-os
 poetry run server configs/cfg1.yml
 ```
 
@@ -71,4 +72,16 @@ print(res)
 ```
 search_response {
 }
+```
+
+Or, test the processor via OpenSearch:
+```
+curl 'http://localhost:9200/demoindex0/_search?search_pipeline=remote_pipeline&pretty' --json '
+{
+  "query": {
+    "match": {
+      "text_representation": "armadillo"
+    }
+  }
+}'
 ```

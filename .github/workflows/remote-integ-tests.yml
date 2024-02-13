@@ -23,6 +23,7 @@ jobs:
       - name: Checkout Opensearch Remote Processor Plugin
         uses: actions/checkout@v4
         with:
+          repository: aryn-ai/opensearch-remote-processor
           submodules: recursive
           path: opensearch-remote-processor
           ref: ${{ github.event.client_payload.ref }}

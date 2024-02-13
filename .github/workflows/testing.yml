@@ -46,7 +46,7 @@ jobs:
         python-version: ["3.9", "3.10", "3.11"]
     services:
       opensearch:
-        image: opensearchproject/opensearch:2.9.0
+        image: opensearchproject/opensearch:2.10.0
         env:
           discovery.type: "single-node"
         ports:

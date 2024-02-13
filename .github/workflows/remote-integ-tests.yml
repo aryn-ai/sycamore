@@ -14,8 +14,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Checkout Protocols
+        uses: actions/checkout@v4
+        with:
+          repository: aryn-ai/protocols
+          path: protocols
+          token: ${{ secrets.SUBMODULE_ACCESS }}
+      - name: Checkout Opensearch Remote Processor Plugin
+        uses: actions/checkout@v4
         with:
           submodules: recursive
+          path: opensearch-remote-processor
+          ref: ${{ github.event.client_payload.ref }}
           token: ${{ secrets.SUBMODULE_ACCESS }}
       - name: Setup Java 17
         uses: actions/setup-java@v1

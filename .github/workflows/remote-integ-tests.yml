@@ -14,6 +14,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        # Get the submodules here even though we're redoing it manually since ITs expect submodule structures
+        with:
+          submodules: recursive
+          token: ${{ secrets.SUBMODULE_ACCESS }}
       - name: Checkout Protocols
         uses: actions/checkout@v4
         with:

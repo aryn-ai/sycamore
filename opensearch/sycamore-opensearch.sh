@@ -37,7 +37,8 @@ main() {
 
     setup_transient
 
-    # Semaphore to signal completion, until next restart
+    # Semaphore to signal completion.  This is transient and will go away
+    # after restart, which matches the longevity of model deployment.
     _curl -X PUT "${BASE_URL}/_cluster/settings" -o /dev/null --json \
     '{"transient":{"cluster":{"metadata":{"aryn_deploy_complete":1}}}}'
 
@@ -497,7 +498,7 @@ setup_security() {
     -cd config/opensearch-security -icl -nhnv -cacert config/cacert.pem \
     -cert config/admin-cert.pem -key config/admin-key.pem
 
-    # Semaphore to signal completion
+    # Semaphore for SSL setup.  Useful for debugging and other scripts.
     _curl -X PUT "${BASE_URL}/_cluster/settings" -o /dev/null --json \
     '{"persistent":{"cluster":{"metadata":{"aryn_ssl_setup_complete":1}}}}'
 }

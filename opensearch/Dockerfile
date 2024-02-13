@@ -29,6 +29,7 @@ LABEL git_branch=${GIT_BRANCH}
 LABEL git_commit=${GIT_COMMIT}
 LABEL git_diff=${GIT_DIFF}
 
+# OpenSearch complains if these files have permissive modes.
 USER root
 RUN chown opensearch:opensearch \
     /usr/share/opensearch/sycamore-opensearch.sh \

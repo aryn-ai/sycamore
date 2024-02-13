@@ -374,7 +374,7 @@ def get_os_client_args():
         "http_compress": True,
         "http_auth": ("admin", "admin"),
         "use_ssl": True,
-        "verify_certs": False,
+        "verify_certs": False,  # because we're using self-signed certificates
         "ssl_assert_hostname": False,
         "ssl_show_warn": False,
         "timeout": 120,

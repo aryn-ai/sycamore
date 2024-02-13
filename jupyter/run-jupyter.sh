@@ -1,4 +1,10 @@
 #!/bin/bash
+
+die() {
+    echo "ERROR: " "$@" >&2
+    exit 1
+}
+
 mkdir -p $HOME/.jupyter
 JUPYTER_CONFIG_DOCKER=/app/work/docker_volume/jupyter_notebook_config.py
 
@@ -18,12 +24,13 @@ rm /app/.local/share/jupyter/runtime/jpserver-*-open.html 2>/dev/null
 
 : ${HOST:=localhost}
 SSLPFX="/app/work/docker_volume/${HOST}"
+SSLLOG="/app/work/docker_volume/openssl.err"
 if [[ (! -f ${SSLPFX}-key.pem) || (! -f ${SSLPFX}-cert.pem) ]]; then
     openssl req -batch -x509 -newkey rsa:4096 -days 10000 \
     -subj "/C=US/ST=California/O=Aryn.ai/CN=${HOST}" \
     -extensions v3_req -addext "subjectAltName=DNS:${HOST}" \
     -noenc -keyout "${SSLPFX}-key.pem" -out "${SSLPFX}-cert.pem" \
-    2> /dev/null
+    2>> "${SSLLOG}" || die "Failed to create ${HOST} certificate"
     echo "Created ${HOST} certificate"
 fi
 

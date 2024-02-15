@@ -1,11 +1,13 @@
 # Repo name: arynai/sycamore-opensearch
 
-ARG TAG=2.11.0
+
+ARG TAG=2.12.0
 FROM opensearchproject/opensearch:$TAG
 
 USER root
 RUN yum install -yq openssl jq && yum clean all
 USER opensearch
+
 
 COPY opensearch/opensearch.yml /usr/share/opensearch/config/
 COPY opensearch/config.yml opensearch/roles_mapping.yml \

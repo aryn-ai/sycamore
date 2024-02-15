@@ -37,8 +37,8 @@ main() {
 
     setup_transient
 
-    # Semaphore to signal completion.  This is transient and will go away
-    # after restart, which matches the longevity of model deployment.
+    # Semaphore to signal completion.  This must be transient, to go away
+    # after restart, matching the longevity of model deployment.
     _curl -X PUT "${BASE_URL}/_cluster/settings" -o /dev/null --json \
     '{"transient":{"cluster":{"metadata":{"aryn_deploy_complete":1}}}}'
 
@@ -74,7 +74,7 @@ wait_or_die() {
 }
 
 die() {
-    echo "ERROR: " "$@" 1>&2
+    echo "ERROR:" "$@" 1>&2
     exit 1
 }
 
@@ -96,7 +96,7 @@ opensearch_up_ssl() {
 
 opensearch_up_net() {
     # This checks for any activity at the host:port.  No error (zero return)
-    # is obviously good, but 52 meaning empty response is also indicative.
+    # is obviously good, but 52, meaning empty response, is also indicative.
     _curl http://localhost:9200/ -o /dev/null
     [[ ($? != 0) && ($? != 52) ]] && return 1
     return 0
@@ -104,6 +104,7 @@ opensearch_up_net() {
 
 _curl() {
     # Warning: some error output is suppressed by --silent
+    # We use --insecure due to self-signed certificates
     /usr/bin/curl --insecure --silent "$@"
 }
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 die() {
-    echo "ERROR: " "$@" >&2
+    echo "ERROR:" "$@" >&2
     exit 1
 }
 
@@ -52,7 +52,7 @@ fi
     perl -ne 's,https://\S+:8888/tree,https://localhost:8888/tree,;print' < "${FILE}" >"${REDIRECT}"
     URL=$(perl -ne 'print $1 if m,url=(https://localhost:8888/tree\S+)",;' <"${REDIRECT}")
 
-    for i in $(seq 10); do
+    for i in {1..10}; do
         echo
         echo
         echo

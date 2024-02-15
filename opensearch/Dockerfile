@@ -2,13 +2,18 @@
 
 ARG TAG=2.11.0
 FROM opensearchproject/opensearch:$TAG
-USER 0
-RUN yum install -y jq && yum clean all
-USER 1000
+
+USER root
+RUN yum install -yq openssl jq && yum clean all
+USER opensearch
+
 COPY opensearch/opensearch.yml /usr/share/opensearch/config/
-COPY opensearch/sycamore-opensearch.sh .
+COPY opensearch/config.yml opensearch/roles_mapping.yml \
+     /usr/share/opensearch/config/opensearch-security/
+COPY opensearch/sycamore-opensearch.sh /usr/share/opensearch/
+COPY opensearch/Dockerfile /
+
 ENV discovery.type=single-node
-ENV DISABLE_SECURITY_PLUGIN=true
 ENV DISABLE_INSTALL_DEMO_CONFIG=true
 
 ARG GIT_BRANCH="main"
@@ -24,4 +29,12 @@ LABEL git_branch=${GIT_BRANCH}
 LABEL git_commit=${GIT_COMMIT}
 LABEL git_diff=${GIT_DIFF}
 
-CMD ./sycamore-opensearch.sh
+# OpenSearch complains if these files have permissive modes.
+USER root
+RUN chown opensearch:opensearch \
+    /usr/share/opensearch/sycamore-opensearch.sh \
+    /usr/share/opensearch/config/*.yml
+RUN chmod 600 /usr/share/opensearch/config/*.yml
+USER opensearch
+
+ENTRYPOINT ["/usr/share/opensearch/sycamore-opensearch.sh"]

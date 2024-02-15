@@ -37,11 +37,6 @@ main() {
 
     setup_transient
 
-    # Semaphore to signal completion.  This must be transient, to go away
-    # after restart, matching the longevity of model deployment.
-    _curl -X PUT "${BASE_URL}/_cluster/settings" -o /dev/null --json \
-    '{"transient":{"cluster":{"metadata":{"aryn_deploy_complete":1}}}}'
-
     if [[ -z "${LOG_FILE}" ]]; then
         echo "Did not start opensearch, should exit shortly"
         echo "Opensearch log may be at ${LOG_BASE}"
@@ -433,8 +428,17 @@ END
 }
 
 setup_transient() {
+    # Make sure OpenSearch isn't doing something wacky...
+    _curl "${BASE_URL}/_cluster/settings" \
+    | grep -Fq aryn_deploy_complete && die "aryn_deploy_complete already set"
+
     deploy_model "${EMBEDDING_MODEL_ID}" "${EMBEDDING_TASK_ID}" "embedding"
     deploy_model "${OPENAI_MODEL_ID}" "${OPENAI_TASK_ID}" "OpenAI"
+
+    # Semaphore to signal completion.  This must be transient, to go away
+    # after restart, matching the longevity of model deployment.
+    _curl -X PUT "${BASE_URL}/_cluster/settings" -o /dev/null --json \
+    '{"transient":{"cluster":{"metadata":{"aryn_deploy_complete":1}}}}'
 }
 
 create_certificates() {

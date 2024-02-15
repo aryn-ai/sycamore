@@ -5,4 +5,7 @@
       - debug-response:
           prefix: "in second debug processor"
       - debug-response:
-      
+- dedup:
+    processors:
+      - dedup-response:
+          threshold: 0.4

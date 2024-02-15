@@ -30,7 +30,7 @@ docker build -t rps .
 
 Finally, docker compose up
 ```
-docker compose -f docker/compse.yml up
+docker compose -f docker/compose.yml up
 ```
 Alternately, one can start the OpenSearch container and run RPS locally.
 Be sure to change `rps` to `localhost` in the endpoint below.

@@ -5,15 +5,26 @@ from gevent import monkey
 monkey.patch_all()
 
 from gevent.pywsgi import WSGIServer
+import urllib3
 import requests
 import os
+import sys
 from flask_cors import CORS
 from werkzeug.datastructures import Headers
 import io
 import logging
 import boto3 
+
+requests.packages.urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 app = Flask('proxy', static_folder=None)
+HOST='localhost'
 PORT=3000
+try:
+    HOST=sys.argv[1]
+    PORT=int(sys.argv[2])
+except:
+    pass
 
 CORS(app, resources={r"/*": {"origins": "*"}})  # Allow requests from http://localhost:3001 to any route
 
@@ -24,10 +35,10 @@ OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 OPENAI_API_BASE = "https://api.openai.com"
 
 OPENSEARCH_HOST = os.environ.get("OPENSEARCH_HOST", "localhost")
-OPENSEARCH_URL = f"http://{OPENSEARCH_HOST}:9200/"
+OPENSEARCH_URL = f"https://{OPENSEARCH_HOST}:9200/"
 
 UI_HOST = os.environ.get("LOAD_BALANCER", "localhost")
-UI_BASE = f"http://{UI_HOST}:3001"
+UI_BASE = f"https://{UI_HOST}:3001"
 
 # AWS defaults
 AWS_REGION = "us-east-1"
@@ -71,7 +82,8 @@ def proxy_stream_request():
         url=f"{OPENAI_API_BASE}{request.path}",
         headers=headers,
         json=request.json,
-        stream=True  # Enable streaming
+        stream=True,  # Enable streaming
+        verify=False,
     )
     
     print(f"Outgoing Request - URL: {response.url}, Status Code: {response.status_code}")
@@ -110,7 +122,7 @@ def proxy():
         response = s3.get_object(Bucket=bucket_name, Key=file_key)
         source = response['Body']
     else:
-        response = requests.get(url=url)
+        response = requests.get(url=url, verify=False)
         source = io.BytesIO(response.content)
 
     download_name = os.path.basename(url)
@@ -137,7 +149,8 @@ def proxy_opensearch(os_path):
         params=request.args,
         url=OPENSEARCH_URL + os_path,
         json=request.json if (request.is_json and not request.content_length is None) else None,
-        headers=request.headers
+        headers=request.headers,
+        verify=False,
     )
     # qa_logger.info(log)
     # qa_logger.info(str(response.json()))
@@ -161,6 +174,7 @@ def proxy_ui(arg=None):
         params=request.args,
         url=UI_BASE + request.path,
         headers=request.headers,
+        verify=False,
     )
 
     headers = [
@@ -176,6 +190,8 @@ def healthz(arg=None):
 
 if __name__ == '__main__':
     # Use gevent WSGIServer for asynchronous behavior
-    http_server = WSGIServer(('0.0.0.0', PORT), app)
+    http_server = WSGIServer(('0.0.0.0', PORT), app,
+                             certfile=f"{HOST}-cert.pem",
+                             keyfile=f"{HOST}-key.pem")
     print(f"Serving on {PORT}...")
     http_server.serve_forever()

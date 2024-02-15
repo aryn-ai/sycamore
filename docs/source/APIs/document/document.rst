@@ -1,6 +1,6 @@
 .. _Ref-Data:
 
-Data Structures
+Document
 ================
 
 .. automodule:: sycamore.data.document

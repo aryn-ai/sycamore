@@ -1,24 +1,24 @@
 .. _Ref-Transforms:
 
-Transforms
+Low-Level Transforms (for Sycamore development)
 ===========
 
 .. note::
    Most users of Sycamore won't need to interact with these classes. The transform classes are primarily of interest to
-   developers looking to extend Sycamore.
+   developers looking to extend Sycamore or contribute to the project.
 
 .. toctree::
    :maxdepth: 1
 
-   basics.rst
-   augment_text.rst
-   embed.rst
-   explode.rst
-   extract_entity.rst
-   extract_table.rst
-   extract_schema.rst
-   map.rst
-   merge_elements.rst
-   partition.rst
-   random_sample.rst
-   summarize.rst
+   /transforms/basics.rst
+   /transforms/augment_text.rst
+   /transforms/embed.rst
+   /transforms/explode.rst
+   /transforms/extract_entity.rst
+   /transforms/extract_table.rst
+   /transforms/extract_schema.rst
+   /transforms/map.rst
+   /transforms/merge_elements.rst
+   /transforms/partition.rst
+   /transforms/random_sample.rst
+   /transforms/summarize.rst

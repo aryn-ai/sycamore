@@ -18,7 +18,7 @@ RUN mkdir -p /app/work/docker_volume /app/work/bind_dir /app/work/examples
 RUN touch /app/work/AAA_SEE_README_FOR_PERSISTENT_DATA_DIRECTORIES
 COPY jupyter/run-jupyter.sh ./
 COPY jupyter/README.md ./work
-COPY notebooks/jupyter_dev_example.ipynb ./work/examples
+COPY notebooks/jupyter_dev_example.ipynb notebooks/default-prep-script.ipynb ./work/examples
 RUN perl -i -pe 's/localhost/opensearch/ if /9200/;s,tmp/sycamore/data,/app/work/docker_volume,' /app/work/examples/jupyter_dev_example.ipynb
 
 ARG GIT_BRANCH="unknown"

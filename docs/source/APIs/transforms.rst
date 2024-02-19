@@ -8,7 +8,7 @@ Low-Level Transforms (for Sycamore development)
    developers looking to extend Sycamore or contribute to the project.
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
    /transforms/basics.rst
    /transforms/augment_text.rst

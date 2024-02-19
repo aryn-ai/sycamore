@@ -20,7 +20,7 @@ Sycamore is deployed using Docker, and you can launch it locally or on a virtual
 
 5. Launch Sycamore. Containers will be pulled from DockerHub:
 
-`Docker compose up --pull=always`
+`docker compose up --pull=always`
 
 Note: You can alternately remove the `--pull=always` and instead run `docker compose pull` to control when new images are downloaded. `--pull=always` guarantees you have the most recent images for the specified version.
 

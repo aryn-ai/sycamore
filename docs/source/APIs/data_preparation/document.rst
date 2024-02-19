@@ -1,10 +1,7 @@
 .. _Ref-Data:
 
-Data Structures
+Document
 ================
-
-.. automodule:: sycamore.docset
-   :members:
 
 .. automodule:: sycamore.data.document
    :members:

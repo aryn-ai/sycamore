@@ -147,4 +147,6 @@ More Resources
    :maxdepth: 2
    :hidden:
 
-   /APIs/index.rst
+   /APIs/data_preparation.rst
+   /APIs/conversation_memory.rst
+   /APIs/transforms.rst

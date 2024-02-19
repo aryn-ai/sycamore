@@ -6,4 +6,4 @@ These APIs are used for interacting with the conversation memory feature set dir
 .. toctree::
    :maxdepth: 2
 
-   /APIs/conversation_memory/function.md
+   /APIs/conversation_memory/functions.md

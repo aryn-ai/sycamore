@@ -10,15 +10,15 @@ Low-Level Transforms (for Sycamore development)
 .. toctree::
    :maxdepth: 2
 
-   /transforms/basics.rst
-   /transforms/augment_text.rst
-   /transforms/embed.rst
-   /transforms/explode.rst
-   /transforms/extract_entity.rst
-   /transforms/extract_table.rst
-   /transforms/extract_schema.rst
-   /transforms/map.rst
-   /transforms/merge_elements.rst
-   /transforms/partition.rst
-   /transforms/random_sample.rst
-   /transforms/summarize.rst
+   /APIs/transforms/basics.rst
+   /APIs/transforms/augment_text.rst
+   /APIs/transforms/embed.rst
+   /APIs/transforms/explode.rst
+   /APIs/transforms/extract_entity.rst
+   /APIs/transforms/extract_table.rst
+   /APIs/transforms/extract_schema.rst
+   /APIs/transforms/map.rst
+   /APIs/transforms/merge_elements.rst
+   /APIs/transforms/partition.rst
+   /APIs/transforms/random_sample.rst
+   /APIs/transforms/summarize.rst

@@ -6,6 +6,6 @@ These APIs are used for writing data preparation jobs and loading data into Syca
 .. toctree::
    :maxdepth: 2
 
-   /data_preparation/docset.rst
-   /data_preparation/document.rst
-   /data_preparation/functions.rst
+   /APIs/data_preparation/docset.rst
+   /APIs/data_preparation/document.rst
+   /APIs/data_preparation/functions.rst

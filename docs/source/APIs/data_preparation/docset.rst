@@ -1,6 +1,6 @@
 .. _Ref-Data:
 
-Data Structures
+DocSet
 ================
 
 .. automodule:: sycamore.docset

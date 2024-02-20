@@ -47,8 +47,8 @@ def test_document_retrieval_metrics_multi_page_indexed():
         {
             "ground_truth_source_documents": [Element({"properties": {"_location": "file1.pdf", "page_number": 3}})],
             "generated_source_documents": [
-                Element({"properties": {"_location": "file1.pdf", "page_numbers": {1, 2}}}),
-                Element({"properties": {"_location": "file1.pdf", "page_numbers": {3, 4}}}),
+                Element({"properties": {"_location": "file1.pdf", "page_numbers": [1, 2]}}),
+                Element({"properties": {"_location": "file1.pdf", "page_numbers": [3, 4]}}),
             ],
         }
     )

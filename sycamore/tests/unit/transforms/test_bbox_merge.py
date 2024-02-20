@@ -82,7 +82,7 @@ class TestBboxMerge:
 
         assert merged[0].text_representation.startswith("previous page")
         assert merged[0].properties["page_number"] == 1
-        assert merged[0].properties["page_numbers"] == {1}
+        assert merged[0].properties["page_numbers"] == [1]
         assert merged[1].text_representation.startswith("top of page")
         assert merged[2].text_representation.startswith("wide text")
         assert merged[4].text_representation.startswith("next page")
@@ -104,15 +104,15 @@ class TestBboxMerge:
 
         assert merged[0].text_representation.startswith("previous page")
         assert merged[0].properties["page_number"] == 1
-        assert merged[0].properties["page_numbers"] == {1, 2}
+        assert merged[0].properties["page_numbers"] == [1, 2]
 
         assert merged[1].text_representation.startswith("wide text")
         assert merged[1].properties["page_number"] == 2
-        assert merged[1].properties["page_numbers"] == {2}
+        assert merged[1].properties["page_numbers"] == [2]
 
         assert merged[2].text_representation.startswith("lorem")
         assert merged[2].properties["page_number"] == 2
-        assert merged[2].properties["page_numbers"] == {2, 3}
+        assert merged[2].properties["page_numbers"] == [2, 3]
 
         for elem in merged:
             assert "0" not in elem.text_representation

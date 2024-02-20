@@ -120,15 +120,15 @@ class GreedyTextElementMerger(ElementMerger):
         for k, v in elt1.properties.items():
             properties[k] = v
             if k == "page_number":
-                properties["page_numbers"] = properties.get("page_numbers", set())
-                properties["page_numbers"].add(v)
+                properties["page_numbers"] = properties.get("page_numbers", list())
+                properties["page_numbers"] = list(set(properties["page_numbers"] + [v]))
         for k, v in elt2.properties.items():
             if properties.get(k) is None:
                 properties[k] = v
             # if a page number exists, add it to the set of page numbers for this new element
             if k == "page_number":
-                properties["page_numbers"] = properties.get("page_numbers", set())
-                properties["page_numbers"].add(v)
+                properties["page_numbers"] = properties.get("page_numbers", list())
+                properties["page_numbers"] = list(set(properties["page_numbers"] + [v]))
 
         new_elt.properties = properties
 
@@ -179,8 +179,8 @@ class MarkedMerger(ElementMerger):
                 text += elem.text_representation + "\n"
             for k, v in elem.properties.items():
                 if k == "page_number":
-                    props["page_numbers"] = props.get("page_numbers", set())
-                    props["page_numbers"].add(v)
+                    props["page_numbers"] = props.get("page_numbers", list())
+                    props["page_numbers"] = list(set(props["page_numbers"] + [v]))
                 if k not in props:  # ??? order may matter here
                     props[k] = v
             ebb = elem.data.get("bbox")

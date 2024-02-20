@@ -178,6 +178,9 @@ class MarkedMerger(ElementMerger):
             if elem.text_representation:
                 text += elem.text_representation + "\n"
             for k, v in elem.properties.items():
+                if k == "page_number":
+                    props["page_numbers"] = props.get("page_numbers", set())
+                    props["page_numbers"].add(v)
                 if k not in props:  # ??? order may matter here
                     props[k] = v
             ebb = elem.data.get("bbox")

@@ -69,7 +69,8 @@ class TestBboxMerge:
     tokenizer = HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2")
 
     def testMergeElements(self):
-        doc = SortByPageBbox.Callable().run(self.doc)
+        doc = Document(self.doc)
+        doc = SortByPageBbox.Callable().run(doc)
         doc = MarkDropTiny.Callable(2).run(doc)
         doc = MarkDropHeaderFooter.Callable(0.05, 0.05).run(doc)
         doc = MarkBreakPage.Callable().run(doc)
@@ -80,9 +81,38 @@ class TestBboxMerge:
         assert len(merged) == 5
 
         assert merged[0].text_representation.startswith("previous page")
+        assert merged[0].properties["page_number"] == 1
+        assert merged[0].properties["page_numbers"] == {1}
         assert merged[1].text_representation.startswith("top of page")
         assert merged[2].text_representation.startswith("wide text")
         assert merged[4].text_representation.startswith("next page")
+
+        for elem in merged:
+            assert "0" not in elem.text_representation
+            assert "footer" not in elem.text_representation
+
+    def testMergeElementsAcrossPages(self):
+        doc = Document(self.doc)
+        doc = SortByPageBbox.Callable().run(doc)
+        doc = MarkDropTiny.Callable(2).run(doc)
+        doc = MarkDropHeaderFooter.Callable(0.05, 0.05).run(doc)
+        doc = MarkBreakByColumn.Callable().run(doc)
+        doc = MarkBreakByTokens.Callable(self.tokenizer, 512).run(doc)
+        doc = MarkedMerger().merge_elements(doc)
+        merged = doc.elements
+        assert len(merged) == 3
+
+        assert merged[0].text_representation.startswith("previous page")
+        assert merged[0].properties["page_number"] == 1
+        assert merged[0].properties["page_numbers"] == {1, 2}
+
+        assert merged[1].text_representation.startswith("wide text")
+        assert merged[1].properties["page_number"] == 2
+        assert merged[1].properties["page_numbers"] == {2}
+
+        assert merged[2].text_representation.startswith("lorem")
+        assert merged[2].properties["page_number"] == 2
+        assert merged[2].properties["page_numbers"] == {2, 3}
 
         for elem in merged:
             assert "0" not in elem.text_representation

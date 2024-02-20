@@ -31,6 +31,8 @@ main() {
         setup_security
     fi
 
+    flick_rag_feature
+
     PERSISTENT_ENV="${ARYN_STATUSDIR}/persistent_env"
     [[ -f "${PERSISTENT_ENV}" ]] || setup_persistent
     source "${PERSISTENT_ENV}"
@@ -136,6 +138,8 @@ sp_cluster_settings() {
   }
 }
 END
+
+
     grep error "${file}" && die "Error setting cluster settings"
     echo "CLUSTER SETTINGS SET"
 }
@@ -421,6 +425,30 @@ sp_create_non_rag_pipeline() {
       }
     }
   ]
+}
+END
+}
+
+flick_rag_feature() {
+    # This exists because the rag_pipeline_feature_enabled setting
+    # only recognizes when it changes. Since it starts in the 'on'
+    # position now, we have to turn it off and then on again
+    _curl_json -X PUT "${BASE_URL}/_cluster/settings" \
+          -o "${ARYN_STATUSDIR}/curl.disable_rag" \
+          --data @- <<END || die "Error in cluster settings"
+{
+  "persistent": {
+    "plugins.ml_commons.rag_pipeline_feature_enabled": "false"
+  }
+}
+END
+    _curl_json -X PUT "${BASE_URL}/_cluster/settings" \
+          -o "${ARYN_STATUSDIR}/curl.reenable_rag" \
+          --data @- <<END || die "Error in cluster settings"
+{
+  "persistent": {
+    "plugins.ml_commons.rag_pipeline_feature_enabled": "true"
+  }
 }
 END
 }

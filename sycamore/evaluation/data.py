@@ -16,7 +16,7 @@ class EvaluationDataPoint(Document):
     @property
     def question(self) -> Optional[str]:
         """Natural language question."""
-        return self.data.get("query")
+        return self.data.get("question")
 
     @question.setter
     def question(self, value: str) -> None:
@@ -34,14 +34,14 @@ class EvaluationDataPoint(Document):
         self.data["ground_truth_answer"] = value
 
     @property
-    def ground_truth_document_url(self) -> Optional[str]:
-        """Source document url."""
-        return self.data.get("ground_truth_document_url")
+    def filters(self) -> Optional[dict[str, str]]:
+        """Filters to use for querying"""
+        return self.data.get("filters")
 
-    @ground_truth_document_url.setter
-    def ground_truth_document_url(self, value: str) -> None:
-        """Set the document url."""
-        self.data["ground_truth_document_url"] = value
+    @filters.setter
+    def filters(self, value: dict[str, str]) -> None:
+        """Set the filters to use for querying"""
+        self.data["filters"] = value
 
     @property
     def ground_truth_source_documents(self) -> list[Element]:
@@ -84,6 +84,16 @@ class EvaluationDataPoint(Document):
         self.data["metrics"] = value
 
     @property
+    def additional_info(self) -> Optional[dict[str, Any]]:
+        """Additional information for specialized datapoints."""
+        return self.data.get("additional_info")
+
+    @additional_info.setter
+    def additional_info(self, value: Optional[dict[str, Any]]) -> None:
+        """Set the additional information for specialized datapoints."""
+        self.data["additional_info"] = value
+
+    @property
     def raw(self) -> Optional[Any]:
         """Raw datapoint"""
         return self.data.get("raw")
@@ -95,7 +105,33 @@ class EvaluationDataPoint(Document):
 
     @staticmethod
     def deserialize(raw: bytes) -> "EvaluationDataPoint":
-        """Deserialize from bytes to a QADataPoint."""
+        """Deserialize from bytes to a EvaluationDataPoint."""
         from pickle import loads
 
         return EvaluationDataPoint(loads(raw))
+
+
+class EvaluationSummary(Document):
+    def __init__(
+        self,
+        document=None,
+        **kwargs,
+    ):
+        super().__init__(document, **kwargs)
+        self.data["type"] = "EvaluationSummary"
+
+    @property
+    def metrics(self) -> Optional[Any]:
+        """Evaluation specific metrics like mrr, accuracy"""
+        return self.data.get("metrics")
+
+    @metrics.setter
+    def metrics(self, value: Any) -> None:
+        self.data["metrics"] = value
+
+    @staticmethod
+    def deserialize(raw: bytes) -> "EvaluationSummary":
+        """Deserialize from bytes to a EvaluationSummary."""
+        from pickle import loads
+
+        return EvaluationSummary(loads(raw))

@@ -44,6 +44,7 @@ sphinx = { version = "^7.2.5", optional = true }
 jinja2 = "^3.1.2"
 datasets = "^2.16.1"
 timm = "^0.9.12"
+rouge = "^1.0.1"
 
 [tool.poetry.group.crawler_s3.dependencies]
 boto3 = "^1.28.70"

@@ -50,9 +50,10 @@ class ElementMerger(ABC):
 
 
 class GreedyTextElementMerger(ElementMerger):
-    def __init__(self, tokenizer: Tokenizer, max_tokens: int):
+    def __init__(self, tokenizer: Tokenizer, max_tokens: int, merge_across_pages: bool = True):
         self.tokenizer = tokenizer
         self.max_tokens = max_tokens
+        self.merge_across_pages = merge_across_pages
 
     def preprocess_element(self, element: Element) -> Element:
         element.data["token_count"] = len(self.tokenizer.tokenize(element.text_representation or ""))
@@ -63,6 +64,8 @@ class GreedyTextElementMerger(ElementMerger):
         return element
 
     def should_merge(self, element1: Element, element2: Element) -> bool:
+        if not self.merge_across_pages and element1.properties["page_number"] != element2.properties["page_number"]:
+            return False
         if element1.data["token_count"] + 1 + element2.data["token_count"] > self.max_tokens:
             return False
         return True
@@ -116,9 +119,17 @@ class GreedyTextElementMerger(ElementMerger):
         properties = new_elt.properties
         for k, v in elt1.properties.items():
             properties[k] = v
+            if k == "page_number":
+                properties["page_numbers"] = properties.get("page_numbers", set())
+                properties["page_numbers"].add(v)
         for k, v in elt2.properties.items():
             if properties.get(k) is None:
                 properties[k] = v
+            # if a page number exists, add it to the set of page numbers for this new element
+            if k == "page_number":
+                properties["page_numbers"] = properties.get("page_numbers", set())
+                properties["page_numbers"].add(v)
+
         new_elt.properties = properties
 
         return new_elt

@@ -264,3 +264,10 @@ class OpenSearchQueryResult(Document):
     def result(self, value: Any) -> None:
         """Set the raw result from OpenSearch."""
         self.data["result"] = value
+
+    @staticmethod
+    def deserialize(raw: bytes) -> "OpenSearchQueryResult":
+        """Deserialize from bytes to a OpenSearchQueryResult."""
+        from pickle import loads
+
+        return OpenSearchQueryResult(loads(raw))

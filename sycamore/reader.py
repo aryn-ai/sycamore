@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Optional, Union, Callable
 
 from pandas import DataFrame
 from pyarrow import Table
@@ -59,6 +59,7 @@ class DocSetReader:
         properties: Optional[Union[str, list[str]]] = None,
         metadata_provider: Optional[FileMetadataProvider] = None,
         document_body_field: Optional[str] = None,
+        doc_extractor: Optional[Callable] = None,
         **resource_args
     ) -> DocSet:
         json_scan = JsonScan(
@@ -66,6 +67,7 @@ class DocSetReader:
             properties=properties,
             metadata_provider=metadata_provider,
             document_body_field=document_body_field,
+            doc_extractor=doc_extractor,
             **resource_args
         )
         return DocSet(self._context, json_scan)

@@ -23,9 +23,10 @@ class EvaluationMetric:
 
 
 class DocumentRetrievalMetrics(EvaluationMetric):
-    def __init__(self, recall_k: int = 10) -> None:
+    def __init__(self, recall_k: int = 10, match_any_page: bool = True) -> None:
         super().__init__()
         self._recall_k = recall_k
+        self._match_any_page = match_any_page
 
     def metric_name(self) -> str:
         return "DocumentRetrievalMetrics"
@@ -44,12 +45,19 @@ class DocumentRetrievalMetrics(EvaluationMetric):
                 # only use filename currently, can enforce full url here if required
                 doc_path = Path(document.properties["_location"]).name
                 ground_truth_path = Path(ground_truth_document.properties["_location"]).name
+                ground_truth_page_number = ground_truth_document.properties["page_number"]
 
                 if doc_path == ground_truth_path:
                     result["correct_position"] = result.get("correct_position", i + 1)
                     doc_mrr_sum += 1.0 / (i + 1.0)
                     correct_doc_count += 1
-                    if document.properties["page_number"] == ground_truth_document.properties["page_number"]:
+                    in_page_numbers = self._match_any_page and ground_truth_page_number in document.properties.get(
+                        "page_numbers", {}
+                    )
+                    if (
+                        in_page_numbers
+                        or document.properties.get("page_number", -1) == ground_truth_document.properties["page_number"]
+                    ):
                         result["correct_page_position"] = result.get("correct_page_position", i + 1)
                         page_mrr_sum += 1.0 / (i + 1.0)
                         correct_page_count += 1

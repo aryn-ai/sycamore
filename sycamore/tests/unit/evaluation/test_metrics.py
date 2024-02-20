@@ -36,6 +36,36 @@ def test_document_retrieval_metrics():
     assert result["page_mrr"] == 0
 
 
+def test_document_retrieval_metrics_multi_page_indexed():
+    recall_k = 2
+    metrics = DocumentRetrievalMetrics(recall_k=recall_k)
+
+    # Enforce metric name is class name
+    assert metrics.metric_name() == "DocumentRetrievalMetrics"
+
+    datapoint = EvaluationDataPoint(
+        {
+            "ground_truth_source_documents": [Element({"properties": {"_location": "file1.pdf", "page_number": 3}})],
+            "generated_source_documents": [
+                Element({"properties": {"_location": "file1.pdf", "page_numbers": {1, 2}}}),
+                Element({"properties": {"_location": "file1.pdf", "page_numbers": {3, 4}}}),
+            ],
+        }
+    )
+    result = metrics.evaluate(datapoint)
+    assert result["doc_recall"] == 1
+    assert result["page_recall"] == 1
+    assert result["doc_mrr"] == 1
+    assert result["page_mrr"] == 0.5
+
+    result = DocumentRetrievalMetrics(recall_k=1).evaluate(datapoint)
+
+    assert result["doc_recall"] == 1
+    assert result["page_recall"] == 0
+    assert result["doc_mrr"] == 1
+    assert result["page_mrr"] == 0
+
+
 def test_generated_answer_metrics():
     rouge_impl = rouge.Rouge(metrics=["rouge-1", "rouge-2", "rouge-l"])
     metrics = GeneratedAnswerMetrics()

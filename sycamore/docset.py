@@ -637,4 +637,45 @@ class DocSet:
 
     @property
     def write(self) -> DocSetWriter:
+        """
+        Exposes an interface for writing a DocSet to OpenSearch or other external storage.
+        See :class:`~writer.DocSetWriter` for more information about writers and their arguments.
+
+        Example:
+             The following example shows reading a DocSet from a collection of PDFs, partitioning
+             it using the ``UnstructuredPdfPartitioner``, and then writing it to a new OpenSearch index.
+
+             .. code-block:: python
+
+                os_client_args = {
+                    "hosts": [{"host": "localhost", "port": 9200}],
+                    "http_auth": ("user", "password"),
+                }
+
+                index_settings = {
+                    "body": {
+                        "settings": {
+                            "index.knn": True,
+                        },
+                        "mappings": {
+                            "properties": {
+                                "embedding": {
+                                    "type": "knn_vector",
+                                    "dimension": 384,
+                                    "method": {"name": "hnsw", "engine": "nmslib"},
+                                },
+                            },
+                        },
+                    },
+                }
+
+                context = sycamore.init()
+                pdf_docset = context.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=UnstructuredPdfPartitioner())
+
+                pdf.write.opensearch(
+                     os_client_args=os_client_args,
+                     index_name="my_index",
+                     index_settings=index_settings)
+        """
         return DocSetWriter(self.context, self.plan)

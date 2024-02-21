@@ -3,7 +3,9 @@
 # In the root directory:
 # docker build -t sycamore_crawler_s3 -f crawler/s3/Dockerfile
 # docker run -it -v crawl_data:/app/.data/.s3 -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_SESSION_TOKEN sycamore_crawler_s3
-FROM python:3
+
+# Match Python version UI uses.  PyTorch not compatible with 3.12 yet.
+FROM python:3.11
 
 WORKDIR /app
 

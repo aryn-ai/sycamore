@@ -1,6 +1,7 @@
 # Repo name: arynai/sycamore-crawler-http
 
-FROM python:3
+# Match Python version UI uses.  PyTorch not compatible with 3.12 yet.
+FROM python:3.11
 
 WORKDIR /app
 RUN pip install poetry

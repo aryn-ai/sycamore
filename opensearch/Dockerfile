@@ -1,6 +1,6 @@
 # Repo name: arynai/sycamore-opensearch
 
-ARG TAG=2.11.0
+ARG TAG=2.12.0
 FROM opensearchproject/opensearch:$TAG
 
 USER root

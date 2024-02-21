@@ -7,7 +7,12 @@ echo "Version-Info, Aryn Opensearch Architecture: $(uname -m)"
 # TODO: https://github.com/aryn-ai/sycamore/issues/150 - detect low disk space and error out.
 # on macos you fix it in docker desktop > settings > resources > scroll down > virtual disk limit
 main() {
-    BASE_URL=https://localhost:9200
+    local http_status_port=43477 # from rand
+    local http_server_dir=/tmp/http_server
+    local http_status_file="${http_server_dir}/statusz"
+    [[ ! -f "${http_status_file}" ]] || rm -f "${http_status_file}"
+
+    BASE_URL=http://localhost:9200
     ARYN_STATUSDIR=/usr/share/opensearch/data/aryn_status
     mkdir -p "${ARYN_STATUSDIR}"
 
@@ -15,10 +20,8 @@ main() {
     # TODO: https://github.com/aryn-ai/sycamore/issues/151 - show aryn logs then opensearch
 
     LOG_BASE="${ARYN_STATUSDIR}/opensearch.log"
-    if opensearch_up_ssl; then
+    if opensearch_up; then
         echo "OpenSearch appears to already be running, not starting it again"
-    elif opensearch_up_insecure; then
-        die "OpenSearch appears insecure"
     else
         echo "Should start opensearch"
         LOG_FILE="${LOG_BASE}.$(date +%Y-%m-%d--%H:%M:%S)"
@@ -26,18 +29,23 @@ main() {
         ./opensearch-docker-entrypoint.sh >"${LOG_FILE}" 2>&1 &
         echo $! >/tmp/opensearch.pid
         trap "kill -TERM $(cat /tmp/opensearch.pid)" EXIT
-        create_certificates
-        wait_or_die opensearch_up_net "opensearch to start" 300
-        setup_security
+        wait_or_die opensearch_up "opensearch to start" 300
     fi
-
-    flick_rag_feature
 
     PERSISTENT_ENV="${ARYN_STATUSDIR}/persistent_env"
     [[ -f "${PERSISTENT_ENV}" ]] || setup_persistent
     source "${PERSISTENT_ENV}"
 
     setup_transient
+
+    mkdir -p "${http_server_dir}"
+    echo "OK" >"${http_status_file}"
+    python3 -m http.server -d http_serve "${http_status_port}" -d "${http_server_dir}" \
+            >/tmp/http_server.log 2>&1 &
+    local pid=$!
+    echo "${pid}" >/tmp/http_server.pid
+    trap "kill -TERM $(cat /tmp/http_server.pid)" EXIT
+    disown "${pid}" # don't wait for it to exit
 
     if [[ -z "${LOG_FILE}" ]]; then
         echo "Did not start opensearch, should exit shortly"
@@ -71,38 +79,23 @@ wait_or_die() {
 }
 
 die() {
-    echo "ERROR:" "$@" 1>&2
+    echo "ERROR: " "$@" 1>&2
     exit 1
 }
 
-opensearch_up_insecure() {
-    local out=$(_curl http://localhost:9200/)
-    [[ -z ${out} ]] && return 1
-    local name=$(jq -r '.name' <<< ${out})
-    [[ -z ${name} ]] && return 1
-    return 0
-}
-
-opensearch_up_ssl() {
-    local out=$(_curl https://localhost:9200/)
-    [[ -z ${out} ]] && return 1
-    local name=$(jq -r '.name' <<< ${out})
-    [[ -z ${name} ]] && return 1
-    return 0
-}
-
-opensearch_up_net() {
-    # This checks for any activity at the host:port.  No error (zero return)
-    # is obviously good, but 52, meaning empty response, is also indicative.
-    _curl http://localhost:9200/ -o /dev/null
-    [[ ($? != 0) && ($? != 52) ]] && return 1
+opensearch_up() {
+    local file="${ARYN_STATUSDIR}/opensearch.status"
+    rm "${file}" 2>/dev/null
+    _curl "${BASE_URL}" -o "${file}" || return 1
+    [[ -r "${file}" ]] || return 1
+    local name="$(jq -r '.name' "${file}")"
+    [[ -z "${name}" ]] && return 1
     return 0
 }
 
 _curl() {
-    # Warning: some error output is suppressed by --silent
-    # We use --insecure due to self-signed certificates
-    /usr/bin/curl --insecure --silent "$@"
+    # Warning: some error output is suppressed by the -s
+    /usr/bin/curl -s "$@"
 }
 
 setup_persistent() {
@@ -112,7 +105,6 @@ setup_persistent() {
     touch "${PERSISTENT_ENV_TMP}"
     sp_register_model_group
     # TODO: https://github.com/aryn-ai/sycamore/issues/152 - debug task id stability
-    sp_setup_reranking_model
     sp_setup_embedding_model
     sp_setup_openai_model
 
@@ -132,16 +124,15 @@ sp_cluster_settings() {
   "persistent": {
     "plugins": {
       "ml_commons": {
+	"memory_feature_enabled": "true",
+	"rag_pipeline_feature_enabled": "true",
 	"only_run_on_ml_node": "false",
-	"allow_registering_model_via_url": "true",
-	"native_memory_threshold": 100
+	"allow_registering_model_via_url": "true"
       }
     }
   }
 }
 END
-
-
     grep error "${file}" && die "Error setting cluster settings"
     echo "CLUSTER SETTINGS SET"
 }
@@ -233,78 +224,6 @@ END
     deploy_model "" "${EMBEDDING_TASK_ID}" "embedding"
     EMBEDDING_MODEL_ID="${MODEL_ID}"
     echo "EMBEDDING_MODEL_ID=${EMBEDDING_MODEL_ID}" >>"${PERSISTENT_ENV_TMP}"
-}
-
-sp_setup_reranking_model() {
-    local all_config=$(jq '@json' <<END
-{
-  "_name_or_path": "BAAI/bge-reranker-base",
-  "architectures": [
-    "XLMRobertaForSequenceClassification"
-  ],
-  "attention_probs_dropout_prob": 0.1,
-  "bos_token_id": 0,
-  "classifier_dropout": null,
-  "eos_token_id": 2,
-  "hidden_act": "gelu",
-  "hidden_dropout_prob": 0.1,
-  "hidden_size": 768,
-  "id2label": {
-    "0": "LABEL_0"
-  },
-  "initializer_range": 0.02,
-  "intermediate_size": 3072,
-  "label2id": {"LABEL_0": 0},
-  "layer_norm_eps": 1e-05,
-  "max_position_embeddings": 514,
-  "model_type": "xlm-roberta",
-  "num_attention_heads": 12,
-  "num_hidden_layers": 12,
-  "output_past": true,
-  "pad_token_id": 1,
-  "position_embedding_type": "absolute",
-  "torch_dtype": "float32",
-  "transformers_version": "4.33.3",
-  "type_vocab_size": 1,
-  "use_cache": true,
-  "vocab_size": 250002
-}
-END
-)
-
-    local file="${ARYN_STATUSDIR}/curl.reranking_model"
-    _curl_json -XPOST "${BASE_URL}/_plugins/_ml/models/_register" \
-        -o "${file}" \
-        --data @- <<END || die "Error registering reranker"
-{
-  "name": "BAAI/bge-reranker-base-quantized",
-  "version": "1.0.0",
-  "description": "Cross Encoder text similarity model",
-  "model_format": "ONNX",
-  "function_name": "TEXT_SIMILARITY",
-  "model_group_id": "${MODEL_GROUP_ID}",
-  "model_content_hash_value": "04157d66d847d08b3d2b51ad36cf0e1fb82afadb8086212a1d2bac2b7d6fe08a",
-  "model_config": {
-    "model_type": "roberta",
-    "embedding_dimension": 1,
-    "framework_type": "huggingface_transformers",
-    "all_config": ${all_config}
-  },
-  "url": "https://aryn-public.s3.amazonaws.com/models/BAAI/bge-reranker-base-quantized-2.zip"
-}
-END
-
-    cat "${file}"
-    local id=$(jq -r '.task_id' "${file}")
-    [[ -z "${id}" || "${id}" == "null" ]] && die "No rerank model task ID"
-    RERANKING_TASK_ID="${id}"
-    echo "RERANKING_TASK_ID='${RERANKING_TASK_ID}'" >>"${PERSISTENT_ENV_TMP}"
-    GET_TASK_ID="${RERANKING_TASK_ID}"
-    wait_or_die get_task "reranking model to register" 240
-
-    deploy_model "" "${RERANKING_TASK_ID}" "reranking"
-    RERANKING_MODEL_ID="${MODEL_ID}"
-    echo "RERANKING_MODEL_ID=${RERANKING_MODEL_ID}" >>"${PERSISTENT_ENV_TMP}"
 }
 
 sp_setup_openai_model() {
@@ -503,109 +422,9 @@ sp_create_non_rag_pipeline() {
 END
 }
 
-flick_rag_feature() {
-    # This exists because the rag_pipeline_feature_enabled setting
-    # only recognizes when it changes. Since it starts in the 'on'
-    # position now, we have to turn it off and then on again
-    _curl_json -X PUT "${BASE_URL}/_cluster/settings" \
-          -o "${ARYN_STATUSDIR}/curl.disable_rag" \
-          --data @- <<END || die "Error in cluster settings"
-{
-  "persistent": {
-    "plugins.ml_commons.rag_pipeline_feature_enabled": "false"
-  }
-}
-END
-    _curl_json -X PUT "${BASE_URL}/_cluster/settings" \
-          -o "${ARYN_STATUSDIR}/curl.reenable_rag" \
-          --data @- <<END || die "Error in cluster settings"
-{
-  "persistent": {
-    "plugins.ml_commons.rag_pipeline_feature_enabled": "true"
-  }
-}
-END
-}
-
 setup_transient() {
-    # Make sure OpenSearch isn't doing something wacky...
-    _curl "${BASE_URL}/_cluster/settings" \
-    | grep -Fq aryn_deploy_complete && die "aryn_deploy_complete already set"
-
     deploy_model "${EMBEDDING_MODEL_ID}" "${EMBEDDING_TASK_ID}" "embedding"
     deploy_model "${OPENAI_MODEL_ID}" "${OPENAI_TASK_ID}" "OpenAI"
-    deploy_model "${RERANKING_MODEL_ID}" "${RERANKING_TASK_ID}" "reranking"
-    # Semaphore to signal completion.  This must be transient, to go away
-    # after restart, matching the longevity of model deployment.
-    _curl -X PUT "${BASE_URL}/_cluster/settings" -o /dev/null --json \
-    '{"transient":{"cluster":{"metadata":{"aryn_deploy_complete":1}}}}'
-}
-
-create_certificates() {
-    local HOST="${SSL_HOSTNAME:-localhost}"
-    local DAYS=10000
-    local LOG="${ARYN_STATUSDIR}/openssl.err"
-
-    # 1. Make fake certificate authority (CA) certificate.  OpenSearch
-    # requires a root certificate to be specified.
-    if [[ (! -f data/cakey.pem) || (! -f data/cacert.pem) ]]; then
-        openssl req -batch -x509 -newkey rsa:4096 -days "${DAYS}" \
-        -subj "/C=US/ST=California/O=Aryn.ai/CN=Fake CA" \
-        -extensions v3_ca -noenc -keyout data/cakey.pem -out data/cacert.pem \
-        2>> "${LOG}" || die "Failed to create CA certificate"
-        echo "Created CA certificate"
-    fi
-
-    # 2a. Create certificate signing request (CSR) for the node certificate.
-    if [[ (! -f data/node-key.pem) || (! -f data/node-cert.pem) ]]; then
-        openssl req -batch -newkey rsa:4096 \
-        -subj "/C=US/ST=California/O=Aryn.ai/CN=${HOST}" \
-        -extensions v3_req -addext "basicConstraints=critical,CA:FALSE" \
-        -addext "subjectAltName=DNS:${HOST}" \
-        -noenc -keyout data/node-key.pem -out data/node-req.pem \
-        2>> "${LOG}" || die "Failed to create node CSR"
-
-        # 2b. Use the fake CA to sign the node CSR, yielding a certificate.
-        openssl x509 -req -CA data/cacert.pem -CAkey data/cakey.pem \
-        -copy_extensions copy -days "${DAYS}" \
-        -in data/node-req.pem -out data/node-cert.pem \
-        2>> "${LOG}" || die "Failed to create node certificate"
-        echo "Created node certificate"
-    fi
-
-    # 3a. Create certificate signing request (CSR) for the admin certificate.
-    if [[ (! -f data/admin-key.pem) || (! -f data/admin-cert.pem) ]]; then
-        openssl req -batch -newkey rsa:4096 \
-        -subj "/C=US/ST=California/O=Aryn.ai/CN=Admin" \
-        -extensions v3_req -addext "basicConstraints=critical,CA:FALSE" \
-        -noenc -keyout data/admin-key.pem -out data/admin-req.pem \
-        2>> "${LOG}" || die "Failed to create admin CSR"
-
-        # 3b. Use the fake CA to sign the admin CSR, yielding a certificate.
-        openssl x509 -req -CA data/cacert.pem -CAkey data/cakey.pem \
-        -copy_extensions copy -days "${DAYS}" \
-        -in data/admin-req.pem -out data/admin-cert.pem \
-        2>> "${LOG}" || die "Failed to create admin certificate"
-        echo "Created admin certificate"
-    fi
-
-    rm -f data/node-req.pem data/admin-req.pem
-    for X in cakey.pem cacert.pem node-key.pem node-cert.pem admin-key.pem admin-cert.pem; do
-        chmod 600 "data/${X}"
-        ln -sfn "../data/${X}" "config/${X}"
-    done
-}
-
-setup_security() {
-    # Set up security plugin configuration as described here:
-    # https://opensearch.org/docs/latest/security/configuration/security-admin/
-    plugins/opensearch-security/tools/securityadmin.sh \
-    -cd config/opensearch-security -icl -nhnv -cacert config/cacert.pem \
-    -cert config/admin-cert.pem -key config/admin-key.pem
-
-    # Semaphore for SSL setup.  Useful for debugging and other scripts.
-    _curl -X PUT "${BASE_URL}/_cluster/settings" -o /dev/null --json \
-    '{"persistent":{"cluster":{"metadata":{"aryn_ssl_setup_complete":1}}}}'
 }
 
 main

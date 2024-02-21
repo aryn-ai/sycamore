@@ -1,6 +1,6 @@
 import json
 
-from gen.search_response_pb2 import SearchHit, SearchHits, SearchResponse, SearchResponseSections, SearchShardTarget, TotalHits
+from proto_remote_processor.search_response_pb2 import SearchHit, SearchHits, SearchResponse, SearchResponseSections, SearchShardTarget, TotalHits
 
 from lib.processors.dedup_processor import DedupResponseProcessor
 

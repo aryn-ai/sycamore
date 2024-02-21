@@ -44,6 +44,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: 'poetry'
       - name: Install RPS
-        run: poetry install
+        run: make install_rps
       - name: Run Tests
         run: poetry run pytest test/integration/

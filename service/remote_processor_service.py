@@ -3,12 +3,25 @@ from pathlib import Path
 from typing import Any
 import yaml
 import grpc
+import logging
 from service.pipeline import BadPipelineConfigError, Pipeline
 from service.processor_registry import ProcessorRegistry
-from gen.response_processor_service_pb2_grpc import RemoteProcessorServiceServicer, add_RemoteProcessorServiceServicer_to_server
-from gen.response_processor_service_pb2 import ProcessResponseRequest, ProcessResponseResponse
+from proto_remote_processor.response_processor_service_pb2_grpc import (
+    RemoteProcessorServiceServicer, add_RemoteProcessorServiceServicer_to_server
+)
+from proto_remote_processor.response_processor_service_pb2 import ProcessResponseRequest, ProcessResponseResponse
 
 TP_MAX_WORKERS = 10
+
+PAPRIKA_ASCII_ART = '''
+ ______   ______     ______   ______     __     __  __     ______    
+/\\  == \\ /\\  __ \\   /\\  == \\ /\\  == \\   /\\ \\   /\\ \\/ /    /\\  __ \\   
+\\ \\  _-/ \\ \\  __ \\  \\ \\  _-/ \\ \\  __<   \\ \\ \\  \\ \\  _"-.  \\ \\  __ \\  
+ \\ \\_\\    \\ \\_\\ \\_\\  \\ \\_\\    \\ \\_\\ \\_\\  \\ \\_\\  \\ \\_\\ \\_\\  \\ \\_\\ \\_\\ 
+  \\/_/     \\/_/\\/_/   \\/_/     \\/_/ /_/   \\/_/   \\/_/\\/_/   \\/_/\\/_/
+'''
+
+logging.basicConfig(level=logging.INFO)
 
 class RemoteProcessorService(RemoteProcessorServiceServicer):
     """Service driver for remote processing requests
@@ -84,10 +97,12 @@ class RemoteProcessorService(RemoteProcessorServiceServicer):
         Returns:
             Server: a grpc server object
         """
+        logging.info(PAPRIKA_ASCII_ART)
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=TP_MAX_WORKERS))
         add_RemoteProcessorServiceServicer_to_server(self, server)
         server.add_insecure_port("[::]:2796")
         server.start()
+        logging.info("RPS started on port 2796")
         return server
         
     

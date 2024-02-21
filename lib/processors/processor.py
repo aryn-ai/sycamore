@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from lib.search_request import SearchRequest
 from lib.search_response import SearchResponse
 
+
 class ResponseProcessor(ABC):
 
     @staticmethod

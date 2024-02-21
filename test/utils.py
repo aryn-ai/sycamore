@@ -1,7 +1,7 @@
 
-from gen.response_processor_service_pb2 import ProcessResponseRequest, ProcessResponseResponse
-from gen.search_request_pb2 import SearchRequest
-from gen.search_response_pb2 import SearchHit, SearchHits, SearchResponse, SearchResponseSections, SearchShardTarget, TotalHits
+from proto_remote_processor.response_processor_service_pb2 import ProcessResponseRequest, ProcessResponseResponse
+from proto_remote_processor.search_request_pb2 import SearchRequest
+from proto_remote_processor.search_response_pb2 import SearchHit, SearchHits, SearchResponse, SearchResponseSections, SearchShardTarget, TotalHits
 
 
 def dummy_search_request():

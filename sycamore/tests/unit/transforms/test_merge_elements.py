@@ -92,6 +92,7 @@ class TestMergeElements:
         assert e.properties == {
             "filetype": "text/plain",
             "page_number": 1,
+            "page_numbers": [1, 2],
             "doc_title": "title",
             "prop2": "prop 2 value",
         }

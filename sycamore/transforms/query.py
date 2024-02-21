@@ -7,6 +7,9 @@ from ray.data import Dataset
 from sycamore.data import OpenSearchQueryResult, Element, OpenSearchQuery
 from sycamore.plan_nodes import Node, NonCPUUser, NonGPUUser, Transform
 from sycamore.utils.generate_ray_func import generate_map_function
+import logging
+
+logger = logging.getLogger("ray")
 
 
 class QueryExecutor(ABC):
@@ -24,6 +27,7 @@ class OpenSearchQueryExecutor(QueryExecutor):
         self._os_client_args = os_client_args
 
     def query(self, query: OpenSearchQuery) -> OpenSearchQueryResult:
+        logger.debug("Executing OS query: " + str(query))
         client = OpenSearch(**self._os_client_args)
 
         os_result = client.transport.perform_request(
@@ -34,7 +38,7 @@ class OpenSearchQueryExecutor(QueryExecutor):
             body=query["query"],
         )
 
-        result = OpenSearchQueryResult()
+        result = OpenSearchQueryResult(query)
         result.result = os_result
         result.hits = [Element(hit["_source"]) for hit in os_result["hits"]["hits"]]
         if "ext" in os_result and "retrieval_augmented_generation" in os_result["ext"]:

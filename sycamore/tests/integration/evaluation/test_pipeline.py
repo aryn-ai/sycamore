@@ -2,6 +2,7 @@ import datasets
 import pytest
 
 import sycamore
+from sycamore.evaluation import document_retrieval_metrics, generated_answer_metrics
 from sycamore.evaluation.datasets import EvaluationDataSetReader
 from sycamore.evaluation.pipeline import EvaluationPipeline
 from sycamore.transforms.query import OpenSearchQueryExecutor
@@ -39,7 +40,11 @@ class TestEvaluationPipeline:
         input_docset = reader.huggingface(hf_dataset, field_mapping=mapping)
 
         pipeline = EvaluationPipeline(
-            [], index=self.INDEX, query_executor=OpenSearchQueryExecutor(self.OS_CLIENT_ARGS), os_config=self.OS_CONFIG
+            context,
+            [document_retrieval_metrics, generated_answer_metrics],
+            index=self.INDEX,
+            query_executor=OpenSearchQueryExecutor(self.OS_CLIENT_ARGS),
+            os_config=self.OS_CONFIG,
         )
         query_level_metrics, aggregated_metrics = pipeline.execute(input_docset.limit(2))
         query_level_metrics.show()

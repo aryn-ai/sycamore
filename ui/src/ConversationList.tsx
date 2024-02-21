@@ -1,7 +1,7 @@
 import React, { Dispatch, SetStateAction, useState, useEffect, useRef } from 'react';
 import { ActionIcon, createStyles, Loader, Navbar, Text, useMantineTheme, rem, Center, Container, Group, Anchor, TextInput } from '@mantine/core';
 import { Settings } from './Types'
-import { createConversation, deleteConversation, getConversations } from './OpenSearch';
+import {createConversation, deleteConversation, getConversations, is2dot12plus} from './OpenSearch';
 import { IconChevronRight, IconMessagePlus, IconTrash } from '@tabler/icons-react';
 import { useHover } from '@mantine/hooks';
 const useStyles = createStyles((theme) => ({
@@ -147,11 +147,16 @@ export const ConversationListNavbar = ({ navBarOpened, settings, setSettings, se
     }
 
     async function refreshConversations() {
-        var result: any = []
+        let result: any = []
         const getConversationsResult = await getConversations();
-        const retrievedConversations = getConversationsResult
+        let retrievedConversations: {conversations: any} = {conversations: null};
+        if (await is2dot12plus()) {
+            retrievedConversations.conversations = getConversationsResult.memories;
+        } else {
+            retrievedConversations.conversations = getConversationsResult.conversations;
+        }
         retrievedConversations.conversations.forEach((conversation: any) => {
-            result = [{ id: conversation.conversation_id, name: conversation.name, created_at: conversation.create_time }, ...result]
+            result = [{ id: (conversation.conversation_id ?? conversation.memory_id), name: conversation.name, created_at: conversation.create_time }, ...result]
         });
         setConversations(result)
         if (result.length > 0 && settings.activeConversation == "") {

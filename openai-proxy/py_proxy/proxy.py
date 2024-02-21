@@ -1,8 +1,12 @@
+import time
+
 from flask import Flask, request, jsonify, Response, send_file
 import gevent
 
 from gevent import monkey
-monkey.patch_all()
+from urllib3.exceptions import NewConnectionError
+
+#monkey.patch_all()
 
 from gevent.pywsgi import WSGIServer
 import urllib3
@@ -156,6 +160,25 @@ def proxy_opensearch(os_path):
     # qa_logger.info(str(response.json()))
 
     return response.json()
+
+
+@app.route('/opensearch-version', methods=['GET', 'OPTIONS'])
+def opensearch_version(retries=3):
+    if request.method == 'OPTIONS':
+        return optionsResp('GET')
+    try:
+        response = requests.request(
+            method='GET',
+            url=OPENSEARCH_URL
+        )
+        return response.json()['version']['number'], 200
+    except Exception as e:
+        if retries <= 0:
+            print(f"OpenSearch not standing at {OPENSEARCH_URL}. Out of retries.")
+            return "OpenSearch not found", 503
+        print(f"OpenSearch not standing at {OPENSEARCH_URL}. Retrying in 1 sec. {retries-1} retries left.")
+        time.sleep(1)
+        return opensearch_version(retries=retries-1)
 
 
 @app.route('/', methods=['GET', 'OPTIONS'])

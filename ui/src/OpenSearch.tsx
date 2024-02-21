@@ -1,7 +1,33 @@
+import semverGTE from "semver/functions/gte";
+import {Mutex} from "async-mutex";
+
 const SOURCES = ["type", "_id", "doc_id", "properties", "title", "text_representation", "bbox"]
 // const SEARCH_PIPELINE = "ga-demo-pipeline-hybrid"
 const SEARCH_PIPELINE = "hybrid_rag_pipeline"
 const NO_RAG_SEARCH_PIPELINE = "hybrid_pipeline"
+// access with getOpenSearchVersion
+const OS_VERSION_OBJ: {osVersion: string} = {osVersion: ""}
+
+
+const getOpenSearchVersion = async () => {
+    if(OS_VERSION_OBJ.osVersion.length === 0) {
+        const response = await fetch("/opensearch-version");
+        if (response.ok) {
+            OS_VERSION_OBJ.osVersion = await response.text();
+            return OS_VERSION_OBJ.osVersion;
+        } else {
+            throw Error(await response.text())
+        }
+    } else {
+        return OS_VERSION_OBJ.osVersion;
+    }
+}
+
+export const is2dot12plus = async () => {
+    const version = await getOpenSearchVersion();
+    console.log("opensearch version: " + version)
+    return semverGTE(version, "2.12.0");
+}
 
 export const hybridConversationSearchNoRag = async (rephrasedQuestion: string, index_name: string, model_id: string) => {
     const query =
@@ -34,6 +60,16 @@ export const hybridConversationSearchNoRag = async (rephrasedQuestion: string, i
 }
 
 export const hybridConversationSearch = async (question: string, rephrasedQuestion: string, conversationId: string, index_name: string, embeddingModel: string, llmModel: string, numDocs: number = 7) => {
+    let genQaParams: {[key: string]: any} = {
+        "llm_question": question,
+        "context_size": numDocs,
+        "llm_model": llmModel,
+    }
+    if(await is2dot12plus()) {
+        genQaParams.memory_id = conversationId;
+    } else {
+        genQaParams.conversation_id = conversationId;
+    }
     const query =
     {
         "_source": SOURCES,
@@ -58,12 +94,7 @@ export const hybridConversationSearch = async (question: string, rephrasedQuesti
             }
         },
         "ext": {
-            "generative_qa_parameters": {
-                "llm_question": question,
-                "conversation_id": conversationId,
-                "context_size": numDocs,
-                "llm_model": llmModel,
-            }
+            "generative_qa_parameters": genQaParams
         },
         "size": 20
     }
@@ -99,31 +130,61 @@ export const createConversation = async (conversationId: string) => {
     const body = {
         "name": conversationId
     }
-    const url = "/opensearch/_plugins/_ml/memory/conversation"
+    let url;
+    if(await is2dot12plus()) {
+        url = "/opensearch/_plugins/_ml/memory/"
+    } else {
+        url = "/opensearch/_plugins/_ml/memory/conversation"
+    }
     return openSearchCall(body, url)
 }
 export const getInteractions = async (conversationId: any) => {
-    const url = "/opensearch/_plugins/_ml/memory/conversation/" + conversationId
-    return openSearchNoBodyCall(url)
+    if(await is2dot12plus()) {
+        const url = "/opensearch/_plugins/_ml/memory/" + conversationId + "/_search"
+        const body = {
+            "query": {
+                "match_all": {}
+            },
+            "sort": [
+                {
+                    "create_time": {
+                        "order": "DESC"
+                    }
+                }
+            ]
+        }
+        return openSearchCall(body, url)
+    } else {
+        const url = "/opensearch/_plugins/_ml/memory/conversation/" + conversationId
+        return openSearchNoBodyCall(url)
+    }
 }
-export const getConversations = () => {
-    const url = "/opensearch/_plugins/_ml/memory/conversation/"
+export const getConversations = async () => {
+    let url;
+    if(await is2dot12plus()) {
+        url = "/opensearch/_plugins/_ml/memory/"
+    } else {
+        url = "/opensearch/_plugins/_ml/memory/conversation/"
+    }
     return openSearchNoBodyCall(url)
 }
 export const deleteConversation = async (conversation_id: string) => {
-    // hack for empty conversation delete:
     console.log("Going to delete", conversation_id)
-    const url = "/opensearch/_plugins/_ml/memory/conversation/" + conversation_id
-
-    const body = {
-        input: "",
-        prompt_template: "",
-        response: ""
+    let url;
+    if(await is2dot12plus()) {
+        url = "/opensearch/_plugins/_ml/memory/" + conversation_id
+    } else {
+        url = "/opensearch/_plugins/_ml/memory/conversation/" + conversation_id
+        // hack for empty conversation delete:
+        const body = {
+            input: "",
+            prompt_template: "",
+            response: ""
+        }
+        console.log("Adding interaction")
+        const addCall = await openSearchCall(body, url)
+        await addCall
     }
-    console.log("Adding interaction")
-    const addCall = await openSearchCall(body, url)
-    await addCall
-
     console.log("Now deleting")
     return openSearchNoBodyCall(url, "DELETE")
 }

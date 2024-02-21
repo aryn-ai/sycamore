@@ -47,22 +47,23 @@ export default function App() {
         var previousInteractions = new Array<UserChat | SystemChat>()
         // const interactionsData = await interactionsResponse.json();
         const interactionsData = await interactionsResponse;
+        const interactionsList = interactionsData.interactions ?? interactionsData.messages ?? [];
         console.info("interactionsData: ", interactionsData)
-        interactionsData.interactions.forEach((interaction: any) => {
+        interactionsList.forEach((interaction: any) => {
           const systemChat = new SystemChat(
             {
-              id: interaction.interaction_id + "_response",
+              id: (interaction.interaction_id ?? interaction.message_id) + "_response",
               response: interaction.response,
-              interaction_id: interaction.interaction_id,
+              interaction_id: (interaction.interaction_id ?? interaction.message_id),
               // ragPassageCount: null,
               modelName: null,
               queryUsed: null
             });
           const userChat = new UserChat(
             {
-              id: interaction.interaction_id + "_user",
+              id: (interaction.interaction_id ?? interaction.message_id) + "_user",
               query: interaction.input,
-              interaction_id: interaction.interaction_id,
+              interaction_id: (interaction.interaction_id ?? interaction.message_id),
               rephrasedQuery: null
             });
           previousInteractions = [...previousInteractions, systemChat, userChat]

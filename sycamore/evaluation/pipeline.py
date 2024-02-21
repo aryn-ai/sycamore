@@ -65,7 +65,7 @@ class EvaluationPipeline:
                                 "embedding": {
                                     "query_text": doc["question"],
                                     "model_id": self._os_config["embedding_model_id"],
-                                    "k": self._os_config["neural_search_k"],
+                                    "k": self._os_config.get("neural_search_k", 100),
                                     "filter": [{"exists": {"field": "parent_id"}}],
                                 }
                             }
@@ -73,7 +73,7 @@ class EvaluationPipeline:
                     ]
                 }
             },
-            "size": self._os_config["size"],
+            "size": self._os_config.get("size", 20),
         }
 
         if "llm" in self._os_config:
@@ -81,8 +81,8 @@ class EvaluationPipeline:
             query["query"]["ext"] = {
                 "generative_qa_parameters": {
                     "llm_question": doc["question"],
-                    "context_size": self._os_config["context_window"],
-                    "llm_model": self._os_config["llm"],
+                    "context_size": self._os_config.get("context_window", 10),
+                    "llm_model": self._os_config.get("llm", "gpt-4"),
                 },
                 "rerank": {"query_context": {"query_text": doc["question"]}},
             }

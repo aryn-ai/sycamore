@@ -37,6 +37,9 @@ services:
       - opensearch_data:/usr/share/opensearch/data
     environment:
       - OPENAI_API_KEY
+      # To help with debugging issues with opensearch starting.
+      - DEBUG
+      - NOEXIT
 
   importer:
     image: arynai/sycamore-importer:${SYCAMORE_VERSION}

@@ -28,7 +28,7 @@ class OpenSearchQueryExecutor(QueryExecutor):
         self._os_client_args = os_client_args
 
     def query(self, query: OpenSearchQuery) -> OpenSearchQueryResult:
-        logger.info("Executing OS query: " + str(query["query"]))
+        logger.debug("Executing OS query: " + str(query))
         client = OpenSearch(**self._os_client_args)
 
         os_result = client.transport.perform_request(

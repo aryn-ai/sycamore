@@ -22,16 +22,22 @@ ln -snf "${JUPYTER_CONFIG_DOCKER}" $HOME/.jupyter
 
 rm /app/.local/share/jupyter/runtime/jpserver-*-open.html 2>/dev/null
 
-: ${HOST:=localhost}
-SSLPFX="/app/work/docker_volume/${HOST}"
-SSLLOG="/app/work/docker_volume/openssl.err"
-if [[ (! -f ${SSLPFX}-key.pem) || (! -f ${SSLPFX}-cert.pem) ]]; then
-    openssl req -batch -x509 -newkey rsa:4096 -days 10000 \
-    -subj "/C=US/ST=California/O=Aryn.ai/CN=${HOST}" \
-    -extensions v3_req -addext "subjectAltName=DNS:${HOST}" \
-    -noenc -keyout "${SSLPFX}-key.pem" -out "${SSLPFX}-cert.pem" \
-    2>> "${SSLLOG}" || die "Failed to create ${HOST} certificate"
-    echo "Created ${HOST} certificate"
+if [[ ${SSL} == 0 ]]; then
+    echo "Jupyter not serving over SSL."
+    SSLARG=
+else
+    : ${HOST:=localhost}
+    SSLPFX="/app/work/docker_volume/${HOST}"
+    SSLLOG="/app/work/docker_volume/openssl.err"
+    if [[ (! -f ${SSLPFX}-key.pem) || (! -f ${SSLPFX}-cert.pem) ]]; then
+        openssl req -batch -x509 -newkey rsa:4096 -days 10000 \
+        -subj "/C=US/ST=California/O=Aryn.ai/CN=${HOST}" \
+        -extensions v3_req -addext "subjectAltName=DNS:${HOST}" \
+        -noenc -keyout "${SSLPFX}-key.pem" -out "${SSLPFX}-cert.pem" \
+        2>> "${SSLLOG}" || die "Failed to create ${HOST} certificate"
+        echo "Created ${HOST} certificate"
+    fi
+    SSLARG="--certfile=\"${SSLPFX}-cert.pem\" --keyfile=\"${SSLPFX}-key.pem\""
 fi
 
 (
@@ -49,8 +55,8 @@ fi
 
     sleep 1 # reduce race with file being written
     REDIRECT=/app/work/bind_dir/redirect.html
-    perl -ne 's,https://\S+:8888/tree,https://localhost:8888/tree,;print' < "${FILE}" >"${REDIRECT}"
-    URL=$(perl -ne 'print $1 if m,url=(https://localhost:8888/tree\S+)",;' <"${REDIRECT}")
+    perl -ne 's,://\S+:8888/tree,://localhost:8888/tree,;print' < "${FILE}" >"${REDIRECT}"
+    URL=$(perl -ne 'print $1 if m,url=(https?://localhost:8888/tree\S+)",;' <"${REDIRECT}")
 
     for i in {1..10}; do
         echo
@@ -67,6 +73,4 @@ fi
 ) &
 
 cd /app/work
-poetry run jupyter notebook \
---certfile="${SSLPFX}-cert.pem" --keyfile="${SSLPFX}-key.pem" \
---no-browser --ip 0.0.0.0 "$@"
+poetry run jupyter notebook ${SSLARG} --no-browser --ip 0.0.0.0 "$@"

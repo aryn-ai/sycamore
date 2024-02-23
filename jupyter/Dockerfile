@@ -18,7 +18,7 @@ RUN mkdir -p /app/work/docker_volume /app/work/bind_dir /app/work/examples
 RUN touch /app/work/AAA_SEE_README_FOR_PERSISTENT_DATA_DIRECTORIES
 COPY jupyter/run-jupyter.sh ./
 COPY jupyter/README.md ./work
-COPY notebooks/jupyter_dev_example.ipynb notebooks/default-prep-script.ipynb ./work/examples
+COPY notebooks/jupyter_dev_example.ipynb notebooks/default-prep-script.ipynb ./work/examples/
 RUN perl -i -pe 's/localhost/opensearch/ if /9200/;s,tmp/sycamore/data,/app/work/docker_volume,' /app/work/examples/jupyter_dev_example.ipynb
 
 ARG GIT_BRANCH="unknown"
@@ -28,6 +28,7 @@ ARG GIT_DIFF="unknown"
 ENV GIT_BRANCH=${GIT_BRANCH}
 ENV GIT_COMMIT=${GIT_COMMIT}
 ENV GIT_DIFF=${GIT_DIFF}
+ENV SSL=0
 
 LABEL org.opencontainers.image.authors="opensource@aryn.ai"
 LABEL git_branch=${GIT_BRANCH}

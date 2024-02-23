@@ -19,15 +19,18 @@ ENV DISABLE_INSTALL_DEMO_CONFIG=true
 ARG GIT_BRANCH="main"
 ARG GIT_COMMIT="unknown"
 ARG GIT_DIFF="unknown"
+ARG DEBUG=0
 
 ENV GIT_BRANCH=${GIT_BRANCH}
 ENV GIT_COMMIT=${GIT_COMMIT}
 ENV GIT_DIFF=${GIT_DIFF}
+ENV DEBUG=${DEBUG}
 
 LABEL org.opencontainers.image.authors="opensource@aryn.ai"
 LABEL git_branch=${GIT_BRANCH}
 LABEL git_commit=${GIT_COMMIT}
 LABEL git_diff=${GIT_DIFF}
+LABEL debug=${DEBUG}
 
 # OpenSearch complains if these files have permissive modes.
 USER root

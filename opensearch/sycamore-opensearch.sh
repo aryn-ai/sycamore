@@ -424,7 +424,9 @@ get_task() {
 
     [[ -r "${file}" ]] || return 1
     local model="$(jq -r '.model_id' "${file}")"
+    local state="$(jq -r '.state' "${file}")"
     [[ -z "${model}" || "${model}" = 'null' ]] && return 1
+    [[ -n ${state} && ${state} != RUNNING && ${state} != COMPLETED ]] && return 1
 
     GET_TASK_MODEL_ID="${model}"
     return 0

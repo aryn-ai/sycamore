@@ -404,6 +404,7 @@ sp_register_openai_model() {
 }
 END
 
+    debug "" "${file}"
     local id="$(jq -r '.task_id' "${file}")"
     [[ -z "${id}" ]] && die "No OpenAI task ID from registering model"
 
@@ -449,6 +450,7 @@ get_task() {
     _curl "${BASE_URL}/_plugins/_ml/tasks/${GET_TASK_ID}" -o "${file}"
 
     [[ -r "${file}" ]] || return 1
+    debug "" "${file}"
     local model="$(jq -r '.model_id' "${file}")"
     local state="$(jq -r '.state' "${file}")"
     [[ -z "${model}" || "${model}" = 'null' ]] && return 1

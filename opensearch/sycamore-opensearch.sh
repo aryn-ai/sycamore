@@ -48,6 +48,10 @@ main() {
         echo "Also linked to: ${LOG_BASE}"
     fi
     wait
+    if [[ ${NOEXIT} -gt 0 ]]; then
+        echo "Not exiting due to NOEXIT.  Feel free to poke around container."
+        sleep inf
+    fi
     exit 0
 }
 
@@ -75,9 +79,28 @@ die() {
     exit 1
 }
 
+debug() { # <msg> <file>
+    if [[ ${DEBUG} -gt 0 ]]; then
+        local i=0 j n stack
+        (( n = ${#FUNCNAME[@]} - 2 ))
+        while (( i < n )); do
+            (( j = i + 1 ))
+            stack="${FUNCNAME[$j]}:${BASH_LINENO[$i]} ${stack}"
+            (( i = j ))
+        done
+        echo "DEBUG ${stack}$1" >&2
+        if [[ -s $2 ]]; then
+            echo 'vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv' >&2
+            awk 1 $2 >&2 # 'awk 1' ensures a newline at the end
+            echo '^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^' >&2
+        fi
+    fi
+}
+
 opensearch_up_insecure() {
     local out=$(_curl http://localhost:9200/)
     [[ -z ${out} ]] && return 1
+    debug "${out}"
     local name=$(jq -r '.name' <<< ${out})
     [[ -z ${name} ]] && return 1
     return 0
@@ -86,6 +109,7 @@ opensearch_up_insecure() {
 opensearch_up_ssl() {
     local out=$(_curl https://localhost:9200/)
     [[ -z ${out} ]] && return 1
+    debug "${out}"
     local name=$(jq -r '.name' <<< ${out})
     [[ -z ${name} ]] && return 1
     return 0
@@ -141,7 +165,7 @@ sp_cluster_settings() {
 }
 END
 
-
+    debug "" "${file}"
     grep error "${file}" && die "Error setting cluster settings"
     echo "CLUSTER SETTINGS SET"
 }
@@ -160,11 +184,7 @@ sp_register_model_group() {
   "description": "Public model group of the conversational search models we use"
 }
 END
-    if false; then
-        echo "---------------------------"
-        cat "${file}"
-        echo "---------------------------"
-    fi
+    debug "" "${file}"
     # TODO: https://github.com/aryn-ai/sycamore/issues/152 - debug embedding task id stability
     local err='The name you provided is already being used by a model group with ID:'
     [[ "$(grep -c "${err}" <"${file}")" = 1 ]] && \
@@ -225,6 +245,7 @@ END
 }
 END
 
+    debug "" "${file}"
     local id=$(jq -r '.task_id' "${file}")
     [[ -z "${id}" || "${id}" == "null" ]] && die "No embedding task ID"
     EMBEDDING_TASK_ID="${id}"
@@ -294,7 +315,7 @@ END
 }
 END
 
-    cat "${file}"
+    debug "" "${file}"
     local id=$(jq -r '.task_id' "${file}")
     [[ -z "${id}" || "${id}" == "null" ]] && die "No rerank model task ID"
     RERANKING_TASK_ID="${id}"
@@ -357,6 +378,7 @@ sp_create_openai_connector() {
 }
 END
 
+    debug "" "${file}"
     local id="$(jq -r '.connector_id' "${file}")"
     [[ -z "${id}" || "${id}" == 'null' ]] && return 1
     OPENAI_CONN_ID="${id}"
@@ -433,6 +455,7 @@ get_task() {
 deploy_model_try() {
     _curl -X POST "${BASE_URL}/_plugins/_ml/models/${MODEL_ID}/_deploy" \
           -o "${DEPLOY_MODEL_LOG_FILE}"
+    debug "" "${DEPLOY_MODEL_LOG_FILE}"
     local dep_task_id="$(jq -r '.task_id' "${DEPLOY_MODEL_LOG_FILE}")"
     [[ -z "${dep_task_id}" || "${dep_task_id}" == null ]] \
         && return 1
@@ -443,8 +466,9 @@ sp_create_rag_pipeline() {
     # Weights approximate a 1:8 ratio which got good results in the
     # Linear combination experiment results of
     # https://opensearch.org/blog/semantic-science-benchmarks/
+    local file="${ARYN_STATUSDIR}/curl.create_rag_pipeline"
     _curl_json -X PUT "${BASE_URL}/_search/pipeline/hybrid_rag_pipeline" \
-          -o "${ARYN_STATUSDIR}/curl.create_rag_pipeline" \
+          -o "${file}" \
           --data @- <<END || die "Error registering hybrid RAG pipeline"
 {
   "phase_results_processors": [
@@ -474,14 +498,16 @@ sp_create_rag_pipeline() {
   ]
 }
 END
+    debug "" "${file}"
 }
 
 sp_create_non_rag_pipeline() {
     # Weights approximate a 1:8 ratio which got good results in the
     # Linear combination experiment results of
     # https://opensearch.org/blog/semantic-science-benchmarks/
+    local file="${ARYN_STATUSDIR}/curl.create_non_rag_pipeline"
     _curl_json -X PUT "${BASE_URL}/_search/pipeline/hybrid_pipeline" \
-               -o "${ARYN_STATUSDIR}/curl.create_non_rag_pipeline" \
+               -o "${file}" \
                --data @- <<END || die "Error registering non-RAG pipeline"
 {
   "phase_results_processors": [
@@ -501,6 +527,7 @@ sp_create_non_rag_pipeline() {
   ]
 }
 END
+    debug "" "${file}"
 }
 
 flick_rag_feature() {
@@ -516,6 +543,7 @@ flick_rag_feature() {
   }
 }
 END
+    debug "" "${ARYN_STATUSDIR}/curl.disable_rag"
     _curl_json -X PUT "${BASE_URL}/_cluster/settings" \
           -o "${ARYN_STATUSDIR}/curl.reenable_rag" \
           --data @- <<END || die "Error in cluster settings"
@@ -525,6 +553,7 @@ END
   }
 }
 END
+    debug "" "${ARYN_STATUSDIR}/curl.reenable_rag"
 }
 
 setup_transient() {
@@ -545,6 +574,7 @@ create_certificates() {
     local HOST="${SSL_HOSTNAME:-localhost}"
     local DAYS=10000
     local LOG="${ARYN_STATUSDIR}/openssl.err"
+    truncate -s 0 "${LOG}"
 
     # 1. Make fake certificate authority (CA) certificate.  OpenSearch
     # requires a root certificate to be specified.
@@ -594,6 +624,7 @@ create_certificates() {
         chmod 600 "data/${X}"
         ln -sfn "../data/${X}" "config/${X}"
     done
+    debug "" "${LOG}"
 }
 
 setup_security() {

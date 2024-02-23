@@ -1,30 +1,23 @@
-from typing import Any, Union
+from typing import Union, Optional, Callable
 
 from datasets import IterableDataset
 from ray.data import Dataset, from_huggingface
 
-from sycamore.evaluation import EvaluationDataPoint
-from sycamore.scans import MaterializedScan
 from sycamore import DocSet, Context
+from sycamore.scans import MaterializedScan
 
 
 class HuggingFaceScan(MaterializedScan):
-    def __init__(self, dataset: Union[Dataset, IterableDataset], field_mapping: dict[str, str], **resource_args):
+    def __init__(
+        self, dataset: Union[Dataset, IterableDataset], doc_extractor: Optional[Callable] = None, **resource_args
+    ):
         super().__init__(**resource_args)
         self._dataset = dataset
-        self._field_mapping = field_mapping
-
-    def _hf_to_qa_datapoint(self, data: dict[str, Any]) -> dict[str, Any]:
-        document = EvaluationDataPoint()
-        if self._field_mapping:
-            for k, v in self._field_mapping.items():
-                document[k] = data[v]
-        document["raw"] = data
-        return {"doc": document.serialize()}
+        self._doc_extractor = doc_extractor
 
     def execute(self) -> Dataset:
         ray_ds = from_huggingface(self._dataset)
-        processed = ray_ds.map(self._hf_to_qa_datapoint)
+        processed = ray_ds.map(self._doc_extractor)
         return processed
 
     def format(self):
@@ -37,7 +30,7 @@ class EvaluationDataSetReader:
         self._context = context
 
     def huggingface(
-        self, dataset: Union[Dataset, IterableDataset], field_mapping: dict[str, str], **resource_args
+        self, dataset: Union[Dataset, IterableDataset], doc_extractor: Optional[Callable] = None, **resource_args
     ) -> DocSet:
-        json_scan = HuggingFaceScan(dataset=dataset, field_mapping=field_mapping, **resource_args)
+        json_scan = HuggingFaceScan(dataset=dataset, doc_extractor=doc_extractor, **resource_args)
         return DocSet(self._context, json_scan)

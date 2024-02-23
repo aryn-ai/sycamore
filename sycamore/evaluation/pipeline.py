@@ -50,7 +50,7 @@ class EvaluationPipeline:
         query_body["query"]["hybrid"]["queries"][1] = hybrid_query_neural
         return query_body
 
-    def _build_opensearch_query(self, doc: Document) -> Document:
+    def _build_opensearch_query(self, doc: Document, rerank: bool = False) -> Document:
         assert doc.type == "EvaluationDataPoint"
         query = OpenSearchQuery(doc)
         query["index"] = self._index
@@ -66,7 +66,6 @@ class EvaluationPipeline:
                                     "query_text": doc["question"],
                                     "model_id": self._os_config["embedding_model_id"],
                                     "k": self._os_config.get("neural_search_k", 100),
-                                    "filter": [{"exists": {"field": "parent_id"}}],
                                 }
                             }
                         },
@@ -83,9 +82,10 @@ class EvaluationPipeline:
                     "llm_question": doc["question"],
                     "context_size": self._os_config.get("context_window", 10),
                     "llm_model": self._os_config.get("llm", "gpt-4"),
-                },
-                "rerank": {"query_context": {"query_text": doc["question"]}},
+                }
             }
+            if rerank:
+                query["query"]["ext"]["rerank"] = {"query_context": {"query_text": doc["question"]}}
         if "filters" in doc:
             query["query"] = self._add_filter(query["query"], doc["filters"])
         return query

@@ -1,16 +1,30 @@
+from typing import Any
+
 import datasets
 
 import sycamore
+from sycamore.data import Element
+from sycamore.evaluation import EvaluationDataPoint
 from sycamore.evaluation.datasets import EvaluationDataSetReader
+
+
+def _hf_to_qa_datapoint(data: dict[str, Any]) -> dict[str, Any]:
+    mapping = {"question": "question", "ground_truth_answer": "answer", "ground_truth_document_url": "doc_link"}
+    document = EvaluationDataPoint()
+    for k, v in mapping.items():
+        if "ground_truth_document_url" == k:
+            document.ground_truth_source_documents = [Element({"properties": {"_location": data[v]}})]
+        document[k] = data[v]
+    document["raw"] = data
+    return {"doc": document.serialize()}
 
 
 class TestEvaluationDataSetReader:
     def test_hf(self):
         context = sycamore.init()
         reader = EvaluationDataSetReader(context)
-        mapping = {"question": "question", "ground_truth_answer": "answer", "ground_truth_document_url": "doc_link"}
         hf_dataset = datasets.load_dataset("PatronusAI/financebench", split=datasets.Split.TRAIN)
-        docset = reader.huggingface(hf_dataset, field_mapping=mapping)
+        docset = reader.huggingface(hf_dataset, doc_extractor=_hf_to_qa_datapoint)
         sample = docset.take(1)[0]
 
         # verify mappings
@@ -21,3 +35,4 @@ class TestEvaluationDataSetReader:
 
         # verify parsing is correct
         assert "generated_answer" not in sample
+        assert sample["ground_truth_source_documents"][0].properties["_location"] == sample["ground_truth_document_url"]

@@ -201,54 +201,18 @@ END
 }
 
 sp_setup_embedding_model() {
-    local all_config=$(jq '@json' <<END
-{
-  "_name_or_path": "nreimers/MiniLM-L6-H384-uncased",
-  "architectures": [
-    "BertModel"
-  ],
-  "attention_probs_dropout_prob": 0.1,
-  "gradient_checkpointing": false,
-  "hidden_act": "gelu",
-  "hidden_dropout_prob": 0.1,
-  "hidden_size": 384,
-  "initializer_range": 0.02,
-  "intermediate_size": 1536,
-  "layer_norm_eps": 1E-12,
-  "max_position_embeddings": 512,
-  "model_type": "bert",
-  "num_attention_heads": 12,
-  "num_hidden_layers": 6,
-  "pad_token_id": 0,
-  "position_embedding_type": "absolute",
-  "transformers_version": "4.8.2",
-  "type_vocab_size": 2,
-  "use_cache": true,
-  "vocab_size": 30522
-}
-END
-)
-
     local file="${ARYN_STATUSDIR}/curl.embedding_model"
     _curl_json -X POST "${BASE_URL}/_plugins/_ml/models/_register" \
           -o "${file}" \
           --data @- <<END || die "Error registering embedding model"
 {
-  "name": "all-MiniLM-L6-v2",
-  "version": "1.0.0",
-  "description": "embedding model",
-  "model_format": "TORCH_SCRIPT",
+  "name": "huggingface/sentence-transformers/all-MiniLM-L6-v2",
+  "version": "1.0.1",
   "model_group_id": "${MODEL_GROUP_ID}",
-  "model_content_hash_value": "c15f0d2e62d872be5b5bc6c84d2e0f4921541e29fefbef51d59cc10a8ae30e0f",
-  "model_config": {
-    "model_type": "bert",
-    "embedding_dimension": 384,
-    "framework_type": "sentence_transformers",
-    "all_config": ${all_config}
-  },
-  "url": "https://artifacts.opensearch.org/models/ml-models/huggingface/sentence-transformers/all-MiniLM-L6-v2/1.0.1/torch_script/sentence-transformers_all-MiniLM-L6-v2-1.0.1-torch_script.zip"
+  "model_format": "ONNX"
 }
 END
+
 
     debug "" "${file}"
     local id=$(jq -r '.task_id' "${file}")
@@ -570,13 +534,24 @@ setup_transient() {
     _curl "${BASE_URL}/_cluster/settings" \
     | grep -Fq aryn_deploy_complete && die "aryn_deploy_complete already set"
 
-    deploy_model "${EMBEDDING_MODEL_ID}" "${EMBEDDING_TASK_ID}" "embedding"
-    deploy_model "${OPENAI_MODEL_ID}" "${OPENAI_TASK_ID}" "OpenAI"
-    deploy_model "${RERANKING_MODEL_ID}" "${RERANKING_TASK_ID}" "reranking"
+    model_is_deployed "${EMBEDDING_MODEL_ID}" &&
+        deploy_model "${EMBEDDING_MODEL_ID}" "${EMBEDDING_TASK_ID}" "embedding"
+    model_is_deployed "${OPENAI_MODEL_ID}" &&
+        deploy_model "${OPENAI_MODEL_ID}" "${OPENAI_TASK_ID}" "OpenAI"
+    model_is_deployed "${RERANKING_MODEL_ID}" &&
+        deploy_model "${RERANKING_MODEL_ID}" "${RERANKING_TASK_ID}" "reranking"
     # Semaphore to signal completion.  This must be transient, to go away
     # after restart, matching the longevity of model deployment.
     _curl -X PUT "${BASE_URL}/_cluster/settings" -o /dev/null --json \
     '{"transient":{"cluster":{"metadata":{"aryn_deploy_complete":1}}}}'
+}
+
+model_is_deployed() {
+    local model_id="$1"
+    debug "checking whether ${model_id} is deployed"
+    local model_state="$(_curl "${BASE_URL}/_plugins/_ml/models/${model_id}" | jq -r '.model_state')"
+    debug "${model_state}"
+    [[ -n ${model_state} && ${model_state} = DEPLOYED ]] && return 1
 }
 
 create_certificates() {

@@ -1,4 +1,5 @@
 
+
 ARG POETRY_NO_INTERACTION=1
 ARG POETRY_VIRTUALENVS_IN_PROJECT=1
 ARG POETRY_VIRTUALENVS_CREATE=1 \
@@ -45,4 +46,4 @@ RUN make -f ../Makefile server_build
 
 EXPOSE $RPS_PORT
 
-CMD ["poetry", "run", "server", "configs/cfg1.yml"]
+CMD ["poetry", "run", "server", "config/pipelines.yml"]

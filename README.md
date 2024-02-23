@@ -55,7 +55,7 @@ Alternately, one can start the OpenSearch container and run RPS locally.
 Be sure to change `rps` to `localhost` in the endpoint below.
 ```
 docker run -d --rm --network=host -e discovery.type=single-node rps-os
-poetry run server configs/cfg1.yml
+poetry run server config/pipelines.yml
 ```
 
 And you should have an opensearch with the remote processor plugin installed and a remote processor service (running the config at `configs/cfg1.yml` - just the debug processor atm)

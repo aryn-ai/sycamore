@@ -23,10 +23,10 @@ main() {
         echo "Should start opensearch"
         LOG_FILE="${LOG_BASE}.$(date +%Y-%m-%d--%H:%M:%S)"
         ln -snf "${LOG_FILE}" "${LOG_BASE}"
+        create_certificates
         ./opensearch-docker-entrypoint.sh >"${LOG_FILE}" 2>&1 &
         echo $! >/tmp/opensearch.pid
         trap "kill -TERM $(cat /tmp/opensearch.pid)" EXIT
-        create_certificates
         wait_or_die opensearch_up_net "opensearch to start" 300
         setup_security
     fi
@@ -633,6 +633,9 @@ setup_security() {
     plugins/opensearch-security/tools/securityadmin.sh \
     -cd config/opensearch-security -icl -nhnv -cacert config/cacert.pem \
     -cert config/admin-cert.pem -key config/admin-key.pem
+
+    # Wait for eventual consistency of changes to security index
+    wait_or_die opensearch_up_ssl "opensearch on ssl" 15
 
     # Semaphore for SSL setup.  Useful for debugging and other scripts.
     _curl -X PUT "${BASE_URL}/_cluster/settings" -o /dev/null --json \

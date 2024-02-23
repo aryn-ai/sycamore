@@ -32,6 +32,7 @@ ARG GIT_DIFF="unknown"
 ENV GIT_BRANCH=${GIT_BRANCH}
 ENV GIT_COMMIT=${GIT_COMMIT}
 ENV GIT_DIFF=${GIT_DIFF}
+ENV SSL=0
 
 LABEL org.opencontainers.image.authors="opensource@aryn.ai"
 LABEL git_branch=${GIT_BRANCH}

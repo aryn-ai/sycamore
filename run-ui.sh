@@ -34,12 +34,18 @@ if [[ (! -f ${HOST}-key.pem) || (! -f ${HOST}-cert.pem) ]]; then
     -noenc -keyout "${HOST}-key.pem" -out "${HOST}-cert.pem" 2> /dev/null
     echo "Created ${HOST} certificate"
 fi
+if [[ ${SSL} == 0 ]]; then
+    BASEURL="http://${HOST}:3000"
+else
+    BASEURL="https://${HOST}:3000"
+fi
+
 poetry run python py_proxy/proxy.py "${HOST}" &
 PROXYPID=$!
 trap cleanup EXIT
 
 tries=0
-while ! curl -k "https://${HOST}:3000/healthz" >/dev/null 2>&1; do
+while ! curl -k "${BASEURL}/healthz" >/dev/null 2>&1; do
     echo "Demo-UI proxy not running after $tries seconds"
     if [[ $tries -ge 30 ]]; then
         echo "Demo UI probably broken, report a bug on slack"
@@ -53,7 +59,10 @@ cd "${UIDIR}"
 # Running the UI this way means that the html is unminified and hence easy to read
 # Since the UI is open source, there's little downside of doing this and it helps with
 # debugging.
-PORT=3001 WDS_SOCKET_PORT=3000 HTTPS=true BROWSER=none npm start | cat
+BROWSER=none PORT=3001 WDS_SOCKET_PORT=3000 HTTPS=true \
+SSL_CRT_FILE="${PROXYDIR}/${HOST}-cert.pem" \
+SSL_KEY_FILE="${PROXYDIR}/${HOST}-key.pem" \
+npm start | cat
 
 # These are the steps that would build the UI and serve it minified.  We
 # should move the build back into the Dockerfile now that we no longer need

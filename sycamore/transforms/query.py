@@ -1,3 +1,4 @@
+import time
 from abc import abstractmethod, ABC
 from typing import Any
 
@@ -27,7 +28,8 @@ class OpenSearchQueryExecutor(QueryExecutor):
         self._os_client_args = os_client_args
 
     def query(self, query: OpenSearchQuery) -> OpenSearchQueryResult:
-        logger.debug("Executing OS query: " + str(query))
+        logger.info("Executing OS query: " + str(query["query"]))
+        # logger.info("Executing OS query: " + str(query))
         client = OpenSearch(**self._os_client_args)
 
         os_result = client.transport.perform_request(
@@ -37,7 +39,7 @@ class OpenSearchQueryExecutor(QueryExecutor):
             headers=query.get("headers", None),
             body=query["query"],
         )
-
+        time.sleep(2)
         result = OpenSearchQueryResult(query)
         result.result = os_result
         result.hits = [Element(hit["_source"]) for hit in os_result["hits"]["hits"]]
@@ -57,5 +59,5 @@ class Query(NonCPUUser, NonGPUUser, Transform):
 
     def execute(self) -> Dataset:
         input_ds = self.child().execute()
-        output_ds = input_ds.map(generate_map_function(self._query_executor.query))
+        output_ds = input_ds.map(generate_map_function(self._query_executor.query), num_cpus=1, concurrency=1)
         return output_ds

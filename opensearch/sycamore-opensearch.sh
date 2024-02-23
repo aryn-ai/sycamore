@@ -76,6 +76,10 @@ wait_or_die() {
 
 die() {
     echo "ERROR:" "$@" 1>&2
+    if [[ ${NOEXIT} -gt 0 ]]; then
+        echo "Not dying due to NOEXIT.  Feel free to poke around container."
+        sleep inf
+    fi
     exit 1
 }
 

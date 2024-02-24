@@ -37,7 +37,6 @@ class OpenSearchQueryExecutor(QueryExecutor):
             headers=query.get("headers", None),
             body=query["query"],
         )
-
         result = OpenSearchQueryResult(query)
         result.result = os_result
         result.hits = [Element(hit["_source"]) for hit in os_result["hits"]["hits"]]

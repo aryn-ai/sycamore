@@ -1,15 +1,19 @@
-from typing import Union, Optional, Callable
+from typing import Union, Optional, Callable, Any
 
 from datasets import IterableDataset
 from ray.data import Dataset, from_huggingface
 
+from sycamore.evaluation import EvaluationDataPoint
 from sycamore import DocSet, Context
 from sycamore.scans import MaterializedScan
 
 
 class HuggingFaceScan(MaterializedScan):
     def __init__(
-        self, dataset: Union[Dataset, IterableDataset], doc_extractor: Optional[Callable] = None, **resource_args
+        self,
+        dataset: Union[Dataset, IterableDataset],
+        doc_extractor: Callable[[dict[str, Any]], dict[str, EvaluationDataPoint]],
+        **resource_args
     ):
         super().__init__(**resource_args)
         self._dataset = dataset
@@ -30,7 +34,10 @@ class EvaluationDataSetReader:
         self._context = context
 
     def huggingface(
-        self, dataset: Union[Dataset, IterableDataset], doc_extractor: Optional[Callable] = None, **resource_args
+        self,
+        dataset: Union[Dataset, IterableDataset],
+        doc_extractor: Callable[[dict[str, Any]], dict[str, EvaluationDataPoint]],
+        **resource_args
     ) -> DocSet:
         json_scan = HuggingFaceScan(dataset=dataset, doc_extractor=doc_extractor, **resource_args)
         return DocSet(self._context, json_scan)

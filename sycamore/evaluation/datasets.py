@@ -1,4 +1,4 @@
-from typing import Union, Optional, Callable, Any
+from typing import Union, Callable, Any
 
 from datasets import IterableDataset
 from ray.data import Dataset, from_huggingface

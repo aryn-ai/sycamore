@@ -220,7 +220,7 @@ END
     EMBEDDING_TASK_ID="${id}"
     echo "EMBEDDING_TASK_ID='${EMBEDDING_TASK_ID}'" >>"${PERSISTENT_ENV_TMP}"
 
-    deploy_model "" "${EMBEDDING_TASK_ID}" "embedding"
+    deploy_model_better "" "${EMBEDDING_TASK_ID}" "embedding"
     EMBEDDING_MODEL_ID="${MODEL_ID}"
     echo "EMBEDDING_MODEL_ID=${EMBEDDING_MODEL_ID}" >>"${PERSISTENT_ENV_TMP}"
 }
@@ -292,7 +292,7 @@ END
     GET_TASK_ID="${RERANKING_TASK_ID}"
     wait_or_die get_task "reranking model to register" 240
 
-    deploy_model "" "${RERANKING_TASK_ID}" "reranking"
+    deploy_model_better "" "${RERANKING_TASK_ID}" "reranking"
     RERANKING_MODEL_ID="${MODEL_ID}"
     echo "RERANKING_MODEL_ID=${RERANKING_MODEL_ID}" >>"${PERSISTENT_ENV_TMP}"
 }
@@ -301,7 +301,7 @@ sp_setup_openai_model() {
     [[ -z "${OPENAI_API_KEY}" ]] && die "No OPENAI_API_KEY set"
     wait_or_die sp_create_openai_connector 'creation of OpenAI connector' 60
     sp_register_openai_model
-    deploy_model "" "${OPENAI_TASK_ID}" "OpenAI"
+    deploy_model_better "" "${OPENAI_TASK_ID}" "OpenAI"
     OPENAI_MODEL_ID="${MODEL_ID}"
     echo "OPENAI_MODEL_ID=${OPENAI_MODEL_ID}" >>"${PERSISTENT_ENV_TMP}"
 }
@@ -376,6 +376,123 @@ END
     OPENAI_TASK_ID="${id}"
     echo "OPENAI_TASK_ID=${OPENAI_TASK_ID}" >>"${PERSISTENT_ENV_TMP}"
 }
+
+deploy_model_better() {
+    local model_id="$1" # if empty will be derived from task
+    local task_id="$2"
+    local name="$3"
+    [[ -z "${task_id}" ]] && die "ERROR missing task_id"
+    [[ -z "${name}" ]] && die "ERROR missing name"
+
+    if [[ -z "${model_id}" ]]; then
+        wait_task "${task_id}" "$name model to become ready"
+        model_id="${GET_TASK_MODEL_ID}"
+        echo "Fetched $name model id $model_id for task_id $task_id"
+    else
+        echo "Using existing model id ${model_id}"
+    fi
+
+    # Create deploy task
+    local deploy_model_log_file="${ARYN_STATUSDIR}/curl.better_deploy_model_task.${name}"
+    spawn_deploy_model_task "${name}" "${model_id}"
+    local deploy_task_id="$(jq -r '.task_id' "${deploy_model_log_file}")"
+
+    # Cycle on the task status
+    debug "Wait for deploy task to finish"
+    local deploy_status_file="${ARYN_STATUSDIR}/curl.deploy_task_status.${name}"
+    local deploy_task_search_file="${ARYN_STATUSDIR}/curl.deploy_task_search_result.${name}"
+    local i
+    local max_reps=40
+    for i in $(seq "${max_reps}"); do
+        _curl "${BASE_URL}/_plugins/_ml/tasks/${deploy_task_id}" -o "${deploy_status_file}"
+        local status="$(jq -r '.state' "${deploy_status_file}")"
+        debug "${status}"
+        # Case 1: RUNNING / state not found. Task is still running so wait.
+        if [[ "${status}" == 'null' || "${status}" == 'RUNNING' || "${status}" == 'CREATED' ]]; then
+            echo "Waiting for ${name} to deploy... ${i}/${max_reps}"
+            sleep 1
+        # Case 2: COMPLETED. Task is completed, so exit
+        elif [[ "${status}" == 'COMPLETED' ]]; then
+            echo "Deployed ${name} successfully"
+            MODEL_ID="${model_id}"
+            return 0
+        # Case 3: FAILED. Handle Memory Circuit Breaker error by waiting a bit but otherwise fail out
+        elif [[ "${status}" == 'FAILED' ]]; then
+            # handle error
+            debug "Deploy task failed for ${name}"
+            local error="$(jq -r '.error' "${deploy_status_file}")"
+            debug "${error}"
+            local worker_node="$(jq -r '.worker_node[0]' "${deploy_status_file}")"
+            local error_message="$(echo "${error}" | jq -r ".${worker_node}")"
+            debug "${error_message}"
+            echo "Deploy task failed for ${name}: ${error_message}"
+            # Memory Circuit Breaker error: wait 20 seconds and the try to deploy again
+            if [[ "${error_message}" = "Memory Circuit Breaker is open, please check your resources!" ]]; then
+                local wait_time=20
+                echo "Waiting for ${wait_time}s while GC runs before retrying deploy"
+                for j in $(seq "${wait_time}"); do
+                    echo -n "."
+                    sleep 1
+                done
+                echo ""
+                spawn_deploy_model_task "${name}" "${model_id}"
+                deploy_task_id="$(jq -r '.task_id' "${deploy_model_log_file}")"
+            # Duplicate Deploy Task error: set task id I'm watching to the RUNNING task
+            # - if no running task, then either the model is deployed or we try again
+            elif [[ "${error_message}" = "Duplicate deploy model task" ]]; then
+                _curl_json -XPOST "${BASE_URL}/_plugins/_ml/tasks/_search" \
+                    -o "${deploy_task_search_file}" \
+                    --data @- <<END || die "Error searching for running deploy task"
+{
+    "query": {
+        "bool": {
+            "must": [
+                {"term": {"model_id": "${model_id}"}},
+                {
+                    "bool": {
+                        "should": [
+                            {"term": {"state": "RUNNING"}},
+                            {"match_phrase": {"error": "Memory Circuit Breaker is open, please check your resources!"))
+                        ]
+                    }
+                }
+            ]
+        }
+    },
+    "sort": [{"create_time": {"order": "DESC"}}]
+}
+END
+                if [[ $(jq -r '.hits.total.value' "${deploy_task_search_file}") ]]; then
+                    debug "No running deploy task for ${model_id}. => check whether it's deployed"
+                    model_is_deployed "${model_id}" && return 0
+                    echo "${model_id} failed to deploy. Try again after 1 sec"
+                    sleep 1
+                    spawn_deploy_model_task "${name}" "${model_id}"
+                    deploy_task_id="$(jq -r '.task_id' "${deploy_model_log_file}")"
+                else
+                    deploy_task_id="$(jq -r '.hits.hits[0]._id' "${deploy_task_search_file}")"
+                    debug "Reset watched task id to ${deploy_task_id}"
+                fi
+            else
+                die "Unknown error message: ${error_message}. Failing"
+            fi
+        else
+            die "Unrecognized status: ${status}. Failing"
+        fi
+    done
+    die "Out of time to deploy model ${name}"
+}
+
+spawn_deploy_model_task() {
+    local name="$1"
+    local model_id="$2"
+    debug "Create deploy task for model: ${name}"
+    local deploy_model_log_file="${ARYN_STATUSDIR}/curl.better_deploy_model_task.${name}"
+    _curl -X POST "${BASE_URL}/_plugins/_ml/models/${model_id}/_deploy" \
+          -o "${deploy_model_log_file}"
+    debug "" "${deploy_model_log_file}"
+}
+
 
 deploy_model() {
     local model_id="$1" # if empty will be derived from task
@@ -534,12 +651,12 @@ setup_transient() {
     _curl "${BASE_URL}/_cluster/settings" \
     | grep -Fq aryn_deploy_complete && die "aryn_deploy_complete already set"
 
-    model_is_deployed "${EMBEDDING_MODEL_ID}" &&
-        deploy_model "${EMBEDDING_MODEL_ID}" "${EMBEDDING_TASK_ID}" "embedding"
-    model_is_deployed "${OPENAI_MODEL_ID}" &&
-        deploy_model "${OPENAI_MODEL_ID}" "${OPENAI_TASK_ID}" "OpenAI"
-    model_is_deployed "${RERANKING_MODEL_ID}" &&
-        deploy_model "${RERANKING_MODEL_ID}" "${RERANKING_TASK_ID}" "reranking"
+    model_is_deployed "${EMBEDDING_MODEL_ID}" ||
+        deploy_model_better "${EMBEDDING_MODEL_ID}" "${EMBEDDING_TASK_ID}" "embedding"
+    model_is_deployed "${OPENAI_MODEL_ID}" ||
+        deploy_model_better "${OPENAI_MODEL_ID}" "${OPENAI_TASK_ID}" "OpenAI"
+    model_is_deployed "${RERANKING_MODEL_ID}" ||
+        deploy_model_better "${RERANKING_MODEL_ID}" "${RERANKING_TASK_ID}" "reranking"
     # Semaphore to signal completion.  This must be transient, to go away
     # after restart, matching the longevity of model deployment.
     _curl -X PUT "${BASE_URL}/_cluster/settings" -o /dev/null --json \
@@ -551,7 +668,7 @@ model_is_deployed() {
     debug "checking whether ${model_id} is deployed"
     local model_state="$(_curl "${BASE_URL}/_plugins/_ml/models/${model_id}" | jq -r '.model_state')"
     debug "${model_state}"
-    [[ -n ${model_state} && ${model_state} = DEPLOYED ]] && return 1
+    [[ -n ${model_state} && ${model_state} = DEPLOYED ]] && return 0
 }
 
 create_certificates() {

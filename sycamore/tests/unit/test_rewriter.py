@@ -15,6 +15,5 @@ class TestRewriter:
         rule = EnforceResourceUsage()
         writer.traverse_down(rule)
         assert scan.resource_args["num_cpus"] == 1 and scan.resource_args["num_gpus"] == 0
-        assert partition.resource_args["num_cpus"] == 1
         assert explode.resource_args["num_cpus"] == 1 and explode.resource_args["num_gpus"] == 0
         assert writer.resource_args["num_cpus"] == 1 and writer.resource_args["num_gpus"] == 0

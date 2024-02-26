@@ -11,7 +11,7 @@ from sycamore.functions import TextOverlapChunker, Chunker
 from sycamore.functions import CharacterTokenizer, Tokenizer
 from sycamore.functions import reorder_elements
 from sycamore.data import BoundingBox, Document, Element, TableElement
-from sycamore.plan_nodes import Node, Transform, SingleThreadUser
+from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.map import generate_map_function
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.utils import generate_map_class_from_callable
@@ -382,7 +382,7 @@ class SycamorePartitioner(Partitioner):
         return document
 
 
-class Partition(SingleThreadUser, Transform):
+class Partition(Transform):
     """
     The Partition transform segments documents into elements. For example, a typical partitioner might chunk a document
     into elements corresponding to paragraphs, images, and tables. Partitioners are format specific, so for instance for

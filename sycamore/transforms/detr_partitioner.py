@@ -21,20 +21,27 @@ class SycamorePDFPartitioner:
 
     @staticmethod
     def _supplement_text(inferred: List[Element], text: List[Element], threshold: float = 0.5) -> List[Element]:
-        # The hungarian finds optimal mapping in bipartite graph in time complexity of n^3, it's too expensive,
-        # I feel a naive algorithm is good enough here, for each inferred element from model, we iterate through the
-        # text entity extracted by pdfminer, as long as one text entity has bbox IOU greater than threshold, we believe
-        # it's a solid mapping.
-        for i in inferred:
-            matched = None
+        # We first check IOU between inferred object and pdf miner text object, we also check if a detected object
+        # fully contains a pdf miner text object. After that, we combined all texts belonging a detected object and
+        # update its text representation. We allow multiple detected objects contain the same text, we hold on solving
+        # this.
+
+        unmatched = text.copy()
+        for index_i, i in enumerate(inferred):
+            matched = []
             for t in text:
-                if i.bbox and t.bbox and i.bbox.iou(t.bbox) > threshold:
-                    i.text_representation = t.text_representation
-                    matched = t
-                    break
+                if i.bbox and t.bbox and (i.bbox.iou(t.bbox) > threshold or i.bbox.contains(t.bbox)):
+                    matched.append(t)
+                    if t in unmatched:
+                        unmatched.remove(t)
             if matched:
-                text.remove(matched)
-        return inferred
+                full_text = []
+                for m in matched:
+                    if m.text_representation:
+                        full_text.append(m.text_representation)
+                i.text_representation = " ".join(full_text)
+
+        return inferred + unmatched
 
     def partition_pdf(self, file: BinaryIO, threshold: float = 0.4) -> List[List["Element"]]:
         with tempfile.TemporaryDirectory() as tmp_dir, tempfile.NamedTemporaryFile() as tmp_file:

@@ -116,6 +116,7 @@ More Resources
    /querying_data/demo_query_ui.md
    /querying_data/using_rag_pipelines.md
    /querying_data/hybrid_search.md
+   /querying_data/reranking.md
    /querying_data/integrate_your_application.md
    /querying_data/generative_ai_configurations.md
 

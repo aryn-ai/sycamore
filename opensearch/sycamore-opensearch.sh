@@ -114,6 +114,7 @@ opensearch_up_ssl() {
     local out=$(_curl https://localhost:9200/)
     [[ -z ${out} ]] && return 1
     debug "${out}"
+    [[ ${out} =~ "not initialized" ]] && return 1
     local name=$(jq -r '.name' <<< ${out})
     [[ -z ${name} ]] && return 1
     return 0

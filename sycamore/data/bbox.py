@@ -41,3 +41,6 @@ class BoundingBox(ABC):
         i = 0 if x1 > x2 or y1 > y2 else (x2 - x1) * (y2 - y1)
         u = (self.y2 - self.y1) * (self.x2 - self.x1) + (other.y2 - other.y1) * (other.x2 - other.x1) - i
         return i / u
+
+    def contains(self, other: "BoundingBox") -> bool:
+        return self.x1 <= other.x1 and self.x2 >= other.x2 and self.y1 <= other.y1 and self.y2 >= other.y2

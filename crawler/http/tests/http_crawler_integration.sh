@@ -11,6 +11,14 @@ cleanup() {
 trap "cleanup" EXIT
 
 main() {
+    if curl localhost:13756 >/dev/null 2>&1; then
+        echo "ERROR: You already have something running on localhost:13756"
+        echo "ERROR: It could be a previous run of this test."
+        echo "ERROR: To find leftovers: ps -efl | grep test_http_server"
+        ps -efl | grep test_http_server
+        echo "ERROR: Clean this up so that curl localhost:13756 returns an error"
+        exit 1
+    fi
     # run test in the http directory
     cd "$(dirname "$0")"/..
     setup

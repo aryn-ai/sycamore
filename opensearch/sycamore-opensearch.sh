@@ -418,27 +418,40 @@ deploy_model() {
             return 0
         # Case 3: FAILED. Handle some error cases, fail in unrecognized ones.
         elif [[ "${status}" == 'FAILED' ]]; then
-            # handle error
-            debug "Deploy task failed for ${name}"
-            local error="$(jq -r '.error' "${deploy_status_file}")"
-            debug "${error}"
-            local worker_node="$(jq -r '.worker_node[0]' "${deploy_status_file}")"
-            local error_message="$(jq -r ".\"${worker_node}\"" <<< ${error})"
-            debug "${error_message}"
-            echo "Deploy task failed for ${name}: ${error_message}" >&2
-            # Memory Circuit Breaker error: wait 20 seconds and the try to deploy again
-            if [[ "${error_message}" = *Memory*Circuit*Breaker* ]]; then
-                local wait_time=5
-                echo "Waiting for ${wait_time}s while GC runs before retrying deploy" >&2
-                sleep ${wait_time}
-                spawn_deploy_model_task "${name}" "${model_id}"
-                deploy_task_id="$(jq -r '.task_id' "${deploy_model_log_file}")"
-            # Duplicate Deploy Task error: set task id I'm watching to the RUNNING task
-            # - if no running task, then either the model is deployed or we try again
-            elif [[ "${error_message}" = "Duplicate deploy model task" ]]; then
-                _curl_json -XPOST "${BASE_URL}/_plugins/_ml/tasks/_search" \
-                    -o "${deploy_task_search_file}" \
-                    --data @- <<END || die "Error searching for running deploy task"
+            handle_deploy_error "${model_id}" "${name}" && return 0
+            deploy_task_id="$(jq -r '.task_id' "${deploy_model_log_file}")"
+        else
+            die "Unrecognized status: ${status}. Failing"
+        fi
+    done
+    die "Out of time to deploy model ${name}"
+}
+
+handle_deploy_error() {
+    local model_id="$1"
+    local name="$2"
+    local deploy_model_log_file="${ARYN_STATUSDIR}/curl.better_deploy_model_task.${name}"
+    local deploy_status_file="${ARYN_STATUSDIR}/curl.deploy_task_status.${name}"
+    # handle error
+    debug "Deploy task failed for ${name}"
+    local error="$(jq -r '.error' "${deploy_status_file}")"
+    debug "${error}"
+    local worker_node="$(jq -r '.worker_node[0]' "${deploy_status_file}")"
+    local error_message="$(jq -r ".\"${worker_node}\"" <<< ${error})"
+    debug "${error_message}"
+    echo "Deploy task failed for ${name}: ${error_message}" >&2
+    # Memory Circuit Breaker error: wait 20 seconds and the try to deploy again
+    if [[ "${error_message}" = *Memory*Circuit*Breaker* ]]; then
+        local wait_time=5
+        echo "Waiting for ${wait_time}s while GC runs before retrying deploy" >&2
+        sleep ${wait_time}
+        spawn_deploy_model_task "${name}" "${model_id}"
+    # Duplicate Deploy Task error: set task id I'm watching to the RUNNING task
+    # - if no running task, then either the model is deployed or we try again
+    elif [[ "${error_message}" = "Duplicate deploy model task" ]]; then
+        _curl_json -XPOST "${BASE_URL}/_plugins/_ml/tasks/_search" \
+            -o "${deploy_task_search_file}" \
+            --data @- <<END || die "Error searching for running deploy task"
 {
     "query": {
         "bool": {
@@ -448,7 +461,7 @@ deploy_model() {
                     "bool": {
                         "should": [
                             {"term": {"state": "RUNNING"}},
-                            {"match_phrase": {"error": "Memory Circuit Breaker is open, please check your resources!"))
+                            {"match_phrase": {"error": "Memory Circuit Breaker"))
                         ]
                     }
                 }
@@ -458,30 +471,25 @@ deploy_model() {
     "sort": [{"create_time": {"order": "DESC"}}]
 }
 END
-                if [[ $(jq -r '.hits.total.value' "${deploy_task_search_file}") ]]; then
-                    debug "No running deploy task for ${model_id}. => check whether it's deployed"
-                    model_is_deployed "${model_id}" && return 0
-                    echo "${model_id} failed to deploy. Try again after 1 sec" >&2
-                    spawn_deploy_model_task "${name}" "${model_id}"
-                    deploy_task_id="$(jq -r '.task_id' "${deploy_model_log_file}")"
-                    sleep 1
-                else
-                    deploy_task_id="$(jq -r '.hits.hits[0]._id' "${deploy_task_search_file}")"
-                    debug "Reset watched task id to ${deploy_task_id}"
-                fi
-            # OrtEnvironment (thread pool) issue: try again and wait a sec
-            elif [[ "${error_message}" = *OrtEnvironment* ]]; then
-                spawn_deploy_model_task "${name}" "${model_id}"
-                deploy_task_id="$(jq -r '.task_id' "${deploy_model_log_file}")"
-                sleep 1
-            else
-                die "Unknown error message: ${error_message}. Failing"
-            fi
+        if [[ $(jq -r '.hits.total.value' "${deploy_task_search_file}") ]]; then
+            debug "No running deploy task for ${model_id}. => check whether it's deployed"
+            model_is_deployed "${model_id}" && return 0
+            echo "${model_id} failed to deploy. Try again after 1 sec" >&2
+            spawn_deploy_model_task "${name}" "${model_id}"
+            sleep 1
         else
-            die "Unrecognized status: ${status}. Failing"
+            deploy_task_id="$(jq -r '.hits.hits[0]._id' "${deploy_task_search_file}")"
+            echo "{\"task_id\":\"${deploy_task_id}\"}" > ${deploy_model_log_file}
+            debug "Reset watched task id to ${deploy_task_id}"
         fi
-    done
-    die "Out of time to deploy model ${name}"
+    # OrtEnvironment (thread pool) issue: try again and wait a sec
+    elif [[ "${error_message}" = *OrtEnvironment* ]]; then
+        spawn_deploy_model_task "${name}" "${model_id}"
+        sleep 1
+    else
+        die "Unknown error message: ${error_message}. Failing"
+    fi
+    return 1
 }
 
 spawn_deploy_model_task() {

@@ -101,6 +101,10 @@ debug() { # <msg> <file>
     fi
 }
 
+info() {
+    echo "INFO $@" >&2
+}
+
 opensearch_up_insecure() {
     local out=$(_curl http://localhost:9200/)
     [[ -z ${out} ]] && return 1
@@ -383,12 +387,17 @@ deploy_model() {
     [[ -z "${task_id}" ]] && die "ERROR missing task_id"
     [[ -z "${name}" ]] && die "ERROR missing name"
 
+    if model_is_deployed "${EMBEDDING_MODEL_ID}"; then
+        info "Model $1 for $3 already deployed"
+        return 0
+    fi
+
     if [[ -z "${model_id}" ]]; then
         wait_task "${task_id}" "$name model to become ready"
         model_id="${GET_TASK_MODEL_ID}"
-        echo "Fetched $name model id $model_id for task_id $task_id" >&2
+        info "Fetched $name model id $model_id for task_id $task_id"
     else
-        echo "Using existing model id ${model_id}" >&2
+        info "Using existing model id ${model_id}"
     fi
 
     # Create deploy task
@@ -408,12 +417,12 @@ deploy_model() {
         debug "${status}"
         # Case 1: RUNNING / state not found. Task is still running so wait.
         if [[ "${status}" == 'null' || "${status}" == 'RUNNING' || "${status}" == 'CREATED' ]]; then
-            echo "Waiting for ${name} to deploy... ${i}/${max_reps}" >&2
+            info "Waiting for ${name} to deploy... ${i}/${max_reps}"
             sleep 1
             continue
         # Case 2: COMPLETED. Task is completed, so exit
         elif [[ "${status}" == 'COMPLETED' ]]; then
-            echo "Deployed ${name} successfully" >&2
+            info "Deployed ${name} successfully"
             MODEL_ID="${model_id}"
             return 0
         # Case 3: FAILED. Handle some error cases, fail in unrecognized ones.
@@ -439,11 +448,11 @@ handle_deploy_error() {
     local worker_node="$(jq -r '.worker_node[0]' "${deploy_status_file}")"
     local error_message="$(jq -r ".\"${worker_node}\"" <<< ${error})"
     debug "${error_message}"
-    echo "Deploy task failed for ${name}: ${error_message}" >&2
+    info "Deploy task failed for ${name}: ${error_message}"
     # Memory Circuit Breaker error: wait 20 seconds and the try to deploy again
     if [[ "${error_message}" = *Memory*Circuit*Breaker* ]]; then
         local wait_time=5
-        echo "Waiting for ${wait_time}s while GC runs before retrying deploy" >&2
+        info "Waiting for ${wait_time}s while GC runs before retrying deploy"
         sleep ${wait_time}
         spawn_deploy_model_task "${name}" "${model_id}"
     # Duplicate Deploy Task error: set task id I'm watching to the RUNNING task
@@ -474,7 +483,7 @@ END
         if [[ $(jq -r '.hits.total.value' "${deploy_task_search_file}") ]]; then
             debug "No running deploy task for ${model_id}. => check whether it's deployed"
             model_is_deployed "${model_id}" && return 0
-            echo "${model_id} failed to deploy. Try again after 1 sec" >&2
+            info "${model_id} failed to deploy. Try again after 1 sec"
             spawn_deploy_model_task "${name}" "${model_id}"
             sleep 1
         else
@@ -500,28 +509,6 @@ spawn_deploy_model_task() {
     _curl -X POST "${BASE_URL}/_plugins/_ml/models/${model_id}/_deploy" \
           -o "${deploy_model_log_file}"
     debug "" "${deploy_model_log_file}"
-}
-
-
-deploy_model_old() {
-    local model_id="$1" # if empty will be derived from task
-    local task_id="$2"
-    local name="$3"
-    [[ -z "${task_id}" ]] && die "ERROR missing task_id"
-    [[ -z "${name}" ]] && die "ERROR missing name"
-
-    if [[ -z "${model_id}" ]]; then
-        wait_task "${task_id}" "$name model to become ready"
-        model_id="${GET_TASK_MODEL_ID}"
-        echo "Fetched $name model id $model_id for task_id $task_id" >&2
-    else
-        echo "Using existing model id ${model_id}" >&2
-    fi
-    MODEL_ID="${model_id}"
-    DEPLOY_MODEL_LOG_FILE="${ARYN_STATUSDIR}/curl.deploy_model_task.${name}"
-    wait_or_die deploy_model_try "deploy of model ${MODEL_ID}, task ${task_id}, name ${name}" 60
-    wait_task "${DEPLOY_MODEL_DEP_TASK_ID}" "$name model to deploy"
-    # TODO: https://github.com/aryn-ai/sycamore/issues/153 - debug task waiting
 }
 
 wait_task() {
@@ -660,12 +647,9 @@ setup_transient() {
     _curl "${BASE_URL}/_cluster/settings" \
     | grep -Fq aryn_deploy_complete && die "aryn_deploy_complete already set"
 
-    model_is_deployed "${EMBEDDING_MODEL_ID}" ||
-        deploy_model "${EMBEDDING_MODEL_ID}" "${EMBEDDING_TASK_ID}" "embedding"
-    model_is_deployed "${OPENAI_MODEL_ID}" ||
-        deploy_model "${OPENAI_MODEL_ID}" "${OPENAI_TASK_ID}" "OpenAI"
-    model_is_deployed "${RERANKING_MODEL_ID}" ||
-        deploy_model "${RERANKING_MODEL_ID}" "${RERANKING_TASK_ID}" "reranking"
+    deploy_model "${EMBEDDING_MODEL_ID}" "${EMBEDDING_TASK_ID}" "embedding"
+    deploy_model "${OPENAI_MODEL_ID}" "${OPENAI_TASK_ID}" "OpenAI"
+    deploy_model "${RERANKING_MODEL_ID}" "${RERANKING_TASK_ID}" "reranking"
     # Semaphore to signal completion.  This must be transient, to go away
     # after restart, matching the longevity of model deployment.
     _curl -X PUT "${BASE_URL}/_cluster/settings" -o /dev/null --json \

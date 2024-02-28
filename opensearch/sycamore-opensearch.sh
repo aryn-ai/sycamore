@@ -403,7 +403,7 @@ deploy_model() {
     # Create deploy task
     local deploy_model_log_file="${ARYN_STATUSDIR}/curl.better_deploy_model_task.${name}"
     spawn_deploy_model_task "${name}" "${model_id}"
-    local deploy_task_id="$(jq -r '.task_id' "${deploy_model_log_file}")"
+    local deploy_task_id=$(jq -r '.task_id' "${deploy_model_log_file}")
 
     # Cycle on the task status
     debug "Wait for deploy task to finish"
@@ -413,7 +413,8 @@ deploy_model() {
     local max_reps=60
     for i in $(seq "${max_reps}"); do
         get_deploy_status_and_act_on_it "${deploy_task_id}" "${name}" "${model_id}" "${i}" "${max_reps}" && return 0
-        deploy_task_id="$(jq -r '.task_id' "${deploy_model_log_file}")"
+        deploy_task_id=$(jq -r '.task_id' "${deploy_model_log_file}")
+        sleep 1
     done
     die "Out of time to deploy model ${name}"
 }
@@ -432,7 +433,6 @@ get_deploy_status_and_act_on_it() {
     # Case 1: RUNNING / state not found. Task is still running so wait.
     if [[ "${status}" == 'null' || "${status}" == 'RUNNING' || "${status}" == 'CREATED' ]]; then
         info "Waiting for ${name} to deploy... ${i}/${max_reps}"
-        sleep 1
         return 1
     # Case 2: COMPLETED. Task is completed, so exit
     elif [[ "${status}" == 'COMPLETED' ]]; then
@@ -456,10 +456,10 @@ handle_deploy_error() {
     local deploy_status_file="${ARYN_STATUSDIR}/curl.deploy_task_status.${name}"
     # handle error
     debug "Deploy task failed for ${name}"
-    local error="$(jq -r '.error' "${deploy_status_file}")"
+    local error=$(jq -r '.error' "${deploy_status_file}")
     debug "${error}"
-    local worker_node="$(jq -r '.worker_node[0]' "${deploy_status_file}")"
-    local error_message="$(jq -r ".\"${worker_node}\"" <<< ${error})"
+    local worker_node=$(jq -r '.worker_node[0]' "${deploy_status_file}")
+    local error_message=$(jq -r ".\"${worker_node}\"" <<< ${error})
     debug "${error_message}"
     info "Deploy task failed for ${name}: ${error_message}"
     # Memory Circuit Breaker error: wait 20 seconds and the try to deploy again
@@ -498,7 +498,6 @@ END
             model_is_deployed "${model_id}" && return 0
             info "${model_id} failed to deploy. Try again after 1 sec"
             spawn_deploy_model_task "${name}" "${model_id}"
-            sleep 1
         else
             deploy_task_id="$(jq -r '.hits.hits[0]._id' "${deploy_task_search_file}")"
             echo "{\"task_id\":\"${deploy_task_id}\"}" > ${deploy_model_log_file}
@@ -507,7 +506,6 @@ END
     # OrtEnvironment (thread pool) issue: try again and wait a sec
     elif [[ "${error_message}" = *OrtEnvironment* ]]; then
         spawn_deploy_model_task "${name}" "${model_id}"
-        sleep 1
     else
         die "Unknown error message: ${error_message}. Failing"
     fi
@@ -672,9 +670,12 @@ setup_transient() {
 model_is_deployed() {
     local model_id="$1"
     debug "checking whether ${model_id} is deployed"
-    local model_state="$(_curl "${BASE_URL}/_plugins/_ml/models/${model_id}" | jq -r '.model_state')"
-    debug "${model_state}"
+    local model_info=$(_curl "${BASE_URL}/_plugins/_ml/models/${model_id}")
+    [[ -z ${model_info} ]] && return 1
+    debug "" "${model_info}"
+    local model_state=$(jq -r '.model_state' <<< ${model_info})
     [[ -n ${model_state} && ${model_state} = DEPLOYED ]] && return 0
+    return 1
 }
 
 create_certificates() {

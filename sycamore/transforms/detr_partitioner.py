@@ -16,7 +16,6 @@ from typing import cast
 
 class SycamorePDFPartitioner:
     def __init__(self, model_name_or_path):
-        self.pdfminer = PDFMinerExtractor()
         self.model = DeformableDetr(model_name_or_path)
 
     @staticmethod
@@ -56,7 +55,8 @@ class SycamorePDFPartitioner:
             )
             image_paths = cast(List[str], images)
             deformable_layout = [self.model.infer(Image.open(path).convert("RGB"), threshold) for path in image_paths]
-            pdfminer_layout = self.pdfminer.extract(filename)
+            pdfminer = PDFMinerExtractor()
+            pdfminer_layout = pdfminer.extract(filename)
             # page count should be the same
             assert len(pdfminer_layout) == len(deformable_layout)
 

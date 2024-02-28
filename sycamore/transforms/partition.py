@@ -1,4 +1,3 @@
-import math
 from abc import abstractmethod, ABC
 import io
 from typing import Any, Optional
@@ -354,18 +353,51 @@ class HtmlPartitioner(Partitioner):
 
 class SycamorePartitioner(Partitioner):
     def __init__(self, model_name_or_path, threshold: float = 0.4):
-        self._model_name_or_path = model_name_or_path
+        from sycamore.transforms.detr_partitioner import SycamorePDFPartitioner
+
+        self._partitioner = SycamorePDFPartitioner(model_name_or_path)
         self._threshold = threshold
         pass
 
-    def partition(self, document: Document) -> Document:
-        from sycamore.transforms.detr_partitioner import SycamorePDFPartitioner
+    # For now, we reorder elements based on page, left/right column, y axle position then finally x axle position
+    @staticmethod
+    def _elements_reorder(element1: Element, element2: Element) -> int:
+        def element_in_left_col(e: Element) -> bool:
+            if e.bbox is None:
+                raise RuntimeError("Element BBox is None")
+            return e.bbox.x1 <= 0.5
 
+        page1 = element1.properties["page_number"]
+        page2 = element2.properties["page_number"]
+        bbox1 = element1.bbox
+        bbox2 = element2.bbox
+
+        if page1 < page2:
+            return -1
+        elif page1 > page2:
+            return 1
+        elif element_in_left_col(element1) and not element_in_left_col(element2):
+            return -1
+        elif not element_in_left_col(element1) and element_in_left_col(element2):
+            return 1
+        elif bbox1 is None or bbox2 is None:
+            return 0
+        elif bbox1.y1 < bbox2.y1:
+            return -1
+        elif bbox1.y1 > bbox2.y1:
+            return 1
+        elif bbox1.x1 < bbox2.x1:
+            return -1
+        elif bbox1.x1 > bbox2.x1:
+            return 1
+        else:
+            return 0
+
+    def partition(self, document: Document) -> Document:
         binary = io.BytesIO(document.data["binary_representation"])
-        partitioner = SycamorePDFPartitioner(self._model_name_or_path)
 
         try:
-            result = partitioner.partition_pdf(binary, self._threshold)
+            result = self._partitioner.partition_pdf(binary, self._threshold)
         except Exception as e:
             path = document.properties["path"]
             raise RuntimeError(f"SycamorePartitioner Error processing {path}") from e
@@ -378,7 +410,7 @@ class SycamorePartitioner(Partitioner):
                 elements.append(ele)
 
         document.elements = elements
-        document = reorder_elements(document, _elements_reorder_comparator)
+        document = reorder_elements(document, self._elements_reorder)
         return document
 
 
@@ -419,11 +451,10 @@ class Partition(Transform):
                 self.resource_args["num_gpus"] = 1
             if self.resource_args["num_gpus"] <= 0:
                 raise RuntimeError("Invalid GPU Nums!")
-            gpu_per_task = self.resource_args["num_gpus"]
 
             dataset = input_dataset.map(
                 generate_map_class_from_callable(self._partitioner.partition),
-                compute=ActorPoolStrategy(min_size=1, max_size=math.ceil(available_gpus / gpu_per_task)),
+                compute=ActorPoolStrategy(size=1),
                 **self.resource_args,
             )
         else:

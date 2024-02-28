@@ -101,6 +101,10 @@ debug() { # <msg> <file>
     fi
 }
 
+info() {
+    echo "INFO $@" >&2
+}
+
 opensearch_up_insecure() {
     local out=$(_curl http://localhost:9200/)
     [[ -z ${out} ]] && return 1
@@ -201,52 +205,15 @@ END
 }
 
 sp_setup_embedding_model() {
-    local all_config=$(jq '@json' <<END
-{
-  "_name_or_path": "nreimers/MiniLM-L6-H384-uncased",
-  "architectures": [
-    "BertModel"
-  ],
-  "attention_probs_dropout_prob": 0.1,
-  "gradient_checkpointing": false,
-  "hidden_act": "gelu",
-  "hidden_dropout_prob": 0.1,
-  "hidden_size": 384,
-  "initializer_range": 0.02,
-  "intermediate_size": 1536,
-  "layer_norm_eps": 1E-12,
-  "max_position_embeddings": 512,
-  "model_type": "bert",
-  "num_attention_heads": 12,
-  "num_hidden_layers": 6,
-  "pad_token_id": 0,
-  "position_embedding_type": "absolute",
-  "transformers_version": "4.8.2",
-  "type_vocab_size": 2,
-  "use_cache": true,
-  "vocab_size": 30522
-}
-END
-)
-
     local file="${ARYN_STATUSDIR}/curl.embedding_model"
     _curl_json -X POST "${BASE_URL}/_plugins/_ml/models/_register" \
           -o "${file}" \
           --data @- <<END || die "Error registering embedding model"
 {
-  "name": "all-MiniLM-L6-v2",
-  "version": "1.0.0",
-  "description": "embedding model",
-  "model_format": "TORCH_SCRIPT",
+  "name": "huggingface/sentence-transformers/all-MiniLM-L6-v2",
+  "version": "1.0.1",
   "model_group_id": "${MODEL_GROUP_ID}",
-  "model_content_hash_value": "c15f0d2e62d872be5b5bc6c84d2e0f4921541e29fefbef51d59cc10a8ae30e0f",
-  "model_config": {
-    "model_type": "bert",
-    "embedding_dimension": 384,
-    "framework_type": "sentence_transformers",
-    "all_config": ${all_config}
-  },
-  "url": "https://artifacts.opensearch.org/models/ml-models/huggingface/sentence-transformers/all-MiniLM-L6-v2/1.0.1/torch_script/sentence-transformers_all-MiniLM-L6-v2-1.0.1-torch_script.zip"
+  "model_format": "ONNX"
 }
 END
 
@@ -423,15 +390,136 @@ deploy_model() {
     if [[ -z "${model_id}" ]]; then
         wait_task "${task_id}" "$name model to become ready"
         model_id="${GET_TASK_MODEL_ID}"
-        echo "Fetched $name model id $model_id for task_id $task_id"
+        info "Fetched $name model id $model_id for task_id $task_id"
     else
-        echo "Using existing model id ${model_id}"
+        info "Using existing model id ${model_id}"
     fi
-    MODEL_ID="${model_id}"
-    DEPLOY_MODEL_LOG_FILE="${ARYN_STATUSDIR}/curl.deploy_model_task.${name}"
-    wait_or_die deploy_model_try "deploy of model ${MODEL_ID}, task ${task_id}, name ${name}" 60
-    wait_task "${DEPLOY_MODEL_DEP_TASK_ID}" "$name model to deploy"
-    # TODO: https://github.com/aryn-ai/sycamore/issues/153 - debug task waiting
+
+    if model_is_deployed "${model_id}"; then
+        info "Model $1 for $3 already deployed"
+        return 0
+    fi
+
+    # Create deploy task
+    local deploy_model_log_file="${ARYN_STATUSDIR}/curl.better_deploy_model_task.${name}"
+    spawn_deploy_model_task "${name}" "${model_id}"
+    local deploy_task_id=$(jq -r '.task_id' "${deploy_model_log_file}")
+
+    # Cycle on the task status
+    debug "Wait for deploy task to finish"
+    local deploy_status_file="${ARYN_STATUSDIR}/curl.deploy_task_status.${name}"
+    local deploy_task_search_file="${ARYN_STATUSDIR}/curl.deploy_task_search_result.${name}"
+    local i
+    local max_reps=60
+    for i in $(seq "${max_reps}"); do
+        get_deploy_status_and_act_on_it "${deploy_task_id}" "${name}" "${model_id}" "${i}" "${max_reps}" && return 0
+        deploy_task_id=$(jq -r '.task_id' "${deploy_model_log_file}")
+        sleep 1
+    done
+    die "Out of time to deploy model ${name}"
+}
+
+get_deploy_status_and_act_on_it() {
+    local deploy_task_id="$1"
+    local name="$2"
+    local model_id="$3"
+    local i="$4"
+    local max_reps="$5"
+    local deploy_model_log_file="${ARYN_STATUSDIR}/curl.better_deploy_model_task.${name}"
+
+    _curl "${BASE_URL}/_plugins/_ml/tasks/${deploy_task_id}" -o "${deploy_status_file}"
+    local status="$(jq -r '.state' "${deploy_status_file}")"
+    debug "${status}"
+    # Case 1: RUNNING / state not found. Task is still running so wait.
+    if [[ "${status}" == 'null' || "${status}" == 'RUNNING' || "${status}" == 'CREATED' ]]; then
+        info "Waiting for ${name} to deploy... ${i}/${max_reps}"
+        return 1
+    # Case 2: COMPLETED. Task is completed, so exit
+    elif [[ "${status}" == 'COMPLETED' ]]; then
+        info "Deployed ${name} successfully"
+        MODEL_ID="${model_id}"
+        return 0
+    # Case 3: FAILED. Handle some error cases, fail in unrecognized ones.
+    elif [[ "${status}" == 'FAILED' ]]; then
+        handle_deploy_error "${model_id}" "${name}" && return 0
+        deploy_task_id="$(jq -r '.task_id' "${deploy_model_log_file}")"
+    else
+        die "Unrecognized status: ${status}. Failing"
+    fi
+    return 1
+}
+
+handle_deploy_error() {
+    local model_id="$1"
+    local name="$2"
+    local deploy_model_log_file="${ARYN_STATUSDIR}/curl.better_deploy_model_task.${name}"
+    local deploy_status_file="${ARYN_STATUSDIR}/curl.deploy_task_status.${name}"
+    # handle error
+    debug "Deploy task failed for ${name}"
+    local error=$(jq -r '.error' "${deploy_status_file}")
+    debug "${error}"
+    local worker_node=$(jq -r '.worker_node[0]' "${deploy_status_file}")
+    local error_message=$(jq -r ".\"${worker_node}\"" <<< ${error})
+    debug "${error_message}"
+    info "Deploy task failed for ${name}: ${error_message}"
+    # Memory Circuit Breaker error: wait 20 seconds and the try to deploy again
+    if [[ "${error_message}" = *Memory*Circuit*Breaker* ]]; then
+        local wait_time=5
+        info "Waiting for ${wait_time}s while GC runs before retrying deploy"
+        sleep ${wait_time}
+        spawn_deploy_model_task "${name}" "${model_id}"
+    # Duplicate Deploy Task error: set task id I'm watching to the RUNNING task
+    # - if no running task, then either the model is deployed or we try again
+    elif [[ "${error_message}" = "Duplicate deploy model task" ]]; then
+        _curl_json -XPOST "${BASE_URL}/_plugins/_ml/tasks/_search" \
+            -o "${deploy_task_search_file}" \
+            --data @- <<END || die "Error searching for running deploy task"
+{
+    "query": {
+        "bool": {
+            "must": [
+                {"term": {"model_id": "${model_id}"}},
+                {
+                    "bool": {
+                        "should": [
+                            {"term": {"state": "RUNNING"}},
+                            {"match_phrase": {"error": "Memory Circuit Breaker"))
+                        ]
+                    }
+                }
+            ]
+        }
+    },
+    "sort": [{"create_time": {"order": "DESC"}}]
+}
+END
+        if [[ $(jq -r '.hits.total.value' "${deploy_task_search_file}") ]]; then
+            debug "No running deploy task for ${model_id}. => check whether it's deployed"
+            model_is_deployed "${model_id}" && return 0
+            info "${model_id} failed to deploy. Try again after 1 sec"
+            spawn_deploy_model_task "${name}" "${model_id}"
+        else
+            deploy_task_id="$(jq -r '.hits.hits[0]._id' "${deploy_task_search_file}")"
+            echo "{\"task_id\":\"${deploy_task_id}\"}" > ${deploy_model_log_file}
+            debug "Reset watched task id to ${deploy_task_id}"
+        fi
+    # OrtEnvironment (thread pool) issue: try again and wait a sec
+    elif [[ "${error_message}" = *OrtEnvironment* ]]; then
+        spawn_deploy_model_task "${name}" "${model_id}"
+    else
+        die "Unknown error message: ${error_message}. Failing"
+    fi
+    return 1
+}
+
+spawn_deploy_model_task() {
+    local name="$1"
+    local model_id="$2"
+    debug "Create deploy task for model: ${name}"
+    local deploy_model_log_file="${ARYN_STATUSDIR}/curl.better_deploy_model_task.${name}"
+    _curl -X POST "${BASE_URL}/_plugins/_ml/models/${model_id}/_deploy" \
+          -o "${deploy_model_log_file}"
+    debug "" "${deploy_model_log_file}"
 }
 
 wait_task() {
@@ -577,6 +665,17 @@ setup_transient() {
     # after restart, matching the longevity of model deployment.
     _curl -X PUT "${BASE_URL}/_cluster/settings" -o /dev/null --json \
     '{"transient":{"cluster":{"metadata":{"aryn_deploy_complete":1}}}}'
+}
+
+model_is_deployed() {
+    local model_id="$1"
+    debug "checking whether ${model_id} is deployed"
+    local model_info=$(_curl "${BASE_URL}/_plugins/_ml/models/${model_id}")
+    [[ -z ${model_info} ]] && return 1
+    debug "" "${model_info}"
+    local model_state=$(jq -r '.model_state' <<< ${model_info})
+    [[ -n ${model_state} && ${model_state} = DEPLOYED ]] && return 0
+    return 1
 }
 
 create_certificates() {

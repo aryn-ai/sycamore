@@ -387,17 +387,17 @@ deploy_model() {
     [[ -z "${task_id}" ]] && die "ERROR missing task_id"
     [[ -z "${name}" ]] && die "ERROR missing name"
 
-    if model_is_deployed "${EMBEDDING_MODEL_ID}"; then
-        info "Model $1 for $3 already deployed"
-        return 0
-    fi
-
     if [[ -z "${model_id}" ]]; then
         wait_task "${task_id}" "$name model to become ready"
         model_id="${GET_TASK_MODEL_ID}"
         info "Fetched $name model id $model_id for task_id $task_id"
     else
         info "Using existing model id ${model_id}"
+    fi
+
+    if model_is_deployed "${model_id}"; then
+        info "Model $1 for $3 already deployed"
+        return 0
     fi
 
     # Create deploy task
@@ -412,28 +412,41 @@ deploy_model() {
     local i
     local max_reps=60
     for i in $(seq "${max_reps}"); do
-        _curl "${BASE_URL}/_plugins/_ml/tasks/${deploy_task_id}" -o "${deploy_status_file}"
-        local status="$(jq -r '.state' "${deploy_status_file}")"
-        debug "${status}"
-        # Case 1: RUNNING / state not found. Task is still running so wait.
-        if [[ "${status}" == 'null' || "${status}" == 'RUNNING' || "${status}" == 'CREATED' ]]; then
-            info "Waiting for ${name} to deploy... ${i}/${max_reps}"
-            sleep 1
-            continue
-        # Case 2: COMPLETED. Task is completed, so exit
-        elif [[ "${status}" == 'COMPLETED' ]]; then
-            info "Deployed ${name} successfully"
-            MODEL_ID="${model_id}"
-            return 0
-        # Case 3: FAILED. Handle some error cases, fail in unrecognized ones.
-        elif [[ "${status}" == 'FAILED' ]]; then
-            handle_deploy_error "${model_id}" "${name}" && return 0
-            deploy_task_id="$(jq -r '.task_id' "${deploy_model_log_file}")"
-        else
-            die "Unrecognized status: ${status}. Failing"
-        fi
+        get_deploy_status_and_act_on_it "${deploy_task_id}" "${name}" "${model_id}" "${i}" "${max_reps}" && return 0
+        deploy_task_id="$(jq -r '.task_id' "${deploy_model_log_file}")"
     done
     die "Out of time to deploy model ${name}"
+}
+
+get_deploy_status_and_act_on_it() {
+    local deploy_task_id="$1"
+    local name="$2"
+    local model_id="$3"
+    local i="$4"
+    local max_reps="$5"
+    local deploy_model_log_file="${ARYN_STATUSDIR}/curl.better_deploy_model_task.${name}"
+
+    _curl "${BASE_URL}/_plugins/_ml/tasks/${deploy_task_id}" -o "${deploy_status_file}"
+    local status="$(jq -r '.state' "${deploy_status_file}")"
+    debug "${status}"
+    # Case 1: RUNNING / state not found. Task is still running so wait.
+    if [[ "${status}" == 'null' || "${status}" == 'RUNNING' || "${status}" == 'CREATED' ]]; then
+        info "Waiting for ${name} to deploy... ${i}/${max_reps}"
+        sleep 1
+        return 1
+    # Case 2: COMPLETED. Task is completed, so exit
+    elif [[ "${status}" == 'COMPLETED' ]]; then
+        info "Deployed ${name} successfully"
+        MODEL_ID="${model_id}"
+        return 0
+    # Case 3: FAILED. Handle some error cases, fail in unrecognized ones.
+    elif [[ "${status}" == 'FAILED' ]]; then
+        handle_deploy_error "${model_id}" "${name}" && return 0
+        deploy_task_id="$(jq -r '.task_id' "${deploy_model_log_file}")"
+    else
+        die "Unrecognized status: ${status}. Failing"
+    fi
+    return 1
 }
 
 handle_deploy_error() {

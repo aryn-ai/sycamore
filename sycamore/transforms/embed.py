@@ -1,13 +1,11 @@
 import json
 import logging
-import math
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any, Optional, Callable, Union
 
 from openai import OpenAI as OpenAIClient
 from openai import AzureOpenAI as AzureOpenAIClient
-import ray
 from ray.data import ActorPoolStrategy, Dataset
 from sentence_transformers import SentenceTransformer
 
@@ -279,17 +277,15 @@ class Embed(Transform):
     def execute(self) -> Dataset:
         dataset = self.child().execute()
         if self._embedder.device == "cuda":
-            available_gpus = ray.available_resources().get("GPU")
             if "num_gpus" not in self.resource_args:
                 self.resource_args["num_gpus"] = 1
             if self.resource_args["num_gpus"] <= 0:
                 raise RuntimeError("Invalid GPU Nums!")
-            gpu_per_task = self.resource_args["num_gpus"]
 
             output = dataset.map_batches(
                 generate_map_batch_class_from_callable(self._embedder.generate_embeddings),
                 batch_size=self._embedder.batch_size,
-                compute=ActorPoolStrategy(min_size=1, max_size=math.ceil(available_gpus / gpu_per_task)),
+                compute=ActorPoolStrategy(size=1),
                 **self.resource_args
             )
         else:

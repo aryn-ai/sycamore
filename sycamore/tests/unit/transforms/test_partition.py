@@ -153,3 +153,29 @@ class TestPartition:
         docset = partition.execute()
         doc = Document.from_row(docset.take(limit=1)[0])
         assert len(doc.elements) == partition_count
+
+    def test_sycamore_partitioner_elements_reorder(self) -> None:
+        from sycamore.data import Element
+        import functools
+
+        # e1.y1 < e0.y1 = e2.y1, e0.x1 < e2.x1 both on left
+        e0 = Element({"bbox": (0.20, 0.50, 0.59, 0.59), "properties": {"page_number": 3}})
+        e1 = Element({"bbox": (0.20, 0.21, 0.59, 0.59), "properties": {"page_number": 3}})
+        e2 = Element({"bbox": (0.40, 0.50, 0.59, 0.59), "properties": {"page_number": 3}})
+
+        # e4, e5 in left column, e4.y < e5.y1; e3, e6 in right columns, e3.y1 < e6.y1
+        e3 = Element({"bbox": (0.60, 0.21, 0.59, 0.59), "properties": {"page_number": 1}})
+        e4 = Element({"bbox": (0.20, 0.21, 0.59, 0.59), "properties": {"page_number": 1}})
+        e5 = Element({"bbox": (0.20, 0.71, 0.59, 0.59), "properties": {"page_number": 1}})
+        e6 = Element({"bbox": (0.70, 0.51, 0.59, 0.59), "properties": {"page_number": 1}})
+
+        # all the same, test stable
+        e7 = Element({"bbox": (0.20, 0.21, 0.59, 0.59), "properties": {"page_number": 2}})
+        e8 = Element({"bbox": (0.20, 0.21, 0.59, 0.59), "properties": {"page_number": 2}})
+        e9 = Element({"bbox": (0.20, 0.21, 0.59, 0.59), "properties": {"page_number": 2}})
+
+        elements = [e0, e1, e2, e3, e4, e5, e6, e7, e8, e9]
+        elements.sort(key=functools.cmp_to_key(SycamorePartitioner._elements_reorder))
+        result = [e4, e5, e3, e6, e7, e8, e9, e1, e0, e2]
+
+        assert elements == result

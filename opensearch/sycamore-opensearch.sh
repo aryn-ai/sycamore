@@ -658,13 +658,33 @@ setup_transient() {
     _curl "${BASE_URL}/_cluster/settings" \
     | grep -Fq aryn_deploy_complete && die "aryn_deploy_complete already set"
 
+    [[ -z "${EMBEDDING_MODEL_ID}" ]] && with_env_update sp_setup_embedding_model
     deploy_model "${EMBEDDING_MODEL_ID}" "${EMBEDDING_TASK_ID}" "embedding"
+    [[ -z "${OPENAI_MODEL_ID}" ]] && with_env_update sp_setup_openai_model
     deploy_model "${OPENAI_MODEL_ID}" "${OPENAI_TASK_ID}" "OpenAI"
+    [[ -z "${RERANKING_MODEL_ID}" ]] && with_env_update sp_setup_reranking_model
     deploy_model "${RERANKING_MODEL_ID}" "${RERANKING_TASK_ID}" "reranking"
     # Semaphore to signal completion.  This must be transient, to go away
     # after restart, matching the longevity of model deployment.
     _curl -X PUT "${BASE_URL}/_cluster/settings" -o /dev/null --json \
     '{"transient":{"cluster":{"metadata":{"aryn_deploy_complete":1}}}}'
+}
+
+with_env_update() {
+    local env_updating_function="$1"
+    read_persistent_env
+    "$env_updating_function"
+    write_persistent_env
+}
+
+read_persistent_env() {
+    PERSISTENT_ENV_TMP="${PERSISTENT_ENV}.tmp"
+    rm -f "${PERSISTENT_ENV_TMP}" 2>/dev/null
+    cp "${PERSISTENT_ENV}" "${PERSISTENT_ENV_TMP}"
+}
+
+write_persistent_env() {
+    mv "${PERSISTENT_ENV_TMP}" "${PERSISTENT_ENV}"
 }
 
 model_is_deployed() {

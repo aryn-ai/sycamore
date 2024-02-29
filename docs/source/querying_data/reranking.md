@@ -2,8 +2,6 @@
 
 Second-stage reranking is a technique to use AI to improve search relevancy for your queries. Sycamore uses OpenSearch's [Rerank processor](https://opensearch.org/docs/latest/search-plugins/search-pipelines/rerank-processor/), contributed by Aryn, to perform this operation. For more information, visit the [OpenSearch reranking documentation](https://opensearch.org/docs/latest/search-plugins/search-relevance/reranking-search-results/) and [search pipelines documentation](https://opensearch.org/docs/latest/search-plugins/search-pipelines/index/).
 
-## Theoretical motivation
-
 The standard way of using the recent advances in AI for search is to embed documents as vectors and then perform an approximate nearest-neighbor search over the vectors. It turns out that you can do better, by giving the language model both the query and the passages you want to search over at search-time. This kind of model is called a cross-encoder (TEXT_SIMILARITY in OpenSearch). The cross-encoder can then output a single number representing the similarity of the query and passage, generating an ordering over all the passages. As you might expect, this is computationally very expensive, since for every query you need to run an language model inference over each document in your index.
 
 The solution is to use more traditional vector / keyword search to gather the top 50 or so documents, and then use the cross-encoder to re-rank only the top documents returned by faster search algorithms, henc the name "second-stage reranking".

@@ -574,6 +574,35 @@ class DocSet:
         f_constructor_kwargs: Optional[dict[str, Any]] = None,
         **resource_args,
     ) -> "DocSet":
+        """
+        The map_batch transform is similar to map, except that it processes a list of documents and returns a list of
+        documents. map_batch is ideal for transformations that get performance benefits from batching.
+
+        Example:
+             .. code-block:: python
+                def custom_map_batch_function(documents: list[Document]) -> list[Document]:
+                    # Custom logic to transform the documents
+                    return transformed_documents
+
+                map_ds = input_ds.map_batch(f=custom_map_batch_function)
+
+                def CustomMappingClass():
+                    def __init__(self, arg1, arg2, *, kw_arg1=None, kw_arg2=None):
+                        self.arg1 = arg1
+                        # ...
+
+                    def _process(self, doc: Document) -> Document:
+                        doc.properties["arg1"] = self.arg1
+                        return doc
+
+                    def __call__(self, docs: list[Document], fnarg1, *, fnkwarg1=None) -> list[Document]:
+                        return [self._process(d) for d in docs]
+
+                map_ds = input_ds.map_batch(f=CustomMappingClass,
+                                            f_args=["fnarg1"], f_kwargs={"fnkwarg1": "stuff"},
+                                            f_constructor_args=["arg1", "arg2"],
+                                            f_constructor_kwargs={"kw_arg1": 1, "kw_arg2": 2})
+        """
         from sycamore.transforms import MapBatch
 
         map_batch = MapBatch(

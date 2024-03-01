@@ -11,6 +11,7 @@ COPY opensearch/opensearch.yml /usr/share/opensearch/config/
 COPY opensearch/config.yml opensearch/roles_mapping.yml \
      /usr/share/opensearch/config/opensearch-security/
 COPY opensearch/sycamore-opensearch.sh /usr/share/opensearch/
+COPY opensearch/setup_models.py /usr/share/opensearch/
 COPY opensearch/Dockerfile /
 
 ENV discovery.type=single-node
@@ -33,6 +34,7 @@ LABEL git_diff=${GIT_DIFF}
 USER root
 RUN chown opensearch:opensearch \
     /usr/share/opensearch/sycamore-opensearch.sh \
+    /usr/share/opensearch/setup_models.py \
     /usr/share/opensearch/config/*.yml
 RUN chmod 600 /usr/share/opensearch/config/*.yml
 USER opensearch

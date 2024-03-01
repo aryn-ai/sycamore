@@ -143,14 +143,15 @@ setup_persistent() {
     PERSISTENT_ENV_TMP="${PERSISTENT_ENV}.tmp"
     rm -f "${PERSISTENT_ENV}" "${PERSISTENT_ENV_TMP}" 2>/dev/null
     touch "${PERSISTENT_ENV_TMP}"
-    sp_register_model_group
+    # sp_register_model_group
     # TODO: https://github.com/aryn-ai/sycamore/issues/152 - debug task id stability
-    sp_setup_reranking_model
-    sp_setup_embedding_model
-    sp_setup_openai_model
+    # sp_setup_reranking_model
+    # sp_setup_embedding_model
+    # sp_setup_openai_model
 
-    sp_create_rag_pipeline
-    sp_create_non_rag_pipeline
+    # sp_create_rag_pipeline
+    # sp_create_non_rag_pipeline
+    python3 setup_models.py
 
     mv "${PERSISTENT_ENV_TMP}" "${PERSISTENT_ENV}"
     echo "Setup Persistent env:"
@@ -483,7 +484,7 @@ handle_deploy_error() {
                     "bool": {
                         "should": [
                             {"term": {"state": "RUNNING"}},
-                            {"match_phrase": {"error": "Memory Circuit Breaker"))
+                            {"match_phrase": {"error": "Memory Circuit Breaker"}}
                         ]
                     }
                 }
@@ -657,13 +658,13 @@ setup_transient() {
     # Make sure OpenSearch isn't doing something wacky...
     _curl "${BASE_URL}/_cluster/settings" \
     | grep -Fq aryn_deploy_complete && die "aryn_deploy_complete already set"
-
-    [[ -z "${EMBEDDING_MODEL_ID}" ]] && with_env_update sp_setup_embedding_model
-    deploy_model "${EMBEDDING_MODEL_ID}" "${EMBEDDING_TASK_ID}" "embedding"
-    [[ -z "${OPENAI_MODEL_ID}" ]] && with_env_update sp_setup_openai_model
-    deploy_model "${OPENAI_MODEL_ID}" "${OPENAI_TASK_ID}" "OpenAI"
-    [[ -z "${RERANKING_MODEL_ID}" ]] && with_env_update sp_setup_reranking_model
-    deploy_model "${RERANKING_MODEL_ID}" "${RERANKING_TASK_ID}" "reranking"
+    python3 setup_models.py
+    # [[ -z "${EMBEDDING_MODEL_ID}" ]] && with_env_update sp_setup_embedding_model
+    # deploy_model "${EMBEDDING_MODEL_ID}" "${EMBEDDING_TASK_ID}" "embedding"
+    # [[ -z "${OPENAI_MODEL_ID}" ]] && with_env_update sp_setup_openai_model
+    # deploy_model "${OPENAI_MODEL_ID}" "${OPENAI_TASK_ID}" "OpenAI"
+    # [[ -z "${RERANKING_MODEL_ID}" ]] && with_env_update sp_setup_reranking_model
+    # deploy_model "${RERANKING_MODEL_ID}" "${RERANKING_TASK_ID}" "reranking"
     # Semaphore to signal completion.  This must be transient, to go away
     # after restart, matching the longevity of model deployment.
     _curl -X PUT "${BASE_URL}/_cluster/settings" -o /dev/null --json \

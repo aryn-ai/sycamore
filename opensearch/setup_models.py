@@ -28,7 +28,7 @@ else:
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 
-def os_request_to_json(endpoint: str, body=None, method="GET", request_name=None):
+def opensearch_request(endpoint: str, body=None, method="GET", log_name=None):
     """
     Send a request to opensearch.
     `endpoint` is just the bit after the opensearch url
@@ -36,13 +36,13 @@ def os_request_to_json(endpoint: str, body=None, method="GET", request_name=None
     assert endpoint[0] == "/", f"endpoint ({endpoint}) must include the initial /"
     url = OPENSEARCH_URL + endpoint
 
-    x = None
+    conn = None
     if body is None:
         logging.debug(f"{method} {endpoint}")
-        x = urllib.request.urlopen(url=urllib.request.Request(url=url, method=method), context=SSL_CTX)
+        conn = urllib.request.urlopen(url=urllib.request.Request(url=url, method=method), context=SSL_CTX)
     else:
         logging.debug(f"{method} {endpoint} {body}")
-        x = urllib.request.urlopen(
+        conn = urllib.request.urlopen(
             url=urllib.request.Request(
                 url=url,
                 data=json.dumps(body).encode("utf-8"),
@@ -51,10 +51,10 @@ def os_request_to_json(endpoint: str, body=None, method="GET", request_name=None
             ),
             context=SSL_CTX,
         )
-    response = json.load(x)
+    response = json.load(conn)
     logging.debug(response)
-    if request_name is not None:
-        with open(ARYN_STATUSDIR / f"request.{request_name}", "w") as f:
+    if log_name is not None:
+        with open(ARYN_STATUSDIR / f"request.{log_name}", "w") as f:
             f.write(f"{method} {endpoint}\n")
             if body is not None:
                 f.write(json.dumps(body, indent=2) + "\n")
@@ -64,12 +64,13 @@ def os_request_to_json(endpoint: str, body=None, method="GET", request_name=None
 
 def die(error_msg: str):
     logging.error(error_msg)
-    exit()
+    sys.exit(1)
 
 
 def register_model_group():
     """
-    register the aryn model group
+    create the model group to put all the models we're about to setup
+    if the model group already exists just return its id
     """
     model_group_body = {
         "name": "conversational_search_models",
@@ -78,8 +79,8 @@ def register_model_group():
     id_maybe = get_model_group_id(model_group_body["name"])
     if id_maybe is not None:
         return id_maybe
-    model_group_result = os_request_to_json(
-        "/_plugins/_ml/model_groups/_register", model_group_body, "POST", request_name="model_group"
+    model_group_result = opensearch_request(
+        "/_plugins/_ml/model_groups/_register", model_group_body, "POST", log_name="model_group"
     )
     if "model_group_id" not in model_group_result:
         die(f"Model group id not found: {model_group_result}")
@@ -96,8 +97,8 @@ def create_connector(connector_body, connector_name, attempts=15):
     if id_maybe is not None:
         return id_maybe
     for i in range(attempts):
-        connector_response = os_request_to_json(
-            "/_plugins/_ml/connectors/_create", connector_body, "POST", request_name=f"create_{connector_name}"
+        connector_response = opensearch_request(
+            "/_plugins/_ml/connectors/_create", connector_body, "POST", log_name=f"create_{connector_name}"
         )
         wait_time, successful, connector_id = handle_connector_response(connector_response)
         if successful:
@@ -115,23 +116,22 @@ def handle_connector_response(connector_response):
     die(f"Error creating a connector: {connector_response}")
 
 
-def cycle_task(try_again, get_action, task_id=None, timeout=60):
+def cycle_task(start_task, get_action, task_id=None, timeout=60):
     """
     Spawn a task and watch it until it completes, handling errors and retrying
+    - start_task: lambda that spawns a task or gets the running task (returns new task id)
+    - get_action: lambda that decides what to do based on task status (return value, wait time, try again)
     - task_id: task id to watch
-    - try_again: lambda that spawns a task or gets the running task (returns new task id)
-    - get_action: lambda that decides what to do based on task status (wait n, return value, try again)
     """
     if task_id is None:
-        task_id = try_again()
-    delay = 0
-    while delay < timeout:
+        task_id = start_task()
+    deadline = time.time() + timeout
+    while time.time() < deadline:
         return_value, wait_time, should_try_again = get_action(task_id)
         if return_value is not None:
             return return_value
         if should_try_again:
-            task_id = try_again()
-        delay += wait_time
+            task_id = start_task()
         time.sleep(wait_time)
     die(f"Could not complete task in {timeout} seconds")
 
@@ -142,7 +142,7 @@ def construct_get_action_fn(handle_error_fn, is_complete_fn=lambda x: False):
     """
 
     def inner_get_action(task_id):
-        task_status = os_request_to_json(f"/_plugins/_ml/tasks/{task_id}", request_name=f"get_task_{task_id}")
+        task_status = opensearch_request(f"/_plugins/_ml/tasks/{task_id}", log_name=f"get_task_{task_id}")
         if "state" not in task_status:
             die(f"task status missing 'state' field: {task_status}")
         state = task_status["state"]
@@ -168,7 +168,7 @@ def construct_error_handler_fn():
 
     def inner_handle_deploy_error(task_status):
         """
-        handle and error from deploying a model
+        handle an error from deploying a model
         """
         logging.warning(f"Error detected: {task_status}")
         error_message = get_error_message(task_status)
@@ -196,7 +196,7 @@ def construct_deploy_try_again_fn(model_id):
     """
 
     def inner_try_again():
-        deploy_tasks = os_request_to_json(
+        deploy_tasks = opensearch_request(
             endpoint="/_plugins/_ml/tasks/_search",
             body={
                 "query": {
@@ -210,12 +210,12 @@ def construct_deploy_try_again_fn(model_id):
                 "sort": [{"create_time": {"order": "DESC"}}],
             },
             method="POST",
-            request_name=f"deploy_search_{model_id}",
+            log_name=f"deploy_search_{model_id}",
         )
-        if deploy_tasks["hits"]["total"]["value"] != 0:
+        if deploy_tasks["hits"]["total"]["value"] > 0:
             return deploy_tasks["hits"]["hits"][0]["_id"]
-        deploy_model_response = os_request_to_json(
-            f"/_plugins/_ml/models/{model_id}/_deploy", method="POST", request_name=f"deploy_{model_id}"
+        deploy_model_response = opensearch_request(
+            f"/_plugins/_ml/models/{model_id}/_deploy", method="POST", log_name=f"deploy_{model_id}"
         )
         if "task_id" not in deploy_model_response:
             die(f"deploy model failed somehow: {deploy_model_response}")
@@ -229,8 +229,8 @@ def construct_register_try_again_fn(register_model_body, model_name):
         """
         create a task in opensearch to register a model. Polling the task is handled elsewhere
         """
-        register_model_response = os_request_to_json(
-            "/_plugins/_ml/models/_register", register_model_body, "POST", request_name=f"register_{model_name}"
+        register_model_response = opensearch_request(
+            "/_plugins/_ml/models/_register", register_model_body, "POST", log_name=f"register_{model_name}"
         )
         if "task_id" not in register_model_response:
             die(f"register model failed somehow: {register_model_response}")
@@ -256,11 +256,11 @@ def model_is_deployed(model_id):
     """
     Use the GetModel api to determine whether a model is deployed
     """
-    model_info = os_request_to_json(f"/_plugins/_ml/models/{model_id}", request_name=f"model_info_{model_id}")
-    if "model_state" not in model_info:
+    model_info = opensearch_request(f"/_plugins/_ml/models/{model_id}", log_name=f"model_info_{model_id}")
+    model_state = model_info.get("model_state")
+    if model_state is None:
         logging.warning(f"'model_state' not found for model {model_id}")
-        return False
-    return model_info["model_state"] == "DEPLOYED"
+    return model_state == "DEPLOYED"
 
 
 def construct_model_is_deplyed_fn(model_id):
@@ -287,11 +287,11 @@ def get_model_id(official_model_name):
             }
         }
     }
-    response = os_request_to_json(
+    response = opensearch_request(
         "/_plugins/_ml/models/_search",
         search_request,
         "POST",
-        request_name=f"register_search_{Path(official_model_name).name}",
+        log_name=f"register_search_{Path(official_model_name).name}",
     )
     if response["hits"]["total"]["value"] > 0:
         return response["hits"]["hits"][0]["_id"]
@@ -316,8 +316,8 @@ def connector_exists(official_connector_name):
     Return its id if found
     """
     search_request = {"query": {"term": {"name.keyword": official_connector_name}}}
-    response = os_request_to_json(
-        "/_plugins/_ml/connectors/_search", search_request, "POST", request_name="connector_search"
+    response = opensearch_request(
+        "/_plugins/_ml/connectors/_search", search_request, "POST", log_name="connector_search"
     )
     if response["hits"]["total"]["value"] > 0:
         return response["hits"]["hits"][0]["_id"]
@@ -331,8 +331,8 @@ def get_model_group_id(model_group_name):
     Return its id if found
     """
     search_request = {"query": {"term": {"name.keyword": model_group_name}}}
-    response = os_request_to_json(
-        "/_plugins/_ml/model_groups/_search", search_request, "POST", request_name="model_group_search"
+    response = opensearch_request(
+        "/_plugins/_ml/model_groups/_search", search_request, "POST", log_name="model_group_search"
     )
     if response["hits"]["total"]["value"] > 0:
         return response["hits"]["hits"][0]["_id"]
@@ -350,14 +350,16 @@ def setup_model(register_model_body, model_name, register_timeout=60, deploy_tim
             register_model_body=register_model_body, model_name=model_name
         )
         register_get_action = construct_get_action_fn(construct_error_handler_fn(), get_id)
-        model_id = cycle_task(try_again=register_try_again, get_action=register_get_action, timeout=register_timeout)
+        model_id = cycle_task(start_task=register_try_again, get_action=register_get_action, timeout=register_timeout)
 
     is_deployed = construct_model_is_deplyed_fn(model_id)
     deployed_model_id = model_id
     if not is_deployed():
         deploy_try_again = construct_deploy_try_again_fn(model_id)
         deploy_get_action = construct_get_action_fn(construct_error_handler_fn(), is_deployed)
-        deployed_model_id = cycle_task(try_again=deploy_try_again, get_action=deploy_get_action, timeout=deploy_timeout)
+        deployed_model_id = cycle_task(
+            start_task=deploy_try_again, get_action=deploy_get_action, timeout=deploy_timeout
+        )
     if model_id != deployed_model_id:
         die(f"Registered and Deployed model ids were different: [{model_id}] vs [{deployed_model_id}]")
     return model_id
@@ -494,13 +496,20 @@ def setup_models():
     Set up all models required in opensearch for the conversation stack
     """
     model_group_id = register_model_group()
+    logging.info(f"ARYN MODEL GROUP ID: {model_group_id}")
     embedding_id = setup_embedding_model(model_group_id)
+    logging.info(f">EMBEDDING MODEL ID: {embedding_id}")
     reranking_id = setup_reranking_model(model_group_id)
+    logging.info(f">RERANKING MODEL ID: {reranking_id}")
     openai_id = setup_openai_model(model_group_id)
+    logging.info(f">OPENAI    MODEL ID: {openai_id}")
+
+    logging.info("======================================")
     logging.info(f"ARYN MODEL GROUP ID: {model_group_id}")
     logging.info(f">EMBEDDING MODEL ID: {embedding_id}")
     logging.info(f">RERANKING MODEL ID: {reranking_id}")
     logging.info(f">OPENAI    MODEL ID: {openai_id}")
+    logging.info("======================================")
     return embedding_id, reranking_id, openai_id
 
 
@@ -508,7 +517,7 @@ def create_pipeline(pipeline_name, pipeline_def):
     """
     Create a pipeline named `pipeline_name` with definition `pipeline_def`
     """
-    response = os_request_to_json(f"/_search/pipeline/{pipeline_name}", pipeline_def, "PUT", request_name=pipeline_name)
+    response = opensearch_request(f"/_search/pipeline/{pipeline_name}", pipeline_def, "PUT", log_name=pipeline_name)
     return response
 
 

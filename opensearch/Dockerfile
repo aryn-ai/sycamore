@@ -33,7 +33,9 @@ LABEL git_diff=${GIT_DIFF}
 # OpenSearch complains if these files have permissive modes.
 USER root
 RUN chown opensearch:opensearch \
-    /usr/share/opensearch/config/*.yml
+    /usr/share/opensearch/config/*.yml \
+    /usr/share/opensearch/sycamore-opensearch.sh \
+    /usr/share/opensearch/setup_models.py
 RUN chmod 600 /usr/share/opensearch/config/*.yml
 USER opensearch
 

@@ -18,9 +18,9 @@ SSL_CTX.verify_mode = ssl.CERT_NONE
 ML_CONFIG_FILE = ARYN_STATUSDIR / "ml_config.json"
 
 if int(os.environ.get("DEBUG", 0)) > 0:
-    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+    logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 else:
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 
 def os_request_to_json(endpoint: str, body=None, method="GET"):
@@ -30,12 +30,13 @@ def os_request_to_json(endpoint: str, body=None, method="GET"):
     """
     assert endpoint[0] == "/", f"endpoint ({endpoint}) must include the initial /"
     url = OPENSEARCH_URL + endpoint
-    logging.debug(f"{method} {endpoint}")
+
     x = None
     if body is None:
+        logging.debug(f"{method} {endpoint}")
         x = urllib.request.urlopen(url=urllib.request.Request(url=url, method=method), context=SSL_CTX)
     else:
-        # logging.debug(f"{json.dumps(body, indent=2)}")
+        logging.debug(f"{method} {endpoint} {body}")
         x = urllib.request.urlopen(
             url=urllib.request.Request(
                 url=url,
@@ -72,53 +73,6 @@ def register_model_group():
     return model_group_result["model_group_id"]
 
 
-def register_model(register_model_body, model_name, attempts=60):
-    """
-    register a model. handle any resulting errors in the appropriate way
-    """
-    if "name" not in register_model_body:
-        die(f"missing 'name' field in register body: {register_model_body}")
-    id_maybe = model_exists(register_model_body["name"])
-    if id_maybe is not None:
-        return id_maybe
-    register_task_id = spawn_register_task(register_model_body, model_name)
-    for i in range(attempts):
-        logging.info(f"Registering {model_name} model... {i}/{attempts}")
-        task_status = os_request_to_json(f"/_plugins/_ml/tasks/{register_task_id}")
-        wait_time, successful, new_task_id = poll_task_once(
-            task_status, f"register_{model_name}", model_name, register_model_body
-        )
-        if successful:
-            if "model_id" not in task_status:
-                die(f"'model_id' not found in task: {task_status}")
-            return task_status["model_id"]
-        else:
-            if new_task_id is not None:
-                register_task_id = new_task_id
-            time.sleep(wait_time)
-    die(f"Failed to register after {attempts} attempts")
-
-
-def deploy_model(model_id, model_name, attempts=60):
-    """
-    deploy a model. handle any resulting error in the appropriate way
-    """
-    if model_is_deployed(model_id):
-        return
-    deploy_task_id = spawn_deploy_task(model_id, model_name)
-    for i in range(attempts):
-        logging.info(f"Deploying {model_name} model... {i}/{attempts}")
-        task_status = os_request_to_json(f"/_plugins/_ml/tasks/{deploy_task_id}")
-        wait_time, successful, new_task_id = poll_task_once(task_status, f"deploy_{model_name}", model_name, model_id)
-        if successful:
-            return
-        else:
-            if new_task_id is not None:
-                deploy_task_id = new_task_id
-            time.sleep(wait_time)
-    die(f"Failed to deploy after {attempts} attempts")
-
-
 def create_connector(connector_body, connector_name, attempts=15):
     """
     create an HTTP connector. handle any errors appropriately
@@ -139,97 +93,6 @@ def create_connector(connector_body, connector_name, attempts=15):
     die(f"Failed to create connector after {attempts} attempts")
 
 
-def spawn_register_task(register_model_body, model_name):
-    """
-    create a task in opensearch to register a model. Polling the task is handled elsewhere
-    """
-    register_model_response = os_request_to_json("/_plugins/_ml/models/_register", register_model_body, "POST")
-    with open(ARYN_STATUSDIR / f"request.register_{model_name}", "w") as f:
-        json.dump(register_model_response, f)
-    if "task_id" not in register_model_response:
-        die(f"register model failed somehow: {register_model_response}")
-    return register_model_response["task_id"]
-
-
-def spawn_deploy_task(model_id, model_name):
-    """
-    create a task in opensearch to deploy a model. Poll the task externally
-    """
-    deploy_model_response = os_request_to_json(f"/_plugins/_ml/models/{model_id}/_deploy", method="POST")
-    with open(ARYN_STATUSDIR / f"request.deploy_{model_name}", "w") as f:
-        json.dump(deploy_model_response, f)
-    if "task_id" not in deploy_model_response:
-        die(f"deploy model failed somehow: {deploy_model_response}")
-    return deploy_model_response["task_id"]
-
-
-def handle_register_error(task_status, register_model_body, model_name):
-    """
-    handle an error from registering a model
-    """
-    logging.warning(f"Error detected: {task_status}")
-    if "error" not in task_status:
-        die(f"No error message: {task_status}")
-    error_message = task_status["error"]
-    if error_message[0] == "{":
-        error_message = list(json.loads(error_message).values())[0]
-    if re.match(".*Memory.*Circuit.*Breaker.*", error_message):
-        logging.info("Memory Circuit Breaker exception. Wait for 5s while GC runs")
-        new_register_task = spawn_register_task(register_model_body, model_name)
-        return 5, False, new_register_task
-
-
-def handle_deploy_error(task_status, model_id, model_name):
-    """
-    handle and error from deploying a model
-    """
-    logging.warning(f"Error detected: {task_status}")
-    if "error" not in task_status:
-        die(f"No error message: {task_status}")
-    error_message = list(json.loads(task_status["error"]).values())[0]
-    if re.match(".*Memory.*Circuit.*Breaker.*", error_message):
-        logging.info("Memory Circuit Breaker exception. Wait 5s while GC runs")
-        new_deploy_task = spawn_deploy_task(model_id, model_name)
-        return 5, False, new_deploy_task
-    if error_message == "Duplicate deploy model task":
-        logging.info("Duplicate deploy model task. Get the correct task to watch")
-        deploy_tasks = os_request_to_json(
-            endpoint="/_plugins/_ml/tasks/_search",
-            body={
-                "query": {
-                    "bool": {
-                        "must": [
-                            {"term": {"model_id": model_id}},
-                            {
-                                "bool": {
-                                    "should": [
-                                        {"term": {"state": "RUNNING"}},
-                                        {"match_phrase": {"error": "Memory Circuit Breaker"}},
-                                    ]
-                                }
-                            },
-                        ]
-                    }
-                },
-                "sort": [{"create_time": {"order": "DESC"}}],
-            },
-            method="POST",
-        )
-        if deploy_tasks["hits"]["total"]["value"] != 0:
-            new_deploy_task = deploy_tasks["hits"]["hits"][0]["_id"]
-            return 1, False, new_deploy_task
-        else:
-            if model_is_deployed(model_id):
-                return 0, True, None
-            new_deploy_task = spawn_deploy_task(model_id, model_name)
-            return 1, False, new_deploy_task
-    if re.match(".*OrtEnvironment.*", error_message):
-        logging.info("Ort Environment error. Try again.")
-        new_deploy_task = spawn_deploy_task(model_id, model_name)
-        return 1, False, new_deploy_task
-    die(f"Unreccognized error message: {error_message}")
-
-
 def handle_connector_response(connector_response):
     """
     handle a create connector response, including errors
@@ -239,27 +102,138 @@ def handle_connector_response(connector_response):
     die(f"Error creating a connector: {connector_response}")
 
 
-def poll_task_once(task_status, task_name, model_name, supplemental_task_info):
+def cycle_task(try_again, get_action, task_id=None, timeout=60):
     """
-    Ask a task for its status. Depending on the status do something
+    Spawn a task and watch it until it completes, handling errors and retrying
+    - task_id: task id to watch
+    - try_again: lambda that spawns a task or gets the running task (returns new task id)
+    - get_action: lambda that decides what to do based on task status (wait n, return value, try again)
     """
-    with open(ARYN_STATUSDIR / f"request.{task_name}_task", "w") as f:
-        json.dump(task_status, f)
-    if "state" not in task_status:
-        die(f"task status missing 'state' field: {task_status}")
-    state = task_status["state"]
-    if state in ["RUNNING", "CREATED"]:
-        return 1, False, None
-    if state in ["COMPLETED"]:
-        return 0, True, None
-    if state in ["FAILED"]:
-        if "register" in task_name:
-            return handle_register_error(task_status, supplemental_task_info, model_name)
-        elif "deploy" in task_name:
-            return handle_deploy_error(task_status, supplemental_task_info, model_name)
+    if task_id is None:
+        task_id = try_again()
+    delay = 0
+    while delay < timeout:
+        return_value, wait_time, should_try_again = get_action(task_id)
+        if return_value is not None:
+            return return_value
+        if should_try_again:
+            task_id = try_again()
+        delay += wait_time
+        time.sleep(wait_time)
+    die(f"Could not complete task in {timeout} seconds")
+
+
+def construct_get_action_fn(handle_error_fn, is_complete_fn=lambda x: False):
+    """
+    Construct the lambda to hand to `cycle_task` as `get_action`
+    """
+
+    def inner_get_action(task_id):
+        task_status = os_request_to_json(f"/_plugins/_ml/tasks/{task_id}")
+        if "state" not in task_status:
+            die(f"task status missing 'state' field: {task_status}")
+        state = task_status["state"]
+        if state in ["RUNNING", "CREATED"]:
+            # don't return anything, wait a sec, don't try again
+            return None, 1, False
+        elif state in ["COMPLETED"] or is_complete_fn():
+            # return model id, no waiting, don't try again
+            return task_status["model_id"], 0, False
+        elif state in ["FAILED"]:
+            # defer to error handling function
+            return handle_error_fn(task_status)
         else:
-            die(f"Unrecognized task name: {task_name}")
-    die(f"Unrecognized task status: {state} in {task_status}")
+            die(f"Unrecognized task status: {task_status}")
+
+    return inner_get_action
+
+
+def construct_error_handler_fn():
+    """
+    Construct the lambda to handle deployment errors
+    """
+
+    def inner_handle_deploy_error(task_status):
+        """
+        handle and error from deploying a model
+        """
+        logging.warning(f"Error detected: {task_status}")
+        error_message = get_error_message(task_status)
+        if error_message is None:
+            die(f"Could not find error message, but FAILED state was found: {task_status}")
+        if re.match(".*Memory.*Circuit.*Breaker.*", error_message):
+            logging.info("Memory Circuit Breaker exception. Wait 5s while GC runs")
+            return None, 5, True
+        elif error_message == "Duplicate deploy model task":
+            # Get running task logic is relocated to deploy function
+            logging.info("Duplicate deploy model task. Try again")
+            return None, 1, True
+        elif re.match(".*OrtEnvironment.*", error_message):
+            logging.info("Ort Environment error. Try again.")
+            return None, 1, True
+        else:
+            die(f"Unrecognized error message: {error_message}")
+
+    return inner_handle_deploy_error
+
+
+def construct_deploy_try_again_fn(model_id):
+    """
+    Construct the lambda to hand to `cycle_task` as `try_again`
+    """
+
+    def inner_try_again():
+        deploy_tasks = os_request_to_json(
+            endpoint="/_plugins/_ml/tasks/_search",
+            body={
+                "query": {
+                    "bool": {
+                        "must": [
+                            {"term": {"model_id": model_id}},
+                            {"terms": {"state": ["RUNNING", "CREATED"]}},
+                        ]
+                    }
+                },
+                "sort": [{"create_time": {"order": "DESC"}}],
+            },
+            method="POST",
+        )
+        if deploy_tasks["hits"]["total"]["value"] != 0:
+            return deploy_tasks["hits"]["hits"][0]["_id"]
+        deploy_model_response = os_request_to_json(f"/_plugins/_ml/models/{model_id}/_deploy", method="POST")
+        if "task_id" not in deploy_model_response:
+            die(f"deploy model failed somehow: {deploy_model_response}")
+        return deploy_model_response["task_id"]
+
+    return inner_try_again
+
+
+def construct_register_try_again_fn(register_model_body, model_name):
+    def inner_try_again():
+        """
+        create a task in opensearch to register a model. Polling the task is handled elsewhere
+        """
+        register_model_response = os_request_to_json("/_plugins/_ml/models/_register", register_model_body, "POST")
+        with open(ARYN_STATUSDIR / f"request.register_{model_name}", "w") as f:
+            json.dump(register_model_response, f)
+        if "task_id" not in register_model_response:
+            die(f"register model failed somehow: {register_model_response}")
+        return register_model_response["task_id"]
+
+    return inner_try_again
+
+
+def get_error_message(task_status):
+    """
+    Return the error message from a task status, or None if there is no error
+    """
+    if "error" not in task_status:
+        return None
+    else:
+        error_message = str(task_status["error"])
+        if error_message[0] == "{":
+            error_message = str(list(json.loads(error_message).values())[0])
+        return error_message
 
 
 def model_is_deployed(model_id):
@@ -273,7 +247,18 @@ def model_is_deployed(model_id):
     return model_info["model_state"] == "DEPLOYED"
 
 
-def model_exists(official_model_name):
+def construct_model_is_deplyed_fn(model_id):
+    """
+    Construct a lambda that calls model_is_deployed
+    """
+
+    def inner():
+        return model_is_deployed(model_id)
+
+    return inner
+
+
+def get_model_id(official_model_name):
     """
     Use the SearchModel API to determine whether a model has been downloaded to the node.
     Return its id if found
@@ -291,6 +276,17 @@ def model_exists(official_model_name):
         return response["hits"]["hits"][0]["_id"]
     else:
         return None
+
+
+def construct_get_model_id_fn(official_model_name):
+    """
+    Construct a lambda that calls get_model_id
+    """
+
+    def inner():
+        return get_model_id(official_model_name)
+
+    return inner
 
 
 def connector_exists(official_connector_name):
@@ -317,6 +313,29 @@ def model_group_exists(model_group_name):
         return response["hits"]["hits"][0]["_id"]
     else:
         return None
+
+
+def setup_model(register_model_body, model_name, register_timeout=60, deploy_timeout=60):
+    if "name" not in register_model_body:
+        die(f"`name` key not found in register body: {register_model_body}")
+    get_id = construct_get_model_id_fn(register_model_body["name"])
+    model_id = get_id()
+    if model_id is None:
+        register_try_again = construct_register_try_again_fn(
+            register_model_body=register_model_body, model_name=model_name
+        )
+        register_get_action = construct_get_action_fn(construct_error_handler_fn(), get_id)
+        model_id = cycle_task(try_again=register_try_again, get_action=register_get_action, timeout=register_timeout)
+
+    is_deployed = construct_model_is_deplyed_fn(model_id)
+    deployed_model_id = model_id
+    if not is_deployed():
+        deploy_try_again = construct_deploy_try_again_fn(model_id)
+        deploy_get_action = construct_get_action_fn(construct_error_handler_fn(), is_deployed)
+        deployed_model_id = cycle_task(try_again=deploy_try_again, get_action=deploy_get_action, timeout=deploy_timeout)
+    if model_id != deployed_model_id:
+        die(f"Registered and Deployed model ids were different: [{model_id}] vs [{deployed_model_id}]")
+    return model_id
 
 
 def setup_embedding_model(model_group_id):
@@ -353,10 +372,7 @@ used for tasks like clustering or semantic search.",
         "url": "https://artifacts.opensearch.org/models/ml-models/huggingface/sentence-\
 transformers/all-MiniLM-L6-v2/1.0.1/onnx/sentence-transformers_all-MiniLM-L6-v2-1.0.1-onnx.zip",
     }
-
-    model_id = register_model(register_body, model_name)
-    deploy_model(model_id, model_name)
-    return model_id
+    return setup_model(register_body, model_name)
 
 
 def setup_reranking_model(model_group_id):
@@ -408,10 +424,7 @@ def setup_reranking_model(model_group_id):
         },
         "url": "https://aryn-public.s3.amazonaws.com/models/BAAI/bge-reranker-base-quantized-2.zip",
     }
-
-    model_id = register_model(register_body, model_name, 120)
-    deploy_model(model_id, model_name)
-    return model_id
+    return setup_model(register_body, model_name, register_timeout=120)
 
 
 def setup_openai_model(model_group_id):
@@ -448,9 +461,7 @@ def setup_openai_model(model_group_id):
         "connector_id": connector_id,
         "model_group_id": model_group_id,
     }
-    model_id = register_model(openai_register_body, model_name)
-    deploy_model(model_id, model_name)
-    return model_id
+    return setup_model(openai_register_body, model_name)
 
 
 def setup_models():

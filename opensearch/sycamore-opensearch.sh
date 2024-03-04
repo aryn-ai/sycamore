@@ -151,7 +151,7 @@ setup_persistent() {
 
     # sp_create_rag_pipeline
     # sp_create_non_rag_pipeline
-    python3 setup_models.py
+    python3 setup_models.py || die "Failed to setup models"
 
     mv "${PERSISTENT_ENV_TMP}" "${PERSISTENT_ENV}"
     echo "Setup Persistent env:"
@@ -658,7 +658,7 @@ setup_transient() {
     # Make sure OpenSearch isn't doing something wacky...
     _curl "${BASE_URL}/_cluster/settings" \
     | grep -Fq aryn_deploy_complete && die "aryn_deploy_complete already set"
-    python3 setup_models.py
+    python3 setup_models.py || die "Failed to setup models"
     # [[ -z "${EMBEDDING_MODEL_ID}" ]] && with_env_update sp_setup_embedding_model
     # deploy_model "${EMBEDDING_MODEL_ID}" "${EMBEDDING_TASK_ID}" "embedding"
     # [[ -z "${OPENAI_MODEL_ID}" ]] && with_env_update sp_setup_openai_model

@@ -28,7 +28,7 @@ else:
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 
-def opensearch_request(endpoint: str, body=None, method="GET", log_name=None):
+def opensearch_request(endpoint: str, log_name: str, body=None, method="GET"):
     """
     Send a request to opensearch.
     `endpoint` is just the bit after the opensearch url
@@ -53,12 +53,11 @@ def opensearch_request(endpoint: str, body=None, method="GET", log_name=None):
         )
     response = json.load(conn)
     logging.debug(response)
-    if log_name is not None:
-        with open(ARYN_STATUSDIR / f"request.{log_name}", "w") as f:
-            f.write(f"{method} {endpoint}\n")
-            if body is not None:
-                f.write(json.dumps(body, indent=2) + "\n")
-            f.write(json.dumps(response, indent=2) + "\n")
+    with open(ARYN_STATUSDIR / f"request.{log_name}", "w") as f:
+        f.write(f"{method} {endpoint}\n")
+        if body is not None:
+            f.write(json.dumps(body, indent=2) + "\n")
+        f.write(json.dumps(response, indent=2) + "\n")
     return response
 
 
@@ -80,7 +79,7 @@ def register_model_group():
     if id_maybe is not None:
         return id_maybe
     model_group_result = opensearch_request(
-        "/_plugins/_ml/model_groups/_register", model_group_body, "POST", log_name="model_group"
+        "/_plugins/_ml/model_groups/_register", "model_group", model_group_body, "POST"
     )
     if "model_group_id" not in model_group_result:
         die(f"Model group id not found: {model_group_result}")
@@ -98,7 +97,7 @@ def create_connector(connector_body, connector_name, attempts=15):
         return id_maybe
     for i in range(attempts):
         connector_response = opensearch_request(
-            "/_plugins/_ml/connectors/_create", connector_body, "POST", log_name=f"create_{connector_name}"
+            "/_plugins/_ml/connectors/_create", f"create_{connector_name}", connector_body, "POST"
         )
         wait_time, successful, connector_id = handle_connector_response(connector_response)
         if successful:
@@ -136,12 +135,45 @@ def cycle_task(start_task, get_action, task_id=None, timeout=60):
     die(f"Could not complete task in {timeout} seconds")
 
 
-def construct_get_action_fn(handle_error_fn, is_complete_fn=lambda x: False):
+def handle_error(task_status):
+    """
+    handle an error from deploying a model:
+        - Memory Circuit Breaker exception: wait 5 seconds and re-create the task
+        - Duplicate deploy model exception: wait 1 second and re-create the task
+        - OrtEnvironment exception: wait 1 second and re-create the task
+    note: when re-creating the task, we also check to see if there is a valid
+        task currently running that does the same thing
+    """
+    logging.warning(f"Error detected: {task_status}")
+    error_message = get_error_message(task_status)
+    if error_message is None:
+        die(f"Could not find error message, but FAILED state was found: {task_status}")
+    if re.match(".*Memory.*Circuit.*Breaker.*", error_message):
+        logging.info("Memory Circuit Breaker exception. Wait 5s while GC runs")
+        return None, 5, True
+    elif error_message == "Duplicate deploy model task":
+        # Get running task logic is relocated to deploy function
+        logging.info("Duplicate deploy model task. Try again")
+        return None, 1, True
+    elif re.match(".*OrtEnvironment.*", error_message):
+        logging.info("Ort Environment error. Try again.")
+        return None, 1, True
+    else:
+        die(f"Unrecognized error message: {error_message}")
+
+
+def construct_get_action_fn(handle_error_fn=handle_error, is_complete_fn=lambda x: False):
     """
     Construct the lambda to hand to `cycle_task` as `get_action`
     """
 
     def inner_get_action(task_id):
+        """
+        Get a task status and return the appropriate thing to do:
+            - if task is not completed, don't return a value, wait 1 second, and don't re-create the task
+            - if task is completed, return the associate model id, wait is irrelevant, and don't re-create the task
+            - if task failed, defer to the error handling function
+        """
         task_status = opensearch_request(f"/_plugins/_ml/tasks/{task_id}", log_name=f"get_task_{task_id}")
         if "state" not in task_status:
             die(f"task status missing 'state' field: {task_status}")
@@ -161,35 +193,6 @@ def construct_get_action_fn(handle_error_fn, is_complete_fn=lambda x: False):
     return inner_get_action
 
 
-def construct_error_handler_fn():
-    """
-    Construct the lambda to handle deployment errors
-    """
-
-    def inner_handle_deploy_error(task_status):
-        """
-        handle an error from deploying a model
-        """
-        logging.warning(f"Error detected: {task_status}")
-        error_message = get_error_message(task_status)
-        if error_message is None:
-            die(f"Could not find error message, but FAILED state was found: {task_status}")
-        if re.match(".*Memory.*Circuit.*Breaker.*", error_message):
-            logging.info("Memory Circuit Breaker exception. Wait 5s while GC runs")
-            return None, 5, True
-        elif error_message == "Duplicate deploy model task":
-            # Get running task logic is relocated to deploy function
-            logging.info("Duplicate deploy model task. Try again")
-            return None, 1, True
-        elif re.match(".*OrtEnvironment.*", error_message):
-            logging.info("Ort Environment error. Try again.")
-            return None, 1, True
-        else:
-            die(f"Unrecognized error message: {error_message}")
-
-    return inner_handle_deploy_error
-
-
 def construct_deploy_try_again_fn(model_id):
     """
     Construct the lambda to hand to `cycle_task` as `try_again`
@@ -198,6 +201,7 @@ def construct_deploy_try_again_fn(model_id):
     def inner_try_again():
         deploy_tasks = opensearch_request(
             endpoint="/_plugins/_ml/tasks/_search",
+            log_name=f"deploy_search_{model_id}",
             body={
                 "query": {
                     "bool": {
@@ -210,12 +214,11 @@ def construct_deploy_try_again_fn(model_id):
                 "sort": [{"create_time": {"order": "DESC"}}],
             },
             method="POST",
-            log_name=f"deploy_search_{model_id}",
         )
         if deploy_tasks["hits"]["total"]["value"] > 0:
             return deploy_tasks["hits"]["hits"][0]["_id"]
         deploy_model_response = opensearch_request(
-            f"/_plugins/_ml/models/{model_id}/_deploy", method="POST", log_name=f"deploy_{model_id}"
+            f"/_plugins/_ml/models/{model_id}/_deploy", log_name=f"deploy_{model_id}", method="POST"
         )
         if "task_id" not in deploy_model_response:
             die(f"deploy model failed somehow: {deploy_model_response}")
@@ -230,7 +233,7 @@ def construct_register_try_again_fn(register_model_body, model_name):
         create a task in opensearch to register a model. Polling the task is handled elsewhere
         """
         register_model_response = opensearch_request(
-            "/_plugins/_ml/models/_register", register_model_body, "POST", log_name=f"register_{model_name}"
+            "/_plugins/_ml/models/_register", f"register_{model_name}", register_model_body, "POST"
         )
         if "task_id" not in register_model_response:
             die(f"register model failed somehow: {register_model_response}")
@@ -247,6 +250,7 @@ def get_error_message(task_status):
         return None
     else:
         error_message = str(task_status["error"])
+        # Sometimes the error message is json, sometimes it's not
         if error_message[0] == "{":
             error_message = str(list(json.loads(error_message).values())[0])
         return error_message
@@ -289,9 +293,9 @@ def get_model_id(official_model_name):
     }
     response = opensearch_request(
         "/_plugins/_ml/models/_search",
+        f"register_search_{Path(official_model_name).name}",
         search_request,
         "POST",
-        log_name=f"register_search_{Path(official_model_name).name}",
     )
     if response["hits"]["total"]["value"] > 0:
         return response["hits"]["hits"][0]["_id"]
@@ -316,9 +320,7 @@ def connector_exists(official_connector_name):
     Return its id if found
     """
     search_request = {"query": {"term": {"name.keyword": official_connector_name}}}
-    response = opensearch_request(
-        "/_plugins/_ml/connectors/_search", search_request, "POST", log_name="connector_search"
-    )
+    response = opensearch_request("/_plugins/_ml/connectors/_search", "connector_search", search_request, "POST")
     if response["hits"]["total"]["value"] > 0:
         return response["hits"]["hits"][0]["_id"]
     else:
@@ -331,9 +333,7 @@ def get_model_group_id(model_group_name):
     Return its id if found
     """
     search_request = {"query": {"term": {"name.keyword": model_group_name}}}
-    response = opensearch_request(
-        "/_plugins/_ml/model_groups/_search", search_request, "POST", log_name="model_group_search"
-    )
+    response = opensearch_request("/_plugins/_ml/model_groups/_search", "model_group_search", search_request, "POST")
     if response["hits"]["total"]["value"] > 0:
         return response["hits"]["hits"][0]["_id"]
     else:
@@ -349,14 +349,14 @@ def setup_model(register_model_body, model_name, register_timeout=60, deploy_tim
         register_try_again = construct_register_try_again_fn(
             register_model_body=register_model_body, model_name=model_name
         )
-        register_get_action = construct_get_action_fn(construct_error_handler_fn(), get_id)
+        register_get_action = construct_get_action_fn(is_complete_fn=get_id)
         model_id = cycle_task(start_task=register_try_again, get_action=register_get_action, timeout=register_timeout)
 
     is_deployed = construct_model_is_deplyed_fn(model_id)
     deployed_model_id = model_id
     if not is_deployed():
         deploy_try_again = construct_deploy_try_again_fn(model_id)
-        deploy_get_action = construct_get_action_fn(construct_error_handler_fn(), is_deployed)
+        deploy_get_action = construct_get_action_fn(is_complete_fn=is_deployed)
         deployed_model_id = cycle_task(
             start_task=deploy_try_again, get_action=deploy_get_action, timeout=deploy_timeout
         )
@@ -517,7 +517,7 @@ def create_pipeline(pipeline_name, pipeline_def):
     """
     Create a pipeline named `pipeline_name` with definition `pipeline_def`
     """
-    response = opensearch_request(f"/_search/pipeline/{pipeline_name}", pipeline_def, "PUT", log_name=pipeline_name)
+    response = opensearch_request(f"/_search/pipeline/{pipeline_name}", pipeline_name, pipeline_def, "PUT")
     return response
 
 

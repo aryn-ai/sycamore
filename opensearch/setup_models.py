@@ -1,5 +1,11 @@
 #!/usr/bin/python3
-
+"""
+We only import python builtin libraries to avoid
+doing any kind of pip installs or venv stuff inside
+the OpenSearch container, which has a bare-bones
+python 3.9 installation (probably just for being
+ubuntu)
+"""
 import urllib.request
 import ssl
 import json
@@ -15,7 +21,6 @@ ARYN_STATUSDIR = Path("/usr/share/opensearch/data/aryn_status")
 SSL_CTX = ssl.create_default_context()
 SSL_CTX.check_hostname = False
 SSL_CTX.verify_mode = ssl.CERT_NONE
-ML_CONFIG_FILE = ARYN_STATUSDIR / "ml_config.json"
 
 if int(os.environ.get("DEBUG", 0)) > 0:
     logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
@@ -23,10 +28,10 @@ else:
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
 
-def os_request_to_json(endpoint: str, body=None, method="GET"):
+def os_request_to_json(endpoint: str, body=None, method="GET", request_name=None):
     """
     Send a request to opensearch.
-    endpoint is just the bit after the opensearch url
+    `endpoint` is just the bit after the opensearch url
     """
     assert endpoint[0] == "/", f"endpoint ({endpoint}) must include the initial /"
     url = OPENSEARCH_URL + endpoint
@@ -46,7 +51,15 @@ def os_request_to_json(endpoint: str, body=None, method="GET"):
             ),
             context=SSL_CTX,
         )
-    return json.load(x)
+    response = json.load(x)
+    logging.debug(response)
+    if request_name is not None:
+        with open(ARYN_STATUSDIR / f"request.{request_name}", "w") as f:
+            f.write(f"{method} {endpoint}\n")
+            if body is not None:
+                f.write(json.dumps(body, indent=2) + "\n")
+            f.write(json.dumps(response, indent=2) + "\n")
+    return response
 
 
 def die(error_msg: str):
@@ -62,12 +75,12 @@ def register_model_group():
         "name": "conversational_search_models",
         "description": "Public model group of the conversational search models we use",
     }
-    id_maybe = model_group_exists(model_group_body["name"])
+    id_maybe = get_model_group_id(model_group_body["name"])
     if id_maybe is not None:
         return id_maybe
-    model_group_result = os_request_to_json("/_plugins/_ml/model_groups/_register", model_group_body, "POST")
-    with open(ARYN_STATUSDIR / "request.model_group", "w") as f:
-        json.dump(model_group_result, f)
+    model_group_result = os_request_to_json(
+        "/_plugins/_ml/model_groups/_register", model_group_body, "POST", request_name="model_group"
+    )
     if "model_group_id" not in model_group_result:
         die(f"Model group id not found: {model_group_result}")
     return model_group_result["model_group_id"]
@@ -83,9 +96,9 @@ def create_connector(connector_body, connector_name, attempts=15):
     if id_maybe is not None:
         return id_maybe
     for i in range(attempts):
-        connector_response = os_request_to_json("/_plugins/_ml/connectors/_create", connector_body, "POST")
-        with open(ARYN_STATUSDIR / f"request.create_{connector_name}", "w") as f:
-            json.dump(connector_response, f)
+        connector_response = os_request_to_json(
+            "/_plugins/_ml/connectors/_create", connector_body, "POST", request_name=f"create_{connector_name}"
+        )
         wait_time, successful, connector_id = handle_connector_response(connector_response)
         if successful:
             return connector_id
@@ -98,7 +111,7 @@ def handle_connector_response(connector_response):
     handle a create connector response, including errors
     """
     if "connector_id" in connector_response:
-        return 0, True, connector_response["connector_id"]
+        return 1, True, connector_response["connector_id"]
     die(f"Error creating a connector: {connector_response}")
 
 
@@ -129,7 +142,7 @@ def construct_get_action_fn(handle_error_fn, is_complete_fn=lambda x: False):
     """
 
     def inner_get_action(task_id):
-        task_status = os_request_to_json(f"/_plugins/_ml/tasks/{task_id}")
+        task_status = os_request_to_json(f"/_plugins/_ml/tasks/{task_id}", request_name=f"get_task_{task_id}")
         if "state" not in task_status:
             die(f"task status missing 'state' field: {task_status}")
         state = task_status["state"]
@@ -197,10 +210,13 @@ def construct_deploy_try_again_fn(model_id):
                 "sort": [{"create_time": {"order": "DESC"}}],
             },
             method="POST",
+            request_name=f"deploy_search_{model_id}",
         )
         if deploy_tasks["hits"]["total"]["value"] != 0:
             return deploy_tasks["hits"]["hits"][0]["_id"]
-        deploy_model_response = os_request_to_json(f"/_plugins/_ml/models/{model_id}/_deploy", method="POST")
+        deploy_model_response = os_request_to_json(
+            f"/_plugins/_ml/models/{model_id}/_deploy", method="POST", request_name=f"deploy_{model_id}"
+        )
         if "task_id" not in deploy_model_response:
             die(f"deploy model failed somehow: {deploy_model_response}")
         return deploy_model_response["task_id"]
@@ -213,9 +229,9 @@ def construct_register_try_again_fn(register_model_body, model_name):
         """
         create a task in opensearch to register a model. Polling the task is handled elsewhere
         """
-        register_model_response = os_request_to_json("/_plugins/_ml/models/_register", register_model_body, "POST")
-        with open(ARYN_STATUSDIR / f"request.register_{model_name}", "w") as f:
-            json.dump(register_model_response, f)
+        register_model_response = os_request_to_json(
+            "/_plugins/_ml/models/_register", register_model_body, "POST", request_name=f"register_{model_name}"
+        )
         if "task_id" not in register_model_response:
             die(f"register model failed somehow: {register_model_response}")
         return register_model_response["task_id"]
@@ -240,7 +256,7 @@ def model_is_deployed(model_id):
     """
     Use the GetModel api to determine whether a model is deployed
     """
-    model_info = os_request_to_json(f"/_plugins/_ml/models/{model_id}")
+    model_info = os_request_to_json(f"/_plugins/_ml/models/{model_id}", request_name=f"model_info_{model_id}")
     if "model_state" not in model_info:
         logging.warning(f"'model_state' not found for model {model_id}")
         return False
@@ -271,7 +287,12 @@ def get_model_id(official_model_name):
             }
         }
     }
-    response = os_request_to_json("/_plugins/_ml/models/_search", search_request, "POST")
+    response = os_request_to_json(
+        "/_plugins/_ml/models/_search",
+        search_request,
+        "POST",
+        request_name=f"register_search_{Path(official_model_name).name}",
+    )
     if response["hits"]["total"]["value"] > 0:
         return response["hits"]["hits"][0]["_id"]
     else:
@@ -295,20 +316,24 @@ def connector_exists(official_connector_name):
     Return its id if found
     """
     search_request = {"query": {"term": {"name.keyword": official_connector_name}}}
-    response = os_request_to_json("/_plugins/_ml/connectors/_search", search_request, "POST")
+    response = os_request_to_json(
+        "/_plugins/_ml/connectors/_search", search_request, "POST", request_name="connector_search"
+    )
     if response["hits"]["total"]["value"] > 0:
         return response["hits"]["hits"][0]["_id"]
     else:
         return None
 
 
-def model_group_exists(model_group_name):
+def get_model_group_id(model_group_name):
     """
     Use the SearchModelGroup API to determine whether the model group exists
     Return its id if found
     """
     search_request = {"query": {"term": {"name.keyword": model_group_name}}}
-    response = os_request_to_json("/_plugins/_ml/model_groups/_search", search_request, "POST")
+    response = os_request_to_json(
+        "/_plugins/_ml/model_groups/_search", search_request, "POST", request_name="model_group_search"
+    )
     if response["hits"]["total"]["value"] > 0:
         return response["hits"]["hits"][0]["_id"]
     else:
@@ -483,9 +508,7 @@ def create_pipeline(pipeline_name, pipeline_def):
     """
     Create a pipeline named `pipeline_name` with definition `pipeline_def`
     """
-    response = os_request_to_json(f"/_search/pipeline/{pipeline_name}", pipeline_def, "PUT")
-    with open(ARYN_STATUSDIR / f"request.{pipeline_name}", "w") as f:
-        json.dump(response, f)
+    response = os_request_to_json(f"/_search/pipeline/{pipeline_name}", pipeline_def, "PUT", request_name=pipeline_name)
     return response
 
 

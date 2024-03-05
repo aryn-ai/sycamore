@@ -1,5 +1,6 @@
 Explode
 =======
-.. automodule:: sycamore.transforms.explode
+
+.. autoclass:: sycamore.transforms.explode.Explode
    :members:
    :show-inheritance:

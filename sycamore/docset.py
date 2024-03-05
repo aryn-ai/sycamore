@@ -296,6 +296,7 @@ class DocSet:
 
         Example:
             .. code-block:: python
+
                pdf_docset = context.read.binary(paths, binary_format="pdf")
                     .partition(partitioner=UnstructuredPdfPartitioner())
                     .split_elements(tokenizer=tokenizer, max_tokens=512)
@@ -471,12 +472,13 @@ class DocSet:
 
         Example:
             .. code-block:: python
-            from sycamore.transforms import COALESCE_WHITESPACE
-            ds = context.read.binary(paths, binary_format="pdf")
-                .partition(partitioner=UnstructuredPdfPartitioner())
-                .regex_replace(COALESCE_WHITESPACE)
-                .regex_replace([(r"\d+", "1313"), (r"old", "new")])
-                .explode()
+
+               from sycamore.transforms import COALESCE_WHITESPACE
+               ds = context.read.binary(paths, binary_format="pdf")
+                   .partition(partitioner=UnstructuredPdfPartitioner())
+                   .regex_replace(COALESCE_WHITESPACE)
+                   .regex_replace([(r"\d+", "1313"), (r"old", "new")])
+                   .explode()
         """
         from sycamore.transforms import RegexReplace
 
@@ -485,7 +487,8 @@ class DocSet:
 
     def transform(self, cls: Type[Transform], **kwargs) -> "DocSet":
         """
-        Add specified transform class to pipeline.
+        Add specified transform class to pipeline.  See the API
+        reference section on transforms.
 
         Args:
             cls: Class of transform to instantiate into pipeline
@@ -493,10 +496,11 @@ class DocSet:
 
         Example:
             .. code-block:: python
-            from sycamore.transforms import FooBar
-            ds = context.read.binary(paths, binary_format="pdf")
-                .partition(partitioner=UnstructuredPdfPartitioner())
-                .transform(cls=FooBar, arg=123)
+
+               from sycamore.transforms import FooBar
+               ds = context.read.binary(paths, binary_format="pdf")
+                   .partition(partitioner=UnstructuredPdfPartitioner())
+                   .transform(cls=FooBar, arg=123)
         """
         plan = cls(self.plan, **kwargs)  # type: ignore
         return DocSet(self.context, plan)
@@ -580,6 +584,7 @@ class DocSet:
 
         Example:
              .. code-block:: python
+
                 def custom_map_batch_function(documents: list[Document]) -> list[Document]:
                     # Custom logic to transform the documents
                     return transformed_documents

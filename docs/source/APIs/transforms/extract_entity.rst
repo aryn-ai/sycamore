@@ -1,5 +1,6 @@
 Extract Entity
 ==============
+
 .. autoclass:: sycamore.transforms.extract_entity.ExtractEntity
    :members:
    :show-inheritance:

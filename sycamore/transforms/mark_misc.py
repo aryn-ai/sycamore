@@ -21,6 +21,7 @@ class MarkDropTiny(SingleThreadUser, NonGPUUser, Transform):
 
     Example:
         .. code-block:: python
+
             source_node = ...
             marker = MarkDropTiny(child=source_node, minimum=2)
             dataset = marker.execute()
@@ -62,6 +63,7 @@ class MarkBreakPage(SingleThreadUser, NonGPUUser, Transform):
 
     Example:
         .. code-block:: python
+
             source_node = ...
             marker = MarkBreakPage(child=source_node)
             dataset = marker.execute()
@@ -105,6 +107,7 @@ class MarkBreakByTokens(SingleThreadUser, NonGPUUser, Transform):
 
     Example:
         .. code-block:: python
+
             source_node = ...
             marker = MarkBreakByTokens(child=source_node, limit=512)
             dataset = marker.execute()

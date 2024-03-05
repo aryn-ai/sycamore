@@ -297,7 +297,7 @@ setup_security() {
     -cert config/admin-cert.pem -key config/admin-key.pem
 
     # Wait for eventual consistency of changes to security index
-    wait_or_die opensearch_up_ssl "opensearch on ssl" 15
+    wait_or_die opensearch_up_ssl "opensearch on ssl" 30
 
     # Semaphore for SSL setup.  Useful for debugging and other scripts.
     _curl -X PUT "${BASE_URL}/_cluster/settings" -o /dev/null --json \

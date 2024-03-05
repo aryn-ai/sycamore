@@ -1,25 +1,8 @@
-from abc import abstractmethod
 from pathlib import Path
 from typing import Any
 
-from rouge import rouge
-from sycamore.evaluation import EvaluationDataPoint
-import logging
-
-logger = logging.getLogger("ray")
-
-
-class EvaluationMetric:
-    def __init__(self) -> None:
-        super().__init__()
-
-    @abstractmethod
-    def metric_name(self) -> str:
-        pass
-
-    @abstractmethod
-    def evaluate(self, datapoint: EvaluationDataPoint) -> dict[str, Any]:
-        pass
+from sycamore.docset import logger
+from sycamore.evaluation import EvaluationDataPoint, EvaluationMetric
 
 
 class DocumentRetrievalMetrics(EvaluationMetric):
@@ -87,25 +70,4 @@ class DocumentRetrievalMetrics(EvaluationMetric):
         return result
 
 
-class GeneratedAnswerMetrics(EvaluationMetric):
-    def __init__(self, rouge_metrics=None) -> None:
-        super().__init__()
-        if rouge_metrics is None:
-            rouge_metrics = ["rouge-1", "rouge-2", "rouge-l"]
-        self._rouge_evaluator = rouge.Rouge(metrics=rouge_metrics)
-
-    def metric_name(self) -> str:
-        return "GeneratedAnswerMetrics"
-
-    def evaluate(self, datapoint: EvaluationDataPoint) -> dict[str, str]:
-        scores = self._rouge_evaluator.get_scores(datapoint.generated_answer, datapoint.ground_truth_answer)[0]
-        result = {
-            "rouge-1": scores["rouge-1"]["f"],
-            "rouge-2": scores["rouge-2"]["f"],
-            "rouge-l": scores["rouge-l"]["f"],
-        }
-        return result
-
-
 document_retrieval_metrics = DocumentRetrievalMetrics()
-generated_answer_metrics = GeneratedAnswerMetrics()

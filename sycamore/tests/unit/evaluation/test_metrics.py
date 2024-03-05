@@ -2,7 +2,8 @@ from rouge import rouge
 
 from sycamore.data import Element
 from sycamore.evaluation import EvaluationDataPoint
-from sycamore.evaluation.metrics import DocumentRetrievalMetrics, GeneratedAnswerMetrics
+from sycamore.evaluation.metrics.retrieval import DocumentRetrievalMetrics
+from sycamore.evaluation.metrics.generated_answer import RougeMetrics
 
 
 def test_document_retrieval_metrics():
@@ -104,7 +105,7 @@ def test_document_retrieval_metrics_multi_page_indexed_and_gold():
 
 def test_generated_answer_metrics():
     rouge_impl = rouge.Rouge(metrics=["rouge-1", "rouge-2", "rouge-l"])
-    metrics = GeneratedAnswerMetrics()
+    metrics = RougeMetrics()
     # Enforce metric name is class name
     assert metrics.metric_name() == "GeneratedAnswerMetrics"
 

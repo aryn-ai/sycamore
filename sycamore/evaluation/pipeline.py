@@ -4,8 +4,8 @@ from typing import Tuple, Optional, Any
 
 from sycamore import DocSet
 from sycamore.data import Document, Element, OpenSearchQuery
-from sycamore.evaluation.data import EvaluationDataPoint, EvaluationSummary
-from sycamore.evaluation.metrics import EvaluationMetric, document_retrieval_metrics, generated_answer_metrics
+from sycamore.evaluation.data import EvaluationDataPoint, EvaluationSummary, EvaluationMetric
+from sycamore.evaluation.metrics import document_retrieval_metrics, rouge_metrics
 from sycamore.transforms.query import OpenSearchQueryExecutor
 
 logger = logging.getLogger("ray")
@@ -26,7 +26,7 @@ class EvaluationPipeline:
     ) -> None:
         super().__init__()
         if metrics is None:
-            metrics = [document_retrieval_metrics, generated_answer_metrics]
+            metrics = [document_retrieval_metrics, rouge_metrics]
         self._metrics = metrics
         self._index = index
         if query_executor is None:
@@ -40,7 +40,10 @@ class EvaluationPipeline:
     def _add_filter(self, query_body: dict, filters: dict[str, str]):
         hybrid_query_match = query_body["query"]["hybrid"]["queries"][0]
         hybrid_query_match = {
-            "bool": {"must": [hybrid_query_match], "filter": [{"match_phrase": {k: filters[k]}} for k in filters]}
+            "bool": {
+                "must": [hybrid_query_match],
+                "filter": [{"match_phrase": {f"{k}.keyword": filters[k]}} for k in filters],
+            }
         }
         query_body["query"]["hybrid"]["queries"][0] = hybrid_query_match
         hybrid_query_neural = query_body["query"]["hybrid"]["queries"][1]
@@ -50,7 +53,7 @@ class EvaluationPipeline:
         query_body["query"]["hybrid"]["queries"][1] = hybrid_query_neural
         return query_body
 
-    def _build_opensearch_query(self, doc: Document, rerank: bool = False) -> Document:
+    def _build_opensearch_query(self, doc: Document) -> Document:
         assert doc.type == "EvaluationDataPoint"
         query = OpenSearchQuery(doc)
         query["index"] = self._index
@@ -84,7 +87,7 @@ class EvaluationPipeline:
                     "llm_model": self._os_config.get("llm", "gpt-4"),
                 }
             }
-            if rerank:
+            if self._os_config.get("rerank", False):
                 query["query"]["ext"]["rerank"] = {"query_context": {"query_text": doc["question"]}}
         if "filters" in doc:
             query["query"] = self._add_filter(query["query"], doc["filters"])
@@ -121,7 +124,6 @@ class EvaluationPipeline:
                     metric_data[metric_key][sub_metric_key] = metric_data[metric_key].get(sub_metric_key, []) + [
                         sub_metric_value
                     ]
-
         for metric_key, metric_value in metric_data.items():
             for sub_metric_key, sub_metric_value in metric_value.items():
                 summary.metrics[metric_key][sub_metric_key] = statistics.mean(sub_metric_value)

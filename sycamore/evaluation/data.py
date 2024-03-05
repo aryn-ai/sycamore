@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from typing import Optional, Any
 
 from sycamore.data import Element
@@ -135,3 +136,16 @@ class EvaluationSummary(Document):
         from pickle import loads
 
         return EvaluationSummary(loads(raw))
+
+
+class EvaluationMetric:
+    def __init__(self) -> None:
+        super().__init__()
+
+    @abstractmethod
+    def metric_name(self) -> str:
+        pass
+
+    @abstractmethod
+    def evaluate(self, datapoint: EvaluationDataPoint) -> dict[str, Any]:
+        pass

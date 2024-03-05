@@ -6,7 +6,7 @@ import pytest
 import sycamore
 from sycamore.data import Element
 from sycamore.evaluation import EvaluationDataPoint
-from sycamore.evaluation import document_retrieval_metrics, generated_answer_metrics
+from sycamore.evaluation.metrics import document_retrieval_metrics, rouge_metrics
 from sycamore.evaluation.datasets import EvaluationDataSetReader
 from sycamore.evaluation.pipeline import EvaluationPipeline
 from sycamore.transforms.query import OpenSearchQueryExecutor
@@ -63,7 +63,7 @@ class TestEvaluationPipeline:
         pipeline = EvaluationPipeline(
             index=self.INDEX,
             os_config=self.OS_CONFIG,
-            metrics=[document_retrieval_metrics, generated_answer_metrics],
+            metrics=[document_retrieval_metrics, rouge_metrics],
             query_executor=OpenSearchQueryExecutor(self.OS_CLIENT_ARGS),
         )
         query_level_metrics, aggregated_metrics = pipeline.execute(input_docset.limit(2))

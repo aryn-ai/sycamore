@@ -392,18 +392,98 @@ class DocSet:
         return DocSet(self.context, entities)
 
     def extract_schema(self, schema_extractor: SchemaExtractor, **kwargs) -> "DocSet":
+        """
+        Extracts a JSON schema of extractable properties from each document in this DocSet.
+
+        Each schema is a mapping of names to types that corresponds to fields that are present in the document.
+        For example, calling this method on a financial document containing information about companies
+        might yield a schema like
+
+        .. code-block:: python
+
+            {
+              "company_name": "string",
+              "revenue": "number",
+              "CEO": "string"
+            }
+
+        This method will extract a unique schema for each document in the DocSet independently.
+        If the documents in the DocSet represent instances with a common schema, consider
+        `ExtractBatchSchema` which will extract a common schema for all documents.
+
+        The dataset is returned with an additional `_schema` property that contains JSON-encoded schema, if any
+        is detected.
+
+        Args:
+            schema_extractor: A `SchemaExtractor` instance to extract the schema for each document.
+
+        Example:
+            .. code-block:: python
+
+                openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
+                schema_extractor=OpenAISchemaExtractor("Corporation", llm=openai, num_of_elements=35)
+
+                context = sycamore.init()
+                pdf_docset = context.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=UnstructuredPdfPartitioner())
+                    .extract_schema(schema_extractor=schema_extractor)
+        """
+
         from sycamore.transforms import ExtractSchema
 
         schema = ExtractSchema(self.plan, schema_extractor=schema_extractor)
         return DocSet(self.context, schema)
 
     def extract_batch_schema(self, schema_extractor: SchemaExtractor, **kwargs) -> "DocSet":
+        """
+        Extracts a common schema from the documents in this DocSet.
+
+        This transform is similar to extract_schema, except that it will add the same schema
+        to each document in the DocSet rather than infering a separate schema per Document.
+        This is most suitable for document collections that share a common format. If you have
+        a heterogeneous document collection and want a different schema for each type, consider
+        using extract_schema instead.
+
+        Args:
+            schema_extractor: A `SchemaExtractor` instance to extract the schema for each document.
+
+        Example:
+            .. code-block:: python
+
+                openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
+                schema_extractor=OpenAISchemaExtractor("Corporation", llm=openai, num_of_elements=35)
+
+                context = sycamore.init()
+                pdf_docset = context.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=UnstructuredPdfPartitioner())
+                    .extract_batch_schema(schema_extractor=schema_extractor)
+        """
+
         from sycamore.transforms import ExtractBatchSchema
 
         schema = ExtractBatchSchema(self.plan, schema_extractor=schema_extractor)
         return DocSet(self.context, schema)
 
     def extract_properties(self, property_extractor: PropertyExtractor, **kwargs) -> "DocSet":
+        """
+        Extracts properties from each Document in this DocSet based on the `_schema` property.
+
+        The schema can be computed using `extract_schema` or `extract_batch_schema` or can be
+        provided manually in JSON-schema format in the `_schema` field under `Document.properties`.
+
+
+        Example:
+            .. code-block:: python
+
+                openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
+                property_extractor = OpenAIPropertyExtractor(OpenaAIPropertyExtrator(llm=openai_llm))
+
+                context = sycamore.init()
+
+                pdf_docset = context.read.binary(paths, binary_format="pdf")
+                    .partition(partition=UnstructuredPdfPartitioner())
+                    .extract_properties(property_extractor)
+        """
         from sycamore.transforms import ExtractProperties
 
         schema = ExtractProperties(self.plan, property_extractor=property_extractor)
@@ -534,6 +614,7 @@ class DocSet:
 
         Example:
             .. code-block:: python
+
 
                from sycamore.transforms import FooBar
                ds = context.read.binary(paths, binary_format="pdf")

@@ -112,6 +112,7 @@ class SortByPageBbox(SingleThreadUser, NonGPUUser, Transform):
 
     Example:
         .. code-block:: python
+
             source_node = ...
             sorter = SortByPageBbox(child=source_node)
             dataset = sorter.execute()
@@ -149,6 +150,7 @@ class MarkDropHeaderFooter(SingleThreadUser, NonGPUUser, Transform):
 
     Example:
         .. code-block:: python
+
             source_node = ...
             marker = MarkDropHeaderFooter(child=source_node, top=0.05)
             dataset = marker.execute()
@@ -198,6 +200,7 @@ class MarkBreakByColumn(SingleThreadUser, NonGPUUser, Transform):
 
     Example:
         .. code-block:: python
+
             source_node = ...
             marker = MarkBreakByColumn(child=source_node)
             dataset = marker.execute()

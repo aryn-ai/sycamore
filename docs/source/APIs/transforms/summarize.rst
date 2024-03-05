@@ -1,9 +1,9 @@
 Summarize
-==============
+=========
 
-.. autoclass:: sycamore.transforms.summarize.Summarize
+.. autoclass:: sycamore.transforms.summarize.LLMElementTextSummarizer
    :members:
    :show-inheritance:
-.. autoclass:: sycamore.transforms.summarize.LLMElementTextSummarizer
+.. autoclass:: sycamore.transforms.summarize.Summarize
    :members:
    :show-inheritance:

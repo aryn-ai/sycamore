@@ -1,5 +1,9 @@
 Basics
-=======
-.. automodule:: sycamore.transforms.basics
+======
+
+.. autoclass:: sycamore.transforms.basics.Filter
+   :members:
+   :show-inheritance:
+.. autoclass:: sycamore.transforms.basics.Limit
    :members:
    :show-inheritance:

@@ -26,6 +26,7 @@ class RegexReplace(SingleThreadUser, NonGPUUser, Transform):
 
     Example:
         .. code-block:: python
+
             rr = RegexReplace(child=node, spec=[(r"\s+", " "), (r"^ ", "")])
             dataset = rr.execute()
     """

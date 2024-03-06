@@ -37,6 +37,7 @@ services:
       - opensearch_data:/usr/share/opensearch/data
     environment:
       - OPENAI_API_KEY
+      - SSL # Set to 1 if you want self-signed certificates
       # To help with debugging issues with opensearch starting.
       - DEBUG
       - NOEXIT
@@ -119,6 +120,7 @@ services:
       - AWS_SECRET_ACCESS_KEY
       - AWS_SESSION_TOKEN
       - AWS_CREDENTIAL_EXPIRATION
+      - SSL # Set to 1 if you want self-signed certificates
 
 volumes:
   opensearch_data:

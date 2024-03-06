@@ -77,6 +77,13 @@ class DocSet:
         execution = Execution(self.context, self.plan)
         dataset = execution.execute(self.plan)
         documents = [Document.from_row(row) for row in dataset.take(limit)]
+
+        def _truncate(s):
+            if len(s) <= truncate_length:
+                return s
+            amount_truncated = len(s) - truncate_length
+            return s[:truncate_length] + f" <{amount_truncated} chars>"
+
         for document in documents:
             if not show_elements:
                 num_elems = len(document.elements)
@@ -90,15 +97,22 @@ class DocSet:
                 document.binary_representation = f"<{binary_length} bytes>".encode("utf-8")
 
             if truncate_content and document.text_representation is not None:
-                amount_truncated = len(document.text_representation) - truncate_length
-                if amount_truncated > 0:
-                    document.text_representation = (
-                        document.text_representation[:truncate_length] + f" <{amount_truncated} chars>"
-                    )
+                document.text_representation = _truncate(document.text_representation)
 
             if not show_embedding and document.embedding is not None:
                 embedding_length = len(document.embedding)
                 document.data["embedding"] = f"<{embedding_length} floats>"
+
+            if show_elements and "elements" in document.data:
+                if not show_binary:
+                    for i, e in enumerate(document.data["elements"]):
+                        if e.get("binary_representation") is not None:
+                            binary_length = len(e["binary_representation"])
+                            e["binary_representation"] = f"<{binary_length} bytes>".encode("utf-8")
+                if truncate_content:
+                    for i, e in enumerate(document.data["elements"]):
+                        if e.get("text_representation") is not None:
+                            e["text_representation"] = _truncate(e["text_representation"])
 
             pprint.pp(document, stream=stream)
 

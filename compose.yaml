@@ -26,6 +26,7 @@ services:
     environment:
       - OPENAI_API_KEY
       - OPENSEARCH_HOST=opensearch
+      - SSL # Set to 1 if you want self-signed certificates
     volumes:
       - crawl_data:/app/.scrapy
 
@@ -119,6 +120,7 @@ services:
       - AWS_SECRET_ACCESS_KEY
       - AWS_SESSION_TOKEN
       - AWS_CREDENTIAL_EXPIRATION
+      - SSL # Set to 1 if you want self-signed certificates
 
 volumes:
   opensearch_data:

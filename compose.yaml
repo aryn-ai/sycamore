@@ -26,6 +26,7 @@ services:
     environment:
       - OPENAI_API_KEY
       - OPENSEARCH_HOST=opensearch
+      - SSL # Set to 1 if you want self-signed certificates
     volumes:
       - crawl_data:/app/.scrapy
 
@@ -37,7 +38,6 @@ services:
       - opensearch_data:/usr/share/opensearch/data
     environment:
       - OPENAI_API_KEY
-      - SSL # Set to 1 if you want self-signed certificates
       # To help with debugging issues with opensearch starting.
       - DEBUG
       - NOEXIT

@@ -36,6 +36,24 @@ GET <index-name>/_search?search_pipeline=hybrid_pipeline
   }
 }
 ```
+## Retrieve your embedding model ID
+
+When running your hybrid search queries, you need to provide the embedding model ID used to create the vector embeddings for the index. To do this, run:
+
+```
+POST /_plugins/_ml/models/_search 
+
+{ "query": {
+	"bool": { 
+		"must_not": [ 
+			{ "exists": {"field": "chunk_number"}} 
+		], "must": [ 
+			{ "term": {"function_name": "TEXT_EMBEDDING"}} 
+		] 
+	} 
+} 
+}
+```
 
 ## Customize your hybrid search
 

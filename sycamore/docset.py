@@ -485,6 +485,30 @@ class DocSet:
         plan = RegexReplace(self.plan, spec, **kwargs)
         return DocSet(self.context, plan)
 
+    def sketch(self, window: int = 17, number: int = 16, **kwargs) -> "DocSet":
+        """
+        For each Document, uses shingling to hash sliding windows of the
+        text_representation.  The set of shingles is called the sketch.
+        Documents' sketches can be compared to determine if they have
+        near-duplicate content.
+
+        Args:
+            window: Number of bytes in the sliding window that is hashed (17)
+            number: Count of hashes comprising a shingle (16)
+
+        Example:
+            .. code-block:: python
+
+               ds = context.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=UnstructuredPdfPartitioner())
+                    .explode()
+                    .sketch(window=17)
+        """
+        from sycamore.transforms import Sketcher
+
+        plan = Sketcher(self.plan, window=window, number=number, **kwargs)
+        return DocSet(self.context, plan)
+
     def transform(self, cls: Type[Transform], **kwargs) -> "DocSet":
         """
         Add specified transform class to pipeline.  See the API

@@ -21,7 +21,7 @@ it too much. Instead, look at the picture:
 ## Instructions 
 Setting this up takes a couple steps. First, get the protocols submodule with
 ```
-git submodule update --init --remote
+git submodule update --init --recursive
 ```
 
 Also install the poetry packages and stuff
@@ -29,17 +29,16 @@ Also install the poetry packages and stuff
 poetry install --no-root
 ```
 
-Next, generate the grpc/protobuf code. Due to some weirdness in the way protobuf python handles imports I wrote a script that screws with the directory structure (only for the grpc generate call).
+Next, generate the grpc/protobuf code. This will create a subdirectory called `proto_remote_processor` that contains the generated code.
 Once the grpc code is generated you can install the package itself.
 ```
 make build_proto
 poetry install
 ```
 
-Now, assemble a zip for the opensearch plugin by following the directions in [that repo](https://github.com/aryn-ai/opensearch-remote-processor). Copy the resulting zip into `docker/` and then build an opensearch image
+Now, build an opensearch image with the [remote-processor-plugin](https://github.com/aryn-ai/opensearch-remote-processor) installed.
 ```
-cp ../opensearch-remote-processor/build/distributions/remote-processor-2.12.0-SNAPSHOT.zip docker
-docker build -t rps-os -f docker/Dockerfile.os docker
+docker build -t rps-os -f docker/Dockerfile .
 ```
 
 Also build a docker image for the remote processor service itself

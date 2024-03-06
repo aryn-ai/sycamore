@@ -17,7 +17,7 @@ clean:
 	-rm -rd proto_remote_processor
 
 build_proto:
-	poetry install --no-root --with build
+	poetry install --no-root --only build
 	poetry run python -m grpc_tools.protoc -I protocols/ --python_out=. --pyi_out=. --grpc_python_out=. protocols/proto-remote-processor/*.proto
 
 install_rps:

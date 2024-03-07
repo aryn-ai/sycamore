@@ -13,7 +13,6 @@ Low-Level Transforms (for Sycamore development)
    /APIs/transforms/augment_text.rst
    /APIs/transforms/basics.rst
    /APIs/transforms/bbox_merge.rst
-   /APIs/transforms/cache.rst
    /APIs/transforms/detr_partitioner.rst
    /APIs/transforms/embed.rst
    /APIs/transforms/explode.rst
@@ -24,7 +23,6 @@ Low-Level Transforms (for Sycamore development)
    /APIs/transforms/mark_misc.rst
    /APIs/transforms/merge_elements.rst
    /APIs/transforms/partition.rst
-   /APIs/transforms/pdfextract.rst
    /APIs/transforms/query.rst
    /APIs/transforms/random_sample.rst
    /APIs/transforms/regex_replace.rst

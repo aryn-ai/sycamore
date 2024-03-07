@@ -169,7 +169,8 @@ def opensearch_version(retries=3):
     try:
         response = requests.request(
             method='GET',
-            url=OPENSEARCH_URL
+            url=OPENSEARCH_URL,
+            verify=False,
         )
         return response.json()['version']['number'], 200
     except Exception as e:

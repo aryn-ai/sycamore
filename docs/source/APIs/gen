@@ -42,7 +42,7 @@ def doFile(name, dir, ent):
             line = "=" * len(title)
             fp.write(f"{title}\n{line}\n\n")
             for sym in sorted(ary):
-                fp.write(f".. autoclass:: {sym}\n" + "   :members:\n" + "   :show-inheritance:\n")
+                fp.write(f".. autoclass:: {sym}\n   :members:\n   :show-inheritance:\n")
         print(f"   /APIs/{name}/{base}.rst")
 
 

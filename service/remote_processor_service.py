@@ -14,10 +14,10 @@ from proto_remote_processor.response_processor_service_pb2 import ProcessRespons
 TP_MAX_WORKERS = 10
 
 PAPRIKA_ASCII_ART = '''
- ______   ______     ______   ______     __     __  __     ______    
-/\\  == \\ /\\  __ \\   /\\  == \\ /\\  == \\   /\\ \\   /\\ \\/ /    /\\  __ \\   
-\\ \\  _-/ \\ \\  __ \\  \\ \\  _-/ \\ \\  __<   \\ \\ \\  \\ \\  _"-.  \\ \\  __ \\  
- \\ \\_\\    \\ \\_\\ \\_\\  \\ \\_\\    \\ \\_\\ \\_\\  \\ \\_\\  \\ \\_\\ \\_\\  \\ \\_\\ \\_\\ 
+ ______   ______     ______   ______     __     __  __     ______
+/\\  == \\ /\\  __ \\   /\\  == \\ /\\  == \\   /\\ \\   /\\ \\/ /    /\\  __ \\
+\\ \\  _-/ \\ \\  __ \\  \\ \\  _-/ \\ \\  __<   \\ \\ \\  \\ \\  _"-.  \\ \\  __ \\
+ \\ \\_\\    \\ \\_\\ \\_\\  \\ \\_\\    \\ \\_\\ \\_\\  \\ \\_\\  \\ \\_\\ \\_\\  \\ \\_\\ \\_\\
   \\/_/     \\/_/\\/_/   \\/_/     \\/_/ /_/   \\/_/   \\/_/\\/_/   \\/_/\\/_/
 '''
 
@@ -66,7 +66,7 @@ class RemoteProcessorService(RemoteProcessorServiceServicer):
             pipeline = Pipeline(name, cfg[name], self._pr)
             pipelines[name] = pipeline
         return pipelines
-    
+
     def ProcessResponse(self, request: ProcessResponseRequest, context):
         """Process a response. Entrypoint for ProcessResponse API
 
@@ -90,19 +90,33 @@ class RemoteProcessorService(RemoteProcessorServiceServicer):
             context.set_code(grpc.StatusCode.NOT_FOUND)
             context.set_details(f'Processor {processor_name} does not exist!')
             raise KeyError(f"Processor {processor_name} does not exist! Check your config file {self._config_file}")
-        
-    def start(self):
+
+    def start(self, certfile=None, keyfile=None):
         """Start the server on port 2796 (ARYN on a keypad)
 
         Returns:
             Server: a grpc server object
         """
         logging.info(PAPRIKA_ASCII_ART)
+        secure_mode = bool(certfile and keyfile)
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=TP_MAX_WORKERS))
         add_RemoteProcessorServiceServicer_to_server(self, server)
-        server.add_insecure_port("[::]:2796")
+        if secure_mode:
+            logging.info("Starting service in secure mode")
+            with open(keyfile, 'rb') as f:
+                private_key = f.read()
+            with open(certfile, 'rb') as f:
+                cert_chain = f.read()
+            channel_credentials = grpc.ssl_server_credentials(
+                private_key_certificate_chain_pairs=[(private_key, cert_chain)],
+                root_certificates=None,
+                require_client_auth=False
+            )
+            server.add_secure_port("[::]:2796", channel_credentials)
+        else:
+            logging.info("Starting service in insecure mode")
+            server.add_insecure_port("[::]:2796")
         server.start()
         logging.info("RPS started on port 2796")
         return server
-        
-    
+

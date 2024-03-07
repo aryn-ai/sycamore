@@ -41,9 +41,12 @@ COPY --from=rps_build --chown=aryn:aryn /aryn/rps/proto_remote_processor ./proto
 COPY --chown=aryn:aryn ./lib ./lib/
 COPY --chown=aryn:aryn ./service ./service
 COPY --chown=aryn:aryn ./README.md ./README.md
-COPY --chown=aryn:aryn ./configs ./configs
+COPY --chown=aryn:aryn ./config ./config
+COPY --chown=aryn:aryn ./rps_docker_entrypoint.sh ./
 RUN make -f ../Makefile server_build
+RUN chmod +x rps_docker_entrypoint.sh
+RUN chown -R aryn:aryn .
 
 EXPOSE $RPS_PORT
 
-CMD ["poetry", "run", "server", "config/pipelines.yml"]
+CMD ./rps_docker_entrypoint.sh

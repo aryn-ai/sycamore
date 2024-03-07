@@ -1,10 +1,14 @@
 # Repo name: arynai/sycamore-demo-ui
 
+# For a slower docker build you can use: docker build -f Dockerfile.build .
+# You can re-derive the Dockerfile.build file using ./dockerfile-buildx-to-build.sh
+
 FROM nikolaik/python-nodejs:python3.11-nodejs20
 
 WORKDIR /home/pn/js-ui
 COPY ui/package.json ui/package-lock.json ui/npm-install.sh ui/pdf.worker.js.patch ./
-RUN /bin/bash npm-install.sh
+RUN  \
+    /bin/bash npm-install.sh
 
 ENV POETRY_NO_INTERACTION=1 \
     POETRY_VIRTUALENVS_IN_PROJECT=1 \
@@ -13,7 +17,8 @@ ENV POETRY_NO_INTERACTION=1 \
 
 WORKDIR /home/pn/py-proxy
 COPY openai-proxy/pyproject.toml openai-proxy/poetry.lock openai-proxy/README.md ./
-RUN poetry install --only main --no-root && rm -rf $POETRY_CACHE_DIR
+RUN  \
+    poetry install --only main --no-root
 
 WORKDIR /
 COPY ui /home/pn/js-ui

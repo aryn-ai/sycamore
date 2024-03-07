@@ -175,9 +175,9 @@ def opensearch_version(retries=3):
         return response.json()['version']['number'], 200
     except Exception as e:
         if retries <= 0:
-            print(f"OpenSearch not standing at {OPENSEARCH_URL}. Out of retries.")
+            logging.error(f"OpenSearch not standing at {OPENSEARCH_URL}. Out of retries. Final error {e}")
             return "OpenSearch not found", 503
-        print(f"OpenSearch not standing at {OPENSEARCH_URL}. Retrying in 1 sec. {retries-1} retries left.")
+        logging.warning(f"OpenSearch not standing at {OPENSEARCH_URL}. Retrying in 1 sec. {retries-1} retries left. error {e}")
         time.sleep(1)
         return opensearch_version(retries=retries-1)
 

@@ -32,7 +32,6 @@ services:
 
   opensearch:
     image: arynai/sycamore-opensearch:${OPENSEARCH_VERSION}
-    platform: linux/amd64
     ports:
       - 127.0.0.1:${OPENSEARCH_PORT}:9200 # opensearch port, directly accessed by UI
     volumes:

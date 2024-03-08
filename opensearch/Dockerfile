@@ -9,6 +9,8 @@ RUN git clone https://github.com/opensearch-project/ml-commons.git
 WORKDIR /build_ml/ml-commons
 RUN git checkout -b 2.12 origin/2.12
 RUN sed -i 's#if (os.macOsX) {#if (System.getProperty("os.arch") == "aarch64") {#' ml-algorithms/build.gradle
+RUN sed -i 's#throw new OpenSearchException("GenerativeQAResponseProcessor failed in precessing response");#log.error(e); throw new OpenSearchException(e);#'\
+    search-processors/src/main/java/org/opensearch/searchpipelines/questionanswering/generative/GenerativeQAResponseProcessor.java
 RUN ./gradlew assemble
 
 FROM opensearchproject/opensearch:$TAG as install_ml_commons
@@ -16,6 +18,7 @@ FROM opensearchproject/opensearch:$TAG as install_ml_commons
 USER opensearch
 COPY --chown=opensearch:opensearch --from=build_ml_commons \
     /build_ml/ml-commons/plugin/build/distributions/opensearch-ml-2.12.0.0-SNAPSHOT.zip /tmp/
+# opensearch-skills extends ml-commons, so we need to remove it before we can mess with ml commons.
 RUN /usr/share/opensearch/bin/opensearch-plugin remove opensearch-skills
 RUN /usr/share/opensearch/bin/opensearch-plugin remove opensearch-ml
 RUN /usr/share/opensearch/bin/opensearch-plugin install --batch file:///tmp/opensearch-ml-2.12.0.0-SNAPSHOT.zip \

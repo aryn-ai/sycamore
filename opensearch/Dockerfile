@@ -1,7 +1,30 @@
 # Repo name: arynai/sycamore-opensearch
 
 ARG TAG=2.12.0
-FROM opensearchproject/opensearch:$TAG
+
+FROM gradle:jdk17 as build_ml_commons
+
+WORKDIR /build_ml
+RUN git clone https://github.com/opensearch-project/ml-commons.git
+WORKDIR /build_ml/ml-commons
+RUN git checkout -b 2.12 origin/2.12
+RUN sed -i 's#if (os.macOsX) {#if (true) {#' ml-algorithms/build.gradle
+RUN sed -i 's#throw new OpenSearchException("GenerativeQAResponseProcessor failed in precessing response");#log.error(e); throw new OpenSearchException(e);#'\
+    search-processors/src/main/java/org/opensearch/searchpipelines/questionanswering/generative/GenerativeQAResponseProcessor.java
+RUN ./gradlew assemble -DoperatingSystem=macOsX
+
+FROM opensearchproject/opensearch:$TAG as install_ml_commons
+
+USER opensearch
+COPY --chown=opensearch:opensearch --from=build_ml_commons \
+    /build_ml/ml-commons/plugin/build/distributions/opensearch-ml-2.12.0.0-SNAPSHOT.zip /tmp/
+RUN /usr/share/opensearch/bin/opensearch-plugin remove opensearch-skills
+RUN /usr/share/opensearch/bin/opensearch-plugin remove opensearch-ml
+RUN /usr/share/opensearch/bin/opensearch-plugin install --batch file:///tmp/opensearch-ml-2.12.0.0-SNAPSHOT.zip \
+    https://repo1.maven.org/maven2/org/opensearch/plugin/opensearch-skills/2.12.0.0/opensearch-skills-2.12.0.0.zip
+RUN rm /tmp/opensearch-ml-2.12.0.0-SNAPSHOT.zip
+
+FROM install_ml_commons
 
 USER root
 RUN yum install -yq openssl jq && yum clean all

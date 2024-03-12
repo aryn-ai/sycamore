@@ -2,7 +2,7 @@
 
 ARG TAG=2.12.0
 
-FROM gradle:jdk17 as build_ml_commons
+FROM gradle:jdk17 AS build_ml_commons
 
 WORKDIR /build_ml
 RUN git clone https://github.com/opensearch-project/ml-commons.git
@@ -13,7 +13,18 @@ RUN sed -i 's#throw new OpenSearchException("GenerativeQAResponseProcessor faile
     search-processors/src/main/java/org/opensearch/searchpipelines/questionanswering/generative/GenerativeQAResponseProcessor.java
 RUN ./gradlew assemble
 
-FROM opensearchproject/opensearch:$TAG as install_ml_commons
+FROM gradle:jdk17 AS build_rps_plugin
+
+WORKDIR /build
+RUN git clone https://github.com/aryn-ai/opensearch-remote-processor.git
+WORKDIR /build/opensearch-remote-processor
+RUN git checkout -b 2.x origin/2.x
+RUN sed -i "s#git@github.com:#https://github.com/#" .gitmodules
+RUN git submodule init
+RUN git submodule update --remote
+RUN ./gradlew assemble
+
+FROM opensearchproject/opensearch:$TAG AS install_ml_commons
 
 USER opensearch
 COPY --chown=opensearch:opensearch --from=build_ml_commons \
@@ -24,7 +35,15 @@ RUN /usr/share/opensearch/bin/opensearch-plugin remove opensearch-ml
 RUN /usr/share/opensearch/bin/opensearch-plugin install --batch file:///tmp/opensearch-ml-2.12.0.0-SNAPSHOT.zip \
     https://repo1.maven.org/maven2/org/opensearch/plugin/opensearch-skills/2.12.0.0/opensearch-skills-2.12.0.0.zip
 
-FROM install_ml_commons
+FROM install_ml_commons AS install_rps_plugin
+
+USER opensearch
+COPY --chown=opensearch:opensearch --from=build_rps_plugin \
+    /build/opensearch-remote-processor/build/distributions/remote-processor-2.12.0-SNAPSHOT.zip /tmp/
+
+RUN /usr/share/opensearch/bin/opensearch-plugin install --batch file:///tmp/remote-processor-2.12.0-SNAPSHOT.zip
+
+FROM install_rps_plugin AS opensearch
 
 USER root
 RUN yum install -yq openssl jq && yum clean all

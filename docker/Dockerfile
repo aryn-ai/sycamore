@@ -1,3 +1,4 @@
+# Repo name: arynai/opensearch-rps
 FROM gradle:jdk17 AS assemble_plugin
 
 WORKDIR /build

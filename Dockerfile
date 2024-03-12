@@ -1,4 +1,4 @@
-# Repo name: arynai/remote-processor-service
+# Repo name: arynai/sycamore-remote-processor-service
 
 ##########
 # Common: resolve dependencies

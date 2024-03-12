@@ -92,6 +92,7 @@ More Resources
    /welcome_to_sycamore/get_started.md
    /welcome_to_sycamore/architecture.md
    /welcome_to_sycamore/hardware.md
+   /welcome_to_sycamore/encryption.md
 
 
 .. toctree::

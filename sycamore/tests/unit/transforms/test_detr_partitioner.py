@@ -1,5 +1,5 @@
 from sycamore.data import Element
-from sycamore.transforms import SycamorePDFPartitioner
+from sycamore.transforms.detr_partitioner import SycamorePDFPartitioner
 from sycamore.data import BoundingBox
 
 

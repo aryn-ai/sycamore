@@ -359,7 +359,7 @@ class SycamorePartitioner(Partitioner):
         pass
 
     def partition(self, document: Document) -> Document:
-        from sycamore.transforms import SycamorePDFPartitioner
+        from sycamore.transforms.detr_partitioner import SycamorePDFPartitioner
 
         binary = io.BytesIO(document.data["binary_representation"])
         partitioner = SycamorePDFPartitioner(self._model_name_or_path)

@@ -1,13 +1,10 @@
 # Repo name: arynai/sycamore-opensearch
 
-ARG TAG=2.12.0
-
 FROM gradle:jdk17 AS build_ml_commons
 
 WORKDIR /build_ml
-RUN git clone https://github.com/opensearch-project/ml-commons.git
+RUN git clone -b 2.12 --depth 1 https://github.com/opensearch-project/ml-commons.git
 WORKDIR /build_ml/ml-commons
-RUN git checkout -b 2.12 origin/2.12
 RUN sed -i 's#if (os.macOsX) {#if (System.getProperty("os.arch") == "aarch64") {#' ml-algorithms/build.gradle
 RUN sed -i 's#throw new OpenSearchException("GenerativeQAResponseProcessor failed in precessing response");#log.error(e); throw new OpenSearchException(e);#'\
     search-processors/src/main/java/org/opensearch/searchpipelines/questionanswering/generative/GenerativeQAResponseProcessor.java
@@ -16,15 +13,14 @@ RUN ./gradlew assemble
 FROM gradle:jdk17 AS build_rps_plugin
 
 WORKDIR /build
-RUN git clone https://github.com/aryn-ai/opensearch-remote-processor.git
+RUN git clone -b 2.x --depth 1 https://github.com/aryn-ai/opensearch-remote-processor.git
 WORKDIR /build/opensearch-remote-processor
-RUN git checkout -b 2.x origin/2.x
 RUN sed -i "s#git@github.com:#https://github.com/#" .gitmodules
 RUN git submodule init
 RUN git submodule update --remote
 RUN ./gradlew assemble
 
-FROM opensearchproject/opensearch:$TAG AS install_ml_commons
+FROM opensearchproject/opensearch:2.12.0 AS install_ml_commons
 
 USER opensearch
 COPY --chown=opensearch:opensearch --from=build_ml_commons \

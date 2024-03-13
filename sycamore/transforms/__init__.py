@@ -28,7 +28,6 @@ from sycamore.transforms.extract_schema import (
     PropertyExtractor,
 )
 from sycamore.transforms.random_sample import RandomSample
-from sycamore.transforms.detr_partitioner import SycamorePDFPartitioner
 from sycamore.transforms.split_elements import SplitElements
 from sycamore.transforms.query import Query
 
@@ -67,6 +66,5 @@ __all__ = [
     "ExtractProperties",
     "RandomSample",
     "SplitElements",
-    "SycamorePDFPartitioner",
     "Query",
 ]

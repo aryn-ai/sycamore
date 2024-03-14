@@ -42,6 +42,14 @@ services:
       - DEBUG
       - NOEXIT
 
+  rps:
+    image: arynai/sycamore-remote-processor-service:${RPS_VERSION}
+    ports:
+      - 127.0.0.1:${RPS_PORT}:2796
+    environment:
+      - SSL_HOSTNAME=rps
+    # will probably want to add a config bind mount when rps->sycamore merge
+
   importer:
     image: arynai/sycamore-importer:${SYCAMORE_VERSION}
     ports:

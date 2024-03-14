@@ -44,7 +44,6 @@ services:
 
   rps:
     image: arynai/sycamore-remote-processor-service:${RPS_VERSION}
-    container_name: rps
     ports:
       - 127.0.0.1:${RPS_PORT}:2796
     environment:

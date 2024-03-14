@@ -42,7 +42,7 @@ With Docker installed:
 
 4.	Launch Sycamore. Conatainers will be pulled from DockerHub:
 
-```Docker compose up --pull=always```
+```docker compose up --pull=always```
 
 5.	The Sycamore demo query UI will be at localhost:3000
 

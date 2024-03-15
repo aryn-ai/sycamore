@@ -27,7 +27,7 @@ class Node(ABC):
         return self
 
     def clone(self) -> "Node":
-        return self
+        raise Exception("Unimplemented")
 
 
 class LeafNode(Node):

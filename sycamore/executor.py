@@ -14,6 +14,5 @@ class Execution:
         self.rewriter = Rewriter(extension_rules)
 
     def execute(self, plan: Node) -> "Dataset":
-        plan_copied = plan.clone()
-        self.rewriter.rewrite(plan_copied)
+        self.rewriter.rewrite(plan)
         return plan.execute()

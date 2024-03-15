@@ -37,7 +37,7 @@ repos:
       - id: pytest-check
         name: pytest-check
         # Needed because otherwise it seems to always run pytest in the git root.
-        entry: poetry run pytest sycamore/tests/unit crawler/s3/tests/unit
+        entry: poetry run pytest lib/sycamore/sycamore/tests/unit crawler/crawler/s3/tests/unit
         language: system
         pass_filenames: false
         always_run: true
@@ -46,7 +46,7 @@ repos:
     hooks:
       - id: http-integration-test
         name: http-integration-test
-        entry: bash crawler/http/tests/http_crawler_integration.sh
+        entry: bash crawler/crawler/http/tests/http_crawler_integration.sh
         language: system
         pass_filenames: false
         always_run: true

@@ -21,6 +21,8 @@ def _hf_to_qa_datapoint(data: dict[str, Any]) -> dict[str, Any]:
 
 class TestEvaluationDataSetReader:
     def test_hf(self):
+        from sycamore.tests.integration.evaluation.test_datasets import _hf_to_qa_datapoint
+
         context = sycamore.init()
         reader = EvaluationDataSetReader(context)
         hf_dataset = datasets.load_dataset("PatronusAI/financebench", split=datasets.Split.TRAIN)

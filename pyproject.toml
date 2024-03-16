@@ -47,6 +47,7 @@ nbmake = "^1.4.5"
 jupyterlab = "^4.0.11"
 jupyter-lsp = "^2.2.2"
 ipywidgets = "^8.1.0"
+notebook = "^7.1.2"
 
 [tool.poetry.group.docker.dependencies]
 requests = "^2"

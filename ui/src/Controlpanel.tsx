@@ -2,7 +2,7 @@ import React, { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { Button, Divider, Group, NativeSelect, Text, useMantineTheme } from '@mantine/core';
 import { IconRefresh } from '@tabler/icons-react';
 import { Settings } from './Types'
-import { getIndices, getEmbeddingModels } from './OpenSearch';
+import { getIndices, getEmbeddingModels, FEEDBACK_INDEX_NAME, createFeedbackIndex } from './OpenSearch';
 
 
 export const ControlPanel = ({ settings, setSettings, reset }: { settings: Settings, setSettings: Dispatch<SetStateAction<Settings>>, reset: any, }) => {
@@ -16,7 +16,14 @@ export const ControlPanel = ({ settings, setSettings, reset }: { settings: Setti
             getIndices(),
             getEmbeddingModels(),
         ])
-        const newIndicies = Object.keys(getIndicesResponse).filter((key) => !key.startsWith("."))
+        const newIndiciesMaybeWFeedback = Object.keys(getIndicesResponse).filter((key) => !key.startsWith("."))
+        var newIndicies;
+        if(newIndiciesMaybeWFeedback.includes(FEEDBACK_INDEX_NAME)) {
+            newIndicies = newIndiciesMaybeWFeedback.filter((name) => name !== FEEDBACK_INDEX_NAME)
+        } else {
+            newIndicies = newIndiciesMaybeWFeedback
+            createFeedbackIndex()
+        }
 
         const hits = getEmbeddingsResponse.hits.hits
         const models = []

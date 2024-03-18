@@ -14,10 +14,10 @@ export class SearchResultDocument {
 
     isPdf() {
         if (this.properties.filetype === "application/pdf") {
-          return true;
+            return true;
         }
         if (this.url.endsWith(".pdf")) { // legacy test
-          return true;
+            return true;
         }
         return false;
     }
@@ -39,20 +39,32 @@ export class SystemChat {
     modelName: string | null = "";
     response: string = "";
     hits: SearchResultDocument[] = new Array();
-    queryUsed: string | null = "";
+    queryUsed: string = "";
+    rawQueryUsed: string = "";
+    rawResults: any = null;
+    queryUrl: string = "";
+    feedback: boolean | null = null;
+    fromAdhoc: boolean = false;
+    editing: boolean = false;
+    comment: string = "";
+    filterContent: any;
 
     public constructor(init?: Partial<SystemChat>) {
         Object.assign(this, init);
     }
 }
 export class Settings {
+
     openSearchIndex: string = "";
     embeddingModel: string = "";
     ragPassageCount: number = 5;
-    modelName: string = "gpt-4";
+    modelName: string = "gpt-3.5-turbo";
     modelId: string = "abScoYoBAwYohYvwjxcP";
-    availableModels: string[] = ["gpt-3.5-turbo", "gpt-4"]
+    availableModels: string[] = ["gpt-3.5-turbo", "gpt-4", "gpt-4-turbo-preview"]
     activeConversation: string = "";
+    simplify: boolean = false;
+    auto_filter: boolean = false;
+    required_filters: string[] = [];
 
     public constructor(init?: Partial<Settings>) {
         Object.assign(this, init);

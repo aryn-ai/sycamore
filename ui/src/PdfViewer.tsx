@@ -55,7 +55,7 @@ export default function PdfViewer() {
     const [url, setUrl] = useState("");
     const [originalUrl, setOriginalUrl] = useState("");
     const [title, setTitle] = useState("Untitled");
-    const [id, setId] = useState("");
+    const [entity, setEntity] = useState<{ [key: string]: string }>({});
     const [boxes, setBoxes] = useState<any>()
     const [loading, setLoading] = useState(true)
 
@@ -65,25 +65,29 @@ export default function PdfViewer() {
             console.log("Loading metadata")
             const dataString: string = localStorage.getItem('pdfDocumentMetadata') ?? "";
             const pdfDocumentMetadata: any = JSON.parse(dataString);
-
-            setId(pdfDocumentMetadata.id);
+            let props: any = {}
+            props["Document id"] = pdfDocumentMetadata.id
             setTitle(pdfDocumentMetadata.title);
             setOriginalUrl(pdfDocumentMetadata.url)
-            const proxiedUrl = await fetchPDFThroughProxy(pdfDocumentMetadata.url);
-            const response = await proxiedUrl;
+            const response = await fetchPDFThroughProxy(pdfDocumentMetadata.url);
             setUrl(response);
 
-            const pageNum : number = pdfDocumentMetadata.properties.page_number;
-            let boxObj : any = null;
-            const bbox : number[] = pdfDocumentMetadata.bbox;
+            const pageNum: number = pdfDocumentMetadata.properties.page_number ?? pdfDocumentMetadata.properties.page_numbers[0] ?? 1;
+            let boxObj: any = null;
+            const bbox: number[] = pdfDocumentMetadata.bbox;
             if (bbox) {
                 // This is overly complex.  We can simplify when we
                 // drop the backward compatibility stuff below.
                 boxObj = { [pageNum]: [bbox] };
             }
             else {
-                boxObj = pdfDocumentMetadata.properties.boxes ??
-                    pdfDocumentMetadata.properties.coordinates.points;
+                if ("boxes" in pdfDocumentMetadata.properties) boxObj = pdfDocumentMetadata.properties.boxes
+                else if ("coordinates" in pdfDocumentMetadata.properties) boxObj = pdfDocumentMetadata.properties.points
+            }
+            if ("entity" in pdfDocumentMetadata.properties) {
+                Object.keys(pdfDocumentMetadata.properties.entity).forEach(key => {
+                    props[key] = pdfDocumentMetadata.properties.entity[key];
+                });
             }
             if (boxObj) {
                 setBoxes(boxObj)
@@ -91,15 +95,16 @@ export default function PdfViewer() {
                 if (!firstPage) {
                     firstPage = pageNum;
                     if (!firstPage) {
-                       firstPage = 1;
+                        firstPage = 1;
                     }
                 }
                 setPageNumber(firstPage);
             }
             else {
-                setPageNumber(1); // i guess
+                setPageNumber(pageNum); // i guess
             }
-
+            setEntity(props)
+            console.log("pdfDocumentMetadata is ", pdfDocumentMetadata)
             setLoading(false)
         }
         loadPdf();
@@ -134,9 +139,16 @@ export default function PdfViewer() {
                         <Anchor fz="xs" ta="center" href={originalUrl} target='_blank'>
                             {originalUrl}
                         </Anchor>
-                        <Text fz="xs" ta="center">
-                            search document id: {id}
-                        </Text>
+                        {
+                            Object.entries(entity).map(([key, value]) => (
+                                <Group>
+
+                                    <Text fw={700} fz="xs">{key}: </Text>
+                                    <Text fz="xs">{value}</Text>
+
+                                </Group>
+                            ))
+                        }
                     </Container>
                 </Center>
 
@@ -147,7 +159,7 @@ export default function PdfViewer() {
                     <Container>
                         <Document file={url} onLoadSuccess={onDocumentLoadSuccess}>
                             <Page pageNumber={pageNumber}>
-                                {boxes[pageNumber] && boxes[pageNumber].map((box: any, index: number) => (
+                                {boxes ? boxes[pageNumber] && boxes[pageNumber].map((box: any, index: number) => (
                                     <div
                                         key={index}
                                         style={{
@@ -158,7 +170,7 @@ export default function PdfViewer() {
                                             width: `${(box[2] - box[0]) * 100}%`,
                                             height: `${(box[3] - box[1]) * 100}%`,
                                         }} />
-                                ))}
+                                )) : ""}
                             </Page>
                         </Document>
                     </Container>

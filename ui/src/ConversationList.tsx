@@ -1,7 +1,7 @@
 import React, { Dispatch, SetStateAction, useState, useEffect, useRef } from 'react';
 import { ActionIcon, createStyles, Loader, Navbar, Text, useMantineTheme, rem, Center, Container, Group, Anchor, TextInput } from '@mantine/core';
 import { Settings } from './Types'
-import {createConversation, deleteConversation, getConversations, is2dot12plus} from './OpenSearch';
+import { createConversation, deleteConversation, getConversations, is2dot12plus } from './OpenSearch';
 import { IconChevronRight, IconMessagePlus, IconTrash } from '@tabler/icons-react';
 import { useHover } from '@mantine/hooks';
 const useStyles = createStyles((theme) => ({
@@ -20,12 +20,9 @@ const useStyles = createStyles((theme) => ({
         boxSizing: 'border-box',
         display: 'block',
         textDecoration: 'none',
-        borderTopRightRadius: theme.radius.md,
-        borderBottomRightRadius: theme.radius.md,
+        borderRadius: theme.radius.md,
         color: theme.colorScheme === 'dark' ? theme.colors.dark[0] : theme.colors.gray[7],
-        // padding: `0 ${theme.spacing.md}`,
         fontSize: theme.fontSizes.sm,
-        // marginRight: theme.spacing.sm,
         fontWeight: 500,
         height: rem(44),
         lineHeight: rem(44),
@@ -54,8 +51,8 @@ export function setActiveConversation(conversationId: string, settings: Settings
 const NavBarConversationItem = ({ conversation, conversations, setConversations, selectConversation, loading, settings }: { conversation: any, conversations: any[], setConversations: any, selectConversation: any, loading: any, settings: any }) => {
     const { classes, cx } = useStyles();
     return (
-        <Group key={conversation.id + "_navbar_row"} spacing="0" id={conversation.id + "_navbar_row"} >
-            <ActionIcon w="1rem" ml="sm" mr="sm" component="button"
+        <Group key={conversation.id + "_navbar_row"} id={conversation.id + "_navbar_row"} >
+            <ActionIcon size="1rem" ml="sm" mr="xs" component="button"
                 onClick={(event) => {
                     console.log("Removing ", conversation.id)
                     deleteConversation(conversation.id)
@@ -67,8 +64,9 @@ const NavBarConversationItem = ({ conversation, conversations, setConversations,
             </ActionIcon>
             <Anchor
                 className={cx(classes.link, { [classes.linkActive]: conversation.id === settings.activeConversation })}
-                w="16rem"
+                w="12rem"
                 pl="xs"
+                ml="xs"
                 key={conversation.id}
                 onClick={(event) => {
                     event.preventDefault();
@@ -149,11 +147,11 @@ export const ConversationListNavbar = ({ navBarOpened, settings, setSettings, se
     async function refreshConversations() {
         let result: any = []
         const getConversationsResult = await getConversations();
-        let retrievedConversations: {conversations: any} = {conversations: null};
-        if (await is2dot12plus()) {
-            retrievedConversations.conversations = getConversationsResult.memories;
-        } else {
+        let retrievedConversations: { conversations: any } = { conversations: null };
+        if ("conversations" in getConversationsResult) {
             retrievedConversations.conversations = getConversationsResult.conversations;
+        } else {
+            retrievedConversations.conversations = getConversationsResult.memories;
         }
         retrievedConversations.conversations.forEach((conversation: any) => {
             result = [{ id: (conversation.conversation_id ?? conversation.memory_id), name: conversation.name, created_at: conversation.create_time }, ...result]

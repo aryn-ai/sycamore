@@ -13,6 +13,7 @@ import urllib3
 import requests
 import os
 import sys
+import openai
 from flask_cors import CORS
 from werkzeug.datastructures import Headers
 import io
@@ -34,6 +35,7 @@ CORS(app, resources={r"/*": {"origins": "*"}})  # Allow requests from http://loc
 
 # Replace this with your actual OpenAI API key
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
+openai.api_key = OPENAI_API_KEY
 
 # API endpoint of the OpenAI service
 OPENAI_API_BASE = "https://api.openai.com"
@@ -137,6 +139,133 @@ def proxy():
         as_attachment=True,
         download_name = download_name
     )
+
+def make_openai_call(messages, model_id="gpt-4"):
+    response = openai.ChatCompletion.create(
+      model=model_id,
+      messages=messages,
+      temperature=0.0,
+      stream=False
+    )
+    
+    return response
+
+@app.route('/aryn/simplify', methods=['POST', 'OPTIONS'])
+def simplify_answer():
+    if request.method == 'OPTIONS':
+        return optionsResp('POST')
+    
+    summarize_prompt = """
+You are a post processor for a question answering system. Your job is to modify a system generated answer for a user question, based on the type of question it is. 
+
+Questions can be of the following types:
+1. Part number lookup, e.g. What is the part number for the service kit for a Reba RL A5?
+2. General information lookup, e.g. What pad compound should i use on my Centerline rotor?
+3. Binary questions, e.g. Can I combine the clamp for my brake and my XX shifter?
+4. Process lookups, e.g. How do I adjust the shifting on my XX shifter?
+5. Other
+
+The answer will either:
+1. contain some numeric citations to search results, e.g. [1], [2], [5]
+2. say it was unable to find the answer to your question
+
+Your job is to do the following:
+1. If the question is a process lookup and there is a valid answer, say "The answer can be found in search results [{citations}]", followed by a 1 sentence summary of the answer. Do not use more than 1 sentence.
+2. If the answer  says it's unable to answer the question, or there is no information for the question, say "Unable to answer the question based on the search results. Please look at the top results to find relevant references"
+3. Otherwise return the answer unmodified
+
+If citations are surrounded by a dollar sign and curly braces, e.g. [${1}], change it to only be a number surrounded by square brackets, i.e. [1]
+
+Examples:
+Question: what is the part number I need for a service kit for my Reba RL A5?
+
+System generated answer:
+The answer can be found in search result(s) [1]. The part number for the service kit for a Reba RL A5 is 00.4315.032.650.
+
+Answer:
+The answer can be found in search result(s) [1]. The part number for the service kit for a Reba RL A5 is 00.4315.032.650.
+----
+Question: Are there different color lower leg options for my SID?
+
+
+System generated answer:
+The answer can be found in search result(s) [no citation given].
+The search results do not provide information on different color options for the lower legs of a SID suspension fork. For accurate information, please refer to the product catalog or contact the manufacturer directly.
+
+Answer:
+Unable to answer the question based on the search results. Please look at the top results to find relevant references
+
+----
+
+Question: How do I adjust sag on my super deluxe coil?
+
+System generated answer:
+The answer can be found in search result(s) [4].
+To adjust sag on your Super Deluxe Coil, follow these steps: 
+1. Install the coil spring and spring retainer.
+2. Adjust the spring preload adjuster until the coil spring contacts the spring retainer. Ensure there is no vertical play between the coil spring and the retainer.
+3. Do not exceed 5 mm (or five full turns of rotation) on the spring preload adjuster as this will damage the shock.
+4. If more than 5 turns are necessary to achieve proper sag, use a higher weight spring.
+5. If your target sag percentage is not achieved, spring preload adjustment and/or coil spring replacement must be performed.
+
+Answer:
+The answer can be found in search result [4]. To adjust the sag on your Super Deluxe Coil, you will need to install a coil spring and spring retainer, followed by some additional adjustments.
+
+"""
+
+    question = request.json.get('question')
+    answer = request.json.get('answer')
+    prompt = f"""
+        
+    Current question and generated answer:
+    {question}
+
+    Answer:
+    {answer}
+        """
+    messages = [
+        {"role": "system", "content": summarize_prompt},
+        {"role": "user", "content": prompt}
+    ]
+    open_ai_result = make_openai_call(messages)
+    cleaned_answer = open_ai_result.choices[0].message.content
+    return cleaned_answer
+
+@app.route('/aryn/interpret_os_result', methods=['POST', 'OPTIONS'])
+def interpret_os_result():
+    if request.method == 'OPTIONS':
+        return optionsResp('POST')
+    
+    summarize_prompt = """
+The following is a result from an opensearch query which was correctly generated to answer a user question. Given a user question and this result, synthesize an answer
+doc_count does not mean number of crashes but instead number of references in the indexed documents, do not reference the doc_count field.
+
+"""
+
+    question = request.json.get('question')
+    os_result = request.json.get('os_result')
+    prompt = f"""
+        
+    User question:
+    {question}
+
+    OpenSearch Query result:
+    {os_result}
+        """
+    messages = [
+        {"role": "system", "content": summarize_prompt},
+        {"role": "user", "content": prompt}
+    ]
+    try :
+        open_ai_result = make_openai_call(messages)
+        cleaned_answer = open_ai_result.choices[0].message.content
+    except openai.error.InvalidRequestError as e:
+        print(e)
+        if "This model's maximum context length is" in e.args[0]:
+            return "Unable to summarize result from OpenSearch due to content size."
+        
+    return cleaned_answer
+
 
 @app.route('/opensearch/<path:os_path>', methods=['GET','POST','PUT','DELETE','HEAD','OPTIONS'])
 def proxy_opensearch(os_path):

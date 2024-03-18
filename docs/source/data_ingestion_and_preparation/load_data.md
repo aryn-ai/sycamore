@@ -30,8 +30,12 @@ To use the HTTP crawler, run:
 ```
 docker compose run sycamore_crawler_http [URL]
 
-#example
+# Download all files from aryn.ai reachable from www.aryn.ai (www is auto-removed)
 docker compose run sycamore_crawler_http http://www.aryn.ai
+
+# Download files starting from url=https://bair.berkeley.edu/blog that are under https://bair.berkeley.edu/blog/2023
+# Note: if there is a 301 redirect from a URL starting with prefix to a file outside, the file will be downloaded.
+docker compose run sycamore_crawler_http -a url=https://bair.berkeley.edu/blog -a prefix=https://bair.berkeley.edu/blog/2023
 ```
 
 ## Load PDFs from local machine

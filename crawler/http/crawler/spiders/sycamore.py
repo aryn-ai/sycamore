@@ -59,25 +59,27 @@ class SycamoreSpider(scrapy.Spider):
             file = file + ".pdf"
 
         if self._possibly_modified(lm, file):
-            print("Store ", response.url, " as ", file)
+            print("Store", response.url, "as", file)
             os.makedirs(os.path.dirname(file), exist_ok=True)
             Path(file).write_bytes(response.body)
             os.utime(file, (time.time(), lm))
 
         if ct == "html":
+            print("Processing", response.url)
             # Scrapy docs imply this should work, but it doesn't.
             # It misses pdf links on sortbenchmark.org
             # links = LinkExtractor(allow = '^http').extract_links(response)
             links = response.css("a::attr(href)").getall()
-            print("Link to follow: ", links)
             for i in links:
                 i = urllib.parse.urljoin(response.url, i)
                 if not i.startswith("http"):
                     continue
 
                 if self.prefix is not None and not i.startswith(self.prefix):
-                    print("Skipping", i, "as it does not start with", self.prefix)
+                    print("  Skipping", i, "as it does not start with", self.prefix)
+                    continue
 
+                print("  Following", i)
                 yield scrapy.Request(i, callback=self.parse)
 
     def _content_type(self, response):

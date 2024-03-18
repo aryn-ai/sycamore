@@ -2,10 +2,20 @@
 set -e
 
 cleanup() {
-    echo "Cleanup ${WORK_DIR} and ${HTTP_PID}..."
-    rm -rf "${WORK_DIR}" || true
-    [[ -z "${HTTP_PID}" ]] || kill -TERM "${HTTP_PID}" || true
-    echo "Clean"
+    echo "Starting cleanup"
+    if [[ -z "${WORK_DIR}" ]]; then
+        echo "  No WORK_DIR, no files to cleanup"
+    else
+        echo "  Delete ${WORK_DIR}"
+        rm -rf "${WORK_DIR}" || true
+    fi
+    if [[ -z "${HTTP_PID}" ]]; then
+        echo "  No HTTP_PID, missing http server"
+    else
+        echo "  Kill http server ${HTTP_PID}"
+        kill -TERM "${HTTP_PID}" || true
+    fi
+    echo "Finished cleanup"
 }
 
 trap "cleanup" EXIT
@@ -25,6 +35,7 @@ main() {
 
     test_simple
     test_update
+    test_prefix
     check_only_localhost
 
     # put this after phases to keep the working directory around for debugging
@@ -56,13 +67,17 @@ EOF
 }
 
 scrape() {
-    local log="${WORK_DIR}/scrape.log.$1"
-    echo "Scraping for $1"
-    (cd "${SRC_DIR}" && poetry run scrapy crawl sycamore -a dest_dir="${WORK_DIR}/work" \
-                               -a preset=integration_test >"${log}" 2>&1) \
-        || die "scrape failed"
+    scrape_complex "$1" -a dest_dir="${WORK_DIR}/work" -a preset=integration_test
 }
 
+scrape_complex() {
+    what="$1"
+    shift
+    local log="${WORK_DIR}/scrape.log.$what"
+    echo "Scraping for $what"
+    (cd "${SRC_DIR}" && poetry run scrapy crawl sycamore "$@" >"${log}" 2>&1) \
+        || die "scrape failed"
+}
 
 die() {
     echo "ERROR: $@"
@@ -85,6 +100,12 @@ test_update() {
     scrape update
     cmp http_serve/example1.txt work/unknown/http:__localhost:13756_example1.txt \
         || die "failed to update"
+}
+
+test_prefix() {
+    scrape_complex "prefix" -a dest_dir="${WORK_DIR}/prefix" -a url=http://localhost:13756 -a prefix=http://localhost:13756/example3
+    [[ -f prefix/pdf/http:__localhost:13756_example3.pdf ]] || die "missing example3"
+    [[ $(find prefix -type f -print | grep -c localhost) == 2 ]] || die "Prefix download did not download exactly 2 files"
 }
 
 pause() {

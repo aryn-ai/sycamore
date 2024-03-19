@@ -16,10 +16,10 @@ ENV POETRY_NO_INTERACTION=1 \
     POETRY_VIRTUALENVS_CREATE=1 \
     POETRY_CACHE_DIR=/tmp/poetry_cache
 
-COPY pyproject.toml poetry.lock crawler/README.md ./
+COPY apps/crawler/pyproject.toml apps/crawler/poetry.lock apps/crawler/README.md ./
 RUN poetry install --only crawler_s3 --no-root && rm -rf $POETRY_CACHE_DIR
 
-COPY crawler/s3 .
+COPY apps/crawler/crawler/s3 .
 # Hack beccause pyproject.toml expects a sycamore directory
 RUN mkdir sycamore && touch sycamore/__init__.py
 RUN poetry install --only-root && rm -rf $POETRY_CACHE_DIR

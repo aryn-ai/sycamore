@@ -45,12 +45,12 @@ USER root
 RUN yum install -yq openssl jq && yum clean all
 USER opensearch
 
-COPY --chown=opensearch:opensearch opensearch/opensearch.yml /usr/share/opensearch/config/
-COPY --chown=opensearch:opensearch opensearch/config.yml opensearch/roles_mapping.yml \
+COPY --chown=opensearch:opensearch apps/opensearch/opensearch.yml /usr/share/opensearch/config/
+COPY --chown=opensearch:opensearch apps/opensearch/config.yml apps/opensearch/roles_mapping.yml \
      /usr/share/opensearch/config/opensearch-security/
-COPY --chown=opensearch:opensearch opensearch/sycamore-opensearch.sh opensearch/setup_models.py \
+COPY --chown=opensearch:opensearch apps/opensearch/sycamore-opensearch.sh apps/opensearch/setup_models.py \
     /usr/share/opensearch/
-COPY opensearch/Dockerfile /
+COPY apps/opensearch/Dockerfile /
 
 ENV discovery.type=single-node
 ENV DISABLE_INSTALL_DEMO_CONFIG=true

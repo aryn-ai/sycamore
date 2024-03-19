@@ -3,16 +3,19 @@ import logging
 import math
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Optional, Callable
+from typing import Any, Optional, Callable, Union
 
-import openai
+from openai import OpenAI as OpenAIClient
+from openai import AzureOpenAI as AzureOpenAIClient
 import ray
 from ray.data import ActorPoolStrategy, Dataset
 from sentence_transformers import SentenceTransformer
-from tenacity import retry, stop_after_attempt, wait_random, retry_if_exception_type
 
 from sycamore.data import Document
-from sycamore.llms.llms import OpenAIClientParameters
+from sycamore.llms import OpenAIClientParameters
+
+# from sycamore.llms.llms import AzureOpenAI, OpenAIClientParameters
+from sycamore.llms.openai import OpenAIClientWrapper
 from sycamore.plan_nodes import Node, Transform
 from sycamore.utils import batched, generate_map_batch_function, generate_map_batch_class_from_callable
 
@@ -124,43 +127,46 @@ class OpenAIEmbedder(Embedder):
 
     def __init__(
         self,
-        model_name: str = OpenAIEmbeddingModels.TEXT_EMBEDDING_ADA_002.value,
+        model_name: Union[str, OpenAIEmbeddingModels] = OpenAIEmbeddingModels.TEXT_EMBEDDING_ADA_002.value,
         batch_size: Optional[int] = None,
         model_batch_size: int = 100,
         pre_process_document: Optional[Callable[[Document], str]] = None,
         api_key: Optional[str] = None,
-        params: OpenAIClientParameters = OpenAIClientParameters(),
+        client_wrapper: Optional[OpenAIClientWrapper] = None,
+        params: Optional[OpenAIClientParameters] = None,
+        **kwargs
     ):
+        if isinstance(model_name, OpenAIEmbeddingModels):
+            model_name = model_name.value
+
         super().__init__(model_name, batch_size, model_batch_size, pre_process_document, device="cpu")
 
-        self._params = params
+        # TODO Standardize with OpenAI LLM
+        if client_wrapper is None:
+            if params is not None:
+                client_wrapper = params
+            else:
+                if api_key is not None:
+                    kwargs.update({"api_key": api_key})
 
-        if api_key is not None:
-            self._params.api_key = api_key
+                client_wrapper = OpenAIClientWrapper(**kwargs)
 
-        assert self._params.api_key is not None, (
-            "You must provide an API key to "
-            "use the LLM. Either pass it in "
-            "the constructor or set the "
-            "OPENAI_API_KEY environment "
-            "variable."
-        )
+        else:
+            if api_key is not None:
+                client_wrapper.api_key = api_key
 
+        self.client_wrapper = client_wrapper
+        self._client: Optional[OpenAIClient] = None
         self.model_name = model_name
-
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_random(min=1, max=2),
-        retry=retry_if_exception_type(openai.error.RateLimitError),
-    )
-    def _openai_embeddings(self, text_to_embed: list[str]) -> list:
-        return openai.Embedding.create(**self._params.merge(self.model_name, input=text_to_embed)).data
 
     def generate_embeddings(self, doc_batch: list[Document]) -> list[Document]:
         # TODO: Add some input validation here.
         # The OpenAI docs are quite vague on acceptable values for model_batch_size.
 
-        if self._params.is_azure() and self.model_batch_size > 16:
+        if self._client is None:
+            self._client = self.client_wrapper.get_client()
+
+        if isinstance(self._client, AzureOpenAIClient) and self.model_batch_size > 16:
             logger.warn("The maximum batch size for emeddings on Azure Open AI is 16.")
             self.model_batch_size = 16
 
@@ -171,7 +177,7 @@ class OpenAIEmbedder(Embedder):
                 if doc.text_representation is not None
             ]
 
-            embeddings = self._openai_embeddings(text_to_embed)
+            embeddings = self._client.embeddings.create(model=self.model_name, input=text_to_embed).data
 
             i = 0
             for doc in batch:

@@ -8,10 +8,8 @@ from sycamore.plan_nodes import Node, Transform
 from sycamore.llms import LLM
 from sycamore.transforms.map import generate_map_function
 from sycamore.llms.prompts import (
-    ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT,
-    ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT_CHAT,
-    ENTITY_EXTRACTOR_FEW_SHOT_GUIDANCE_PROMPT_CHAT,
-    ENTITY_EXTRACTOR_FEW_SHOT_GUIDANCE_PROMPT,
+    EntityExtractorZeroShotGuidancePrompt,
+    EntityExtractorFewShotGuidancePrompt,
 )
 
 
@@ -83,7 +81,7 @@ class OpenAIEntityExtractor(EntityExtractor):
             entities = self._handle_zero_shot_prompting(document)
 
         properties = document.properties
-        properties.update({f"{self._entity_name}": entities["answer"]})
+        properties.update({f"{self._entity_name}": entities})
         document.properties = properties
 
         return document
@@ -91,11 +89,7 @@ class OpenAIEntityExtractor(EntityExtractor):
     def _handle_few_shot_prompting(self, document: Document) -> Any:
         sub_elements = [document.elements[i] for i in range((min(self._num_of_elements, len(document.elements))))]
 
-        if self._llm.is_chat_mode:
-            prompt = ENTITY_EXTRACTOR_FEW_SHOT_GUIDANCE_PROMPT_CHAT
-
-        else:
-            prompt = ENTITY_EXTRACTOR_FEW_SHOT_GUIDANCE_PROMPT
+        prompt = EntityExtractorFewShotGuidancePrompt()
 
         entities = self._llm.generate(
             prompt_kwargs={
@@ -110,15 +104,12 @@ class OpenAIEntityExtractor(EntityExtractor):
     def _handle_zero_shot_prompting(self, document: Document) -> Any:
         sub_elements = [document.elements[i] for i in range((min(self._num_of_elements, len(document.elements))))]
 
-        if self._llm.is_chat_mode:
-            prompt = ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT_CHAT
-
-        else:
-            prompt = ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT
+        prompt = EntityExtractorZeroShotGuidancePrompt()
 
         entities = self._llm.generate(
             prompt_kwargs={"prompt": prompt, "entity": self._entity_name, "query": self._prompt_formatter(sub_elements)}
         )
+
         return entities
 
 
@@ -156,5 +147,6 @@ class ExtractEntity(Transform):
 
     def execute(self) -> "Dataset":
         input_dataset = self.child().execute()
-        dataset = input_dataset.map(generate_map_function(self._entity_extractor.extract_entity))
+        map_fn = generate_map_function(self._entity_extractor.extract_entity)
+        dataset = input_dataset.map(map_fn)
         return dataset

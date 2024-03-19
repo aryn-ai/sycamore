@@ -7,10 +7,7 @@ from sycamore.data import Element, Document
 from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Transform, Node
 from sycamore.llms import LLM
 from sycamore.transforms.map import generate_map_function
-from sycamore.llms.prompts import (
-    TEXT_SUMMARIZER_GUIDANCE_PROMPT_CHAT,
-    TEXT_SUMMARIZER_GUIDANCE_PROMPT,
-)
+from sycamore.llms.prompts import TextSummarizerGuidancePrompt
 
 
 class Summarizer(ABC):
@@ -60,10 +57,7 @@ class LLMElementTextSummarizer(Summarizer):
         return document
 
     def _summarize_text_element(self, element: Element) -> Element:
-        if self._llm.is_chat_mode:
-            prompt = TEXT_SUMMARIZER_GUIDANCE_PROMPT_CHAT
-        else:
-            prompt = TEXT_SUMMARIZER_GUIDANCE_PROMPT
+        prompt = TextSummarizerGuidancePrompt()
 
         if element.text_representation:
             response = self._llm.generate(prompt_kwargs={"prompt": prompt, "query": element.text_representation})

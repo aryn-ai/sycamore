@@ -11,6 +11,7 @@ on:
 
 env:
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
   SYCAMORE_S3_TEMP_PATH: s3://aryn-sycamore-integ-temp/
 # Permissions for AWS access
 permissions:

@@ -36,7 +36,7 @@ pytest-mock = "3.11.1"
 
 [tool.poetry.group.dev.dependencies]
 sycamore-ai = { path = "lib/sycamore", develop = true }
-sycamore-crawler = { path = "crawler", develop = true }
+sycamore-crawler = { path = "apps/crawler", develop = true }
 ruff = "^0.0.287"
 black = "^23.7.0"
 pre-commit = "^3.4.0"
@@ -63,7 +63,7 @@ line-length = 120
 line-length = 120
 
 [mypy]
-mypy_path = "crawler/crawler/s3:crawler/crawler/http"
+mypy_path = "apps/crawler/crawler/s3:apps/crawler/crawler/http"
 explicit_package_bases = true
 
 [tool.mypy]

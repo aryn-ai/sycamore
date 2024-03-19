@@ -3,7 +3,7 @@ import string
 
 import ray.data
 
-from sycamore.llms.prompts import SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT_CHAT
+from sycamore.llms.prompts import SchemaZeroShotGuidancePrompt
 from sycamore.data import Document, Element
 from sycamore.llms import LLM
 from sycamore.plan_nodes import Node
@@ -15,7 +15,7 @@ class TestSchema:
     def test_extract_schema(self, mocker):
         llm = mocker.Mock(spec=LLM)
         generate = mocker.patch.object(llm, "generate")
-        generate.return_value = {"answer": '```json {"accidentNumber": "string"}```'}
+        generate.return_value = '```json {"accidentNumber": "string"}```'
 
         num_of_elements = 10
         max_num_properties = 2
@@ -43,7 +43,7 @@ class TestSchema:
         assert doc.properties == ground_truth
         generate.assert_called_once_with(
             prompt_kwargs={
-                "prompt": SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT_CHAT,
+                "prompt": SchemaZeroShotGuidancePrompt(),
                 "entity": class_name,
                 "max_num_properties": max_num_properties,
                 "query": schema_extractor._prompt_formatter(doc.elements),
@@ -53,7 +53,7 @@ class TestSchema:
     def test_extract_batch_schema(self, mocker):
         llm = mocker.Mock(spec=LLM)
         generate = mocker.patch.object(llm, "generate")
-        generate.return_value = {"answer": '```json {"accidentNumber": "string"}```'}
+        generate.return_value = '```json {"accidentNumber": "string"}```'
         schema_extractor = OpenAISchemaExtractor("AircraftIncident", llm)
 
         node = mocker.Mock(spec=Node)
@@ -80,7 +80,7 @@ class TestSchema:
     def test_extract_properties(self, mocker):
         llm = mocker.Mock(spec=LLM)
         generate = mocker.patch.object(llm, "generate")
-        generate.return_value = {"answer": '```json {"accidentNumber": "FTW95FA129"}```'}
+        generate.return_value = '```json {"accidentNumber": "FTW95FA129"}```'
 
         doc = Document()
         element1 = Element()
@@ -103,7 +103,7 @@ class TestSchema:
     def test_extract_properties_explicit_json(self, mocker):
         llm = mocker.Mock(spec=LLM)
         generate = mocker.patch.object(llm, "generate")
-        generate.return_value = {"answer": '{"accidentNumber": "FTW95FA129"}'}
+        generate.return_value = '{"accidentNumber": "FTW95FA129"}'
 
         doc = Document()
         element1 = Element()

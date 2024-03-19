@@ -9,10 +9,8 @@ from sycamore.plan_nodes import Node, Transform
 from sycamore.llms import LLM
 from sycamore.transforms.map import generate_map_function
 from sycamore.llms.prompts import (
-    SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT,
-    SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT_CHAT,
-    PROPERTIES_ZERO_SHOT_GUIDANCE_PROMPT,
-    PROPERTIES_ZERO_SHOT_GUIDANCE_PROMPT_CHAT,
+    SchemaZeroShotGuidancePrompt,
+    PropertiesZeroShotGuidancePrompt,
 )
 from sycamore.utils.extract_json import extract_json
 
@@ -86,10 +84,10 @@ class OpenAISchemaExtractor(SchemaExtractor):
         entities = self._handle_zero_shot_prompting(document)
 
         try:
-            payload = entities["answer"]
+            payload = entities
             answer = extract_json(payload)
         except (json.JSONDecodeError, ValueError):
-            answer = entities["answer"]
+            answer = entities
 
         properties = document.properties
         properties.update({"_schema": answer, "_schema_class": self._entity_name})
@@ -100,11 +98,7 @@ class OpenAISchemaExtractor(SchemaExtractor):
     def _handle_zero_shot_prompting(self, document: Document) -> Any:
         sub_elements = [document.elements[i] for i in range((min(self._num_of_elements, len(document.elements))))]
 
-        if self._llm.is_chat_mode:
-            prompt = SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT_CHAT
-
-        else:
-            prompt = SCHEMA_ZERO_SHOT_GUIDANCE_PROMPT
+        prompt = SchemaZeroShotGuidancePrompt()
 
         entities = self._llm.generate(
             prompt_kwargs={
@@ -154,10 +148,10 @@ class OpenAIPropertyExtractor(PropertyExtractor):
         entities = self._handle_zero_shot_prompting(document)
 
         try:
-            payload = entities["answer"]
+            payload = entities
             answer = extract_json(payload)
         except (json.JSONDecodeError, AttributeError):
-            answer = entities["answer"]
+            answer = entities
 
         properties = document.properties
         properties.update({"entity": answer})
@@ -173,10 +167,7 @@ class OpenAIPropertyExtractor(PropertyExtractor):
                 [document.elements[i] for i in range((min(self._num_of_elements, len(document.elements))))]
             )
 
-        if self._llm.is_chat_mode:
-            prompt = PROPERTIES_ZERO_SHOT_GUIDANCE_PROMPT_CHAT
-        else:
-            prompt = PROPERTIES_ZERO_SHOT_GUIDANCE_PROMPT
+        prompt = PropertiesZeroShotGuidancePrompt()
 
         schema_name = document.properties["_schema_class"]
         schema = document.properties["_schema"]

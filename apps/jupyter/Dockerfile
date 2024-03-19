@@ -6,18 +6,18 @@ FROM arynai/sycamore-importer:$TAG
 # TODO: eric - remove this once we switch other containers over to non-root
 # Note user/group should be 1000 to match with likely defaults on hosts.
 USER root
-COPY jupyter/docker-root-setup.sh /root
+COPY apps/jupyter/docker-root-setup.sh /root
 RUN /bin/bash /root/docker-root-setup.sh
-COPY jupyter/sudoers /etc/sudoers
-COPY jupyter/fixuser.py /root/fixuser.py
+COPY apps/jupyter/sudoers /etc/sudoers
+COPY apps/jupyter/fixuser.py /root/fixuser.py
 
 # User 'app' must be id number 1000 (the default) for all to work properly.
 USER app
 RUN poetry run pip install notebook ipywidgets 'opensearch-py>=2.4' && rm -rf /app/.cache
 RUN mkdir -p /app/work/docker_volume /app/work/bind_dir /app/work/examples
 RUN touch /app/work/AAA_SEE_README_FOR_PERSISTENT_DATA_DIRECTORIES
-COPY jupyter/run-jupyter.sh ./
-COPY jupyter/README.md ./work
+COPY apps/jupyter/run-jupyter.sh ./
+COPY apps/jupyter/README.md ./work
 COPY notebooks/jupyter_dev_example.ipynb notebooks/default-prep-script.ipynb ./work/examples/
 RUN perl -i -pe 's/localhost/opensearch/ if /9200/;s,tmp/sycamore/data,/app/work/docker_volume,' /app/work/examples/jupyter_dev_example.ipynb
 

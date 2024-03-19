@@ -11,15 +11,18 @@ ARG POETRY_NO_INTERACTION=1 \
     POETRY_VIRTUALENVS_CREATE=1 \
     POETRY_CACHE_DIR=/tmp/poetry_cache
 
-COPY importer/docker-apt-packages.sh .
+COPY apps/importer/importer/docker/docker-apt-packages.sh .
 RUN /bin/bash /app/docker-apt-packages.sh
 
-COPY pyproject.toml poetry.lock README.md importer/docker-poetry-packages.sh ./
-RUN /bin/bash /app/docker-poetry-packages.sh
+COPY apps/importer/pyproject.toml apps/importer/poetry.lock apps/importer/README.md \
+    apps/importer/importer/docker/docker-poetry-packages.sh ./apps/importer/
+COPY apps/importer apps/importer
+COPY lib/sycamore lib/sycamore
 
-COPY importer ./importer
-COPY sycamore ./sycamore
-COPY examples/simple_config.py ./importer
+WORKDIR /app/apps/importer
+RUN /bin/bash /app/apps/importer/docker-poetry-packages.sh
+
+COPY examples/simple_config.py ./
 
 RUN poetry install --only-root && rm -rf $POETRY_CACHE_DIR
 
@@ -36,4 +39,4 @@ LABEL git_branch=${GIT_BRANCH}
 LABEL git_commit=${GIT_COMMIT}
 LABEL git_diff=${GIT_DIFF}
 
-CMD [ "poetry", "run", "python", "importer/docker_local_import.py", "/app/.scrapy" ]
+CMD [ "poetry", "run", "python", "importer/docker/docker_local_import.py", "/app/.scrapy" ]

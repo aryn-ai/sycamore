@@ -9,7 +9,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath("./"))
-sys.path.insert(1, os.path.abspath("../../sycamore/"))
+sys.path.insert(1, os.path.abspath("../../lib/sycamore/sycamore/"))
 
 project = "Sycamore"
 copyright = "2023, Aryn Inc."

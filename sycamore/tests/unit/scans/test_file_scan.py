@@ -15,6 +15,25 @@ class TestFileScan:
         ds = scan.execute()
         assert ds.schema().names == ["doc"]
 
+    def test_file_type(self):
+        paths = str(TEST_DIR / "resources/data/pdfs/")
+        scan = BinaryScan(paths, binary_format="pdf")
+        docs = scan.execute().take_all()
+        assert len(docs) >= 1
+        for d_raw in docs:
+            d = Document.from_row(d_raw)
+            assert "filetype" in d.properties
+            assert d.properties["filetype"] == "pdf"
+
+        cross_type = "existential_awesomeness"
+        cross_type_scan = BinaryScan(paths, binary_format=cross_type, filter_paths_by_extension=False)
+        cross_type_docs = cross_type_scan.execute().take_all()
+        assert len(cross_type_docs) == len(docs)
+        for d_raw in cross_type_docs:
+            d = Document.from_row(d_raw)
+            assert "filetype" in d.properties
+            assert d.properties["filetype"] == cross_type
+
     def test_json_scan(self):
         paths = str(TEST_DIR / "resources/data/json/")
         scan = JsonScan(paths, properties="props")

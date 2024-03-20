@@ -92,7 +92,7 @@ class BinaryScan(FileScan):
     For each file, BinaryScan creates one Document in the form of
     {"doc_id": uuid,
      "content": {"binary": xxx, "text": None},
-      "properties": {"path": xxx}}.
+      "properties": {"path": xxx}, "file_type": yyy}.
 
     Note: if you specify filter_paths_by_extension = False, you need to make sure
     all the files that are scanned can be processed by the pipeline. Many pipelines
@@ -128,6 +128,8 @@ class BinaryScan(FileScan):
         if self._is_s3_scheme():
             dict["path"] = "s3://" + dict["path"]
         properties.update({"path": dict["path"]})
+        if "filetype" not in properties and self._binary_format is not None:
+            properties["filetype"] = self._binary_format
         if self._metadata_provider:
             properties.update(self._metadata_provider.get_metadata(dict["path"]))
         document.properties = properties

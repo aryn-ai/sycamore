@@ -5873,6 +5873,7 @@ pandas = "2.1.1"
 pdf2image = "^1.16.3"
 pdfminer-six = "20221105"
 pyarrow = "14.0.1"
+pypdf2 = "^3.0.1"
 python-pptx = "^0.6.22"
 ray = {version = "^2.9.0", extras = ["default"]}
 rouge = "^1.0.1"
@@ -7106,4 +7107,4 @@ docs = ["furo", "myst-parser", "sphinx"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.12"
-content-hash = "8aece6be8d9234a61e5ec7f8deaee66d4ee660119a82a2c769764b09cf85e8b0"
+content-hash = "fbeb34a0688f912f9ef092e9431adcfda9e1c6d109035af5d37cfc79a66b31fa"

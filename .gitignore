@@ -23,6 +23,7 @@
 venv/
 python/dist/
 __pycache__/
+docs/build/
 bin
 etc
 pyenv.cfg

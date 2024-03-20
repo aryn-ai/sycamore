@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: 'v4.4.0'
+    rev: 'v4.5.0'
     hooks:
       - id: check-ast   # checks Python syntax
       - id: check-json  # checks JSON syntax
@@ -14,18 +14,18 @@ repos:
       - id: no-commit-to-branch  # prevents committing to main
 
   - repo: https://github.com/psf/black
-    rev: 23.7.0
+    rev: 24.3.0
     hooks:
       - id: black
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: 'v0.0.287'
+    rev: 'v0.3.3'
     hooks:
       - id: ruff
         name: ruff
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.5.1
+    rev: v1.9.0
     hooks:
         - id: mypy
           # same args as used in .github/workflows/linting.yml
@@ -52,6 +52,6 @@ repos:
         always_run: true
 
   - repo: https://github.com/kynan/nbstripout
-    rev: 0.6.1
+    rev: 0.7.1
     hooks:
       - id: nbstripout

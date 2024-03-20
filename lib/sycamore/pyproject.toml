@@ -49,13 +49,6 @@ myst-parser = { version = "^2.0.0", optional = true }
 sphinx = { version = "^7.2.5", optional = true }
 rouge = "^1.0.1"
 
-[tool.poetry.group.crawler_s3.dependencies]
-boto3 = "^1.28.70"
-
-[tool.poetry.group.crawler_http.dependencies]
-scrapy = "^2.11.1"
-cryptography = "^42.0.3"
-
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"
 pytest = "7.4.0"

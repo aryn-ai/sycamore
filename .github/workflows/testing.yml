@@ -37,8 +37,10 @@ jobs:
           cache: 'poetry'
       - name: Install sycamore
         run: poetry install
+        working-directory: lib/sycamore
       - name: Run tests
-        run: poetry run pytest lib/sycamore/sycamore/tests/unit/
+        run: poetry run pytest sycamore/tests/unit/
+        working-directory: lib/sycamore
 
   integ-tests:
     runs-on: integ-test-runner

@@ -199,4 +199,3 @@ export const ConversationListNavbar = ({ navBarOpened, settings, setSettings, se
         </Navbar>
     );
 }
-

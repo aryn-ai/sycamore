@@ -1,6 +1,7 @@
 import json
 from abc import ABC, abstractmethod
 import boto3
+import mimetypes
 from typing import Any, Optional, Union, Tuple, Callable
 import uuid
 import logging
@@ -141,12 +142,10 @@ class BinaryScan(FileScan):
         return {"doc": document.serialize()}
 
     def _file_mime_type(self):
-        if self._binary_format == "html" or self._binary_format == "htm":
-            return "text/html"
-        if self._binary_format == "pdf":
-            return "application/pdf"
-        if self._binary_format == "pptx":
-            return "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        # binary_format is an extension, make it into a filename.
+        (ftype, encoding) = mimetypes.guess_type("foo." + self._binary_format)
+        if ftype is not None:
+            return ftype
         ret = f"application/{self._binary_format}"
         logger.warning(f"Unrecognized extenstion {self._binary_format}; using {ret}")
         return ret

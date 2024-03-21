@@ -30,4 +30,4 @@ share
 tmp
 .ipynb_checkpoints
 pyvenv.cfg
-jupyter/bind_dir/redirect.html
+apps/jupyter/bind_dir/redirect.html

@@ -2,7 +2,6 @@ from abc import abstractmethod, ABC
 import io
 from typing import Any, Optional
 
-import ray
 from bs4 import BeautifulSoup
 from ray.data import Dataset, ActorPoolStrategy
 
@@ -445,11 +444,7 @@ class Partition(Transform):
     def execute(self) -> Dataset:
         input_dataset = self.child().execute()
         if isinstance(self._partitioner, SycamorePartitioner):
-            available_gpus = ray.available_resources().get("GPU")
-            assert available_gpus > 0, "Sycamore Partitioner requires running on CUDA."
-            if "num_gpus" not in self.resource_args:
-                self.resource_args["num_gpus"] = 1
-            if self.resource_args["num_gpus"] <= 0:
+            if "num_gpus" in self.resource_args and self.resource_args["num_gpus"] < 0:
                 raise RuntimeError("Invalid GPU Nums!")
 
             dataset = input_dataset.map(

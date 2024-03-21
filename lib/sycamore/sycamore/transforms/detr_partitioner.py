@@ -6,6 +6,8 @@ from sycamore.data import Element, BoundingBox
 from PIL import Image
 import pdf2image
 
+import torch
+
 from pdfminer.converter import PDFPageAggregator
 from pdfminer.layout import LAParams
 from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
@@ -15,8 +17,8 @@ from typing import cast
 
 
 class SycamorePDFPartitioner:
-    def __init__(self, model_name_or_path):
-        self.model = DeformableDetr(model_name_or_path)
+    def __init__(self, model_name_or_path, device=None):
+        self.model = DeformableDetr(model_name_or_path, device)
 
     @staticmethod
     def _supplement_text(inferred: List[Element], text: List[Element], threshold: float = 0.5) -> List[Element]:
@@ -83,7 +85,7 @@ class SycamoreObjectDetection(ABC):
 
 
 class DeformableDetr(SycamoreObjectDetection):
-    def __init__(self, model_name_or_path):
+    def __init__(self, model_name_or_path, device=None):
         super().__init__()
         from transformers import AutoImageProcessor, DeformableDetrForObjectDetection
 
@@ -102,14 +104,22 @@ class DeformableDetr(SycamoreObjectDetection):
             "Title",
         ]
 
+        self.device = device
+
         self.processor = AutoImageProcessor.from_pretrained(model_name_or_path)
-        # cuda is a hard requirement for deformable detr
-        self.model = DeformableDetrForObjectDetection.from_pretrained(model_name_or_path).to("cuda")
+        self.model = DeformableDetrForObjectDetection.from_pretrained(model_name_or_path).to(self._get_device())
+
+    # Note: We wrap this in a function so that we can execute on both the leader and the workers
+    # to account for heterogeneous systems. Currently if you pass in an explicit device parameter
+    # it will be applied everywhere.
+    def _get_device(self) -> str:
+        if self.device is None:
+            return "cuda" if torch.cuda.is_available() else "cpu"
+        else:
+            return self.device
 
     def infer(self, image: Image, threshold: float) -> Any:
-        import torch
-
-        inputs = self.processor(images=image, return_tensors="pt").to("cuda")
+        inputs = self.processor(images=image, return_tensors="pt").to(self._get_device())
         outputs = self.model(**inputs)
         target_sizes = torch.tensor([image.size[::-1]])
         results = self.processor.post_process_object_detection(outputs, target_sizes=target_sizes, threshold=threshold)[

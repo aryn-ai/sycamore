@@ -267,7 +267,7 @@ def model_is_deployed(model_id):
     return model_state == "DEPLOYED"
 
 
-def construct_model_is_deplyed_fn(model_id):
+def construct_model_is_deployed_fn(model_id):
     """
     Construct a lambda that calls model_is_deployed
     """
@@ -352,7 +352,7 @@ def setup_model(register_model_body, model_name, register_timeout=60, deploy_tim
         register_get_action = construct_get_action_fn(is_complete_fn=get_id)
         model_id = cycle_task(start_task=register_try_again, get_action=register_get_action, timeout=register_timeout)
 
-    is_deployed = construct_model_is_deplyed_fn(model_id)
+    is_deployed = construct_model_is_deployed_fn(model_id)
     deployed_model_id = model_id
     if not is_deployed():
         deploy_try_again = construct_deploy_try_again_fn(model_id)

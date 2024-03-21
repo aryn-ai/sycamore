@@ -144,6 +144,8 @@ setup_persistent() {
     rm -f "${PERSISTENT_ENV}" "${PERSISTENT_ENV_TMP}" 2>/dev/null
     touch "${PERSISTENT_ENV_TMP}"
 
+    initialize_message_index
+
     python3 setup_models.py || die "Failed to setup models"
 
     mv "${PERSISTENT_ENV_TMP}" "${PERSISTENT_ENV}"
@@ -202,6 +204,38 @@ END
 }
 END
     debug "" "${ARYN_STATUSDIR}/curl.reenable_rag"
+}
+
+initialize_message_index() {
+    # create a dummy conversation, dummy interaction and then
+    # delete them so that the demo ui doesn't throw a fit trying
+    # to load interactions from an index that doesn't exist
+    _curl_json -XPOST "${BASE_URL}/_plugins/_ml/memory" \
+          -o "${ARYN_STATUSDIR}/curl.create_memory" \
+          --data @- <<END || die "Error creating dummy conversation"
+{
+  "name": "ignoreme"
+}
+END
+    debug "" "${ARYN_STATUSDIR}/curl.create_memory"
+
+    local convo_id=$(jq -r ".memory_id" "${ARYN_STATUSDIR}/curl.create_memory")
+    _curl_json -XPOST "${BASE_URL}/_plugins/_ml/memory/${convo_id}/messages" \
+          -o "${ARYN_STATUSDIR}/curl.create_message" \
+          --data @- <<END || die "Error creating dummy message"
+{
+  "input": "dummy",
+  "prompt_template": "dummy",
+  "response": "dummy",
+  "origin": "dummy"
+}
+END
+    debug "" "${ARYN_STATUSDIR}/curl.create_message"
+
+    _curl_json -XDELETE "${BASE_URL}/_plugins/_ml/memory/${convo_id}" \
+          -o "${ARYN_STATUSDIR}/curl.delete_memory" || die "Error deleting dummy memory"
+
+    debug "" "${ARYN_STATUSDIR}/curl.delete_memory"
 }
 
 setup_transient() {

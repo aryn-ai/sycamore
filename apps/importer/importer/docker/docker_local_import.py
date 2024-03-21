@@ -9,7 +9,7 @@ import sys
 import time
 
 # ruff: noqa: E402
-sys.path.append("../sycamore")
+# sys.path.append("../sycamore")
 sys.path.append("/app")
 
 import sycamore
@@ -111,7 +111,11 @@ def main():
                     failures = failures - 1
                 else:
                     max_files_per_run = min(max_files_per_run * 2, files_per_run_limit)
-                print("Successfully imported:", [str(f["path"]) for f in files], flush=True)
+                print(
+                    "Successfully imported:",
+                    [str(f["path"]) for f in files],
+                    flush=True,
+                )
 
                 print(
                     "Successful run adjusted failure count to {} and max_files_per_run to {}".format(
@@ -217,7 +221,11 @@ def import_files(root, files):
         # textractor uses PIL.Image.open to identify images, and it fails with an
         # UnidentifiedImageError on a pdf file that doesn't end in .pdf.
         if i["type"] == "pdf" and not str(i["path"]).endswith(".pdf"):
-            print("ERROR: Unable to import", str(i["path"]), "-- pdf files must end in .pdf; fix the crawler")
+            print(
+                "ERROR: Unable to import",
+                str(i["path"]),
+                "-- pdf files must end in .pdf; fix the crawler",
+            )
             continue
 
         if i["type"] not in pending_paths:
@@ -272,7 +280,8 @@ def import_pdf(paths):
     ctx = sycamore_init()
     if enable_textract:
         table_extractor = TextractTableExtractor(
-            region_name="us-east-1", s3_upload_root=os.environ["SYCAMORE_TEXTRACT_PREFIX"]
+            region_name="us-east-1",
+            s3_upload_root=os.environ["SYCAMORE_TEXTRACT_PREFIX"],
         )
     else:
         table_extractor = None
@@ -306,7 +315,11 @@ def import_pdf(paths):
         .embed(
             embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
         )
-        .write.opensearch(os_client_args=get_os_client_args(), index_name=index, index_settings=get_index_settings())
+        .write.opensearch(
+            os_client_args=get_os_client_args(),
+            index_name=index,
+            index_settings=get_index_settings(),
+        )
     )
 
 
@@ -335,7 +348,11 @@ def import_html(paths):
         .embed(
             embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
         )
-        .write.opensearch(os_client_args=get_os_client_args(), index_name=index, index_settings=get_index_settings())
+        .write.opensearch(
+            os_client_args=get_os_client_args(),
+            index_name=index,
+            index_settings=get_index_settings(),
+        )
     )
 
     # TODO: https://github.com/aryn-ai/sycamore/issues/160 - implement HTML import
@@ -345,20 +362,34 @@ def import_html(paths):
 def get_index_settings():
     return {
         "body": {
-            "settings": {"index.knn": True, "number_of_shards": 5, "number_of_replicas": 1},
+            "settings": {
+                "index.knn": True,
+                "number_of_shards": 5,
+                "number_of_replicas": 1,
+            },
             "mappings": {
                 "properties": {
                     "text": {"type": "text"},
                     "embedding": {
                         "dimension": 384,
-                        "method": {"engine": "nmslib", "space_type": "l2", "name": "hnsw", "parameters": {}},
+                        "method": {
+                            "engine": "nmslib",
+                            "space_type": "l2",
+                            "name": "hnsw",
+                            "parameters": {},
+                        },
                         "type": "knn_vector",
                     },
                     "title": {"type": "text"},
                     "searchable_text": {"type": "text"},
                     "title_embedding": {
                         "dimension": 384,
-                        "method": {"engine": "nmslib", "space_type": "l2", "name": "hnsw", "parameters": {}},
+                        "method": {
+                            "engine": "nmslib",
+                            "space_type": "l2",
+                            "name": "hnsw",
+                            "parameters": {},
+                        },
                         "type": "knn_vector",
                     },
                     "url": {"type": "text"},

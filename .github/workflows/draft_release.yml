@@ -22,12 +22,14 @@ jobs:
           cache: 'poetry'
       - name: Install
         run: poetry install
+        working-directory: lib/sycamore
       - name: build
         run: poetry build
+        working-directory: lib/sycamore
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
           draft: true
           generate_release_notes: true
           files: |
-            dist/*.tar.gz
+            lib/sycamore/dist/*.tar.gz

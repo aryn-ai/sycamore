@@ -11,7 +11,7 @@ import sys
 import ast
 
 
-srcRoot = "../../../sycamore"
+srcRoot = "../../../lib/sycamore/sycamore"
 docRoot = "."
 
 

@@ -22,9 +22,12 @@ jobs:
           cache: 'poetry'
       - name: Install
         run: poetry install
+        working-directory: lib/sycamore
       - name: build
         run: poetry build
+        working-directory: lib/sycamore
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           verbose: true
+          packages-dir: lib/sycamore/dist

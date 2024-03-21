@@ -1,0 +1,15 @@
+*** node_modules/pdfjs-dist/build/pdf.worker.js.orig	2023-11-17 01:39:33.926679777 -0800
+--- node_modules/pdfjs-dist/build/pdf.worker.js	2023-11-17 01:39:52.799179806 -0800
+***************
+*** 272,277 ****
+--- 272,281 ----
+          });
+        }
+        function onFailure(ex) {
++         if (ex.message.includes('Worker was terminated')) {
++           console.log("Hack ignore termination")
++           return
++         }
+          ensureNotTerminated();
+          if (ex instanceof _util.PasswordException) {
+            const task = new WorkerTask(`PasswordException: response ${ex.code}`);

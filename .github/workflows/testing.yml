@@ -67,8 +67,8 @@ jobs:
       - name: Install sycamore
         run: poetry install
 
-      - name: Download nltk punkt
-        run: poetry run python -m nltk.downloader punkt
+      - name: Download nltk packages
+        run: poetry run python -m nltk.downloader punkt averaged_perceptron_tagger
 
       - name: Install poppler
         run: sudo apt-get install -y poppler-utils

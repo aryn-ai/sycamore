@@ -37,8 +37,10 @@ jobs:
           cache: 'poetry'
       - name: Install sycamore
         run: poetry install
+        working-directory: lib/sycamore
       - name: Run tests
         run: poetry run pytest sycamore/tests/unit/
+        working-directory: lib/sycamore
 
   integ-tests:
     runs-on: integ-test-runner
@@ -78,7 +80,7 @@ jobs:
           role-to-assume: arn:aws:iam::237550789389:role/aryn-github-integ
 
       - name: Run Integ tests
-        run: poetry run pytest sycamore/tests/integration
+        run: poetry run pytest lib/sycamore/sycamore/tests/integration
 
       - name: Run Notebook tests
         run: poetry run pytest --nbmake --nbmake-timeout=600 notebooks/*.ipynb

@@ -3259,30 +3259,6 @@ files = [
 setuptools = "*"
 
 [[package]]
-name = "notebook"
-version = "7.1.2"
-description = "Jupyter Notebook - A web-based notebook environment for interactive computing"
-category = "dev"
-optional = false
-python-versions = ">=3.8"
-files = [
-    {file = "notebook-7.1.2-py3-none-any.whl", hash = "sha256:fc6c24b9aef18d0cd57157c9c47e95833b9b0bdc599652639acf0bdb61dc7d5f"},
-    {file = "notebook-7.1.2.tar.gz", hash = "sha256:efc2c80043909e0faa17fce9e9b37c059c03af0ec99a4d4db84cb21d9d2e936a"},
-]
-
-[package.dependencies]
-jupyter-server = ">=2.4.0,<3"
-jupyterlab = ">=4.1.1,<4.2"
-jupyterlab-server = ">=2.22.1,<3"
-notebook-shim = ">=0.2,<0.3"
-tornado = ">=6.2.0"
-
-[package.extras]
-dev = ["hatch", "pre-commit"]
-docs = ["myst-parser", "nbsphinx", "pydata-sphinx-theme", "sphinx (>=1.3.6)", "sphinxcontrib-github-alt", "sphinxcontrib-spelling"]
-test = ["importlib-resources (>=5.0)", "ipykernel", "jupyter-server[test] (>=2.4.0,<3)", "jupyterlab-server[test] (>=2.22.1,<3)", "nbval", "pytest (>=7.0)", "pytest-console-scripts", "pytest-timeout", "pytest-tornasync", "requests"]
-
-[[package]]
 name = "notebook-shim"
 version = "0.2.4"
 description = "A shim layer for notebook traits and config"
@@ -5848,64 +5824,6 @@ pure-eval = "*"
 tests = ["cython", "littleutils", "pygments", "pytest", "typeguard"]
 
 [[package]]
-name = "sycamore-ai"
-version = "0.1.13"
-description = "Sycamore is an LLM-powered semantic data preparation system for building search applications."
-category = "main"
-optional = false
-python-versions = ">=3.9,<3.12"
-files = []
-develop = true
-
-[package.dependencies]
-aiohttp = "^3.9.2"
-amazon-textract-textractor = "^1.3.2"
-async-timeout = ">4.0.0"
-beautifulsoup4 = "^4.12.2"
-boto3 = "^1.28.70"
-cryptography = "^42.0.3"
-datasets = "^2.16.1"
-guidance = "^0.1.10"
-jinja2 = "^3.1.3"
-openai = "^1.14.1"
-opensearch-py = "^2.3.1"
-pandas = "2.1.1"
-pdf2image = "^1.16.3"
-pdfminer-six = "20221105"
-pyarrow = "14.0.1"
-pypdf2 = "^3.0.1"
-python-pptx = "^0.6.22"
-ray = {version = "^2.9.0", extras = ["default"]}
-rouge = "^1.0.1"
-sentence-transformers = "2.2.2"
-tenacity = "8.2.3"
-timm = "^0.9.12"
-torch = "2.0.0"
-unstructured = "0.10.20"
-urllib3 = ">=1.26.0,<2"
-
-[package.extras]
-docs = ["furo (>=2023.9.10,<2024.0.0)", "myst-parser (>=2.0.0,<3.0.0)", "sphinx (>=7.2.5,<8.0.0)"]
-
-[package.source]
-type = "directory"
-url = "lib/sycamore"
-
-[[package]]
-name = "sycamore-crawler"
-version = "0.0.1"
-description = "Sycamore is an LLM-powered semantic data preparation system for building search applications."
-category = "dev"
-optional = false
-python-versions = ">=3.9,<3.12"
-files = []
-develop = true
-
-[package.source]
-type = "directory"
-url = "apps/crawler"
-
-[[package]]
 name = "sympy"
 version = "1.12"
 description = "Computer algebra system (CAS) in Python"
@@ -7107,4 +7025,4 @@ docs = ["furo", "myst-parser", "sphinx"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.12"
-content-hash = "fbeb34a0688f912f9ef092e9431adcfda9e1c6d109035af5d37cfc79a66b31fa"
+content-hash = "e5207ace3530d2b0e800f8988a90ebde40f7fc233020c927a8e128e006f9734f"

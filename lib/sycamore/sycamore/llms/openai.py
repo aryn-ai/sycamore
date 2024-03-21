@@ -78,7 +78,7 @@ class OpenAIClientWrapper:
                 raise ValueError("Can't set both api_base and azure_endpoint")
 
         # TODO: Add some parameter validation so we can fail fast. The openai library has a bunch of validation,
-        # but may not happen until much later in the job execution.
+        # but that may not happen until much later in the job execution.
 
         if client_type == OpenAIClientType.AZURE:
             if azure_endpoint is None:

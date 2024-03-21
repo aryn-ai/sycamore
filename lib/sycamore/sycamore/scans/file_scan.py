@@ -1,8 +1,10 @@
 import json
 from abc import ABC, abstractmethod
 import boto3
+import mimetypes
 from typing import Any, Optional, Union, Tuple, Callable
 import uuid
+import logging
 
 from pyarrow.filesystem import FileSystem
 from ray.data import Dataset, read_binary_files, read_json
@@ -10,6 +12,9 @@ from ray.data.datasource import FileExtensionFilter
 
 from sycamore.data import Document
 from sycamore.plan_nodes import Scan
+
+
+logger = logging.getLogger(__name__)
 
 
 def _set_id(doc: dict[str, Any]) -> dict[str, Any]:
@@ -92,7 +97,7 @@ class BinaryScan(FileScan):
     For each file, BinaryScan creates one Document in the form of
     {"doc_id": uuid,
      "content": {"binary": xxx, "text": None},
-      "properties": {"path": xxx}}.
+      "properties": {"path": xxx}, "filetype": yyy}.
 
     Note: if you specify filter_paths_by_extension = False, you need to make sure
     all the files that are scanned can be processed by the pipeline. Many pipelines
@@ -128,11 +133,22 @@ class BinaryScan(FileScan):
         if self._is_s3_scheme():
             dict["path"] = "s3://" + dict["path"]
         properties.update({"path": dict["path"]})
+        if "filetype" not in properties and self._binary_format is not None:
+            properties["filetype"] = self._file_mime_type()
         if self._metadata_provider:
             properties.update(self._metadata_provider.get_metadata(dict["path"]))
         document.properties = properties
 
         return {"doc": document.serialize()}
+
+    def _file_mime_type(self):
+        # binary_format is an extension, make it into a filename.
+        (ftype, encoding) = mimetypes.guess_type("foo." + self._binary_format)
+        if ftype is not None:
+            return ftype
+        ret = f"application/{self._binary_format}"
+        logger.warning(f"Unrecognized extenstion {self._binary_format}; using {ret}")
+        return ret
 
     def execute(self) -> "Dataset":
         if self._filter_paths_by_extension:

@@ -31,3 +31,4 @@ tmp
 .ipynb_checkpoints
 pyvenv.cfg
 apps/jupyter/bind_dir/redirect.html
+.venv

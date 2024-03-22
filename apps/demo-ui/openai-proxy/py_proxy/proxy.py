@@ -17,6 +17,7 @@ import io
 import logging
 import boto3
 import warnings
+import mimetypes
 
 warnings.filterwarnings("ignore", category=urllib3.exceptions.InsecureRequestWarning)
 
@@ -140,6 +141,19 @@ def proxy():
         as_attachment=True,
         download_name=download_name,
     )
+
+
+@app.route('/viewLocal/<path:arg>', methods=['GET', 'OPTIONS'])
+def proxy_html(arg):
+    if request.method == 'OPTIONS':
+        return optionsResp('GET')
+    path = '/' + arg
+    if '/../' in path:  # Prevent filesystem snooping
+        return 'invalid path'
+    type, enc = mimetypes.guess_type(path)
+    if not type:
+        type = 'text/html'
+    return send_file(path, mimetype=type)
 
 
 def make_openai_call(messages, model_id="gpt-4"):

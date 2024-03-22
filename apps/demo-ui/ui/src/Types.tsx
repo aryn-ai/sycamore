@@ -21,6 +21,10 @@ export class SearchResultDocument {
         }
         return false;
     }
+
+    hasAbsoluteUrl() {
+        return this.url.search(/^[a-z]+:\/\//i) >= 0;
+    }
 }
 export class UserChat {
     id: string = "";

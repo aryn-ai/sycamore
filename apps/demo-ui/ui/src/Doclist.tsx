@@ -14,6 +14,10 @@ const DocumentItem = ({ document }: { document: SearchResultDocument }) => {
             console.log("You clicked: ", document)
             localStorage.setItem('pdfDocumentMetadata', dataString);
             window.open('/viewPdf');
+        } else if (document.hasAbsoluteUrl()) {
+            window.open(document.url);
+        } else if (document.url.startsWith("/")) {
+            window.open("/viewLocal" + document.url);
         } else {
             window.open(document.url);
         }

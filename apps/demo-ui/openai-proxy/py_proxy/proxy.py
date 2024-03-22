@@ -30,9 +30,7 @@ try:
 except Exception as e:
     logging.error(e)
 
-CORS(
-    app, resources={r"/*": {"origins": "*"}}
-)  # Allow requests from http://localhost:3001 to any route
+CORS(app, resources={r"/*": {"origins": "*"}})  # Allow requests from http://localhost:3001 to any route
 
 # Replace this with your actual OpenAI API key
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
@@ -93,14 +91,11 @@ def proxy_stream_request():
         verify=False,
     )
 
-    print(
-        f"Outgoing Request - URL: {response.url}, Status Code: {response.status_code}"
-    )
+    print(f"Outgoing Request - URL: {response.url}, Status Code: {response.status_code}")
 
     # Check if the response is a streaming response
     is_streaming_response = (
-        "Transfer-Encoding" in response.headers
-        and response.headers["Transfer-Encoding"] == "chunked"
+        "Transfer-Encoding" in response.headers and response.headers["Transfer-Encoding"] == "chunked"
     )
 
     if is_streaming_response:
@@ -112,9 +107,7 @@ def proxy_stream_request():
                 for chunk in response.iter_content(chunk_size=1024):
                     yield chunk
 
-            return Response(
-                generate_chunks(), response.status_code, response.headers.items()
-            )
+            return Response(generate_chunks(), response.status_code, response.headers.items())
 
         return stream_response()
     else:
@@ -164,9 +157,7 @@ def proxy_html(arg):
 
 
 def make_openai_call(messages, model_id="gpt-4"):
-    response = openai.ChatCompletion.create(
-        model=model_id, messages=messages, temperature=0.0, stream=False
-    )
+    response = openai.ChatCompletion.create(model=model_id, messages=messages, temperature=0.0, stream=False)
 
     return response
 
@@ -318,9 +309,7 @@ def proxy_opensearch(os_path):
         method=request.method,
         params=request.args,
         url=OPENSEARCH_URL + os_path,
-        json=request.json
-        if (request.is_json and request.content_length is not None)
-        else None,
+        json=request.json if (request.is_json and request.content_length is not None) else None,
         headers=request.headers,
         verify=False,
     )
@@ -343,9 +332,7 @@ def opensearch_version(retries=3):
         return response.json()["version"]["number"], 200
     except Exception as e:
         if retries <= 0:
-            logging.error(
-                f"OpenSearch not standing at {OPENSEARCH_URL}. Out of retries. Final error {e}"
-            )
+            logging.error(f"OpenSearch not standing at {OPENSEARCH_URL}. Out of retries. Final error {e}")
             return "OpenSearch not found", 503
         logging.warning(
             f"OpenSearch not standing at {OPENSEARCH_URL}. Retrying in 1 sec. {retries-1} retries left. error {e}"

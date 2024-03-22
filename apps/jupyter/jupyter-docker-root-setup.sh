@@ -14,7 +14,10 @@ expected version for this Dockerfile.
 Usually this means you need
   --build-arg=TAG=_something_
 in your build command
+
+Matching files:
 EOF
+    ls /app/.git.commit.*
     exit 1
 fi
 

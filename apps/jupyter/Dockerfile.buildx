@@ -1,34 +1,43 @@
 # Repo name: arynai/sycamore-jupyter
 
+# Note: This dockerfile is intended to work with docker buildx build -f Dockerfile.buildx .
+
 ARG TAG=stable
+
 FROM arynai/sycamore-importer:$TAG
 
-# TODO: eric - remove this once we switch other containers over to non-root
-# Note user/group should be 1000 to match with likely defaults on hosts.
+ARG GIT_BRANCH="unknown"
+ARG GIT_COMMIT="unknown"
+ARG GIT_DIFF="unknown"
+ARG ERIC_TEST="foo"
+
+ENV GIT_BRANCH=${GIT_BRANCH}
+ENV GIT_COMMIT=${GIT_COMMIT}
+ENV GIT_DIFF=${GIT_DIFF}
+ENV SSL=0
+
+WORKDIR /app
+
+RUN echo ww ${ERIC_TEST} xxz
+
 USER root
-COPY apps/jupyter/docker-root-setup.sh /root
-RUN /bin/bash /root/docker-root-setup.sh
+COPY apps/jupyter/jupyter-docker-root-setup.sh /app
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    /bin/bash /app/jupyter-docker-root-setup.sh $GIT_COMMIT $GIT_DIFF $ERIC_TEST
 COPY apps/jupyter/sudoers /etc/sudoers
-COPY apps/jupyter/fixuser.py /root/fixuser.py
+COPY apps/jupyter/fixuser.py /root
 
 # User 'app' must be id number 1000 (the default) for all to work properly.
 USER app
-RUN poetry run pip install notebook ipywidgets 'opensearch-py>=2.4' && rm -rf /app/.cache
+RUN --mount=type=cache,target=/app/.cache,sharing=locked \
+    poetry run pip install notebook ipywidgets 'opensearch-py>=2.4'
 RUN mkdir -p /app/work/docker_volume /app/work/bind_dir /app/work/examples
 RUN touch /app/work/AAA_SEE_README_FOR_PERSISTENT_DATA_DIRECTORIES
 COPY apps/jupyter/run-jupyter.sh ./
 COPY apps/jupyter/README.md ./work
 COPY notebooks/jupyter_dev_example.ipynb notebooks/default-prep-script.ipynb ./work/examples/
 RUN perl -i -pe 's/localhost/opensearch/ if /9200/;s,tmp/sycamore/data,/app/work/docker_volume,' /app/work/examples/jupyter_dev_example.ipynb
-
-ARG GIT_BRANCH="unknown"
-ARG GIT_COMMIT="unknown"
-ARG GIT_DIFF="unknown"
-
-ENV GIT_BRANCH=${GIT_BRANCH}
-ENV GIT_COMMIT=${GIT_COMMIT}
-ENV GIT_DIFF=${GIT_DIFF}
-ENV SSL=0
 
 LABEL org.opencontainers.image.authors="opensource@aryn.ai"
 LABEL git_branch=${GIT_BRANCH}

@@ -1,7 +1,7 @@
 import React, { Dispatch, SetStateAction, useState, useEffect, useRef } from 'react';
 import { ActionIcon, createStyles, Loader, Navbar, Text, useMantineTheme, rem, Center, Container, Group, Anchor, TextInput } from '@mantine/core';
 import { Settings } from './Types'
-import { createConversation, deleteConversation, getConversations, is2dot12plus } from './OpenSearch';
+import { createConversation, deleteConversation, getConversations } from './OpenSearch';
 import { IconChevronRight, IconMessagePlus, IconTrash } from '@tabler/icons-react';
 import { useHover } from '@mantine/hooks';
 const useStyles = createStyles((theme) => ({

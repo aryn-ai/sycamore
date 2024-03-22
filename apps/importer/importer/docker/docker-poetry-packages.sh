@@ -9,8 +9,8 @@ export POETRY_CACHE_DIR=/tmp/poetry_cache
 # sycamore installation in the jupyter notebook with reduced confusion on the paths in that
 # container.
 sed -i 's,../../lib,lib,' pyproject.toml poetry.lock
-if [[ "$1" == "only-root" ]]; then
-    poetry install --only-root
-else
-    poetry install --only main,sycamore_library,docker --no-root -v
+if [[ $# = 0 ]]; then
+    echo "Usage: $0 <poetry args>"
+    exit 1
 fi
+poetry "$@"

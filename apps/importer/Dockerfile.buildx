@@ -29,15 +29,16 @@ COPY apps/importer/importer/docker/docker-poetry-packages.sh \
      importer/docker/docker-poetry-packages.sh 
 
 RUN --mount=type=cache,id=cache_poetry_1000,target=/tmp/poetry_cache,uid=1000,gid=1000,sharing=locked \
-    /bin/bash ./importer/docker/docker-poetry-packages.sh
+    /bin/bash ./importer/docker/docker-poetry-packages.sh \
+      install --only main,sycamore_library,docker --no-root -v
 
 # syntax=docker/dockerfile:1.7-labs
 COPY apps/importer ./
 COPY examples/simple_config.py ./
 
-RUN /bin/bash ./importer/docker/docker-poetry-packages.sh only-root
+RUN /bin/bash ./importer/docker/docker-poetry-packages.sh install --only-root -v -v -v
 
-ARG GIT_BRANCH="main"
+ARG GIT_BRANCH="unknown"
 ARG GIT_COMMIT="unknown"
 ARG GIT_DIFF="unknown"
 

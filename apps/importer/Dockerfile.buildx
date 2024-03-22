@@ -28,7 +28,7 @@ COPY apps/importer/pyproject.toml apps/importer/poetry.lock apps/importer/README
      ./
 RUN mkdir -p importer/docker
 COPY apps/importer/importer/docker/docker-poetry-packages.sh \
-     importer/docker/docker-poetry-packages.sh 
+     importer/docker/docker-poetry-packages.sh
 
 RUN --mount=type=cache,id=cache_poetry_1000,target=/tmp/poetry_cache,uid=1000,gid=1000,sharing=locked \
     /bin/bash ./importer/docker/docker-poetry-packages.sh \

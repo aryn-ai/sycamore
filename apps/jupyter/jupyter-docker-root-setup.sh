@@ -5,7 +5,7 @@ set -x
 [[ $(pwd) == /app ]]
 
 if [[ ! -r /app/.git.commit.${GIT_COMMIT} ]]; then
-    cat <<EOF 
+    cat <<EOF
 ERROR: Missing /app/.git.commit.${GIT_COMMIT} file
 
 This means you've got an inconsistency between the base sycamore image and the

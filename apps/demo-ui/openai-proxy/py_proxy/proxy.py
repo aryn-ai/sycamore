@@ -144,7 +144,7 @@ def proxy():
 
 
 @app.route("/viewLocal/<path:arg>", methods=["GET", "OPTIONS"])
-def proxy_html(arg):
+def proxy_local(arg):
     if request.method == "OPTIONS":
         return optionsResp("GET")
     path = "/" + arg

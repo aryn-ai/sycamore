@@ -18,8 +18,6 @@ ENV SSL=0
 
 WORKDIR /app
 
-RUN echo ww ${ERIC_TEST} xxz
-
 USER root
 COPY apps/jupyter/jupyter-docker-root-setup.sh /app
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \

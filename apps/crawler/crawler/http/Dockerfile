@@ -4,8 +4,12 @@
 FROM python:3.11
 
 WORKDIR /app
+COPY docker-app-user.sh .
+RUN /bin/bash /app/docker-app-user.sh
+
 RUN pip install poetry
 
+USER app
 ENV POETRY_NO_INTERACTION=1 \
     POETRY_VIRTUALENVS_IN_PROJECT=1 \
     POETRY_VIRTUALENVS_CREATE=1 \
@@ -15,7 +19,7 @@ COPY apps/crawler/pyproject.toml apps/crawler/poetry.lock apps/crawler/README.md
 RUN poetry install --only crawler_http --no-root && rm -rf $POETRY_CACHE_DIR
 
 COPY apps/crawler/crawler/http .
-# Hack beccause pyproject.toml expects a sycamore directory
+# Hack because pyproject.toml expects a sycamore directory
 RUN mkdir sycamore && touch sycamore/__init__.py
 RUN poetry install --only-root && rm -rf $POETRY_CACHE_DIR
 

@@ -46,12 +46,15 @@ def fix_ids(uid, gid):
             "Refusing to change id to uid == 0 or gid == 0\n" + "Make sure bind dir has a non-root uid and gid"
         )
     print("WARNING: Fixing IDs. This step can take a long time", flush=True)
+    print("  Temporarily fixing /app to be owned by root to avoid usermod changing stuff")
+    subprocess.run(["chown", "root:root", "/app"])
     print("  Fixing app group to have gid", gid, flush=True)
     subprocess.run(["groupmod", "--gid", str(gid), "app"])
     print("  Fixing app user to have uid", uid, "and gid", gid, flush=True)
     subprocess.run(["usermod", "--uid", str(uid), "--gid", str(gid), "app"])
     print("  Running recursive chown", flush=True)
-    subprocess.run(["chown", "-R", "app:app", "/app"])
+    # crawl data shouldn't be changed to our fancy user
+    subprocess.run(["/bin/sh", "-c", "find /app -path /app/work/crawl_data -prune -o -print0 | xargs -0 chown app:app"])
     print("SUCCESS: uid & gid fixed", flush=True)
 
 

@@ -7,6 +7,8 @@
 FROM python:3.11
 
 WORKDIR /app
+COPY docker-app-user.sh .
+RUN /bin/bash /app/docker-app-user.sh
 
 ARG POETRY_NO_INTERACTION=1 \
     POETRY_VIRTUALENVS_IN_PROJECT=1 \

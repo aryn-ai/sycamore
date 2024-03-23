@@ -19,11 +19,12 @@ class S3Crawler:
         self._prefix = prefix
         self._file_storage_location = "./.data/.s3/downloads"
         self._s3_client = self._get_s3_client(boto_session_args, boto_session_kwargs)
-        s = os.stat("/app/.data/.s3")
-        if s.st_uid != 1000 or s.st_gid != 1000:
-            raise Exception(
-                f"Incorrect ownership on /app/.data/.s3 {s.st_uid},{s.st_gid}\nReset the containers or manually chown the files"
-            )
+        if os.path.exists("/.dockerenv"):
+            s = os.stat("/app/.data/.s3")
+            if s.st_uid != 1000 or s.st_gid != 1000:
+                raise Exception(
+                    f"Incorrect ownership on /app/.data/.s3 {s.st_uid},{s.st_gid}\nReset the containers or manually chown the files"
+                )
 
     def crawl(self) -> None:
         self._find_and_download_new_objects()

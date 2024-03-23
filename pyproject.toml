@@ -49,6 +49,10 @@ notebook = "^7.1.2"
 requests = "^2"
 redis-om = "^0.2"
 
+[tool.poetry.group.crawler.dependencies]
+scrapy = "^2.11.1"
+cryptography = "^42.0.3"
+
 [tool.poetry.extras]
 docs = ["furo", "myst-parser", "sphinx"]
 

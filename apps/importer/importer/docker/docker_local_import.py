@@ -251,20 +251,16 @@ def import_files(root, files):
 
 
 def wait_for_opensearch_ready():
-    print("Waiting for opensearch to become ready...", end="")
     while True:
+        print("Waiting for opensearch to become ready...", flush=True)
         try:
             r = requests.get("https://opensearch:9200/_cluster/settings", verify=False)
             if r.status_code == 200 and "aryn_deploy_complete" in r.text:
                 print("Ready")
                 return True
-            else:
-                print("?", end="")
         except requests.exceptions.ConnectionError:
-            print("!", end="")
             pass
 
-        print(".", end="", flush=True)
         time.sleep(1)
 
 

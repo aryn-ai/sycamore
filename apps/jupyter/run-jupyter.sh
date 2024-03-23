@@ -66,7 +66,7 @@ fi
         echo "  a) Visit: ${URL}"
         echo "  b) open jupyter/bind_dir/redirect.html on your host machine"
         echo "  c) docker compose cp jupyter:/app/work/bind_dir/redirect.html ."
-        echo "      and open redirect.html in a broswer"
+        echo "      and open redirect.html in a browser"
         echo "  Note: the token is stable unless you delete docker_volume/jupyter_notebook_config.py"
         sleep 30
     done

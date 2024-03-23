@@ -3,6 +3,13 @@ echo "Version-Info, Sycamore Crawler HTTP Branch: ${GIT_BRANCH}"
 echo "Version-Info, Sycamore Crawler HTTP Commit: ${GIT_COMMIT}"
 echo "Version-Info, Sycamore Crawler HTTP Diff: ${GIT_DIFF}"
 
+if [[ -O /app && -O /app/.scrapy ]]; then
+    : # ok, proper ownership
+else
+    echo "ERROR: /app or /app/.scrapy has incorrect ownership"
+    echo "ERROR: reset the containers or manually chown the files"
+    exit 1
+fi
 case "$#-$1" in
     1-http*)
         poetry run scrapy crawl sycamore -a url="$1"

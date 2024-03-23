@@ -15,11 +15,11 @@ packages = [{ include = "crawler" }]
 [tool.poetry.dependencies]
 python = ">=3.9,<3.12"
 
-# s3 deps
+# s3 deps; make sure this is consistent with lib/sycamore pyproject.toml
 [tool.poetry.group.crawler_s3.dependencies]
 boto3 = "^1.28.70"
 
-# http deps
+# http deps; make sure these are present in root pyproject.toml
 [tool.poetry.group.crawler_http.dependencies]
 scrapy = "^2.11.1"
 cryptography = "^42.0.3"

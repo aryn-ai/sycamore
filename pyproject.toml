@@ -7,7 +7,6 @@ readme = "README.md"
 packages = [
     { include = "lib" },
     { include = "service" },
-    { include = "proto_remote_processor" },
 ]
 
 [tool.poetry.dependencies]
@@ -30,6 +29,7 @@ opensearch-py = "^2.4.2"
 
 [tool.poetry.group.build.dependencies]
 grpcio-tools = "^1.60.1"
+protoletariat = "^3.2.19"
 
 [build-system]
 requires = ["poetry-core"]

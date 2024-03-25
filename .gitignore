@@ -4,3 +4,5 @@
 *.zip
 .idea/*
 proto_remote_processor/*
+lib/*pb2*
+dist

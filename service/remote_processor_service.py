@@ -6,10 +6,10 @@ import grpc
 import logging
 from service.pipeline import BadPipelineConfigError, Pipeline
 from service.processor_registry import ProcessorRegistry
-from proto_remote_processor.response_processor_service_pb2_grpc import (
+from lib.response_processor_service_pb2_grpc import (
     RemoteProcessorServiceServicer, add_RemoteProcessorServiceServicer_to_server
 )
-from proto_remote_processor.response_processor_service_pb2 import ProcessResponseRequest, ProcessResponseResponse
+from lib.response_processor_service_pb2 import ProcessResponseRequest, ProcessResponseResponse
 
 TP_MAX_WORKERS = 10
 
@@ -22,6 +22,7 @@ PAPRIKA_ASCII_ART = '''
 '''
 
 logging.basicConfig(level=logging.INFO)
+
 
 class RemoteProcessorService(RemoteProcessorServiceServicer):
     """Service driver for remote processing requests

@@ -1,7 +1,7 @@
 import pytest
 import gc
-from proto_remote_processor.search_request_pb2 import SearchRequest
-from proto_remote_processor.search_response_pb2 import SearchResponse
+from lib.search_request_pb2 import SearchRequest
+from lib.search_response_pb2 import SearchResponse
 from lib.processors.debug_processor import DebugRequestProcessor, DebugResponseProcessor
 from lib.processors.processor import ResponseProcessor
 from service.processor_registry import ProcessorRegistry, DuplicatedProcessorNameError

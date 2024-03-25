@@ -1,7 +1,4 @@
-[submodule "protocols"]
-	path = protocols
-	url = git@github.com:aryn-ai/protocols.git
 [submodule "opensearch-remote-processor"]
 	path = opensearch-remote-processor
 	url = git@github.com:aryn-ai/opensearch-remote-processor.git
-	branch = 2.x
+	branch = 2.x-add-protocols

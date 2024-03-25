@@ -4,7 +4,7 @@ from pathlib import Path
 import grpc
 
 import pytest
-from proto_remote_processor.response_processor_service_pb2 import ProcessResponseRequest
+from lib.response_processor_service_pb2 import ProcessResponseRequest
 from service.pipeline import BadPipelineConfigError
 from service.remote_processor_service import RemoteProcessorService
 from test.utils import dummy_search_request, dummy_search_response

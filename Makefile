@@ -4,10 +4,12 @@ help:
 	@echo "build_proto: generate code from the .proto files in protocols/proto-remote-processor"
 
 clean:
-	-rm -rd proto_remote_processor
+	-rm lib/*pb2*
 
 build_proto:
-	poetry run python -m grpc_tools.protoc -I protocols/ --python_out=. --pyi_out=. --grpc_python_out=. protocols/proto-remote-processor/*.proto
+	poetry run python -m grpc_tools.protoc -I opensearch-remote-processor/src/main/proto --python_out=lib --pyi_out=lib --grpc_python_out=lib opensearch-remote-processor/src/main/proto/*.proto
+	# Fix the relative imports
+	poetry run protol --in-place --python-out lib protoc --proto-path=opensearch-remote-processor/src/main/proto opensearch-remote-processor/src/main/proto/*.proto
 
 install_rps:
 	poetry install --no-root

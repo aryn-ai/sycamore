@@ -1,1 +1,1 @@
-from proto_remote_processor.search_response_pb2 import SearchResponse
+from .search_response_pb2 import SearchResponse

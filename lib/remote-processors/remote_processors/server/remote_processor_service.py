@@ -4,29 +4,29 @@ from typing import Any
 import yaml
 import grpc
 import logging
-from service.pipeline import BadPipelineConfigError, Pipeline
-from service.processor_registry import ProcessorRegistry
-from lib.response_processor_service_pb2_grpc import (
-    RemoteProcessorServiceServicer, add_RemoteProcessorServiceServicer_to_server
+from remote_processors.server.pipeline import BadPipelineConfigError, Pipeline
+from remote_processors.server.processor_registry import ProcessorRegistry
+from remote_processors.response_processor_service_pb2_grpc import (
+    RemoteProcessorServiceServicer,
+    add_RemoteProcessorServiceServicer_to_server,
 )
-from lib.response_processor_service_pb2 import ProcessResponseRequest, ProcessResponseResponse
+from remote_processors.response_processor_service_pb2 import ProcessResponseRequest, ProcessResponseResponse
 
 TP_MAX_WORKERS = 10
 
-PAPRIKA_ASCII_ART = '''
+PAPRIKA_ASCII_ART = """
  ______   ______     ______   ______     __     __  __     ______
 /\\  == \\ /\\  __ \\   /\\  == \\ /\\  == \\   /\\ \\   /\\ \\/ /    /\\  __ \\
 \\ \\  _-/ \\ \\  __ \\  \\ \\  _-/ \\ \\  __<   \\ \\ \\  \\ \\  _"-.  \\ \\  __ \\
  \\ \\_\\    \\ \\_\\ \\_\\  \\ \\_\\    \\ \\_\\ \\_\\  \\ \\_\\  \\ \\_\\ \\_\\  \\ \\_\\ \\_\\
   \\/_/     \\/_/\\/_/   \\/_/     \\/_/ /_/   \\/_/   \\/_/\\/_/   \\/_/\\/_/
-'''
+"""
 
 logging.basicConfig(level=logging.INFO)
 
 
 class RemoteProcessorService(RemoteProcessorServiceServicer):
-    """Service driver for remote processing requests
-    """
+    """Service driver for remote processing requests"""
 
     def __init__(self, configuration_file: Path):
         """Constructor. Parses configuration file to create served pipelines
@@ -39,7 +39,7 @@ class RemoteProcessorService(RemoteProcessorServiceServicer):
         configuration = {}
         with open(configuration_file, "r") as f:
             configuration = yaml.safe_load(f)
-        self._pipelines = self._parse_configuration(configuration)
+        self._pipelines = self._parse_configuration(configuration)  # type: ignore
 
     def _parse_configuration(self, configuration: list[dict[str, Any]]) -> dict[str, Pipeline]:
         """parse the config file and initialize the pipelines
@@ -85,11 +85,13 @@ class RemoteProcessorService(RemoteProcessorServiceServicer):
         search_response = request.search_response
         processor_name = request.processor_name
         if processor_name in self._pipelines:
-            new_response = self._pipelines[processor_name].run_response_pipeline(search_request=search_request, search_response=search_response)
+            new_response = self._pipelines[processor_name].run_response_pipeline(
+                search_request=search_request, search_response=search_response
+            )
             return ProcessResponseResponse(search_response=new_response)
         else:
             context.set_code(grpc.StatusCode.NOT_FOUND)
-            context.set_details(f'Processor {processor_name} does not exist!')
+            context.set_details(f"Processor {processor_name} does not exist!")
             raise KeyError(f"Processor {processor_name} does not exist! Check your config file {self._config_file}")
 
     def start(self, certfile=None, keyfile=None):
@@ -104,14 +106,14 @@ class RemoteProcessorService(RemoteProcessorServiceServicer):
         add_RemoteProcessorServiceServicer_to_server(self, server)
         if secure_mode:
             logging.info("Starting service in secure mode")
-            with open(keyfile, 'rb') as f:
+            with open(keyfile, "rb") as f:
                 private_key = f.read()
-            with open(certfile, 'rb') as f:
+            with open(certfile, "rb") as f:
                 cert_chain = f.read()
             channel_credentials = grpc.ssl_server_credentials(
                 private_key_certificate_chain_pairs=[(private_key, cert_chain)],
                 root_certificates=None,
-                require_client_auth=False
+                require_client_auth=False,
             )
             server.add_secure_port("[::]:2796", channel_credentials)
         else:
@@ -120,4 +122,3 @@ class RemoteProcessorService(RemoteProcessorServiceServicer):
         server.start()
         logging.info("RPS started on port 2796")
         return server
-

@@ -1,15 +1,14 @@
-from typing import Any, Union
-from lib.processors.processor import RequestProcessor, ResponseProcessor
-from lib.search_request import SearchRequest
-from lib.search_response import SearchResponse
+from typing import Any, Union, List
+from remote_processors.processors import RequestProcessor, ResponseProcessor
+from remote_processors import SearchRequest, SearchResponse
 
-from service.processor_registry import ProcessorRegistry
+from remote_processors.server.processor_registry import ProcessorRegistry
 
 PROCESSOR_LIST_FIELD = "processors"
 
+
 class Pipeline:
-    """Class representing a sequence of processors. This is the unit that's served by the RPS.
-    """
+    """Class representing a sequence of processors. This is the unit that's served by the RPS."""
 
     def __init__(self, name: str, config: dict[str, Any], pr: ProcessorRegistry):
         """Create a processing pipeline
@@ -22,8 +21,10 @@ class Pipeline:
         self._name = name
         self._processors = self._parse_config(config, pr)
 
-    def _parse_config(self, config: dict[str, Any], pr: ProcessorRegistry) -> list[Union[ResponseProcessor, RequestProcessor]]:
-        """Parse a pipeline config section, such as 
+    def _parse_config(
+        self, config: dict[str, Any], pr: ProcessorRegistry
+    ) -> Union[List[RequestProcessor], List[ResponseProcessor]]:
+        """Parse a pipeline config section, such as
 
          .. code-block:: yaml
             pipeline:
@@ -50,7 +51,9 @@ class Pipeline:
             raise BadPipelineConfigError(f"Pipeline config for {self._name} missing {PROCESSOR_LIST_FIELD} field")
         proc_configs = config[PROCESSOR_LIST_FIELD]
         if not isinstance(proc_configs, list):
-            raise BadPipelineConfigError(f"{PROCESSOR_LIST_FIELD} field for {self._name} must be a list of processor configurations")
+            raise BadPipelineConfigError(
+                f"{PROCESSOR_LIST_FIELD} field for {self._name} must be a list of processor configurations"
+            )
         if len(proc_configs) == 0:
             raise BadPipelineConfigError(f"Pipeline {self._name} must have at least one processor")
         # construct each processor in the pipeline
@@ -58,15 +61,22 @@ class Pipeline:
             if not isinstance(processor_cfg, dict):
                 raise BadPipelineConfigError(f"Configuration for processor {i} in pipeline {self._name} must be a map")
             if len(processor_cfg) != 1:
-                raise BadPipelineConfigError(f"Configuration for processor {i} must have exactly 1 key, the processor class name")
+                raise BadPipelineConfigError(
+                    f"Configuration for processor {i} must have exactly 1 key, the processor class name"
+                )
             processor_type = list(processor_cfg.keys())[0]
-            proc = pr.get_processor(processor_type).from_config(processor_cfg[processor_type])
+            proc_clazz = pr.get_processor(processor_type)
+            if proc_clazz is None:
+                raise BadPipelineConfigError(f"Processor {processor_type} could not be found")
+            proc = proc_clazz.from_config(processor_cfg[processor_type])
             processors.append(proc)
-        if not (all([isinstance(p, RequestProcessor) for p in processors]) or \
-                all([isinstance(p, ResponseProcessor) for p in processors])):
-            raise BadPipelineConfigError(f"All processors must be either request processors **or** response processors")
-        return processors
-    
+        if not (
+            all([isinstance(p, RequestProcessor) for p in processors])
+            or all([isinstance(p, ResponseProcessor) for p in processors])
+        ):
+            raise BadPipelineConfigError("All processors must be either request processors **or** response processors")
+        return processors  # type: ignore
+
     def run_request_pipeline(self, search_request: SearchRequest) -> SearchRequest:
         """Runs a request pipeline (i.e. transforms requests pre-query)
 
@@ -79,12 +89,14 @@ class Pipeline:
         Returns:
             SearchRequest: The processed request
         """
-        if isinstance(self._processors[0], ResponseProcessor):
-            raise WrongPipelineError(f"{self._name} is a response pipeline, not a request pipeline")
+        if any(isinstance(p, ResponseProcessor) for p in self._processors):
+            raise WrongPipelineError(
+                f"{self._name} contains response processors, so cannot be used as a request pipeline"
+            )
         for proc in self._processors:
-            search_request = proc.process_request(search_request)
+            search_request = proc.process_request(search_request)  # type: ignore
         return search_request
-    
+
     def run_response_pipeline(self, search_request: SearchRequest, search_response: SearchResponse) -> SearchResponse:
         """Runs a response pipeline (i.e. transforms a search response post-query)
 
@@ -98,17 +110,17 @@ class Pipeline:
         Returns:
             SearchResponse: The processed search results
         """
-        if isinstance(self._processors[0], RequestProcessor):
-            raise WrongPipelineError(f"{self._name} is a request pipeline, not a response pipeline")
+        if any(isinstance(p, RequestProcessor) for p in self._processors):
+            raise WrongPipelineError(
+                f"{self._name} contains request processors, so cannot be used as a response pipeline"
+            )
         for proc in self._processors:
-            search_response = proc.process_response(search_request, search_response)
+            search_response = proc.process_response(search_request, search_response)  # type: ignore
         return search_response
 
-        
 
 class BadPipelineConfigError(Exception):
-    """Pipeline configuration is malformed in some wway
-    """
+    """Pipeline configuration is malformed in some wway"""
 
     def __init__(self, msg: str, *args: object) -> None:
         super().__init__(*args)
@@ -116,10 +128,10 @@ class BadPipelineConfigError(Exception):
 
     def __str__(self) -> str:
         return self._msg
-    
+
+
 class WrongPipelineError(Exception):
-    """Pipeline is the wrong type (request vs response)
-    """
+    """Pipeline is the wrong type (request vs response)"""
 
     def __init__(self, msg: str, *args: object) -> None:
         super().__init__(*args)

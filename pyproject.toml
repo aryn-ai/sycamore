@@ -33,6 +33,7 @@ pytest-mock = "3.11.1"
 [tool.poetry.group.dev.dependencies]
 sycamore-ai = { path = "lib/sycamore", develop = true }
 sycamore-crawler = { path = "apps/crawler", develop = true }
+remote-processors = { path = "lib/remote-processors", develop = true }
 ruff = "^0.0.287"
 black = "^23.7.0"
 pre-commit = "^3.4.0"

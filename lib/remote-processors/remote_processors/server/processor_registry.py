@@ -1,9 +1,9 @@
 from typing import Union
-from lib.processors import RequestProcessor, ResponseProcessor
+from remote_processors.processors import RequestProcessor, ResponseProcessor
 
 
 class ProcessorRegistry:
-    """Class to hold references to all the processor classes by name for 
+    """Class to hold references to all the processor classes by name for
     easy lookup and use during pipeline configuration
     """
 
@@ -19,34 +19,39 @@ class ProcessorRegistry:
         if len(names) < len(all_subclasses):
             raise DuplicatedProcessorNameError(all_subclasses)
 
-        self._request_processors: dict[str, type[RequestProcessor]] = \
-            {c.get_class_name(): c for c in RequestProcessor.__subclasses__()}
-        self._response_processors: dict[str, type[ResponseProcessor]] = \
-            {c.get_class_name(): c for c in ResponseProcessor.__subclasses__()}
-        
-    def get_processor(self, name: str) -> Union[RequestProcessor, ResponseProcessor, None]:
+        self._request_processors: dict[str, type[RequestProcessor]] = {
+            c.get_class_name(): c for c in RequestProcessor.__subclasses__()
+        }
+        self._response_processors: dict[str, type[ResponseProcessor]] = {
+            c.get_class_name(): c for c in ResponseProcessor.__subclasses__()
+        }
+
+    def get_processor(self, name: str) -> Union[type[RequestProcessor], type[ResponseProcessor], None]:
         if name in self._request_processors:
             return self._request_processors[name]
         if name in self._response_processors:
             return self._response_processors[name]
         return None
-    
 
-    
+
 class DuplicatedProcessorNameError(Exception):
-    """Two processors may not have the same name
-    """
+    """Two processors may not have the same name"""
 
-    def __init__(self, classes: list[Union[RequestProcessor, ResponseProcessor]], *args) -> None:
-        """Builds message that shows alll duplicated processor names
+    def __init__(self, classes: list[Union[type[RequestProcessor], type[ResponseProcessor]]], *args) -> None:
+        """Builds message that shows all duplicated processor names
 
         Args:
             classes (list[Union[RequestProcessor, ResponseProcessor]]): List of all found processor classes
         """
         super().__init__(*args)
         seen = set()
-        duplicate_names = [c.get_class_name() for c in classes \
-                           if c.get_class_name() in seen or seen.add(c.get_class_name())]
+        duplicate_names = []
+        for c in classes:
+            if c.get_class_name() not in seen:
+                seen.add(c.get_class_name())
+            else:
+                duplicate_names.append(c.get_class_name())
+
         self._msg = "Duplicated processor names: "
         for name in duplicate_names:
             dupe_classes = [c for c in classes if c.get_class_name() == name]

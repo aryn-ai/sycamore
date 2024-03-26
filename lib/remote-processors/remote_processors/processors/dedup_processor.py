@@ -1,10 +1,9 @@
-import re
 import sys
 import json
 from sycamore.functions.simhash import shinglesDist
-from lib.processors.processor import RequestProcessor, ResponseProcessor
-from lib.search_request import SearchRequest
-from lib.search_response import SearchResponse
+from remote_processors.processors.processor import ResponseProcessor
+from remote_processors import SearchRequest, SearchResponse
+
 
 class DedupResponseProcessor(ResponseProcessor):
     """

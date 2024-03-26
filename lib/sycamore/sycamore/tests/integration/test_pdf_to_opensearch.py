@@ -107,6 +107,7 @@ def test_pdf_to_opensearch():
         )
         .merge(GreedyTextElementMerger(tokenizer=tokenizer, max_tokens=300))
         .explode()
+        .sketch()
         .embed(
             embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
         )

@@ -179,17 +179,24 @@ exploded_docset.show(show_binary = False)
 
 The output should show the exploded DocSet with an empty 'elements' list in the `‘type’: ‘pdf’` entry, many entries with `‘type’: ‘Section’`, and no 'elements' sub-entry.
 
-1i. We will now create the vector embeddings for our DocSet. The model we selected is MiniLM, and you could choose a different embedding model depending on your use case.
+1i. In order to prepare for near-duplicate detection later on, we need to annotate each document with a "sketch".  The `sketch` transform will add a piece of metadata called `shingles`, which is a list of hash values.
 
 ```python
-st_embed_docset = (exploded_docset
+sketched_docset = exploded_docset.sketch()
+sketched_docset.show(show_binary=False)
+```
+
+1j. We will now create the vector embeddings for our DocSet. The model we selected is MiniLM, and you could choose a different embedding model depending on your use case.
+
+```python
+st_embed_docset = (sketched_docset
               .embed(embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")))
 st_embed_docset.show(show_binary = False)
 ```
 
 The output should show the DocSet with vector embeddings, e.g. `'embedding': '<384 floats>'` should be added to each of the sections.
 
-1j. Before loading the Sycamore indexes, we need to configure the data preparation job to: 1/have the endpoint for the Sycamore stack and 2/have the configuration for creating the Sycamore vector and keyword indexes for hybrid search. The data preparation job will then instruct Sycamore to create these indexes and load them in the final step.
+1k. Before loading the Sycamore indexes, we need to configure the data preparation job to: 1/have the endpoint for the Sycamore stack and 2/have the configuration for creating the Sycamore vector and keyword indexes for hybrid search. The data preparation job will then instruct Sycamore to create these indexes and load them in the final step.
 
 The rest endpoint for loading data for the Sycamore stack we launched is at port 9200. Make sure to provide the name for the index you will create. Sycamore uses [OpenSearch](https://opensearch.org/) for indexing. OpenSearch is a enterprise-grade, customizable search engine and vector database. Sycamore exposes many OpenSearch settings, and you can adjust them depending on your use case.
 
@@ -225,13 +232,13 @@ index_settings =  {
     }
 ```
 
-1k. This is the final part of the data preparation job. We will load the data and vector embeddings into the Sycamore using the configuration supplied above.
+1l. This is the final part of the data preparation job. We will load the data and vector embeddings into the Sycamore using the configuration supplied above.
 
 ```python
 st_embed_docset.write.opensearch(os_client_args=os_client_args, index_name=index, index_settings=index_settings)
 ```
 
-1l. Finally, add a cell to tell you where to go next and which index you should be querying.  This cell is also useful when you re-execute the script as the output appears when all cells are done.
+1m. Finally, add a cell to tell you where to go next and which index you should be querying.  This cell is also useful when you re-execute the script as the output appears when all cells are done.
 
 ```python
 print("Visit http://localhost:3000 and use the", index, " index to query these results in the demo UI")

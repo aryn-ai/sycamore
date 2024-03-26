@@ -28,7 +28,7 @@ install_poetry:
 	touch /var/lib/apt/.cache_var_lib_apt # make it possible to find the cache directory for buildx builds
 	touch /var/cache/apt/.cache_var_cache_apt
 	apt update
-	DEBIAN_FRONTEND=noninteractive apt -y install --no-install-recommends python3-poetry gcc python3-dev
+	DEBIAN_FRONTEND=noninteractive apt -y install --no-install-recommends python3-poetry gcc python3-dev protobuf-compiler
 
 common_build:
 	test "$(POETRY_CACHE_DIR)" = /tmp/poetry_cache # catch a bug where putting ARG too early in Dockerfile doesn't get the env var

@@ -35,7 +35,8 @@ RUN --mount=type=cache,id=cache_poetry_1000,target=/tmp/poetry_cache,uid=1000,gi
 FROM rps_common AS rps_build
 
 # Build the proto files into python
-COPY --chown=aryn:aryn ./protocols ./protocols
+COPY --chown=aryn:aryn ./opensearch-remote-processor ./opensearch-remote-processor
+COPY --chown=aryn:aryn ./lib ./lib
 RUN --mount=type=cache,id=cache_poetry_1000,target=/tmp/poetry_cache,uid=1000,gid=1000,sharing=locked \
     make -f ../Makefile docker_build_proto
 
@@ -43,8 +44,7 @@ RUN --mount=type=cache,id=cache_poetry_1000,target=/tmp/poetry_cache,uid=1000,gi
 # Run: run the server
 FROM rps_common AS rps_server
 
-COPY --from=rps_build --chown=aryn:aryn /aryn/rps/proto_remote_processor ./proto_remote_processor
-COPY --chown=aryn:aryn ./lib ./lib/
+COPY --from=rps_build --chown=aryn:aryn /aryn/rps/lib ./lib
 COPY --chown=aryn:aryn ./service ./service
 COPY --chown=aryn:aryn ./README.md ./README.md
 COPY --chown=aryn:aryn ./config ./config

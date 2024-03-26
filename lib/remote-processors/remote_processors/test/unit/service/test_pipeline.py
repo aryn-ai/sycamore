@@ -1,10 +1,8 @@
-
-
 import pytest
-from lib.processors.debug_processor import DebugRequestProcessor, DebugResponseProcessor
-from service.pipeline import PROCESSOR_LIST_FIELD, BadPipelineConfigError, Pipeline, WrongPipelineError
-from service.processor_registry import ProcessorRegistry
-from test.utils import dummy_search_request, dummy_search_response
+from remote_processors.processors.debug_processor import DebugRequestProcessor, DebugResponseProcessor
+from remote_processors.server.pipeline import PROCESSOR_LIST_FIELD, BadPipelineConfigError, Pipeline, WrongPipelineError
+from remote_processors.server.processor_registry import ProcessorRegistry
+from remote_processors.test.utils import dummy_search_request, dummy_search_response
 
 
 class TestPipeline:
@@ -14,65 +12,68 @@ class TestPipeline:
     def test_valid_configuration(self):
         cfg = {
             PROCESSOR_LIST_FIELD: [
-                { DebugResponseProcessor.get_class_name(): {"prefix": "prefix"}},
-                { DebugResponseProcessor.get_class_name(): None }
+                {DebugResponseProcessor.get_class_name(): {"prefix": "prefix"}},
+                {DebugResponseProcessor.get_class_name(): None},
             ]
         }
         pipeline = Pipeline("valid", cfg, self.pr)
-        assert pipeline.run_response_pipeline(dummy_search_request(), dummy_search_response()) == dummy_search_response()
+        assert (
+            pipeline.run_response_pipeline(dummy_search_request(), dummy_search_response()) == dummy_search_response()
+        )
 
     def test_invalid_configurations(self):
-        cfg = {"processors list": [{ DebugResponseProcessor.get_class_name(): None }]}
-        with pytest.raises(BadPipelineConfigError) as einfo:
+        cfg = {"processors list": [{DebugResponseProcessor.get_class_name(): None}]}
+        with pytest.raises(BadPipelineConfigError):
             Pipeline("invalid", cfg, self.pr)
-        
+
         cfg = {PROCESSOR_LIST_FIELD: {DebugResponseProcessor.get_class_name(): None}}
-        with pytest.raises(BadPipelineConfigError) as einfo:
+        with pytest.raises(BadPipelineConfigError):
             Pipeline("invalid", cfg, self.pr)
-        
+
         cfg = {PROCESSOR_LIST_FIELD: []}
-        with pytest.raises(BadPipelineConfigError) as einfo:
+        with pytest.raises(BadPipelineConfigError):
             Pipeline("invalid", cfg, self.pr)
 
         cfg = {PROCESSOR_LIST_FIELD: [DebugResponseProcessor.get_class_name()]}
-        with pytest.raises(BadPipelineConfigError) as einfo:
-            Pipeline("invalid", cfg, self.pr)
-        
-        cfg = {PROCESSOR_LIST_FIELD: [{DebugResponseProcessor.get_class_name(): None, DebugRequestProcessor.get_class_name(): None}]}
-        with pytest.raises(BadPipelineConfigError) as einfo:
+        with pytest.raises(BadPipelineConfigError):
             Pipeline("invalid", cfg, self.pr)
 
-        cfg = {PROCESSOR_LIST_FIELD: [{"nonexistant_processor": None}] }
-        with pytest.raises(AttributeError) as einfo:
+        cfg = {
+            PROCESSOR_LIST_FIELD: [
+                {DebugResponseProcessor.get_class_name(): None, DebugRequestProcessor.get_class_name(): None}
+            ]
+        }
+        with pytest.raises(BadPipelineConfigError):
             Pipeline("invalid", cfg, self.pr)
 
-        cfg = {PROCESSOR_LIST_FIELD: [{DebugResponseProcessor.get_class_name(): None}, {DebugRequestProcessor.get_class_name(): None}]}
-        with pytest.raises(BadPipelineConfigError) as einfo:
+        cfg = {PROCESSOR_LIST_FIELD: [{"nonexistant_processor": None}]}
+        with pytest.raises(BadPipelineConfigError):
+            Pipeline("invalid", cfg, self.pr)
+
+        cfg = {
+            PROCESSOR_LIST_FIELD: [
+                {DebugResponseProcessor.get_class_name(): None},
+                {DebugRequestProcessor.get_class_name(): None},
+            ]
+        }
+        with pytest.raises(BadPipelineConfigError):
             Pipeline("invalid", cfg, self.pr)
 
     def test_wrong_pipeline_type(self):
-        res_cfg = {
-            PROCESSOR_LIST_FIELD: [
-                { DebugResponseProcessor.get_class_name(): None }
-            ]
-        }
+        res_cfg = {PROCESSOR_LIST_FIELD: [{DebugResponseProcessor.get_class_name(): None}]}
         response_pipeline = Pipeline("response", res_cfg, self.pr)
-        req_cfg = {
-            PROCESSOR_LIST_FIELD: [
-                { DebugRequestProcessor.get_class_name(): None }
-            ]
-        }
-        request_pipeline  = Pipeline("request",  req_cfg, self.pr)
-        with pytest.raises(WrongPipelineError) as einfo:
+        req_cfg = {PROCESSOR_LIST_FIELD: [{DebugRequestProcessor.get_class_name(): None}]}
+        request_pipeline = Pipeline("request", req_cfg, self.pr)
+        with pytest.raises(WrongPipelineError):
             response_pipeline.run_request_pipeline(dummy_search_request())
-        with pytest.raises(WrongPipelineError) as einfo:
+        with pytest.raises(WrongPipelineError):
             request_pipeline.run_response_pipeline(dummy_search_request(), dummy_search_response())
 
     def test_pipeline_hits_all_processors(self, mocker):
         cfg = {
             PROCESSOR_LIST_FIELD: [
-                { DebugResponseProcessor.get_class_name(): {"prefix": "prefix"}},
-                { DebugResponseProcessor.get_class_name(): None }
+                {DebugResponseProcessor.get_class_name(): {"prefix": "prefix"}},
+                {DebugResponseProcessor.get_class_name(): None},
             ]
         }
         pipeline = Pipeline("valid", cfg, self.pr)

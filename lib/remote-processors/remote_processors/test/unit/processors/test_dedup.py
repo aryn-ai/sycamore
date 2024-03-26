@@ -1,8 +1,15 @@
 import json
 
-from lib.search_response_pb2 import SearchHit, SearchHits, SearchResponse, SearchResponseSections, SearchShardTarget, TotalHits
+from remote_processors.search_response_pb2 import (
+    SearchHit,
+    SearchHits,
+    SearchResponse,
+    SearchResponseSections,
+    SearchShardTarget,
+    TotalHits,
+)
 
-from lib.processors.dedup_processor import DedupResponseProcessor
+from remote_processors.processors.dedup_processor import DedupResponseProcessor
 
 
 def mkShingles(x: int):

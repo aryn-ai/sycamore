@@ -1,7 +1,5 @@
-
-
-from lib.processors.debug_processor import DebugResponseProcessor
-from test.utils import dummy_search_request, dummy_search_response
+from remote_processors.processors.debug_processor import DebugResponseProcessor
+from remote_processors.test.utils import dummy_search_request, dummy_search_response
 
 
 class TestDebugProcessor:

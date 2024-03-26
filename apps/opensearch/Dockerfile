@@ -15,9 +15,6 @@ FROM gradle:jdk17 AS build_rps_plugin
 WORKDIR /build
 RUN git clone -b 2.x --depth 1 https://github.com/aryn-ai/opensearch-remote-processor.git
 WORKDIR /build/opensearch-remote-processor
-RUN sed -i "s#git@github.com:#https://github.com/#" .gitmodules
-RUN git submodule init
-RUN git submodule update --remote
 RUN ./gradlew assemble
 
 FROM opensearchproject/opensearch:2.12.0 AS install_ml_commons

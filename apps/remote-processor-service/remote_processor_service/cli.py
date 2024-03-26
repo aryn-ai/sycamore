@@ -1,9 +1,10 @@
 import click
 
-from service.remote_processor_service import RemoteProcessorService
+from remote_processors.server.remote_processor_service import RemoteProcessorService
+
 
 @click.command()
-@click.argument('config', type=click.Path(exists=True))
+@click.argument("config", type=click.Path(exists=True))
 def read_cfg(config):
     """
     Construct the server with the configruation frovided and print info about it
@@ -15,10 +16,11 @@ def read_cfg(config):
     print(service)
     print(service._pipelines)
 
+
 @click.command()
-@click.argument('config', type=click.Path(exists=True))
-@click.option('--certfile', type=click.Path(exists=True), default=None)
-@click.option('--keyfile', type=click.Path(exists=True), default=None)
+@click.argument("config", type=click.Path(exists=True))
+@click.option("--certfile", type=click.Path(exists=True), default=None)
+@click.option("--keyfile", type=click.Path(exists=True), default=None)
 def serve(config, certfile, keyfile):
     """
     Start the server on port 2796 with the configuration provided

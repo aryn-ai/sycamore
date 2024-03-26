@@ -17,7 +17,7 @@ ARG POETRY_CACHE_DIR=/tmp/poetry_cache
 # And then we can just layer services on top?
 
 WORKDIR /aryn/
-COPY ./Makefile ./
+COPY ./apps/remote-processor-service/Makefile ./
 RUN make aryn_user
 RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
@@ -26,33 +26,36 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 
 USER aryn
 WORKDIR /aryn/rps/
-COPY --chown=aryn:aryn ./poetry.lock ./pyproject.toml ./
+COPY --chown=aryn:aryn apps/remote-processor-service/pyproject.toml apps/remote-processor-service/poetry.lock apps/remote-processor-service/
+COPY --chown=aryn:aryn lib/sycamore/poetry.lock lib/sycamore/pyproject.toml lib/sycamore/
+COPY --chown=aryn:aryn lib/remote-processors/poetry.lock lib/remote-processors/pyproject.toml lib/remote-processors/
+WORKDIR /aryn/rps/apps/remote-processor-service
 RUN --mount=type=cache,id=cache_poetry_1000,target=/tmp/poetry_cache,uid=1000,gid=1000,sharing=locked \
-    make -f ../Makefile common_build
+    make -f /aryn/Makefile common_build
 
 ##########
 # Build: build package, compile protobufs
 FROM rps_common AS rps_build
 
 # Build the proto files into python
-COPY --chown=aryn:aryn ./opensearch-remote-processor ./opensearch-remote-processor
-COPY --chown=aryn:aryn ./lib ./lib
+WORKDIR /aryn/rps/lib/remote-processors
+COPY --chown=aryn:aryn ./lib/remote-processors ./
 RUN --mount=type=cache,id=cache_poetry_1000,target=/tmp/poetry_cache,uid=1000,gid=1000,sharing=locked \
-    make -f ../Makefile docker_build_proto
+    make -f /aryn/Makefile docker_build_proto
 
 ##########
 # Run: run the server
 FROM rps_common AS rps_server
 
-COPY --from=rps_build --chown=aryn:aryn /aryn/rps/lib ./lib
-COPY --chown=aryn:aryn ./service ./service
-COPY --chown=aryn:aryn ./README.md ./README.md
-COPY --chown=aryn:aryn ./config ./config
-COPY --chown=aryn:aryn ./rps_docker_entrypoint.sh ./
-RUN make -f ../Makefile server_build
-RUN chmod +x rps_docker_entrypoint.sh
-RUN make -f ../Makefile user_check
+WORKDIR /aryn/rps
+COPY --from=rps_build --chown=aryn:aryn /aryn/rps/lib/remote-processors ./lib/remote-processors/
+COPY --chown=aryn:aryn ./lib/sycamore ./lib/sycamore/
+COPY --chown=aryn:aryn ./apps/remote-processor-service ./apps/remote-processor-service
+WORKDIR /aryn/rps/apps/remote-processor-service
+RUN make -f /aryn/Makefile server_build
+RUN chmod +x ./remote_processor_service/rps_docker_entrypoint.sh
+RUN make -f /aryn/Makefile user_check
 
 EXPOSE $RPS_PORT
 
-CMD ./rps_docker_entrypoint.sh
+CMD ./remote_processor_service/rps_docker_entrypoint.sh

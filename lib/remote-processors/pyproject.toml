@@ -8,7 +8,6 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.12"
-click = "^8.1.7"
 pyyaml = "^6.0.1"
 grpcio = "^1.60.0"
 cbor2 = "^5.6.0"
@@ -33,9 +32,6 @@ protoletariat = "^3.2.19"
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.poetry.scripts]
-test_cfg = "service.cli:read_cfg"
-server = "service.cli:serve"
 
 [tool.pytest.ini_options]
 markers = [

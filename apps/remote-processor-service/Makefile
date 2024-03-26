@@ -1,21 +1,3 @@
-help:
-	@echo "install_rps: installs dependencies, builds proto, then installs the package"
-	@echo "clean: clean up grpc-generated code (by deletion)"
-	@echo "build_proto: generate code from the .proto files in protocols/proto-remote-processor"
-
-clean:
-	-rm lib/*pb2*
-
-build_proto:
-	poetry run python -m grpc_tools.protoc -I opensearch-remote-processor/src/main/proto --python_out=lib --pyi_out=lib --grpc_python_out=lib opensearch-remote-processor/src/main/proto/*.proto
-	# Fix the relative imports
-	poetry run protol --in-place --python-out lib protoc --proto-path=opensearch-remote-processor/src/main/proto opensearch-remote-processor/src/main/proto/*.proto
-
-install_rps:
-	poetry install --no-root
-	make build_proto
-	poetry install --only-root
-
 ### Docker steps sorted in the same order as the Dockerfile
 ### Not for general use so undocumented
 
@@ -39,10 +21,10 @@ common_build:
 docker_build_proto:
 	test "$(POETRY_CACHE_DIR)" = /tmp/poetry_cache
 	poetry install --no-root --only build
-	make -f ../Makefile build_proto
+	make -f ./Makefile build_proto
 
 server_build:
-	poetry install --only-root
+	poetry install --only main,dev
 
 user_check:
 	FILES=$$(find /aryn -print | wc -l); \

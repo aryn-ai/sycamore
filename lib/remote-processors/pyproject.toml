@@ -1,0 +1,45 @@
+[tool.poetry]
+name = "remote-processor-service"
+version = "0.1.0"
+description = "A service for hosting search processors extrnal to opensearch"
+authors = ["HenryL27 <hmlindeman@yahoo.com>"]
+readme = "README.md"
+packages = [
+    { include = "lib" },
+    { include = "service" },
+]
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.12"
+click = "^8.1.7"
+pyyaml = "^6.0.1"
+grpcio = "^1.60.0"
+cbor2 = "^5.6.0"
+sycamore-ai = "^0.1.12"
+protobuf = "^4.25.2"
+
+
+[tool.poetry.group.test.dependencies]
+pytest = "^8.0.0"
+pytest-mock = "^3.12.0"
+docker = "^7.0.0"
+opensearch-py = "^2.4.2"
+
+
+
+[tool.poetry.group.build.dependencies]
+grpcio-tools = "^1.60.1"
+protoletariat = "^3.2.19"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+test_cfg = "service.cli:read_cfg"
+server = "service.cli:serve"
+
+[tool.pytest.ini_options]
+markers = [
+    "processor_name: marks integ test with name of processor to test",
+]

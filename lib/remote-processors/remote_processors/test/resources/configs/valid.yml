@@ -1,0 +1,7 @@
+- debug:
+    processors:
+      - debug-response:
+          prefix: "in debug processor"
+      - debug-response:
+          prefix: "in second debug processor"
+      - debug-response:

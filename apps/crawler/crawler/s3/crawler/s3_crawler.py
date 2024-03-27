@@ -23,7 +23,8 @@ class S3Crawler:
             s = os.stat("/app/.data/.s3")
             if s.st_uid != 1000 or s.st_gid != 1000:
                 raise Exception(
-                    f"Incorrect ownership on /app/.data/.s3 {s.st_uid},{s.st_gid}\nReset the containers or manually chown the files"
+                    f"Incorrect ownership on /app/.data/.s3 {s.st_uid},{s.st_gid}"
+                    "\nReset the containers or manually chown the files"
                 )
 
     def crawl(self) -> None:

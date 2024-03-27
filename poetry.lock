@@ -5283,11 +5283,10 @@ develop = true
 
 [package.dependencies]
 cbor2 = "^5.6.0"
-click = "^8.1.7"
 grpcio = "^1.60.0"
 protobuf = "^4.25.2"
 pyyaml = "^6.0.1"
-sycamore-ai = "^0.1.12"
+sycamore-ai = "^0.1.13"
 
 [package.source]
 type = "directory"
@@ -6213,7 +6212,7 @@ pdfminer-six = "20221105"
 pyarrow = "14.0.1"
 pypdf2 = "^3.0.1"
 python-pptx = "^0.6.22"
-ray = {version = "^2.9.0", extras = ["default"]}
+ray = {version = ">=2.9.0,<2.10.0", extras = ["default"]}
 rouge = "^1.0.1"
 sentence-transformers = "2.2.2"
 tenacity = "8.2.3"

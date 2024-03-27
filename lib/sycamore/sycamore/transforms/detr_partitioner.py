@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import tempfile
-from typing import BinaryIO, Any, List, Tuple
+from typing import cast, BinaryIO, List, Tuple
 
 from sycamore.data import Element, BoundingBox
 from PIL import Image
@@ -13,7 +13,8 @@ from pdfminer.layout import LAParams
 from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
 from pdfminer.pdfpage import PDFPage
 from pdfminer.utils import open_filename
-from typing import cast
+
+import pytesseract
 
 
 class SycamorePDFPartitioner:
@@ -44,19 +45,26 @@ class SycamorePDFPartitioner:
 
         return inferred + unmatched
 
-    def partition_pdf(self, file: BinaryIO, threshold: float = 0.4) -> List[List["Element"]]:
+    def partition_pdf(
+        self, file: BinaryIO, threshold: float = 0.4, use_ocr=False, ocr_images=False, ocr_tables=False
+    ) -> List[List["Element"]]:
         with tempfile.TemporaryDirectory() as tmp_dir, tempfile.NamedTemporaryFile() as tmp_file:
             filename = tmp_file.name
             tmp_file.write(file.read())
             tmp_file.flush()
 
-            images = pdf2image.convert_from_path(
+            image_paths: list[str] = pdf2image.convert_from_path(
                 filename,
                 output_folder=tmp_dir,
                 paths_only=True,
             )
-            image_paths = cast(List[str], images)
-            deformable_layout = [self.model.infer(Image.open(path).convert("RGB"), threshold) for path in image_paths]
+            images = [Image.open(path).convert("RGB") for path in image_paths]
+
+            deformable_layout = [self.model.infer(image, threshold) for image in images]
+
+            if use_ocr:
+                return extract_ocr(images, deformable_layout, ocr_images=ocr_images, ocr_tables=ocr_tables)
+
             pdfminer = PDFMinerExtractor()
             pdfminer_layout = pdfminer.extract(filename)
             # page count should be the same
@@ -75,11 +83,11 @@ class SycamoreObjectDetection(ABC):
         self.model = None
 
     @abstractmethod
-    def infer(self, image: Image, threshold: float) -> List[List[Element]]:
+    def infer(self, image: Image, threshold: float) -> List[Element]:
         """Do inference using the wrapped model."""
         pass
 
-    def __call__(self, image: Image, threshold: float) -> List[List[Element]]:
+    def __call__(self, image: Image, threshold: float) -> List[Element]:
         """Inference using function call interface."""
         return self.infer(image, threshold)
 
@@ -118,7 +126,7 @@ class DeformableDetr(SycamoreObjectDetection):
         else:
             return self.device
 
-    def infer(self, image: Image, threshold: float) -> Any:
+    def infer(self, image: Image, threshold: float) -> list[Element]:
         inputs = self.processor(images=image, return_tensors="pt").to(self._get_device())
         outputs = self.model(**inputs)
         target_sizes = torch.tensor([image.size[::-1]])
@@ -191,3 +199,26 @@ class PDFMinerExtractor:
 
                 pages.append(texts)
             return pages
+
+
+def extract_ocr(
+    images: list[Image], elements: list[list[Element]], ocr_images=False, ocr_tables=False
+) -> list[list[Element]]:
+    for i, image in enumerate(images):
+        width, height = image.size
+
+        page_elements = elements[i]
+
+        for elem in page_elements:
+            if elem.type == "Picture" and not ocr_images:
+                continue
+            elif elem.type == "Table" and not ocr_tables:
+                continue
+
+            crop_box = (elem.bbox.x1 * width, elem.bbox.y1 * height, elem.bbox.x2 * width, elem.bbox.y2 * height)
+
+            cropped_image = image.crop(crop_box)
+            text = pytesseract.image_to_string(cropped_image)
+            elem.text_representation = text
+
+    return elements

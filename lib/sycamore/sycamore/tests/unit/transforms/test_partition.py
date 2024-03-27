@@ -4,7 +4,7 @@ from typing import Callable
 import pytest
 from ray.data import Dataset
 
-from sycamore.data import Document
+from sycamore.data import Document, Element
 from sycamore.transforms.partition import (
     Partition,
     HtmlPartitioner,
@@ -155,7 +155,6 @@ class TestPartition:
         assert len(doc.elements) == partition_count
 
     def test_sycamore_partitioner_elements_reorder(self) -> None:
-        from sycamore.data import Element
         import functools
 
         # e1.y1 < e0.y1 = e2.y1, e0.x1 < e2.x1 both on left
@@ -179,3 +178,22 @@ class TestPartition:
         result = [e4, e5, e3, e6, e7, e8, e9, e1, e0, e2]
 
         assert elements == result
+
+    def test_simple_ocr(self):
+        import pdf2image
+        from sycamore.transforms.detr_partitioner import extract_ocr
+
+        path = TEST_DIR / "resources/data/ocr_pdfs/test_simple_ocr.pdf"
+        images = pdf2image.convert_from_path(path, dpi=800)
+        assert len(images) == 1
+
+        elem = Element({"bbox": (0.0, 0.0, 1.0, 1.0), "properties": {"page_number": 1}})
+
+        new_elems = extract_ocr(images, [[elem]])
+
+        assert len(new_elems) == 1
+        assert len(new_elems[0]) == 1
+
+        text = new_elems[0][0].text_representation
+        assert text is not None
+        assert text.strip() == "The quick brown fox"

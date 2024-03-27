@@ -38,6 +38,8 @@ jobs:
       - name: Install sycamore
         run: poetry install
         working-directory: lib/sycamore
+      - name: Install poppler and tesseract
+        run: sudo apt-get install -y poppler-utils tesseract-ocr
       - name: Run tests
         run: poetry run pytest sycamore/tests/unit/
         working-directory: lib/sycamore
@@ -99,8 +101,8 @@ jobs:
       - name: Download nltk packages
         run: poetry run python -m nltk.downloader punkt averaged_perceptron_tagger
 
-      - name: Install poppler
-        run: sudo apt-get install -y poppler-utils
+      - name: Install poppler and tesseract
+        run: sudo apt-get install -y poppler-utils tesseract-ocr
 
       - name: Configure AWS Credentials via OIDC provider.
         uses: aws-actions/configure-aws-credentials@v4

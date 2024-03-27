@@ -3,7 +3,7 @@
 FROM gradle:jdk17 AS build_ml_commons
 
 WORKDIR /build_ml
-RUN git clone -b 2.12 --depth 1 https://github.com/opensearch-project/ml-commons.git
+ADD https://github.com/opensearch-project/ml-commons.git#2.12 ./ml-commons
 WORKDIR /build_ml/ml-commons
 RUN sed -i 's#if (os.macOsX) {#if (System.getProperty("os.arch") == "aarch64") {#' ml-algorithms/build.gradle
 RUN sed -i 's#throw new OpenSearchException("GenerativeQAResponseProcessor failed in precessing response");#log.error(e); throw new OpenSearchException(e);#'\
@@ -13,7 +13,7 @@ RUN ./gradlew assemble
 FROM gradle:jdk17 AS build_rps_plugin
 
 WORKDIR /build
-RUN git clone -b 2.x --depth 1 https://github.com/aryn-ai/opensearch-remote-processor.git
+ADD https://github.com/aryn-ai/opensearch-remote-processor.git#2.x ./opensearch-remote-processor
 WORKDIR /build/opensearch-remote-processor
 RUN ./gradlew assemble
 

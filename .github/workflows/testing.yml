@@ -19,7 +19,7 @@ permissions:
   contents: read    # This is required for actions/checkout
 
 jobs:
-  unit-tests:
+  sycamore-unit-tests:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -41,6 +41,35 @@ jobs:
       - name: Run tests
         run: poetry run pytest sycamore/tests/unit/
         working-directory: lib/sycamore
+
+  rps-unit-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ "3.9", "3.10", "3.11" ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install Poetry
+        run: pipx install poetry
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'poetry'
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install RPS
+        run: make install_rps
+        working-directory: lib/remote-processors
+      - name: Run Tests
+        run: poetry run pytest remote_processors/test/unit/
+        working-directory: lib/remote-processors
 
   integ-tests:
     runs-on: integ-test-runner

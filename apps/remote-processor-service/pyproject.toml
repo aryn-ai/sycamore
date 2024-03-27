@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "remote-processor-service"
+version = "0.1.0"
+description = "Service that runs remote processors"
+authors = ["Henry Lindeman <henry@aryn.ai>"]
+readme = "README.md"
+packages = [{include = "remote_processor_service"}]
+
+[tool.poetry.dependencies]
+python = ">=3.9.0,<3.12"
+click = "^8.1.7"
+
+[tool.poetry.group.dev.dependencies]
+remote-processors = { path = "../../lib/remote-processors", develop = true }
+sycamore-ai = { path = "../../lib/sycamore", develop = true }
+
+
+[tool.poetry.scripts]
+test_cfg = "remote_processor_service.cli:read_cfg"
+server = "remote_processor_service.cli:serve"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

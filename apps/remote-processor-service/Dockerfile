@@ -1,0 +1,61 @@
+# Repo name: arynai/sycamore-remote-processor-service
+
+##########
+# Common: resolve dependencies
+FROM python:3.11 AS rps_common
+
+ARG RPS_PORT=2796
+ARG POETRY_NO_INTERACTION=1
+ARG POETRY_VIRTUALENVS_IN_PROJECT=1
+ARG POETRY_VIRTUALENVS_CREATE=1
+ARG POETRY_CACHE_DIR=/tmp/poetry_cache
+
+# Is there some way to keep this common layer common across all our services?
+# E.g. maybe we can have an image called 'aryn_service_base' or something
+# - setup aryn user and directory
+# - install commonly used software (poetry, maybe protoc)
+# And then we can just layer services on top?
+
+WORKDIR /aryn/
+COPY ./apps/remote-processor-service/Makefile ./
+RUN make aryn_user
+RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    make install_poetry
+
+USER aryn
+WORKDIR /aryn/rps/
+COPY --chown=aryn:aryn apps/remote-processor-service/pyproject.toml apps/remote-processor-service/poetry.lock apps/remote-processor-service/
+COPY --chown=aryn:aryn lib/sycamore/poetry.lock lib/sycamore/pyproject.toml lib/sycamore/
+COPY --chown=aryn:aryn lib/remote-processors/poetry.lock lib/remote-processors/pyproject.toml lib/remote-processors/
+WORKDIR /aryn/rps/apps/remote-processor-service
+RUN --mount=type=cache,id=cache_poetry_1000,target=/tmp/poetry_cache,uid=1000,gid=1000,sharing=locked \
+    make -f /aryn/Makefile common_build
+
+##########
+# Build: build package, compile protobufs
+FROM rps_common AS rps_build
+
+# Build the proto files into python
+WORKDIR /aryn/rps/lib/remote-processors
+COPY --chown=aryn:aryn ./lib/remote-processors ./
+RUN --mount=type=cache,id=cache_poetry_1000,target=/tmp/poetry_cache,uid=1000,gid=1000,sharing=locked \
+    make -f /aryn/Makefile docker_build_proto
+
+##########
+# Run: run the server
+FROM rps_common AS rps_server
+
+WORKDIR /aryn/rps
+COPY --from=rps_build --chown=aryn:aryn /aryn/rps/lib/remote-processors ./lib/remote-processors/
+COPY --chown=aryn:aryn ./lib/sycamore ./lib/sycamore/
+COPY --chown=aryn:aryn ./apps/remote-processor-service ./apps/remote-processor-service
+WORKDIR /aryn/rps/apps/remote-processor-service
+RUN make -f /aryn/Makefile server_build
+RUN chmod +x ./remote_processor_service/rps_docker_entrypoint.sh
+RUN make -f /aryn/Makefile user_check
+
+EXPOSE $RPS_PORT
+
+CMD ./remote_processor_service/rps_docker_entrypoint.sh

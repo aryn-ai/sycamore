@@ -1,0 +1,7 @@
+- debug:
+    processors:
+      - debug-response:
+- dedup:
+    processors:
+      - dedup-response:
+          threshold: 0.4

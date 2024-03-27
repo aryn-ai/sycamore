@@ -39,6 +39,7 @@ ds = (
     .merge(merger=GreedyTextElementMerger(tokenizer=tokenizer, max_tokens=512))
     .spread_properties(["path", "title"])
     .explode()
+    .sketch()
     .embed(embedder=SentenceTransformerEmbedder(model_name="thenlper/gte-small", batch_size=100))
 )
 

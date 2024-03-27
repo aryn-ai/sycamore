@@ -45,6 +45,7 @@ ds = (
     .spread_properties(["path", "title"])
     .split_elements(tokenizer=tokenizer, max_tokens=512)
     .explode()
+    .sketch()
     .embed(embedder=SentenceTransformerEmbedder(model_name="thenlper/gte-small", batch_size=100))
 )
 

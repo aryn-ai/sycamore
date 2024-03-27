@@ -308,6 +308,7 @@ def import_pdf(paths):
         )
         .spread_properties(["path", "title"])
         .explode()
+        .sketch()
         .embed(
             embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
         )
@@ -341,6 +342,7 @@ def import_html(paths):
         )
         .spread_properties(["path", "title"])
         .explode()
+        .sketch()
         .embed(
             embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
         )

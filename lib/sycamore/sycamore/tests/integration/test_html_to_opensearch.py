@@ -60,6 +60,7 @@ def test_html_to_opensearch():
             )
             .partition(partitioner=HtmlPartitioner())
             .explode()
+            .sketch()
             .embed(SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2"))
         )
         # assert metadata properties are propagated to child elements

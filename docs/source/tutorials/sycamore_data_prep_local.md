@@ -105,7 +105,7 @@ docset = docset.extract_entity(
 )
 ```
 
-5. Next, we want to convert each element of a document into a top/parent level document. Additionally, we also want to generate embeddings for these documents. We will use the explode and embed transform respectively to achieve this.
+5. Next, we want to convert each element of a document into a top/parent level document. Additionally, we also want to generate sketches and embeddings for these documents. We will use the explode, sketch and embed transforms respectively to achieve this.
 
 ```python
 from sycamore.transforms.embed import SentenceTransformerEmbedder
@@ -113,6 +113,7 @@ from sycamore.transforms.embed import SentenceTransformerEmbedder
 # We are using SentenceTransformerEmbedder to embed the content of each document; which
 # uses the SentenceTransformer model. You can write your own Embedder as well.
 docset = docset.explode()
+.sketch()
 .embed(embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
 ```
 

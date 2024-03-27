@@ -371,7 +371,7 @@ def get_index_settings():
                     "embedding": {
                         "dimension": 384,
                         "method": {
-                            "engine": "nmslib",
+                            "engine": "faiss",
                             "space_type": "l2",
                             "name": "hnsw",
                             "parameters": {},
@@ -383,7 +383,7 @@ def get_index_settings():
                     "title_embedding": {
                         "dimension": 384,
                         "method": {
-                            "engine": "nmslib",
+                            "engine": "faiss",
                             "space_type": "l2",
                             "name": "hnsw",
                             "parameters": {},

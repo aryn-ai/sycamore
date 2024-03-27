@@ -223,7 +223,7 @@ index_settings =  {
                 "properties": {
                     "embedding": {
                         "dimension": 384,
-                        "method": {"engine": "nmslib", "space_type": "l2", "name": "hnsw", "parameters": {}},
+                        "method": {"engine": "faiss", "space_type": "l2", "name": "hnsw", "parameters": {}},
                         "type": "knn_vector",
                     },
                 }

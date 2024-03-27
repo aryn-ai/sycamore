@@ -83,7 +83,7 @@ def upload_jsonl_index(request, setup_containers, opensearch_client):
                 "embedding": {
                     "type": "knn_vector",
                     "dimension": 384,
-                    "method": {"name": "hnsw", "engine": "nmslib"},
+                    "method": {"name": "hnsw", "engine": "faiss"},
                 }
             }
         }

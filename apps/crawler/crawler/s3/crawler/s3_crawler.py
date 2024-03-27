@@ -22,7 +22,7 @@ class S3Crawler:
         if os.path.exists("/.dockerenv"):
             s = os.stat("/app/.data/.s3")
             if s.st_uid != 1000 or s.st_gid != 1000:
-                raise Exception(
+                raise RuntimeError(
                     f"Incorrect ownership on /app/.data/.s3 {s.st_uid},{s.st_gid}"
                     "\nReset the containers or manually chown the files"
                 )

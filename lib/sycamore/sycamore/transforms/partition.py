@@ -350,13 +350,18 @@ class HtmlPartitioner(Partitioner):
         return document
 
 
+SYCAMORE_DETR_MODEL = "Aryn/deformable-detr-DocLayNet"
+
+
 class SycamorePartitioner(Partitioner):
-    def __init__(self, model_name_or_path, threshold: float = 0.4):
+    def __init__(self, model_name_or_path, threshold: float = 0.4, use_ocr=False, ocr_images=False, ocr_tables=False):
         from sycamore.transforms.detr_partitioner import SycamorePDFPartitioner
 
         self._partitioner = SycamorePDFPartitioner(model_name_or_path)
         self._threshold = threshold
-        pass
+        self._use_ocr = use_ocr
+        self._ocr_images = ocr_images
+        self._ocr_tables = ocr_tables
 
     # For now, we reorder elements based on page, left/right column, y axle position then finally x axle position
     @staticmethod
@@ -396,7 +401,9 @@ class SycamorePartitioner(Partitioner):
         binary = io.BytesIO(document.data["binary_representation"])
 
         try:
-            result = self._partitioner.partition_pdf(binary, self._threshold)
+            result = self._partitioner.partition_pdf(
+                binary, self._threshold, use_ocr=self._use_ocr, ocr_images=self._ocr_images, ocr_tables=self._ocr_tables
+            )
         except Exception as e:
             path = document.properties["path"]
             raise RuntimeError(f"SycamorePartitioner Error processing {path}") from e

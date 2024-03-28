@@ -534,11 +534,19 @@ def create_pipelines(openai_id):
                     "combination": {"technique": "arithmetic_mean", "parameters": {"weights": [0.111, 0.889]}},
                 }
             }
-        ]
+        ],
+        "response_processors": [
+            {
+                "remote_processor": {
+                    "endpoint": "rps:2796/RemoteProcessorService/ProcessResponse",
+                    "processor_name": "dedup02",
+                },
+            },
+        ],
     }
     create_pipeline(hybrid_pipeline_name, pipeline_def)
     hybrid_rag_pipeline_name = "hybrid_rag_pipeline"
-    pipeline_def["response_processors"] = [
+    pipeline_def["response_processors"].append(
         {
             "retrieval_augmented_generation": {
                 "tag": "openai_pipeline",
@@ -547,7 +555,7 @@ def create_pipelines(openai_id):
                 "context_field_list": ["text_representation"],
             }
         }
-    ]
+    )
     create_pipeline(hybrid_rag_pipeline_name, pipeline_def)
 
 

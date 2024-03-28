@@ -14,7 +14,6 @@ _LOG.addHandler(handler)
 
 
 class DebugResponseProcessor(ResponseProcessor):
-
     def __init__(self, prefix: Optional[str] = None):
         self._prefix = prefix
 
@@ -38,7 +37,6 @@ class DebugResponseProcessor(ResponseProcessor):
 
 
 class DebugRequestProcessor(RequestProcessor):
-
     def __init__(self):
         pass
 

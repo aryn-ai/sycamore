@@ -5,7 +5,6 @@ from remote_processors import SearchResponse
 
 
 class ResponseProcessor(ABC):
-
     @staticmethod
     @abstractmethod
     def from_config(configuration_chunk) -> "ResponseProcessor":
@@ -22,7 +21,6 @@ class ResponseProcessor(ABC):
 
 
 class RequestProcessor(ABC):
-
     @staticmethod
     @abstractmethod
     def from_config(configuration_chunk) -> "RequestProcessor":

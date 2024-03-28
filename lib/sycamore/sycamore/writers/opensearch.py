@@ -1,12 +1,11 @@
 import logging
-from typing import Optional, Iterable
+from typing import Any, Optional, Iterable
 
 from opensearchpy import OpenSearch
 from opensearchpy.helpers import parallel_bulk
-from ray.data import Datasource, Dataset
+from ray.data import Datasink, Dataset
 from ray.data._internal.delegating_block_builder import DelegatingBlockBuilder
 from ray.data.block import Block, BlockAccessor
-from ray.data.datasource import WriteResult
 from ray.data._internal.execution.interfaces import TaskContext
 
 from sycamore.data import Document
@@ -47,18 +46,26 @@ class OpenSearchWriter(Write):
         except Exception as e:
             raise RuntimeError("Exception occurred while creating an index", e)
 
-        dataset.write_datasource(
-            OSDataSource(),
-            index_name=self.index_name,
-            os_client_args=self.os_client_args,
-            number_of_allowed_failures_per_block=self.number_of_allowed_failures_per_block,
-            collect_failures_file_path=self.collect_failures_file_path,
+        dataset.write_datasink(
+            OSDataSink(
+                index_name=self.index_name,
+                os_client_args=self.os_client_args,
+                number_of_allowed_failures_per_block=self.number_of_allowed_failures_per_block,
+                collect_failures_file_path=self.collect_failures_file_path,
+            ),
+            ray_remote_args=self.resource_args,
         )
 
         return dataset
 
 
-class OSDataSource(Datasource):
+class OSDataSink(Datasink):
+    def __init__(self, index_name, os_client_args, number_of_allowed_failures_per_block, collect_failures_file_path):
+        self.index_name = index_name
+        self.os_client_args = os_client_args
+        self.number_of_allowed_failures_per_block = number_of_allowed_failures_per_block
+        self.collect_failures_file_path = collect_failures_file_path
+
     # todo: make this type specific to extract properties
     @staticmethod
     def extract_os_document(data):
@@ -81,18 +88,19 @@ class OSDataSource(Datasource):
                 result[k] = v
         return result
 
-    # The type: ignore is required for the ctx parameter, which is not part of the Datasource
-    # API spec, but is passed at runtime by Ray. This can be removed once this commit is
-    # included in Ray's release:
-    #
-    # https://github.com/ray-project/ray/commit/dae1d1f4a0f531fd8d0fbfca5e5cd2d1f21b551e
-    def write(self, blocks: Iterable[Block], ctx: TaskContext, **write_args) -> WriteResult:  # type: ignore
+    def write(self, blocks: Iterable[Block], ctx: TaskContext) -> Any:
         builder = DelegatingBlockBuilder()
         for block in blocks:
             builder.add_block(block)
         block = builder.build()
 
-        self.write_block(block, **write_args)
+        self.write_block(
+            block,
+            os_client_args=self.os_client_args,
+            index_name=self.index_name,
+            collect_failures_file_path=self.collect_failures_file_path,
+            number_of_allowed_failures_per_block=self.number_of_allowed_failures_per_block,
+        )
 
         return "ok"
 
@@ -111,7 +119,7 @@ class OSDataSource(Datasource):
 
         def create_actions():
             for i, row in enumerate(block):
-                doc = OSDataSource.extract_os_document(Document.from_row(row).data)
+                doc = OSDataSink.extract_os_document(Document.from_row(row).data)
                 action = {"_index": index_name, "_id": doc["doc_id"], "_source": doc}
                 yield action
 

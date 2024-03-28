@@ -37,9 +37,9 @@ index = "demoindex0"
 # TODO: https://github.com/aryn-ai/sycamore/issues/158 - handle importing problems in a more
 #       clever way than blind retry.
 def main():
-    print("Version-Info, Sycamore Importer Branch:", os.environ["GIT_BRANCH"])
-    print("Version-Info, Sycamore Importer Commit:", os.environ["GIT_COMMIT"])
-    print("Version-Info, Sycamore Importer Diff:", os.environ["GIT_DIFF"])
+    print("Version-Info, Sycamore Importer Branch:", os.environ.get("GIT_BRANCH", "unspecified"))
+    print("Version-Info, Sycamore Importer Commit:", os.environ.get("GIT_COMMIT", "unspecified"))
+    print("Version-Info, Sycamore Importer Diff:", os.environ.get("GIT_DIFF", "unspecified"))
     print(flush=True)
     root_path = "/app/.scrapy"
     if len(sys.argv) <= 1:
@@ -56,6 +56,20 @@ def main():
     if root_path == "/app/.scrapy":
         print("Assuming execution is in container, using adjusted host")
         running_in_container = True
+
+    # check for user change in Mar 2024; code removable after Mar 2025 when
+    # everyone should have run their containers and fixed the problem by then
+    stat = os.stat(root_path)
+    fix = "To fix in containers: docker compose run fixuser"
+    if stat.st_uid != os.getuid():
+        raise RuntimeError(
+            f"unsupported mismatch between {root_path} uid {stat.st_uid} and current uid {os.getuid()}\n{fix}"
+        )
+
+    if stat.st_gid != os.getgid():
+        raise RuntimeError(
+            f"unsupported mismatch between {root_path} gid {stat.st_gid} and current gid {os.getgid()}\n{fix}"
+        )
 
     if root_path == "/app/.scrapy" and "OPENAI_API_KEY" in os.environ:
         print("WARNING: OPENAI_API_KEY in environment is potentially insecure.")

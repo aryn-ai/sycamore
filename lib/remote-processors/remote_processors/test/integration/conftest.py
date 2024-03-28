@@ -19,7 +19,7 @@ def opensearch_client():
         verify_certs=False,
         ssl_assert_hostname=False,
         ssl_show_warn=False,
-        timeout=120
+        timeout=120,
     )
 
 
@@ -59,15 +59,10 @@ def run_compose(server_image, opensearch_image):
         detach=True,
         ports={"9200/tcp": 9200, "9600/tcp": 9600, "9300/tcp": 9300},
         environment={"discovery.type": "single-node"},
-        remove=True
+        remove=True,
     )
     rps_container = client.containers.run(
-        image=server_image,
-        name="test-rps",
-        network=network.id,
-        detach=True,
-        ports={"2796/tcp": 2796},
-        remove=True
+        image=server_image, name="test-rps", network=network.id, detach=True, ports={"2796/tcp": 2796}, remove=True
     )
     return network, opensearch_container, rps_container
 
@@ -76,18 +71,21 @@ def run_compose(server_image, opensearch_image):
 def upload_jsonl_index(request, setup_containers, opensearch_client):
     path = request.param
     index_name = Path(path).stem
-    opensearch_client.indices.create(index=index_name, body={
-        "settings": {"index.knn": True, "number_of_shards": 5, "number_of_replicas": 1},
-        "mappings": {
-            "properties": {
-                "embedding": {
-                    "type": "knn_vector",
-                    "dimension": 384,
-                    "method": {"name": "hnsw", "engine": "faiss"},
+    opensearch_client.indices.create(
+        index=index_name,
+        body={
+            "settings": {"index.knn": True, "number_of_shards": 5, "number_of_replicas": 1},
+            "mappings": {
+                "properties": {
+                    "embedding": {
+                        "type": "knn_vector",
+                        "dimension": 384,
+                        "method": {"name": "hnsw", "engine": "faiss"},
+                    }
                 }
-            }
-        }
-    })
+            },
+        },
+    )
     with open(path, "r") as f:
         records = []
         for line in f:
@@ -119,7 +117,7 @@ def wait_for_opensearch_connection(client: OpenSearch):
 def singleton_pipeline(request, setup_containers):
     processor_name = request.node.get_closest_marker("processor_name")
     if processor_name is None:
-        raise ValueError("Missing \"processor_name\" mark")
+        raise ValueError('Missing "processor_name" mark')
     processor_name = processor_name.args[0]
     pipeline_name = processor_name + "-pipeline"
     pipeline_def = {
@@ -127,17 +125,11 @@ def singleton_pipeline(request, setup_containers):
             {
                 "remote_processor": {
                     "endpoint": "test-rps:2796/RemoteProcessorService/ProcessResponse",
-                    "processor_name": processor_name
+                    "processor_name": processor_name,
                 }
             }
         ]
     }
-    requests.put(
-        url=f"http://localhost:9200/_search/pipeline/{pipeline_name}",
-        json=pipeline_def
-    )
+    requests.put(url=f"http://localhost:9200/_search/pipeline/{pipeline_name}", json=pipeline_def)
     yield pipeline_name
-    requests.delete(
-        url=f"http://localhost:9200/_search/pipeline/{pipeline_name}"
-    )
-
+    requests.delete(url=f"http://localhost:9200/_search/pipeline/{pipeline_name}")

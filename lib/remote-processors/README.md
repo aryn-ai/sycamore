@@ -1,16 +1,16 @@
 # Remote Processor Service
-This project aims to enable "Remote Search Processors". OpenSearch allows post-processing of search responses and requests 
+This project aims to enable "Remote Search Processors". OpenSearch allows post-processing of search responses and requests
 via an object called a "Search Processor". We've found that implementing these in java and building and installing a plugin
-every time we want to change the behavior of such a search processor produces a very long iteration cycle. Our solution is 
-to simply pull the search processors out of OpenSearch entirely; instead we install a single plugin that makes RPCs to an 
+every time we want to change the behavior of such a search processor produces a very long iteration cycle. Our solution is
+to simply pull the search processors out of OpenSearch entirely; instead we install a single plugin that makes RPCs to an
 external service which contains the processors. This is the external service; the plugin is [over here](https://github.com/aryn-ai/opensearch-remote-processor).
 
 In order to keep as much parity with the OpenSearch Search Processor interface, the plugin and external service communicate
 through protocol-buffered forms of the OpenSearch-internal SearchResponse and SearchRequest objects. The protobuf definitions
 can be found [over here](https://github.com/aryn-ai/protocols).
 
-We have a little bit of a nomenclature clash. There are two levels of processors in the service: processors and pipelines. 
-A processor is a single unit of processing; whereas a pipeline is made up of a string of processors. You can build a 
+We have a little bit of a nomenclature clash. There are two levels of processors in the service: processors and pipelines.
+A processor is a single unit of processing; whereas a pipeline is made up of a string of processors. You can build a
 one-processor pipeline. The trick is that the service exposes each pipeline as an RPC to OpenSearch, and in OpenSearch the
 Remote Search Processor calls out to one of these pipelines. So you will have an OpenSearch search pipeline with a remote
 search processor that calls out to a remote search pipeline endpoint made up of search processors. Try not to think about
@@ -18,7 +18,7 @@ it too much. Instead, look at the picture:
 
 ![untitled](img/RPS_Architecture.svg)
 
-## Instructions 
+## Instructions
 Setting this up takes a couple steps. First, get the protocols submodule with
 ```
 git submodule update --init --recursive

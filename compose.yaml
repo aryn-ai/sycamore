@@ -130,6 +130,13 @@ services:
       - crawl_data:/tmp/crawl_data
     command: /bin/sh -c 'echo size-before && du -s /tmp/* && rm -rf /tmp/opensearch_data/* /tmp/crawl_data/* && chown 1000:1000 /tmp/crawl_data && echo size-after && du -s /tmp/*'
 
+  fixuser:
+    profiles: ['fixuser']
+    image: ubuntu
+    volumes:
+      - crawl_data:/tmp/crawl_data
+    command: /bin/sh -c 'echo "starting chown..." && chown -R 1000:1000 /tmp/crawl_data && echo "chown successful"'
+
 volumes:
   opensearch_data:
   crawl_data:

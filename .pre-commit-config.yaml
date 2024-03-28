@@ -38,7 +38,9 @@ repos:
         name: pytest-check
         # Needed because otherwise it seems to always run pytest in the git root.
         entry: poetry run pytest lib/sycamore/sycamore/tests/unit apps/crawler/crawler/s3/tests/unit
-        # Temporarily disabled, does not seem to work. lib/remote-processors/remote_processors/test/unit
+        # lib/remote-processors/remote_processors/test/unit
+        # not run here but via github actions because it requires a make step to happen first
+        # and it requires a poetry env setup also.
         language: system
         pass_filenames: false
         always_run: true

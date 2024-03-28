@@ -27,9 +27,11 @@ def dummy_search_response():
                         score=1,
                         id="ab005390-c05b-11ee-9502-3a049e7f7082",
                         version=-1,
-                        source=b'{"doc_id":"aaffbdc2-c05b-11ee-9502-3a049e7f7082","type":"NarrativeText","text_representation":"The following hardware \
-trends allowed UNIX systems to eclipse IBM mainframes in processing power and sort performance. Recently, these same trends, along with \
-some Windows-specific ones, have allowed the performance of large Windows servers to skyrocket.","elements":[],"parent_id":\
+                        source=b'{"doc_id":"aaffbdc2-c05b-11ee-9502-3a049e7f7082","type":"NarrativeText",\
+"text_representation":"The following hardware trends allowed UNIX systems to eclipse IBM mainframes in processing \
+power and sort performance. Recently, these same trends, along with \
+some Windows-specific ones, have allowed the performance of large Windows servers to skyrocket.",\
+"elements":[],"parent_id":\
 "99140d34-c05b-11ee-9502-3a049e7f7082","properties":{"filename":"","filetype":"application/pdf","parent_id":\
 "8559fa65974d3c8291e37ebc7ca2ce56","page_number":2,"links":[],"element_id":"c10210cca3b107f86c8de4abc1ed0b5d"}}',
                         shard=SearchShardTarget(
@@ -41,9 +43,10 @@ some Windows-specific ones, have allowed the performance of large Windows server
                         score=1,
                         id="aaffbdc2-c05b-11ee-9502-3a049e7f7082",
                         version=-1,
-                        source=b'{"doc_id":"ab005390-c05b-11ee-9502-3a049e7f7082","type":"Title","text_representation":"C P U b u s y %","elements":[],\
-"parent_id":"99877828-c05b-11ee-9502-3a049e7f7082","properties":{"filename":"","filetype":"application/pdf","page_number":5,\
-"links":[],"element_id":"92fbc8d751f7018497cba340d1676df4"}}',
+                        source=b'{"doc_id":"ab005390-c05b-11ee-9502-3a049e7f7082","type":"Title",\
+"text_representation":"C P U b u s y %","elements":[],\
+"parent_id":"99877828-c05b-11ee-9502-3a049e7f7082","properties":{"filename":"","filetype":"application/pdf",\
+page_number":5,"links":[],"element_id":"92fbc8d751f7018497cba340d1676df4"}}',
                         shard=SearchShardTarget(
                             shard_id="[sort-benchmark][0]", index_id="sort-benchmark", node_id="bRNAxMU6TFa3dgWC382CdA"
                         ),

@@ -8,7 +8,6 @@ from remote_processors.server.processor_registry import ProcessorRegistry, Dupli
 
 
 class TestProcessorRegistry:
-
     @pytest.fixture(autouse=True)
     def setup_class(self):
         print("cleaning")

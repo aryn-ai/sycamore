@@ -44,7 +44,8 @@ class Pipeline:
             BadPipelineConfigError: if all the processors in the pipeline are not the same type (Request, Response)
 
         Returns:
-            list[Union[ResponseProcessor, RequestProcessor]]: list of processors for this pipeline. must be homogenous in (RequestProcessor, ResponseProcessor)
+            list[Union[ResponseProcessor, RequestProcessor]]: list of processors for this pipeline.
+                must be homogenous in (RequestProcessor, ResponseProcessor)
         """
         processors = []
         if PROCESSOR_LIST_FIELD not in config:

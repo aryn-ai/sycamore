@@ -7,7 +7,7 @@ if [[ -O /app && -O /app/.scrapy ]]; then
     : # ok, proper ownership
 else
     echo "ERROR: /app or /app/.scrapy has incorrect ownership"
-    echo "ERROR: reset the containers or manually chown the files"
+    echo "TO FIX: docker compose run fixuser"
     exit 1
 fi
 case "$#-$1" in

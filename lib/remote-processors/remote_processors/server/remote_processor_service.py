@@ -33,7 +33,8 @@ class RemoteProcessorService(RemoteProcessorServiceServicer):
         """Constructor. Parses configuration file to create served pipelines
 
         Args:
-            configuration_file (Path): path to a yaml config file that contains all pipeline definitions for this instance
+            configuration_file (Path): path to a yaml config file that contains all
+                                       pipeline definitions for this instance
         """
         self._config_file = configuration_file
         self._pr = ProcessorRegistry()

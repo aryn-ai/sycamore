@@ -6,7 +6,6 @@ from remote_processors.test.utils import dummy_search_request, dummy_search_resp
 
 
 class TestPipeline:
-
     pr = ProcessorRegistry()
 
     def test_valid_configuration(self):

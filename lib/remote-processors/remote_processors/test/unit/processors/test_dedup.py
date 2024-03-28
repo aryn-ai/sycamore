@@ -85,7 +85,6 @@ def mkSearchResp():
 
 
 class TestDedupProcessor:
-
     def test_smoke(self):
         req = None
         resp = mkSearchResp()

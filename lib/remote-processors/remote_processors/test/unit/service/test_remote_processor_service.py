@@ -8,7 +8,6 @@ from remote_processors.test.utils import dummy_search_request, dummy_search_resp
 
 
 class TestRemoteProcessorService:
-
     def test_parse_valid_config(self):
         RemoteProcessorService(TESTS_DIR / "resources/configs/valid.yml")
 

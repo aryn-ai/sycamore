@@ -8,7 +8,6 @@ import logging
 
 from pyarrow.filesystem import FileSystem
 from ray.data import Dataset, read_binary_files, read_json
-from ray.data.datasource import FileExtensionFilter
 
 from sycamore.data import Document
 from sycamore.plan_nodes import Scan
@@ -151,17 +150,15 @@ class BinaryScan(FileScan):
         return ret
 
     def execute(self) -> "Dataset":
-        if self._filter_paths_by_extension:
-            partition_filter = FileExtensionFilter(self.format())
-        else:
-            partition_filter = None
+        file_extensions = [self.format()] if self._filter_paths_by_extension else None
+
         files = read_binary_files(
             self._paths,
             include_paths=True,
             filesystem=self._filesystem,
             parallelism=self.parallelism,
-            partition_filter=partition_filter,
             ray_remote_args=self.resource_args,
+            file_extensions=file_extensions,
         )
 
         return files.map(self._to_document, **self.resource_args)

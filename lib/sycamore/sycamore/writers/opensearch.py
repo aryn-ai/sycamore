@@ -1,12 +1,11 @@
 import logging
-from typing import Optional, Iterable
+from typing import Any, Optional, Iterable
 
 from opensearchpy import OpenSearch
 from opensearchpy.helpers import parallel_bulk
-from ray.data import Datasource, Dataset
+from ray.data import Datasink, Dataset
 from ray.data._internal.delegating_block_builder import DelegatingBlockBuilder
 from ray.data.block import Block, BlockAccessor
-from ray.data.datasource import WriteResult
 from ray.data._internal.execution.interfaces import TaskContext
 
 from sycamore.data import Document
@@ -58,7 +57,7 @@ class OpenSearchWriter(Write):
         return dataset
 
 
-class OSDataSource(Datasource):
+class OSDataSource(Datasink):
     # todo: make this type specific to extract properties
     @staticmethod
     def extract_os_document(data):
@@ -81,12 +80,7 @@ class OSDataSource(Datasource):
                 result[k] = v
         return result
 
-    # The type: ignore is required for the ctx parameter, which is not part of the Datasource
-    # API spec, but is passed at runtime by Ray. This can be removed once this commit is
-    # included in Ray's release:
-    #
-    # https://github.com/ray-project/ray/commit/dae1d1f4a0f531fd8d0fbfca5e5cd2d1f21b551e
-    def write(self, blocks: Iterable[Block], ctx: TaskContext, **write_args) -> WriteResult:  # type: ignore
+    def write(self, blocks: Iterable[Block], ctx: TaskContext, **write_args) -> Any:
         builder = DelegatingBlockBuilder()
         for block in blocks:
             builder.add_block(block)

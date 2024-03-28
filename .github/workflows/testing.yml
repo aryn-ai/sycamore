@@ -11,6 +11,7 @@ on:
 
 env:
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
   SYCAMORE_S3_TEMP_PATH: s3://aryn-sycamore-integ-temp/
 # Permissions for AWS access
 permissions:
@@ -18,7 +19,7 @@ permissions:
   contents: read    # This is required for actions/checkout
 
 jobs:
-  unit-tests:
+  sycamore-unit-tests:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -36,8 +37,41 @@ jobs:
           cache: 'poetry'
       - name: Install sycamore
         run: poetry install
+        working-directory: lib/sycamore
+      - name: Install poppler and tesseract
+        run: sudo apt-get install -y poppler-utils tesseract-ocr
       - name: Run tests
         run: poetry run pytest sycamore/tests/unit/
+        working-directory: lib/sycamore
+
+  rps-unit-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ "3.9", "3.10", "3.11" ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install Poetry
+        run: pipx install poetry
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'poetry'
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install RPS
+        run: make install_rps
+        working-directory: lib/remote-processors
+      - name: Run Tests
+        run: poetry run pytest remote_processors/test/unit/
+        working-directory: lib/remote-processors
 
   integ-tests:
     runs-on: integ-test-runner
@@ -64,11 +98,11 @@ jobs:
       - name: Install sycamore
         run: poetry install
 
-      - name: Download nltk punkt
-        run: poetry run python -m nltk.downloader punkt
+      - name: Download nltk packages
+        run: poetry run python -m nltk.downloader punkt averaged_perceptron_tagger
 
-      - name: Install poppler
-        run: sudo apt-get install -y poppler-utils
+      - name: Install poppler and tesseract
+        run: sudo apt-get install -y poppler-utils tesseract-ocr
 
       - name: Configure AWS Credentials via OIDC provider.
         uses: aws-actions/configure-aws-credentials@v4
@@ -77,7 +111,7 @@ jobs:
           role-to-assume: arn:aws:iam::237550789389:role/aryn-github-integ
 
       - name: Run Integ tests
-        run: poetry run pytest sycamore/tests/integration
+        run: poetry run pytest lib/sycamore/sycamore/tests/integration
 
       - name: Run Notebook tests
         run: poetry run pytest --nbmake --nbmake-timeout=600 notebooks/*.ipynb

@@ -42,6 +42,14 @@ services:
       - DEBUG
       - NOEXIT
 
+  rps:
+    image: arynai/sycamore-remote-processor-service:${RPS_VERSION}
+    ports:
+      - 127.0.0.1:${RPS_PORT}:2796
+    environment:
+      - SSL_HOSTNAME=rps
+    # will probably want to add a config bind mount when rps->sycamore merge
+
   importer:
     image: arynai/sycamore-importer:${SYCAMORE_VERSION}
     ports:
@@ -61,6 +69,24 @@ services:
       - AWS_SECRET_ACCESS_KEY
       - AWS_SESSION_TOKEN
       - AWS_CREDENTIAL_EXPIRATION
+
+  jupyter:
+    image: arynai/sycamore-jupyter:${JUPYTER_VERSION}
+    ports:
+      - 127.0.0.1:${JUPYTER_PORT}:8888
+    volumes:
+      - crawl_data:/app/work/crawl_data
+      - jupyter_data:/app/work/docker_volume
+      - type: bind
+        source: ${JUPYTER_BIND_DIR}
+        target: /app/work/bind_dir
+    environment:
+      - OPENAI_API_KEY
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_SESSION_TOKEN
+      - AWS_CREDENTIAL_EXPIRATION
+      - SSL # Set to 1 if you want self-signed certificates
 
 ### Optional profiles below here
 
@@ -102,25 +128,14 @@ services:
     volumes:
       - opensearch_data:/tmp/opensearch_data
       - crawl_data:/tmp/crawl_data
-    command: /bin/sh -c 'echo size-before && du -s /tmp/* && rm -rf /tmp/opensearch_data/* /tmp/crawl_data/* && echo size-after && du -s /tmp/*'
+    command: /bin/sh -c 'echo size-before && du -s /tmp/* && rm -rf /tmp/opensearch_data/* /tmp/crawl_data/* && chown 1000:1000 /tmp/crawl_data && echo size-after && du -s /tmp/*'
 
-  jupyter:
-    image: arynai/sycamore-jupyter:${JUPYTER_VERSION}
-    ports:
-      - 127.0.0.1:${JUPYTER_PORT}:8888
+  fixuser:
+    profiles: ['fixuser']
+    image: ubuntu
     volumes:
-      - crawl_data:/app/work/crawl_data
-      - jupyter_data:/app/work/docker_volume
-      - type: bind
-        source: ${JUPYTER_BIND_DIR}
-        target: /app/work/bind_dir
-    environment:
-      - OPENAI_API_KEY
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
-      - AWS_SESSION_TOKEN
-      - AWS_CREDENTIAL_EXPIRATION
-      - SSL # Set to 1 if you want self-signed certificates
+      - crawl_data:/tmp/crawl_data
+    command: /bin/sh -c 'echo "starting chown..." && chown -R 1000:1000 /tmp/crawl_data && echo "chown successful"'
 
 volumes:
   opensearch_data:

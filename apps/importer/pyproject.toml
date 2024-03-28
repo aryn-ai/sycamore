@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "sycamore-importer"
+version = "0.0.1"
+description = "Sycamore is an LLM-powered semantic data preparation system for building search applications."
+authors = ["aryn.ai <opensource@aryn.ai>"]
+readme = "README.md"
+repository = "https://github.com/aryn-ai/sycamore.git"
+packages = [{ include = "importer" }]
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.12"
+sycamore-ai = "^0.1.13"
+
+
+[tool.poetry.group.dev.dependencies]
+sycamore-ai = { path = "../../lib/sycamore", develop = true }

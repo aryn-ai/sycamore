@@ -65,6 +65,14 @@ You should see the bucket you created for $SYCAMORE_TEXTRACT_PREFIX.
 
 5. Now, you can (re)start Sycamore with the instructions in the prior section.
 
+### Optional: Configure HTTPS Encryption
+
+If you want to run the demo query UI and the Jupyter UI over HTTPS using SSL/TLS encryption, do the following after step 3 in the Launch Sycamore section.
+
+`export SSL=1`
+
+This will create self-signed certificates for `localhost` and will likely trigger warnings in browsers.  Look [here](encryption.md) for more details.
+
 ## Demo: Ingest and Query Sort Benchmark dataset
 
 You can next run a sample workload that ingests data from the [Sort Benchmark website](http://www.sortbenchmark.org/) into Sycamore and makes it available to query through the demo query UI. This dataset contains HTML webpages and journal articles in PDFs, including images and tables. After loading and preparing this data, you can experiment with how Sycamore can answer questions on this unstructured dataset.

@@ -44,7 +44,7 @@ idx_settings = {
                 "embedding": {
                     "type": "knn_vector",
                     "dimension": 384,
-                    "method": {"name": "hnsw", "engine": "nmslib"},
+                    "method": {"name": "hnsw", "engine": "faiss"},
                 },
             }
         },

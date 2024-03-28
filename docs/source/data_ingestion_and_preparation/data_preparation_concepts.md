@@ -17,6 +17,7 @@ docset = context.read\
     .binary("s3://bucket/prefix", binary_format="pdf")\
     .partition(partitioner=UnstructuredPdfPartitioner())\
     .explode()\
+    .sketch()\
     .embed(SentenceTransformerEmbedder(
         batch_size=10000, model_batch_size=1000,
         model_name="sentence-transformers/all-MiniLM-L6-v2"))

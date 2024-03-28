@@ -1,0 +1,97 @@
+[tool.poetry]
+name = "sycamore-ai"
+version = "0.1.13"
+description = "Sycamore is an LLM-powered semantic data preparation system for building search applications."
+authors = ["aryn.ai <opensource@aryn.ai>"]
+readme = "README.md"
+repository = "https://github.com/aryn-ai/sycamore.git"
+packages = [{ include = "sycamore" }]
+
+
+[tool.poetry.urls]
+"Repository" = "https://github.com/aryn-ai/sycamore.git"
+"Documentation" = "https://sycamore.readthedocs.io"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.12"
+opensearch-py = "^2.3.1"
+pandas = "2.1.1"
+pdf2image = "^1.16.3"
+ray = { extras = ["default"], version = ">=2.9.0,<2.10.0" }
+sentence-transformers = "2.2.2"
+pyarrow = "14.0.1"
+unstructured = "0.10.20"
+openai = "^1.14.1"
+beautifulsoup4 = "^4.12.2"
+guidance = "0.1.10"
+tenacity = "8.2.3"
+amazon-textract-textractor = "^1.3.2"
+boto3 = "^1.28.70"
+urllib3 = ">=1.26.0,<2"
+async-timeout = ">4.0.0"
+
+# Pin Pytorch 2.0.0 to address missing cuda libs.
+# See https://stackoverflow.com/a/76647180
+torch = "2.0.0"
+pdfminer-six = "20221105"
+python-pptx = "^0.6.22"
+
+jinja2 = "^3.1.3"
+datasets = "^2.16.1"
+timm = "^0.9.12"
+cryptography = "^42.0.3"
+aiohttp = "^3.9.2"
+
+# Dependencies for building docs. Defined as an extra
+# so they can be installed using pip on RTD.
+furo = { version = "^2023.9.10", optional = true }
+myst-parser = { version = "^2.0.0", optional = true }
+sphinx = { version = "^7.2.5", optional = true }
+rouge = "^1.0.1"
+pypdf2 = "^3.0.1"
+pytesseract = "^0.3.10"
+
+[tool.poetry.group.test.dependencies]
+flake8 = "4.0.1"
+pytest = "7.4.0"
+pytest-mock = "3.11.1"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.0.287"
+black = "^23.7.0"
+pre-commit = "^3.4.0"
+mypy = "^1.5.1"
+nbmake = "^1.4.5"
+
+[tool.poetry.group.notebook.dependencies]
+jupyterlab = "^4.0.11"
+jupyter-lsp = "^2.2.2"
+ipywidgets = "^8.1.0"
+
+[tool.poetry.group.docker.dependencies]
+requests = "^2"
+redis-om = "^0.2"
+
+[tool.poetry.extras]
+docs = ["furo", "myst-parser", "sphinx"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.black]
+line-length = 120
+
+[mypy]
+mypy_path = "crawler/s3:crawler/http"
+explicit_package_bases = true
+
+[tool.mypy]
+exclude = ["notebooks", "docs"]
+ignore_missing_imports = true
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+pythonpath = [ "." ]

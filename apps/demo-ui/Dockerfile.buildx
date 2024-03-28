@@ -1,0 +1,48 @@
+# Repo name: arynai/sycamore-demo-ui
+
+# Note: This dockerfile is intended to work with docker buildx build -f Dockerfile.buildx .
+# For a slower docker build you can use: docker build -f Dockerfile.build .
+# You can re-derive the Dockerfile.build file using ./dockerfile-buildx-to-build.sh
+
+FROM nikolaik/python-nodejs:python3.11-nodejs20
+
+WORKDIR /home/pn/js-ui
+COPY apps/demo-ui/ui/package.json apps/demo-ui/ui/package-lock.json apps/demo-ui/ui/npm-install.sh apps/demo-ui/ui/pdf.worker.js.patch ./
+RUN --mount=type=cache,target=/root/.npm/_cacache,sharing=locked \
+    /bin/bash npm-install.sh
+
+ENV POETRY_NO_INTERACTION=1 \
+    POETRY_VIRTUALENVS_IN_PROJECT=1 \
+    POETRY_VIRTUALENVS_CREATE=1 \
+    POETRY_CACHE_DIR=/tmp/poetry_cache
+
+WORKDIR /home/pn/py-proxy
+COPY apps/demo-ui/openai-proxy/pyproject.toml apps/demo-ui/openai-proxy/poetry.lock apps/demo-ui/openai-proxy/README.md ./
+RUN --mount=type=cache,target=/tmp/poetry_cache,sharing=locked \
+    poetry install --only main --no-root
+
+WORKDIR /
+COPY apps/demo-ui/ui /home/pn/js-ui
+COPY apps/demo-ui/openai-proxy /home/pn/py-proxy
+COPY apps/demo-ui/run-ui.sh /home/pn
+
+WORKDIR /home/pn/py-proxy
+RUN poetry install --only-root && rm -rf $POETRY_CACHE_DIR
+
+WORKDIR /home/pn
+
+ARG GIT_BRANCH="unknown"
+ARG GIT_COMMIT="unknown"
+ARG GIT_DIFF="unknown"
+
+ENV GIT_BRANCH=${GIT_BRANCH}
+ENV GIT_COMMIT=${GIT_COMMIT}
+ENV GIT_DIFF=${GIT_DIFF}
+ENV SSL=0
+
+LABEL org.opencontainers.image.authors="opensource@aryn.ai"
+LABEL git_branch=${GIT_BRANCH}
+LABEL git_commit=${GIT_COMMIT}
+LABEL git_diff=${GIT_DIFF}
+
+CMD /bin/bash run-ui.sh

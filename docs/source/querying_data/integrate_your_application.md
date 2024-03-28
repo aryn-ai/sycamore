@@ -79,7 +79,7 @@ Now that we have initialized a conversation, we can move on to processing user q
 To perform a conversational search request with RAG, see the following example
 
 ```typescript
-const SOURCES = ["type", "_id", "doc_id", "properties", "title", "text_representation"]
+const SOURCES = ["type", "_id", "doc_id", "properties", "title", "text_representation", "shingles"]
 const MODEL_ID = "<your neural search model>"
 const SEARCH_PIPELINE = "hybrid_rag_pipeline"
 const LLM_MODEL = "gpt4"

@@ -1,4 +1,4 @@
-const SOURCES = ["type", "_id", "doc_id", "properties", "title", "text_representation", "bbox"]
+const SOURCES = ["type", "_id", "doc_id", "properties", "title", "text_representation", "bbox", "shingles"]
 const SEARCH_PIPELINE = "hybrid_rag_pipeline"
 const NO_RAG_SEARCH_PIPELINE = "hybrid_pipeline"
 export const FEEDBACK_INDEX_NAME = "feedback"

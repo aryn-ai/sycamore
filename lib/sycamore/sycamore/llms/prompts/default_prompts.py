@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 import logging
 from typing import Type
 
-from guidance.models import Chat, Model as GuidanceModel
+from guidance.models import Chat, Instruct, Model as GuidanceModel
 from guidance import gen, user, system, assistant, instruction
 
 logger = logging.getLogger(__name__)
@@ -27,8 +27,10 @@ class SimpleGuidancePrompt(GuidancePrompt):
     def execute(self, model: GuidanceModel, **kwargs) -> str:
         if isinstance(model, Chat):
             return self._execute_chat(model, **kwargs)
-        else:
+        elif isinstance(model, Instruct):
             return self._execute_instruct(model, **kwargs)
+        else:
+            return self._execute_completion(model, **kwargs)
 
     def _execute_chat(self, model, **kwargs) -> str:
         with system():
@@ -46,6 +48,10 @@ class SimpleGuidancePrompt(GuidancePrompt):
         with instruction():
             lm = model + self.user.format(**kwargs)
         lm += gen(name=self.var_name)
+        return lm[self.var_name]
+
+    def _execute_completion(self, model, **kwargs) -> str:
+        lm = model + self.user.format(**kwargs) + gen(name=self.var_name)
         return lm[self.var_name]
 
     def __hash__(self):

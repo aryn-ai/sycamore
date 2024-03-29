@@ -6,7 +6,7 @@ from typing import Any, Optional, Union
 
 from guidance.models import Model
 from guidance.models import OpenAI as GuidanceOpenAI
-from guidance.models import AzureOpenAIChat, AzureOpenAIInstruct
+from guidance.models import AzureOpenAIChat, AzureOpenAICompletion
 from openai import OpenAI as OpenAIClient
 from openai import AzureOpenAI as AzureOpenAIClient
 from openai import max_retries as DEFAULT_MAX_RETRIES
@@ -153,7 +153,7 @@ class OpenAIClientWrapper:
             if model.is_chat:
                 cls = AzureOpenAIChat
             else:
-                cls = AzureOpenAIInstruct
+                cls = AzureOpenAICompletion
 
             return cls(
                 model=model.name,

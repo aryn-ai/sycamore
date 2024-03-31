@@ -34,7 +34,7 @@ class TestS3Crawler:
         download.side_effect = mock_download_func
 
     def test_s3_crawler_first_crawl(self, mocker, tmp_path: Path):
-        s3_crawler = S3Crawler("bucket", "prefix")
+        s3_crawler = S3Crawler("bucket", "prefix", False)
         mock_page_iterator = [
             {
                 "Contents": [
@@ -50,7 +50,7 @@ class TestS3Crawler:
         assert len(mock_page_iterator[0]["Contents"]) == len(downloaded_objects)
 
     def test_s3_crawler_finds_new_object(self, mocker, tmp_path: Path):
-        s3_crawler = S3Crawler("bucket", "prefix")
+        s3_crawler = S3Crawler("bucket", "prefix", False)
         mock_page_iterator = [
             {
                 "Contents": [
@@ -77,7 +77,7 @@ class TestS3Crawler:
         assert len(mock_page_iterator[0]["Contents"]) == len(downloaded_objects) + 1
 
     def test_s3_crawler_nothing_to_crawl(self, mocker, tmp_path: Path):
-        s3_crawler = S3Crawler("bucket", "prefix")
+        s3_crawler = S3Crawler("bucket", "prefix", True)
 
         mock_page_iterator = [
             {

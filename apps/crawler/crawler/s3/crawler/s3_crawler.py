@@ -4,7 +4,14 @@ from typing import Any
 
 import boto3
 import botocore.client
+from botocore import UNSIGNED
+from botocore.config import Config
 import sys
+
+
+def usage(val: int) -> None:
+    print("Usage: poetry run python s3_crawler.py bucket_name prefix_value")
+    sys.exit(val)
 
 
 class S3Crawler:
@@ -12,11 +19,13 @@ class S3Crawler:
         self,
         bucket_location: str,
         prefix: str,
+        anon: bool,
         boto_session_args: list[Any] = [],
         boto_session_kwargs: dict[str, Any] = {},
     ):
         self._bucket_location = bucket_location
         self._prefix = prefix
+        self._anon = anon
         self._file_storage_location = "./.data/.s3/downloads"
         self._s3_client = self._get_s3_client(boto_session_args, boto_session_kwargs)
         if os.path.exists("/.dockerenv"):
@@ -88,7 +97,11 @@ class S3Crawler:
         self, boto_session_args: list[Any], boto_session_kwargs: dict[str, Any]
     ) -> botocore.client.BaseClient:
         session = boto3.session.Session(*boto_session_args, **boto_session_kwargs)
-        return session.client("s3")
+        if self._anon:
+            cfg = Config(signature_version=UNSIGNED)
+            return session.client("s3", config=cfg)
+        else:
+            return session.client("s3")
 
 
 if __name__ == "__main__":
@@ -96,18 +109,31 @@ if __name__ == "__main__":
     print("Version-Info, Sycamore Crawler S3 Commit:", os.environ.get("GIT_COMMIT", "unset"))
     print("Version-Info, Sycamore Crawler S3 Diff:", os.environ.get("GIT_DIFF", "unset"))
 
-    if len(sys.argv) > 3 or (len(sys.argv) > 1 and sys.argv[1] == "-h"):
-        print("Usage : poetry run python s3_crawler.py bucket_name prefix_value")
-    else:
-        if len(sys.argv) == 1:
-            bucket = "aryn-public"
-            prefix = "sort-benchmark"
-        elif len(sys.argv) == 2:
-            bucket = sys.argv[1]
-            prefix = ""
+    anon = False
+    args = sys.argv[1:]
+    while args and args[0].startswith("-"):
+        arg = args[0]
+        if arg == "-h":
+            usage(0)
+        elif arg == "-anon":
+            anon = True
+            args.pop(0)
         else:
-            bucket = sys.argv[1]
-            prefix = sys.argv[2]
+            usage(1)
 
-        s3 = S3Crawler(bucket, prefix)
-        s3.crawl()
+    argc = len(args)
+    if argc > 2:
+        usage(1)
+
+    if argc == 0:
+        bucket = "aryn-public"
+        prefix = "sort-benchmark"
+    elif argc == 1:
+        bucket = args[0]
+        prefix = ""
+    else:
+        bucket = args[0]
+        prefix = args[1]
+
+    s3 = S3Crawler(bucket, prefix, anon)
+    s3.crawl()

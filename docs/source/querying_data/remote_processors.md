@@ -1,18 +1,15 @@
 # Remote Search Processors
 
-<aside>
-👉 This page assumes you’re familiar with OpenSearch’s concept of a search pipeline and search processor
-
-</aside>
+> 👉 This page assumes you’re familiar with OpenSearch’s concept of a search pipeline and search processor
 
 Sycamore exposes a number of search processors in addition to the ones built in to OpenSearch. We accomplish this with a search processor in OpenSearch called ‘remote-processor’, which makes network calls to a service hosting the sycamore search processors.
 
 These search processors include:
 
 - `debug`: prints the search response to stdout. Useful for debugging.
-- `dedup`: works in conjunction with the `Sketcher` ingest transform to deduplicate search results at query-time. See [NDD Stuff] for more details.
+- `dedup`: works in conjunction with the `Sketcher` ingest transform to deduplicate search results at query-time. See the [sketch](../data_ingestion_and_preparation/transforms/sketch.md) transform for more details.
 
-These processors run in a microservice in the sycamore ecosystem called RPS [Name subject to change]. The processors running by default are configured in a config file: [Pointer to config file]
+These processors run in a microservice in the sycamore ecosystem called RPS. The processors running by default are configured in a config file: [remote-processor-service/config/pipelines.yml](https://github.com/aryn-ai/sycamore/blob/main/apps/remote-processor-service/config/pipelines.yml)
 
 ```yaml
 - debug:

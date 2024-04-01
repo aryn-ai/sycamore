@@ -51,7 +51,6 @@ class S3Crawler:
             self._s3_client = self._get_s3_client()
             self._find_and_download_new_objects()
 
-
     def _find_and_download_new_objects(self) -> None:
         paginator = self._s3_client.get_paginator("list_objects_v2")
         page_iterator = paginator.paginate(Bucket=self._bucket_location, Prefix=self._prefix)

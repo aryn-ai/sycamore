@@ -23,7 +23,7 @@ These processors run in a microservice in the sycamore ecosystem called RPS. The
 
 You can add a remote processor to a search pipeline using standard OpenSearch search pipeline creation syntax:
 
-```json
+```lang-http
 PUT /_search/pipeline/pipeline-with-remote-dedup
 {
   "response_processors": [
@@ -62,7 +62,7 @@ docker container start sycamore-rps-1
 
 And then create the search pipeline like so
 
-```json
+```lang-http
 PUT /_search/pipeline/pipeline-with-dedup-for-debugging
 {
   "response_processors": [

@@ -12,7 +12,7 @@ These search processors include:
 - `dedup`: works in conjunction with the `Sketcher` ingest transform to deduplicate search results at query-time. See the [sketch](../data_ingestion_and_preparation/transforms/sketch.md) transform for more details.
 - `debug`: prints the search response to stdout. Useful for debugging.
 
-The processors running by default are configured in a config file: [remote-processor-service/config/pipelines.yml](https://github.com/aryn-ai/sycamore/blob/main/apps/remote-processor-service/config/pipelines.yml)
+The processors running by default are configured in a config file: [remote-processor-service/config/pipelines.yml](https://github.com/aryn-ai/sycamore/blob/main/apps/remote-processor-service/config/pipelines.yml).
 The default Sycamore search pipelines use the `dedup02` remote search processor, which removes search results that match with higher-scoring search results in 14/16 shingles.
 
 ```yaml

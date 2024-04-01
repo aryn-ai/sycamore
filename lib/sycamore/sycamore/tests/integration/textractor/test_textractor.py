@@ -26,7 +26,7 @@ class TestTextExtraction:
         docset = context.read.binary("s3://aryn-textract/10q-excerpt.pdf", binary_format="pdf", filesystem=get_s3_fs())
         document = docset.take(1)[0]
         table_extractor = TextractTableExtractor(region_name="us-east-1")
-        tables = table_extractor._extract(document)
+        tables = table_extractor.extract_tables(document)
         assert len(tables) == 2
 
     def test_docset_extract_tables(self):

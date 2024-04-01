@@ -1,6 +1,6 @@
 # Remote Search Processors
 
-> 👉 This page assumes you’re familiar with OpenSearch’s concept of a search pipeline and search processor
+> 👉 For information on OpenSearch search processors, visit the [opensearch documentation](https://opensearch.org/docs/latest/search-plugins/search-pipelines/index/)
 
 Sycamore exposes a number of search processors in addition to the ones built in to OpenSearch.
 We accomplish this with a search processor in OpenSearch called ‘remote-processor’.
@@ -42,42 +42,3 @@ PUT /_search/pipeline/pipeline-with-remote-dedup
 ```
 
 The `processor_name` should point to the top-level name of the processor you want to call.
-
-### Configuring RPS
-
-> **Warning:** This is super experimental. Don't do this unless you really need to.
-
-You can change the config file for RPS. Simply declare a processor, which processors are part of it, and their individual parameters. So, maybe I want a processor that dedupes and prints the search response before and after so I can compare them manually. I can declare this configuration in a new `my-pipelines.yml`:
-
-```yaml
-- debug-dedup:
-    processors:
-      - debug-response:
-      - dedup-response:
-          threshold: 0.3
-      - debug-response:
-```
-
-Docker-cp in the new config file
-
-```bash
-docker container stop sycamore-rps-1 # or whatever the rps container is called in your docker engine
-docker cp my-pipelines.yml sycamore-rps-1:/aryn/rps/apps/remote-processor-service/config/pipelines.yml
-docker container start sycamore-rps-1
-```
-
-And then create the search pipeline like so
-
-```lang-http
-PUT /_search/pipeline/pipeline-with-dedup-for-debugging
-{
-  "response_processors": [
-    {
-      "remote_processor": {
-        "endpoint": "https://rps:2796/RemoteProcessorService/ProcessResponse"
-        "processor_name": "debug-dedup"
-      }
-    }
-  ]
-}
-```

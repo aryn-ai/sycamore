@@ -119,6 +119,7 @@ More Resources
    /querying_data/hybrid_search.md
    /querying_data/reranking.md
    /querying_data/remote_processors.md
+   /querying_data/dedup.md
    /querying_data/integrate_your_application.md
    /querying_data/generative_ai_configurations.md
 

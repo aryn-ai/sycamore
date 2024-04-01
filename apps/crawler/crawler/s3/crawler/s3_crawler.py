@@ -1,10 +1,19 @@
+import argparse
 import datetime
 import os.path
 from typing import Any
 
 import boto3
 import botocore.client
+from botocore import UNSIGNED
+from botocore.config import Config
+from botocore.exceptions import NoCredentialsError
 import sys
+
+
+def usage(val: int) -> None:
+    print("Usage: poetry run python s3_crawler.py bucket_name prefix_value")
+    sys.exit(val)
 
 
 class S3Crawler:
@@ -12,13 +21,15 @@ class S3Crawler:
         self,
         bucket_location: str,
         prefix: str,
+        anon: bool,
         boto_session_args: list[Any] = [],
         boto_session_kwargs: dict[str, Any] = {},
     ):
         self._bucket_location = bucket_location
         self._prefix = prefix
+        self._anon = anon
+        self._session = boto3.session.Session(*boto_session_args, **boto_session_kwargs)
         self._file_storage_location = "./.data/.s3/downloads"
-        self._s3_client = self._get_s3_client(boto_session_args, boto_session_kwargs)
         if os.path.exists("/.dockerenv"):
             s = os.stat("/app/.data/.s3")
             if s.st_uid != 1000 or s.st_gid != 1000:
@@ -28,7 +39,17 @@ class S3Crawler:
                 )
 
     def crawl(self) -> None:
-        self._find_and_download_new_objects()
+        try:
+            self._s3_client = self._get_s3_client()
+            self._find_and_download_new_objects()
+            return
+        except NoCredentialsError:
+            if self._anon:
+                raise
+            print("Automatically retrying in anonymous mode")
+            self._anon = True
+            self._s3_client = self._get_s3_client()
+            self._find_and_download_new_objects()
 
     def _find_and_download_new_objects(self) -> None:
         paginator = self._s3_client.get_paginator("list_objects_v2")
@@ -84,11 +105,12 @@ class S3Crawler:
             # TODO: parth - if I change this to return False, no test fails
             return True
 
-    def _get_s3_client(
-        self, boto_session_args: list[Any], boto_session_kwargs: dict[str, Any]
-    ) -> botocore.client.BaseClient:
-        session = boto3.session.Session(*boto_session_args, **boto_session_kwargs)
-        return session.client("s3")
+    def _get_s3_client(self) -> botocore.client.BaseClient:
+        if self._anon:
+            cfg = Config(signature_version=UNSIGNED)
+            return self._session.client("s3", config=cfg)
+        else:
+            return self._session.client("s3")
 
 
 if __name__ == "__main__":
@@ -96,18 +118,20 @@ if __name__ == "__main__":
     print("Version-Info, Sycamore Crawler S3 Commit:", os.environ.get("GIT_COMMIT", "unset"))
     print("Version-Info, Sycamore Crawler S3 Diff:", os.environ.get("GIT_DIFF", "unset"))
 
-    if len(sys.argv) > 3 or (len(sys.argv) > 1 and sys.argv[1] == "-h"):
-        print("Usage : poetry run python s3_crawler.py bucket_name prefix_value")
-    else:
-        if len(sys.argv) == 1:
-            bucket = "aryn-public"
-            prefix = "sort-benchmark"
-        elif len(sys.argv) == 2:
-            bucket = sys.argv[1]
-            prefix = ""
-        else:
-            bucket = sys.argv[1]
-            prefix = sys.argv[2]
+    parser = argparse.ArgumentParser(
+        description="The Sycamore crawler for Amazon AWS S3, from Aryn.ai",
+    )
+    parser.add_argument("bucket", nargs="?", default="", help="The AWS S3 bucket to crawl")
+    parser.add_argument("prefix", nargs="?", default="", help="The prefix within the bucket to crawl")
+    parser.add_argument("--anon", action="store_true", help="For accessing public buckets without credentials")
+    args = parser.parse_args()
 
-        s3 = S3Crawler(bucket, prefix)
-        s3.crawl()
+    # We'd like to auto-detect when no credentials are present, instead of
+    # using --anon, but boto3 is clever finding creds and does so very late.
+
+    if not args.bucket:
+        args.bucket = "aryn-public"
+        args.prefix = "sort-benchmark"
+
+    s3 = S3Crawler(args.bucket, args.prefix, args.anon)
+    s3.crawl()

@@ -63,7 +63,7 @@ class TextractTableExtractor(TableExtractor):
         self._kms_key_id: str = kms_key_id
         self._s3_upload_root: str = s3_upload_root
 
-    def get_textract_result(self, document: Document) -> list[Table]:
+    def get_textract_result(self, document: Document) -> TextractorDocument:
 
         extractor = Textractor(self._profile_name, self._region_name, self._kms_key_id)
         path = document.properties["path"]
@@ -83,16 +83,16 @@ class TextractTableExtractor(TableExtractor):
             dest = self._s3_upload_root + tmp_path
             result = extractor.start_document_analysis(
                 document.properties["path"], TextractFeatures.TABLES, s3_upload_path=dest)
-        return result.tables
+        return result
 
     @staticmethod
-    def get_tables_from_textract_result(result: list[Table]):
+    def get_tables_from_textract_result(result: TextractorDocument):
         # https://docs.aws.amazon.com/textract/latest/dg/API_BoundingBox.html
         def bbox_to_coord(bbox):
             return bbox.x, bbox.y, bbox.x + bbox.width, bbox.y + bbox.height
-        # map page_number -> list of tables on that page number
+
         all_tables = []
-        for table in result:
+        for table in result.tables:
             element = Element()
             element.type = "Table"
             properties = element.properties
@@ -159,7 +159,6 @@ class CachedTextractTableExtractor(TextractTableExtractor):
                 raise
 
     def _cache_textract_result(self, s3, cache_id: str, result: TextractorDocument):
-        logger.warn("Caching:" + str(result))
         """Put table into S3"""
         parts = self._s3_cache_location.replace("s3://", "").strip("/").split("/", 1)
         bucket = parts[0]
@@ -174,7 +173,7 @@ class CachedTextractTableExtractor(TextractTableExtractor):
         cache_id = response["ETag"].replace('"', "")
         return cache_id
 
-    def get_textract_result(self, document: Document) -> list[Table]:
+    def get_textract_result(self, document: Document) -> TextractorDocument:
         table_pages = [element.properties["page_number"] for element in document.elements if element.type == "Table"]
 
         if not self._run_full_textract and not table_pages:
@@ -186,7 +185,7 @@ class CachedTextractTableExtractor(TextractTableExtractor):
 
         if textract_result:
             logger.info(f"Textract cache hit for {document.properties['path']}")
-            return textract_result.tables
+            return textract_result
 
         # cache miss
         logger.info(f"Textract cache miss for {document.properties['path']}")
@@ -228,4 +227,4 @@ class CachedTextractTableExtractor(TextractTableExtractor):
 
         self._cache_textract_result(s3, cache_id, textract_result)
 
-        return textract_result.tables
+        return textract_result

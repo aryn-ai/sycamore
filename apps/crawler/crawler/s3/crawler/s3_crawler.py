@@ -6,6 +6,7 @@ import boto3
 import botocore.client
 from botocore import UNSIGNED
 from botocore.config import Config
+from botocore.exceptions import NoCredentialsError
 import sys
 
 
@@ -26,8 +27,8 @@ class S3Crawler:
         self._bucket_location = bucket_location
         self._prefix = prefix
         self._anon = anon
+        self._session = boto3.session.Session(*boto_session_args, **boto_session_kwargs)
         self._file_storage_location = "./.data/.s3/downloads"
-        self._s3_client = self._get_s3_client(boto_session_args, boto_session_kwargs)
         if os.path.exists("/.dockerenv"):
             s = os.stat("/app/.data/.s3")
             if s.st_uid != 1000 or s.st_gid != 1000:
@@ -37,7 +38,18 @@ class S3Crawler:
                 )
 
     def crawl(self) -> None:
-        self._find_and_download_new_objects()
+        try:
+            self._s3_client = self._get_s3_client()
+            self._find_and_download_new_objects()
+            return
+        except NoCredentialsError:
+            if self._anon:
+                raise
+            # Retry anonymously...
+            self._anon = True
+            self._s3_client = self._get_s3_client()
+            self._find_and_download_new_objects()
+
 
     def _find_and_download_new_objects(self) -> None:
         paginator = self._s3_client.get_paginator("list_objects_v2")
@@ -93,15 +105,12 @@ class S3Crawler:
             # TODO: parth - if I change this to return False, no test fails
             return True
 
-    def _get_s3_client(
-        self, boto_session_args: list[Any], boto_session_kwargs: dict[str, Any]
-    ) -> botocore.client.BaseClient:
-        session = boto3.session.Session(*boto_session_args, **boto_session_kwargs)
+    def _get_s3_client(self) -> botocore.client.BaseClient:
         if self._anon:
             cfg = Config(signature_version=UNSIGNED)
-            return session.client("s3", config=cfg)
+            return self._session.client("s3", config=cfg)
         else:
-            return session.client("s3")
+            return self._session.client("s3")
 
 
 if __name__ == "__main__":

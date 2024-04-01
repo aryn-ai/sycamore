@@ -28,6 +28,7 @@ COPY apps/jupyter/fixuser.py /root
 
 # User 'app' must be id number 1000 (the default) for all to work properly.
 USER app
+COPY apps/jupyter/profile ./.profile
 RUN --mount=type=cache,target=/app/.cache,sharing=locked \
     poetry run pip install notebook ipywidgets 'opensearch-py>=2.4'
 RUN mkdir -p /app/work/docker_volume /app/work/bind_dir /app/work/examples

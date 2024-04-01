@@ -126,6 +126,9 @@ if __name__ == "__main__":
     parser.add_argument("--anon", action="store_true", help="For accessing public buckets without credentials")
     args = parser.parse_args()
 
+    # We'd like to auto-detect when no credentials are present, instead of
+    # using --anon, but boto3 is clever finding creds and does so very late.
+
     if not args.bucket:
         args.bucket = "aryn-public"
         args.prefix = "sort-benchmark"

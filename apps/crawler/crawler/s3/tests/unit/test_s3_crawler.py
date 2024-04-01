@@ -9,6 +9,7 @@ from crawler.s3.crawler.s3_crawler import S3Crawler
 
 
 # TODO : Parth - investigate doing an integration test similar to the http one. Maybe using minio or localstack
+# TODO: Test anonymous mode; may need to be an integration test.
 class TestS3Crawler:
     def setup_mocks(
         self,

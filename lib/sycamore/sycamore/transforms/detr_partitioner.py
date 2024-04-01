@@ -210,6 +210,8 @@ def extract_ocr(
         page_elements = elements[i]
 
         for elem in page_elements:
+            if elem.bbox is None:
+                continue
             if elem.type == "Picture" and not ocr_images:
                 continue
             elif elem.type == "Table" and not ocr_tables:

@@ -1,3 +1,4 @@
+import argparse
 import datetime
 import os.path
 from typing import Any
@@ -45,7 +46,7 @@ class S3Crawler:
         except NoCredentialsError:
             if self._anon:
                 raise
-            # Retry anonymously...
+            print("Automatically retrying in anonymous mode")
             self._anon = True
             self._s3_client = self._get_s3_client()
             self._find_and_download_new_objects()
@@ -118,31 +119,17 @@ if __name__ == "__main__":
     print("Version-Info, Sycamore Crawler S3 Commit:", os.environ.get("GIT_COMMIT", "unset"))
     print("Version-Info, Sycamore Crawler S3 Diff:", os.environ.get("GIT_DIFF", "unset"))
 
-    anon = False
-    args = sys.argv[1:]
-    while args and args[0].startswith("-"):
-        arg = args[0]
-        if arg == "-h":
-            usage(0)
-        elif arg == "-anon":
-            anon = True
-            args.pop(0)
-        else:
-            usage(1)
+    parser = argparse.ArgumentParser(
+        description="The Sycamore crawler for Amazon AWS S3, from Aryn.ai",
+    )
+    parser.add_argument("bucket", nargs="?", default="", help="The AWS S3 bucket to crawl")
+    parser.add_argument("prefix", nargs="?", default="", help="The prefix within the bucket to crawl")
+    parser.add_argument("--anon", action="store_true", help="For accessing public buckets without credentials")
+    args = parser.parse_args()
 
-    argc = len(args)
-    if argc > 2:
-        usage(1)
+    if not args.bucket:
+        args.bucket = "aryn-public"
+        args.prefix = "sort-benchmark"
 
-    if argc == 0:
-        bucket = "aryn-public"
-        prefix = "sort-benchmark"
-    elif argc == 1:
-        bucket = args[0]
-        prefix = ""
-    else:
-        bucket = args[0]
-        prefix = args[1]
-
-    s3 = S3Crawler(bucket, prefix, anon)
+    s3 = S3Crawler(args.bucket, args.prefix, args.anon)
     s3.crawl()

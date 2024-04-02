@@ -1,12 +1,12 @@
 # De-Duplicating Query Results
 
-As mentioned in [Remote Search Processors](remote_processors.md), the Sycamore near-duplicate detection (NDD) facility can be used to drop duplicates from query results.  This is implemented as a remote response processor called `dedup-response`.  It's configured in `pipelines.yml` like so:
+As mentioned in [Remote Search Processors](remote_processors.md), the Sycamore near-duplicate detection (NDD) facility can be used to drop duplicates from query results.  This is implemented as a remote search response processor called `dedup-response`.  It's configured in `pipelines.yml` like so:
 
 ```yaml
 - dedup00:
     processors:
       - dedup-response:
-          threshold: 0.0
+          threshold: 0.01
 - dedup01:
     processors:
       - dedup-response:
@@ -41,13 +41,13 @@ As mentioned in [Remote Search Processors](remote_processors.md), the Sycamore n
           threshold: 0.55
 ```
 
-As can be seen, there's one parameter, `threshold`, which is a distance metric that controls how different two documents can be before they're considered not to be duplicates.  A 0.0 means documents must be practically identical.  A 1.0 means all documents are considered to be the same.  Due to limitations in passing parameters through the system, we've pre-created most of the potentially useful setups.
+As can be seen, there's one parameter, `threshold`, which controls how aggressively NDD will drop documents.  Near 0.0, few documents will be removed and they will need to be practically identical to higher-scoring documents.  Above 1.0, all documents will be removed, except for the first one.
 
-The current implementation of NDD uses "shingles" which consist of 16 hash values.  The `dedup02` preset allows two of those hashes to differ; 0.15 is just a smidge higher than 2 divided by 16.
+The current implementation of NDD uses "shingles" which consist of 16 hash values.  The distance between two documents is the number of hash values that differ between the two documents' shingles.  The raw number is between 0 and 16, but we normalize it to between 0.0 and 1.0.  The logic is basically: `if distance < threshold, drop`.  Our default preset `dedup02` allows two hashes to differ.  That would make the threshold 2 / 16, or 0.125, but we need to add a smidge because it's a less-than comparison.  So, we round to 0.15.
 
-A prerequisite for query-time NDD is to have previously ingested documents using the `Sketcher` Sycamore transform.  See documentation for [sketch](../data_ingestion_and_preparation/transforms/sketch.md) in DocSet for details.
+A prerequisite for query-time NDD is to have previously ingested the documents using the `Sketcher` Sycamore transform.  See documentation for [sketch](../data_ingestion_and_preparation/transforms/sketch.md) in `DocSet` for details.
 
-In order for the `dedup-response` processor to do its job, it must be able to see the `shingles` field of each retrieved document.  This will happen by default if the OpenSearch query does not specify `_source`.  Otherwise, it needs to be listed specifically like so:
+In order for the `dedup-response` processor to do its job, it must be able to access the `shingles` field of each retrieved document.  This will happen by default if the OpenSearch query does not specify `_source`.  Otherwise, it needs to be listed specifically like so:
 
 ```
 {

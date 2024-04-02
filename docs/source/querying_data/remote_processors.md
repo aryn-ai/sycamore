@@ -13,7 +13,7 @@ These search processors include:
 - `debug`: prints the search response to stdout. Useful for debugging.
 
 The processors running by default are specified in a config file: [remote-processor-service/config/pipelines.yml](https://github.com/aryn-ai/sycamore/blob/main/apps/remote-processor-service/config/pipelines.yml).
-The default Sycamore search pipelines use the `dedup02` remote search processor, which considers two documents the same if they differ in at most 2 out of 16 hash values in each "shingle".  When this happens, the lower-scoring document is removed.
+The default Sycamore search pipelines use the `dedup02` remote search processor, which applies a "medium-light" amount of near-duplicate removal to search responses.
 
 ```yaml
 - debug:

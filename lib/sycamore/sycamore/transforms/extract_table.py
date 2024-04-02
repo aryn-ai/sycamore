@@ -3,15 +3,13 @@ import json
 import logging
 from abc import abstractmethod, ABC
 from collections import OrderedDict
-from typing import Optional
+from typing import Optional, Any
 
 import PyPDF2
 import boto3
 from botocore.exceptions import ClientError
 from textractor import Textractor
 from textractor.data.constants import TextractFeatures
-from textractor.entities.document import Document as TextractorDocument
-from textractor.entities.lazy_document import LazyDocument as LazyTextractorDocument
 from textractor.parsers import response_parser
 
 from sycamore.data import BoundingBox, Document, Element
@@ -64,7 +62,7 @@ class TextractTableExtractor(TableExtractor):
         self._kms_key_id: str = kms_key_id
         self._s3_upload_root: str = s3_upload_root
 
-    def get_textract_result(self, document: Document) -> Optional[TextractorDocument | LazyTextractorDocument]:
+    def get_textract_result(self, document: Document):
 
         extractor = Textractor(self._profile_name, self._region_name, self._kms_key_id)
         path = document.properties["path"]
@@ -87,7 +85,7 @@ class TextractTableExtractor(TableExtractor):
         return result
 
     @staticmethod
-    def get_tables_from_textract_result(result: TextractorDocument | LazyTextractorDocument):
+    def get_tables_from_textract_result(result):
         # https://docs.aws.amazon.com/textract/latest/dg/API_BoundingBox.html
         def bbox_to_coord(bbox):
             return bbox.x, bbox.y, bbox.x + bbox.width, bbox.y + bbox.height
@@ -144,7 +142,7 @@ class CachedTextractTableExtractor(TextractTableExtractor):
         self._region_name = region_name
         self._kms_key_id = kms_key_id
 
-    def _get_cached_textract_result(self, s3, cache_id: str) -> [Optional[TextractorDocument], dict]:
+    def _get_cached_textract_result(self, s3, cache_id: str):
         """Get cache from S3"""
         try:
             parts = self._s3_cache_location.replace("s3://", "").strip("/").split("/", 1)
@@ -160,7 +158,7 @@ class CachedTextractTableExtractor(TextractTableExtractor):
                 raise
 
     def _cache_textract_result(self, s3, cache_id: str,
-                               result: TextractorDocument | LazyTextractorDocument,
+                               result: Any,
                                document_page_mapping: list):
         """Put table into S3"""
         parts = self._s3_cache_location.replace("s3://", "").strip("/").split("/", 1)
@@ -179,7 +177,7 @@ class CachedTextractTableExtractor(TextractTableExtractor):
         cache_id = response["ETag"].replace('"', "")
         return cache_id
 
-    def get_textract_result(self, document: Document) -> [Optional[TextractorDocument | LazyTextractorDocument], dict]:
+    def get_textract_result(self, document: Document):
         s3 = boto3.client("s3")
         cache_id = self._cache_id(s3, document.properties["path"])
         try:

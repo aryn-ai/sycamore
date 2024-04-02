@@ -18,6 +18,7 @@ from sycamore.data import BoundingBox, Document, Element
 
 logger = logging.getLogger("sycamore")
 
+
 class MissingS3UploadPath(Exception):
     "Raised when an S3 upload path is needed but one wasn't provided"
     pass
@@ -160,13 +161,13 @@ class CachedTextractTableExtractor(TextractTableExtractor):
 
     def _cache_textract_result(self, s3, cache_id: str,
                                result: TextractorDocument | LazyTextractorDocument,
-                               document_page_mapping: dict):
+                               document_page_mapping: list):
         """Put table into S3"""
         parts = self._s3_cache_location.replace("s3://", "").strip("/").split("/", 1)
         bucket = parts[0]
         key = "/".join([parts[1], cache_id]) if len(parts) == 2 else cache_id
         json_str = json.dumps({
-            "document_page_mapping": [],
+            "document_page_mapping": document_page_mapping,
             "textract_result": result.response
         })
         s3.put_object(Body=json_str, Bucket=bucket, Key=key)
@@ -179,22 +180,25 @@ class CachedTextractTableExtractor(TextractTableExtractor):
         return cache_id
 
     def get_textract_result(self, document: Document) -> [Optional[TextractorDocument | LazyTextractorDocument], dict]:
-        table_pages = list(OrderedDict.fromkeys(
+        s3 = boto3.client("s3")
+        cache_id = self._cache_id(s3, document.properties["path"])
+        try:
+            textract_result, document_page_mapping = self._get_cached_textract_result(s3, cache_id)
+            if textract_result:
+                logger.info(f"Textract cache hit for {document.properties['path']}")
+                return textract_result, document_page_mapping
+        except Exception as e:
+            logger.exception("Error in reading from cache %s", str(e))
+
+        # cache miss
+
+        document_page_mapping = list(OrderedDict.fromkeys(
             [element.properties["page_number"] for element in document.elements if element.type == "Table"]
         ))
 
-        s3 = boto3.client("s3")
-        cache_id = self._cache_id(s3, document.properties["path"])
-        textract_result, document_page_mapping = self._get_cached_textract_result(s3, cache_id)
-
-        if not self._run_full_textract and not table_pages:
+        # no pages with tables found and no full execution
+        if not self._run_full_textract and not document_page_mapping:
             return None, None
-
-        if textract_result:
-            logger.info(f"Textract cache hit for {document.properties['path']}")
-            return textract_result, table_pages
-
-        # cache miss
         logger.info(f"Textract cache miss for {document.properties['path']}")
         extractor = Textractor(self._profile_name, self._region_name, self._kms_key_id)
         if self._run_full_textract:
@@ -213,7 +217,7 @@ class CachedTextractTableExtractor(TextractTableExtractor):
             binary = io.BytesIO(document.data["binary_representation"])
             pdf_reader = PyPDF2.PdfReader(binary)
             pdf_writer = PyPDF2.PdfWriter()
-            for page_number in table_pages:
+            for page_number in document_page_mapping:
                 page = pdf_reader.pages[page_number - 1]  # Page numbers start from 0
                 pdf_writer.add_page(page)
             output_pdf_stream = io.BytesIO()
@@ -227,19 +231,17 @@ class CachedTextractTableExtractor(TextractTableExtractor):
                 save_image=False,
             )
 
+        self._cache_textract_result(s3, cache_id, textract_result, document_page_mapping)
 
-        self._cache_textract_result(s3, cache_id, textract_result, table_pages)
-
-        return textract_result, table_pages
-
+        return textract_result, document_page_mapping
 
     def extract_tables(self, document: Document) -> Document:
-        textract_result, table_pages = self.get_textract_result(document)
+        textract_result, document_page_mapping = self.get_textract_result(document)
         if textract_result:
             tables = self.get_tables_from_textract_result(textract_result)
             # put back actual page numbers
             for table in tables:
-                table.properties["page_number"] = table_pages[table.properties["page_number"] - 1]\
-                    if table_pages else table.properties["page_number"]
+                table.properties["page_number"] = document_page_mapping[table.properties["page_number"] - 1] \
+                    if document_page_mapping else table.properties["page_number"]
             document.elements = document.elements + tables
         return document

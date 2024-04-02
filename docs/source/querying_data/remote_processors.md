@@ -9,20 +9,20 @@ This processor makes a network call to the Sycamore service hosting the search p
 
 These search processors include:
 
-- `dedup`: works in conjunction with the `Sketcher` ingest transform to deduplicate search results at query-time. See the [sketch](../data_ingestion_and_preparation/transforms/sketch.md) transform for more details.
+- `dedup`: de-duplicates search results.  See [here](dedup.md).
 - `debug`: prints the search response to stdout. Useful for debugging.
 
-The processors running by default are configured in a config file: [remote-processor-service/config/pipelines.yml](https://github.com/aryn-ai/sycamore/blob/main/apps/remote-processor-service/config/pipelines.yml).
-The default Sycamore search pipelines use the `dedup02` remote search processor, which removes search results that match with higher-scoring search results in 14/16 shingles.
+The processors running by default are specified in a config file: [remote-processor-service/config/pipelines.yml](https://github.com/aryn-ai/sycamore/blob/main/apps/remote-processor-service/config/pipelines.yml).
+The default Sycamore search pipelines use the `dedup02` remote search processor, which applies a "medium-light" amount of near-duplicate removal to search responses.
 
 ```yaml
 - debug:
     processors:
       - debug-response:
-- dedup:
+- dedup02:
     processors:
       - dedup-response:
-          threshold: 0.4
+          threshold: 0.15
 ```
 
 You can add a hosted remote processor to a search pipeline using standard OpenSearch search pipeline creation syntax:

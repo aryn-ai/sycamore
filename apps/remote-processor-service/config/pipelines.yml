@@ -4,7 +4,7 @@
 - dedup00:
     processors:
       - dedup-response:
-          threshold: 0.0
+          threshold: 0.01
 - dedup01:
     processors:
       - dedup-response:

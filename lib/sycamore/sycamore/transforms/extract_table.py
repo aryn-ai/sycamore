@@ -117,9 +117,8 @@ class TextractTableExtractor(TableExtractor):
 
     def extract_tables(self, document: Document) -> Document:
         textract_result = self.get_textract_result(document)
-        if textract_result:
-            tables = self.get_tables_from_textract_result(textract_result)
-            document.elements = document.elements + tables
+        tables = self.get_tables_from_textract_result(textract_result)
+        document.elements = document.elements + tables
         return document
 
 
@@ -144,26 +143,32 @@ class CachedTextractTableExtractor(TextractTableExtractor):
         self._region_name = region_name
         self._kms_key_id = kms_key_id
 
-    def _get_cached_textract_result(self, s3, cache_id: str) -> Optional[TextractorDocument]:
+    def _get_cached_textract_result(self, s3, cache_id: str) -> [Optional[TextractorDocument], dict]:
         """Get cache from S3"""
         try:
             parts = self._s3_cache_location.replace("s3://", "").strip("/").split("/", 1)
             bucket = parts[0]
             key = "/".join([parts[1], cache_id]) if len(parts) == 2 else cache_id
             response = s3.get_object(Bucket=bucket, Key=key)
-            return response_parser.parse(json.loads(response['Body'].read()))
+            parsed_response = json.loads(response['Body'].read())
+            return response_parser.parse(parsed_response["textract_result"]), parsed_response["document_page_mapping"]
         except ClientError as e:
             if e.response["Error"]["Code"] == "NoSuchKey":
-                return None
+                return None, None
             else:
                 raise
 
-    def _cache_textract_result(self, s3, cache_id: str, result: TextractorDocument | LazyTextractorDocument):
+    def _cache_textract_result(self, s3, cache_id: str,
+                               result: TextractorDocument | LazyTextractorDocument,
+                               document_page_mapping: dict):
         """Put table into S3"""
         parts = self._s3_cache_location.replace("s3://", "").strip("/").split("/", 1)
         bucket = parts[0]
         key = "/".join([parts[1], cache_id]) if len(parts) == 2 else cache_id
-        json_str = json.dumps(result.response)
+        json_str = json.dumps({
+            "document_page_mapping": [],
+            "textract_result": result.response
+        })
         s3.put_object(Body=json_str, Bucket=bucket, Key=key)
 
     @staticmethod
@@ -173,19 +178,21 @@ class CachedTextractTableExtractor(TextractTableExtractor):
         cache_id = response["ETag"].replace('"', "")
         return cache_id
 
-    def get_textract_result(self, document: Document) -> Optional[TextractorDocument | LazyTextractorDocument]:
-        table_pages = [element.properties["page_number"] for element in document.elements if element.type == "Table"]
-
-        if not self._run_full_textract and not table_pages:
-            return None
+    def get_textract_result(self, document: Document) -> [Optional[TextractorDocument | LazyTextractorDocument], dict]:
+        table_pages = list(OrderedDict.fromkeys(
+            [element.properties["page_number"] for element in document.elements if element.type == "Table"]
+        ))
 
         s3 = boto3.client("s3")
         cache_id = self._cache_id(s3, document.properties["path"])
-        textract_result = self._get_cached_textract_result(s3, cache_id)
+        textract_result, document_page_mapping = self._get_cached_textract_result(s3, cache_id)
+
+        if not self._run_full_textract and not table_pages:
+            return None, None
 
         if textract_result:
             logger.info(f"Textract cache hit for {document.properties['path']}")
-            return textract_result
+            return textract_result, table_pages
 
         # cache miss
         logger.info(f"Textract cache miss for {document.properties['path']}")
@@ -203,7 +210,6 @@ class CachedTextractTableExtractor(TextractTableExtractor):
                 raise RuntimeError("Missing textract upload path")
 
             # Clip the pages which have tables into a new tmp pdf and upload for textract
-            table_pages = list(OrderedDict.fromkeys(table_pages))
             binary = io.BytesIO(document.data["binary_representation"])
             pdf_reader = PyPDF2.PdfReader(binary)
             pdf_writer = PyPDF2.PdfWriter()
@@ -221,10 +227,19 @@ class CachedTextractTableExtractor(TextractTableExtractor):
                 save_image=False,
             )
 
+
+        self._cache_textract_result(s3, cache_id, textract_result, table_pages)
+
+        return textract_result, table_pages
+
+
+    def extract_tables(self, document: Document) -> Document:
+        textract_result, table_pages = self.get_textract_result(document)
+        if textract_result:
+            tables = self.get_tables_from_textract_result(textract_result)
             # put back actual page numbers
-            for table in textract_result.tables:
-                table.page = table_pages[table.page - 1] if table_pages else table.page
-
-        self._cache_textract_result(s3, cache_id, textract_result)
-
-        return textract_result
+            for table in tables:
+                table.properties["page_number"] = table_pages[table.properties["page_number"] - 1]\
+                    if table_pages else table.properties["page_number"]
+            document.elements = document.elements + tables
+        return document

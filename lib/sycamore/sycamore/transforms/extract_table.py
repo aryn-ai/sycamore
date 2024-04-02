@@ -51,11 +51,11 @@ class TextractTableExtractor(TableExtractor):
     """
 
     def __init__(
-            self,
-            profile_name: Optional[str] = None,
-            region_name: Optional[str] = None,
-            kms_key_id: str = "",
-            s3_upload_root: str = "",
+        self,
+        profile_name: Optional[str] = None,
+        region_name: Optional[str] = None,
+        kms_key_id: str = "",
+        s3_upload_root: str = "",
     ):
         self._profile_name = profile_name
         self._region_name = region_name
@@ -63,7 +63,6 @@ class TextractTableExtractor(TableExtractor):
         self._s3_upload_root: str = s3_upload_root
 
     def get_textract_result(self, document: Document):
-
         extractor = Textractor(self._profile_name, self._region_name, self._kms_key_id)
         path = document.properties["path"]
         if path.startswith("s3://"):  # if document is already in s3, don't upload it again
@@ -81,7 +80,8 @@ class TextractTableExtractor(TableExtractor):
             # os.path.join("s3://foo", "/abc") -> "/abc"; which is not what we want.
             dest = self._s3_upload_root + tmp_path
             result = extractor.start_document_analysis(
-                document.properties["path"], TextractFeatures.TABLES, s3_upload_path=dest)
+                document.properties["path"], TextractFeatures.TABLES, s3_upload_path=dest
+            )
         return result
 
     @staticmethod
@@ -132,8 +132,15 @@ class CachedTextractTableExtractor(TextractTableExtractor):
      5. update cache accordingly based on textractor result and return result
     """
 
-    def __init__(self, s3_cache_location, run_full_textract: bool = False, s3_textract_upload_path: str = "",
-                 profile_name: Optional[str] = None, region_name: Optional[str] = None, kms_key_id: str = ""):
+    def __init__(
+        self,
+        s3_cache_location,
+        run_full_textract: bool = False,
+        s3_textract_upload_path: str = "",
+        profile_name: Optional[str] = None,
+        region_name: Optional[str] = None,
+        kms_key_id: str = "",
+    ):
         super().__init__(profile_name, region_name, kms_key_id)
         self._s3_cache_location = s3_cache_location
         self._run_full_textract = run_full_textract
@@ -149,7 +156,7 @@ class CachedTextractTableExtractor(TextractTableExtractor):
             bucket = parts[0]
             key = "/".join([parts[1], cache_id]) if len(parts) == 2 else cache_id
             response = s3.get_object(Bucket=bucket, Key=key)
-            parsed_response = json.loads(response['Body'].read())
+            parsed_response = json.loads(response["Body"].read())
             return response_parser.parse(parsed_response["textract_result"]), parsed_response["document_page_mapping"]
         except ClientError as e:
             if e.response["Error"]["Code"] == "NoSuchKey":
@@ -157,17 +164,12 @@ class CachedTextractTableExtractor(TextractTableExtractor):
             else:
                 raise
 
-    def _cache_textract_result(self, s3, cache_id: str,
-                               result: Any,
-                               document_page_mapping: list):
+    def _cache_textract_result(self, s3, cache_id: str, result: Any, document_page_mapping: list):
         """Put table into S3"""
         parts = self._s3_cache_location.replace("s3://", "").strip("/").split("/", 1)
         bucket = parts[0]
         key = "/".join([parts[1], cache_id]) if len(parts) == 2 else cache_id
-        json_str = json.dumps({
-            "document_page_mapping": document_page_mapping,
-            "textract_result": result.response
-        })
+        json_str = json.dumps({"document_page_mapping": document_page_mapping, "textract_result": result.response})
         s3.put_object(Body=json_str, Bucket=bucket, Key=key)
 
     @staticmethod
@@ -190,9 +192,11 @@ class CachedTextractTableExtractor(TextractTableExtractor):
 
         # cache miss
 
-        document_page_mapping = list(OrderedDict.fromkeys(
-            [element.properties["page_number"] for element in document.elements if element.type == "Table"]
-        ))
+        document_page_mapping = list(
+            OrderedDict.fromkeys(
+                [element.properties["page_number"] for element in document.elements if element.type == "Table"]
+            )
+        )
 
         # no pages with tables found and no full execution
         if not self._run_full_textract and not document_page_mapping:
@@ -239,7 +243,10 @@ class CachedTextractTableExtractor(TextractTableExtractor):
             tables = self.get_tables_from_textract_result(textract_result)
             # put back actual page numbers
             for table in tables:
-                table.properties["page_number"] = document_page_mapping[table.properties["page_number"] - 1] \
-                    if document_page_mapping else table.properties["page_number"]
+                table.properties["page_number"] = (
+                    document_page_mapping[table.properties["page_number"] - 1]
+                    if document_page_mapping
+                    else table.properties["page_number"]
+                )
             document.elements = document.elements + tables
         return document

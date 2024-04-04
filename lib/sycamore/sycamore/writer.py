@@ -5,7 +5,7 @@ from pyarrow.fs import FileSystem
 from sycamore import Context
 from sycamore.plan_nodes import Node
 from sycamore.data import Document
-from sycamore.writers.file_writer import default_doc_to_bytes, default_filename, FileWriter
+from sycamore.writers.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
 
 
 class DocSetWriter:
@@ -84,7 +84,7 @@ class DocSetWriter:
         filesystem: Optional[FileSystem] = None,
         filename_fn: Callable[[Document], str] = default_filename,
         doc_to_bytes_fn: Callable[[Document], bytes] = default_doc_to_bytes,
-        **resource_args
+        **resource_args,
     ) -> None:
         """Writes the content of each Document to a separate file.
 
@@ -104,7 +104,27 @@ class DocSetWriter:
             filesystem=filesystem,
             filename_fn=filename_fn,
             doc_to_bytes_fn=doc_to_bytes_fn,
-            **resource_args
+            **resource_args,
         )
 
         file_writer.execute()
+
+    def json(
+        self,
+        path: str,
+        filesystem: Optional[FileSystem] = None,
+        **resource_args,
+    ) -> None:
+        """
+        Writes Documents in JSONL format to files, one file per
+        block.  Typically, a block corresponds to a single
+        pre-explode source document.
+
+        Args:
+            path: The path prefix to write to. Should include the scheme if not local.
+            filesystem: The pyarrow.fs FileSystem to use.
+            resource_args: Arguments to pass to the underlying execution environment.
+        """
+
+        node = JsonWriter(self.plan, path, filesystem=filesystem, **resource_args)
+        node.execute()

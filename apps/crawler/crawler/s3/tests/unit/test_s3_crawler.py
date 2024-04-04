@@ -18,7 +18,11 @@ class TestS3Crawler:
         mock_page_iterator: list[dict[str, Any]],
         downloaded_files: list[str],
     ):
-        paginator = mocker.patch.object(crawler._s3_client, "get_paginator")
+        client = mocker.patch.object(crawler, "_get_s3_client")
+        mock_client = crawler._session.client("s3")
+        client.return_value = mock_client
+
+        paginator = mocker.patch.object(mock_client, "get_paginator")
         mock_paginator = mocker.Mock(spec=botocore.paginate.Paginator)
         paginator.return_value = mock_paginator
 
@@ -31,7 +35,7 @@ class TestS3Crawler:
         def mock_download_func(bucket, key, file):
             downloaded_files.append(key)
 
-        download = mocker.patch.object(crawler._s3_client, "download_file")
+        download = mocker.patch.object(mock_client, "download_file")
         download.side_effect = mock_download_func
 
     def test_s3_crawler_first_crawl(self, mocker, tmp_path: Path):

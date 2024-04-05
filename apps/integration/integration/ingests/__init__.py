@@ -2,7 +2,7 @@ import pytest
 from integration.ingests.crawler import HttpCrawlerIndex
 
 
-@pytest.fixture(scope="module", params=["crawler-http-one", "crawler-http-all"])
+@pytest.fixture(scope="session", params=["crawler-http-one", "crawler-http-all"])
 def ingested_index(request, opensearch_client, container_handles):
     ingest_profile = request.param
     index_ctx = None
@@ -16,3 +16,4 @@ def ingested_index(request, opensearch_client, container_handles):
         )
     with index_ctx as index_info:
         yield index_info
+    print("left context")

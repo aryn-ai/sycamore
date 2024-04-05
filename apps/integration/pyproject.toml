@@ -9,7 +9,7 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = ">=3.9,<3.12"
 docker = "^7.0.0"
-pytest = "^8.1.1"
+pytest = "7.4.0"
 opensearch-py = "^2.5.0"
 testcontainers = "^4.3.1"
 

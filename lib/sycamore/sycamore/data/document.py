@@ -1,5 +1,6 @@
 from collections import UserDict
 from typing import Any, Optional
+import uuid
 
 from sycamore.data import BoundingBox, Element
 from sycamore.data.element import create_element
@@ -16,6 +17,9 @@ class Document(UserDict):
             from pickle import loads
 
             document = loads(document)
+            if "metadata" in document:
+                raise ValueError("metadata must be unserialized with Document.unserialize not Document.__init__")
+
         super().__init__(document, **kwargs)
         if "properties" not in self.data:
             self.data["properties"] = {}
@@ -24,6 +28,9 @@ class Document(UserDict):
             self.data["elements"] = []
         else:
             self.data["elements"] = [create_element(**element) for element in self.data["elements"]]
+
+        if "lineage_id" not in self.data:
+            self.update_lineage_id()
 
     @property
     def doc_id(self) -> Optional[str]:
@@ -34,6 +41,15 @@ class Document(UserDict):
     def doc_id(self, value: str) -> None:
         """Set the unique identifier of the document."""
         self.data["doc_id"] = value
+
+    @property
+    def lineage_id(self) -> str:
+        """A unique identifier for the document in its lineage."""
+        return self.data["lineage_id"]
+
+    def update_lineage_id(self):
+        """Update the lineage ID with a new identifier"""
+        self.data["lineage_id"] = str(uuid.uuid4())
 
     @property
     def type(self) -> Optional[str]:
@@ -155,16 +171,102 @@ class Document(UserDict):
         """Unserialize from bytes to a Document."""
         from pickle import loads
 
-        return Document(loads(raw))
+        data = loads(raw)
+        if "metadata" in data:
+            return MetadataDocument(data)
+        else:
+            return Document(data)
 
     @staticmethod
     def from_row(row: dict[str, bytes]) -> "Document":
         """Unserialize a Ray row back into a Document."""
-        return Document(row["doc"])
+        return Document.deserialize(row["doc"])
 
     def to_row(self) -> dict[str, bytes]:
         """Serialize this document into a row for use with Ray."""
         return {"doc": self.serialize()}
+
+
+class MetadataDocument(Document):
+    def __init__(self, document=None, **kwargs):
+        super().__init__(document)
+        if "metadata" not in self.data:
+            self.data["metadata"] = {}
+        self.data["metadata"].update(kwargs)
+        del self.data["lineage_id"]
+        del self.data["elements"]
+
+    # Override some of the common operations to make it hard to mis-use metadata. If any of these
+    # are called it means that something tried to process a MetadataDocument as if it was a
+    # Document.
+
+    @property
+    def doc_id(self) -> Optional[str]:
+        """A unique identifier for the document. Defaults to a uuid."""
+        raise ValueError("MetadataDocument does not have doc_id")
+
+    @doc_id.setter
+    def doc_id(self, value: str) -> None:
+        """Set the unique identifier of the document."""
+        raise ValueError("MetadataDocument does not have doc_id")
+
+    @property
+    def lineage_id(self) -> str:
+        """A unique identifier for the document in its lineage."""
+        raise ValueError("MetadataDocument does not have lineage_id")
+
+    @lineage_id.setter
+    def lineage_id(self, value: str) -> None:
+        """Set the unique identifier for the document in its lineage."""
+        raise ValueError("MetadataDocument does not have lineage_id")
+
+    @property
+    def text_representation(self):
+        raise ValueError("MetadataDocument does not have text_representation")
+
+    @text_representation.setter
+    def text_representation(self, value: str) -> None:
+        raise ValueError("MetadataDocument does not have text_representation")
+
+    @property
+    def binary_representation(self):
+        raise ValueError("MetadataDocument does not have binary_representation")
+
+    @binary_representation.setter
+    def binary_representation(self, value: bytes) -> None:
+        raise ValueError("MetadataDocument does not have binary_representation")
+
+    @property
+    def elements(self) -> list[Element]:
+        raise ValueError("MetadataDocument does not have elements")
+
+    @elements.setter
+    def elements(self, elements: list[Element]):
+        raise ValueError("MetadataDocument does not have elements")
+
+    @property
+    def properties(self):
+        raise ValueError("MetadataDocument does not have properties")
+
+    @properties.setter
+    def properties(self, properties: dict[str, Any]):
+        raise ValueError("MetadataDocument does not have properties")
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        """Internal metadata babout A collection of system or customer defined metadata, for instance,
+        a PDF document might have title and author metadata."""
+        return self.data.get("metadata", {})
+
+    @metadata.setter
+    def metadata(self, metadata: dict[str, Any]):
+        """Set all the proprites for this document."""
+        self.data["metadata"] = metadata
+
+    @metadata.deleter
+    def metadata(self) -> None:
+        """Delete all the metadata of this document."""
+        self.data["metadata"] = {}
 
 
 class OpenSearchQuery(Document):

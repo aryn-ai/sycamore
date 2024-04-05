@@ -3,18 +3,16 @@ import docker
 import requests
 import time
 from opensearchpy import OpenSearch
-from pathlib import Path
 from testcontainers.compose.compose import DockerCompose
 from typing import List
+from integration import SYCAMORE_ROOT
 
 
 def docker_compose(services: List[str] = []):
-    sycamore_root = Path(__file__).parent.parent.parent.parent.parent
-    print(sycamore_root)
     if len(services) > 0:
-        return DockerCompose(sycamore_root, services=services)
+        return DockerCompose(SYCAMORE_ROOT, services=services)
     else:
-        return DockerCompose(sycamore_root)
+        return DockerCompose(SYCAMORE_ROOT)
 
 
 @pytest.fixture(scope="session")
@@ -42,7 +40,9 @@ def container_handles():
 def opensearch_client(container_urls):
     host, port = container_urls["opensearch"]
     urlstr = f"https://{host}:{port}"
-    while True:
+    # Ten minute deadline for opensearch startup
+    deadline = time.time() + 600
+    while time.time() < deadline:
         try:
             r = requests.get(f"{urlstr}/_cluster/settings", verify=False)
             if r.status_code == 200 and "aryn_deploy_complete" in r.text:

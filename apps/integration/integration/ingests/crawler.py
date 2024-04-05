@@ -1,7 +1,7 @@
 import docker
 from docker.models.containers import Container
 from opensearchpy import OpenSearch
-from integration.containers.preexisting import docker_compose
+from integration.containers.running import docker_compose
 from integration.ingests.index import IndexInfo
 import time
 

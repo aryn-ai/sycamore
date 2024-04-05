@@ -31,7 +31,6 @@ class BooleanOption(Option):
 
 
 class OptionSet(Iterable):
-
     def __iter__(self):
         finished = False
         while not finished:

@@ -26,7 +26,6 @@ QUESTION_PLACEHOLDER = "{{QUESTION}}"
 
 
 class QueryConfigGenerator:
-
     def __init__(self, options: OptionSet):
         self._options = options
 

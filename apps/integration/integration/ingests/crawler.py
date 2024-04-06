@@ -10,6 +10,10 @@ DEFAULT_INDEX_NAME = "demoindex0"
 
 
 class HttpCrawlerIndex:
+    """
+    Class that ingests an index using a sycamore http crawler preset
+    """
+
     def __init__(
         self,
         profile: str,
@@ -21,6 +25,11 @@ class HttpCrawlerIndex:
         self._importer = importer
 
     def __enter__(self):
+        """
+        Context manager for an ingest with sycamore http crawler
+        Start a crawler image, wait for it to finish and read what it loads from the logs.
+        Then watch the importer logs to determine when it has ingested all of the docs it needs to
+        """
         docker_client = docker.from_env()
         service_name = self._get_service_name()
         compose = docker_compose(services=[service_name])
@@ -61,6 +70,9 @@ class HttpCrawlerIndex:
         return IndexInfo(name=DEFAULT_INDEX_NAME, num_docs=num_files)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """
+        Context manager exit. Drop the index.
+        """
         self._opensearch.indices.delete(index=DEFAULT_INDEX_NAME)
 
     def _get_service_name(self):

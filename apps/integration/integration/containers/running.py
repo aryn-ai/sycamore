@@ -9,6 +9,11 @@ from integration import SYCAMORE_ROOT
 
 
 def docker_compose(services: List[str] = []):
+    """
+    Get a docker compose object that controls some set of the sycamore stack
+    :param services: the list of services to control. [] -> all services
+    :return: the docker compose object
+    """
     if len(services) > 0:
         return DockerCompose(SYCAMORE_ROOT, services=services)
     else:
@@ -17,6 +22,10 @@ def docker_compose(services: List[str] = []):
 
 @pytest.fixture(scope="session")
 def container_urls():
+    """
+    Get a mapping from container/service to network address
+    :return: map of container/service to network address
+    """
     return {
         "opensearch": ("localhost", 9200),
         "rps": ("localhost", 2796),
@@ -27,6 +36,10 @@ def container_urls():
 
 @pytest.fixture(scope="session")
 def container_handles():
+    """
+    Get docker objects representing each container in the stack
+    :return: mapping from container/service to docker objects
+    """
     docker_client = docker.from_env()
     jupyter = docker_client.containers.list(filters={"label": "com.docker.compose.service=jupyter"})[0]
     opensearch = docker_client.containers.list(filters={"label": "com.docker.compose.service=opensearch"})[0]
@@ -38,6 +51,10 @@ def container_handles():
 
 @pytest.fixture(scope="session")
 def opensearch_client(container_urls):
+    """
+    Get an opensearch client that hits the stack opensearch
+    :return: the opensearch client
+    """
     host, port = container_urls["opensearch"]
     urlstr = f"https://{host}:{port}"
     # Ten minute deadline for opensearch startup

@@ -18,6 +18,9 @@ logger.addHandler(file_handler)
 
 
 def test_querying(query_generator, os_query, opensearch_client, ingested_index):
+    """
+    Test that I can successfully query opensearch with some pipeline
+    """
     logger.info(os_query)
     pipeline, query = query_generator.generate(os_query)
     pipeline_name = "it-pipeline"

@@ -2,6 +2,10 @@ from collections.abc import Iterable
 
 
 class Option:
+    """
+    Option with a set of values to query with
+    """
+
     def __init__(self, name, values):
         if isinstance(values, str) or not isinstance(values, Iterable):
             values = [values]
@@ -26,11 +30,21 @@ class Option:
 
 
 class BooleanOption(Option):
+    """
+    Subclass for flags
+    """
+
     def __init__(self, name):
         super().__init__(name, [False, True])
 
 
 class OptionSet(Iterable):
+    """
+    Set of Options that generates the cartesian product of all option values. e.g.
+    op1 = {a, b}, op2 = {1, 2, 3}
+    OptionSet(op1, op2) generates [a1, b1, a2, b2, a3, b3]
+    """
+
     def __iter__(self):
         finished = False
         while not finished:

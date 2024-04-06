@@ -7,6 +7,9 @@ QUERY_FIXTURE_NAME = "os_query"
 
 
 def pytest_generate_tests(metafunc):
+    """
+    Generate all a test for every query configuration in the Query Config Generator
+    """
     if QUERY_FIXTURE_NAME in metafunc.fixturenames:
         metafunc.parametrize(QUERY_FIXTURE_NAME, list(QueryConfigGenerator(DEFAULT_OPTIONS)))
 

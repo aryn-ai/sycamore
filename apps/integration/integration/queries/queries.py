@@ -26,6 +26,10 @@ QUESTION_PLACEHOLDER = "{{QUESTION}}"
 
 
 class QueryConfigGenerator:
+    """
+    Generator for query configurations
+    """
+
     def __init__(self, options: OptionSet):
         self._options = options
 
@@ -56,6 +60,11 @@ class QueryConfig:
 
 
 class QueryGenerator:
+    """
+    Generator for queries and pipelines.
+    Important method is `generate`
+    """
+
     def __init__(self, opensearch: OpenSearch, index_info: IndexInfo):
         self._opensearch = OpenSearchHelper(opensearch)
         self._index_info = index_info
@@ -75,6 +84,10 @@ class QueryGenerator:
             self._index_mappings = self._opensearch.get_index_mappings(self._index_info.name)
 
     def generate(self, query_config: QueryConfig):
+        """
+        Convert a query configuration into an opensearch pipeline and query,
+        using information gleaned from the opensearch cluster
+        """
         self._setup_context_if_needed()
         pipeline_def = self._generate_pipeline(query_config)
         query_def = self._generate_query(query_config)

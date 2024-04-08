@@ -2,7 +2,7 @@ import docker
 from docker.models.containers import Container
 from opensearchpy import OpenSearch
 from integration.containers.running import docker_compose
-from integration.ingests.index import IndexInfo
+from integration.ingests.index_info import IndexInfo
 import time
 
 PROFILE_TO_NAME_MAP = {"sort-one": "sycamore_crawler_http_sort_one", "sort-all": "sycamore_crawler_http_sort_all"}

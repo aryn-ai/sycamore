@@ -1,5 +1,5 @@
 from integration.containers.running import container_handles, container_urls, opensearch_client
-from integration.ingests import ingested_index
+from integration.ingests.index import ingested_index
 from integration.queries.queries import DEFAULT_OPTIONS, QueryConfigGenerator, query_generator
 
 

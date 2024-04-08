@@ -3,7 +3,7 @@ from enum import Enum
 import pytest
 from opensearchpy import OpenSearch
 
-from integration.ingests.index import IndexInfo
+from integration.ingests.index_info import IndexInfo
 from integration.queries.opensearch import OpenSearchHelper
 from integration.queries.options import Option, BooleanOption, OptionSet
 from dataclasses import dataclass

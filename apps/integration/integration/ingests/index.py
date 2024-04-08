@@ -2,13 +2,20 @@ import pytest
 from integration.ingests.crawler import HttpCrawlerIndex
 
 
-@pytest.fixture(scope="session", params=["crawler-http-one", "crawler-http-all"])
-def ingested_index(request, opensearch_client, container_handles):
+INGEST_PROFILES = ["crawler-http-one", "crawler-http-all"]
+
+
+@pytest.fixture(scope="session", params=INGEST_PROFILES)
+def ingest_profile(request):
+    return request.param
+
+
+@pytest.fixture(scope="session")
+def ingested_index(opensearch_client, container_handles, ingest_profile):
     """
     Ingest an index. Parametrize by pre-defined ingestion setting
     :return: the index name and number of ingested documents
     """
-    ingest_profile = request.param
     index_ctx = None
     if ingest_profile == "crawler-http-one":
         index_ctx = HttpCrawlerIndex(

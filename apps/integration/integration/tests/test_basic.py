@@ -17,12 +17,12 @@ file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 
-def test_querying(query_generator, os_query, opensearch_client, ingested_index):
+def test_querying(query_generator, os_query, opensearch_client, ingested_index, ingest_profile):
     """
     Test that I can successfully query opensearch with some pipeline
     """
     logger.info(os_query)
-    pipeline, query = query_generator.generate(os_query)
+    pipeline, query = query_generator.generate(os_query, ingest_profile)
     pipeline_name = "it-pipeline"
     logger.info(pipeline)
     opensearch_client.transport.perform_request(method="PUT", url=f"/_search/pipeline/{pipeline_name}", body=pipeline)

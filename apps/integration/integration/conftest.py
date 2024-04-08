@@ -1,5 +1,5 @@
 from integration.containers.running import container_handles, container_urls, opensearch_client
-from integration.ingests.index import ingested_index
+from integration.ingests.index import ingested_index, ingest_profile
 from integration.queries.queries import DEFAULT_OPTIONS, QueryConfigGenerator, query_generator
 
 
@@ -20,4 +20,5 @@ __all__ = [
     "opensearch_client",
     "ingested_index",
     "query_generator",
+    "ingest_profile",
 ]

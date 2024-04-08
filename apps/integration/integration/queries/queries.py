@@ -4,6 +4,7 @@ import pytest
 from opensearchpy import OpenSearch
 
 from integration.ingests.index_info import IndexInfo
+from integration.ingests.index import INGEST_PROFILES
 from integration.queries.opensearch import OpenSearchHelper
 from integration.queries.options import Option, BooleanOption, OptionSet
 from dataclasses import dataclass
@@ -22,7 +23,11 @@ DEFAULT_OPTIONS = OptionSet(
     BooleanOption("do_filter"),
     Option("rag_mode", RagMode),
 )
-QUESTION_PLACEHOLDER = "{{QUESTION}}"
+QUESTIONS = {
+    "crawler-http-one": "What is nsort?",
+    "crawler-http-all": "What are the sort benchmarks?",
+}
+assert all(profile in QUESTIONS for profile in INGEST_PROFILES), "Missing a question"
 
 
 class QueryConfigGenerator:
@@ -83,14 +88,15 @@ class QueryGenerator:
         if self._index_mappings is None:
             self._index_mappings = self._opensearch.get_index_mappings(self._index_info.name)
 
-    def generate(self, query_config: QueryConfig):
+    def generate(self, query_config: QueryConfig, ingest_profile: str):
         """
         Convert a query configuration into an opensearch pipeline and query,
         using information gleaned from the opensearch cluster
         """
+        question = QUESTIONS[ingest_profile]
         self._setup_context_if_needed()
         pipeline_def = self._generate_pipeline(query_config)
-        query_def = self._generate_query(query_config)
+        query_def = self._generate_query(query_config, question)
         return pipeline_def, query_def
 
     def _generate_pipeline(self, query_config):
@@ -139,7 +145,7 @@ class QueryGenerator:
             )
         return pipeline
 
-    def _generate_query(self, query_config):
+    def _generate_query(self, query_config, question):
         query = {"size": 20}
         if query_config.do_hybrid:
             query["query"] = {
@@ -149,14 +155,14 @@ class QueryGenerator:
                             "bool": {
                                 "must": [
                                     {"exists": {"field": "text_representation"}},
-                                    {"match": {"text_representation": QUESTION_PLACEHOLDER}},
+                                    {"match": {"text_representation": question}},
                                 ]
                             }
                         },
                         {
                             "neural": {
                                 "embedding": {
-                                    "query_text": QUESTION_PLACEHOLDER,
+                                    "query_text": question,
                                     "k": 100,
                                     "model_id": self._embedding_id,
                                 }
@@ -171,18 +177,18 @@ class QueryGenerator:
                 query["query"]["hybrid"]["queries"][1]["neural"]["embedding"]["filter"] = filter_clause
         else:
             query["query"] = {
-                "neural": {"embedding": {"query_text": QUESTION_PLACEHOLDER, "k": 100, "model_id": self._embedding_id}}
+                "neural": {"embedding": {"query_text": question, "k": 100, "model_id": self._embedding_id}}
             }
             if query_config.do_filter:
                 filter_clause = {"match": {"text_representation": "anything"}}
                 query["query"]["neural"]["embedding"]["filter"] = filter_clause
         if query_config.do_rerank:
-            query["ext"] = {"rerank": {"query_context": {"query_text": QUESTION_PLACEHOLDER}}}
+            query["ext"] = {"rerank": {"query_context": {"query_text": question}}}
         if query_config.rag_mode != RagMode.OFF:
             if "ext" not in query:
                 query["ext"] = {}
             query["ext"]["generative_qa_parameters"] = {
-                "llm_question": QUESTION_PLACEHOLDER,
+                "llm_question": question,
                 "context_size": 5,
                 "llm_model": "gpt-3.5-turbo",
             }

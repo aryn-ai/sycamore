@@ -1,6 +1,10 @@
 #!/bin/bash
 
 main() {
+  if [[ ! -d ".git" ]]; then
+    echo "Error: please run this script from sycamore root!" >&2
+    exit 1
+  fi
   echo "Get the newest git commits" >&2
   checkout_main_if_new
   local should_run=$?

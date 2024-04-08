@@ -6,7 +6,7 @@ from pyarrow.filesystem import FileSystem
 
 from sycamore import Context, DocSet
 from sycamore.data import Document
-from sycamore.scans import ArrowScan, BinaryScan, DocScan, PandasScan, JsonScan
+from sycamore.scans import ArrowScan, BinaryScan, DocScan, PandasScan, JsonScan, JsonDocumentScan
 from sycamore.scans.file_scan import FileMetadataProvider
 
 
@@ -71,6 +71,10 @@ class DocSetReader:
             **resource_args
         )
         return DocSet(self._context, json_scan)
+
+    def json_document(self, paths: Union[str, list[str]], **resource_args) -> DocSet:
+        scan = JsonDocumentScan(paths, **resource_args)
+        return DocSet(self._context, scan)
 
     def arrow(self, tables: Union[Table, bytes, list[Union[Table, bytes]]]) -> DocSet:
         scan = ArrowScan(tables)

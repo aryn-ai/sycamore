@@ -1,4 +1,4 @@
-from sycamore.scans.file_scan import BinaryScan, FileScan, JsonScan
+from sycamore.scans.file_scan import BinaryScan, FileScan, JsonScan, JsonDocumentScan
 from sycamore.scans.materialized_scan import ArrowScan, DocScan, MaterializedScan, PandasScan
 
 __all__ = [
@@ -7,6 +7,7 @@ __all__ = [
     "DocScan",
     "FileScan",
     "JsonScan",
+    "JsonDocumentScan",
     "MaterializedScan",
     "PandasScan",
 ]

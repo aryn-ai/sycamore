@@ -20,6 +20,12 @@ class TestDocSetReader:
         assert isinstance(docset, DocSet)
         assert docset.plan.format() == "json"
 
+    def test_json_doc(self):
+        context = sycamore.init()
+        docset = context.read.json_document("s3://bucket/prefix/json", binary_format="json")
+        assert isinstance(docset, DocSet)
+        assert docset.plan.format() == "jsonl"
+
     def test_html_binary(self):
         context = sycamore.init()
         docset = context.read.binary("s3://bucket/prefix/html", binary_format="html")

@@ -82,6 +82,26 @@ def _check_doc_path(
             comparison_fn(expected, actual)
 
 
+def _check_doc_blocks(
+    docs: list[Document],
+    path: Path,
+) -> None:
+    docs_by_id = {doc.doc_id: doc for doc in docs}
+    paths = [p for p in path.iterdir() if p.is_file()]
+    buf = ""
+    for p in paths:
+        with open(p) as fp:
+            buf += fp.read()
+    rows = buf.split("\n")
+    rows.pop()  # Extra empty after split
+    for r in rows:
+        parsed = json.loads(r.strip())
+        del parsed["binary_representation"]
+        id = parsed["doc_id"]
+        doc = docs_by_id[id]
+        assert parsed == doc
+
+
 def _test_filename(doc: Document) -> str:
     return doc.properties["filename"]
 
@@ -128,3 +148,10 @@ class TestDocSetWriter:
         doc_set = context.read.document(docs)
         doc_set.write.files(str(tmp_path), doc_to_bytes_fn=elements_to_bytes)
         _check_doc_path(docs, tmp_path, doc_to_bytes_fn=elements_to_bytes, comparison_fn=_compare_as_jsonl)
+
+    def test_file_writer_json(self, tmp_path: Path):
+        docs = generate_docs(5, num_elements=5)
+        context = sycamore.init()
+        doc_set = context.read.document(docs)
+        doc_set.write.json(str(tmp_path))
+        _check_doc_blocks(docs, tmp_path)

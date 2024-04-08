@@ -242,3 +242,35 @@ class JsonScan(FileScan):
 
     def format(self):
         return "json"
+
+
+class JsonDocumentScan(FileScan):
+    def __init__(
+        self,
+        paths: Union[str, list[str]],
+        *,
+        parallelism: Optional[int] = None,
+        filesystem: Optional[FileSystem] = None,
+        **resource_args,
+    ):
+        super().__init__(paths, parallelism=parallelism, filesystem=filesystem, **resource_args)
+        self.parallelism = -1 if parallelism is None else parallelism
+
+    @staticmethod
+    def json_as_document(json: dict[str, Any]) -> list[dict[str, Any]]:
+        doc = Document()
+        doc.data = json
+        return [{"doc": doc.serialize()}]  # Make Ray row
+
+    def execute(self) -> Dataset:
+        ds = read_json(
+            self._paths,
+            include_paths=True,
+            filesystem=self._filesystem,
+            parallelism=self.parallelism,
+            ray_remote_args=self.resource_args,
+        )
+        return ds.flat_map(self.json_as_document, **self.resource_args)
+
+    def format(self):
+        return "jsonl"

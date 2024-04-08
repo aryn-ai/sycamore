@@ -5,7 +5,8 @@ from pyarrow.fs import FileSystem
 from pyarrow import NativeFile
 
 from ray.data import Dataset
-from ray.data.datasource import FilenameProvider, RowBasedFileDatasink
+from ray.data.datasource import FilenameProvider, RowBasedFileDatasink, BlockBasedFileDatasink
+from ray.data.block import Block, BlockAccessor
 
 from collections import UserDict
 from io import StringIO
@@ -100,6 +101,18 @@ def elements_to_bytes(doc: Document) -> bytes:
     return out.getvalue().encode("utf-8")
 
 
+def document_to_bytes(doc: Document) -> bytes:
+    """
+    Returns a UTF-8 encoded json string of the document.  Adds newline.
+    Beware this will try to interpret binary_representation as UTF-8.
+    """
+
+    out = StringIO()
+    json.dump(doc, out, cls=JSONEncodeWithUserDict)
+    out.write("\n")
+    return out.getvalue().encode("utf-8")
+
+
 class FileWriter(Write):
     """Sycamore Write implementation that writes out binary or text representation.
 
@@ -153,12 +166,54 @@ class FileWriter(Write):
         return dataset
 
 
+class JsonWriter(Write):
+    """
+    Sycamore Write implementation that writes blocks of Documents to JSONL
+    files.  Supports output to any Ray-supported filesystem.  Typically
+    each source document (such as a PDF) ends up as a block.  After an
+    explode(), there will be multiple documents in the block.
+    """
+
+    def __init__(
+        self,
+        plan: Node,
+        path: str,
+        filesystem: Optional[FileSystem] = None,
+        **ray_remote_args,
+    ) -> None:
+        """
+        Construct a JsonWriter instance.
+
+        Args:
+            plan: A Sycamore plan representing the DocSet to write out.
+            path: The path prefix to write to. Should include the scheme.
+            filesystem: The pyarrow.fs FileSystem to use.
+            ray_remote_args: Arguments to pass to the underlying execution environment.
+        """
+
+        super().__init__(plan, **ray_remote_args)
+        self.path = path
+        self.filesystem = filesystem
+        self.ray_remote_args = ray_remote_args
+
+    def execute(self) -> Dataset:
+        ds = self.child().execute()
+        sink = _JsonBlockDataSink(self.path, filesystem=self.filesystem)
+        ds.write_datasink(sink, ray_remote_args=self.ray_remote_args)
+        return ds
+
+
 class DocToRowFilenameProvider(FilenameProvider):
     def __init__(self, filename_fn: Callable[[Document], str]):
         self._filename_fn = filename_fn
 
     def get_filename_for_row(self, row: dict[str, Any], task_index: int, block_index: int, row_index: int) -> str:
         return self._filename_fn(Document.from_row(row))
+
+
+class BlockFilenameProvider(FilenameProvider):
+    def get_filename_for_block(self, block: Block, task_index: int, block_index: int) -> str:
+        return f"block_{block_index}_{task_index}.jsonl"
 
 
 class _WritableFilePerRowDataSink(RowBasedFileDatasink):
@@ -176,3 +231,19 @@ class _WritableFilePerRowDataSink(RowBasedFileDatasink):
     def write_row_to_file(self, row: dict[str, Any], file: NativeFile):
         binary = self._doc_to_bytes_fn(Document.from_row(row))
         file.write(binary)
+
+
+class _JsonBlockDataSink(BlockBasedFileDatasink):
+    def __init__(
+        self,
+        path: str,
+        filesystem: Optional[FileSystem] = None,
+    ) -> None:
+        super().__init__(path, filesystem=filesystem, filename_provider=BlockFilenameProvider())
+
+    def write_block_to_file(self, block: BlockAccessor, file: NativeFile) -> None:
+        for row in block.iter_rows(True):  # type: ignore[var-annotated]
+            doc = Document.from_row(row)
+            del doc.binary_representation  # Doesn't make sense in JSON
+            binary = document_to_bytes(doc)
+            file.write(binary)

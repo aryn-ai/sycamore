@@ -80,9 +80,7 @@ class OpenAIEntityExtractor(EntityExtractor):
         else:
             entities = self._handle_zero_shot_prompting(document)
 
-        properties = document.properties
-        properties.update({f"{self._entity_name}": entities})
-        document.properties = properties
+        document.properties.update({f"{self._entity_name}": entities})
 
         return document
 

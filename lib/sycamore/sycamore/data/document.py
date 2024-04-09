@@ -16,6 +16,8 @@ class Document(UserDict):
 
             document = loads(document)
         super().__init__(document, **kwargs)
+        if "properties" not in self.data:
+            self.data["properties"] = {}
 
     @property
     def doc_id(self) -> Optional[str]:
@@ -124,7 +126,7 @@ class Document(UserDict):
     def properties(self) -> dict[str, Any]:
         """A collection of system or customer defined properties, for instance, a PDF document might have
         title and author properties."""
-        return self.data.get("properties", {})
+        return self.data["properties"]
 
     @properties.setter
     def properties(self, properties: dict[str, Any]):

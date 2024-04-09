@@ -192,9 +192,7 @@ class TestDocSet:
         assert sorted(expected_as) == sorted(actual_as)
 
     def double_element(self, elem: Element) -> Element:
-        props = elem.properties
-        props["element_double"] = props["element_val"] * 2
-        elem.properties = props
+        elem.properties["element_double"] = elem.properties["element_val"] * 2
         return elem
 
     def test_map_elements(self):

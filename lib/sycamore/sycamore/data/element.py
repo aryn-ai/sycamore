@@ -14,6 +14,8 @@ class Element(UserDict):
 
     def __init__(self, element=None, /, **kwargs):
         super().__init__(element, **kwargs)
+        if "properties" not in self.data:
+            self.data["properties"] = {}
 
     @property
     def type(self) -> Optional[str]:
@@ -49,7 +51,7 @@ class Element(UserDict):
 
     @property
     def properties(self) -> dict[str, Any]:
-        return self.data.get("properties", {})
+        return self.data["properties"]
 
     @properties.setter
     def properties(self, properties: dict[str, Any]):

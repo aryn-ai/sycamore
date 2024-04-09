@@ -45,7 +45,7 @@ NDD is configured in `pipelines.yml` with a several of preset values:
 
 As can be seen, there's one parameter, `threshold`, which controls how aggressively NDD will drop documents. Near 0.0, few documents will be removed and they will need to be practically identical to higher-scoring documents. Above 1.0, all documents will be removed, except for the first one.
 
-The current implementation of NDD uses "shingles" which consist of 16 hash values. The distance between two documents is the number of hash values that differ between the two documents' shingles. The raw number is between 0 and 16, but we normalize it to between 0.0 and 1.0. The logic is basically: `if distance < threshold, drop the result`. 
+The current implementation of NDD uses "shingles" which consist of 16 hash values. The distance between two documents is the number of hash values that differ between the two documents' shingles. The raw number is between 0 and 16, but we normalize it to between 0.0 and 1.0. The logic is basically: `if distance < threshold, drop the result`.
 
 Sycamore's default hybrid search and RAG pipelines use `dedup02`, which allows two hashes to differ. That would make the threshold 2 / 16, or 0.125, but we need to set the value slightly higher because it uses a less-than comparison.
 

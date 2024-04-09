@@ -251,9 +251,7 @@ class DocSet:
         """
 
         def add_properties_fn(doc: Document) -> Document:
-            new_props = doc.properties
-            new_props.update({k: f(doc) for k, f in property_map.items()})
-            doc.properties = new_props
+            doc.properties.update({k: f(doc) for k, f in property_map.items()})
             return doc
 
         return self.map(add_properties_fn, **resource_args)

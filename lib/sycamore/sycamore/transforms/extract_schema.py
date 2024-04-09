@@ -89,9 +89,7 @@ class OpenAISchemaExtractor(SchemaExtractor):
         except (json.JSONDecodeError, ValueError):
             answer = entities
 
-        properties = document.properties
-        properties.update({"_schema": answer, "_schema_class": self._entity_name})
-        document.properties = properties
+        document.properties.update({"_schema": answer, "_schema_class": self._entity_name})
 
         return document
 
@@ -153,9 +151,7 @@ class OpenAIPropertyExtractor(PropertyExtractor):
         except (json.JSONDecodeError, AttributeError):
             answer = entities
 
-        properties = document.properties
-        properties.update({"entity": answer})
-        document.properties = properties
+        document.properties.update({"entity": answer})
 
         return document
 
@@ -259,9 +255,7 @@ class ExtractBatchSchema(Transform):
         schema_name = schema.properties["_schema_class"]
 
         def apply_schema(doc):
-            properties = doc.properties
-            properties.update({"_schema": schema_json, "_schema_class": schema_name})
-            doc.properties = properties
+            doc.properties.update({"_schema": schema_json, "_schema_class": schema_name})
             return doc
 
         dataset = dataset.map(generate_map_function(apply_schema))

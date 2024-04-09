@@ -13,16 +13,12 @@ class TestElement:
         element.type = "table"
         element.text_representation = "text"
         element.bbox = BoundingBox(1, 2, 3, 4)
-        properties = element.properties
-        properties.update({"property1": 1})
-        element.properties = properties
+        element.properties.update({"property1": 1})
         assert element.type == "table"
         assert element.text_representation == "text"
         assert element.properties == {"property1": 1}
 
-        properties = element.properties
-        properties.update({"property2": 2})
-        element.properties = properties
+        element.properties.update({"property2": 2})
         assert element.properties == {"property1": 1, "property2": 2}
 
         del element.properties
@@ -50,21 +46,23 @@ class TestDocument:
         document.elements = [element1]
         document.embedding = [[1.0, 2.0], [2.0, 3.0]]
         document.bbox = BoundingBox(1, 2, 3, 4)
-        document.properties = {"property1": 1}
+        document.properties["property1"] = 1
         assert document.doc_id == "doc_id"
         assert document.type == "table"
         assert document.text_representation == "text"
         assert document.elements == [element1.data]
         assert document.embedding == [[1.0, 2.0], [2.0, 3.0]]
         assert document.properties == {"property1": 1}
+        document.properties = {"property2": 2}
+        assert len(document.properties) == 1
+        assert document.properties == {"property2": 2}
 
         element2 = Element({"type": "image", "text": "text"})
         document.elements = [element1, element2]
         assert document.elements == [element1.data, element2.data]
-        properties = document.properties
-        properties.update({"property2": 2})
-        document.properties = properties
-        assert document.properties == {"property1": 1, "property2": 2}
+        document.properties["property3"] = 3
+        document.properties.update({"property4": 4})
+        assert document.properties == {"property2": 2, "property3": 3, "property4": 4}
 
         del document.elements
         del document.properties

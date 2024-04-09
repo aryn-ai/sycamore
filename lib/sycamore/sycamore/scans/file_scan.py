@@ -128,15 +128,13 @@ class BinaryScan(FileScan):
         document.type = self._binary_format
         document.binary_representation = dict["bytes"]
 
-        properties = document.properties
         if self._is_s3_scheme():
             dict["path"] = "s3://" + dict["path"]
-        properties.update({"path": dict["path"]})
-        if "filetype" not in properties and self._binary_format is not None:
-            properties["filetype"] = self._file_mime_type()
+        document.properties.update({"path": dict["path"]})
+        if "filetype" not in document.properties and self._binary_format is not None:
+            document.properties["filetype"] = self._file_mime_type()
         if self._metadata_provider:
-            properties.update(self._metadata_provider.get_metadata(dict["path"]))
-        document.properties = properties
+            document.properties.update(self._metadata_provider.get_metadata(dict["path"]))
 
         return {"doc": document.serialize()}
 

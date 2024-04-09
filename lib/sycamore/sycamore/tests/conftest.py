@@ -11,7 +11,5 @@ def read_local_binary(request) -> Document:
     input_stream = local.open_input_stream(path)
     document = Document()
     document.binary_representation = input_stream.readall()
-    properties = document.properties
-    properties["path"] = path
-    document.properties = properties
+    document.properties["path"] = path
     return document

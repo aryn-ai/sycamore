@@ -58,3 +58,4 @@ repos:
     rev: 0.7.1
     hooks:
       - id: nbstripout
+        exclude: notebooks/ndd_example.ipynb

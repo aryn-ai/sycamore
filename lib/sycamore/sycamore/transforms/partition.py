@@ -92,10 +92,8 @@ class UnstructuredPPTXPartitioner(Partitioner):
         element.type = dict.pop("type", "unknown")
         element.binary_representation = binary
         element.text_representation = text
-        properties = element.properties
-        properties.update(dict.pop("metadata"))
-        properties.update(dict)
-        element.properties = properties
+        element.properties.update(dict.pop("metadata"))
+        element.properties.update(dict)
 
         return element
 
@@ -201,14 +199,12 @@ class UnstructuredPdfPartitioner(Partitioner):
         element.type = dict.pop("type", "unknown")
         element.binary_representation = binary
         element.text_representation = text
-        properties = element.properties
-        properties.update(dict.pop("metadata"))
-        properties.update(dict)
-        coordinates = properties.get("coordinates")
-        if not retain_coordinates:
-            properties.pop("coordinates")
 
-        element.properties = properties
+        element.properties.update(dict.pop("metadata"))
+        element.properties.update(dict)
+        coordinates = element.properties.get("coordinates")
+        if not retain_coordinates:
+            element.properties.pop("coordinates")
 
         if coordinates is not None:
             x1 = coordinates.get("points")[0][0] / coordinates.get("layout_width")
@@ -298,9 +294,7 @@ class HtmlPartitioner(Partitioner):
         title = document.doc_id
         if len(titles) > 0:
             title = titles[0].text.replace("\n", "").strip()
-        properties = document.properties
-        properties["title"] = title
-        document.properties = properties
+        document.properties["title"] = title
 
         # chunk text and create text elements
         elements = []
@@ -312,9 +306,7 @@ class HtmlPartitioner(Partitioner):
             element.type = "text"
             element.text_representation = content
 
-            element_properties = element.properties
-            element_properties.update(properties)
-            element.properties = element_properties
+            element.properties.update(document.properties)
             elements += [element]
 
         # extract tables
@@ -332,9 +324,7 @@ class HtmlPartitioner(Partitioner):
                     table_element.columns = [tag.text for tag in headers]
 
                 table_element.text_representation = table.text
-                table_properties = table_element.properties
-                table_properties.update(properties)
-                table_element.properties = table_properties
+                table_element.properties.update(document.properties)
 
                 # parse all rows, use all text as content
                 rows = table.findAll("tr")

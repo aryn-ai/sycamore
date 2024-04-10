@@ -2,7 +2,7 @@
 name = "integration"
 version = "0.1.0"
 description = "Integration Testing for Sycamore"
-authors = ["aryn.ai opensource@aryn.ai"]
+authors = ["aryn.ai <opensource@aryn.ai>"]
 license = "Apache 2.0"
 readme = "README.md"
 

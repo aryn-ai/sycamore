@@ -3,49 +3,41 @@ import docker
 import requests
 import time
 from opensearchpy import OpenSearch
-from testcontainers.compose.compose import DockerCompose
-from typing import List
-from integration import SYCAMORE_ROOT
 
 
-def docker_compose(services: List[str] = []):
-    """
-    Get a docker compose object that controls some set of the sycamore stack
-    :param services: the list of services to control. [] -> all services
-    :return: the docker compose object
-    """
-    if len(services) > 0:
-        return DockerCompose(SYCAMORE_ROOT, services=services)
-    else:
-        return DockerCompose(SYCAMORE_ROOT)
+IMPORTANT_PORTS = {
+    "opensearch": 9200,
+    "rps": 2796,
+    "demo-ui": 3000,
+    "jupyter": 8888,
+}
 
 
 @pytest.fixture(scope="session")
-def container_urls():
+def container_urls(stack):
     """
     Get a mapping from container/service to network address
     :return: map of container/service to network address
     """
     return {
-        "opensearch": ("localhost", 9200),
-        "rps": ("localhost", 2796),
-        "demo-ui": ("localhost", 3000),
-        "jupyter": ("localhost", 8888),
+        service_name: stack.get_service_host_and_port(service_name, port=IMPORTANT_PORTS[service_name])
+        for service_name in [c.Service for c in stack.get_containers()]
+        if service_name in IMPORTANT_PORTS
     }
 
 
 @pytest.fixture(scope="session")
-def container_handles():
+def container_handles(stack):
     """
     Get docker objects representing each container in the stack
     :return: mapping from container/service to docker objects
     """
     docker_client = docker.from_env()
-    jupyter = docker_client.containers.list(filters={"label": "com.docker.compose.service=jupyter"})[0]
-    opensearch = docker_client.containers.list(filters={"label": "com.docker.compose.service=opensearch"})[0]
-    demo_ui = docker_client.containers.list(filters={"label": "com.docker.compose.service=demo-ui"})[0]
-    rps = docker_client.containers.list(filters={"label": "com.docker.compose.service=rps"})[0]
-    importer = docker_client.containers.list(filters={"label": "com.docker.compose.service=importer"})[0]
+    jupyter = docker_client.containers.get(stack.get_container("jupyter").ID)
+    opensearch = docker_client.containers.get(stack.get_container("opensearch").ID)
+    demo_ui = docker_client.containers.get(stack.get_container("demo-ui").ID)
+    rps = docker_client.containers.get(stack.get_container("rps").ID)
+    importer = docker_client.containers.get(stack.get_container("importer").ID)
     return {"jupyter": jupyter, "opensearch": opensearch, "demo_ui": demo_ui, "rps": rps, "importer": importer}
 
 
@@ -77,4 +69,5 @@ def opensearch_client(container_urls):
         verify_certs=False,
         ssl_assert_hostname=False,
         ssl_show_warn=False,
+        timeout=20,
     )

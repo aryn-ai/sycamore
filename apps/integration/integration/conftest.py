@@ -2,6 +2,7 @@
 from integration.containers.running import container_handles, container_urls, opensearch_client
 from integration.ingests.index import ingested_index, ingest_profile
 from integration.queries.queries import DEFAULT_OPTIONS, QueryConfigGenerator, query_generator
+from integration.containers.stack import stack
 
 
 QUERY_FIXTURE_NAME = "os_query"

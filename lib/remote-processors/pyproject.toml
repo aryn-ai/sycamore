@@ -12,7 +12,7 @@ pyyaml = "^6.0.1"
 grpcio = "^1.60.0"
 cbor2 = "^5.6.0"
 sycamore-ai = "^0.1.13"
-protobuf = "^4.25.2"
+protobuf = "^4.25"
 
 
 [tool.poetry.group.test.dependencies]
@@ -27,6 +27,9 @@ sycamore-ai = { path = "../sycamore", develop = true }
 [tool.poetry.group.build.dependencies]
 grpcio-tools = "^1.60.1"
 protoletariat = "^3.2.19"
+
+[tool.poetry.group.sycamore_poetry_lock.dependencies]
+sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }
 
 [build-system]
 requires = ["poetry-core"]

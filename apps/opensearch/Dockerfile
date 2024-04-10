@@ -3,13 +3,13 @@
 FROM gradle:jdk17 AS build_ml_commons
 
 WORKDIR /build_ml
-ADD https://github.com/opensearch-project/ml-commons.git#2.12 ./ml-commons
+ADD https://github.com/opensearch-project/ml-commons.git#2.12.0.0 ./ml-commons
 WORKDIR /build_ml/ml-commons
 RUN sed -i 's#if (os.macOsX) {#if (System.getProperty("os.arch") == "aarch64") {#' ml-algorithms/build.gradle
 RUN sed -i 's#throw new OpenSearchException("GenerativeQAResponseProcessor failed in precessing response");#log.error(e); throw new OpenSearchException(e);#'\
     search-processors/src/main/java/org/opensearch/searchpipelines/questionanswering/generative/GenerativeQAResponseProcessor.java
 RUN ./gradlew assemble
-
+RUN ls /build_ml/ml-commons/plugin/build/distributions
 FROM gradle:jdk17 AS build_rps_plugin
 
 WORKDIR /build

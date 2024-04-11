@@ -16,6 +16,7 @@ main() {
     echo "Changes detected. Running Tests" >&2
     poetry install
     build_containers
+    exit 0
     runtests
     handle_outputs
   else
@@ -23,12 +24,17 @@ main() {
   fi
 }
 
+error() {
+  echo "ERROR: $@"
+  exit 1
+}
+
 checkout_main_if_new() {
   old_sha="$(git rev-parse HEAD)"
   git fetch origin main >&2
   new_sha="$(git rev-parse FETCH_HEAD)"
   if [[ "${old_sha}" != "${new_sha}" ]]; then
-    git pull origin main >&2
+    git pull --rebase origin main >&2
     return 0
   else
     return 1
@@ -62,7 +68,7 @@ runtests() {
 docker-build-hub() {
   local docker_file="$1"
   [[ -n "${docker_file}" ]] || error "missing ${docker_file}"
-  local repo_name="$(_docker-repo-name)"
+  local repo_name="$(_docker-repo-name "${docker_file}")"
   [[ -n "${repo_name}" ]] || error "empty repo name"
   shift
 
@@ -75,8 +81,10 @@ docker-build-hub() {
 }
 
 _docker-repo-name() {
+  local docker_file="$1"
+  echo "Finding repo name in: ${docker_file}" >&2
   local repo_name="$(grep '^# Repo name: ' "${docker_file}" | awk '{print $4}')"
-  if [[ $(echo "${repo_name}" | wc -w) != 1 ]]; then
+  if (( $(wc -w <<< ${repo_name}) != 1 )); then
     echo "Unable to find repo name in ${docker_file}" 1>&2
     exit 1
   fi

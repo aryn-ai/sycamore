@@ -12,7 +12,7 @@ main() {
     echo "Changes detected. Running Tests" >&2
     poetry install
     build_containers
-    poetry run pytest apps/integration
+    runtests
     handle_outputs
   else
     echo "No changes detected. Skipping integration tests" >&2
@@ -37,6 +37,15 @@ build_containers() {
 
 handle_outputs() {
   echo "Yep, definitely handling test outputs. That's what this function does" >&2
+}
+
+runtests() {
+  docker system prune -f --volumes
+  docker compose up reset
+  poetry run pytest apps/integration/ -p integration.conftest --noconftest --docker-tag latest_rc
+  # this is a complicated command, so: ^                        ^            ^ test against containers tagged latest_rc
+  #                                    |                     don't load conftest at pytest runtime; it's already loaded
+  #                                     load conftest with plugins, to capture the custom command line arg --docker-tag
 }
 
 

@@ -1,7 +1,7 @@
 import docker
 from docker.models.containers import Container
 from opensearchpy import OpenSearch
-from integration.containers.running import docker_compose
+from integration.containers.stack import docker_compose
 from integration.ingests.index_info import IndexInfo
 import time
 
@@ -31,6 +31,7 @@ class HttpCrawlerIndex:
         Then watch the importer logs to determine when it has ingested all of the docs it needs to
         """
         docker_client = docker.from_env()
+        self._importer.exec_run(cmd="rm -rf /app/.scrapy/*")
         service_name = self._get_service_name()
         compose = docker_compose(services=[service_name])
         files = set()

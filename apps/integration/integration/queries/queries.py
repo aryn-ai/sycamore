@@ -26,6 +26,8 @@ DEFAULT_OPTIONS = OptionSet(
 QUESTIONS = {
     "crawler-http-one": "What is nsort?",
     "crawler-http-all": "What are the sort benchmarks?",
+    "jupyter-default-prep": "What are the stages of ELSAR?",
+    "jupyter-dev-example": "How does self-attention work?",
 }
 assert all(profile in QUESTIONS for profile in INGEST_PROFILES), "Missing a question"
 

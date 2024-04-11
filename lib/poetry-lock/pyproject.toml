@@ -13,6 +13,7 @@ protobuf = "4.25.3" # rps
 fsspec = "2024.2.0" # sycamore (via datasets)
 pydantic = "1.10.14" # sycamore
 pillow = "10.2.0" # sycamore -- type hints don't work with 10.3.0
+pytest = "7.4.0" # sycamore tests don't work with 8.1.1
 
 # versions for consistency
 referencing = "0.34.0"
@@ -29,7 +30,6 @@ google-api-core = "2.18.0"
 threadpoolctl = "3.4.0"
 emoji = "2.11.0"
 openai = "1.14.3"
-pytest = "8.1.1"
 rapidfuzz = "3.7.0"
 smart-open = "7.0.4"
 transformers = "4.39.1"

@@ -53,7 +53,7 @@ pytesseract = "^0.3.10"
 
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"
-pytest = "^8"
+pytest = "^7.4"
 pytest-mock = "^3.11"
 
 [tool.poetry.group.dev.dependencies]

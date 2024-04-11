@@ -2,7 +2,7 @@
 
 The Sycamore near-duplicate detection (NDD) feature can be used to drop duplicates from query results. It is implemented as a [Remote Search Processor](remote_processors.md) called `dedup-response`, and you can add this to your hybrid search or RAG search pipelines. A prerequisite for NDD is to have previously ingested the documents using the `Sketcher` Sycamore transform.  See documentation for [sketch](../data_ingestion_and_preparation/transforms/sketch.md) in `DocSet` for details. Sycamore's defeault data ingestion and search pipeliens have sketching and NDD enabled.
 
-NDD is configured in `pipelines.yml` with a several of preset values:
+NDD is configured in `pipelines.yml` with several preset values:
 
 ```yaml
 - dedup00:

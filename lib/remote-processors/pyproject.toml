@@ -16,20 +16,18 @@ protobuf = "^4.25"
 
 
 [tool.poetry.group.test.dependencies]
-pytest = "^8.0.0"
+pytest = "^7.4"
 pytest-mock = "^3.12.0"
 docker = "^7.0.0"
 opensearch-py = "^2.4.2"
 
 [tool.poetry.group.dev.dependencies]
 sycamore-ai = { path = "../sycamore", develop = true }
+sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }
 
 [tool.poetry.group.build.dependencies]
 grpcio-tools = "^1.60.1"
 protoletariat = "^3.2.19"
-
-[tool.poetry.group.sycamore_poetry_lock.dependencies]
-sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }
 
 [build-system]
 requires = ["poetry-core"]

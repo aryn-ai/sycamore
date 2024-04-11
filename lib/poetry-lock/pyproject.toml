@@ -13,7 +13,10 @@ protobuf = "4.25.3" # rps
 fsspec = "2024.2.0" # sycamore (via datasets)
 pydantic = "1.10.14" # sycamore
 pillow = "10.2.0" # sycamore -- type hints don't work with 10.3.0
-pytest = "7.4.0" # sycamore tests don't work with 8.1.1
+# Make sure tests are run in the same order.
+# the following will fail which prevents upgrading pytest to 8.1.1
+# poetry run pytest lib/sycamore/sycamore/tests/unit/scans/test_materialized_scan.py lib/sycamore/sycamore/tests/unit/test_docset.py
+pytest = "7.4.0" 
 
 # versions for consistency
 referencing = "0.34.0"
@@ -42,6 +45,7 @@ pyasn1 = "0.6.0"
 typing-extensions = "4.11.0"
 filelock = "3.13.4"
 cmake = "3.29.0.1"
+testcontainers = "4.3.2"
 
 [build-system]
 requires = ["poetry-core"]

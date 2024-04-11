@@ -34,8 +34,8 @@ pytest-mock = "^3.11"
 sycamore-ai = { path = "lib/sycamore", develop = true }
 sycamore-crawler = { path = "apps/crawler", develop = true }
 remote-processors = { path = "lib/remote-processors", develop = true }
-sycamore-poetry-lock = { path = "lib/poetry-lock", develop = true }
 integration = { path = "apps/integration", develop = true }
+sycamore-poetry-lock = { path = "lib/poetry-lock", develop = true }
 ruff = "^0.0.287"
 black = "^23.7.0"
 pre-commit = "^3.4.0"

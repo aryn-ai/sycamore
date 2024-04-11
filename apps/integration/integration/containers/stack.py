@@ -16,8 +16,24 @@ def docker_compose(services: List[str] = []):
         return DockerCompose(SYCAMORE_ROOT)
 
 
+def set_version_tag(tag: str):
+    with open(SYCAMORE_ROOT / ".env", "r") as f:
+        lines = f.readlines()
+    lines[0] = f"VERSION={tag}\n"
+    with open(SYCAMORE_ROOT / ".env", "w") as f:
+        f.writelines(lines)
+
+
 @pytest.fixture(scope="session")
-def stack():
+def tag(request):
+    return request.config.getoption("--docker-tag")
+
+
+@pytest.fixture(scope="session")
+def stack(tag):
     base_compose = docker_compose()
+    base_compose.pull = True
+    set_version_tag(tag)
     with base_compose:
         yield base_compose
+    set_version_tag("stable")

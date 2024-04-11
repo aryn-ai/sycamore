@@ -12,11 +12,11 @@ JUPYTER_NB_INFO = {
 
 class JupyterIndex:
     def __init__(self, nb_name: str, opensearch: OpenSearch, jupyter: Container):
+        if nb_name not in JUPYTER_NB_INFO:
+            raise ValueError(f"Unrecognized notebook name: {nb_name}")
         self._nb_name = nb_name
         self._opensearch = opensearch
         self._jupyter = jupyter
-        if nb_name not in JUPYTER_NB_INFO:
-            raise ValueError(f"Unrecognized notebook name: {nb_name}")
         self._index_info = JUPYTER_NB_INFO[nb_name]
 
     def __enter__(self):

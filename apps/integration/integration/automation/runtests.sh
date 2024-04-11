@@ -42,7 +42,7 @@ handle_outputs() {
 runtests() {
   docker system prune -f --volumes
   docker compose up reset
-  poetry run pytest apps/integration/ -p integration.conftest --noconftest --docker-tag latest_rc
+  poetry run pytest apps/integration/ -p integration.conftest \--noconftest --docker-tag latest_rc
   # this is a complicated command, so: ^                        ^            ^ test against containers tagged latest_rc
   #                                    |                     don't load conftest at pytest runtime; it's already loaded
   #                                     load conftest with plugins, to capture the custom command line arg --docker-tag

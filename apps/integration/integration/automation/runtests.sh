@@ -75,8 +75,10 @@ docker-build-hub() {
   local platform=linux/amd64,linux/arm64
   echo
   echo "Building in sycamore and pushing to docker hub with repo name '${repo_name}'"
-  docker buildx build "$(_docker-build-args)" -t "${repo_name}:${TAG}" -f "${docker_file}" --platform ${platform} . \
-    || error "buildx failed"
+  docker buildx build "$(_docker-build-args)" -t "${repo_name}:${TAG}" -f "${docker_file}" --platform ${platform} \
+     --cache-to type=registry,ref="${repo_name}:build-cache",mode=max \
+     --cache-from type=registry,ref="${repo_name}:build-cache" \
+     "$@" --push . || error "buildx failed"
   echo "Successfully built in $dir using docker file $docker_file"
 }
 

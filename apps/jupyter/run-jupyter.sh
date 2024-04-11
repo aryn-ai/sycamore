@@ -6,6 +6,8 @@ die() {
 }
 
 mkdir -p $HOME/.jupyter
+BIND_DIR=/app/work/bind_dir
+ARYN_DIR=/etc/opt/aryn
 JUPYTER_CONFIG_DOCKER=/app/work/docker_volume/jupyter_notebook_config.py
 
 if [[ ! -f "${JUPYTER_CONFIG_DOCKER}" ]]; then
@@ -25,6 +27,9 @@ rm /app/.local/share/jupyter/runtime/jpserver-*-open.html 2>/dev/null
 if [[ ${SSL} == 0 ]]; then
     echo "Jupyter not serving over SSL."
     SSLARG=
+elif [[ -f ${ARYN_DIR}/hostcert.pem && -f ${ARYN_DIR}/hostkey.pem ]]; then
+    echo "Using SSL certificate from ${ARYN_DIR}"
+    SSLARG="--certfile=\"${ARYN_DIR}/hostcert.pem\" --keyfile=\"${ARYN_DIR}/hostkey.pem\""
 else
     : ${HOST:=localhost}
     SSLPFX="/app/work/docker_volume/${HOST}"
@@ -54,7 +59,7 @@ fi
     fi
 
     sleep 1 # reduce race with file being written
-    REDIRECT=/app/work/bind_dir/redirect.html
+    REDIRECT="${BIND_DIR}/redirect.html"
     perl -ne 's,://\S+:8888/tree,://localhost:8888/tree,;print' < "${FILE}" >"${REDIRECT}"
     URL=$(perl -ne 'print $1 if m,url=(https?://localhost:8888/tree\S+)",;' <"${REDIRECT}")
 
@@ -65,7 +70,7 @@ fi
         echo "Either:"
         echo "  a) Visit: ${URL}"
         echo "  b) open jupyter/bind_dir/redirect.html on your host machine"
-        echo "  c) docker compose cp jupyter:/app/work/bind_dir/redirect.html ."
+        echo "  c) docker compose cp jupyter:${BIND_DIR}/redirect.html ."
         echo "      and open redirect.html in a browser"
         echo "  Note: the token is stable unless you delete docker_volume/jupyter_notebook_config.py"
         sleep 30

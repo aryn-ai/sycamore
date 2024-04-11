@@ -29,6 +29,9 @@ services:
       - SSL # Set to 1 if you want self-signed certificates
     volumes:
       - crawl_data:/app/.scrapy
+      - type: bind
+        source: ${JUPYTER_BIND_DIR}
+        target: /etc/opt/aryn
 
   opensearch:
     image: arynai/sycamore-opensearch:${OPENSEARCH_VERSION}
@@ -80,6 +83,9 @@ services:
       - type: bind
         source: ${JUPYTER_BIND_DIR}
         target: /app/work/bind_dir
+      - type: bind
+        source: ${JUPYTER_BIND_DIR}
+        target: /etc/opt/aryn
     environment:
       - OPENAI_API_KEY
       - AWS_ACCESS_KEY_ID

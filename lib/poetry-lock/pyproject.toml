@@ -16,7 +16,7 @@ pillow = "10.2.0" # sycamore -- type hints don't work with 10.3.0
 # Make sure tests are run in the same order.
 # the following will fail which prevents upgrading pytest to 8.1.1
 # poetry run pytest lib/sycamore/sycamore/tests/unit/scans/test_materialized_scan.py lib/sycamore/sycamore/tests/unit/test_docset.py
-pytest = "7.4.0" 
+pytest = "7.4.0"
 
 # versions for consistency
 referencing = "0.34.0"

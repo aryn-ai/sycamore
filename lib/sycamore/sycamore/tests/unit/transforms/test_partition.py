@@ -78,7 +78,7 @@ class TestPartition:
             (
                 HtmlPartitioner(),
                 TEST_DIR / "resources/data/htmls/wikipedia_binary_search.html",
-                76,
+                73,
             )
         ],
         indirect=["read_local_binary"],
@@ -93,7 +93,7 @@ class TestPartition:
             (
                 HtmlPartitioner(extract_tables=True),
                 TEST_DIR / "resources/data/htmls/wikipedia_binary_search.html",
-                77,
+                74,
                 1,
             )
         ],
@@ -121,7 +121,7 @@ class TestPartition:
         assert len(doc.elements) == partition_count
 
     @pytest.mark.parametrize(
-        "path, partition_count", [(TEST_DIR / "resources/data/htmls/wikipedia_binary_search.html", 76)]
+        "path, partition_count", [(TEST_DIR / "resources/data/htmls/wikipedia_binary_search.html", 73)]
     )
     def test_partition_html(self, mocker, path, partition_count) -> None:
         scan = mocker.Mock(spec=BinaryScan)

@@ -298,7 +298,7 @@ class HtmlPartitioner(Partitioner):
 
         # chunk text and create text elements
         elements = []
-        text = soup.get_text()
+        text = soup.get_text(separator=" ", strip=True)
         tokens = self._tokenizer.tokenize(text)
         for chunk in self._text_chunker.chunk(tokens):
             content = "".join(chunk)

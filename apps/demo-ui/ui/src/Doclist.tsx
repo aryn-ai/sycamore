@@ -51,7 +51,7 @@ const DocumentItem = ({ document }: { document: SearchResultDocument }) => {
                             <Badge size="xs" color="gray" variant="filled" sx={{ overflow: "visible" }} > {document.index}</Badge>
                             <Text size="sm" c={hovered ? theme.colors.blue[8] : theme.colors.dark[8]} truncate>
                                 {document.title != "Untitled" ? document.title :
-                                    document.properties.entity.accidentNumber ?? "Untitled"}
+                                    (document.properties.entity ? document.properties.entity.accidentNumber ?? "Untitled": "Untitled")}
                             </Text>
                         </Group>
                         <Group p="xs" noWrap spacing="xs">

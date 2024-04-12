@@ -16,7 +16,6 @@ main() {
     echo "Changes detected. Running Tests" >&2
     poetry install
     build_containers
-    exit 0
     runtests
     handle_outputs
   else

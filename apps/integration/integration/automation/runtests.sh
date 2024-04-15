@@ -3,21 +3,31 @@
 TAG="$1"
 [[ -z "${TAG}" ]] && TAG="latest_rc"
 
+NOW="$(date +"%Y-%m-%d_%H_%M")"
+RUNDIR="apps/integration/runs/${NOW}"
+GIT_LOGFILE="${RUNDIR}/git.log"
+DOCKER_LOGFILE="${RUNDIR}/docker.log"
+POETRY_LOGFILE="${RUNDIR}/poetry.log"
+PYTEST_LOGFILE="${RUNDIR}/pytest.log"
+QUERY_LOGFILE="${RUNDIR}/test_queries.log"
+
 main() {
   if [[ ! -d ".git" ]]; then
     echo "Error: please run this script from sycamore root!" >&2
     exit 1
   fi
+  mkdir -p "${RUNDIR}"
   echo "Building/testing tag ${TAG}" >&2
   echo "Get the newest git commits" >&2
   checkout_main_if_new
   local should_run=$?
   if [[ $should_run ]]; then
     echo "Changes detected. Running Tests" >&2
-    poetry install
-    build_containers
-    runtests
-    handle_outputs
+    poetry install > "${POETRY_LOGFILE}" 2>&1
+    build_containers > "${DOCKER_LOGFILE}" 2>&1
+    runtests > "${PYTEST_LOGFILE}" 2>&1
+    local passed_tests=$?
+    handle_outputs passed_tests
   else
     echo "No changes detected. Skipping integration tests" >&2
   fi
@@ -30,10 +40,10 @@ error() {
 
 checkout_main_if_new() {
   old_sha="$(git rev-parse HEAD)"
-  git fetch origin main >&2
+  git fetch origin main > "${GIT_LOGFILE}"
   new_sha="$(git rev-parse FETCH_HEAD)"
   if [[ "${old_sha}" != "${new_sha}" ]]; then
-    git pull --rebase origin main >&2
+    git pull --rebase origin main >> "${GIT_LOGFILE}"
     return 0
   else
     return 1
@@ -53,6 +63,11 @@ build_containers() {
 
 handle_outputs() {
   echo "Yep, definitely handling test outputs. That's what this function does" >&2
+  local passed_tests="$1"
+  mv test-output.log "${QUERY_LOGFILE}"
+  [[ ${passed_tests} = 0 ]] && touch "${RUNDIR}/passed"
+  [[ ${passed_tests} != 0 ]] && touch "${RUNDIR}/failed"
+  aws s3 cp -r "${RUNDIR}" s3://sycamore-ci
 }
 
 runtests() {
@@ -62,6 +77,7 @@ runtests() {
   # this is a complicated command, so: ^                        ^            ^ test against containers tagged latest_rc
   #                                    |                     don't load conftest at pytest runtime; it's already loaded
   #                                     load conftest with plugins, to capture the custom command line arg --docker-tag
+  return $?
 }
 
 docker-build-hub() {

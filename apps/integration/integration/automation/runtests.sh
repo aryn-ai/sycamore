@@ -4,6 +4,9 @@ TAG="$1"
 [[ -z "${TAG}" ]] && TAG="latest_rc"
 
 NOW="$(date +"%Y-%m-%d_%H_%M")"
+ARCH="amd64"
+[[ "$(uname -m)" = "arm64" ]] && ARCH="arm64"
+
 RUNDIR="apps/integration/runs/${NOW}"
 GIT_LOGFILE="${RUNDIR}/git.log"
 DOCKER_LOGFILE="${RUNDIR}/docker.log"
@@ -67,7 +70,7 @@ handle_outputs() {
   mv test-output.log "${QUERY_LOGFILE}"
   [[ ${passed_tests} = 0 ]] && touch "${RUNDIR}/passed"
   [[ ${passed_tests} != 0 ]] && touch "${RUNDIR}/failed"
-  aws s3 cp -r "${RUNDIR}" s3://sycamore-ci
+  aws s3 cp -r "${RUNDIR}" "s3://sycamore-ci/${ARCH}"
 }
 
 runtests() {

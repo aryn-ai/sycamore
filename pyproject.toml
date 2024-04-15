@@ -27,14 +27,15 @@ rouge = "^1.0.1"
 
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"
-pytest = "7.4.0"
-pytest-mock = "3.11.1"
+pytest = "^7.4"
+pytest-mock = "^3.11"
 
 [tool.poetry.group.dev.dependencies]
 sycamore-ai = { path = "lib/sycamore", develop = true }
 sycamore-crawler = { path = "apps/crawler", develop = true }
 remote-processors = { path = "lib/remote-processors", develop = true }
 integration = { path = "apps/integration", develop = true }
+sycamore-poetry-lock = { path = "lib/poetry-lock", develop = true }
 ruff = "^0.0.287"
 black = "^23.7.0"
 pre-commit = "^3.4.0"

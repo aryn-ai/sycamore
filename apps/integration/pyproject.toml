@@ -12,6 +12,7 @@ docker = "^7.0.0"
 pytest = "7.4.0"
 opensearch-py = "^2.5.0"
 testcontainers = "^4.3.1"
+sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }
 
 
 [build-system]

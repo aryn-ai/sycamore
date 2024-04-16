@@ -15,8 +15,7 @@ if [[ -f /.dockerenv ]]; then
     PROXYDIR=/home/pn/py-proxy
     UIDIR=/home/pn/js-ui
 else
-    cd $(dirname $0)
-    DIR=$(pwd)
+    DIR=$(cd "$(dirname "$0")"; pwd)
     PROXYDIR="${DIR}/openai-proxy"
     UIDIR="${DIR}/ui"
 fi
@@ -27,20 +26,33 @@ function cleanup {
 
 cd "${PROXYDIR}"
 : ${HOST:=localhost}
-if [[ (! -f ${HOST}-key.pem) || (! -f ${HOST}-cert.pem) ]]; then
+SELFSIGNED="${HOST}_ss"
+SSLNAME="${SELFSIGNED}"
+ARYN_ETC=/etc/opt/aryn
+
+if [[ (! -f ${SELFSIGNED}-key.pem) || (! -f ${SELFSIGNED}-cert.pem) ]]; then
     openssl req -batch -x509 -newkey rsa:4096 -days 10000 \
     -subj "/C=US/ST=California/O=Aryn.ai/CN=${HOST}" \
     -extensions v3_req -addext "subjectAltName=DNS:${HOST}" \
-    -noenc -keyout "${HOST}-key.pem" -out "${HOST}-cert.pem" 2> /dev/null
+    -noenc -keyout "${SELFSIGNED}-key.pem" \
+    -out "${SELFSIGNED}-cert.pem" 2> /dev/null
     echo "Created ${HOST} certificate"
 fi
+
+if [[ -f ${ARYN_ETC}/hostcert.pem && -f ${ARYN_ETC}/hostkey.pem ]]; then
+    cp -p "${ARYN_ETC}/hostcert.pem" "${HOST}-cert.pem"
+    cp -p "${ARYN_ETC}/hostkey.pem" "${HOST}-key.pem"
+    SSLNAME="${HOST}"
+    echo "Copied certificate from ${ARYN_ETC}"
+fi
+
 if [[ ${SSL} == 0 ]]; then
     BASEURL="http://${HOST}:3000"
 else
     BASEURL="https://${HOST}:3000"
 fi
 
-poetry run python py_proxy/proxy.py "${HOST}" &
+poetry run python py_proxy/proxy.py "${SSLNAME}" &
 PROXYPID=$!
 trap cleanup EXIT
 
@@ -59,9 +71,11 @@ cd "${UIDIR}"
 # Running the UI this way means that the html is unminified and hence easy to read
 # Since the UI is open source, there's little downside of doing this and it helps with
 # debugging.
+# See this link for why we're using RSA self-signed certificates for npm:
+# https://community.letsencrypt.org/t/ecdsa-certificates-not-supported-by-create-react-app/201387/9
 BROWSER=none PORT=3001 WDS_SOCKET_PORT=3000 HTTPS=true \
-SSL_CRT_FILE="${PROXYDIR}/${HOST}-cert.pem" \
-SSL_KEY_FILE="${PROXYDIR}/${HOST}-key.pem" \
+SSL_CRT_FILE="${PROXYDIR}/${SELFSIGNED}-cert.pem" \
+SSL_KEY_FILE="${PROXYDIR}/${SELFSIGNED}-key.pem" \
 npm start | cat
 
 # These are the steps that would build the UI and serve it minified.  We

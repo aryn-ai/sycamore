@@ -63,7 +63,7 @@ fi
     if [[ $(wc -l <<< ${FILE}) != 1 ]]; then
         CONCAT=$(xargs -r <<< ${FILE})
         echo "ERROR: got '${CONCAT}' for jpserver files"
-        ls "${RUNTIME_DIR}"
+        ls -R "${RUNTIME_DIR}"
         echo "ERROR: Multiple jpserver-*-open.html files"
         exit 1
     fi

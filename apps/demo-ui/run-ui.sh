@@ -15,8 +15,7 @@ if [[ -f /.dockerenv ]]; then
     PROXYDIR=/home/pn/py-proxy
     UIDIR=/home/pn/js-ui
 else
-    cd $(dirname $0)
-    DIR=$(pwd)
+    DIR=$(cd "$(dirname "$0")"; pwd)
     PROXYDIR="${DIR}/openai-proxy"
     UIDIR="${DIR}/ui"
 fi
@@ -29,7 +28,7 @@ cd "${PROXYDIR}"
 : ${HOST:=localhost}
 SELFSIGNED="${HOST}_ss"
 SSLNAME="${SELFSIGNED}"
-ARYN_DIR=/etc/opt/aryn
+ARYN_ETC=/etc/opt/aryn
 
 if [[ (! -f ${SELFSIGNED}-key.pem) || (! -f ${SELFSIGNED}-cert.pem) ]]; then
     openssl req -batch -x509 -newkey rsa:4096 -days 10000 \
@@ -40,11 +39,11 @@ if [[ (! -f ${SELFSIGNED}-key.pem) || (! -f ${SELFSIGNED}-cert.pem) ]]; then
     echo "Created ${HOST} certificate"
 fi
 
-if [[ -f ${ARYN_DIR}/hostcert.pem && -f ${ARYN_DIR}/hostkey.pem ]]; then
-    cp -p "${ARYN_DIR}/hostcert.pem" "${HOST}-cert.pem"
-    cp -p "${ARYN_DIR}/hostkey.pem" "${HOST}-key.pem"
+if [[ -f ${ARYN_ETC}/hostcert.pem && -f ${ARYN_ETC}/hostkey.pem ]]; then
+    cp -p "${ARYN_ETC}/hostcert.pem" "${HOST}-cert.pem"
+    cp -p "${ARYN_ETC}/hostkey.pem" "${HOST}-key.pem"
     SSLNAME="${HOST}"
-    echo "Copied certificate from ${ARYN_DIR}"
+    echo "Copied certificate from ${ARYN_ETC}"
 fi
 
 if [[ ${SSL} == 0 ]]; then

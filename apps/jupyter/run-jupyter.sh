@@ -61,8 +61,7 @@ fi
     done
     FILE="$(find "${RUNTIME_DIR}" -type f -name 'jpserver-*-open.html')"
     if [[ $(wc -l <<< ${FILE}) != 1 ]]; then
-        CONCAT=$(xargs -r <<< ${FILE})
-        echo "ERROR: got '${CONCAT}' for jpserver files"
+        echo "ERROR: got '${FILE}' for jpserver files"
         ls -R "${RUNTIME_DIR}"
         echo "ERROR: Multiple jpserver-*-open.html files"
         exit 1

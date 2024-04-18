@@ -41,7 +41,8 @@ checkout_main_if_new() {
   git fetch origin main > "${GIT_LOGFILE}" 2>&1
   new_sha="$(git rev-parse FETCH_HEAD)"
   if [[ "${old_sha}" != "${new_sha}" ]]; then
-    [[ $(git status | grep -c 'nothing to commit, working tree clean') = 1 ]] \
+    [[ $(git status | grep -c -e 'nothing to commit, working tree clean' \
+        -e 'nothing added to commit but untracked files present') = 1 ]] \
       || { echo "Working tree not clean" > "${GIT_LOGFILE}" && return 1; }
     git pull --rebase origin main >> "${GIT_LOGFILE}" 2>&1
     return 0

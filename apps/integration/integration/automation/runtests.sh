@@ -19,7 +19,7 @@ main() {
   mkdir -p "${RUNDIR}"
   echo "Building/testing tag ${TAG}" >&2
   echo "Get the newest git commits" >&2
-  if [[ $(checkout_main_if_new) ]]; then
+  if [[ checkout_main_if_new ]]; then
     echo "Changes detected. Running Tests" >&2
     poetry install > "${POETRY_LOGFILE}" 2>&1 \
     && build_images > "${DOCKER_LOGFILE}" 2>&1 \

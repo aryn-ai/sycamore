@@ -25,7 +25,7 @@ RUN make install_poetry
 WORKDIR /aryn/rps/
 COPY apps/remote-processor-service/pyproject.toml apps/remote-processor-service/poetry.lock apps/remote-processor-service/
 COPY lib/sycamore/poetry.lock lib/sycamore/pyproject.toml lib/sycamore/
-COPY lib/poetry-lock/poetry.lock lib/poetry-lock/pyproject.toml lib/poetry-lock/
+COPY lib/poetry-lock/ lib/poetry-lock/
 COPY lib/remote-processors/poetry.lock lib/remote-processors/pyproject.toml lib/remote-processors/
 RUN mkdir -p /tmp/poetry_cache
 RUN chown -R aryn:aryn apps/remote-processor-service lib/sycamore lib/remote-processors /tmp/poetry_cache

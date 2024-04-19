@@ -19,6 +19,7 @@ RUN /bin/bash /app/importer-root-setup.sh
 
 USER app
 COPY lib/sycamore lib/sycamore
+COPY lib/poetry-lock lib/poetry-lock
 
 COPY apps/importer/pyproject.toml apps/importer/poetry.lock apps/importer/README.md \
      ./

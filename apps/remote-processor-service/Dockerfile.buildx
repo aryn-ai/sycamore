@@ -28,6 +28,7 @@ USER aryn
 WORKDIR /aryn/rps/
 COPY --chown=aryn:aryn apps/remote-processor-service/pyproject.toml apps/remote-processor-service/poetry.lock apps/remote-processor-service/
 COPY --chown=aryn:aryn lib/sycamore/poetry.lock lib/sycamore/pyproject.toml lib/sycamore/
+COPY --chown=aryn:aryn lib/poetry-lock/poetry.lock lib/poetry-lock/pyproject.toml lib/poetry-lock/
 COPY --chown=aryn:aryn lib/remote-processors/poetry.lock lib/remote-processors/pyproject.toml lib/remote-processors/
 WORKDIR /aryn/rps/apps/remote-processor-service
 RUN --mount=type=cache,id=cache_poetry_1000,target=/tmp/poetry_cache,uid=1000,gid=1000,sharing=locked \

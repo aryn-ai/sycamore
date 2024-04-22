@@ -1,5 +1,6 @@
 from collections import OrderedDict
 from dataclasses import dataclass, field
+import itertools
 from typing import Any, Optional
 import xml.etree.ElementTree as ET
 
@@ -22,10 +23,20 @@ class TableCell:
     # Model/format specific properties
     properties: dict[str, Any] = field(default_factory=dict)
 
+    def __post_init__(self):
+        # Validate that row and column spans are contiguous.
+        for a, b in itertools.pairwise(self.rows):
+            if a + 1 != b:
+                raise ValueError(f"Found non-contiguous rows in {self}.")
+
+        for a, b in itertools.pairwise(self.cols):
+            if a + 1 != b:
+                raise ValueError(f"Found non-contiguous cols in {self}.")
+
 
 class Table:
     def __init__(self, cells: list[TableCell], caption: Optional[str] = None):
-        self.cells: list[TableCell] = cells
+        self.cells: list[TableCell] = sorted(cells, key=lambda tc: (min(tc.rows), min(tc.cols)))
         self.caption = caption
         self.num_rows = max(max(c.rows) for c in self.cells) + 1
         self.num_cols = max(max(c.cols) for c in self.cells) + 1
@@ -38,18 +49,15 @@ class Table:
             return False
 
         # TODO: Yikes! this is expensive. Do the sorting in init or something.
-        if self.sorted_cells() != other.sorted_cells():
+        if self.cells != other.cells:
             return False
 
         return True
 
     def __hash__(self):
-        return hash((self.num_rows, self.num_cols, self.cells))
+        return hash((self.cells))
 
-    def sorted_cells(self):
-        return sorted(self.cells, key=lambda tc: (min(tc.rows), min(tc.cols)))
-
-    # This algorithm is modified from the TableTransformers code. The conversion to Pandas/CSV is
+    # This algorithm is modified from the TableTransformers code. The conversion to Pandas/CSV
     # is necessarily lossy since these formats requires tables to be square and don't support
     # cells spanning multiple rows/columns.
     #
@@ -129,7 +137,7 @@ class Table:
             caption_cell.text = self.caption
 
         # TODO: We should eventually put these in <thead> and <tbody> tags.
-        for cell in self.sorted_cells():
+        for cell in self.cells:
             cell_attribs = {}
 
             rowspan = len(cell.rows)

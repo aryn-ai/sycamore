@@ -24,7 +24,7 @@ class BoundingBox(ABC):
 
         bbox = EMPTY_BBOX.copy()
         for new_box in iter(boxes):
-            bbox.update_union(new_box)
+            bbox.union_self(new_box)
 
         return bbox
 
@@ -85,12 +85,19 @@ class BoundingBox(ABC):
         """
         # TODO: Do we want to allow the coordinates to be negative or truncate in the case that one or
         # more of the coordinates goes < 0?
-        return BoundingBox(self.x1 + x, self.y1 + y, self.x2 + x, self.y2 + y)
+        return self.copy().translate_self(x, y)
+
+    def translate_self(self, x, y) -> "BoundingBox":
+        self.x1 += x
+        self.y1 += y
+        self.x2 += x
+        self.y2 += y
+        return self
 
     def union(self, other: "BoundingBox") -> "BoundingBox":
-        return self.copy().update_union(other)
+        return self.copy().union_self(other)
 
-    def update_union(self, other: "BoundingBox") -> "BoundingBox":
+    def union_self(self, other: "BoundingBox") -> "BoundingBox":
         """Updates this BoundingBox in place to include the specified BoundingBox.
 
         Note that A union B == B union A == A if B is empty,
@@ -115,13 +122,30 @@ class BoundingBox(ABC):
     def to_relative(self, width, height) -> "BoundingBox":
         """Converts this bounding box to be relative to the corresponding width and height."""
 
+        return self.copy().to_relative_self(width, height)
+
+    def to_relative_self(self, width, height) -> "BoundingBox":
+        """Converts this bounding box to be relative to the corresponding width and height."""
+
         if width <= 0 or height <= 0:
             raise ValueError(f"width and height must be > 0. Got ({width}, {height})")
 
-        return BoundingBox(self.x1 / width, self.y1 / height, self.x2 / width, self.y2 / height)
+        self.x1 = self.x1 / width
+        self.y1 = self.y1 / height
+        self.x2 = self.x2 / width
+        self.y2 = self.y2 / height
+
+        return self
 
     def to_absolute(self, width, height) -> "BoundingBox":
-        return BoundingBox(self.x1 * width, self.y1 * height, self.x2 * width, self.y2 * height)
+        return self.copy().to_absolute_self(width, height)
+
+    def to_absolute_self(self, width, height) -> "BoundingBox":
+        self.x1 = self.x1 * width
+        self.y1 = self.y1 * height
+        self.x2 = self.x2 * width
+        self.y2 = self.y2 * height
+        return self
 
     def is_empty(self):
         return self.x1 >= self.x2 and self.y1 >= self.y2

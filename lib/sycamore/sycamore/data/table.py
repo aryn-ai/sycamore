@@ -1,13 +1,22 @@
 from collections import OrderedDict
 from dataclasses import dataclass, field
-import itertools
-from typing import Any, Optional
+from typing import Any, Optional, TypeVar, Union
 import xml.etree.ElementTree as ET
 
 from sycamore.data import BoundingBox
 from PIL import Image, ImageDraw
 import numpy as np
 from pandas import DataFrame
+
+
+# This is part of itertools in 3.10+.
+# Adding here to support 3.9
+def _pairwise(iterable):
+    iterator = iter(iterable)
+    a = next(iterator, None)
+    for b in iterator:
+        yield a, b
+        a = b
 
 
 # This data model is similar to that used by Textract and TableTransformers.
@@ -25,11 +34,11 @@ class TableCell:
 
     def __post_init__(self):
         # Validate that row and column spans are contiguous.
-        for a, b in itertools.pairwise(self.rows):
+        for a, b in _pairwise(self.rows):
             if a + 1 != b:
                 raise ValueError(f"Found non-contiguous rows in {self}.")
 
-        for a, b in itertools.pairwise(self.cols):
+        for a, b in _pairwise(self.cols):
             if a + 1 != b:
                 raise ValueError(f"Found non-contiguous cols in {self}.")
 
@@ -157,16 +166,22 @@ class Table:
 
         return ET.tostring(table, encoding="unicode")
 
-    # TODO: This currently assumes that the bounding rectangles are on the same page.
-    def draw(self, image: Image) -> Image:
-        """Draw the bounding boxes for this table on the specified Image."""
-        width, height = image.size
+    U = TypeVar("U", bound=Union[Image, ImageDraw.ImageDraw])
 
-        canvas = ImageDraw.Draw(image)
+    # TODO: This currently assumes that the bounding rectangles are on the same page.
+    def draw(self, target: U) -> U:
+        """Draw the bounding boxes for this table on the specified Image."""
+
+        if isinstance(target, ImageDraw.ImageDraw):
+            canvas = target
+            width, height = target.im.size
+        elif isinstance(target, Image):
+            canvas = ImageDraw.Draw(target)
+            width, height = target.size
 
         for cell in self.cells:
             if cell.bbox is not None:
                 coords = cell.bbox.to_absolute(width, height).coordinates
                 canvas.rectangle(coords, outline="red")  # TODO color
 
-        return image
+        return target

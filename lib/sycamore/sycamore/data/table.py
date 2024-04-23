@@ -166,7 +166,7 @@ class Table:
 
         return ET.tostring(table, encoding="unicode")
 
-    U = TypeVar("U", bound=Union[Image, ImageDraw.ImageDraw])
+    U = TypeVar("U", bound=Union[Image.Image, ImageDraw.ImageDraw])
 
     # TODO: This currently assumes that the bounding rectangles are on the same page.
     def draw(self, target: U) -> U:
@@ -175,7 +175,7 @@ class Table:
         if isinstance(target, ImageDraw.ImageDraw):
             canvas = target
             width, height = target.im.size
-        elif isinstance(target, Image):
+        elif isinstance(target, Image.Image):
             canvas = ImageDraw.Draw(target)
             width, height = target.size
 

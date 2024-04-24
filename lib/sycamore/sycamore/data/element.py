@@ -121,8 +121,8 @@ class TableElement(Element):
         self.data["table"] = tokens
 
 
-def create_element(type: str, **kwargs) -> Element:
-    if type.lower() == "table":
-        return TableElement(type=type, **kwargs)
+def create_element(**kwargs) -> Element:
+    if "type" in kwargs and kwargs["type"].lower() == "table":
+        return TableElement(**kwargs)
     else:
-        return Element(type=type, **kwargs)
+        return Element(**kwargs)

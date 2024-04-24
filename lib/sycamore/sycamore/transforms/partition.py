@@ -3,6 +3,7 @@ import io
 from typing import Any, Optional
 
 from bs4 import BeautifulSoup
+
 from ray.data import Dataset, ActorPoolStrategy
 
 from sycamore.functions import TextOverlapChunker, Chunker
@@ -12,6 +13,7 @@ from sycamore.data import BoundingBox, Document, Element, TableElement
 from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.map import generate_map_function
 from sycamore.transforms.extract_table import TableExtractor
+from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
 from sycamore.utils import generate_map_class_from_callable
 
 
@@ -344,7 +346,16 @@ SYCAMORE_DETR_MODEL = "Aryn/deformable-detr-DocLayNet"
 
 
 class SycamorePartitioner(Partitioner):
-    def __init__(self, model_name_or_path, threshold: float = 0.4, use_ocr=False, ocr_images=False, ocr_tables=False):
+    def __init__(
+        self,
+        model_name_or_path=SYCAMORE_DETR_MODEL,
+        threshold: float = 0.4,
+        use_ocr=False,
+        ocr_images=False,
+        ocr_tables=False,
+        extract_table_structure=False,
+        table_structure_extractor=DEFAULT_TABLE_STRUCTURE_EXTRACTOR,
+    ):
         from sycamore.transforms.detr_partitioner import SycamorePDFPartitioner
 
         self._partitioner = SycamorePDFPartitioner(model_name_or_path)
@@ -352,6 +363,8 @@ class SycamorePartitioner(Partitioner):
         self._use_ocr = use_ocr
         self._ocr_images = ocr_images
         self._ocr_tables = ocr_tables
+        self._extract_table_structure = extract_table_structure
+        self._table_structure_extractor = table_structure_extractor
 
     # For now, we reorder elements based on page, left/right column, y axle position then finally x axle position
     @staticmethod
@@ -360,6 +373,8 @@ class SycamorePartitioner(Partitioner):
             if e.bbox is None:
                 raise RuntimeError("Element BBox is None")
             return e.bbox.x1 <= 0.5
+
+        print(f"element1 {element1}")
 
         page1 = element1.properties["page_number"]
         page2 = element2.properties["page_number"]
@@ -401,8 +416,8 @@ class SycamorePartitioner(Partitioner):
         elements = []
         for i, r in enumerate(result):
             for ele in r:
-                properties = ele.properties
-                properties["page_number"] = i + 1
+                print(f"ele: {ele}")
+                ele.properties["page_number"] = i + 1
                 elements.append(ele)
 
         document.elements = elements

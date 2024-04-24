@@ -2,6 +2,7 @@ from collections import UserDict
 from typing import Any, Optional
 
 from sycamore.data import BoundingBox, Element
+from sycamore.data.element import create_element
 
 
 class Document(UserDict):
@@ -69,7 +70,7 @@ class Document(UserDict):
     def elements(self) -> list[Element]:
         """A list of elements belonging to this document. A document does not necessarily always have
         elements, for instance, before a document is chunked."""
-        return [Element(element) for element in self.data.get("elements", [])]
+        return [create_element(**element) for element in self.data.get("elements", [])]
 
     @elements.setter
     def elements(self, elements: list[Element]):

@@ -70,10 +70,10 @@ while ! curl -k "${BASEURL}/healthz" >/dev/null 2>&1; do
     sleep 1
 done
 
-# Only in cloud service, run token-protected UI proxy...
+# Only in certain environments, run token-protected UI proxy...
 if [[ ${SSL} != 0 && -f ${ARYN_ETC}/hostcert.pem ]]; then
     TOKEN=$(openssl rand -hex 24)
-    # In could service, we can sudo without password...
+    # we should be able to sudo without password here...
     sudo -b poetry run python py_proxy/token_proxy.py "${TOKEN}" "${SSLNAME}"
     # Getting the process ID isn't hard, as the token is new and unique...
     OUT=$(ps -eo pid,cmd | grep "${TOKEN}" | grep -vE 'grep|sudo')
@@ -81,18 +81,18 @@ if [[ ${SSL} != 0 && -f ${ARYN_ETC}/hostcert.pem ]]; then
     KILLPIDS="${KILLPIDS} ${PID}"
     secs=0
     while ! curl -ks -o /dev/null https://localhost/healthz; do
-	echo "Waited ${secs} seconds for token proxy to respond"
-	(( ${secs} > 30 )) && echo "Token proxy not working; report on slack"
-	sleep 1
-	((++secs))
+        echo "Waited ${secs} seconds for token proxy to respond"
+        (( ${secs} > 30 )) && echo "Token proxy not working; report on slack"
+        sleep 1
+        ((++secs))
     done
     URL="https://${HOST}/tok/${TOKEN}"
     echo "${URL} > token_proxy_url
     (
-	for i in {1..10}; do
+        for i in {1..10}; do
             echo "token_proxy: ${URL}"
-	    sleep 5
-	done
+            sleep 5
+        done
     ) &
     KILLPIDS="${KILLPIDS} $!"
 fi

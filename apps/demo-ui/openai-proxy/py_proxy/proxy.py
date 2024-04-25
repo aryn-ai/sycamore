@@ -1,16 +1,16 @@
-import time
+from gevent import monkey
 
-from flask import Flask, request, jsonify, Response, send_file
-
-
-# monkey.patch_all()
+# ruff: noqa: E402
+monkey.patch_all()  # Must be before other imports
 
 from gevent.pywsgi import WSGIServer
 import urllib3
 import requests
 import os
 import sys
+import time
 import openai
+from flask import Flask, request, jsonify, Response, send_file
 from flask_cors import CORS
 from werkzeug.datastructures import Headers
 import io

@@ -26,6 +26,7 @@ COPY openai-proxy /home/pn/py-proxy
 COPY run-ui.sh /home/pn
 
 WORKDIR /home/pn/py-proxy
+RUN poetry config virtualenvs.in-project true
 RUN poetry install --only-root && rm -rf $POETRY_CACHE_DIR
 
 WORKDIR /home/pn

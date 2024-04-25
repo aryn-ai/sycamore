@@ -18,6 +18,7 @@ ENV POETRY_NO_INTERACTION=1 \
 
 WORKDIR /home/pn/py-proxy
 COPY apps/demo-ui/openai-proxy/pyproject.toml apps/demo-ui/openai-proxy/poetry.lock apps/demo-ui/openai-proxy/README.md ./
+RUN poetry config virtualenvs.in-project true
 RUN --mount=type=cache,target=/tmp/poetry_cache,sharing=locked \
     poetry install --only main --no-root
 

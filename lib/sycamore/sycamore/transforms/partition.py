@@ -374,8 +374,6 @@ class SycamorePartitioner(Partitioner):
                 raise RuntimeError("Element BBox is None")
             return e.bbox.x1 <= 0.5
 
-        print(f"element1 {element1}")
-
         page1 = element1.properties["page_number"]
         page2 = element2.properties["page_number"]
         bbox1 = element1.bbox
@@ -407,7 +405,13 @@ class SycamorePartitioner(Partitioner):
 
         try:
             result = self._partitioner.partition_pdf(
-                binary, self._threshold, use_ocr=self._use_ocr, ocr_images=self._ocr_images, ocr_tables=self._ocr_tables
+                binary,
+                self._threshold,
+                use_ocr=self._use_ocr,
+                ocr_images=self._ocr_images,
+                ocr_tables=self._ocr_tables,
+                extract_table_structure=self._extract_table_structure,
+                table_structure_extractor=self._table_structure_extractor,
             )
         except Exception as e:
             path = document.properties["path"]
@@ -416,7 +420,6 @@ class SycamorePartitioner(Partitioner):
         elements = []
         for i, r in enumerate(result):
             for ele in r:
-                print(f"ele: {ele}")
                 ele.properties["page_number"] = i + 1
                 elements.append(ele)
 

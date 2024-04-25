@@ -114,11 +114,11 @@ class TableElement(Element):
 
     @property
     def tokens(self) -> Optional[list[dict[str, Any]]]:
-        return self.data["table"]
+        return self.data["tokens"]
 
     @tokens.setter
     def tokens(self, tokens: list[dict[str, Any]]) -> None:
-        self.data["table"] = tokens
+        self.data["tokens"] = tokens
 
 
 def create_element(**kwargs) -> Element:

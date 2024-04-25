@@ -33,6 +33,9 @@ class TableCell:
     properties: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
+        self.rows.sort()
+        self.cols.sort()
+
         # Validate that row and column spans are contiguous.
         for a, b in _pairwise(self.rows):
             if a + 1 != b:

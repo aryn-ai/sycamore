@@ -152,7 +152,7 @@ class DeformableDetr(SycamoreObjectDetection):
         else:
             return self.device
 
-    def infer(self, image: Image, threshold: float) -> list[Element]:
+    def infer(self, image: Image.Image, threshold: float) -> list[Element]:
         inputs = self.processor(images=image, return_tensors="pt").to(self._get_device())
         outputs = self.model(**inputs)
         target_sizes = torch.tensor([image.size[::-1]])
@@ -229,7 +229,7 @@ class PDFMinerExtractor:
 
 
 def extract_ocr(
-    images: list[Image], elements: list[list[Element]], ocr_images=False, ocr_tables=False
+    images: list[Image.Image], elements: list[list[Element]], ocr_images=False, ocr_tables=False
 ) -> list[list[Element]]:
     for i, image in enumerate(images):
         width, height = image.size
@@ -259,7 +259,7 @@ def extract_ocr(
     return elements
 
 
-def extract_table_ocr(image: Image, elem: TableElement):
+def extract_table_ocr(image: Image.Image, elem: TableElement):
     width, height = image.size
 
     assert elem.bbox is not None

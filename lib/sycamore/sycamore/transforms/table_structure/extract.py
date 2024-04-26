@@ -58,6 +58,7 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
 
     def __init__(self, model: str = DEFAULT_TTAR_MODEL):
         self.model = model
+        self.structure_model = None
 
     # Convert tokens (text) into the format expected by the TableTransformer
     # postprocessing code.
@@ -78,7 +79,9 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
 
         width, height = doc_image.size
 
-        structure_model = TableTransformerForObjectDetection.from_pretrained(self.model)
+        if self.structure_model is None:
+            self.structure_model = TableTransformerForObjectDetection.from_pretrained(self.model)
+        assert self.structure_model is not None  # For typechecking
 
         # Crop the image to encompass just the table + some padding.
         padding = 10
@@ -106,9 +109,9 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         pixel_values = structure_transform(cropped_image).unsqueeze(0)
 
         with torch.no_grad():
-            outputs = structure_model(pixel_values)
+            outputs = self.structure_model(pixel_values)
 
-        structure_id2label = structure_model.config.id2label
+        structure_id2label = self.structure_model.config.id2label
         structure_id2label[len(structure_id2label)] = "no object"
 
         objects = table_transformers.outputs_to_objects(outputs, cropped_image.size, structure_id2label)

@@ -87,7 +87,7 @@ if [[ ${SSL} != 0 && -f ${ARYN_ETC}/hostcert.pem ]]; then
         ((++secs))
     done
     URL="https://${HOST}/tok/${TOKEN}"
-    echo "${URL} > token_proxy_url
+    echo "${URL}" > token_proxy_url
     (
         for i in {1..10}; do
             echo "token_proxy: ${URL}"

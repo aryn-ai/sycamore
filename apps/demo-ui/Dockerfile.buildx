@@ -6,6 +6,13 @@
 
 FROM nikolaik/python-nodejs:python3.11-nodejs20
 
+# TODO: run as non-root user
+ENV DEBIAN_FRONTEND=noninteractive
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt -y install sudo
+COPY apps/demo-ui/sudoers /etc/sudoers
+
 WORKDIR /home/pn/js-ui
 COPY apps/demo-ui/ui/package.json apps/demo-ui/ui/package-lock.json apps/demo-ui/ui/npm-install.sh apps/demo-ui/ui/pdf.worker.js.patch ./
 RUN --mount=type=cache,target=/root/.npm/_cacache,sharing=locked \

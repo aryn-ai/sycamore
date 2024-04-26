@@ -10,7 +10,7 @@ FROM nikolaik/python-nodejs:python3.11-nodejs20
 ENV DEBIAN_FRONTEND=noninteractive
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt -y install sudo
+    apt update; apt -y install sudo
 COPY apps/demo-ui/sudoers /etc/sudoers
 
 WORKDIR /home/pn/js-ui

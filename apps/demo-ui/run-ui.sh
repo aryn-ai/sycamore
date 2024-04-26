@@ -21,7 +21,11 @@ else
 fi
 
 function cleanup {
-    kill "${PROXYPID}"
+    kill ${KILLPIDS}
+}
+
+function first {
+    echo $1
 }
 
 cd "${PROXYDIR}"
@@ -53,7 +57,7 @@ else
 fi
 
 poetry run python py_proxy/proxy.py "${SSLNAME}" &
-PROXYPID=$!
+KILLPIDS=$!
 trap cleanup EXIT
 
 tries=0
@@ -65,6 +69,33 @@ while ! curl -k "${BASEURL}/healthz" >/dev/null 2>&1; do
     tries=$(expr ${tries} + 1)
     sleep 1
 done
+
+# Only in certain environments, run token-protected UI proxy...
+if [[ ${SSL} != 0 && -f ${ARYN_ETC}/hostcert.pem ]]; then
+    TOKEN=$(openssl rand -hex 24)
+    # we should be able to sudo without password here...
+    sudo -b poetry run python py_proxy/token_proxy.py "${TOKEN}" "${SSLNAME}"
+    # Getting the process ID isn't hard, as the token is new and unique...
+    OUT=$(ps -eo pid,cmd | grep "${TOKEN}" | grep -vE 'grep|sudo')
+    PID=$(first ${OUT})
+    KILLPIDS="${KILLPIDS} ${PID}"
+    secs=0
+    while ! curl -ks -o /dev/null https://localhost/healthz; do
+        echo "Waited ${secs} seconds for token proxy to respond"
+        (( ${secs} > 30 )) && echo "Token proxy not working; report on slack"
+        sleep 1
+        ((++secs))
+    done
+    URL="https://${HOST}/tok/${TOKEN}"
+    echo "${URL}" > token_proxy_url
+    (
+        for i in {1..10}; do
+            echo "token_proxy: ${URL}"
+            sleep 5
+        done
+    ) &
+    KILLPIDS="${KILLPIDS} $!"
+fi
 
 # run node ui
 cd "${UIDIR}"

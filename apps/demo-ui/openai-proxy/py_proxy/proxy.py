@@ -1,16 +1,16 @@
-import time
+from gevent import monkey
 
-from flask import Flask, request, jsonify, Response, send_file
+# ruff: noqa: E402
+monkey.patch_all()  # Must be before other imports
 
-
-# monkey.patch_all()
-
-from gevent.pywsgi import WSGIServer
+from gevent.pywsgi import LoggingLogAdapter, WSGIServer
 import urllib3
 import requests
 import os
 import sys
+import time
 import openai
+from flask import Flask, request, jsonify, Response, send_file
 from flask_cors import CORS
 from werkzeug.datastructures import Headers
 import io
@@ -21,14 +21,11 @@ import mimetypes
 
 warnings.filterwarnings("ignore", category=urllib3.exceptions.InsecureRequestWarning)
 
+logger = logging.getLogger("proxy")
+
 app = Flask("proxy", static_folder=None)
-HOST = "localhost"
-PORT = 3000
-try:
-    HOST = sys.argv[1]
-    PORT = int(sys.argv[2])
-except Exception as e:
-    logging.error(e)
+HOST = sys.argv[1] if len(sys.argv) > 1 else "localhost"
+PORT = int(sys.argv[2]) if len(sys.argv) > 2 else 3000
 
 CORS(app, resources={r"/*": {"origins": "*"}})  # Allow requests from http://localhost:3001 to any route
 
@@ -305,11 +302,13 @@ def proxy_opensearch(os_path):
     #     print(request.json)
     #     log += " " + str(request.json)
 
+    url = OPENSEARCH_URL + os_path
+    data = None if request.content_length is None else request.get_data()
     response = requests.request(
         method=request.method,
         params=request.args,
-        url=OPENSEARCH_URL + os_path,
-        json=request.json if (request.is_json and request.content_length is not None) else None,
+        url=url,
+        data=data,
         headers=request.headers,
         verify=False,
     )
@@ -332,9 +331,9 @@ def opensearch_version(retries=3):
         return response.json()["version"]["number"], 200
     except Exception as e:
         if retries <= 0:
-            logging.error(f"OpenSearch not standing at {OPENSEARCH_URL}. Out of retries. Final error {e}")
+            logger.error(f"OpenSearch not standing at {OPENSEARCH_URL}. Out of retries. Final error {e}")
             return "OpenSearch not found", 503
-        logging.warning(
+        logger.warning(
             f"OpenSearch not standing at {OPENSEARCH_URL}. Retrying in 1 sec. {retries-1} retries left. error {e}"
         )
         time.sleep(1)
@@ -371,16 +370,29 @@ def healthz(arg=None):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        stream=sys.stdout,
+        format="%(levelname)s:%(asctime)s:%(name)s:%(message)s",
+    )
+    sh = logging.StreamHandler(sys.stdout)
+    sh.setFormatter(logging.Formatter("PROXY %(message)s"))
+    wsgilog = logging.getLogger("wsgi")
+    wsgilog.propagate = False
+    wsgilog.addHandler(sh)
+    adapter = LoggingLogAdapter(wsgilog)
+
     # Use gevent WSGIServer for asynchronous behavior
     if os.environ.get("SSL", "1") == "0":
-        print("Proxy not serving over SSL.")
-        http_server = WSGIServer(("0.0.0.0", PORT), app)
+        logger.info("Proxy not serving over SSL.")
+        http_server = WSGIServer(("0.0.0.0", PORT), app, log=adapter)
     else:
         http_server = WSGIServer(
             ("0.0.0.0", PORT),
             app,
+            log=adapter,
             certfile=f"{HOST}-cert.pem",
             keyfile=f"{HOST}-key.pem",
         )
-    print(f"Serving on {PORT}...")
+    logger.info(f"Serving on {PORT}...")
     http_server.serve_forever()

@@ -13,7 +13,7 @@ click = "^8.1.7"
 [tool.poetry.group.dev.dependencies]
 remote-processors = { path = "../../lib/remote-processors", develop = true }
 sycamore-ai = { path = "../../lib/sycamore", develop = true }
-
+sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }
 
 [tool.poetry.scripts]
 test_cfg = "remote_processor_service.cli:read_cfg"

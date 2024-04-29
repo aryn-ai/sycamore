@@ -1,20 +1,23 @@
 #!/bin/bash
+set -e
+
 echo "Version-Info, Aryn Opensearch Branch: ${GIT_BRANCH}"
 echo "Version-Info, Aryn Opensearch Commit: ${GIT_COMMIT}"
 echo "Version-Info, Aryn Opensearch Diff: ${GIT_DIFF}"
 echo "Version-Info, Aryn Opensearch Architecture: $(uname -m)"
 
+BASE_URL=https://localhost:9200
+ARYN_STATUSDIR=/usr/share/opensearch/data/aryn_status
+ARYN_ETC=/etc/opt/aryn
+LOG_BASE="${ARYN_STATUSDIR}/opensearch.log"
+PERSISTENT_ENV="${ARYN_STATUSDIR}/persistent_env"
+
 # TODO: https://github.com/aryn-ai/sycamore/issues/150 - detect low disk space and error out.
 # on macos you fix it in docker desktop > settings > resources > scroll down > virtual disk limit
 main() {
-    BASE_URL=https://localhost:9200
-    ARYN_STATUSDIR=/usr/share/opensearch/data/aryn_status
     mkdir -p "${ARYN_STATUSDIR}"
 
-    set -e
     # TODO: https://github.com/aryn-ai/sycamore/issues/151 - show aryn logs then opensearch
-
-    LOG_BASE="${ARYN_STATUSDIR}/opensearch.log"
     if opensearch_up_ssl; then
         echo "OpenSearch appears to already be running, not starting it again"
     elif opensearch_up_insecure; then
@@ -33,7 +36,6 @@ main() {
 
     flick_rag_feature
 
-    PERSISTENT_ENV="${ARYN_STATUSDIR}/persistent_env"
     [[ -f "${PERSISTENT_ENV}" ]] || setup_persistent
     source "${PERSISTENT_ENV}"
 
@@ -320,6 +322,21 @@ create_certificates() {
         chmod 600 "data/${X}"
         ln -sfn "../data/${X}" "config/${X}"
     done
+
+    # 4. Use provided certificates for HTTP if possible
+    if [[ -f ${ARYN_ETC}/hostcert.pem && -f ${ARYN_ETC}/hostkey.pem ]]; then
+	cp -p "${ARYN_ETC}/hostcert.pem" config/http-cert.pem
+	cp -p "${ARYN_ETC}/hostkey.pem" config/http-key.pem
+	cat config/cacert.pem config/authority.pem > config/http-ca.pem
+	chmod 600 config/http-*.pem
+	echo "Using http certificate from ${ARYN_ETC}"
+    else
+	ln -sfn node-cert.pem config/http-cert.pem
+	ln -sfn node-key.pem config/http-key.pem
+	ln -sfn cacert.pem config/http-ca.pem
+	echo "Copying http certificate from node"
+    fi
+
     debug "" "${LOG}"
 }
 
@@ -327,7 +344,7 @@ setup_security() {
     # Set up security plugin configuration as described here:
     # https://opensearch.org/docs/latest/security/configuration/security-admin/
     plugins/opensearch-security/tools/securityadmin.sh \
-    -cd config/opensearch-security -icl -nhnv -cacert config/cacert.pem \
+    -cd config/opensearch-security -icl -nhnv -cacert config/http-ca.pem \
     -cert config/admin-cert.pem -key config/admin-key.pem
 
     # Wait for eventual consistency of changes to security index

@@ -21,7 +21,7 @@ main() {
   echo "Get the newest git commits" >&2
   if [[ checkout_main_if_new ]]; then
     echo "Changes detected. Running Tests" >&2
-    poetry install > "${POETRY_LOGFILE}" 2>&1 \
+    poetry install --no-root > "${POETRY_LOGFILE}" 2>&1 \
     && build_images > "${DOCKER_LOGFILE}" 2>&1 \
     && runtests > "${PYTEST_LOGFILE}" 2>&1
     local passed_tests=$?
@@ -41,8 +41,7 @@ checkout_main_if_new() {
   git fetch origin main > "${GIT_LOGFILE}" 2>&1
   new_sha="$(git rev-parse FETCH_HEAD)"
   if [[ "${old_sha}" != "${new_sha}" ]]; then
-    [[ $(git status | grep -c -e 'nothing to commit, working tree clean' \
-        -e 'nothing added to commit but untracked files present') = 1 ]] \
+    [[ -z $(git status --porcelain) ]] \
       || { echo "Working tree not clean" > "${GIT_LOGFILE}" && return 1; }
     git pull --rebase origin main >> "${GIT_LOGFILE}" 2>&1
     return 0
@@ -137,11 +136,11 @@ _docker-repo-name() {
 }
 
 _docker-build-args() {
-  local branch="$(git status | head -n1 | grep -i 'On branch ' | awk '{print $3}')"
+  local branch="$(git branch --show-current)"
   local rev="$(git rev-parse --short HEAD)"
-  local date="$(git show -s --format=%ci HEAD | sed 's/ /_/g')"
+  local date="$(git show -s --format=%ci HEAD | sed -e 's/ /_/g')"
   local diff=unknown
-  if [[ $(git status | grep -c 'nothing to commit, working tree clean') = 1 ]]; then
+  if [[ -z $(git status --porcelain) ]]; then
     diff=clean
   else
     diff="pending_changes_$(git diff HEAD | shasum | awk '{print $1}')"

@@ -22,13 +22,13 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     /bin/bash /app/importer-root-setup.sh
 
 USER app
-COPY lib/sycamore lib/sycamore
-COPY lib/poetry-lock lib/poetry-lock
+COPY --chown=app:app lib/sycamore lib/sycamore
+COPY --chown=app:app lib/poetry-lock lib/poetry-lock
 
-COPY apps/importer/pyproject.toml apps/importer/poetry.lock apps/importer/README.md \
+COPY --chown=app:app apps/importer/pyproject.toml apps/importer/poetry.lock apps/importer/README.md \
      ./
 RUN mkdir -p importer/docker
-COPY apps/importer/importer/docker/docker-poetry-packages.sh \
+COPY --chown=app:app apps/importer/importer/docker/docker-poetry-packages.sh \
      importer/docker/docker-poetry-packages.sh
 
 RUN --mount=type=cache,id=cache_poetry_1000,target=/tmp/poetry_cache,uid=1000,gid=1000,sharing=locked \
@@ -36,10 +36,15 @@ RUN --mount=type=cache,id=cache_poetry_1000,target=/tmp/poetry_cache,uid=1000,gi
       install --only main,sycamore_library,docker --no-root -v
 
 # syntax=docker/dockerfile:1.7-labs
-COPY apps/importer ./
-COPY examples/simple_config.py ./
+COPY --chown=app:app apps/importer ./
+COPY --chown=app:app examples/simple_config.py ./
 
 RUN /bin/bash ./importer/docker/docker-poetry-packages.sh install --only-root -v -v -v
+
+# Make sure we don't get more unexpected files owned by root
+RUN find . -uid 0 -ls
+RUN find . -uid 0 -print | wc -w
+RUN /bin/bash -c '[[ $(find . -uid 0 -print | wc -w) = 1 ]]'
 
 ARG GIT_BRANCH="unknown"
 ARG GIT_COMMIT="unknown"

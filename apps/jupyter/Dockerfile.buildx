@@ -2,9 +2,12 @@
 
 # Note: This dockerfile is intended to work with docker buildx build -f Dockerfile.buildx .
 
+ARG REGISTRY=docker.io
 ARG TAG=stable
 
-FROM arynai/sycamore-importer:$TAG
+# FOO1
+
+FROM ${REGISTRY}/arynai/sycamore-importer:$TAG
 
 ARG GIT_BRANCH="unknown"
 ARG GIT_COMMIT="unknown"
@@ -18,7 +21,7 @@ ENV SSL=0
 
 WORKDIR /app
 
-USER root
+USER 0
 COPY apps/jupyter/jupyter-docker-root-setup.sh /app
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
@@ -26,17 +29,22 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 COPY apps/jupyter/sudoers /etc/sudoers
 COPY apps/jupyter/fixuser.py /root
 
-# User 'app' must be id number 1000 (the default) for all to work properly.
+# Must use numeric uid. Otherwise we will randomly get files owned by uid 0 that should be uid 1000
 USER app
-COPY apps/jupyter/profile ./.profile
+COPY --chown=app:app apps/jupyter/profile ./.profile
 RUN --mount=type=cache,target=/app/.cache,sharing=locked \
     poetry run pip install notebook ipywidgets 'opensearch-py>=2.4'
 RUN mkdir -p /app/work/docker_volume /app/work/bind_dir /app/work/examples
 RUN touch /app/work/AAA_SEE_README_FOR_PERSISTENT_DATA_DIRECTORIES
-COPY apps/jupyter/run-jupyter.sh ./
-COPY apps/jupyter/README.md ./work
-COPY notebooks/jupyter_dev_example.ipynb notebooks/default-prep-script.ipynb notebooks/ndd_example.ipynb ./work/examples/
+COPY --chown=app:app apps/jupyter/run-jupyter.sh ./
+COPY --chown=app:app apps/jupyter/README.md ./work
+COPY --chown=app:app notebooks/jupyter_dev_example.ipynb notebooks/default-prep-script.ipynb notebooks/ndd_example.ipynb ./work/examples/
 RUN perl -i -pe 's/localhost/opensearch/ if /9200/;s,tmp/sycamore/data,/app/work/docker_volume,' /app/work/examples/jupyter_dev_example.ipynb
+
+# Make sure we don't get more unexpected files owned by root
+RUN find . -uid 0 -ls
+RUN find . -uid 0 -print | wc -w
+RUN /bin/bash -c '[[ $(find . -uid 0 -print | wc -w) = 2 ]]'
 
 LABEL org.opencontainers.image.authors="opensource@aryn.ai"
 LABEL git_branch=${GIT_BRANCH}

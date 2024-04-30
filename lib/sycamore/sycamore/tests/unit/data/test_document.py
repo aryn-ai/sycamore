@@ -81,14 +81,16 @@ class TestDocument:
                 {
                     "type": "table",
                     "bbox": (1, 2, 3, 4.0),
+                    "properties": {"title": None, "rows": None, "columns": None},
+                    "table": None,
+                    "tokens": None,
                 },
-                {
-                    "type": "figure",
-                    "bbox": (1, 2, 3, 4.0),
-                },
+                {"type": "figure", "bbox": (1, 2, 3, 4.0), "properties": {}},
             ],
             "properties": {"int": 0, "float": 3.14, "list": [1, 2, 3, 4], "tuple": (1, "tuple")},
         }
         document = Document(dict)
         serde = Document(document.serialize())
+        print(serde.data)
+
         assert serde.data == dict

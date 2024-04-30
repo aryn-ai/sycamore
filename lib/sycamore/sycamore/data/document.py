@@ -20,6 +20,11 @@ class Document(UserDict):
         if "properties" not in self.data:
             self.data["properties"] = {}
 
+        if "elements" not in self.data:
+            self.data["elements"] = []
+        else:
+            self.data["elements"] = [create_element(**element) for element in self.data["elements"]]
+
     @property
     def doc_id(self) -> Optional[str]:
         """A unique identifier for the document. Defaults to a uuid."""
@@ -70,12 +75,12 @@ class Document(UserDict):
     def elements(self) -> list[Element]:
         """A list of elements belonging to this document. A document does not necessarily always have
         elements, for instance, before a document is chunked."""
-        return [create_element(**element) for element in self.data.get("elements", [])]
+        return self.data["elements"]
 
     @elements.setter
     def elements(self, elements: list[Element]):
         """Set the elements for this document."""
-        self.data["elements"] = [element.data for element in elements]
+        self.data["elements"] = elements
 
     @elements.deleter
     def elements(self) -> None:

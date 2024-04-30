@@ -2,6 +2,7 @@ from collections import UserDict
 from typing import Any, Optional
 
 from sycamore.data import BoundingBox, Element
+from sycamore.data.element import create_element
 
 
 class Document(UserDict):
@@ -18,6 +19,11 @@ class Document(UserDict):
         super().__init__(document, **kwargs)
         if "properties" not in self.data:
             self.data["properties"] = {}
+
+        if "elements" not in self.data:
+            self.data["elements"] = []
+        else:
+            self.data["elements"] = [create_element(**element) for element in self.data["elements"]]
 
     @property
     def doc_id(self) -> Optional[str]:
@@ -69,12 +75,12 @@ class Document(UserDict):
     def elements(self) -> list[Element]:
         """A list of elements belonging to this document. A document does not necessarily always have
         elements, for instance, before a document is chunked."""
-        return [Element(element) for element in self.data.get("elements", [])]
+        return self.data["elements"]
 
     @elements.setter
     def elements(self, elements: list[Element]):
         """Set the elements for this document."""
-        self.data["elements"] = [element.data for element in elements]
+        self.data["elements"] = elements
 
     @elements.deleter
     def elements(self) -> None:

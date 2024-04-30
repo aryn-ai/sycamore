@@ -3,6 +3,7 @@ import io
 from typing import Any, Optional
 
 from bs4 import BeautifulSoup
+
 from ray.data import Dataset, ActorPoolStrategy
 
 from sycamore.functions import TextOverlapChunker, Chunker
@@ -12,6 +13,7 @@ from sycamore.data import BoundingBox, Document, Element, TableElement
 from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.map import generate_map_function
 from sycamore.transforms.extract_table import TableExtractor
+from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
 from sycamore.utils import generate_map_class_from_callable
 
 
@@ -344,7 +346,16 @@ SYCAMORE_DETR_MODEL = "Aryn/deformable-detr-DocLayNet"
 
 
 class SycamorePartitioner(Partitioner):
-    def __init__(self, model_name_or_path, threshold: float = 0.4, use_ocr=False, ocr_images=False, ocr_tables=False):
+    def __init__(
+        self,
+        model_name_or_path=SYCAMORE_DETR_MODEL,
+        threshold: float = 0.4,
+        use_ocr=False,
+        ocr_images=False,
+        ocr_tables=False,
+        extract_table_structure=False,
+        table_structure_extractor=DEFAULT_TABLE_STRUCTURE_EXTRACTOR,
+    ):
         from sycamore.transforms.detr_partitioner import SycamorePDFPartitioner
 
         self._partitioner = SycamorePDFPartitioner(model_name_or_path)
@@ -352,6 +363,8 @@ class SycamorePartitioner(Partitioner):
         self._use_ocr = use_ocr
         self._ocr_images = ocr_images
         self._ocr_tables = ocr_tables
+        self._extract_table_structure = extract_table_structure
+        self._table_structure_extractor = table_structure_extractor
 
     # For now, we reorder elements based on page, left/right column, y axle position then finally x axle position
     @staticmethod
@@ -392,7 +405,13 @@ class SycamorePartitioner(Partitioner):
 
         try:
             result = self._partitioner.partition_pdf(
-                binary, self._threshold, use_ocr=self._use_ocr, ocr_images=self._ocr_images, ocr_tables=self._ocr_tables
+                binary,
+                self._threshold,
+                use_ocr=self._use_ocr,
+                ocr_images=self._ocr_images,
+                ocr_tables=self._ocr_tables,
+                extract_table_structure=self._extract_table_structure,
+                table_structure_extractor=self._table_structure_extractor,
             )
         except Exception as e:
             path = document.properties["path"]
@@ -401,8 +420,7 @@ class SycamorePartitioner(Partitioner):
         elements = []
         for i, r in enumerate(result):
             for ele in r:
-                properties = ele.properties
-                properties["page_number"] = i + 1
+                ele.properties["page_number"] = i + 1
                 elements.append(ele)
 
         document.elements = elements

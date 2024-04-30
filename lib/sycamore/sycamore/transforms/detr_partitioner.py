@@ -1,8 +1,12 @@
 from abc import ABC, abstractmethod
+from io import BytesIO
 import tempfile
 from typing import cast, BinaryIO, List, Tuple
 
-from sycamore.data import Element, BoundingBox
+from sycamore.data import Element, BoundingBox, TableElement
+from sycamore.data.element import create_element
+
+from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
 from PIL import Image
 import pdf2image
 
@@ -15,6 +19,8 @@ from pdfminer.pdfpage import PDFPage
 from pdfminer.utils import open_filename
 
 import pytesseract
+
+import easyocr
 
 
 class SycamorePDFPartitioner:
@@ -37,16 +43,29 @@ class SycamorePDFPartitioner:
                     if t in unmatched:
                         unmatched.remove(t)
             if matched:
+                matches = []
                 full_text = []
                 for m in matched:
+                    matches.append(m)
                     if m.text_representation:
                         full_text.append(m.text_representation)
+
+                if isinstance(i, TableElement):
+                    i.tokens = [{"text": elem.text_representation, "bbox": elem.bbox} for elem in matches]
+
                 i.text_representation = " ".join(full_text)
 
         return inferred + unmatched
 
     def partition_pdf(
-        self, file: BinaryIO, threshold: float = 0.4, use_ocr=False, ocr_images=False, ocr_tables=False
+        self,
+        file: BinaryIO,
+        threshold: float = 0.4,
+        use_ocr=False,
+        ocr_images=False,
+        ocr_tables=False,
+        extract_table_structure=False,
+        table_structure_extractor=DEFAULT_TABLE_STRUCTURE_EXTRACTOR,
     ) -> List[List["Element"]]:
         with tempfile.TemporaryDirectory() as tmp_dir, tempfile.NamedTemporaryFile() as tmp_file:
             filename = tmp_file.name
@@ -63,15 +82,22 @@ class SycamorePDFPartitioner:
             deformable_layout = [self.model.infer(image, threshold) for image in images]
 
             if use_ocr:
-                return extract_ocr(images, deformable_layout, ocr_images=ocr_images, ocr_tables=ocr_tables)
+                extract_ocr(images, deformable_layout, ocr_images=ocr_images, ocr_tables=ocr_tables)
+            else:
+                pdfminer = PDFMinerExtractor()
+                pdfminer_layout = pdfminer.extract(filename)
+                # page count should be the same
+                assert len(pdfminer_layout) == len(deformable_layout)
 
-            pdfminer = PDFMinerExtractor()
-            pdfminer_layout = pdfminer.extract(filename)
-            # page count should be the same
-            assert len(pdfminer_layout) == len(deformable_layout)
+                for d, p in zip(deformable_layout, pdfminer_layout):
+                    self._supplement_text(d, p)
 
-            for d, p in zip(deformable_layout, pdfminer_layout):
-                self._supplement_text(d, p)
+            if extract_table_structure:
+                for i, page_elements in enumerate(deformable_layout):
+                    image = images[i]
+                    for element in page_elements:
+                        if isinstance(element, TableElement):
+                            table_structure_extractor.extract(element, image)
 
             return deformable_layout
 
@@ -126,7 +152,7 @@ class DeformableDetr(SycamoreObjectDetection):
         else:
             return self.device
 
-    def infer(self, image: Image, threshold: float) -> list[Element]:
+    def infer(self, image: Image.Image, threshold: float) -> list[Element]:
         inputs = self.processor(images=image, return_tensors="pt").to(self._get_device())
         outputs = self.model(**inputs)
         target_sizes = torch.tensor([image.size[::-1]])
@@ -141,10 +167,11 @@ class DeformableDetr(SycamoreObjectDetection):
             results["labels"].cpu().detach().numpy(),
             results["boxes"].cpu().detach().numpy(),
         ):
-            element = Element()
-            element.type = self.labels[label]
-            element.bbox = BoundingBox(box[0] / w, box[1] / h, box[2] / w, box[3] / h)
-            element.properties = {"score": score}
+            element = create_element(
+                type=self.labels[label],
+                bbox=BoundingBox(box[0] / w, box[1] / h, box[2] / w, box[3] / h),
+                properties={"score": score},
+            )
             elements.append(element)
         return elements
 
@@ -202,7 +229,7 @@ class PDFMinerExtractor:
 
 
 def extract_ocr(
-    images: list[Image], elements: list[list[Element]], ocr_images=False, ocr_tables=False
+    images: list[Image.Image], elements: list[list[Element]], ocr_images=False, ocr_tables=False
 ) -> list[list[Element]]:
     for i, image in enumerate(images):
         width, height = image.size
@@ -214,13 +241,50 @@ def extract_ocr(
                 continue
             if elem.type == "Picture" and not ocr_images:
                 continue
-            elif elem.type == "Table" and not ocr_tables:
+            # elif elem.type == "table" and not ocr_tables:
+            #     continue
+            elif elem.type == "table":
+                assert isinstance(elem, TableElement)
+                extract_table_ocr(image, elem)
                 continue
 
             crop_box = (elem.bbox.x1 * width, elem.bbox.y1 * height, elem.bbox.x2 * width, elem.bbox.y2 * height)
-
             cropped_image = image.crop(crop_box)
+
+            # TODO: Do we want to switch to easyocr here too?
             text = pytesseract.image_to_string(cropped_image)
+
             elem.text_representation = text
 
     return elements
+
+
+def extract_table_ocr(image: Image.Image, elem: TableElement):
+    width, height = image.size
+
+    assert elem.bbox is not None
+    crop_box = (elem.bbox.x1 * width, elem.bbox.y1 * height, elem.bbox.x2 * width, elem.bbox.y2 * height)
+    cropped_image = image.crop(crop_box)
+    image_bytes = BytesIO()
+    cropped_image.save(image_bytes, format="PNG")
+
+    # TODO: support more languages
+    reader = easyocr.Reader(["en"])
+    results = reader.readtext(image_bytes.getvalue())
+
+    tokens = []
+
+    for res in results:
+        raw_bbox = res[0]
+        text = res[1]
+
+        token = {"bbox": BoundingBox(raw_bbox[0][0], raw_bbox[0][1], raw_bbox[2][0], raw_bbox[2][1]), "text": text}
+
+        # Shift the BoundingBox to be relative to the whole image.
+        # TODO: We can likely reduce the number of bounding box translations/conversion in the pipeline,
+        #  but for the moment I'm prioritizing clarity over (theoretical) performance, and we have the
+        #  desired invariant that whenever we store bounding boxes they are relative to the entire doc.
+        token["bbox"].translate_self(crop_box[0], crop_box[1]).to_relative_self(width, height)
+        tokens.append(token)
+
+    elem.tokens = tokens

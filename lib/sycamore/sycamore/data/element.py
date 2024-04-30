@@ -2,6 +2,7 @@ from collections import UserDict
 from typing import Any, Optional
 
 from sycamore.data import BoundingBox
+from sycamore.data import Table
 
 
 class Element(UserDict):
@@ -43,7 +44,13 @@ class Element(UserDict):
 
     @property
     def bbox(self) -> Optional[BoundingBox]:
-        return None if self.data.get("bbox") is None else BoundingBox(*self.data["bbox"])
+        bbox = self.data.get("bbox")
+        if bbox is None:
+            return None
+        elif isinstance(bbox, BoundingBox):
+            return bbox
+        else:
+            return BoundingBox(*self.data["bbox"])
 
     @bbox.setter
     def bbox(self, bbox: BoundingBox) -> None:
@@ -69,14 +76,17 @@ class TableElement(Element):
         title: Optional[str] = None,
         columns: Optional[list[str]] = None,
         rows: Optional[list[Any]] = None,
+        table: Optional[Table] = None,
+        tokens: Optional[list[dict[str, Any]]] = None,
         **kwargs,
     ):
         super().__init__(element, **kwargs)
         self.data["type"] = "table"
-        self.data["properties"] = {}
         self.data["properties"]["title"] = title
         self.data["properties"]["columns"] = columns
         self.data["properties"]["rows"] = rows
+        self.data["table"] = table
+        self.data["tokens"] = tokens
 
     @property
     def rows(self) -> Optional[list[Any]]:
@@ -93,3 +103,26 @@ class TableElement(Element):
     @columns.setter
     def columns(self, columns: Optional[list[str]] = None) -> None:
         self.data["properties"]["columns"] = columns
+
+    @property
+    def table(self) -> Optional[Table]:
+        return self.data["table"]
+
+    @table.setter
+    def table(self, value: Table) -> None:
+        self.data["table"] = value
+
+    @property
+    def tokens(self) -> Optional[list[dict[str, Any]]]:
+        return self.data["tokens"]
+
+    @tokens.setter
+    def tokens(self, tokens: list[dict[str, Any]]) -> None:
+        self.data["tokens"] = tokens
+
+
+def create_element(**kwargs) -> Element:
+    if "type" in kwargs and kwargs["type"].lower() == "table":
+        return TableElement(**kwargs)
+    else:
+        return Element(**kwargs)

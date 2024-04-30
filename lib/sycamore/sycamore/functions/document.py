@@ -1,5 +1,6 @@
 from io import BytesIO
 from typing import Optional
+from sycamore.data.element import TableElement
 
 import pdf2image
 
@@ -81,16 +82,17 @@ class DrawBoxes:
                 .map_batch(DrawBoxes, f_constructor_args=[font_path])
     """
 
-    def __init__(self, font_path: str, default_color: str = "blue"):
+    def __init__(self, font_path: str, default_color: str = "blue", draw_table_cells: bool = True):
         self.font = ImageFont.truetype(font_path, 20)
         self.color_map = {
             "Title": "red",
             "NarrativeText": "blue",
             "UncategorizedText": "blue",
             "ListItem": "green",
-            "Table": "orange",
+            "table": "orange",
         }
         self.default_color = default_color
+        self.draw_table_cells = draw_table_cells
 
     def _get_color(self, e_type: Optional[str]):
         if e_type is None:
@@ -116,16 +118,19 @@ class DrawBoxes:
 
             canvas.rectangle(bbox, fill=None, outline=self._get_color(e.type), width=3)
             font_box = canvas.textbbox(
-                (bbox[0] - image_width / 120, bbox[1] - image_height / 120), str(i + 1), font=self.font
+                (bbox[0] - image_width / 100, bbox[1] - image_height / 100), str(e.type), font=self.font
             )
             canvas.rectangle(font_box, fill="yellow")
             canvas.text(
-                (bbox[0] - image_width / 120, bbox[1] - image_height / 120),
-                str(i + 1),
+                (bbox[0] - image_width / 100, bbox[1] - image_height / 100),
+                str(e.type),
                 fill="black",
                 font=self.font,
                 align="left",
             )
+
+            if isinstance(e, TableElement) and e.table is not None and self.draw_table_cells:
+                e.table.draw(canvas)
 
         png_image = BytesIO()
         image.save(png_image, format="PNG")

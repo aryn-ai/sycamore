@@ -30,3 +30,4 @@ Low-Level Transforms (for Sycamore development)
    /APIs/transforms/split_elements.rst
    /APIs/transforms/spread_properties.rst
    /APIs/transforms/summarize.rst
+   /APIs/transforms/summarize_images.rst

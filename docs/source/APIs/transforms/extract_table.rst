@@ -1,6 +1,9 @@
 Extract Table
 =============
 
+.. autoclass:: sycamore.transforms.extract_table.CachedTextractTableExtractor
+   :members:
+   :show-inheritance:
 .. autoclass:: sycamore.transforms.extract_table.MissingS3UploadPath
    :members:
    :show-inheritance:

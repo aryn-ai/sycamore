@@ -38,7 +38,7 @@ With Docker installed:
 
 3.	Go to:
 
-```/sycamore```
+```./sycamore```
 
 4.	Launch Sycamore. Conatainers will be pulled from DockerHub:
 

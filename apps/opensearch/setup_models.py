@@ -451,7 +451,7 @@ def setup_reranking_model(model_group_id):
         },
         "url": "https://aryn-public.s3.amazonaws.com/models/BAAI/bge-reranker-base-quantized-2.zip",
     }
-    return setup_model(register_body, model_name, register_timeout=120)
+    return setup_model(register_body, model_name, register_timeout=120, deploy_timeout=120)
 
 
 def setup_openai_model(model_group_id):

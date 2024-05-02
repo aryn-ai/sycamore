@@ -40,7 +40,7 @@ With Docker installed:
 
 ```./sycamore```
 
-4.	Launch Sycamore. Conatainers will be pulled from DockerHub:
+4.	Launch Sycamore. Containers will be pulled from DockerHub:
 
 ```docker compose up --pull=always```
 

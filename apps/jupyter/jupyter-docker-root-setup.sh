@@ -24,4 +24,4 @@ fi
 export DEBIAN_FRONTEND=noninteractive
 
 apt update
-apt -y install --no-install-recommends fonts-liberation less sudo
+apt -y install --no-install-recommends fonts-liberation less sudo groff-base

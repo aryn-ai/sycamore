@@ -29,7 +29,7 @@ COPY apps/jupyter/fixuser.py /root
 USER app
 COPY --chown=app:app apps/jupyter/profile ./.profile
 RUN --mount=type=cache,target=/app/.cache,sharing=locked \
-    poetry run pip install notebook ipywidgets 'opensearch-py>=2.4'
+    poetry run pip install notebook ipywidgets 'opensearch-py>=2.4' awscli
 RUN mkdir -p /app/work/docker_volume /app/work/bind_dir /app/work/examples
 RUN touch /app/work/AAA_SEE_README_FOR_PERSISTENT_DATA_DIRECTORIES
 COPY --chown=app:app apps/jupyter/run-jupyter.sh ./

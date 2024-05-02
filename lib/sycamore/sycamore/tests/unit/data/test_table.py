@@ -239,12 +239,12 @@ class SimpleTableMultiRowColHeader(TableFormatTestCase):
           <tr>
             <td>1</td>
             <td>2</td>
-            <td>3</td>            
+            <td>3</td>
           </tr>
           <tr>
             <td>4</td>
             <td>5</td>
-            <td>6</td>            
+            <td>6</td>
           </tr>
         </table>
         """
@@ -317,7 +317,7 @@ class SmithsonianSampleTable(TableFormatTestCase):
         return """Grade.,Yield Point.,Ultimate tensile strength | kg/mm2,Ultimate tensile strength | lb/in2,Per cent elong. 50.8 mm or 2 in.,Per cent reduct. area.
 Hard,0.45 ultimate,56.2,"80,000",15,20
 Medium,0.45 ultimate,49.2,"70,000",18,25
-Soft,0.45 ultimate,42.2,"60,000",22,30        
+Soft,0.45 ultimate,42.2,"60,000",22,30
         """
 
     def table(self) -> Table:

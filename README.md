@@ -6,7 +6,9 @@
 [![Docs](https://readthedocs.org/projects/sycamore/badge/?version=stable)](https://sycamore.readthedocs.io/en/stable/?badge=stable)
 ![License](https://img.shields.io/github/license/aryn-ai/sycamore)
 
-Sycamore is a conversational search and analytics platform for complex unstructured data, such as documents, presentations, transcripts, embedded tables, and internal knowledge repositories. It retrieves and synthesizes high-quality answers through bringing AI to data preparation, indexing, and retrieval. Sycamore makes it easy to prepare unstructured data for search and analytics, providing a toolkit for data cleaning, information extraction, enrichment, summarization, and generation of vector embeddings that encapsulate the semantics of data. Sycamore uses your choice of generative AI models to make these operations simple and effective, and it enables quick experimentation and iteration. Additionally, Sycamore uses OpenSearch for indexing, enabling hybrid (vector + keyword) search, retrieval-augmented generation (RAG) pipelining, filtering, analytical functions, conversational memory, and other features to improve information retrieval.
+Sycamore is an AI-powered document segmenation and enrichment framework for LLMs and RAG. Sycamore makes it easy to reliably load your vector databases and hybrid search engines with higher quality data. It can analyze and chunk complex documents with embedded tables, figures, graphs, and other infographics with modern visual AI models and scalable data processing techniques. Sycamore can process and prepare a wide range of doucment types, including reports, presentations, transcripts, manuals, and more. 
+
+Sycamore provides an advanced document partitioner for high quality segmentation and chunking, and can also integrate with your choice of AI models for LLM-enabled UDFs, vector embeddings, and other data transformations. The Sycamore framework built around a scalable and robust abstraction for document processing called a DocSet, and includes powerful high-level transformations in Python for data processing, enrichment, and cleaning.
 
 ![Untitled](docs/source/images/SycamoreDiagram2.png)
 

@@ -19,11 +19,11 @@ main() {
   mkdir -p "${RUNDIR}"
   echo "Building/testing tag ${TAG}" >&2
   echo "Get the newest git commits" >&2
-  if [[ checkout_main_if_new ]]; then
+  if checkout_main_if_new; then
     echo "Changes detected. Running Tests" >&2
     poetry install --no-root > "${POETRY_LOGFILE}" 2>&1 \
-    && build_images > "${DOCKER_LOGFILE}" 2>&1 \
-    && runtests > "${PYTEST_LOGFILE}" 2>&1
+        && build_images > "${DOCKER_LOGFILE}" 2>&1 \
+        && runtests > "${PYTEST_LOGFILE}" 2>&1
     local passed_tests=$?
     push_images >> "${DOCKER_LOGFILE}" 2>&1
     handle_outputs $passed_tests
@@ -67,8 +67,11 @@ handle_outputs() {
   echo "Handling test outputs" >&2
   local passed_tests="$1"
   mv test-output.log "${QUERY_LOGFILE}"
-  [[ ${passed_tests} = 0 ]] && touch "${RUNDIR}/passed"
-  [[ ${passed_tests} != 0 ]] && touch "${RUNDIR}/failed"
+  if [[ ${passed_tests} = 0 ]]; then
+    touch "${RUNDIR}/passed"
+  else
+    touch "${RUNDIR}/failed"
+  fi
   aws s3 cp -r "${RUNDIR}" "s3://sycamore-ci/${ARCH}"
 }
 

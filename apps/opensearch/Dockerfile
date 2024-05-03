@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 # Repo name: arynai/sycamore-opensearch
 
 FROM gradle:jdk17 AS build_ml_commons
@@ -42,7 +44,7 @@ USER root
 RUN yum install -yq openssl jq && yum clean all
 USER opensearch
 
-COPY --chown=opensearch:opensearch apps/opensearch/opensearch.yml /usr/share/opensearch/config/
+COPY --chown=opensearch:opensearch apps/opensearch/opensearch.yml apps/opensearch/authority.pem /usr/share/opensearch/config/
 COPY --chown=opensearch:opensearch apps/opensearch/config.yml apps/opensearch/roles_mapping.yml \
      /usr/share/opensearch/config/opensearch-security/
 COPY --chown=opensearch:opensearch apps/opensearch/sycamore-opensearch.sh apps/opensearch/setup_models.py \

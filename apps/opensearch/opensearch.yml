@@ -9,8 +9,8 @@ plugins.security.ssl.transport.pemcert_filepath: node-cert.pem
 plugins.security.ssl.transport.pemkey_filepath: node-key.pem
 plugins.security.ssl.transport.pemtrustedcas_filepath: cacert.pem
 plugins.security.ssl.http.enabled: true
-plugins.security.ssl.http.pemcert_filepath: node-cert.pem
-plugins.security.ssl.http.pemkey_filepath: node-key.pem
-plugins.security.ssl.http.pemtrustedcas_filepath: cacert.pem
+plugins.security.ssl.http.pemcert_filepath: http-cert.pem
+plugins.security.ssl.http.pemkey_filepath: http-key.pem
+plugins.security.ssl.http.pemtrustedcas_filepath: http-ca.pem
 plugins.security.authcz.admin_dn:
   - 'CN=Admin,O=Aryn.ai,ST=California,C=US'

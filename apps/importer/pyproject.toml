@@ -14,3 +14,6 @@ sycamore-ai = "^0.1.13"
 
 [tool.poetry.group.dev.dependencies]
 sycamore-ai = { path = "../../lib/sycamore", develop = true }
+
+[tool.poetry.group.sycamore_poetry_lock.dependencies]
+sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }

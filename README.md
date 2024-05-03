@@ -10,15 +10,16 @@ Sycamore is an AI-powered document segmenation and enrichment framework for LLMs
 
 Sycamore provides an advanced document partitioner for high quality segmentation and chunking, and can also integrate with your choice of AI models for LLM-enabled UDFs, vector embeddings, and other data transformations. The Sycamore framework built around a scalable and robust abstraction for document processing called a DocSet, and includes powerful high-level transformations in Python for data processing, enrichment, and cleaning.
 
-![Untitled](docs/source/images/SycamoreDiagram2.png)
+![Untitled](docs/source/images/SycamoreDataflowDiagramv1.png)
 
 ## Features
 
-- Natural language, conversational interface to ask complex questions on unstructured data. Includes citations to source passages and conversational memory.
-- Includes a variety of query operations over unstructured data, including hybrid search, retrieval augmented generation (RAG), and analytical functions.
-- Prepares and enriches complex unstructured data for search and analytics through advanced data segmentation, LLM-powered UDFs for data enrichment, performant data manipulation with Python, and vector embeddings using a variety of AI models.
-- Helpful features like automatic data crawlers (Amazon S3 and HTTP) and Jupyter notebook support to create and iterate on data preparation scripts.
-- Scalable, secure, and customizable OpenSearch backend for indexing and data retrieval.
+- State-of-the art vision AI model for segmentation and semantic hierarchy of documents
+- DocSet abstraction to easily transform and manipulate unstructured documents
+- High-quality table extraction, OCR, LLM-powered UDFs, and other performant Python data transforms
+- Quickly create vector embeddings using your choice of AI model
+- Helpful features like automatic data crawlers (Amazon S3 and HTTP), Jupyter notebook for writing and iterating on jobs, and an OpenSearch hybrid search and RAG engine for testing
+- Scalable [Ray](https://github.com/ray-project/ray) backend
 
 ## Demo
 

@@ -24,6 +24,11 @@ def _pairwise(iterable):
 # table structure recognition models.
 @dataclass(frozen=True)
 class TableCell:
+    """Represents a single cell of a table.
+
+    A cell can span multiple rows and columns, and can have an optional bounding box.
+    """
+
     content: str
     rows: list[int]
     cols: list[int]
@@ -47,7 +52,25 @@ class TableCell:
 
 
 class Table:
+    """Represents a table from a document.
+
+    This attempts to be a general representation that can represent a wide-variety of tables, including
+    those with cells spanning multiple rows and columns, and complex multi-row headers. The table is
+    represented as a simple list of cells, sorted by the minimum row, and column for that cell. This
+    mimics common representations used by table extraction tools such as Amazon Textract and TableTransformers.
+
+    Methods are provided to convert to common formats such as pandas, csv, and html. Some of these conversions
+    are lossy, since, for instance, CSV does not natively support spanning cells.
+    """
+
     def __init__(self, cells: list[TableCell], caption: Optional[str] = None):
+        """Creates a new Table.
+
+        Args:
+            cells: The list of TableCells that make up this table.
+            caption: An optional caption for this table.
+        """
+
         self.cells: list[TableCell] = sorted(cells, key=lambda tc: (min(tc.rows), min(tc.cols)))
         self.caption = caption
         self.num_rows = max(max(c.rows) for c in self.cells) + 1
@@ -60,7 +83,6 @@ class Table:
         if self.num_rows != other.num_rows or self.num_cols != other.num_cols:
             return False
 
-        # TODO: Yikes! this is expensive. Do the sorting in init or something.
         if self.cells != other.cells:
             return False
 
@@ -82,6 +104,10 @@ class Table:
     # content for the first row/column for which it is applicable. The exception is for header rows,
     # where we duplicate values to each columnn to ensure that every column has a fully qualified header.
     def to_pandas(self) -> DataFrame:
+        """Returns this table as a Pandas DataFrame.
+
+        For example, Suppose a cell spans row 2-3 and columns 4-5.
+        """
         # Find all row nums containing cells marked as headers.
         header_rows = sorted(set((row_num for cell in self.cells for row_num in cell.rows if cell.is_header)))
 
@@ -134,11 +160,29 @@ class Table:
         )
         return df
 
-    def to_csv(self):
+    def to_csv(self, **kwargs) -> str:
+        """Converts this table to a csv string.
+
+        This conversion is made via Pandas.
+
+        Args:
+            kwargs: Keyword arguments to pass to the pandas to_csv method.
+        """
+
         has_header = any((row_num == 0 for cell in self.cells for row_num in cell.rows if cell.is_header))
-        return self.to_pandas().to_csv(index=False, header=has_header)
+
+        pandas_kwargs = {"index": False, "header": has_header}
+        pandas_kwargs.update(kwargs)
+        return self.to_pandas().to_csv(**pandas_kwargs)
 
     def to_html(self):
+        """Converts this table to an HTML string.
+
+        Cells with is_header=True will be converted to th tags. Cells spanning
+        multiple rows or columns will have the rowspan or colspan attributes,
+        respectively.
+        """
+
         table = ET.Element("table")
 
         curr_row = -1
@@ -173,7 +217,12 @@ class Table:
 
     # TODO: This currently assumes that the bounding rectangles are on the same page.
     def draw(self, target: U) -> U:
-        """Draw the bounding boxes for this table on the specified Image."""
+        """Draw the bounding boxes for this table on the specified Image.
+
+        Args:
+           target: An Image or ImageDraw objects on which to draw this table.
+              If target is an Image, an ImageDraw object will be created.
+        """
 
         if isinstance(target, ImageDraw.ImageDraw):
             canvas = target

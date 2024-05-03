@@ -13,7 +13,6 @@ Low-Level Transforms (for Sycamore development)
    /APIs/transforms/augment_text.rst
    /APIs/transforms/basics.rst
    /APIs/transforms/bbox_merge.rst
-   /APIs/transforms/detr_partitioner.rst
    /APIs/transforms/embed.rst
    /APIs/transforms/explode.rst
    /APIs/transforms/extract_entity.rst

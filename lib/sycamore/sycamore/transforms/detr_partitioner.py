@@ -3,10 +3,11 @@ from io import BytesIO
 import tempfile
 from typing import cast, BinaryIO, List, Tuple
 
-from sycamore.data import Element, BoundingBox, TableElement
+from sycamore.data import Element, BoundingBox, ImageElement, TableElement
 from sycamore.data.element import create_element
-
 from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
+from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
+
 from PIL import Image
 import pdf2image
 
@@ -66,6 +67,7 @@ class SycamorePDFPartitioner:
         ocr_tables=False,
         extract_table_structure=False,
         table_structure_extractor=DEFAULT_TABLE_STRUCTURE_EXTRACTOR,
+        extract_images=False,
     ) -> List[List["Element"]]:
         with tempfile.TemporaryDirectory() as tmp_dir, tempfile.NamedTemporaryFile() as tmp_file:
             filename = tmp_file.name
@@ -92,12 +94,21 @@ class SycamorePDFPartitioner:
                 for d, p in zip(deformable_layout, pdfminer_layout):
                     self._supplement_text(d, p)
 
-            if extract_table_structure:
+            if extract_table_structure or extract_images:
                 for i, page_elements in enumerate(deformable_layout):
                     image = images[i]
                     for element in page_elements:
-                        if isinstance(element, TableElement):
+                        if isinstance(element, TableElement) and extract_table_structure:
                             table_structure_extractor.extract(element, image)
+
+                        if isinstance(element, ImageElement) and extract_images:
+                            if element.bbox is None:
+                                continue
+                            cropped_image = crop_to_bbox(image, element.bbox).convert("RGB")
+                            element.binary_representation = image_to_bytes(cropped_image)
+                            element.image_mode = cropped_image.mode
+                            element.image_size = cropped_image.size
+                            print(element.properties)
 
             return deformable_layout
 
@@ -109,11 +120,11 @@ class SycamoreObjectDetection(ABC):
         self.model = None
 
     @abstractmethod
-    def infer(self, image: Image, threshold: float) -> List[Element]:
+    def infer(self, image: Image.Image, threshold: float) -> List[Element]:
         """Do inference using the wrapped model."""
         pass
 
-    def __call__(self, image: Image, threshold: float) -> List[Element]:
+    def __call__(self, image: Image.Image, threshold: float) -> List[Element]:
         """Inference using function call interface."""
         return self.infer(image, threshold)
 

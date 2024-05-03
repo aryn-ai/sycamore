@@ -243,8 +243,14 @@ class OpenAI(LLM):
             **llm_kwargs,
         }
 
-        prompt = prompt_kwargs.get("prompt")
-        messages: list[ChatCompletionMessageParam] = [{"role": "user", "content": f"{prompt}"}]
+        if "prompt" in prompt_kwargs:
+            prompt = prompt_kwargs.get("prompt")
+            messages: list[ChatCompletionMessageParam] = [{"role": "user", "content": f"{prompt}"}]
+        elif "messages" in prompt_kwargs:
+            messages = prompt_kwargs["messages"]
+        else:
+            raise ValueError("Either prompt or messages must be present in prompt_kwargs.")
+
         completion = self._client.chat.completions.create(model=self._model_name, messages=messages, **kwargs)
         return completion.choices[0].message
 

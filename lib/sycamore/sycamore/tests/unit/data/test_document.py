@@ -85,7 +85,11 @@ class TestDocument:
                     "table": None,
                     "tokens": None,
                 },
-                {"type": "figure", "bbox": (1, 2, 3, 4.0), "properties": {}},
+                {
+                    "type": "Image",
+                    "bbox": (1, 2, 3, 4.0),
+                    "properties": {"image_size": None, "image_mode": None, "image_format": None},
+                },
             ],
             "properties": {"int": 0, "float": 3.14, "list": [1, 2, 3, 4], "tuple": (1, "tuple")},
         }

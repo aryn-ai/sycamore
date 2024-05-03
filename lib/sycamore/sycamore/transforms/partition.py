@@ -355,6 +355,7 @@ class SycamorePartitioner(Partitioner):
         ocr_tables=False,
         extract_table_structure=False,
         table_structure_extractor=DEFAULT_TABLE_STRUCTURE_EXTRACTOR,
+        extract_images=False,
     ):
         from sycamore.transforms.detr_partitioner import SycamorePDFPartitioner
 
@@ -365,6 +366,7 @@ class SycamorePartitioner(Partitioner):
         self._ocr_tables = ocr_tables
         self._extract_table_structure = extract_table_structure
         self._table_structure_extractor = table_structure_extractor
+        self._extract_images = extract_images
 
     # For now, we reorder elements based on page, left/right column, y axle position then finally x axle position
     @staticmethod
@@ -412,6 +414,7 @@ class SycamorePartitioner(Partitioner):
                 ocr_tables=self._ocr_tables,
                 extract_table_structure=self._extract_table_structure,
                 table_structure_extractor=self._table_structure_extractor,
+                extract_images=self._extract_images,
             )
         except Exception as e:
             path = document.properties["path"]

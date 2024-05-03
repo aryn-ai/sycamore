@@ -1,5 +1,8 @@
 from collections import UserDict
+from io import BytesIO
 from typing import Any, Optional
+
+from PIL import Image
 
 from sycamore.data import BoundingBox
 from sycamore.data import Table
@@ -39,7 +42,7 @@ class Element(UserDict):
         return self.data.get("binary_representation")
 
     @binary_representation.setter
-    def binary_representation(self, value: str) -> None:
+    def binary_representation(self, value: bytes) -> None:
         self.data["binary_representation"] = value
 
     @property
@@ -67,6 +70,58 @@ class Element(UserDict):
     @properties.deleter
     def properties(self) -> None:
         self.data["properties"] = {}
+
+
+class ImageElement(Element):
+    def __init__(
+        self,
+        element=None,
+        image_size: Optional[tuple[int, int]] = None,
+        image_mode: Optional[str] = None,
+        image_format: Optional[str] = None,
+        **kwargs,
+    ):
+        super().__init__(element, **kwargs)
+        self.data["type"] = "Image"
+        self.data["properties"]["image_size"] = image_size
+        self.data["properties"]["image_mode"] = image_mode
+        self.data["properties"]["image_format"] = image_format
+
+    def as_image(self) -> Optional[Image.Image]:
+        if self.binary_representation is None:
+            return None
+        if self.image_format is None:
+            if self.image_mode is None or self.image_size is None:
+                return None
+            # Image is stored in uncompressed PIL format.
+            return Image.frombytes(mode=self.image_mode, size=self.image_size, data=self.binary_representation)
+        else:
+            # Image is stored in format like JPG/PNG.
+            return Image.open(BytesIO(self.binary_representation))
+
+    @property
+    def image_size(self) -> Optional[tuple[int, int]]:
+        return self.data["properties"]["image_size"]
+
+    @image_size.setter
+    def image_size(self, image_size: Optional[tuple[int, int]]) -> None:
+        self.data["properties"]["image_size"] = image_size
+
+    @property
+    def image_mode(self) -> Optional[str]:
+        return self.data["properties"]["image_mode"]
+
+    @image_mode.setter
+    def image_mode(self, image_mode: Optional[str]) -> None:
+        self.data["properties"]["image_mode"] = image_mode
+
+    @property
+    def image_format(self) -> Optional[str]:
+        return self.data["properties"]["image_format"]
+
+    @image_format.setter
+    def image_format(self, image_format: Optional[str]) -> None:
+        self.data["properties"]["image_format"] = image_format
 
 
 class TableElement(Element):
@@ -123,6 +178,22 @@ class TableElement(Element):
 
 def create_element(**kwargs) -> Element:
     if "type" in kwargs and kwargs["type"].lower() == "table":
+        if "properties" in kwargs:
+            props = kwargs["properties"]
+            kwargs["title"] = props.get("title")
+            kwargs["columns"] = props.get("columns")
+            kwargs["rows"] = props.get("rows")
+
         return TableElement(**kwargs)
+
+    elif "type" in kwargs and kwargs["type"].lower() in {"picture", "image", "figure"}:
+        if "properties" in kwargs:
+            props = kwargs["properties"]
+            kwargs["image_size"] = props.get("image_size")
+            kwargs["image_mode"] = props.get("image_mode")
+            kwargs["image_format"] = props.get("image_format")
+
+        return ImageElement(**kwargs)
+
     else:
         return Element(**kwargs)

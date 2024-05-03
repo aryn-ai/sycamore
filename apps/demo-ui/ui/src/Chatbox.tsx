@@ -5,7 +5,7 @@ import { IconSearch, IconChevronRight, IconLink, IconFileTypeHtml, IconFileTypeP
 import { IconThumbUp, IconThumbUpFilled, IconThumbDown, IconThumbDownFilled } from '@tabler/icons-react';
 import { getFilters, rephraseQuestion } from './Llm';
 import { SearchResultDocument, Settings, SystemChat } from './Types';
-import { hybridConversationSearch, updateInteractionAnswer, updateFeedback, getHybridConversationSearchQuery, openSearchCall } from './OpenSearch';
+import { hybridConversationSearch, updateInteractionAnswer, updateFeedback, getHybridConversationSearchQuery, openSearchCall, createConversation } from './OpenSearch';
 import { DocList } from './Doclist';
 import { useDisclosure } from '@mantine/hooks';
 import { Prism } from '@mantine/prism';
@@ -204,6 +204,7 @@ const OpenSearchQueryEditor = ({ openSearchQueryEditorOpened, openSearchQueryEdi
     // json query run
     const runJsonQuery = async (newOsJsonQuery: string, currentOsQueryUrl: string) => {
         try {
+
             openSearchQueryEditorOpenedHandlers.close()
             setLoadingMessage("Processing query...")
 
@@ -786,11 +787,11 @@ const interpretOsResult = async (question: string, os_result: string) => {
     }
 };
 
-export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchResults, streaming, setStreaming, setDocsLoading, setErrorMessage, settings, setSettings }:
+export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchResults, streaming, setStreaming, setDocsLoading, setErrorMessage, settings, setSettings, refreshConversations }:
     {
         chatHistory: (SystemChat)[], searchResults: SearchResultDocument[], setChatHistory: Dispatch<SetStateAction<any[]>>,
         setSearchResults: Dispatch<SetStateAction<any[]>>, streaming: boolean, setStreaming: Dispatch<SetStateAction<boolean>>,
-        setDocsLoading: Dispatch<SetStateAction<boolean>>, setErrorMessage: Dispatch<SetStateAction<string | null>>, settings: Settings, setSettings: any
+        setDocsLoading: Dispatch<SetStateAction<boolean>>, setErrorMessage: Dispatch<SetStateAction<string | null>>, settings: Settings, setSettings: any, refreshConversations: any
     }) => {
     const theme = useMantineTheme();
     const chatInputRef = useRef<HTMLInputElement | null>(null);
@@ -927,6 +928,20 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
                 setDocsLoading(false)
             }
             const startTime = new Date(Date.now());
+            const truncateString = (chatInput: string, maxLength = 15) => {
+                if (chatInput.length > maxLength) {
+                  return chatInput.slice(0, maxLength) + '...';
+                } else {
+                  return chatInput;
+                }
+              }
+            if(!settings.activeConversation) {
+                const conversationId = await createConversation(truncateString(chatInput));
+                settings.activeConversation = conversationId.memory_id;
+                setSettings(settings);
+                refreshConversations();
+            }
+            
             await Promise.all([
                 hybridConversationSearch(chatInput, question, filters, settings.activeConversation, settings.openSearchIndex, settings.embeddingModel, settings.modelName, settings.ragPassageCount)
                     .then(clean).then(populateChatFromOs),

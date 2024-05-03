@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { ChatBox, thumbToBool } from './Chatbox'
 import { ControlPanel } from './Controlpanel'
-import { ConversationListNavbar } from './ConversationList'
+import { ConversationListNavbar, setActiveConversation } from './ConversationList'
 import { DocList } from './Doclist'
 import { AppShell, Burger, Container, Footer, Grid, Group, Header, Image, MantineProvider, Notification, Stack, Text } from '@mantine/core';
 import { SearchResultDocument, Settings, SystemChat, UserChat } from './Types';
 import { IconX } from '@tabler/icons-react';
-import { getFeedback, getInteractions } from './OpenSearch';
+import { getConversations, getFeedback, getInteractions } from './OpenSearch';
 
 
 
@@ -21,6 +21,8 @@ export default function App() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [navBarOpened, setNavBarOpened] = useState(true);
   const [loadingConversation, setLoadingConversation] = useState(false);
+  const [conversations, setConversations] = useState<any>([]);
+
 
   const reset = () => {
     setStreaming(false);
@@ -78,6 +80,24 @@ export default function App() {
     populateConversationMessages();
   }
 
+  async function refreshConversations() {
+    let result: any = []
+    const getConversationsResult = await getConversations();
+    let retrievedConversations: { conversations: any } = { conversations: null };
+    if ("conversations" in getConversationsResult) {
+        retrievedConversations.conversations = getConversationsResult.conversations;
+    } else {
+        retrievedConversations.conversations = getConversationsResult.memories;
+    }
+    retrievedConversations.conversations.forEach((conversation: any) => {
+        result = [{ id: (conversation.conversation_id ?? conversation.memory_id), name: conversation.name, created_at: conversation.create_time }, ...result]
+    });
+    setConversations(result)
+    if (result.length > 0 && settings.activeConversation == "") {
+        setActiveConversation(result[0].id, settings, setSettings, loadActiveConversation);
+    }
+  }
+
   return (
     <MantineProvider
       theme={{
@@ -123,7 +143,7 @@ export default function App() {
           </Header>
         }
         navbar={
-          <ConversationListNavbar navBarOpened={navBarOpened} settings={settings} setSettings={setSettings} setErrorMessage={setErrorMessage} loadingConversation={loadingConversation} loadActiveConversation={loadActiveConversation}></ConversationListNavbar>
+          <ConversationListNavbar navBarOpened={navBarOpened} settings={settings} setSettings={setSettings} setErrorMessage={setErrorMessage} loadingConversation={loadingConversation} loadActiveConversation={loadActiveConversation} conversations={conversations} setConversations={setConversations} refreshConversations={refreshConversations} setChatHistory={setChatHistory}></ConversationListNavbar>
         }
         footer={
           < Footer height={60} p="md" >
@@ -138,7 +158,7 @@ export default function App() {
 
           <ChatBox chatHistory={chatHistory} searchResults={searchResults} setChatHistory={setChatHistory}
             setSearchResults={setSearchResults} streaming={streaming} setStreaming={setStreaming} setDocsLoading={setDocsLoading}
-            setErrorMessage={setErrorMessage} settings={settings} setSettings={setSettings} />
+            setErrorMessage={setErrorMessage} settings={settings} setSettings={setSettings} refreshConversations={refreshConversations}/>
         </Container>
 
       </AppShell >

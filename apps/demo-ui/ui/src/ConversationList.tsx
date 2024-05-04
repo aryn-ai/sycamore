@@ -55,7 +55,6 @@ const NavBarConversationItem = ({ conversation, conversations, setConversations,
             <ActionIcon size="1rem" ml="sm" mr="xs" component="button"
                 onClick={(event) => {
                     console.log("Removing ", conversation.id)
-                    console.log("Setting while removing: ", settings);
                     deleteConversation(conversation.id)
                     if(conversation.id === settings.activeConversation) {
                         setChatHistory(new Array<SystemChat>());
@@ -141,31 +140,12 @@ export const ConversationListNavbar = ({ navBarOpened, settings, setSettings, se
     const theme = useMantineTheme();
     const { classes, cx } = useStyles();
     const [loading, setLoading] = useState(false);
-    // const [conversations, setConversations] = useState<any>([]);
 
     const selectConversation = (conversationId: string) => {
         console.info("Set active conversation to ", conversationId)
         setActiveConversation(conversationId, settings, setSettings, loadActiveConversation);
         refreshConversations();
     }
-
-    // async function refreshConversations() {
-    //     let result: any = []
-    //     const getConversationsResult = await getConversations();
-    //     let retrievedConversations: { conversations: any } = { conversations: null };
-    //     if ("conversations" in getConversationsResult) {
-    //         retrievedConversations.conversations = getConversationsResult.conversations;
-    //     } else {
-    //         retrievedConversations.conversations = getConversationsResult.memories;
-    //     }
-    //     retrievedConversations.conversations.forEach((conversation: any) => {
-    //         result = [{ id: (conversation.conversation_id ?? conversation.memory_id), name: conversation.name, created_at: conversation.create_time }, ...result]
-    //     });
-    //     setConversations(result)
-    //     if (result.length > 0 && settings.activeConversation == "") {
-    //         setActiveConversation(result[0].id, settings, setSettings, loadActiveConversation);
-    //     }
-    // }
 
     useEffect(() => {
         setLoading(true)

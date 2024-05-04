@@ -47,13 +47,7 @@ class Element(UserDict):
 
     @property
     def bbox(self) -> Optional[BoundingBox]:
-        bbox = self.data.get("bbox")
-        if bbox is None:
-            return None
-        elif isinstance(bbox, BoundingBox):
-            return bbox
-        else:
-            return BoundingBox(*self.data["bbox"])
+        return None if self.data.get("bbox") is None else BoundingBox(*self.data["bbox"])
 
     @bbox.setter
     def bbox(self, bbox: BoundingBox) -> None:

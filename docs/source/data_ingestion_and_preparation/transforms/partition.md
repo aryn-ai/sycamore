@@ -14,7 +14,9 @@ Sycamore also includes the ``UnstructuredPdfPartitioner`` for PDFs as well.
 
 The Sycamore Partitioner was built from the ground-up for high-quality segmentation using a new AI vision model at it's core. This model is [a Deformable DEtection Transformer (DETR) model](https://huggingface.co/Aryn/deformable-detr) trained on [DocLayNet](https://github.com/DS4SD/DocLayNet), an open source, human-annotated document layout segmentation dataset. This model is 100% open source with an Apache v2.0 license.
 
-There are several options you can use in the Sycamore Partitioner for table extraction, OCR, and more:
+There are several options you can use in the Sycamore Partitioner for table extraction, OCR, and more.
+
+Parameters:
 
 * ```model_name_or_path```: The HuggingFace coordinates or model local path. It defaults to ```SYCAMORE_DETR_MODEL```, and you should only change it if you are testing a custom model. * * ```threshold```: The threshold to use for accepting the models predicted bounding boxes. A lower value will include more objects, but may have overlaps, a higher value will reduce the number of overlaps, but may miss legitimate objects. It defaults to ```0.4```.
 * ```use_ocr```: If ```True```, the partitioner uses OCR to extract text from the PDF. It defaults to ```False```, where the partitioner attempts to directly extract the text from the underlying PDF in the bounding box. It currently uses Tesseract for extraction. 
@@ -40,3 +42,29 @@ docset = ctx.read.binary(s3://my-bucket/my-folder/, binary_format="pdf")
             .partition(partitioner=SycamorePartitioner(use_ocr=True, ocr_images=True, ocr_tables=True)
 ```
 
+### HTML Partitioner
+
+The HtmlPartitioner segments and chunks HTML documents by using the embedded structure of the HTML format.
+
+Parameters:
+
+* `skip_headers_and_footers`: Whether to skip headers and footers in the document. Default is `True`.
+* `extract_tables`: Whether to extract tables from the HTML document. Default is `False`.
+* `text_chunker`: The text chunking strategy to use for processing text content. The default is the `TextOverlapChunker`, and [more info is here](https://sycamore.readthedocs.io/en/model_docs/APIs/data_preparation/functions.html#sycamore.functions.TextOverlapChunker). Default values are: `chunk_token_count: 1000`, `chunk_overlap_token_count: 100`.
+* `tokenizer`: The tokenizer to use for tokenizing text content. By default, the 'CharacterTokenizer` is used.
+
+Here is an example of chunking and using table extraction:
+
+```Python
+ctx = scyamore.init()
+docset = ctx.read.binary(s3://my-bucket/my-folder/, binary_format="html")
+            .partition(partitioner=Html_Partitioner(extract_tables=True)
+```
+
+Here is an example of chunking and adjusting the chunking strategy:
+
+```Python
+ctx = scyamore.init()
+docset = ctx.read.binary(s3://my-bucket/my-folder/, binary_format="html")
+            .partition(text_chunker=TokenOverlapChunker(chunk_token_count=800, chunk_overlap_token_count=150))
+```

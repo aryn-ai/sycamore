@@ -6,17 +6,17 @@
 [![Docs](https://readthedocs.org/projects/sycamore/badge/?version=stable)](https://sycamore.readthedocs.io/en/stable/?badge=stable)
 ![License](https://img.shields.io/github/license/aryn-ai/sycamore)
 
-Sycamore is an AI-powered document segmenation and enrichment framework for LLMs and RAG. Sycamore makes it easy to reliably load your vector databases and hybrid search engines with higher quality data. It can analyze and chunk complex documents with embedded tables, figures, graphs, and other infographics with modern visual AI models and scalable data processing techniques. Sycamore can process and prepare a wide range of doucment types, including reports, presentations, transcripts, manuals, and more. 
+Sycamore is an AI-powered document segmenation and enrichment framework for LLMs, RAG, and unstructured analytics. Sycamore makes it easy to reliably load your vector databases and hybrid search engines with higher quality data. It can analyze and chunk complex documents such as PDFs and images with embedded tables, figures, graphs, and other infographics. Sycamore can process and prepare a wide range of document types including reports, presentations, transcripts, manuals, and more. It provides an advanced document partitioner for high fidelity segmentation and chunking, and can also integrate with your choice of AI models for LLM-powered UDFs, vector embeddings, and other data transformations.
 
-Sycamore provides an advanced document partitioner for high quality segmentation and chunking, and can also integrate with your choice of AI models for LLM-enabled UDFs, vector embeddings, and other data transformations. The Sycamore framework built around a scalable and robust abstraction for document processing called a DocSet, and includes powerful high-level transformations in Python for data processing, enrichment, and cleaning.
+The Sycamore framework is built around a scalable and robust abstraction for document processing called a DocSet, and includes powerful high-level transformations in Python for data processing, metadata extraction, enrichment, and cleaning. DocSets also encapsulate scalable data processing techniques removing the undifferentiated heavy lifting of reliably loading chunks. DocSets' functional programming approach allows you to rapidly customize and experiment with your chunking for better quality RAG results.
 
 ![Untitled](docs/source/images/SycamoreDataflowDiagramv1.png)
 
 ## Features
 
-- State-of-the art vision AI model for segmentation and semantic hierarchy of documents
-- DocSet abstraction to easily transform and manipulate unstructured documents
-- High-quality table extraction, OCR, LLM-powered UDFs, and other performant Python data transforms
+- State-of-the art vision AI model for segmentation and preserving the semantic structure of documents
+- DocSet abstraction to scalably and reliably transform and manipulate unstructured documents
+- High-quality table extraction, OCR, visual summarization, LLM-powered UDFs, and other performant Python data transforms
 - Quickly create vector embeddings using your choice of AI model
 - Helpful features like automatic data crawlers (Amazon S3 and HTTP), Jupyter notebook for writing and iterating on jobs, and an OpenSearch hybrid search and RAG engine for testing
 - Scalable [Ray](https://github.com/ray-project/ray) backend

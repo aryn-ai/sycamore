@@ -20,7 +20,7 @@ class Document(UserDict):
         if "properties" not in self.data:
             self.data["properties"] = {}
 
-        if "elements" not in self.data:
+        if "elements" not in self.data or self.data["elements"] is None:
             self.data["elements"] = []
         else:
             self.data["elements"] = [create_element(**element) for element in self.data["elements"]]

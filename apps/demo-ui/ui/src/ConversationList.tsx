@@ -1,6 +1,6 @@
 import React, { Dispatch, SetStateAction, useState, useEffect, useRef } from 'react';
 import { ActionIcon, createStyles, Loader, Navbar, Text, useMantineTheme, rem, Center, Container, Group, Anchor, TextInput } from '@mantine/core';
-import { Settings } from './Types'
+import { Settings, SystemChat } from './Types'
 import { createConversation, deleteConversation, getConversations } from './OpenSearch';
 import { IconChevronRight, IconMessagePlus, IconTrash } from '@tabler/icons-react';
 import { useHover } from '@mantine/hooks';
@@ -48,7 +48,7 @@ export function setActiveConversation(conversationId: string, settings: Settings
     setSettings(settings)
     loadActiveConversation(conversationId)
 }
-const NavBarConversationItem = ({ conversation, conversations, setConversations, selectConversation, loading, settings }: { conversation: any, conversations: any[], setConversations: any, selectConversation: any, loading: any, settings: any }) => {
+const NavBarConversationItem = ({ conversation, conversations, setConversations, selectConversation, loading, settings, setSettings, setChatHistory }: { conversation: any, conversations: any[], setConversations: any, selectConversation: any, loading: any, settings: any, setChatHistory: any, setSettings: any }) => {
     const { classes, cx } = useStyles();
     return (
         <Group key={conversation.id + "_navbar_row"} id={conversation.id + "_navbar_row"} >
@@ -56,6 +56,10 @@ const NavBarConversationItem = ({ conversation, conversations, setConversations,
                 onClick={(event) => {
                     console.log("Removing ", conversation.id)
                     deleteConversation(conversation.id)
+                    if(conversation.id === settings.activeConversation) {
+                        setChatHistory(new Array<SystemChat>());
+                        settings.activeConversation = "";
+                    }
                     const newConversations = conversations.filter((c) => c.id !== conversation.id);
                     console.log("newLinks", newConversations)
                     setConversations(newConversations);
@@ -131,35 +135,16 @@ const NewConversationInput = ({ refreshConversations, setErrorMessage }: { refre
     )
 }
 
-export const ConversationListNavbar = ({ navBarOpened, settings, setSettings, setErrorMessage, loadingConversation, loadActiveConversation }:
-    { navBarOpened: boolean, settings: Settings, setSettings: Dispatch<SetStateAction<Settings>>, setErrorMessage: Dispatch<SetStateAction<string | null>>, loadingConversation: boolean, loadActiveConversation: any }) => {
+export const ConversationListNavbar = ({ navBarOpened, settings, setSettings, setErrorMessage, loadingConversation, loadActiveConversation, conversations, refreshConversations, setConversations, setChatHistory}:
+    { navBarOpened: boolean, settings: Settings, setSettings: Dispatch<SetStateAction<Settings>>, setErrorMessage: Dispatch<SetStateAction<string | null>>, loadingConversation: boolean, loadActiveConversation: any, conversations: any, refreshConversations: any, setConversations: any, setChatHistory: any }) => {
     const theme = useMantineTheme();
     const { classes, cx } = useStyles();
     const [loading, setLoading] = useState(false);
-    const [conversations, setConversations] = useState<any>([]);
 
     const selectConversation = (conversationId: string) => {
         console.info("Set active conversation to ", conversationId)
         setActiveConversation(conversationId, settings, setSettings, loadActiveConversation);
         refreshConversations();
-    }
-
-    async function refreshConversations() {
-        let result: any = []
-        const getConversationsResult = await getConversations();
-        let retrievedConversations: { conversations: any } = { conversations: null };
-        if ("conversations" in getConversationsResult) {
-            retrievedConversations.conversations = getConversationsResult.conversations;
-        } else {
-            retrievedConversations.conversations = getConversationsResult.memories;
-        }
-        retrievedConversations.conversations.forEach((conversation: any) => {
-            result = [{ id: (conversation.conversation_id ?? conversation.memory_id), name: conversation.name, created_at: conversation.create_time }, ...result]
-        });
-        setConversations(result)
-        if (result.length > 0 && settings.activeConversation == "") {
-            setActiveConversation(result[0].id, settings, setSettings, loadActiveConversation);
-        }
     }
 
     useEffect(() => {
@@ -191,7 +176,7 @@ export const ConversationListNavbar = ({ navBarOpened, settings, setSettings, se
                 <div className={classes.main}>
                     {
                         conversations.map((conversation: any) => (
-                            <NavBarConversationItem key={conversation.id} conversation={conversation} conversations={conversations} setConversations={setConversations} selectConversation={selectConversation} loading={loading} settings={settings} />
+                            <NavBarConversationItem key={conversation.id} conversation={conversation} conversations={conversations} setConversations={setConversations} selectConversation={selectConversation} loading={loading} settings={settings} setSettings={setSettings} setChatHistory={setChatHistory}/>
                         ))
                     }
                 </div>

@@ -346,6 +346,40 @@ SYCAMORE_DETR_MODEL = "Aryn/deformable-detr-DocLayNet"
 
 
 class SycamorePartitioner(Partitioner):
+    """
+    The SycamorePartitioner uses an object recognition model to partition the document into
+    structured elements.
+
+    Args:
+        model_name_or_path: The HuggingFace coordinates or model local path. Should be set to
+             the default SYCAMORE_DETR_MODEL unless you are testing a custom model. 
+        threshold: The threshold to use for accepting the models predicted bounding boxes. A lower
+             value will include more objects, but may have overlaps, a higher value will reduce the
+             number of overlaps, but may miss legitimate objects. 
+        use_ocr: Whether to use OCR to extract text from the PDF. If false, we will attempt to extract
+             the text from the underlying PDF. 
+        ocr_images: If set with use_ocr, will attempt to OCR regions of the document identified as images. 
+        ocr_tables: If set with use_ocr, will attempt to OCR regions on the document identified as tables.
+             Should not be set when `extract_table_structure` is true. 
+        extract_table_structure: If true, runs a separate table extraction model to extract cells from
+             regions of the document identified as tables. 
+        table_structure_extractor: The table extraction implementaion to use when extract_table_structure
+             is True. The default is the TableTransformerStructureExtractor. 
+        extract_images: If true, crops each region identified as an image and attaches it to the associated
+             ImageElement. This can later be fed into the SummarizeImages transform.
+    
+    Example:
+         The following shows an example of using the SycamorePartitioner to partition a PDF and extract
+         both table structure and image
+    
+         .. code-block:: python
+
+            context = scyamore.init()
+            partitioner = SycamorePartitioner(extract_table_structure=True, extract_images=True)
+            context.read.binary(paths, binary_format="pdf")\
+                 .partition(partitioner=partitioner)
+    """
+
     def __init__(
         self,
         model_name_or_path=SYCAMORE_DETR_MODEL,

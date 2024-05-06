@@ -25,7 +25,22 @@ import easyocr
 
 
 class SycamorePDFPartitioner:
+    """
+    This class contains the implementation of PDF partitioning using a Deformable DETR model.
+
+    This is an implementation class. Callers looking to partition a DocSet should use the
+    SycamorePartitioner class.
+    """
+
     def __init__(self, model_name_or_path, device=None):
+        """
+        Initializes the SycamorePDFPartitioner and underlying DETR model.
+
+        Args:
+            model_name_or_path: The HuggingFace coordinates or local path to the DeformableDETR weights to use.
+            device: The device on which to run the model.
+        """
+
         self.model = DeformableDetr(model_name_or_path, device)
 
     @staticmethod
@@ -69,6 +84,24 @@ class SycamorePDFPartitioner:
         table_structure_extractor=DEFAULT_TABLE_STRUCTURE_EXTRACTOR,
         extract_images=False,
     ) -> List[List["Element"]]:
+        """
+        Partitions a PDF with the DeformableDETR model.
+
+        Args:
+           file: A file-like object containing the PDF. Generally this is a wrapper around binary_representation.
+           threshold: The threshold to use for accepting the model's predicted bounding boxes.
+           use_ocr: Whether to use OCR to extract text from the PDF
+           ocr_images: If set with use_ocr, will attempt to OCR regions of the document identified as images.
+           ocr_tables: If set with use_ocr, will attempt to OCR regions on the document identified as tables.
+           extract_table_structure: If true, runs a separate table extraction model to extract cells from
+             regions of the document identified as tables.
+           table_structure_extractor: The table extraction implementaion to use when extract_table_structure is True.
+           extract_images: If true, crops each region identified as an image and
+             attaches it to the associated ImageElement.
+
+        Returns:
+           A list of lists of Elements. Each sublist corresponds to a page in the original PDF.
+        """
         with tempfile.TemporaryDirectory() as tmp_dir, tempfile.NamedTemporaryFile() as tmp_file:
             filename = tmp_file.name
             tmp_file.write(file.read())

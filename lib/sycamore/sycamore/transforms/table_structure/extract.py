@@ -16,8 +16,20 @@ from sycamore.utils.generate_ray_func import generate_map_function
 
 
 class TableStructureExtractor:
+    """Interface for extracting table structure."""
+
     @abstractmethod
-    def extract(self, element: TableElement, doc_image: Image) -> TableElement:
+    def extract(self, element: TableElement, doc_image: Image.Image) -> TableElement:
+        """Extracts the table structure from the specified element.
+
+        Takes a TableElement containing a bounding box, for example from the SycamorePartitioner,
+        and populates the table property with information about the cells.
+
+        Args:
+          element: A TableElement.
+          doc_image: A PIL object containing an image of the Document page containing the element.
+               Used for bounding box calculations.
+        """
         pass
 
     def extract_from_doc(self, doc: Document) -> Document:
@@ -54,9 +66,21 @@ class TableStructureExtractor:
 
 
 class TableTransformerStructureExtractor(TableStructureExtractor):
+    """A TableStructureExtractor implementation that uses the the TableTransformer model.
+
+    More information about TableTransformers can be found at https://github.com/microsoft/table-transformer.
+    """
+
     DEFAULT_TTAR_MODEL = "microsoft/table-structure-recognition-v1.1-all"
 
     def __init__(self, model: str = DEFAULT_TTAR_MODEL):
+        """
+        Creates a TableTransformerStructureExtractor
+
+        Args:
+          model: The HuggingFace URL for the TableTransformer model to use.
+        """
+
         self.model = model
         self.structure_model = None
 
@@ -73,6 +97,17 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         return tokens
 
     def extract(self, element: TableElement, doc_image: Image.Image) -> TableElement:
+        """Extracts the table structure from the specified element using a TableTransformer model.
+
+        Takes a TableElement containing a bounding box, for example from the SycamorePartitioner,
+        and populates the table property with information about the cells.
+
+        Args:
+          element: A TableElement. The bounding box must be non-null.
+          doc_image: A PIL object containing an image of the Document page containing the element.
+               Used for bounding box calculations.
+        """
+
         # We need a bounding box to be able to do anything.
         if element.bbox is None:
             return element
@@ -135,6 +170,24 @@ DEFAULT_TABLE_STRUCTURE_EXTRACTOR = TableTransformerStructureExtractor()
 
 
 class ExtractTableStructure(Transform):
+    """ExtractTableStructure is a transform class that extracts table structure from a document.
+
+    Note that this transform is for extracting the structure of tables that have already been
+    identified and stored as TableElements. This is typically done with a segementation
+    model, such as the one used by the SycamorePartitioner.
+
+    When using the SycamorePartitioner, you can extract the table structure as part of
+    the partitioning process by passing in extract_table_structure=True. This transform
+    is provided for the rare cases in which you are using a different partitioner, but
+    still need to extract the table structure.
+
+    Args:
+      child: The source node producing documents with tables to extract.
+      table_structure_extractor: The extractor to use to get the table structure.
+      resource_args: Additional resource related arguments to pass to the underlying runtime.
+
+    """
+
     def __init__(self, child: Node, table_structure_extractor: TableStructureExtractor, **resource_args):
         super().__init__(child, **resource_args)
         self.table_structure_extractor = table_structure_extractor

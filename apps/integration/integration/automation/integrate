@@ -1,13 +1,25 @@
 #!/bin/bash
 
+NOW="$(date +"%Y-%m-%d_%H_%M_%S")"
+ARCH="amd64"
+[[ "$(uname -m)" = "arm64" ]] && ARCH="arm64"
+
+RUNDIR="apps/integration/runs/${NOW}"
+GIT_LOGFILE="${RUNDIR}/git.log"
+DOCKER_LOGFILE="${RUNDIR}/docker.log"
+POETRY_LOGFILE="${RUNDIR}/poetry.log"
+PYTEST_LOGFILE="${RUNDIR}/pytest.log"
+QUERY_LOGFILE="${RUNDIR}/test_queries.log"
+
 # Parse args
-SKIP_BUILD=0
-SKIP_TESTS=0
-SKIP_PUSH=0
+DO_BUILD=1
+DO_TESTS=1
+DO_PUSH=1
+DO_CLEAN=1
 TAG="integration_tests"
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --help)
+    --help|-h)
       echo "Utility script for building containers, running integration tests, and pushing images"
       echo "Make sure to run this from the sycamore root directory."
       echo "-------------------------------------------------------"
@@ -21,55 +33,50 @@ while [[ $# -gt 0 ]]; do
       exit 0
       ;;
     --build)
-      SKIP_BUILD=1
+      DO_BUILD=0
       echo "Will build images"
       shift
       ;;
     --tests)
-      SKIP_TESTS=1
+      DO_TESTS=0
       echo "Will run integration tests"
       shift
       ;;
     --push)
-      SKIP_PUSH=1
+      DO_PUSH=0
       echo "Will push images"
       shift
       ;;
     --tag)
       [[ -z $2 ]] && die "A tag must be speicified when using the --tag arg; e.g. --tag my-tag"
-      [[ $2 == "--*" ]] && die "Detected tag was $2. Tags should not begin with --"
+      [[ $2 =~ "[a-z]*" ]] && die "Detected tag was $2. Tags should begin with lowercase letters"
       TAG="$2"
       echo "Using tag ${TAG}"
       shift
       shift
       ;;
+    --clean)
+      DO_CLEAN=0
+      echo "Will clean ${RUNDIR} before running anything"
+      shift
+      ;;
   esac
 done
 
-NOW="$(date +"%Y-%m-%d_%H_%M_%S")"
-ARCH="amd64"
-[[ "$(uname -m)" = "arm64" ]] && ARCH="arm64"
-
-RUNDIR="apps/integration/runs/${NOW}"
-GIT_LOGFILE="${RUNDIR}/git.log"
-DOCKER_LOGFILE="${RUNDIR}/docker.log"
-POETRY_LOGFILE="${RUNDIR}/poetry.log"
-PYTEST_LOGFILE="${RUNDIR}/pytest.log"
-QUERY_LOGFILE="${RUNDIR}/test_queries.log"
-
 main() {
-  [[ ! -d ".git" ]] && die "Please run this script from sycamore root!"
+  [[ -d ".git" ]] || die "Please run this script from sycamore root!"
+  [[ $DO_CLEAN ]] && rm -rf "${RUNDIR}"
   mkdir -p "${RUNDIR}"
   echo "Building/testing tag ${TAG}" >&2
   echo "Get the newest git commits" >&2
   if checkout_main_if_new; then
     echo "Changes detected. Running Tests" >&2
     poetry install --no-root > "${POETRY_LOGFILE}" 2>&1 \
-        && { [[ $SKIP_BUILD ]] || build_images > "${DOCKER_LOGFILE}" 2>&1; } \
-        && { [[ $SKIP_TESTS ]] || runtests > "${PYTEST_LOGFILE}" 2>&1; }
-    local passed_tests=$?
-    [[ $SKIP_PUSH ]] || push_images >> "${DOCKER_LOGFILE}" 2>&1
-    handle_outputs $passed_tests
+        && { [[ $DO_BUILD ]] && build_images > "${DOCKER_LOGFILE}" 2>&1; } \
+        && { [[ $DO_TESTS ]] && runtests > "${PYTEST_LOGFILE}" 2>&1; } \
+        && touch "${RUNDIR}/passed"
+    [[ $DO_PUSH ]] && push_images >> "${DOCKER_LOGFILE}" 2>&1
+    handle_outputs
   else
     echo "No changes detected. Skipping integration tests" >&2
   fi
@@ -80,7 +87,7 @@ error() {
 }
 
 die() {
-  error "$1"
+  error "$@"
   exit 1
 }
 
@@ -89,9 +96,10 @@ checkout_main_if_new() {
   git fetch origin main > "${GIT_LOGFILE}" 2>&1
   new_sha="$(git rev-parse FETCH_HEAD)"
   if [[ "${old_sha}" != "${new_sha}" ]]; then
-    [[ -z $(git status --porcelain) ]] \
-      || { echo "Working tree not clean" > "${GIT_LOGFILE}" && return 1; }
+    [[ -z $(git status --porcelain) ]] || die "Working tree not clean"
     git pull --rebase origin main >> "${GIT_LOGFILE}" 2>&1
+    echo "==================" >> "${GIT_LOGFILE}"
+    echo "Using git rev ${new_sha}" >> "${GIT_LOGFILE}"
     return 0
   else
     return 1
@@ -113,14 +121,9 @@ build_images() {
 
 handle_outputs() {
   echo "Handling test outputs" >&2
-  local passed_tests="$1"
   mv test-output.log "${QUERY_LOGFILE}"
-  if [[ ${passed_tests} = 0 ]]; then
-    touch "${RUNDIR}/passed"
-  else
-    touch "${RUNDIR}/failed"
-  fi
-  aws s3 cp -r "${RUNDIR}" "s3://sycamore-ci/${ARCH}"
+  [[ -f "${RUNDIR}/passed" ]] || touch "${RUNDIR}/failed"
+  aws s3 cp -r "${RUNDIR}/*" "s3://sycamore-ci/${NOW}/${ARCH}"
 }
 
 push_images() {
@@ -137,7 +140,8 @@ push_images() {
 }
 
 runtests() {
-  docker system prune -f --volumes
+  docker volume rm sycamore_crawl_data sycamore_jupyter_data sycamore_opensearch_data
+  docker network prune
   docker compose up reset
   poetry run pytest apps/integration/ -p integration.conftest --noconftest --docker-tag "${TAG}"
   # this is a complicated command, so:
@@ -149,9 +153,9 @@ runtests() {
 
 docker-build-hub() {
   local docker_file="$1"
-  [[ -n "${docker_file}" ]] || { error "missing ${docker_file}" && return 1;}
+  [[ -n "${docker_file}" ]] || { error "missing ${docker_file}"; return 1;}
   local repo_name="$(_docker-repo-name "${docker_file}")"
-  [[ -n "${repo_name}" ]] || { error "empty repo name" && return 1;}
+  [[ -n "${repo_name}" ]] || { error "empty repo name"; return 1;}
   shift
 
   echo
@@ -165,13 +169,13 @@ docker-build-hub() {
 
 docker-push-hub() {
   local docker_file="$1"
-  [[ -n "${docker_file}" ]] || { error "missing ${docker_file}" && return 1;}
+  [[ -n "${docker_file}" ]] || { error "missing ${docker_file}"; return 1;}
   local repo_name="$(_docker-repo-name "${docker_file}")"
-  [[ -n "${repo_name}" ]] || { error "empty repo name" && return 1;}
+  [[ -n "${repo_name}" ]] || { error "empty repo name"; return 1;}
 
   echo
   echo "Pushing image to docker hub for repo '${repo_name}"
-  docker push "${repo_name}:${TAG}" || { error "docker push failed" && return 1;}
+  docker push "${repo_name}:${TAG}" || { error "docker push failed"; return 1;}
   echo "Successfully pushed image previously built from dockerfile ${docker_file}"
 }
 
@@ -179,6 +183,7 @@ _docker-repo-name() {
   local docker_file="$1"
   echo "Finding repo name in: ${docker_file}" >&2
   local repo_name="$(grep '^# Repo name: ' "${docker_file}" | awk '{print $4}')"
+  [[ "${repo_name}" = *private* ]] && die "Private repo ${repo_name} disallowed"
   if (( $(wc -w <<< ${repo_name}) != 1 )); then
     echo "Unable to find repo name in ${docker_file}" 1>&2
     exit 1

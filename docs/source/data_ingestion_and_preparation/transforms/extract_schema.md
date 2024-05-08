@@ -1,7 +1,7 @@
 ## Extract Schema
 The Extract Schema Transform allows you to extract a semantically meaningful schema for your documents. These schemas can then by populated using the Extract Properties transform.
 
-The first step is to use Extract Schema to associate each document with a schema. Here, a Schema is a set of metadata from your document. For example, given an credit card agreement PDF, we extract the following:
+The first step is to use Extract Schema to associate each document with a schema. Here, a Schema is a set of metadata from your document. For example, given a credit card agreement PDF, we extract the following:
 
 ```python
 credit_docs = credit_docs.extract_batch_schema(

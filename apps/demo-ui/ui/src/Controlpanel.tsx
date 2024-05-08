@@ -1,12 +1,18 @@
 import React, { Dispatch, SetStateAction, useEffect, useState } from 'react';
-import { Button, Divider, Group, NativeSelect, Text, useMantineTheme } from '@mantine/core';
+import { Button, Divider, Group, NativeSelect, ScrollArea, Text, createStyles, useMantineTheme } from '@mantine/core';
 import { IconRefresh } from '@tabler/icons-react';
 import { Settings } from './Types'
 import { getIndices, getEmbeddingModels, FEEDBACK_INDEX_NAME, createFeedbackIndex } from './OpenSearch';
-
+const useStyles = createStyles((theme) => ({
+    footer: {
+        // maxHeight: '60',
+        overflow: 'auto'
+    }
+}))
 
 export const ControlPanel = ({ settings, setSettings, reset }: { settings: Settings, setSettings: Dispatch<SetStateAction<Settings>>, reset: any, }) => {
     const theme = useMantineTheme();
+    const { classes } = useStyles();
     const [availableIndices, setAvailableIndices] = useState(new Array<string>())
     const [availableEmbeddings, setAvailableEmbeddings] = useState(new Array<string>())
     const newsettings = settings
@@ -47,9 +53,16 @@ export const ControlPanel = ({ settings, setSettings, reset }: { settings: Setti
     }, []);
 
     return (
-        < Group>
+        <ScrollArea
+          sx={{
+            width: "100vw",
+            height: "100%",
+          }}
+        >
+        < Group> 
             <Text fz="xs" fw={700}>Options</Text>
             <Divider orientation="vertical" />
+            <Group>
             <Text fz="xs">RAG passage count:</Text>
             <NativeSelect
                 data={["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]}
@@ -61,6 +74,8 @@ export const ControlPanel = ({ settings, setSettings, reset }: { settings: Setti
                 }
                 }
             />
+            </Group>
+            <Group>
             <Text fz="xs">AI model:</Text>
             <NativeSelect
                 data={settings.availableModels}
@@ -72,6 +87,8 @@ export const ControlPanel = ({ settings, setSettings, reset }: { settings: Setti
                 }
                 }
             />
+            </Group>
+            <Group>
             <Text fz="xs">OpenSearch index:</Text>
             <NativeSelect
                 data={Array.from(availableIndices)}
@@ -83,6 +100,8 @@ export const ControlPanel = ({ settings, setSettings, reset }: { settings: Setti
                 }
                 }
             />
+            </Group>
+            <Group>
             <Text fz="xs">Embedding Model:</Text>
             <NativeSelect
                 data={Array.from(availableEmbeddings)}
@@ -94,6 +113,8 @@ export const ControlPanel = ({ settings, setSettings, reset }: { settings: Setti
                 }
                 }
             />
-</Group >
+            </Group>
+         </Group > 
+         </ScrollArea>
     );
 }

@@ -1,14 +1,13 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { ChatBox, thumbToBool } from './Chatbox'
 import { ControlPanel } from './Controlpanel'
 import { ConversationListNavbar, setActiveConversation } from './ConversationList'
 import { DocList } from './Doclist'
-import { AppShell, Burger, Container, Footer, Grid, Group, Header, Image, MantineProvider, Notification, Stack, Text } from '@mantine/core';
+import { AppShell, Burger, Container, Footer, Grid, Group, Header, Image, MantineProvider, MediaQuery, Notification, Stack, Text, useMantineTheme } from '@mantine/core';
 import { SearchResultDocument, Settings, SystemChat, UserChat } from './Types';
 import { IconX } from '@tabler/icons-react';
 import { getConversations, getFeedback, getInteractions } from './OpenSearch';
-
-
+import { useMediaQuery } from '@mantine/hooks';
 
 
 export default function App() {
@@ -19,9 +18,12 @@ export default function App() {
   const [docsLoading, setDocsLoading] = useState(false);
   const [chatHistory, setChatHistory] = useState(new Array<SystemChat>())
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [navBarOpened, setNavBarOpened] = useState(true);
+  const [navBarOpened, setNavBarOpened] = useState(false);
   const [loadingConversation, setLoadingConversation] = useState(false);
   const [conversations, setConversations] = useState<any>([]);
+  const chatInputRef = useRef<HTMLInputElement | null>(null);
+  const theme = useMantineTheme();
+  const mobileScreen = useMediaQuery(`(max-width: ${theme.breakpoints.md})`);
 
 
   const reset = () => {
@@ -122,31 +124,33 @@ export default function App() {
               paddingLeft: theme.spacing.md,
               paddingRight: theme.spacing.md,
             })}>
-            <Group grow w="100%">
-
-              <Burger
-                opened={navBarOpened}
-                onClick={() => setNavBarOpened((o) => !o)}
-                size="xs"
-                maw="1rem"
-                mr="xl"
-              />
-              <Image width="24em" src="./SycamoreDemoQueryUI_Logo.png" />
-
-
-              <Container pos="absolute" right="0rem">
+            <Group  w="100%">
+              <MediaQuery largerThan="md" styles={{ display: 'none' }}>
+                  <Burger
+                    opened={navBarOpened}
+                    onClick={() => setNavBarOpened((o) => !o)}
+                    size="sm"
+                    maw="0.5rem"
+                    mr="xl"
+                  />
+              </MediaQuery>
+              <Image width={mobileScreen ? "18em" : "24em"} src="./SycamoreDemoQueryUI_Logo.png" />
+              {!mobileScreen && (<Container pos="absolute" right="0rem">
                 <Text fz="xs" c="dimmed">index: {settings.openSearchIndex}</Text>
                 <Text fz="xs" c="dimmed">llm model: {settings.modelName}</Text>
                 <Text fz="xs" c="dimmed">llm model id: {settings.modelId}</Text>
-              </Container>
+              </Container>) }
             </Group>
           </Header>
         }
+        navbarOffsetBreakpoint="md"
         navbar={
-          <ConversationListNavbar navBarOpened={navBarOpened} settings={settings} setSettings={setSettings} setErrorMessage={setErrorMessage} loadingConversation={loadingConversation} loadActiveConversation={loadActiveConversation} conversations={conversations} setConversations={setConversations} refreshConversations={refreshConversations} setChatHistory={setChatHistory}></ConversationListNavbar>
+          <MediaQuery smallerThan="md" styles={{ display: 'none' }}>
+            <ConversationListNavbar navBarOpened={navBarOpened} settings={settings} setSettings={setSettings} setErrorMessage={setErrorMessage} loadingConversation={loadingConversation} loadActiveConversation={loadActiveConversation} conversations={conversations} setConversations={setConversations} refreshConversations={refreshConversations} setChatHistory={setChatHistory} chatInputRef={chatInputRef} setNavBarOpened={setNavBarOpened}></ConversationListNavbar>
+          </MediaQuery>
         }
         footer={
-          < Footer height={60} p="md" >
+          < Footer height={65} p="sm">
             <ControlPanel settings={settings} setSettings={setSettings} reset={reset} />
           </Footer >
         }
@@ -154,13 +158,10 @@ export default function App() {
           main: { backgroundColor: "white" },
         })}
       >
-        <Container>
-
           <ChatBox chatHistory={chatHistory} searchResults={searchResults} setChatHistory={setChatHistory}
             setSearchResults={setSearchResults} streaming={streaming} setStreaming={setStreaming} setDocsLoading={setDocsLoading}
-            setErrorMessage={setErrorMessage} settings={settings} setSettings={setSettings} refreshConversations={refreshConversations}/>
-        </Container>
-
+            setErrorMessage={setErrorMessage} settings={settings} setSettings={setSettings} refreshConversations={refreshConversations} 
+            chatInputRef={chatInputRef}/>
       </AppShell >
     </MantineProvider >
   );

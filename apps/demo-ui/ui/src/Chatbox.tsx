@@ -1,14 +1,22 @@
 import React, { useEffect } from 'react';
 import { Dispatch, SetStateAction, useRef, useState } from 'react';
-import { ActionIcon, Anchor, Badge, Button, Card, Center, Chip, Container, Flex, Group, HoverCard, JsonInput, Loader, Modal, NativeSelect, ScrollArea, Skeleton, Stack, Text, TextInput, Title, UnstyledButton, useMantineTheme } from '@mantine/core';
+import { ActionIcon, Anchor, Badge, Button, Card, Center, Chip, Container, Flex, Group, HoverCard, JsonInput, Loader, Modal, NativeSelect, ScrollArea, Skeleton, Stack, Text, TextInput, Title, UnstyledButton, createStyles, useMantineTheme } from '@mantine/core';
 import { IconSearch, IconChevronRight, IconLink, IconFileTypeHtml, IconFileTypePdf, IconX, IconEdit, IconPlayerPlayFilled, IconPlus } from '@tabler/icons-react';
 import { IconThumbUp, IconThumbUpFilled, IconThumbDown, IconThumbDownFilled } from '@tabler/icons-react';
 import { getFilters, rephraseQuestion } from './Llm';
 import { SearchResultDocument, Settings, SystemChat } from './Types';
 import { hybridConversationSearch, updateInteractionAnswer, updateFeedback, getHybridConversationSearchQuery, openSearchCall, createConversation } from './OpenSearch';
 import { DocList } from './Doclist';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { Prism } from '@mantine/prism';
+
+const useStyles = createStyles((theme) => ({
+    inputBar: {
+        [theme.fn.largerThan('md')]: {
+            width: "40em"
+        },
+    }
+}))
 
 
 const Citation = ({ document, citationNumber }: { document: SearchResultDocument, citationNumber: number }) => {
@@ -268,7 +276,7 @@ const OpenSearchQueryEditor = ({ openSearchQueryEditorOpened, openSearchQueryEdi
                         Run
                     </Button>
                 </Group>
-                <ScrollArea h="45rem">
+                <ScrollArea >
                     <JsonInput
                         value={currentOsQuery}
                         onChange={newValue => setCurrentOsQuery(newValue)}
@@ -787,14 +795,15 @@ const interpretOsResult = async (question: string, os_result: string) => {
     }
 };
 
-export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchResults, streaming, setStreaming, setDocsLoading, setErrorMessage, settings, setSettings, refreshConversations }:
+
+
+export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchResults, streaming, setStreaming, setDocsLoading, setErrorMessage, settings, setSettings, refreshConversations, chatInputRef }:
     {
         chatHistory: (SystemChat)[], searchResults: SearchResultDocument[], setChatHistory: Dispatch<SetStateAction<any[]>>,
         setSearchResults: Dispatch<SetStateAction<any[]>>, streaming: boolean, setStreaming: Dispatch<SetStateAction<boolean>>,
-        setDocsLoading: Dispatch<SetStateAction<boolean>>, setErrorMessage: Dispatch<SetStateAction<string | null>>, settings: Settings, setSettings: any, refreshConversations: any
+        setDocsLoading: Dispatch<SetStateAction<boolean>>, setErrorMessage: Dispatch<SetStateAction<string | null>>, settings: Settings, setSettings: any, refreshConversations: any,chatInputRef: any
     }) => {
     const theme = useMantineTheme();
-    const chatInputRef = useRef<HTMLInputElement | null>(null);
     const [chatInput, setChatInput] = useState("");
     const [disableFilters, setDisableFilters] = useState(false);
     const [queryPlanner, setQueryPlanner] = useState(false);
@@ -804,6 +813,8 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
     const [currentOsQuery, setCurrentOsQuery] = useState<string>("");
     const [currentOsUrl, setCurrentOsUrl] = useState<string>("/opensearch/" + settings.openSearchIndex + "/_search?");
     const [openSearchQueryEditorOpened, openSearchQueryEditorOpenedHandlers] = useDisclosure(false);
+    const {classes} = useStyles();
+    const mobileScreen = useMediaQuery(`(max-width: ${theme.breakpoints.md})`);
 
     useEffect(() => {
         setCurrentOsUrl("/opensearch/" + settings.openSearchIndex + "/_search?");
@@ -983,7 +994,8 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
         chatInputRef.current?.focus();
     }, [streaming]);
     return (
-        <Flex direction="column" h="90vh">
+        
+        <Flex p={mobileScreen ? 0 : 30} direction="column">
             <OpenSearchQueryEditor
                 openSearchQueryEditorOpened={openSearchQueryEditorOpened}
                 openSearchQueryEditorOpenedHandlers={openSearchQueryEditorOpenedHandlers}
@@ -994,40 +1006,38 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
                 setLoadingMessage={setLoadingMessage}
                 chatHistory={chatHistory}
                 setChatHistory={setChatHistory} />
-            <Container p="md">
-                <form onSubmit={handleSubmit} className="input-form">
-                    <TextInput
-                        onKeyDown={handleInputKeyPress}
-                        onChange={handleInputChange}
-                        ref={chatInputRef}
-                        value={chatInput}
-                        icon={<IconSearch size="1.1rem" stroke={1.5} />}
-                        radius="xl"
-                        w="40em"
-                        autoFocus
-                        size="sm"
-                        fz="xs"
-                        p="sm"
-                        rightSection={
-                            <ActionIcon size={32} radius="xl" bg="#5688b0" variant="filled">
-                                <IconChevronRight size="1rem" stroke={2} onClick={handleSubmit} />
-                            </ActionIcon>
-                        }
-                        placeholder="Ask me anything"
-                        rightSectionWidth={42}
-                        disabled={settings.activeConversation == null}
-                    />
-                </form>
-            </Container>
-            {settings.required_filters.length > 0 ? <FilterInput settings={settings} filtersInput={filtersInput} setFiltersInput={setFiltersInput} disableFilters={disableFilters} /> : null}
-            <SearchControlPanel disableFilters={disableFilters} setDisableFilters={setDisableFilters} questionRewriting={questionRewriting} setQuestionRewriting={setQuestionRewriting}
-                queryPlanner={queryPlanner} setQueryPlanner={setQueryPlanner} chatHistory={chatHistory} setChatHistory={setChatHistory} openSearchQueryEditorOpenedHandlers={openSearchQueryEditorOpenedHandlers} settings={settings}></SearchControlPanel>
-            <Center>
-                <Text fz="xs" color="dimmed">
-                    Active conversation: {settings.activeConversation ? settings.activeConversation : "None"}
-
-                </Text>
-            </Center>
+                <Container p="md">
+                    <form onSubmit={handleSubmit} className="input-form">
+                        <TextInput
+                            className={classes.inputBar}
+                            onKeyDown={handleInputKeyPress}
+                            onChange={handleInputChange}
+                            ref={chatInputRef}
+                            value={chatInput}
+                            icon={<IconSearch size="1.1rem" stroke={1.5} />}
+                            radius="xl"
+                            autoFocus
+                            size={mobileScreen ? "md" : "sm"}
+                            fz="xs"
+                            p="sm"
+                            rightSection={
+                                <ActionIcon size={mobileScreen ? 36 : 32} radius="xl" bg="#5688b0" variant="filled">
+                                    <IconChevronRight size="1rem" stroke={2} onClick={handleSubmit} />
+                                </ActionIcon>
+                            }
+                            placeholder="Ask me anything"
+                            disabled={settings.activeConversation == null}
+                        />
+                    </form>
+                </Container>
+                {settings.required_filters.length > 0 ? <FilterInput settings={settings} filtersInput={filtersInput} setFiltersInput={setFiltersInput} disableFilters={disableFilters} /> : null}
+                <SearchControlPanel disableFilters={disableFilters} setDisableFilters={setDisableFilters} questionRewriting={questionRewriting} setQuestionRewriting={setQuestionRewriting}
+                    queryPlanner={queryPlanner} setQueryPlanner={setQueryPlanner} chatHistory={chatHistory} setChatHistory={setChatHistory} openSearchQueryEditorOpenedHandlers={openSearchQueryEditorOpenedHandlers} settings={settings}></SearchControlPanel>
+                <Center>
+                    <Text fz="xs" color="dimmed">
+                        Active conversation: {settings.activeConversation ? settings.activeConversation : "None"}
+                    </Text>
+                </Center>
             {loadingMessage ? <LoadingChatBox loadingMessage={loadingMessage} /> : null}
             <Center>
                 {streaming ? <Loader size="xs" variant="dots" m="md" /> : ""}
@@ -1042,7 +1052,6 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
                 )
                 }
             </Stack>
-
         </Flex >
     );
 }

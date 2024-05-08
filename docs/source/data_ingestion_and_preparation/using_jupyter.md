@@ -18,8 +18,8 @@ For a tutorial on creating a data preparation script in a notebook, [click here]
 
 ### Jupyter shell
 
-If you already have custom data preparation code, the easiest way to run it is using the Juypter shell in the Jupyter container. The Jupyter container is configured with a bind directory, making it easy to add your script and make it accessible in the container. Once you have added your script to the bind_dir, you can [run it using the Jupyter shell](/running_a_data_preparation_job.md#using-jupyter-container).
+If you already have custom data preparation code, the easiest way to run it is using the Juypter shell in the Jupyter container. The Jupyter container is configured with a bind directory, making it easy to add your script and make it accessible in the container. Once you have added your script to the bind_dir, you can [run it using the Jupyter shell](./running_a_data_preparation_job.md#using-the-terminal-in-the-jupyter-container).
 
 ## Running Jupyter locally
 
-You can run Jupyter locally and load the output of your data preparation script into your Sycamore stack. The OpenSearch client configuration must match the endpoint of your Sycamore stack. For instructions on how to install and configure Jupyter locally for Sycamore, [click here](/sycamore-jupyter-dev-example.md#in-your-local-development-environment). For an example script, [click here](https://github.com/aryn-ai/sycamore/blob/main/notebooks/sycamore_local_dev_example.ipynb).
+You can run Jupyter locally and load the output of your data preparation script into your Sycamore stack. The OpenSearch client configuration must match the endpoint of your Sycamore stack. For instructions on how to install and configure Jupyter locally for Sycamore, [click here](../tutorials/sycamore-jupyter-dev-example.md#install-jupyter-locally). For an example script, [click here](https://github.com/aryn-ai/sycamore/blob/main/notebooks/sycamore_local_dev_example.ipynb).

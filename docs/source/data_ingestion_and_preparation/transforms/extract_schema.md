@@ -8,7 +8,7 @@ credit_docs = credit_docs.extract_batch_schema(
     schema_extractor=OpenAISchemaExtractor("CreditCardContract", llm=openai, num_of_elements=50)
 )
 ```
-Which will produce JSON-schema formatted metadata, stored in reach Document's `properties["_schema"]`:
+Which will produce JSON-schema formatted metadata, stored in each Document's `properties["_schema"]`:
 ```json
 {
   "type": "object",

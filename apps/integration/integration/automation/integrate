@@ -121,7 +121,7 @@ build_images() {
 
 handle_outputs() {
   echo "Handling test outputs" >&2
-  mv test-output.log "${QUERY_LOGFILE}"
+  [[ -f test-output.log ]] && mv test-output.log "${QUERY_LOGFILE}"
   [[ -f "${RUNDIR}/passed" ]] || touch "${RUNDIR}/failed"
   aws s3 cp --recursive "${RUNDIR}/*" "s3://sycamore-ci/${NOW}/${ARCH}"
 }

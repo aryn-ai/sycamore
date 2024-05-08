@@ -6,17 +6,22 @@
 [![Docs](https://readthedocs.org/projects/sycamore/badge/?version=stable)](https://sycamore.readthedocs.io/en/stable/?badge=stable)
 ![License](https://img.shields.io/github/license/aryn-ai/sycamore)
 
-Sycamore is a conversational search and analytics platform for complex unstructured data, such as documents, presentations, transcripts, embedded tables, and internal knowledge repositories. It retrieves and synthesizes high-quality answers through bringing AI to data preparation, indexing, and retrieval. Sycamore makes it easy to prepare unstructured data for search and analytics, providing a toolkit for data cleaning, information extraction, enrichment, summarization, and generation of vector embeddings that encapsulate the semantics of data. Sycamore uses your choice of generative AI models to make these operations simple and effective, and it enables quick experimentation and iteration. Additionally, Sycamore uses OpenSearch for indexing, enabling hybrid (vector + keyword) search, retrieval-augmented generation (RAG) pipelining, filtering, analytical functions, conversational memory, and other features to improve information retrieval.
+Sycamore ETL is an AI-powered document processing framework for LLMs, RAG, and unstructured analytics. It makes it easy to reliably load your vector databases and hybrid search engines, such as OpenSearch, Pinecone (coming soon), and Weaviate (coming soon), with higher quality data. Sycamore can partition and enrich a wide range of document types including reports, presentations, transcripts, manuals, and more. It can analyze and chunk complex documents such as PDFs and images with embedded tables, figures, graphs, and other infographics. 
 
-![Untitled](docs/source/images/SycamoreDiagram2.png)
+Instead of trying to process a document all at once, Sycamore ETL first decomposes it into its constituent components using a purpose-built document segmentation AI model. Then, it can apply the best AI model for each component based on its type (e.g. table) to extract and process it with high fidelity. Sycamore ETL can also integrate with your choice of AI models for LLM-powered UDFs, metadata extraction, vector embeddings, and other data transformations.
+
+The Sycamore framework is built around a scalable and robust abstraction for document processing called a DocSet, and includes powerful high-level transformations in Python for data processing, enrichment, and cleaning. DocSets also encapsulate scalable data processing techniques removing the undifferentiated heavy lifting of reliably loading chunks. DocSets' functional programming approach allows you to rapidly customize and experiment with your chunking for better quality RAG results.
+
+![Untitled](docs/source/images/SycamoreDataflowDiagramv2.png)
 
 ## Features
 
-- Natural language, conversational interface to ask complex questions on unstructured data. Includes citations to source passages and conversational memory.
-- Includes a variety of query operations over unstructured data, including hybrid search, retrieval augmented generation (RAG), and analytical functions.
-- Prepares and enriches complex unstructured data for search and analytics through advanced data segmentation, LLM-powered UDFs for data enrichment, performant data manipulation with Python, and vector embeddings using a variety of AI models.
-- Helpful features like automatic data crawlers (Amazon S3 and HTTP) and Jupyter notebook support to create and iterate on data preparation scripts.
-- Scalable, secure, and customizable OpenSearch backend for indexing and data retrieval.
+- State-of-the art vision AI model for segmentation and preserving the semantic structure of documents
+- DocSet abstraction to scalably and reliably transform and manipulate unstructured documents
+- High-quality table extraction, OCR, visual summarization, LLM-powered UDFs, and other performant Python data transforms
+- Quickly create vector embeddings using your choice of AI model
+- Helpful features like automatic data crawlers (Amazon S3 and HTTP), Jupyter notebook for writing and iterating on jobs, and an OpenSearch hybrid search and RAG engine for testing
+- Scalable [Ray](https://github.com/ray-project/ray) backend
 
 ## Demo
 

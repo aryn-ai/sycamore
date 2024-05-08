@@ -71,6 +71,13 @@ const NavBarConversationItem = ({ conversation, conversations, setConversations,
     const { classes, cx } = useStyles();
     const theme = useMantineTheme();
     const mobileScreen = useMediaQuery(`(max-width: ${theme.breakpoints.md})`);
+    const truncateString = (chatInput: string, maxLength = 20) => {
+        if (chatInput.length > maxLength) {
+          return chatInput.slice(0, maxLength) + '...';
+        } else {
+          return chatInput;
+        }
+      }
     return (
         <Group key={conversation.id + "_navbar_row"} id={conversation.id + "_navbar_row"} noWrap className={classes.linkRow}>
             <ActionIcon size={"md"} ml="sm"  component="button"
@@ -99,7 +106,7 @@ const NavBarConversationItem = ({ conversation, conversations, setConversations,
                     setNavBarOpened(false);
                 }}
             >
-                <span>{conversation.name}</span>
+                <span>{truncateString(conversation.name)}</span>
                 {loading ? <Loader size="xs" variant="dots" /> : ""}
             </Anchor>
         </Group>

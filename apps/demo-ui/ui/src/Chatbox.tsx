@@ -939,15 +939,8 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
                 setDocsLoading(false)
             }
             const startTime = new Date(Date.now());
-            const truncateString = (chatInput: string, maxLength = 15) => {
-                if (chatInput.length > maxLength) {
-                  return chatInput.slice(0, maxLength) + '...';
-                } else {
-                  return chatInput;
-                }
-              }
             if(!settings.activeConversation) {
-                const conversationId = await createConversation(truncateString(chatInput));
+                const conversationId = await createConversation(chatInput);
                 settings.activeConversation = conversationId.memory_id;
                 setSettings(settings);
                 refreshConversations();

@@ -44,7 +44,7 @@ A Document is a generic representation of an unstructured document in a form
 
 * **type:** The type of the Document, e.g. pdf, html.
 
-Documents may have additional, less important fields, see [the code](https://github.com/aryn-ai/sycamore/blob/main/lib/sycamore/sycamore/data/document.py#L8) or [the auto-generated documentation](https://sycamore.readthedocs.io/en/stable/APIs/data/data.html#sycamore.data.document.Document) for an exhaustive list.
+Documents may have additional, less important fields, see [the code](https://github.com/aryn-ai/sycamore/blob/main/lib/sycamore/sycamore/data/document.py#L8) or [the auto-generated documentation](https://sycamore.readthedocs.io/en/stable/APIs/data_preparation/document.html) for an exhaustive list.
 
 
 ### Element

@@ -1,7 +1,7 @@
 # Using Retrieval-Augmented Generation (RAG) pipelines
 
 ## Overview
-[Retrieval-augmented generation (RAG)](https://arxiv.org/abs/2005.11401) is a popular method to generate natural language answers to questions using LLMs and indexed data. It retrieves relevant data to a query, and then sends it along with a prompt to a LLM to sythensize an answer. Sycamore implements RAG using an [OpenSearch Search Pipeline](https://opensearch.org/docs/latest/search-plugins/conversational-search/#rag-pipeline) to orchestrate interactions with LLMs.
+[Retrieval-augmented generation (RAG)](https://arxiv.org/abs/2005.11401) is a popular method to generate natural language answers to questions using LLMs and indexed data. It retrieves data relevant to a query, and then sends it along with a prompt to a LLM to sythensize an answer. Sycamore implements RAG using an [OpenSearch Search Pipeline](https://opensearch.org/docs/latest/search-plugins/conversational-search/#rag-pipeline) to orchestrate interactions with LLMs.
 
 ![Untitled](imgs/pipeline-architecture.png)
 

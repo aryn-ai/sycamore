@@ -6,7 +6,7 @@
 [![Docs](https://readthedocs.org/projects/sycamore/badge/?version=stable)](https://sycamore.readthedocs.io/en/stable/?badge=stable)
 ![License](https://img.shields.io/github/license/aryn-ai/sycamore)
 
-Sycamore ETL is an AI-powered document processing framework for LLMs, RAG, and unstructured analytics. It makes it easy to reliably load your vector databases and hybrid search engines with higher quality data. Sycamore can partition and enrich a wide range of document types including reports, presentations, transcripts, manuals, and more. It can analyze and chunk complex documents such as PDFs and images with embedded tables, figures, graphs, and other infographics. 
+Sycamore ETL is an AI-powered document processing framework for LLMs, RAG, and unstructured analytics. It makes it easy to reliably load your vector databases and hybrid search engines, such as OpenSearch, Pinecone (coming soon), and Weaviate (coming soon), with higher quality data. Sycamore can partition and enrich a wide range of document types including reports, presentations, transcripts, manuals, and more. It can analyze and chunk complex documents such as PDFs and images with embedded tables, figures, graphs, and other infographics. 
 
 Instead of trying to process a document all at once, Sycamore ETL first decomposes it into its constituent components using a purpose-built document segmentation AI model. Then, it can apply the best AI model for each component based on its type (e.g. table) to extract and process it with high fidelity. Sycamore ETL can also integrate with your choice of AI models for LLM-powered UDFs, metadata extraction, vector embeddings, and other data transformations.
 

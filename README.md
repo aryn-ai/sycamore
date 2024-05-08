@@ -12,7 +12,7 @@ Instead of trying to process a document all at once, Sycamore ETL first decompos
 
 The Sycamore framework is built around a scalable and robust abstraction for document processing called a DocSet, and includes powerful high-level transformations in Python for data processing, enrichment, and cleaning. DocSets also encapsulate scalable data processing techniques removing the undifferentiated heavy lifting of reliably loading chunks. DocSets' functional programming approach allows you to rapidly customize and experiment with your chunking for better quality RAG results.
 
-![Untitled](docs/source/images/SycamoreDataflowDiagramv1.png)
+![Untitled](docs/source/images/SycamoreDataflowDiagramv2.png)
 
 ## Features
 

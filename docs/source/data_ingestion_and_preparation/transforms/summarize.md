@@ -1,5 +1,5 @@
 ## Summarize
-Similar to the extract entity transform, the summarize transform generates summaries of documents or elements. The ``LLMElementTextSummarizer`` summarizes a subset of the elements from each Document. It takes an LLM implementation and a callable specifying the subset of elements to summarize. The following examples shows how to use this transform to summarize elements that are longer than a certain length.
+Similar to the extract entity transform, the summarize transform generates summaries of documents or elements. The ``LLMElementTextSummarizer`` summarizes a subset of the elements from each Document. It takes an LLM implementation and a callable specifying the subset of elements to summarize. The following example shows how to use this transform to summarize elements that are longer than a certain length.
 
 ```python
 def filter_elements_on_length(

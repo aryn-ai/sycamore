@@ -4,7 +4,7 @@ Sycamore brings generative AI to a variety of stages in data preparation for sea
 
 Information on supported generative AI models for each operation are in the specific documentation for it:
 
-* [Embeddings](/transforms/embed.md)
-* [Entity extraction](/transforms/extract_entity.md)
-* [Schema extraction](/transforms/extract_schema.md)
-* [Summarize](/transforms/summarize.md)
+* [Embeddings](./transforms/embed.md)
+* [Entity extraction](./transforms/extract_entity.md)
+* [Schema extraction](./transforms/extract_schema.md)
+* [Summarize](./transforms/summarize.md)

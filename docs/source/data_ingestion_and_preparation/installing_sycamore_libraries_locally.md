@@ -4,7 +4,7 @@ You can install and use the Sycamore data preparation libraries locally to write
 
 ## Installation
 
-Sycamore currently runs on for Linux and Mac OS, and please see the top of the README for Python version compatibility. To install, run
+Sycamore currently runs on Linux and Mac OS, and please see the top of the README for Python version compatibility. To install, run
 
 `pip install sycamore-ai`
 

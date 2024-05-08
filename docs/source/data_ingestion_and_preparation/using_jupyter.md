@@ -22,4 +22,4 @@ If you already have custom data preparation code, the easiest way to run it is u
 
 ## Running Jupyter locally
 
-You can run Jupyter locally and load the output of your data preparation script into your Sycamore stack. The OpenSearch client configuration must match the endpoint of your Sycamore stack. For instructions on how to install and configure Jupyter locally for Sycamore, [click here](../tutorials/sycamore-jupyter-dev-example.md#install-jupyter-locally). For an example script, [click here](https://github.com/aryn-ai/sycamore/blob/main/notebooks/sycamore_local_dev_example.ipynb).
+You can run Jupyter locally and load the output of your data preparation script into your Sycamore stack. The OpenSearch client configuration must match the endpoint of your Sycamore stack. For instructions on how to install and configure Jupyter locally for Sycamore, [click here](../tutorials/sycamore-jupyter-dev-example.md#install-jupyter-locally). For an example script, [click here](https://github.com/aryn-ai/sycamore/blob/main/notebooks/jupyter_dev_example.ipynb).

@@ -78,11 +78,11 @@ Test the processor server in pure python with:
 ```
 from gen.response_processor_service_pb2_grpc import RemoteProcessorServiceStub
 import grpc
-from gen.response_processor_service_pb2 import ProcessResponseRequest
+from gen.response_processor_service_pb2 import ProcessResponseCall
 
 chan = grpc.insecure_channel('localhost:2796')
 stub = RemoteProcessorServiceStub(chan)
-req = ProcessResponseRequest()
+req = ProcessResponseCall()
 req.processor_name = "debug"
 res = stub.ProcessResponse(req)
 print(res)

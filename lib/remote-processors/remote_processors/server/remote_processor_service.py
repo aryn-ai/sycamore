@@ -10,7 +10,7 @@ from remote_processors.response_processor_service_pb2_grpc import (
     RemoteProcessorServiceServicer,
     add_RemoteProcessorServiceServicer_to_server,
 )
-from remote_processors.response_processor_service_pb2 import ProcessResponseRequest, ProcessResponseResponse
+from remote_processors.response_processor_service_pb2 import ProcessResponseCall, ProcessResponseReply
 
 TP_MAX_WORKERS = 10
 
@@ -70,18 +70,18 @@ class RemoteProcessorService(RemoteProcessorServiceServicer):
             pipelines[name] = pipeline
         return pipelines
 
-    def ProcessResponse(self, request: ProcessResponseRequest, context):
+    def ProcessResponse(self, request: ProcessResponseCall, context):
         """Process a response. Entrypoint for ProcessResponse API
 
         Args:
-            request (ProcessResponseRequest): The API request
+            request (ProcessResponseCall): The API request
             context (_type_): some grpc thing, idk
 
         Raises:
             KeyError: if the requested "processor_name" does not exist
 
         Returns:
-            ProcessResponseResponse: the processed response
+            ProcessResponseReply: the processed response
         """
         search_request = request.search_request
         search_response = request.search_response
@@ -90,7 +90,7 @@ class RemoteProcessorService(RemoteProcessorServiceServicer):
             new_response = self._pipelines[processor_name].run_response_pipeline(
                 search_request=search_request, search_response=search_response
             )
-            return ProcessResponseResponse(search_response=new_response)
+            return ProcessResponseReply(search_response=new_response)
         else:
             context.set_code(grpc.StatusCode.NOT_FOUND)
             context.set_details(f"Processor {processor_name} does not exist!")

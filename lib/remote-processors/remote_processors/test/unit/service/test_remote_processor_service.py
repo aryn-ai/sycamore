@@ -1,7 +1,7 @@
 import grpc
 
 import pytest
-from remote_processors.response_processor_service_pb2 import ProcessResponseRequest
+from remote_processors.response_processor_service_pb2 import ProcessResponseCall
 from remote_processors.server.pipeline import BadPipelineConfigError
 from remote_processors.server.remote_processor_service import RemoteProcessorService
 from remote_processors.test.utils import dummy_search_request, dummy_search_response, TESTS_DIR
@@ -26,7 +26,7 @@ class TestRemoteProcessorService:
 
     def test_process_response_pipeline_found(self):
         rps = RemoteProcessorService(TESTS_DIR / "resources/configs/valid.yml")
-        prr = ProcessResponseRequest(
+        prr = ProcessResponseCall(
             search_response=dummy_search_response(), search_request=dummy_search_request(), processor_name="debug"
         )
         response = rps.ProcessResponse(prr, None)
@@ -44,7 +44,7 @@ class TestRemoteProcessorService:
         code_spy = mocker.spy(context, "set_code")
         detail_spy = mocker.spy(context, "set_details")
         rps = RemoteProcessorService(TESTS_DIR / "resources/configs/valid.yml")
-        prr = ProcessResponseRequest(
+        prr = ProcessResponseCall(
             search_response=dummy_search_response(), search_request=dummy_search_request(), processor_name="missing"
         )
         with pytest.raises(KeyError):

@@ -17,8 +17,6 @@ die() {
 }
 
 NOW="$(date +"%Y-%m-%d_%H_%M_%S")"
-ARCH="amd64"
-[[ "$(uname -m)" = "arm64" || "$(uname -m)" = "aarch64" ]] && ARCH="arm64"
 ARCH="$(archname "$(uname -m)")"
 
 RUNDIR="apps/integration/runs/${NOW}"
@@ -192,7 +190,8 @@ docker-build-hub() {
   docker buildx build "$(_docker-build-args)" -t "${repo_name}:${TAG}" -f "${docker_file}" \
      --cache-to type=registry,ref="${repo_name}:build-cache",mode=max \
      --cache-from type=registry,ref="${repo_name}:build-cache" \
-     "$@" --push . || { error "buildx failed" && return 1;}
+     --platform="$(_docker-platforms)" "$@" --push . \
+     || { error "buildx failed" && return 1;}
   echo "Successfully built using docker file $docker_file"
 }
 
@@ -231,6 +230,18 @@ _docker-build-args() {
     diff="pending_changes_$(git diff HEAD | shasum | awk '{print $1}')"
   fi
   echo "--build-arg=GIT_BRANCH=${branch} --build-arg=GIT_COMMIT=${rev}--${date} --build-arg=GIT_DIFF=${diff}"
+}
+
+_docker-platforms() {
+  local remotearch="${ARCH}"
+  if [[ -n $SSH_TARGET ]]; then
+    remotearch="$(archname "$(ssh "${SSH_TARGET}" uname -m)")"
+  fi
+  if [[ $ARCH != $remotearch ]]; then
+    echo "linux/${ARCH},linux/${remotearch}"
+  else
+    echo "linux/${ARCH}"
+  fi
 }
 
 create-dual-builder() {

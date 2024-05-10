@@ -262,8 +262,6 @@ const OpenSearchQueryEditor = ({ openSearchQueryEditorOpened, openSearchQueryEdi
     }
     return (
         <Modal opened={openSearchQueryEditorOpened} onClose={openSearchQueryEditorOpenedHandlers.close} title="OpenSearch Query Editor" size="calc(80vw - 3rem)">
-            <Container p="md">
-
                 <Text fz="xs" p="sm">Note: If you want a RAG answer, make sure the search pipeline is being used.
                     Ensure it's configured in the URL (search_pipeline=hybrid_rag_pipeline), and also in the query itself (ext.generative_qa_parameters parameters)</Text>
                 <Group position="apart" grow>
@@ -291,7 +289,6 @@ const OpenSearchQueryEditor = ({ openSearchQueryEditorOpened, openSearchQueryEdi
                         minRows={4}
                     />
                 </ScrollArea>
-            </Container>
         </Modal>
     )
 };

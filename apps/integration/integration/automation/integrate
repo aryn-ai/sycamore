@@ -263,7 +263,7 @@ cleanup-dual-builder() {
   docker buildx rm dual-builder
   ssh "${SSH_TARGET}" "docker stop remote-buildkitd && docker rm remote-buildkitd"
   docker stop remote-buildkitd && docker rm remote-buildkitd
-  pgrep -f "${PORT}:localhost:${PORT}" | xargs kill
+  pgrep -f "${SSH_BUILDX_PORT}:localhost:${SSH_BUILDX_PORT}" | xargs kill
 }
 
 main

@@ -3,16 +3,8 @@ import { Button, Divider, Group, NativeSelect, ScrollArea, Text, createStyles, u
 import { IconRefresh } from '@tabler/icons-react';
 import { Settings } from './Types'
 import { getIndices, getEmbeddingModels, FEEDBACK_INDEX_NAME, createFeedbackIndex } from './OpenSearch';
-const useStyles = createStyles((theme) => ({
-    footer: {
-        // maxHeight: '60',
-        overflow: 'auto'
-    }
-}))
 
 export const ControlPanel = ({ settings, setSettings, reset }: { settings: Settings, setSettings: Dispatch<SetStateAction<Settings>>, reset: any, }) => {
-    const theme = useMantineTheme();
-    const { classes } = useStyles();
     const [availableIndices, setAvailableIndices] = useState(new Array<string>())
     const [availableEmbeddings, setAvailableEmbeddings] = useState(new Array<string>())
     const newsettings = settings

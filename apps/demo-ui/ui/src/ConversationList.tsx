@@ -45,11 +45,8 @@ const useStyles = createStyles((theme) => ({
 
     },
     linkRow: {
-        [theme.fn.smallerThan('md')]: {
-            marginTop: rem(5),
-            marginBottom: rem(5)
-        },
-      
+        marginTop: rem(10),
+        marginBottom: rem(10),
     },
 
     linkActive: {
@@ -113,24 +110,30 @@ const NavBarConversationItem = ({ conversation, conversations, setConversations,
     );
 }
 
-const NewConversationInput = ({ refreshConversations, setErrorMessage, chatInputRef, settings, setSettings, setChatHistory, 
-    setNavBarOpened 
-}: { refreshConversations: any, setErrorMessage: Dispatch<SetStateAction<string | null>>, chatInputRef: any, settings: Settings, setSettings: Dispatch<SetStateAction<Settings>>, setChatHistory: Dispatch<SetStateAction<Array<SystemChat>>>,
-    setNavBarOpened: any
+const NewConversationInput = ({ refreshConversations, setErrorMessage, chatInputRef, settings, setSettings, setChatHistory, setNavBarOpened, loadActiveConversation, navBarOpened }:
+     { refreshConversations: any, setErrorMessage: Dispatch<SetStateAction<string | null>>, chatInputRef: any, settings: Settings, setSettings: Dispatch<SetStateAction<Settings>>, setChatHistory: Dispatch<SetStateAction<Array<SystemChat>>>, setNavBarOpened: any, loadActiveConversation: any, navBarOpened: boolean
  }) => {
+    const [newConversationName, setNewConversationName] = useState("")
+    const [error, setError] = useState(false);
+    const newConversationInputRef = useRef(null);
     const theme = useMantineTheme();
     const mobileScreen = useMediaQuery(`(max-width: ${theme.breakpoints.md})`);
+    
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setNewConversationName(e.target.value);
+    };
     async function handleSubmit() {
         try {
-            if (chatInputRef.current !== null) {
-                chatInputRef.current.focus();
-                if(settings.activeConversation !== "") {
-                    setChatHistory(new Array<SystemChat>());
-                    settings.activeConversation = "";
-                    setSettings(settings);
-                }
-                setNavBarOpened(false);
+            if(newConversationName === "") {
+                setError(true);
+                return;
             }
+            setError(false);
+            const createConversationResponse = await createConversation(newConversationName)
+            const conversationId = createConversationResponse.memory_id;
+            setActiveConversation(conversationId, settings, setSettings, loadActiveConversation);
+            setNavBarOpened(false);
+            refreshConversations()
         } catch (e) {
             console.log("Error creating conversation: ", e)
             if (typeof e === "string") {
@@ -138,26 +141,38 @@ const NewConversationInput = ({ refreshConversations, setErrorMessage, chatInput
             } else if (e instanceof Error) {
                 setErrorMessage(e.message)
             }
+        } finally {
+            setNewConversationName("")
         }
     }
+    const handleInputKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleSubmit();
+        }
+    };
     
     return (
-        <>
-            <Button 
-                variant="outline" 
-                radius="xl" 
-                size={mobileScreen ? 'md': 'sm'}
-                c={'#5688b0'}
-                fullWidth
-                leftIcon={
-                    <ActionIcon size={32} radius="sm" c={'#5688b0'}>
-                        <IconPlus size="1rem" stroke={3} color={theme.colors.blue[6]}  />
-                    </ActionIcon>
-                } 
-                onClick={handleSubmit} 
-            >
-                New Conversation
-            </Button> 
+        <> 
+            <form className="input-form">
+                <TextInput
+                    onKeyDown={handleInputKeyPress}
+                    onChange={handleInputChange}
+                    ref={newConversationInputRef}
+                    value={newConversationName}
+                    w={{sm:175, lg: 275}}
+                    radius="sm"
+                    fz="xs"
+                    size={mobileScreen ? "md" : "sm"}
+                    rightSection={
+                        <ActionIcon size={32} radius="sm" c={error ? 'red': '#5688b0'}>
+                            <IconMessagePlus size="1rem" stroke={2} onClick={handleSubmit} />
+                        </ActionIcon>
+                    }
+                    placeholder="New conversation"
+                    error={error ? "Conversation name cannot be empty" : ""}
+                />
+            </form>
         </>
     )
 }
@@ -189,7 +204,7 @@ export const ConversationListNavbar = ({ navBarOpened, settings, setSettings, se
             hiddenBreakpoint="sm"
             height="100%"
             hidden={!navBarOpened}
-            width={{ sm: 200, lg: 300 }}
+            width={{sm: 200, lg: 300}}
             sx={{
                 overflow: "hidden",
                 transition: "width 150ms ease, min-width 150ms ease",
@@ -197,7 +212,7 @@ export const ConversationListNavbar = ({ navBarOpened, settings, setSettings, se
             }}>
             {loading ? <Center p="md"><Loader size="xs" /></Center> : null}
             <Navbar.Section p="xs" m="xs" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <NewConversationInput refreshConversations={refreshConversations} setErrorMessage={setErrorMessage} chatInputRef={chatInputRef} settings={settings} setSettings={setSettings} setChatHistory={setChatHistory} setNavBarOpened={setNavBarOpened}/>
+                <NewConversationInput refreshConversations={refreshConversations} setErrorMessage={setErrorMessage} chatInputRef={chatInputRef} settings={settings} setSettings={setSettings} setChatHistory={setChatHistory} setNavBarOpened={setNavBarOpened} loadActiveConversation={loadActiveConversation} navBarOpened={navBarOpened}/>
             </Navbar.Section>
             <Navbar.Section grow className={classes.wrapper}>
             {loadingConversation ? (

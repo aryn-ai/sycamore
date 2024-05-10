@@ -70,7 +70,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --tag)
       [[ -z $2 ]] && die "A tag must be specified when using the --tag arg; e.g. --tag my-tag"
-      [[ $2 =~ "[a-z]*" ]] || die "Detected tag was $2. Tags should begin with lowercase letters"
+      [[ $2 =~ [a-z]* ]] || die "Detected tag was $2. Tags should begin with lowercase letters"
       TAG="$2"
       echo "Using tag ${TAG}"
       shift
@@ -83,7 +83,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --ssh)
       [[ -z $2 ]] && die "A configured ssh target must be specified when using the --ssh arg; e.g. --ssh my-host"
-      [[ $2 =~ "[a-z]*" ]] || die "Detected ssh target was $2. ssh tartgets should begin with lowercase letters"
+      [[ $2 =~ [a-z]* ]] || die "Detected ssh target was $2. ssh tartgets should begin with lowercase letters"
       SSH_TARGET="$2"
       SSH_BUILDX_PORT=18460 # Selected by googling 5d10 and rerolling until small enough
       echo "Using ssh target ${SSH_TARGET}"

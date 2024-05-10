@@ -23,7 +23,7 @@ export default function App() {
   const [conversations, setConversations] = useState<any>([]);
   const chatInputRef = useRef<HTMLInputElement | null>(null);
   const theme = useMantineTheme();
-  const mobileScreen = useMediaQuery(`(max-width: ${theme.breakpoints.md})`);
+  const mobileScreen = useMediaQuery(`(max-width: ${theme.breakpoints.sm})`);
 
 
   const reset = () => {
@@ -125,7 +125,7 @@ export default function App() {
               paddingRight: theme.spacing.md,
             })}>
             <Group  w="100%">
-              <MediaQuery largerThan="md" styles={{ display: 'none' }}>
+              <MediaQuery largerThan="lg" styles={{ display: 'none' }}>
                   <Burger
                     opened={navBarOpened}
                     onClick={() => setNavBarOpened((o) => !o)}
@@ -143,11 +143,9 @@ export default function App() {
             </Group>
           </Header>
         }
-        navbarOffsetBreakpoint="md"
+        navbarOffsetBreakpoint="sm"
         navbar={
-          <MediaQuery smallerThan="md" styles={{ display: 'none' }}>
             <ConversationListNavbar navBarOpened={navBarOpened} settings={settings} setSettings={setSettings} setErrorMessage={setErrorMessage} loadingConversation={loadingConversation} loadActiveConversation={loadActiveConversation} conversations={conversations} setConversations={setConversations} refreshConversations={refreshConversations} setChatHistory={setChatHistory} chatInputRef={chatInputRef} setNavBarOpened={setNavBarOpened}></ConversationListNavbar>
-          </MediaQuery>
         }
         footer={
           < Footer height={65} p="sm">

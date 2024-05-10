@@ -159,7 +159,7 @@ push_images() {
 
 runtests() {
   if [[ -n $SSH_TARGET ]]; then
-    ssh "${SSH_TARGET}" "cd sycamore && ./apps/integration/integration/automation/integrate --test --clean --tag ${TAG}"
+    ssh "${SSH_TARGET}" "cd sycamore && ./apps/integration/integration/automation/integrate --test --clean --tag ${TAG}" &
   fi
   docker volume rm sycamore_crawl_data sycamore_jupyter_data sycamore_opensearch_data
   docker network prune

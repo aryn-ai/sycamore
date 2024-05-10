@@ -12,8 +12,12 @@ import { Prism } from '@mantine/prism';
 
 const useStyles = createStyles((theme) => ({
     inputBar: {
-        [theme.fn.largerThan('md')]: {
-            width: "40em"
+        [theme.fn.largerThan('sm')]: {
+            width: "40em",
+            size: "sm"
+        },
+        [theme.fn.smallerThan('sm')]: {
+            size: "md"
         },
     }
 }))
@@ -814,7 +818,7 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
     const [currentOsUrl, setCurrentOsUrl] = useState<string>("/opensearch/" + settings.openSearchIndex + "/_search?");
     const [openSearchQueryEditorOpened, openSearchQueryEditorOpenedHandlers] = useDisclosure(false);
     const {classes} = useStyles();
-    const mobileScreen = useMediaQuery(`(max-width: ${theme.breakpoints.md})`);
+    const mobileScreen = useMediaQuery(`(max-width: ${theme.breakpoints.sm})`);
 
     useEffect(() => {
         setCurrentOsUrl("/opensearch/" + settings.openSearchIndex + "/_search?");
@@ -1010,7 +1014,6 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
                             icon={<IconSearch size="1.1rem" stroke={1.5} />}
                             radius="xl"
                             autoFocus
-                            size={mobileScreen ? "md" : "sm"}
                             fz="xs"
                             p="sm"
                             rightSection={

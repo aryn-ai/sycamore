@@ -125,7 +125,7 @@ export default function App() {
               paddingRight: theme.spacing.md,
             })}>
             <Group  w="100%">
-              <MediaQuery largerThan="lg" styles={{ display: 'none' }}>
+              <MediaQuery largerThan="sm" styles={{ display: 'none' }}>
                   <Burger
                     opened={navBarOpened}
                     onClick={() => setNavBarOpened((o) => !o)}

@@ -252,5 +252,6 @@ archname() {
   local arch="amd64"
   [[ "$unamearchname" = "arm64" || "$unamearchname" = "aarch64" ]] && arch="arm64"
   echo "${arch}"
+}
 
 main

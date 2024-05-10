@@ -1,5 +1,21 @@
 #!/bin/bash
 
+archname() {
+  local unamearchname="$1"
+  local arch="amd64"
+  [[ "$unamearchname" = "arm64" || "$unamearchname" = "aarch64" ]] && arch="arm64"
+  echo "${arch}"
+}
+
+error() {
+  echo "ERROR: $@" >&2
+}
+
+die() {
+  error "$@"
+  exit 1
+}
+
 NOW="$(date +"%Y-%m-%d_%H_%M_%S")"
 ARCH="amd64"
 [[ "$(uname -m)" = "arm64" || "$(uname -m)" = "aarch64" ]] && ARCH="arm64"
@@ -80,7 +96,7 @@ done
 main() {
   [[ -d ".git" ]] || die "Please run this script from sycamore root!"
   [[ $DO_CLEAN ]] && rm -rf "${RUNDIR}"
-  if [[ -n $SSH_TARGET && ! $SKIP_BUILD ]]; then
+  if [[ -n $SSH_TARGET && $SKIP_BUILD -ne 0 ]]; then
     create-dual-builder
     trap cleanup-dual-builder 0 1 2 3 6
   fi
@@ -90,24 +106,16 @@ main() {
   if checkout_main_if_new; then
     echo "Changes detected. Running Tests" >&2
     poetry install --no-root > "${POETRY_LOGFILE}" 2>&1 \
-        && { [[ $SKIP_BUILD ]] || build_images > "${DOCKER_LOGFILE}" 2>&1; } \
-        && { [[ $SKIP_TESTS ]] || runtests > "${PYTEST_LOGFILE}" 2>&1; } \
+        && { [[ $SKIP_BUILD -eq 0 ]] || build_images > "${DOCKER_LOGFILE}" 2>&1; } \
+        && { [[ $SKIP_TESTS -eq 0 ]] || runtests > "${PYTEST_LOGFILE}" 2>&1; } \
         && touch "${RUNDIR}/passed"
-    [[ $SKIP_PUSH ]] || push_images >> "${DOCKER_LOGFILE}" 2>&1
+    [[ $SKIP_PUSH -eq 0 ]] || push_images >> "${DOCKER_LOGFILE}" 2>&1
     handle_outputs
   else
     echo "No changes detected. Skipping integration tests" >&2
   fi
 }
 
-error() {
-  echo "ERROR: $@" >&2
-}
-
-die() {
-  error "$@"
-  exit 1
-}
 
 checkout_main_if_new() {
   old_sha="$(git rev-parse HEAD)"
@@ -245,13 +253,6 @@ cleanup-dual-builder() {
   ssh "${SSH_TARGET}" "docker stop remote-buildkitd && docker rm remote-buildkitd"
   docker stop remote-buildkitd && docker rm remote-buildkitd
   pgrep -f "${PORT}:localhost:${PORT}" | xargs kill
-}
-
-archname() {
-  local unamearchname="$1"
-  local arch="amd64"
-  [[ "$unamearchname" = "arm64" || "$unamearchname" = "aarch64" ]] && arch="arm64"
-  echo "${arch}"
 }
 
 main

@@ -2,7 +2,8 @@
 
 NOW="$(date +"%Y-%m-%d_%H_%M_%S")"
 ARCH="amd64"
-[[ "$(uname -m)" = "arm64" ]] && ARCH="arm64"
+[[ "$(uname -m)" = "arm64" || "$(uname -m)" = "aarch64" ]] && ARCH="arm64"
+ARCH="$(archname "$(uname -m)")"
 
 RUNDIR="apps/integration/runs/${NOW}"
 GIT_LOGFILE="${RUNDIR}/git.log"
@@ -12,11 +13,12 @@ PYTEST_LOGFILE="${RUNDIR}/pytest.log"
 QUERY_LOGFILE="${RUNDIR}/test_queries.log"
 
 # Parse args
-DO_BUILD=1
-DO_TESTS=1
-DO_PUSH=1
-DO_CLEAN=1
+SKIP_BUILD=0
+SKIP_TESTS=0
+SKIP_PUSH=0
+DO_CLEAN=0
 TAG="integration_tests"
+declare SSH_TARGET
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --help|-h)
@@ -28,28 +30,31 @@ while [[ $# -gt 0 ]]; do
       echo "  --build               Build images"
       echo "  --tests               Run integration tests"
       echo "  --push                Push images"
+      echo "  --clean               Remove logs from previous runs before doing anything."
       echo "  --tag     [TAG]       When building, running, and/or pushing, use this docker tag."
       echo "                        Default is 'integration_tests'"
+      echo "  --ssh     [TARGET]    When building and running tests, also build and run on this host."
+      echo "                        Useful for multi-arch builds and tests, e.g. --ssh my-arm-box"
       exit 0
       ;;
     --build)
-      DO_BUILD=0
+      SKIP_BUILD=1
       echo "Will build images"
       shift
       ;;
     --tests)
-      DO_TESTS=0
+      SKIP_TESTS=1
       echo "Will run integration tests"
       shift
       ;;
     --push)
-      DO_PUSH=0
+      SKIP_PUSH=1
       echo "Will push images"
       shift
       ;;
     --tag)
-      [[ -z $2 ]] && die "A tag must be speicified when using the --tag arg; e.g. --tag my-tag"
-      [[ $2 =~ "[a-z]*" ]] && die "Detected tag was $2. Tags should begin with lowercase letters"
+      [[ -z $2 ]] && die "A tag must be specified when using the --tag arg; e.g. --tag my-tag"
+      [[ $2 =~ "[a-z]*" ]] || die "Detected tag was $2. Tags should begin with lowercase letters"
       TAG="$2"
       echo "Using tag ${TAG}"
       shift
@@ -60,22 +65,35 @@ while [[ $# -gt 0 ]]; do
       echo "Will clean ${RUNDIR} before running anything"
       shift
       ;;
+    --ssh)
+      [[ -z $2 ]] && die "A configured ssh target must be specified when using the --ssh arg; e.g. --ssh my-host"
+      [[ $2 =~ "[a-z]*" ]] || die "Detected ssh target was $2. ssh tartgets should begin with lowercase letters"
+      SSH_TARGET="$2"
+      SSH_BUILDX_PORT=18460 # Selected by googling 5d10 and rerolling until small enough
+      echo "Using ssh target ${SSH_TARGET}"
+      shift
+      shift
+      ;;
   esac
 done
 
 main() {
   [[ -d ".git" ]] || die "Please run this script from sycamore root!"
   [[ $DO_CLEAN ]] && rm -rf "${RUNDIR}"
+  if [[ -n $SSH_TARGET && ! $SKIP_BUILD ]]; then
+    create-dual-builder
+    trap cleanup-dual-builder 0 1 2 3 6
+  fi
   mkdir -p "${RUNDIR}"
   echo "Building/testing tag ${TAG}" >&2
   echo "Get the newest git commits" >&2
   if checkout_main_if_new; then
     echo "Changes detected. Running Tests" >&2
     poetry install --no-root > "${POETRY_LOGFILE}" 2>&1 \
-        && { [[ $DO_BUILD ]] && build_images > "${DOCKER_LOGFILE}" 2>&1; } \
-        && { [[ $DO_TESTS ]] && runtests > "${PYTEST_LOGFILE}" 2>&1; } \
+        && { [[ $SKIP_BUILD ]] || build_images > "${DOCKER_LOGFILE}" 2>&1; } \
+        && { [[ $SKIP_TESTS ]] || runtests > "${PYTEST_LOGFILE}" 2>&1; } \
         && touch "${RUNDIR}/passed"
-    [[ $DO_PUSH ]] && push_images >> "${DOCKER_LOGFILE}" 2>&1
+    [[ $SKIP_PUSH ]] || push_images >> "${DOCKER_LOGFILE}" 2>&1
     handle_outputs
   else
     echo "No changes detected. Skipping integration tests" >&2
@@ -140,6 +158,9 @@ push_images() {
 }
 
 runtests() {
+  if [[ -n $SSH_TARGET ]]; then
+    ssh "${SSH_TARGET}" "cd sycamore && ./apps/integration/integration/automation/integrate --test --clean --tag ${TAG}"
+  fi
   docker volume rm sycamore_crawl_data sycamore_jupyter_data sycamore_opensearch_data
   docker network prune
   docker compose up reset
@@ -163,7 +184,7 @@ docker-build-hub() {
   docker buildx build "$(_docker-build-args)" -t "${repo_name}:${TAG}" -f "${docker_file}" \
      --cache-to type=registry,ref="${repo_name}:build-cache",mode=max \
      --cache-from type=registry,ref="${repo_name}:build-cache" \
-     "$@" --load . || { error "buildx failed" && return 1;}
+     "$@" --push . || { error "buildx failed" && return 1;}
   echo "Successfully built using docker file $docker_file"
 }
 
@@ -203,5 +224,33 @@ _docker-build-args() {
   fi
   echo "--build-arg=GIT_BRANCH=${branch} --build-arg=GIT_COMMIT=${rev}--${date} --build-arg=GIT_DIFF=${diff}"
 }
+
+create-dual-builder() {
+  # Over ssh, start a buildkit container on the target, and use port forwarding
+  # to talk to it. Also start a local buildkit container, and then create a buildx
+  # remote driver that talks to both of them.
+  ssh -N -L "${SSH_BUILDX_PORT}":localhost:"${SSH_BUILDX_PORT}" "${SSH_TARGET}" &
+  REMOTE_ARCH="$(archname "$(ssh "${SSH_TARGET}" uname -m)")"
+  ssh "${SSH_TARGET}" docker run -d --name=remote-buildkitd --privileged -p "${SSH_BUILDX_PORT}":"${SSH_BUILDX_PORT}" \
+        moby/buildkit:latest --addr "tcp://0.0.0.0:${SSH_BUILDX_PORT}"
+  docker run -d --name=remote-buildkitd --privileged -p "$((SSH_BUILDX_PORT - 1))":"$((SSH_BUILDX_PORT - 1))" \
+        moby/buildkit:latest --addr "tcp://0.0.0.0:$((SSH_BUILDX_PORT - 1))"
+  docker buildx create --name dual-builder --platform "linux/${ARCH}" --driver=remote "tcp://localhost:$((SSH_BUILDX_PORT - 1))"
+  docker buildx create --append --name dual-builder --platform "linux/${REMOTE_ARCH}" --driver=remote "tcp://localhost:${SSH_BUILDX_PORT}"
+  docker buildx use dual-builder
+}
+
+cleanup-dual-builder() {
+  docker buildx rm dual-builder
+  ssh "${SSH_TARGET}" "docker stop remote-buildkitd && docker rm remote-buildkitd"
+  docker stop remote-buildkitd && docker rm remote-buildkitd
+  pgrep -f "${PORT}:localhost:${PORT}" | xargs kill
+}
+
+archname() {
+  local unamearchname="$1"
+  local arch="amd64"
+  [[ "$unamearchname" = "arm64" || "$unamearchname" = "aarch64" ]] && arch="arm64"
+  echo "${arch}"
 
 main

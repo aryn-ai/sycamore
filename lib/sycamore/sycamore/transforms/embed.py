@@ -16,6 +16,7 @@ from sycamore.llms import OpenAIClientParameters
 from sycamore.llms.openai import OpenAIClientWrapper
 from sycamore.plan_nodes import Node, Transform
 from sycamore.utils import batched, generate_map_batch_function, generate_map_batch_class_from_callable
+from sycamore.utils.time_trace import TimeTrace
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +94,8 @@ class SentenceTransformerEmbedder(Embedder):
         self._transformer: Optional[SentenceTransformer] = None
 
     def generate_embeddings(self, doc_batch: list[Document]) -> list[Document]:
+        tt = TimeTrace("StEmbedder")
+        tt.start()
         if not self._transformer:
             self._transformer = SentenceTransformer(self.model_name)
 
@@ -107,6 +110,7 @@ class SentenceTransformerEmbedder(Embedder):
                 doc.embedding = embeddings[i].tolist()
                 i += 1
 
+        tt.end()
         return doc_batch
 
 

@@ -6,6 +6,7 @@ from sycamore.data import Document, Element
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import generate_map_function
+from sycamore.utils.time_trace import TimeTrace
 
 
 class SplitElements(SingleThreadUser, NonGPUUser, Transform):
@@ -37,12 +38,13 @@ class SplitElements(SingleThreadUser, NonGPUUser, Transform):
             self.max = maximum
 
         def run(self, parent: Document) -> Document:
-            result = []
-            elements = parent.elements  # makes a copy
-            for elem in elements:
-                result.extend(self.splitUp(elem))
-            parent.elements = result
-            return parent
+            with TimeTrace("splitElem"):
+                result = []
+                elements = parent.elements  # makes a copy
+                for elem in elements:
+                    result.extend(self.splitUp(elem))
+                parent.elements = result
+                return parent
 
         def splitUp(self, elem: Element) -> list[Element]:
             txt = elem.text_representation

@@ -15,6 +15,7 @@ from sycamore.transforms.map import generate_map_function
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
 from sycamore.utils import generate_map_class_from_callable
+from sycamore.utils.time_trace import TimeTrace
 
 
 # This comparator helps sort the elements per page specifically when a page
@@ -220,6 +221,8 @@ class UnstructuredPdfPartitioner(Partitioner):
     def partition(self, document: Document) -> Document:
         from unstructured.partition.pdf import partition_pdf
 
+        tt = TimeTrace("unstructuredPdf")
+        tt.start()
         binary = io.BytesIO(document.data["binary_representation"])
         try:
             elements = partition_pdf(
@@ -242,6 +245,7 @@ class UnstructuredPdfPartitioner(Partitioner):
         del elements
 
         document = reorder_elements(document, _elements_reorder_comparator)
+        tt.end()
         return document
 
 

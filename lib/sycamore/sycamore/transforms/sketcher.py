@@ -10,6 +10,7 @@ from sycamore.functions.simhash import shinglesCalc, shinglesDist
 from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import generate_map_function
 from sycamore.utils.generate_ray_func import generate_map_batch_filter_class_from_callable
+from sycamore.utils.time_trace import TimeTrace
 
 
 unwantedRe = re.compile(r"\W+")
@@ -59,11 +60,12 @@ class Sketcher(SingleThreadUser, NonGPUUser, Transform):
             self.number = number
 
         def run(self, doc: Document) -> Document:
-            txt = doc.text_representation
-            if txt:
-                utf = normalizeString(txt).encode("utf-8")
-                doc.shingles = shinglesCalc(utf, self.window, self.number)
-            return doc
+            with TimeTrace("sketcher"):
+                txt = doc.text_representation
+                if txt:
+                    utf = normalizeString(txt).encode("utf-8")
+                    doc.shingles = shinglesCalc(utf, self.window, self.number)
+                return doc
 
     def execute(self) -> Dataset:
         dataset = self.child().execute()

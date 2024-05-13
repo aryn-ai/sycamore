@@ -11,6 +11,7 @@ from ray.data import Dataset, read_binary_files, read_json
 
 from sycamore.data import Document
 from sycamore.plan_nodes import Scan
+from sycamore.utils.time_trace import TimeTrace
 
 
 logger = logging.getLogger(__name__)
@@ -122,6 +123,8 @@ class BinaryScan(FileScan):
         self._filter_paths_by_extension = filter_paths_by_extension
 
     def _to_document(self, dict: dict[str, Any]) -> dict[str, bytes]:
+        tt = TimeTrace("readBinary")
+        tt.start()
         document = Document()
 
         document.doc_id = str(uuid.uuid1())
@@ -136,7 +139,9 @@ class BinaryScan(FileScan):
         if self._metadata_provider:
             document.properties.update(self._metadata_provider.get_metadata(dict["path"]))
 
-        return {"doc": document.serialize()}
+        rv = {"doc": document.serialize()}
+        tt.end()
+        return rv
 
     def _file_mime_type(self):
         # binary_format is an extension, make it into a filename.

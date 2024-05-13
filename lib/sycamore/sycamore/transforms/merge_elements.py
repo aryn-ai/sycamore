@@ -7,6 +7,7 @@ from sycamore.data import Document, Element, BoundingBox
 from sycamore.plan_nodes import SingleThreadUser, NonGPUUser, Transform, Node
 from sycamore.utils import generate_map_class_from_callable
 from sycamore.functions.tokenizer import Tokenizer
+from sycamore.utils.time_trace import TimeTrace
 
 
 class ElementMerger(ABC):
@@ -38,6 +39,8 @@ class ElementMerger(ABC):
         """
         if len(document.elements) < 2:
             return document
+        tt = TimeTrace("mergeElem")
+        tt.start()
         to_merge = [self.preprocess_element(e) for e in document.elements]
         new_elements = [to_merge[0]]
         for element in to_merge[1:]:
@@ -46,6 +49,7 @@ class ElementMerger(ABC):
             else:
                 new_elements.append(element)
         document.elements = [self.postprocess_element(e) for e in new_elements]
+        tt.end()
         return document
 
 
@@ -152,6 +156,9 @@ class MarkedMerger(ElementMerger):
         if len(document.elements) < 1:
             return document
 
+        tt = TimeTrace("mergeMarked")
+        tt.start()
+
         # merge elements, honoring marked breaks and drops
         merged = []
         bin = b""
@@ -199,6 +206,7 @@ class MarkedMerger(ElementMerger):
             merged.append(ee)
 
         document.elements = merged
+        tt.end()
         return document
 
 

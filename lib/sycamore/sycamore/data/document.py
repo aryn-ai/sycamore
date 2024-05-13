@@ -18,7 +18,7 @@ class Document(UserDict):
 
             document = loads(document)
             if "metadata" in document:
-                raise ValueError("metadata must be unserialized with Document.unserialize not Document.__init__")
+                raise ValueError("metadata must be deserialized with Document.deserialize not Document.__init__")
 
         super().__init__(document, **kwargs)
         if "properties" not in self.data:
@@ -254,13 +254,12 @@ class MetadataDocument(Document):
 
     @property
     def metadata(self) -> dict[str, Any]:
-        """Internal metadata babout A collection of system or customer defined metadata, for instance,
-        a PDF document might have title and author metadata."""
+        """Internal metadata about processing."""
         return self.data.get("metadata", {})
 
     @metadata.setter
     def metadata(self, metadata: dict[str, Any]):
-        """Set all the proprites for this document."""
+        """Set all the properties for this document."""
         self.data["metadata"] = metadata
 
     @metadata.deleter

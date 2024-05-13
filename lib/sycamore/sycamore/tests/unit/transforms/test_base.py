@@ -2,10 +2,10 @@ import ray
 
 from sycamore.data import Document, MetadataDocument
 from sycamore.plan_nodes import Node
-from sycamore.transforms.base import BaseMap
+from sycamore.transforms.base import BaseMapTransform
 
 
-class TestBaseMap:
+class TestBaseMapTransform:
     dicts = [
         {"doc_id": "pb1", "doc": "Beat it or I'll call the Brute Squad."},
         {"doc_id": "pb2", "doc": "I'm on the Brute Squad."},
@@ -15,7 +15,7 @@ class TestBaseMap:
 
     @staticmethod
     def input_node(mocker):
-        input_dataset = ray.data.from_items([{"doc": Document(d).serialize()} for d in TestBaseMap.dicts])
+        input_dataset = ray.data.from_items([{"doc": Document(d).serialize()} for d in TestBaseMapTransform.dicts])
         node = mocker.Mock(spec=Node)
         execute = mocker.patch.object(node, "execute")
         execute.return_value = input_dataset
@@ -49,7 +49,7 @@ class TestBaseMap:
 
     def test_simple(self, mocker):
         (docs, mds) = self.outputs(
-            BaseMap(self.input_node(mocker), f=self.fn_a, args=["simple"], kwargs={"extra2": "kwarg"})
+            BaseMapTransform(self.input_node(mocker), f=self.fn_a, args=["simple"], kwargs={"extra2": "kwarg"})
         )
 
         ndocs = self.ndocs
@@ -98,8 +98,8 @@ class TestBaseMap:
             assert id_to_num[from_ids[0]] == id_to_num[to_ids[0]]
 
     def test_passthrough(self, mocker):
-        a = BaseMap(self.input_node(mocker), f=self.fn_a, args=["simple"])
-        b = BaseMap(a, f=lambda x: x)
+        a = BaseMapTransform(self.input_node(mocker), f=self.fn_a, args=["simple"])
+        b = BaseMapTransform(a, f=lambda x: x)
         (docs, mds) = self.outputs(b)
         ndocs = self.ndocs
 
@@ -171,7 +171,7 @@ class TestBaseMap:
                 return ret
 
         (docs, mds) = self.outputs(
-            BaseMap(
+            BaseMapTransform(
                 self.input_node(mocker),
                 f=Test,
                 constructor_args=["c1"],
@@ -213,7 +213,7 @@ class TestBaseMap:
                 assert lid_to_did[md["lid"]] == md["id"]
                 assert md["a"] == "c1"
                 assert md["b"] == "c2"
-                # relies on ray preserving order
+                # relies on ray preserving order, verifies we make a single instance of the class.
                 assert md["c"] == c
                 c = c + 1
                 assert md["e"] == "a1"

@@ -22,9 +22,9 @@ def rename(new_function_name: str):
     return decorator
 
 
-class BaseMap(UnaryNode):
+class BaseMapTransform(UnaryNode):
     """
-    BaseMap abstracts away MetadataDocuments from all other transforms.
+    BaseMapTransform abstracts away MetadataDocuments from all other transforms.
     """
 
     def __init__(
@@ -69,7 +69,7 @@ class BaseMap(UnaryNode):
 
         @rename(name)
         def ray_callable(ray_input: dict[str, np.ndarray]) -> dict[str, list]:
-            return BaseMap._process_ray(ray_input, name, lambda d: f(d, *args, **kwargs))
+            return BaseMapTransform._process_ray(ray_input, name, lambda d: f(d, *args, **kwargs))
 
         return ray_callable
 
@@ -85,9 +85,9 @@ class BaseMap(UnaryNode):
             self.base = c(*c_args, **c_kwargs)
 
         def ray_callable(self, ray_input: dict[str, np.ndarray]) -> dict[str, list]:
-            return BaseMap._process_ray(ray_input, name, lambda d: self.base(d, *args, **kwargs))
+            return BaseMapTransform._process_ray(ray_input, name, lambda d: self.base(d, *args, **kwargs))
 
-        return type("BaseMapCustom__" + name, (), {"__init__": ray_init, "__call__": ray_callable})
+        return type("BaseMapTransformCustom__" + name, (), {"__init__": ray_init, "__call__": ray_callable})
 
     @staticmethod
     def _process_ray(
@@ -113,7 +113,7 @@ class BaseMap(UnaryNode):
             )
 
         to_docs = [d for d in outputs if not isinstance(d, MetadataDocument)]
-        outputs.extend(BaseMap._update_lineage(docs, to_docs))
+        outputs.extend(BaseMapTransform._update_lineage(docs, to_docs))
         outputs.extend(metadata)
         return {"doc": [d.serialize() for d in outputs]}
 

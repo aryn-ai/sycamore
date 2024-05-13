@@ -30,7 +30,7 @@ def check_embedder(embedder: Embedder, expected_dim: int):
                 "doc_id": f"doc_{i}",
                 "type": "test",
                 "text_representation": passage,
-                "elements": {"array": []},
+                "elements": [],
                 "properties": {},
             }
         )
@@ -60,7 +60,7 @@ def test_openai_embedding_batches():
                 "doc_id": f"doc_{i}",
                 "type": "test",
                 "text_representation": f"Document text for passage {i}",
-                "elements": {"array": []},
+                "elements": [],
                 "properties": {},
             }
         )

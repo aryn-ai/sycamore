@@ -68,7 +68,7 @@ export class Settings {
     activeConversation: string = "";
     simplify: boolean = false;
     auto_filter: boolean = false;
-    required_filters: string[] = [];
+    required_filters: string[] = ["_product_codes"];
 
     public constructor(init?: Partial<Settings>) {
         Object.assign(this, init);

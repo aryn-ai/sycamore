@@ -7,7 +7,7 @@ import threading
 
 class TimeTrace:
     fd = -1
-    
+
     def __init__(self, name: str):
         self.name = name.encode()
         self._setup()

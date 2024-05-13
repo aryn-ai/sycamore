@@ -1,4 +1,6 @@
-from sycamore.data import BoundingBox, Document, Element
+import pytest
+
+from sycamore.data import BoundingBox, Document, Element, MetadataDocument
 
 
 class TestElement:
@@ -97,4 +99,30 @@ class TestDocument:
         serde = Document(document.serialize())
         print(serde.data)
 
+        assert "lineage_id" in serde.data
+        del serde.data["lineage_id"]
         assert serde.data == dict
+
+
+class TestMetadataDocument:
+    def test_fail_constructor(self):
+        md = MetadataDocument(nobel="curie")
+        ser = md.serialize()
+        with pytest.raises(ValueError):
+            Document(ser)
+
+    def test_becomes_md_doc(self):
+        md = MetadataDocument(nobel="curie")
+        assert md.metadata["nobel"] == "curie"
+        ser = md.serialize()
+        d = Document.deserialize(ser)
+        assert isinstance(d, MetadataDocument)
+        assert isinstance(d, Document)
+        assert d.metadata["nobel"] == "curie"
+
+    def test_document_remains_unchanged(self):
+        orig = Document(nobel="curie")
+        d = Document.deserialize(orig.serialize())
+        assert not isinstance(d, MetadataDocument)
+        assert isinstance(d, Document)
+        assert orig.lineage_id == d.lineage_id

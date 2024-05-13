@@ -24,7 +24,6 @@ sphinx = { version = "^7.2.5", optional = true }
 rouge = "^1.0.1"
 
 
-
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"
 pytest = "^7.4"
@@ -48,9 +47,6 @@ jupyter-lsp = "^2.2.2"
 ipywidgets = "^8.1.0"
 notebook = "^7.1.2"
 
-[tool.poetry.group.docker.dependencies]
-requests = "^2"
-redis-om = "^0.2"
 
 [tool.poetry.group.crawler.dependencies]
 scrapy = "^2.11.1"
@@ -78,7 +74,7 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
-pythonpath = [ "." ]
+pythonpath = ["."]
 
 [tool.poetry-autolock.dependents]
 integration = "apps/integration"

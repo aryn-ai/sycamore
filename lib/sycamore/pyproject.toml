@@ -51,6 +51,7 @@ rouge = "^1.0.1"
 pypdf2 = "^3.0.1"
 pytesseract = "^0.3.10"
 easyocr = "^1.7.1"
+weaviate-client = "^4.6.0"
 
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"
@@ -72,7 +73,7 @@ ipywidgets = "^8.1.0"
 
 [tool.poetry.group.docker.dependencies]
 requests = "^2"
-redis-om = "^0.2"
+redis-om = "^0.3"
 
 [tool.poetry.extras]
 docs = ["furo", "myst-parser", "sphinx"]
@@ -96,4 +97,4 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
-pythonpath = [ "." ]
+pythonpath = ["."]

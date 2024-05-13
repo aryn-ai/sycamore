@@ -11,8 +11,7 @@ python = ">=3.9,<3.12"
 # required older version
 protobuf = "4.25.3" # rps
 fsspec = "2024.2.0" # sycamore (via datasets)
-pydantic = "1.10.14" # sycamore
-pillow = "10.2.0" # sycamore -- type hints don't work with 10.3.0
+pillow = "10.2.0"   # sycamore -- type hints don't work with 10.3.0
 # Make sure tests are run in the same order.
 # the following will fail which prevents upgrading pytest to 8.1.1
 # poetry run pytest lib/sycamore/sycamore/tests/unit/scans/test_materialized_scan.py lib/sycamore/sycamore/tests/unit/test_docset.py
@@ -52,4 +51,4 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
-pythonpath = [ "." ]
+pythonpath = ["."]

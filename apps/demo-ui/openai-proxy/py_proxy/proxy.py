@@ -28,9 +28,7 @@ app = Flask("proxy", static_folder=None)
 HOST = sys.argv[1] if len(sys.argv) > 1 else "localhost"
 PORT = int(sys.argv[2]) if len(sys.argv) > 2 else 3000
 
-CORS(
-    app, resources={r"/*": {"origins": "*"}}
-)  # Allow requests from http://localhost:3001 to any route
+CORS(app, resources={r"/*": {"origins": "*"}})  # Allow requests from http://localhost:3001 to any route
 
 # Replace this with your actual OpenAI API key
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
@@ -44,9 +42,7 @@ anthropic_client = anthropic.Anthropic()
 
 ANTHROPIC_RAG_PROMPT = ""
 current_directory = os.path.dirname(__file__)
-anthropic_rag_prompt_filepath = os.path.join(
-    current_directory, "anthropic_rag_prompt.txt"
-)
+anthropic_rag_prompt_filepath = os.path.join(current_directory, "anthropic_rag_prompt.txt")
 with open(anthropic_rag_prompt_filepath, "r") as file:
     ANTHROPIC_RAG_PROMPT = file.read()
 print("Using anthropic prompt: " + ANTHROPIC_RAG_PROMPT)
@@ -103,14 +99,11 @@ def proxy_stream_request():
         verify=False,
     )
 
-    print(
-        f"Outgoing Request - URL: {response.url}, Status Code: {response.status_code}"
-    )
+    print(f"Outgoing Request - URL: {response.url}, Status Code: {response.status_code}")
 
     # Check if the response is a streaming response
     is_streaming_response = (
-        "Transfer-Encoding" in response.headers
-        and response.headers["Transfer-Encoding"] == "chunked"
+        "Transfer-Encoding" in response.headers and response.headers["Transfer-Encoding"] == "chunked"
     )
 
     if is_streaming_response:
@@ -122,9 +115,7 @@ def proxy_stream_request():
                 for chunk in response.iter_content(chunk_size=1024):
                     yield chunk
 
-            return Response(
-                generate_chunks(), response.status_code, response.headers.items()
-            )
+            return Response(generate_chunks(), response.status_code, response.headers.items())
 
         return stream_response()
     else:
@@ -174,9 +165,7 @@ def proxy_local(arg):
 
 
 def make_openai_call(messages, model_id="gpt-4"):
-    response = openai.ChatCompletion.create(
-        model=model_id, messages=messages, temperature=0.0, stream=False
-    )
+    response = openai.ChatCompletion.create(model=model_id, messages=messages, temperature=0.0, stream=False)
 
     return response
 
@@ -385,9 +374,7 @@ def opensearch_version(retries=3):
         return response.json()["version"]["number"], 200
     except Exception as e:
         if retries <= 0:
-            logger.error(
-                f"OpenSearch not standing at {OPENSEARCH_URL}. Out of retries. Final error {e}"
-            )
+            logger.error(f"OpenSearch not standing at {OPENSEARCH_URL}. Out of retries. Final error {e}")
             return "OpenSearch not found", 503
         logger.warning(
             f"OpenSearch not standing at {OPENSEARCH_URL}. Retrying in 1 sec. {retries-1} retries left. error {e}"

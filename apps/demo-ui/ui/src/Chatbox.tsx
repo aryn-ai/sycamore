@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Dispatch, SetStateAction, useRef, useState } from 'react';
-import { ActionIcon, Anchor, Badge, Button, Card, Center, Chip, Container, Flex, Group, HoverCard, JsonInput, Loader, Modal, NativeSelect, ScrollArea, Skeleton, Stack, Text, TextInput, Title, UnstyledButton, createStyles, useMantineTheme } from '@mantine/core';
-import { IconSearch, IconChevronRight, IconLink, IconFileTypeHtml, IconFileTypePdf, IconX, IconEdit, IconPlayerPlayFilled, IconPlus } from '@tabler/icons-react';
+import { ActionIcon, Anchor, Badge, Box, Button, Card, Center, Chip, Container, Flex, Group, HoverCard, Image, JsonInput, Loader, Modal, NativeSelect, ScrollArea, Skeleton, Stack, Text, TextInput, Title, UnstyledButton, createStyles, useMantineTheme } from '@mantine/core';
+import { IconSearch, IconChevronRight, IconLink, IconFileTypeHtml, IconFileTypePdf, IconX, IconEdit, IconPlayerPlayFilled, IconPlus, IconSettings, IconInfoCircle } from '@tabler/icons-react';
 import { IconThumbUp, IconThumbUpFilled, IconThumbDown, IconThumbDownFilled } from '@tabler/icons-react';
 import { getFilters, rephraseQuestion } from './Llm';
 import { SearchResultDocument, Settings, SystemChat } from './Types';
@@ -9,16 +9,39 @@ import { hybridConversationSearch, updateInteractionAnswer, updateFeedback, getH
 import { DocList } from './Doclist';
 import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { Prism } from '@mantine/prism';
+import { ControlPanel } from './Controlpanel';
 
 const useStyles = createStyles((theme) => ({
+
     inputBar: {
-        [theme.fn.largerThan('sm')]: {
-            width: "40em",
-            size: "sm"
-        },
+        width: '50vw',
         [theme.fn.smallerThan('sm')]: {
-            size: "md"
+            width: '100%',
         },
+    },
+    fixedBottomContainer: {
+        margin: 0,
+        maxWidth: 'none',
+        bottom: 0,
+        borderTop: '1px solid lightgrey',
+        flex: 1,
+    },
+    settingsIcon: {
+        // left,
+        
+        zIndex: 1000
+    },
+    chatHistoryContainer: {
+        height: `calc(100vh - 17em)`,
+    },
+    settingsStack: {
+        position: 'absolute',
+        top: 10,
+        right: 0,
+        alignItems: 'end'
+    },
+    chatFlex: {
+        paddingBottom: 0,
     }
 }))
 
@@ -65,8 +88,11 @@ const Citation = ({ document, citationNumber }: { document: SearchResultDocument
         </HoverCard>
     );
 }
-const FilterInput = ({ settings, filtersInput, setFiltersInput, disableFilters }: { settings: Settings, filtersInput: any, setFiltersInput: any, disableFilters: any }) => {
+const FilterInput = ({ settings, filtersInput, setFiltersInput, filterError, setFilterError }: { settings: Settings, filtersInput: any, setFiltersInput: any, filterError: boolean, setFilterError: any }) => {
     const handleInputChange = (filterName: string, value: string) => {
+        if(filterError) {
+            setFilterError(false);
+        }
         setFiltersInput((prevValues: any) => ({
             ...prevValues,
             [filterName]: value,
@@ -80,16 +106,14 @@ const FilterInput = ({ settings, filtersInput, setFiltersInput, disableFilters }
                     <Group spacing="0">
                         <Text size="xs">{required_filter}</Text>
                         <TextInput
-                            disabled={disableFilters}
                             onChange={(e) => handleInputChange(required_filter, e.target.value)}
                             value={filtersInput[required_filter] || ''}
                             autoFocus
                             required
-                            error={!disableFilters && (filtersInput[required_filter] == null || filtersInput[required_filter] == "")}
+                            error={filterError }
                             size="xs"
                             fz="xs"
-                            p="sm"
-                            mb="xs"
+                            pl="sm"
                         />
                     </Group>
                 ))
@@ -238,7 +262,7 @@ const OpenSearchQueryEditor = ({ openSearchQueryEditorOpened, openSearchQueryEdi
                         editing: false,
                         hits: []
                     });
-                setChatHistory([newSystemChat, ...chatHistory,]);
+                setChatHistory([...chatHistory, newSystemChat]);
             }
             const startTime = new Date(Date.now());
             await Promise.all([
@@ -510,7 +534,7 @@ const SystemChatBox = ({ systemChat, chatHistory, settings, handleSubmit, setCha
                         hits: parsedOpenSearchResults.documents,
                         filterContent: newFilterContent
                     });
-                setChatHistory([newSystemChat, ...chatHistory,]);
+                setChatHistory([...chatHistory, newSystemChat]);
             }
 
 
@@ -598,9 +622,19 @@ const SystemChatBox = ({ systemChat, chatHistory, settings, handleSubmit, setCha
                     : null}
             </Text>
             <DocList documents={systemChat.hits} settings={settings} docsLoading={false}></DocList>
-            <Text fz="xs" fs="italic" color="dimmed" p="xs">
-                Interaction id: {systemChat.interaction_id ? systemChat.interaction_id : "[todo]"}
-            </Text>
+            <Stack p='xs' spacing='0'>
+                {systemChat.originalQuery !== "" && systemChat.originalQuery !== systemChat.queryUsed ? 
+                    <Text fz="xs" fs="italic" color="dimmed">
+                            Original Query: {systemChat.originalQuery}
+                    </Text>
+                    :
+                    null
+                }
+                <Text fz="xs" fs="italic" color="dimmed">
+                    Interaction id: {systemChat.interaction_id ? systemChat.interaction_id : ""} 
+                </Text>
+            </Stack>
+            
 
             <FeedbackButtons systemChat={systemChat} settings={settings} />
         </Card >
@@ -816,10 +850,23 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
     const [openSearchQueryEditorOpened, openSearchQueryEditorOpenedHandlers] = useDisclosure(false);
     const {classes} = useStyles();
     const mobileScreen = useMediaQuery(`(max-width: ${theme.breakpoints.sm})`);
+    const [containerWidth, setContainerWidth] = useState(null);
+    const [settingsOpened, settingsHandler] = useDisclosure(false);
+    const [filterError, setFilterError] = useState(false);
+    const scrollAreaRef = useRef<HTMLDivElement>(null);
+
 
     useEffect(() => {
         setCurrentOsUrl("/opensearch/" + settings.openSearchIndex + "/_search?");
     }, [settings.openSearchIndex]);
+
+    const scrollToBottom = () => {
+        scrollAreaRef.current?.scrollTo({ top: scrollAreaRef.current.scrollHeight});
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [chatHistory, streaming])
 
     // This method does all the search workflow execution
     const handleSubmitParallelDocLoad = async (e: React.FormEvent) => {
@@ -878,6 +925,7 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
             }
             console.log("Filters are: ", filters)
             let question: string = chatInput;
+            let originalQuestion: string = question;
             if (questionRewriting) {
                 setLoadingMessage("Rephrasing question with conversation context");
                 const rephraseQuestionResponse = await rephraseQuestion(chatInput, chatHistoryInteractions, settings.modelName)
@@ -923,10 +971,11 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
                         ragPassageCount: settings.ragPassageCount,
                         modelName: settings.modelName,
                         queryUsed: question,
+                        originalQuery: originalQuestion,
                         hits: parsedOpenSearchResults.documents,
                         filterContent: filterContent
-                    });
-                setChatHistory([newSystemChat, ...chatHistory,]);
+                    });                    
+                setChatHistory([...chatHistory, newSystemChat]);
             }
             const populateDocsFromOs = (openSearchResults: any) => {
                 console.log("Info separate processor ", openSearchResults)
@@ -971,6 +1020,13 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
 
     // This method does all the search workflow execution
     const handleSubmit = async (e: React.FormEvent) => {
+        if(!disableFilters && settings.required_filters.length > 0) {
+            const someNonEmptyValues = Object.keys(filtersInput).length === 0 || Object.keys(filtersInput).some((key) => filtersInput[key] === '');
+            if(someNonEmptyValues) {
+                setFilterError(true);
+                return;
+            }
+        }
         return handleSubmitParallelDocLoad(e)
     };
 
@@ -988,8 +1044,7 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
         chatInputRef.current?.focus();
     }, [streaming]);
     return (
-        
-        <Flex p={mobileScreen ? 0 : 30} direction="column">
+        <>
             <OpenSearchQueryEditor
                 openSearchQueryEditorOpened={openSearchQueryEditorOpened}
                 openSearchQueryEditorOpenedHandlers={openSearchQueryEditorOpenedHandlers}
@@ -1000,52 +1055,91 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
                 setLoadingMessage={setLoadingMessage}
                 chatHistory={chatHistory}
                 setChatHistory={setChatHistory} />
-                <Container p="md">
-                    <form onSubmit={handleSubmit} className="input-form">
-                        <TextInput
-                            className={classes.inputBar}
-                            onKeyDown={handleInputKeyPress}
-                            onChange={handleInputChange}
-                            ref={chatInputRef}
-                            value={chatInput}
-                            icon={<IconSearch size="1.1rem" stroke={1.5} />}
-                            radius="xl"
-                            autoFocus
-                            fz="xs"
-                            p="sm"
-                            rightSection={
-                                <ActionIcon size={mobileScreen ? 36 : 32} radius="xl" bg="#5688b0" variant="filled">
-                                    <IconChevronRight size="1rem" stroke={2} onClick={handleSubmit} />
-                                </ActionIcon>
-                            }
-                            placeholder="Ask me anything"
-                            disabled={settings.activeConversation == null}
-                        />
-                    </form>
-                </Container>
-                {settings.required_filters.length > 0 ? <FilterInput settings={settings} filtersInput={filtersInput} setFiltersInput={setFiltersInput} disableFilters={disableFilters} /> : null}
-                <SearchControlPanel disableFilters={disableFilters} setDisableFilters={setDisableFilters} questionRewriting={questionRewriting} setQuestionRewriting={setQuestionRewriting}
-                    queryPlanner={queryPlanner} setQueryPlanner={setQueryPlanner} chatHistory={chatHistory} setChatHistory={setChatHistory} openSearchQueryEditorOpenedHandlers={openSearchQueryEditorOpenedHandlers} settings={settings}></SearchControlPanel>
-                <Center>
-                    <Text fz="xs" color="dimmed">
+            <ControlPanel settings={settings} setSettings={setSettings} controlPanelOpened={settingsOpened} onControlPanelClose={settingsHandler.close} />
+            <Flex pt={32} direction="column" pos='relative' className={classes.chatFlex}>
+                <Stack className={classes.settingsStack} spacing='0'>
+                    <Text fz="xs" color="dimmed" >
                         Active conversation: {settings.activeConversation ? settings.activeConversation : "None"}
                     </Text>
-                </Center>
-            {loadingMessage ? <LoadingChatBox loadingMessage={loadingMessage} /> : null}
-            <Center>
-                {streaming ? <Loader size="xs" variant="dots" m="md" /> : ""}
-            </Center>
-            <Stack>
+                    <ActionIcon variant="transparent" className={classes.settingsIcon} onClick={settingsHandler.open}>
+                        <IconSettings size="1.625rem" />
+                    </ActionIcon>
+                </Stack>
+                {chatHistory.length === 0 && !loadingMessage && !streaming ? 
+                            <Stack align='center' justify='center' className={classes.chatHistoryContainer} spacing='xs'>
+                                <Image width='4em' src="./logo_only.png" />
+                                <Text>How can I help you today?</Text>
+                            </Stack>
 
-                {chatHistory.map((chat, index) => {
-                    return <SystemChatBox key={chat.id + "_system"} systemChat={chat} chatHistory={chatHistory} settings={settings} handleSubmit={handleSubmit}
-                        setChatHistory={setChatHistory} setSearchResults={setSearchResults} setErrorMessage={setErrorMessage}
-                        setLoadingMessage={setLoadingMessage} setCurrentOsQuery={setCurrentOsQuery} setCurrentOsUrl={setCurrentOsUrl} openSearchQueryEditorOpenedHandlers={openSearchQueryEditorOpenedHandlers} />
-                }
-                )
-                }
-            </Stack>
-        </Flex >
+                            :
+                <ScrollArea className={classes.chatHistoryContainer} viewportRef={scrollAreaRef}>
+                    <Container w='50rem' >
+                        
+                        <Stack >
+
+                            {chatHistory.map((chat, index) => {
+                                return <SystemChatBox key={chat.id + "_system"} systemChat={chat} chatHistory={chatHistory} settings={settings} handleSubmit={handleSubmit}
+                                    setChatHistory={setChatHistory} setSearchResults={setSearchResults} setErrorMessage={setErrorMessage}
+                                    setLoadingMessage={setLoadingMessage} setCurrentOsQuery={setCurrentOsQuery} setCurrentOsUrl={setCurrentOsUrl} openSearchQueryEditorOpenedHandlers={openSearchQueryEditorOpenedHandlers} />
+                            }
+                            )
+                            }
+                            {loadingMessage ? <LoadingChatBox loadingMessage={loadingMessage} /> : null}
+                            
+                            <Center>
+                                {streaming ? <Loader size="xs" variant="dots" m="md" /> : ""}
+                            </Center>
+                        </Stack>
+                       
+                        
+                    </Container>
+                </ScrollArea>
+                 }
+                
+                
+            </Flex >
+            {/* <Flex  justify="center" >  */}
+                    
+                    <Container  className={classes.fixedBottomContainer}>
+                        <Group position={!disableFilters && settings.required_filters.length > 0 ? "apart" : 'right'} w='65vw' ml='auto' mr='auto' p='sm' h='3.5em'>
+                            {!disableFilters && settings.required_filters.length > 0 ? <FilterInput settings={settings} filtersInput={filtersInput} setFiltersInput={setFiltersInput} filterError={filterError} setFilterError={setFilterError} /> : null}
+                            
+                            <SearchControlPanel disableFilters={disableFilters} setDisableFilters={setDisableFilters} questionRewriting={questionRewriting} setQuestionRewriting={setQuestionRewriting}
+                                queryPlanner={queryPlanner} setQueryPlanner={setQueryPlanner} chatHistory={chatHistory} setChatHistory={setChatHistory} openSearchQueryEditorOpenedHandlers={openSearchQueryEditorOpenedHandlers} settings={settings}></SearchControlPanel>
+                        </Group>
+                        <Center>
+                        {/* <form onSubmit={handleSubmit} className="input-form" > */}
+                            <TextInput
+
+                                className={classes.inputBar}
+                                onKeyDown={handleInputKeyPress}
+                                onChange={handleInputChange}
+                                ref={chatInputRef}
+                                value={chatInput}
+                                // icon={<IconSearch size="1.1rem" stroke={1.5} />}
+                                radius="xl"
+                                autoFocus
+                                size='lg'
+                                rightSection={
+                                    <ActionIcon size={40} radius="xl" bg="#5688b0" variant="filled">
+                                        <IconChevronRight size="1rem" stroke={2} onClick={handleSubmit} />
+                                    </ActionIcon>
+                                }
+                                placeholder="Ask me anything"
+                                disabled={settings.activeConversation == null}
+                            />
+                        {/* </form> */}
+                        </Center>
+                        <Group align='center' position='center' spacing='0.2rem' pt='0.2rem'>
+                            <IconInfoCircle size='0.8rem' stroke={2}/>
+                            <Text size='0.7rem' truncate >
+                            Always refer to the original source document to consider warnings and important notices.
+                            </Text>
+                        </Group>
+                            
+                    </Container>
+                {/* </Flex > */}
+        </>
     );
 }
 export const thumbToBool = (thumbValue: string) => {

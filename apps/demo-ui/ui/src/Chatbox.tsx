@@ -1205,47 +1205,42 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
                 
                 
             </Flex >
-            {/* <Flex  justify="center" >  */}
+            <Container  className={classes.fixedBottomContainer}>
+                <Group position={!disableFilters && settings.required_filters.length > 0 ? "apart" : 'right'} w='65vw' ml='auto' mr='auto' p='sm' h='3.5em'>
+                    {!disableFilters && settings.required_filters.length > 0 ? <FilterInput settings={settings} filtersInput={filtersInput} setFiltersInput={setFiltersInput} filterError={filterError} setFilterError={setFilterError} /> : null}
                     
-                    <Container  className={classes.fixedBottomContainer}>
-                        <Group position={!disableFilters && settings.required_filters.length > 0 ? "apart" : 'right'} w='65vw' ml='auto' mr='auto' p='sm' h='3.5em'>
-                            {!disableFilters && settings.required_filters.length > 0 ? <FilterInput settings={settings} filtersInput={filtersInput} setFiltersInput={setFiltersInput} filterError={filterError} setFilterError={setFilterError} /> : null}
-                            
-                            <SearchControlPanel disableFilters={disableFilters} setDisableFilters={setDisableFilters} questionRewriting={questionRewriting} setQuestionRewriting={setQuestionRewriting}
-                                queryPlanner={queryPlanner} setQueryPlanner={setQueryPlanner} chatHistory={chatHistory} setChatHistory={setChatHistory} openSearchQueryEditorOpenedHandlers={openSearchQueryEditorOpenedHandlers} settings={settings}></SearchControlPanel>
-                        </Group>
-                        <Center>
-                        {/* <form onSubmit={handleSubmit} className="input-form" > */}
-                            <TextInput
+                    <SearchControlPanel disableFilters={disableFilters} setDisableFilters={setDisableFilters} questionRewriting={questionRewriting} setQuestionRewriting={setQuestionRewriting}
+                        queryPlanner={queryPlanner} setQueryPlanner={setQueryPlanner} chatHistory={chatHistory} setChatHistory={setChatHistory} openSearchQueryEditorOpenedHandlers={openSearchQueryEditorOpenedHandlers} settings={settings}></SearchControlPanel>
+                </Group>
+                <Center>
+                    <TextInput
 
-                                className={classes.inputBar}
-                                onKeyDown={handleInputKeyPress}
-                                onChange={handleInputChange}
-                                ref={chatInputRef}
-                                value={chatInput}
-                                // icon={<IconSearch size="1.1rem" stroke={1.5} />}
-                                radius="xl"
-                                autoFocus
-                                size='lg'
-                                rightSection={
-                                    <ActionIcon size={40} radius="xl" bg="#5688b0" variant="filled">
-                                        <IconChevronRight size="1rem" stroke={2} onClick={handleSubmit} />
-                                    </ActionIcon>
-                                }
-                                placeholder="Ask me anything"
-                                disabled={settings.activeConversation == null}
-                            />
-                        {/* </form> */}
-                        </Center>
-                        <Group align='center' position='center' spacing='0.2rem' pt='0.2rem'>
-                            <IconInfoCircle size='0.8rem' stroke={2}/>
-                            <Text size='0.7rem' truncate >
-                            Always refer to the original source document to consider warnings and important notices.
-                            </Text>
-                        </Group>
-                            
-                    </Container>
-                {/* </Flex > */}
+                        className={classes.inputBar}
+                        onKeyDown={handleInputKeyPress}
+                        onChange={handleInputChange}
+                        ref={chatInputRef}
+                        value={chatInput}
+                        // icon={<IconSearch size="1.1rem" stroke={1.5} />}
+                        radius="xl"
+                        autoFocus
+                        size='lg'
+                        rightSection={
+                            <ActionIcon size={40} radius="xl" bg="#5688b0" variant="filled">
+                                <IconChevronRight size="1rem" stroke={2} onClick={handleSubmit} />
+                            </ActionIcon>
+                        }
+                        placeholder="Ask me anything"
+                        disabled={settings.activeConversation == null}
+                    />
+                </Center>
+                <Group align='center' position='center' spacing='0.2rem' pt='0.2rem'>
+                    <IconInfoCircle size='0.8rem' stroke={2}/>
+                    <Text size='0.7rem' truncate >
+                    Always refer to the original source document to consider warnings and important notices.
+                    </Text>
+                </Group>
+                    
+            </Container>
         </>
     );
 }

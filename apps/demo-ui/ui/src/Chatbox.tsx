@@ -516,7 +516,7 @@ const SystemChatBox = ({ systemChat, chatHistory, settings, handleSubmit, setCha
                 setLoadingMessage("Processing query...")
             }
             else {
-                setLoadingMessage("Processing part number query...")
+                setLoadingMessage("Processing query with filters...")
             }
             const populateChatFromOs = ({ openSearchResponse, query }: { openSearchResponse: any, query: any }) => {
                 console.log("New filter content is", newFilterContent)
@@ -568,7 +568,7 @@ const SystemChatBox = ({ systemChat, chatHistory, settings, handleSubmit, setCha
                 return { openSearchResponse, query }
             }
 
-            const part_number_rag = async (result: any) => {
+            const anthropic_rag = async (result: any) => {
                 const openSearchResponseAsync = result[0]
                 const query = result[1]
                 const openSearchResponse = await openSearchResponseAsync
@@ -595,7 +595,7 @@ const SystemChatBox = ({ systemChat, chatHistory, settings, handleSubmit, setCha
             else {
                 await Promise.all([
                     hybridSearchNoRag(newQuestion, parseFilters(newFilterContent, setErrorMessage), settings.openSearchIndex, settings.embeddingModel, true)
-                        .then(part_number_rag)
+                        .then(anthropic_rag)
                         .then(clean_rag).then(populateChatFromOs),
                 ]);
             }
@@ -1034,7 +1034,7 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
                 return { openSearchResponse, query }
             }
 
-            const part_number_rag = async (result: any) => {
+            const anthropic_rag = async (result: any) => {
                 const openSearchResponseAsync = result[0]
                 const query = result[1]
                 const openSearchResponse = await openSearchResponseAsync
@@ -1101,8 +1101,8 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
             else {
                 await Promise.all([
                     hybridSearchNoRag(question, parseFilters(filters, setErrorMessage), settings.openSearchIndex, settings.embeddingModel, true)
-                        .then(part_number_rag)
-                        .then(clean_rag).then(populateChatFromOs),  // Not entirely sure about the params here for hybridSearchNoRag function
+                        .then(anthropic_rag)
+                        .then(clean_rag).then(populateChatFromOs), 
                 ]);
             }
             

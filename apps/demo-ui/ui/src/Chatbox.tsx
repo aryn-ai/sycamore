@@ -851,7 +851,7 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
     const {classes} = useStyles();
     const mobileScreen = useMediaQuery(`(max-width: ${theme.breakpoints.sm})`);
     const [containerWidth, setContainerWidth] = useState(null);
-    const [opened, { open, close }] = useDisclosure(false);
+    const [settingsOpened, settingsHandler] = useDisclosure(false);
     const [filterError, setFilterError] = useState(false);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
 
@@ -1055,13 +1055,13 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
                 setLoadingMessage={setLoadingMessage}
                 chatHistory={chatHistory}
                 setChatHistory={setChatHistory} />
-            <ControlPanel settings={settings} setSettings={setSettings} controlPanelOpened={opened} onControlPanelClose={close} />
+            <ControlPanel settings={settings} setSettings={setSettings} controlPanelOpened={settingsOpened} onControlPanelClose={settingsHandler.close} />
             <Flex pt={32} direction="column" pos='relative' className={classes.chatFlex}>
                 <Stack className={classes.settingsStack} spacing='0'>
                     <Text fz="xs" color="dimmed" >
                         Active conversation: {settings.activeConversation ? settings.activeConversation : "None"}
                     </Text>
-                    <ActionIcon variant="transparent" className={classes.settingsIcon} onClick={open}>
+                    <ActionIcon variant="transparent" className={classes.settingsIcon} onClick={settingsHandler.open}>
                         <IconSettings size="1.625rem" />
                     </ActionIcon>
                 </Stack>

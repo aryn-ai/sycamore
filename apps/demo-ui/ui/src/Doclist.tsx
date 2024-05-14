@@ -61,7 +61,7 @@ const DocumentItem = ({ document }: { document: SearchResultDocument }) => {
                     </Card >
                 </HoverCard.Target>
                 <HoverCard.Dropdown>
-                    <Container>
+                    <ScrollArea h='20vh'>
                         <Title order={5}>{document.title}</Title>
                         <Anchor href={document.url} target="_blank">
                             <Text fz="xs">{document.url} </Text>
@@ -78,7 +78,7 @@ const DocumentItem = ({ document }: { document: SearchResultDocument }) => {
                             }
                         </Group>
                         <Text> {document.description}</Text>
-                    </Container>
+                    </ScrollArea>
                 </HoverCard.Dropdown>
             </HoverCard>
         </div >

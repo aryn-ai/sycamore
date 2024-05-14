@@ -72,7 +72,7 @@ export default function PdfViewer() {
             const response = await fetchPDFThroughProxy(pdfDocumentMetadata.url);
             setUrl(response);
 
-            const pageNum: number = pdfDocumentMetadata.properties.page_number ?? pdfDocumentMetadata.properties.page_numbers[0] ?? 1;
+            const pageNum: number = pdfDocumentMetadata.properties.boxes ?? pdfDocumentMetadata.properties.boxes[0] ?? 1;
             let boxObj: any = null;
             const bbox: number[] = pdfDocumentMetadata.bbox;
             if (bbox) {

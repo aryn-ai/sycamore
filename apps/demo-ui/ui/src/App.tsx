@@ -75,7 +75,7 @@ export default function App() {
         previousInteractions = [...previousInteractions, chat]
       })
       console.log("Setting previous interactions", previousInteractions)
-      setChatHistory(previousInteractions)
+      setChatHistory(previousInteractions.reverse())
       setLoadingConversation(false)
       setStreaming(false)
     }
@@ -146,11 +146,6 @@ export default function App() {
         navbarOffsetBreakpoint="sm"
         navbar={
             <ConversationListNavbar navBarOpened={navBarOpened} settings={settings} setSettings={setSettings} setErrorMessage={setErrorMessage} loadingConversation={loadingConversation} loadActiveConversation={loadActiveConversation} conversations={conversations} setConversations={setConversations} refreshConversations={refreshConversations} setChatHistory={setChatHistory} chatInputRef={chatInputRef} setNavBarOpened={setNavBarOpened}></ConversationListNavbar>
-        }
-        footer={
-          < Footer height={65} p="sm">
-            <ControlPanel settings={settings} setSettings={setSettings} reset={reset} />
-          </Footer >
         }
         styles={() => ({
           main: { backgroundColor: "white" },

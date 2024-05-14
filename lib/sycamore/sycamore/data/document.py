@@ -26,7 +26,13 @@ class Document(UserDict):
 
         if "elements" not in self.data or self.data["elements"] is None:
             self.data["elements"] = []
+        elif not isinstance(self.data["elements"], list):
+            raise ValueError("elements property should be a list")
         else:
+            elements = self.data["elements"]
+            for e in elements:
+                if not (isinstance(e, dict) or isinstance(e, UserDict)):
+                    raise ValueError(f"entries in elements property list must be dictionaries, not {type(e)}")
             self.data["elements"] = [create_element(**element) for element in self.data["elements"]]
 
         if "lineage_id" not in self.data:

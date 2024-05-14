@@ -103,6 +103,13 @@ class TestDocument:
         del serde.data["lineage_id"]
         assert serde.data == dict
 
+    def test_element_typechecking(self):
+        with pytest.raises(ValueError):
+            Document({"elements": {}})
+        with pytest.raises(ValueError):
+            Document({"elements": ["abc"]})
+        Document({"elements": [{"type": "special"}]})
+
 
 class TestMetadataDocument:
     def test_fail_constructor(self):

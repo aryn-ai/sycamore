@@ -75,7 +75,7 @@ export default function App() {
         previousInteractions = [chat, ...previousInteractions]
       })
       console.log("Setting previous interactions", previousInteractions)
-      setChatHistory(previousInteractions)
+      setChatHistory(previousInteractions.reverse())
       setLoadingConversation(false)
       setStreaming(false)
     }

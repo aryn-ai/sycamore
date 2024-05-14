@@ -120,6 +120,9 @@ const NewConversationInput = ({ refreshConversations, setErrorMessage, chatInput
     const mobileScreen = useMediaQuery(`(max-width: ${theme.breakpoints.md})`);
     
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if(error) {
+            setError(false);
+        }
         setNewConversationName(e.target.value);
     };
     async function handleSubmit() {
@@ -151,6 +154,11 @@ const NewConversationInput = ({ refreshConversations, setErrorMessage, chatInput
             handleSubmit();
         }
     };
+    const handleBlur = () => {
+        if(error) {
+            setError(false);
+        }
+    }
     
     return (
         <> 
@@ -164,13 +172,14 @@ const NewConversationInput = ({ refreshConversations, setErrorMessage, chatInput
                     radius="sm"
                     fz="xs"
                     size={mobileScreen ? "md" : "sm"}
-                    rightSection={
-                        <ActionIcon size={32} radius="sm" c={error ? 'red': '#5688b0'}>
-                            <IconMessagePlus size="1rem" stroke={2} onClick={handleSubmit} />
-                        </ActionIcon>
-                    }
+                    // rightSection={
+                    //     <ActionIcon size={32} radius="sm" c={error ? 'red': '#5688b0'}>
+                    //         <IconMessagePlus size="1rem" stroke={2} onClick={handleSubmit} />
+                    //     </ActionIcon>
+                    // }
                     placeholder="New conversation"
                     error={error ? "Conversation name cannot be empty" : ""}
+                    onBlur={handleBlur}
                 />
             </form>
         </>

@@ -44,6 +44,7 @@ export class SystemChat {
     response: string = "";
     hits: SearchResultDocument[] = new Array();
     queryUsed: string = "";
+    originalQuery: string = "";
     rawQueryUsed: string = "";
     rawResults: any = null;
     queryUrl: string = "";

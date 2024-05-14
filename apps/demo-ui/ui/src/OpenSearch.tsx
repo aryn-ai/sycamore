@@ -86,6 +86,13 @@ export const getHybridConversationSearchQuery = (question: string, rephrasedQues
     return { query, url }
 }
 
+
+export const hybridSearchNoRag = async (rephrasedQuestion: string, filters: any, index_name: string, embeddingModel: string, rerank: boolean) => {
+    let query: any = hybridSearch(rephrasedQuestion, filters, index_name, embeddingModel, rerank)
+    const url = "/opensearch/" + index_name + "/_search?search_pipeline=" + NO_RAG_SEARCH_PIPELINE
+    return [openSearchCall(query, url), query]
+}
+
 export const hybridConversationSearch = async (question: string, rephrasedQuestion: string, filters: any, conversationId: string, index_name: string, embeddingModel: string, llmModel: string, numDocs: number = 7) => {
     const { query, url } = getHybridConversationSearchQuery(question, rephrasedQuestion, filters, index_name, embeddingModel, llmModel, numDocs)
 

@@ -72,10 +72,10 @@ export default function App() {
         return systemChat;
       }));
       previousInteractionsUnFlattened.forEach((chat) => {
-        previousInteractions = [...previousInteractions, chat]
+        previousInteractions = [chat, ...previousInteractions]
       })
       console.log("Setting previous interactions", previousInteractions)
-      setChatHistory(previousInteractions.reverse())
+      setChatHistory(previousInteractions)
       setLoadingConversation(false)
       setStreaming(false)
     }

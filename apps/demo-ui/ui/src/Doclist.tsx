@@ -15,7 +15,17 @@ const DocumentItem = ({ document }: { document: SearchResultDocument }) => {
             localStorage.setItem('pdfDocumentMetadata', dataString);
             window.open('/viewPdf');
         } else if (document.hasAbsoluteUrl()) {
-            window.open(document.url);
+            if(document.id === 'index-1') {
+                // window.open(document.url + '#:~:text=' + 'Top%20Results,Phillip%20Griffith');
+                const newWindow = window.open("about:blank"); // Open a blank tab first
+                // newWindow?.focus();
+                setTimeout(() => {
+                    window.location.href = ( `${document.url}#:~:text=Top%20Results,Phillip%20Griffith`);
+                }, 0)
+            }
+            else {
+                window.open(document.url);
+            }
         } else if (document.url.startsWith("/")) {
             window.open("/viewLocal" + document.url);
         } else {
@@ -40,6 +50,66 @@ const DocumentItem = ({ document }: { document: SearchResultDocument }) => {
     }
     const parts: string[] = document.url.split("/");
     const filename: string = parts[parts.length - 1];
+    if(!document.isPdf() && document.hasAbsoluteUrl()) {
+        let redirectUrl = "";
+        if(document.id === 'index-1') {
+            redirectUrl = `${document.url}#:~:text=Top%20Results,Phillip%20Griffith`;
+        }
+        else if(document.id === 'index-0'){
+            redirectUrl = `${document.url}#:~:text=Sort%20Benchmark%20Home%20Page,Engineering%20Dept`;
+        }
+        else if(document.id === 'index-3') {
+            redirectUrl = `${document.url}#:~:text=GraySort,description%20document`;
+        }
+        else if(document.id === 'index-2') {
+            redirectUrl = `${document.url}#:~:text=Common%20Rules,under%20clocking`;
+        }
+        else {
+            redirectUrl = document.url;
+        }
+        return (
+            <div ref={ref}>
+                <HoverCard width="60%" shadow="md" position='bottom'>
+                    <HoverCard.Target>
+                        <Card mah="8rem" maw="20rem" w="auto" bg={hovered ? theme.colors.gray[1] : theme.colors.gray[0]} ml={theme.spacing.md} sx={{ cursor: 'pointer' }} shadow={hovered ? 'md' : 'none'} component="a" target="_blank"
+                            mb="sm" href={redirectUrl}>
+                            <Group p="xs" noWrap spacing="xs">
+                                <Badge size="xs" color="gray" variant="filled" sx={{ overflow: "visible" }} > {document.index}</Badge>
+                                <Text size="sm" c={hovered ? theme.colors.blue[8] : theme.colors.dark[8]} truncate>
+                                    {document.title != "Untitled" ? document.title :
+                                        (document.properties.entity ? document.properties.entity.accidentNumber ?? "Untitled": "Untitled")}
+                                </Text>
+                            </Group>
+                            <Group p="xs" noWrap spacing="xs">
+                                {icon()}
+                                <Text size="xs" color="gray.7" truncate>{filename}</Text>
+                            </Group>
+                        </Card >
+                    </HoverCard.Target>
+                    <HoverCard.Dropdown>
+                        <ScrollArea h='20vh'>
+                            <Title order={5}>{document.title}</Title>
+                            <Anchor href={document.url} target="_blank">
+                                <Text fz="xs">{document.url} </Text>
+                            </Anchor>
+                            <Group>
+                                {
+                                    "entity" in document.properties ? ["location", "aircraftType", "day"].map(key => {
+                                        if (document.properties.entity[key] != "None") return (
+                                            <Badge key={key} size="xs" variant="filled">
+                                                {key} {document.properties.entity[key]}
+                                            </Badge>
+                                        )
+                                    }) : null
+                                }
+                            </Group>
+                            <Text> {document.description}</Text>
+                        </ScrollArea>
+                    </HoverCard.Dropdown>
+                </HoverCard>
+            </div >
+        );
+    }
 
     return (
         <div ref={ref}>

@@ -78,6 +78,14 @@ class DocSetWriter:
         )
         os.execute()
 
+    def weaviate(
+        self, *, wv_client_args: dict, collection_name: str, collection_config: Optional[dict] = None, **resource_args
+    ) -> None:
+        from sycamore.writers import WeaviateWriter
+
+        wv = WeaviateWriter(self.plan, collection_name, wv_client_args, collection_config, **resource_args)
+        wv.execute()
+
     def files(
         self,
         path: str,

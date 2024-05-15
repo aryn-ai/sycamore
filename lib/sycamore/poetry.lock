@@ -6952,13 +6952,13 @@ files = [
 
 [[package]]
 name = "weaviate-client"
-version = "4.6.0"
+version = "4.6.1"
 description = "A python native Weaviate client"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "weaviate_client-4.6.0-py3-none-any.whl", hash = "sha256:4c9608ba5d495d1fe28e451aca057086cb55242bb8432bfb0008f433eef7a6ab"},
-    {file = "weaviate_client-4.6.0.tar.gz", hash = "sha256:5cc6c8b2a6f9122b34ffa688070e5060ab044fe72a4a9233eb9938c6067866b8"},
+    {file = "weaviate_client-4.6.1-py3-none-any.whl", hash = "sha256:0db94e5c87f92c9490d90f6de6637baa55dc0d92a3750dd782667b7e5d718ca3"},
+    {file = "weaviate_client-4.6.1.tar.gz", hash = "sha256:6d3351f20dd98e3936351473c305ff7660c5ec4bd8b5ad1f11593ef60e8058f6"},
 ]
 
 [package.dependencies]
@@ -7369,4 +7369,4 @@ docs = ["furo", "myst-parser", "sphinx"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.12"
-content-hash = "55276fddfc3cf651cc116662ecf3f16b59c416cd7843b733ea4d5b9809812a9a"
+content-hash = "9f1dc612cddce7f044c8d041303d988b40927cbcb20a018ad5cf4d95816406d1"

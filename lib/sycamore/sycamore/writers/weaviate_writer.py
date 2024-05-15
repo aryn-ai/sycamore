@@ -8,6 +8,7 @@ from ray.data.block import Block, BlockAccessor
 from sycamore.data.document import Document
 from sycamore.plan_nodes import Node, Write
 from weaviate import WeaviateClient
+from weaviate.collections.classes.data import DataReference
 
 
 class WeaviateWriter(Write):
@@ -64,39 +65,38 @@ class WeaviateDatasink(Datasink):
             block = builder.build()
             client = WeaviateClient(**self._client_params)
             with client:
-                client.collections.get(self._collection_name)
-                with client.collections.get(self._collection_name).batch.dynamic() as batch:
-
-                    for obj in self._extract_weaviate_objects(block):
-                        print(f"id: {obj['uuid']}\ntitle: {obj['properties']['properties']['title']}\n")
-                        # vec = obj.pop('vector')
-                        # print(json.dumps(obj, indent=2))
-                        # if vec:
-                        #     obj['vector'] = vec
+                collection = client.collections.get(self._collection_name)
+                with collection.batch.dynamic() as batch:
+                    objects = self._extract_weaviate_objects(block)
+                    refs = []
+                    for obj in objects:
+                        if "references" in obj:
+                            obj_refs = obj.pop("references")
+                            for k, v in obj_refs.items():
+                                refs.append(DataReference(from_uuid=obj["uuid"], from_property=k, to_uuid=v))
                         batch.add_object(**obj)
                     batch.flush()
+                    for ref in refs:
+                        batch.add_reference(from_uuid=ref.from_uuid, from_property=ref.from_property, to=ref.to_uuid)
         except Exception as e:
             print(e)
 
     @staticmethod
     def _extract_weaviate_objects(block):
-        import json
-
         records = BlockAccessor.for_block(block).to_arrow().to_pylist()
         print(len(records))
 
-        # print([Document.from_row(r) for r in records])
         def record_to_object(record):
             default = {
                 "doc_id": None,
-                "type": None,
-                "text_representation": None,
+                "type": "",
+                "text_representation": "",
                 "elements": [],
                 "embedding": None,
                 "parent_id": None,
                 "properties": {},
-                "bbox": None,
-                "shingles": None,
+                "bbox": [],
+                "shingles": [],
             }
             doc = Document.from_row(record)
             uuid = doc.doc_id
@@ -112,7 +112,6 @@ class WeaviateDatasink(Datasink):
                     "shingles": data.get("shingles", default["shingles"]),
                 },
             }
-            print(json.dumps(object, indent=2))
             if "embedding" in data:
                 object["vector"] = {"embedding": data.get("embedding")}
             if parent:

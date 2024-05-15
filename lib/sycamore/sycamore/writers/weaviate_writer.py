@@ -40,52 +40,39 @@ class WeaviateDatasink(Datasink):
 
     def on_write_start(self):
         client = WeaviateClient(**self._client_params)
-        try:
-            client.connect()
-            if client.collections.exists(self._collection_name):
-                client.collections.get(self._collection_name)
-            elif self._collection_config is not None:
-                client.collections.create(**self._collection_config)
-            else:
-                pass
-                # raise ValueError(f"Collection {self._collection_name} does not
-                # exist and no collection config was provided")
-        finally:
-            client.close()
-
-    def on_write_failed(self, error: Exception) -> None:
-        logging.error(error)
-        print(error)
+        with client:
+            if self._collection_config is not None:
+                if client.collections.exists(self._collection_name):
+                    logging.warning(
+                        f"Collection config was provided, but collection {self._collection_name} already exists, so ignoring provided config."
+                    )
+                else:
+                    client.collections.create(**self._collection_config)
 
     def write(self, blocks: Iterable[Block], ctx: TaskContext) -> Any:
-        try:
-            builder = DelegatingBlockBuilder()
-            for block in blocks:
-                builder.add_block(block)
-            block = builder.build()
-            client = WeaviateClient(**self._client_params)
-            with client:
-                collection = client.collections.get(self._collection_name)
-                with collection.batch.dynamic() as batch:
-                    objects = self._extract_weaviate_objects(block)
-                    refs = []
-                    for obj in objects:
-                        if "references" in obj:
-                            obj_refs = obj.pop("references")
-                            for k, v in obj_refs.items():
-                                refs.append(DataReference(from_uuid=obj["uuid"], from_property=k, to_uuid=v))
-                        batch.add_object(**obj)
-                    batch.flush()
-                    for ref in refs:
-                        batch.add_reference(from_uuid=ref.from_uuid, from_property=ref.from_property, to=ref.to_uuid)
-        except Exception as e:
-            print(e)
+        builder = DelegatingBlockBuilder()
+        for block in blocks:
+            builder.add_block(block)
+        block = builder.build()
+        client = WeaviateClient(**self._client_params)
+        with client:
+            collection = client.collections.get(self._collection_name)
+            with collection.batch.dynamic() as batch:
+                objects = self._extract_weaviate_objects(block)
+                refs = []
+                for obj in objects:
+                    if "references" in obj:
+                        obj_refs = obj.pop("references")
+                        for k, v in obj_refs.items():
+                            refs.append(DataReference(from_uuid=obj["uuid"], from_property=k, to_uuid=v))
+                    batch.add_object(**obj)
+                # Flush the objects first so that references can know about them
+                batch.flush()
+                for ref in refs:
+                    batch.add_reference(from_uuid=ref.from_uuid, from_property=ref.from_property, to=ref.to_uuid)
 
     @staticmethod
     def _extract_weaviate_objects(block):
-        records = BlockAccessor.for_block(block).to_arrow().to_pylist()
-        print(len(records))
-
         def record_to_object(record):
             default = {
                 "doc_id": None,
@@ -118,4 +105,5 @@ class WeaviateDatasink(Datasink):
                 object["references"] = {"parent": parent}
             return object
 
+        records = BlockAccessor.for_block(block).to_arrow().to_pylist()
         return [record_to_object(r) for r in records]

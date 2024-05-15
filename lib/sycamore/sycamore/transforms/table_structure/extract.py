@@ -155,6 +155,10 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         # phases of postprocessing.
         table = table_transformers.objects_to_table(objects, tokens)
 
+        if table is None:
+            element.table = None
+            return element
+
         # Convert cell bounding boxes to be relative to the original image.
         for cell in table.cells:
             if cell.bbox is None:

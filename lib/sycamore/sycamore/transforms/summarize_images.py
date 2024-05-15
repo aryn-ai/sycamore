@@ -37,7 +37,7 @@ class OpenAIImageSummarizer:
                               .show()
     """
 
-    model = OpenAIModels.GPT_4_TURBO
+    model = OpenAIModels.GPT_4O
 
     DEFAULT_PROMPT = """You are given an image from a PDF document along with with some snippets of text preceding
             and following the image on the page. Based on this context, please decide whether the image is a

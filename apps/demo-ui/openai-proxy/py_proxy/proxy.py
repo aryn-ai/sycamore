@@ -18,6 +18,7 @@ import logging
 import boto3
 import warnings
 import mimetypes
+import anthropic
 
 warnings.filterwarnings("ignore", category=urllib3.exceptions.InsecureRequestWarning)
 
@@ -35,6 +36,16 @@ openai.api_key = OPENAI_API_KEY
 
 # API endpoint of the OpenAI service
 OPENAI_API_BASE = "https://api.openai.com"
+
+# ANTHROPIC configs
+anthropic_client = anthropic.Anthropic()
+
+ANTHROPIC_RAG_PROMPT = ""
+current_directory = os.path.dirname(__file__)
+anthropic_rag_prompt_filepath = os.path.join(current_directory, "anthropic_rag_prompt.txt")
+with open(anthropic_rag_prompt_filepath, "r") as file:
+    ANTHROPIC_RAG_PROMPT = file.read()
+print("Using anthropic prompt: " + ANTHROPIC_RAG_PROMPT)
 
 OPENSEARCH_HOST = os.environ.get("OPENSEARCH_HOST", "localhost")
 OPENSEARCH_URL = f"https://{OPENSEARCH_HOST}:9200/"
@@ -316,6 +327,38 @@ def proxy_opensearch(os_path):
     # qa_logger.info(str(response.json()))
 
     return response.json()
+
+
+@app.route("/aryn/anthropic_rag", methods=["POST", "OPTIONS"])
+def anthropic_rag():
+    if request.method == "OPTIONS":
+        return optionsResp("POST")
+
+    question = request.json.get("question")
+    os_result = request.json.get("os_result")
+
+    user_prompt = """
+    Search results: 
+    """
+    for i, s in enumerate(os_result["hits"]["hits"][0:10]):
+        doc = ""
+        doc += "<document>\n"
+        doc += "Search result: " + str(i + 1) + "\n"
+        doc += s["_source"]["text_representation"] + "\n"
+        doc += "</document>\n"
+        user_prompt += doc + "\n"
+
+    user_prompt += "<question>Question: " + question + " </question>"
+    messages = [{"role": "user", "content": user_prompt}]
+    result = anthropic_client.messages.create(
+        # model="claude-3-opus-20240229",
+        model="claude-3-sonnet-20240229",
+        max_tokens=1024,
+        system=ANTHROPIC_RAG_PROMPT,
+        messages=messages,
+    )
+
+    return result.content[0].text
 
 
 @app.route("/opensearch-version", methods=["GET", "OPTIONS"])

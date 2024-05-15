@@ -10,6 +10,11 @@ from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
 
 from PIL import Image
 import pdf2image
+import base64
+import requests
+import json
+import pickle
+import os
 
 import torch
 
@@ -22,6 +27,14 @@ from pdfminer.utils import open_filename
 import pytesseract
 
 import easyocr
+
+MODEL_SERVER_ENDPOINT = os.environ.get("MODEL_SERVER_ENDPOINT")
+
+
+def _batchify(iterable, n=1):
+    length = len(iterable)
+    for i in range(0, length, n):
+        yield iterable[i : min(i + n, length)]
 
 
 class SycamorePDFPartitioner:
@@ -114,7 +127,10 @@ class SycamorePDFPartitioner:
             )
             images = [Image.open(path).convert("RGB") for path in image_paths]
 
-            deformable_layout = [self.model.infer(image, threshold) for image in images]
+            batches = _batchify(images, 10)
+            deformable_layout = []
+            for batch in batches:
+                deformable_layout += self.model.batch_infer(batch, threshold)
 
             if use_ocr:
                 extract_ocr(images, deformable_layout, ocr_images=ocr_images, ocr_tables=ocr_tables)
@@ -165,7 +181,6 @@ class SycamoreObjectDetection(ABC):
 class DeformableDetr(SycamoreObjectDetection):
     def __init__(self, model_name_or_path, device=None):
         super().__init__()
-        from transformers import AutoImageProcessor, DeformableDetrForObjectDetection
 
         self.labels = [
             "N/A",
@@ -183,9 +198,14 @@ class DeformableDetr(SycamoreObjectDetection):
         ]
 
         self.device = device
+        self._model_name_or_path = model_name_or_path
 
-        self.processor = AutoImageProcessor.from_pretrained(model_name_or_path)
-        self.model = DeformableDetrForObjectDetection.from_pretrained(model_name_or_path).to(self._get_device())
+        self.use_model_server = os.environ.get("USE_MODEL_SERVER") == "1"
+        if self._get_device() != "cpu" or not self.use_model_server:
+            from transformers import AutoImageProcessor, DeformableDetrForObjectDetection
+
+            self.processor = AutoImageProcessor.from_pretrained(model_name_or_path)
+            self.model = DeformableDetrForObjectDetection.from_pretrained(model_name_or_path).to(self._get_device())
 
     # Note: We wrap this in a function so that we can execute on both the leader and the workers
     # to account for heterogeneous systems. Currently if you pass in an explicit device parameter
@@ -197,6 +217,41 @@ class DeformableDetr(SycamoreObjectDetection):
             return self.device
 
     def infer(self, image: Image.Image, threshold: float) -> list[Element]:
+        if self._get_device() == "cpu" and self.use_model_server and MODEL_SERVER_ENDPOINT:
+            endpoint = MODEL_SERVER_ENDPOINT + self._model_name_or_path
+            metadata = {"threshold": threshold, "modes": [image.mode], "sizes": [image.size]}
+            metadata_string = json.dumps(metadata)
+            files = [("metadata", metadata_string.encode("utf-8"))] + [("images", image.tobytes())]
+            try:
+                response = requests.post(endpoint, files=files)
+                results = response.json()[0]
+            except Exception:
+                results = None
+            if results:
+                for k, v in results.items():
+                    results[k] = base64.b64decode(v)
+                    results[k] = pickle.loads(results[k])
+                w, h = image.size
+                elements = []
+                for score, label, box in zip(
+                    results["scores"].cpu().detach().numpy(),
+                    results["labels"].cpu().detach().numpy(),
+                    results["boxes"].cpu().detach().numpy(),
+                ):
+                    element = create_element(
+                        type=self.labels[label],
+                        bbox=BoundingBox(box[0] / w, box[1] / h, box[2] / w, box[3] / h).coordinates,
+                        properties={"score": score},
+                    )
+                    elements.append(element)
+                return elements
+        if not self.model:
+            from transformers import AutoImageProcessor, DeformableDetrForObjectDetection
+
+            self.processor = AutoImageProcessor.from_pretrained(self._model_name_or_path)
+            self.model = DeformableDetrForObjectDetection.from_pretrained(self._model_name_or_path).to(
+                self._get_device()
+            )
         inputs = self.processor(images=image, return_tensors="pt").to(self._get_device())
         outputs = self.model(**inputs)
         target_sizes = torch.tensor([image.size[::-1]])
@@ -218,6 +273,46 @@ class DeformableDetr(SycamoreObjectDetection):
             )
             elements.append(element)
         return elements
+
+    def batch_infer(self, images: List[Image.Image], threshold: float) -> List[List[Element]]:
+        if self._get_device() == "cpu" and self.use_model_server and MODEL_SERVER_ENDPOINT:
+            endpoint = MODEL_SERVER_ENDPOINT + self._model_name_or_path
+            metadata = {
+                "threshold": threshold,
+                "modes": [image.mode for image in images],
+                "sizes": [image.size for image in images],
+            }
+            metadata_string = json.dumps(metadata)
+            files = [("metadata", metadata_string.encode("utf-8"))] + [("images", image.tobytes()) for image in images]
+            try:
+                response = requests.post(endpoint, files=files)
+                results = response.json()
+            except Exception:
+                results = None
+            if results:
+                batched_results = []
+                for results, image in zip(results, images):
+                    for k, v in results.items():
+                        results[k] = base64.b64decode(v)
+                        results[k] = pickle.loads(results[k])
+                    (w, h) = image.size
+                    elements = []
+                    for score, label, box in zip(
+                        results["scores"].cpu().detach().numpy(),
+                        results["labels"].cpu().detach().numpy(),
+                        results["boxes"].cpu().detach().numpy(),
+                    ):
+                        element = create_element(
+                            type=self.labels[label],
+                            bbox=BoundingBox(box[0] / w, box[1] / h, box[2] / w, box[3] / h).coordinates,
+                            properties={"score": score},
+                        )
+                        elements.append(element)
+                    batched_results.append(elements)
+                return batched_results
+
+        batched_results = [self.infer(image, threshold) for image in images]
+        return batched_results
 
 
 class PDFMinerExtractor:

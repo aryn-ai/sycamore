@@ -1,0 +1,115 @@
+#!/usr/bin/python3
+
+import sys
+import struct
+from typing import NamedTuple
+
+FMT = "QQQQI48s"
+SIZE = struct.calcsize(FMT)
+
+class TimeTraceRec(NamedTuple):
+    t0: int
+    t1: int
+    utime: int
+    stime: int
+    thread: int
+    name: str
+
+def buf_to_rec(buf) -> TimeTraceRec:
+    tup = struct.unpack(FMT, buf)
+    t0, t1, user, syst, thr, name = tup
+    name = name.decode().rstrip('\0')
+    return TimeTraceRec(t0, t1, user, syst, thr, name)
+
+def tt_reader(paths: list[str]):
+    for path in paths:
+        with open(path, "rb") as fp:
+            while True:
+                buf = fp.read(SIZE)
+                if not buf:
+                    break
+                yield buf_to_rec(buf)
+
+class Foo:
+    def run(self, paths):
+        first = 9223372036854775807  # 2^63 - 1
+        last = 0
+        utime = 0
+        stime = 0
+        thread_wall = {}
+        thread_cpu = {}
+        name_wall = {}
+        name_cpu = {}
+
+        for rec in tt_reader(paths):
+            wall = rec.t1 - rec.t0
+            first = min(first, rec.t0)
+            last = max(last, rec.t1)
+            utime += rec.utime
+            stime += rec.stime
+            cpu = rec.utime + rec.stime
+            val = thread_wall.get(rec.thread, 0)
+            thread_wall[rec.thread] = val + wall
+            val = thread_cpu.get(rec.thread, 0)
+            thread_cpu[rec.thread] = val + cpu
+            val = name_wall.get(rec.name, 0)
+            name_wall[rec.name] = val + wall
+            val = name_cpu.get(rec.name, 0)
+            name_cpu[rec.name] = val + cpu
+
+        wall = last - first
+        cpu = utime + stime
+        frac = cpu / wall
+        ufrac = utime / cpu
+        sfrac = stime / cpu
+        print(f"wall={wall}")
+        print(f"cpu={cpu} ({frac:.3f})")
+        print(f"utime={utime} ({ufrac:.3f})")
+        print(f"stime={stime} ({sfrac:.3f})")
+        for k, v in thread_wall.items():
+            frac = v / wall
+            print(f"{k}={v} ({frac:.3f})")
+        for k, v in name_wall.items():
+            frac = v / wall
+            print(f"{k}={v} ({frac:.3f})")
+        for k, v in thread_cpu.items():
+            frac = v / cpu
+            print(f"{k}={v} ({frac:.3f})")
+        for k, v in name_cpu.items():
+            frac = v / cpu
+            print(f"{k}={v} ({frac:.3f})")
+
+    def overlap(self, paths):
+        events = []
+        for rec in tt_reader(paths):
+            events.append((rec.t0, 1))
+            events.append((rec.t1, 0))
+        events.sort()
+        level = 0
+        last = events[0][0]
+        sums = {}
+        for event_time, is_start in events:
+            dur = event_time - last
+            val = sums.get(level, 0)
+            sums[level] = val + dur
+            if is_start:
+                level += 1
+            else:
+                level -= 1
+            last = event_time
+        inv = [(b, a) for a, b in sums.items()]
+        inv.sort()
+        for event_time, lev in inv:
+            print(f"{lev}={event_time}")
+
+def main(args = None):
+    if args is None:
+        args = sys.argv[1:]
+    foo = Foo()
+    foo.run(args)
+    foo.overlap(args)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

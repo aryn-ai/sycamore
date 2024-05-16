@@ -1,21 +1,12 @@
 from typing import Any, Callable, Iterable, Optional
 
-from ray.data import ActorPoolStrategy, Dataset
 
 from sycamore.data import Document
-from sycamore.plan_nodes import Node, UnaryNode
-
-from sycamore.utils import (
-    generate_map_function,
-    generate_map_class,
-    generate_flat_map_function,
-    generate_flat_map_class,
-    generate_map_batch_function,
-    generate_map_batch_class,
-)
+from sycamore.plan_nodes import Node
+from sycamore.transforms.base import BaseMapTransform
 
 
-class Map(UnaryNode):
+class Map(BaseMapTransform):
     """
     Map is a transformation class for applying a callable function to each document in a dataset.
 
@@ -31,20 +22,30 @@ class Map(UnaryNode):
     """
 
     def __init__(self, child: Node, *, f: Callable[[Document], Document], **resource_args):
-        super().__init__(child, **resource_args)
-        self._f = f
+        super().__init__(child, f=Map.wrap(f), name=f.__name__, **resource_args)
 
-    def execute(self) -> "Dataset":
-        input_dataset = self.child().execute()
-        if isinstance(self._f, type):
-            ray_callable = generate_map_class(self._f)
-            return input_dataset.map(ray_callable, compute=ActorPoolStrategy(size=1), **self.resource_args)
+    @staticmethod
+    def wrap(f: Callable[[Document], Document]) -> Callable[[list[Document]], list[Document]]:
+        if isinstance(f, type):
+            # mypy doesn't understand the dynamic class inheritence.
+            class _Wrap(f):  # type: ignore[valid-type,misc]
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+
+                def __call__(self, docs):
+                    s = super()
+                    return [s.__call__(d) for d in docs]
+
+            return _Wrap
         else:
-            ray_callable = generate_map_function(self._f)
-            return input_dataset.map(ray_callable, **self.resource_args)
+
+            def _wrap(docs):
+                return [f(d) for d in docs]
+
+            return _wrap
 
 
-class FlatMap(UnaryNode):
+class FlatMap(BaseMapTransform):
     """
     FlatMap is a transformation class for applying a callable function to each document in a dataset and flattening
     the resulting list of documents.
@@ -62,20 +63,39 @@ class FlatMap(UnaryNode):
     """
 
     def __init__(self, child: Node, *, f: Callable[[Document], list[Document]], **resource_args):
-        super().__init__(child, **resource_args)
-        self._f = f
+        super().__init__(child, f=FlatMap.wrap(f), name=f.__name__, **resource_args)
 
-    def execute(self) -> "Dataset":
-        input_dataset = self.child().execute()
-        if isinstance(self._f, type):
-            ray_callable = generate_flat_map_class(self._f)
-            return input_dataset.flat_map(ray_callable, compute=ActorPoolStrategy(size=1), **self.resource_args)
+    @staticmethod
+    def wrap(f: Callable[[Document], list[Document]]) -> Callable[[list[Document]], list[Document]]:
+        if isinstance(f, type):
+
+            class _Wrap(f):  # type: ignore[valid-type,misc]
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+
+                def __call__(self, docs):
+                    s = super()
+                    ret = []
+                    for d in docs:
+                        ret.extend(s.__call__(d))
+                    return ret
+
+            return _Wrap
         else:
-            ray_callable = generate_flat_map_function(self._f)
-            return input_dataset.flat_map(ray_callable, **self.resource_args)
+
+            def _wrap(docs):
+                assert isinstance(docs, list)
+                ret = []
+                for d in docs:
+                    assert isinstance(d, Document)
+                    o = f(d)
+                    ret.extend(o)
+                return ret
+
+            return _wrap
 
 
-class MapBatch(UnaryNode):
+class MapBatch(BaseMapTransform):
     """
     The MapBatch transform is similar to Map, except that it processes a list of documents and returns a list of
     documents. MapBatches is ideal for transformations that get performance benefits from batching.
@@ -102,20 +122,12 @@ class MapBatch(UnaryNode):
         f_constructor_kwargs: Optional[dict[str, Any]] = None,
         **resource_args
     ):
-        super().__init__(child, **resource_args)
-        self._f = f
-        self._f_args = f_args
-        self._f_kwargs = f_kwargs
-        self._f_constructor_args = f_constructor_args
-        self._f_constructor_kwargs = f_constructor_kwargs
-
-    def execute(self) -> "Dataset":
-        input_dataset = self.child().execute()
-        if isinstance(self._f, type):
-            ray_callable = generate_map_batch_class(
-                self._f, self._f_args, self._f_kwargs, self._f_constructor_args, self._f_constructor_kwargs
-            )
-            return input_dataset.map_batches(ray_callable, compute=ActorPoolStrategy(size=1), **self.resource_args)
-        else:
-            ray_callable = generate_map_batch_function(self._f)
-            return input_dataset.map_batches(ray_callable, **self.resource_args)
+        super().__init__(
+            child,
+            f=f,
+            args=f_args,
+            kwargs=f_kwargs,
+            constructor_args=f_constructor_args,
+            constructor_kwargs=f_constructor_kwargs,
+            **resource_args
+        )

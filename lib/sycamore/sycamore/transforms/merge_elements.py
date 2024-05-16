@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Callable
+from typing import Any, Dict
 
 from ray.data import Dataset
 

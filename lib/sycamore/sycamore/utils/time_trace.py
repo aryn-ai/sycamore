@@ -3,6 +3,7 @@ import time
 import struct
 import resource
 import threading
+import functools
 
 
 class TimeTrace:
@@ -59,3 +60,23 @@ class TimeTrace:
             os.O_WRONLY | os.O_APPEND | os.O_CREAT,
             mode=0o644,
         )
+
+
+def timetrace(name: str):
+    """
+    Decorator for TimeTrace.  Use like this:
+
+    @timetrace("label")
+    def foo():
+        time.sleep(1.0)
+    """
+
+    def decorator(f):
+        @functools.wraps(f)
+        def wrapper(*args, **kwargs):
+            with TimeTrace(name):
+                return f(*args, **kwargs)
+
+        return wrapper
+
+    return decorator

@@ -4,7 +4,7 @@ from sycamore.data import Document
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import generate_map_function
-from sycamore.utils.time_trace import TimeTrace
+from sycamore.utils.time_trace import timetrace
 
 # TODO:
 # - make breaks balanced in size
@@ -36,16 +36,14 @@ class MarkDropTiny(SingleThreadUser, NonGPUUser, Transform):
         def __init__(self, minimum: int):
             self.min = minimum
 
+        @timetrace("markDropTiny")
         def run(self, parent: Document) -> Document:
-            tt = TimeTrace("markDropTiny")
-            tt.start()
             elements = parent.elements  # makes a copy
             for elem in elements:
                 tr = elem.text_representation or ""
                 if len(tr) < self.min:
                     elem.data["_drop"] = True  # remove specks
             parent.elements = elements  # copy back
-            tt.end()
             return parent
 
     def execute(self) -> Dataset:
@@ -77,9 +75,8 @@ class MarkBreakPage(SingleThreadUser, NonGPUUser, Transform):
         super().__init__(child, **resource_args)
 
     class Callable:
+        @timetrace("markBreakPage")
         def run(self, parent: Document) -> Document:
-            tt = TimeTrace("markBreakPage")
-            tt.start()
             if len(parent.elements) > 1:
                 elements = parent.elements  # makes a copy
                 last = elements[0].properties["page_number"]
@@ -89,7 +86,6 @@ class MarkBreakPage(SingleThreadUser, NonGPUUser, Transform):
                         elem.data["_break"] = True  # mark for later
                         last = page
                 parent.elements = elements  # copy back
-            tt.end()
             return parent
 
     def execute(self) -> Dataset:
@@ -130,9 +126,8 @@ class MarkBreakByTokens(SingleThreadUser, NonGPUUser, Transform):
             self.tokenizer = tokenizer
             self.limit = limit
 
+        @timetrace("markBreakToks")
         def run(self, parent: Document) -> Document:
-            tt = TimeTrace("markBreakToks")
-            tt.start()
             toks = 0
             elements = parent.elements  # makes a copy
             for elem in elements:
@@ -146,7 +141,6 @@ class MarkBreakByTokens(SingleThreadUser, NonGPUUser, Transform):
                     toks = 0
                 toks += n
             parent.elements = elements  # copy back
-            tt.end()
             return parent
 
     def execute(self) -> Dataset:

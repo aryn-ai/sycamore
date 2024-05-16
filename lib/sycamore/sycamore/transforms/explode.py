@@ -3,7 +3,7 @@ from ray.data import Dataset
 from sycamore.data import Document
 from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import generate_flat_map_function
-from sycamore.utils.time_trace import TimeTrace
+from sycamore.utils.time_trace import timetrace
 
 
 class Explode(SingleThreadUser, NonGPUUser, Transform):
@@ -29,9 +29,8 @@ class Explode(SingleThreadUser, NonGPUUser, Transform):
 
     class ExplodeCallable:
         @staticmethod
+        @timetrace("explode")
         def explode(parent: Document) -> list[Document]:
-            tt = TimeTrace("explode")
-            tt.start()
             documents: list[Document] = [parent]
 
             import uuid
@@ -45,7 +44,6 @@ class Explode(SingleThreadUser, NonGPUUser, Transform):
                         cur.properties[doc_property] = parent.properties[doc_property]
                 documents.append(cur)
             del parent.elements
-            tt.end()
             return documents
 
     def execute(self) -> Dataset:

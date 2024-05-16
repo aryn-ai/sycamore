@@ -7,7 +7,7 @@ from sycamore.data import Document, Element, BoundingBox
 from sycamore.plan_nodes import SingleThreadUser, NonGPUUser, Transform, Node
 from sycamore.utils import generate_map_class_from_callable
 from sycamore.functions.tokenizer import Tokenizer
-from sycamore.utils.time_trace import TimeTrace
+from sycamore.utils.time_trace import timetrace
 
 
 class ElementMerger(ABC):
@@ -27,6 +27,7 @@ class ElementMerger(ABC):
     def postprocess_element(self, element: Element) -> Element:
         pass
 
+    @timetrace("mergeElem")
     def merge_elements(self, document: Document) -> Document:
         """Use self._should_merge and self._merge to greedily merge consecutive elements.
         If the next element should be merged into the last 'accumulation' element, merge it.
@@ -39,8 +40,6 @@ class ElementMerger(ABC):
         """
         if len(document.elements) < 2:
             return document
-        tt = TimeTrace("mergeElem")
-        tt.start()
         to_merge = [self.preprocess_element(e) for e in document.elements]
         new_elements = [to_merge[0]]
         for element in to_merge[1:]:
@@ -49,7 +48,6 @@ class ElementMerger(ABC):
             else:
                 new_elements.append(element)
         document.elements = [self.postprocess_element(e) for e in new_elements]
-        tt.end()
         return document
 
 
@@ -152,12 +150,10 @@ class MarkedMerger(ElementMerger):
     def postprocess_element(self, elem: Element) -> Element:
         return elem
 
+    @timetrace("mergeMarked")
     def merge_elements(self, document: Document) -> Document:
         if len(document.elements) < 1:
             return document
-
-        tt = TimeTrace("mergeMarked")
-        tt.start()
 
         # merge elements, honoring marked breaks and drops
         merged = []
@@ -206,7 +202,6 @@ class MarkedMerger(ElementMerger):
             merged.append(ee)
 
         document.elements = merged
-        tt.end()
         return document
 
 

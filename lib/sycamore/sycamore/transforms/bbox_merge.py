@@ -5,7 +5,7 @@ from ray.data import Dataset
 from sycamore.data import Document, Element
 from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import generate_map_function
-from sycamore.utils.time_trace import TimeTrace
+from sycamore.utils.time_trace import TimeTrace, timetrace
 
 
 def validBbox(bbox):
@@ -170,9 +170,8 @@ class MarkDropHeaderFooter(SingleThreadUser, NonGPUUser, Transform):
             self.top = top
             self.bottom = bottom
 
+        @timetrace("markHeadFoot")
         def run(self, parent: Document) -> Document:
-            tt = TimeTrace("markHeadFoot")
-            tt.start()
             lo = self.top
             hi = 1.0 - self.bottom
             elements = parent.elements  # makes a copy
@@ -181,7 +180,6 @@ class MarkDropHeaderFooter(SingleThreadUser, NonGPUUser, Transform):
                 if (bbox is not None) and ((bbox[1] > hi) or (bbox[3] < lo)):
                     elem.data["_drop"] = True  # mark for removal
             parent.elements = elements  # copy back
-            tt.end()
             return parent
 
     def execute(self) -> Dataset:
@@ -215,9 +213,8 @@ class MarkBreakByColumn(SingleThreadUser, NonGPUUser, Transform):
         super().__init__(child, **resource_args)
 
     class Callable:
+        @timetrace("makeBreakCol")
         def run(self, parent: Document) -> Document:
-            tt = TimeTrace("makeBreakCol")
-            tt.start()
             elements = parent.elements  # makes a copy
 
             # measure width in-use
@@ -284,7 +281,6 @@ class MarkBreakByColumn(SingleThreadUser, NonGPUUser, Transform):
                     lastCols = ecols
 
             parent.elements = elements  # must copy back in
-            tt.end()
             return parent
 
     def execute(self) -> Dataset:

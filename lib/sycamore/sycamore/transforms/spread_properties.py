@@ -3,7 +3,7 @@ from ray.data import Dataset
 from sycamore.data import Document
 from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import generate_map_function
-from sycamore.utils.time_trace import TimeTrace
+from sycamore.utils.time_trace import timetrace
 
 
 class SpreadProperties(SingleThreadUser, NonGPUUser, Transform):
@@ -31,9 +31,8 @@ class SpreadProperties(SingleThreadUser, NonGPUUser, Transform):
         def __init__(self, props: list[str]):
             self._props = props
 
+        @timetrace("spreadProps")
         def spreadProperties(self, parent: Document) -> Document:
-            tt = TimeTrace("spreadProps")
-            tt.start()
             newProps = {}
             for key in self._props:
                 val = parent.properties.get(key)
@@ -43,7 +42,6 @@ class SpreadProperties(SingleThreadUser, NonGPUUser, Transform):
             # TODO: Have a way to let existing element properties win.
             for element in parent.elements:
                 element.properties.update(newProps)
-            tt.end()
             return parent
 
     def execute(self) -> Dataset:

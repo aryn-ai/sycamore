@@ -73,6 +73,16 @@ class WeaviateDatasink(Datasink):
 
     @staticmethod
     def _extract_weaviate_objects(block):
+        # Weaviate gets grumpy about NoneTypes so we remove them
+        # either by defaulting to null-ish values or dropping
+        # explicitly None properties
+        def _trim_nones_in_props(props: dict) -> dict:
+            trimmed_props = dict()
+            for k, v in props.items():
+                if v is not None:
+                    trimmed_props[k] = v
+            return trimmed_props
+
         def record_to_object(record):
             default = {
                 "doc_id": None,
@@ -92,7 +102,7 @@ class WeaviateDatasink(Datasink):
             object = {
                 "uuid": uuid,
                 "properties": {
-                    "properties": data.get("properties", default["properties"]),
+                    "properties": _trim_nones_in_props(data.get("properties", default["properties"])),
                     "type": data.get("type", default["type"]),
                     "text_representation": data.get("text_representation", default["text_representation"]),
                     "bbox": data.get("bbox", default["bbox"]),

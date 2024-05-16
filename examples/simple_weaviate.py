@@ -13,7 +13,7 @@ from sycamore.functions.tokenizer import HuggingFaceTokenizer
 from sycamore.llms import OpenAIModels, OpenAI
 from sycamore.transforms import COALESCE_WHITESPACE
 from sycamore.transforms.merge_elements import MarkedMerger
-from sycamore.transforms.partition import UnstructuredPdfPartitioner
+from sycamore.transforms.partition import SycamorePartitioner
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 
@@ -70,7 +70,7 @@ ctx = sycamore.init()
 
 ds = (
     ctx.read.binary(paths, binary_format="pdf")
-    .partition(partitioner=UnstructuredPdfPartitioner())
+    .partition(partitioner=SycamorePartitioner(extract_table_structure=True, extract_images=True))
     .regex_replace(COALESCE_WHITESPACE)
     .extract_entity(entity_extractor=OpenAIEntityExtractor("title", llm=davinci_llm, prompt_template=title_template))
     .mark_bbox_preset(tokenizer=tokenizer)
@@ -80,5 +80,4 @@ ds = (
 )
 
 ds = ds.explode().embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100)).sketch(window=17)
-
 ds.write.weaviate(wv_client_args=wv_client_args, collection_name=collection, collection_config=collection_config_params)

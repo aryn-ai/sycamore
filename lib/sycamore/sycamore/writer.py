@@ -87,9 +87,10 @@ class DocSetWriter:
             wv_client_args: Keyword parameters that are passed to the weaviate client constructor.
                 See more information at https://weaviate.io/developers/weaviate/client-libraries/python#python-client-v4-explicit-connection
             collection_name: The name of the Weaviate collection into which to load this DocSet.
-            collection_config: Keyword parameters that are passed to the weaviate client's `collections.create()` method.
-                If not provided, Weaviate will Auto-Schematize the incoming records, which may lead to inconsistencies or failures.
-                See more information at https://weaviate.io/developers/weaviate/manage-data/collections#create-a-collection-and-define-properties
+            collection_config: Keyword parameters that are passed to the weaviate client's `collections.create()`
+                method.If not provided, Weaviate will Auto-Schematize the incoming records, which may lead to
+                inconsistencies or failures. See more information at
+                https://weaviate.io/developers/weaviate/manage-data/collections#create-a-collection-and-define-properties
 
         Example:
             The following code shows how to read a pdf dataset into a ``DocSet`` and write it out to a
@@ -148,7 +149,8 @@ class DocSetWriter:
                 ds = ctx.read.binary(paths, binary_format="pdf")
                     .partition(partitioner=UnstructuredPdfPartitioner())
                     .regex_replace(COALESCE_WHITESPACE)
-                    .extract_entity(entity_extractor=OpenAIEntityExtractor("title", llm=davinci_llm, prompt_template=title_template))
+                    .extract_entity(entity_extractor=OpenAIEntityExtractor(
+                            "title", llm=davinci_llm, prompt_template=title_template))
                     .mark_bbox_preset(tokenizer=tokenizer)
                     .merge(merger=MarkedMerger())
                     .spread_properties(["path", "title"])

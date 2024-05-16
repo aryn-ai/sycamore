@@ -44,7 +44,8 @@ class WeaviateDatasink(Datasink):
             if self._collection_config is not None:
                 if client.collections.exists(self._collection_name):
                     logging.warning(
-                        f"Collection config was provided, but collection {self._collection_name} already exists, so ignoring provided config."
+                        f"Collection config was provided, but collection {self._collection_name} "
+                        "already exists, so ignoring provided config."
                     )
                 else:
                     client.collections.create(**self._collection_config)

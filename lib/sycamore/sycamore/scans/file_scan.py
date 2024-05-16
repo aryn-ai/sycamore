@@ -138,8 +138,7 @@ class BinaryScan(FileScan):
         if self._metadata_provider:
             document.properties.update(self._metadata_provider.get_metadata(dict["path"]))
 
-        rv = {"doc": document.serialize()}
-        return rv
+        return {"doc": document.serialize()}
 
     def _file_mime_type(self):
         # binary_format is an extension, make it into a filename.

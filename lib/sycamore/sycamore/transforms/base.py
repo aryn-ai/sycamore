@@ -8,6 +8,8 @@ from sycamore.data import Document, MetadataDocument
 from sycamore.plan_nodes import Node, UnaryNode
 
 
+# Once we do python 3.12+ only, this can be:
+# def _noneOr[T](a: T, default: T) -> T:
 def _noneOr(a: Any, default: Any) -> Any:
     if a is None:
         return default
@@ -40,7 +42,7 @@ class BaseMapTransform(UnaryNode):
         # If we auto-generate lineage, then the conversion to BaseMap has to go in a single PR
         # since everything needs to be updated to skip metadata. If we temporarily disable the
         # lineage metadata, then we can do the conversion to BaseMap in separate PRs.
-        enable_auto_metadata=False,
+        enable_auto_metadata: bool = False,
         **resource_args,
     ):
         super().__init__(child, **resource_args)
@@ -58,7 +60,7 @@ class BaseMapTransform(UnaryNode):
     def execute(self) -> "Dataset":
         input_dataset = self.child().execute()
 
-        if isinstance(self._f, type):
+        if isinstance(self._f, type):  # is f a class?
             return input_dataset.map_batches(self._map_class(), compute=ActorPoolStrategy(size=1), **self.resource_args)
         else:
             return input_dataset.map_batches(self._map_function(), **self.resource_args)
@@ -71,7 +73,7 @@ class BaseMapTransform(UnaryNode):
         # transforms assume they can mutate docs in place; this works in ray because documents are serialized and
         # deserialized between every stage.
         docs = copy.deepcopy(in_docs)
-        if isinstance(self._f, type):
+        if isinstance(self._f, type):  # is f a class?
             c_args = _noneOr(self._constructor_args, tuple())
             c_kwargs = _noneOr(self._constructor_kwargs, {})
             inst = self._f(*c_args, **c_kwargs)

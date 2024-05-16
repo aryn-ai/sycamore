@@ -74,9 +74,11 @@ class FlatMap(BaseMapTransform):
                     super().__init__(*args, **kwargs)
 
                 def __call__(self, docs):
+                    assert isinstance(docs, list)
                     s = super()
                     ret = []
                     for d in docs:
+                        assert isinstance(d, Document)
                         ret.extend(s.__call__(d))
                     return ret
 

@@ -15,6 +15,7 @@ import requests
 import json
 import pickle
 import os
+import gzip
 
 import torch
 
@@ -221,7 +222,9 @@ class DeformableDetr(SycamoreObjectDetection):
             endpoint = MODEL_SERVER_ENDPOINT + self._model_name_or_path
             metadata = {"threshold": threshold, "modes": [image.mode], "sizes": [image.size]}
             metadata_string = json.dumps(metadata)
-            files = [("metadata", metadata_string.encode("utf-8"))] + [("images", image.tobytes())]
+            files = [("metadata", gzip.compress(metadata_string.encode("utf-8")))] + [
+                ("images", gzip.compress(image.tobytes()))
+            ]
             try:
                 response = requests.post(endpoint, files=files)
                 results = response.json()[0]
@@ -283,7 +286,9 @@ class DeformableDetr(SycamoreObjectDetection):
                 "sizes": [image.size for image in images],
             }
             metadata_string = json.dumps(metadata)
-            files = [("metadata", metadata_string.encode("utf-8"))] + [("images", image.tobytes()) for image in images]
+            files = [("metadata", gzip.compress(metadata_string.encode("utf-8")))] + [
+                ("images", gzip.compress(image.tobytes())) for image in images
+            ]
             try:
                 response = requests.post(endpoint, files=files)
                 results = response.json()

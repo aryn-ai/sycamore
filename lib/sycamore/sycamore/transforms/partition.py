@@ -390,6 +390,8 @@ class SycamorePartitioner(Partitioner):
         extract_table_structure=False,
         table_structure_extractor=DEFAULT_TABLE_STRUCTURE_EXTRACTOR,
         extract_images=False,
+        model_server_endpoint=None,
+        batch_size: int = 10,
     ):
         from sycamore.transforms.detr_partitioner import SycamorePDFPartitioner
 
@@ -401,6 +403,8 @@ class SycamorePartitioner(Partitioner):
         self._extract_table_structure = extract_table_structure
         self._table_structure_extractor = table_structure_extractor
         self._extract_images = extract_images
+        self._model_server_endpoint = model_server_endpoint
+        self._batch_size = batch_size
 
     # For now, we reorder elements based on page, left/right column, y axle position then finally x axle position
     @staticmethod
@@ -438,7 +442,6 @@ class SycamorePartitioner(Partitioner):
 
     def partition(self, document: Document) -> Document:
         binary = io.BytesIO(document.data["binary_representation"])
-
         try:
             result = self._partitioner.partition_pdf(
                 binary,
@@ -449,6 +452,8 @@ class SycamorePartitioner(Partitioner):
                 extract_table_structure=self._extract_table_structure,
                 table_structure_extractor=self._table_structure_extractor,
                 extract_images=self._extract_images,
+                model_server_endpoint=self._model_server_endpoint,
+                batch_size=self._batch_size,
             )
         except Exception as e:
             path = document.properties["path"]

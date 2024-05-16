@@ -29,8 +29,6 @@ import pytesseract
 
 import easyocr
 
-MODEL_SERVER_ENDPOINT = os.environ.get("MODEL_SERVER_ENDPOINT")
-
 
 def _batchify(iterable, n=1):
     length = len(iterable)
@@ -97,6 +95,8 @@ class SycamorePDFPartitioner:
         extract_table_structure=False,
         table_structure_extractor=DEFAULT_TABLE_STRUCTURE_EXTRACTOR,
         extract_images=False,
+        model_server_endpoint=None,
+        batch_size: int = 10
     ) -> List[List["Element"]]:
         """
         Partitions a PDF with the DeformableDETR model.
@@ -127,11 +127,10 @@ class SycamorePDFPartitioner:
                 paths_only=True,
             )
             images = [Image.open(path).convert("RGB") for path in image_paths]
-
-            batches = _batchify(images, 10)
+            batches = _batchify(images, batch_size)
             deformable_layout = []
             for batch in batches:
-                deformable_layout += self.model.batch_infer(batch, threshold)
+                deformable_layout += self.model.batch_infer(batch, threshold, model_server_endpoint)
 
             if use_ocr:
                 extract_ocr(images, deformable_layout, ocr_images=ocr_images, ocr_tables=ocr_tables)
@@ -201,12 +200,9 @@ class DeformableDetr(SycamoreObjectDetection):
         self.device = device
         self._model_name_or_path = model_name_or_path
 
-        self.use_model_server = os.environ.get("USE_MODEL_SERVER") == "1"
-        if self._get_device() != "cpu" or not self.use_model_server:
-            from transformers import AutoImageProcessor, DeformableDetrForObjectDetection
-
-            self.processor = AutoImageProcessor.from_pretrained(model_name_or_path)
-            self.model = DeformableDetrForObjectDetection.from_pretrained(model_name_or_path).to(self._get_device())
+        from transformers import AutoImageProcessor, DeformableDetrForObjectDetection
+        self.processor = AutoImageProcessor.from_pretrained(model_name_or_path)
+        self.model = DeformableDetrForObjectDetection.from_pretrained(model_name_or_path).to(self._get_device())
 
     # Note: We wrap this in a function so that we can execute on both the leader and the workers
     # to account for heterogeneous systems. Currently if you pass in an explicit device parameter
@@ -217,9 +213,9 @@ class DeformableDetr(SycamoreObjectDetection):
         else:
             return self.device
 
-    def infer(self, image: Image.Image, threshold: float) -> list[Element]:
-        if self._get_device() == "cpu" and self.use_model_server and MODEL_SERVER_ENDPOINT:
-            endpoint = MODEL_SERVER_ENDPOINT + self._model_name_or_path
+    def infer(self, image: Image.Image, threshold: float, model_server_endpoint: str = None) -> list[Element]:
+        if model_server_endpoint:
+            endpoint = model_server_endpoint + self._model_name_or_path
             metadata = {"threshold": threshold, "modes": [image.mode], "sizes": [image.size]}
             metadata_string = json.dumps(metadata)
             files = [("metadata", gzip.compress(metadata_string.encode("utf-8")))] + [
@@ -248,13 +244,6 @@ class DeformableDetr(SycamoreObjectDetection):
                     )
                     elements.append(element)
                 return elements
-        if not self.model:
-            from transformers import AutoImageProcessor, DeformableDetrForObjectDetection
-
-            self.processor = AutoImageProcessor.from_pretrained(self._model_name_or_path)
-            self.model = DeformableDetrForObjectDetection.from_pretrained(self._model_name_or_path).to(
-                self._get_device()
-            )
         inputs = self.processor(images=image, return_tensors="pt").to(self._get_device())
         outputs = self.model(**inputs)
         target_sizes = torch.tensor([image.size[::-1]])
@@ -277,9 +266,9 @@ class DeformableDetr(SycamoreObjectDetection):
             elements.append(element)
         return elements
 
-    def batch_infer(self, images: List[Image.Image], threshold: float) -> List[List[Element]]:
-        if self._get_device() == "cpu" and self.use_model_server and MODEL_SERVER_ENDPOINT:
-            endpoint = MODEL_SERVER_ENDPOINT + self._model_name_or_path
+    def batch_infer(self, images: List[Image.Image], threshold: float, model_server_endpoint: str = None) -> List[List[Element]]:
+        if model_server_endpoint:
+            endpoint = model_server_endpoint + self._model_name_or_path
             metadata = {
                 "threshold": threshold,
                 "modes": [image.mode for image in images],

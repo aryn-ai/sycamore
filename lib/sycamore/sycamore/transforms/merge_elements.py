@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any, Dict, Callable
 
-from ray.data import Dataset, ActorPoolStrategy
+from ray.data import Dataset
 
 from sycamore.data import Document, Element, BoundingBox
 from sycamore.plan_nodes import SingleThreadUser, NonGPUUser, Transform, Node
-from sycamore.utils import generate_map_class_from_callable
+from sycamore.utils import generate_map_function
 from sycamore.functions.tokenizer import Tokenizer
 
 
@@ -211,11 +211,14 @@ class Merge(SingleThreadUser, NonGPUUser, Transform):
         super().__init__(child, **kwargs)
         self._merger = merger
 
+    class Wrapper:
+        def __init__(self, merger: ElementMerger):
+            self.merger = merger
+
+        def merge(self, doc: Document) -> Document:
+            return self.merger.merge_elements(doc)
+
     def execute(self) -> Dataset:
         input_dataset = self.child().execute()
-        dataset = input_dataset.map(
-            generate_map_class_from_callable(self._merger.merge_elements),
-            compute=ActorPoolStrategy(min_size=1),
-            **self.resource_args
-        )
-        return dataset
+        wrap = Merge.Wrapper(self._merger)
+        return input_dataset.map(generate_map_function(wrap.merge))

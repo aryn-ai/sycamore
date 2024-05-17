@@ -32,17 +32,22 @@ class Map(BaseMapTransform):
                 def __init__(self, *args, **kwargs):
                     super().__init__(*args, **kwargs)
 
-                def __call__(self, docs):
+                def __call__(self, docs, *args, **kwargs):
                     s = super()
-                    return [s.__call__(d) for d in docs]
+                    return [s.__call__(d, *args, **kwargs) for d in docs]
 
             return _Wrap
         else:
 
-            def _wrap(docs):
-                return [f(d) for d in docs]
+            def _wrap(docs, *args, **kwargs):
+                return [f(d, *args, **kwargs) for d in docs]
 
             return _wrap
+
+    def run(self, d: Document) -> Document:
+        ret = self._local_process([d])
+        assert len(ret) == 1
+        return ret[0]
 
 
 class FlatMap(BaseMapTransform):
@@ -73,24 +78,24 @@ class FlatMap(BaseMapTransform):
                 def __init__(self, *args, **kwargs):
                     super().__init__(*args, **kwargs)
 
-                def __call__(self, docs):
+                def __call__(self, docs, *args, **kwargs):
                     assert isinstance(docs, list)
                     s = super()
                     ret = []
                     for d in docs:
                         assert isinstance(d, Document)
-                        ret.extend(s.__call__(d))
+                        ret.extend(s.__call__(d, *args, **kwargs))
                     return ret
 
             return _Wrap
         else:
 
-            def _wrap(docs):
+            def _wrap(docs, *args, **kwargs):
                 assert isinstance(docs, list)
                 ret = []
                 for d in docs:
                     assert isinstance(d, Document)
-                    o = f(d)
+                    o = f(d, *args, **kwargs)
                     ret.extend(o)
                 return ret
 

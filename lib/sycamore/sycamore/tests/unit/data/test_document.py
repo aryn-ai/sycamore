@@ -110,6 +110,14 @@ class TestDocument:
             Document({"elements": ["abc"]})
         Document({"elements": [{"type": "special"}]})
 
+    def test_elements_does_not_copy(self):
+        d = Document({"elements": [{"type": "b"}, {"type": "a"}]})
+        assert d.elements[0]["type"] == "b"
+        assert d.elements[1]["type"] == "a"
+        d.elements.sort(key=lambda v: v["type"])
+        assert d.elements[0]["type"] == "a"
+        assert d.elements[1]["type"] == "b"
+
 
 class TestMetadataDocument:
     def test_fail_constructor(self):

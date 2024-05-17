@@ -1,16 +1,14 @@
-from ray.data import Dataset
-
 from sycamore.data import Document
 from sycamore.functions.tokenizer import Tokenizer
-from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
-from sycamore.utils import generate_map_function
+from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
+from sycamore.transforms import Map
 
 # TODO:
 # - make breaks balanced in size
 # - maybe move token counting elsewhere to avoid duplicate work
 
 
-class MarkDropTiny(SingleThreadUser, NonGPUUser, Transform):
+class MarkDropTiny(SingleThreadUser, NonGPUUser, Map):
     """
     MarkDropTiny is a transform to add the '_drop' data attribute to
     each Element smaller than a certain size.
@@ -28,32 +26,21 @@ class MarkDropTiny(SingleThreadUser, NonGPUUser, Transform):
     """
 
     def __init__(self, child: Node, minimum: int = 2, **resource_args):
-        super().__init__(child, **resource_args)
-        self.min = minimum
+        super().__init__(child, f=MarkDropTiny.fn, args=[minimum], **resource_args)
 
-    class Callable:
-        def __init__(self, minimum: int):
-            self.min = minimum
-
-        def run(self, parent: Document) -> Document:
-            elements = parent.elements  # makes a copy
-            for elem in elements:
-                tr = elem.text_representation or ""
-                if len(tr) < self.min:
-                    elem.data["_drop"] = True  # remove specks
-            parent.elements = elements  # copy back
-            return parent
-
-    def execute(self) -> Dataset:
-        dataset = self.child().execute()
-        marker = MarkDropTiny.Callable(self.min)
-        return dataset.map(generate_map_function(marker.run))
+    @staticmethod
+    def fn(parent: Document, minimum) -> Document:
+        for elem in parent.elements:
+            tr = elem.text_representation or ""
+            if len(tr) < minimum:
+                elem.data["_drop"] = True  # remove specks
+        return parent
 
 
 ###############################################################################
 
 
-class MarkBreakPage(SingleThreadUser, NonGPUUser, Transform):
+class MarkBreakPage(SingleThreadUser, NonGPUUser, Map):
     """
     MarkBreakPage is a transform to add the '_break' data attribute to
     each Element when the 'page_number' property changes.
@@ -70,31 +57,24 @@ class MarkBreakPage(SingleThreadUser, NonGPUUser, Transform):
     """
 
     def __init__(self, child: Node, **resource_args):
-        super().__init__(child, **resource_args)
+        super().__init__(child, f=MarkBreakPage.fn, **resource_args)
 
-    class Callable:
-        def run(self, parent: Document) -> Document:
-            if len(parent.elements) > 1:
-                elements = parent.elements  # makes a copy
-                last = elements[0].properties["page_number"]
-                for elem in elements:
-                    page = elem.properties["page_number"]
-                    if page != last:
-                        elem.data["_break"] = True  # mark for later
-                        last = page
-                parent.elements = elements  # copy back
-            return parent
-
-    def execute(self) -> Dataset:
-        dataset = self.child().execute()
-        marker = MarkBreakPage.Callable()
-        return dataset.map(generate_map_function(marker.run))
+    @staticmethod
+    def fn(parent: Document) -> Document:
+        if len(parent.elements) > 1:
+            last = parent.elements[0].properties["page_number"]
+            for elem in parent.elements:
+                page = elem.properties["page_number"]
+                if page != last:
+                    elem.data["_break"] = True  # mark for later
+                    last = page
+        return parent
 
 
 ###############################################################################
 
 
-class MarkBreakByTokens(SingleThreadUser, NonGPUUser, Transform):
+class MarkBreakByTokens(SingleThreadUser, NonGPUUser, Map):
     """
     MarkBreakByTokens is a transform to add the '_break' data attribute to
     each Element when the number of tokens exceeds the limit.  This should
@@ -114,32 +94,19 @@ class MarkBreakByTokens(SingleThreadUser, NonGPUUser, Transform):
     """
 
     def __init__(self, child: Node, tokenizer: Tokenizer, limit: int = 512, **resource_args):
-        super().__init__(child, **resource_args)
-        self.tokenizer = tokenizer
-        self.limit = limit
+        super().__init__(child, f=MarkBreakByTokens.fn, args=[tokenizer, limit], **resource_args)
 
-    class Callable:
-        def __init__(self, tokenizer: Tokenizer, limit: int):
-            self.tokenizer = tokenizer
-            self.limit = limit
-
-        def run(self, parent: Document) -> Document:
-            toks = 0
-            elements = parent.elements  # makes a copy
-            for elem in elements:
-                if elem.text_representation:
-                    n = len(self.tokenizer.tokenize(elem.text_representation))
-                else:
-                    n = 0
-                elem.data["_tokCnt"] = n
-                if elem.data.get("_break") or ((toks + n) > self.limit):
-                    elem.data["_break"] = True
-                    toks = 0
-                toks += n
-            parent.elements = elements  # copy back
-            return parent
-
-    def execute(self) -> Dataset:
-        dataset = self.child().execute()
-        marker = MarkBreakByTokens.Callable(self.tokenizer, self.limit)
-        return dataset.map(generate_map_function(marker.run))
+    @staticmethod
+    def fn(parent: Document, tokenizer: Tokenizer, limit: int) -> Document:
+        toks = 0
+        for elem in parent.elements:
+            if elem.text_representation:
+                n = len(tokenizer.tokenize(elem.text_representation))
+            else:
+                n = 0
+            elem.data["_tokCnt"] = n
+            if elem.data.get("_break") or ((toks + n) > limit):
+                elem.data["_break"] = True
+                toks = 0
+            toks += n
+        return parent

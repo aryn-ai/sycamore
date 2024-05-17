@@ -8,7 +8,7 @@ from ray.data import ActorPoolStrategy, Dataset
 from sycamore.data import Document
 from sycamore.functions.simhash import shinglesCalc, shinglesDist
 from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
-from sycamore.transforms.map import generate_map_function
+from sycamore.utils import generate_map_function
 from sycamore.utils.generate_ray_func import generate_map_batch_filter_class_from_callable
 from sycamore.utils.time_trace import TimeTrace
 

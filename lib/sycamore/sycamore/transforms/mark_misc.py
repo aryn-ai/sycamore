@@ -26,10 +26,10 @@ class MarkDropTiny(SingleThreadUser, NonGPUUser, Map):
     """
 
     def __init__(self, child: Node, minimum: int = 2, **resource_args):
-        super().__init__(child, f=MarkDropTiny.fn, args=[minimum], **resource_args)
+        super().__init__(child, f=MarkDropTiny.mark_drop_tiny, args=[minimum], **resource_args)
 
     @staticmethod
-    def fn(parent: Document, minimum) -> Document:
+    def mark_drop_tiny(parent: Document, minimum) -> Document:
         for elem in parent.elements:
             tr = elem.text_representation or ""
             if len(tr) < minimum:
@@ -57,10 +57,10 @@ class MarkBreakPage(SingleThreadUser, NonGPUUser, Map):
     """
 
     def __init__(self, child: Node, **resource_args):
-        super().__init__(child, f=MarkBreakPage.fn, **resource_args)
+        super().__init__(child, f=MarkBreakPage.mark_break_page, **resource_args)
 
     @staticmethod
-    def fn(parent: Document) -> Document:
+    def mark_break_page(parent: Document) -> Document:
         if len(parent.elements) > 1:
             last = parent.elements[0].properties["page_number"]
             for elem in parent.elements:
@@ -94,10 +94,10 @@ class MarkBreakByTokens(SingleThreadUser, NonGPUUser, Map):
     """
 
     def __init__(self, child: Node, tokenizer: Tokenizer, limit: int = 512, **resource_args):
-        super().__init__(child, f=MarkBreakByTokens.fn, args=[tokenizer, limit], **resource_args)
+        super().__init__(child, f=MarkBreakByTokens.mark_break_by_tokens, args=[tokenizer, limit], **resource_args)
 
     @staticmethod
-    def fn(parent: Document, tokenizer: Tokenizer, limit: int) -> Document:
+    def mark_break_by_tokens(parent: Document, tokenizer: Tokenizer, limit: int) -> Document:
         toks = 0
         for elem in parent.elements:
             if elem.text_representation:

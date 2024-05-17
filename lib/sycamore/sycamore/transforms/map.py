@@ -101,6 +101,9 @@ class FlatMap(BaseMapTransform):
 
             return _wrap
 
+    def run(self, d: Document) -> list[Document]:
+        return self._local_process([d])
+
 
 class MapBatch(BaseMapTransform):
     """
@@ -138,3 +141,6 @@ class MapBatch(BaseMapTransform):
             constructor_kwargs=f_constructor_kwargs,
             **resource_args
         )
+
+    def run(self, docs: list[Document]) -> list[Document]:
+        return self._local_process(docs)

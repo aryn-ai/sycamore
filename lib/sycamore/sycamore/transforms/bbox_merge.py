@@ -118,10 +118,10 @@ class SortByPageBbox(SingleThreadUser, NonGPUUser, Map):
     """
 
     def __init__(self, child: Node, **resource_args):
-        super().__init__(child, f=SortByPageBbox.sort_it, **resource_args)
+        super().__init__(child, f=SortByPageBbox.sort_by_page_bbox, **resource_args)
 
     @staticmethod
-    def sort_it(parent: Document) -> Document:
+    def sort_by_page_bbox(parent: Document) -> Document:
         parent.elements.sort(key=getPageTopLeft)
         return parent
 
@@ -153,10 +153,10 @@ class MarkDropHeaderFooter(SingleThreadUser, NonGPUUser, Map):
             bottom = top
         lo = top
         hi = 1.0 - bottom
-        super().__init__(child, f=MarkDropHeaderFooter.fn, args=[lo, hi], **resource_args)
+        super().__init__(child, f=MarkDropHeaderFooter.mark_drop_header_and_footer, args=[lo, hi], **resource_args)
 
     @staticmethod
-    def fn(parent: Document, lo: float, hi: float) -> Document:
+    def mark_drop_header_and_footer(parent: Document, lo: float, hi: float) -> Document:
         for elem in parent.elements:
             bbox = elem.data.get("bbox")
             if (bbox is not None) and ((bbox[1] > hi) or (bbox[3] < lo)):
@@ -186,10 +186,10 @@ class MarkBreakByColumn(SingleThreadUser, NonGPUUser, Map):
     """
 
     def __init__(self, child: Node, **resource_args):
-        super().__init__(child, f=MarkBreakByColumn.fn, **resource_args)
+        super().__init__(child, f=MarkBreakByColumn.mark_break_by_column, **resource_args)
 
     @staticmethod
-    def fn(parent: Document) -> Document:
+    def mark_break_by_column(parent: Document) -> Document:
         elements = parent.elements
 
         # measure width in-use

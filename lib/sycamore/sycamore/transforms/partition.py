@@ -284,6 +284,7 @@ class HtmlPartitioner(Partitioner):
         self._text_chunker = text_chunker
         self._tokenizer = tokenizer
 
+    @timetrace("beautSoup")
     def partition(self, document: Document) -> Document:
         raw_html = document.binary_representation
 
@@ -438,6 +439,7 @@ class SycamorePartitioner(Partitioner):
         else:
             return 0
 
+    @timetrace("SycamorePdf")
     def partition(self, document: Document) -> Document:
         binary = io.BytesIO(document.data["binary_representation"])
 

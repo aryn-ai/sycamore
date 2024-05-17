@@ -35,12 +35,13 @@ class TimeTrace:
         user = int((r1.ru_utime - r0.ru_utime) * 1000000000.0)
         syst = int((r1.ru_stime - r0.ru_stime) * 1000000000.0)
         buf = struct.pack(
-            "QQQQI48s",
+            "BxxxIQQQQ48s",
+            0,  # version
+            thr,
             self.t0,
             t1,
             user,
             syst,
-            thr,
             self.name,
         )
         os.write(TimeTrace.fd, buf)

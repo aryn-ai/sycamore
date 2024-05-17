@@ -7,7 +7,6 @@ import { getIndices, getEmbeddingModels, FEEDBACK_INDEX_NAME, createFeedbackInde
 export const ControlPanel = ({ settings, setSettings, controlPanelOpened, onControlPanelClose }: { settings: Settings, setSettings: Dispatch<SetStateAction<Settings>>, controlPanelOpened: boolean, onControlPanelClose: any }) => {
     const [availableIndices, setAvailableIndices] = useState(new Array<string>())
     const [availableEmbeddings, setAvailableEmbeddings] = useState(new Array<string>())
-    const newsettings = settings
 
     const getIndicesAndEmbeddings = async () => {
         const [getIndicesResponse, getEmbeddingsResponse] = await Promise.all([
@@ -16,7 +15,7 @@ export const ControlPanel = ({ settings, setSettings, controlPanelOpened, onCont
         ])
         const newIndiciesMaybeWFeedback = Object.keys(getIndicesResponse).filter((key) => !key.startsWith("."))
         var newIndicies;
-        if(newIndiciesMaybeWFeedback.includes(FEEDBACK_INDEX_NAME)) {
+        if (newIndiciesMaybeWFeedback.includes(FEEDBACK_INDEX_NAME)) {
             newIndicies = newIndiciesMaybeWFeedback.filter((name) => name !== FEEDBACK_INDEX_NAME)
         } else {
             newIndicies = newIndiciesMaybeWFeedback
@@ -33,10 +32,32 @@ export const ControlPanel = ({ settings, setSettings, controlPanelOpened, onCont
     }
 
     useEffect(() => {
+
+        const getDefaultSettingsFromProxy = async () => {
+            try {
+                const response = await fetch('/aryn/get_default_settings', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                console.log("Default settings are: ", response)
+                return response.json()
+            } catch (error) {
+                console.error('Error in loading server configured settings, reverting to local defaults', error);
+                return null
+            }
+        };
         const doit = async () => {
+            const newsettings = await getDefaultSettingsFromProxy()
             const [indexNames, modelIds] = await getIndicesAndEmbeddings()
             newsettings.openSearchIndex = indexNames[0];
             newsettings.embeddingModel = modelIds[0];
+            console.log("Settings: ", newsettings)
             setSettings(newsettings)
             setAvailableIndices(indexNames)
             setAvailableEmbeddings(modelIds)
@@ -46,62 +67,62 @@ export const ControlPanel = ({ settings, setSettings, controlPanelOpened, onCont
 
     return (
         <Modal opened={controlPanelOpened} onClose={onControlPanelClose} title="Options" centered>
-        < Stack> 
-            
-            <Divider orientation="horizontal" />
-            <Group position='apart'>
-            <Text fz="xs">RAG passage count:</Text>
-            <NativeSelect
-                data={["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]}
-                defaultValue={settings.ragPassageCount}
-                onChange={(event) => {
-                    const newsettings = settings
-                    newsettings.ragPassageCount = +event.currentTarget.value
-                    setSettings(newsettings)
-                }
-                }
-            />
-            </Group>
-            <Group position='apart'>
-            <Text fz="xs">AI model:</Text>
-            <NativeSelect
-                data={settings.availableModels}
-                defaultValue={settings.modelName}
-                onChange={(event) => {
-                    const newsettings = settings
-                    newsettings.modelName = event.currentTarget.value
-                    setSettings(newsettings)
-                }
-                }
-            />
-            </Group>
-            <Group position='apart'>
-            <Text fz="xs">OpenSearch index:</Text>
-            <NativeSelect
-                data={Array.from(availableIndices)}
-                defaultValue={settings.openSearchIndex}
-                onChange={(event) => {
-                    const newsettings = settings
-                    newsettings.openSearchIndex = event.currentTarget.value
-                    setSettings(newsettings)
-                }
-                }
-            />
-            </Group>
-            <Group position='apart'>
-            <Text fz="xs">Embedding Model:</Text>
-            <NativeSelect
-                data={Array.from(availableEmbeddings)}
-                defaultValue={settings.embeddingModel}
-                onChange={(event) => {
-                    const newsettings = settings
-                    newsettings.embeddingModel = event.currentTarget.value
-                    setSettings(newsettings)
-                }
-                }
-            />
-            </Group>
-         </Stack > 
-         </Modal>
+            < Stack>
+
+                <Divider orientation="horizontal" />
+                <Group position='apart'>
+                    <Text fz="xs">RAG passage count:</Text>
+                    <NativeSelect
+                        data={["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]}
+                        defaultValue={settings.ragPassageCount}
+                        onChange={(event) => {
+                            const newsettings = settings
+                            newsettings.ragPassageCount = +event.currentTarget.value
+                            setSettings(newsettings)
+                        }
+                        }
+                    />
+                </Group>
+                <Group position='apart'>
+                    <Text fz="xs">AI model:</Text>
+                    <NativeSelect
+                        data={settings.availableModels}
+                        defaultValue={settings.modelName}
+                        onChange={(event) => {
+                            const newsettings = settings
+                            newsettings.modelName = event.currentTarget.value
+                            setSettings(newsettings)
+                        }
+                        }
+                    />
+                </Group>
+                <Group position='apart'>
+                    <Text fz="xs">OpenSearch index:</Text>
+                    <NativeSelect
+                        data={Array.from(availableIndices)}
+                        defaultValue={settings.openSearchIndex}
+                        onChange={(event) => {
+                            const newsettings = settings
+                            newsettings.openSearchIndex = event.currentTarget.value
+                            setSettings(newsettings)
+                        }
+                        }
+                    />
+                </Group>
+                <Group position='apart'>
+                    <Text fz="xs">Embedding Model:</Text>
+                    <NativeSelect
+                        data={Array.from(availableEmbeddings)}
+                        defaultValue={settings.embeddingModel}
+                        onChange={(event) => {
+                            const newsettings = settings
+                            newsettings.embeddingModel = event.currentTarget.value
+                            setSettings(newsettings)
+                        }
+                        }
+                    />
+                </Group>
+            </Stack >
+        </Modal>
     );
 }

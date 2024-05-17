@@ -390,12 +390,12 @@ def get_default_settings():
         "embeddingModel": "",
         "ragPassageCount": 5,
         "modelName": os.environ.get("UI_DEFAULT_RAG_MODEL", "gpt-4o"),
-        "modelId":  "abScoYoBAwYohYvwjxcP",
+        "modelId": "abScoYoBAwYohYvwjxcP",
         "availableModels": ["gpt-3.5-turbo", "gpt-4o", "gpt-4", "gpt-4-turbo-preview"],
         "activeConversation": "",
         "simplify": False,
         "auto_filter": os.environ.get("UI_QUERY_PLANNER", "false") == "true",
-        "required_filters": []
+        "required_filters": [],
     }
     return settings
 

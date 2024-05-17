@@ -49,7 +49,13 @@ class TestBaseMapTransform:
 
     def test_simple(self, mocker):
         (docs, mds) = self.outputs(
-            BaseMapTransform(self.input_node(mocker), f=self.fn_a, args=["simple"], kwargs={"extra2": "kwarg"})
+            BaseMapTransform(
+                self.input_node(mocker),
+                f=self.fn_a,
+                args=["simple"],
+                kwargs={"extra2": "kwarg"},
+                enable_auto_metadata=True,
+            )
         )
 
         ndocs = self.ndocs
@@ -98,8 +104,8 @@ class TestBaseMapTransform:
             assert id_to_num[from_ids[0]] == id_to_num[to_ids[0]]
 
     def test_passthrough(self, mocker):
-        a = BaseMapTransform(self.input_node(mocker), f=self.fn_a, args=["simple"])
-        b = BaseMapTransform(a, f=lambda x: x)
+        a = BaseMapTransform(self.input_node(mocker), f=self.fn_a, args=["simple"], enable_auto_metadata=True)
+        b = BaseMapTransform(a, f=lambda x: x, enable_auto_metadata=True)
         (docs, mds) = self.outputs(b)
         ndocs = self.ndocs
 
@@ -178,6 +184,7 @@ class TestBaseMapTransform:
                 constructor_kwargs={"b": "c2"},
                 args=["a1"],
                 kwargs={"f": "a2"},
+                enable_auto_metadata=True,
             )
         )
 

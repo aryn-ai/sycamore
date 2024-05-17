@@ -8,6 +8,8 @@ from sycamore.data import Document, MetadataDocument
 from sycamore.plan_nodes import Node, UnaryNode
 
 
+# Once we do python 3.12+ only, this can be:
+# def _noneOr[T](a: T, default: T) -> T:
 def _noneOr(a: Any, default: Any) -> Any:
     if a is None:
         return default
@@ -37,14 +39,15 @@ class BaseMapTransform(UnaryNode):
         kwargs: Optional[dict[str, Any]] = None,
         constructor_args: Optional[Iterable[Any]] = None,
         constructor_kwargs: Optional[dict[str, Any]] = None,
+        # If we auto-generate lineage, then the conversion to BaseMap has to go in a single PR
+        # since everything needs to be updated to skip metadata. If we temporarily disable the
+        # lineage metadata, then we can do the conversion to BaseMap in separate PRs.
+        enable_auto_metadata: bool = False,
         **resource_args,
     ):
         super().__init__(child, **resource_args)
         if name is None:
-            if isinstance(f, type):
-                name = type(f).__name__
-            else:
-                name = f.__name__
+            name = f.__name__
 
         self._f = f
         self._name = name
@@ -52,24 +55,47 @@ class BaseMapTransform(UnaryNode):
         self._kwargs = kwargs
         self._constructor_args = constructor_args
         self._constructor_kwargs = constructor_kwargs
+        self._enable_auto_metadata = enable_auto_metadata
 
     def execute(self) -> "Dataset":
         input_dataset = self.child().execute()
 
-        if isinstance(self._f, type):
+        if isinstance(self._f, type):  # is f a class?
             return input_dataset.map_batches(self._map_class(), compute=ActorPoolStrategy(size=1), **self.resource_args)
         else:
             return input_dataset.map_batches(self._map_function(), **self.resource_args)
+
+    def _local_process(self, in_docs: list[Document]) -> list[Document]:
+        """Internal function for faster testing during the conversion to running on BaseMap.
+        If extended with metadata support, this could become more real."""
+        import copy
+
+        # transforms assume they can mutate docs in place; this works in ray because documents are serialized and
+        # deserialized between every stage.
+        docs = copy.deepcopy(in_docs)
+        if isinstance(self._f, type):  # is f a class?
+            c_args = _noneOr(self._constructor_args, tuple())
+            c_kwargs = _noneOr(self._constructor_kwargs, {})
+            inst = self._f(*c_args, **c_kwargs)
+
+            args = _noneOr(self._args, tuple())
+            kwargs = _noneOr(self._kwargs, {})
+            return inst(docs, *args, **kwargs)
+        else:
+            args = _noneOr(self._args, tuple())
+            kwargs = _noneOr(self._kwargs, {})
+            return self._f(docs, *args, **kwargs)
 
     def _map_function(self):
         f = self._f
         name = self._name
         args = _noneOr(self._args, tuple())
         kwargs = _noneOr(self._kwargs, {})
+        enable_auto_metadata = self._enable_auto_metadata
 
         @rename(name)
         def ray_callable(ray_input: dict[str, np.ndarray]) -> dict[str, list]:
-            return BaseMapTransform._process_ray(ray_input, name, lambda d: f(d, *args, **kwargs))
+            return BaseMapTransform._process_ray(ray_input, name, lambda d: f(d, *args, **kwargs), enable_auto_metadata)
 
         return ray_callable
 
@@ -80,18 +106,24 @@ class BaseMapTransform(UnaryNode):
         kwargs = _noneOr(self._kwargs, {})
         c_args = _noneOr(self._constructor_args, tuple())
         c_kwargs = _noneOr(self._constructor_kwargs, {})
+        enable_auto_metadata = self._enable_auto_metadata
 
         def ray_init(self):
             self.base = c(*c_args, **c_kwargs)
 
         def ray_callable(self, ray_input: dict[str, np.ndarray]) -> dict[str, list]:
-            return BaseMapTransform._process_ray(ray_input, name, lambda d: self.base(d, *args, **kwargs))
+            return BaseMapTransform._process_ray(
+                ray_input, name, lambda d: self.base(d, *args, **kwargs), enable_auto_metadata
+            )
 
         return type("BaseMapTransformCustom__" + name, (), {"__init__": ray_init, "__call__": ray_callable})
 
     @staticmethod
     def _process_ray(
-        ray_input: dict[str, np.ndarray], name: str, f: Callable[[list[Document]], list[Document]]
+        ray_input: dict[str, np.ndarray],
+        name: str,
+        f: Callable[[list[Document]], list[Document]],
+        enable_auto_metadata: bool,
     ) -> dict[str, list]:
         # Have to do fully inline documents and metadata which means that we're forced to deserialize
         # metadata documents even though we just pass them through. If we instead had multiple columns,
@@ -113,7 +145,8 @@ class BaseMapTransform(UnaryNode):
             )
 
         to_docs = [d for d in outputs if not isinstance(d, MetadataDocument)]
-        outputs.extend(BaseMapTransform._update_lineage(docs, to_docs))
+        if enable_auto_metadata:
+            outputs.extend(BaseMapTransform._update_lineage(docs, to_docs))
         outputs.extend(metadata)
         return {"doc": [d.serialize() for d in outputs]}
 

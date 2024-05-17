@@ -4,7 +4,7 @@ from ray.data import Dataset
 
 from sycamore.data import Document, Element
 from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
-from sycamore.transforms.map import generate_map_function
+from sycamore.utils import generate_map_function
 
 
 def validBbox(bbox):

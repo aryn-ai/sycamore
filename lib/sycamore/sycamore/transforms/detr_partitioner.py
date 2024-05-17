@@ -14,7 +14,6 @@ import base64
 import requests
 import json
 import pickle
-import os
 import gzip
 
 import torch
@@ -96,7 +95,7 @@ class SycamorePDFPartitioner:
         table_structure_extractor=DEFAULT_TABLE_STRUCTURE_EXTRACTOR,
         extract_images=False,
         model_server_endpoint=None,
-        batch_size: int = 10
+        batch_size: int = 10,
     ) -> List[List["Element"]]:
         """
         Partitions a PDF with the DeformableDETR model.
@@ -130,7 +129,7 @@ class SycamorePDFPartitioner:
             batches = _batchify(images, batch_size)
             deformable_layout = []
             for batch in batches:
-                deformable_layout += self.model.batch_infer(batch, threshold, model_server_endpoint)
+                deformable_layout += self.model.infer(batch, threshold, model_server_endpoint)
 
             if use_ocr:
                 extract_ocr(images, deformable_layout, ocr_images=ocr_images, ocr_tables=ocr_tables)
@@ -169,11 +168,11 @@ class SycamoreObjectDetection(ABC):
         self.model = None
 
     @abstractmethod
-    def infer(self, image: Image.Image, threshold: float) -> List[Element]:
+    def infer(self, image: List[Image.Image], threshold: float) -> List[List[Element]]:
         """Do inference using the wrapped model."""
         pass
 
-    def __call__(self, image: Image.Image, threshold: float) -> List[Element]:
+    def __call__(self, image: List[Image.Image], threshold: float) -> List[List[Element]]:
         """Inference using function call interface."""
         return self.infer(image, threshold)
 
@@ -201,6 +200,7 @@ class DeformableDetr(SycamoreObjectDetection):
         self._model_name_or_path = model_name_or_path
 
         from transformers import AutoImageProcessor, DeformableDetrForObjectDetection
+
         self.processor = AutoImageProcessor.from_pretrained(model_name_or_path)
         self.model = DeformableDetrForObjectDetection.from_pretrained(model_name_or_path).to(self._get_device())
 
@@ -213,60 +213,9 @@ class DeformableDetr(SycamoreObjectDetection):
         else:
             return self.device
 
-    def infer(self, image: Image.Image, threshold: float, model_server_endpoint: str = None) -> list[Element]:
-        if model_server_endpoint:
-            endpoint = model_server_endpoint + self._model_name_or_path
-            metadata = {"threshold": threshold, "modes": [image.mode], "sizes": [image.size]}
-            metadata_string = json.dumps(metadata)
-            files = [("metadata", gzip.compress(metadata_string.encode("utf-8")))] + [
-                ("images", gzip.compress(image.tobytes()))
-            ]
-            try:
-                response = requests.post(endpoint, files=files)
-                results = response.json()[0]
-            except Exception:
-                results = None
-            if results:
-                for k, v in results.items():
-                    results[k] = base64.b64decode(v)
-                    results[k] = pickle.loads(results[k])
-                w, h = image.size
-                elements = []
-                for score, label, box in zip(
-                    results["scores"].cpu().detach().numpy(),
-                    results["labels"].cpu().detach().numpy(),
-                    results["boxes"].cpu().detach().numpy(),
-                ):
-                    element = create_element(
-                        type=self.labels[label],
-                        bbox=BoundingBox(box[0] / w, box[1] / h, box[2] / w, box[3] / h).coordinates,
-                        properties={"score": score},
-                    )
-                    elements.append(element)
-                return elements
-        inputs = self.processor(images=image, return_tensors="pt").to(self._get_device())
-        outputs = self.model(**inputs)
-        target_sizes = torch.tensor([image.size[::-1]])
-        results = self.processor.post_process_object_detection(outputs, target_sizes=target_sizes, threshold=threshold)[
-            0
-        ]
-        # need to wrap up the results in elements
-        elements = []
-        (w, h) = image.size
-        for score, label, box in zip(
-            results["scores"].cpu().detach().numpy(),
-            results["labels"].cpu().detach().numpy(),
-            results["boxes"].cpu().detach().numpy(),
-        ):
-            element = create_element(
-                type=self.labels[label],
-                bbox=BoundingBox(box[0] / w, box[1] / h, box[2] / w, box[3] / h).coordinates,
-                properties={"score": score},
-            )
-            elements.append(element)
-        return elements
-
-    def batch_infer(self, images: List[Image.Image], threshold: float, model_server_endpoint: str = None) -> List[List[Element]]:
+    def infer(
+        self, images: List[Image.Image], threshold: float, model_server_endpoint: str = ""
+    ) -> List[List[Element]]:
         if model_server_endpoint:
             endpoint = model_server_endpoint + self._model_name_or_path
             metadata = {
@@ -305,7 +254,30 @@ class DeformableDetr(SycamoreObjectDetection):
                     batched_results.append(elements)
                 return batched_results
 
-        batched_results = [self.infer(image, threshold) for image in images]
+        batched_results = []
+
+        for image in images:
+            inputs = self.processor(images=image, return_tensors="pt").to(self._get_device())
+            outputs = self.model(**inputs)
+            target_sizes = torch.tensor([image.size[::-1]])
+            results = self.processor.post_process_object_detection(
+                outputs, target_sizes=target_sizes, threshold=threshold
+            )[0]
+            # need to wrap up the results in elements
+            elements = []
+            (w, h) = image.size
+            for score, label, box in zip(
+                results["scores"].cpu().detach().numpy(),
+                results["labels"].cpu().detach().numpy(),
+                results["boxes"].cpu().detach().numpy(),
+            ):
+                element = create_element(
+                    type=self.labels[label],
+                    bbox=BoundingBox(box[0] / w, box[1] / h, box[2] / w, box[3] / h).coordinates,
+                    properties={"score": score},
+                )
+                elements.append(element)
+            batched_results.append(elements)
         return batched_results
 
 

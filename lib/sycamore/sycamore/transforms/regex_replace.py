@@ -4,7 +4,8 @@ from ray.data import Dataset
 
 from sycamore.data import Document
 from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
-from sycamore.transforms.map import generate_map_function
+from sycamore.utils import generate_map_function
+from sycamore.utils.time_trace import timetrace
 
 COALESCE_WHITESPACE = [
     (r"\s+", " "),
@@ -49,6 +50,7 @@ class RegexReplace(SingleThreadUser, NonGPUUser, Transform):
                 pat = re.compile(exp)
                 self.spec.append((pat, repl))
 
+        @timetrace("regexRepl")
         def run(self, doc: Document) -> Document:
             spec = self.spec
             updated = []

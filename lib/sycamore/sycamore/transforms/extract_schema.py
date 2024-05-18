@@ -7,7 +7,7 @@ from ray.data import Dataset
 from sycamore.data import Element, Document
 from sycamore.plan_nodes import Node, Transform
 from sycamore.llms import LLM
-from sycamore.transforms.map import generate_map_function
+from sycamore.utils import generate_map_function
 from sycamore.llms.prompts import (
     SchemaZeroShotGuidancePrompt,
     PropertiesZeroShotGuidancePrompt,

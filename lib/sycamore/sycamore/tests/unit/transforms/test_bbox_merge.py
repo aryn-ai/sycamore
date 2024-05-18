@@ -70,12 +70,12 @@ class TestBboxMerge:
 
     def testMergeElements(self):
         doc = Document(self.doc)
-        doc = SortByPageBbox.Callable().run(doc)
-        doc = MarkDropTiny.Callable(2).run(doc)
-        doc = MarkDropHeaderFooter.Callable(0.05, 0.05).run(doc)
-        doc = MarkBreakPage.Callable().run(doc)
-        doc = MarkBreakByColumn.Callable().run(doc)
-        doc = MarkBreakByTokens.Callable(self.tokenizer, 512).run(doc)
+        doc = SortByPageBbox(None).run(doc)
+        doc = MarkDropTiny(None, 2).run(doc)
+        doc = MarkDropHeaderFooter(None, 0.05).run(doc)
+        doc = MarkBreakPage(None).run(doc)
+        doc = MarkBreakByColumn(None).run(doc)
+        doc = MarkBreakByTokens(None, self.tokenizer, 512).run(doc)
         doc = MarkedMerger().merge_elements(doc)
         merged = doc.elements
         assert len(merged) == 5
@@ -93,11 +93,11 @@ class TestBboxMerge:
 
     def testMergeElementsAcrossPages(self):
         doc = Document(self.doc)
-        doc = SortByPageBbox.Callable().run(doc)
-        doc = MarkDropTiny.Callable(2).run(doc)
-        doc = MarkDropHeaderFooter.Callable(0.05, 0.05).run(doc)
-        doc = MarkBreakByColumn.Callable().run(doc)
-        doc = MarkBreakByTokens.Callable(self.tokenizer, 512).run(doc)
+        doc = SortByPageBbox(None).run(doc)
+        doc = MarkDropTiny(None, 2).run(doc)
+        doc = MarkDropHeaderFooter(None, 0.05).run(doc)
+        doc = MarkBreakByColumn(None).run(doc)
+        doc = MarkBreakByTokens(None, self.tokenizer, 512).run(doc)
         doc = MarkedMerger().merge_elements(doc)
         merged = doc.elements
         assert len(merged) == 3

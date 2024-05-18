@@ -383,6 +383,23 @@ def opensearch_version(retries=3):
         return opensearch_version(retries=retries - 1)
 
 
+@app.route("/aryn/get_default_settings", methods=["GET", "OPTIONS"])
+def get_default_settings():
+    settings = {
+        "openSearchIndex": "",
+        "embeddingModel": "",
+        "ragPassageCount": 5,
+        "modelName": os.environ.get("UI_DEFAULT_RAG_MODEL", "gpt-4o"),
+        "modelId": "abScoYoBAwYohYvwjxcP",
+        "availableModels": ["gpt-3.5-turbo", "gpt-4o", "gpt-4", "gpt-4-turbo-preview"],
+        "activeConversation": "",
+        "simplify": False,
+        "auto_filter": os.environ.get("UI_QUERY_PLANNER", "false") == "true",
+        "required_filters": [],
+    }
+    return settings
+
+
 @app.route("/", methods=["GET", "OPTIONS"])
 @app.route("/manifest.json", methods=["GET", "OPTIONS"])
 @app.route("/static/<path:arg>", methods=["GET", "OPTIONS"])

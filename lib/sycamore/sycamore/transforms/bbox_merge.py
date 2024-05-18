@@ -4,6 +4,7 @@ from typing import Optional
 from sycamore.data import Document, Element
 from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
 from sycamore.transforms import Map
+from sycamore.utils.time_trace import TimeTrace, timetrace
 
 
 def validBbox(bbox):
@@ -122,8 +123,9 @@ class SortByPageBbox(SingleThreadUser, NonGPUUser, Map):
 
     @staticmethod
     def sort_by_page_bbox(parent: Document) -> Document:
-        parent.elements.sort(key=getPageTopLeft)
-        return parent
+        with TimeTrace("sortPageBbox"):
+            parent.elements.sort(key=getPageTopLeft)
+            return parent
 
 
 ###############################################################################
@@ -156,6 +158,7 @@ class MarkDropHeaderFooter(SingleThreadUser, NonGPUUser, Map):
         super().__init__(child, f=MarkDropHeaderFooter.mark_drop_header_and_footer, args=[lo, hi], **resource_args)
 
     @staticmethod
+    @timetrace("markHeadFoot")
     def mark_drop_header_and_footer(parent: Document, lo: float, hi: float) -> Document:
         for elem in parent.elements:
             bbox = elem.data.get("bbox")
@@ -189,6 +192,7 @@ class MarkBreakByColumn(SingleThreadUser, NonGPUUser, Map):
         super().__init__(child, f=MarkBreakByColumn.mark_break_by_column, **resource_args)
 
     @staticmethod
+    @timetrace("makeBreakCol")
     def mark_break_by_column(parent: Document) -> Document:
         elements = parent.elements
 

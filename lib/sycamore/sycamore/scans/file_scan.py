@@ -11,6 +11,7 @@ from ray.data import Dataset, read_binary_files, read_json
 
 from sycamore.data import Document
 from sycamore.plan_nodes import Scan
+from sycamore.utils.time_trace import timetrace
 
 
 logger = logging.getLogger(__name__)
@@ -121,6 +122,7 @@ class BinaryScan(FileScan):
         self._metadata_provider = metadata_provider
         self._filter_paths_by_extension = filter_paths_by_extension
 
+    @timetrace("readBinary")
     def _to_document(self, dict: dict[str, Any]) -> dict[str, bytes]:
         document = Document()
 

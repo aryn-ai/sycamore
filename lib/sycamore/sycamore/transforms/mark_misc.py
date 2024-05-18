@@ -2,6 +2,7 @@ from sycamore.data import Document
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
 from sycamore.transforms import Map
+from sycamore.utils.time_trace import timetrace
 
 # TODO:
 # - make breaks balanced in size
@@ -29,6 +30,7 @@ class MarkDropTiny(SingleThreadUser, NonGPUUser, Map):
         super().__init__(child, f=MarkDropTiny.mark_drop_tiny, args=[minimum], **resource_args)
 
     @staticmethod
+    @timetrace("markDropTiny")
     def mark_drop_tiny(parent: Document, minimum) -> Document:
         for elem in parent.elements:
             tr = elem.text_representation or ""
@@ -60,6 +62,7 @@ class MarkBreakPage(SingleThreadUser, NonGPUUser, Map):
         super().__init__(child, f=MarkBreakPage.mark_break_page, **resource_args)
 
     @staticmethod
+    @timetrace("markBreakPage")
     def mark_break_page(parent: Document) -> Document:
         if len(parent.elements) > 1:
             last = parent.elements[0].properties["page_number"]
@@ -97,6 +100,7 @@ class MarkBreakByTokens(SingleThreadUser, NonGPUUser, Map):
         super().__init__(child, f=MarkBreakByTokens.mark_break_by_tokens, args=[tokenizer, limit], **resource_args)
 
     @staticmethod
+    @timetrace("markBreakToks")
     def mark_break_by_tokens(parent: Document, tokenizer: Tokenizer, limit: int) -> Document:
         toks = 0
         for elem in parent.elements:

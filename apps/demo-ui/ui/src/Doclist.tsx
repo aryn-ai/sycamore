@@ -50,22 +50,30 @@ const DocumentItem = ({ document }: { document: SearchResultDocument }) => {
     }
     const parts: string[] = document.url.split("/");
     const filename: string = parts[parts.length - 1];
+    
     if(!document.isPdf() && document.hasAbsoluteUrl()) {
-        let redirectUrl = "";
+        const cleanText = (text: string) => {
+            let cleaned = text.split('\n\n')[1];
+            cleaned = cleaned.replace(/,([A-Z])/g, ', $1'); 
+            cleaned = cleaned.replace(/[^a-zA-Z\s]/g, '');
+            cleaned = cleaned.replace(/\s+/g, ' ');
+            cleaned = cleaned.trim();
+            return cleaned;
+        }
+        
+        const cleanedText = cleanText(document.description);
+        const getEdgeWords = (passage: string) => {
+            const words = passage.split(/\s+/); 
+            const firstFour = words.slice(0, 4);
+            const lastFour = words.slice(-4); 
+            return { firstFour, lastFour };
+        }
+        const {firstFour, lastFour} = getEdgeWords(cleanedText);
+
+
+        let redirectUrl = `${document.url}#:~:text=${firstFour[0]}%20${firstFour[1]}-,${firstFour[2]},${lastFour[2]}%20${lastFour[3]}`;;
         if(document.id === 'index-1') {
             redirectUrl = `${document.url}#:~:text=Top%20Results,Phillip%20Griffith`;
-        }
-        else if(document.id === 'index-0'){
-            redirectUrl = `${document.url}#:~:text=Sort%20Benchmark%20Home%20Page,Engineering%20Dept`;
-        }
-        else if(document.id === 'index-3') {
-            redirectUrl = `${document.url}#:~:text=GraySort,description%20document`;
-        }
-        else if(document.id === 'index-2') {
-            redirectUrl = `${document.url}#:~:text=Common%20Rules,under%20clocking`;
-        }
-        else {
-            redirectUrl = document.url;
         }
         return (
             <div ref={ref}>

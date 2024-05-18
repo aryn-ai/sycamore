@@ -11,10 +11,10 @@ from sycamore.functions import CharacterTokenizer, Tokenizer
 from sycamore.functions import reorder_elements
 from sycamore.data import BoundingBox, Document, Element, TableElement
 from sycamore.plan_nodes import Node, Transform
-from sycamore.transforms.map import generate_map_function
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
-from sycamore.utils import generate_map_class_from_callable
+from sycamore.utils import generate_map_function, generate_map_class_from_callable
+from sycamore.utils.time_trace import timetrace
 
 
 # This comparator helps sort the elements per page specifically when a page
@@ -217,6 +217,7 @@ class UnstructuredPdfPartitioner(Partitioner):
 
         return element
 
+    @timetrace("unstructuredPdf")
     def partition(self, document: Document) -> Document:
         from unstructured.partition.pdf import partition_pdf
 
@@ -282,6 +283,7 @@ class HtmlPartitioner(Partitioner):
         self._text_chunker = text_chunker
         self._tokenizer = tokenizer
 
+    @timetrace("beautSoup")
     def partition(self, document: Document) -> Document:
         raw_html = document.binary_representation
 
@@ -390,10 +392,10 @@ class SycamorePartitioner(Partitioner):
         extract_table_structure=False,
         table_structure_extractor=DEFAULT_TABLE_STRUCTURE_EXTRACTOR,
         extract_images=False,
+        device=None,
     ):
-        from sycamore.transforms.detr_partitioner import SycamorePDFPartitioner
-
-        self._partitioner = SycamorePDFPartitioner(model_name_or_path)
+        self._model_name_or_path = model_name_or_path
+        self._device = device
         self._threshold = threshold
         self._use_ocr = use_ocr
         self._ocr_images = ocr_images
@@ -436,11 +438,15 @@ class SycamorePartitioner(Partitioner):
         else:
             return 0
 
+    @timetrace("SycamorePdf")
     def partition(self, document: Document) -> Document:
         binary = io.BytesIO(document.data["binary_representation"])
+        from sycamore.transforms.detr_partitioner import SycamorePDFPartitioner
+
+        partitioner = SycamorePDFPartitioner(self._model_name_or_path, device=self._device)
 
         try:
-            result = self._partitioner.partition_pdf(
+            result = partitioner.partition_pdf(
                 binary,
                 self._threshold,
                 use_ocr=self._use_ocr,

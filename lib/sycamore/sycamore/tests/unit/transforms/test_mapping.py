@@ -43,15 +43,27 @@ class TestMapping:
             {"index": 1, "doc": "Members of a strike at Yale University."},
             {"index": 2, "doc": "A woman is speaking at a podium outdoors."},
         ]
-        input_dataset = ray.data.from_items([{"doc": Document(dict).serialize()} for dict in dicts])
+        in_docs = [Document(d) for d in dicts]
+        out_docs = mapping._local_process(in_docs)
+        assert len(out_docs) == 2
+        assert out_docs[0].data["index"] == 2
+        assert out_docs[1].data["index"] == 3
+
+        input_dataset = ray.data.from_items([{"doc": d.serialize()} for d in in_docs])
         execute = mocker.patch.object(node, "execute")
         execute.return_value = input_dataset
         output_dataset = mapping.execute()
         dicts = [Document.from_row(doc).data for doc in output_dataset.take()]
-        assert dicts[0]["index"] == 2 and dicts[1]["index"] == 3
+
+        # ray does not guarantee order preserving
+        dicts.sort(key=lambda d: d["index"])
+        print(dicts)
+        assert dicts[0]["index"] == 2
+        assert dicts[1]["index"] == 3
 
     class FlatMapClass:
         def __call__(self, doc: Document) -> List[Document]:
+            assert isinstance(doc, Document)
             return [doc, doc]
 
     @pytest.mark.parametrize("function", [flat_map_func, FlatMapClass])
@@ -62,7 +74,11 @@ class TestMapping:
             {"index": 1, "doc": "Members of a strike at Yale University."},
             {"index": 2, "doc": "A woman is speaking at a podium outdoors."},
         ]
-        input_dataset = ray.data.from_items([{"doc": Document(dict).serialize()} for dict in dicts])
+        in_docs = [Document(d) for d in dicts]
+        out_docs = mapping._local_process(in_docs)
+        assert len(out_docs) == 4
+
+        input_dataset = ray.data.from_items([{"doc": d.serialize()} for d in in_docs])
         execute = mocker.patch.object(node, "execute")
         execute.return_value = input_dataset
         output_dataset = mapping.execute()

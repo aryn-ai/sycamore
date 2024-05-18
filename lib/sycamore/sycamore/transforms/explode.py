@@ -2,7 +2,8 @@ from ray.data import Dataset
 
 from sycamore.data import Document
 from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
-from sycamore.transforms.map import generate_flat_map_function
+from sycamore.utils.generate_ray_func import generate_flat_map_function
+from sycamore.utils.time_trace import timetrace
 
 
 class Explode(SingleThreadUser, NonGPUUser, Transform):
@@ -28,14 +29,15 @@ class Explode(SingleThreadUser, NonGPUUser, Transform):
 
     class ExplodeCallable:
         @staticmethod
+        @timetrace("explode")
         def explode(parent: Document) -> list[Document]:
             documents: list[Document] = [parent]
 
             import uuid
 
-            for element in parent.elements:
+            for i, element in enumerate(parent.elements):
                 cur = Document(element.data)
-                cur.doc_id = str(uuid.uuid1())
+                cur.doc_id = str(uuid.uuid1(clock_seq=i))
                 cur.parent_id = parent.doc_id
                 for doc_property in parent.properties.keys():
                     if doc_property.startswith("_"):

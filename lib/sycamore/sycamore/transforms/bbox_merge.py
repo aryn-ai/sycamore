@@ -157,8 +157,8 @@ class MarkDropHeaderFooter(SingleThreadUser, NonGPUUser, Map):
         hi = 1.0 - bottom
         super().__init__(child, f=MarkDropHeaderFooter.mark_drop_header_and_footer, args=[lo, hi], **resource_args)
 
-    @timetrace("markHeadFoot")
     @staticmethod
+    @timetrace("markHeadFoot")
     def mark_drop_header_and_footer(parent: Document, lo: float, hi: float) -> Document:
         for elem in parent.elements:
             bbox = elem.data.get("bbox")
@@ -191,8 +191,8 @@ class MarkBreakByColumn(SingleThreadUser, NonGPUUser, Map):
     def __init__(self, child: Node, **resource_args):
         super().__init__(child, f=MarkBreakByColumn.mark_break_by_column, **resource_args)
 
-    @timetrace("makeBreakCol")
     @staticmethod
+    @timetrace("makeBreakCol")
     def mark_break_by_column(parent: Document) -> Document:
         elements = parent.elements
 

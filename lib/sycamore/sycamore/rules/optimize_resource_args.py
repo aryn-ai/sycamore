@@ -15,7 +15,8 @@ class EnforceResourceUsage(Rule):
             plan.resource_args["num_cpus"] = 1
 
         if isinstance(plan, NonGPUUser):
-            plan.resource_args["num_gpus"] = 0
+            assert "num_gpus" not in plan.resource_args
+
         return plan
 
 

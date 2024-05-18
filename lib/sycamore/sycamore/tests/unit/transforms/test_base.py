@@ -1,5 +1,7 @@
 import ray
 
+from ray.data import ActorPoolStrategy
+
 from sycamore.data import Document, MetadataDocument
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base import BaseMapTransform
@@ -225,3 +227,59 @@ class TestBaseMapTransform:
                 c = c + 1
                 assert md["e"] == "a1"
                 assert md["f"] == "a2"
+
+    def test_object(self, mocker):
+        class Test:
+            def __init__(self, oid):
+                self.oid = oid
+                self.c = 0
+
+            def __call__(self, docs: list[Document]):
+                ret = docs.copy()
+                for d in docs:
+                    ret.append(MetadataDocument(oid=self.oid, c=self.c, n=len(docs)))
+                    self.c = self.c + 1
+
+                return ret
+
+        as_function = BaseMapTransform(
+            self.input_node(mocker),
+            f=Test("as_function"),
+            enable_auto_metadata=False,
+        )
+        as_object = BaseMapTransform(
+            as_function, f=Test("as_object"), compute=ActorPoolStrategy(size=1), enable_auto_metadata=False
+        )
+
+        (docs, mds) = self.outputs(as_object)
+
+        ndocs = self.ndocs
+        assert len(mds) == ndocs * 2
+
+        md_fn = [m.metadata for m in mds if m.metadata["oid"] == "as_function"]
+        md_obj = [m.metadata for m in mds if m.metadata["oid"] == "as_object"]
+
+        assert len(md_fn) == ndocs
+        assert len(md_obj) == ndocs
+
+        # Unexpectedly ray is fusing the two steps together resulting in the object state being
+        # preserved.  Testing the actual behavior rather than the expected behavior of each call to
+        # as_function getting a separate instance. It is unclear whether this behavior is
+        # guaranteed or merely an artifact of the test.
+
+        c = 0
+        md_fn.sort(key=lambda m: m["c"])
+        print(f"md_fn: {md_fn}")
+        for m in md_fn:
+            # each one should get a new instance
+            assert m["c"] == c
+            assert m["n"] == 1
+            c = c + 1
+
+        c = 0
+        md_obj.sort(key=lambda m: m["c"])
+        print(f"md_obj: {md_obj}")
+        for m in md_obj:
+            assert m["c"] == c
+            assert m["n"] == 1
+            c = c + 1

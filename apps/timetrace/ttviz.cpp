@@ -14,6 +14,7 @@
 #include <string>
 #include <algorithm>
 #include <iostream>
+#include <cassert>
 
 using std::pair;
 using std::vector;
@@ -85,14 +86,16 @@ private:
 
 
 struct Rec {
+  uint8_t  version;
+  uint8_t  pad0;
+  uint16_t pad1;
+  uint32_t thread;
   uint64_t t0;
   uint64_t t1;
   uint64_t utime;
   uint64_t stime;
-  uint32_t thread;
   char     name[48];
 };
-const size_t RecLen = 84; // packed
 
 
 class Iter {
@@ -112,9 +115,11 @@ private:
   void advance() {
     for (;;) {
       if (fd_ >= 0) {
-        ssize_t nb = read(fd_, &rec_, RecLen);
-        if (nb == RecLen)
+        ssize_t nb = read(fd_, &rec_, sizeof(Rec));
+        if (nb == sizeof(Rec)) {
+          assert(rec_.version == 0);
           return;
+        }
         close(fd_);
         fd_ = -1;
       }

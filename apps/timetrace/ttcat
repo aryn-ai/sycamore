@@ -4,22 +4,23 @@ import sys
 import struct
 from typing import NamedTuple
 
-FMT = "QQQQI48s"
+FMT = "BxxxIQQQQ48s"
 SIZE = struct.calcsize(FMT)
 
 class TimeTraceRec(NamedTuple):
+    thread: int
     t0: int
     t1: int
     utime: int
     stime: int
-    thread: int
     name: str
 
 def buf_to_rec(buf) -> TimeTraceRec:
     tup = struct.unpack(FMT, buf)
-    t0, t1, user, syst, thr, name = tup
+    ver, thr, t0, t1, user, syst, name = tup
+    assert ver == 0
     name = name.decode().rstrip('\0')
-    return TimeTraceRec(t0, t1, user, syst, thr, name)
+    return TimeTraceRec(thr, t0, t1, user, syst, name)
 
 def tt_reader(paths: list[str]):
     for path in paths:

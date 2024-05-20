@@ -10,6 +10,7 @@ from ray.data._internal.execution.interfaces import TaskContext
 
 from sycamore.data import Document
 from sycamore.plan_nodes import Node, Write
+from sycamore.utils.time_trace import timetrace
 
 log = logging.getLogger(__name__)
 
@@ -88,6 +89,7 @@ class OSDataSink(Datasink):
                 result[k] = v
         return result
 
+    @timetrace("OsrchWrite")
     def write(self, blocks: Iterable[Block], ctx: TaskContext) -> Any:
         builder = DelegatingBlockBuilder()
         for block in blocks:

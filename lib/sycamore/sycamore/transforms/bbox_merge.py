@@ -1,10 +1,10 @@
 from typing import Optional
 
-from ray.data import Dataset
 
 from sycamore.data import Document, Element
-from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
-from sycamore.utils import generate_map_function
+from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
+from sycamore.transforms import Map
+from sycamore.utils.time_trace import TimeTrace, timetrace
 
 
 def validBbox(bbox):
@@ -102,9 +102,9 @@ def partOfTwoCol(elem: Element, xmin, xmax) -> bool:
 ###############################################################################
 
 
-class SortByPageBbox(SingleThreadUser, NonGPUUser, Transform):
+class SortByPageBbox(SingleThreadUser, NonGPUUser, Map):
     """
-    SortByPageBbox is a transform to add reorder the Elements
+    SortByPageBbox is a transform to reorder the Elements
     in 'natural order', top to bottom using page_number and bbox.
 
     Args:
@@ -119,25 +119,19 @@ class SortByPageBbox(SingleThreadUser, NonGPUUser, Transform):
     """
 
     def __init__(self, child: Node, **resource_args):
-        super().__init__(child, **resource_args)
+        super().__init__(child, f=SortByPageBbox.sort_by_page_bbox, **resource_args)
 
-    class Callable:
-        def run(self, parent: Document) -> Document:
-            elementsCopy = parent.elements
-            elementsCopy.sort(key=getPageTopLeft)
-            parent.elements = elementsCopy
+    @staticmethod
+    def sort_by_page_bbox(parent: Document) -> Document:
+        with TimeTrace("sortPageBbox"):
+            parent.elements.sort(key=getPageTopLeft)
             return parent
-
-    def execute(self) -> Dataset:
-        dataset = self.child().execute()
-        sorter = SortByPageBbox.Callable()
-        return dataset.map(generate_map_function(sorter.run))
 
 
 ###############################################################################
 
 
-class MarkDropHeaderFooter(SingleThreadUser, NonGPUUser, Transform):
+class MarkDropHeaderFooter(SingleThreadUser, NonGPUUser, Map):
     """
     MarkDropHeaderFooter is a transform to add the '_drop' data attribute to
     each Element at the top or bottom X fraction of the page.  Requires
@@ -157,38 +151,26 @@ class MarkDropHeaderFooter(SingleThreadUser, NonGPUUser, Transform):
     """
 
     def __init__(self, child: Node, top: float = 0.05, bottom: Optional[float] = None, **resource_args):
-        super().__init__(child, **resource_args)
         if bottom is None:
             bottom = top
-        self.top = top
-        self.bottom = bottom
+        lo = top
+        hi = 1.0 - bottom
+        super().__init__(child, f=MarkDropHeaderFooter.mark_drop_header_and_footer, args=[lo, hi], **resource_args)
 
-    class Callable:
-        def __init__(self, top: float, bottom: float):
-            self.top = top
-            self.bottom = bottom
-
-        def run(self, parent: Document) -> Document:
-            lo = self.top
-            hi = 1.0 - self.bottom
-            elements = parent.elements  # makes a copy
-            for elem in elements:
-                bbox = elem.data.get("bbox")
-                if (bbox is not None) and ((bbox[1] > hi) or (bbox[3] < lo)):
-                    elem.data["_drop"] = True  # mark for removal
-            parent.elements = elements  # copy back
-            return parent
-
-    def execute(self) -> Dataset:
-        dataset = self.child().execute()
-        marker = MarkDropHeaderFooter.Callable(self.top, self.bottom)
-        return dataset.map(generate_map_function(marker.run))
+    @staticmethod
+    @timetrace("markHeadFoot")
+    def mark_drop_header_and_footer(parent: Document, lo: float, hi: float) -> Document:
+        for elem in parent.elements:
+            bbox = elem.data.get("bbox")
+            if (bbox is not None) and ((bbox[1] > hi) or (bbox[3] < lo)):
+                elem.data["_drop"] = True  # mark for removal
+        return parent
 
 
 ###############################################################################
 
 
-class MarkBreakByColumn(SingleThreadUser, NonGPUUser, Transform):
+class MarkBreakByColumn(SingleThreadUser, NonGPUUser, Map):
     """
     MarkBreakByColumn is a transform that marks '_break' where
     two-column layout changes to full-width layout.  Ranges of two-
@@ -207,79 +189,74 @@ class MarkBreakByColumn(SingleThreadUser, NonGPUUser, Transform):
     """
 
     def __init__(self, child: Node, **resource_args):
-        super().__init__(child, **resource_args)
+        super().__init__(child, f=MarkBreakByColumn.mark_break_by_column, **resource_args)
 
-    class Callable:
-        def run(self, parent: Document) -> Document:
-            elements = parent.elements  # makes a copy
+    @staticmethod
+    @timetrace("makeBreakCol")
+    def mark_break_by_column(parent: Document) -> Document:
+        elements = parent.elements
 
-            # measure width in-use
-            xmin = 1.0  # FIXME are these global?
-            xmax = 0.0
-            for elem in elements:
-                bbox = elem.data.get("bbox")
-                if (bbox is not None) and validBbox(bbox):
-                    xmin = min(xmin, bbox[0])
-                    xmax = max(xmax, bbox[2])
-            if xmin < xmax:
-                fullWidth = (xmax - xmin) * 0.8  # fudge
-            else:
-                fullWidth = 0.8
+        # measure width in-use
+        xmin = 1.0  # FIXME are these global?
+        xmax = 0.0
+        for elem in elements:
+            bbox = elem.data.get("bbox")
+            if (bbox is not None) and validBbox(bbox):
+                xmin = min(xmin, bbox[0])
+                xmax = max(xmax, bbox[2])
+        if xmin < xmax:
+            fullWidth = (xmax - xmin) * 0.8  # fudge
+        else:
+            fullWidth = 0.8
 
-            # tag elements by column
-            for elem in elements:
-                if elem.data.get("_colIdx") is None:
-                    row = getRow(elem, elements)
-                    if len(row) == 1:
-                        bbox = elem.data.get("bbox")
-                        if bbox is None:
-                            width = 0.0
-                        else:
-                            width = bbox[2] - bbox[0]
-                        if width > fullWidth:
-                            cnt = 0  # signal full-width
-                        else:
-                            cnt = 1
-                        elem.data["_colIdx"] = 0
-                        elem.data["_colCnt"] = cnt
+        # tag elements by column
+        for elem in elements:
+            if elem.data.get("_colIdx") is None:
+                row = getRow(elem, elements)
+                if len(row) == 1:
+                    bbox = elem.data.get("bbox")
+                    if bbox is None:
+                        width = 0.0
                     else:
-                        idx = -1
-                        last = 0.0
-                        for ee in row:
-                            bbox = ee.data["bbox"]
-                            if bbox[0] >= last:  # may be stacked vertically
-                                idx += 1
-                            last = bbox[2]
-                            if ee.data.get("_colIdx") is None:
-                                ee.data["_colIdx"] = idx
-                        for ee in row:
-                            if ee.data.get("_colCnt") is None:
-                                ee.data["_colCnt"] = idx + 1
+                        width = bbox[2] - bbox[0]
+                    if width > fullWidth:
+                        cnt = 0  # signal full-width
+                    else:
+                        cnt = 1
+                    elem.data["_colIdx"] = 0
+                    elem.data["_colCnt"] = cnt
+                else:
+                    idx = -1
+                    last = 0.0
+                    for ee in row:
+                        bbox = ee.data["bbox"]
+                        if bbox[0] >= last:  # may be stacked vertically
+                            idx += 1
+                        last = bbox[2]
+                        if ee.data.get("_colIdx") is None:
+                            ee.data["_colIdx"] = idx
+                    for ee in row:
+                        if ee.data.get("_colCnt") is None:
+                            ee.data["_colCnt"] = idx + 1
 
-            # re-sort ranges of two-column text
-            last = 0
-            ranges = []
-            for idx, elem in enumerate(elements):
-                if not partOfTwoCol(elem, xmin, xmax):
-                    if (idx - last) > 4:
-                        ranges.append((last + 1, idx))
-                    last = idx
-            for xx, yy in ranges:
-                elements[xx:yy] = sorted(elements[xx:yy], key=getBboxLeftTop)
+        # re-sort ranges of two-column text
+        last = 0
+        ranges = []
+        for idx, elem in enumerate(elements):
+            if not partOfTwoCol(elem, xmin, xmax):
+                if (idx - last) > 4:
+                    ranges.append((last + 1, idx))
+                last = idx
+        for xx, yy in ranges:
+            elements[xx:yy] = sorted(elements[xx:yy], key=getBboxLeftTop)
 
-            # mark breaks due to column transitions
-            lastCols = 0
-            for elem in elements:
-                ecols = elem.data["_colCnt"]
-                if ecols != lastCols:
-                    if ecols == 0:
-                        elem.data["_break"] = True
-                    lastCols = ecols
+        # mark breaks due to column transitions
+        lastCols = 0
+        for elem in elements:
+            ecols = elem.data["_colCnt"]
+            if ecols != lastCols:
+                if ecols == 0:
+                    elem.data["_break"] = True
+                lastCols = ecols
 
-            parent.elements = elements  # must copy back in
-            return parent
-
-    def execute(self) -> Dataset:
-        dataset = self.child().execute()
-        xform = MarkBreakByColumn.Callable()
-        return dataset.map(generate_map_function(xform.run))
+        return parent

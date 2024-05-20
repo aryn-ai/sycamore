@@ -14,6 +14,7 @@ from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
 from sycamore.utils import generate_map_function, generate_map_class_from_callable
+from sycamore.utils.time_trace import timetrace
 
 
 # This comparator helps sort the elements per page specifically when a page
@@ -216,6 +217,7 @@ class UnstructuredPdfPartitioner(Partitioner):
 
         return element
 
+    @timetrace("unstructuredPdf")
     def partition(self, document: Document) -> Document:
         from unstructured.partition.pdf import partition_pdf
 
@@ -281,6 +283,7 @@ class HtmlPartitioner(Partitioner):
         self._text_chunker = text_chunker
         self._tokenizer = tokenizer
 
+    @timetrace("beautSoup")
     def partition(self, document: Document) -> Document:
         raw_html = document.binary_representation
 
@@ -439,6 +442,7 @@ class SycamorePartitioner(Partitioner):
         else:
             return 0
 
+    @timetrace("SycamorePdf")
     def partition(self, document: Document) -> Document:
         binary = io.BytesIO(document.data["binary_representation"])
         from sycamore.transforms.detr_partitioner import SycamorePDFPartitioner

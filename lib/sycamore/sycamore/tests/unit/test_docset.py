@@ -44,7 +44,7 @@ class TestDocSet:
         context = mocker.Mock(spec=Context)
         node = mocker.Mock(spec=Node)
         docset = DocSet(context, node)
-        embedder = mocker.Mock(spec=Embedder)
+        embedder = mocker.Mock(spec=Embedder, batch_size=1, device="cpu")
         docset = docset.embed(embedder=embedder)
         assert isinstance(docset.lineage(), Embed)
 
@@ -59,7 +59,7 @@ class TestDocSet:
     def test_query(self, mocker):
         context = mocker.Mock(spec=Context)
         node = mocker.Mock(spec=Node)
-        query_executor = mocker.Mock(spec=QueryExecutor)
+        query_executor = mocker.Mock(spec=QueryExecutor, query=lambda: None)
         docset = DocSet(context, node)
         docset = docset.query(query_executor=query_executor)
         assert isinstance(docset.lineage(), Query)

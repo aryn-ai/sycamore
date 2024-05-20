@@ -30,8 +30,7 @@ class TestExplode:
     )
 
     def test_explode_callable(self):
-        exploder = Explode.ExplodeCallable()
-        docs = exploder.explode(self.doc)
+        docs = Explode(None).run(self.doc)
         assert len(docs) == 3
 
     def test_explode(self, mocker):

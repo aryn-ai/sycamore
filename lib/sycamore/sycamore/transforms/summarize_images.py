@@ -1,14 +1,13 @@
 from typing import Any, Optional
-from ray.data import Dataset
 
 from PIL import Image
 
 from sycamore.data import Document, ImageElement
 from sycamore.llms.openai import OpenAI, OpenAIClientWrapper, OpenAIModels
-from sycamore.plan_nodes import Node, Transform
+from sycamore.plan_nodes import Node
+from sycamore.transforms.map import Map
 from sycamore.utils.image_utils import base64_data_url
 from sycamore.utils.extract_json import extract_json
-from sycamore.utils.generate_ray_func import generate_map_function
 
 
 class OpenAIImageSummarizer:
@@ -133,7 +132,7 @@ class OpenAIImageSummarizer:
         return doc
 
 
-class SummarizeImages(Transform):
+class SummarizeImages(Map):
     """SummarizeImages is a transform for summarizing context into text using an LLM.
 
     Args:
@@ -152,10 +151,5 @@ class SummarizeImages(Transform):
     """
 
     def __init__(self, child: Node, summarizer=OpenAIImageSummarizer(), **resource_args):
-        super().__init__(child, **resource_args)
+        super().__init__(child, f=summarizer.summarize_all_images, **resource_args)
         self.summarizer = summarizer
-
-    def execute(self) -> Dataset:
-        input_dataset = self.child().execute()
-        dataset = input_dataset.map(generate_map_function(self.summarizer.summarize_all_images))
-        return dataset

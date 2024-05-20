@@ -2,12 +2,10 @@ from typing import List
 
 import pytest
 import ray.data
-from ray.data import ActorPoolStrategy
 
 from sycamore.data import Document
 from sycamore.plan_nodes import Node
-from sycamore.transforms import Map, FlatMap, MapBatch, Filter
-from sycamore.utils import generate_map_batch_class_from_callable
+from sycamore.transforms import Map, FlatMap, MapBatch
 
 
 def map_func(doc: Document) -> Document:
@@ -105,39 +103,6 @@ class TestMapping:
         output_dataset = mapping.execute()
         dicts = [Document.from_row(doc).data for doc in output_dataset.take()]
         assert dicts[0]["index"] == 2 and dicts[1]["index"] == 3
-
-    def test_generate_map_batch_class_from_callable(self):
-        class BatchClass:
-            def __call__(self, docs: List[Document]) -> List[Document]:
-                for doc in docs:
-                    doc["index"] += 1
-                return docs
-
-        ray_callable = generate_map_batch_class_from_callable(BatchClass())
-        dicts = [
-            {"index": 1, "doc": "Members of a strike at Yale University."},
-            {"index": 2, "doc": "A woman is speaking at a podium outdoors."},
-        ]
-        input_dataset = ray.data.from_items([{"doc": Document(dict).serialize()} for dict in dicts])
-        output_dataset = input_dataset.map_batches(ray_callable, compute=ActorPoolStrategy())
-        dicts = [Document.from_row(doc).data for doc in output_dataset.take()]
-        assert dicts[0]["index"] == 2 and dicts[1]["index"] == 3
-
-    def test_generate_map_batch_filter_function(self, mocker):
-        node = mocker.Mock(spec=Node)
-        filtered = Filter(node, f=filter_func)
-        dicts = [
-            {"index": 1, "doc": "Members of a strike at Yale University.", "properties": {"page_number": 1}},
-            {"index": 2, "doc": "A woman is speaking at a podium outdoors.", "properties": {"page_number": 2}},
-        ]
-        input_dataset = ray.data.from_items([{"doc": Document(dict).serialize()} for dict in dicts])
-        execute = mocker.patch.object(node, "execute")
-        execute.return_value = input_dataset
-        output = filtered.execute()
-
-        dicts = [Document.from_row(doc).data for doc in output.take()]
-        assert len(dicts) == 1
-        assert dicts[0]["properties"]["page_number"] == 1
 
     def test_flat_map_conflict(self, mocker):
         def func(doc: Document) -> List[Document]:

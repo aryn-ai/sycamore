@@ -1,11 +1,10 @@
-from ray.data import Dataset
-
 from sycamore.data import Document
-from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
-from sycamore.utils.generate_ray_func import generate_flat_map_function
+from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
+from sycamore.transforms.map import FlatMap
+from sycamore.utils.time_trace import timetrace
 
 
-class Explode(SingleThreadUser, NonGPUUser, Transform):
+class Explode(SingleThreadUser, NonGPUUser, FlatMap):
     """
     The Explode transform converts the elements of each document into top-level documents. For example, if you explode a
     DocSet with a single document containing two elements, the resulting DocSet will have three documents – the original
@@ -24,27 +23,24 @@ class Explode(SingleThreadUser, NonGPUUser, Transform):
     """
 
     def __init__(self, child: Node, **resource_args):
-        super().__init__(child, **resource_args)
+        super().__init__(child, f=Explode.explode, **resource_args)
 
-    class ExplodeCallable:
-        @staticmethod
-        def explode(parent: Document) -> list[Document]:
-            documents: list[Document] = [parent]
+    @staticmethod
+    @timetrace("explode")
+    def explode(parent: Document) -> list[Document]:
+        documents: list[Document] = [parent]
 
-            import uuid
+        import uuid
 
-            for i, element in enumerate(parent.elements):
-                cur = Document(element.data)
-                cur.doc_id = str(uuid.uuid1(clock_seq=i))
-                cur.parent_id = parent.doc_id
-                for doc_property in parent.properties.keys():
-                    if doc_property.startswith("_"):
-                        cur.properties[doc_property] = parent.properties[doc_property]
-                documents.append(cur)
-            del parent.elements
-            return documents
+        assert uuid.uuid1().is_safe == uuid.SafeUUID.safe
 
-    def execute(self) -> Dataset:
-        dataset = self.child().execute()
-        exploder = Explode.ExplodeCallable()
-        return dataset.flat_map(generate_flat_map_function(exploder.explode))
+        for i, element in enumerate(parent.elements):
+            cur = Document(element.data)
+            cur.doc_id = str(uuid.uuid1(clock_seq=i))
+            cur.parent_id = parent.doc_id
+            for doc_property in parent.properties.keys():
+                if doc_property.startswith("_"):
+                    cur.properties[doc_property] = parent.properties[doc_property]
+            documents.append(cur)
+        del parent.elements
+        return documents

@@ -3,6 +3,7 @@ from ray.data import Dataset
 from sycamore.data import Document
 from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
 from sycamore.utils import generate_map_function
+from sycamore.utils.time_trace import timetrace
 
 
 class SpreadProperties(SingleThreadUser, NonGPUUser, Transform):
@@ -30,6 +31,7 @@ class SpreadProperties(SingleThreadUser, NonGPUUser, Transform):
         def __init__(self, props: list[str]):
             self._props = props
 
+        @timetrace("spreadProps")
         def spreadProperties(self, parent: Document) -> Document:
             newProps = {}
             for key in self._props:

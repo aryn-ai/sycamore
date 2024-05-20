@@ -14,7 +14,7 @@ from sycamore.llms import OpenAIClientParameters
 
 # from sycamore.llms.llms import AzureOpenAI, OpenAIClientParameters
 from sycamore.llms.openai import OpenAIClientWrapper
-from sycamore.plan_nodes import Node, Transform
+from sycamore.plan_nodes import Node
 from sycamore.transforms.map import MapBatch
 from sycamore.utils import batched
 from sycamore.utils.time_trace import timetrace

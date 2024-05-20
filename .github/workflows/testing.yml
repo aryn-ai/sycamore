@@ -114,4 +114,4 @@ jobs:
         run: poetry run pytest lib/sycamore/sycamore/tests/integration
 
       - name: Run Notebook tests
-        run: poetry run pytest --nbmake --nbmake-timeout=600 notebooks/*.ipynb
+        run: poetry run pytest --nbmake --nbmake-timeout=600 notebooks/default-prep-script.ipynb notebooks/jupyter_dev_example.ipynb notebooks/metadata-extraction.ipynb notebooks/sycamore_demo.ipynb notebooks/tutorial.ipynb

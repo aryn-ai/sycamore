@@ -1,11 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import Callable, Any
 
-from ray.data import Dataset
 
 from sycamore.data import Document
-from sycamore.plan_nodes import Node, NonCPUUser, NonGPUUser, Transform
-from sycamore.utils.generate_ray_func import generate_map_function
+from sycamore.plan_nodes import Node, NonCPUUser, NonGPUUser
+from sycamore.transforms.map import Map
 
 
 class TextAugmentor(ABC):
@@ -15,6 +14,10 @@ class TextAugmentor(ABC):
 
     def __call__(self, doc: Document) -> str:
         return self.augment_text(doc)
+
+    def augment_text_for_map(self, doc: Document) -> Document:
+        doc.text_representation = self.augment_text(doc)
+        return doc
 
 
 class UDFTextAugmentor(TextAugmentor):
@@ -90,22 +93,11 @@ class JinjaTextAugmentor(TextAugmentor):
         return self._env.from_string(source=self._template, globals=self._modules).render(doc=doc)
 
 
-class AugmentText(NonCPUUser, NonGPUUser, Transform):
+class AugmentText(NonCPUUser, NonGPUUser, Map):
     """
     The AugmentText transform puts metadata into the text representation of
     documents for better embedding and search quality
     """
 
     def __init__(self, child: Node, text_augmentor: TextAugmentor, **kwargs):
-        super().__init__(child, **kwargs)
-        self._augmentor = text_augmentor
-
-    def execute(self) -> Dataset:
-        input_ds = self.child().execute()
-
-        def augment_text(doc: Document) -> Document:
-            doc.text_representation = self._augmentor.augment_text(doc)
-            return doc
-
-        output_ds = input_ds.map(generate_map_function(augment_text))
-        return output_ds
+        super().__init__(child, f=text_augmentor.augment_text_for_map, **kwargs)

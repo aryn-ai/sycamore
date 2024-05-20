@@ -3,16 +3,15 @@ from typing import Any
 
 from PIL import Image
 import pdf2image
-from ray.data import Dataset
 from transformers import TableTransformerForObjectDetection
 from torchvision import transforms
 import torch
 
 from sycamore.data import BoundingBox, Element, Document, TableElement
-from sycamore.plan_nodes import Node, Transform
+from sycamore.plan_nodes import Node
+from sycamore.transforms.map import Map
 from sycamore.transforms.table_structure import table_transformers
 from sycamore.transforms.table_structure.table_transformers import MaxResize
-from sycamore.utils.generate_ray_func import generate_map_function
 
 
 class TableStructureExtractor:
@@ -173,7 +172,7 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
 DEFAULT_TABLE_STRUCTURE_EXTRACTOR = TableTransformerStructureExtractor()
 
 
-class ExtractTableStructure(Transform):
+class ExtractTableStructure(Map):
     """ExtractTableStructure is a transform class that extracts table structure from a document.
 
     Note that this transform is for extracting the structure of tables that have already been
@@ -193,11 +192,4 @@ class ExtractTableStructure(Transform):
     """
 
     def __init__(self, child: Node, table_structure_extractor: TableStructureExtractor, **resource_args):
-        super().__init__(child, **resource_args)
-        self.table_structure_extractor = table_structure_extractor
-
-    def execute(self) -> Dataset:
-        input_dataset = self.child().execute()
-        map_fn = generate_map_function(self.table_structure_extractor.extract_from_doc)
-        dataset = input_dataset.map(map_fn)
-        return dataset
+        super().__init__(child, f=table_structure_extractor.extract_from_doc, **resource_args)

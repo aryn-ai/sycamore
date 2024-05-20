@@ -1,16 +1,15 @@
 from abc import ABC, abstractmethod
 from typing import Callable, Any, Optional
 
-from ray.data import Dataset
 
 from sycamore.data import Element, Document
-from sycamore.plan_nodes import Node, Transform
+from sycamore.plan_nodes import Node
 from sycamore.llms import LLM
-from sycamore.utils.generate_ray_func import generate_map_function
 from sycamore.llms.prompts import (
     EntityExtractorZeroShotGuidancePrompt,
     EntityExtractorFewShotGuidancePrompt,
 )
+from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
 
 
@@ -113,7 +112,7 @@ class OpenAIEntityExtractor(EntityExtractor):
         return entities
 
 
-class ExtractEntity(Transform):
+class ExtractEntity(Map):
     """
     ExtractEntity is a transformation class for extracting entities from a dataset using an EntityExtractor.
 
@@ -142,11 +141,4 @@ class ExtractEntity(Transform):
         entity_extractor: EntityExtractor,
         **resource_args,
     ):
-        super().__init__(child, **resource_args)
-        self._entity_extractor = entity_extractor
-
-    def execute(self) -> "Dataset":
-        input_dataset = self.child().execute()
-        map_fn = generate_map_function(self._entity_extractor.extract_entity)
-        dataset = input_dataset.map(map_fn)
-        return dataset
+        super().__init__(child, f=entity_extractor.extract_entity, **resource_args)

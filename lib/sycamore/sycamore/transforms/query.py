@@ -2,11 +2,10 @@ from abc import abstractmethod, ABC
 from typing import Any
 
 from opensearchpy import OpenSearch
-from ray.data import Dataset
 
 from sycamore.data import OpenSearchQueryResult, Element, OpenSearchQuery
-from sycamore.plan_nodes import Node, NonCPUUser, NonGPUUser, Transform
-from sycamore.utils.generate_ray_func import generate_map_function
+from sycamore.plan_nodes import Node, NonCPUUser, NonGPUUser
+from sycamore.transforms.map import Map
 import logging
 
 logger = logging.getLogger("ray")
@@ -45,16 +44,10 @@ class OpenSearchQueryExecutor(QueryExecutor):
         return result
 
 
-class Query(NonCPUUser, NonGPUUser, Transform):
+class Query(NonCPUUser, NonGPUUser, Map):
     """
     Given a DocSet of queries, executes them and generates a DocSet of query results.
     """
 
     def __init__(self, child: Node, query_executor: QueryExecutor, **kwargs):
-        super().__init__(child, **kwargs)
-        self._query_executor = query_executor
-
-    def execute(self) -> Dataset:
-        input_ds = self.child().execute()
-        output_ds = input_ds.map(generate_map_function(self._query_executor.query))
-        return output_ds
+        super().__init__(child, f=query_executor.query, **kwargs)

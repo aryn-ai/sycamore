@@ -10,6 +10,7 @@ from ray.data._internal.execution.interfaces import TaskContext
 
 from sycamore.data import Document
 from sycamore.plan_nodes import Node, Write
+from sycamore.utils.time_trace import timetrace
 
 log = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ class OpenSearchWriter(Write):
         self.number_of_allowed_failures_per_block = number_of_allowed_failures_per_block
         self.collect_failures_file_path = collect_failures_file_path
 
+    @timetrace("OsrchWrite")
     def execute(self) -> Dataset:
         dataset = self.child().execute()
         try:

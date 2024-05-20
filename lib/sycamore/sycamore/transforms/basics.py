@@ -2,11 +2,9 @@ from typing import Callable
 
 from ray.data import Dataset
 
-from sycamore.plan_nodes import Node, NonGPUUser, NonCPUUser, Transform
-
 from sycamore.data import Document
-from sycamore.plan_nodes import UnaryNode
-from sycamore.utils import generate_map_batch_filter_function
+from sycamore.plan_nodes import Node, NonGPUUser, NonCPUUser, Transform
+from sycamore.transforms.map import MapBatch
 
 
 class Limit(NonCPUUser, NonGPUUser, Transform):
@@ -34,7 +32,7 @@ class Limit(NonCPUUser, NonGPUUser, Transform):
         return dataset.limit(self._limit)
 
 
-class Filter(UnaryNode):
+class Filter(MapBatch):
     """
     Filter is a transformation that applies a user-defined filter function to a dataset.
 
@@ -58,10 +56,4 @@ class Filter(UnaryNode):
     """
 
     def __init__(self, child: Node, *, f: Callable[[Document], bool], **resource_args):
-        super().__init__(child, **resource_args)
-        self._f = f
-
-    def execute(self) -> Dataset:
-        input_dataset = self.child().execute()
-        ray_callable = generate_map_batch_filter_function(self._f)
-        return input_dataset.map_batches(ray_callable, **self.resource_args)
+        super().__init__(child, f=lambda docs: [d for d in docs if f(d)], **resource_args)

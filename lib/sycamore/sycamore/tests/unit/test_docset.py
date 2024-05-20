@@ -44,7 +44,7 @@ class TestDocSet:
         context = mocker.Mock(spec=Context)
         node = mocker.Mock(spec=Node)
         docset = DocSet(context, node)
-        embedder = mocker.Mock(spec=Embedder)
+        embedder = mocker.Mock(spec=Embedder, batch_size=1, device="cpu")
         docset = docset.embed(embedder=embedder)
         assert isinstance(docset.lineage(), Embed)
 

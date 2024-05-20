@@ -27,6 +27,10 @@ def rename(new_function_name: str):
 class BaseMapTransform(UnaryNode):
     """
     BaseMapTransform abstracts away MetadataDocuments from all other transforms.
+
+    If f is a class type, the class will be instantiated and run as an actor in ray.
+    If f is an object type and resource_args["compute"] is set to ActorPoolStrategy, it will run as an actor
+    Otherwise f will be run as a function.
     """
 
     def __init__(
@@ -45,9 +49,18 @@ class BaseMapTransform(UnaryNode):
         enable_auto_metadata: bool = False,
         **resource_args,
     ):
+        if isinstance(f, type) and "compute" not in resource_args:
+            # classes require actor strategy for now
+            resource_args["compute"] = ActorPoolStrategy(size=1)
+
         super().__init__(child, **resource_args)
         if name is None:
-            name = f.__name__
+            if "__name__" in dir(f):
+                name = f.__name__
+            elif "__class__" in dir(f):
+                name = f.__class__.__name__
+            else:
+                raise ValueError(f"Unable to extract name from {f}, all members: {dir(f)}")
 
         self._f = f
         self._name = name
@@ -58,10 +71,17 @@ class BaseMapTransform(UnaryNode):
         self._enable_auto_metadata = enable_auto_metadata
 
     def execute(self) -> "Dataset":
+        if "num_gpus" in self.resource_args:
+            assert self.resource_args["num_gpus"] > 0
+
         input_dataset = self.child().execute()
 
         if isinstance(self._f, type):  # is f a class?
-            return input_dataset.map_batches(self._map_class(), compute=ActorPoolStrategy(size=1), **self.resource_args)
+            # Maybe add a class as function variant if the caller specified TaskPoolStrategy
+            return input_dataset.map_batches(self._map_class(), **self.resource_args)
+        elif "compute" in self.resource_args and isinstance(self.resource_args["compute"], ActorPoolStrategy):
+            # Ray requires a class for ActorPoolStrategy.
+            return input_dataset.map_batches(self._map_callable_as_class(), **self.resource_args)
         else:
             return input_dataset.map_batches(self._map_function(), **self.resource_args)
 
@@ -98,6 +118,21 @@ class BaseMapTransform(UnaryNode):
             return BaseMapTransform._process_ray(ray_input, name, lambda d: f(d, *args, **kwargs), enable_auto_metadata)
 
         return ray_callable
+
+    def _map_callable_as_class(self):
+        f = self._f
+        name = self._name
+        args = _noneOr(self._args, tuple())
+        kwargs = _noneOr(self._kwargs, {})
+        enable_auto_metadata = self._enable_auto_metadata
+
+        def ray_init(self):
+            pass
+
+        def ray_callable(self, ray_input: dict[str, np.ndarray]) -> dict[str, list]:
+            return BaseMapTransform._process_ray(ray_input, name, lambda d: f(d, *args, **kwargs), enable_auto_metadata)
+
+        return type("BaseMapTransformCallable__" + name, (), {"__init__": ray_init, "__call__": ray_callable})
 
     def _map_class(self):
         c = self._f

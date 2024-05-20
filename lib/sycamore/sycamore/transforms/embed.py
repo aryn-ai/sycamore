@@ -6,7 +6,7 @@ from typing import Any, Optional, Callable, Union
 
 from openai import OpenAI as OpenAIClient
 from openai import AzureOpenAI as AzureOpenAIClient
-from ray.data import ActorPoolStrategy, Dataset
+from ray.data import ActorPoolStrategy
 from sentence_transformers import SentenceTransformer
 
 from sycamore.data import Document
@@ -14,8 +14,9 @@ from sycamore.llms import OpenAIClientParameters
 
 # from sycamore.llms.llms import AzureOpenAI, OpenAIClientParameters
 from sycamore.llms.openai import OpenAIClientWrapper
-from sycamore.plan_nodes import Node, Transform
-from sycamore.utils import batched, generate_map_batch_function, generate_map_batch_class_from_callable
+from sycamore.plan_nodes import Node
+from sycamore.transforms.map import MapBatch
+from sycamore.utils import batched
 from sycamore.utils.time_trace import timetrace
 
 logger = logging.getLogger(__name__)
@@ -251,7 +252,7 @@ class BedrockEmbedder(Embedder):
         return doc_batch
 
 
-class Embed(Transform):
+class Embed(MapBatch):
     """
     Embed is a transformation that generates embeddings a docset using an Embedder.
 
@@ -273,30 +274,17 @@ class Embed(Transform):
     """
 
     def __init__(self, child: Node, embedder: Embedder, **resource_args):
-        super().__init__(child, **resource_args)
-        self._embedder = embedder
+        self.resource_args = resource_args
+        if "batch_size" not in self.resource_args:
+            self.resource_args["batch_size"] = embedder.batch_size
+            assert self.resource_args["batch_size"] > 0
 
-    def execute(self) -> Dataset:
-        dataset = self.child().execute()
-        if self._embedder.device == "cuda":
+        if embedder.device == "cuda":
             if "num_gpus" not in self.resource_args:
                 self.resource_args["num_gpus"] = 1
             if self.resource_args["num_gpus"] <= 0:
                 raise RuntimeError("Invalid GPU Nums!")
+            if "compute" not in self.resource_args:
+                self.resource_args["compute"] = ActorPoolStrategy(size=1)
 
-            output = dataset.map_batches(
-                generate_map_batch_class_from_callable(self._embedder.generate_embeddings),
-                batch_size=self._embedder.batch_size,
-                compute=ActorPoolStrategy(size=1),
-                **self.resource_args
-            )
-        else:
-            # in case of no gpu required, we use tasks to make it easier
-            # to be fusible
-            output = dataset.map_batches(
-                generate_map_batch_function(self._embedder.generate_embeddings),
-                batch_size=self._embedder.batch_size,
-                **self.resource_args
-            )
-
-        return output
+        super().__init__(child, f=embedder, **resource_args)

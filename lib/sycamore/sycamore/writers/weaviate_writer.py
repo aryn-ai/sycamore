@@ -39,8 +39,7 @@ class WeaviateDatasink(Datasink):
         self._collection_config = collection_config
 
     def on_write_start(self):
-        client = WeaviateClient(**self._client_params)
-        with client:
+        with WeaviateClient(**self._client_params) as client:
             if self._collection_config is not None:
                 if client.collections.exists(self._collection_name):
                     logging.warning(
@@ -62,8 +61,8 @@ class WeaviateDatasink(Datasink):
                 objects = self._extract_weaviate_objects(block)
                 refs = []
                 for obj in objects:
-                    if "references" in obj:
-                        obj_refs = obj.pop("references")
+                    obj_refs = obj.pop("references", None)
+                    if obj_refs is not None:
                         for k, v in obj_refs.items():
                             refs.append(DataReference(from_uuid=obj["uuid"], from_property=k, to_uuid=v))
                     batch.add_object(**obj)
@@ -110,8 +109,9 @@ class WeaviateDatasink(Datasink):
                     "shingles": data.get("shingles", default["shingles"]),
                 },
             }
-            if "embedding" in data:
-                object["vector"] = {"embedding": data.get("embedding")}
+            embedding = data.get("embedding", None)
+            if embedding is not None:
+                object["vector"] = {"embedding": embedding}
             if parent:
                 object["references"] = {"parent": parent}
             return object

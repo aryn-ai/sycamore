@@ -32,6 +32,7 @@ class DocSetWriter:
             index_settings: Settings and mappings to pass when creating a new index. Specified as a Python dict
                 corresponding to the JSON paramters taken by the OpenSearch CreateIndex API:
                 https://opensearch.org/docs/latest/api-reference/index-apis/create-index/
+            resource_args: Arguments to pass to the underlying execution engine
 
         Example:
             The following code shows how to read a pdf dataset into a ``DocSet`` and write it out to a
@@ -91,6 +92,7 @@ class DocSetWriter:
                 method.If not provided, Weaviate will Auto-Schematize the incoming records, which may lead to
                 inconsistencies or failures. See more information at
                 https://weaviate.io/developers/weaviate/manage-data/collections#create-a-collection-and-define-properties
+            resource_args: Arguments to pass to the underlying execution engine
 
         Example:
             The following code shows how to read a pdf dataset into a ``DocSet`` and write it out to a

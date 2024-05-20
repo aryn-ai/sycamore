@@ -38,7 +38,7 @@ wv_client_args = {
 
 collection_config_params = {
     "name": collection,
-    "description": "A collection to demo data-prep with sycamore",
+    "description": "A collection to demo data-prep with Sycamore",
     "properties": [
         Property(
             name="properties",

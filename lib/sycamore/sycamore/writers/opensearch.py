@@ -34,7 +34,6 @@ class OpenSearchWriter(Write):
         self.number_of_allowed_failures_per_block = number_of_allowed_failures_per_block
         self.collect_failures_file_path = collect_failures_file_path
 
-    @timetrace("OsrchWrite")
     def execute(self) -> Dataset:
         dataset = self.child().execute()
         try:
@@ -90,6 +89,7 @@ class OSDataSink(Datasink):
                 result[k] = v
         return result
 
+    @timetrace("OsrchWrite")
     def write(self, blocks: Iterable[Block], ctx: TaskContext) -> Any:
         builder = DelegatingBlockBuilder()
         for block in blocks:

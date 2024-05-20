@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ChatBox, thumbToBool } from './Chatbox'
 import { ControlPanel } from './Controlpanel'
 import { ConversationListNavbar, setActiveConversation } from './ConversationList'
@@ -87,18 +87,19 @@ export default function App() {
     const getConversationsResult = await getConversations();
     let retrievedConversations: { conversations: any } = { conversations: null };
     if ("conversations" in getConversationsResult) {
-        retrievedConversations.conversations = getConversationsResult.conversations;
+      retrievedConversations.conversations = getConversationsResult.conversations;
     } else {
-        retrievedConversations.conversations = getConversationsResult.memories;
+      retrievedConversations.conversations = getConversationsResult.memories;
     }
     retrievedConversations.conversations.forEach((conversation: any) => {
-        result = [{ id: (conversation.conversation_id ?? conversation.memory_id), name: conversation.name, created_at: conversation.create_time }, ...result]
+      result = [{ id: (conversation.conversation_id ?? conversation.memory_id), name: conversation.name, created_at: conversation.create_time }, ...result]
     });
     setConversations(result)
     if (result.length > 0 && settings.activeConversation == "") {
-        setActiveConversation(result[0].id, settings, setSettings, loadActiveConversation);
+      setActiveConversation(result[0].id, settings, setSettings, loadActiveConversation);
     }
   }
+
 
   return (
     <MantineProvider
@@ -124,37 +125,37 @@ export default function App() {
               paddingLeft: theme.spacing.md,
               paddingRight: theme.spacing.md,
             })}>
-            <Group  w="100%">
+            <Group w="100%">
               <MediaQuery largerThan="sm" styles={{ display: 'none' }}>
-                  <Burger
-                    opened={navBarOpened}
-                    onClick={() => setNavBarOpened((o) => !o)}
-                    size="sm"
-                    maw="0.5rem"
-                    mr="xl"
-                  />
+                <Burger
+                  opened={navBarOpened}
+                  onClick={() => setNavBarOpened((o) => !o)}
+                  size="sm"
+                  maw="0.5rem"
+                  mr="xl"
+                />
               </MediaQuery>
               <Image width={mobileScreen ? "18em" : "24em"} src="./SycamoreDemoQueryUI_Logo.png" />
               {!mobileScreen && (<Container pos="absolute" right="0rem">
                 <Text fz="xs" c="dimmed">index: {settings.openSearchIndex}</Text>
                 <Text fz="xs" c="dimmed">llm model: {settings.modelName}</Text>
                 <Text fz="xs" c="dimmed">llm model id: {settings.modelId}</Text>
-              </Container>) }
+              </Container>)}
             </Group>
           </Header>
         }
         navbarOffsetBreakpoint="sm"
         navbar={
-            <ConversationListNavbar navBarOpened={navBarOpened} settings={settings} setSettings={setSettings} setErrorMessage={setErrorMessage} loadingConversation={loadingConversation} loadActiveConversation={loadActiveConversation} conversations={conversations} setConversations={setConversations} refreshConversations={refreshConversations} setChatHistory={setChatHistory} chatInputRef={chatInputRef} setNavBarOpened={setNavBarOpened}></ConversationListNavbar>
+          <ConversationListNavbar navBarOpened={navBarOpened} settings={settings} setSettings={setSettings} setErrorMessage={setErrorMessage} loadingConversation={loadingConversation} loadActiveConversation={loadActiveConversation} conversations={conversations} setConversations={setConversations} refreshConversations={refreshConversations} setChatHistory={setChatHistory} chatInputRef={chatInputRef} setNavBarOpened={setNavBarOpened}></ConversationListNavbar>
         }
         styles={() => ({
           main: { backgroundColor: "white" },
         })}
       >
-          <ChatBox chatHistory={chatHistory} searchResults={searchResults} setChatHistory={setChatHistory}
-            setSearchResults={setSearchResults} streaming={streaming} setStreaming={setStreaming} setDocsLoading={setDocsLoading}
-            setErrorMessage={setErrorMessage} settings={settings} setSettings={setSettings} refreshConversations={refreshConversations} 
-            chatInputRef={chatInputRef}/>
+        <ChatBox chatHistory={chatHistory} searchResults={searchResults} setChatHistory={setChatHistory}
+          setSearchResults={setSearchResults} streaming={streaming} setStreaming={setStreaming} setDocsLoading={setDocsLoading}
+          setErrorMessage={setErrorMessage} settings={settings} setSettings={setSettings} refreshConversations={refreshConversations}
+          chatInputRef={chatInputRef} />
       </AppShell >
     </MantineProvider >
   );

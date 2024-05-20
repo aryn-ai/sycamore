@@ -11,6 +11,7 @@ from sycamore.llms.prompts import (
     EntityExtractorZeroShotGuidancePrompt,
     EntityExtractorFewShotGuidancePrompt,
 )
+from sycamore.utils.time_trace import timetrace
 
 
 def element_list_formatter(elements: list[Element]) -> str:
@@ -74,6 +75,7 @@ class OpenAIEntityExtractor(EntityExtractor):
         self._prompt_template = prompt_template
         self._prompt_formatter = prompt_formatter
 
+    @timetrace("OaExtract")
     def extract_entity(self, document: Document) -> Document:
         if self._prompt_template:
             entities = self._handle_few_shot_prompting(document)

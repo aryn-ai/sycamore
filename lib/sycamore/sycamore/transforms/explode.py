@@ -3,6 +3,7 @@ from ray.data import Dataset
 from sycamore.data import Document
 from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
 from sycamore.utils.generate_ray_func import generate_flat_map_function
+from sycamore.utils.time_trace import timetrace
 
 
 class Explode(SingleThreadUser, NonGPUUser, Transform):
@@ -28,6 +29,7 @@ class Explode(SingleThreadUser, NonGPUUser, Transform):
 
     class ExplodeCallable:
         @staticmethod
+        @timetrace("explode")
         def explode(parent: Document) -> list[Document]:
             documents: list[Document] = [parent]
 

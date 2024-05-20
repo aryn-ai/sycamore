@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 
-from ray.data import Dataset, ActorPoolStrategy
+from ray.data import Dataset
 
 from sycamore.data import Document, Element, BoundingBox
 from sycamore.plan_nodes import SingleThreadUser, NonGPUUser, Transform, Node
-from sycamore.utils import generate_map_class_from_callable
+from sycamore.utils import generate_map_function
 from sycamore.functions.tokenizer import Tokenizer
+from sycamore.utils.time_trace import timetrace
 
 
 class ElementMerger(ABC):
@@ -26,6 +27,7 @@ class ElementMerger(ABC):
     def postprocess_element(self, element: Element) -> Element:
         pass
 
+    @timetrace("mergeElem")
     def merge_elements(self, document: Document) -> Document:
         """Use self._should_merge and self._merge to greedily merge consecutive elements.
         If the next element should be merged into the last 'accumulation' element, merge it.
@@ -148,6 +150,7 @@ class MarkedMerger(ElementMerger):
     def postprocess_element(self, elem: Element) -> Element:
         return elem
 
+    @timetrace("mergeMarked")
     def merge_elements(self, document: Document) -> Document:
         if len(document.elements) < 1:
             return document
@@ -211,11 +214,14 @@ class Merge(SingleThreadUser, NonGPUUser, Transform):
         super().__init__(child, **kwargs)
         self._merger = merger
 
+    class Wrapper:
+        def __init__(self, merger: ElementMerger):
+            self.merger = merger
+
+        def merge(self, doc: Document) -> Document:
+            return self.merger.merge_elements(doc)
+
     def execute(self) -> Dataset:
         input_dataset = self.child().execute()
-        dataset = input_dataset.map(
-            generate_map_class_from_callable(self._merger.merge_elements),
-            compute=ActorPoolStrategy(min_size=1),
-            **self.resource_args
-        )
-        return dataset
+        wrap = Merge.Wrapper(self._merger)
+        return input_dataset.map(generate_map_function(wrap.merge))

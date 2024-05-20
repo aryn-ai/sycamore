@@ -20,6 +20,7 @@ using std::pair;
 using std::vector;
 using std::string;
 
+
 struct Rgb {
   int r;
   int g;
@@ -50,6 +51,7 @@ const std::array<Rgb, 22> gColors = {{ // from Sasha Trubetskoy
   {0,   0,   128}, // 20 navy
   {128, 128, 128}  // 21 gray
   }};
+
 
 class Img {
 public:
@@ -132,7 +134,7 @@ private:
 };
 
 
-class Anal {
+class Viz {
 public:
   void addPath(const char *path) { paths_.push_back(path); }
 
@@ -225,17 +227,18 @@ public:
       im.text(halfgap, hit1 - 1 - halfl - y, ns.c_str(), 1); // white
     }
 
-    im.outPng("im.png");
+    im.outPng("viz.png");
   }
 
 private:
   vector<string> paths_;
 };
 
+
 int main(int argc, char **argv) {
-  Anal aa;
+  Viz viz;
   for (int ii = 1; ii < argc; ++ii)
-    aa.addPath(argv[ii]);
-  aa.run();
+    viz.addPath(argv[ii]);
+  viz.run();
   return 0;
 }

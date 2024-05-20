@@ -233,39 +233,26 @@ class DeformableDetr(SycamoreObjectDetection):
             except Exception:
                 results = None
             if results:
-                batched_results = []
-                for results, image in zip(results, images):
-                    for k, v in results.items():
-                        results[k] = base64.b64decode(v)
-                        results[k] = pickle.loads(results[k])
-                    (w, h) = image.size
-                    elements = []
-                    for score, label, box in zip(
-                        results["scores"].cpu().detach().numpy(),
-                        results["labels"].cpu().detach().numpy(),
-                        results["boxes"].cpu().detach().numpy(),
-                    ):
-                        element = create_element(
-                            type=self.labels[label],
-                            bbox=BoundingBox(box[0] / w, box[1] / h, box[2] / w, box[3] / h).coordinates,
-                            properties={"score": score},
-                        )
-                        elements.append(element)
-                    batched_results.append(elements)
-                return batched_results
+                for result in results:
+                    for k, v in result.items():
+                        result[k] = base64.b64decode(v)
+                        result[k] = pickle.loads(result[k])
+        if not model_server_endpoint or not results:
+            results = []
+            for image in images:
+                inputs = self.processor(images=image, return_tensors="pt").to(self._get_device())
+                outputs = self.model(**inputs)
+                target_sizes = torch.tensor([image.size[::-1]])
+                results.append(
+                    self.processor.post_process_object_detection(
+                        outputs, target_sizes=target_sizes, threshold=threshold
+                    )[0]
+                )
 
         batched_results = []
-
-        for image in images:
-            inputs = self.processor(images=image, return_tensors="pt").to(self._get_device())
-            outputs = self.model(**inputs)
-            target_sizes = torch.tensor([image.size[::-1]])
-            results = self.processor.post_process_object_detection(
-                outputs, target_sizes=target_sizes, threshold=threshold
-            )[0]
-            # need to wrap up the results in elements
-            elements = []
+        for results, image in zip(results, images):
             (w, h) = image.size
+            elements = []
             for score, label, box in zip(
                 results["scores"].cpu().detach().numpy(),
                 results["labels"].cpu().detach().numpy(),

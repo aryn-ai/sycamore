@@ -223,17 +223,6 @@ class Table:
            target: An Image or ImageDraw objects on which to draw this table.
               If target is an Image, an ImageDraw object will be created.
         """
+        from sycamore.utils.image_utils import try_draw_boxes
 
-        if isinstance(target, ImageDraw.ImageDraw):
-            canvas = target
-            width, height = target.im.size
-        elif isinstance(target, Image.Image):
-            canvas = ImageDraw.Draw(target)
-            width, height = target.size
-
-        for cell in self.cells:
-            if cell.bbox is not None:
-                coords = cell.bbox.to_absolute(width, height).coordinates
-                canvas.rectangle(coords, outline="red")  # TODO color
-
-        return target
+        return try_draw_boxes(target, self.cells, color_fn=lambda _: "red", text_fn=lambda _, i: None)

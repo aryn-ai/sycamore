@@ -59,7 +59,7 @@ class TestDocSet:
     def test_query(self, mocker):
         context = mocker.Mock(spec=Context)
         node = mocker.Mock(spec=Node)
-        query_executor = mocker.Mock(spec=QueryExecutor)
+        query_executor = mocker.Mock(spec=QueryExecutor, query=lambda: None)
         docset = DocSet(context, node)
         docset = docset.query(query_executor=query_executor)
         assert isinstance(docset.lineage(), Query)

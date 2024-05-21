@@ -1,13 +1,12 @@
 from abc import ABC, abstractmethod
 from typing import Callable, Optional
 
-from ray.data import Dataset
 
 from sycamore.data import Element, Document
-from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Transform, Node
+from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Node
 from sycamore.llms import LLM
-from sycamore.utils import generate_map_function
 from sycamore.llms.prompts import TextSummarizerGuidancePrompt
+from sycamore.transforms.map import Map
 
 
 class Summarizer(ABC):
@@ -65,16 +64,10 @@ class LLMElementTextSummarizer(Summarizer):
         return element
 
 
-class Summarize(NonCPUUser, NonGPUUser, Transform):
+class Summarize(NonCPUUser, NonGPUUser, Map):
     """
     The summarize transform generates summaries of documents or elements.
     """
 
     def __init__(self, child: Node, summarizer: Summarizer, **kwargs):
-        super().__init__(child, **kwargs)
-        self._summarizer = summarizer
-
-    def execute(self) -> Dataset:
-        input_dataset = self.child().execute()
-        dataset = input_dataset.map(generate_map_function(self._summarizer.summarize))
-        return dataset
+        super().__init__(child, f=summarizer.summarize, **kwargs)

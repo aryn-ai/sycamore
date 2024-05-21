@@ -34,9 +34,7 @@ class TestSplitElements:
 
     def test_split_elements(self):
         tokenizer = HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2")
-        sp = SplitElements(None, None, 0)
-        spc = sp.Callable(tokenizer, 15)
-        doc = spc.run(self.doc)
+        doc = SplitElements(None, tokenizer, 15).run(self.doc)
         elems = doc.elements
         self.validateElems(elems)
 

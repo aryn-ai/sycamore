@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 
-from ray.data import Dataset
 
 from sycamore.data import Document, Element, BoundingBox
-from sycamore.plan_nodes import SingleThreadUser, NonGPUUser, Transform, Node
-from sycamore.utils import generate_map_function
+from sycamore.plan_nodes import SingleThreadUser, NonGPUUser, Node
 from sycamore.functions.tokenizer import Tokenizer
+from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
 
 
@@ -205,23 +204,10 @@ class MarkedMerger(ElementMerger):
         return document
 
 
-class Merge(SingleThreadUser, NonGPUUser, Transform):
+class Merge(SingleThreadUser, NonGPUUser, Map):
     """
     Merge Elements into fewer large elements
     """
 
     def __init__(self, child: Node, merger: ElementMerger, **kwargs):
-        super().__init__(child, **kwargs)
-        self._merger = merger
-
-    class Wrapper:
-        def __init__(self, merger: ElementMerger):
-            self.merger = merger
-
-        def merge(self, doc: Document) -> Document:
-            return self.merger.merge_elements(doc)
-
-    def execute(self) -> Dataset:
-        input_dataset = self.child().execute()
-        wrap = Merge.Wrapper(self._merger)
-        return input_dataset.map(generate_map_function(wrap.merge))
+        super().__init__(child, f=merger.merge_elements, **kwargs)

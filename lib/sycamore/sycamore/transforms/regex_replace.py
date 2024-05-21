@@ -1,10 +1,9 @@
 import re
 
-from ray.data import Dataset
 
 from sycamore.data import Document
-from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
-from sycamore.utils import generate_map_function
+from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
+from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
 
 COALESCE_WHITESPACE = [
@@ -14,7 +13,7 @@ COALESCE_WHITESPACE = [
 ]
 
 
-class RegexReplace(SingleThreadUser, NonGPUUser, Transform):
+class RegexReplace(SingleThreadUser, NonGPUUser, Map):
     """
     The RegexReplace transform modifies the text_representation in each
     Element in every Document.
@@ -33,7 +32,6 @@ class RegexReplace(SingleThreadUser, NonGPUUser, Transform):
     """
 
     def __init__(self, child: Node, spec: list[tuple[str, str]], **kwargs):
-        super().__init__(child, **kwargs)
         try:
             for x, y in spec:  # make sure it's iterable as pairs
                 s = str()
@@ -41,32 +39,21 @@ class RegexReplace(SingleThreadUser, NonGPUUser, Transform):
                 s += y
         except Exception:
             raise TypeError("RegexReplace spec is not list[tuple[str, str]]")
-        self.spec = spec
 
-    class Callable:
-        def __init__(self, spec: list[tuple[str, str]]):
-            self.spec = []
-            for exp, repl in spec:
-                pat = re.compile(exp)
-                self.spec.append((pat, repl))
+        compiled = []
+        for exp, repl in spec:
+            pat = re.compile(exp)
+            compiled.append((pat, repl))
 
         @timetrace("regexRepl")
-        def run(self, doc: Document) -> Document:
-            spec = self.spec
-            updated = []
-            elements = doc.elements  # makes a copy
-            for elem in elements:
+        def regex_replace(doc: Document) -> Document:
+            for elem in doc.elements:
                 txt = elem.text_representation
                 if txt is not None:
-                    for rex, repl in spec:
+                    for rex, repl in compiled:
                         txt = rex.sub(repl, txt)
                     elem.text_representation = txt
                     elem.binary_representation = txt.encode("utf-8")
-                updated.append(elem)
-            doc.elements = updated  # copies back
             return doc
 
-    def execute(self) -> Dataset:
-        ds = self.child().execute()
-        xform = RegexReplace.Callable(self.spec)
-        return ds.map(generate_map_function(xform.run))
+        super().__init__(child, f=regex_replace, **kwargs)

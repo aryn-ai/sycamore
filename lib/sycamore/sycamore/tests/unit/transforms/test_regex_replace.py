@@ -32,9 +32,7 @@ class TestRegexReplace:
     )
 
     def test_regex_replace(self):
-        rr = RegexReplace(None, [])
-        obj = rr.Callable([(r"\s+", " "), (r"^ ", ""), (r" $", "")])
-        doc = obj.run(self.doc)
+        doc = RegexReplace(None, [(r"\s+", " "), (r"^ ", ""), (r" $", "")]).run(self.doc)
         elems = doc.elements
         self.validateElems(elems)
 

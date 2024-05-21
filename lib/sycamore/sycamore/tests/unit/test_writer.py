@@ -13,6 +13,7 @@ from sycamore.writers.file_writer import (
     elements_to_bytes,
     json_properties_content,
 )
+from sycamore.writers.weaviate_writer import WeaviateWriter
 
 
 def generate_docs(num: int, type: str = "test", text=True, binary=False, num_elements=0) -> list[Document]:
@@ -112,6 +113,13 @@ class TestDocSetWriter:
         docset = DocSet(context, mocker.Mock(spec=Node))
         execute = mocker.patch.object(OpenSearchWriter, "execute")
         docset.write.opensearch(os_client_args={}, index_name="index")
+        execute.assert_called_once()
+
+    def test_weaviate(self, mocker):
+        context = mocker.Mock(spec=Context)
+        docset = DocSet(context, mocker.Mock(spec=Node))
+        execute = mocker.patch.object(WeaviateWriter, "execute")
+        docset.write.weaviate(wv_client_args={}, collection_name="Collection")
         execute.assert_called_once()
 
     def test_file_writer_text(self, tmp_path: Path):

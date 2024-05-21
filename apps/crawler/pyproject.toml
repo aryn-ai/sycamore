@@ -21,7 +21,7 @@ boto3 = "^1.28.70"
 
 # http deps; make sure these are present in root pyproject.toml
 [tool.poetry.group.crawler_http.dependencies]
-scrapy = "^2.11.1"
+scrapy = "^2.11"
 cryptography = "^42.0.3"
 
 [tool.poetry.group.test.dependencies]
@@ -30,11 +30,6 @@ pytest = "^7.4"
 pytest-mock = "^3.11"
 
 [tool.poetry.group.dev.dependencies]
-ruff = "^0.0.287"
-black = "^23.7.0"
-pre-commit = "^3.4.0"
-mypy = "^1.5.1"
-nbmake = "^1.4.5"
 sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }
 
 [tool.ruff]

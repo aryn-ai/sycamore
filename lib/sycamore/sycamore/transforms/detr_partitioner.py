@@ -227,17 +227,13 @@ class DeformableDetr(SycamoreObjectDetection):
             files = [("metadata", gzip.compress(metadata_string.encode("utf-8")))] + [
                 ("images", gzip.compress(image.tobytes())) for image in images
             ]
-            try:
-                response = requests.post(endpoint, files=files)
-                results = response.json()
-            except Exception:
-                results = None
-            if results:
-                for result in results:
-                    for k, v in result.items():
-                        result[k] = base64.b64decode(v)
-                        result[k] = pickle.loads(result[k])
-        if not model_server_endpoint or not results:
+            response = requests.post(endpoint, files=files)
+            results = response.json()
+            for result in results:
+                for k, v in result.items():
+                    result[k] = base64.b64decode(v)
+                    result[k] = pickle.loads(result[k])
+        else:
             results = []
             for image in images:
                 inputs = self.processor(images=image, return_tensors="pt").to(self._get_device())

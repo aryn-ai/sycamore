@@ -394,7 +394,7 @@ class SycamorePartitioner(Partitioner):
         extract_images=False,
         device=None,
         model_server_endpoint=None,
-        batch_size: int = 10,
+        batch_size: int = 1,
     ):
         self._model_name_or_path = model_name_or_path
         self._device = device

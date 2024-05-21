@@ -95,7 +95,7 @@ class SycamorePDFPartitioner:
         table_structure_extractor=DEFAULT_TABLE_STRUCTURE_EXTRACTOR,
         extract_images=False,
         model_server_endpoint=None,
-        batch_size: int = 10,
+        batch_size: int = 1,
     ) -> List[List["Element"]]:
         """
         Partitions a PDF with the DeformableDETR model.
@@ -246,13 +246,13 @@ class DeformableDetr(SycamoreObjectDetection):
                 )
 
         batched_results = []
-        for results, image in zip(results, images):
+        for result, image in zip(results, images):
             (w, h) = image.size
             elements = []
             for score, label, box in zip(
-                results["scores"].cpu().detach().numpy(),
-                results["labels"].cpu().detach().numpy(),
-                results["boxes"].cpu().detach().numpy(),
+                result["scores"].cpu().detach().numpy(),
+                result["labels"].cpu().detach().numpy(),
+                result["boxes"].cpu().detach().numpy(),
             ):
                 element = create_element(
                     type=self.labels[label],

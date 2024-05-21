@@ -95,7 +95,7 @@ class SycamorePDFPartitioner:
         table_structure_extractor=DEFAULT_TABLE_STRUCTURE_EXTRACTOR,
         extract_images=False,
         model_server_endpoint=None,
-        batch_size: int = 10,
+        batch_size: int = 1,
     ) -> List[List["Element"]]:
         """
         Partitions a PDF with the DeformableDETR model.

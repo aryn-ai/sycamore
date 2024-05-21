@@ -280,9 +280,10 @@ class Embed(MapBatch):
 
             # Batch size can be an integer, None, or the string "default" per
             # https://docs.ray.io/en/latest/data/api/doc/ray.data.Dataset.map_batches.html
+            batch_size = self.resource_args["batch_size"]
             assert (
-                self.resource_args["batch_size"] is None
-                or self.resource_args["batch_size"] > 0
+                batch_size is None
+                or (isinstance(batch_size, int) and batch_size > 0)
                 or self.resource_args["batch_size"] == "default"
             )
 

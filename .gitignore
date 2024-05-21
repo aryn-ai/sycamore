@@ -34,3 +34,6 @@ apps/jupyter/bind_dir/redirect.html
 .venv
 lib/remote-processors/remote_processors/*pb2*
 poetry.toml
+apps/integration/runs/
+notebooks/data/
+test-output.log

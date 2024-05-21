@@ -5,7 +5,8 @@ from sycamore.data.element import TableElement
 import pdf2image
 
 from sycamore.data import Document, Element
-from PIL import Image as PImage, ImageDraw, ImageFont
+from sycamore.utils.image_utils import try_draw_boxes
+from PIL import Image as PImage, ImageDraw
 
 
 def split_and_convert_to_image(doc: Document) -> list[Document]:
@@ -82,8 +83,8 @@ class DrawBoxes:
                 .map_batch(DrawBoxes, f_constructor_args=[font_path])
     """
 
-    def __init__(self, font_path: str, default_color: str = "blue", draw_table_cells: bool = True):
-        self.font = ImageFont.truetype(font_path, 20)
+    def __init__(self, font_path: Optional[str] = None, default_color: str = "blue", draw_table_cells: bool = True):
+        self.font_path = font_path
         self.color_map = {
             "Title": "red",
             "NarrativeText": "blue",
@@ -94,43 +95,25 @@ class DrawBoxes:
         self.default_color = default_color
         self.draw_table_cells = draw_table_cells
 
-    def _get_color(self, e_type: Optional[str]):
-        if e_type is None:
+    def _get_color(self, element: Element):
+        if element.type is None:
             return self.default_color
-        return self.color_map.get(e_type, self.default_color)
+        return self.color_map.get(element.type, self.default_color)
 
     def _draw_boxes(self, doc: Document) -> Document:
         size = tuple(doc.properties["size"])
-        image_width, image_height = size
         mode = doc.properties["mode"]
         image = PImage.frombytes(mode=mode, size=size, data=doc.binary_representation)
         canvas = ImageDraw.Draw(image)
 
-        for i, e in enumerate(doc.elements):
-            if e.bbox is None:
-                continue
-            bbox = (
-                e.bbox.x1 * image_width,
-                e.bbox.y1 * image_height,
-                e.bbox.x2 * image_width,
-                e.bbox.y2 * image_height,
-            )
+        try_draw_boxes(
+            canvas, doc.elements, text_fn=lambda e, _: e.type, color_fn=self._get_color, font_path=self.font_path
+        )
 
-            canvas.rectangle(bbox, fill=None, outline=self._get_color(e.type), width=3)
-            font_box = canvas.textbbox(
-                (bbox[0] - image_width / 100, bbox[1] - image_height / 100), str(e.type), font=self.font
-            )
-            canvas.rectangle(font_box, fill="yellow")
-            canvas.text(
-                (bbox[0] - image_width / 100, bbox[1] - image_height / 100),
-                str(e.type),
-                fill="black",
-                font=self.font,
-                align="left",
-            )
-
-            if isinstance(e, TableElement) and e.table is not None and self.draw_table_cells:
-                e.table.draw(canvas)
+        if self.draw_table_cells:
+            for e in doc.elements:
+                if isinstance(e, TableElement) and e.table is not None:
+                    e.table.draw(canvas)
 
         png_image = BytesIO()
         image.save(png_image, format="PNG")

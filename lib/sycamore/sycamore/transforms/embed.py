@@ -277,7 +277,14 @@ class Embed(MapBatch):
         self.resource_args = resource_args
         if "batch_size" not in self.resource_args:
             self.resource_args["batch_size"] = embedder.batch_size
-            assert self.resource_args["batch_size"] > 0
+
+            # Batch size can be an integer, None, or the string "default" per
+            # https://docs.ray.io/en/latest/data/api/doc/ray.data.Dataset.map_batches.html
+            assert (
+                self.resource_args["batch_size"] is None
+                or self.resource_args["batch_size"] > 0
+                or self.resource_args["batch_size"] == "default"
+            )
 
         if embedder.device == "cuda":
             if "num_gpus" not in self.resource_args:

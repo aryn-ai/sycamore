@@ -195,10 +195,10 @@ class BaseMapTransform(UnaryNode):
         return [MetadataDocument(lineage_links={"from_ids": from_ids, "to_ids": to_ids})]
 
 
-class Composite(UnaryNode):
+class CompositeTransform(UnaryNode):
     def __init__(self, child: Node, base_args: list[dict], **resource_args):
         super().__init__(child, **resource_args)
-        self.nodes = Composite.combine(child, base_args, **resource_args)
+        self.nodes = CompositeTransform.combine(child, base_args, **resource_args)
 
     @staticmethod
     def combine(last: Node, base_args: list[dict], **resource_args) -> list[BaseMapTransform]:

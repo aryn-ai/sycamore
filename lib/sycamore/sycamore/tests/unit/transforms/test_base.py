@@ -4,7 +4,7 @@ from ray.data import ActorPoolStrategy
 
 from sycamore.data import Document, MetadataDocument
 from sycamore.plan_nodes import Node
-from sycamore.transforms.base import BaseMapTransform, Composite
+from sycamore.transforms.base import BaseMapTransform, CompositeTransform
 
 
 class Common:
@@ -287,7 +287,7 @@ class TestBaseMapTransform(Common):
             c = c + 1
 
 
-class TestComposite(Common):
+class TestCompositeTransform(Common):
     def test_simple(self, mocker):
         start = TestBaseMapTransform.input_node(mocker)
 
@@ -299,7 +299,7 @@ class TestComposite(Common):
 
             return docs
 
-        last = Composite(start, [{"f": fn, "args": [1]}, {"f": fn, "args": [3]}, {"f": fn, "args": [2]}])
+        last = CompositeTransform(start, [{"f": fn, "args": [1]}, {"f": fn, "args": [3]}, {"f": fn, "args": [2]}])
 
         def simple_check(docs):
             assert len(docs) == Common.ndocs

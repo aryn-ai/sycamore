@@ -8,14 +8,15 @@ main() {
   echo "Get the newest git commits" >&2
   checkout_main_if_new
   local should_run=$?
-  if [[ $should_run ]]; then
+  [[ "$1" == "--force" ]] && should_run=0
+  if [[ $should_run == 0 ]]; then
     echo "Changes detected. Running Tests" >&2
     poetry install
     build_containers
     runtests
     handle_outputs
   else
-    echo "No changes detected. Skipping integration tests" >&2
+    echo "No changes detected. Skipping integration tests. Use $0 --force to force" >&2
   fi
 }
 
@@ -49,4 +50,4 @@ runtests() {
 }
 
 
-main
+main "$@"

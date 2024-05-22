@@ -4,16 +4,17 @@ from typing import Any, Optional
 
 from bs4 import BeautifulSoup
 
-from ray.data import Dataset, ActorPoolStrategy
+from ray.data import ActorPoolStrategy
 
 from sycamore.functions import TextOverlapChunker, Chunker
 from sycamore.functions import CharacterTokenizer, Tokenizer
 from sycamore.functions import reorder_elements
 from sycamore.data import BoundingBox, Document, Element, TableElement
-from sycamore.plan_nodes import Node, Transform
+from sycamore.plan_nodes import Node
+from sycamore.transforms.base import CompositeTransform
 from sycamore.transforms.extract_table import TableExtractor
+from sycamore.transforms.map import Map
 from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
-from sycamore.utils import generate_map_function, generate_map_class_from_callable
 from sycamore.utils.time_trace import timetrace
 
 
@@ -477,7 +478,7 @@ class SycamorePartitioner(Partitioner):
         return document
 
 
-class Partition(Transform):
+class Partition(CompositeTransform):
     """
     The Partition transform segments documents into elements. For example, a typical partitioner might chunk a document
     into elements corresponding to paragraphs, images, and tables. Partitioners are format specific, so for instance for
@@ -501,23 +502,20 @@ class Partition(Transform):
     def __init__(
         self, child: Node, partitioner: Partitioner, table_extractor: Optional[TableExtractor] = None, **resource_args
     ):
-        super().__init__(child, **resource_args)
-        self._partitioner = partitioner
-        self._table_extractor = table_extractor
+        ops = []
 
-    def execute(self) -> Dataset:
-        input_dataset = self.child().execute()
-        if isinstance(self._partitioner, SycamorePartitioner):
-            if "num_gpus" in self.resource_args and self.resource_args["num_gpus"] < 0:
-                raise RuntimeError("Invalid GPU Nums!")
+        if isinstance(partitioner, SycamorePartitioner):
+            if "num_gpus" in resource_args:
+                assert resource_args["num_gpus"] >= 0
 
-            dataset = input_dataset.map(
-                generate_map_class_from_callable(self._partitioner.partition),
-                compute=ActorPoolStrategy(size=1),
-                **self.resource_args,
-            )
-        else:
-            dataset = input_dataset.map(generate_map_function(self._partitioner.partition))
-        if self._table_extractor:
-            dataset = dataset.map(generate_map_function(self._table_extractor.extract_tables))
-        return dataset
+            if "compute" in resource_args:
+                assert isinstance(resource_args["compute"], ActorPoolStrategy)
+            else:
+                resource_args["compute"] = ActorPoolStrategy(size=1)
+        ops = [{**resource_args, "f": Map.wrap(partitioner.partition)}]
+        if table_extractor is not None:
+            ops.append({"f": Map.wrap(table_extractor.extract_tables)})
+
+        # Note: we are not applying resource args to the entire composite operation just the first step because that
+        # matches with the original code. It is unclear if this is the correct behavior.
+        super().__init__(child, ops)

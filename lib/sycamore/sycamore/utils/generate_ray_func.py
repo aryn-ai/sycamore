@@ -30,15 +30,6 @@ def generate_map_function(f: Callable[[Document], Document]) -> Callable[[dict[s
     return ray_callable
 
 
-def generate_map_class_from_callable(f: Callable[[Document], Document]) -> Callable[[dict[str, Any]], dict[str, Any]]:
-    def ray_callable(self, input_dict: dict[str, Any]) -> dict[str, Any]:
-        document = f(Document.from_row(input_dict))
-        return document.to_row()
-
-    new_class = type(f.__name__, (), {"__call__": ray_callable})
-    return new_class
-
-
 def generate_map_batch_filter_class_from_callable(
     f: Callable[[Document], bool]
 ) -> Callable[[list[dict[str, Any]]], dict[str, Any]]:

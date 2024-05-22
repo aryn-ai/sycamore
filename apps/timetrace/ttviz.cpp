@@ -96,6 +96,7 @@ struct Rec {
   uint64_t t1;
   uint64_t utime;
   uint64_t stime;
+  uint64_t rss;
   char     name[48];
 };
 
@@ -216,7 +217,7 @@ public:
       int x0 = gap + xscale * (prev - first);
       int x1 = gap + xscale * (time - first);
       int y = lscale * level;
-      im.rect(x0, hit1 - 1 - y, x1, hit1 - 1, 21); // gray
+      im.rect(x0, hit1 - 1 - y, x1, hit1 - 1, 21); // 21 = gray
       level = (start ? level + 1 : level - 1);
       prev = time;
     }
@@ -224,7 +225,30 @@ public:
     for (int i = 1; i <= maxlev; ++i) {
       string ns = std::to_string(i);
       int y = lscale * i;
-      im.text(halfgap, hit1 - 1 - halfl - y, ns.c_str(), 1); // white
+      im.text(halfgap, hit1 - 1 - halfl - y, ns.c_str(), 1); // 1 = white
+    }
+
+    // rss graph
+    vector<pair<uint64_t, uint64_t>> samples;
+    for (Iter it(paths_); it; ++it) {
+      const Rec &r = *it;
+      samples.emplace_back(r.t1, r.rss);
+    }
+    std::sort(samples.begin(), samples.end());
+    uint64_t maxrss = 0;
+    for (auto [time, rss] : samples)
+      maxrss = std::max(maxrss, rss);
+    double rscale = (hit1 - hit0) / (maxrss + 2.0);
+    uint64_t prevtime = first;
+    uint64_t prevrss = 0;
+    for (auto [time, rss] : samples) {
+      int x0 = gap + xscale * (prevtime - first);
+      int x1 = gap + xscale * (time - first);
+      int y0 = hit1 - 1 - rscale * prevrss;
+      int y1 = hit1 - 1 - rscale * rss;
+      im.line(x0, y0, x1, y1, 1); // 1 = white
+      prevtime = time;
+      prevrss = rss;
     }
 
     im.outPng("viz.png");

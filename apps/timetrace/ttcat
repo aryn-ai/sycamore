@@ -4,7 +4,7 @@ import sys
 import struct
 from typing import NamedTuple
 
-FMT = "BxxxIQQQQ48s"
+FMT = "BxxxIQQQQQ48s"
 SIZE = struct.calcsize(FMT)
 
 class TimeTraceRec(NamedTuple):
@@ -13,14 +13,15 @@ class TimeTraceRec(NamedTuple):
     t1: int
     utime: int
     stime: int
+    rss: int
     name: str
 
 def buf_to_rec(buf) -> TimeTraceRec:
     tup = struct.unpack(FMT, buf)
-    ver, thr, t0, t1, user, syst, name = tup
+    ver, thr, t0, t1, user, syst, rss, name = tup
     assert ver == 0
     name = name.decode().rstrip('\0')
-    return TimeTraceRec(thr, t0, t1, user, syst, name)
+    return TimeTraceRec(thr, t0, t1, user, syst, rss, name)
 
 def tt_reader(paths: list[str]):
     for path in paths:
@@ -35,8 +36,10 @@ class Cat:
     def run(self, paths):
         for rec in tt_reader(paths):
             t0 = rec.t0 / 1000000000.0
-            wall = (rec.t1 - rec.t0) / 1000000000.0
-            print(f"{t0} {rec.name} {wall}")
+            t1 = rec.t1 / 1000000000.0
+            wall = t1 - t0
+            rss = rec.rss / 1048576.0
+            print(f"{t0:.3f} {rec.name} {wall:.6f} {rss:.0f}")
 
 
 def main(args = None):

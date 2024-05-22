@@ -257,7 +257,7 @@ class DeformableDetr(SycamoreObjectDetection):
                 element = create_element(
                     type=self.labels[label],
                     bbox=BoundingBox(box[0] / w, box[1] / h, box[2] / w, box[3] / h).coordinates,
-                    properties={"score": score},
+                    properties={"score": score.item()},
                 )
                 elements.append(element)
             batched_results.append(elements)

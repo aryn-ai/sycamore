@@ -34,14 +34,16 @@ class TimeTrace:
         r0 = self.r0
         user = int((r1.ru_utime - r0.ru_utime) * 1000000000.0)
         syst = int((r1.ru_stime - r0.ru_stime) * 1000000000.0)
+        rss = r1.ru_maxrss * 1024  # could do max, but this is more granular
         buf = struct.pack(
-            "BxxxIQQQQ48s",
+            "BxxxIQQQQQ48s",
             0,  # version
             thr,
             self.t0,
             t1,
             user,
             syst,
+            rss,
             self.name,
         )
         os.write(TimeTrace.fd, buf)

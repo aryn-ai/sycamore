@@ -22,7 +22,7 @@ for i in **/pyproject.toml; do
     # Demo UI needs 0.28, rest of sycamore needs 1.x
     [[ $i = *openai-proxy* ]] && continue
     (
-        echo "--------------------- proecessing in $i"
+        echo "--------------------- processing in $i"
         cd $(dirname "$i")
         poetry lock --no-update || return 1
         poetry install |& tee /tmp/poetry-install.out || return 1

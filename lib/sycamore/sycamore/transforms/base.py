@@ -193,3 +193,29 @@ class BaseMapTransform(UnaryNode):
         to_ids = [d.lineage_id for d in to_docs]
 
         return [MetadataDocument(lineage_links={"from_ids": from_ids, "to_ids": to_ids})]
+
+
+class Composite(UnaryNode):
+    def __init__(self, child: Node, base_args: list[dict], **resource_args):
+        super().__init__(child, **resource_args)
+        self.nodes = Composite.combine(child, base_args, **resource_args)
+
+    @staticmethod
+    def combine(last: Node, base_args: list[dict], **resource_args) -> list[BaseMapTransform]:
+        nodes = []
+        for a in base_args:
+            args = resource_args | a
+            last = BaseMapTransform(last, **args)
+            nodes.append(last)
+
+        return nodes
+
+    def _local_process(self, in_docs: list[Document]) -> list[Document]:
+        docs = in_docs
+        for n in self.nodes:
+            docs = n._local_process(docs)
+
+        return docs
+
+    def execute(self) -> Dataset:
+        return self.nodes[-1].execute()

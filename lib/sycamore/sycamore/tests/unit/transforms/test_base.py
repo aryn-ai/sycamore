@@ -4,10 +4,10 @@ from ray.data import ActorPoolStrategy
 
 from sycamore.data import Document, MetadataDocument
 from sycamore.plan_nodes import Node
-from sycamore.transforms.base import BaseMapTransform
+from sycamore.transforms.base import BaseMapTransform, Composite
 
 
-class TestBaseMapTransform:
+class Common:
     dicts = [
         {"doc_id": "pb1", "doc": "Beat it or I'll call the Brute Squad."},
         {"doc_id": "pb2", "doc": "I'm on the Brute Squad."},
@@ -31,6 +31,8 @@ class TestBaseMapTransform:
         metadata = [d for d in all_docs if isinstance(d, MetadataDocument)]
         return (docs, metadata)
 
+
+class TestBaseMapTransform(Common):
     @staticmethod
     def fn_a(docs: list[Document], arg: str, *, extra2="unset") -> list[Document]:
         ret: list[Document] = []
@@ -283,3 +285,34 @@ class TestBaseMapTransform:
             assert m["c"] == c
             assert m["n"] == 1
             c = c + 1
+
+
+class TestComposite(Common):
+    def test_simple(self, mocker):
+        start = TestBaseMapTransform.input_node(mocker)
+
+        def fn(docs: list[Document], arg: str) -> list[Document]:
+            for d in docs:
+                if "val" not in d.properties:
+                    d.properties["val"] = []
+                d.properties["val"].append(arg)
+
+            return docs
+
+        last = Composite(start, [{"f": fn, "args": [1]}, {"f": fn, "args": [3]}, {"f": fn, "args": [2]}])
+
+        def simple_check(docs):
+            assert len(docs) == Common.ndocs
+            for d in docs:
+                assert "val" in d.properties
+                v = d.properties["val"]
+                assert len(v) == 3
+                assert v[0] == 1
+                assert v[1] == 3
+                assert v[2] == 2
+
+        docs = last._local_process([Document(d) for d in Common.dicts])
+        simple_check(docs)
+
+        (docs, mds) = self.outputs(last)
+        simple_check(docs)

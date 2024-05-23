@@ -10,7 +10,6 @@ from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
 
 from PIL import Image
 import pdf2image
-import base64
 import requests
 import json
 import pickle
@@ -217,6 +216,8 @@ class DeformableDetr(SycamoreObjectDetection):
         self, images: List[Image.Image], threshold: float, model_server_endpoint: str = ""
     ) -> List[List[Element]]:
         if model_server_endpoint:
+            from requests_toolbelt.multipart import decoder as multipart_decoder
+
             endpoint = model_server_endpoint + self._model_name_or_path
             metadata = {
                 "threshold": threshold,
@@ -228,11 +229,17 @@ class DeformableDetr(SycamoreObjectDetection):
                 ("images", gzip.compress(image.tobytes())) for image in images
             ]
             response = requests.post(endpoint, files=files)
-            results = response.json()
-            for result in results:
-                for k, v in result.items():
-                    result[k] = base64.b64decode(v)
-                    result[k] = pickle.loads(result[k])
+            data = multipart_decoder.MultipartDecoder.from_response(response)
+            tmp_results = {"scores": [], "labels": [], "boxes": []}
+            for part in data.parts:
+                disposition = part.headers[b"Content-Disposition"]
+                name = str(disposition).split(";")[1].split("=")[1].strip("\"'")
+                tmp_results[name].append(pickle.loads(part.content))
+
+            results = [
+                {"scores": scores, "labels": labels, "boxes": boxes}
+                for scores, labels, boxes in zip(tmp_results["scores"], tmp_results["labels"], tmp_results["boxes"])
+            ]
         else:
             results = []
             for image in images:

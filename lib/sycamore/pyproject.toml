@@ -52,6 +52,7 @@ pypdf2 = "^3.0.1"
 pytesseract = "^0.3.10"
 easyocr = "^1.7.1"
 weaviate-client = "^4.6.1"
+requests-toolbelt = "^1.0.0"
 
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"

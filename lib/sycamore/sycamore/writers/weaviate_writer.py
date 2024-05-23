@@ -1,5 +1,4 @@
 import logging
-from types import NoneType
 from typing import Any, Iterable, Optional
 
 from ray.data import Dataset, Datasink
@@ -76,7 +75,7 @@ class WeaviateDatasink(Datasink):
     def _extract_weaviate_objects(block):
         # Weaviate doesn't like explicitly null values
         def not_none(x):
-            return not isinstance(x, NoneType)
+            return x is not None
 
         # Weaviate defaults empty lists to text[], which is often incorrect
         def not_empty_list(x):

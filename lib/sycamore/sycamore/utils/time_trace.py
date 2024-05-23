@@ -11,7 +11,7 @@ class TimeTrace:
     fd = -1
 
     try:
-        resource_type = resource.RUSAGE_THREAD # type: ignore
+        resource_type = resource.RUSAGE_THREAD  # type: ignore
     except AttributeError:
         resource_type = resource.RUSAGE_SELF
 

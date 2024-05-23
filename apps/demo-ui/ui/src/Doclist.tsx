@@ -72,9 +72,6 @@ const DocumentItem = ({ document }: { document: SearchResultDocument }) => {
 
 
         let redirectUrl = `${document.url}#:~:text=${firstFour[0]}%20${firstFour[1]}-,${firstFour[2]},${lastFour[2]}%20${lastFour[3]}`;;
-        if(document.id === 'index-1') {
-            redirectUrl = `${document.url}#:~:text=Top%20Results,Phillip%20Griffith`;
-        }
         return (
             <div ref={ref}>
                 <HoverCard width="60%" shadow="md" position='bottom'>
@@ -84,7 +81,7 @@ const DocumentItem = ({ document }: { document: SearchResultDocument }) => {
                             <Group p="xs" noWrap spacing="xs">
                                 <Badge size="xs" color="gray" variant="filled" sx={{ overflow: "visible" }} > {document.index}</Badge>
                                 <Text size="sm" c={hovered ? theme.colors.blue[8] : theme.colors.dark[8]} truncate>
-                                    {document.title != "Untitled" ? document.title :
+                                     {document.title != "Untitled" ? document.title :
                                         (document.properties.entity ? document.properties.entity.accidentNumber ?? "Untitled": "Untitled")}
                                 </Text>
                             </Group>
@@ -168,7 +165,7 @@ export const DocList = ({ documents, settings, docsLoading }: { documents: Searc
     const icon = <IconInfoCircle />;
 
     return (
-        <Container bg="white">
+        <Container bg="white" w='60vw'>
             <ScrollArea w="90%" sx={{ overflow: "visible" }}>
                 <Container sx={{ overflow: "visible" }}>
                     <LoadingOverlay visible={docsLoading} overlayBlur={2} />

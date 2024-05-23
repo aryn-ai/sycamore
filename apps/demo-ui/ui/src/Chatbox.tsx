@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Dispatch, SetStateAction, useRef, useState } from 'react';
-import { ActionIcon, Anchor, Badge, Box, Button, Card, Center, Chip, Container, Flex, Group, HoverCard, Image, JsonInput, Loader, Modal, NativeSelect, ScrollArea, Skeleton, Stack, Text, TextInput, Title, UnstyledButton, createStyles, useMantineTheme } from '@mantine/core';
-import { IconSearch, IconChevronRight, IconLink, IconFileTypeHtml, IconFileTypePdf, IconX, IconEdit, IconPlayerPlayFilled, IconPlus, IconSettings, IconInfoCircle } from '@tabler/icons-react';
+import { ActionIcon, Anchor, Badge, Box, Button, Card, Center, Chip, Container, Flex, Group, HoverCard, Image, JsonInput, Loader, Modal, NativeSelect, ScrollArea, Skeleton, Stack, Switch, Text, TextInput, Title, Tooltip, UnstyledButton, createStyles, useMantineTheme } from '@mantine/core';
+import { IconSearch, IconChevronRight, IconLink, IconFileTypeHtml, IconFileTypePdf, IconX, IconEdit, IconPlayerPlayFilled, IconPlus, IconSettings, IconInfoCircle, IconWriting } from '@tabler/icons-react';
 import { IconThumbUp, IconThumbUpFilled, IconThumbDown, IconThumbDownFilled } from '@tabler/icons-react';
 import { getFilters, rephraseQuestion } from './Llm';
 import { SearchResultDocument, Settings, SystemChat } from './Types';
@@ -29,10 +29,10 @@ const useStyles = createStyles((theme) => ({
     settingsIcon: {
         // left,
         
-        zIndex: 1000
+        zIndex: 1
     },
     chatHistoryContainer: {
-        height: `calc(100vh - 17em)`,
+        height: `calc(100vh - 14.5em)`,
     },
     settingsStack: {
         position: 'absolute',
@@ -124,7 +124,7 @@ const FilterInput = ({ settings, filtersInput, setFiltersInput, filterError, set
 const SearchControlPanel = ({ disableFilters, setDisableFilters, questionRewriting, setQuestionRewriting, queryPlanner, setQueryPlanner, chatHistory, setChatHistory, openSearchQueryEditorOpenedHandlers, settings }:
     { disableFilters: any, setDisableFilters: any, questionRewriting: any, setQuestionRewriting: any, queryPlanner: boolean, setQueryPlanner: any, chatHistory: any, setChatHistory: any, openSearchQueryEditorOpenedHandlers: any, settings: Settings }) => {
     return (
-        <Group position='center'>
+        <Group position='right' w="100%">
             {((settings.required_filters.length > 0) ?
                 <Chip size="xs" checked={!disableFilters} onChange={() => setDisableFilters((v: any) => !v)} variant="light">
                     Filters
@@ -136,12 +136,8 @@ const SearchControlPanel = ({ disableFilters, setDisableFilters, questionRewriti
                         Auto-filters
                     </Chip> : null
             }
-            <Chip key="questionRewriting" size="xs" checked={questionRewriting} onChange={() => setQuestionRewriting(!questionRewriting)} variant="light">
-                Question rewriting
-            </Chip>
-
-            <Button compact onClick={() => openSearchQueryEditorOpenedHandlers.open()} size="xs" fz="xs">
-                New query
+            <Button compact onClick={() => openSearchQueryEditorOpenedHandlers.open()} size="xs" fz="xs" variant="gradient" gradient={{ from: 'blue', to: 'indigo', deg: 90 }}>
+                Run OpenSearch Query
             </Button>
         </Group >
     )
@@ -903,7 +899,7 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
     {
         chatHistory: (SystemChat)[], searchResults: SearchResultDocument[], setChatHistory: Dispatch<SetStateAction<any[]>>,
         setSearchResults: Dispatch<SetStateAction<any[]>>, streaming: boolean, setStreaming: Dispatch<SetStateAction<boolean>>,
-        setDocsLoading: Dispatch<SetStateAction<boolean>>, setErrorMessage: Dispatch<SetStateAction<string | null>>, settings: Settings, setSettings: any, refreshConversations: any,chatInputRef: any
+        setDocsLoading: Dispatch<SetStateAction<boolean>>, setErrorMessage: Dispatch<SetStateAction<string | null>>, settings: Settings, setSettings: Dispatch<SetStateAction<Settings>>, refreshConversations: any,chatInputRef: any
     }) => {
     const theme = useMantineTheme();
     const [chatInput, setChatInput] = useState("");
@@ -1127,6 +1123,9 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
 
     // This method does all the search workflow execution
     const handleSubmit = async (e: React.FormEvent) => {
+        if(chatInput.length === 0) {
+            return;
+        }
         if(!disableFilters && settings.required_filters.length > 0) {
             const someNonEmptyValues = Object.keys(filtersInput).length === 0 || Object.keys(filtersInput).some((key) => filtersInput[key] === '');
             if(someNonEmptyValues) {
@@ -1163,11 +1162,9 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
                 chatHistory={chatHistory}
                 setChatHistory={setChatHistory} />
             <ControlPanel settings={settings} setSettings={setSettings} controlPanelOpened={settingsOpened} onControlPanelClose={settingsHandler.close} />
-            <Flex pt={32} direction="column" pos='relative' className={classes.chatFlex}>
+            <Flex direction="column" pos='relative' className={classes.chatFlex}>
                 <Stack className={classes.settingsStack} spacing='0'>
-                    <Text fz="xs" color="dimmed" >
-                        Active conversation: {settings.activeConversation ? settings.activeConversation : "None"}
-                    </Text>
+                   
                     <ActionIcon variant="transparent" className={classes.settingsIcon} onClick={settingsHandler.open}>
                         <IconSettings size="1.625rem" />
                     </ActionIcon>
@@ -1180,10 +1177,8 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
 
                             :
                 <ScrollArea className={classes.chatHistoryContainer} viewportRef={scrollAreaRef}>
-                    <Container w='50rem' >
-                        
+                    <Container >
                         <Stack >
-
                             {chatHistory.map((chat, index) => {
                                 return <SystemChatBox key={chat.id + "_system"} systemChat={chat} chatHistory={chatHistory} settings={settings} handleSubmit={handleSubmit}
                                     setChatHistory={setChatHistory} setSearchResults={setSearchResults} setErrorMessage={setErrorMessage}
@@ -1206,11 +1201,11 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
                 
             </Flex >
             <Container  className={classes.fixedBottomContainer}>
-                <Group position={!disableFilters && settings.required_filters.length > 0 ? "apart" : 'right'} w='65vw' ml='auto' mr='auto' p='sm' h='3.5em'>
-                    {!disableFilters && settings.required_filters.length > 0 ? <FilterInput settings={settings} filtersInput={filtersInput} setFiltersInput={setFiltersInput} filterError={filterError} setFilterError={setFilterError} /> : null}
-                    
+                <Group position={!disableFilters && settings.required_filters.length > 0 ? "apart" : 'left'} ml='auto' mr='auto' p='sm' h='3.5em' w={mobileScreen ? "90vw":"70vw"}>
                     <SearchControlPanel disableFilters={disableFilters} setDisableFilters={setDisableFilters} questionRewriting={questionRewriting} setQuestionRewriting={setQuestionRewriting}
                         queryPlanner={queryPlanner} setQueryPlanner={setQueryPlanner} chatHistory={chatHistory} setChatHistory={setChatHistory} openSearchQueryEditorOpenedHandlers={openSearchQueryEditorOpenedHandlers} settings={settings}></SearchControlPanel>
+                    
+                    {!disableFilters && settings.required_filters.length > 0 ? <FilterInput settings={settings} filtersInput={filtersInput} setFiltersInput={setFiltersInput} filterError={filterError} setFilterError={setFilterError} /> : null}
                 </Group>
                 <Center>
                     <TextInput
@@ -1224,21 +1219,34 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
                         radius="xl"
                         autoFocus
                         size='lg'
+                        rightSectionWidth="auto"
                         rightSection={
-                            <ActionIcon size={40} radius="xl" bg="#5688b0" variant="filled">
-                                <IconChevronRight size="1rem" stroke={2} onClick={handleSubmit} />
-                            </ActionIcon>
+                            <Group pr="0.2rem">
+                                <Tooltip label="Rewrite question">
+                                    <ActionIcon size={40} radius="xl" 
+                                    sx={(theme) => ({
+                                        color:  questionRewriting ? "white" :"#5688b0", 
+                                        backgroundColor: questionRewriting ? "#5688b0" :"white",
+                                        '&:hover': {
+                                        backgroundColor: questionRewriting ? '#5688b0' : theme.colors.gray[2],
+                                        },
+                                    })}>
+                                        <IconWriting size="1.3rem" stroke={1.5} onClick={() => setQuestionRewriting(o => !o)}  />
+                                    </ActionIcon>
+                                </Tooltip>
+                                {mobileScreen &&
+                                    <ActionIcon size={40} radius="xl" bg="#5688b0" variant="filled">
+                                        <IconChevronRight size="1rem" stroke={2} onClick={handleSubmit} />
+                                    </ActionIcon>
+                                }  
+                            </Group>
+                            
                         }
                         placeholder="Ask me anything"
                         disabled={settings.activeConversation == null}
                     />
                 </Center>
-                <Group align='center' position='center' spacing='0.2rem' pt='0.2rem'>
-                    <IconInfoCircle size='0.8rem' stroke={2}/>
-                    <Text size='0.7rem' truncate >
-                    Always refer to the original source document to consider warnings and important notices.
-                    </Text>
-                </Group>
+               
                     
             </Container>
         </>

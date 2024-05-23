@@ -1,13 +1,13 @@
-import React, { useRef, useState } from 'react';
+import React, { Dispatch, SetStateAction, useEffect, useRef, useState } from 'react';
 import { ChatBox, thumbToBool } from './Chatbox'
 import { ControlPanel } from './Controlpanel'
 import { ConversationListNavbar, setActiveConversation } from './ConversationList'
 import { DocList } from './Doclist'
-import { AppShell, Burger, Container, Footer, Grid, Group, Header, Image, MantineProvider, MediaQuery, Notification, Stack, Text, useMantineTheme } from '@mantine/core';
+import { AppShell, Box, Burger, Container, Footer, Grid, Group, Header, Image, MantineProvider, MediaQuery, Notification, Stack, Text, useMantineTheme } from '@mantine/core';
 import { SearchResultDocument, Settings, SystemChat, UserChat } from './Types';
 import { IconX } from '@tabler/icons-react';
 import { getConversations, getFeedback, getInteractions } from './OpenSearch';
-import { useMediaQuery } from '@mantine/hooks';
+import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 
 
 export default function App() {
@@ -148,7 +148,7 @@ export default function App() {
             <ConversationListNavbar navBarOpened={navBarOpened} settings={settings} setSettings={setSettings} setErrorMessage={setErrorMessage} loadingConversation={loadingConversation} loadActiveConversation={loadActiveConversation} conversations={conversations} setConversations={setConversations} refreshConversations={refreshConversations} setChatHistory={setChatHistory} chatInputRef={chatInputRef} setNavBarOpened={setNavBarOpened}></ConversationListNavbar>
         }
         styles={() => ({
-          main: { backgroundColor: "white" },
+          main: { backgroundColor: "white", paddingBottom: 0 },
         })}
       >
           <ChatBox chatHistory={chatHistory} searchResults={searchResults} setChatHistory={setChatHistory}

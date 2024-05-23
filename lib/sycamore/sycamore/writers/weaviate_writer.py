@@ -7,8 +7,6 @@ from ray.data._internal.execution.interfaces import TaskContext
 from ray.data.block import Block, BlockAccessor
 from sycamore.data.document import Document
 from sycamore.plan_nodes import Node, Write
-from weaviate import WeaviateClient
-from weaviate.collections.classes.data import DataReference
 
 
 class WeaviateWriter(Write):
@@ -39,6 +37,8 @@ class WeaviateDatasink(Datasink):
         self._collection_config = collection_config
 
     def on_write_start(self):
+        from weaviate import WeaviateClient
+
         with WeaviateClient(**self._client_params) as client:
             if self._collection_config is not None:
                 if client.collections.exists(self._collection_name):
@@ -50,6 +50,9 @@ class WeaviateDatasink(Datasink):
                     client.collections.create(**self._collection_config)
 
     def write(self, blocks: Iterable[Block], ctx: TaskContext) -> Any:
+        from weaviate import WeaviateClient
+        from weaviate.collections.classes.data import DataReference
+
         builder = DelegatingBlockBuilder()
         for block in blocks:
             builder.add_block(block)

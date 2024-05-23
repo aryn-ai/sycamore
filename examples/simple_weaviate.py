@@ -1,8 +1,8 @@
 import sys
 
-from weaviate.classes.config import Property, ReferenceProperty
+from weaviate.classes.config import ReferenceProperty
 from weaviate.client import AdditionalConfig, ConnectionParams
-from weaviate.collections.classes.config import Configure, DataType
+from weaviate.collections.classes.config import Configure
 from weaviate.config import Timeout
 
 # ruff: noqa: E402
@@ -39,26 +39,7 @@ wv_client_args = {
 collection_config_params = {
     "name": collection,
     "description": "A collection to demo data-prep with Sycamore",
-    "properties": [
-        Property(
-            name="properties",
-            data_type=DataType.OBJECT,
-            nested_properties=[
-                Property(
-                    name="links",
-                    data_type=DataType.OBJECT_ARRAY,
-                    nested_properties=[
-                        Property(name="text", data_type=DataType.TEXT),
-                        Property(name="url", data_type=DataType.TEXT),
-                        Property(name="start_index", data_type=DataType.NUMBER),
-                    ],
-                ),
-            ],
-        ),
-        Property(name="bbox", data_type=DataType.NUMBER_ARRAY),
-        Property(name="shingles", data_type=DataType.INT_ARRAY),
-    ],
-    "vectorizer_config": [Configure.NamedVectors.text2vec_transformers(name="embedding")],
+    "vectorizer_config": [Configure.NamedVectors.none(name="embedding")],
     "references": [ReferenceProperty(name="parent", target_collection=collection)],
 }
 model_name = "sentence-transformers/all-MiniLM-L6-v2"

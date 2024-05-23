@@ -172,6 +172,12 @@ class DocSetWriter:
         wv = WeaviateWriter(self.plan, collection_name, wv_client_args, collection_config, **resource_args)
         wv.execute()
 
+    def pinecone(self, *, index_name, index_spec, namespace, dimensions, distance_metric, **resource_args):
+        from sycamore.writers import PineconeWriter
+
+        pc = PineconeWriter(self.plan, index_name, index_spec, namespace, dimensions, distance_metric, **resource_args)
+        pc.execute()
+
     def files(
         self,
         path: str,

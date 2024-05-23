@@ -222,7 +222,7 @@ def show_images(images: Union[Image.Image, list[Image.Image]], width: int = 600)
     in_jupyter = False
 
     try:
-        ipy_class = get_ipython().__class__.__name__
+        ipy_class = get_ipython().__class__.__name__  # type: ignore
         if ipy_class == "ZMQInteractiveShell":
             in_jupyter = True
     except NameError:

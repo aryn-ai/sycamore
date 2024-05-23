@@ -230,7 +230,7 @@ class DeformableDetr(SycamoreObjectDetection):
             ]
             response = requests.post(endpoint, files=files)
             data = multipart_decoder.MultipartDecoder.from_response(response)
-            tmp_results = {"scores": [], "labels": [], "boxes": []}
+            tmp_results: dict[str, list] = {"scores": [], "labels": [], "boxes": []}
             for part in data.parts:
                 disposition = part.headers[b"Content-Disposition"]
                 name = str(disposition).split(";")[1].split("=")[1].strip("\"'")

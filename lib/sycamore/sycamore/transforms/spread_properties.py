@@ -1,12 +1,10 @@
-from ray.data import Dataset
-
 from sycamore.data import Document
-from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
-from sycamore.utils import generate_map_function
+from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
+from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
 
 
-class SpreadProperties(SingleThreadUser, NonGPUUser, Transform):
+class SpreadProperties(SingleThreadUser, NonGPUUser, Map):
     """
     The SpreadProperties transform copies properties from each document to its
     subordinate elements.
@@ -24,27 +22,18 @@ class SpreadProperties(SingleThreadUser, NonGPUUser, Transform):
     """
 
     def __init__(self, child: Node, props: list[str], **resource_args):
-        super().__init__(child, **resource_args)
-        self._props = props
+        super().__init__(child, f=SpreadProperties.spread_properties, args=[props], **resource_args)
 
-    class SpreadPropertiesCallable:
-        def __init__(self, props: list[str]):
-            self._props = props
+    @staticmethod
+    @timetrace("spreadProps")
+    def spread_properties(parent: Document, props) -> Document:
+        newProps = {}
+        for key in props:
+            val = parent.properties.get(key)
+            if val is not None:
+                newProps[key] = val
 
-        @timetrace("spreadProps")
-        def spreadProperties(self, parent: Document) -> Document:
-            newProps = {}
-            for key in self._props:
-                val = parent.properties.get(key)
-                if val is not None:
-                    newProps[key] = val
-
-            # TODO: Have a way to let existing element properties win.
-            for element in parent.elements:
-                element.properties.update(newProps)
-            return parent
-
-    def execute(self) -> Dataset:
-        dataset = self.child().execute()
-        spreader = SpreadProperties.SpreadPropertiesCallable(self._props)
-        return dataset.map(generate_map_function(spreader.spreadProperties))
+        # TODO: Have a way to let existing element properties win.
+        for element in parent.elements:
+            element.properties.update(newProps)
+        return parent

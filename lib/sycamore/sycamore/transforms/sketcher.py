@@ -3,15 +3,15 @@ import re
 import functools
 import unicodedata
 
-from ray.data import ActorPoolStrategy, Dataset
+from ray.data import ActorPoolStrategy
 
 from sycamore.data import Document
 from sycamore.functions.simhash import shinglesCalc, shinglesDist
-from sycamore.plan_nodes import Node, Transform, SingleThreadUser, NonGPUUser
-from sycamore.utils import generate_map_function
-from sycamore.utils.generate_ray_func import generate_map_batch_filter_class_from_callable
-from sycamore.utils.time_trace import TimeTrace
+from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
+from sycamore.transforms.map import Map, FlatMap
+from sycamore.utils.time_trace import timetrace
 
+# NOTE: A larger test of ndd is present at examples/ndd.py
 
 unwantedRe = re.compile(r"\W+")
 
@@ -27,7 +27,7 @@ def normalizeString(s: str) -> str:
     return s.lower()
 
 
-class Sketcher(SingleThreadUser, NonGPUUser, Transform):
+class Sketcher(SingleThreadUser, NonGPUUser, Map):
     """
     For each Document, uses shingling to hash sliding windows of the
     text_representation.  The set of shingles is called the sketch.
@@ -50,30 +50,19 @@ class Sketcher(SingleThreadUser, NonGPUUser, Transform):
     """
 
     def __init__(self, child: Node, window: int = 17, number: int = 16, **kwargs):
-        super().__init__(child, **kwargs)
-        self.window = window
-        self.number = number
+        super().__init__(child, f=Sketcher.sketcher, args=[window, number], **kwargs)
 
-    class Callable:
-        def __init__(self, window: int, number: int):
-            self.window = window
-            self.number = number
-
-        def run(self, doc: Document) -> Document:
-            with TimeTrace("sketcher"):
-                txt = doc.text_representation
-                if txt:
-                    utf = normalizeString(txt).encode("utf-8")
-                    doc.shingles = shinglesCalc(utf, self.window, self.number)
-                return doc
-
-    def execute(self) -> Dataset:
-        dataset = self.child().execute()
-        xform = Sketcher.Callable(self.window, self.number)
-        return dataset.map(generate_map_function(xform.run))
+    @staticmethod
+    @timetrace("sketcher")
+    def sketcher(doc: Document, window: int, number: int):
+        txt = doc.text_representation
+        if txt:
+            utf = normalizeString(txt).encode("utf-8")
+            doc.shingles = shinglesCalc(utf, window, number)
+        return doc
 
 
-class SketchUniquify(SingleThreadUser, NonGPUUser, Transform):
+class SketchUniquify(SingleThreadUser, NonGPUUser, FlatMap):
     """
     Removes each Document which is a near-duplicate of a Document seen
     before.  Uses the shingles calculated by the Sketcher transform.
@@ -94,8 +83,9 @@ class SketchUniquify(SingleThreadUser, NonGPUUser, Transform):
     """
 
     def __init__(self, child: Node, threshold: float = 0.4, **kwargs) -> None:
-        super().__init__(child, **kwargs)
-        self.threshold = threshold
+        # must run on 1 instance to get a global view
+        kwargs["compute"] = ActorPoolStrategy(size=1)
+        super().__init__(child, f=SketchUniquify.Predicate, constructor_args=[threshold], **kwargs)
 
     class Predicate:
         def __init__(self, threshold: float) -> None:
@@ -118,20 +108,14 @@ class SketchUniquify(SingleThreadUser, NonGPUUser, Transform):
                 self.seenSketches.append(docSketch)
             return True
 
-    def execute(self) -> Dataset:
-        ds = self.child().execute()
-        ds = ds.materialize()  # force previous to finish to free up memory
-        pred = SketchUniquify.Predicate(self.threshold)
-
-        filter_class = generate_map_batch_filter_class_from_callable(pred.good)
-
-        # Size is 1 here to use a global view of previous sketches...
-        ds = ds.map_batches(filter_class, compute=ActorPoolStrategy(size=1))
-        ds = ds.materialize()  # force filter to finish before moving on
-        return ds
+        def __call__(self, doc: Document) -> list[Document]:
+            if self.good(doc):
+                return [doc]
+            else:
+                return []
 
 
-class SketchDebug(SingleThreadUser, NonGPUUser, Transform):
+class SketchDebug(SingleThreadUser, NonGPUUser, FlatMap):
     """
     Removes each Document which is a near-duplicate of a Document seen
     before.  Prints out duplicate pairs and a histogram of distances.
@@ -153,7 +137,8 @@ class SketchDebug(SingleThreadUser, NonGPUUser, Transform):
     """
 
     def __init__(self, child: Node, threshold: float = 0.4, **kwargs) -> None:
-        super().__init__(child, **kwargs)
+        kwargs["compute"] = ActorPoolStrategy(size=1)
+        super().__init__(child, f=SketchDebug.Predicate, constructor_args=[threshold], **kwargs)
         self.threshold = threshold
 
     class Predicate:
@@ -197,14 +182,8 @@ class SketchDebug(SingleThreadUser, NonGPUUser, Transform):
                 self.seenLoc.append(docLoc)
             return True
 
-    def execute(self) -> Dataset:
-        ds = self.child().execute()
-        ds = ds.materialize()  # force previous to finish to free up memory
-        pred = SketchDebug.Predicate(self.threshold)
-
-        filter_class = generate_map_batch_filter_class_from_callable(pred.good)
-
-        # Size is 1 here to use a global view of previous sketches...
-        ds = ds.map_batches(filter_class, compute=ActorPoolStrategy(size=1))
-        ds = ds.materialize()  # force filter to finish before moving on
-        return ds
+        def __call__(self, doc: Document) -> list[Document]:
+            if self.good(doc):
+                return [doc]
+            else:
+                return []

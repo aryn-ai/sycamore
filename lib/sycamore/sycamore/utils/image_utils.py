@@ -195,3 +195,44 @@ def try_draw_boxes(
             )
 
     return target
+
+
+def show_images(images: Union[Image.Image, list[Image.Image]], width: int = 600) -> None:
+    """Displays a list of images for debugging.
+
+    In a Jupyter notebook this uses the display method so that it displays inline.
+    In other environments this uses PIL's Image.show(), which opens the image using
+    a native file viewer.
+
+    Args:
+        images: A PIL image or list of images.
+        width: An optional width for the image. This only applies in Jupyter notebooks.
+    """
+    from IPython.display import display, Image as JImage
+
+    if isinstance(images, Image.Image):
+        images = [images]
+
+    # Note: The Jupyter community does not appear to be thrilled with this approach to detect the execution
+    # environment, in part because there are a variety of Jupyter frontends, which can be running
+    # concurrently. That said, I have not been able to find an alternative that works and provides
+    # reasonable behavior in Jupyter, the IPython shell, and a standard Python script/shell.
+    # Since this method is intended as a debugging convenience, this seems like a okay place to start.
+    # See https://stackoverflow.com/q/15411967 for more context.
+    in_jupyter = False
+
+    try:
+        ipy_class = get_ipython().__class__.__name__
+        if ipy_class == "ZMQInteractiveShell":
+            in_jupyter = True
+    except NameError:
+        in_jupyter = False
+
+    if in_jupyter:
+        for image in images:
+            data = BytesIO()
+            image.save(data, format="png")
+            display(JImage(data=data.getvalue(), width=width))
+    else:
+        for image in images:
+            image.show()

@@ -1,4 +1,4 @@
-CXX := g++ --std=c++23 -W -Wall -O3
+CXX := g++ --std=c++20 -W -Wall -O3
 
 EXES := ttviz
 

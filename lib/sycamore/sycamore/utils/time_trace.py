@@ -4,10 +4,16 @@ import struct
 import resource
 import threading
 import functools
+from sys import platform
 
 
 class TimeTrace:
     fd = -1
+
+    try:
+        resource_type = resource.RUSAGE_THREAD # type: ignore
+    except AttributeError:
+        resource_type = resource.RUSAGE_SELF
 
     def __init__(self, name: str):
         self.name = name.encode()
@@ -23,18 +29,24 @@ class TimeTrace:
         if TimeTrace.fd < 0:
             return
         self.t0 = time.time_ns()
-        self.r0 = resource.getrusage(resource.RUSAGE_THREAD)
+        self.r0 = resource.getrusage(self.resource_type)
 
     def end(self):
         if TimeTrace.fd < 0:
             return
         t1 = time.time_ns()
-        r1 = resource.getrusage(resource.RUSAGE_THREAD)
+        r1 = resource.getrusage(self.resource_type)
         thr = threading.get_native_id()
         r0 = self.r0
         user = int((r1.ru_utime - r0.ru_utime) * 1000000000.0)
         syst = int((r1.ru_stime - r0.ru_stime) * 1000000000.0)
-        rss = r1.ru_maxrss * 1024  # could do max, but this is more granular
+
+        # Mac reports ru_maxrss in bytes. Linux reports it in kB.
+        if platform == "darwin":
+            rss = r1.ru_maxrss
+        else:
+            rss = r1.ru_maxrss * 1024  # could do max, but this is more granular
+
         buf = struct.pack(
             "BxxxIQQQQQ48s",
             0,  # version

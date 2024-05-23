@@ -126,8 +126,12 @@ export const getEmbeddingModels = async () => {
                         "field": "chunk_number"
                     }
                 },
-                "must": [
+                "minimum_should_match": 1,
+                "should": [
                     { "term": { "algorithm": "TEXT_EMBEDDING" } },
+                    { "match_phrase": { "description": "embedding" } },
+                ],
+                "must": [
                     { "term": { "model_state": "DEPLOYED" } }
                 ]
             }
@@ -205,7 +209,8 @@ export const openSearchCall = async (query: any, url: string, http_method: strin
         });
         if (!response.ok) {
             return response.text().then(text => {
-                throw new Error(`Request to ${url}:\n` + JSON.stringify(query) + `\nrejected with status ${response.status} and message ${text}`);
+                console.error(`Request to ${url}:\n` + JSON.stringify(query) + `\nrejected with status ${response.status} and message ${text}`);
+                throw new Error(`Request to ${url}:\n rejected with message ${text}`);
             })
         }
 
@@ -298,6 +303,23 @@ export const updateFeedback = async (conversationId: string, interactionId: stri
         "doc_as_upsert": true
     }
     const url = "/opensearch/" + FEEDBACK_INDEX_NAME + "/_update/" + interactionId
+    openSearchCall(feedbackDoc, url, "POST")
+}
+
+export const addNoConversationFeedback = async (systemChat: any, thumb: boolean | null, comment: string | null) => {
+    console.log("Feedback for ", systemChat);
+    const formattedDate: string = new Date().toISOString();
+    // get entire conversation
+    let feedbackDoc: any = {
+        "doc": {
+            "timestamp": formattedDate,
+            "chat": systemChat,
+            "thumb": (thumb === null ? "null" : (thumb ? "up" : "down")),
+            "comment": (comment === null || comment == "" ? "null" : comment)
+        },
+        "doc_as_upsert": true
+    }
+    const url = "/opensearch/" + FEEDBACK_INDEX_NAME + "/_doc/" + formattedDate
     openSearchCall(feedbackDoc, url, "POST")
 }
 

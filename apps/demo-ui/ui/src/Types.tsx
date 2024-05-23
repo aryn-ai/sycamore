@@ -65,7 +65,7 @@ export class Settings {
     ragPassageCount: number = 5;
     modelName: string = "gpt-3.5-turbo";
     modelId: string = "abScoYoBAwYohYvwjxcP";
-    availableModels: string[] = ["gpt-3.5-turbo", "gpt-4", "gpt-4-turbo-preview"]
+    availableModels: string[] = ["gpt-3.5-turbo", "gpt-4", "gpt-4o", "gpt-4-turbo-preview"]
     activeConversation: string = "";
     simplify: boolean = false;
     auto_filter: boolean = false;

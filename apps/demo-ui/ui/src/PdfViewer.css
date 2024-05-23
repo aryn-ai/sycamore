@@ -1,0 +1,12 @@
+.document {
+  background-color: lightgray;
+  display: flex;
+  justify-content: center;
+}
+
+.page {
+  /* Target the Page component within the Document */
+  width: min-content !important; /* Set width to 100% to fill the container */
+}
+
+

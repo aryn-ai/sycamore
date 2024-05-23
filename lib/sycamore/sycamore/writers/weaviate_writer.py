@@ -7,8 +7,6 @@ from ray.data._internal.execution.interfaces import TaskContext
 from ray.data.block import Block, BlockAccessor
 from sycamore.data.document import Document
 from sycamore.plan_nodes import Node, Write
-from weaviate import WeaviateClient
-from weaviate.collections.classes.data import DataReference
 
 
 class WeaviateWriter(Write):
@@ -39,6 +37,8 @@ class WeaviateDatasink(Datasink):
         self._collection_config = collection_config
 
     def on_write_start(self):
+        from weaviate import WeaviateClient
+
         with WeaviateClient(**self._client_params) as client:
             if self._collection_config is not None:
                 if client.collections.exists(self._collection_name):
@@ -50,6 +50,9 @@ class WeaviateDatasink(Datasink):
                     client.collections.create(**self._collection_config)
 
     def write(self, blocks: Iterable[Block], ctx: TaskContext) -> Any:
+        from weaviate import WeaviateClient
+        from weaviate.collections.classes.data import DataReference
+
         builder = DelegatingBlockBuilder()
         for block in blocks:
             builder.add_block(block)
@@ -73,15 +76,32 @@ class WeaviateDatasink(Datasink):
 
     @staticmethod
     def _extract_weaviate_objects(block):
-        # Weaviate gets grumpy about NoneTypes so we remove them
-        # either by defaulting to null-ish values or dropping
-        # explicitly None properties
-        def _trim_nones_in_props(props: dict) -> dict:
-            trimmed_props = dict()
-            for k, v in props.items():
-                if v is not None:
-                    trimmed_props[k] = v
-            return trimmed_props
+        # Weaviate doesn't like explicitly null values
+        def not_none(x):
+            return x is not None
+
+        # Weaviate defaults empty lists to text[], which is often incorrect
+        def not_empty_list(x):
+            return not isinstance(x, list) or len(x) > 0
+
+        def _trim_properties(props):
+            if isinstance(props, dict):
+                return _trim_properties_in_dict(props)
+            if isinstance(props, list):
+                return _trim_properties_in_list(props)
+            return props
+
+        def _trim_properties_in_dict(props: dict) -> dict:
+            trim_children = ((k, _trim_properties(v)) for k, v in props.items())
+            trim_nones = filter(lambda pair: not_none(pair[1]), trim_children)
+            trim_lists = filter(lambda pair: not_empty_list(pair[1]), trim_nones)
+            return dict(trim_lists)
+
+        def _trim_properties_in_list(props: list) -> list:
+            trim_children = (_trim_properties(x) for x in props)
+            trim_nones = filter(not_none, trim_children)
+            trim_lists = filter(not_empty_list, trim_nones)
+            return list(trim_lists)
 
         def record_to_object(record):
             default = {
@@ -99,15 +119,16 @@ class WeaviateDatasink(Datasink):
             uuid = doc.doc_id
             parent = doc.parent_id
             data = doc.data
+            properties = {
+                "properties": data.get("properties", default["properties"]),
+                "type": data.get("type", default["type"]),
+                "text_representation": data.get("text_representation", default["text_representation"]),
+                "bbox": data.get("bbox", default["bbox"]),
+                "shingles": data.get("shingles", default["shingles"]),
+            }
             object = {
                 "uuid": uuid,
-                "properties": {
-                    "properties": _trim_nones_in_props(data.get("properties", default["properties"])),
-                    "type": data.get("type", default["type"]),
-                    "text_representation": data.get("text_representation", default["text_representation"]),
-                    "bbox": data.get("bbox", default["bbox"]),
-                    "shingles": data.get("shingles", default["shingles"]),
-                },
+                "properties": _trim_properties(properties),
             }
             embedding = data.get("embedding", None)
             if embedding is not None:

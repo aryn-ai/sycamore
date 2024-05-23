@@ -28,9 +28,7 @@ class TestSpreadProperties:
     )
 
     def test_spread_properties(self):
-        sp = SpreadProperties(None, [])
-        spc = sp.SpreadPropertiesCallable(["path", "title"])
-        doc1 = spc.spreadProperties(self.doc)
+        doc1 = SpreadProperties(None, ["path", "title"]).run(self.doc)
         for elem in doc1.elements:
             assert elem.properties["filetype"] == "text/plain"
             assert elem.properties["path"] == "/docs/foo.txt"

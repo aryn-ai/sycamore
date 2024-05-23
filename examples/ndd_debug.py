@@ -1,3 +1,6 @@
+# An example script that exercises the near duplicate detection code.  Useful for trying a larger
+# execution than the unit tests to look for memory usage problems.
+
 import sys
 import pyarrow.fs
 import os

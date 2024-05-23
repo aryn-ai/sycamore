@@ -11,7 +11,7 @@ from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import Map, FlatMap
 from sycamore.utils.time_trace import timetrace
 
-# NOTE: A larger test of ndd is present at examples/ndd.py
+# NOTE: A larger test of ndd is present at examples/ndd_debug.py
 
 unwantedRe = re.compile(r"\W+")
 

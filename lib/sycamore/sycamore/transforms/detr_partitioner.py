@@ -10,10 +10,8 @@ from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
 
 from PIL import Image
 import pdf2image
-import base64
 import requests
 import json
-import pickle
 import gzip
 
 import torch
@@ -229,10 +227,6 @@ class DeformableDetr(SycamoreObjectDetection):
             ]
             response = requests.post(endpoint, files=files)
             results = response.json()
-            for result in results:
-                for k, v in result.items():
-                    result[k] = base64.b64decode(v)
-                    result[k] = pickle.loads(result[k])
         else:
             results = []
             for image in images:
@@ -244,20 +238,19 @@ class DeformableDetr(SycamoreObjectDetection):
                         outputs, target_sizes=target_sizes, threshold=threshold
                     )[0]
                 )
-
+            for result in results:
+                result["scores"] = result["scores"].cpu().detach().numpy()
+                result["labels"] = result["labels"].cpu().detach().numpy()
+                result["boxes"] = result["boxes"].cpu().detach().numpy()
         batched_results = []
         for result, image in zip(results, images):
             (w, h) = image.size
             elements = []
-            for score, label, box in zip(
-                result["scores"].cpu().detach().numpy(),
-                result["labels"].cpu().detach().numpy(),
-                result["boxes"].cpu().detach().numpy(),
-            ):
+            for score, label, box in zip(result["scores"], result["labels"], result["boxes"]):
                 element = create_element(
                     type=self.labels[label],
                     bbox=BoundingBox(box[0] / w, box[1] / h, box[2] / w, box[3] / h).coordinates,
-                    properties={"score": score.item()},
+                    properties={"score": score},
                 )
                 elements.append(element)
             batched_results.append(elements)

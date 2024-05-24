@@ -216,8 +216,6 @@ class DeformableDetr(SycamoreObjectDetection):
         self, images: List[Image.Image], threshold: float, model_server_endpoint: str = ""
     ) -> List[List[Element]]:
         if model_server_endpoint:
-            from requests_toolbelt.multipart import decoder as multipart_decoder
-
             endpoint = model_server_endpoint + self._model_name_or_path
             metadata = {
                 "threshold": threshold,
@@ -229,17 +227,7 @@ class DeformableDetr(SycamoreObjectDetection):
                 ("images", gzip.compress(image.tobytes())) for image in images
             ]
             response = requests.post(endpoint, files=files)
-            data = multipart_decoder.MultipartDecoder.from_response(response)
-            tmp_results: dict[str, list] = {"scores": [], "labels": [], "boxes": []}
-            for part in data.parts:
-                disposition = part.headers[b"Content-Disposition"]
-                name = str(disposition).split(";")[1].split("=")[1].strip("\"'")
-                tmp_results[name].append(pickle.loads(part.content))
-
-            results = [
-                {"scores": scores, "labels": labels, "boxes": boxes}
-                for scores, labels, boxes in zip(tmp_results["scores"], tmp_results["labels"], tmp_results["boxes"])
-            ]
+            results = response.json()
         else:
             results = []
             for image in images:
@@ -251,20 +239,23 @@ class DeformableDetr(SycamoreObjectDetection):
                         outputs, target_sizes=target_sizes, threshold=threshold
                     )[0]
                 )
-
+            for result in results:
+                result["scores"] = result["scores"].cpu().detach().numpy()
+                result["labels"] = result["labels"].cpu().detach().numpy()
+                result["boxes"] = result["boxes"].cpu().detach().numpy()
         batched_results = []
         for result, image in zip(results, images):
             (w, h) = image.size
             elements = []
             for score, label, box in zip(
-                result["scores"].cpu().detach().numpy(),
-                result["labels"].cpu().detach().numpy(),
-                result["boxes"].cpu().detach().numpy(),
+                result["scores"],
+                result["labels"],
+                result["boxes"]
             ):
                 element = create_element(
                     type=self.labels[label],
                     bbox=BoundingBox(box[0] / w, box[1] / h, box[2] / w, box[3] / h).coordinates,
-                    properties={"score": score.item()},
+                    properties={"score": score}
                 )
                 elements.append(element)
             batched_results.append(elements)

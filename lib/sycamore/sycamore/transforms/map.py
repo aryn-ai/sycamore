@@ -21,11 +21,11 @@ class Map(BaseMapTransform):
             transformed_dataset = map_transformer.execute()
     """
 
-    def __init__(self, child: Node, *, f: Callable[[Document], Document], **resource_args):
+    def __init__(self, child: Optional[Node], *, f: Any, **resource_args):
         super().__init__(child, f=Map.wrap(f), name=f.__name__, **resource_args)
 
     @staticmethod
-    def wrap(f: Callable[[Document], Document]) -> Callable[[list[Document]], list[Document]]:
+    def wrap(f: Any) -> Callable[[list[Document]], list[Document]]:
         if isinstance(f, type):
             # mypy doesn't understand the dynamic class inheritence.
             class _Wrap(f):  # type: ignore[valid-type,misc]
@@ -33,6 +33,9 @@ class Map(BaseMapTransform):
                     super().__init__(*args, **kwargs)
 
                 def __call__(self, docs, *args, **kwargs):
+                    assert isinstance(docs, list)
+                    for d in docs:
+                        assert isinstance(d, Document)
                     s = super()
                     return [s.__call__(d, *args, **kwargs) for d in docs]
 
@@ -40,6 +43,9 @@ class Map(BaseMapTransform):
         else:
 
             def _wrap(docs, *args, **kwargs):
+                assert isinstance(docs, list)
+                for d in docs:
+                    assert isinstance(d, Document)
                 return [f(d, *args, **kwargs) for d in docs]
 
             return _wrap
@@ -67,7 +73,7 @@ class FlatMap(BaseMapTransform):
 
     """
 
-    def __init__(self, child: Node, *, f: Callable[[Document], list[Document]], **resource_args):
+    def __init__(self, child: Optional[Node], *, f: Callable[[Document], list[Document]], **resource_args):
         super().__init__(child, f=FlatMap.wrap(f), name=f.__name__, **resource_args)
 
     @staticmethod
@@ -123,7 +129,7 @@ class MapBatch(BaseMapTransform):
 
     def __init__(
         self,
-        child: Node,
+        child: Optional[Node],
         *,
         f: Callable[[list[Document]], list[Document]],
         f_args: Optional[Iterable[Any]] = None,

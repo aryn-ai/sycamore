@@ -1,17 +1,44 @@
 import random
 import string
 
-import ray.data
+from ray.util import inspect_serializability
 
 from sycamore.llms.prompts import SchemaZeroShotGuidancePrompt
 from sycamore.data import Document, Element
-from sycamore.llms import LLM
-from sycamore.plan_nodes import Node
-from sycamore.transforms.extract_schema import ExtractBatchSchema
+from sycamore.llms.llms import LLM, FakeLLM
+from sycamore.transforms.extract_schema import ExtractBatchSchema, SchemaExtractor
 from sycamore.transforms.extract_schema import OpenAISchemaExtractor, OpenAIPropertyExtractor
 
 
+class TrivialExtractor(SchemaExtractor):
+    def __init__(self):
+        super().__init__("foo")
+
+    def extract_schema(self, document: Document) -> Document:
+        return document
+
+
 class TestSchema:
+    def test_serializable(self, mocker):
+        t = TrivialExtractor()
+        self.check_serializable(t)
+
+        llm = FakeLLM()
+        o = OpenAISchemaExtractor("Foo", llm)
+        self.check_serializable(o)
+
+        llm = mocker.Mock(spec=LLM)
+        mocker.patch.object(llm, "generate")
+        (ok, log) = inspect_serializability(llm)
+        assert not ok
+
+    @staticmethod
+    def check_serializable(thing):
+        (ok, log) = inspect_serializability(thing)
+        if not ok:
+            print(log)
+        assert ok
+
     def test_extract_schema(self, mocker):
         llm = mocker.Mock(spec=LLM)
         generate = mocker.patch.object(llm, "generate")
@@ -56,18 +83,14 @@ class TestSchema:
         generate.return_value = '```json {"accidentNumber": "string"}```'
         schema_extractor = OpenAISchemaExtractor("AircraftIncident", llm)
 
-        node = mocker.Mock(spec=Node)
         dicts = [
             {"index": 1, "doc": "Members of a strike at Yale University."},
             {"index": 2, "doc": "A woman is speaking at a podium outdoors."},
         ]
-        input_dataset = ray.data.from_items([{"doc": Document(dict).serialize()} for dict in dicts])
-        execute = mocker.patch.object(node, "execute")
-        execute.return_value = input_dataset
+        docs = [Document(d) for d in dicts]
 
-        batch_extractor = ExtractBatchSchema(node, schema_extractor)
-        output_dataset = batch_extractor.execute()
-        dicts = [Document.from_row(doc).data for doc in output_dataset.take()]
+        batch_extractor = ExtractBatchSchema(None, schema_extractor)
+        dicts = [batch_extractor.run(d).data for d in docs]
 
         ground_truth = {
             "_schema": {

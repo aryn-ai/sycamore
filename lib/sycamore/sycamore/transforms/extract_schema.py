@@ -1,17 +1,17 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Any
+from typing import Callable, Any, Optional
 import json
 
-from ray.data import Dataset
+from ray.data import ActorPoolStrategy
 
 from sycamore.data import Element, Document
-from sycamore.plan_nodes import Node, Transform
 from sycamore.llms import LLM
-from sycamore.utils import generate_map_function
 from sycamore.llms.prompts import (
     SchemaZeroShotGuidancePrompt,
     PropertiesZeroShotGuidancePrompt,
 )
+from sycamore.plan_nodes import Node
+from sycamore.transforms.map import Map
 from sycamore.utils.extract_json import extract_json
 
 
@@ -174,7 +174,7 @@ class OpenAIPropertyExtractor(PropertyExtractor):
         return entities
 
 
-class ExtractSchema(Transform):
+class ExtractSchema(Map):
     """
     ExtractSchema is a transformation class for extracting schemas from documents using an SchemaExtractor.
 
@@ -200,22 +200,11 @@ class ExtractSchema(Transform):
             documents_with_schema = documents_with_schema.execute()
     """
 
-    def __init__(
-        self,
-        child: Node,
-        schema_extractor: SchemaExtractor,
-        **resource_args,
-    ):
-        super().__init__(child, **resource_args)
-        self._schema_extractor = schema_extractor
-
-    def execute(self) -> "Dataset":
-        input_dataset = self.child().execute()
-        dataset = input_dataset.map(generate_map_function(self._schema_extractor.extract_schema))
-        return dataset
+    def __init__(self, child: Node, schema_extractor: SchemaExtractor, **resource_args):
+        super().__init__(child, f=schema_extractor.extract_schema, **resource_args)
 
 
-class ExtractBatchSchema(Transform):
+class ExtractBatchSchema(Map):
     """
     ExtractBatchSchema is a transformation class for extracting a schema from a dataset using an SchemaExtractor.
     This assumes all documents in the dataset share a common schema.
@@ -242,27 +231,27 @@ class ExtractBatchSchema(Transform):
     """
 
     def __init__(self, child: Node, schema_extractor: SchemaExtractor, **resource_args):
-        super().__init__(child, **resource_args)
-        self._schema_extractor = schema_extractor
+        # Must run on a single instance so that the cached calculation of the schema works
+        resource_args["compute"] = ActorPoolStrategy(size=1)
+        # super().__init__(child, f=lambda d: d, **resource_args)
+        super().__init__(child, f=ExtractBatchSchema.Extract, constructor_args=[schema_extractor], **resource_args)
 
-    def execute(self) -> Dataset:
-        dataset = self.child().execute()
-        sample = dataset.take(1)[0]["doc"]
-        sample = Document.deserialize(sample)
-        schema = self._schema_extractor.extract_schema(sample)
+    class Extract:
+        def __init__(self, schema_extractor: SchemaExtractor):
+            self._schema_extractor = schema_extractor
+            self._schema: Optional[dict] = None
 
-        schema_json = schema.properties["_schema"]
-        schema_name = schema.properties["_schema_class"]
+        def __call__(self, d: Document) -> Document:
+            if self._schema is None:
+                s = self._schema_extractor.extract_schema(d)
+                self._schema = {"_schema": s.properties["_schema"], "_schema_class": s.properties["_schema_class"]}
 
-        def apply_schema(doc):
-            doc.properties.update({"_schema": schema_json, "_schema_class": schema_name})
-            return doc
+            d.properties.update(self._schema)
 
-        dataset = dataset.map(generate_map_function(apply_schema))
-        return dataset
+            return d
 
 
-class ExtractProperties(Transform):
+class ExtractProperties(Map):
     """
     ExtractProperties is a transformation class for extracting property values from a document once a schema has
     been established.
@@ -288,16 +277,5 @@ class ExtractProperties(Transform):
             documents_with_properties = documents_with_properties.execute()
     """
 
-    def __init__(
-        self,
-        child: Node,
-        property_extractor: PropertyExtractor,
-        **resource_args,
-    ):
-        super().__init__(child, **resource_args)
-        self._property_extractor = property_extractor
-
-    def execute(self) -> "Dataset":
-        input_dataset = self.child().execute()
-        dataset = input_dataset.map(generate_map_function(self._property_extractor.extract_properties))
-        return dataset
+    def __init__(self, child: Node, property_extractor: PropertyExtractor, **resource_args):
+        super().__init__(child, f=property_extractor.extract_properties, **resource_args)

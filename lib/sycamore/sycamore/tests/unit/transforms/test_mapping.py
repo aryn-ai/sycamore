@@ -34,7 +34,7 @@ class TestMapping:
             return doc
 
     @pytest.mark.parametrize("function", [map_func, MapClass])
-    def test_map_function(self, mocker, function):
+    def test_map_function(self, mocker, function) -> None:
         node = mocker.Mock(spec=Node)
         mapping = Map(node, f=function)
         dicts = [
@@ -54,7 +54,10 @@ class TestMapping:
         dicts = [Document.from_row(doc).data for doc in output_dataset.take()]
 
         # ray does not guarantee order preserving
-        dicts.sort(key=lambda d: d["index"])
+        def sort_key(d: dict) -> int:
+            return d["index"]
+
+        dicts.sort(key=sort_key)
         print(dicts)
         assert dicts[0]["index"] == 2
         assert dicts[1]["index"] == 3
@@ -65,7 +68,7 @@ class TestMapping:
             return [doc, doc]
 
     @pytest.mark.parametrize("function", [flat_map_func, FlatMapClass])
-    def test_flat_map(self, mocker, function):
+    def test_flat_map(self, mocker, function) -> None:
         node = mocker.Mock(spec=Node)
         mapping = FlatMap(node, f=function)
         dicts = [
@@ -90,7 +93,7 @@ class TestMapping:
             return docs
 
     @pytest.mark.parametrize("function", [map_batch_func, MapBatchClass])
-    def test_map_batch(self, mocker, function):
+    def test_map_batch(self, mocker, function) -> None:
         node = mocker.Mock(spec=Node)
         mapping = MapBatch(node, f=function)
         dicts = [
@@ -104,7 +107,7 @@ class TestMapping:
         dicts = [Document.from_row(doc).data for doc in output_dataset.take()]
         assert dicts[0]["index"] == 2 and dicts[1]["index"] == 3
 
-    def test_flat_map_conflict(self, mocker):
+    def test_flat_map_conflict(self, mocker) -> None:
         def func(doc: Document) -> List[Document]:
             if doc.doc_id == 1:
                 return [

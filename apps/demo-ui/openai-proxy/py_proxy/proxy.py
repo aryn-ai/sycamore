@@ -18,7 +18,7 @@ import logging
 import boto3
 import warnings
 import mimetypes
-import anthropic 
+import anthropic
 from functools import lru_cache
 
 
@@ -30,7 +30,9 @@ app = Flask("proxy", static_folder=None)
 HOST = sys.argv[1] if len(sys.argv) > 1 else "localhost"
 PORT = int(sys.argv[2]) if len(sys.argv) > 2 else 3000
 
-CORS(app, resources={r"/*": {"origins": "*"}})  # Allow requests from http://localhost:3001 to any route
+CORS(
+    app, resources={r"/*": {"origins": "*"}}
+)  # Allow requests from http://localhost:3001 to any route
 
 # Replace this with your actual OpenAI API key
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
@@ -44,7 +46,9 @@ anthropic_client = anthropic.Anthropic()
 
 ANTHROPIC_RAG_PROMPT = ""
 current_directory = os.path.dirname(__file__)
-anthropic_rag_prompt_filepath = os.path.join(current_directory, "anthropic_rag_prompt.txt")
+anthropic_rag_prompt_filepath = os.path.join(
+    current_directory, "anthropic_rag_prompt.txt"
+)
 with open(anthropic_rag_prompt_filepath, "r") as file:
     ANTHROPIC_RAG_PROMPT = file.read()
 print("Using anthropic prompt: " + ANTHROPIC_RAG_PROMPT)
@@ -101,11 +105,14 @@ def proxy_stream_request():
         verify=False,
     )
 
-    print(f"Outgoing Request - URL: {response.url}, Status Code: {response.status_code}")
+    print(
+        f"Outgoing Request - URL: {response.url}, Status Code: {response.status_code}"
+    )
 
     # Check if the response is a streaming response
     is_streaming_response = (
-        "Transfer-Encoding" in response.headers and response.headers["Transfer-Encoding"] == "chunked"
+        "Transfer-Encoding" in response.headers
+        and response.headers["Transfer-Encoding"] == "chunked"
     )
 
     if is_streaming_response:
@@ -117,17 +124,20 @@ def proxy_stream_request():
                 for chunk in response.iter_content(chunk_size=1024):
                     yield chunk
 
-            return Response(generate_chunks(), response.status_code, response.headers.items())
+            return Response(
+                generate_chunks(), response.status_code, response.headers.items()
+            )
 
         return stream_response()
     else:
         # Return the non-streaming response as a complete JSON object
         return (response.content, response.status_code, response.headers.items())
 
+
 @lru_cache(maxsize=10)
 def fetch_pdf(url):
     if url.startswith("/"):
-        with open(url, 'rb') as f:
+        with open(url, "rb") as f:
             pdf_data = f.read()
     elif url.startswith("s3://"):
         trimmed_uri = url[5:]
@@ -139,6 +149,7 @@ def fetch_pdf(url):
         response = requests.get(url=url, verify=False)
         pdf_data = response.content
     return pdf_data
+
 
 @app.route("/v1/pdf", methods=["POST", "OPTIONS"])
 def proxy():
@@ -171,7 +182,9 @@ def proxy_local(arg):
 
 
 def make_openai_call(messages, model_id="gpt-4"):
-    response = openai.ChatCompletion.create(model=model_id, messages=messages, temperature=0.0, stream=False)
+    response = openai.ChatCompletion.create(
+        model=model_id, messages=messages, temperature=0.0, stream=False
+    )
 
     return response
 
@@ -335,14 +348,13 @@ def proxy_opensearch(os_path):
     return response.json()
 
 
-
-@app.route('/aryn/anthropic_rag_streaming', methods=['POST', 'OPTIONS'])
+@app.route("/aryn/anthropic_rag_streaming", methods=["POST", "OPTIONS"])
 def anthropic_rag_streaming():
-    if request.method == 'OPTIONS':
-        return optionsResp('POST')
+    if request.method == "OPTIONS":
+        return optionsResp("POST")
 
-    question = request.json.get('question')
-    os_result = request.json.get('os_result')
+    question = request.json.get("question")
+    os_result = request.json.get("os_result")
 
     user_prompt = """
     Search results: 
@@ -350,40 +362,39 @@ def anthropic_rag_streaming():
     for i, s in enumerate(os_result["hits"]["hits"][0:10]):
         doc = ""
         doc += "<document>\n"
-        doc += "Search result: " + str(i+1) + "\n"
+        doc += "Search result: " + str(i + 1) + "\n"
         doc += s["_source"]["text_representation"] + "\n"
         doc += "</document>\n"
         user_prompt += doc + "\n"
-    
+
     user_prompt += "Question: " + question
-    messages = [
-      {"role": "user", "content": user_prompt}
-    ]
+    messages = [{"role": "user", "content": user_prompt}]
+
     def generate():
         try:
             with anthropic_client.messages.stream(
-                    max_tokens=1024,
-                    system=ANTHROPIC_RAG_PROMPT,
-                    messages=messages,
-                    model="claude-3-opus-20240229",
-                    temperature=0.0,
-                ) as stream:
+                max_tokens=1024,
+                system=ANTHROPIC_RAG_PROMPT,
+                messages=messages,
+                model="claude-3-opus-20240229",
+                temperature=0.0,
+            ) as stream:
                 for text in stream.text_stream:
                     yield text
 
         except Exception as e:
             return jsonify({"error": "Error in calling Anthropic: " + str(e)}), 503
 
-    return Response(stream_with_context(generate()), mimetype='text/event-stream')
+    return Response(stream_with_context(generate()), mimetype="text/event-stream")
 
 
-@app.route('/aryn/anthropic_rag', methods=['POST', 'OPTIONS'])
+@app.route("/aryn/anthropic_rag", methods=["POST", "OPTIONS"])
 def anthropic_rag():
-    if request.method == 'OPTIONS':
-        return optionsResp('POST')
+    if request.method == "OPTIONS":
+        return optionsResp("POST")
 
-    question = request.json.get('question')
-    os_result = request.json.get('os_result')
+    question = request.json.get("question")
+    os_result = request.json.get("os_result")
 
     user_prompt = """
     Search results: 
@@ -391,15 +402,13 @@ def anthropic_rag():
     for i, s in enumerate(os_result["hits"]["hits"][0:10]):
         doc = ""
         doc += "<document>\n"
-        doc += "Search result: " + str(i+1) + "\n"
+        doc += "Search result: " + str(i + 1) + "\n"
         doc += s["_source"]["text_representation"] + "\n"
         doc += "</document>\n"
         user_prompt += doc + "\n"
-    
+
     user_prompt += "Question: " + question
-    messages = [
-      {"role": "user", "content": user_prompt}
-    ]
+    messages = [{"role": "user", "content": user_prompt}]
     try:
         result = anthropic_client.messages.create(
             # model="claude-3-opus-20240229",
@@ -407,12 +416,11 @@ def anthropic_rag():
             max_tokens=1024,
             system=ANTHROPIC_RAG_PROMPT,
             messages=messages,
-            temperature=0.0
+            temperature=0.0,
         )
         return result.content[0].text
     except Exception as e:
         return jsonify({"error": "Error in calling Anthropic: " + e.message}), 503
-    
 
 
 @app.route("/opensearch-version", methods=["GET", "OPTIONS"])
@@ -428,7 +436,9 @@ def opensearch_version(retries=3):
         return response.json()["version"]["number"], 200
     except Exception as e:
         if retries <= 0:
-            logger.error(f"OpenSearch not standing at {OPENSEARCH_URL}. Out of retries. Final error {e}")
+            logger.error(
+                f"OpenSearch not standing at {OPENSEARCH_URL}. Out of retries. Final error {e}"
+            )
             return "OpenSearch not found", 503
         logger.warning(
             f"OpenSearch not standing at {OPENSEARCH_URL}. Retrying in 1 sec. {retries-1} retries left. error {e}"

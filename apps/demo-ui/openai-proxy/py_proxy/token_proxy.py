@@ -124,7 +124,9 @@ def main(args=None):
         logger.info(f"Changed uid to {UID}")
 
     # Use gevent WSGIServer for asynchronous behavior
-    server = WSGIServer(sock, app, log=adapter, certfile=f"{host}-cert.pem", keyfile=f"{host}-key.pem")
+    server = WSGIServer(
+        sock, app, log=adapter, certfile=f"{host}-cert.pem", keyfile=f"{host}-key.pem"
+    )
     if port == 443:
         logger.info(f"Serve https://{host}/tok/{token}")
     else:

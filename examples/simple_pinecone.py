@@ -1,9 +1,7 @@
 import sys
+import os
 
-from weaviate.classes.config import ReferenceProperty
-from weaviate.client import AdditionalConfig, ConnectionParams
-from weaviate.collections.classes.config import Configure
-from weaviate.config import Timeout
+import pinecone
 
 # ruff: noqa: E402
 sys.path.append("../sycamore")
@@ -23,28 +21,9 @@ paths = sys.argv[1:]
 if not paths:
     raise RuntimeError("No paths supplied.")
 
-collection = "DemoCollection"
-wv_client_args = {
-    "connection_params": ConnectionParams.from_params(
-        http_host="localhost",
-        http_port=8080,
-        http_secure=False,
-        grpc_host="localhost",
-        grpc_port=50051,
-        grpc_secure=False,
-    ),
-    "additional_config": AdditionalConfig(timeout=Timeout(init=2, query=45, insert=300)),
-}
-
-collection_config_params = {
-    "name": collection,
-    "description": "A collection to demo data-prep with Sycamore",
-    "vectorizer_config": [Configure.NamedVectors.none(name="embedding")],
-    "references": [ReferenceProperty(name="parent", target_collection=collection)],
-}
 model_name = "sentence-transformers/all-MiniLM-L6-v2"
 
-davinci_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
+davinci_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value, api_key=os.environ["OPENAI_API_KEY"])
 tokenizer = HuggingFaceTokenizer(model_name)
 
 ctx = sycamore.init()
@@ -61,4 +40,11 @@ ds = (
 )
 
 ds = ds.explode().embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100)).sketch(window=17)
-ds.write.pinecone(index_name="myindex", index_spec={}, namespace="", dimensions=384, distance_metric="cosine")
+ds.write.pinecone(
+    api_key=os.environ["PINECONE_API_KEY"],
+    index_name="mytestingindex",
+    index_spec=pinecone.ServerlessSpec(cloud="aws", region="us-east-1"),
+    namespace="2",
+    dimensions=384,
+    distance_metric="cosine",
+)

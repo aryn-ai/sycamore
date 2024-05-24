@@ -1,7 +1,11 @@
 from typing import Iterable, Any, Optional, Union, Tuple
 import itertools
+from base64 import b64encode
+import os
 
 from pinecone import PodSpec, ServerlessSpec
+from pinecone.grpc import Vector
+from pinecone.grpc.vector_factory_grpc import VectorFactoryGRPC
 from ray.data import Dataset, Datasink
 from ray.data._internal.delegating_block_builder import DelegatingBlockBuilder
 from ray.data.block import Block, BlockAccessor
@@ -19,9 +23,11 @@ class PineconeWriter(Write):
         namespace: str = "",
         dimensions: Optional[int] = None,
         distance_metric: str = "cosine",
+        api_key: Optional[str] = None,
         **ray_remote_args,
     ):
         super().__init__(plan, **ray_remote_args)
+        self._api_key = api_key or os.environ["PINECONE_API_KEY"]
         self._index_name = index_name
         self._index_spec = index_spec
         self._namespace = namespace
@@ -31,7 +37,7 @@ class PineconeWriter(Write):
     def execute(self) -> Dataset:
         dataset = self.child().execute()
         datasink = PineconeDatasink(
-            self._index_name, self._index_spec, self._namespace, self._dimensions, self._distance_metric
+            self._index_name, self._index_spec, self._namespace, self._dimensions, self._distance_metric, self._api_key
         )
         dataset.write_datasink(datasink=datasink, ray_remote_args=self.resource_args)
         return dataset
@@ -45,6 +51,7 @@ class PineconeDatasink(Datasink):
         namespace: str,
         dimensions: Optional[int],
         distance_metric: str,
+        api_key: str,
         batch_size: int = 100,
     ):
         self._index_name = index_name
@@ -53,12 +60,13 @@ class PineconeDatasink(Datasink):
         self._dimensions = dimensions
         self._distance_metric = distance_metric
         self._batch_size = batch_size
+        self._api_key = api_key
 
     def on_write_start(self) -> None:
         from pinecone import Pinecone
         from pinecone.core.client.exceptions import NotFoundException
 
-        pc = Pinecone()
+        pc = Pinecone(api_key=self._api_key)
         try:
             pc.describe_index(self._index_name)
         except NotFoundException:
@@ -82,21 +90,23 @@ class PineconeDatasink(Datasink):
             builder.add_block(block)
         block = builder.build()
 
-        pc = PineconeGRPC()
-        pc.Index(self._index_name)
+        pc = PineconeGRPC(api_key=self._api_key)
+        index = pc.Index(self._index_name)
 
         objects = self._extract_pinecone_objects(block)
         obj_it = iter(objects)
         batch = list(itertools.islice(obj_it, self._batch_size))
+        async_results = []
         while len(batch) > 0:
-            # index.upsert(vectors=batch, async_req=True)
-            print(f"\n{batch}\n{'-'*80}")
+            async_results.append(index.upsert(vectors=batch, namespace=self._namespace, async_req=True))
             batch = list(itertools.islice(obj_it, self._batch_size))
+        for r in async_results:
+            r.result()
 
     @staticmethod
-    def _extract_pinecone_objects(block: Block):
+    def _extract_pinecone_objects(block: Block) -> Iterable[Vector]:
 
-        def _flatten_metadata(data: Union[dict, list], prefix="") -> Iterable[Tuple[Any, Any]]:
+        def _flatten_metadata(data: Union[dict, list, tuple], prefix="") -> Iterable[Tuple[Any, Any]]:
             iterator = []  # type: ignore
             if isinstance(data, dict):
                 iterator = data.items()  # type: ignore
@@ -104,12 +114,36 @@ class PineconeDatasink(Datasink):
                 iterator = enumerate(data)  # type: ignore
             items = []
             for k, v in iterator:
-                if isinstance(v, (dict, list)):
-                    inner_values = _flatten_metadata(v, prefix=(str(k) if len(prefix) == 0 else f"{prefix}.{k}"))
-                    items.extend([(innerk, innerv) for innerk, innerv in inner_values])
+                if isinstance(v, (dict, list, tuple)):
+                    if isinstance(v, (list, tuple)) and all(isinstance(innerv, str) for innerv in v):
+                        items.append(((str(k) if len(prefix) == 0 else f"{prefix}.{k}"), v))
+                    else:
+                        inner_values = _flatten_metadata(v, prefix=(str(k) if len(prefix) == 0 else f"{prefix}.{k}"))
+                        items.extend([(innerk, innerv) for innerk, innerv in inner_values])
                 elif v is not None:
                     items.append(((str(k) if len(prefix) == 0 else f"{prefix}.{k}"), v))
             return items
+
+        def _metadata_special_cases(data: dict) -> dict:
+            binary = data.get("binary_representation", None)
+            if binary:
+                b64binary = b64encode(binary)
+                strbinary = b64binary.decode("UTF-8")
+                data["binary_representation"] = strbinary
+            shingles = data.get("shingles", None)
+            if shingles:
+                strshingles = [str(s) for s in shingles]
+                data["shingles"] = strshingles
+            bbox = data.get("bbox", None)
+            if bbox:
+                bbox_as_dict = {
+                    "x1": bbox[0],
+                    "y1": bbox[1],
+                    "x2": bbox[2],
+                    "y2": bbox[3],
+                }
+                data["bbox"] = bbox_as_dict
+            return data
 
         def _record_to_object(record):
             doc = Document.from_row(record)
@@ -118,7 +152,9 @@ class PineconeDatasink(Datasink):
             values = data.pop("embedding", None)
             if values is None:
                 return None
-            return {"id": id, "values": values, "metadata": dict(_flatten_metadata(data))}
+            metadata = _flatten_metadata(_metadata_special_cases(data))
+            vector_dict = {"id": id, "values": values, "metadata": dict(metadata)}
+            return VectorFactoryGRPC.build(vector_dict)
 
         records = BlockAccessor.for_block(block).to_arrow().to_pylist()
-        return iter(filter(lambda x: x is not None, (_record_to_object(r) for r in records)))
+        return iter(filter(lambda x: x is not None, (_record_to_object(r) for r in records)))  # type: ignore

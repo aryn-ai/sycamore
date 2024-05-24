@@ -62,7 +62,7 @@ class BaseMapTransform(UnaryNode):
                 [f, name, args, kwargs, constructor_args, constructor_kwargs], print_file=log
             )
             if not ok:
-                raise ValueError(f"Something isn't serializable {s}\nLog: {log.getvalue()}")
+                raise ValueError(f"Something for {name} isn't serializable {s}\nLog: {log.getvalue()}")
 
         if isinstance(f, type) and "compute" not in resource_args:
             # classes require actor strategy for now

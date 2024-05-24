@@ -16,7 +16,7 @@ class LLM(ABC):
 
 
 class FakeLLM(LLM):
-    """Useful for tests where te fake LLM needs to run in a ray function because mocks are not serializable"""
+    """Useful for tests where the fake LLM needs to run in a ray function because mocks are not serializable"""
 
     def __init__(self, *, return_value="trivial"):
         super().__init__("trivial")

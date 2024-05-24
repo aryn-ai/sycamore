@@ -12,7 +12,6 @@ const useStyles = createStyles((theme) => ({
     },
     main: {
         flex: 1,
-        // padding: "1rem",
         width: '100%',
         backgroundColor: theme.colorScheme === 'dark' ? theme.colors.dark[6] : theme.colors.gray[0],
     },
@@ -29,8 +28,6 @@ const useStyles = createStyles((theme) => ({
         fontSize: theme.fontSizes.sm,
         fontWeight: 500,
         padding: rem(5),
-        // width: "80%",
-        // maxWidth: 'calc(100% - 40px)', 
         overflow: 'hidden', 
         textOverflow: 'ellipsis',
 

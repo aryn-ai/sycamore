@@ -142,9 +142,7 @@ export default function PdfViewer() {
                 <Header height={50} bg={theme.colors.gray[7]} style={{
                     borderBottom: "1px solid darkgray"
                 }}>
-                    {/* <Flex align="center" justify="center" h="100%"> */}
                     <SimpleGrid cols={loading ? 1 : 3} h="100%">
-                        {/* <Group spacing="10rem" > */}
                         
                         {!loading &&
                             <Flex align="center" justify="center" h="100%"> 
@@ -196,35 +194,19 @@ export default function PdfViewer() {
                                         }
                                     </Popover.Dropdown>
                                 </Popover>   
-                                {/* <button onClick={handleZoomIn}>Zoom In</button>
-                                    <button onClick={handleZoomOut}>Zoom Out</button> */}
-     
+                                
                             </Flex>                    
                         }
                         
 
-                        {/* <Group>
-                            <ActionIcon onClick={goToPrevPage}>
-                                <IconCirclePlus stroke={2} color='white'/>
-                            </ActionIcon>
-                            <ActionIcon onClick={goToNextPage}>
-                                <IconCircleMinus stroke={2} color='white'/>
-                            </ActionIcon>
-                            <Text fz="xs"> {pageNumber} / {numPages}</Text>
-
-                        </Group> */}
-
-                        
-                        {/* </Group> */}
+                      
                     </SimpleGrid>
-                    {/* </Flex> */}
                 </Header>
             }
             styles={() => ({
                 main: { padding: 0, paddingTop: 50, backgroundColor: 'lightgray' },
               })}
             >
-                {/* {loading && <Loader />} */}
                 <>
                 
                 {loading ?

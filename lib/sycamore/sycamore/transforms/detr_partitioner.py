@@ -12,7 +12,6 @@ from PIL import Image
 import pdf2image
 import requests
 import json
-import pickle
 import gzip
 
 import torch
@@ -247,15 +246,11 @@ class DeformableDetr(SycamoreObjectDetection):
         for result, image in zip(results, images):
             (w, h) = image.size
             elements = []
-            for score, label, box in zip(
-                result["scores"],
-                result["labels"],
-                result["boxes"]
-            ):
+            for score, label, box in zip(result["scores"], result["labels"], result["boxes"]):
                 element = create_element(
                     type=self.labels[label],
                     bbox=BoundingBox(box[0] / w, box[1] / h, box[2] / w, box[3] / h).coordinates,
-                    properties={"score": score}
+                    properties={"score": score},
                 )
                 elements.append(element)
             batched_results.append(elements)

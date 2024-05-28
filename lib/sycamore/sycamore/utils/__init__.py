@@ -1,12 +1,7 @@
 from itertools import islice
 
-from sycamore.utils.generate_ray_func import (
-    generate_map_function,
-)
-
 __all__ = [
     "batched",
-    "generate_map_function",
 ]
 
 

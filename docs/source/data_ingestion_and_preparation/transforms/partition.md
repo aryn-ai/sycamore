@@ -30,7 +30,7 @@ Parameters:
 Here is an example of chunking and using table extraction:
 
 ```Python
-ctx = scyamore.init()
+ctx = sycamore.init()
 docset = ctx.read.binary(s3://my-bucket/my-folder/, binary_format="pdf")
             .partition(partitioner=SycamorePartitioner(extract_table_structure=True))
 ```
@@ -38,7 +38,7 @@ docset = ctx.read.binary(s3://my-bucket/my-folder/, binary_format="pdf")
 Here is an example of chunking and using OCR, including OCR for tables and images:
 
 ```Python
-ctx = scyamore.init()
+ctx = sycamore.init()
 docset = ctx.read.binary(s3://my-bucket/my-folder/, binary_format="pdf")
             .partition(partitioner=SycamorePartitioner(use_ocr=True, ocr_images=True, ocr_tables=True)
 ```
@@ -57,7 +57,7 @@ Parameters:
 Here is an example of chunking and using table extraction:
 
 ```Python
-ctx = scyamore.init()
+ctx = sycamore.init()
 docset = ctx.read.binary(s3://my-bucket/my-folder/, binary_format="html")
             .partition(partitioner=Html_Partitioner(extract_tables=True)
 ```
@@ -65,7 +65,7 @@ docset = ctx.read.binary(s3://my-bucket/my-folder/, binary_format="html")
 Here is an example of chunking and adjusting the chunking strategy:
 
 ```Python
-ctx = scyamore.init()
+ctx = sycamore.init()
 docset = ctx.read.binary(s3://my-bucket/my-folder/, binary_format="html")
             .partition(text_chunker=TokenOverlapChunker(chunk_token_count=800, chunk_overlap_token_count=150))
 ```

@@ -51,7 +51,7 @@ class TestBaseMapTransform(Common):
 
         return ret
 
-    def test_simple(self, mocker):
+    def test_simple(self, mocker) -> None:
         (docs, mds) = self.outputs(
             BaseMapTransform(
                 self.input_node(mocker),
@@ -107,7 +107,7 @@ class TestBaseMapTransform(Common):
             assert from_ids[0] != to_ids[0]
             assert id_to_num[from_ids[0]] == id_to_num[to_ids[0]]
 
-    def test_passthrough(self, mocker):
+    def test_passthrough(self, mocker) -> None:
         a = BaseMapTransform(self.input_node(mocker), f=self.fn_a, args=["simple"], enable_auto_metadata=True)
         b = BaseMapTransform(a, f=lambda x: x, enable_auto_metadata=True)
         (docs, mds) = self.outputs(b)
@@ -165,7 +165,7 @@ class TestBaseMapTransform(Common):
 
         assert notfound == 3
 
-    def test_class(self, mocker):
+    def test_class(self, mocker) -> None:
         class Test:
             def __init__(self, a, *, b="unset"):
                 self.a = a
@@ -230,7 +230,7 @@ class TestBaseMapTransform(Common):
                 assert md["e"] == "a1"
                 assert md["f"] == "a2"
 
-    def test_object(self, mocker):
+    def test_object(self, mocker) -> None:
         class Test:
             def __init__(self, oid):
                 self.oid = oid
@@ -288,7 +288,7 @@ class TestBaseMapTransform(Common):
 
 
 class TestCompositeTransform(Common):
-    def test_simple(self, mocker):
+    def test_simple(self, mocker) -> None:
         start = TestBaseMapTransform.input_node(mocker)
 
         def fn(docs: list[Document], arg: str) -> list[Document]:

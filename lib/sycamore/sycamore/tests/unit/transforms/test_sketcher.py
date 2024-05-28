@@ -27,10 +27,7 @@ class TestSketcher:
     )
 
     def test_sketch(self):
-        sk = Sketcher(None)
-        obj = sk.Callable(window=32, number=8)
-        doc = obj.run(self.doc)
-        shingles = doc.shingles
+        shingles = Sketcher(None, window=32, number=8).run(self.doc).shingles
         self.validateShingles(shingles)
 
     def test_sketch_via_execute(self, mocker):

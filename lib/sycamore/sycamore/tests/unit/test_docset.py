@@ -7,8 +7,6 @@ import pytest
 import sycamore
 from sycamore import DocSet, Context
 from sycamore.data import Document, Element
-from sycamore.plan_nodes import Node
-from sycamore.scans import BinaryScan
 from sycamore.transforms import (
     Embedder,
     Embed,
@@ -24,8 +22,10 @@ from sycamore.transforms import (
     ExtractProperties,
     Query,
 )
-from sycamore.transforms.extract_entity import OpenAIEntityExtractor
+
 from sycamore.llms import LLM
+from sycamore.transforms.extract_entity import OpenAIEntityExtractor
+from sycamore.transforms.extract_schema import SchemaExtractor
 from sycamore.transforms import Filter
 from sycamore.transforms.summarize import LLMElementTextSummarizer
 from sycamore.transforms.query import QueryExecutor
@@ -34,94 +34,82 @@ from sycamore.transforms.query import QueryExecutor
 class TestDocSet:
     def test_partition_pdf(self, mocker):
         context = mocker.Mock(spec=Context)
-        scan = mocker.Mock(spec=BinaryScan)
         partitioner = mocker.Mock(spec=Partitioner)
-        docset = DocSet(context, scan)
+        docset = DocSet(context, None)
         docset = docset.partition(partitioner=partitioner)
         assert isinstance(docset.lineage(), Partition)
 
     def test_embedding(self, mocker):
         context = mocker.Mock(spec=Context)
-        node = mocker.Mock(spec=Node)
-        docset = DocSet(context, node)
+        docset = DocSet(context, None)
         embedder = mocker.Mock(spec=Embedder, batch_size=1, device="cpu")
         docset = docset.embed(embedder=embedder)
         assert isinstance(docset.lineage(), Embed)
 
     def test_llm_extract_entity(self, mocker):
         context = mocker.Mock(spec=Context)
-        node = mocker.Mock(spec=Node)
         llm = mocker.Mock(spec=LLM)
-        docset = DocSet(context, node)
+        docset = DocSet(context, None)
         docset = docset.extract_entity(entity_extractor=OpenAIEntityExtractor("title", llm=llm, prompt_template=""))
         assert isinstance(docset.lineage(), ExtractEntity)
 
     def test_query(self, mocker):
         context = mocker.Mock(spec=Context)
-        node = mocker.Mock(spec=Node)
         query_executor = mocker.Mock(spec=QueryExecutor, query=lambda: None)
-        docset = DocSet(context, node)
+        docset = DocSet(context, None)
         docset = docset.query(query_executor=query_executor)
         assert isinstance(docset.lineage(), Query)
 
     def test_map(self, mocker):
         context = mocker.Mock(spec=Context)
-        node = mocker.Mock(spec=Node)
-        docset = DocSet(context, node)
+        docset = DocSet(context, None)
         docset = docset.map(f=lambda doc: doc)
         assert isinstance(docset.lineage(), Map)
 
     def test_flat_map(self, mocker):
         context = mocker.Mock(spec=Context)
-        node = mocker.Mock(spec=Node)
-        docset = DocSet(context, node)
+        docset = DocSet(context, None)
         docset = docset.flat_map(f=lambda doc: [doc])
         assert isinstance(docset.lineage(), FlatMap)
 
     def test_map_batch(self, mocker):
         context = mocker.Mock(spec=Context)
-        node = mocker.Mock(spec=Node)
-        docset = DocSet(context, node)
+        docset = DocSet(context, None)
         docset = docset.map_batch(f=lambda doc: doc)
         assert isinstance(docset.lineage(), MapBatch)
 
     def test_summarize(self, mocker):
         context = mocker.Mock(spec=Context)
-        node = mocker.Mock(spec=Node)
         llm = mocker.Mock(spec=LLM)
-        docset = DocSet(context, node)
+        docset = DocSet(context, None)
         docset = docset.summarize(llm=llm, summarizer=LLMElementTextSummarizer(llm))
         assert isinstance(docset.lineage(), Summarize)
 
     def test_filter(self, mocker):
         context = mocker.Mock(spec=Context)
-        node = mocker.Mock(spec=Node)
         func = mocker.Mock(spec=Callable)
-        docset = DocSet(context, node)
+        docset = DocSet(context, None)
         docset = docset.filter(func)
         assert isinstance(docset.lineage(), Filter)
 
     def test_extract_schema(self, mocker):
         context = mocker.Mock(spec=Context)
-        node = mocker.Mock(spec=Node)
-        func = mocker.Mock(spec=Callable)
-        docset = DocSet(context, node)
+        func = mocker.Mock(spec=Callable, extract_schema=lambda d: {})
+        docset = DocSet(context, None)
         docset = docset.extract_schema(func)
         assert isinstance(docset.lineage(), ExtractSchema)
 
     def test_extract_batch_schema(self, mocker):
         context = mocker.Mock(spec=Context)
-        node = mocker.Mock(spec=Node)
-        func = mocker.Mock(spec=Callable)
-        docset = DocSet(context, node)
+        func = mocker.Mock(spec=SchemaExtractor)
+        docset = DocSet(context, None)
         docset = docset.extract_batch_schema(func)
         assert isinstance(docset.lineage(), ExtractBatchSchema)
 
     def test_extract_properties(self, mocker):
         context = mocker.Mock(spec=Context)
-        node = mocker.Mock(spec=Node)
-        func = mocker.Mock(spec=Callable)
-        docset = DocSet(context, node)
+        func = mocker.Mock(spec=Callable, extract_properties=lambda d: {})
+        docset = DocSet(context, None)
         docset = docset.extract_properties(func)
         assert isinstance(docset.lineage(), ExtractProperties)
 

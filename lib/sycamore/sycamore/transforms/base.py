@@ -35,9 +35,9 @@ class BaseMapTransform(UnaryNode):
 
     def __init__(
         self,
-        child: Node,
+        child: Optional[Node],
         *,
-        f: Callable[[list[Document]], list[Document]],
+        f: Any,  # Callable(doc, args, kwargs) or Class(c_args, c_kwargs).__call__(doc, args, kwargs)
         name: Optional[str] = None,
         args: Optional[Iterable[Any]] = None,
         kwargs: Optional[dict[str, Any]] = None,
@@ -49,6 +49,21 @@ class BaseMapTransform(UnaryNode):
         enable_auto_metadata: bool = False,
         **resource_args,
     ):
+        if child is None:
+            logging.info("Assuming this is for local execution only, not checking serializability")
+        else:
+            # If serializability fails, the error messages are very confusing. These checks
+            # give a much more sensible error message and give it before ray starts execution.
+            from ray.util import inspect_serializability
+            import io
+
+            log = io.StringIO()
+            (ok, s) = inspect_serializability(
+                [f, name, args, kwargs, constructor_args, constructor_kwargs], print_file=log
+            )
+            if not ok:
+                raise ValueError(f"Something for {name} isn't serializable {s}\nLog: {log.getvalue()}")
+
         if isinstance(f, type) and "compute" not in resource_args:
             # classes require actor strategy for now
             resource_args["compute"] = ActorPoolStrategy(size=1)

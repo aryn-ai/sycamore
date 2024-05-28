@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Callable
+from typing import Callable, Optional
 
 from ray.data import Dataset
 
 
 class Node(ABC):
-    def __init__(self, children: list["Node"], **resource_args):
+    def __init__(self, children: list[Optional["Node"]], **resource_args):
         self.children = children
         self.resource_args = resource_args
 
@@ -18,11 +18,11 @@ class Node(ABC):
 
     def traverse_down(self, f: Callable[["Node"], "Node"]) -> "Node":
         f(self)
-        self.children = [c.traverse_down(f) for c in self.children]
+        self.children = [c.traverse_down(f) for c in self.children if c is not None]
         return self
 
     def traverse_up(self, f: Callable[["Node"], "Node"]) -> "Node":
-        self.children = [c.traverse_up(f) for c in self.children]
+        self.children = [c.traverse_up(f) for c in self.children if c is not None]
         f(self)
         return self
 
@@ -39,13 +39,14 @@ class LeafNode(Node):
 
 
 class UnaryNode(Node):
-    def __init__(self, child: Node, **resource_args):
+    def __init__(self, child: Optional[Node], **resource_args):
         super().__init__([child], **resource_args)
 
     def __str__(self):
         return "unary"
 
     def child(self) -> Node:
+        assert self.children[0] is not None
         return self.children[0]
 
 

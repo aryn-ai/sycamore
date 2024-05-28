@@ -41,16 +41,16 @@ time_units = [
     ("m", 60),
     ("h", 3600),
     ("d", 86400),
-    ("y", 31556952),
+    ("y", 31_556_952),
     (None, None),
 ]
 
 mem_units = [
     ("B", 1),
     ("kB", 1024),
-    ("MB", 1048576),
-    ("GB", 1073741824),
-    ("TB", 1099511627776),
+    ("MB", 1024 * 1024),
+    ("GB", 1024 * 1024 * 1024),
+    ("TB", 1024 * 1024 * 1024 * 1024),
     (None, None),
 ]
 
@@ -73,8 +73,11 @@ def pretty_time(s: float) -> str:
 def pretty_mem(s: float) -> str:
     return pretty_num(mem_units, s)
 
-class Foo:
-    def run(self, paths):
+class Analyze:
+    def __init__(self, paths):
+        self.paths = paths
+
+    def run(self):
         first = 999999999999.0
         last = 0
         utime = 0
@@ -85,7 +88,7 @@ class Foo:
         name_wall = {}
         name_cpu = {}
 
-        for rec in tt_reader(paths):
+        for rec in tt_reader(self.paths):
             t0 = rec.t0 / 1000000000.0
             t1 = rec.t1 / 1000000000.0
             rutime = rec.utime / 1000000000.0
@@ -131,9 +134,9 @@ class Foo:
             cfrac = cval / cpu
             print(f"{k:20} wall {wval: 12.6f} ({wfrac:.3f}) cpu {cval: 12.6f} ({cfrac:.3f})")
 
-    def overlap(self, paths):
+    def overlap(self):
         events = []
-        for rec in tt_reader(paths):
+        for rec in tt_reader(self.paths):
             events.append((rec.t0, 1))
             events.append((rec.t1, 0))
         events.sort()
@@ -157,10 +160,10 @@ class Foo:
             frac = event_time / total
             print(f"{lev:2}: {frac:.3f}")
 
-    def totrss(self, paths):
+    def totrss(self):
         # Note: Linux RSS is reported in kB, Mac in B
         events = []
-        for rec in tt_reader(paths):
+        for rec in tt_reader(self.paths):
             events.append((rec.t0, 1, rec.thread, rec.rss))
             events.append((rec.t1, 0, rec.thread, rec.rss))
         events.sort()
@@ -188,10 +191,10 @@ class Foo:
 def main(args = None):
     if args is None:
         args = sys.argv[1:]
-    foo = Foo()
-    foo.run(args)
-    foo.overlap(args)
-    foo.totrss(args)
+    aa = Analyze(args)
+    aa.run()
+    aa.overlap()
+    aa.totrss()
     return 0
 
 

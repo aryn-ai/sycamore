@@ -3,13 +3,7 @@ from sycamore.transforms.detr_partitioner import SycamorePDFPartitioner, Deforma
 from sycamore.data import BoundingBox
 
 from PIL import Image
-import requests
 import json
-
-EXAMPLE_IMAGE_URL = (
-    "https://huggingface.co/Aryn/deformable-detr-DocLayNet/resolve/main/examples/doclaynet_example_1.png"
-)
-
 
 class TestSycamorePDFPartitioner:
     def test_supplement_text(self):
@@ -47,10 +41,10 @@ class TestSycamorePDFPartitioner:
         assert result[3].text_representation == "Ciao mondo"
 
     def test_infer(self):
-        image = Image.open(requests.get(EXAMPLE_IMAGE_URL, stream=True).raw)
-        d = DeformableDetr("Aryn/deformable-detr-DocLayNet")
-        results = d.infer((image,), 0.7)
+        with Image.open("./sample-detr-image.png") as image:
+            d = DeformableDetr("Aryn/deformable-detr-DocLayNet")
+            results = d.infer((image,), 0.7)
 
-        for result in results:
-            for element in result:
-                json.dumps(element.properties)
+            for result in results:
+                for element in result:
+                    json.dumps(element.properties)

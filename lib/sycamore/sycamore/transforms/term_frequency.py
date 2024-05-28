@@ -15,6 +15,24 @@ def compute_term_frequency(document: Document, tokenizer: Tokenizer, with_token_
 class TermFrequency(SingleThreadUser, NonGPUUser, Map, Transform):
     """
     Generate a table of frequencies of terms in the text representation of each document
+
+    Args:
+        child: Source node that provides documents to compute TF for.
+        tokenizer: The Tokenizer object to use to split words in order to count them
+        with_token_ids: Create the TF table using token_ids (True) or token values (False)
+                default is False (toekn values)
+
+    Example:
+        .. code-block:: python
+
+            tk = OpenAITokenizer("gpt-3.5-turbo")
+            context = sycamore.init()
+            context.read.binary(paths, binary_format="pdf")
+                .partition(SycamorePartitioner())
+                .explode()
+                .transform(cls=TermFrequency, tokenizer=tk)
+                .show()
+
     """
 
     def __init__(self, child: Node, tokenizer: Tokenizer, with_token_ids: bool = False, **kwargs):

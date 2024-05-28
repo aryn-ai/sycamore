@@ -10,6 +10,7 @@ EXAMPLE_IMAGE_URL = (
     "https://huggingface.co/Aryn/deformable-detr-DocLayNet/resolve/main/examples/doclaynet_example_1.png"
 )
 
+
 class TestSycamorePDFPartitioner:
     def test_supplement_text(self):
         infer1 = Element()
@@ -49,9 +50,7 @@ class TestSycamorePDFPartitioner:
         image = Image.open(requests.get(EXAMPLE_IMAGE_URL, stream=True).raw)
         d = DeformableDetr("Aryn/deformable-detr-DocLayNet")
         results = d.infer((image,), 0.7)
-        
+
         for result in results:
             for element in result:
                 json.dumps(element.properties)
-        
-

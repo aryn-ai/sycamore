@@ -5,6 +5,7 @@ from sycamore.data import BoundingBox
 from PIL import Image
 import json
 
+
 class TestSycamorePDFPartitioner:
     def test_supplement_text(self):
         infer1 = Element()

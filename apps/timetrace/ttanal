@@ -2,6 +2,7 @@
 
 import sys
 import struct
+from time import localtime, strftime
 from typing import NamedTuple
 
 FMT = "BxxxIQQQQQ48s"
@@ -31,6 +32,46 @@ def tt_reader(paths: list[str]):
                 if not buf:
                     break
                 yield buf_to_rec(buf)
+
+time_units = [
+    ("ns", 0.000000001),
+    ("us", 0.000001),
+    ("ms", 0.001),
+    ("s", 1),
+    ("m", 60),
+    ("h", 3600),
+    ("d", 86400),
+    ("y", 31556952),
+    (None, None),
+]
+
+mem_units = [
+    ("B", 1),
+    ("kB", 1024),
+    ("MB", 1048576),
+    ("GB", 1073741824),
+    ("TB", 1099511627776),
+    (None, None),
+]
+
+def pretty_num(units: list[tuple[str, float]], s: float) -> str:
+    if s == 0:
+        return "0"
+    sign = ""
+    if s < 0:
+        sign = "-"
+        s *= -1
+    for i, (unit, val) in enumerate(units):
+        nxtval = units[i + 1][1]
+        if nxtval is None or s < nxtval:
+            s /= val
+            return f"{sign}{s:.3g}{unit}"
+
+def pretty_time(s: float) -> str:
+    return pretty_num(time_units, s)
+
+def pretty_mem(s: float) -> str:
+    return pretty_num(mem_units, s)
 
 class Foo:
     def run(self, paths):
@@ -65,29 +106,30 @@ class Foo:
             val = name_cpu.get(rec.name, 0)
             name_cpu[rec.name] = val + cpu
 
+        ts = strftime("%Y-%m-%d %H:%M:%S", localtime(first))
         wall = last - first
+        pwall = pretty_time(wall)
         cpu = utime + stime
         frac = cpu / wall
         ufrac = utime / cpu
         sfrac = stime / cpu
-        megs = rss / 1048576.0
-        print(f"wall={wall}")
-        print(f"cpu={cpu} ({frac:.3f})")
-        print(f"utime={utime} ({ufrac:.3f})")
-        print(f"stime={stime} ({sfrac:.3f})")
-        print(f"maxrss={megs}")
-        for k, v in thread_wall.items():
-            frac = v / wall
-            print(f"{k}={v:.6f} ({frac:.3f})")
-        for k, v in name_wall.items():
-            frac = v / wall
-            print(f"{k}={v:.6f} ({frac:.3f})")
-        for k, v in thread_cpu.items():
-            frac = v / cpu
-            print(f"{k}={v:.6f} ({frac:.3f})")
-        for k, v in name_cpu.items():
-            frac = v / cpu
-            print(f"{k}={v:.6f} ({frac:.3f})")
+        prss = pretty_mem(rss)
+        print(ts)
+        print(f"wall {wall:.6f} ({pwall})")
+        print(f"cpu {cpu:.6f} ({frac:.3f})")
+        print(f"utime {utime:.6f} ({ufrac:.3f})")
+        print(f"stime {stime:.6f} ({sfrac:.3f})")
+        print(f"maxrss {prss}")
+        for k, wval in thread_wall.items():
+            cval = thread_cpu[k]
+            wfrac = wval / wall
+            cfrac = cval / cpu
+            print(f"{k:<9} wall {wval: 12.6f} ({wfrac:.3f}) cpu {cval: 12.6f} ({cfrac:.3f})")
+        for k, wval in name_wall.items():
+            cval = name_cpu[k]
+            wfrac = wval / wall
+            cfrac = cval / cpu
+            print(f"{k:20} wall {wval: 12.6f} ({wfrac:.3f}) cpu {cval: 12.6f} ({cfrac:.3f})")
 
     def overlap(self, paths):
         events = []
@@ -96,10 +138,12 @@ class Foo:
             events.append((rec.t1, 0))
         events.sort()
         level = 0
+        total = 0
         last = events[0][0]
         sums = {}
         for event_time, is_start in events:
             dur = event_time - last
+            total += dur
             val = sums.get(level, 0)
             sums[level] = val + dur
             if is_start:
@@ -110,8 +154,36 @@ class Foo:
         inv = [(b, a) for a, b in sums.items()]
         inv.sort()
         for event_time, lev in inv:
-            secs = event_time / 1000000000.0
-            print(f"{lev}={secs}")
+            frac = event_time / total
+            print(f"{lev:2}: {frac:.3f}")
+
+    def totrss(self, paths):
+        # Note: Linux RSS is reported in kB, Mac in B
+        events = []
+        for rec in tt_reader(paths):
+            events.append((rec.t0, 1, rec.thread, rec.rss))
+            events.append((rec.t1, 0, rec.thread, rec.rss))
+        events.sort()
+        threads = {}
+        high = 0
+        for event_time, is_start, thr, rss in events:
+            if is_start:
+                ary = threads.get(thr)
+                if ary is not None:
+                    ary.append(rss)
+                else:
+                    threads[thr] = [rss]
+            else:
+                ary = threads[thr]
+                ary.pop()
+                if not ary:
+                    del threads[thr]
+            tot = 0
+            for ary in threads.values():
+                tot += ary[-1]
+                high = max(high, tot)
+        phigh = pretty_mem(high)
+        print(f"sumrss {phigh}")
 
 def main(args = None):
     if args is None:
@@ -119,6 +191,7 @@ def main(args = None):
     foo = Foo()
     foo.run(args)
     foo.overlap(args)
+    foo.totrss(args)
     return 0
 
 

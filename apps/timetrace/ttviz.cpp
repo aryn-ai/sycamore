@@ -13,7 +13,6 @@
 #include <vector>
 #include <string>
 #include <algorithm>
-#include <iostream>
 #include <cassert>
 
 using std::pair;
@@ -46,8 +45,8 @@ const std::array<Rgb, 22> gColors = {{ // from Sasha Trubetskoy
   {255, 250, 200}, // 15 beige
   {128, 0,   0},   // 16 maroon
   {170, 255, 195}, // 17 mint
-  {128, 128, 0},   // 18 olive
-  {255, 215, 180}, // 19 apricot
+  {255, 215, 180}, // 18 apricot
+  {128, 128, 0},   // 19 olive
   {0,   0,   128}, // 20 navy
   {128, 128, 128}  // 21 gray
   }};
@@ -63,15 +62,15 @@ public:
   }
 
   void line(int x0, int y0, int x1, int y1, int color) {
-    gdImageLine(img_, x0, y0, x1, y1, colors_[color]);
+    gdImageLine(img_, x0, y0, x1, y1, getColor(color));
   }
 
   void rect(int x0, int y0, int x1, int y1, int color) {
-    gdImageFilledRectangle(img_, x0, y0, x1, y1, colors_[color]);
+    gdImageFilledRectangle(img_, x0, y0, x1, y1, getColor(color));
   }
 
   void text(int x, int y, const char *s, int color) {
-    gdImageString(img_, font_, x, y, (unsigned char *) s, colors_[color]);
+    gdImageString(img_, font_, x, y, (unsigned char *) s, getColor(color));
   }
 
   void outPng(const char *path) {
@@ -84,6 +83,14 @@ private:
   gdImagePtr img_;
   gdFontPtr  font_;
   vector<int> colors_;
+
+  int getColor(int c) {
+    size_t n = colors_.size();
+    if ((size_t) c < n)
+      return colors_[c];
+    int i = (c % (n - 2)) + 2;  // loop through non black/white colors
+    return colors_[i];
+  }
 };
 
 
@@ -110,7 +117,7 @@ public:
   Iter &operator++() { advance(); return *this; }
 
 private:
-  const vector<string> list_;
+  const vector<string> &list_;
   size_t idx_;
   int fd_;
   Rec rec_;
@@ -188,8 +195,9 @@ public:
       int y = yscale * (threads[r.thread] + 2);
       int x0 = gap + xscale * (r.t0 - first);
       int x1 = gap + xscale * (r.t1 - first);
-      int color = names[r.name] + 2;
-      im.line(x0, y, x1, y, color);
+      int idx = names[r.name];
+      y += idx - (nameSiz / 2); // avoid overlapping lines
+      im.line(x0, y, x1, y, idx + 2);
     }
     double ww = wid / (nameSiz + 2);
     for (const auto &[name, idx] : names) {

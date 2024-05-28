@@ -149,6 +149,9 @@ class PineconeDatasink(Datasink):
             doc = Document.from_row(record)
             data = doc.data
             id = data.pop("doc_id")
+            parent_id = data.pop("parent_id", None)
+            if parent_id:
+                id = f"{parent_id}#{id}"
             values = data.pop("embedding", None)
             if values is None:
                 return None

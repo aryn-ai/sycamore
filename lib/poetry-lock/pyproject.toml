@@ -12,6 +12,7 @@ python = ">=3.9,<3.12"
 protobuf = "4.25.3" # rps
 fsspec = "2024.2.0" # sycamore (via datasets)
 pillow = "10.2.0"   # sycamore -- type hints don't work with 10.3.0
+setuptools = "69.5.1"  # https://github.com/aws-neuron/aws-neuron-sdk/issues/893
 # Make sure tests are run in the same order.
 # the following will fail which prevents upgrading pytest to 8.1.1
 # poetry run pytest lib/sycamore/sycamore/tests/unit/scans/test_materialized_scan.py lib/sycamore/sycamore/tests/unit/test_docset.py
@@ -51,7 +52,6 @@ annotated-types = "0.7.0"
 tifffile = "2024.4.24"
 weaviate-client = "4.6.3"
 pycparser = "2.22"
-setuptools = "70.0.0"
 cryptography = "42.0.7"
 grpcio = "1.64.0"
 grpcio-health-checking = "1.62.2"

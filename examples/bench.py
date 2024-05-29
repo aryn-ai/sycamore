@@ -12,6 +12,8 @@ import pyarrow.fs
 # ruff: noqa: E402
 sys.path.append("../sycamore")
 
+from ray.data import ActorPoolStrategy
+
 import sycamore
 from sycamore.functions.tokenizer import HuggingFaceTokenizer
 from sycamore.llms import OpenAIModels, OpenAI
@@ -34,7 +36,7 @@ ctx = sycamore.init()
 
 ds = (
     ctx.read.binary(paths, binary_format="pdf", filesystem=fsys)
-    .partition(partitioner=SycamorePartitioner(extract_table_structure=True, extract_images=True))
+    .partition(partitioner=SycamorePartitioner(extract_table_structure=True, extract_images=True), compute=ActorPoolStrategy(size=1))
     .regex_replace(COALESCE_WHITESPACE)
     .extract_entity(entity_extractor=OpenAIEntityExtractor("title", llm=davinci_llm, prompt_template=title_template))
     .mark_bbox_preset(tokenizer=tokenizer)

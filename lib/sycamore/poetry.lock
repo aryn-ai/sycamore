@@ -1681,46 +1681,46 @@ setuptools = "*"
 
 [[package]]
 name = "guidance"
-version = "0.1.15"
+version = "0.1.14"
 description = "A guidance language for controlling large language models."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "guidance-0.1.15-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:97e706352e857e14ed6ea3a9c948989fa6054165c4f358ea8ddc2dd8bc6dae87"},
-    {file = "guidance-0.1.15-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:a86782682bec294834922dfafa005dca788f4d17caec246b4b3a9cfe85e35bc4"},
-    {file = "guidance-0.1.15-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b177dae226339f17710a4bb904c0f14bfff8b1cde2abb0e5d714610a327af25f"},
-    {file = "guidance-0.1.15-cp310-cp310-musllinux_1_1_x86_64.whl", hash = "sha256:cb6758ab3edf53fad1261fb6f76c19fc0b5834748546b886b42d07a1b5a27584"},
-    {file = "guidance-0.1.15-cp310-cp310-win_amd64.whl", hash = "sha256:0bf86e83103f60228fd9a053b85f7fd6e00e6e82cbc8fa3426750781960519b0"},
-    {file = "guidance-0.1.15-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:6bb8a1bacb3b7183ca9fe53909de86ead37378419c43196fb1c128ef0d8c36e9"},
-    {file = "guidance-0.1.15-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:9a34f95be9a47d28b0c1424094f62f7640bd08c074f298439dd487a9978e2649"},
-    {file = "guidance-0.1.15-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3e2b5c05d49cb6c9cf2fe75a4f295de180ac9cfd38bbacf2ed1445de4d1df432"},
-    {file = "guidance-0.1.15-cp311-cp311-musllinux_1_1_x86_64.whl", hash = "sha256:d1f5e5fd786d7c8f11c5fa450cd0f49bcda0009bd303a68b05605bed9d4595ea"},
-    {file = "guidance-0.1.15-cp311-cp311-win_amd64.whl", hash = "sha256:0cb0bea33a5d8ebe844b5bad688c850700bbc64aa93cbf0b9a9d45ff6c05a04b"},
-    {file = "guidance-0.1.15-cp312-cp312-macosx_10_9_x86_64.whl", hash = "sha256:17d6da0917bcd9cb0f55f55bb26d39935cded8a04197667b374ba588a579db83"},
-    {file = "guidance-0.1.15-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:f02a30fdcbe9203e459ee53cdbf7c56025f8fc92a234d9ecec779b75ea1f79ce"},
-    {file = "guidance-0.1.15-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1aa7bfff237b921a8b879d23c7cd95d12091415bac89f593847f1e3dff0837b1"},
-    {file = "guidance-0.1.15-cp312-cp312-musllinux_1_1_x86_64.whl", hash = "sha256:ca4d2e764dba032d9f711f2b0b4a2bdfa88db209638cbbc989d936612d064193"},
-    {file = "guidance-0.1.15-cp312-cp312-win_amd64.whl", hash = "sha256:2b58ee49b9cff0d459f2f219ab280332825b31a66aee5c63be4dd94f7570f126"},
-    {file = "guidance-0.1.15-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:5d1c21ae581588ea3e1330c2e8678ba729ddc3b49ba427df3e6fdb190a040b41"},
-    {file = "guidance-0.1.15-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:857c0494384a2e68422dc73f6381f147b1c4ab50fc4211a3a877113ce47b2a89"},
-    {file = "guidance-0.1.15-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a34744b38617780606e50223b29c2949e68721863ce5a04e48ec08f3c4c1c2d8"},
-    {file = "guidance-0.1.15-cp38-cp38-musllinux_1_1_x86_64.whl", hash = "sha256:39e71647105771d65aef1b7defa7e4d8ab9887381c619df27a4ac7bd0b17693e"},
-    {file = "guidance-0.1.15-cp38-cp38-win_amd64.whl", hash = "sha256:dad928ff7d3901aacc5b414872592aedb56713b96b2e84b691e6e81323503c28"},
-    {file = "guidance-0.1.15-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:d914f169c1453c4c75751d31abcd6f69fe70979fed095f80e3bb31f7aaf6638f"},
-    {file = "guidance-0.1.15-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:c297c7cf80b71d1634a3b39c253c8f920d4283cefbf0d3fdf3a8c630b5e3cd36"},
-    {file = "guidance-0.1.15-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:5ed8b557a8567b1495cd317630efaf3ee2094914a138aaef17729c367c8a77d4"},
-    {file = "guidance-0.1.15-cp39-cp39-musllinux_1_1_x86_64.whl", hash = "sha256:628c2966b00b489cacbc3451c89483395a692db6833f686a1f253dc1a4f47ae0"},
-    {file = "guidance-0.1.15-cp39-cp39-win_amd64.whl", hash = "sha256:8c9322edd24261cee7acdd1b41881e4d4043bfc0135bb811e3e1dc5fea97beaf"},
-    {file = "guidance-0.1.15-pp310-pypy310_pp73-macosx_10_9_x86_64.whl", hash = "sha256:3d041b3412820892692923ab81100531c848a802feb0ce4ac14a51e96368f542"},
-    {file = "guidance-0.1.15-pp310-pypy310_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:bb612f4b7056c2128d07975d7dac4247b66e9b77a6e6af40d235581b9cad01fa"},
-    {file = "guidance-0.1.15-pp310-pypy310_pp73-win_amd64.whl", hash = "sha256:5c6f50a27be885cc00a2a74c8dd42fd9fad5a412b48f16c805f6991a89ef3dd9"},
-    {file = "guidance-0.1.15-pp38-pypy38_pp73-macosx_10_9_x86_64.whl", hash = "sha256:2a87ec1b62643b7528213e2c0066302e20e0cc5227f688ed5070c540cbbf7a64"},
-    {file = "guidance-0.1.15-pp38-pypy38_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:2eba9043184f980e8f57befc28e7157bb67fc366fc38b234f3b1c9fe415e6612"},
-    {file = "guidance-0.1.15-pp38-pypy38_pp73-win_amd64.whl", hash = "sha256:a8c1761a19b5d5f5e70181aaefaa5b73785472acfb4b8be5270b5f95aba39f35"},
-    {file = "guidance-0.1.15-pp39-pypy39_pp73-macosx_10_9_x86_64.whl", hash = "sha256:112ee48f2d20570a20d510396b63d8d72e0c17f98cf282d1137a7bff417ddc02"},
-    {file = "guidance-0.1.15-pp39-pypy39_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8ce7921360a61118b185929dd1a9a143575b7d4cfc321c7b8848c5edcd337844"},
-    {file = "guidance-0.1.15-pp39-pypy39_pp73-win_amd64.whl", hash = "sha256:22656ae21c03130263840a244a9b054e2d7a4258aefe98b08d04bdd8effaf145"},
-    {file = "guidance-0.1.15.tar.gz", hash = "sha256:86413ce3f46de31280466f1da80f22b330fbf7ffbef7a4c9d8bbdc50159dbc12"},
+    {file = "guidance-0.1.14-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:a2819bbba9522e05e219c608ec5f412ca2bb40d301d05b48fefffb8d7df8445a"},
+    {file = "guidance-0.1.14-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:64d0246758b1350a017f9d0faa3509e9cb35baf840966cef76d036e6a4d7b0b5"},
+    {file = "guidance-0.1.14-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:dfee09e53916c7a974b8e0a0ebfa780f051d983934d9890669339beddca35bfd"},
+    {file = "guidance-0.1.14-cp310-cp310-musllinux_1_1_x86_64.whl", hash = "sha256:92580c42cbf85ed0cff496c4c0ea170e58ae3fcac32488fb13e0445e67044de0"},
+    {file = "guidance-0.1.14-cp310-cp310-win_amd64.whl", hash = "sha256:e07d163db75d8641aecb850827ac105ca468895d266fc4c727f9207f4fd9a6fc"},
+    {file = "guidance-0.1.14-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:cb475102c3ec80f96caad1be6744d7026b20ee2613737547f2002303a1d362ca"},
+    {file = "guidance-0.1.14-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:0aa93ae0cd91422149f41d0f5f3b4885dac2fb5584da13960bd306059e4085e0"},
+    {file = "guidance-0.1.14-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6d4f36eec466ab2bc10d80455cfde8695f89d8025ddec3909cab911b7926a9cc"},
+    {file = "guidance-0.1.14-cp311-cp311-musllinux_1_1_x86_64.whl", hash = "sha256:5aa273a5861b0a7cf21c64559c9995d3d08c73460cfd862e22e78efa05ab65bc"},
+    {file = "guidance-0.1.14-cp311-cp311-win_amd64.whl", hash = "sha256:ccc6d77789a4a445c7f3281bf6c421fa8ca78464bef704c77e315a70408c22d1"},
+    {file = "guidance-0.1.14-cp312-cp312-macosx_10_9_x86_64.whl", hash = "sha256:9e45ac9627daad1a20067f59e5d8a717cce70e2ca61aa65a21951b81ebf81540"},
+    {file = "guidance-0.1.14-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:be48889f8f2a36216c63935b9cf2cc1922a5c3f7fe028a20e5ade93a2023b1c1"},
+    {file = "guidance-0.1.14-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:2f1bfe492806287363b9e497bd6412c0c3729b079bf870bda75bcbc65fdf5fe3"},
+    {file = "guidance-0.1.14-cp312-cp312-musllinux_1_1_x86_64.whl", hash = "sha256:b1306781b589ff42397722e5dc7f95429b8a322f048af96b955813057b659bee"},
+    {file = "guidance-0.1.14-cp312-cp312-win_amd64.whl", hash = "sha256:32a2d3b177039725ba9cdf12b5a80160133496b7406799312f91ac47be811fda"},
+    {file = "guidance-0.1.14-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:db264afec708f02740329cf06a470dfabb72160eb94f3da6da561cc94aab44d2"},
+    {file = "guidance-0.1.14-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:64419314d736b82484b5f1857b78bac9c984fcc7d3983adc4c3bfdc6a98fbff9"},
+    {file = "guidance-0.1.14-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:88154e5a5367803d6b67a64ddc91c65ef3525c3a44cccaba3755622884b264e8"},
+    {file = "guidance-0.1.14-cp38-cp38-musllinux_1_1_x86_64.whl", hash = "sha256:e0a4adf8cbaa4d57803638e9b3f33617f4ac2f26d3a333f1f3be43f20daf0959"},
+    {file = "guidance-0.1.14-cp38-cp38-win_amd64.whl", hash = "sha256:63498a8fd9dd22619540f96ca885caed1893486c3cbac00cafbb5d916c24725c"},
+    {file = "guidance-0.1.14-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:6bd6d350932b2d9140a21005662a14e5e63dbabb3edfa32e78b928d17c6d296e"},
+    {file = "guidance-0.1.14-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:82538d9ee3e5c99fd5679dd77f9afad3e469066a458aab34f123a7f32a0ed368"},
+    {file = "guidance-0.1.14-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ec02ceea4a4af6e9511e144ee679328bcc110cf7ad7c212e9d08b9b03e4e7db3"},
+    {file = "guidance-0.1.14-cp39-cp39-musllinux_1_1_x86_64.whl", hash = "sha256:d000f821d3fa3be3f226ee41b21ff992a857c5664d9eeb11188acec99a4a5496"},
+    {file = "guidance-0.1.14-cp39-cp39-win_amd64.whl", hash = "sha256:3d7bb95840fc9a021ada7f68eb781a1340f6ec7d77ab5be9d6404c7753928cfa"},
+    {file = "guidance-0.1.14-pp310-pypy310_pp73-macosx_10_9_x86_64.whl", hash = "sha256:994b45a92f4a336d8320c60ed5baf2640590e09ba6e691045a1a2e91cda19a69"},
+    {file = "guidance-0.1.14-pp310-pypy310_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:66106436cd6f588e392aa0cc8bf5445879bd9ed39c1c4534f1bb0449f13e16d8"},
+    {file = "guidance-0.1.14-pp310-pypy310_pp73-win_amd64.whl", hash = "sha256:5f69755f846590e56af79754dd83f6017ced6c9d5999d14ca7c4158df3896748"},
+    {file = "guidance-0.1.14-pp38-pypy38_pp73-macosx_10_9_x86_64.whl", hash = "sha256:a5202d7b758c8906acc094c5abfd29bb20a41c6e6c8ee709bea49d0d3104ff81"},
+    {file = "guidance-0.1.14-pp38-pypy38_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:185e7ad6c43e1ce0d5e25a0ed3cf8f94c4e6064fcb516ec769db0d90b09a4340"},
+    {file = "guidance-0.1.14-pp38-pypy38_pp73-win_amd64.whl", hash = "sha256:3d99fc3d2db32c720a2486b8a75f53aef6578af18add5dd95f7841c02106690e"},
+    {file = "guidance-0.1.14-pp39-pypy39_pp73-macosx_10_9_x86_64.whl", hash = "sha256:42c03d241b342f24a63558b400d38cee67bc46d257cc2be3740ce6a2cca51519"},
+    {file = "guidance-0.1.14-pp39-pypy39_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:aa8799e803ca5fcb8fc6c1ce3713b56801d2aa0cf136c53e33a492d04f0a218a"},
+    {file = "guidance-0.1.14-pp39-pypy39_pp73-win_amd64.whl", hash = "sha256:f5bcc1843b0ab4b77af89d0188fca7ec5ab569dec34b1f0bd1f67340f253f0f1"},
+    {file = "guidance-0.1.14.tar.gz", hash = "sha256:99921ef0176fe97565219334dc7246c483170c2fad22e0efd20f3e73490b43fb"},
 ]
 
 [package.dependencies]
@@ -1737,7 +1737,7 @@ tiktoken = ">=0.3"
 [package.extras]
 all = ["fastapi", "jsonschema", "openai (>=1.0)", "uvicorn"]
 azureai = ["openai (>=1.0)"]
-docs = ["huggingface-hub", "ipykernel", "ipython", "llama-cpp-python", "nbsphinx", "numpydoc", "sphinx", "sphinx-rtd-theme"]
+docs = ["ipython", "nbsphinx", "numpydoc", "sphinx", "sphinx-rtd-theme"]
 openai = ["openai (>=1.0)"]
 schemas = ["jsonschema"]
 server = ["fastapi", "uvicorn"]
@@ -6521,6 +6521,7 @@ googleapis-common-protos = "1.63.0"
 grpcio = "1.64.0"
 grpcio-health-checking = "1.62.2"
 grpcio-tools = "1.62.2"
+guidance = "0.1.14"
 httpcore = "1.0.5"
 huggingface-hub = "0.22.1"
 idna = ">=3.7"

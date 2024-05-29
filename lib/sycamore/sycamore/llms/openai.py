@@ -151,18 +151,23 @@ class OpenAIClientWrapper:
             # specific assumptions about how deployed models are named that don't work
             # well with Azure. This is the only way I was able to get it to work
             # reliably.
+            # p.s. mypy seems to get mad if cls is not defined as being either, hence
+            # the union expression
             if model.is_chat:
-                cls = AzureOpenAIChat
+                cls: Union[type[AzureOpenAIChat], type[AzureOpenAICompletion]] = AzureOpenAIChat
             else:
                 cls = AzureOpenAICompletion
 
+            # These random str's are also to appease mypy, since those params might be
+            # None in the OPENAI case, where this code is unreachable but mypy doesn't
+            # know this.
             return cls(
                 model=model.name,
-                azure_endpoint=self.azure_endpoint,
+                azure_endpoint=str(self.azure_endpoint),
                 azure_ad_token_provider=self.azure_ad_token_provider,
-                api_key=self.api_key,
-                version=self.api_version,
-                azure_deployment=self.azure_deployment,
+                api_key=str(self.api_key),
+                version=str(self.api_version),
+                azure_deployment=str(self.azure_deployment),
                 azure_ad_token=self.azure_ad_token,
                 organization=self.organization,
                 max_retries=self.max_retries,

@@ -11,7 +11,7 @@ poetry config virtualenvs.in-project true --local
 poetry install
 [[ -d .venv ]] || fail "Did not get .venv directory after install"
 
-tomls=$(find . -name pyproject.toml)
+tomls=$(find . ! -path "**/site-packages/**/*" -name pyproject.toml)
 for i in ${tomls}; do
     dest="$(dirname $i)"
     [[ "$dest" == "." ]] && continue
@@ -26,7 +26,7 @@ for i in ${tomls}; do
         echo "--------------------- processing in $i"
         cd $(dirname "$i")
         poetry lock --no-update || return 1
-        poetry install |& tee /tmp/poetry-install.out || return 1
+        poetry install 2>&1 | tee /tmp/poetry-install.out || return 1
         perl -ne 'print qq{$1 = "$2"\n} if /Downgrading (\S+) \((\S+) ->/o;' </tmp/poetry-install.out
     )
 done

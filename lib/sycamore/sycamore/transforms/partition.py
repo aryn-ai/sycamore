@@ -459,7 +459,6 @@ class SycamorePartitioner(Partitioner):
                 extract_table_structure=self._extract_table_structure,
                 table_structure_extractor=self._table_structure_extractor,
                 extract_images=self._extract_images,
-                device=self._device,
                 model_server_endpoint=self._model_server_endpoint,
                 batch_size=self._batch_size,
             )

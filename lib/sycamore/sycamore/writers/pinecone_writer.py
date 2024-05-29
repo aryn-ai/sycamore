@@ -155,8 +155,21 @@ class PineconeDatasink(Datasink):
             values = data.pop("embedding", None)
             if values is None:
                 return None
+            sparse_vector = None
+            tf_table = data.get("properties", {}).pop("term_frequency", None)
+            if tf_table:
+                sparse_indices = list(tf_table.keys())
+                if not all(isinstance(index, int) for index in sparse_indices):
+                    raise ValueError(
+                        "Found non-integer terms in term frequency table. "
+                        "Please use `docset.term_frequency(tokenizer, with_token_ids=True)` for pinecone hybrid search"
+                    )
+                sparse_values = [float(v) for v in tf_table.values()]
+                sparse_vector = {"indices": sparse_indices, "values": sparse_values}
             metadata = _flatten_metadata(_metadata_special_cases(data))
             vector_dict = {"id": id, "values": values, "metadata": dict(metadata)}
+            if sparse_vector:
+                vector_dict["sparse_values"] = sparse_vector
             return VectorFactoryGRPC.build(vector_dict)
 
         records = BlockAccessor.for_block(block).to_arrow().to_pylist()

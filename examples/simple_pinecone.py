@@ -39,12 +39,18 @@ ds = (
     .split_elements(tokenizer=tokenizer, max_tokens=512)
 )
 
-ds = ds.explode().embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100)).sketch(window=17)
+ds = (
+    ds.explode()
+    .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
+    .term_frequency(tokenizer=tokenizer, with_token_ids=True)
+    .sketch(window=17)
+)
+
 ds.write.pinecone(
     api_key=os.environ["PINECONE_API_KEY"],
     index_name="mytestingindex",
     index_spec=pinecone.ServerlessSpec(cloud="aws", region="us-east-1"),
-    namespace="2",
+    namespace="sparse",
     dimensions=384,
     distance_metric="cosine",
 )

@@ -14,7 +14,6 @@ from sycamore.plan_nodes import Node
 from sycamore.transforms.base import CompositeTransform
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.map import Map
-from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
 from sycamore.utils.time_trace import timetrace
 
 
@@ -391,7 +390,7 @@ class SycamorePartitioner(Partitioner):
         ocr_images=False,
         ocr_tables=False,
         extract_table_structure=False,
-        table_structure_extractor=DEFAULT_TABLE_STRUCTURE_EXTRACTOR,
+        table_structure_extractor=None,
         extract_images=False,
         device=None,
         model_server_endpoint=None,
@@ -460,6 +459,7 @@ class SycamorePartitioner(Partitioner):
                 extract_table_structure=self._extract_table_structure,
                 table_structure_extractor=self._table_structure_extractor,
                 extract_images=self._extract_images,
+                device=self._device,
                 model_server_endpoint=self._model_server_endpoint,
                 batch_size=self._batch_size,
             )

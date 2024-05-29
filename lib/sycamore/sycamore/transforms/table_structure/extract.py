@@ -12,6 +12,7 @@ from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.transforms.table_structure import table_transformers
 from sycamore.transforms.table_structure.table_transformers import MaxResize
+from sycamore.utils.time_trace import timetrace
 
 
 class TableStructureExtractor:
@@ -72,7 +73,7 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
 
     DEFAULT_TTAR_MODEL = "microsoft/table-structure-recognition-v1.1-all"
 
-    def __init__(self, model: str = DEFAULT_TTAR_MODEL):
+    def __init__(self, model: str = DEFAULT_TTAR_MODEL, device=None):
         """
         Creates a TableTransformerStructureExtractor
 
@@ -81,7 +82,16 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         """
 
         self.model = model
+        self.device = device
         self.structure_model = None
+
+    def _get_device(self) -> str:
+        if self.device:
+            return self.device
+        elif torch.cuda.is_available():
+            return "cuda"
+        else:
+            return "cpu"
 
     # Convert tokens (text) into the format expected by the TableTransformer
     # postprocessing code.
@@ -95,6 +105,7 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
             t["block_num"] = 0
         return tokens
 
+    @timetrace("tblExtr")
     def extract(self, element: TableElement, doc_image: Image.Image) -> TableElement:
         """Extracts the table structure from the specified element using a TableTransformer model.
 
@@ -114,7 +125,7 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         width, height = doc_image.size
 
         if self.structure_model is None:
-            self.structure_model = TableTransformerForObjectDetection.from_pretrained(self.model)
+            self.structure_model = TableTransformerForObjectDetection.from_pretrained(self.model).to(self._get_device())
         assert self.structure_model is not None  # For typechecking
 
         # Crop the image to encompass just the table + some padding.
@@ -140,7 +151,7 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         )
 
         # Run inference using the model and convert the output to raw "objects" containing bounding boxes and types.
-        pixel_values = structure_transform(cropped_image).unsqueeze(0)
+        pixel_values = structure_transform(cropped_image).unsqueeze(0).to(self._get_device())
 
         with torch.no_grad():
             outputs = self.structure_model(pixel_values)
@@ -169,7 +180,7 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         return element
 
 
-DEFAULT_TABLE_STRUCTURE_EXTRACTOR = TableTransformerStructureExtractor()
+DEFAULT_TABLE_STRUCTURE_EXTRACTOR = TableTransformerStructureExtractor
 
 
 class ExtractTableStructure(Map):

@@ -47,10 +47,8 @@ ds = (
 )
 
 ds.write.pinecone(
-    api_key=os.environ["PINECONE_API_KEY"],
-    index_name="mytestingindex",
+    index_name="mynewtestingindex",
     index_spec=pinecone.ServerlessSpec(cloud="aws", region="us-east-1"),
-    namespace="sparse",
     dimensions=384,
-    distance_metric="cosine",
+    distance_metric="dotproduct",
 )

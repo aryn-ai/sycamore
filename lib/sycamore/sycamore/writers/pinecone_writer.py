@@ -105,7 +105,6 @@ class PineconeDatasink(Datasink):
 
     @staticmethod
     def _extract_pinecone_objects(block: Block) -> Iterable[Vector]:
-
         def _flatten_metadata(data: Union[dict, list, tuple], prefix="") -> Iterable[Tuple[Any, Any]]:
             iterator = []  # type: ignore
             if isinstance(data, dict):

@@ -172,10 +172,69 @@ class DocSetWriter:
         wv = WeaviateWriter(self.plan, collection_name, wv_client_args, collection_config, **resource_args)
         wv.execute()
 
-    def pinecone(self, *, index_name, index_spec, namespace, dimensions, distance_metric, **resource_args):
+    def pinecone(
+        self,
+        *,
+        index_name,
+        index_spec=None,
+        namespace="",
+        dimensions=None,
+        distance_metric="cosine",
+        api_key=None,
+        **resource_args,
+    ):
+        """Writes the content of the DocSet into a Pinecone vector index.
+
+        Args:
+            index_name: Name of the pinecone index to ingest into
+            index_spec: Cloud parameters needed by pinecone to create your index. See
+                    https://docs.pinecone.io/guides/indexes/create-an-index
+                    Defaults to None, which assumes the index already exists, and
+                    will not modify an existing index if provided
+            namespace: Namespace withing the pinecone index to ingest into. See
+                    https://docs.pinecone.io/guides/indexes/use-namespaces
+                    Defaults to "", which is the default namespace
+            dimensions: Dimensionality of dense vectors in your index.
+                    Defaults to None, which assumes the index already exists, and
+                    will not modify an existing index if provided.
+            distance_metric: Distance metric used for nearest-neighbor search in your index.
+                    Defaults to "cosine", but will not modify an already-existing index
+            api_key: Pinecone service API Key. Defaults to None (will use the environment
+                    variable PINECONE_API_KEY).
+            resource_args: Arguments to pass to the underlying execution engine
+
+        Example:
+            The following shows how to read a pdf dataset into a ``DocSet`` and write it out
+            to a pinecone index called "mytestingindex"
+
+            .. code-block:: python
+
+                model_name = "sentence-transformers/all-MiniLM-L6-v2"
+                tokenizer = HuggingFaceTokenizer(model_name)
+                ctx = sycamore.init()
+                ds = (
+                    ctx.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=SycamorePartitioner(extract_table_structure=True, extract_images=True))
+                    .explode()
+                    .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
+                    .term_frequency(tokenizer=tokenizer, with_token_ids=True)
+                    .sketch(window=17)
+                )
+
+                ds.write.pinecone(
+                    index_name="mytestingindex",
+                    index_spec=pinecone.ServerlessSpec(cloud="aws", region="us-east-1"),
+                    namespace="",
+                    dimensions=384,
+                    distance_metric="dotproduct",
+                )
+
+        """
         from sycamore.writers import PineconeWriter
 
-        pc = PineconeWriter(self.plan, index_name, index_spec, namespace, dimensions, distance_metric, **resource_args)
+        pc = PineconeWriter(
+            self.plan, index_name, index_spec, namespace, dimensions, distance_metric, api_key, **resource_args
+        )
         pc.execute()
 
     def files(

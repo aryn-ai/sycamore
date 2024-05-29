@@ -1,6 +1,10 @@
 from sycamore.data import Element
-from sycamore.transforms.detr_partitioner import SycamorePDFPartitioner
+from sycamore.transforms.detr_partitioner import SycamorePDFPartitioner, DeformableDetr
 from sycamore.data import BoundingBox
+
+from PIL import Image
+import json
+from sycamore.tests.config import TEST_DIR
 
 
 class TestSycamorePDFPartitioner:
@@ -37,3 +41,12 @@ class TestSycamorePDFPartitioner:
         assert result[1].text_representation == "你好，世界"
         assert result[2].text_representation == "Hola Mundo"
         assert result[3].text_representation == "Ciao mondo"
+
+    def test_infer(self):
+        with Image.open(TEST_DIR / "resources/data/imgs/sample-detr-image.png") as image:
+            d = DeformableDetr("Aryn/deformable-detr-DocLayNet")
+            results = d.infer((image,), 0.7)
+
+            for result in results:
+                for element in result:
+                    json.dumps(element.properties)

@@ -242,9 +242,9 @@ class DeformableDetr(SycamoreObjectDetection):
                     )[0]
                 )
             for result in results:
-                result["scores"] = result["scores"].cpu().detach().numpy()
-                result["labels"] = result["labels"].cpu().detach().numpy()
-                result["boxes"] = result["boxes"].cpu().detach().numpy()
+                result["scores"] = result["scores"].tolist()
+                result["labels"] = result["labels"].tolist()
+                result["boxes"] = result["boxes"].tolist()
         batched_results = []
         for result, image in zip(results, images):
             (w, h) = image.size

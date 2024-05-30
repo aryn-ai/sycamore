@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { ActionIcon, Anchor, AppShell, Box, Button, Center, Container, Divider, Flex, Group, Header, Loader, Popover, SimpleGrid, Stack, Text, useMantineTheme } from '@mantine/core';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
@@ -63,9 +63,10 @@ export default function PdfViewer() {
     const [boxes, setBoxes] = useState<any>()
     const [loading, setLoading] = useState(true)
     const [infoOpened, setInfoOpened] = useState(false);
-
     const theme = useMantineTheme();
     const [scale, setScale] = useState(1.5); 
+    const initialized = useRef(false);
+
 
   
     useEffect(() => {
@@ -116,7 +117,10 @@ export default function PdfViewer() {
             console.log("pdfDocumentMetadata is ", pdfDocumentMetadata)
             setLoading(false)
         }
-        loadPdf();
+        if (!initialized.current) {
+            initialized.current = true
+            loadPdf();
+        }
     }, []);
 
     function onDocumentLoadSuccess({ numPages }: { numPages: number }): void {
@@ -207,7 +211,7 @@ export default function PdfViewer() {
                 main: { padding: 0, paddingTop: 50, backgroundColor: 'lightgray' },
               })}
             >
-                <>
+                
                 
                 {loading ?
                         <Flex justify='center' align='center' h="100%">
@@ -216,7 +220,7 @@ export default function PdfViewer() {
                         
 
                         :
-                    
+                        <>
                         <Document file={url} onLoadSuccess={onDocumentLoadSuccess} className="document">
                             <Page pageNumber={pageNumber} scale={scale}  className="page">
                                 {boxes ? boxes[pageNumber] && boxes[pageNumber].map((box: any, index: number) => (
@@ -233,7 +237,7 @@ export default function PdfViewer() {
                                 )) : ""}
                             </Page>
                         </Document>
-                }
+               
                 <Stack pos="fixed" bottom="3rem" right="1.5rem" spacing={2} style={{ borderRadius: 5, zIndex: 100}} >
                     <ActionIcon onClick={handleZoomIn} sx={(theme) => ({
                         border: "1px solid darkgray",
@@ -251,6 +255,7 @@ export default function PdfViewer() {
                     </ActionIcon>
                 </Stack>
                 </>
+                 }
         </AppShell >
     );
 

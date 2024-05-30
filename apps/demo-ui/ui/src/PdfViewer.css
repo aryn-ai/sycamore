@@ -5,8 +5,5 @@
 }
 
 .page {
-  /* Target the Page component within the Document */
-  width: min-content !important; /* Set width to 100% to fill the container */
+  width: min-content !important;
 }
-
-

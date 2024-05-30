@@ -603,6 +603,27 @@ class DocSet:
         plan = Sketcher(self.plan, window=window, number=number, **kwargs)
         return DocSet(self.context, plan)
 
+    def term_frequency(self, tokenizer: Tokenizer, with_token_ids: bool = False, **kwargs) -> "DocSet":
+        """
+        For each document, compute a frequency table over the text representation, as
+        tokenized by `tokenizer`. Use to enable hybrid search in Pinecone
+
+        Example:
+            .. code-block:: python
+
+                tk = OpenAITokenizer("gpt-3.5-turbo")
+                context = sycamore.init()
+                context.read.binary(paths, binary_format="pdf")
+                    .partition(SycamorePartitioner())
+                    .explode()
+                    .term_frequency(tokenizer=tk)
+                    .show()
+        """
+        from sycamore.transforms import TermFrequency
+
+        plan = TermFrequency(self.plan, tokenizer=tokenizer, with_token_ids=with_token_ids, **kwargs)
+        return DocSet(self.context, plan)
+
     def transform(self, cls: Type[Transform], **kwargs) -> "DocSet":
         """
         Add specified transform class to pipeline.  See the API

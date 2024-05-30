@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 
 root="$(pwd)"
 fail() {
@@ -11,14 +11,15 @@ poetry config virtualenvs.in-project true --local
 poetry install
 [[ -d .venv ]] || fail "Did not get .venv directory after install"
 
-for i in **/pyproject.toml; do
+tomls=$(find . -name pyproject.toml)
+for i in ${tomls}; do
     dest="$(dirname $i)"
     [[ "$dest" == "." ]] && continue
     ln -snf "$(pwd)"/.venv "$dest"/.venv
     [[ -L "$dest"/.venv ]] || fail "$dest/.venv isn't symlink"
 done
 
-for i in **/pyproject.toml; do
+for i in ${tomls}; do
     # Demo UI needs 0.28, rest of sycamore needs 1.x
     [[ $i = *openai-proxy* ]] && continue
     (

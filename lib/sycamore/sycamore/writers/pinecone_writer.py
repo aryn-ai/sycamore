@@ -110,6 +110,7 @@ class PineconeDatasink(Datasink):
 
     @staticmethod
     def _extract_pinecone_objects(block: Block) -> Iterable[Vector]:
+        # TODO: https://arynai-my.sharepoint.com/:w:/g/personal/henry_aryn_ai/EXAzugsI3MZNt1d4AjP3k_ABTHW9NYG0wkA_8ifuGhxOJA?e=DQBjEB
         def _add_key_to_prefix(prefix, key):
             if len(prefix) == 0:
                 return str(key)
@@ -137,19 +138,12 @@ class PineconeDatasink(Datasink):
                     items.append((_add_key_to_prefix(prefix, k), v))
             return items
 
-        def _record_to_object(record):
-            doc = Document.from_row(record)
-            data = doc.data
-            id = doc.doc_id
-            # Use id prefixing
-            parent_id = doc.parent_id
-            if parent_id:
-                id = f"{parent_id}#{id}"
+        def _extract_metadata(doc):
             # Extract out specific metadata fields
             metadata = {
-                "properties": data.get("properties", {}),
-                "type": data.get("type", ""),
-                "text_representation": data.get("text_representation", ""),
+                "properties": doc.properties,
+                "type": doc.type or "",
+                "text_representation": doc.text_representation or "",
             }
             # represent bbox with coord names
             bbox = doc.bbox
@@ -164,6 +158,16 @@ class PineconeDatasink(Datasink):
             shingles = doc.shingles
             if shingles:
                 metadata["shingles"] = [str(s) for s in shingles]
+            return metadata
+
+        def _record_to_object(record):
+            doc = Document.from_row(record)
+            id = doc.doc_id
+            # Use id prefixing
+            parent_id = doc.parent_id
+            if parent_id:
+                id = f"{parent_id}#{id}"
+            metadata = _extract_metadata(doc)
             # Get embedding (values in pinecone verbiage)
             # If there is no embedding this doc cannot be indexed.
             values = doc.embedding

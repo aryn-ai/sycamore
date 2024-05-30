@@ -9,9 +9,6 @@
 import sys
 import pyarrow.fs
 
-# ruff: noqa: E402
-sys.path.append("../sycamore")
-
 from ray.data import ActorPoolStrategy
 
 import sycamore
@@ -45,7 +42,7 @@ ds = (
     .split_elements(tokenizer=tokenizer, max_tokens=512)
     .explode()
     .sketch()
-    .embed(embedder=SentenceTransformerEmbedder(model_name="sentence-transformers/all-MiniLM-L6-v2", batch_size=100))
+    .embed(embedder=SentenceTransformerEmbedder(model_name="thenlper/gte-small", batch_size=100))
 )
 
 ds.write.opensearch(

@@ -181,7 +181,6 @@ class DocSetWriter:
         dimensions=None,
         distance_metric="cosine",
         api_key=None,
-        include_binary_in_metadata=False,
         **resource_args,
     ):
         """Writes the content of the DocSet into a Pinecone vector index.
@@ -202,9 +201,6 @@ class DocSetWriter:
                     Defaults to "cosine", but will not modify an already-existing index
             api_key: Pinecone service API Key. Defaults to None (will use the environment
                     variable PINECONE_API_KEY).
-            include_binary_in_metadata: Whether to write the binary representation of
-                    each document (as a base64 encoded string) into the metadata stored
-                    in pinecone. Defaults to False.
             resource_args: Arguments to pass to the underlying execution engine
 
         Example:
@@ -244,7 +240,6 @@ class DocSetWriter:
             dimensions,
             distance_metric,
             api_key,
-            include_binary_in_metadata,
             **resource_args,
         )
         pc.execute()

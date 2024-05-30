@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from enum import Enum
 import logging
 import os
-from typing import Any, Optional, Union
+from typing import Any, Optional, TypedDict, Union, cast
 
 from guidance.models import Model
 from guidance.models import OpenAI as GuidanceOpenAI
@@ -158,21 +158,42 @@ class OpenAIClientWrapper:
             else:
                 cls = AzureOpenAICompletion
 
-            # These random str's are also to appease mypy, since those params might be
-            # None in the OPENAI case, where this code is unreachable but mypy doesn't
-            # know this.
-            return cls(
-                model=model.name,
-                azure_endpoint=str(self.azure_endpoint),
-                azure_ad_token_provider=self.azure_ad_token_provider,
-                api_key=str(self.api_key),
-                version=str(self.api_version),
-                azure_deployment=str(self.azure_deployment),
-                azure_ad_token=self.azure_ad_token,
-                organization=self.organization,
-                max_retries=self.max_retries,
-                **self.extra_kwargs,
-            )
+            # Shenanigans to defeat typechecking. AzureOpenAI
+            # has params of type str that default to None, so
+            # we create a typed dict and use it as a variadic
+            # argument.
+            class AzureOpenAIParams(TypedDict, total=False):
+                model: str
+                azure_endpoint: str
+                azure_deployment: str
+                azure_ad_token_provider: Optional[AzureADTokenProvider]
+                api_key: str
+                version: str
+                azure_ad_token: Optional[str]
+                organization: Optional[str]
+                max_retries: int
+
+            # azure_endpoint and api_key are not None if we're
+            # in this branch, so we can safely cast strings to
+            # strings. mypy thing.
+            params: AzureOpenAIParams = {
+                "model": model.name,
+                "azure_endpoint": str(self.azure_endpoint),
+                "azure_ad_token_provider": self.azure_ad_token_provider,
+                "api_key": str(self.api_key),
+                "azure_ad_token": self.azure_ad_token,
+                "organization": self.organization,
+                "max_retries": self.max_retries,
+            }
+            # Add these guys in if not None. The defaults are
+            # None, but only strings are allowed as params.
+            if self.api_version:
+                params["version"] = self.api_version
+            if self.azure_deployment:
+                params["azure_deployment"] = self.azure_deployment
+            # Tack on any extra args. need to do this untyped-ly
+            cast(dict, params).update(self.extra_kwargs)
+            return cls(**params)
 
         else:
             raise ValueError(f"Invalid client_type {self.client_type}")

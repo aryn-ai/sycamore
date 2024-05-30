@@ -1,6 +1,5 @@
 from typing import Iterable, Any, Optional, Union, Tuple
 import itertools
-from base64 import b64encode
 import os
 
 from pinecone import PodSpec, ServerlessSpec
@@ -24,7 +23,6 @@ class PineconeWriter(Write):
         dimensions: Optional[int] = None,
         distance_metric: str = "cosine",
         api_key: Optional[str] = None,
-        include_binary_in_metadata: bool = False,
         **ray_remote_args,
     ):
         super().__init__(plan, **ray_remote_args)
@@ -34,7 +32,6 @@ class PineconeWriter(Write):
         self._namespace = namespace
         self._dimensions = dimensions
         self._distance_metric = distance_metric
-        self._include_binary = include_binary_in_metadata
 
     def execute(self) -> Dataset:
         dataset = self.child().execute()
@@ -45,7 +42,6 @@ class PineconeWriter(Write):
             self._dimensions,
             self._distance_metric,
             self._api_key,
-            self._include_binary,
         )
         dataset.write_datasink(datasink=datasink, ray_remote_args=self.resource_args)
         return dataset
@@ -60,7 +56,6 @@ class PineconeDatasink(Datasink):
         dimensions: Optional[int],
         distance_metric: str,
         api_key: str,
-        include_binary_in_metadata: bool,
         batch_size: int = 100,
     ):
         self._index_name = index_name
@@ -70,7 +65,6 @@ class PineconeDatasink(Datasink):
         self._distance_metric = distance_metric
         self._batch_size = batch_size
         self._api_key = api_key
-        self._include_binary = include_binary_in_metadata
 
     def on_write_start(self) -> None:
         from pinecone import Pinecone
@@ -111,18 +105,20 @@ class PineconeDatasink(Datasink):
             async_results.append(index.upsert(vectors=batch, namespace=self._namespace, async_req=True))
             batch = list(itertools.islice(obj_it, self._batch_size))
         for r in async_results:
+            # Force async completion. Any errors are here.
             r.result()
 
-    def _extract_pinecone_objects(self, block: Block) -> Iterable[Vector]:
-        def _add_key_to_prefix(key, prefix=""):
+    @staticmethod
+    def _extract_pinecone_objects(block: Block) -> Iterable[Vector]:
+        def _add_key_to_prefix(prefix, key):
             if len(prefix) == 0:
                 return str(key)
             else:
                 return f"{prefix}.{key}"
 
         def _flatten_metadata(data: Union[dict, list, tuple], prefix="") -> Iterable[Tuple[Any, Any]]:
-            # Pinecone requires metadata to be flat (no nested objects)
-            # so here's a traversal
+            # Pinecone requires metadata to be flat (no nested objects) or a
+            # list of strings so here's a traversal
             iterator = []  # type: ignore
             if isinstance(data, dict):
                 iterator = data.items()  # type: ignore
@@ -133,61 +129,49 @@ class PineconeDatasink(Datasink):
                 if isinstance(v, (dict, list, tuple)):
                     if isinstance(v, (list, tuple)) and all(isinstance(innerv, str) for innerv in v):
                         # Lists of strings are allowed
-                        items.append((_add_key_to_prefix(k, prefix), v))
+                        items.append((_add_key_to_prefix(prefix, k), v))
                     else:
-                        inner_values = _flatten_metadata(v, prefix=(_add_key_to_prefix(k, prefix)))
+                        inner_values = _flatten_metadata(v, prefix=(_add_key_to_prefix(prefix, k)))
                         items.extend([(innerk, innerv) for innerk, innerv in inner_values])
                 elif v is not None:
-                    items.append((_add_key_to_prefix(k, prefix), v))
+                    items.append((_add_key_to_prefix(prefix, k), v))
             return items
-
-        def _metadata_special_cases(data: dict) -> dict:
-            # Bytes are not allowed as pinecone metadata so we
-            # use a base64 encoded string
-            binary = data.pop("binary_representation", None)
-            if binary and self._include_binary:
-                b64binary = b64encode(binary)
-                strbinary = b64binary.decode("UTF-8")
-                data["binary_representation"] = strbinary
-            # We store shingles as a list of strings bc this is
-            # the only list type supported by pinecone metadata
-            # and it is sufficient for the purposes of NDD
-            shingles = data.get("shingles", None)
-            if shingles:
-                strshingles = [str(s) for s in shingles]
-                data["shingles"] = strshingles
-            # We store bboxes as named coordinates rather than
-            # just bbox.0, bbox.1, etc. Makes it cleaner
-            bbox = data.get("bbox", None)
-            if bbox:
-                bbox_as_dict = {
-                    "x1": bbox[0],
-                    "y1": bbox[1],
-                    "x2": bbox[2],
-                    "y2": bbox[3],
-                }
-                data["bbox"] = bbox_as_dict
-            # The rich Table class is obv out of bounds, so we
-            # store it as csv.
-            table = data.pop("table", None)
-            if table:
-                data["table"] = table.to_csv()
-            return data
 
         def _record_to_object(record):
             doc = Document.from_row(record)
             data = doc.data
-            # Pull out pinecone top-level properties and leave
-            # the rest as metadata
-            id = data.pop("doc_id")
-            parent_id = data.pop("parent_id", None)
+            id = doc.doc_id
+            # Use id prefixing
+            parent_id = doc.parent_id
             if parent_id:
                 id = f"{parent_id}#{id}"
-            values = data.pop("embedding", None)
+            # Extract out specific metadata fields
+            metadata = {
+                "properties": data.get("properties", {}),
+                "type": data.get("type", ""),
+                "text_representation": data.get("text_representation", ""),
+            }
+            # represent bbox with coord names
+            bbox = doc.bbox
+            if bbox:
+                metadata["bbox"] = {
+                    "x1": bbox.x1,
+                    "y1": bbox.y1,
+                    "x2": bbox.x2,
+                    "y2": bbox.y2,
+                }
+            # represent shingles as list of str
+            shingles = doc.shingles
+            if shingles:
+                metadata["shingles"] = [str(s) for s in shingles]
+            # Get embedding (values in pinecone verbiage)
+            # If there is no embedding this doc cannot be indexed.
+            values = doc.embedding
             if values is None:
                 return None
+            # Create sparse vector representation from TF table if it exists
             sparse_vector = None
-            tf_table = data.get("properties", {}).pop("term_frequency", None)
+            tf_table = metadata.get("properties", {}).pop("term_frequency", None)
             if tf_table:
                 sparse_indices = list(tf_table.keys())
                 if not all(isinstance(index, int) for index in sparse_indices):
@@ -197,7 +181,8 @@ class PineconeDatasink(Datasink):
                     )
                 sparse_values = [float(v) for v in tf_table.values()]
                 sparse_vector = {"indices": sparse_indices, "values": sparse_values}
-            metadata = _flatten_metadata(_metadata_special_cases(data))
+            # Flatten metadata and put it all together
+            metadata = _flatten_metadata(metadata)
             vector_dict = {"id": id, "values": values, "metadata": dict(metadata)}
             if sparse_vector:
                 vector_dict["sparse_values"] = sparse_vector

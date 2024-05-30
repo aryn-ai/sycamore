@@ -37,10 +37,7 @@ ds = (
     .merge(merger=MarkedMerger())
     .spread_properties(["path", "title"])
     .split_elements(tokenizer=tokenizer, max_tokens=512)
-)
-
-ds = (
-    ds.explode()
+    .explode()
     .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
     .term_frequency(tokenizer=tokenizer, with_token_ids=True)
     .sketch(window=17)

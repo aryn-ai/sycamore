@@ -3,11 +3,11 @@ import { ChatBox, thumbToBool } from './Chatbox'
 import { ControlPanel } from './Controlpanel'
 import { ConversationListNavbar, setActiveConversation } from './ConversationList'
 import { DocList } from './Doclist'
-import { AppShell, Burger, Container, Footer, Grid, Group, Header, Image, MantineProvider, MediaQuery, Notification, Stack, Text, useMantineTheme } from '@mantine/core';
+import { Alert, AppShell, Burger, Container, Dialog, Footer, Grid, Group, Header, Image, MantineProvider, MediaQuery, Notification, Stack, Text, useMantineTheme } from '@mantine/core';
 import { SearchResultDocument, Settings, SystemChat, UserChat } from './Types';
-import { IconX } from '@tabler/icons-react';
+import { IconAlertCircle, IconX } from '@tabler/icons-react';
 import { getConversations, getFeedback, getInteractions } from './OpenSearch';
-import { useMediaQuery } from '@mantine/hooks';
+import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 
 
 export default function App() {
@@ -24,7 +24,16 @@ export default function App() {
   const chatInputRef = useRef<HTMLInputElement | null>(null);
   const theme = useMantineTheme();
   const mobileScreen = useMediaQuery(`(max-width: ${theme.breakpoints.sm})`);
+  const [errorDialogMessage, setErrorDialogMessage] = useState('');
+  const [errorDialogOpened, errorDialogHandler] = useDisclosure(false);
 
+  const openErrorDialog = (message: string, timeout: number = 3000) => {
+    setErrorDialogMessage(message);
+    errorDialogHandler.open();
+    setTimeout(() => {
+        errorDialogHandler.close();
+    }, 3000)
+}
 
   const reset = () => {
     setStreaming(false);
@@ -43,60 +52,72 @@ export default function App() {
   }
   const loadActiveConversation = () => {
     const populateConversationMessages = async () => {
-      setLoadingConversation(true)
-      setStreaming(true)
-      console.log("Loading convos")
-      const interactionsResponse = await getInteractions(settings.activeConversation)
-      var previousInteractions = new Array<SystemChat>()
-      let interactionsData = await interactionsResponse;
-      if ("hits" in interactionsData) {
-        interactionsData = interactionsData.hits.hits
-      } else {
-        interactionsData = interactionsData.interactions
+      try {
+        setLoadingConversation(true)
+        setStreaming(true)
+        console.log("Loading convos")
+        const interactionsResponse = await getInteractions(settings.activeConversation)
+        var previousInteractions = new Array<SystemChat>()
+        let interactionsData = await interactionsResponse;
+        if ("hits" in interactionsData) {
+          interactionsData = interactionsData.hits.hits
+        } else {
+          interactionsData = interactionsData.interactions
+        }
+        console.info("interactionsData: ", interactionsData)
+        const previousInteractionsUnFlattened = await Promise.all(interactionsData.map(async (interaction_raw: any) => {
+          const interaction = interaction_raw._source ?? interaction_raw
+          const interaction_id = interaction_raw._id ?? interaction_raw.interaction_id
+          const feedback = await getFeedback(interaction_id)
+          const systemChat = new SystemChat(
+            {
+              id: interaction_id + "_response",
+              response: interaction.response,
+              interaction_id: interaction_id,
+              modelName: null,
+              queryUsed: interaction.input,
+              feedback: feedback.found ? thumbToBool(feedback._source.thumb) : null,
+              comment: feedback.found ? feedback._source.comment : ""
+            });
+          return systemChat;
+        }));
+        previousInteractionsUnFlattened.forEach((chat) => {
+          previousInteractions = [chat, ...previousInteractions]
+        })
+        console.log("Setting previous interactions", previousInteractions)
+        setChatHistory(previousInteractions)
+        setLoadingConversation(false)
+        setStreaming(false)
       }
-      console.info("interactionsData: ", interactionsData)
-      const previousInteractionsUnFlattened = await Promise.all(interactionsData.map(async (interaction_raw: any) => {
-        const interaction = interaction_raw._source ?? interaction_raw
-        const interaction_id = interaction_raw._id ?? interaction_raw.interaction_id
-        const feedback = await getFeedback(interaction_id)
-        const systemChat = new SystemChat(
-          {
-            id: interaction_id + "_response",
-            response: interaction.response,
-            interaction_id: interaction_id,
-            modelName: null,
-            queryUsed: interaction.input,
-            feedback: feedback.found ? thumbToBool(feedback._source.thumb) : null,
-            comment: feedback.found ? feedback._source.comment : ""
-          });
-        return systemChat;
-      }));
-      previousInteractionsUnFlattened.forEach((chat) => {
-        previousInteractions = [chat, ...previousInteractions]
-      })
-      console.log("Setting previous interactions", previousInteractions)
-      setChatHistory(previousInteractions)
-      setLoadingConversation(false)
-      setStreaming(false)
+      catch(error: any) {
+        openErrorDialog("Error loading messages: " + error.message);
+        console.error("Error loading messages: " + error.message);
+      }
     }
     populateConversationMessages();
   }
 
   async function refreshConversations() {
-    let result: any = []
-    const getConversationsResult = await getConversations();
-    let retrievedConversations: { conversations: any } = { conversations: null };
-    if ("conversations" in getConversationsResult) {
-      retrievedConversations.conversations = getConversationsResult.conversations;
-    } else {
-      retrievedConversations.conversations = getConversationsResult.memories;
+    try {
+      let result: any = []
+      const getConversationsResult = await getConversations();
+      let retrievedConversations: { conversations: any } = { conversations: null };
+      if ("conversations" in getConversationsResult) {
+        retrievedConversations.conversations = getConversationsResult.conversations;
+      } else {
+        retrievedConversations.conversations = getConversationsResult.memories;
+      }
+      retrievedConversations.conversations.forEach((conversation: any) => {
+        result = [{ id: (conversation.conversation_id ?? conversation.memory_id), name: conversation.name, created_at: conversation.create_time }, ...result]
+      });
+      setConversations(result)
+      if (result.length > 0 && settings.activeConversation == "") {
+        setActiveConversation(result[0].id, settings, setSettings, loadActiveConversation);
+      }
     }
-    retrievedConversations.conversations.forEach((conversation: any) => {
-      result = [{ id: (conversation.conversation_id ?? conversation.memory_id), name: conversation.name, created_at: conversation.create_time }, ...result]
-    });
-    setConversations(result)
-    if (result.length > 0 && settings.activeConversation == "") {
-      setActiveConversation(result[0].id, settings, setSettings, loadActiveConversation);
+    catch(error: any) {
+      openErrorDialog("Error fetching conversation: " + error.message);
+      console.error("Error fetching conversation: " + error.message);
     }
   }
 
@@ -146,16 +167,21 @@ export default function App() {
         }
         navbarOffsetBreakpoint="sm"
         navbar={
-          <ConversationListNavbar navBarOpened={navBarOpened} settings={settings} setSettings={setSettings} setErrorMessage={setErrorMessage} loadingConversation={loadingConversation} loadActiveConversation={loadActiveConversation} conversations={conversations} setConversations={setConversations} refreshConversations={refreshConversations} setChatHistory={setChatHistory} chatInputRef={chatInputRef} setNavBarOpened={setNavBarOpened}></ConversationListNavbar>
+          <ConversationListNavbar navBarOpened={navBarOpened} settings={settings} setSettings={setSettings} setErrorMessage={setErrorMessage} loadingConversation={loadingConversation} loadActiveConversation={loadActiveConversation} conversations={conversations} setConversations={setConversations} refreshConversations={refreshConversations} setChatHistory={setChatHistory} chatInputRef={chatInputRef} setNavBarOpened={setNavBarOpened} openErrorDialog={openErrorDialog}></ConversationListNavbar>
         }
         styles={() => ({
-          main: { backgroundColor: "white" },
+          main: { backgroundColor: "white", paddingBottom: 0 },
         })}
       >
+        <Dialog opened={errorDialogOpened} size="lg" radius="md" position={{ right: 10, top: 10 }} transition="slide-left" transitionDuration={300} transitionTimingFunction="ease" p='none'>
+            <Alert icon={<IconAlertCircle size="1rem" />} title="Error" color="red" withCloseButton onClose={errorDialogHandler.close}>
+                {errorDialogMessage}
+            </Alert>
+        </Dialog>
         <ChatBox chatHistory={chatHistory} searchResults={searchResults} setChatHistory={setChatHistory}
           setSearchResults={setSearchResults} streaming={streaming} setStreaming={setStreaming} setDocsLoading={setDocsLoading}
           setErrorMessage={setErrorMessage} settings={settings} setSettings={setSettings} refreshConversations={refreshConversations}
-          chatInputRef={chatInputRef} />
+          chatInputRef={chatInputRef} openErrorDialog={openErrorDialog}/>
       </AppShell >
     </MantineProvider >
   );

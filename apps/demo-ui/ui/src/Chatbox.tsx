@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Dispatch, SetStateAction, useRef, useState } from 'react';
-import { ActionIcon, Anchor, Badge, Box, Button, Card, Center, Chip, Container, Flex, Group, HoverCard, Image, JsonInput, Loader, Modal, NativeSelect, ScrollArea, Skeleton, Stack, Text, TextInput, Title, UnstyledButton, createStyles, useMantineTheme } from '@mantine/core';
-import { IconSearch, IconChevronRight, IconLink, IconFileTypeHtml, IconFileTypePdf, IconX, IconEdit, IconPlayerPlayFilled, IconPlus, IconSettings, IconInfoCircle } from '@tabler/icons-react';
+import { ActionIcon, Alert, Anchor, Badge, Box, Button, Card, Center, Chip, Container, Dialog, Flex, Group, HoverCard, Image, JsonInput, Loader, Modal, NativeSelect, ScrollArea, Skeleton, Stack, Switch, Text, TextInput, Title, Tooltip, UnstyledButton, createStyles, useMantineTheme } from '@mantine/core';
+import { IconSearch, IconChevronRight, IconLink, IconFileTypeHtml, IconFileTypePdf, IconX, IconEdit, IconPlayerPlayFilled, IconPlus, IconSettings, IconInfoCircle, IconWriting, IconAlertCircle } from '@tabler/icons-react';
 import { IconThumbUp, IconThumbUpFilled, IconThumbDown, IconThumbDownFilled } from '@tabler/icons-react';
 import { getFilters, rephraseQuestion } from './Llm';
 import { SearchResultDocument, Settings, SystemChat } from './Types';
@@ -27,12 +27,10 @@ const useStyles = createStyles((theme) => ({
         flex: 1,
     },
     settingsIcon: {
-        // left,
-
-        zIndex: 1000
+        zIndex: 1
     },
     chatHistoryContainer: {
-        height: `calc(100vh - 17em)`,
+        height: `calc(100vh - 14.5em)`,
     },
     settingsStack: {
         position: 'absolute',
@@ -90,7 +88,7 @@ const Citation = ({ document, citationNumber }: { document: SearchResultDocument
 }
 const FilterInput = ({ settings, filtersInput, setFiltersInput, filterError, setFilterError }: { settings: Settings, filtersInput: any, setFiltersInput: any, filterError: boolean, setFilterError: any }) => {
     const handleInputChange = (filterName: string, value: string) => {
-        if (filterError) {
+        if(filterError) {
             setFilterError(false);
         }
         setFiltersInput((prevValues: any) => ({
@@ -110,7 +108,7 @@ const FilterInput = ({ settings, filtersInput, setFiltersInput, filterError, set
                             value={filtersInput[required_filter] || ''}
                             autoFocus
                             required
-                            error={filterError}
+                            error={filterError }
                             size="xs"
                             fz="xs"
                             pl="sm"
@@ -124,7 +122,7 @@ const FilterInput = ({ settings, filtersInput, setFiltersInput, filterError, set
 const SearchControlPanel = ({ disableFilters, setDisableFilters, questionRewriting, setQuestionRewriting, queryPlanner, setQueryPlanner, chatHistory, setChatHistory, openSearchQueryEditorOpenedHandlers, settings }:
     { disableFilters: any, setDisableFilters: any, questionRewriting: any, setQuestionRewriting: any, queryPlanner: boolean, setQueryPlanner: any, chatHistory: any, setChatHistory: any, openSearchQueryEditorOpenedHandlers: any, settings: Settings }) => {
     return (
-        <Group position='center'>
+        <Group position='right' w="100%">
             {((settings.required_filters.length > 0) ?
                 <Chip size="xs" checked={!disableFilters} onChange={() => setDisableFilters((v: any) => !v)} variant="light">
                     Filters
@@ -136,12 +134,8 @@ const SearchControlPanel = ({ disableFilters, setDisableFilters, questionRewriti
                         Auto-filters
                     </Chip> : null
             }
-            <Chip key="questionRewriting" size="xs" checked={questionRewriting} onChange={() => setQuestionRewriting(!questionRewriting)} variant="light">
-                Question rewriting
-            </Chip>
-
-            <Button compact onClick={() => openSearchQueryEditorOpenedHandlers.open()} size="xs" fz="xs">
-                New query
+            <Button compact onClick={() => openSearchQueryEditorOpenedHandlers.open()} size="xs" fz="xs" variant="gradient" gradient={{ from: 'blue', to: 'indigo', deg: 90 }}>
+                Run OpenSearch Query
             </Button>
         </Group >
     )
@@ -286,33 +280,33 @@ const OpenSearchQueryEditor = ({ openSearchQueryEditorOpened, openSearchQueryEdi
     }
     return (
         <Modal opened={openSearchQueryEditorOpened} onClose={openSearchQueryEditorOpenedHandlers.close} title="OpenSearch Query Editor" size="calc(80vw - 3rem)">
-            <Text fz="xs" p="sm">Note: If you want a RAG answer, make sure the search pipeline is being used.
-                Ensure it's configured in the URL (search_pipeline=hybrid_rag_pipeline), and also in the query itself (ext.generative_qa_parameters parameters)</Text>
-            <Group position="apart" grow>
-                <TextInput
-                    size="xs"
-                    value={currentOsUrl}
-                    onChange={handleInputChange}
-                    label="OpenSearch url"
-                    placeholder='e.g. /opensearch/myindex/_search?'
-                    p="sm"
-                    withAsterisk
-                />
-                <Button maw="5rem" fz="xs" size="xs" m="md" color="teal" leftIcon={<IconPlayerPlayFilled size="0.6rem" />} onClick={e => handleOsSubmit(e)} >
-                    Run
-                </Button>
-            </Group>
-            <ScrollArea >
-                <JsonInput
-                    value={currentOsQuery}
-                    onChange={newValue => setCurrentOsQuery(newValue)}
-                    validationError="Invalid JSON"
-                    placeholder={"e.g.\n" + JSON.stringify(jsonPlaceholder, null, 4)}
-                    formatOnBlur
-                    autosize
-                    minRows={4}
-                />
-            </ScrollArea>
+                <Text fz="xs" p="sm">Note: If you want a RAG answer, make sure the search pipeline is being used.
+                    Ensure it's configured in the URL (search_pipeline=hybrid_rag_pipeline), and also in the query itself (ext.generative_qa_parameters parameters)</Text>
+                <Group position="apart" grow>
+                    <TextInput
+                        size="xs"
+                        value={currentOsUrl}
+                        onChange={handleInputChange}
+                        label="OpenSearch url"
+                        placeholder='e.g. /opensearch/myindex/_search?'
+                        p="sm"
+                        withAsterisk
+                    />
+                    <Button maw="5rem" fz="xs" size="xs" m="md" color="teal" leftIcon={<IconPlayerPlayFilled size="0.6rem" />} onClick={e => handleOsSubmit(e)} >
+                        Run
+                    </Button>
+                </Group>
+                <ScrollArea >
+                    <JsonInput
+                        value={currentOsQuery}
+                        onChange={newValue => setCurrentOsQuery(newValue)}
+                        validationError="Invalid JSON"
+                        placeholder={"e.g.\n" + JSON.stringify(jsonPlaceholder, null, 4)}
+                        formatOnBlur
+                        autosize
+                        minRows={4}
+                    />
+                </ScrollArea>
         </Modal>
     )
 };
@@ -321,8 +315,8 @@ const OpenSearchQueryEditor = ({ openSearchQueryEditorOpened, openSearchQueryEdi
  * This component manages an interaction effectively. It shows the question/answer/hits, and also supports the edit/resubmit functionality.
  * All context here is lost when switching a conversation or refreshing the page.
  */
-const SystemChatBox = ({ systemChat, chatHistory, settings, handleSubmit, setChatHistory, setSearchResults, setErrorMessage, setLoadingMessage, setCurrentOsQuery, setCurrentOsUrl, openSearchQueryEditorOpenedHandlers, disableFilters, anthropicRag }:
-    { systemChat: SystemChat, chatHistory: any, settings: Settings, handleSubmit: any, setChatHistory: any, setSearchResults: any, setErrorMessage: any, setLoadingMessage: any, setCurrentOsQuery: any, setCurrentOsUrl: any, openSearchQueryEditorOpenedHandlers: any, disableFilters: boolean, anthropicRag: boolean }) => {
+const SystemChatBox = ({ systemChat, chatHistory, settings, handleSubmit, setChatHistory, setSearchResults, setErrorMessage, setLoadingMessage, setCurrentOsQuery, setCurrentOsUrl, openSearchQueryEditorOpenedHandlers, disableFilters, anthropicRagFlag, streamingRagResponse, setStreamingRagResponse, openErrorDialog }:
+    { systemChat: SystemChat, chatHistory: any, settings: Settings, handleSubmit: any, setChatHistory: any, setSearchResults: any, setErrorMessage: any, setLoadingMessage: any, setCurrentOsQuery: any, setCurrentOsUrl: any, openSearchQueryEditorOpenedHandlers: any, disableFilters: boolean, anthropicRagFlag: boolean, streamingRagResponse:any,  setStreamingRagResponse: any, openErrorDialog: any }) => {
     const citationRegex = /\[(\d+)\]/g;
     const theme = useMantineTheme();
     console.log("Filter content is", systemChat.filterContent)
@@ -512,7 +506,7 @@ const SystemChatBox = ({ systemChat, chatHistory, settings, handleSubmit, setCha
     const rerunQuery = async () => {
         try {
             setEditing(false);
-            if (disableFilters) {
+            if(disableFilters) {
                 setLoadingMessage("Processing query...")
             }
             else {
@@ -568,14 +562,14 @@ const SystemChatBox = ({ systemChat, chatHistory, settings, handleSubmit, setCha
                 return { openSearchResponse, query }
             }
 
-            const anthropic_rag = async (result: any) => {
+            const anthropic_rag_og = async (result: any) => {
                 const openSearchResponseAsync = result[0]
                 const query = result[1]
                 const openSearchResponse = await openSearchResponseAsync
                 let generatedAnswer = "Error"
                 if (openSearchResponse.hits.hits.length > 0) {
                     console.log("Anthropic RAG time...")
-                    generatedAnswer = await doAnthropicRag(newQuestion, openSearchResponse)
+                    generatedAnswer = await anthropicRag(newQuestion, openSearchResponse)
                 }
                 openSearchResponse["ext"] = {
                     "retrieval_augmented_generation": {
@@ -585,18 +579,62 @@ const SystemChatBox = ({ systemChat, chatHistory, settings, handleSubmit, setCha
                 return { openSearchResponse, query }
             }
 
+
+            const anthropic_rag = async (result: any) => {
+                const openSearchResponseAsync = result[0]
+                const openSearchResponse = await openSearchResponseAsync
+
+                console.log("Anthropic processor ", openSearchResponse)
+                console.log("Anthropic processor: OS results ", openSearchResponse)
+                const endTime = new Date(Date.now());
+                const elpased = endTime.getTime() - startTime.getTime()
+                console.log("Anthropic processor: OS took seconds: ", elpased)
+                const parsedOpenSearchResults = parseOpenSearchResults(openSearchResponse, setErrorMessage)
+                // setStreamingRAGText(parsedOpenSearchResults.chatResponse)
+                const newSystemChat = new SystemChat(
+                    {
+                        id: parsedOpenSearchResults.interactionId + "_system",
+                        // interaction_id: parsedOpenSearchResults.interactionId,
+                        // response: parsedOpenSearchResults.chatResponse,
+                        // response: ,
+                        ragPassageCount: settings.ragPassageCount,
+                        modelName: settings.modelName,
+                        queryUsed: newQuestion,
+                        hits: parsedOpenSearchResults.documents,
+                        filterContent: newFilterContent
+                    });
+                setChatHistory([newSystemChat, ...chatHistory]);
+                if (openSearchResponse.hits.hits.length > 0) {
+                    await streamingAnthropicRag(newQuestion, openSearchResponse, newSystemChat, setStreamingRagResponse)
+                } else {
+                    newSystemChat.response = "No search results"
+                }
+
+            }
+
             const startTime = new Date(Date.now());
-            if (!anthropicRag) {
+            if (!anthropicRagFlag) {
                 await Promise.all([
                     hybridConversationSearch(newQuestion, newQuestion, parseFilters(newFilterContent, setErrorMessage), settings.activeConversation, settings.openSearchIndex, settings.embeddingModel, settings.modelName, settings.ragPassageCount)
-                        .then(clean).then(populateChatFromOs),
+                        .then(clean)
+                        .then(populateChatFromOs)
+                        .catch((error: any) => {
+                            openErrorDialog('Error sending opensearch query:' + error.message);
+                            console.error('Error sending opensearch query:', error);
+                        }),
                 ]);
             }
             else {
                 await Promise.all([
-                    hybridSearchNoRag(newQuestion, parseFilters(newFilterContent, setErrorMessage), settings.openSearchIndex, settings.embeddingModel, true)
-                        .then(anthropic_rag)
-                        .then(clean_rag).then(populateChatFromOs),
+                    hybridSearchNoRag(newQuestion, parseFilters(filters, setErrorMessage), settings.openSearchIndex, settings.embeddingModel, true)
+                    .then(anthropic_rag_og)
+                    .then(clean_rag)
+                    .then(populateChatFromOs)
+                    .catch((error: any) => {
+                        openErrorDialog('Error sending query:' + error.message);
+                        console.error('Error sending query:' + error);
+                    })
+                        
                 ]);
             }
 
@@ -666,18 +704,18 @@ const SystemChatBox = ({ systemChat, chatHistory, settings, handleSubmit, setCha
             </Text>
             <DocList documents={systemChat.hits} settings={settings} docsLoading={false}></DocList>
             <Stack p='xs' spacing='0'>
-                {systemChat.originalQuery !== "" && systemChat.originalQuery !== systemChat.queryUsed ?
+                {systemChat.originalQuery !== "" && systemChat.originalQuery !== systemChat.queryUsed ? 
                     <Text fz="xs" fs="italic" color="dimmed">
-                        Original Query: {systemChat.originalQuery}
+                            Original Query: {systemChat.originalQuery}
                     </Text>
                     :
                     null
                 }
                 <Text fz="xs" fs="italic" color="dimmed">
-                    Interaction id: {systemChat.interaction_id ? systemChat.interaction_id : ""}
+                    Interaction id: {systemChat.interaction_id ? systemChat.interaction_id : ""} 
                 </Text>
             </Stack>
-
+            
 
             <FeedbackButtons systemChat={systemChat} settings={settings} />
         </Card >
@@ -849,7 +887,7 @@ const simplifyAnswer = async (question: string, answer: string) => {
     }
 };
 
-const doAnthropicRag = async (question: string, os_result: any) => {
+const anthropicRag = async (question: string, os_result: any) => {
     try {
         const response = await fetch('/aryn/anthropic_rag', {
             method: 'POST',
@@ -867,6 +905,48 @@ const doAnthropicRag = async (question: string, os_result: any) => {
         }
         console.log("AnthropicRAG response is:", response)
         return response.text()
+    } catch (error) {
+        console.error('Error in AnthropicRAG through proxy:', error);
+        throw error;
+    }
+};
+
+const streamingAnthropicRag = async (question: string, os_result: any, newSystemChat: any, setStreamingRagResponse: any) => {
+    try {
+        let result = ""
+        const response = await fetch('/aryn/anthropic_rag_streaming', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                question: question,
+                os_result: os_result
+            })
+        });
+        if (response.body != null) {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            while (true) {
+                const startTime = new Date(Date.now());
+                console.log("Waiting for streaming response...")
+                const { done, value } = await reader.read();
+                const elapsed = new Date(Date.now()).getTime() - startTime.getTime()
+                console.log("Time for chunk: " + elapsed)
+                if (done) break;
+                result += decoder.decode(value);
+                console.log("Received: " + result)
+                setStreamingRagResponse(result)
+            }
+            newSystemChat.response = result
+            setStreamingRagResponse("")
+        }
+
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        console.log("Finished AnthropicRAG with result:", result)
+        console.log("AnthropicRAG response is:", response)
     } catch (error) {
         console.error('Error in AnthropicRAG through proxy:', error);
         throw error;
@@ -899,15 +979,15 @@ const interpretOsResult = async (question: string, os_result: string) => {
 
 
 
-export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchResults, streaming, setStreaming, setDocsLoading, setErrorMessage, settings, setSettings, refreshConversations, chatInputRef }:
+export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchResults, streaming, setStreaming, setDocsLoading, setErrorMessage, settings, setSettings, refreshConversations, chatInputRef, openErrorDialog}:
     {
         chatHistory: (SystemChat)[], searchResults: SearchResultDocument[], setChatHistory: Dispatch<SetStateAction<any[]>>,
         setSearchResults: Dispatch<SetStateAction<any[]>>, streaming: boolean, setStreaming: Dispatch<SetStateAction<boolean>>,
-        setDocsLoading: Dispatch<SetStateAction<boolean>>, setErrorMessage: Dispatch<SetStateAction<string | null>>, settings: Settings, setSettings: any, refreshConversations: any, chatInputRef: any
+        setDocsLoading: Dispatch<SetStateAction<boolean>>, setErrorMessage: Dispatch<SetStateAction<string | null>>, settings: Settings, setSettings: Dispatch<SetStateAction<Settings>>, refreshConversations: any,chatInputRef: any, openErrorDialog: any
     }) => {
     const theme = useMantineTheme();
     const [chatInput, setChatInput] = useState("");
-    const [anthropicRag, setAnthropicRag] = useState(false);
+    const [anthropicRagFlag, setAnthropicRagFlag] = useState(false);
     const [disableFilters, setDisableFilters] = useState(settings.auto_filter);
     const [queryPlanner, setQueryPlanner] = useState(settings.auto_filter);
     const [questionRewriting, setQuestionRewriting] = useState(false);
@@ -916,12 +996,14 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
     const [currentOsQuery, setCurrentOsQuery] = useState<string>("");
     const [currentOsUrl, setCurrentOsUrl] = useState<string>("/opensearch/" + settings.openSearchIndex + "/_search?");
     const [openSearchQueryEditorOpened, openSearchQueryEditorOpenedHandlers] = useDisclosure(false);
-    const { classes } = useStyles();
+    const {classes} = useStyles();
     const mobileScreen = useMediaQuery(`(max-width: ${theme.breakpoints.sm})`);
     const [containerWidth, setContainerWidth] = useState(null);
     const [settingsOpened, settingsHandler] = useDisclosure(false);
     const [filterError, setFilterError] = useState(false);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
+    const [streamingRagResponse, setStreamingRagResponse] = useState("");
+    
 
 
     useEffect(() => {
@@ -1035,14 +1117,14 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
                 return { openSearchResponse, query }
             }
 
-            const anthropic_rag = async (result: any) => {
+            const anthropic_rag_og = async (result: any) => {
                 const openSearchResponseAsync = result[0]
                 const query = result[1]
                 const openSearchResponse = await openSearchResponseAsync
                 let generatedAnswer = "Error"
                 if (openSearchResponse.hits.hits.length > 0) {
                     console.log("Anthropic RAG time...")
-                    generatedAnswer = await doAnthropicRag(question, openSearchResponse)
+                    generatedAnswer = await anthropicRag(question, openSearchResponse)
                 }
                 openSearchResponse["ext"] = {
                     "retrieval_augmented_generation": {
@@ -1050,6 +1132,40 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
                     }
                 }
                 return { openSearchResponse, query }
+            }
+
+
+            const anthropic_rag = async (result: any) => {
+                const openSearchResponseAsync = result[0]
+                const openSearchResponse = await openSearchResponseAsync
+
+                console.log("Anthropic processor ", openSearchResponse)
+                console.log("Anthropic processor: OS results ", openSearchResponse)
+                const endTime = new Date(Date.now());
+                const elpased = endTime.getTime() - startTime.getTime()
+                console.log("Anthropic processor: OS took seconds: ", elpased)
+                const parsedOpenSearchResults = parseOpenSearchResults(openSearchResponse, setErrorMessage)
+                // setStreamingRAGText(parsedOpenSearchResults.chatResponse)
+                const newSystemChat = new SystemChat(
+                    {
+                        id: parsedOpenSearchResults.interactionId + "_system",
+                        // interaction_id: parsedOpenSearchResults.interactionId,
+                        // response: parsedOpenSearchResults.chatResponse,
+                        // response: ,
+                        ragPassageCount: settings.ragPassageCount,
+                        modelName: settings.modelName,
+                        queryUsed: question,
+                        originalQuery: originalQuestion,
+                        hits: parsedOpenSearchResults.documents,
+                        filterContent: filterContent
+                    });
+                setChatHistory([newSystemChat, ...chatHistory]);
+                if (openSearchResponse.hits.hits.length > 0) {
+                    await streamingAnthropicRag(question, openSearchResponse, newSystemChat, setStreamingRagResponse)
+                } else {
+                    newSystemChat.response = "No search results"
+                }
+
             }
 
 
@@ -1071,7 +1187,7 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
                         originalQuery: originalQuestion,
                         hits: parsedOpenSearchResults.documents,
                         filterContent: filterContent
-                    });
+                    });                    
                 setChatHistory([...chatHistory, newSystemChat]);
             }
             const populateDocsFromOs = (openSearchResults: any) => {
@@ -1086,28 +1202,38 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
                 setDocsLoading(false)
             }
             const startTime = new Date(Date.now());
-            if (!settings.activeConversation) {
+            if(!settings.activeConversation) {
                 const conversationId = await createConversation(chatInput);
                 settings.activeConversation = conversationId.memory_id;
                 setSettings(settings);
                 refreshConversations();
             }
 
-            if (!anthropicRag) {
+            if(!anthropicRagFlag) {
                 await Promise.all([
                     hybridConversationSearch(chatInput, question, filters, settings.activeConversation, settings.openSearchIndex, settings.embeddingModel, settings.modelName, settings.ragPassageCount)
-                        .then(clean).then(populateChatFromOs),
+                        .then(clean)
+                        .then(populateChatFromOs)
+                        .catch((error: any) => {
+                            openErrorDialog('Error sending opensearch query:' + error.message);
+                            console.error('Error sending opensearch query:' + error);
+                        }),
                 ]);
             }
             else {
                 await Promise.all([
                     hybridSearchNoRag(question, parseFilters(filters, setErrorMessage), settings.openSearchIndex, settings.embeddingModel, true)
-                        .then(anthropic_rag)
-                        .then(clean_rag).then(populateChatFromOs),
+                        .then(anthropic_rag_og)
+                        .then(clean_rag)
+                        .then(populateChatFromOs)
+                        .catch((error: any) => {
+                            openErrorDialog('Error sending query:' + error.message);
+                            console.error('Error sending query:' + error);
+                        })
                 ]);
             }
-
-
+            
+            
         } catch (e) {
             console.log(e)
             if (typeof e === "string") {
@@ -1128,9 +1254,12 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
 
     // This method does all the search workflow execution
     const handleSubmit = async (e: React.FormEvent) => {
-        if (!disableFilters && settings.required_filters.length > 0) {
+        if(chatInput.length === 0) {
+            return;
+        }
+        if(!disableFilters && settings.required_filters.length > 0) {
             const someNonEmptyValues = Object.keys(filtersInput).length === 0 || Object.keys(filtersInput).some((key) => filtersInput[key] === '');
-            if (someNonEmptyValues) {
+            if(someNonEmptyValues) {
                 setFilterError(true);
                 return;
             }
@@ -1148,9 +1277,13 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
             handleSubmit(e);
         }
     };
+
+    
+
     React.useEffect(() => {
         chatInputRef.current?.focus();
     }, [streaming]);
+
     return (
         <>
             <OpenSearchQueryEditor
@@ -1163,55 +1296,53 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
                 setLoadingMessage={setLoadingMessage}
                 chatHistory={chatHistory}
                 setChatHistory={setChatHistory} />
-            <ControlPanel settings={settings} setSettings={setSettings} controlPanelOpened={settingsOpened} onControlPanelClose={settingsHandler.close} />
-            <Flex pt={32} direction="column" pos='relative' className={classes.chatFlex}>
+            <ControlPanel settings={settings} setSettings={setSettings} controlPanelOpened={settingsOpened} onControlPanelClose={settingsHandler.close} openErrorDialog={openErrorDialog} />
+            <Flex direction="column" pos='relative' className={classes.chatFlex}>
+               
                 <Stack className={classes.settingsStack} spacing='0'>
-                    <Text fz="xs" color="dimmed" >
-                        Active conversation: {settings.activeConversation ? settings.activeConversation : "None"}
-                    </Text>
-                    <ActionIcon variant="transparent" className={classes.settingsIcon} onClick={settingsHandler.open}>
-                        <IconSettings size="1.625rem" />
-                    </ActionIcon>
+                    <Tooltip label="Options">
+                        <ActionIcon variant="transparent" className={classes.settingsIcon} onClick={settingsHandler.open}>
+                            <IconSettings size="1.625rem" />
+                        </ActionIcon>
+                    </Tooltip>
                 </Stack>
-                {chatHistory.length === 0 && !loadingMessage && !streaming ?
-                    <Stack align='center' justify='center' className={classes.chatHistoryContainer} spacing='xs'>
-                        <Image width='4em' src="./logo_only.png" />
-                        <Text>How can I help you today?</Text>
-                    </Stack>
-
-                    :
-                    <ScrollArea className={classes.chatHistoryContainer} viewportRef={scrollAreaRef}>
-                        <Container w='50rem' >
-
-                            <Stack >
-
-                                {chatHistory.map((chat, index) => {
-                                    return <SystemChatBox key={chat.id + "_system"} systemChat={chat} chatHistory={chatHistory} settings={settings} handleSubmit={handleSubmit}
-                                        setChatHistory={setChatHistory} setSearchResults={setSearchResults} setErrorMessage={setErrorMessage}
-                                        setLoadingMessage={setLoadingMessage} setCurrentOsQuery={setCurrentOsQuery} setCurrentOsUrl={setCurrentOsUrl} openSearchQueryEditorOpenedHandlers={openSearchQueryEditorOpenedHandlers} disableFilters={disableFilters} anthropicRag={anthropicRag} />
-                                }
-                                )
-                                }
-                                {loadingMessage ? <LoadingChatBox loadingMessage={loadingMessage} /> : null}
-
-                                <Center>
-                                    {streaming ? <Loader size="xs" variant="dots" m="md" /> : ""}
-                                </Center>
+                {chatHistory.length === 0 && !loadingMessage && !streaming ? 
+                            <Stack align='center' justify='center' className={classes.chatHistoryContainer} spacing='xs'>
+                                <Image width='4em' src="./logo_only.png" />
+                                <Text>How can I help you today?</Text>
                             </Stack>
 
-
-                        </Container>
-                    </ScrollArea>
-                }
-
-
+                            :
+                <ScrollArea className={classes.chatHistoryContainer} viewportRef={scrollAreaRef}>
+                    <Container >
+                        <Stack >
+                            {chatHistory.map((chat, index) => {
+                                return <SystemChatBox key={chat.id + "_system"} systemChat={chat} chatHistory={chatHistory} settings={settings} handleSubmit={handleSubmit}
+                                    setChatHistory={setChatHistory} setSearchResults={setSearchResults} setErrorMessage={setErrorMessage}
+                                        setLoadingMessage={setLoadingMessage} setCurrentOsQuery={setCurrentOsQuery} setCurrentOsUrl={setCurrentOsUrl} openSearchQueryEditorOpenedHandlers={openSearchQueryEditorOpenedHandlers} disableFilters={disableFilters} anthropicRagFlag={anthropicRagFlag} streamingRagResponse={streamingRagResponse}  setStreamingRagResponse={setStreamingRagResponse} openErrorDialog={openErrorDialog}/>
+                            }
+                            )
+                            }
+                            {loadingMessage ? <LoadingChatBox loadingMessage={loadingMessage} /> : null}
+                            
+                            <Center>
+                                {streaming ? <Loader size="xs" variant="dots" m="md" /> : ""}
+                            </Center>
+                        </Stack>
+                       
+                        
+                    </Container>
+                </ScrollArea>
+                 }
+                
+                
             </Flex >
-            <Container className={classes.fixedBottomContainer}>
-                <Group position={!disableFilters && settings.required_filters.length > 0 ? "apart" : 'right'} w='65vw' ml='auto' mr='auto' p='sm' h='3.5em'>
-                    {!disableFilters && settings.required_filters.length > 0 ? <FilterInput settings={settings} filtersInput={filtersInput} setFiltersInput={setFiltersInput} filterError={filterError} setFilterError={setFilterError} /> : null}
-
+            <Container  className={classes.fixedBottomContainer}>
+                <Group position={!disableFilters && settings.required_filters.length > 0 ? "apart" : 'left'} ml='auto' mr='auto' p='sm' h='3.5em' w={mobileScreen ? "90vw":"70vw"}>
                     <SearchControlPanel disableFilters={disableFilters} setDisableFilters={setDisableFilters} questionRewriting={questionRewriting} setQuestionRewriting={setQuestionRewriting}
                         queryPlanner={queryPlanner} setQueryPlanner={setQueryPlanner} chatHistory={chatHistory} setChatHistory={setChatHistory} openSearchQueryEditorOpenedHandlers={openSearchQueryEditorOpenedHandlers} settings={settings}></SearchControlPanel>
+                    
+                    {!disableFilters && settings.required_filters.length > 0 ? <FilterInput settings={settings} filtersInput={filtersInput} setFiltersInput={setFiltersInput} filterError={filterError} setFilterError={setFilterError} /> : null}
                 </Group>
                 <Center>
                     <TextInput
@@ -1225,22 +1356,35 @@ export const ChatBox = ({ chatHistory, searchResults, setChatHistory, setSearchR
                         radius="xl"
                         autoFocus
                         size='lg'
+                        rightSectionWidth="auto"
                         rightSection={
-                            <ActionIcon size={40} radius="xl" bg="#5688b0" variant="filled">
-                                <IconChevronRight size="1rem" stroke={2} onClick={handleSubmit} />
-                            </ActionIcon>
+                            <Group pr="0.2rem">
+                                <Tooltip label="Rewrite question">
+                                    <ActionIcon size={40} radius="xl" 
+                                    sx={(theme) => ({
+                                        color:  questionRewriting ? "white" :"#5688b0", 
+                                        backgroundColor: questionRewriting ? "#5688b0" :"white",
+                                        '&:hover': {
+                                        backgroundColor: questionRewriting ? '#5688b0' : theme.colors.gray[2],
+                                        },
+                                    })}>
+                                        <IconWriting size="1.3rem" stroke={1.5} onClick={() => {setQuestionRewriting(o => !o); chatInputRef?.current?.focus();}}  />
+                                    </ActionIcon>
+                                </Tooltip>
+                                {mobileScreen &&
+                                    <ActionIcon size={40} radius="xl" bg="#5688b0" variant="filled">
+                                        <IconChevronRight size="1rem" stroke={2} onClick={handleSubmit} />
+                                    </ActionIcon>
+                                }  
+                            </Group>
+                            
                         }
                         placeholder="Ask me anything"
                         disabled={settings.activeConversation == null}
                     />
                 </Center>
-                <Group align='center' position='center' spacing='0.2rem' pt='0.2rem'>
-                    <IconInfoCircle size='0.8rem' stroke={2} />
-                    <Text size='0.7rem' truncate >
-                        Always refer to the original source document to consider warnings and important notices.
-                    </Text>
-                </Group>
-
+               
+                    
             </Container>
         </>
     );

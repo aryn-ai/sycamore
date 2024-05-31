@@ -10,7 +10,7 @@ import os
 import sys
 import time
 import openai
-from flask import Flask, request, jsonify, Response, send_file
+from flask import Flask, request, jsonify, Response, send_file, stream_with_context
 from flask_cors import CORS
 from werkzeug.datastructures import Headers
 import io
@@ -19,6 +19,8 @@ import boto3
 import warnings
 import mimetypes
 import anthropic
+from functools import lru_cache
+
 
 warnings.filterwarnings("ignore", category=urllib3.exceptions.InsecureRequestWarning)
 
@@ -123,31 +125,37 @@ def proxy_stream_request():
         return (response.content, response.status_code, response.headers.items())
 
 
+@lru_cache(maxsize=10)
+def fetch_pdf(url):
+    if url.startswith("/"):
+        with open(url, "rb") as f:
+            pdf_data = f.read()
+    elif url.startswith("s3://"):
+        trimmed_uri = url[5:]
+        bucket_name, file_key = trimmed_uri.split("/", 1)
+        s3 = boto3.client("s3", AWS_REGION)
+        response = s3.get_object(Bucket=bucket_name, Key=file_key)
+        pdf_data = response["Body"].read()
+    else:
+        response = requests.get(url=url, verify=False)
+        pdf_data = response.content
+    return pdf_data
+
+
 @app.route("/v1/pdf", methods=["POST", "OPTIONS"])
 def proxy():
     if request.method == "OPTIONS":
         return optionsResp("POST")
 
     url = request.json.get("url")
-    if url.startswith("/"):
-        source = url
-    elif url.startswith("s3://"):
-        trimmed_uri = url[5:]
-        bucket_name, file_key = trimmed_uri.split("/", 1)
-        s3 = boto3.client("s3", AWS_REGION)
-        response = s3.get_object(Bucket=bucket_name, Key=file_key)
-        source = response["Body"]
-    else:
-        response = requests.get(url=url, verify=False)
-        source = io.BytesIO(response.content)
 
-    download_name = os.path.basename(url)
+    pdf_data = fetch_pdf(url)
 
     return send_file(
-        source,
+        io.BytesIO(pdf_data),
         mimetype="application/pdf",
         as_attachment=True,
-        download_name=download_name,
+        download_name=os.path.basename(url),
     )
 
 
@@ -329,6 +337,46 @@ def proxy_opensearch(os_path):
     return response.json()
 
 
+@app.route("/aryn/anthropic_rag_streaming", methods=["POST", "OPTIONS"])
+def anthropic_rag_streaming():
+    if request.method == "OPTIONS":
+        return optionsResp("POST")
+
+    question = request.json.get("question")
+    os_result = request.json.get("os_result")
+
+    user_prompt = """
+    Search results: 
+    """
+    for i, s in enumerate(os_result["hits"]["hits"][0:10]):
+        doc = ""
+        doc += "<document>\n"
+        doc += "Search result: " + str(i + 1) + "\n"
+        doc += s["_source"]["text_representation"] + "\n"
+        doc += "</document>\n"
+        user_prompt += doc + "\n"
+
+    user_prompt += "Question: " + question
+    messages = [{"role": "user", "content": user_prompt}]
+
+    def generate():
+        try:
+            with anthropic_client.messages.stream(
+                max_tokens=1024,
+                system=ANTHROPIC_RAG_PROMPT,
+                messages=messages,
+                model="claude-3-opus-20240229",
+                temperature=0.0,
+            ) as stream:
+                for text in stream.text_stream:
+                    yield text
+
+        except Exception as e:
+            return jsonify({"error": "Error in calling Anthropic: " + str(e)}), 503
+
+    return Response(stream_with_context(generate()), mimetype="text/event-stream")
+
+
 @app.route("/aryn/anthropic_rag", methods=["POST", "OPTIONS"])
 def anthropic_rag():
     if request.method == "OPTIONS":
@@ -348,17 +396,20 @@ def anthropic_rag():
         doc += "</document>\n"
         user_prompt += doc + "\n"
 
-    user_prompt += "<question>Question: " + question + " </question>"
+    user_prompt += "Question: " + question
     messages = [{"role": "user", "content": user_prompt}]
-    result = anthropic_client.messages.create(
-        # model="claude-3-opus-20240229",
-        model="claude-3-sonnet-20240229",
-        max_tokens=1024,
-        system=ANTHROPIC_RAG_PROMPT,
-        messages=messages,
-    )
-
-    return result.content[0].text
+    try:
+        result = anthropic_client.messages.create(
+            # model="claude-3-opus-20240229",
+            model="claude-3-sonnet-20240229",
+            max_tokens=1024,
+            system=ANTHROPIC_RAG_PROMPT,
+            messages=messages,
+            temperature=0.0,
+        )
+        return result.content[0].text
+    except Exception as e:
+        return jsonify({"error": "Error in calling Anthropic: " + e.message}), 503
 
 
 @app.route("/opensearch-version", methods=["GET", "OPTIONS"])

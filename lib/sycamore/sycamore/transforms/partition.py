@@ -524,6 +524,8 @@ class Partition(CompositeTransform):
             assert isinstance(resource_args["compute"], ActorPoolStrategy)
             if "batch_size" not in resource_args:
                 resource_args["batch_size"] = partitioner.batch_size
+        elif partitioner.device == "cpu":
+            resource_args.pop("num_gpus", None)
 
         ops = [{**resource_args, "f": Map.wrap(partitioner.partition)}]
         if table_extractor is not None:

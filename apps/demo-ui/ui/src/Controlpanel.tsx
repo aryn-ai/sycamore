@@ -1,12 +1,19 @@
-import React, { Dispatch, SetStateAction, useEffect, useState } from 'react';
+import React, { Dispatch, FormEvent, SetStateAction, useEffect, useState } from 'react';
 import { Button, Divider, Group, Modal, NativeSelect, ScrollArea, Stack, Text, createStyles, useMantineTheme } from '@mantine/core';
 import { IconRefresh } from '@tabler/icons-react';
 import { Settings } from './Types'
 import { getIndices, getEmbeddingModels, FEEDBACK_INDEX_NAME, createFeedbackIndex } from './OpenSearch';
 
-export const ControlPanel = ({ settings, setSettings, controlPanelOpened, onControlPanelClose }: { settings: Settings, setSettings: Dispatch<SetStateAction<Settings>>, controlPanelOpened: boolean, onControlPanelClose: any }) => {
+export const ControlPanel = ({ settings, setSettings, controlPanelOpened, onControlPanelClose, openErrorDialog }: { settings: Settings, setSettings: Dispatch<SetStateAction<Settings>>, controlPanelOpened: boolean, onControlPanelClose: any, openErrorDialog:any }) => {
     const [availableIndices, setAvailableIndices] = useState(new Array<string>())
     const [availableEmbeddings, setAvailableEmbeddings] = useState(new Array<string>())
+    const [formValues, setFormValues] = useState({
+        ragPassageCount: settings.ragPassageCount,
+        modelName: settings.modelName,
+        openSearchIndex: settings.openSearchIndex,
+        embeddingModel: settings.embeddingModel,
+    });
+    
 
     const getIndicesAndEmbeddings = async () => {
         const [getIndicesResponse, getEmbeddingsResponse] = await Promise.all([
@@ -15,7 +22,7 @@ export const ControlPanel = ({ settings, setSettings, controlPanelOpened, onCont
         ])
         const newIndiciesMaybeWFeedback = Object.keys(getIndicesResponse).filter((key) => !key.startsWith("."))
         var newIndicies;
-        if (newIndiciesMaybeWFeedback.includes(FEEDBACK_INDEX_NAME)) {
+        if(newIndiciesMaybeWFeedback.includes(FEEDBACK_INDEX_NAME)) {
             newIndicies = newIndiciesMaybeWFeedback.filter((name) => name !== FEEDBACK_INDEX_NAME)
         } else {
             newIndicies = newIndiciesMaybeWFeedback
@@ -32,97 +39,107 @@ export const ControlPanel = ({ settings, setSettings, controlPanelOpened, onCont
     }
 
     useEffect(() => {
-
-        const getDefaultSettingsFromProxy = async () => {
-            try {
-                const response = await fetch('/aryn/get_default_settings', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                console.log("Default settings are: ", response)
-                return response.json()
-            } catch (error) {
-                console.error('Error in loading server configured settings, reverting to local defaults', error);
-                return null
-            }
-        };
         const doit = async () => {
-            const newsettings = await getDefaultSettingsFromProxy()
-            const [indexNames, modelIds] = await getIndicesAndEmbeddings()
-            newsettings.openSearchIndex = indexNames[0];
-            newsettings.embeddingModel = modelIds[0];
-            console.log("Settings: ", newsettings)
-            setSettings(newsettings)
-            setAvailableIndices(indexNames)
-            setAvailableEmbeddings(modelIds)
+            try {
+                const [indexNames, modelIds] = await getIndicesAndEmbeddings()
+                setSettings(settings => ({
+                    ...settings,
+                    openSearchIndex: indexNames[0],
+                    embeddingModel: modelIds[0],
+                }));
+                setFormValues(prev => ({
+                    ...prev,
+                    openSearchIndex: indexNames[0],
+                    embeddingModel: modelIds[0],
+                }))
+                setAvailableIndices(indexNames)
+                setAvailableEmbeddings(modelIds)
+            }
+            catch(error: any) {
+                openErrorDialog("Error loading settings: " + error.message);
+                console.error("Error loading settings:", error);
+            }
         }
         doit()
     }, []);
 
+    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setSettings(prevSettings => ({ ...prevSettings, ...formValues })); 
+        setTimeout(() => {
+            console.log(settings);
+            
+        })
+        onControlPanelClose();
+    }
+
     return (
         <Modal opened={controlPanelOpened} onClose={onControlPanelClose} title="Options" centered>
-            < Stack>
-
-                <Divider orientation="horizontal" />
-                <Group position='apart'>
+            <form onSubmit={handleSubmit}>
+                <Stack> 
+                    
+                    <Divider orientation="horizontal" />
+                    <Group position='apart'>
                     <Text fz="xs">RAG passage count:</Text>
                     <NativeSelect
                         data={["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]}
-                        defaultValue={settings.ragPassageCount}
+                        defaultValue={formValues.ragPassageCount}
                         onChange={(event) => {
-                            const newsettings = settings
-                            newsettings.ragPassageCount = +event.currentTarget.value
-                            setSettings(newsettings)
+                            setFormValues(prev => ({
+                                ...prev,
+                                ragPassageCount: +event.currentTarget.value
+                            }));
                         }
                         }
                     />
-                </Group>
-                <Group position='apart'>
+                    </Group>
+                    <Group position='apart'>
                     <Text fz="xs">AI model:</Text>
                     <NativeSelect
                         data={settings.availableModels}
-                        defaultValue={settings.modelName}
+                        defaultValue={formValues.modelName}
                         onChange={(event) => {
-                            const newsettings = settings
-                            newsettings.modelName = event.currentTarget.value
-                            setSettings(newsettings)
+                            setFormValues(prev => ({
+                                ...prev,    
+                                modelName: event.currentTarget.value, 
+                            }));
                         }
                         }
                     />
-                </Group>
-                <Group position='apart'>
+                    </Group>
+                    <Group position='apart'>
                     <Text fz="xs">OpenSearch index:</Text>
                     <NativeSelect
                         data={Array.from(availableIndices)}
-                        defaultValue={settings.openSearchIndex}
+                        defaultValue={formValues.openSearchIndex}
                         onChange={(event) => {
-                            const newsettings = settings
-                            newsettings.openSearchIndex = event.currentTarget.value
-                            setSettings(newsettings)
+                            setFormValues(prev => ({
+                                ...prev,    
+                                openSearchIndex: event.currentTarget.value, 
+                            }));
                         }
                         }
                     />
-                </Group>
-                <Group position='apart'>
+                    </Group>
+                    <Group position='apart'>
                     <Text fz="xs">Embedding Model:</Text>
                     <NativeSelect
                         data={Array.from(availableEmbeddings)}
-                        defaultValue={settings.embeddingModel}
+                        defaultValue={formValues.embeddingModel}
                         onChange={(event) => {
-                            const newsettings = settings
-                            newsettings.embeddingModel = event.currentTarget.value
-                            setSettings(newsettings)
+                            setFormValues(prev => ({
+                                ...prev,    
+                                embeddingModel: event.currentTarget.value, 
+                            }));
                         }
                         }
                     />
-                </Group>
-            </Stack >
-        </Modal>
+                    </Group>
+                    <Group position='right'>
+                        <Button type='submit'>Submit</Button>
+                    </Group>
+                </Stack > 
+            </form>
+         </Modal>
     );
 }

@@ -1,0 +1,9 @@
+.document {
+  background-color: lightgray;
+  display: flex;
+  justify-content: center;
+}
+
+.page {
+  width: min-content !important;
+}

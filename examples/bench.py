@@ -6,7 +6,6 @@
 #
 # TIMETRACE=/tmp/tt poetry run python examples/bench.py
 
-import sys
 import pyarrow.fs
 
 from ray.data import ActorPoolStrategy
@@ -33,7 +32,10 @@ ctx = sycamore.init()
 
 ds = (
     ctx.read.binary(paths, binary_format="pdf", filesystem=fsys)
-    .partition(partitioner=SycamorePartitioner(extract_table_structure=True, extract_images=True), compute=ActorPoolStrategy(size=1))
+    .partition(
+        partitioner=SycamorePartitioner(extract_table_structure=True, extract_images=True),
+        compute=ActorPoolStrategy(size=1),
+    )
     .regex_replace(COALESCE_WHITESPACE)
     .extract_entity(entity_extractor=OpenAIEntityExtractor("title", llm=davinci_llm, prompt_template=title_template))
     .mark_bbox_preset(tokenizer=tokenizer)

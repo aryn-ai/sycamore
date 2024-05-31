@@ -50,6 +50,7 @@ class SycamorePDFPartitioner:
             device: The device on which to run the model.
         """
 
+        self.device = device
         self.model = DeformableDetr(model_name_or_path, device)
 
     @staticmethod
@@ -90,7 +91,7 @@ class SycamorePDFPartitioner:
         ocr_images=False,
         ocr_tables=False,
         extract_table_structure=False,
-        table_structure_extractor=DEFAULT_TABLE_STRUCTURE_EXTRACTOR,
+        table_structure_extractor=None,
         extract_images=False,
         model_server_endpoint=None,
         batch_size: int = 1,
@@ -113,6 +114,8 @@ class SycamorePDFPartitioner:
         Returns:
            A list of lists of Elements. Each sublist corresponds to a page in the original PDF.
         """
+        if not table_structure_extractor:
+            table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
         with tempfile.TemporaryDirectory() as tmp_dir, tempfile.NamedTemporaryFile() as tmp_file:
             filename = tmp_file.name
             tmp_file.write(file.read())

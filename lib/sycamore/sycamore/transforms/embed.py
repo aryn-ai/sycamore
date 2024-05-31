@@ -294,5 +294,7 @@ class Embed(MapBatch):
                 raise RuntimeError("Invalid GPU Nums!")
             if "compute" not in self.resource_args:
                 self.resource_args["compute"] = ActorPoolStrategy(size=1)
+        elif embedder.device == "cpu":
+            self.resource_args.pop("num_gpus", None)
 
         super().__init__(child, f=embedder, **resource_args)

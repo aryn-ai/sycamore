@@ -34,7 +34,7 @@ from sycamore.transforms.query import QueryExecutor
 class TestDocSet:
     def test_partition_pdf(self, mocker):
         context = mocker.Mock(spec=Context)
-        partitioner = mocker.Mock(spec=Partitioner)
+        partitioner = mocker.Mock(spec=Partitioner, device="cpu")
         docset = DocSet(context, None)
         docset = docset.partition(partitioner=partitioner)
         assert isinstance(docset.lineage(), Partition)

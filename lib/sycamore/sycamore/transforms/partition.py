@@ -14,7 +14,6 @@ from sycamore.plan_nodes import Node
 from sycamore.transforms.base import CompositeTransform
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.map import Map
-from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
 from sycamore.utils.time_trace import timetrace
 
 
@@ -47,6 +46,10 @@ def _elements_reorder_comparator(element1: Element, element2: Element) -> int:
 
 
 class Partitioner(ABC):
+    def __init__(self, device=None, batch_size=1):
+        self.device = device
+        self.batch_size = batch_size
+
     @abstractmethod
     def partition(self, document: Document) -> Document:
         pass
@@ -108,6 +111,7 @@ class UnstructuredPPTXPartitioner(Partitioner):
         chunking_strategy: Optional[str] = None,
         **kwargs,
     ):
+        super().__init__(device="cpu")
         self._include_page_breaks = include_page_breaks
         self._include_metadata = include_metadata
         self._include_slide_notes = include_slide_notes
@@ -180,6 +184,7 @@ class UnstructuredPdfPartitioner(Partitioner):
         include_metadata: bool = True,
         retain_coordinates: bool = False,
     ):
+        super().__init__(device="cpu")
         self._include_page_breaks = include_page_breaks
         self._strategy = strategy
         self._infer_table_structure = infer_table_structure
@@ -279,6 +284,7 @@ class HtmlPartitioner(Partitioner):
         text_chunker: Chunker = TextOverlapChunker(),
         tokenizer: Tokenizer = CharacterTokenizer(),
     ):
+        super().__init__(device="cpu")
         self._skip_headers_and_footers = skip_headers_and_footers
         self._extract_tables = extract_tables
         self._text_chunker = text_chunker
@@ -391,12 +397,17 @@ class SycamorePartitioner(Partitioner):
         ocr_images=False,
         ocr_tables=False,
         extract_table_structure=False,
-        table_structure_extractor=DEFAULT_TABLE_STRUCTURE_EXTRACTOR,
+        table_structure_extractor=None,
         extract_images=False,
         device=None,
         model_server_endpoint=None,
         batch_size: int = 1,
     ):
+        if not device:
+            import torch.cuda
+
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        super().__init__(device=device, batch_size=batch_size)
         self._model_name_or_path = model_name_or_path
         self._device = device
         self._threshold = threshold
@@ -504,14 +515,18 @@ class Partition(CompositeTransform):
     ):
         ops = []
 
-        if isinstance(partitioner, SycamorePartitioner):
-            if "num_gpus" in resource_args:
-                assert resource_args["num_gpus"] >= 0
-
-            if "compute" in resource_args:
-                assert isinstance(resource_args["compute"], ActorPoolStrategy)
-            else:
+        if partitioner.device == "cuda":
+            if "num_gpus" not in resource_args:
+                resource_args["num_gpus"] = 1.0
+            assert resource_args["num_gpus"] >= 0
+            if "compute" not in resource_args:
                 resource_args["compute"] = ActorPoolStrategy(size=1)
+            assert isinstance(resource_args["compute"], ActorPoolStrategy)
+            if "batch_size" not in resource_args:
+                resource_args["batch_size"] = partitioner.batch_size
+        elif partitioner.device == "cpu":
+            resource_args.pop("num_gpus", None)
+
         ops = [{**resource_args, "f": Map.wrap(partitioner.partition)}]
         if table_extractor is not None:
             ops.append({"f": Map.wrap(table_extractor.extract_tables)})

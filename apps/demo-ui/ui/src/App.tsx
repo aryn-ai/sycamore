@@ -1,6 +1,6 @@
 import React from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import PdfViewer from "./pages/PDFViewer/PdfViewer";
+import PdfViewer from "./pages/PDFViewer";
 import HomePage from "./pages/HomePage";
 
 function App() {

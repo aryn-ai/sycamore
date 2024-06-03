@@ -1,8 +1,13 @@
+import ray
 import ray.data
 
 from sycamore.data import Document
 from sycamore.transforms.sketcher import Sketcher, SketchUniquify
 from sycamore.plan_nodes import Node
+
+
+def tearDownModule():
+    ray.shutdown()
 
 
 class FakeNode(Node):

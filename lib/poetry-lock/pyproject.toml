@@ -60,11 +60,13 @@ grpcio-tools = "1.62.2"
 lxml = "5.2.2"
 itemadapter = "0.9.0"
 parsel = "1.9.1"
-zope-interface = "6.4"
 itemloaders = "1.2.0"
 protego = "0.3.1"
 queuelib = "1.7.0"
 platformdirs = "4.2.2"
+
+# Package versions from being yanked
+zope-interface = ">=6.4.post0"
 
 # Package versions specified because of github vulnerability reports
 aiohttp = ">=3.9.5"

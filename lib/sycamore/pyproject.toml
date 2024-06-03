@@ -23,12 +23,14 @@ pyarrow = "14.0.1"
 unstructured = "0.10.20"
 openai = "^1.14.1"
 beautifulsoup4 = "^4.12.2"
-guidance = "^0.1.13"
+guidance = "0.1.14" # See poetry-lock/pyproject.toml
 tenacity = "8.2.3"
 amazon-textract-textractor = "^1.3.2"
 boto3 = "^1.28.70"
 urllib3 = ">=1.26.0,<2"
 async-timeout = ">4.0.0"
+pillow = "10.2.0" # See poetry-lock/pyproject.toml
+setuptools = "69.5.1" # See poetry-lock/pyproject.toml
 
 # Pin Pytorch 2.0.0 to address missing cuda libs.
 # See https://stackoverflow.com/a/76647180
@@ -38,6 +40,7 @@ python-pptx = "^0.6.22"
 
 jinja2 = "^3.1"
 datasets = "^2.16.1"
+fsspec = "2024.2.0" # See poetry-lock/pyproject.toml
 timm = "^0.9.12"
 cryptography = "^42.0.3"
 aiohttp = "^3.9.2"
@@ -59,7 +62,7 @@ pinecone-text = "^0.9.0"
 
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"
-pytest = "^7.4"
+pytest = "7.4.0" # See poetry-lock/pyproject.toml
 pytest-mock = "^3.11"
 
 [tool.poetry.group.dev.dependencies]

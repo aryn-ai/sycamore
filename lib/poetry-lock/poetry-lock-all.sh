@@ -25,8 +25,8 @@ for i in ${tomls}; do
     (
         echo "--------------------- processing in $i"
         cd $(dirname "$i")
-        poetry lock --no-update || return 1
-        poetry install 2>&1 | tee /tmp/poetry-install.out || return 1
+        poetry lock --no-update || exit 1
+        poetry install 2>&1 | tee /tmp/poetry-install.out || exit 1
         perl -ne 'print qq{$1 = "$2"\n} if /Downgrading (\S+) \((\S+) ->/o;' </tmp/poetry-install.out
     )
 done

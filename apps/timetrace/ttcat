@@ -1,0 +1,54 @@
+#!/usr/bin/python3
+
+import sys
+import struct
+from typing import NamedTuple
+
+FMT = "BxxxIQQQQQ48s"
+SIZE = struct.calcsize(FMT)
+
+class TimeTraceRec(NamedTuple):
+    thread: int
+    t0: int
+    t1: int
+    utime: int
+    stime: int
+    rss: int
+    name: str
+
+def buf_to_rec(buf) -> TimeTraceRec:
+    tup = struct.unpack(FMT, buf)
+    ver, thr, t0, t1, user, syst, rss, name = tup
+    assert ver == 0
+    name = name.decode().rstrip('\0')
+    return TimeTraceRec(thr, t0, t1, user, syst, rss, name)
+
+def tt_reader(paths: list[str]):
+    for path in paths:
+        with open(path, "rb") as fp:
+            while True:
+                buf = fp.read(SIZE)
+                if not buf:
+                    break
+                yield buf_to_rec(buf)
+
+class Cat:
+    def run(self, paths):
+        for rec in tt_reader(paths):
+            t0 = rec.t0 / 1000000000.0
+            t1 = rec.t1 / 1000000000.0
+            wall = t1 - t0
+            rss = rec.rss / 1048576.0
+            print(f"{t0:.3f} {rec.name} {wall:.6f} {rss:.0f}")
+
+
+def main(args = None):
+    if args is None:
+        args = sys.argv[1:]
+    cat = Cat()
+    cat.run(args)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

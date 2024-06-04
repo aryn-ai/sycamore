@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "integration"
+version = "0.1.0"
+description = "Integration Testing for Sycamore"
+authors = ["aryn.ai <opensource@aryn.ai>"]
+license = "Apache 2.0"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.12"
+docker = "^7.0.0"
+pytest = "7.4.0"
+opensearch-py = "^2.5.0"
+testcontainers = "^4.3.1"
+sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

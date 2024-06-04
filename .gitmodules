@@ -1,0 +1,4 @@
+[submodule "opensearch-remote-processor"]
+	path = lib/remote-processors/opensearch-remote-processor
+	url = git@github.com:aryn-ai/opensearch-remote-processor.git
+	branch = 2.x

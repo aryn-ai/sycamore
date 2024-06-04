@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: 'v4.4.0'
+    rev: 'v4.5.0'
     hooks:
       - id: check-ast   # checks Python syntax
       - id: check-json  # checks JSON syntax
@@ -14,28 +14,48 @@ repos:
       - id: no-commit-to-branch  # prevents committing to main
 
   - repo: https://github.com/psf/black
-    rev: 23.7.0
+    rev: 24.3.0
     hooks:
       - id: black
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: 'v0.0.287'
+    rev: 'v0.3.3'
     hooks:
       - id: ruff
         name: ruff
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.5.1
+    rev: v1.9.0
     hooks:
         - id: mypy
-          args: [--ignore-missing-imports]
+          # same args as used in .github/workflows/linting.yml
+          args: [--install-types, --explicit-package-bases, --non-interactive]
           exclude: docs/
+
   - repo: local
     hooks:
       - id: pytest-check
         name: pytest-check
         # Needed because otherwise it seems to always run pytest in the git root.
-        entry: poetry run pytest sycamore/tests/unit
+        entry: poetry run pytest lib/sycamore/sycamore/tests/unit apps/crawler/crawler/s3/tests/unit
+        # lib/remote-processors/remote_processors/test/unit
+        # not run here but via github actions because it requires a make step to happen first
+        # and it requires a poetry env setup also.
         language: system
         pass_filenames: false
         always_run: true
+
+  - repo: local
+    hooks:
+      - id: http-integration-test
+        name: http-integration-test
+        entry: bash apps/crawler/crawler/http/tests/http_crawler_integration.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.7.1
+    hooks:
+      - id: nbstripout
+        exclude: notebooks/ndd_example.ipynb

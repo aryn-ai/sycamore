@@ -1,0 +1,10 @@
+_meta:
+  type: config
+  config_version: 2
+
+# Automatically authenticate clients without credentials as
+# 'opendistro_security_anonymous_backendrole'.
+config:
+  dynamic:
+    http:
+      anonymous_auth_enabled: true

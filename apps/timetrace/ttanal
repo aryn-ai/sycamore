@@ -1,0 +1,202 @@
+#!/usr/bin/python3
+
+import sys
+import struct
+from time import localtime, strftime
+from typing import NamedTuple
+
+FMT = "BxxxIQQQQQ48s"
+SIZE = struct.calcsize(FMT)
+
+class TimeTraceRec(NamedTuple):
+    thread: int
+    t0: int
+    t1: int
+    utime: int
+    stime: int
+    rss: int
+    name: str
+
+def buf_to_rec(buf) -> TimeTraceRec:
+    tup = struct.unpack(FMT, buf)
+    ver, thr, t0, t1, user, syst, rss, name = tup
+    assert ver == 0
+    name = name.decode().rstrip('\0')
+    return TimeTraceRec(thr, t0, t1, user, syst, rss, name)
+
+def tt_reader(paths: list[str]):
+    for path in paths:
+        with open(path, "rb") as fp:
+            while True:
+                buf = fp.read(SIZE)
+                if not buf:
+                    break
+                yield buf_to_rec(buf)
+
+time_units = [
+    ("ns", 0.000000001),
+    ("us", 0.000001),
+    ("ms", 0.001),
+    ("s", 1),
+    ("m", 60),
+    ("h", 3600),
+    ("d", 86400),
+    ("y", 31_556_952),
+    (None, None),
+]
+
+mem_units = [
+    ("B", 1),
+    ("kB", 1024),
+    ("MB", 1024 * 1024),
+    ("GB", 1024 * 1024 * 1024),
+    ("TB", 1024 * 1024 * 1024 * 1024),
+    (None, None),
+]
+
+def pretty_num(units: list[tuple[str, float]], s: float) -> str:
+    if s == 0:
+        return "0"
+    sign = ""
+    if s < 0:
+        sign = "-"
+        s *= -1
+    for i, (unit, val) in enumerate(units):
+        nxtval = units[i + 1][1]
+        if nxtval is None or s < nxtval:
+            s /= val
+            return f"{sign}{s:.3g}{unit}"
+
+def pretty_time(s: float) -> str:
+    return pretty_num(time_units, s)
+
+def pretty_mem(s: float) -> str:
+    return pretty_num(mem_units, s)
+
+class Analyze:
+    def __init__(self, paths):
+        self.paths = paths
+
+    def run(self):
+        first = 999999999999.0
+        last = 0
+        utime = 0
+        stime = 0
+        rss = 0
+        thread_wall = {}
+        thread_cpu = {}
+        name_wall = {}
+        name_cpu = {}
+
+        for rec in tt_reader(self.paths):
+            t0 = rec.t0 / 1000000000.0
+            t1 = rec.t1 / 1000000000.0
+            rutime = rec.utime / 1000000000.0
+            rstime = rec.stime / 1000000000.0
+            wall = t1 - t0
+            first = min(first, t0)
+            last = max(last, t1)
+            utime += rutime
+            stime += rstime
+            rss = max(rss, rec.rss)
+            cpu = rutime + rstime
+            val = thread_wall.get(rec.thread, 0)
+            thread_wall[rec.thread] = val + wall
+            val = thread_cpu.get(rec.thread, 0)
+            thread_cpu[rec.thread] = val + cpu
+            val = name_wall.get(rec.name, 0)
+            name_wall[rec.name] = val + wall
+            val = name_cpu.get(rec.name, 0)
+            name_cpu[rec.name] = val + cpu
+
+        ts = strftime("%Y-%m-%d %H:%M:%S", localtime(first))
+        wall = last - first
+        pwall = pretty_time(wall)
+        cpu = utime + stime
+        frac = cpu / wall
+        ufrac = utime / cpu
+        sfrac = stime / cpu
+        prss = pretty_mem(rss)
+        print(ts)
+        print(f"wall {wall:.6f} ({pwall})")
+        print(f"cpu {cpu:.6f} ({frac:.3f})")
+        print(f"utime {utime:.6f} ({ufrac:.3f})")
+        print(f"stime {stime:.6f} ({sfrac:.3f})")
+        print(f"maxrss {prss}")
+        for k, wval in thread_wall.items():
+            cval = thread_cpu[k]
+            wfrac = wval / wall
+            cfrac = cval / cpu
+            print(f"{k:<9} wall {wval: 12.6f} ({wfrac:.3f}) cpu {cval: 12.6f} ({cfrac:.3f})")
+        for k, wval in name_wall.items():
+            cval = name_cpu[k]
+            wfrac = wval / wall
+            cfrac = cval / cpu
+            print(f"{k:20} wall {wval: 12.6f} ({wfrac:.3f}) cpu {cval: 12.6f} ({cfrac:.3f})")
+
+    def overlap(self):
+        events = []
+        for rec in tt_reader(self.paths):
+            events.append((rec.t0, 1))
+            events.append((rec.t1, 0))
+        events.sort()
+        level = 0
+        total = 0
+        last = events[0][0]
+        sums = {}
+        for event_time, is_start in events:
+            dur = event_time - last
+            total += dur
+            val = sums.get(level, 0)
+            sums[level] = val + dur
+            if is_start:
+                level += 1
+            else:
+                level -= 1
+            last = event_time
+        inv = [(b, a) for a, b in sums.items()]
+        inv.sort()
+        for event_time, lev in inv:
+            frac = event_time / total
+            print(f"{lev:2}: {frac:.3f}")
+
+    def totrss(self):
+        # Note: Linux RSS is reported in kB, Mac in B
+        events = []
+        for rec in tt_reader(self.paths):
+            events.append((rec.t0, 1, rec.thread, rec.rss))
+            events.append((rec.t1, 0, rec.thread, rec.rss))
+        events.sort()
+        threads = {}
+        high = 0
+        for event_time, is_start, thr, rss in events:
+            if is_start:
+                ary = threads.get(thr)
+                if ary is not None:
+                    ary.append(rss)
+                else:
+                    threads[thr] = [rss]
+            else:
+                ary = threads[thr]
+                ary.pop()
+                if not ary:
+                    del threads[thr]
+            tot = 0
+            for ary in threads.values():
+                tot += ary[-1]
+                high = max(high, tot)
+        phigh = pretty_mem(high)
+        print(f"sumrss {phigh}")
+
+def main(args = None):
+    if args is None:
+        args = sys.argv[1:]
+    aa = Analyze(args)
+    aa.run()
+    aa.overlap()
+    aa.totrss()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

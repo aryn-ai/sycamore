@@ -1,0 +1,53 @@
+# Repo name: arynai/sycamore-importer
+
+# Doesn't work with 3.12
+# depends on pyarrow==12.0.1 and ray[default]<3.0.0 and >=2.7.0
+FROM python:3.11
+
+WORKDIR /app
+COPY docker-app-user.sh .
+RUN /bin/bash /app/docker-app-user.sh
+
+ARG POETRY_NO_INTERACTION=1 \
+    POETRY_VIRTUALENVS_IN_PROJECT=1 \
+    POETRY_VIRTUALENVS_CREATE=1 \
+    POETRY_CACHE_DIR=/tmp/poetry_cache
+
+RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
+COPY apps/importer/importer/docker/importer-root-setup.sh .
+RUN /bin/bash /app/importer-root-setup.sh
+
+USER app
+COPY lib/sycamore lib/sycamore
+COPY lib/poetry-lock lib/poetry-lock
+
+COPY apps/importer/pyproject.toml apps/importer/poetry.lock apps/importer/README.md \
+     ./
+RUN mkdir -p importer/docker
+COPY apps/importer/importer/docker/docker-poetry-packages.sh \
+     importer/docker/docker-poetry-packages.sh
+
+RUN /bin/bash ./importer/docker/docker-poetry-packages.sh \
+      install --only main,sycamore_library,docker --no-root -v
+
+# syntax=docker/dockerfile:1.7-labs
+COPY apps/importer ./
+COPY examples/simple_config.py ./
+
+RUN /bin/bash ./importer/docker/docker-poetry-packages.sh install --only-root -v -v -v
+
+ARG GIT_BRANCH="unknown"
+ARG GIT_COMMIT="unknown"
+ARG GIT_DIFF="unknown"
+
+ENV GIT_BRANCH=${GIT_BRANCH}
+ENV GIT_COMMIT=${GIT_COMMIT}
+ENV GIT_DIFF=${GIT_DIFF}
+
+LABEL org.opencontainers.image.authors="opensource@aryn.ai"
+LABEL git_branch=${GIT_BRANCH}
+LABEL git_commit=${GIT_COMMIT}
+LABEL git_diff=${GIT_DIFF}
+
+RUN touch .git.commit.${GIT_COMMIT}
+CMD [ "poetry", "run", "python", "importer/docker/docker_local_import.py", "/app/.scrapy" ]

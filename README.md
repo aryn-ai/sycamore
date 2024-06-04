@@ -1,68 +1,68 @@
-![SycamoreLogoFinal.svg](docs/source/images/sycamore_logo.svg)
+![SycamoreLogoFinal.svg](https://raw.githubusercontent.com/aryn-ai/sycamore/main/docs/source/images/sycamore_logo.svg)
 
-[![PyPI](https://img.shields.io/pypi/v/sycamore)](https://pypi.org/project/sycamore/)
-[![Slack](https://img.shields.io/badge/slack-aryn-brightgreen.svg?logo=slack)](https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg)
+[![PyPI](https://img.shields.io/pypi/v/sycamore-ai)](https://pypi.org/project/sycamore-ai/)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/sycamore-ai)](https://pypi.org/project/sycamore-ai/)
+[![Slack](https://img.shields.io/badge/slack-sycamore-brightgreen.svg?logo=slack)](https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg)
 [![Docs](https://readthedocs.org/projects/sycamore/badge/?version=stable)](https://sycamore.readthedocs.io/en/stable/?badge=stable)
 ![License](https://img.shields.io/github/license/aryn-ai/sycamore)
 
-Sycamore is a semantic data preparation library that makes it easy to transform and enrich your unstructured data and prepare it for search applications. It introduces a novel set-based abstraction that makes processing a large document collection as easy as reading a single document, and it comes with a scalable distributed runtime that makes it easy to go from prototype to production.
+Sycamore ETL is an AI-powered document processing framework for LLMs, RAG, and unstructured analytics. It makes it easy to reliably load your vector databases and hybrid search engines, such as OpenSearch, Pinecone (coming soon), and Weaviate (coming soon), with higher quality data. Sycamore can partition and enrich a wide range of document types including reports, presentations, transcripts, manuals, and more. It can analyze and chunk complex documents such as PDFs and images with embedded tables, figures, graphs, and other infographics. 
+
+Instead of trying to process a document all at once, Sycamore ETL first decomposes it into its constituent components using a purpose-built document segmentation AI model. Then, it can apply the best AI model for each component based on its type (e.g. table) to extract and process it with high fidelity. Sycamore ETL can also integrate with your choice of AI models for LLM-powered UDFs, metadata extraction, vector embeddings, and other data transformations.
+
+The Sycamore framework is built around a scalable and robust abstraction for document processing called a DocSet, and includes powerful high-level transformations in Python for data processing, enrichment, and cleaning. DocSets also encapsulate scalable data processing techniques removing the undifferentiated heavy lifting of reliably loading chunks. DocSets' functional programming approach allows you to rapidly customize and experiment with your chunking for better quality RAG results.
+
+![Untitled](docs/source/images/SycamoreDataflowDiagramv2.png)
 
 ## Features
 
-- Support for a variety of unstructured document formats, starting with PDF and HTML. More formats coming soon!
-- LLM-enabled entity extraction to automatically pull out semantically meaningful information from your documents with just a few examples.
-- Built-in data structures and transforms to make it easy to process large document collections. Sycamore is built around a data structure called the `DocSet` that represents a collection of unstructured documents, and supports transforms for chunking, manipulating, and augmenting these documents.
-- Easily embed your data using a variety of popular embedding models. Sycamore will automatically batch records and leverage GPUs where appropriate.
-- Scale your processing workloads from your laptop to the cloud without changing your application code. Sycamore is built on [Ray](https://ray.io), a distributed compute framework that can scale to hundreds of nodes.
+- State-of-the art vision AI model for segmentation and preserving the semantic structure of documents
+- DocSet abstraction to scalably and reliably transform and manipulate unstructured documents
+- High-quality table extraction, OCR, visual summarization, LLM-powered UDFs, and other performant Python data transforms
+- Quickly create vector embeddings using your choice of AI model
+- Helpful features like automatic data crawlers (Amazon S3 and HTTP), Jupyter notebook for writing and iterating on jobs, and an OpenSearch hybrid search and RAG engine for testing
+- Scalable [Ray](https://github.com/ray-project/ray) backend
+
+## Demo
+
+[Hosted on Loom](https://www.loom.com/share/53e68b0eb5ab49948111a3fcf6286b7f?sid=8627ff2a-db36-46ef-9762-a01b37e20ced)
+
+## Get Started
+
+You can easily deploy Sycamore locally or on a virtual machine using Docker.
+
+With Docker installed:
+
+1.	Clone the Sycamore repo:
+
+```git clone https://github.com/aryn-ai/sycamore```
+
+2.	Set OpenAI Key:
+
+```export OPENAI_API_KEY=YOUR-KEY```
+
+3.	Go to:
+
+```/sycamore```
+
+4.	Launch Sycamore. Conatainers will be pulled from DockerHub:
+
+```docker compose up --pull=always```
+
+5.	The Sycamore demo query UI will be at localhost:3000
+
+You can next choose to run a demo that [prepares and ingests data from the Sort Benchmark website](docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-sort-benchmark-dataset), [crawl data from a public website](docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-data-from-an-arbitrary-website), or write your own data preparation script.
+
+For more info about Sycamore’s data ingestion and preparation feature set, visit the [Sycamore documentation](docs/source/data_ingestion_and_preparation/data_preparation_concepts.md).
+
 
 ## Resources
 
-- PyPi: [https://pypi.org/project/sycamore-ai/](https://pypi.org/project/sycamore-ai/)
-- Documentation: [https://sycamore.readthedocs.io](https://www.notion.so/Remaining-Sycamore-Items-f6a27a83864048d3a634c3299685f61f?pvs=21)
-- Slack: [https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg](https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg)
-- Aryn Docs: [https://github.io/aryn-docs](https://github.io/aryn-docs) Instructions for setting up an end-to-end conversational search application with Sycamore and OpenSearch.
-
-## Installation
-
-Sycamore currently runs on Python 3.9+ for Linux and Mac OS. To install, run
-
-```bash
-pip install sycamore-ai
-```
-
-For certain PDF processing operations, you also need to install `poppler`, which you can do with the OS-native package manager of your choice. For example, the command for Homebrew on Mac OS is
-
-```bash
-brew install poppler
-```
-
-## Getting Started
-
-The following shows a simple Sycamore script to read a collection of PDFs, partition them, compute vector embeddings, and load them into an OpenSearch cluster.
-
-See our [documentation](https://sycamore.readthedocs.io) for lots more information and examples.
-
-```python
-# Import and initialize the Sycamore library.
-import sycamore
-context = sycamore.init()
-
-# Read a collection of PDF documents into a DocSet.
-doc_set = context.read.binary(paths=["/path/to/pdfs/"], binary_format="pdf")
-
-# Segment the pdfs using the Unstructured partitioner.
-partitioned_doc_set = doc_set.partition(partitioner=UnstructuredPdfPartitioner())
-
-# Compute vector embeddings for the individual components of each document.
-embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
-embedded_doc_set = partitioned_doc_set.explode() \
-                                      .embed(embedder)
-
-# Write the embedded documents to a local OpenSearch index.
-os_client_args = {"hosts": [{"host": "localhost", "port": 9200}]}
-embedded_doc_set.write.opensearch(os_client_args, "my_index_name")
-```
+- Documentation: https://sycamore.readthedocs.io
+- Slack: https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg
+- Data preparation libraries (PyPi): https://pypi.org/project/sycamore-ai/
+- Contact us: info@aryn.ai
 
 ## Contributing
 
-Check out our [Contributing Guide](https://github.com/aryn-ai/sycamore/CONTRIBUTING.md) for more information about how to contribute to Sycamore and set up your environment for development.
+Check out our [Contributing Guide](https://github.com/aryn-ai/sycamore/blob/main/CONTRIBUTING.md) for more information about how to contribute to Sycamore and set up your environment for development.

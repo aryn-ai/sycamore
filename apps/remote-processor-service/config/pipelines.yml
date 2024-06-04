@@ -1,0 +1,39 @@
+- debug:
+    processors:
+      - debug-response:
+- dedup00:
+    processors:
+      - dedup-response:
+          threshold: 0.01
+- dedup01:
+    processors:
+      - dedup-response:
+          threshold: 0.1
+- dedup02:
+    processors:
+      - dedup-response:
+          threshold: 0.15
+- dedup03:
+    processors:
+      - dedup-response:
+          threshold: 0.2
+- dedup04:
+    processors:
+      - dedup-response:
+          threshold: 0.3
+- dedup05:
+    processors:
+      - dedup-response:
+          threshold: 0.35
+- dedup06:
+    processors:
+      - dedup-response:
+          threshold: 0.4
+- dedup07:
+    processors:
+      - dedup-response:
+          threshold: 0.45
+- dedup08:
+    processors:
+      - dedup-response:
+          threshold: 0.55

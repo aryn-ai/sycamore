@@ -1,0 +1,50 @@
+[tool.poetry]
+name = "sycamore-crawler"
+version = "0.0.1"
+description = "Sycamore is an LLM-powered semantic data preparation system for building search applications."
+authors = ["aryn.ai <opensource@aryn.ai>"]
+readme = "README.md"
+repository = "https://github.com/aryn-ai/sycamore.git"
+packages = [{ include = "crawler" }]
+
+
+[tool.poetry.urls]
+"Repository" = "https://github.com/aryn-ai/sycamore.git"
+"Documentation" = "https://sycamore.readthedocs.io"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.12"
+
+# s3 deps; make sure this is consistent with lib/sycamore pyproject.toml
+[tool.poetry.group.crawler_s3.dependencies]
+boto3 = "^1.28.70"
+
+# http deps; make sure these are present in root pyproject.toml
+[tool.poetry.group.crawler_http.dependencies]
+scrapy = "^2.11"
+cryptography = "^42.0.3"
+
+[tool.poetry.group.test.dependencies]
+flake8 = "4.0.1"
+pytest = "^7.4"
+pytest-mock = "^3.11"
+
+[tool.poetry.group.dev.dependencies]
+sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }
+
+[tool.ruff]
+line-length = 120
+
+[tool.black]
+line-length = 120
+
+[mypy]
+mypy_path = "crawler/s3:crawler/http"
+explicit_package_bases = true
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+pythonpath = [ "." ]

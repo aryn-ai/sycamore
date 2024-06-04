@@ -5,20 +5,21 @@ on:
     branches:
       - main
   pull_request:
-    paths:
-      - "**.py"
-      - "**/pyproject.toml"
+# Can't filter on paths easily and have required workflows.
+# See https://github.com/orgs/community/discussions/13690 and
+# https://engineering.mixpanel.com/enforcing-required-checks-on-conditional-ci-jobs-in-a-github-monorepo-8d4949694340
 
 env:
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-
+  AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+  SYCAMORE_S3_TEMP_PATH: s3://aryn-sycamore-integ-temp/
 # Permissions for AWS access
 permissions:
   id-token: write   # This is required for requesting the JWT
   contents: read    # This is required for actions/checkout
 
 jobs:
-  unit-tests:
+  sycamore-unit-tests:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -36,17 +37,50 @@ jobs:
           cache: 'poetry'
       - name: Install sycamore
         run: poetry install
+        working-directory: lib/sycamore
+      - name: Install poppler and tesseract
+        run: sudo apt-get install -y poppler-utils tesseract-ocr
       - name: Run tests
         run: poetry run pytest sycamore/tests/unit/
+        working-directory: lib/sycamore
+
+  rps-unit-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ "3.9", "3.10", "3.11" ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install Poetry
+        run: pipx install poetry
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'poetry'
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install RPS
+        run: make install_rps
+        working-directory: lib/remote-processors
+      - name: Run Tests
+        run: poetry run pytest remote_processors/test/unit/
+        working-directory: lib/remote-processors
 
   integ-tests:
-    runs-on: ubuntu-latest
+    runs-on: integ-test-runner
     strategy:
       matrix:
         python-version: ["3.9", "3.10", "3.11"]
     services:
       opensearch:
-        image: opensearchproject/opensearch:2.9.0
+        image: opensearchproject/opensearch:2.10.0
         env:
           discovery.type: "single-node"
         ports:
@@ -64,8 +98,11 @@ jobs:
       - name: Install sycamore
         run: poetry install
 
-      - name: Install poppler
-        run: sudo apt-get install -y poppler-utils
+      - name: Download nltk packages
+        run: poetry run python -m nltk.downloader punkt averaged_perceptron_tagger
+
+      - name: Install poppler and tesseract
+        run: sudo apt-get install -y poppler-utils tesseract-ocr
 
       - name: Configure AWS Credentials via OIDC provider.
         uses: aws-actions/configure-aws-credentials@v4
@@ -74,4 +111,7 @@ jobs:
           role-to-assume: arn:aws:iam::237550789389:role/aryn-github-integ
 
       - name: Run Integ tests
-        run: poetry run pytest sycamore/tests/integration
+        run: poetry run pytest lib/sycamore/sycamore/tests/integration
+
+      - name: Run Notebook tests
+        run: poetry run pytest --nbmake --nbmake-timeout=600 notebooks/default-prep-script.ipynb notebooks/jupyter_dev_example.ipynb notebooks/metadata-extraction.ipynb notebooks/sycamore_demo.ipynb notebooks/tutorial.ipynb

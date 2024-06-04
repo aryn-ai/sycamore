@@ -5,7 +5,7 @@ import sys
 from typing import Callable, Optional, Any, Iterable, Type
 
 from sycamore import Context
-from sycamore.data import Document, Element
+from sycamore.data import Document, Element, MetadataDocument
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.augment_text import TextAugmentor
@@ -138,7 +138,7 @@ class DocSet:
         dataset = execution.execute(self.plan)
         return dataset.count()
 
-    def take(self, limit: int = 20) -> list[Document]:
+    def take(self, limit: int = 20, include_metadata: bool = False) -> list[Document]:
         """
         Returns up to ``limit`` documents from the dataset.
 
@@ -161,14 +161,23 @@ class DocSet:
 
         execution = Execution(self.context, self.plan)
         dataset = execution.execute(self.plan)
-        return [Document.from_row(row) for row in dataset.take(limit)]
+        ret = []
+        for row in dataset.iter_rows():
+            doc = Document.from_row(row)
+            if not include_metadata and isinstance(Document, MetadataDocument):
+                continue
+            ret.append(doc)
+            if len(ret) >= limit:
+                break
 
-    def take_all(self, limit: Optional[int] = None) -> list[Document]:
+        return ret
+
+    def take_all(self, limit: Optional[int] = None, include_metadata: bool = False) -> list[Document]:
         """
         Returns all of the rows in this DocSet.
 
         If limit is set, this method will raise an error if this Docset
-        has more than `limit` Documents.
+        has more than `limit` Documents, including metadata.
 
         Args:
             limit: The number of Documents above which this method will raise an error.
@@ -177,7 +186,11 @@ class DocSet:
 
         execution = Execution(self.context, self.plan)
         dataset = execution.execute(self.plan)
-        return [Document.from_row(row) for row in dataset.take_all(limit)]
+        docs = [Document.from_row(row) for row in dataset.take_all(limit)]
+        if include_metadata:
+            return docs
+        else:
+            return [d for d in docs if not isinstance(d, MetadataDocument)]
 
     def limit(self, limit: int = 20) -> "DocSet":
         """

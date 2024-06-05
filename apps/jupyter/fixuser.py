@@ -29,6 +29,8 @@ def main():
     else:
         print("uid", app_stat.st_uid, "and gid", app_stat.st_gid, "already match between /app and /app/work/bind_dir")
 
+    install_cuda()
+
     exec_run_jupyter(bind_stat.st_uid, bind_stat.st_gid)
 
 
@@ -56,6 +58,25 @@ def fix_ids(uid, gid):
     # crawl data shouldn't be changed to our fancy user
     subprocess.run(["/bin/sh", "-c", "find /app -path /app/work/crawl_data -prune -o -print0 | xargs -0 chown app:app"])
     print("SUCCESS: uid & gid fixed", flush=True)
+
+
+def install_cuda():
+    try:
+        os.stat("/dev/nvidiactl")  # check gpu device is present
+    except FileNotFoundError:
+        return
+    os.environ["DEBIAN_FRONTEND"] = "noninteractive"
+    cmds = [
+        ["sed", "-i", "-e", "s/^Components: main/Components: main contrib non-free non-free-firmware/", "/etc/apt/sources.list.d/debian.sources"],
+        ["apt", "update"],
+        ["dpkg-divert", "--no-rename", "/lib/firmware/nvidia/525.147.05/gsp_ad10x.bin"],
+        ["dpkg-divert", "--no-rename", "/lib/firmware/nvidia/525.147.05/gsp_tu10x.bin"],
+        ["dpkg-divert", "--no-rename", "/usr/lib/x86_64-linux-gnu/libnvidia-compiler.so.525.147.05"],
+        ["dpkg-divert", "--no-rename", "/usr/bin/nvidia-persistenced"],
+        ["apt", "-y", "install", "nvidia-cuda-toolkit-gcc", "libnvidia-tesla-cuda1"],
+    ]
+    for cmd in cmds:
+        subprocess.run(cmd, check=True)
 
 
 def exec_run_jupyter(uid, gid):

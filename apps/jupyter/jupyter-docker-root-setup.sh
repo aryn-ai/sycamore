@@ -22,6 +22,6 @@ EOF
 fi
 
 export DEBIAN_FRONTEND=noninteractive
-
+sed -i -e 's/^Components: main/Components: main contrib non-free non-free-firmware/' /etc/apt/sources.list.d/debian.sources
 apt update
-apt -y install --no-install-recommends fonts-liberation less sudo groff-base
+apt -y install --no-install-recommends fonts-liberation less sudo groff-base nvidia-cuda-toolkit-gcc libnvidia-tesla-cuda1

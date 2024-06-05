@@ -1,10 +1,7 @@
 import { Dispatch, SetStateAction } from "react";
 import { SearchResultDocument } from "../Types";
 
-export function parseFilters(
-  filterInputs: any,
-  setErrorMessage: Dispatch<SetStateAction<string | null>>,
-) {
+export function parseManualFilters(filterInputs: any) {
   if (filterInputs == null) return null;
   const resultNeural: any = {
     bool: {
@@ -16,98 +13,239 @@ export function parseFilters(
       filter: [],
     },
   };
-  Object.entries(filterInputs).forEach(([filter, filterValue]) => {
-    if (filter == null || filter == "") return;
-    // ignore ntsb schema, handled separately below for auto filters
-    if (
-      filter == "location" ||
-      filter == "airplane_name" ||
-      filter == "date_start" ||
-      filter == "date_end" ||
-      filterValue == "unknown"
-    ) {
-      return;
-    }
-    resultNeural["bool"]["filter"].push({
-      match: {
-        [`properties.${filter}`]: filterValue,
-      },
-    });
-    resultKeyword["bool"]["filter"].push({
-      match: {
-        [`properties.${filter}.keyword`]: filterValue,
-      },
-    });
-  });
-
-  // for ntsb schema only
-  if (
-    filterInputs["location"] != null &&
-    filterInputs["location"] != "unknown"
-  ) {
-    resultKeyword["bool"]["filter"].push({
-      match: {
-        "properties.entity.location": filterInputs["location"],
-      },
-    });
-    resultNeural["bool"]["filter"].push({
-      match: {
-        "properties.entity.location": filterInputs["location"],
-      },
-    });
+  if (filterInputs.location) {
+    const matchFilter = {
+      match: { "properties.entity.location": filterInputs.location },
+    };
+    resultNeural.bool.filter.push(matchFilter);
+    resultKeyword.bool.filter.push(matchFilter);
   }
-  if (
-    filterInputs["airplane_name"] != null &&
-    filterInputs["airplane_name"] !== "unknown"
-  ) {
-    resultKeyword["bool"]["filter"].push({
+  if (filterInputs.aircraftType) {
+    const matchFilter = {
       match: {
-        "properties.entity.aircraft": filterInputs["airplane_name"],
-      },
-    });
-    resultNeural["bool"]["filter"].push({
-      match: {
-        "properties.entity.aircraft": filterInputs["airplane_name"],
-      },
-    });
-  }
-
-  const range_query: any = {
-    range: {
-      "properties.entity.day": {},
-    },
-  };
-  if (
-    filterInputs["date_start"] != null &&
-    filterInputs["date_start"] !== "unknown"
-  ) {
-    range_query.range["properties.entity.day"].gte = filterInputs["date_start"];
-  }
-  if (
-    filterInputs["date_end"] != null &&
-    filterInputs["date_end"] !== "unknown"
-  ) {
-    range_query.range["properties.entity.day"].lte = filterInputs["date_end"];
-  }
-  if (
-    range_query.range["properties.entity.day"].gte !== undefined ||
-    range_query.range["properties.entity.day"].lte !== undefined
-  ) {
-    resultNeural.bool.filter.push(range_query);
-    const keywordRange = {
-      range: {
-        "properties.entity.day.keyword": {},
+        "properties.entity.aircraftType": filterInputs.aircraftType,
       },
     };
-    keywordRange.range["properties.entity.day.keyword"] =
-      range_query["range"]["properties.entity.day"];
-    resultKeyword.bool.filter.push(keywordRange);
+    resultNeural.bool.filter.push(matchFilter);
+    resultKeyword.bool.filter.push(matchFilter);
+  }
+  if (filterInputs.day_end || filterInputs.day_start) {
+    const rangeFilterNeural: any = {
+      range: { "properties.entity.day": {} },
+    };
+    const rangeFilterKeyword: any = {
+      range: { "properties.entity.day.keyword": {} },
+    };
+
+    if (filterInputs.day_end) {
+      rangeFilterNeural.range["properties.entity.day"]["lte"] =
+        filterInputs.day_end;
+      rangeFilterKeyword.range["properties.entity.day.keyword"]["lte"] =
+        filterInputs.day_end;
+    }
+    if (filterInputs.day_start) {
+      rangeFilterNeural.range["properties.entity.day"]["gte"] =
+        filterInputs.day_start;
+      rangeFilterKeyword.range["properties.entity.day.keyword"]["gte"] =
+        filterInputs.day_start;
+    }
+
+    resultNeural.bool.filter.push(rangeFilterNeural);
+    resultKeyword.bool.filter.push(rangeFilterKeyword);
   }
   const result = {
     keyword: resultKeyword,
     neural: resultNeural,
   };
   return result;
+}
+
+export function parseFilters(
+  filterInputs: any,
+  setErrorMessage: Dispatch<SetStateAction<string | null>>,
+) {
+  // console.log("filterInputs", filterInputs);
+
+  if (filterInputs == null) return null;
+  const resultNeural: any = {
+    bool: {
+      filter: [],
+    },
+  };
+  const resultKeyword: any = {
+    bool: {
+      filter: [],
+    },
+  };
+
+  if (filterInputs.matchFilters == null) return null;
+  filterInputs.matchFilters.forEach((filter: any) => {
+    if (filter == null || filter.fieldName === "") return;
+    const matchFilter = {
+      match: {
+        [filter.fieldName]: filter.fieldValue,
+      },
+    };
+    resultNeural["bool"]["filter"].push(matchFilter);
+    resultKeyword["bool"]["filter"].push(matchFilter);
+  });
+
+  filterInputs.rangeFilters.forEach((filter: any) => {
+    if (filter == null || filter.fieldName === "") return;
+    const rangeFilterNeural = {
+      range: {
+        [filter.fieldName]: {
+          gte: filter.gte,
+          lte: filter.lte,
+        },
+      },
+    };
+
+    const rangeFilterKeyword = {
+      range: {
+        [`${filter.fieldName}.keyword`]: {
+          gte: filter.gte,
+          lte: filter.lte,
+        },
+      },
+    };
+    resultNeural.bool.filter.push(rangeFilterNeural);
+    resultKeyword.bool.filter.push(rangeFilterKeyword);
+  });
+  const result = {
+    keyword: resultKeyword,
+    neural: resultNeural,
+  };
+  return result;
+}
+
+export function parseFiltersForDisplay(filterInputs: any) {
+  console.log("inside parseFiltersForDisplay", filterInputs);
+
+  const parsedFilter: any = {};
+  filterInputs.matchFilters.forEach((filter: any) => {
+    const fieldName = filter.fieldName.split(".").pop();
+    if (fieldName === "") return;
+    parsedFilter[fieldName] = filter.fieldValue;
+  });
+  filterInputs.rangeFilters.forEach((filter: any) => {
+    const fieldName = filter.fieldName.split(".").pop();
+    if (fieldName === "") return;
+    parsedFilter[`${fieldName}_start`] = filter.gte;
+    parsedFilter[`${fieldName}_end`] = filter.lte;
+  });
+  return parsedFilter;
+}
+
+export function parseAggregationsForDisplay(filterInputs: any) {
+  console.log("inside parseAggregationsForDisplay", filterInputs);
+
+  const parsedAggs: any = {};
+  filterInputs.termsAggregations.forEach((aggs: any) => {
+    const fieldName = aggs.fieldName.split(".").slice(-2).reverse().pop();
+    if (fieldName === "") return;
+    parsedAggs["terms"] = fieldName;
+  });
+  filterInputs.cardinalityAggregations.forEach((aggs: any) => {
+    const fieldName = aggs.fieldName.split(".").slice(-2).reverse().pop();
+    if (fieldName === "") return;
+    parsedAggs["cardinality"] = fieldName;
+  });
+  return parsedAggs;
+}
+
+const camelToSnakeCase = (str: string) =>
+  str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+
+export function parseFiltersForRawQuery(filterInputs: any) {
+  const openSearchQuery: any = { size: 0 };
+  openSearchQuery.query = {
+    bool: {
+      must: [{ match_all: {} }],
+      filter: [],
+    },
+  };
+  openSearchQuery.aggs = {};
+  filterInputs.matchFilters.forEach((filter: any) => {
+    openSearchQuery.query.bool.filter.push({
+      match_phrase: { [filter.fieldName]: filter.fieldValue },
+    });
+  });
+  filterInputs.rangeFilters.forEach((filter: any) => {
+    openSearchQuery.query.bool.filter.push({
+      range: { [filter.fieldName]: { gte: filter.gte, lte: filter.lte } },
+    });
+  });
+  filterInputs.cardinalityAggregations.forEach((agg: any) => {
+    let aggsKeyword =
+      camelToSnakeCase(agg.fieldName.split(".").slice(-2).reverse().pop()) +
+      "s";
+    openSearchQuery.aggs[`unique_${aggsKeyword}`] = {
+      cardinality: { field: agg.fieldName },
+    };
+  });
+  filterInputs.termsAggregations.forEach((agg: any) => {
+    let aggsKeyword =
+      camelToSnakeCase(agg.fieldName.split(".").slice(-2).reverse().pop()) +
+      "s";
+    openSearchQuery.aggs[`unique_${aggsKeyword}`] = {
+      terms: { field: agg.fieldName, size: 1000 },
+    };
+  });
+  return openSearchQuery;
+}
+
+export function buildOpenSearchQuery(
+  filters: { [key: string]: string },
+  aggregations: { [key: string]: string },
+) {
+  const openSearchQuery: any = { size: 0 };
+  openSearchQuery.query = {
+    bool: {
+      must: [{ match_all: {} }],
+      filter: [],
+    },
+  };
+  openSearchQuery.aggs = {};
+
+  if (filters) {
+    Object.keys(filters).forEach((key) => {
+      const value = filters[key];
+      if (!value) return;
+
+      const fieldName = `properties.entity.${key.replace(/_before|_after$/, "")}`;
+
+      if (key === "day_before" || key === "day_after") {
+        const rangeType = key === "day_before" ? "lte" : "gte";
+        openSearchQuery.query.bool.filter.push({
+          range: { [fieldName]: { [rangeType]: value } },
+        });
+      } else {
+        openSearchQuery.query.bool.filter.push({
+          match_phrase: { [fieldName]: value },
+        });
+      }
+    });
+  }
+
+  if (aggregations) {
+    Object.entries(aggregations).forEach(([aggType, fieldName]) => {
+      const openSearchFieldName = `properties.entity.${fieldName}.keyword`;
+      const aggregationName = `unique_${camelToSnakeCase(fieldName)}s`;
+
+      if (aggType === "cardinality") {
+        openSearchQuery.aggs[aggregationName] = {
+          [aggType]: { field: openSearchFieldName },
+        };
+      } else {
+        openSearchQuery.aggs[aggregationName] = {
+          [aggType]: { field: openSearchFieldName, size: 1000 },
+        };
+      }
+    });
+  }
+
+  return openSearchQuery;
 }
 
 export function parseOpenSearchResults(

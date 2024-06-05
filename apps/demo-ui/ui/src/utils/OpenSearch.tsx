@@ -72,7 +72,7 @@ export const hybridSearch = (
     };
   }
   if (filters != null) {
-    console.log("OS setting filters");
+    // console.log("OS setting filters");
     if (
       query.query.hybrid.queries &&
       query.query.hybrid.queries.length > 0 &&
@@ -289,6 +289,8 @@ export const openSearchCall = async (
       },
       body: JSON.stringify(query),
     });
+    console.log("inside openSearchCall", JSON.stringify(query, null, 2));
+
     if (!response.ok) {
       return response.text().then((text) => {
         console.error(

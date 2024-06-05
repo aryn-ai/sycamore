@@ -54,6 +54,7 @@ export class SystemChat {
   editing: boolean = false;
   comment: string = "";
   filterContent: any;
+  aggregationsUsed: any;
 
   public constructor(init?: Partial<SystemChat>) {
     Object.assign(this, init);
@@ -73,7 +74,7 @@ export class Settings {
   ];
   activeConversation: string = "";
   simplify: boolean = false;
-  auto_filter: boolean = false;
+  auto_filter: boolean = true;
   required_filters: string[] = [];
 
   public constructor(init?: Partial<Settings>) {

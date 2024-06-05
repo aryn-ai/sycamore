@@ -25,7 +25,7 @@ export const SearchControlPanel = ({
   settings: Settings;
 }) => {
   return (
-    <Group position="right" w="100%">
+    <Group position="right">
       {settings.required_filters.length > 0 ? (
         <Chip
           size="xs"
@@ -47,7 +47,7 @@ export const SearchControlPanel = ({
           Auto-filters
         </Chip>
       ) : null}
-      <Button
+      {/* <Button
         compact
         onClick={() => openSearchQueryEditorOpenedHandlers.open()}
         size="xs"
@@ -56,7 +56,7 @@ export const SearchControlPanel = ({
         gradient={{ from: "blue", to: "indigo", deg: 90 }}
       >
         Run OpenSearch Query
-      </Button>
+      </Button> */}
     </Group>
   );
 };

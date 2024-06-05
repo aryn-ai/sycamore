@@ -83,7 +83,7 @@ export const SystemChatBox = ({
 }) => {
   const citationRegex = /\[(\d+)\]/g;
   const theme = useMantineTheme();
-  console.log("Filter content is", systemChat.filterContent);
+  // console.log("Filter content is", systemChat.filterContent);
   const replaceCitationsWithLinks = (text: string) => {
     const cleanedText = text
       .replace(/\[\${(\d+)}\]/g, "[$1]")
@@ -196,8 +196,8 @@ export const SystemChatBox = ({
               data={[
                 { value: "location", label: "Location" },
                 { value: "airplane_name", label: "Airplane type" },
-                { value: "date_start", label: "Before" },
-                { value: "date_end", label: "After" },
+                { value: "day_start", label: "Before" },
+                { value: "day_end", label: "After" },
               ]}
             />
             <TextInput
@@ -241,36 +241,53 @@ export const SystemChatBox = ({
 
     if (!editing) {
       return (
-        <Container mb="sm">
-          {Object.keys(systemChat.filterContent).map((filter: any) => {
-            if (systemChat.filterContent[filter] != "unknown") {
-              return (
-                <Badge size="xs" key={filter} p="xs" mr="xs">
-                  {filter}: {systemChat.filterContent[filter]}
-                </Badge>
-              );
-            }
-          })}
-        </Container>
+        <Stack spacing="sm" pb="sm">
+          <Group>
+            {systemChat.filterContent &&
+              Object.keys(systemChat.filterContent).length !== 0 && (
+                <Text size="xs">Filters :</Text>
+              )}
+            {systemChat.filterContent &&
+              Object.keys(systemChat.filterContent).map((filter: any) => {
+                return (
+                  <Badge size="xs" key={filter} p="xs" radius="sm">
+                    {filter}: {systemChat.filterContent[filter]}
+                  </Badge>
+                );
+              })}
+          </Group>
+          <Group>
+            {systemChat.aggregationsUsed &&
+              Object.keys(systemChat.aggregationsUsed).length !== 0 && (
+                <Text size="xs">Aggregations :</Text>
+              )}
+            {systemChat.aggregationsUsed &&
+              Object.keys(systemChat.aggregationsUsed).map((aggs: any) => {
+                return (
+                  <Badge size="xs" key={aggs} p="xs" radius="sm">
+                    {aggs}: {systemChat.aggregationsUsed[aggs]}
+                  </Badge>
+                );
+              })}
+          </Group>
+        </Stack>
       );
     } else {
       return (
         <Container mb="sm">
           {addFilter()}
           {Object.keys(newFilterContent).map((filter: any) => {
-            if (newFilterContent[filter] != "unknown") {
-              return (
-                <Badge
-                  size="xs"
-                  key={filter}
-                  p="xs"
-                  mr="xs"
-                  rightSection={editFiltersButtons(filter)}
-                >
-                  {filter}: {newFilterContent[filter]}
-                </Badge>
-              );
-            }
+            return (
+              <Badge
+                size="xs"
+                key={filter}
+                p="xs"
+                mr="xs"
+                rightSection={editFiltersButtons(filter)}
+              >
+                {filter}: {newFilterContent[filter]}
+              </Badge>
+            );
           })}
           <UnstyledButton onClick={() => newFilterInputDialoghHandlers.open()}>
             <Badge
@@ -515,9 +532,10 @@ export const SystemChatBox = ({
             </ActionIcon>
           </Group>
         ) : (
-          <ActionIcon size="xs" mr="0">
-            <IconEdit onClick={(v) => setEditing(true)} />
-          </ActionIcon>
+          ""
+          // <ActionIcon size="xs" mr="0">
+          //   <IconEdit onClick={(v) => setEditing(true)} />
+          // </ActionIcon>
         )}
         {editing ? (
           <TextInput

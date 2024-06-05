@@ -2,6 +2,8 @@ import React, { useEffect } from "react";
 import { Dispatch, SetStateAction, useRef, useState } from "react";
 import {
   ActionIcon,
+  Badge,
+  Button,
   Center,
   Container,
   Flex,
@@ -15,12 +17,15 @@ import {
   TextInput,
   Tooltip,
   createStyles,
+  rem,
   useMantineTheme,
 } from "@mantine/core";
 import {
   IconChevronRight,
+  IconSend,
   IconSettings,
   IconWriting,
+  IconX,
 } from "@tabler/icons-react";
 import { getFilters, rephraseQuestion } from "../../../../utils/Llm";
 import { SearchResultDocument, Settings, SystemChat } from "../../../../Types";
@@ -29,12 +34,23 @@ import {
   updateInteractionAnswer,
   createConversation,
   hybridSearchNoRag,
+  openSearchCall,
 } from "../../../../utils/OpenSearch";
-import { useDisclosure, useMediaQuery } from "@mantine/hooks";
+import {
+  useDisclosure,
+  useMediaQuery,
+  useResizeObserver,
+} from "@mantine/hooks";
 import { ControlPanel } from "./Controlpanel";
 import {
   anthropicRag,
+  buildOpenSearchQuery,
+  interpretOsResult,
+  parseAggregationsForDisplay,
   parseFilters,
+  parseFiltersForDisplay,
+  parseFiltersForRawQuery,
+  parseManualFilters,
   parseOpenSearchResults,
   parseOpenSearchResultsOg,
   simplifyAnswer,
@@ -44,6 +60,8 @@ import { SystemChatBox } from "./SystemChatbox";
 import { SearchControlPanel } from "./SearchControlPanel";
 import { FilterInput } from "./FilterInput";
 import { OpenSearchQueryEditor } from "./OpenSearchQueryEditor";
+import { AddFilterModal } from "./AddFilterModal";
+import { AddAggregationModal } from "./AddAggregationModal";
 
 const useStyles = createStyles((theme) => ({
   inputBar: {
@@ -63,7 +81,7 @@ const useStyles = createStyles((theme) => ({
     zIndex: 1,
   },
   chatHistoryContainer: {
-    height: `calc(100vh - 14.5em)`,
+    // height: `calc(100vh - 14.5em)`,
   },
   settingsStack: {
     position: "absolute",
@@ -146,6 +164,16 @@ export const ChatBox = ({
   const [filterError, setFilterError] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [streamingRagResponse, setStreamingRagResponse] = useState("");
+  const [bottomContainerRef, bottomContainerRect] = useResizeObserver();
+  const [manualFilters, setManualFilters] = useState<{ [key: string]: string }>(
+    {},
+  );
+  const [addFilterModalOpened, addFilterModalHandlers] = useDisclosure(false);
+  const [manualAggregations, setManualAggregations] = useState<{
+    [key: string]: string;
+  }>({});
+  const [addAggregationsModalOpened, addAggregationsModalhandlers] =
+    useDisclosure(false);
 
   useEffect(() => {
     setCurrentOsUrl("/opensearch/" + settings.openSearchIndex + "/_search?");
@@ -160,6 +188,11 @@ export const ChatBox = ({
   useEffect(() => {
     scrollToBottom();
   }, [chatHistory, streaming]);
+
+  useEffect(() => {
+    setManualFilters({});
+    setManualAggregations({});
+  }, [settings.activeConversation]);
 
   // This method does all the search workflow execution
   const handleSubmitParallelDocLoad = async (e: React.FormEvent) => {
@@ -183,13 +216,27 @@ export const ChatBox = ({
       let filterResponse;
       let filters: any;
       let filterContent: any = null;
-      if (!disableFilters) {
-        if (queryPlanner) {
+      let rawOSQueryFlag: boolean = false;
+      let OsJsonQuery: any = null;
+      let aggregations: any = null;
+      if (disableFilters) {
+        if (Object.keys(manualAggregations).length !== 0) {
+          OsJsonQuery = buildOpenSearchQuery(manualFilters, manualAggregations);
+          aggregations = manualAggregations;
+          filterContent = manualFilters;
+          rawOSQueryFlag = true;
+        } else if (Object.keys(manualFilters).length !== 0) {
+          filters = parseManualFilters(manualFilters);
+          filterContent = manualFilters;
+          console.log("Only manual filters", JSON.stringify(filters, null, 2));
+        } else if (queryPlanner) {
           filterResponse = await getFilters(chatInput, settings.modelName);
-          console.log(filterResponse);
+          console.log("filterResponse", filterResponse);
           if (filterResponse.ok) {
             const filterData = await filterResponse.json();
+            console.log("filterData", filterData);
             const autoFilterRawResult = filterData.choices[0].message.content;
+            filters = autoFilterRawResult;
             if (
               autoFilterRawResult.error !== undefined &&
               autoFilterRawResult.error.type === "timeout_exception"
@@ -201,8 +248,29 @@ export const ChatBox = ({
               return null;
             }
             try {
-              filterContent = JSON.parse(autoFilterRawResult);
-              filters = parseFilters(filterContent, setErrorMessage);
+              let filterContentGenerated = JSON.parse(autoFilterRawResult);
+              if (
+                filterContentGenerated?.cardinalityAggregations?.length === 0 &&
+                filterContentGenerated?.termsAggregations?.length === 0
+              ) {
+                filters = parseFilters(filterContentGenerated, setErrorMessage);
+                filterContent = parseFiltersForDisplay(filterContentGenerated);
+              } else {
+                OsJsonQuery = parseFiltersForRawQuery(filterContentGenerated);
+                filterContent = parseFiltersForDisplay(filterContentGenerated);
+                aggregations = parseAggregationsForDisplay(
+                  filterContentGenerated,
+                );
+                console.log(
+                  "from parseFiltersForRawQuery",
+                  JSON.stringify(OsJsonQuery, null, 2),
+                  "aggregations",
+                  aggregations,
+                  "filterContent",
+                  filterContent,
+                );
+                rawOSQueryFlag = true;
+              }
             } catch (error) {
               console.error("Error parsing JSON:", error);
             }
@@ -266,6 +334,7 @@ export const ChatBox = ({
         );
         openSearchResponse.ext.retrieval_augmented_generation.answer =
           generatedAnswer;
+        console.log("newSystemChat.filterContent in clean", filterContent);
         return openSearchResponse;
       };
 
@@ -389,7 +458,38 @@ export const ChatBox = ({
         refreshConversations();
       }
 
-      if (!anthropicRagFlag) {
+      if (rawOSQueryFlag) {
+        const populateChatFromRawOsQuery = async (openSearchResults: any) => {
+          const openSearchResponse = await openSearchResults;
+          const response = await interpretOsResult(
+            question,
+            JSON.stringify(openSearchResponse, null, 4),
+          );
+          const length = 10;
+          const newSystemChat = new SystemChat({
+            id: Math.random()
+              .toString(36)
+              .substring(2, length + 2),
+            response: response,
+            queryUsed:
+              question.length === 0 ? "Opensearch Query Response" : question,
+            rawQueryUsed: OsJsonQuery,
+            queryUrl: currentOsUrl,
+            rawResults: openSearchResponse,
+            interaction_id: "Adhoc, not stored in memory",
+            editing: false,
+            hits: [],
+            filterContent: filterContent,
+            aggregationsUsed: aggregations,
+          });
+          setChatHistory([...chatHistory, newSystemChat]);
+        };
+        await Promise.all([
+          openSearchCall(OsJsonQuery, currentOsUrl).then(
+            populateChatFromRawOsQuery,
+          ),
+        ]);
+      } else if (!anthropicRagFlag) {
         await Promise.all([
           hybridConversationSearch(
             chatInput,
@@ -448,6 +548,9 @@ export const ChatBox = ({
 
   // This method does all the search workflow execution
   const handleSubmit = async (e: React.FormEvent) => {
+    if (Object.keys(manualAggregations).length > 0) {
+      return handleSubmitParallelDocLoad(e);
+    }
     if (chatInput.length === 0) {
       return;
     }
@@ -474,12 +577,110 @@ export const ChatBox = ({
     }
   };
 
+  const handleRemoveFilter = (filterKeyToRemove: string) => {
+    setManualFilters((prevFilters) => {
+      const updatedFilters = { ...prevFilters };
+      delete updatedFilters[filterKeyToRemove];
+      return updatedFilters;
+    });
+  };
+
+  const handleRemoveAgg = (AggKeyToRemove: string) => {
+    setManualAggregations((prevAggs) => {
+      const updatedAggs = { ...prevAggs };
+      delete updatedAggs[AggKeyToRemove];
+      return updatedAggs;
+    });
+  };
+
   React.useEffect(() => {
     chatInputRef.current?.focus();
   }, [streaming]);
 
+  const FilterBadge = ({
+    filterKey,
+    filterValue,
+  }: {
+    filterKey: string;
+    filterValue: any;
+  }) => {
+    if (filterKey === "day_start") {
+      filterValue = "> " + filterValue;
+    }
+    if (filterKey === "day_end") {
+      filterValue = "< " + filterValue;
+    }
+    return (
+      <Badge
+        pl="0.5rem"
+        pr={0}
+        size="md"
+        radius="sm"
+        rightSection={
+          <ActionIcon
+            size="xs"
+            color="blue"
+            radius="xl"
+            variant="transparent"
+            onClick={() => {
+              handleRemoveFilter(filterKey);
+            }}
+          >
+            <IconX size={rem(10)} />
+          </ActionIcon>
+        }
+      >
+        {filterValue}
+      </Badge>
+    );
+  };
+
+  const AggregationBadge = ({
+    aggregationType,
+    aggregationValue,
+  }: {
+    aggregationType: string;
+    aggregationValue: string;
+  }) => {
+    return (
+      <Badge
+        pl="0.5rem"
+        pr={0}
+        size="md"
+        radius="sm"
+        rightSection={
+          <ActionIcon
+            size="xs"
+            color="blue"
+            radius="xl"
+            variant="transparent"
+            onClick={() => {
+              handleRemoveAgg(aggregationType);
+            }}
+          >
+            <IconX size={rem(10)} />
+          </ActionIcon>
+        }
+      >
+        {aggregationType}: {aggregationValue}
+      </Badge>
+    );
+  };
+
   return (
     <>
+      <AddFilterModal
+        addFilterModalOpened={addFilterModalOpened}
+        addFilterModalHandlers={addFilterModalHandlers}
+        filterContent={manualFilters}
+        setFilterContent={setManualFilters}
+      />
+      <AddAggregationModal
+        addAggregationsModalOpened={addAggregationsModalOpened}
+        addAggregationsModalhandlers={addAggregationsModalhandlers}
+        aggregations={manualAggregations}
+        setAggregations={setManualAggregations}
+      />
       <OpenSearchQueryEditor
         openSearchQueryEditorOpened={openSearchQueryEditorOpened}
         openSearchQueryEditorOpenedHandlers={
@@ -517,6 +718,9 @@ export const ChatBox = ({
             align="center"
             justify="center"
             className={classes.chatHistoryContainer}
+            style={{
+              height: `calc(100vh - ${bottomContainerRect.height}px - 7rem)`,
+            }}
             spacing="xs"
           >
             <Image width="4em" src="./logo_only.png" />
@@ -526,6 +730,9 @@ export const ChatBox = ({
           <ScrollArea
             className={classes.chatHistoryContainer}
             viewportRef={scrollAreaRef}
+            style={{
+              height: `calc(100vh - ${bottomContainerRect.height}px - 7rem)`,
+            }}
           >
             <Container>
               <Stack>
@@ -566,19 +773,66 @@ export const ChatBox = ({
           </ScrollArea>
         )}
       </Flex>
-      <Container className={classes.fixedBottomContainer}>
+      <Container
+        ref={bottomContainerRef}
+        className={classes.fixedBottomContainer}
+      >
         <Group
           position={
-            !disableFilters && settings.required_filters.length > 0
-              ? "apart"
-              : "left"
+            // !disableFilters && settings.required_filters.length > 0
+            //   ? "apart"
+            //   : "left"
+            "apart"
           }
           ml="auto"
           mr="auto"
-          p="sm"
-          h="3.5em"
+          p="xs"
           w={mobileScreen ? "90vw" : "70vw"}
         >
+          <Stack spacing="xs">
+            <Group spacing="xs">
+              <Text size="xs">Filters :</Text>
+              {Object.entries(manualFilters).map(([key, value]) => (
+                <FilterBadge key={key} filterKey={key} filterValue={value} />
+              ))}
+
+              <Button
+                compact
+                size="xs"
+                fz="xs"
+                onClick={() => {
+                  addFilterModalHandlers.open();
+                }}
+                variant="gradient"
+                gradient={{ from: "blue", to: "indigo", deg: 90 }}
+              >
+                + Add
+              </Button>
+            </Group>
+            <Group>
+              <Text size="xs">Aggregations :</Text>
+              {Object.entries(manualAggregations).map(([key, value]) => (
+                <AggregationBadge
+                  key={key}
+                  aggregationType={key}
+                  aggregationValue={value}
+                />
+              ))}
+              <Button
+                compact
+                size="xs"
+                fz="xs"
+                onClick={() => {
+                  addAggregationsModalhandlers.open();
+                }}
+                variant="gradient"
+                gradient={{ from: "blue", to: "indigo", deg: 90 }}
+                disabled={Object.entries(manualAggregations).length !== 0}
+              >
+                + Add
+              </Button>
+            </Group>
+          </Stack>
           <SearchControlPanel
             disableFilters={disableFilters}
             setDisableFilters={setDisableFilters}
@@ -594,7 +848,7 @@ export const ChatBox = ({
             settings={settings}
           ></SearchControlPanel>
 
-          {!disableFilters && settings.required_filters.length > 0 ? (
+          {/* {!disableFilters && settings.required_filters.length > 0 ? (
             <FilterInput
               settings={settings}
               filtersInput={filtersInput}
@@ -602,7 +856,7 @@ export const ChatBox = ({
               filterError={filterError}
               setFilterError={setFilterError}
             />
-          ) : null}
+          ) : null} */}
         </Group>
         <Center>
           <TextInput
@@ -641,16 +895,21 @@ export const ChatBox = ({
                     />
                   </ActionIcon>
                 </Tooltip>
-                {mobileScreen && (
+                {(chatInput.length !== 0 ||
+                  Object.keys(manualAggregations).length !== 0) && (
                   <ActionIcon
                     size={40}
                     radius="xl"
-                    bg="#5688b0"
-                    variant="filled"
+                    color="#5688b0"
+                    sx={(theme) => ({
+                      "&:hover": {
+                        backgroundColor: theme.colors.gray[2],
+                      },
+                    })}
                   >
                     <IconChevronRight
-                      size="1rem"
-                      stroke={2}
+                      size="2rem"
+                      stroke={1}
                       onClick={handleSubmit}
                     />
                   </ActionIcon>

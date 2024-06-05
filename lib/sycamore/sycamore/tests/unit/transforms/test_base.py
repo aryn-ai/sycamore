@@ -1,10 +1,11 @@
 import ray
+import pytest
 
 from ray.data import ActorPoolStrategy
 
 from sycamore.data import Document, MetadataDocument
 from sycamore.plan_nodes import Node
-from sycamore.transforms.base import BaseMapTransform, CompositeTransform
+from sycamore.transforms.base import BaseMapTransform, CompositeTransform, get_name_from_callable, rename
 
 
 class Common:
@@ -316,3 +317,91 @@ class TestCompositeTransform(Common):
 
         (docs, mds) = self.outputs(last)
         simple_check(docs)
+
+
+def a_root_function():
+    pass
+
+
+class Empty:
+    def __init__(self):
+        pass
+
+
+class ARootClass:
+    def __init__(self):
+        pass
+
+    def __call__(self):
+        pass
+
+
+class TestGetNameFromCallable:
+    def a_class_method(self):
+        pass
+
+    class AClassClass:
+        def __init__(self):
+            pass
+
+        def __call__(self):
+            pass
+
+    def test_function(self) -> None:
+        def a_local_function():
+            pass
+
+        assert get_name_from_callable(a_root_function) == "a_root_function"
+        assert get_name_from_callable(TestGetNameFromCallable.a_class_method) == "a_class_method"
+        assert get_name_from_callable(TestGetNameFromCallable().a_class_method) == "a_class_method"
+        assert get_name_from_callable(a_local_function) == "a_local_function"
+
+    def test_class(self) -> None:
+        class ALocalClass:
+            def __init__(self):
+                pass
+
+            def __call__(self):
+                pass
+
+        assert get_name_from_callable(ARootClass) == "ARootClass"
+        assert get_name_from_callable(TestGetNameFromCallable.AClassClass) == "AClassClass"
+        assert get_name_from_callable(ALocalClass) == "ALocalClass"
+
+    def test_instance(self) -> None:
+        class ALocalClass:
+            def __init__(self):
+                pass
+
+            def __call__(self):
+                pass
+
+        assert get_name_from_callable(ARootClass()) == "ARootClass"
+        assert get_name_from_callable(TestGetNameFromCallable.AClassClass()) == "AClassClass"
+        assert get_name_from_callable(ALocalClass()) == "ALocalClass"
+
+    def test_rename(self) -> None:
+        @rename("renamed_func")
+        def a_local_function():
+            pass
+
+        assert get_name_from_callable(a_local_function) == "renamed_func"
+
+    def test_fails(self) -> None:
+        with pytest.raises(ValueError):
+            get_name_from_callable(None)
+
+        with pytest.raises(ValueError):
+            get_name_from_callable({})
+
+        with pytest.raises(ValueError):
+            get_name_from_callable(Document)
+
+        with pytest.raises(ValueError):
+            get_name_from_callable(Document())
+
+        with pytest.raises(ValueError):
+            get_name_from_callable(Empty)
+
+        with pytest.raises(ValueError):
+            get_name_from_callable(Empty())

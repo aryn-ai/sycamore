@@ -100,11 +100,18 @@ def _check_doc_blocks(
         del parsed["binary_representation"]
         id = parsed["doc_id"]
         doc = docs_by_id[id]
+        # writing is after Map(noop), doc is before
+        assert doc["lineage_id"] != parsed["lineage_id"]
+        parsed["lineage_id"] = doc["lineage_id"]
         assert parsed == doc
 
 
 def _test_filename(doc: Document) -> str:
     return doc.properties["filename"]
+
+
+def noop_map(doc: Document) -> Document:
+    return doc
 
 
 class TestDocSetWriter:
@@ -125,41 +132,41 @@ class TestDocSetWriter:
     def test_file_writer_text(self, tmp_path: Path):
         docs = generate_docs(5)
         context = sycamore.init()
-        doc_set = context.read.document(docs)
+        doc_set = context.read.document(docs).map(noop_map)
         doc_set.write.files(str(tmp_path))
         _check_doc_path(docs, tmp_path)
 
     def test_file_writer_binary(self, tmp_path: Path):
         docs = generate_docs(5, text=False, binary=True)
         context = sycamore.init()
-        doc_set = context.read.document(docs)
+        doc_set = context.read.document(docs).map(noop_map)
         doc_set.write.files(str(tmp_path))
         _check_doc_path(docs, tmp_path)
 
     def test_file_writer_filename_fn(self, tmp_path: Path):
         docs = generate_docs(5)
         context = sycamore.init()
-        doc_set = context.read.document(docs)
+        doc_set = context.read.document(docs).map(noop_map)
         doc_set.write.files(str(tmp_path), filename_fn=_test_filename)
         _check_doc_path(docs, tmp_path, filename_fn=_test_filename)
 
     def test_file_writer_doc_to_bytes_fn(self, tmp_path: Path):
         docs = generate_docs(5)
         context = sycamore.init()
-        doc_set = context.read.document(docs)
+        doc_set = context.read.document(docs).map(noop_map)
         doc_set.write.files(str(tmp_path), doc_to_bytes_fn=json_properties_content)
         _check_doc_path(docs, tmp_path, doc_to_bytes_fn=json_properties_content, comparison_fn=_compare_as_jsonl)
 
     def test_file_writer_elements_to_bytes(self, tmp_path: Path):
         docs = generate_docs(5, num_elements=5)
         context = sycamore.init()
-        doc_set = context.read.document(docs)
+        doc_set = context.read.document(docs).map(noop_map)
         doc_set.write.files(str(tmp_path), doc_to_bytes_fn=elements_to_bytes)
         _check_doc_path(docs, tmp_path, doc_to_bytes_fn=elements_to_bytes, comparison_fn=_compare_as_jsonl)
 
     def test_file_writer_json(self, tmp_path: Path):
         docs = generate_docs(5, num_elements=5)
         context = sycamore.init()
-        doc_set = context.read.document(docs)
+        doc_set = context.read.document(docs).map(noop_map)
         doc_set.write.json(str(tmp_path))
         _check_doc_blocks(docs, tmp_path)

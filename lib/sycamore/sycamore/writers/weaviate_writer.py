@@ -5,7 +5,7 @@ from ray.data import Dataset, Datasink
 from ray.data._internal.delegating_block_builder import DelegatingBlockBuilder
 from ray.data._internal.execution.interfaces import TaskContext
 from ray.data.block import Block, BlockAccessor
-from sycamore.data.document import Document
+from sycamore.data.document import Document, MetadataDocument
 from sycamore.plan_nodes import Node, Write
 
 
@@ -116,6 +116,9 @@ class WeaviateDatasink(Datasink):
                 "shingles": [],
             }
             doc = Document.from_row(record)
+            if isinstance(doc, MetadataDocument):
+                return None
+
             uuid = doc.doc_id
             parent = doc.parent_id
             data = doc.data
@@ -138,4 +141,5 @@ class WeaviateDatasink(Datasink):
             return object
 
         records = BlockAccessor.for_block(block).to_arrow().to_pylist()
-        return [record_to_object(r) for r in records]
+        all = [record_to_object(r) for r in records]
+        return [a for a in all if a is not None]

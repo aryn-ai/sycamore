@@ -107,7 +107,7 @@ class BaseDBWriter(Write):
             index_params: Optional["BaseDBWriter.index_params_t"],
             owner_cls: type["BaseDBWriter"],
         ):
-            _check_serializable(owner_cls)
+            _check_serializable(client_params, index_params, owner_cls)
 
             self._client_params = client_params
             self._index_params = index_params
@@ -127,6 +127,27 @@ class BaseDBWriter(Write):
             records = [self._owner.record_t.deserialize(row["record"]) for row in rows]
             client = self._owner.client_t.from_client_params(self._client_params)
             client.write_many_records(records)
+
+
+class BaseMetadataDBWriter(BaseDBWriter):
+
+    def _ray_map_docs_to_records(self, dataset: Dataset) -> Dataset:
+
+        def build_ray_callable():
+            cls = self.__class__
+
+            def ray_callable(ray_input: dict[str, np.ndarray]) -> dict[str, list]:
+                all_docs = [Document.deserialize(s) for s in ray_input.get("doc", [])]
+                meta_docs = [d for d in all_docs if isinstance(d, MetadataDocument)]
+                records = [cls.doc_to_record(d) for d in meta_docs]
+                return {"record": [r.serialize() for r in records]}
+
+            return ray_callable
+
+        ray_callable = build_ray_callable()
+        _check_serializable(ray_callable)
+
+        return dataset.map_batches(ray_callable, **self.resource_args)
 
 
 def _check_serializable(*objects):

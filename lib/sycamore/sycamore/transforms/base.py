@@ -24,6 +24,28 @@ def rename(new_function_name: str):
     return decorator
 
 
+def get_name_from_callable(f):
+    # check this condition first. A type will have a __name__ but might not have __call__
+    if isinstance(f, type):
+        if "__call__" in dir(f):
+            return f.__name__
+        else:
+            raise ValueError("f argument is a class without an __call__ method")
+
+    # Can't do "__name__" in dir(f), dir(f) doesn't always list __name__, so try to use it and fail
+    try:
+        return f.__name__
+    except AttributeError:
+        pass
+
+    if "__call__" in dir(f):
+        return f.__class__.__name__
+    else:
+        raise ValueError("f argument is an object without an __call__ method")
+
+    raise ValueError(f"Unable to extract name from {f}, dir(f): {dir(f)}")
+
+
 class BaseMapTransform(UnaryNode):
     """
     BaseMapTransform abstracts away MetadataDocuments from all other transforms.
@@ -70,12 +92,7 @@ class BaseMapTransform(UnaryNode):
 
         super().__init__(child, **resource_args)
         if name is None:
-            if "__name__" in dir(f):
-                name = f.__name__
-            elif "__class__" in dir(f):
-                name = f.__class__.__name__
-            else:
-                raise ValueError(f"Unable to extract name from {f}, all members: {dir(f)}")
+            name = get_name_from_callable(f)
 
         self._f = f
         self._name = name

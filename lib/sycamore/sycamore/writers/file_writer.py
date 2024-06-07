@@ -230,7 +230,6 @@ class _FileDataSink(Datasink):
     ):
         (paths, self._filesystem) = _resolve_paths_and_filesystem(path, filesystem)
         self._root = paths[0]
-        print("ERIC DEBUG ROOT", self._root)
         self._filename_fn = filename_fn
         self._doc_to_bytes_fn = doc_to_bytes_fn
 
@@ -245,23 +244,6 @@ class _FileDataSink(Datasink):
                 path = posixpath.join(self._root, self._filename_fn(doc))
                 with self._filesystem.open_output_stream(path) as file:
                     file.write(bytes)
-
-
-# class _WritableFilePerRowDataSink(RowBasedFileDatasink):
-#     def __init__(
-#         self,
-#         path: str,
-#         filesystem: Optional[FileSystem] = None,
-#         filename_fn: Callable[[Document], str] = default_filename,
-#         doc_to_bytes_fn: Callable[[Document], bytes] = default_doc_to_bytes,
-#     ):
-#         super().__init__(path, filesystem=filesystem, filename_provider=DocToRowFilenameProvider(filename_fn))
-#
-#         self._doc_to_bytes_fn = doc_to_bytes_fn
-#
-#     def write_row_to_file(self, row: dict[str, Any], file: NativeFile):
-#         binary = self._doc_to_bytes_fn(Document.from_row(row))
-#         file.write(binary)
 
 
 class _JsonBlockDataSink(BlockBasedFileDatasink):

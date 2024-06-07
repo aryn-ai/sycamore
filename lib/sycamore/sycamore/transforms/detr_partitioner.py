@@ -175,17 +175,17 @@ class SycamorePDFPartitioner:
     def _cleanup_tmp(self) -> None:
         now = time.time()
         dir = tempfile.gettempdir()
-        for ent in os.scandir(dir):
-            if ent.name.startswith(self.tmp_prefix):
+        for entry in os.scandir(dir):
+            if entry.name.startswith(self.tmp_prefix):
                 try:
-                    st = ent.stat()
+                    st = entry.stat()
                     age = now - st.st_mtime
                     if age > self.stale_secs:
-                        print(f"Removing stale {ent.path}")
-                        if ent.is_dir():
-                            shutil.rmtree(ent.path, ignore_errors=True)
+                        print(f"Removing stale {entry.path}")
+                        if entry.is_dir():
+                            shutil.rmtree(entry.path, ignore_errors=True)
                         else:
-                            os.unlink(ent.path)
+                            os.unlink(entry.path)
                 except FileNotFoundError:
                     pass
 

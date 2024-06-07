@@ -72,11 +72,7 @@ class DocSet:
                     .partition(partitioner=SycamorePartitioner())
                     .show()
         """
-        from sycamore import Execution
-
-        execution = Execution(self.context, self.plan)
-        dataset = execution.execute(self.plan)
-        documents = [Document.from_row(row) for row in dataset.take(limit)]
+        documents = self.take(limit)
 
         def _truncate(s):
             if len(s) <= truncate_length:

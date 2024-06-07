@@ -5,7 +5,21 @@ import numpy as np
 from ray.data import ActorPoolStrategy, Dataset
 
 from sycamore.data import Document, MetadataDocument
+from sycamore.data.document import split_data_metadata
 from sycamore.plan_nodes import Node, UnaryNode
+
+
+def take_separate(dataset: Dataset, limit: Optional[int] = None) -> tuple[list[Document], list[MetadataDocument]]:
+    """
+    Returns the list of documents from a dataset separating out data and metadata docs.
+    """
+    if limit is None:
+        raw = dataset.take_all()
+    else:
+        raw = dataset.take(limit)
+
+    all = [Document.from_row(d) for d in raw]
+    return split_data_metadata(all)
 
 
 # Once we do python 3.12+ only, this can be:
@@ -68,7 +82,7 @@ class BaseMapTransform(UnaryNode):
         # If we auto-generate lineage, then the conversion to BaseMap has to go in a single PR
         # since everything needs to be updated to skip metadata. If we temporarily disable the
         # lineage metadata, then we can do the conversion to BaseMap in separate PRs.
-        enable_auto_metadata: bool = False,
+        enable_auto_metadata: bool = True,
         **resource_args,
     ):
         if child is None:

@@ -1,20 +1,23 @@
-from sycamore.data import Document
+from sycamore.data import Document, MetadataDocument
 from sycamore.plan_nodes import Node, Write
 
 from pyarrow.fs import FileSystem
 from pyarrow import NativeFile
 
 from ray.data import Dataset
-from ray.data.datasource import FilenameProvider, RowBasedFileDatasink, BlockBasedFileDatasink
+from ray.data.datasource import FilenameProvider, Datasink, BlockBasedFileDatasink
+from ray.data.datasource.path_util import _resolve_paths_and_filesystem
 from ray.data.block import Block, BlockAccessor
+from ray.data._internal.execution.interfaces import TaskContext
 
 from collections import UserDict
 from io import StringIO
 import json
 import logging
 from pathlib import Path
+import posixpath
 import uuid
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Iterable
 from sycamore.utils.time_trace import TimeTrace
 
 logger = logging.getLogger(__name__)
@@ -155,7 +158,7 @@ class FileWriter(Write):
         dataset = self.child().execute()
 
         dataset.write_datasink(
-            _WritableFilePerRowDataSink(
+            _FileDataSink(
                 self.path,
                 filesystem=self.filesystem,
                 filename_fn=self.filename_fn,
@@ -217,7 +220,7 @@ class BlockFilenameProvider(FilenameProvider):
         return f"block_{block_index}_{task_index}.jsonl"
 
 
-class _WritableFilePerRowDataSink(RowBasedFileDatasink):
+class _FileDataSink(Datasink):
     def __init__(
         self,
         path: str,
@@ -225,13 +228,22 @@ class _WritableFilePerRowDataSink(RowBasedFileDatasink):
         filename_fn: Callable[[Document], str] = default_filename,
         doc_to_bytes_fn: Callable[[Document], bytes] = default_doc_to_bytes,
     ):
-        super().__init__(path, filesystem=filesystem, filename_provider=DocToRowFilenameProvider(filename_fn))
-
+        (paths, self._filesystem) = _resolve_paths_and_filesystem(path, filesystem)
+        self._root = paths[0]
+        self._filename_fn = filename_fn
         self._doc_to_bytes_fn = doc_to_bytes_fn
 
-    def write_row_to_file(self, row: dict[str, Any], file: NativeFile):
-        binary = self._doc_to_bytes_fn(Document.from_row(row))
-        file.write(binary)
+    def write(self, blocks: Iterable[Block], ctx: TaskContext) -> Any:
+        for block in blocks:
+            b = BlockAccessor.for_block(block).to_arrow().to_pylist()
+            for _, row in enumerate(b):
+                doc = Document.from_row(row)
+                if isinstance(doc, MetadataDocument):
+                    continue
+                bytes = self._doc_to_bytes_fn(doc)
+                path = posixpath.join(self._root, self._filename_fn(doc))
+                with self._filesystem.open_output_stream(path) as file:
+                    file.write(bytes)
 
 
 class _JsonBlockDataSink(BlockBasedFileDatasink):
@@ -246,6 +258,8 @@ class _JsonBlockDataSink(BlockBasedFileDatasink):
         with TimeTrace("jsonSink"):
             for row in block.iter_rows(True):  # type: ignore[var-annotated]
                 doc = Document.from_row(row)
+                if isinstance(doc, MetadataDocument):
+                    continue
                 del doc.binary_representation  # Doesn't make sense in JSON
                 binary = document_to_bytes(doc)
                 file.write(binary)

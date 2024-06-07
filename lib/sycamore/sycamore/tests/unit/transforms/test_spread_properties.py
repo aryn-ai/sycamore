@@ -3,6 +3,7 @@ import ray.data
 from sycamore.data import Document
 from sycamore.plan_nodes import Node
 from sycamore.transforms import SpreadProperties
+from sycamore.transforms.base import take_separate
 
 
 class TestSpreadProperties:
@@ -41,8 +42,9 @@ class TestSpreadProperties:
         execute = mocker.patch.object(node, "execute")
         execute.return_value = input_dataset
         ds = sp.execute()
-        for row in ds.iter_rows():
-            doc = Document.from_row(row)
+        (docs, _) = take_separate(ds)
+        assert len(docs) == 1
+        for doc in docs:
             for elem in doc.elements:
                 assert elem.properties["filetype"] == "text/plain"
                 assert elem.properties["path"] == "/docs/foo.txt"

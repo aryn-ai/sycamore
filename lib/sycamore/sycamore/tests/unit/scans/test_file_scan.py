@@ -1,4 +1,5 @@
 import json
+import ray
 import tempfile
 from typing import Any
 
@@ -111,3 +112,6 @@ class TestFileScan:
             assert doc.properties["indexed_at"] == indexed_at
         finally:
             tmp_manifest.close()
+
+    def test_cleanup(self):
+        ray.shutdown()

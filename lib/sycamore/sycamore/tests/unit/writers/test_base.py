@@ -73,7 +73,7 @@ class TestBaseDBWriter(Common):
         client_params = FakeClientParams(fspath=tmp_path)
         target_params = FakeTargetParams(dirname="target")
         writer = FakeWriter(input_node, client_params, target_params)
-        writer.run(Common.docs)
+        post_write_docs = writer.run(Common.docs)
         target_path: Path = tmp_path / target_params.dirname
         files = list(target_path.iterdir())
         assert len(files) == len([d for d in Common.docs if not isinstance(d, MetadataDocument)])
@@ -81,6 +81,7 @@ class TestBaseDBWriter(Common):
         assert files[0].read_text() == "it's time to play the music"
         assert files[1].name == "m2"
         assert files[1].read_text() == "it's time to light the lights"
+        assert post_write_docs == Common.docs
 
     def test_fake_writer_has_correct_inner_classes(self):
         assert FakeWriter.Client == FakeClient
@@ -93,9 +94,10 @@ class TestBaseDBWriter(Common):
         client_params = FakeClientParams(fspath=tmp_path)
         target_params = FakeTargetParams(dirname="target")
         writer = FakeWriter(input_node, client_params, target_params, filter=lambda d: d.doc_id == "m1")
-        writer.run(Common.docs)
+        post_write_docs = writer.run(Common.docs)
         target_path: Path = tmp_path / target_params.dirname
         files = list(target_path.iterdir())
         assert len(files) == 1
         assert files[0].name == "m1"
         assert files[0].read_text() == "it's time to play the music"
+        assert post_write_docs == Common.docs

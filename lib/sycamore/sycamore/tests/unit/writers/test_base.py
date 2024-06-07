@@ -87,3 +87,15 @@ class TestBaseDBWriter(Common):
         assert FakeWriter.ClientParams == FakeClientParams
         assert FakeWriter.Record == FakeRecord
         assert FakeWriter.TargetParams == FakeTargetParams
+
+    def test_fake_writer_filtered_happy(self, mocker, tmp_path):
+        input_node = mocker.Mock(spec=Node)
+        client_params = FakeClientParams(fspath=tmp_path)
+        target_params = FakeTargetParams(dirname="target")
+        writer = FakeWriter(input_node, client_params, target_params, filter=lambda d: d.doc_id == "m1")
+        writer.write_docs(Common.docs)
+        target_path: Path = tmp_path / target_params.dirname
+        files = list(target_path.iterdir())
+        assert len(files) == 1
+        assert files[0].name == "m1"
+        assert files[0].read_text() == "it's time to play the music"

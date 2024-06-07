@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from abc import ABC, abstractmethod
+from typing import Callable
 
 from sycamore.data.document import Document
 from sycamore.plan_nodes import Node, Write
@@ -46,9 +47,17 @@ class BaseDBWriter(MapBatch, Write):
     class ClientParams(ABC):
         pass
 
-    def __init__(self, plan: Node, client_params: ClientParams, target_params: TargetParams, **ray_remote_args):
+    def __init__(
+        self,
+        plan: Node,
+        client_params: ClientParams,
+        target_params: TargetParams,
+        filter: Callable[[Document], bool] = lambda d: True,
+        **ray_remote_args,
+    ):
         super().__init__(plan, f=self.write_docs, **ray_remote_args)
-        check_serializable(client_params, target_params)
+        check_serializable(client_params, target_params, filter)
+        self._filter = filter
         self._client_params = client_params
         self._target_params = target_params
 
@@ -62,6 +71,6 @@ class BaseDBWriter(MapBatch, Write):
                 f"Script: {self._target_params}\n"
                 f"Destination: {created_target_params}\n"
             )
-        records = [self.Record.from_doc(d, created_target_params) for d in docs]
+        records = [self.Record.from_doc(d, created_target_params) for d in docs if self._filter(d)]
         client.write_many_records(records, self._target_params)
         return docs

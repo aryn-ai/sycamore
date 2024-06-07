@@ -13,6 +13,7 @@ from sycamore.transforms.map import Map
 from sycamore.transforms.table_structure import table_transformers
 from sycamore.transforms.table_structure.table_transformers import MaxResize
 from sycamore.utils.time_trace import timetrace
+from sycamore.utils import use_cuda
 
 
 class TableStructureExtractor:
@@ -88,7 +89,7 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
     def _get_device(self) -> str:
         if self.device:
             return self.device
-        elif torch.cuda.is_available():
+        elif use_cuda():
             return "cuda"
         else:
             return "cpu"

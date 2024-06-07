@@ -11,6 +11,7 @@ from sentence_transformers import SentenceTransformer
 
 from sycamore.data import Document
 from sycamore.llms import OpenAIClientParameters
+from sycamore.utils import use_cuda
 
 # from sycamore.llms.llms import AzureOpenAI, OpenAIClientParameters
 from sycamore.llms.openai import OpenAIClientWrapper
@@ -41,9 +42,7 @@ class Embedder(ABC):
         self.pre_process_document = pre_process_document if pre_process_document else _pre_process_document
 
         if device is None:
-            import torch.cuda
-
-            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+            self.device = "cuda" if use_cuda() else "cpu"
         else:
             self.device = device
 

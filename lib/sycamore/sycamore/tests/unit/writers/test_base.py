@@ -3,7 +3,6 @@ from pathlib import Path
 from sycamore.data.document import Document, MetadataDocument
 from sycamore.plan_nodes import Node
 from sycamore.writers.base import BaseDBWriter
-from typing import Optional
 
 
 class FakeClient(BaseDBWriter.Client):
@@ -25,13 +24,11 @@ class FakeClient(BaseDBWriter.Client):
         assert isinstance(target_params, FakeTargetParams)
         (self.fspath / target_params.dirname).mkdir(exist_ok=True)
 
-    def get_existing_target_params(
-        self, target_params: "BaseDBWriter.TargetParams"
-    ) -> Optional["BaseDBWriter.TargetParams"]:
+    def get_existing_target_params(self, target_params: "BaseDBWriter.TargetParams") -> "BaseDBWriter.TargetParams":
         assert isinstance(target_params, FakeTargetParams)
         if (self.fspath / target_params.dirname).exists():
             return FakeTargetParams(dirname=target_params.dirname)
-        return None
+        raise ValueError(f"Could not find target directory {self.fspath / target_params.dirname}")
 
 
 class FakeRecord(BaseDBWriter.Record):
@@ -40,8 +37,8 @@ class FakeRecord(BaseDBWriter.Record):
         self.text = text
 
     @classmethod
-    def from_doc(cls, document: Document) -> "FakeRecord":
-        assert not isinstance(document, MetadataDocument)
+    def from_doc(cls, document: Document, target_params: "BaseDBWriter.TargetParams") -> "FakeRecord":
+        assert not isinstance(document, MetadataDocument) and isinstance(target_params, FakeTargetParams)
         return FakeRecord(document.doc_id or "no_id", document.text_representation or "no_text_rep")
 
 

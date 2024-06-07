@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 
 from abc import ABC, abstractmethod
 
@@ -27,16 +26,14 @@ class BaseDBWriter(MapBatch, Write):
             pass
 
         @abstractmethod
-        def get_existing_target_params(
-            self, target_params: "BaseDBWriter.TargetParams"
-        ) -> Optional["BaseDBWriter.TargetParams"]:
+        def get_existing_target_params(self, target_params: "BaseDBWriter.TargetParams") -> "BaseDBWriter.TargetParams":
             pass
 
     # Type param for the objects to write to the db
     class Record(ABC):
         @classmethod
         @abstractmethod
-        def from_doc(cls, document: Document) -> "BaseDBWriter.Record":
+        def from_doc(cls, document: Document, target_params: "BaseDBWriter.TargetParams") -> "BaseDBWriter.Record":
             pass
 
     # Type param for the object used to configure a new index if necessary
@@ -55,16 +52,8 @@ class BaseDBWriter(MapBatch, Write):
         self._client_params = client_params
         self._target_params = target_params
 
-    def get_client(self, client_params: ClientParams) -> Client:
-        return self.Client.from_client_params(client_params)
-
-    @classmethod
-    def doc_to_record(cls, doc: Document) -> Record:
-        return cls.Record.from_doc(doc)
-
     def write_docs(self, docs: list[Document]) -> list[Document]:
-        records = [self.doc_to_record(d) for d in docs]
-        client = self.get_client(self._client_params)
+        client = self.Client.from_client_params(self._client_params)
         client.create_target_idempotent(self._target_params)
         created_target_params = client.get_existing_target_params(self._target_params)
         if created_target_params != self._target_params:
@@ -73,5 +62,6 @@ class BaseDBWriter(MapBatch, Write):
                 f"Script: {self._target_params}\n"
                 f"Destination: {created_target_params}\n"
             )
+        records = [self.Record.from_doc(d, created_target_params) for d in docs]
         client.write_many_records(records, self._target_params)
         return docs

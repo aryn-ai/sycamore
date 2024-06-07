@@ -7,6 +7,7 @@ from sycamore.data import Element, BoundingBox, ImageElement, TableElement
 from sycamore.data.element import create_element
 from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
 from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
+from sycamore.utils import use_cuda
 
 from PIL import Image
 import pdf2image
@@ -210,7 +211,7 @@ class DeformableDetr(SycamoreObjectDetection):
     # it will be applied everywhere.
     def _get_device(self) -> str:
         if self.device is None:
-            return "cuda" if torch.cuda.is_available() else "cpu"
+            return "cuda" if use_cuda() else "cpu"
         else:
             return self.device
 

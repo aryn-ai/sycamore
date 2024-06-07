@@ -1,3 +1,6 @@
+import os
+import time
+import shutil
 from abc import ABC, abstractmethod
 from io import BytesIO
 import tempfile
@@ -41,6 +44,9 @@ class SycamorePDFPartitioner:
     This is an implementation class. Callers looking to partition a DocSet should use the
     SycamorePartitioner class.
     """
+
+    tmp_prefix = "aryn_detr_"
+    stale_secs = 3600  # one hour
 
     def __init__(self, model_name_or_path, device=None):
         """
@@ -115,9 +121,14 @@ class SycamorePDFPartitioner:
         Returns:
            A list of lists of Elements. Each sublist corresponds to a page in the original PDF.
         """
+
+        self._cleanup_tmp()
+
         if not table_structure_extractor:
             table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
-        with tempfile.TemporaryDirectory() as tmp_dir, tempfile.NamedTemporaryFile() as tmp_file:
+        with tempfile.TemporaryDirectory(
+            prefix=self.tmp_prefix, ignore_cleanup_errors=True
+        ) as tmp_dir, tempfile.NamedTemporaryFile(prefix=self.tmp_prefix) as tmp_file:
             filename = tmp_file.name
             tmp_file.write(file.read())
             tmp_file.flush()
@@ -161,6 +172,23 @@ class SycamorePDFPartitioner:
                             print(element.properties)
 
             return deformable_layout
+
+    def _cleanup_tmp(self) -> None:
+        now = time.time()
+        dir = tempfile.gettempdir()
+        for entry in os.scandir(dir):
+            if entry.name.startswith(self.tmp_prefix):
+                try:
+                    st = entry.stat()
+                    age = now - st.st_mtime
+                    if age > self.stale_secs:
+                        print(f"Removing stale {entry.path}")
+                        if entry.is_dir():
+                            shutil.rmtree(entry.path, ignore_errors=True)
+                        else:
+                            os.unlink(entry.path)
+                except FileNotFoundError:
+                    pass
 
 
 class SycamoreObjectDetection(ABC):

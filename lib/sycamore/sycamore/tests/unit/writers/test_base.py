@@ -21,7 +21,7 @@ class FakeClient(BaseDBWriter.Client):
             file = self.fspath / target_params.dirname / r.doc_id
             file.write_text(r.text)
 
-    def create_index_idempotent(self, target_params: "BaseDBWriter.TargetParams"):
+    def create_target_idempotent(self, target_params: "BaseDBWriter.TargetParams"):
         assert isinstance(target_params, FakeTargetParams)
         (self.fspath / target_params.dirname).mkdir(exist_ok=True)
 
@@ -77,8 +77,8 @@ class TestBaseDBWriter(Common):
         target_params = FakeTargetParams(dirname="target")
         writer = FakeWriter(input_node, client_params, target_params)
         writer.write_docs(Common.docs)
-        index_path: Path = tmp_path / target_params.dirname
-        files = list(index_path.iterdir())
+        target_path: Path = tmp_path / target_params.dirname
+        files = list(target_path.iterdir())
         assert len(files) == len([d for d in Common.docs if not isinstance(d, MetadataDocument)])
         assert files[0].name == "m1"
         assert files[0].read_text() == "it's time to play the music"

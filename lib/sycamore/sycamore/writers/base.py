@@ -23,7 +23,7 @@ class BaseDBWriter(MapBatch, Write):
             pass
 
         @abstractmethod
-        def create_index_idempotent(self, target_params: "BaseDBWriter.TargetParams"):
+        def create_target_idempotent(self, target_params: "BaseDBWriter.TargetParams"):
             pass
 
         @abstractmethod
@@ -65,7 +65,7 @@ class BaseDBWriter(MapBatch, Write):
     def write_docs(self, docs: list[Document]) -> list[Document]:
         records = [self.doc_to_record(d) for d in docs]
         client = self.get_client(self._client_params)
-        client.create_index_idempotent(self._target_params)
+        client.create_target_idempotent(self._target_params)
         created_target_params = client.get_existing_target_params(self._target_params)
         if created_target_params != self._target_params:
             raise ValueError(

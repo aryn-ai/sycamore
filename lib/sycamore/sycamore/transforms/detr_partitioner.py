@@ -1,10 +1,11 @@
 import os
+import sys
 import time
 import shutil
 from abc import ABC, abstractmethod
 from io import BytesIO
 import tempfile
-from typing import cast, BinaryIO, List, Tuple
+from typing import cast, Any, BinaryIO, List, Tuple
 
 from sycamore.data import Element, BoundingBox, ImageElement, TableElement
 from sycamore.data.element import create_element
@@ -35,6 +36,12 @@ def _batchify(iterable, n=1):
     length = len(iterable)
     for i in range(0, length, n):
         yield iterable[i : min(i + n, length)]
+
+
+def _tempDir(*, prefix=None) -> tempfile.TemporaryDirectory[Any]:
+    if sys.version_info < (3, 10):
+        return tempfile.TemporaryDirectory(prefix=prefix)
+    return tempfile.TemporaryDirectory(prefix=prefix, ignore_cleanup_errors=True)
 
 
 class SycamorePDFPartitioner:
@@ -126,9 +133,9 @@ class SycamorePDFPartitioner:
 
         if not table_structure_extractor:
             table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
-        with tempfile.TemporaryDirectory(
-            prefix=self.tmp_prefix, ignore_cleanup_errors=True
-        ) as tmp_dir, tempfile.NamedTemporaryFile(prefix=self.tmp_prefix) as tmp_file:
+        with _tempDir(prefix=self.tmp_prefix) as tmp_dir, tempfile.NamedTemporaryFile(
+            prefix=self.tmp_prefix
+        ) as tmp_file:
             filename = tmp_file.name
             tmp_file.write(file.read())
             tmp_file.flush()

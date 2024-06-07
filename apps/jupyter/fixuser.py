@@ -67,7 +67,13 @@ def install_cuda():
         return
     os.environ["DEBIAN_FRONTEND"] = "noninteractive"
     cmds = [
-        ["sed", "-i", "-e", "s/^Components: main/Components: main contrib non-free non-free-firmware/", "/etc/apt/sources.list.d/debian.sources"],
+        [
+            "sed",
+            "-i",
+            "-e",
+            "s/^Components: main/Components: main contrib non-free non-free-firmware/",
+            "/etc/apt/sources.list.d/debian.sources",
+        ],
         ["apt", "update"],
         ["dpkg-divert", "--no-rename", "/lib/firmware/nvidia/525.147.05/gsp_ad10x.bin"],
         ["dpkg-divert", "--no-rename", "/lib/firmware/nvidia/525.147.05/gsp_tu10x.bin"],

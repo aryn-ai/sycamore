@@ -6,6 +6,7 @@ from ray.data import ActorPoolStrategy, Dataset
 
 from sycamore.data import Document, MetadataDocument
 from sycamore.plan_nodes import Node, UnaryNode
+from sycamore.utils.ray_utils import check_serializable
 
 
 # Once we do python 3.12+ only, this can be:
@@ -54,15 +55,7 @@ class BaseMapTransform(UnaryNode):
         else:
             # If serializability fails, the error messages are very confusing. These checks
             # give a much more sensible error message and give it before ray starts execution.
-            from ray.util import inspect_serializability
-            import io
-
-            log = io.StringIO()
-            (ok, s) = inspect_serializability(
-                [f, name, args, kwargs, constructor_args, constructor_kwargs], print_file=log
-            )
-            if not ok:
-                raise ValueError(f"Something for {name} isn't serializable {s}\nLog: {log.getvalue()}")
+            check_serializable(f, name, args, kwargs, constructor_args, constructor_kwargs)
 
         if isinstance(f, type) and "compute" not in resource_args:
             # classes require actor strategy for now

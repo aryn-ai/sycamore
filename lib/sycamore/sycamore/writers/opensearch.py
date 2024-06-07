@@ -8,7 +8,7 @@ from ray.data._internal.delegating_block_builder import DelegatingBlockBuilder
 from ray.data.block import Block, BlockAccessor
 from ray.data._internal.execution.interfaces import TaskContext
 
-from sycamore.data import Document
+from sycamore.data import Document, MetadataDocument
 from sycamore.plan_nodes import Node, Write
 from sycamore.utils.time_trace import timetrace
 
@@ -121,8 +121,11 @@ class OSDataSink(Datasink):
 
         def create_actions():
             for i, row in enumerate(block):
-                doc = OSDataSink.extract_os_document(Document.from_row(row).data)
-                action = {"_index": index_name, "_id": doc["doc_id"], "_source": doc}
+                doc = Document.from_row(row)
+                if isinstance(doc, MetadataDocument):
+                    continue
+                osdoc = OSDataSink.extract_os_document(doc)
+                action = {"_index": index_name, "_id": doc["doc_id"], "_source": osdoc}
                 yield action
 
         failures = []

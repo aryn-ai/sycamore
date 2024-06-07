@@ -1,5 +1,7 @@
+import pytest
 import ray.data
 
+import sycamore
 from sycamore.data import Document
 from sycamore.transforms.merge_elements import GreedyTextElementMerger, Merge
 from sycamore.functions.tokenizer import HuggingFaceTokenizer
@@ -114,3 +116,15 @@ class TestMergeElements:
         merge = Merge(node, merger)
         output_dataset = merge.execute()
         output_dataset.show()
+
+    def test_docset_greedy(self):
+        ray.shutdown()
+
+        context = sycamore.init()
+        tokenizer = HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2")
+        context.read.document([self.doc]).merge(GreedyTextElementMerger(tokenizer, 120)).show()
+
+        # Verify that GreedyTextElementMerger can't be an argument for map.
+        # We may want to change this in the future.
+        with pytest.raises(ValueError):
+            sycamore.init().read.document([self.doc]).map(GreedyTextElementMerger(tokenizer, 120))

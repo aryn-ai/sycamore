@@ -3,7 +3,7 @@ from typing import Any, Callable, Iterable, Optional
 
 from sycamore.data import Document
 from sycamore.plan_nodes import Node
-from sycamore.transforms.base import BaseMapTransform
+from sycamore.transforms.base import BaseMapTransform, get_name_from_callable
 
 
 class Map(BaseMapTransform):
@@ -22,7 +22,7 @@ class Map(BaseMapTransform):
     """
 
     def __init__(self, child: Optional[Node], *, f: Any, **resource_args):
-        super().__init__(child, f=Map.wrap(f), name=f.__name__, **resource_args)
+        super().__init__(child, f=Map.wrap(f), name=get_name_from_callable(f), **resource_args)
 
     @staticmethod
     def wrap(f: Any) -> Callable[[list[Document]], list[Document]]:
@@ -74,7 +74,7 @@ class FlatMap(BaseMapTransform):
     """
 
     def __init__(self, child: Optional[Node], *, f: Callable[[Document], list[Document]], **resource_args):
-        super().__init__(child, f=FlatMap.wrap(f), name=f.__name__, **resource_args)
+        super().__init__(child, f=FlatMap.wrap(f), name=get_name_from_callable(f), **resource_args)
 
     @staticmethod
     def wrap(f: Callable[[Document], list[Document]]) -> Callable[[list[Document]], list[Document]]:

@@ -1,12 +1,17 @@
+import os
+import sys
+import time
+import shutil
 from abc import ABC, abstractmethod
 from io import BytesIO
 import tempfile
-from typing import cast, BinaryIO, List, Tuple
+from typing import cast, Any, BinaryIO, List, Tuple
 
 from sycamore.data import Element, BoundingBox, ImageElement, TableElement
 from sycamore.data.element import create_element
 from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
 from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
+from sycamore.utils import use_cuda
 
 from PIL import Image
 import pdf2image
@@ -33,6 +38,12 @@ def _batchify(iterable, n=1):
         yield iterable[i : min(i + n, length)]
 
 
+def _tempDir(*, prefix=None) -> tempfile.TemporaryDirectory[Any]:
+    if sys.version_info < (3, 10):
+        return tempfile.TemporaryDirectory(prefix=prefix)
+    return tempfile.TemporaryDirectory(prefix=prefix, ignore_cleanup_errors=True)
+
+
 class SycamorePDFPartitioner:
     """
     This class contains the implementation of PDF partitioning using a Deformable DETR model.
@@ -40,6 +51,9 @@ class SycamorePDFPartitioner:
     This is an implementation class. Callers looking to partition a DocSet should use the
     SycamorePartitioner class.
     """
+
+    tmp_prefix = "aryn_detr_"
+    stale_secs = 3600  # one hour
 
     def __init__(self, model_name_or_path, device=None):
         """
@@ -114,9 +128,14 @@ class SycamorePDFPartitioner:
         Returns:
            A list of lists of Elements. Each sublist corresponds to a page in the original PDF.
         """
+
+        self._cleanup_tmp()
+
         if not table_structure_extractor:
             table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
-        with tempfile.TemporaryDirectory() as tmp_dir, tempfile.NamedTemporaryFile() as tmp_file:
+        with _tempDir(prefix=self.tmp_prefix) as tmp_dir, tempfile.NamedTemporaryFile(
+            prefix=self.tmp_prefix
+        ) as tmp_file:
             filename = tmp_file.name
             tmp_file.write(file.read())
             tmp_file.flush()
@@ -160,6 +179,23 @@ class SycamorePDFPartitioner:
                             print(element.properties)
 
             return deformable_layout
+
+    def _cleanup_tmp(self) -> None:
+        now = time.time()
+        dir = tempfile.gettempdir()
+        for entry in os.scandir(dir):
+            if entry.name.startswith(self.tmp_prefix):
+                try:
+                    st = entry.stat()
+                    age = now - st.st_mtime
+                    if age > self.stale_secs:
+                        print(f"Removing stale {entry.path}")
+                        if entry.is_dir():
+                            shutil.rmtree(entry.path, ignore_errors=True)
+                        else:
+                            os.unlink(entry.path)
+                except FileNotFoundError:
+                    pass
 
 
 class SycamoreObjectDetection(ABC):
@@ -210,7 +246,7 @@ class DeformableDetr(SycamoreObjectDetection):
     # it will be applied everywhere.
     def _get_device(self) -> str:
         if self.device is None:
-            return "cuda" if torch.cuda.is_available() else "cpu"
+            return "cuda" if use_cuda() else "cpu"
         else:
             return self.device
 

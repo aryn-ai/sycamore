@@ -274,6 +274,13 @@ class MetadataDocument(Document):
         self.data["metadata"] = {}
 
 
+def split_data_metadata(all: list[Document]) -> tuple[list[Document], list[MetadataDocument]]:
+    return (
+        [d for d in all if not isinstance(d, MetadataDocument)],
+        [d for d in all if isinstance(d, MetadataDocument)],
+    )
+
+
 class OpenSearchQuery(Document):
     def __init__(
         self,

@@ -5,8 +5,22 @@ import numpy as np
 from ray.data import ActorPoolStrategy, Dataset
 
 from sycamore.data import Document, MetadataDocument
+from sycamore.data.document import split_data_metadata
 from sycamore.plan_nodes import Node, UnaryNode
 from sycamore.utils.ray_utils import check_serializable
+
+
+def take_separate(dataset: Dataset, limit: Optional[int] = None) -> tuple[list[Document], list[MetadataDocument]]:
+    """
+    Returns the list of documents from a dataset separating out data and metadata docs.
+    """
+    if limit is None:
+        raw = dataset.take_all()
+    else:
+        raw = dataset.take(limit)
+
+    all = [Document.from_row(d) for d in raw]
+    return split_data_metadata(all)
 
 
 # Once we do python 3.12+ only, this can be:
@@ -23,6 +37,28 @@ def rename(new_function_name: str):
         return f
 
     return decorator
+
+
+def get_name_from_callable(f):
+    # check this condition first. A type will have a __name__ but might not have __call__
+    if isinstance(f, type):
+        if "__call__" in dir(f):
+            return f.__name__
+        else:
+            raise ValueError("f argument is a class without an __call__ method")
+
+    # Can't do "__name__" in dir(f), dir(f) doesn't always list __name__, so try to use it and fail
+    try:
+        return f.__name__
+    except AttributeError:
+        pass
+
+    if "__call__" in dir(f):
+        return f.__class__.__name__
+    else:
+        raise ValueError("f argument is an object without an __call__ method")
+
+    raise ValueError(f"Unable to extract name from {f}, dir(f): {dir(f)}")
 
 
 class BaseMapTransform(UnaryNode):
@@ -47,7 +83,7 @@ class BaseMapTransform(UnaryNode):
         # If we auto-generate lineage, then the conversion to BaseMap has to go in a single PR
         # since everything needs to be updated to skip metadata. If we temporarily disable the
         # lineage metadata, then we can do the conversion to BaseMap in separate PRs.
-        enable_auto_metadata: bool = False,
+        enable_auto_metadata: bool = True,
         **resource_args,
     ):
         if child is None:
@@ -63,12 +99,7 @@ class BaseMapTransform(UnaryNode):
 
         super().__init__(child, **resource_args)
         if name is None:
-            if "__name__" in dir(f):
-                name = f.__name__
-            elif "__class__" in dir(f):
-                name = f.__class__.__name__
-            else:
-                raise ValueError(f"Unable to extract name from {f}, all members: {dir(f)}")
+            name = get_name_from_callable(f)
 
         self._f = f
         self._name = name

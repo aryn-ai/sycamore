@@ -15,6 +15,7 @@ from sycamore.transforms.base import CompositeTransform
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
+from sycamore.utils import use_cuda
 
 
 # This comparator helps sort the elements per page specifically when a page
@@ -404,9 +405,7 @@ class SycamorePartitioner(Partitioner):
         batch_size: int = 1,
     ):
         if not device:
-            import torch.cuda
-
-            device = "cuda" if torch.cuda.is_available() else "cpu"
+            device = "cuda" if use_cuda() else "cpu"
         super().__init__(device=device, batch_size=batch_size)
         self._model_name_or_path = model_name_or_path
         self._device = device

@@ -1,7 +1,9 @@
 import base64
 from io import BytesIO
+from pathlib import Path
 from typing import Any, Callable, Optional, TypeVar, Union
 from PIL import Image, ImageDraw, ImageFont
+from sycamore.data import Document
 from sycamore.data.bbox import BoundingBox
 
 DEFAULT_PADDING = 10
@@ -56,6 +58,13 @@ def base64_data_url(image: Image.Image) -> str:
 
     encoded_image = image_to_bytes(image, "PNG")
     return f"data:image/png/;base64,{base64.b64encode(encoded_image).decode('utf-8')}"
+
+
+def image_page_filename_fn(doc: Document) -> str:
+    path = Path(doc.properties["path"])
+    base_name = ".".join(path.name.split(".")[0:-1])
+    page_num = doc.properties["page_number"]
+    return f"{base_name}_page_{page_num}.png"
 
 
 def _is_pair(val, target_type=float):

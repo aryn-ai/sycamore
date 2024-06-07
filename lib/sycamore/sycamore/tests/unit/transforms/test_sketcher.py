@@ -7,6 +7,10 @@ from sycamore.plan_nodes import Node
 from sycamore.transforms.base import take_separate
 
 
+def tearDownModule():
+    ray.shutdown()
+
+
 class FakeNode(Node):
     def __init__(self, doc: dict):
         self.doc = doc

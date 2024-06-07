@@ -64,6 +64,31 @@ class TestMapping:
         assert dicts[0]["index"] == 2
         assert dicts[1]["index"] == 3
 
+    class Empty:
+        def __init__(self):
+            pass
+
+    class Callable:
+        def __init__(self):
+            pass
+
+        def __call__(self):
+            pass
+
+    def test_map_typecheck(self):
+        Map(None, f=lambda x: x)
+        Map(None, f=TestMapping.Callable)
+        Map(None, f=TestMapping.Callable())
+
+        with pytest.raises(ValueError):
+            Map(None, f={})
+
+        with pytest.raises(ValueError):
+            Map(None, f=TestMapping.Empty)
+
+        with pytest.raises(ValueError):
+            Map(None, f=TestMapping.Empty())
+
     class FlatMapClass:
         def __call__(self, doc: Document) -> List[Document]:
             assert isinstance(doc, Document)
@@ -89,6 +114,20 @@ class TestMapping:
         assert len(data) == 4
         assert len(metadata) == 2
 
+    def test_flatmap_typecheck(self):
+        FlatMap(None, f=lambda x: x)
+        FlatMap(None, f=TestMapping.Callable)
+        FlatMap(None, f=TestMapping.Callable())
+
+        with pytest.raises(ValueError):
+            FlatMap(None, f={})
+
+        with pytest.raises(ValueError):
+            FlatMap(None, f=TestMapping.Empty)
+
+        with pytest.raises(ValueError):
+            FlatMap(None, f=TestMapping.Empty())
+
     class MapBatchClass:
         def __call__(self, docs: List[Document]) -> List[Document]:
             for doc in docs:
@@ -110,6 +149,20 @@ class TestMapping:
         (output_docs, _) = take_separate(output_dataset)
         dicts = [d.data for d in output_docs]
         assert dicts[0]["index"] == 2 and dicts[1]["index"] == 3
+
+    def test_map_batch_typecheck(self):
+        MapBatch(None, f=lambda x: x)
+        MapBatch(None, f=TestMapping.Callable)
+        MapBatch(None, f=TestMapping.Callable())
+
+        with pytest.raises(ValueError):
+            MapBatch(None, f={})
+
+        with pytest.raises(ValueError):
+            MapBatch(None, f=TestMapping.Empty)
+
+        with pytest.raises(ValueError):
+            MapBatch(None, f=TestMapping.Empty())
 
     def test_flat_map_conflict(self, mocker) -> None:
         def func(doc: Document) -> List[Document]:

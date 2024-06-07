@@ -51,6 +51,20 @@ class TableCell:
                 raise ValueError(f"Found non-contiguous cols in {self}.")
 
 
+DEFAULT_HTML_STYLE = """
+table, th, td {
+    border: solid thin;
+    border-spacing: 2px;
+    border-collapse: collapse;
+    margin: 1.25em 0;
+    padding: 0.5em
+}
+th {
+    background-color: LightGray;
+}
+"""
+
+
 class Table:
     """Represents a table from a document.
 
@@ -175,15 +189,33 @@ class Table:
         pandas_kwargs.update(kwargs)
         return self.to_pandas().to_csv(**pandas_kwargs)
 
-    def to_html(self):
+    def to_html(self, pretty=False, wrap_in_html=False, style=DEFAULT_HTML_STYLE):
         """Converts this table to an HTML string.
 
         Cells with is_header=True will be converted to th tags. Cells spanning
         multiple rows or columns will have the rowspan or colspan attributes,
         respectively.
+
+        Args:
+            pretty: If True, pretty-prints the html. Otherwise returns it as a single line string.
+                 Default is False.
+            wrap_in_html: If True, wraps the output as a complete html page with <html>, <head>, and <body> tags.
+                 If False, returns just the <table> fragment. Default is False.
+            style: The CSS style to use if wrap_in_html is True. This will be included inline in a <style> tag
+                 in the HTML header. The default applies some basic formatting and sets <th> cells to
+                 have a grey background.
         """
 
-        table = ET.Element("table")
+        if wrap_in_html:
+            root = ET.Element("html")
+            head = ET.SubElement(root, "head")
+            style_tag = ET.SubElement(head, "style")
+            style_tag.text = style
+            body = ET.SubElement(root, "body")
+            table = ET.SubElement(body, "table")
+        else:
+            table = ET.Element("table")
+            root = table
 
         curr_row = -1
         row = None
@@ -211,7 +243,10 @@ class Table:
             tcell = ET.SubElement(row, "th" if cell.is_header else "td", attrib=cell_attribs)
             tcell.text = cell.content
 
-        return ET.tostring(table, encoding="unicode")
+        if pretty:
+            ET.indent(root)
+
+        return ET.tostring(root, encoding="unicode")
 
     U = TypeVar("U", bound=Union[Image.Image, ImageDraw.ImageDraw])
 

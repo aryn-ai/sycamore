@@ -53,7 +53,8 @@ COPY --from=rps_build --chown=aryn:aryn /aryn/rps/lib/remote-processors ./lib/re
 COPY --chown=aryn:aryn ./lib/sycamore ./lib/sycamore/
 COPY --chown=aryn:aryn ./apps/remote-processor-service ./apps/remote-processor-service
 WORKDIR /aryn/rps/apps/remote-processor-service
-RUN make -f /aryn/Makefile server_build
+RUN --mount=type=cache,id=cache_poetry_1000,target=/tmp/poetry_cache,uid=1000,gid=1000,sharing=locked \
+    make -f /aryn/Makefile server_build
 RUN chmod +x ./remote_processor_service/rps_docker_entrypoint.sh
 RUN make -f /aryn/Makefile user_check
 

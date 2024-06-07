@@ -77,8 +77,8 @@ class TestBaseDBWriter(Common):
         writer = FakeWriter(input_node, client_params, target_params)
         post_write_docs = writer.run(Common.docs)
         target_path: Path = tmp_path / target_params.dirname
-        files = list(target_path.iterdir())
-        assert len(files) == len([d for d in Common.docs if not isinstance(d, MetadataDocument)])
+        files = sorted(list(target_path.iterdir()))
+        assert len(files) == len(Common.docs)
         assert files[0].name == "m1"
         assert files[0].read_text() == "it's time to play the music"
         assert files[1].name == "m2"
@@ -98,7 +98,7 @@ class TestBaseDBWriter(Common):
         writer = FakeWriter(input_node, client_params, target_params, filter=lambda d: d.doc_id == "m1")
         post_write_docs = writer.run(Common.docs)
         target_path: Path = tmp_path / target_params.dirname
-        files = list(target_path.iterdir())
+        files = sorted(list(target_path.iterdir()))
         assert len(files) == 1
         assert files[0].name == "m1"
         assert files[0].read_text() == "it's time to play the music"

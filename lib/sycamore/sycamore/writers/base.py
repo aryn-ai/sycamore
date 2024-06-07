@@ -37,7 +37,8 @@ class BaseDBWriter(MapBatch, Write):
         def from_doc(cls, document: Document, target_params: "BaseDBWriter.TargetParams") -> "BaseDBWriter.Record":
             pass
 
-    # Type param for the object used to configure a new index if necessary
+    # Type param for the object used to configure the write target
+    # e.g. opensearch/pinecone index, s3 bucket, weaviate collection...
     @dataclass
     class TargetParams(ABC):
         pass
@@ -53,9 +54,9 @@ class BaseDBWriter(MapBatch, Write):
         client_params: ClientParams,
         target_params: TargetParams,
         filter: Callable[[Document], bool] = lambda d: True,
-        **ray_remote_args,
+        **kwargs,
     ):
-        super().__init__(plan, f=self.write_docs, **ray_remote_args)
+        super().__init__(plan, f=self.write_docs, **kwargs)
         check_serializable(client_params, target_params, filter)
         self._filter = filter
         self._client_params = client_params

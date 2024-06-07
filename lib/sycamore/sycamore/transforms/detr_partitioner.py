@@ -172,7 +172,7 @@ class SycamorePDFPartitioner:
 
             return deformable_layout
 
-    def _cleanup_tmp(self):
+    def _cleanup_tmp(self) -> None:
         now = time.time()
         dir = tempfile.gettempdir()
         for ent in os.scandir(dir):

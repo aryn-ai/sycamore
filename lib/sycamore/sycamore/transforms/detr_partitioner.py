@@ -124,7 +124,7 @@ class SycamorePDFPartitioner:
 
             image_paths: list[str] = pdf2image.convert_from_path(
                 filename,
-                output_folder=tmp_dir,
+                output_folder=str(tmp_dir),
                 paths_only=True,
             )
             images = [Image.open(path).convert("RGB") for path in image_paths]

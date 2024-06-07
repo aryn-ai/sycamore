@@ -73,7 +73,7 @@ class TestBaseDBWriter(Common):
         client_params = FakeClientParams(fspath=tmp_path)
         target_params = FakeTargetParams(dirname="target")
         writer = FakeWriter(input_node, client_params, target_params)
-        writer.write_docs(Common.docs)
+        writer.run(Common.docs)
         target_path: Path = tmp_path / target_params.dirname
         files = list(target_path.iterdir())
         assert len(files) == len([d for d in Common.docs if not isinstance(d, MetadataDocument)])
@@ -93,7 +93,7 @@ class TestBaseDBWriter(Common):
         client_params = FakeClientParams(fspath=tmp_path)
         target_params = FakeTargetParams(dirname="target")
         writer = FakeWriter(input_node, client_params, target_params, filter=lambda d: d.doc_id == "m1")
-        writer.write_docs(Common.docs)
+        writer.run(Common.docs)
         target_path: Path = tmp_path / target_params.dirname
         files = list(target_path.iterdir())
         assert len(files) == 1

@@ -354,13 +354,6 @@ export const ChatBox = ({
           'Querying knowledge database with question: "' + question + '"',
         );
       }
-      if (filters != null) {
-        setLoadingMessage(
-          'Using filter: "' +
-            JSON.stringify(filters) +
-            '". Generating answer..',
-        );
-      }
 
       const clean = async (result: any) => {
         const openSearchResponseAsync = result[0];

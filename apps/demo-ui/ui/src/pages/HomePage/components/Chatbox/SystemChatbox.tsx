@@ -597,7 +597,7 @@ export const SystemChatBox = ({
       <Modal
         opened={openSearchQueryModalOpened}
         onClose={openSearchQueryModalHandler.close}
-        title="Opensearch Query"
+        title="Opensearch Query Used"
         size="auto"
       >
         <Flex>
@@ -644,7 +644,7 @@ export const SystemChatBox = ({
             onChange={handleInputChange}
           ></TextInput>
         ) : (
-          <Text size="xl" fw={450} p="xs" pl="0">
+          <Text size="xl" fw={450} p="xs" pl="0" pt="0">
             {systemChat.queryUsed}
           </Text>
         )}

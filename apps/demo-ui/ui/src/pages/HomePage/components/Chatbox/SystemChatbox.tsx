@@ -3,10 +3,13 @@ import {
   Badge,
   Button,
   Card,
+  Collapse,
   Container,
+  Flex,
   Group,
   Modal,
   NativeSelect,
+  Paper,
   ScrollArea,
   Stack,
   Text,
@@ -15,7 +18,7 @@ import {
   UnstyledButton,
   useMantineTheme,
 } from "@mantine/core";
-import { Settings, SystemChat } from "../../../../Types";
+import { FilterValues, Settings, SystemChat } from "../../../../Types";
 import {
   getHybridConversationSearchQuery,
   hybridConversationSearch,
@@ -25,7 +28,11 @@ import {
 import { useState } from "react";
 import { useDisclosure } from "@mantine/hooks";
 import {
+  IconChevronDown,
+  IconChevronRight,
+  IconCopy,
   IconEdit,
+  IconInfoCircle,
   IconPlayerPlayFilled,
   IconPlus,
   IconX,
@@ -36,6 +43,7 @@ import { Citation } from "./Citation";
 import {
   anthropicRag,
   parseFilters,
+  parseFiltersForDisplay,
   parseOpenSearchResults,
   simplifyAnswer,
   streamingAnthropicRag,
@@ -63,6 +71,8 @@ export const SystemChatBox = ({
   streamingRagResponse,
   setStreamingRagResponse,
   openErrorDialog,
+  setManualFilters,
+  setManualAggregations,
 }: {
   systemChat: SystemChat;
   chatHistory: any;
@@ -80,9 +90,16 @@ export const SystemChatBox = ({
   streamingRagResponse: any;
   setStreamingRagResponse: any;
   openErrorDialog: any;
+  setManualFilters: any;
+  setManualAggregations: any;
 }) => {
   const citationRegex = /\[(\d+)\]/g;
   const theme = useMantineTheme();
+  const [openSearchResultOpened, openSearchResultHandler] =
+    useDisclosure(false);
+  const [openSearchQueryModalOpened, openSearchQueryModalHandler] =
+    useDisclosure(false);
+
   // console.log("Filter content is", systemChat.filterContent);
   const replaceCitationsWithLinks = (text: string) => {
     const cleanedText = text
@@ -157,6 +174,19 @@ export const SystemChatBox = ({
       setNewFilterType(filterToEdit);
       setNewFilterValue(newFilterContent[filterToEdit]);
       newFilterInputDialoghHandlers.open();
+    };
+    const FilterBadge = ({
+      filterKey,
+      filterValue,
+    }: {
+      filterKey: string;
+      filterValue: any;
+    }) => {
+      return (
+        <Badge size="xs" p="xs" radius="sm">
+          {filterKey}: {filterValue}
+        </Badge>
+      );
     };
 
     const addFilter = () => {
@@ -248,13 +278,47 @@ export const SystemChatBox = ({
                 <Text size="xs">Filters :</Text>
               )}
             {systemChat.filterContent &&
-              Object.keys(systemChat.filterContent).map((filter: any) => {
-                return (
-                  <Badge size="xs" key={filter} p="xs" radius="sm">
-                    {filter}: {systemChat.filterContent[filter]}
-                  </Badge>
-                );
-              })}
+              Object.entries(systemChat.filterContent as FilterValues).map(
+                ([key, value]) => {
+                  if (typeof value === "object") {
+                    const start = value.gte ?? "";
+                    const end = value.lte ?? "";
+                    const rangeText =
+                      start && end
+                        ? `${start} - ${end}`
+                        : start
+                          ? `> ${start}`
+                          : `< ${end}`;
+                    return (
+                      <FilterBadge
+                        key={key}
+                        filterKey={key}
+                        filterValue={rangeText}
+                      />
+                    );
+                  } else {
+                    return (
+                      <FilterBadge
+                        key={key}
+                        filterKey={key}
+                        filterValue={value}
+                      />
+                    );
+                  }
+                },
+                //
+              )}
+            {systemChat.filterContent &&
+              Object.keys(systemChat.filterContent).length !== 0 && (
+                <ActionIcon
+                  onClick={() => {
+                    setManualFilters(systemChat.filterContent);
+                  }}
+                  size="xs"
+                >
+                  <IconCopy stroke={1.5} />
+                </ActionIcon>
+              )}
           </Group>
           <Group>
             {systemChat.aggregationsUsed &&
@@ -269,6 +333,17 @@ export const SystemChatBox = ({
                   </Badge>
                 );
               })}
+            {systemChat.aggregationsUsed &&
+              Object.keys(systemChat.aggregationsUsed).length !== 0 && (
+                <ActionIcon
+                  onClick={() => {
+                    setManualAggregations(systemChat.aggregationsUsed);
+                  }}
+                  size="xs"
+                >
+                  <IconCopy stroke={1.5} />
+                </ActionIcon>
+              )}
           </Group>
         </Stack>
       );
@@ -519,6 +594,28 @@ export const SystemChatBox = ({
         overflow: "visible",
       }}
     >
+      <Modal
+        opened={openSearchQueryModalOpened}
+        onClose={openSearchQueryModalHandler.close}
+        title="Opensearch Query"
+        size="auto"
+      >
+        <Flex>
+          <ScrollArea w="100%">
+            <Prism language="markdown">
+              {JSON.stringify(systemChat.rawQueryUsed, null, 4)}
+            </Prism>
+          </ScrollArea>
+        </Flex>
+      </Modal>
+      {systemChat.rawQueryUsed && (
+        <ActionIcon
+          style={{ position: "absolute", right: "1.25rem", top: "1.25rem" }}
+          onClick={openSearchQueryModalHandler.open}
+        >
+          <IconInfoCircle stroke={2} />
+        </ActionIcon>
+      )}
       <Group spacing="xs">
         {editing ? (
           <Group p="0">
@@ -547,7 +644,7 @@ export const SystemChatBox = ({
             onChange={handleInputChange}
           ></TextInput>
         ) : (
-          <Text size="md" fw={500} p="xs" pl="0">
+          <Text size="xl" fw={450} p="xs" pl="0">
             {systemChat.queryUsed}
           </Text>
         )}
@@ -593,14 +690,28 @@ export const SystemChatBox = ({
         {/* {textNodes} */}
         {replaceCitationsWithLinks(systemChat.response)}
         {systemChat.rawResults != null ? (
-          <Container p="md">
-            <Title order={5}>OpenSearch results</Title>
-            <ScrollArea h="45rem">
-              <Prism language="markdown">
-                {JSON.stringify(systemChat.rawResults, null, 4)}
-              </Prism>
-            </ScrollArea>
-          </Container>
+          <Paper withBorder mt="md">
+            <Group
+              onClick={openSearchResultHandler.toggle}
+              style={{ cursor: "pointer" }}
+            >
+              {openSearchResultOpened ? (
+                <IconChevronDown color="grey" />
+              ) : (
+                <IconChevronRight color="grey" />
+              )}
+              <Text>OpenSearch results</Text>
+            </Group>
+            <Collapse in={openSearchResultOpened}>
+              <Flex>
+                <ScrollArea mah="45rem" w="100%">
+                  <Prism language="markdown">
+                    {JSON.stringify(systemChat.rawResults, null, 4)}
+                  </Prism>
+                </ScrollArea>
+              </Flex>
+            </Collapse>
+          </Paper>
         ) : null}
       </Text>
       <DocList

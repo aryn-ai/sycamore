@@ -44,7 +44,7 @@ export const SearchControlPanel = ({
           onChange={() => setQueryPlanner(!queryPlanner)}
           variant="light"
         >
-          Auto-filters
+          Query analyzer
         </Chip>
       ) : null}
       {/* <Button

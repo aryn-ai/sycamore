@@ -4,32 +4,64 @@ import {
   Modal,
   NativeSelect,
   SegmentedControl,
+  Select,
   Stack,
   TextInput,
 } from "@mantine/core";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { documentLevelFields } from "../../../../utils/ChatboxUtils";
 
 export const AddAggregationModal = ({
   addAggregationsModalOpened,
   addAggregationsModalhandlers,
   aggregations,
   setAggregations,
+  filterFields,
 }: {
   addAggregationsModalOpened: boolean;
   addAggregationsModalhandlers: any;
   aggregations: any;
   setAggregations: any;
+  filterFields: string[];
 }) => {
   const [aggregationType, setAggregationType] = useState("terms");
-  const [aggregationValue, setAggregationValue] = useState("location");
+  const [aggregationValue, setAggregationValue] = useState<string | null>("");
+  const [fieldsData, setFieldsData] = useState<
+    { value: string; label: string; group: string }[]
+  >([]);
+
+  useEffect(() => {
+    const retrievedFieldsData = filterFields.map((field) => ({
+      value: field,
+      label: field,
+    }));
+    const originalFieldsData = [
+      { value: "location", label: "Location" },
+      { value: "aircraftType", label: "Aircraft type" },
+      { value: "accidentNumber", label: "Accident number" },
+    ];
+    const AllFields = [...originalFieldsData, ...retrievedFieldsData];
+    const groupedFieldsData = AllFields.map((field) => ({
+      ...field,
+      group: documentLevelFields.includes(field.value)
+        ? "Document Level Field"
+        : "Entity Specific Field",
+    }));
+
+    setFieldsData(groupedFieldsData);
+    console.log(retrievedFieldsData);
+    console.log();
+  }, [filterFields]);
 
   const handleSubmit = (e: React.FormEvent) => {
-    setAggregations((prevAggs: any) => ({
-      [aggregationType]: aggregationValue,
-    }));
-    setAggregationValue("location");
-    setAggregationType("terms");
-    addAggregationsModalhandlers.close();
+    if (aggregationValue && aggregationValue.length !== 0) {
+      setAggregations((prevAggs: any) => ({
+        [aggregationType]: aggregationValue,
+      }));
+      setAggregationValue("");
+      setAggregationType("terms");
+      addAggregationsModalhandlers.close();
+    }
   };
 
   return (
@@ -50,14 +82,16 @@ export const AddAggregationModal = ({
             { label: "Cardinality", value: "cardinality" },
           ]}
         />
-        <NativeSelect
+        <Select
           value={aggregationValue}
           label="Aggregation field"
-          onChange={(event) => setAggregationValue(event.currentTarget.value)}
-          data={[
-            { value: "location", label: "Location" },
-            { value: "aircraftType", label: "Aircraft type" },
-          ]}
+          onChange={setAggregationValue}
+          placeholder="Select field"
+          data={fieldsData}
+          searchable
+          withinPortal
+          // creatable
+          getCreateLabel={(query) => `+ Aggregation on ${query}`}
         />
         <Group position="right">
           <Button bg="#5688b0" onClick={(e) => handleSubmit(e)}>

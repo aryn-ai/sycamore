@@ -5,6 +5,7 @@ import {
   Group,
   Modal,
   NativeSelect,
+  Select,
   Stack,
   Text,
   TextInput,
@@ -13,37 +14,129 @@ import {
 import { useEffect, useState } from "react";
 import { DateInput } from "@mantine/dates";
 import { IconX } from "@tabler/icons-react";
+import { FilterValues } from "../../../../Types";
+import { documentLevelFields } from "../../../../utils/ChatboxUtils";
 
 export const AddFilterModal = ({
   addFilterModalOpened,
   addFilterModalHandlers,
   filterContent,
   setFilterContent,
+  filterFields,
 }: {
   addFilterModalOpened: boolean;
   addFilterModalHandlers: any;
   filterContent: any;
   setFilterContent: any;
+  filterFields: string[];
 }) => {
-  const [newFilterType, setNewFilterType] = useState("location");
+  const [newFilterType, setNewFilterType] = useState<string | null>("");
   const [newFilterValue, setNewFilterValue] = useState("");
-  const [newDateValue, setNewDateValue] = useState<Date | null>(null);
-  const [newFilterContent, setNewFilterContent] = useState({});
+  const [startDateValue, setStartDateValue] = useState<Date | null>(null);
+  const [endDateValue, setEndDateValue] = useState<Date | null>(null);
+  const [newFilterContent, setNewFilterContent] = useState<FilterValues>({});
+  const [minFilterValue, setMinFilterValue] = useState("");
+  const [maxFilterValue, setMaxFilterValue] = useState("");
+  const [fieldsData, setFieldsData] = useState<
+    { value: string; label: string; group: string }[]
+  >([]);
 
   useEffect(() => {
     setNewFilterContent(filterContent);
   }, [filterContent]);
+  const rangeFilterFields = [
+    "altimeterSettingInHg",
+    "altimeterSettingInInchesHg",
+    "dewPointTemperatureInC",
+    "distanceFromAccidentSiteInNauticalMiles",
+    "ratedPowerInHorsepower",
+    "seats",
+    "temperatureInC",
+    "timeSinceLastInspectionInHrs",
+    "visibilityInMiles",
+    "windGustsInKnots",
+    "windSpeedInKnots",
+    "yearOfManufacture",
+  ];
+
+  useEffect(() => {
+    const retrievedFieldsData = filterFields.map((field) => ({
+      value: field,
+      label: field,
+    }));
+    const originalFieldsData = [
+      { value: "location", label: "Location" },
+      { value: "aircraftType", label: "Aircraft type" },
+      { value: "day", label: "Day" },
+      { value: "lowestCloudCondition", label: "Lowest cloud condition" },
+      { value: "windSpeedInKnots", label: "Wind Speed in knots" },
+      { value: "injuries", label: "Injuries" },
+    ];
+
+    const AllFields = [...originalFieldsData, ...retrievedFieldsData];
+    const groupedFieldsData = AllFields.map((field) => ({
+      ...field,
+      group: documentLevelFields.includes(field.value)
+        ? "Document Level Field"
+        : "Entity Specific Field",
+    }));
+
+    setFieldsData(groupedFieldsData);
+    console.log(retrievedFieldsData);
+    console.log();
+  }, [filterFields]);
 
   const handleAdd = (e: React.FormEvent) => {
-    setNewFilterContent((prevFilters: any) => ({
-      ...prevFilters,
-      [newFilterType]:
-        newFilterType === "day_end" || newFilterType === "day_start"
-          ? newDateValue?.toISOString().split("T")[0]
-          : newFilterValue,
-    }));
-    setNewFilterValue("");
-    setNewDateValue(null);
+    if (newFilterType === "day") {
+      const existingFilters = { ...newFilterContent } as FilterValues;
+      let dayValues: any = existingFilters.day || {};
+      if (startDateValue) {
+        dayValues["gte"] = startDateValue?.toISOString().split("T")[0];
+      }
+      if (endDateValue) {
+        dayValues["lte"] = endDateValue?.toISOString().split("T")[0];
+      }
+      if (Object.keys(dayValues).length > 0) {
+        setNewFilterContent((prevFilters: any) => ({
+          ...prevFilters,
+          day: dayValues,
+        }));
+      }
+      setStartDateValue(null);
+      setEndDateValue(null);
+    } else if (
+      newFilterType === "windSpeedInKnots" ||
+      (newFilterType && rangeFilterFields.includes(newFilterType))
+    ) {
+      const existingFilters = { ...newFilterContent } as FilterValues;
+      let filterValues: any = existingFilters[newFilterType] || {};
+      if (minFilterValue !== "") {
+        filterValues["gte"] = Number(minFilterValue);
+      }
+      if (maxFilterValue !== "") {
+        filterValues["lte"] = Number(maxFilterValue);
+      }
+      if (Object.keys(filterValues).length > 0) {
+        setNewFilterContent((prevFilters: any) => ({
+          ...prevFilters,
+          [newFilterType]: filterValues,
+        }));
+      }
+      setMaxFilterValue("");
+      setMinFilterValue("");
+    } else if (
+      newFilterType &&
+      newFilterType.length !== 0 &&
+      newFilterValue &&
+      newFilterValue.length !== 0
+    ) {
+      setNewFilterContent((prevFilters: any) => ({
+        ...prevFilters,
+        [newFilterType as string]: newFilterValue,
+      }));
+      setNewFilterValue("");
+    }
+    console.log("inside filter modal on add: ", newFilterContent);
   };
 
   const handleRemoveFilter = (filterKeyToRemove: string) => {
@@ -57,18 +150,13 @@ export const AddFilterModal = ({
   const handleSubmit = (e: React.FormEvent) => {
     setFilterContent(newFilterContent);
     setNewFilterContent({});
-    setNewFilterValue("");
-    setNewDateValue(null);
-    setNewFilterType("location");
+    // // setNewDateValue(null);
+    // setNewFilterType("");
     addFilterModalHandlers.close();
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewFilterValue(e.target.value);
-  };
-
-  const handleDateChange = (date: Date | null) => {
-    setNewDateValue(date);
   };
 
   const handleInputKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -84,12 +172,6 @@ export const AddFilterModal = ({
     filterKey: string;
     filterValue: any;
   }) => {
-    if (filterKey === "day_start") {
-      filterValue = "> " + filterValue;
-    }
-    if (filterKey === "day_end") {
-      filterValue = "< " + filterValue;
-    }
     return (
       <Badge
         pl="0.5rem"
@@ -110,7 +192,7 @@ export const AddFilterModal = ({
           </ActionIcon>
         }
       >
-        {filterValue}
+        {filterKey}: {filterValue}
       </Badge>
     );
   };
@@ -124,27 +206,65 @@ export const AddFilterModal = ({
       centered
     >
       <Stack p="md">
-        <NativeSelect
+        <Select
           value={newFilterType}
           label="Field to filter on"
-          onChange={(event) => setNewFilterType(event.currentTarget.value)}
-          data={[
-            { value: "location", label: "Location" },
-            { value: "aircraftType", label: "Airplane type" },
-            { value: "day_end", label: "Before" },
-            { value: "day_start", label: "After" },
-          ]}
+          placeholder="Select field"
+          onChange={setNewFilterType}
+          searchable
+          getCreateLabel={(query) => `+ Filter on ${query}`}
+          withinPortal
+          data={fieldsData}
         />
-        {newFilterType === "day_end" || newFilterType === "day_start" ? (
-          <DateInput
-            value={newDateValue}
-            onChange={handleDateChange}
-            label="Date input"
-            placeholder="Date input"
-            clearable
-            popoverProps={{ withinPortal: true }}
-            valueFormat="YYYY/MM/DD"
-          />
+        {newFilterType === "day" ? (
+          <Group noWrap>
+            <DateInput
+              w="50%"
+              value={startDateValue}
+              onChange={setStartDateValue}
+              label="Start"
+              placeholder="Date input"
+              clearable
+              popoverProps={{ withinPortal: true }}
+              valueFormat="YYYY/MM/DD"
+            />
+            <DateInput
+              w="50%"
+              value={endDateValue}
+              onChange={setEndDateValue}
+              label="End"
+              placeholder="Date input"
+              clearable
+              popoverProps={{ withinPortal: true }}
+              valueFormat="YYYY/MM/DD"
+            />
+          </Group>
+        ) : newFilterType === "windSpeedInKnots" ||
+          (newFilterType && rangeFilterFields.includes(newFilterType)) ? (
+          <Group noWrap>
+            <TextInput
+              w="50%"
+              label="Minimum"
+              value={minFilterValue}
+              // onKeyDown={(e) => setMinFilterValue(e.currentTarget.value)}
+              onChange={(e) => setMinFilterValue(e.currentTarget.value)}
+              autoFocus
+              size="sm"
+              fz="xs"
+              placeholder="Enter min value"
+            />
+            <TextInput
+              w="50%"
+              label="Maximum"
+              value={maxFilterValue}
+              // onKeyDown={handleInputKeyPress}
+              onChange={(e) => setMaxFilterValue(e.currentTarget.value)}
+              autoFocus
+              size="sm"
+              fz="xs"
+              placeholder="Enter max value"
+            />
+          </Group>
         ) : (
           <TextInput
             label="Value of filter"
@@ -154,15 +274,42 @@ export const AddFilterModal = ({
             autoFocus
             size="sm"
             fz="xs"
-            placeholder="e.g. California"
+            placeholder="Enter value"
           />
         )}
         {Object.keys(newFilterContent).length !== 0 && (
           <Group spacing="xs">
             <Text size="xs">Filters :</Text>
-            {Object.entries(newFilterContent).map(([key, value]) => (
-              <FilterBadge key={key} filterKey={key} filterValue={value} />
-            ))}
+            {Object.entries(newFilterContent).map(
+              ([key, value]) => {
+                if (typeof value === "object") {
+                  const start = value.gte ?? "";
+                  const end = value.lte ?? "";
+                  const rangeText =
+                    start && end
+                      ? `${start} - ${end}`
+                      : start
+                        ? `> ${start}`
+                        : `< ${end}`;
+                  return (
+                    <FilterBadge
+                      key={key}
+                      filterKey={key}
+                      filterValue={rangeText}
+                    />
+                  );
+                } else {
+                  return (
+                    <FilterBadge
+                      key={key}
+                      filterKey={key}
+                      filterValue={value}
+                    />
+                  );
+                }
+              },
+              //
+            )}
           </Group>
         )}
 

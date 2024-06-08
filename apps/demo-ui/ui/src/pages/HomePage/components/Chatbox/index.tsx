@@ -22,13 +22,19 @@ import {
 } from "@mantine/core";
 import {
   IconChevronRight,
+  IconClearAll,
   IconSend,
   IconSettings,
   IconWriting,
   IconX,
 } from "@tabler/icons-react";
 import { getFilters, rephraseQuestion } from "../../../../utils/Llm";
-import { SearchResultDocument, Settings, SystemChat } from "../../../../Types";
+import {
+  FilterValues,
+  SearchResultDocument,
+  Settings,
+  SystemChat,
+} from "../../../../Types";
 import {
   hybridConversationSearch,
   updateInteractionAnswer,
@@ -44,17 +50,18 @@ import {
 import { ControlPanel } from "./Controlpanel";
 import {
   anthropicRag,
-  buildOpenSearchQuery,
+  buildOpenSearchQueryFromManualFiltersAggs,
   interpretOsResult,
   parseAggregationsForDisplay,
   parseFilters,
   parseFiltersForDisplay,
-  parseFiltersForRawQuery,
+  buildOpensearchQueryFromLlmResponse,
   parseManualFilters,
   parseOpenSearchResults,
   parseOpenSearchResultsOg,
   simplifyAnswer,
   streamingAnthropicRag,
+  excludeFields,
 } from "../../../../utils/ChatboxUtils";
 import { SystemChatBox } from "./SystemChatbox";
 import { SearchControlPanel } from "./SearchControlPanel";
@@ -165,15 +172,14 @@ export const ChatBox = ({
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [streamingRagResponse, setStreamingRagResponse] = useState("");
   const [bottomContainerRef, bottomContainerRect] = useResizeObserver();
-  const [manualFilters, setManualFilters] = useState<{ [key: string]: string }>(
-    {},
-  );
+  const [manualFilters, setManualFilters] = useState<FilterValues>({});
   const [addFilterModalOpened, addFilterModalHandlers] = useDisclosure(false);
   const [manualAggregations, setManualAggregations] = useState<{
     [key: string]: string;
   }>({});
   const [addAggregationsModalOpened, addAggregationsModalhandlers] =
     useDisclosure(false);
+  const [filterFields, setFilterFields] = useState<string[]>([]);
 
   useEffect(() => {
     setCurrentOsUrl("/opensearch/" + settings.openSearchIndex + "/_search?");
@@ -186,8 +192,40 @@ export const ChatBox = ({
   };
 
   useEffect(() => {
+    const apiUrl = `https://localhost:9200/${settings.openSearchIndex}/_mapping`;
+
+    const fetchData = async () => {
+      try {
+        const response = await fetch(apiUrl);
+
+        if (!response.ok) {
+          throw new Error("Network response was not ok.");
+        }
+
+        const data = await response.json();
+        const retrievedFields = Object.keys(
+          data[settings.openSearchIndex].mappings.properties.properties
+            .properties,
+        ).filter((field) => !excludeFields.includes(field));
+        setFilterFields(Array.from(new Set(retrievedFields)));
+        console.log(
+          "Fields from mappings: ",
+          Object.keys(
+            data[settings.openSearchIndex].mappings.properties.properties
+              .properties,
+          ),
+        );
+      } catch (error) {
+        setErrorMessage("Error fetching filter fields");
+      }
+    };
+
+    fetchData();
+  }, [settings.openSearchIndex]);
+
+  useEffect(() => {
     scrollToBottom();
-  }, [chatHistory, streaming]);
+  }, [chatHistory, streaming, loadingMessage]);
 
   useEffect(() => {
     setManualFilters({});
@@ -217,11 +255,14 @@ export const ChatBox = ({
       let filters: any;
       let filterContent: any = null;
       let rawOSQueryFlag: boolean = false;
-      let OsJsonQuery: any = null;
+      let osJsonQuery: any = null;
       let aggregations: any = null;
       if (disableFilters) {
         if (Object.keys(manualAggregations).length !== 0) {
-          OsJsonQuery = buildOpenSearchQuery(manualFilters, manualAggregations);
+          osJsonQuery = buildOpenSearchQueryFromManualFiltersAggs(
+            manualFilters,
+            manualAggregations,
+          );
           aggregations = manualAggregations;
           filterContent = manualFilters;
           rawOSQueryFlag = true;
@@ -256,14 +297,16 @@ export const ChatBox = ({
                 filters = parseFilters(filterContentGenerated, setErrorMessage);
                 filterContent = parseFiltersForDisplay(filterContentGenerated);
               } else {
-                OsJsonQuery = parseFiltersForRawQuery(filterContentGenerated);
+                osJsonQuery = buildOpensearchQueryFromLlmResponse(
+                  filterContentGenerated,
+                );
                 filterContent = parseFiltersForDisplay(filterContentGenerated);
                 aggregations = parseAggregationsForDisplay(
                   filterContentGenerated,
                 );
                 console.log(
-                  "from parseFiltersForRawQuery",
-                  JSON.stringify(OsJsonQuery, null, 2),
+                  "from buildOpensearchQueryFromLlmResponse",
+                  JSON.stringify(osJsonQuery, null, 2),
                   "aggregations",
                   aggregations,
                   "filterContent",
@@ -304,10 +347,13 @@ export const ChatBox = ({
         question = rephrasedQuestion;
       }
       console.log("Question is: ", question);
-
-      setLoadingMessage(
-        'Querying knowledge database with question: "' + question + '"',
-      );
+      if (question.length === 0) {
+        setLoadingMessage("Running Opensearch Query");
+      } else {
+        setLoadingMessage(
+          'Querying knowledge database with question: "' + question + '"',
+        );
+      }
       if (filters != null) {
         setLoadingMessage(
           'Using filter: "' +
@@ -334,7 +380,6 @@ export const ChatBox = ({
         );
         openSearchResponse.ext.retrieval_augmented_generation.answer =
           generatedAnswer;
-        console.log("newSystemChat.filterContent in clean", filterContent);
         return openSearchResponse;
       };
 
@@ -473,7 +518,7 @@ export const ChatBox = ({
             response: response,
             queryUsed:
               question.length === 0 ? "Opensearch Query Response" : question,
-            rawQueryUsed: OsJsonQuery,
+            rawQueryUsed: osJsonQuery,
             queryUrl: currentOsUrl,
             rawResults: openSearchResponse,
             interaction_id: "Adhoc, not stored in memory",
@@ -484,10 +529,10 @@ export const ChatBox = ({
           });
           setChatHistory([...chatHistory, newSystemChat]);
         };
+        console.log("OsJsonQuery: ", osJsonQuery);
+        const query = osJsonQuery;
         await Promise.all([
-          openSearchCall(OsJsonQuery, currentOsUrl).then(
-            populateChatFromRawOsQuery,
-          ),
+          openSearchCall(query, currentOsUrl).then(populateChatFromRawOsQuery),
         ]);
       } else if (!anthropicRagFlag) {
         await Promise.all([
@@ -604,12 +649,6 @@ export const ChatBox = ({
     filterKey: string;
     filterValue: any;
   }) => {
-    if (filterKey === "day_start") {
-      filterValue = "> " + filterValue;
-    }
-    if (filterKey === "day_end") {
-      filterValue = "< " + filterValue;
-    }
     return (
       <Badge
         pl="0.5rem"
@@ -630,7 +669,7 @@ export const ChatBox = ({
           </ActionIcon>
         }
       >
-        {filterValue}
+        {filterKey}: {filterValue}
       </Badge>
     );
   };
@@ -674,12 +713,14 @@ export const ChatBox = ({
         addFilterModalHandlers={addFilterModalHandlers}
         filterContent={manualFilters}
         setFilterContent={setManualFilters}
+        filterFields={filterFields}
       />
       <AddAggregationModal
         addAggregationsModalOpened={addAggregationsModalOpened}
         addAggregationsModalhandlers={addAggregationsModalhandlers}
         aggregations={manualAggregations}
         setAggregations={setManualAggregations}
+        filterFields={filterFields}
       />
       <OpenSearchQueryEditor
         openSearchQueryEditorOpened={openSearchQueryEditorOpened}
@@ -758,6 +799,8 @@ export const ChatBox = ({
                       streamingRagResponse={streamingRagResponse}
                       setStreamingRagResponse={setStreamingRagResponse}
                       openErrorDialog={openErrorDialog}
+                      setManualFilters={setManualFilters}
+                      setManualAggregations={setManualAggregations}
                     />
                   );
                 })}
@@ -788,13 +831,48 @@ export const ChatBox = ({
           mr="auto"
           p="xs"
           w={mobileScreen ? "90vw" : "70vw"}
+          noWrap
         >
           <Stack spacing="xs">
             <Group spacing="xs">
               <Text size="xs">Filters :</Text>
-              {Object.entries(manualFilters).map(([key, value]) => (
-                <FilterBadge key={key} filterKey={key} filterValue={value} />
-              ))}
+              {Object.entries(manualFilters).length !== 0 && (
+                <Tooltip label="Clear All">
+                  <ActionIcon onClick={() => setManualFilters({})} size="xs">
+                    <IconClearAll stroke={2} />
+                  </ActionIcon>
+                </Tooltip>
+              )}
+              {Object.entries(manualFilters).map(
+                ([key, value]) => {
+                  if (typeof value === "object") {
+                    const start = value.gte ?? "";
+                    const end = value.lte ?? "";
+                    const rangeText =
+                      start && end
+                        ? `${start} - ${end}`
+                        : start
+                          ? `> ${start}`
+                          : `< ${end}`;
+                    return (
+                      <FilterBadge
+                        key={key}
+                        filterKey={key}
+                        filterValue={rangeText}
+                      />
+                    );
+                  } else {
+                    return (
+                      <FilterBadge
+                        key={key}
+                        filterKey={key}
+                        filterValue={value}
+                      />
+                    );
+                  }
+                },
+                //
+              )}
 
               <Button
                 compact
@@ -868,7 +946,7 @@ export const ChatBox = ({
             radius="xl"
             autoFocus
             size="lg"
-            rightSectionWidth="auto"
+            rightSectionWidth="100px"
             rightSection={
               <Group pr="0.2rem">
                 <Tooltip label="Rewrite question">

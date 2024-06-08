@@ -118,7 +118,7 @@ const DocumentItem = ({ document }: { document: SearchResultDocument }) => {
         <HoverCard.Dropdown>
           <ScrollArea h="20vh">
             <Title order={5}>{document.title}</Title>
-            <Anchor href={document.url} target="_blank">
+            <Anchor target="_blank" onClick={() => openDocument()}>
               <Text fz="xs">{document.url} </Text>
             </Anchor>
             <Group>

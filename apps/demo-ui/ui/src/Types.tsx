@@ -81,3 +81,10 @@ export class Settings {
     Object.assign(this, init);
   }
 }
+
+export interface FilterValues {
+  [key: string]:
+    | string
+    | { gte?: string | number; lte?: string | number }
+    | undefined;
+}

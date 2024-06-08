@@ -11,7 +11,7 @@ from sycamore.data import Element, BoundingBox, ImageElement, TableElement
 from sycamore.data.element import create_element
 from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
 from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
-from sycamore.utils import use_cuda
+from sycamore.utils import choose_device
 
 from PIL import Image
 import pdf2image
@@ -245,10 +245,7 @@ class DeformableDetr(SycamoreObjectDetection):
     # to account for heterogeneous systems. Currently if you pass in an explicit device parameter
     # it will be applied everywhere.
     def _get_device(self) -> str:
-        if self.device is None:
-            return "cuda" if use_cuda() else "cpu"
-        else:
-            return self.device
+        return choose_device(self.device)
 
     def infer(
         self, images: List[Image.Image], threshold: float, model_server_endpoint: str = ""

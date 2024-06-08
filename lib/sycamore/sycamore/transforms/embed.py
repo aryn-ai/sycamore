@@ -11,7 +11,7 @@ from sentence_transformers import SentenceTransformer
 
 from sycamore.data import Document
 from sycamore.llms import OpenAIClientParameters
-from sycamore.utils import use_cuda
+from sycamore.utils import choose_device
 
 # from sycamore.llms.llms import AzureOpenAI, OpenAIClientParameters
 from sycamore.llms.openai import OpenAIClientWrapper
@@ -41,10 +41,7 @@ class Embedder(ABC):
         self.model_batch_size = model_batch_size
         self.pre_process_document = pre_process_document if pre_process_document else _pre_process_document
 
-        if device is None:
-            self.device = "cuda" if use_cuda() else "cpu"
-        else:
-            self.device = device
+        self.device = choose_device(device)
 
     def __call__(self, doc_batch: list[Document]) -> list[Document]:
         return self.generate_embeddings(doc_batch)

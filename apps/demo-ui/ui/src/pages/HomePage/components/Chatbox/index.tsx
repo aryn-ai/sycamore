@@ -180,6 +180,7 @@ export const ChatBox = ({
   const [addAggregationsModalOpened, addAggregationsModalhandlers] =
     useDisclosure(false);
   const [filterFields, setFilterFields] = useState<string[]>([]);
+  const queryAnaylzerSwitchRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setCurrentOsUrl("/opensearch/" + settings.openSearchIndex + "/_search?");
@@ -190,6 +191,23 @@ export const ChatBox = ({
       top: scrollAreaRef.current.scrollHeight,
     });
   };
+
+  useEffect(() => {
+    if (
+      Object.keys(manualAggregations).length === 0 &&
+      Object.keys(manualFilters).length === 0
+    ) {
+      setQueryPlanner(true);
+      if (queryAnaylzerSwitchRef.current) {
+        queryAnaylzerSwitchRef.current.disabled = false;
+      }
+    } else {
+      setQueryPlanner(false);
+      if (queryAnaylzerSwitchRef.current) {
+        queryAnaylzerSwitchRef.current.disabled = true;
+      }
+    }
+  }, [manualAggregations, manualFilters]);
 
   useEffect(() => {
     const apiUrl = `https://localhost:9200/${settings.openSearchIndex}/_mapping`;
@@ -373,7 +391,7 @@ export const ChatBox = ({
         );
         openSearchResponse.ext.retrieval_augmented_generation.answer =
           generatedAnswer;
-        return openSearchResponse;
+        return { openSearchResponse, query };
       };
 
       const clean_rag = async ({
@@ -450,14 +468,20 @@ export const ChatBox = ({
         }
       };
 
-      const populateChatFromOs = (openSearchResults: any) => {
-        console.log("Main processor ", openSearchResults);
-        console.log("Main processor: OS results ", openSearchResults);
+      const populateChatFromOs = ({
+        openSearchResponse,
+        query,
+      }: {
+        openSearchResponse: any;
+        query: any;
+      }) => {
+        console.log("Main processor ", openSearchResponse);
+        console.log("Main processor: OS results ", openSearchResponse);
         const endTime = new Date(Date.now());
         const elpased = endTime.getTime() - startTime.getTime();
         console.log("Main processor: OS took seconds: ", elpased);
         const parsedOpenSearchResults = parseOpenSearchResults(
-          openSearchResults,
+          openSearchResponse,
           setErrorMessage,
         );
         const newSystemChat = new SystemChat({
@@ -465,6 +489,7 @@ export const ChatBox = ({
           interaction_id: parsedOpenSearchResults.interactionId,
           response: parsedOpenSearchResults.chatResponse,
           ragPassageCount: settings.ragPassageCount,
+          rawQueryUsed: query,
           modelName: settings.modelName,
           queryUsed: question,
           originalQuery: originalQuestion,
@@ -845,8 +870,8 @@ export const ChatBox = ({
                       start && end
                         ? `${start} - ${end}`
                         : start
-                          ? `> ${start}`
-                          : `< ${end}`;
+                          ? `>= ${start}`
+                          : `<= ${end}`;
                     return (
                       <FilterBadge
                         key={key}
@@ -917,6 +942,7 @@ export const ChatBox = ({
               openSearchQueryEditorOpenedHandlers
             }
             settings={settings}
+            queryAnaylzerSwitchRef={queryAnaylzerSwitchRef}
           ></SearchControlPanel>
 
           {/* {!disableFilters && settings.required_filters.length > 0 ? (

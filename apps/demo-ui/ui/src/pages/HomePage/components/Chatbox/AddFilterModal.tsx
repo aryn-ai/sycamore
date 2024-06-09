@@ -289,8 +289,8 @@ export const AddFilterModal = ({
                     start && end
                       ? `${start} - ${end}`
                       : start
-                        ? `> ${start}`
-                        : `< ${end}`;
+                        ? `>= ${start}`
+                        : `<= ${end}`;
                   return (
                     <FilterBadge
                       key={key}

@@ -287,8 +287,8 @@ export const SystemChatBox = ({
                       start && end
                         ? `${start} - ${end}`
                         : start
-                          ? `> ${start}`
-                          : `< ${end}`;
+                          ? `>= ${start}`
+                          : `<= ${end}`;
                     return (
                       <FilterBadge
                         key={key}
@@ -598,7 +598,7 @@ export const SystemChatBox = ({
         opened={openSearchQueryModalOpened}
         onClose={openSearchQueryModalHandler.close}
         title="Opensearch Query Used"
-        size="auto"
+        size="60vw"
       >
         <Flex>
           <ScrollArea w="100%">

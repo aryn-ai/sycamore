@@ -18,6 +18,7 @@ export const SearchControlPanel = ({
   setChatHistory,
   openSearchQueryEditorOpenedHandlers,
   settings,
+  queryAnaylzerSwitchRef,
 }: {
   disableFilters: any;
   setDisableFilters: any;
@@ -29,6 +30,7 @@ export const SearchControlPanel = ({
   setChatHistory: any;
   openSearchQueryEditorOpenedHandlers: any;
   settings: Settings;
+  queryAnaylzerSwitchRef: any;
 }) => {
   const { classes } = useStyles();
 
@@ -46,6 +48,7 @@ export const SearchControlPanel = ({
       ) : null}
       {settings.auto_filter ? (
         <Switch
+          w="8rem"
           classNames={{ track: classes.track }}
           key="queryPlanner"
           size="xs"
@@ -54,6 +57,7 @@ export const SearchControlPanel = ({
           onChange={() => setQueryPlanner(!queryPlanner)}
           variant="light"
           label="Query analyzer"
+          ref={queryAnaylzerSwitchRef}
         />
       ) : null}
       {/* <Button

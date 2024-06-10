@@ -1,11 +1,6 @@
-import os
-import sys
-import time
-import shutil
 from abc import ABC, abstractmethod
-from io import BytesIO
-import tempfile
-from typing import cast, Any, BinaryIO, List, Tuple
+from io import BytesIO, IOBase
+from typing import cast, BinaryIO, List, Tuple, Union
 
 from sycamore.data import Element, BoundingBox, ImageElement, TableElement
 from sycamore.data.element import create_element
@@ -38,12 +33,6 @@ def _batchify(iterable, n=1):
         yield iterable[i : min(i + n, length)]
 
 
-def _tempDir(*, prefix=None) -> tempfile.TemporaryDirectory[Any]:
-    if sys.version_info < (3, 10):
-        return tempfile.TemporaryDirectory(prefix=prefix)
-    return tempfile.TemporaryDirectory(prefix=prefix, ignore_cleanup_errors=True)
-
-
 class SycamorePDFPartitioner:
     """
     This class contains the implementation of PDF partitioning using a Deformable DETR model.
@@ -51,9 +40,6 @@ class SycamorePDFPartitioner:
     This is an implementation class. Callers looking to partition a DocSet should use the
     SycamorePartitioner class.
     """
-
-    tmp_prefix = "aryn_detr_"
-    stale_secs = 3600  # one hour
 
     def __init__(self, model_name_or_path, device=None):
         """
@@ -129,73 +115,48 @@ class SycamorePDFPartitioner:
            A list of lists of Elements. Each sublist corresponds to a page in the original PDF.
         """
 
-        self._cleanup_tmp()
-
         if not table_structure_extractor:
             table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
-        with _tempDir(prefix=self.tmp_prefix) as tmp_dir, tempfile.NamedTemporaryFile(
-            prefix=self.tmp_prefix
-        ) as tmp_file:
-            filename = tmp_file.name
-            tmp_file.write(file.read())
-            tmp_file.flush()
 
-            image_paths: list[str] = pdf2image.convert_from_path(
-                filename,
-                output_folder=tmp_dir,
-                paths_only=True,
-            )
-            images = [Image.open(path).convert("RGB") for path in image_paths]
-            batches = _batchify(images, batch_size)
-            deformable_layout = []
-            for batch in batches:
-                deformable_layout += self.model.infer(batch, threshold, model_server_endpoint)
+        images: list[Image.Image] = pdf2image.convert_from_bytes(file.read())
+        images = [im.convert("RGB") for im in images]
 
-            if use_ocr:
-                extract_ocr(images, deformable_layout, ocr_images=ocr_images, ocr_tables=ocr_tables)
-            else:
-                pdfminer = PDFMinerExtractor()
-                pdfminer_layout = pdfminer.extract(filename)
-                # page count should be the same
-                assert len(pdfminer_layout) == len(deformable_layout)
+        batches = _batchify(images, batch_size)
+        deformable_layout = []
+        for batch in batches:
+            deformable_layout += self.model.infer(batch, threshold, model_server_endpoint)
 
-                for d, p in zip(deformable_layout, pdfminer_layout):
-                    self._supplement_text(d, p)
+        if use_ocr:
+            extract_ocr(images, deformable_layout, ocr_images=ocr_images, ocr_tables=ocr_tables)
+        else:
+            pdfminer = PDFMinerExtractor()
+            # The cast here is to make mypy happy. PDFMiner expects IOBase,
+            # but typing.BinaryIO doesn't extend from it. BytesIO
+            # (the concrete class) implements both.
+            pdfminer_layout = pdfminer.extract(cast(IOBase, file))
+            # page count should be the same
+            assert len(pdfminer_layout) == len(deformable_layout)
 
-            if extract_table_structure or extract_images:
-                for i, page_elements in enumerate(deformable_layout):
-                    image = images[i]
-                    for element in page_elements:
-                        if isinstance(element, TableElement) and extract_table_structure:
-                            table_structure_extractor.extract(element, image)
+            for d, p in zip(deformable_layout, pdfminer_layout):
+                self._supplement_text(d, p)
 
-                        if isinstance(element, ImageElement) and extract_images:
-                            if element.bbox is None:
-                                continue
-                            cropped_image = crop_to_bbox(image, element.bbox).convert("RGB")
-                            element.binary_representation = image_to_bytes(cropped_image)
-                            element.image_mode = cropped_image.mode
-                            element.image_size = cropped_image.size
-                            print(element.properties)
+        if extract_table_structure or extract_images:
+            for i, page_elements in enumerate(deformable_layout):
+                image = images[i]
+                for element in page_elements:
+                    if isinstance(element, TableElement) and extract_table_structure:
+                        table_structure_extractor.extract(element, image)
 
-            return deformable_layout
+                    if isinstance(element, ImageElement) and extract_images:
+                        if element.bbox is None:
+                            continue
+                        cropped_image = crop_to_bbox(image, element.bbox).convert("RGB")
+                        element.binary_representation = image_to_bytes(cropped_image)
+                        element.image_mode = cropped_image.mode
+                        element.image_size = cropped_image.size
+                        print(element.properties)
 
-    def _cleanup_tmp(self) -> None:
-        now = time.time()
-        dir = tempfile.gettempdir()
-        for entry in os.scandir(dir):
-            if entry.name.startswith(self.tmp_prefix):
-                try:
-                    st = entry.stat()
-                    age = now - st.st_mtime
-                    if age > self.stale_secs:
-                        print(f"Removing stale {entry.path}")
-                        if entry.is_dir():
-                            shutil.rmtree(entry.path, ignore_errors=True)
-                        else:
-                            os.unlink(entry.path)
-                except FileNotFoundError:
-                    pass
+        return deformable_layout
 
 
 class SycamoreObjectDetection(ABC):
@@ -325,7 +286,9 @@ class PDFMinerExtractor:
         y2 = height - y2
         return x1, y1, x2, y2
 
-    def extract(self, filename: str) -> List[List[Element]]:
+    def extract(self, filename: Union[str, IOBase]) -> List[List[Element]]:
+        # The naming is slightly confusing, but `open_filename` accepts either
+        # a filename (str) or a file-like object (IOBase)
         with open_filename(filename, "rb") as fp:
             fp = cast(BinaryIO, fp)
             pages = []

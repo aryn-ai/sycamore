@@ -1,8 +1,6 @@
-import sys
 from abc import ABC, abstractmethod
 from io import BytesIO, IOBase
-import tempfile
-from typing import cast, Any, BinaryIO, List, Tuple, Union
+from typing import cast, BinaryIO, List, Tuple, Union
 
 from sycamore.data import Element, BoundingBox, ImageElement, TableElement
 from sycamore.data.element import create_element
@@ -35,12 +33,6 @@ def _batchify(iterable, n=1):
         yield iterable[i : min(i + n, length)]
 
 
-def _tempDir(*, prefix=None) -> tempfile.TemporaryDirectory[Any]:
-    if sys.version_info < (3, 10):
-        return tempfile.TemporaryDirectory(prefix=prefix)
-    return tempfile.TemporaryDirectory(prefix=prefix, ignore_cleanup_errors=True)
-
-
 class SycamorePDFPartitioner:
     """
     This class contains the implementation of PDF partitioning using a Deformable DETR model.
@@ -48,9 +40,6 @@ class SycamorePDFPartitioner:
     This is an implementation class. Callers looking to partition a DocSet should use the
     SycamorePartitioner class.
     """
-
-    tmp_prefix = "aryn_detr_"
-    stale_secs = 3600  # one hour
 
     def __init__(self, model_name_or_path, device=None):
         """
@@ -298,6 +287,8 @@ class PDFMinerExtractor:
         return x1, y1, x2, y2
 
     def extract(self, filename: Union[str, IOBase]) -> List[List[Element]]:
+        # The naming is slightly confusing, but `open_filename` accepts either
+        # a filename (str) or a file-like object (IOBase)
         with open_filename(filename, "rb") as fp:
             fp = cast(BinaryIO, fp)
             pages = []

@@ -245,7 +245,7 @@ class DeformableDetr(SycamoreObjectDetection):
     # to account for heterogeneous systems. Currently if you pass in an explicit device parameter
     # it will be applied everywhere.
     def _get_device(self) -> str:
-        return choose_device(self.device)
+        return choose_device(self.device, detr=True)
 
     def infer(
         self, images: List[Image.Image], threshold: float, model_server_endpoint: str = ""

@@ -54,7 +54,7 @@ export class SystemChat {
   editing: boolean = false;
   comment: string = "";
   filterContent: FilterValues = {};
-  aggregationsUsed: AggregationValues = {};
+  aggregationContent: AggregationValues = {};
 
   public constructor(init?: Partial<SystemChat>) {
     Object.assign(this, init);

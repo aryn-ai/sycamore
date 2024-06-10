@@ -100,7 +100,6 @@ export const SystemChatBox = ({
   const [openSearchQueryModalOpened, openSearchQueryModalHandler] =
     useDisclosure(false);
 
-  // console.log("Filter content is", systemChat.filterContent);
   const replaceCitationsWithLinks = (text: string) => {
     const cleanedText = text
       .replace(/\[\${(\d+)}\]/g, "[$1]")
@@ -318,21 +317,21 @@ export const SystemChatBox = ({
                 </ActionIcon>
               </Group>
             )}
-          {systemChat.aggregationsUsed &&
-            Object.keys(systemChat.aggregationsUsed).length !== 0 && (
+          {systemChat.aggregationContent &&
+            Object.keys(systemChat.aggregationContent).length !== 0 && (
               <Group>
                 <Text size="xs">Aggregations :</Text>
-                {Object.keys(systemChat.aggregationsUsed).map((aggs: any) => {
+                {Object.keys(systemChat.aggregationContent).map((aggs: any) => {
                   return (
                     <Badge size="xs" key={aggs} p="xs" radius="sm">
-                      {aggs}: {systemChat.aggregationsUsed[aggs]}
+                      {aggs}: {systemChat.aggregationContent[aggs]}
                     </Badge>
                   );
                 })}
 
                 <ActionIcon
                   onClick={() => {
-                    setManualAggregations(systemChat.aggregationsUsed);
+                    setManualAggregations(systemChat.aggregationContent);
                   }}
                   size="xs"
                 >

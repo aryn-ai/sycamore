@@ -539,7 +539,7 @@ export const ChatBox = ({
             editing: false,
             hits: [],
             filterContent: filterContent,
-            aggregationsUsed: aggregations,
+            aggregationContent: aggregations,
           });
           setChatHistory([...chatHistory, newSystemChat]);
         };
@@ -734,7 +734,7 @@ export const ChatBox = ({
         addAggregationsModalhandlers={addAggregationsModalhandlers}
         aggregations={manualAggregations}
         setAggregations={setManualAggregations}
-        filterFields={filterFields}
+        aggregationFields={filterFields}
       />
       <OpenSearchQueryEditor
         openSearchQueryEditorOpened={openSearchQueryEditorOpened}

@@ -15,13 +15,13 @@ export const AddAggregationModal = ({
   addAggregationsModalhandlers,
   aggregations,
   setAggregations,
-  filterFields,
+  aggregationFields,
 }: {
   addAggregationsModalOpened: boolean;
   addAggregationsModalhandlers: any;
   aggregations: AggregationValues;
   setAggregations: Dispatch<SetStateAction<AggregationValues>>;
-  filterFields: string[];
+  aggregationFields: string[];
 }) => {
   const [aggregationType, setAggregationType] = useState("terms");
   const [aggregationValue, setAggregationValue] = useState<string | null>("");
@@ -30,7 +30,7 @@ export const AddAggregationModal = ({
   >([]);
 
   useEffect(() => {
-    const retrievedFieldsData = filterFields.map((field) => ({
+    const retrievedFieldsData = aggregationFields.map((field) => ({
       value: field,
       label: field,
     }));
@@ -50,7 +50,7 @@ export const AddAggregationModal = ({
     setFieldsData(groupedFieldsData);
     console.log(retrievedFieldsData);
     console.log();
-  }, [filterFields]);
+  }, [aggregationFields]);
 
   const handleSubmit = (e: React.FormEvent) => {
     if (aggregationValue && aggregationValue.length !== 0) {

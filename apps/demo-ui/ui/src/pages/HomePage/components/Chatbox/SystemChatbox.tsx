@@ -3,10 +3,13 @@ import {
   Badge,
   Button,
   Card,
+  Collapse,
   Container,
+  Flex,
   Group,
   Modal,
   NativeSelect,
+  Paper,
   ScrollArea,
   Stack,
   Text,
@@ -15,7 +18,7 @@ import {
   UnstyledButton,
   useMantineTheme,
 } from "@mantine/core";
-import { Settings, SystemChat } from "../../../../Types";
+import { FilterValues, Settings, SystemChat } from "../../../../Types";
 import {
   getHybridConversationSearchQuery,
   hybridConversationSearch,
@@ -25,7 +28,11 @@ import {
 import { useState } from "react";
 import { useDisclosure } from "@mantine/hooks";
 import {
+  IconChevronDown,
+  IconChevronRight,
+  IconCopy,
   IconEdit,
+  IconInfoCircle,
   IconPlayerPlayFilled,
   IconPlus,
   IconX,
@@ -36,6 +43,7 @@ import { Citation } from "./Citation";
 import {
   anthropicRag,
   parseFilters,
+  parseFiltersForDisplay,
   parseOpenSearchResults,
   simplifyAnswer,
   streamingAnthropicRag,
@@ -63,6 +71,8 @@ export const SystemChatBox = ({
   streamingRagResponse,
   setStreamingRagResponse,
   openErrorDialog,
+  setManualFilters,
+  setManualAggregations,
 }: {
   systemChat: SystemChat;
   chatHistory: any;
@@ -80,10 +90,17 @@ export const SystemChatBox = ({
   streamingRagResponse: any;
   setStreamingRagResponse: any;
   openErrorDialog: any;
+  setManualFilters: any;
+  setManualAggregations: any;
 }) => {
   const citationRegex = /\[(\d+)\]/g;
   const theme = useMantineTheme();
-  console.log("Filter content is", systemChat.filterContent);
+  const [openSearchResultOpened, openSearchResultHandler] =
+    useDisclosure(false);
+  const [openSearchQueryModalOpened, openSearchQueryModalHandler] =
+    useDisclosure(false);
+
+  // console.log("Filter content is", systemChat.filterContent);
   const replaceCitationsWithLinks = (text: string) => {
     const cleanedText = text
       .replace(/\[\${(\d+)}\]/g, "[$1]")
@@ -155,8 +172,21 @@ export const SystemChatBox = ({
 
     const editFilter = (filterToEdit: any) => {
       setNewFilterType(filterToEdit);
-      setNewFilterValue(newFilterContent[filterToEdit]);
+      setNewFilterValue(newFilterContent[filterToEdit] as string);
       newFilterInputDialoghHandlers.open();
+    };
+    const FilterBadge = ({
+      filterKey,
+      filterValue,
+    }: {
+      filterKey: string;
+      filterValue: any;
+    }) => {
+      return (
+        <Badge size="xs" p="xs" radius="sm">
+          {filterKey}: {filterValue}
+        </Badge>
+      );
     };
 
     const addFilter = () => {
@@ -196,8 +226,8 @@ export const SystemChatBox = ({
               data={[
                 { value: "location", label: "Location" },
                 { value: "airplane_name", label: "Airplane type" },
-                { value: "date_start", label: "Before" },
-                { value: "date_end", label: "After" },
+                { value: "day_start", label: "Before" },
+                { value: "day_end", label: "After" },
               ]}
             />
             <TextInput
@@ -241,36 +271,93 @@ export const SystemChatBox = ({
 
     if (!editing) {
       return (
-        <Container mb="sm">
-          {Object.keys(systemChat.filterContent).map((filter: any) => {
-            if (systemChat.filterContent[filter] != "unknown") {
-              return (
-                <Badge size="xs" key={filter} p="xs" mr="xs">
-                  {filter}: {systemChat.filterContent[filter]}
-                </Badge>
-              );
-            }
-          })}
-        </Container>
+        <Stack spacing="sm" pb="sm">
+          {systemChat.filterContent &&
+            Object.keys(systemChat.filterContent).length !== 0 && (
+              <Group>
+                <Text size="xs">Filters :</Text>
+
+                {Object.entries(systemChat.filterContent as FilterValues).map(
+                  ([key, value]) => {
+                    if (typeof value === "object") {
+                      const start = value.gte ?? "";
+                      const end = value.lte ?? "";
+                      const rangeText =
+                        start && end
+                          ? `${start} - ${end}`
+                          : start
+                            ? `>= ${start}`
+                            : `<= ${end}`;
+                      return (
+                        <FilterBadge
+                          key={key}
+                          filterKey={key}
+                          filterValue={rangeText}
+                        />
+                      );
+                    } else {
+                      return (
+                        <FilterBadge
+                          key={key}
+                          filterKey={key}
+                          filterValue={value}
+                        />
+                      );
+                    }
+                  },
+                  //
+                )}
+
+                <ActionIcon
+                  onClick={() => {
+                    setManualFilters(systemChat.filterContent);
+                  }}
+                  size="xs"
+                >
+                  <IconCopy stroke={1.5} />
+                </ActionIcon>
+              </Group>
+            )}
+          {systemChat.aggregationsUsed &&
+            Object.keys(systemChat.aggregationsUsed).length !== 0 && (
+              <Group>
+                <Text size="xs">Aggregations :</Text>
+                {Object.keys(systemChat.aggregationsUsed).map((aggs: any) => {
+                  return (
+                    <Badge size="xs" key={aggs} p="xs" radius="sm">
+                      {aggs}: {systemChat.aggregationsUsed[aggs]}
+                    </Badge>
+                  );
+                })}
+
+                <ActionIcon
+                  onClick={() => {
+                    setManualAggregations(systemChat.aggregationsUsed);
+                  }}
+                  size="xs"
+                >
+                  <IconCopy stroke={1.5} />
+                </ActionIcon>
+              </Group>
+            )}
+        </Stack>
       );
     } else {
       return (
         <Container mb="sm">
           {addFilter()}
           {Object.keys(newFilterContent).map((filter: any) => {
-            if (newFilterContent[filter] != "unknown") {
-              return (
-                <Badge
-                  size="xs"
-                  key={filter}
-                  p="xs"
-                  mr="xs"
-                  rightSection={editFiltersButtons(filter)}
-                >
-                  {filter}: {newFilterContent[filter]}
-                </Badge>
-              );
-            }
+            return (
+              <Badge
+                size="xs"
+                key={filter}
+                p="xs"
+                mr="xs"
+                rightSection={editFiltersButtons(filter)}
+              >
+                {filter}: {newFilterContent[filter]}
+              </Badge>
+            );
           })}
           <UnstyledButton onClick={() => newFilterInputDialoghHandlers.open()}>
             <Badge
@@ -502,6 +589,28 @@ export const SystemChatBox = ({
         overflow: "visible",
       }}
     >
+      <Modal
+        opened={openSearchQueryModalOpened}
+        onClose={openSearchQueryModalHandler.close}
+        title="Opensearch Query Used"
+        size="60vw"
+      >
+        <Flex>
+          <ScrollArea w="100%">
+            <Prism language="markdown">
+              {JSON.stringify(systemChat.rawQueryUsed, null, 4)}
+            </Prism>
+          </ScrollArea>
+        </Flex>
+      </Modal>
+      {systemChat.rawQueryUsed && (
+        <ActionIcon
+          style={{ position: "absolute", right: "1.25rem", top: "1.25rem" }}
+          onClick={openSearchQueryModalHandler.open}
+        >
+          <IconInfoCircle stroke={2} />
+        </ActionIcon>
+      )}
       <Group spacing="xs">
         {editing ? (
           <Group p="0">
@@ -529,7 +638,7 @@ export const SystemChatBox = ({
             onChange={handleInputChange}
           ></TextInput>
         ) : (
-          <Text size="md" fw={500} p="xs" pl="0">
+          <Text size="xl" fw={450} p="xs" pl="0" pt="0">
             {systemChat.queryUsed}
           </Text>
         )}
@@ -575,14 +684,28 @@ export const SystemChatBox = ({
         {/* {textNodes} */}
         {replaceCitationsWithLinks(systemChat.response)}
         {systemChat.rawResults != null ? (
-          <Container p="md">
-            <Title order={5}>OpenSearch results</Title>
-            <ScrollArea h="45rem">
-              <Prism language="markdown">
-                {JSON.stringify(systemChat.rawResults, null, 4)}
-              </Prism>
-            </ScrollArea>
-          </Container>
+          <Paper withBorder mt="md">
+            <Group
+              onClick={openSearchResultHandler.toggle}
+              style={{ cursor: "pointer" }}
+            >
+              {openSearchResultOpened ? (
+                <IconChevronDown color="grey" />
+              ) : (
+                <IconChevronRight color="grey" />
+              )}
+              <Text>OpenSearch results</Text>
+            </Group>
+            <Collapse in={openSearchResultOpened}>
+              <Flex>
+                <ScrollArea mah="45rem" w="100%">
+                  <Prism language="markdown">
+                    {JSON.stringify(systemChat.rawResults, null, 4)}
+                  </Prism>
+                </ScrollArea>
+              </Flex>
+            </Collapse>
+          </Paper>
         ) : null}
       </Text>
       <DocList

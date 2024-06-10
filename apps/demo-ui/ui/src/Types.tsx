@@ -53,7 +53,8 @@ export class SystemChat {
   fromAdhoc: boolean = false;
   editing: boolean = false;
   comment: string = "";
-  filterContent: any;
+  filterContent: FilterValues = {};
+  aggregationsUsed: AggregationValues = {};
 
   public constructor(init?: Partial<SystemChat>) {
     Object.assign(this, init);
@@ -79,4 +80,15 @@ export class Settings {
   public constructor(init?: Partial<Settings>) {
     Object.assign(this, init);
   }
+}
+
+export interface FilterValues {
+  [key: string]:
+    | string
+    | { gte?: string; lte?: string }
+    | { gte?: number; lte?: number };
+}
+
+export interface AggregationValues {
+  [key: string]: string;
 }

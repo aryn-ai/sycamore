@@ -127,7 +127,11 @@ export const OpenSearchQueryEditor = ({
       </Group>
       <ScrollArea>
         <JsonInput
-          value={currentOsQuery}
+          value={
+            typeof currentOsQuery === "object"
+              ? JSON.stringify(currentOsQuery, null, 4)
+              : currentOsQuery
+          }
           onChange={(newValue) => setCurrentOsQuery(newValue)}
           validationError="Invalid JSON"
           placeholder={"e.g.\n" + JSON.stringify(jsonPlaceholder, null, 4)}

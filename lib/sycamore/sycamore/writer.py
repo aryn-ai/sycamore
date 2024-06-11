@@ -1,6 +1,12 @@
 from typing import Callable, Optional, TYPE_CHECKING
 
 from pyarrow.fs import FileSystem
+import sys
+
+if sys.version < "3.10":
+    from typing_extensions import TypeGuard
+else:
+    from typing import TypeGuard
 
 from sycamore import Context
 from sycamore.plan_nodes import Node
@@ -86,7 +92,7 @@ class DocSetWriter:
         """
 
         from sycamore.writers.opensearch import OpenSearchWriter, OpenSearchClientParams, OpenSearchTargetParams
-        from typing import TypeGuard, Any, Union
+        from typing import Any, Union
         import copy
 
         # We mutate os_client_args, so mutate a copy

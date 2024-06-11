@@ -1,12 +1,7 @@
 from dataclasses import asdict, dataclass, field
 import logging
 from typing import Any, Optional
-import sys
-
-if sys.version < "3.10":
-    from typing_extensions import TypeGuard
-else:
-    from typing import TypeGuard
+from typing_extensions import TypeGuard
 
 from opensearchpy import OpenSearch
 from opensearchpy.exceptions import RequestError

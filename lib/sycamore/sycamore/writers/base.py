@@ -41,7 +41,9 @@ class BaseDBWriter(MapBatch, Write):
     # e.g. opensearch/pinecone index, s3 bucket, weaviate collection...
     @dataclass
     class TargetParams(ABC):
-        pass
+        @abstractmethod
+        def compatible_with(self, other: "BaseDBWriter.TargetParams") -> bool:
+            pass
 
     # Type param for the object used to create a client
     @dataclass
@@ -66,7 +68,7 @@ class BaseDBWriter(MapBatch, Write):
         client = self.Client.from_client_params(self._client_params)
         client.create_target_idempotent(self._target_params)
         created_target_params = client.get_existing_target_params(self._target_params)
-        if created_target_params != self._target_params:
+        if not self._target_params.compatible_with(created_target_params):
             raise ValueError(
                 "Found mismatching target parameters in script and destination\n"
                 f"Script: {self._target_params}\n"

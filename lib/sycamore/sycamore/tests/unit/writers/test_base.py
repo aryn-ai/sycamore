@@ -53,6 +53,9 @@ class FakeTargetParams(BaseDBWriter.TargetParams):
     dirname: str
     mode: str
 
+    def compatible_with(self, other: BaseDBWriter.TargetParams) -> bool:
+        return self == other
+
 
 class FakeWriter(BaseDBWriter):
     Client = FakeClient

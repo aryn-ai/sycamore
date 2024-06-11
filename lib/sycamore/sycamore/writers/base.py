@@ -7,6 +7,7 @@ from sycamore.data.document import Document
 from sycamore.plan_nodes import Node, Write
 from sycamore.transforms.map import MapBatch
 from sycamore.utils.ray_utils import check_serializable
+from sycamore.utils.time_trace import TimeTrace
 
 
 class BaseDBWriter(MapBatch, Write):
@@ -41,9 +42,8 @@ class BaseDBWriter(MapBatch, Write):
     # e.g. opensearch/pinecone index, s3 bucket, weaviate collection...
     @dataclass
     class TargetParams(ABC):
-        @abstractmethod
         def compatible_with(self, other: "BaseDBWriter.TargetParams") -> bool:
-            pass
+            return self == other
 
     # Type param for the object used to create a client
     @dataclass
@@ -58,7 +58,7 @@ class BaseDBWriter(MapBatch, Write):
         filter: Callable[[Document], bool] = lambda d: True,
         **kwargs,
     ):
-        super().__init__(plan, f=self.write_docs, **kwargs)
+        super().__init__(plan, f=self._write_docs_tt, **kwargs)
         check_serializable(client_params, target_params, filter)
         self._filter = filter
         self._client_params = client_params
@@ -77,3 +77,10 @@ class BaseDBWriter(MapBatch, Write):
         records = [self.Record.from_doc(d, created_target_params) for d in docs if self._filter(d)]
         client.write_many_records(records, self._target_params)
         return docs
+
+    def _write_docs_tt(self, docs: list[Document]) -> list[Document]:
+        if self._name:
+            with TimeTrace(self._name):
+                return self.write_docs(docs)
+        else:
+            return self.write_docs(docs)

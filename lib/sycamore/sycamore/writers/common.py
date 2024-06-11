@@ -33,7 +33,7 @@ def flatten_data(
                 (not homogeneous_lists and all(any(isinstance(innerv, t) for t in allowed_list_types) for innerv in v))
                 or (homogeneous_lists and any(all(isinstance(innerv, t) for innerv in v) for t in allowed_list_types))
             ):
-                # Lists of strings are allowed
+                # Allow lists of the allowed_list_types
                 items.append((_add_key_to_prefix(prefix, k), v))
             else:
                 inner_values = flatten_data(v, _add_key_to_prefix(prefix, k), allowed_list_types, homogeneous_lists)

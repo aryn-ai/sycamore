@@ -106,7 +106,7 @@ export default function PdfViewer() {
       const pdfURl = pdfDocumentMetadata.url
         ? pdfDocumentMetadata.url
         : pdfDocumentMetadata.properties.path;
-      setOriginalUrl(pdfDocumentMetadata.properties.path);
+      setOriginalUrl(pdfURl);
       const response = await fetchPDFThroughProxy(pdfURl);
       setUrl(response);
 

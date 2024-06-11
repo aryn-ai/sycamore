@@ -75,14 +75,25 @@ def install_cuda():
             "/etc/apt/sources.list.d/debian.sources",
         ],
         ["apt", "update"],
-        ["dpkg-divert", "--no-rename", "/lib/firmware/nvidia/525.147.05/gsp_ad10x.bin"],
-        ["dpkg-divert", "--no-rename", "/lib/firmware/nvidia/525.147.05/gsp_tu10x.bin"],
-        ["dpkg-divert", "--no-rename", "/usr/lib/x86_64-linux-gnu/libnvidia-compiler.so.525.147.05"],
-        ["dpkg-divert", "--no-rename", "/usr/bin/nvidia-persistenced"],
-        ["apt", "-y", "install", "nvidia-cuda-toolkit-gcc", "libnvidia-tesla-cuda1"],
     ]
+    diverts = [
+        "/lib/firmware/nvidia/525.147.05/gsp_ad10x.bin",
+        "/lib/firmware/nvidia/525.147.05/gsp_tu10x.bin",
+        "/usr/lib/x86_64-linux-gnu/libnvidia-compiler.so.525.147.05",
+        "/usr/bin/nvidia-persistenced",
+    ]
+    for divert in diverts:
+        cmds.append(["dpkg-divert", "--no-rename", divert])
+    cmds.append(["apt", "-y", "install", "nvidia-cuda-toolkit-gcc", "libnvidia-tesla-cuda1"])
     for cmd in cmds:
         subprocess.run(cmd, check=True)
+    for divert in diverts:
+        a = subprocess.run(["sha256sum", divert], capture_output=True, check=True)
+        b = subprocess.run(["sha256sum", f"{divert}.distrib"], capture_output=True, check=True)
+        aa = a.stdout.split()[0]
+        bb = b.stdout.split()[0]
+        if aa != bb:
+            print(f"WARNING: diverted version does not match installed version: {divert}")
 
 
 def exec_run_jupyter(uid, gid):

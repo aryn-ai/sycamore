@@ -127,6 +127,10 @@ class DocSetWriter:
         os = OpenSearchWriter(
             self.plan, client_params=client_params, target_params=target_params, name="opensearch_write", **kwargs
         )
+        # We will probably want to break this at some point so that write
+        # doesn't execute automatically, and instead you need to say something
+        # like docset.write.opensearch().execute(), allowing sensible writes
+        # to multiple locations and post-write operations.
         if execute:
             # If execute, force execution
             os.execute().materialize()

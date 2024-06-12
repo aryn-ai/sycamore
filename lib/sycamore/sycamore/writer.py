@@ -86,30 +86,34 @@ class DocSetWriter:
         """
 
         from sycamore.writers.opensearch import OpenSearchWriter, OpenSearchClientParams, OpenSearchTargetParams
-        from typing import Any, Union
-        from typing_extensions import TypeGuard
+        from typing import Any
         import copy
 
         # We mutate os_client_args, so mutate a copy
         os_client_args = copy.deepcopy(os_client_args)
 
         # Type narrowing for hosts joy
-        def _validate_hosts_arg(hostlist: Any) -> TypeGuard[list[dict[str, Union[str, int]]]]:
+        def _convert_to_host_port_list(hostlist: Any) -> list[HostAndPort]:
             if not isinstance(hostlist, list):
-                return False
+                raise ValueError('OpenSearch client args "hosts" param must be a list of hosts')
             for h in hostlist:
-                if not isinstance(h, dict):
-                    return False
-                if "host" not in h or not isinstance(h["host"], str):
-                    return False
-                if "port" not in h or not isinstance(h["port"], int):
-                    return False
-            return True
+                if (
+                    not isinstance(h, dict)
+                    or "host" not in h
+                    or not isinstance(h["host"], str)
+                    or "port" not in h
+                    or not isinstance(h["port"], int)
+                ):
+                    raise ValueError(
+                        'OpenSearch client args "hosts" objects must consist of dicts of '
+                        "the form {'host': '<address>', 'port': <port num>}\n"
+                        f"Found: {h}"
+                    )
+            return [HostAndPort(host=h["host"], port=h["port"]) for h in hostlist]
 
         hosts = os_client_args.get("hosts", None)
         if hosts is not None:
-            _validate_hosts_arg(hosts)
-            os_client_args["hosts"] = [HostAndPort(**h) for h in hosts]
+            os_client_args["hosts"] = _convert_to_host_port_list(hosts)
         client_params = OpenSearchClientParams(**os_client_args)
 
         target_params: OpenSearchTargetParams
@@ -123,6 +127,11 @@ class DocSetWriter:
         os = OpenSearchWriter(
             self.plan, client_params=client_params, target_params=target_params, name="opensearch_write", **kwargs
         )
+
+        # We will probably want to break this at some point so that write
+        # doesn't execute automatically, and instead you need to say something
+        # like docset.write.opensearch().execute(), allowing sensible writes
+        # to multiple locations and post-write operations.
         if execute:
             # If execute, force execution
             os.execute().materialize()

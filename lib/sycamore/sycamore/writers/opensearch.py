@@ -10,7 +10,6 @@ from opensearchpy.helpers import parallel_bulk
 from sycamore.data import Document
 from sycamore.writers.base import BaseDBWriter
 from sycamore.writers.common import HostAndPort, flatten_data
-import re
 
 log = logging.getLogger(__name__)
 
@@ -25,8 +24,6 @@ class OpenSearchClientParams(BaseDBWriter.ClientParams):
     ssl_assert_hostname: bool = True
     ssl_show_warn: bool = True
     timeout: Optional[int] = None
-    number_of_allowed_failures_per_block: int = 100
-    collect_failures_filepath: str = "failures.txt"
 
 
 @dataclass
@@ -81,10 +78,8 @@ class OpenSearchTargetParams(BaseDBWriter.TargetParams):
 
 
 class OpenSearchClient(BaseDBWriter.Client):
-    def __init__(self, os_client: OpenSearch, allowed_failures_per_block: int, failure_filepath: str):
+    def __init__(self, os_client: OpenSearch):
         self._client = os_client
-        self._allowed_failures_per_block = allowed_failures_per_block
-        self._failure_filepath = failure_filepath
 
     @classmethod
     def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "OpenSearchClient":
@@ -92,30 +87,19 @@ class OpenSearchClient(BaseDBWriter.Client):
             params, OpenSearchClientParams
         ), f"Provided params was not of type OpenSearchClientParams:\n{params}"
         paramsdict = asdict(params)
-        allowed_failures_per_block = paramsdict.pop("number_of_allowed_failures_per_block")
-        failures_fp = paramsdict.pop("collect_failures_filepath")
         os_client = OpenSearch(**paramsdict)
         os_client.ping()
-        return OpenSearchClient(os_client, allowed_failures_per_block, failures_fp)
+        return OpenSearchClient(os_client)
 
     def write_many_records(self, records: list[BaseDBWriter.Record], target_params: BaseDBWriter.TargetParams):
         assert isinstance(
             target_params, OpenSearchTargetParams
         ), f"Provided target_params was not of type OpenSearchTargetParams:\n{target_params}"
         assert _narrow_list_of_os_records(records), f"A provided record was not of type OpenSearchRecord:\n{records}"
-        failures = []
+
         for success, info in parallel_bulk(self._client, [asdict(r) for r in records]):
             if not success:
                 log.error("A Document failed to upload", info)
-                failures.append(info)
-
-        if len(failures) > self._allowed_failures_per_block:
-            with open(self._failure_filepath, "a") as f:
-                for doc in failures:
-                    f.write(f"{doc}\n")
-            raise RuntimeError(
-                f"{self._allowed_failures_per_block} documents failed to index. " f"Refer to {self._failure_filepath}."
-            )
 
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
         assert isinstance(
@@ -147,8 +131,10 @@ class OpenSearchClient(BaseDBWriter.Client):
                     return False
                 elif obj.isnumeric():
                     return int(obj)
-                elif re.match("[0-9]+\.[0-9]+", obj):
+                try:
                     return float(obj)
+                except ValueError:
+                    return obj
             return obj
 
         assert isinstance(

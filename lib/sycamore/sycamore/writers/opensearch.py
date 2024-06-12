@@ -10,7 +10,6 @@ from opensearchpy.helpers import parallel_bulk
 from sycamore.data import Document
 from sycamore.writers.base import BaseDBWriter
 from sycamore.writers.common import HostAndPort, flatten_data
-import re
 
 log = logging.getLogger(__name__)
 
@@ -131,8 +130,10 @@ class OpenSearchClient(BaseDBWriter.Client):
                     return False
                 elif obj.isnumeric():
                     return int(obj)
-                elif re.fullmatch("-?[0-9]+\.[0-9]+", obj):
+                try:
                     return float(obj)
+                except ValueError:
+                    return obj
             return obj
 
         assert isinstance(

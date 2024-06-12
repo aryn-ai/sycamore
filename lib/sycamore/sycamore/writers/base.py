@@ -83,4 +83,5 @@ class BaseDBWriter(MapBatch, Write):
             with TimeTrace(self._name):
                 return self.write_docs(docs)
         else:
-            return self.write_docs(docs)
+            with TimeTrace("UnknownWriter"):
+                return self.write_docs(docs)

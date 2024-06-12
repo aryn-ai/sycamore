@@ -76,7 +76,7 @@ def drop_types(
 
 
 def _filter_dict(f: Callable[[Any], bool], d: dict):
-    return {k: v for k, v in d if f(v)}
+    return {k: v for k, v in d.items() if f(v)}
 
 
 def _filter_list(f: Callable[[Any], bool], ls: list):

@@ -246,7 +246,12 @@ class DocSetWriter:
         if collection_config is None:
             collection_config = dict()
         client_params = WeaviateClientParams(**wv_client_args)
-        collection_config_object = CollectionConfigCreate(name=collection_name, **collection_config)
+        collection_config_object: CollectionConfigCreate
+        if "name" in collection_config:
+            assert collection_config["name"] == collection_name
+            collection_config_object = CollectionConfigCreate(**collection_config)
+        else:
+            collection_config_object = CollectionConfigCreate(name=collection_name, **collection_config)
         target_params = WeaviateTargetParams(name=collection_name, collection_config=collection_config_object)
 
         wv_docs = WeaviateDocumentWriter(

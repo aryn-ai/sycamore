@@ -1,5 +1,5 @@
 from dataclasses import dataclass, asdict
-from typing import Optional, Union
+from typing import Optional, Union, Any
 from sycamore.writers.common import drop_types, flatten_data
 from typing_extensions import TypeGuard, TypeAlias
 
@@ -46,18 +46,8 @@ class WeaviateTargetParams(BaseDBWriter.TargetParams):
             return False
         if self.name != other.name:
             return False
-        if isinstance(self.collection_config, _CollectionConfigCreate):
-            my_dict = self.collection_config._to_dict()
-        else:
-            my_dict = self.collection_config.to_dict()
-        if isinstance(other.collection_config, _CollectionConfigCreate):
-            other_dict = other.collection_config._to_dict()
-        else:
-            other_dict = other.collection_config.to_dict()
-        my_dict["properties"] = {p.get("name", str(i)): p for i, p in enumerate(my_dict.get("properties", []))}
-        my_flat_dict = dict(flatten_data(my_dict))
-        other_dict["properties"] = {p.get("name", str(i)): p for i, p in enumerate(other_dict.get("properties", []))}
-        other_flat_dict = dict(flatten_data(other_dict))
+        my_flat_dict = self._as_flattened_dict()
+        other_flat_dict = other._as_flattened_dict()
         for k in my_flat_dict:
             if k not in other_flat_dict:
                 return False
@@ -65,13 +55,17 @@ class WeaviateTargetParams(BaseDBWriter.TargetParams):
                 return False
         return True
 
-    def __repr__(self) -> str:
+    def _as_flattened_dict(self) -> dict[str, Any]:
         if isinstance(self.collection_config, _CollectionConfigCreate):
             my_dict = self.collection_config._to_dict()
         else:
             my_dict = self.collection_config.to_dict()
         my_dict["properties"] = {p.get("name", str(i)): p for i, p in enumerate(my_dict.get("properties", []))}
         my_flat_dict = dict(flatten_data(my_dict))
+        return my_flat_dict
+
+    def __repr__(self) -> str:
+        my_flat_dict = self._as_flattened_dict()
         s = "=" * 80 + "\n"
         return s + "\n".join(f"{k: <80}{v}" for k, v in my_flat_dict.items())
 
@@ -181,13 +175,13 @@ class WeaviateDocumentRecord(BaseDBWriter.Record):
             "bbox": document.bbox.coordinates if document.bbox else None,
             "shingles": document.shingles,
         }
-        properties = drop_types(properties, drop_empty_lists=True)
-        assert isinstance(properties, dict)
+        droperties = drop_types(properties, drop_empty_lists=True)
+        assert isinstance(droperties, dict)
         embedding = document.embedding
         if embedding is not None:
-            return WeaviateDocumentRecord(uuid=uuid, properties=properties, vector={"embedding": embedding})
+            return WeaviateDocumentRecord(uuid=uuid, properties=droperties, vector={"embedding": embedding})
         else:
-            return WeaviateDocumentRecord(uuid=uuid, properties=properties)
+            return WeaviateDocumentRecord(uuid=uuid, properties=droperties)
 
 
 def _narrow_list_of_doc_records(records: list[BaseDBWriter.Record]) -> TypeGuard[list[WeaviateDocumentRecord]]:

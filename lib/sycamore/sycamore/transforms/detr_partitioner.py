@@ -1,30 +1,27 @@
+import gzip
+import json
+import tempfile
 from abc import ABC, abstractmethod
 from io import BytesIO
-import tempfile
 from typing import cast, BinaryIO, List, Tuple
 
-from sycamore.data import Element, BoundingBox, ImageElement, TableElement
-from sycamore.data.element import create_element
-from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
-from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
-
-from PIL import Image
+import easyocr
 import pdf2image
+import pytesseract
 import requests
-import json
-import gzip
-
 import torch
-
+from PIL import Image
 from pdfminer.converter import PDFPageAggregator
 from pdfminer.layout import LAParams
 from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
 from pdfminer.pdfpage import PDFPage
 from pdfminer.utils import open_filename
+from transformers import pipeline
 
-import pytesseract
-
-import easyocr
+from sycamore.data import Element, BoundingBox, ImageElement, TableElement
+from sycamore.data.element import create_element
+from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
+from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
 
 
 def _batchify(iterable, n=1):
@@ -179,7 +176,7 @@ class SycamoreObjectDetection(ABC):
 
 
 class DeformableDetr(SycamoreObjectDetection):
-    def __init__(self, model_name_or_path, device=None):
+    def __init__(self, model_name_or_path, device=None, batch_size=1):
         super().__init__()
 
         self.labels = [
@@ -199,14 +196,16 @@ class DeformableDetr(SycamoreObjectDetection):
 
         self.device = device
         self._model_name_or_path = model_name_or_path
-
-        from transformers import AutoImageProcessor, DeformableDetrForObjectDetection
-
-        self.processor = AutoImageProcessor.from_pretrained(model_name_or_path)
-        self.model = DeformableDetrForObjectDetection.from_pretrained(model_name_or_path).to(self._get_device())
+        self._batch_size = batch_size
+        self.pipeline = pipeline(
+            task="object-detection",
+            model=model_name_or_path,
+            image_processor=model_name_or_path,
+            device=self._get_device(),
+        )
 
     # Note: We wrap this in a function so that we can execute on both the leader and the workers
-    # to account for heterogeneous systems. Currently if you pass in an explicit device parameter
+    # to account for heterogeneous systems. Currently, if you pass in an explicit device parameter
     # it will be applied everywhere.
     def _get_device(self) -> str:
         if self.device is None:
@@ -217,6 +216,9 @@ class DeformableDetr(SycamoreObjectDetection):
     def infer(
         self, images: List[Image.Image], threshold: float, model_server_endpoint: str = ""
     ) -> List[List[Element]]:
+
+        batched_results = []
+
         if model_server_endpoint:
             endpoint = model_server_endpoint + self._model_name_or_path
             metadata = {
@@ -230,33 +232,39 @@ class DeformableDetr(SycamoreObjectDetection):
             ]
             response = requests.post(endpoint, files=files)
             results = response.json()
+
+            # todo: update model server response to be consistent with transformers pipelines
+            for result, image in zip(results, images):
+                (w, h) = image.size
+                elements = []
+                for score, label, box in zip(result["scores"], result["labels"], result["boxes"]):
+                    element = create_element(
+                        type=self.labels[label],
+                        bbox=BoundingBox(box[0] / w, box[1] / h, box[2] / w, box[3] / h).coordinates,
+                        properties={"score": score},
+                    )
+                    elements.append(element)
+                batched_results.append(elements)
+
         else:
             results = []
-            for image in images:
-                inputs = self.processor(images=image, return_tensors="pt").to(self._get_device())
-                outputs = self.model(**inputs)
-                target_sizes = torch.tensor([image.size[::-1]])
-                results.append(
-                    self.processor.post_process_object_detection(
-                        outputs, target_sizes=target_sizes, threshold=threshold
-                    )[0]
-                )
-            for result in results:
-                result["scores"] = result["scores"].tolist()
-                result["labels"] = result["labels"].tolist()
-                result["boxes"] = result["boxes"].tolist()
-        batched_results = []
-        for result, image in zip(results, images):
-            (w, h) = image.size
-            elements = []
-            for score, label, box in zip(result["scores"], result["labels"], result["boxes"]):
-                element = create_element(
-                    type=self.labels[label],
-                    bbox=BoundingBox(box[0] / w, box[1] / h, box[2] / w, box[3] / h).coordinates,
-                    properties={"score": score},
-                )
-                elements.append(element)
-            batched_results.append(elements)
+            results.extend(self.pipeline(images, batch_size=self._batch_size))
+
+            for result, image in zip(results, images):
+                (w, h) = image.size
+                elements = []
+                for segment in result:
+                    box = segment["box"]
+                    element = create_element(
+                        type=segment["label"],
+                        bbox=BoundingBox(
+                            box["xmin"] / w, box["ymin"] / h, box["xmax"] / w, box["ymax"] / h
+                        ).coordinates,
+                        properties={"score": segment["score"]},
+                    )
+                    elements.append(element)
+                batched_results.append(elements)
+
         return batched_results
 
 

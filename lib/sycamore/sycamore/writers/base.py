@@ -7,6 +7,7 @@ from sycamore.data.document import Document
 from sycamore.plan_nodes import Node, Write
 from sycamore.transforms.map import MapBatch
 from sycamore.utils.ray_utils import check_serializable
+from sycamore.utils.time_trace import TimeTrace
 
 
 class BaseDBWriter(MapBatch, Write):
@@ -41,7 +42,8 @@ class BaseDBWriter(MapBatch, Write):
     # e.g. opensearch/pinecone index, s3 bucket, weaviate collection...
     @dataclass
     class TargetParams(ABC):
-        pass
+        def compatible_with(self, other: "BaseDBWriter.TargetParams") -> bool:
+            return self == other
 
     # Type param for the object used to create a client
     @dataclass
@@ -56,7 +58,7 @@ class BaseDBWriter(MapBatch, Write):
         filter: Callable[[Document], bool] = lambda d: True,
         **kwargs,
     ):
-        super().__init__(plan, f=self.write_docs, **kwargs)
+        super().__init__(plan, f=self._write_docs_tt, **kwargs)
         check_serializable(client_params, target_params, filter)
         self._filter = filter
         self._client_params = client_params
@@ -66,7 +68,7 @@ class BaseDBWriter(MapBatch, Write):
         client = self.Client.from_client_params(self._client_params)
         client.create_target_idempotent(self._target_params)
         created_target_params = client.get_existing_target_params(self._target_params)
-        if created_target_params != self._target_params:
+        if not self._target_params.compatible_with(created_target_params):
             raise ValueError(
                 "Found mismatching target parameters in script and destination\n"
                 f"Script: {self._target_params}\n"
@@ -75,3 +77,11 @@ class BaseDBWriter(MapBatch, Write):
         records = [self.Record.from_doc(d, created_target_params) for d in docs if self._filter(d)]
         client.write_many_records(records, self._target_params)
         return docs
+
+    def _write_docs_tt(self, docs: list[Document]) -> list[Document]:
+        if self._name:
+            with TimeTrace(self._name):
+                return self.write_docs(docs)
+        else:
+            with TimeTrace("UnknownWriter"):
+                return self.write_docs(docs)

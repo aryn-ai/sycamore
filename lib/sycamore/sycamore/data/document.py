@@ -40,7 +40,7 @@ class Document(UserDict):
 
     @property
     def doc_id(self) -> Optional[str]:
-        """A unique identifier for the document. Defaults to a uuid."""
+        """A unique identifier for the document. Defaults to None."""
         return self.data.get("doc_id")
 
     @doc_id.setter

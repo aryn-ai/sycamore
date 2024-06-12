@@ -8,6 +8,8 @@ from sycamore.transforms.partition import UnstructuredPdfPartitioner
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.merge_elements import GreedyTextElementMerger
 
+from opensearchpy import OpenSearch
+
 
 def test_pdf_to_opensearch():
     os_client_args = {
@@ -118,3 +120,5 @@ def test_pdf_to_opensearch():
         index_name="toyindex",
         index_settings=index_settings,
     )
+
+    OpenSearch(**os_client_args).indices.delete("toyindex")

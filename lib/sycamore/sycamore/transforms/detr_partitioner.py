@@ -163,7 +163,7 @@ class SycamoreObjectDetection(ABC):
 
 
 class DeformableDetr(SycamoreObjectDetection):
-    def __init__(self, model_name_or_path, device=None, batch_size=1):
+    def __init__(self, model_name_or_path, device=None):
         super().__init__()
 
         self.labels = [
@@ -183,7 +183,6 @@ class DeformableDetr(SycamoreObjectDetection):
 
         self.device = device
         self._model_name_or_path = model_name_or_path
-        self._batch_size = batch_size
         self.pipeline = pipeline(
             task="object-detection",
             model=model_name_or_path,
@@ -201,10 +200,8 @@ class DeformableDetr(SycamoreObjectDetection):
             return self.device
 
     def infer(
-        self, images: List[Image.Image], threshold: float, model_server_endpoint: str = "", batch_size: int = None
+        self, images: List[Image.Image], threshold: float, model_server_endpoint: str = "", batch_size: int = 1
     ) -> List[List[Element]]:
-        if not batch_size:
-            batch_size = self._batch_size
 
         batched_results = []
 

@@ -8,6 +8,7 @@ from sycamore.data import Document, Element
 from sycamore.llms.llms import LLM, FakeLLM
 from sycamore.transforms.extract_schema import ExtractBatchSchema, SchemaExtractor
 from sycamore.transforms.extract_schema import OpenAISchemaExtractor, OpenAIPropertyExtractor
+from sycamore.utils.ray_utils import check_serializable
 
 
 class TrivialExtractor(SchemaExtractor):
@@ -21,23 +22,16 @@ class TrivialExtractor(SchemaExtractor):
 class TestSchema:
     def test_serializable(self, mocker):
         t = TrivialExtractor()
-        self.check_serializable(t)
+        check_serializable(t)
 
         llm = FakeLLM()
         o = OpenAISchemaExtractor("Foo", llm)
-        self.check_serializable(o)
+        check_serializable(o)
 
         llm = mocker.Mock(spec=LLM)
         mocker.patch.object(llm, "generate")
         (ok, log) = inspect_serializability(llm)
         assert not ok
-
-    @staticmethod
-    def check_serializable(thing):
-        (ok, log) = inspect_serializability(thing)
-        if not ok:
-            print(log)
-        assert ok
 
     def test_extract_schema(self, mocker):
         llm = mocker.Mock(spec=LLM)

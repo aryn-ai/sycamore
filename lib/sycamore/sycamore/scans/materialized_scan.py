@@ -33,6 +33,11 @@ class ArrowScan(MaterializedScan):
 class DocScan(MaterializedScan):
     def __init__(self, docs: list[Document], **resource_args):
         super().__init__(**resource_args)
+        if not isinstance(docs, list):
+            raise ValueError("docs should be a list")
+        for d in docs:
+            if not isinstance(d, Document):
+                raise ValueError("each entry in list should be a document")
         self._docs = docs
 
     def execute(self) -> Dataset:

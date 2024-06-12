@@ -4,6 +4,7 @@ import ray.data
 from sycamore.data import Document
 from sycamore.transforms.sketcher import Sketcher, SketchUniquify
 from sycamore.plan_nodes import Node
+from sycamore.transforms.base import take_separate
 
 
 def tearDownModule():
@@ -42,8 +43,8 @@ class TestSketcher:
         execute = mocker.patch.object(node, "execute")
         execute.return_value = in_ds
         ds = sk.execute()
-        doc = Document.from_row(ds.take(limit=1)[0])
-        shingles = doc.shingles
+        (docs, _) = take_separate(ds)
+        shingles = docs[0].shingles
         self.validateShingles(shingles)
 
     def validateShingles(self, shingles: list[int]):
@@ -107,6 +108,9 @@ class TestSketchUniquify:
         execute = mocker.patch.object(node, "execute")
         execute.return_value = in_ds
         ds = uq.execute()
-        assert ds.count() == 1
-        doc = Document.from_row(ds.take()[0])
-        assert doc.doc_id == "doc0"
+        (docs, _) = take_separate(ds)
+        assert len(docs) == 1
+        assert docs[0].doc_id == "doc0"
+
+    def test_cleanup(self):
+        ray.shutdown()

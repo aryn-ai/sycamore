@@ -1,9 +1,55 @@
+import pytest
 import sycamore
 from sycamore.data.document import OpenSearchQuery
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 from sycamore.transforms.query import OpenSearchQueryExecutor
+from opensearchpy import OpenSearch
+
+
+@pytest.fixture(scope="class")
+def setup_index():
+    index_settings = {
+        "body": {
+            "settings": {
+                "index.knn": True,
+                "number_of_shards": 5,
+                "number_of_replicas": 1,
+            },
+            "mappings": {
+                "properties": {
+                    "embedding": {
+                        "type": "knn_vector",
+                        "dimension": 384,
+                        "method": {"name": "hnsw", "engine": "faiss"},
+                    },
+                    "text": {"type": "text"},
+                }
+            },
+        }
+    }
+    paths = str(TEST_DIR / "resources/data/pdfs/")
+
+    context = sycamore.init()
+    ds = (
+        context.read.binary(paths, binary_format="pdf")
+        .limit(1)
+        .partition(partitioner=UnstructuredPdfPartitioner())
+        .explode()
+        .embed(
+            embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
+        )
+    )
+    ds.write.opensearch(
+        os_client_args=TestQueryOpenSearch.OS_CLIENT_ARGS,
+        index_name=TestQueryOpenSearch.INDEX,
+        index_settings=index_settings,
+    )
+    osc = OpenSearch(**TestQueryOpenSearch.OS_CLIENT_ARGS)
+    osc.indices.refresh(TestQueryOpenSearch.INDEX)
+    yield TestQueryOpenSearch.INDEX
+    osc.indices.delete(TestQueryOpenSearch.INDEX)
 
 
 class TestQueryOpenSearch:
@@ -20,52 +66,7 @@ class TestQueryOpenSearch:
         "timeout": 120,
     }
 
-    @classmethod
-    def setup_class(cls):
-        pass
-
-        index_settings = {
-            "body": {
-                "settings": {
-                    "index.knn": True,
-                    "number_of_shards": 5,
-                    "number_of_replicas": 1,
-                },
-                "mappings": {
-                    "properties": {
-                        "embeddings": {
-                            "type": "knn_vector",
-                            "dimension": 384,
-                            "method": {"name": "hnsw", "engine": "faiss"},
-                        },
-                        "text": {"type": "text"},
-                    }
-                },
-            }
-        }
-
-        paths = str(TEST_DIR / "resources/data/pdfs/")
-
-        context = sycamore.init()
-        ds = (
-            context.read.binary(paths, binary_format="pdf")
-            .limit(1)
-            .partition(partitioner=UnstructuredPdfPartitioner())
-            .explode()
-            .embed(
-                embedder=SentenceTransformerEmbedder(
-                    batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2"
-                )
-            )
-        )
-
-        ds.write.opensearch(
-            os_client_args=cls.OS_CLIENT_ARGS,
-            index_name=cls.INDEX,
-            index_settings=index_settings,
-        )
-
-    def test_single_query(self):
+    def test_single_query(self, setup_index):
         query_executor = OpenSearchQueryExecutor(self.OS_CLIENT_ARGS)
         query = OpenSearchQuery()
         query.query = {"query": {"match_all": {}}, "size": 1}
@@ -73,7 +74,7 @@ class TestQueryOpenSearch:
         result = query_executor.query(query)
         assert len(result.hits) > 0
 
-    def test_query_docset(self):
+    def test_query_docset(self, setup_index):
         query_executor = OpenSearchQueryExecutor(self.OS_CLIENT_ARGS)
 
         query1 = OpenSearchQuery()

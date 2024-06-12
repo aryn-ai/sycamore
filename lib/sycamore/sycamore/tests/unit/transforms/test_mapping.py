@@ -6,6 +6,7 @@ import ray.data
 from sycamore.data import Document
 from sycamore.plan_nodes import Node
 from sycamore.transforms import Map, FlatMap, MapBatch
+from sycamore.transforms.base import take_separate
 
 
 def map_func(doc: Document) -> Document:
@@ -51,7 +52,8 @@ class TestMapping:
         execute = mocker.patch.object(node, "execute")
         execute.return_value = input_dataset
         output_dataset = mapping.execute()
-        dicts = [Document.from_row(doc).data for doc in output_dataset.take()]
+        (output_docs, _) = take_separate(output_dataset)
+        dicts = [d.data for d in output_docs]
 
         # ray does not guarantee order preserving
         def sort_key(d: dict) -> int:
@@ -61,6 +63,31 @@ class TestMapping:
         print(dicts)
         assert dicts[0]["index"] == 2
         assert dicts[1]["index"] == 3
+
+    class Empty:
+        def __init__(self):
+            pass
+
+    class Callable:
+        def __init__(self):
+            pass
+
+        def __call__(self):
+            pass
+
+    def test_map_typecheck(self):
+        Map(None, f=lambda x: x)
+        Map(None, f=TestMapping.Callable)
+        Map(None, f=TestMapping.Callable())
+
+        with pytest.raises(ValueError):
+            Map(None, f={})
+
+        with pytest.raises(ValueError):
+            Map(None, f=TestMapping.Empty)
+
+        with pytest.raises(ValueError):
+            Map(None, f=TestMapping.Empty())
 
     class FlatMapClass:
         def __call__(self, doc: Document) -> List[Document]:
@@ -83,8 +110,23 @@ class TestMapping:
         execute = mocker.patch.object(node, "execute")
         execute.return_value = input_dataset
         output_dataset = mapping.execute()
-        dicts = output_dataset.take()
-        assert len(dicts) == 4
+        (data, metadata) = take_separate(output_dataset)
+        assert len(data) == 4
+        assert len(metadata) == 2
+
+    def test_flatmap_typecheck(self):
+        FlatMap(None, f=lambda x: x)
+        FlatMap(None, f=TestMapping.Callable)
+        FlatMap(None, f=TestMapping.Callable())
+
+        with pytest.raises(ValueError):
+            FlatMap(None, f={})
+
+        with pytest.raises(ValueError):
+            FlatMap(None, f=TestMapping.Empty)
+
+        with pytest.raises(ValueError):
+            FlatMap(None, f=TestMapping.Empty())
 
     class MapBatchClass:
         def __call__(self, docs: List[Document]) -> List[Document]:
@@ -104,8 +146,23 @@ class TestMapping:
         execute = mocker.patch.object(node, "execute")
         execute.return_value = input_dataset
         output_dataset = mapping.execute()
-        dicts = [Document.from_row(doc).data for doc in output_dataset.take()]
+        (output_docs, _) = take_separate(output_dataset)
+        dicts = [d.data for d in output_docs]
         assert dicts[0]["index"] == 2 and dicts[1]["index"] == 3
+
+    def test_map_batch_typecheck(self):
+        MapBatch(None, f=lambda x: x)
+        MapBatch(None, f=TestMapping.Callable)
+        MapBatch(None, f=TestMapping.Callable())
+
+        with pytest.raises(ValueError):
+            MapBatch(None, f={})
+
+        with pytest.raises(ValueError):
+            MapBatch(None, f=TestMapping.Empty)
+
+        with pytest.raises(ValueError):
+            MapBatch(None, f=TestMapping.Empty())
 
     def test_flat_map_conflict(self, mocker) -> None:
         def func(doc: Document) -> List[Document]:
@@ -131,4 +188,4 @@ class TestMapping:
         execute.return_value = input_dataset
         output_dataset = mapping.execute()
         batch = output_dataset.take_batch()
-        assert len(batch["doc"]) == 4
+        assert len(batch["doc"]) == 4 + 2

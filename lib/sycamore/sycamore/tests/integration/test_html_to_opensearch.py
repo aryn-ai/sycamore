@@ -1,6 +1,7 @@
 import json
 import tempfile
 
+from opensearchpy import OpenSearch
 import sycamore
 from sycamore.scans.file_scan import JsonManifestMetadataProvider
 from sycamore.tests.config import TEST_DIR
@@ -25,7 +26,7 @@ def test_html_to_opensearch():
             "settings": {"index.knn": True, "number_of_shards": 5, "number_of_replicas": 1},
             "mappings": {
                 "properties": {
-                    "embeddings": {
+                    "embedding": {
                         "type": "knn_vector",
                         "dimension": 384,
                         "method": {"name": "hnsw", "engine": "faiss"},
@@ -71,3 +72,4 @@ def test_html_to_opensearch():
         ds.write.opensearch(os_client_args=os_client_args, index_name="toyindex", index_settings=index_settings)
     finally:
         tmp_manifest.close()
+        OpenSearch(**os_client_args).indices.delete("toyindex")

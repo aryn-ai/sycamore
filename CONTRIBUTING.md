@@ -72,11 +72,12 @@ Our tests are implemented using PyTest. You can run unit and integration tests a
 
 ```bash
 # Unit Tests
-poetry run pytest sycamore/tests/unit/
+poetry run pytest lib/sycamore/sycamore/tests/unit/
 
 # Integration Tests
+
 # Warning: as of 2024-05-17 the integration tests are currently broken. We are working on fixing them. 
-# poetry run pytest sycamore/tests/integration/
+# poetry run pytest lib/sycamore/sycamore/tests/integration/
 
 # All Tests
 poetry run pytest

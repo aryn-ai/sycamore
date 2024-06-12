@@ -201,8 +201,7 @@ class DeformableDetr(SycamoreObjectDetection):
             return self.device
 
     def infer(
-        self, images: List[Image.Image], threshold: float, model_server_endpoint: str = "",
-            batch_size: int = None
+        self, images: List[Image.Image], threshold: float, model_server_endpoint: str = "", batch_size: int = None
     ) -> List[List[Element]]:
         if not batch_size:
             batch_size = self._batch_size

@@ -520,6 +520,7 @@ class ArynPartitioner(Partitioner):
             context.read.binary(paths, binary_format="pdf")\
                 .partition(partitioner=partitioner)
     """
+
     def __init__(
         self,
         aryn_token: str,

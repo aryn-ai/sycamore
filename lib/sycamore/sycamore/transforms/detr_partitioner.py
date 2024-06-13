@@ -1,3 +1,4 @@
+import time
 from abc import ABC, abstractmethod
 from io import BytesIO, IOBase
 from typing import cast, BinaryIO, List, Tuple, Union
@@ -229,15 +230,15 @@ class DeformableDetr(SycamoreObjectDetection):
             results = response.json()
         else:
             results = []
-            for image in images:
-                inputs = self.processor(images=image, return_tensors="pt").to(self._get_device())
-                outputs = self.model(**inputs)
-                target_sizes = torch.tensor([image.size[::-1]])
-                results.append(
-                    self.processor.post_process_object_detection(
-                        outputs, target_sizes=target_sizes, threshold=threshold
-                    )[0]
+            inputs = self.processor(images=images, return_tensors="pt").to(self._get_device())
+            outputs = self.model(**inputs)
+            target_sizes = torch.tensor([image.size[::-1] for image in images])
+            results.extend(
+                self.processor.post_process_object_detection(
+                    outputs, target_sizes=target_sizes, threshold=threshold
                 )
+            )
+
             for result in results:
                 result["scores"] = result["scores"].tolist()
                 result["labels"] = result["labels"].tolist()

@@ -111,14 +111,14 @@ class PineconeRecord(BaseDBWriter.Record):
             id = f"{document.parent_id}#{document.doc_id}"
         values = document.embedding
         metadata = {
-            "properties": document.properties,
             "type": document.type,
             "text_representation": document.text_representation,
             "bbox": document.bbox.to_dict() if document.bbox else None,
             "shingles": [str(s) for s in document.shingles] if document.shingles else None,
         }
         sparse_vector = None
-        tf_table = metadata.get("properties", {}).pop("term_frequency", None)
+        tf_table = document.properties.pop("term_frequency", None)
+        metadata["properties"] = document.properties
         if tf_table:
             sparse_indices = list(tf_table.keys())
             if not all(isinstance(index, int) for index in sparse_indices):
@@ -129,6 +129,7 @@ class PineconeRecord(BaseDBWriter.Record):
             sparse_values = [float(v) for v in tf_table.values()]
             sparse_vector = PineconeRecord.SparseVector(indices=sparse_indices, values=sparse_values)
         metadata = dict(flatten_data(metadata, allowed_list_types=[str]))
+        assert PineconeRecord._validate_metadata(metadata)
         return PineconeRecord(id, values, metadata, sparse_vector)
 
     def to_grpc_vector(self) -> Vector:
@@ -136,6 +137,17 @@ class PineconeRecord(BaseDBWriter.Record):
             return VectorFactoryGRPC.build(asdict(self))
         else:
             return VectorFactoryGRPC.build({"id": self.id, "values": self.values, "metadata": self.metadata})
+
+    @staticmethod
+    def _validate_metadata(metadata: dict) -> TypeGuard[dict[str, Union[list[str], str, bool, int, float]]]:
+        for k, v in metadata.items():
+            if not isinstance(k, str):
+                return False
+            if isinstance(v, list) and all(isinstance(inner, str) for inner in v):
+                continue
+            if not isinstance(v, (str, bool, int, float)):
+                return False
+        return True
 
 
 def _narrow_list_of_pinecone_records(records: list[BaseDBWriter.Record]) -> TypeGuard[PineconeRecord]:

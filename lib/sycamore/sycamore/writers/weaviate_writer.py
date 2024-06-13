@@ -5,7 +5,7 @@ from typing_extensions import TypeGuard, TypeAlias
 
 from sycamore.data.document import Document
 from sycamore.writers.base import BaseDBWriter
-from weaviate.classes.config import ReferenceProperty
+from weaviate.classes.config import DataType, ReferenceProperty
 from weaviate.client import (
     AdditionalConfig,
     AuthCredentials,
@@ -50,8 +50,21 @@ class WeaviateTargetParams(BaseDBWriter.TargetParams):
         other_flat_dict = other._as_flattened_dict()
         for k in my_flat_dict:
             if k not in other_flat_dict:
+                if "nestedProperties" in k:
+                    # Nested properties seem to not be handled
+                    # correctly by .to_dict(), so for now we'll
+                    # just ignore them.
+                    continue
                 return False
-            if my_flat_dict[k] != other_flat_dict[k]:
+            # Convert DataType.OBJECT_ARRAY to "object[]" (or the
+            # other enum values)
+            my_v = my_flat_dict[k]
+            other_v = other_flat_dict[k]
+            if isinstance(my_v, DataType):
+                my_v = my_v.value
+            if isinstance(other_v, DataType):
+                other_v = other_v.value
+            if my_v != other_v:
                 return False
         return True
 

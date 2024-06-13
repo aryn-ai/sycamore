@@ -13,7 +13,7 @@ from weaviate.client import (
     EmbeddedOptions,
     UnexpectedStatusCodeError,
 )
-from weaviate.client import WeaviateClient as WvC
+from weaviate.client import WeaviateClient as _WeaviateClient
 from weaviate.collections.classes.config import (
     _CollectionConfigCreate,
     CollectionConfig,
@@ -84,13 +84,13 @@ class WeaviateTargetParams(BaseDBWriter.TargetParams):
 
 
 class WeaviateClient(BaseDBWriter.Client):
-    def __init__(self, client: WvC):
+    def __init__(self, client: _WeaviateClient):
         self._client = client
 
     @classmethod
     def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "WeaviateClient":
         assert isinstance(params, WeaviateClientParams)
-        client = WvC(**asdict(params))
+        client = _WeaviateClient(**asdict(params))
         return WeaviateClient(client)
 
     def write_many_records(self, records: list[BaseDBWriter.Record], target_params: BaseDBWriter.TargetParams):
@@ -143,7 +143,7 @@ class WeaviateCrossReferenceClient(WeaviateClient):
     @classmethod
     def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "WeaviateCrossReferenceClient":
         assert isinstance(params, WeaviateClientParams)
-        client = WvC(**asdict(params))
+        client = _WeaviateClient(**asdict(params))
         return WeaviateCrossReferenceClient(client)
 
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):

@@ -1,31 +1,26 @@
-import time
+import gzip
+import json
 from abc import ABC, abstractmethod
 from io import BytesIO, IOBase
 from typing import cast, BinaryIO, List, Tuple, Union
 
-from sycamore.data import Element, BoundingBox, ImageElement, TableElement
-from sycamore.data.element import create_element
-from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
-from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
-from sycamore.utils import use_cuda
-
-from PIL import Image
+import easyocr
 import pdf2image
+import pytesseract
 import requests
-import json
-import gzip
-
 import torch
-
+from PIL import Image
 from pdfminer.converter import PDFPageAggregator
 from pdfminer.layout import LAParams
 from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
 from pdfminer.pdfpage import PDFPage
 from pdfminer.utils import open_filename
 
-import pytesseract
-
-import easyocr
+from sycamore.data import Element, BoundingBox, ImageElement, TableElement
+from sycamore.data.element import create_element
+from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
+from sycamore.utils import use_cuda
+from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
 
 
 def _batchify(iterable, n=1):
@@ -234,9 +229,7 @@ class DeformableDetr(SycamoreObjectDetection):
             outputs = self.model(**inputs)
             target_sizes = torch.tensor([image.size[::-1] for image in images])
             results.extend(
-                self.processor.post_process_object_detection(
-                    outputs, target_sizes=target_sizes, threshold=threshold
-                )
+                self.processor.post_process_object_detection(outputs, target_sizes=target_sizes, threshold=threshold)
             )
 
             for result in results:

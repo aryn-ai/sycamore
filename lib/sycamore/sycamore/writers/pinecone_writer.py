@@ -52,7 +52,7 @@ class PineconeClient(BaseDBWriter.Client):
 
     def write_many_records(self, records: list["BaseDBWriter.Record"], target_params: "BaseDBWriter.TargetParams"):
         assert isinstance(target_params, PineconeTargetParams)
-        assert _narrow_list_of_pinecone_records(records)
+        assert _narrow_list_of_pinecone_records(records), f"Found bad records in {records}"
         index = self._client.Index(target_params.index_name)
         async_results = []
         for batch in batched(records, self._batch_size):
@@ -80,7 +80,7 @@ class PineconeClient(BaseDBWriter.Client):
 
     def get_existing_target_params(self, target_params: "BaseDBWriter.TargetParams") -> PineconeTargetParams:
         assert isinstance(target_params, PineconeTargetParams)
-        index_dict = self._client.describe_index(target_params.index_name)
+        index_dict = self._client.describe_index(target_params.index_name).to_dict()
         return PineconeTargetParams(
             index_name=index_dict["name"],
             dimensions=index_dict["dimension"],
@@ -139,7 +139,7 @@ class PineconeRecord(BaseDBWriter.Record):
 
 
 def _narrow_list_of_pinecone_records(records: list[BaseDBWriter.Record]) -> TypeGuard[PineconeRecord]:
-    return all(isinstance(r, PineconeWriter) for r in records)
+    return all(isinstance(r, PineconeRecord) for r in records)
 
 
 class PineconeWriter(BaseDBWriter):

@@ -242,8 +242,9 @@ class DocSetWriter:
         dimensions=None,
         distance_metric="cosine",
         api_key=None,
-        **resource_args,
-    ):
+        execute=True,
+        **kwargs,
+    ) -> Optional["DocSet"]:
         """Writes the content of the DocSet into a Pinecone vector index.
 
         Args:
@@ -262,7 +263,7 @@ class DocSetWriter:
                     Defaults to "cosine", but will not modify an already-existing index
             api_key: Pinecone service API Key. Defaults to None (will use the environment
                     variable PINECONE_API_KEY).
-            resource_args: Arguments to pass to the underlying execution engine
+            kwargs: Arguments to pass to the underlying execution engine
 
         Example:
             The following shows how to read a pdf dataset into a ``DocSet`` and write it out
@@ -291,19 +292,27 @@ class DocSetWriter:
                 )
 
         """
-        from sycamore.writers import PineconeWriter
+        from sycamore.writers.pinecone_writer import PineconeWriter, PineconeClientParams, PineconeTargetParams
+        import os
 
-        pc = PineconeWriter(
-            self.plan,
-            index_name,
-            index_spec,
-            namespace,
-            dimensions,
-            distance_metric,
-            api_key,
-            **resource_args,
+        pcp = PineconeClientParams(api_key=api_key or os.environ.get("PINECONE_API_KEY", ""))
+        ptp = PineconeTargetParams(
+            index_name=index_name,
+            namespace=namespace,
+            index_spec=index_spec,
+            dimensions=dimensions,
+            distance_metric=distance_metric,
         )
-        pc.execute()
+
+        pc = PineconeWriter(self.plan, client_params=pcp, target_params=ptp, name="pinecone_write", **kwargs)
+        if execute:
+            # If execute, force execution
+            pc.execute().materialize()
+            return None
+        else:
+            from sycamore.docset import DocSet
+
+            return DocSet(self.context, pc)
 
     def files(
         self,

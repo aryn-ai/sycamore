@@ -96,6 +96,7 @@ class OpenSearchClient(BaseDBWriter.Client):
             target_params, OpenSearchTargetParams
         ), f"Provided target_params was not of type OpenSearchTargetParams:\n{target_params}"
         assert _narrow_list_of_os_records(records), f"A provided record was not of type OpenSearchRecord:\n{records}"
+
         for success, info in parallel_bulk(self._client, [asdict(r) for r in records]):
             if not success:
                 log.error("A Document failed to upload", info)

@@ -16,7 +16,7 @@ class ArynPDFPartitioner:
     @staticmethod
     def partition_pdf(
         file: BinaryIO,
-        token: str,
+        aryn_token: str,
         aryn_partitioner_address=_DEFAULT_ARYN_PARTITIONER_ADDRESS,
         threshold: float = 0.4,
         use_ocr: bool = False,
@@ -34,7 +34,7 @@ class ArynPDFPartitioner:
             "extract_images": extract_images,
         }
         files: Mapping = {"pdf": file, "options": json.dumps(options).encode("utf-8")}
-        header = {"Authorization": f"Bearer {token}"}
+        header = {"Authorization": f"Bearer {aryn_token}"}
         response = requests.post(aryn_partitioner_address, files=files, headers=header)
 
         if response.status_code != 200:

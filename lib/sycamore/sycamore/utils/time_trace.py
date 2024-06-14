@@ -15,6 +15,9 @@ else:
     RSS_MULTIPLIER = 1024
 
 
+logger = logging.getLogger(__name__)
+
+
 class TimeTraceData:
     def __init__(self, t0, t1, user, sys, rss):
         self.t0 = t0  # ns
@@ -46,7 +49,7 @@ class InMemoryTimeTrace:
         self.t0 = time.time_ns()
         self.r0 = resource.getrusage(self.resource_type)
 
-    def end(self):
+    def measure(self):
         t1 = time.time_ns()
         r1 = resource.getrusage(self.resource_type)
         r0 = self.r0
@@ -84,18 +87,18 @@ class TimeTrace:
     def end(self):
         if TimeTrace.fd < 0:
             return
-        self.data = self.imtt.end()
+        data = self.imtt.measure()
         thr = threading.get_native_id()
 
         buf = struct.pack(
             "BxxxIQQQQQ48s",
             0,  # version
             thr,
-            self.data.t0,
-            self.data.t1,
-            self.data.user,
-            self.data.syst,
-            self.data.rss,
+            data.t0,
+            data.t1,
+            data.user,
+            data.syst,
+            data.rss,
             self.name,
         )
         os.write(TimeTrace.fd, buf)
@@ -143,8 +146,26 @@ class _ZeroRU:
         self.ru_stime = 0
 
 
+def ray_logging_setup():
+    """Use this like:
+
+    ctx = sycamore.init(ray_args={"runtime_env": {"worker_process_setup_hook": ray_logging_setup}})
+
+    When ray starts up you should see:
+    (pid=###) ERROR:root:RayLoggingSetup-Before (expect -After; if missing there is a bug)
+    (pid=###) RayLoggingSetup-After
+
+    If either of those are missing there is a bug.
+    """
+    logging.error("RayLoggingSetup-Before (expect -After; if missing there is a bug)")
+    global logger
+    logger = logging.getLogger("ray")
+    logger.setLevel(logging.INFO)
+    logger.info("RayLoggingSetup-After")
+
+
 class LogTime:
-    def __init__(self, name, point: bool = False, log_start: bool = False):
+    def __init__(self, name: str, *, point: bool = False, log_start: bool = False):
         if point:
             self._logpoint(name)
             return
@@ -154,26 +175,27 @@ class LogTime:
 
     def __enter__(self):
         self.start()
-        if self.log_start:
-            self._logpoint(self.name + "_start")
 
     def start(self):
         self.imtt = InMemoryTimeTrace()
+        if self.log_start:
+            self._logpoint(self.name + "_start")
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.end()
+        self.measure()
 
-    def end(self):
-        self._log(self.name, self.imtt.end())
+    def measure(self):
+        d = self.imtt.measure()
+        self._log(self.name, d)
+        return d
 
     def _logpoint(self, name):
         t = InMemoryTimeTrace()
         t.t0 = zero_time
         t.r0 = _ZeroRU()
-        self._log(name, t.end())
+        self._log(name, t.measure())
 
     def _log(self, name, d):
-        logging.info(
-            f"{name} wall: {d.wall_s():6.3f} user: {d.user_s():6.3f}"
-            f"sys: {d.sys_s():6.3f} rss_mib: {d.rss_mib():4.3f}"
+        logger.info(
+            f"{name} wall: {d.wall_s():6.3f} user: {d.user_s():6.3f}sys: {d.sys_s():6.3f} rss_mib: {d.rss_mib():4.3f}"
         )

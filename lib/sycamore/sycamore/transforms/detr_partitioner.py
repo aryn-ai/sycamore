@@ -128,8 +128,8 @@ class SycamorePDFPartitioner:
         batches = _batchify(images, batch_size)
         deformable_layout = []
         with LogTime("all_batches"):
-            for batch in batches:
-                with LogTime("infer_one_batch"):
+            for i, batch in enumerate(batches):
+                with LogTime(f"infer_one_batch {i}/{len(images)/batch_size}"):
                     deformable_layout += self.model.infer(batch, threshold, model_server_endpoint)
 
         if use_ocr:
@@ -153,7 +153,7 @@ class SycamorePDFPartitioner:
         if extract_table_structure or extract_images:
             with LogTime("extract_images_or_table"):
                 for i, page_elements in enumerate(deformable_layout):
-                    with LogTime("extract one"):
+                    with LogTime(f"extract_images_or_table_one {i}/{len(deformable_layout)}"):
                         image = images[i]
                         for element in page_elements:
                             if isinstance(element, TableElement) and extract_table_structure:
@@ -166,7 +166,7 @@ class SycamorePDFPartitioner:
                                 element.binary_representation = image_to_bytes(cropped_image)
                                 element.image_mode = cropped_image.mode
                                 element.image_size = cropped_image.size
-                                print(element.properties)
+                                # print(element.properties)
 
         LogTime("finish", point=True)
         return deformable_layout
@@ -213,7 +213,7 @@ class DeformableDetr(SycamoreObjectDetection):
         from transformers import AutoImageProcessor, DeformableDetrForObjectDetection
 
         LogTime("loading_model", point=True)
-        with LogTime("load_model"):
+        with LogTime("load_model", log_start=True):
             self.processor = AutoImageProcessor.from_pretrained(model_name_or_path)
             self.model = DeformableDetrForObjectDetection.from_pretrained(model_name_or_path).to(self._get_device())
 

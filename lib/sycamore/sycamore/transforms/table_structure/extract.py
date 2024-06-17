@@ -13,7 +13,7 @@ from sycamore.transforms.map import Map
 from sycamore.transforms.table_structure import table_transformers
 from sycamore.transforms.table_structure.table_transformers import MaxResize
 from sycamore.utils.time_trace import timetrace
-from sycamore.utils import use_cuda
+from sycamore.utils import choose_device
 
 
 class TableStructureExtractor:
@@ -87,12 +87,7 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         self.structure_model = None
 
     def _get_device(self) -> str:
-        if self.device:
-            return self.device
-        elif use_cuda():
-            return "cuda"
-        else:
-            return "cpu"
+        return choose_device(self.device)
 
     # Convert tokens (text) into the format expected by the TableTransformer
     # postprocessing code.

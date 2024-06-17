@@ -1,4 +1,4 @@
-from typing import Callable, Optional, TYPE_CHECKING
+from typing import Any, Callable, Optional, TYPE_CHECKING
 
 from pyarrow.fs import FileSystem
 
@@ -127,6 +127,7 @@ class DocSetWriter:
         os = OpenSearchWriter(
             self.plan, client_params=client_params, target_params=target_params, name="opensearch_write", **kwargs
         )
+
         # We will probably want to break this at some point so that write
         # doesn't execute automatically, and instead you need to say something
         # like docset.write.opensearch().execute(), allowing sensible writes
@@ -141,8 +142,14 @@ class DocSetWriter:
             return DocSet(self.context, os)
 
     def weaviate(
-        self, *, wv_client_args: dict, collection_name: str, collection_config: Optional[dict] = None, **resource_args
-    ) -> None:
+        self,
+        *,
+        wv_client_args: dict,
+        collection_name: str,
+        collection_config: Optional[dict[str, Any]] = None,
+        execute: bool = True,
+        **kwargs,
+    ) -> Optional["DocSet"]:
         """Writes the content of the DocSet into the specified Weaviate collection.
 
         Args:
@@ -228,10 +235,40 @@ class DocSetWriter:
                     collection_config=collection_config_params
                 )
         """
-        from sycamore.writers import WeaviateWriter
+        from sycamore.writers.weaviate_writer import (
+            WeaviateDocumentWriter,
+            WeaviateCrossReferenceWriter,
+            WeaviateClientParams,
+            WeaviateTargetParams,
+            CollectionConfigCreate,
+        )
 
-        wv = WeaviateWriter(self.plan, collection_name, wv_client_args, collection_config, **resource_args)
-        wv.execute()
+        if collection_config is None:
+            collection_config = dict()
+        client_params = WeaviateClientParams(**wv_client_args)
+        collection_config_object: CollectionConfigCreate
+        if "name" in collection_config:
+            assert collection_config["name"] == collection_name
+            collection_config_object = CollectionConfigCreate(**collection_config)
+        else:
+            collection_config_object = CollectionConfigCreate(name=collection_name, **collection_config)
+        target_params = WeaviateTargetParams(name=collection_name, collection_config=collection_config_object)
+
+        wv_docs = WeaviateDocumentWriter(
+            self.plan, client_params, target_params, name="weaviate_write_documents", **kwargs
+        )
+        wv_refs = WeaviateCrossReferenceWriter(
+            wv_docs, client_params, target_params, name="weaviate_write_references", **kwargs
+        )
+
+        if execute:
+            # If execute, force execution
+            wv_refs.execute().materialize()
+            return None
+        else:
+            from sycamore.docset import DocSet
+
+            return DocSet(self.context, wv_refs)
 
     def pinecone(
         self,

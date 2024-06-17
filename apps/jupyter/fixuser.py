@@ -93,7 +93,7 @@ def install_cuda():
         aa = a.stdout.split()[0]
         bb = b.stdout.split()[0]
         if aa != bb:
-            print(f"WARNING: diverted version does not match installed version: {divert}")
+            print(f"WARNING: diverted version does not match installed version: {divert}", flush=True)
 
 
 def exec_run_jupyter(uid, gid):

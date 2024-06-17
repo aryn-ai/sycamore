@@ -6,9 +6,11 @@ import pdf2image
 
 from sycamore.data import Document, Element
 from sycamore.utils.image_utils import try_draw_boxes
+from sycamore.utils.time_trace import timetrace
 from PIL import Image as PImage, ImageDraw
 
 
+@timetrace("Pdf2Imgs")
 def split_and_convert_to_image(doc: Document) -> list[Document]:
     """Split a document into individual pages as images and convert them into Document objects.
 

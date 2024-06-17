@@ -7,6 +7,7 @@ from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Node
 from sycamore.llms import LLM
 from sycamore.llms.prompts import TextSummarizerGuidancePrompt
 from sycamore.transforms.map import Map
+from sycamore.utils.time_trace import timetrace
 
 
 class Summarizer(ABC):
@@ -55,6 +56,7 @@ class LLMElementTextSummarizer(Summarizer):
         document.elements = elements
         return document
 
+    @timetrace("SummText")
     def _summarize_text_element(self, element: Element) -> Element:
         prompt = TextSummarizerGuidancePrompt()
 

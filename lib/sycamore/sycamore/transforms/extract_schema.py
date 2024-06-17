@@ -13,6 +13,7 @@ from sycamore.llms.prompts import (
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.utils.extract_json import extract_json
+from sycamore.utils.time_trace import timetrace
 
 
 def element_list_formatter(elements: list[Element]) -> str:
@@ -80,6 +81,7 @@ class OpenAISchemaExtractor(SchemaExtractor):
         self._prompt_formatter = prompt_formatter
         self._max_num_properties = max_num_properties
 
+    @timetrace("ExtrSchema")
     def extract_schema(self, document: Document) -> Document:
         entities = self._handle_zero_shot_prompting(document)
 
@@ -142,6 +144,7 @@ class OpenAIPropertyExtractor(PropertyExtractor):
         self._num_of_elements = num_of_elements
         self._prompt_formatter = prompt_formatter
 
+    @timetrace("ExtrProps")
     def extract_properties(self, document: Document) -> Document:
         entities = self._handle_zero_shot_prompting(document)
 

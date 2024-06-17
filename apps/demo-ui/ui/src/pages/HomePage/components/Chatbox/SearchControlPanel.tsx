@@ -1,5 +1,11 @@
-import { Button, Chip, Group } from "@mantine/core";
+import { Button, Chip, Group, Switch, createStyles } from "@mantine/core";
 import { Settings } from "../../../../Types";
+
+const useStyles = createStyles((theme) => ({
+  track: {
+    width: "30px",
+  },
+}));
 
 export const SearchControlPanel = ({
   disableFilters,
@@ -12,6 +18,7 @@ export const SearchControlPanel = ({
   setChatHistory,
   openSearchQueryEditorOpenedHandlers,
   settings,
+  queryAnaylzerSwitchRef,
 }: {
   disableFilters: any;
   setDisableFilters: any;
@@ -23,9 +30,12 @@ export const SearchControlPanel = ({
   setChatHistory: any;
   openSearchQueryEditorOpenedHandlers: any;
   settings: Settings;
+  queryAnaylzerSwitchRef: any;
 }) => {
+  const { classes } = useStyles();
+
   return (
-    <Group position="right" w="100%">
+    <Group position="right">
       {settings.required_filters.length > 0 ? (
         <Chip
           size="xs"
@@ -37,15 +47,18 @@ export const SearchControlPanel = ({
         </Chip>
       ) : null}
       {settings.auto_filter ? (
-        <Chip
+        <Switch
+          w="8rem"
+          classNames={{ track: classes.track }}
           key="queryPlanner"
           size="xs"
+          radius="xl"
           checked={queryPlanner}
           onChange={() => setQueryPlanner(!queryPlanner)}
           variant="light"
-        >
-          Auto-filters
-        </Chip>
+          label="Query analyzer"
+          ref={queryAnaylzerSwitchRef}
+        />
       ) : null}
       <Button
         compact

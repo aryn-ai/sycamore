@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import {
   Button,
+  Checkbox,
   Divider,
   Group,
   Modal,
@@ -45,6 +46,7 @@ export const ControlPanel = ({
     openSearchIndex: settings.openSearchIndex,
     embeddingModel: settings.embeddingModel,
   });
+  const [isDefault, setIsDefault] = useState(false);
 
   const getIndicesAndEmbeddings = async () => {
     const [getIndicesResponse, getEmbeddingsResponse] = await Promise.all([
@@ -72,21 +74,65 @@ export const ControlPanel = ({
 
     return [newIndicies, models];
   };
-
-  useEffect(() => {
-    const doit = async () => {
-      try {
-        const [indexNames, modelIds] = await getIndicesAndEmbeddings();
+  const doit = async () => {
+    try {
+      const [indexNames, modelIds] = await getIndicesAndEmbeddings();
+      setSettings((settings) => ({
+        ...settings,
+        openSearchIndex: indexNames[0],
+        embeddingModel: modelIds[0],
+      }));
+      setFormValues((prev) => ({
+        ...prev,
+        openSearchIndex: indexNames[0],
+        embeddingModel: modelIds[0],
+      }));
+      const storedSettings = localStorage.getItem("defaultSettings");
+      if (storedSettings) {
+        const storedSettingsJSON = JSON.parse(storedSettings);
         setSettings((settings) => ({
           ...settings,
-          openSearchIndex: indexNames[0],
-          embeddingModel: modelIds[0],
+          ragPassageCount: storedSettingsJSON.ragPassageCount,
+          modelName: storedSettingsJSON.modelName,
+          openSearchIndex: indexNames.includes(
+            storedSettingsJSON.openSearchIndex,
+          )
+            ? storedSettingsJSON.openSearchIndex
+            : settings.openSearchIndex,
+          embeddingModel: modelIds.includes(storedSettingsJSON.embeddingModel)
+            ? storedSettingsJSON.embeddingModel
+            : settings.embeddingModel,
         }));
         setFormValues((prev) => ({
           ...prev,
-          openSearchIndex: indexNames[0],
-          embeddingModel: modelIds[0],
+          ragPassageCount: storedSettingsJSON.ragPassageCount,
+          modelName: storedSettingsJSON.modelName,
+          openSearchIndex: indexNames.includes(
+            storedSettingsJSON.openSearchIndex,
+          )
+            ? storedSettingsJSON.openSearchIndex
+            : prev.openSearchIndex,
+          embeddingModel: modelIds.includes(storedSettingsJSON.embeddingModel)
+            ? storedSettingsJSON.embeddingModel
+            : prev.embeddingModel,
         }));
+      }
+
+      setAvailableIndices(indexNames);
+      setAvailableEmbeddings(modelIds);
+    } catch (error: any) {
+      openErrorDialog("Error loading settings: " + error.message);
+      console.error("Error loading settings:", error);
+    }
+  };
+  useEffect(() => {
+    doit();
+  }, []);
+
+  useEffect(() => {
+    const reloadIndicesAndEmbeddings = async () => {
+      try {
+        const [indexNames, modelIds] = await getIndicesAndEmbeddings();
         setAvailableIndices(indexNames);
         setAvailableEmbeddings(modelIds);
       } catch (error: any) {
@@ -94,15 +140,18 @@ export const ControlPanel = ({
         console.error("Error loading settings:", error);
       }
     };
-    doit();
-  }, []);
+    if (controlPanelOpened) {
+      reloadIndicesAndEmbeddings();
+    }
+  }, [controlPanelOpened]);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isDefault) {
+      localStorage.setItem("defaultSettings", JSON.stringify(formValues));
+    }
+    setIsDefault(false);
     setSettings((prevSettings) => ({ ...prevSettings, ...formValues }));
-    setTimeout(() => {
-      console.log(settings);
-    });
     onControlPanelClose();
   };
 
@@ -111,6 +160,7 @@ export const ControlPanel = ({
       opened={controlPanelOpened}
       onClose={onControlPanelClose}
       title="Options"
+      size="auto"
       centered
     >
       <form onSubmit={handleSubmit}>
@@ -120,11 +170,12 @@ export const ControlPanel = ({
             <Text fz="xs">RAG passage count:</Text>
             <NativeSelect
               data={["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]}
-              defaultValue={formValues.ragPassageCount}
+              value={formValues.ragPassageCount}
               onChange={(event) => {
+                const newCount = +event.currentTarget.value;
                 setFormValues((prev) => ({
                   ...prev,
-                  ragPassageCount: +event.currentTarget.value,
+                  ragPassageCount: newCount,
                 }));
               }}
             />
@@ -133,11 +184,12 @@ export const ControlPanel = ({
             <Text fz="xs">AI model:</Text>
             <NativeSelect
               data={settings.availableModels}
-              defaultValue={formValues.modelName}
+              value={formValues.modelName}
               onChange={(event) => {
+                const newModal = event.currentTarget.value;
                 setFormValues((prev) => ({
                   ...prev,
-                  modelName: event.currentTarget.value,
+                  modelName: newModal,
                 }));
               }}
             />
@@ -146,11 +198,12 @@ export const ControlPanel = ({
             <Text fz="xs">OpenSearch index:</Text>
             <NativeSelect
               data={Array.from(availableIndices)}
-              defaultValue={formValues.openSearchIndex}
+              value={formValues["openSearchIndex"]}
               onChange={(event) => {
+                const newIndex = event.currentTarget.value;
                 setFormValues((prev) => ({
                   ...prev,
-                  openSearchIndex: event.currentTarget.value,
+                  openSearchIndex: newIndex,
                 }));
               }}
             />
@@ -159,16 +212,22 @@ export const ControlPanel = ({
             <Text fz="xs">Embedding Model:</Text>
             <NativeSelect
               data={Array.from(availableEmbeddings)}
-              defaultValue={formValues.embeddingModel}
+              value={formValues.embeddingModel}
               onChange={(event) => {
+                const newEmbeddingModal = event.currentTarget.value;
                 setFormValues((prev) => ({
                   ...prev,
-                  embeddingModel: event.currentTarget.value,
+                  embeddingModel: newEmbeddingModal,
                 }));
               }}
             />
           </Group>
           <Group position="right">
+            <Checkbox
+              label="Set as default"
+              checked={isDefault}
+              onChange={(e) => setIsDefault(e.target.checked)}
+            />
             <Button type="submit">Submit</Button>
           </Group>
         </Stack>

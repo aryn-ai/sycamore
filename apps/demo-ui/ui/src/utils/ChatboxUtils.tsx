@@ -1,5 +1,103 @@
 import { Dispatch, SetStateAction } from "react";
-import { SearchResultDocument } from "../Types";
+import { FilterValues, SearchResultDocument } from "../Types";
+
+export const documentLevelFields = [
+  "dateTime",
+  "injuries",
+  "aircraftType",
+  "location",
+  "registration",
+  "accidentNumber",
+  "definingEvent",
+  "day",
+];
+
+export const excludeFields = [
+  "_schema",
+  "_schema_class",
+  "3-point",
+  "3point",
+  "3Point",
+  "5Point",
+  "4-point",
+  "5-point",
+  "columns",
+  "entity",
+  "filetype",
+  "image_mode",
+  "image_size",
+  "page_number",
+  "page_numbers",
+  "path",
+  "rows",
+  "score",
+  "location",
+  "day",
+  "aircraftType",
+  "accidentNumber",
+  "lowestCloudCondition",
+  "windSpeedInKnots",
+  "injuries",
+  "yearOfManufacture",
+  "temperatureInC",
+  "aircraftMake",
+];
+
+export function parseManualFilters(filterInputs: FilterValues) {
+  if (filterInputs == null) return null;
+  const resultNeural: any = {
+    bool: {
+      filter: [],
+    },
+  };
+  const resultKeyword: any = {
+    bool: {
+      filter: [],
+    },
+  };
+
+  for (const [field, value] of Object.entries(filterInputs)) {
+    if (value) {
+      let fieldName = `properties.${field}`;
+      if (documentLevelFields.includes(field)) {
+        fieldName = `properties.entity.${field}`;
+      }
+      if (typeof value === "object") {
+        const rangeFilterNeural: any = {
+          range: { [fieldName]: {} },
+        };
+        const rangeFilterKeyword: any = {
+          range: { [`${fieldName}.keyword`]: {} },
+        };
+        if (value.gte) {
+          rangeFilterNeural.range[fieldName]["gte"] = value.gte;
+          rangeFilterKeyword.range[`${fieldName}.keyword`]["gte"] = value.gte;
+        }
+        if (value.lte) {
+          rangeFilterNeural.range[fieldName]["lte"] = value.lte;
+          rangeFilterKeyword.range[`${fieldName}.keyword`]["lte"] = value.lte;
+        }
+        resultNeural.bool.filter.push(rangeFilterNeural);
+        resultKeyword.bool.filter.push(rangeFilterKeyword);
+      } else {
+        let matchFilter;
+        matchFilter = {
+          match: {
+            [fieldName]: value,
+          },
+        };
+        resultNeural.bool.filter.push(matchFilter);
+        resultKeyword.bool.filter.push(matchFilter);
+      }
+    }
+  }
+
+  const result = {
+    keyword: resultKeyword,
+    neural: resultNeural,
+  };
+  return result;
+}
 
 export function parseFilters(
   filterInputs: any,
@@ -16,98 +114,192 @@ export function parseFilters(
       filter: [],
     },
   };
-  Object.entries(filterInputs).forEach(([filter, filterValue]) => {
-    if (filter == null || filter == "") return;
-    // ignore ntsb schema, handled separately below for auto filters
-    if (
-      filter == "location" ||
-      filter == "airplane_name" ||
-      filter == "date_start" ||
-      filter == "date_end" ||
-      filterValue == "unknown"
-    ) {
-      return;
-    }
-    resultNeural["bool"]["filter"].push({
-      match: {
-        [`properties.${filter}`]: filterValue,
-      },
-    });
-    resultKeyword["bool"]["filter"].push({
-      match: {
-        [`properties.${filter}.keyword`]: filterValue,
-      },
-    });
-  });
 
-  // for ntsb schema only
-  if (
-    filterInputs["location"] != null &&
-    filterInputs["location"] != "unknown"
-  ) {
-    resultKeyword["bool"]["filter"].push({
+  if (filterInputs.matchFilters == null) return null;
+  filterInputs.matchFilters.forEach((filter: any) => {
+    if (filter == null || filter.fieldName === "") return;
+    const matchFilter = {
       match: {
-        "properties.entity.location": filterInputs["location"],
-      },
-    });
-    resultNeural["bool"]["filter"].push({
-      match: {
-        "properties.entity.location": filterInputs["location"],
-      },
-    });
-  }
-  if (
-    filterInputs["airplane_name"] != null &&
-    filterInputs["airplane_name"] !== "unknown"
-  ) {
-    resultKeyword["bool"]["filter"].push({
-      match: {
-        "properties.entity.aircraft": filterInputs["airplane_name"],
-      },
-    });
-    resultNeural["bool"]["filter"].push({
-      match: {
-        "properties.entity.aircraft": filterInputs["airplane_name"],
-      },
-    });
-  }
-
-  const range_query: any = {
-    range: {
-      "properties.entity.day": {},
-    },
-  };
-  if (
-    filterInputs["date_start"] != null &&
-    filterInputs["date_start"] !== "unknown"
-  ) {
-    range_query.range["properties.entity.day"].gte = filterInputs["date_start"];
-  }
-  if (
-    filterInputs["date_end"] != null &&
-    filterInputs["date_end"] !== "unknown"
-  ) {
-    range_query.range["properties.entity.day"].lte = filterInputs["date_end"];
-  }
-  if (
-    range_query.range["properties.entity.day"].gte !== undefined ||
-    range_query.range["properties.entity.day"].lte !== undefined
-  ) {
-    resultNeural.bool.filter.push(range_query);
-    const keywordRange = {
-      range: {
-        "properties.entity.day.keyword": {},
+        [filter.fieldName]: filter.fieldValue,
       },
     };
-    keywordRange.range["properties.entity.day.keyword"] =
-      range_query["range"]["properties.entity.day"];
-    resultKeyword.bool.filter.push(keywordRange);
-  }
+    resultNeural["bool"]["filter"].push(matchFilter);
+    resultKeyword["bool"]["filter"].push(matchFilter);
+  });
+
+  filterInputs.rangeFilters.forEach((filter: any) => {
+    if (filter == null || filter.fieldName === "") return;
+    const rangeFilterNeural = {
+      range: {
+        [filter.fieldName]: {
+          gte: filter.gte,
+          lte: filter.lte,
+        },
+      },
+    };
+
+    const rangeFilterKeyword = {
+      range: {
+        [`${filter.fieldName}.keyword`]: {
+          gte: filter.gte,
+          lte: filter.lte,
+        },
+      },
+    };
+    resultNeural.bool.filter.push(rangeFilterNeural);
+    resultKeyword.bool.filter.push(rangeFilterKeyword);
+  });
   const result = {
     keyword: resultKeyword,
     neural: resultNeural,
   };
   return result;
+}
+
+export function parseFiltersForDisplay(filterInputs: any) {
+  console.log("inside parseFiltersForDisplay", filterInputs);
+
+  const parsedFilter: any = {};
+  filterInputs.matchFilters.forEach((filter: any) => {
+    const fieldName = filter.fieldName.split(".").pop();
+    parsedFilter[fieldName] = filter.fieldValue;
+  });
+  filterInputs.rangeFilters.forEach((filter: any) => {
+    const fieldName = filter.fieldName.split(".").pop();
+    parsedFilter[fieldName] = {};
+    if (filter.gte) {
+      parsedFilter[fieldName].gte = filter.gte;
+    }
+    if (filter.lte) {
+      parsedFilter[fieldName].lte = filter.lte;
+    }
+  });
+  return parsedFilter;
+}
+
+export function parseAggregationsForDisplay(filterInputs: any) {
+  console.log("inside parseAggregationsForDisplay", filterInputs);
+
+  const parsedAggs: any = {};
+  filterInputs.termsAggregations.forEach((aggs: any) => {
+    const fieldName = aggs.fieldName.split(".").slice(-2).reverse().pop();
+    if (fieldName === "") return;
+    parsedAggs["terms"] = fieldName;
+  });
+  filterInputs.cardinalityAggregations.forEach((aggs: any) => {
+    const fieldName = aggs.fieldName.split(".").slice(-2).reverse().pop();
+    if (fieldName === "") return;
+    parsedAggs["cardinality"] = fieldName;
+  });
+  return parsedAggs;
+}
+
+const camelToSnakeCase = (str: string) =>
+  str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+
+export function buildOpensearchQueryFromLlmResponse(filterInputs: any) {
+  const openSearchQuery: any = { size: 0 };
+  openSearchQuery.query = {
+    bool: {
+      must: [{ match_all: {} }],
+      filter: [],
+    },
+  };
+  openSearchQuery.aggs = {};
+  filterInputs.matchFilters.forEach((filter: any) => {
+    openSearchQuery.query.bool.filter.push({
+      match_phrase: { [filter.fieldName]: filter.fieldValue },
+    });
+  });
+  filterInputs.rangeFilters.forEach((filter: any) => {
+    openSearchQuery.query.bool.filter.push({
+      range: { [filter.fieldName]: { gte: filter.gte, lte: filter.lte } },
+    });
+  });
+  filterInputs.cardinalityAggregations.forEach((agg: any) => {
+    let aggsKeyword =
+      camelToSnakeCase(agg.fieldName.split(".").slice(-2).reverse().pop()) +
+      "s";
+    openSearchQuery.aggs[`unique_${aggsKeyword}`] = {
+      cardinality: { field: agg.fieldName },
+    };
+  });
+  filterInputs.termsAggregations.forEach((agg: any) => {
+    let aggsKeyword =
+      camelToSnakeCase(agg.fieldName.split(".").slice(-2).reverse().pop()) +
+      "s";
+    openSearchQuery.aggs[`unique_${aggsKeyword}`] = {
+      terms: { field: agg.fieldName, size: 1000 },
+      aggs: {
+        unique_pdf_documents: {
+          cardinality: {
+            field: "parent_id.keyword",
+          },
+        },
+      },
+    };
+  });
+  return openSearchQuery;
+}
+
+export function buildOpenSearchQueryFromManualFiltersAggs(
+  filters: FilterValues,
+  aggregations: { [key: string]: string },
+) {
+  const openSearchQuery: any = { size: 0 };
+  openSearchQuery.query = {
+    bool: {
+      must: [{ match_all: {} }],
+      filter: [],
+    },
+  };
+  openSearchQuery.aggs = {};
+
+  if (filters) {
+    Object.keys(filters).forEach((key) => {
+      const value = filters[key];
+      let fieldName = `properties.${key}`;
+      if (documentLevelFields.includes(key)) {
+        fieldName = `properties.entity.${key}`;
+      }
+      if (typeof value === "object") {
+        openSearchQuery.query.bool.filter.push({
+          range: { [fieldName]: value },
+        });
+      } else {
+        openSearchQuery.query.bool.filter.push({
+          match_phrase: { [fieldName]: value },
+        });
+      }
+    });
+  }
+  if (aggregations) {
+    Object.entries(aggregations).forEach(([aggType, fieldName]) => {
+      let openSearchFieldName = `properties.${fieldName}.keyword`;
+      if (documentLevelFields.includes(fieldName)) {
+        openSearchFieldName = `properties.entity.${fieldName}.keyword`;
+      }
+      const aggregationName = `unique_${camelToSnakeCase(fieldName)}s`;
+
+      if (aggType === "cardinality") {
+        openSearchQuery.aggs[aggregationName] = {
+          [aggType]: { field: openSearchFieldName },
+        };
+      } else {
+        openSearchQuery.aggs[aggregationName] = {
+          [aggType]: { field: openSearchFieldName, size: 1000 },
+          aggs: {
+            unique_pdf_documents: {
+              cardinality: {
+                field: "parent_id.keyword",
+              },
+            },
+          },
+        };
+      }
+    });
+  }
+  return openSearchQuery;
 }
 
 export function parseOpenSearchResults(

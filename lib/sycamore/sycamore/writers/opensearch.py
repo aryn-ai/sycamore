@@ -1,77 +1,170 @@
+from dataclasses import asdict, dataclass, field
 import logging
-from typing import Any, Optional, Iterable
+from typing import Any, Optional
+from typing_extensions import TypeGuard
 
 from opensearchpy import OpenSearch
+from opensearchpy.exceptions import RequestError
 from opensearchpy.helpers import parallel_bulk
-from ray.data import Datasink, Dataset
-from ray.data._internal.delegating_block_builder import DelegatingBlockBuilder
-from ray.data.block import Block, BlockAccessor
-from ray.data._internal.execution.interfaces import TaskContext
 
 from sycamore.data import Document
-from sycamore.plan_nodes import Node, Write
-from sycamore.utils.time_trace import timetrace
+from sycamore.writers.base import BaseDBWriter
+from sycamore.writers.common import HostAndPort, flatten_data
 
 log = logging.getLogger(__name__)
 
 
-class OpenSearchWriter(Write):
-    def __init__(
-        self,
-        plan: Node,
-        index_name: str,
-        *,
-        os_client_args: dict,
-        index_settings: Optional[dict] = None,
-        number_of_allowed_failures_per_block: int = 100,
-        collect_failures_file_path: str = "failures.txt",
-        **ray_remote_args,
-    ):
-        super().__init__(plan, **ray_remote_args)
-        self.index_name = index_name
-        self.index_settings = index_settings
-        self.os_client_args = os_client_args
-        self.number_of_allowed_failures_per_block = number_of_allowed_failures_per_block
-        self.collect_failures_file_path = collect_failures_file_path
+@dataclass
+class OpenSearchClientParams(BaseDBWriter.ClientParams):
+    hosts: list[HostAndPort] = field(default_factory=lambda: [HostAndPort(host="localhost", port=9200)])
+    http_compress: bool = True
+    http_auth: tuple[str, str] = ("admin", "admin")
+    use_ssl: bool = True
+    verify_certs: bool = True
+    ssl_assert_hostname: bool = True
+    ssl_show_warn: bool = True
+    timeout: Optional[int] = None
 
-    def execute(self) -> Dataset:
-        dataset = self.child().execute()
-        try:
-            client = OpenSearch(**self.os_client_args)
-            if not client.indices.exists(self.index_name):
-                if self.index_settings is not None:
-                    client.indices.create(self.index_name, **self.index_settings)
+
+@dataclass
+class OpenSearchTargetParams(BaseDBWriter.TargetParams):
+    index_name: str
+    settings: dict[str, Any] = field(default_factory=lambda: {"index.knn": True})
+    mappings: dict[str, Any] = field(
+        default_factory=lambda: {
+            "properties": {
+                "embedding": {
+                    "type": "knn_vector",
+                    "dimension": 384,
+                    "method": {"name": "hnsw", "engine": "faiss"},
+                },
+            }
+        }
+    )
+
+    def compatible_with(self, other: "BaseDBWriter.TargetParams") -> bool:
+        """
+        OpenSearchTargetParams A is compatible with OpenSearchTargetParams B if
+        all the keys in A are also in B, and if the values of the intersecting
+        keys are the same. We don't check symmetry here, because B might include
+        a bunch of other stuff, like creation time or UUID, where we don't want to
+        demand equality. We also flatten for consistency.
+        """
+        if not isinstance(other, OpenSearchTargetParams):
+            return False
+        if self.index_name != other.index_name:
+            return False
+        my_flat_settings = dict(flatten_data(self.settings))
+        other_flat_settings = dict(flatten_data(other.settings))
+        for k in my_flat_settings:
+            other_k = k
+            if k not in other_flat_settings:
+                if "index." + k in other_flat_settings:
+                    # You can specify index params without the "index" part and
+                    # they'll come back with the "index" part
+                    other_k = "index." + k
                 else:
-                    client.indices.create(self.index_name)
-
-        except Exception as e:
-            raise RuntimeError("Exception occurred while creating an index", e)
-
-        dataset.write_datasink(
-            OSDataSink(
-                index_name=self.index_name,
-                os_client_args=self.os_client_args,
-                number_of_allowed_failures_per_block=self.number_of_allowed_failures_per_block,
-                collect_failures_file_path=self.collect_failures_file_path,
-            ),
-            ray_remote_args=self.resource_args,
-        )
-
-        return dataset
+                    return False
+            if my_flat_settings[k] != other_flat_settings[other_k]:
+                return False
+        my_flat_mappings = dict(flatten_data(self.mappings))
+        other_flat_mappings = dict(flatten_data(other.mappings))
+        for k in my_flat_mappings:
+            if k not in other_flat_mappings:
+                return False
+            if my_flat_mappings[k] != other_flat_mappings[k]:
+                return False
+        return True
 
 
-class OSDataSink(Datasink):
-    def __init__(self, index_name, os_client_args, number_of_allowed_failures_per_block, collect_failures_file_path):
-        self.index_name = index_name
-        self.os_client_args = os_client_args
-        self.number_of_allowed_failures_per_block = number_of_allowed_failures_per_block
-        self.collect_failures_file_path = collect_failures_file_path
+class OpenSearchClient(BaseDBWriter.Client):
+    def __init__(self, os_client: OpenSearch):
+        self._client = os_client
 
-    # todo: make this type specific to extract properties
-    @staticmethod
-    def extract_os_document(data):
+    @classmethod
+    def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "OpenSearchClient":
+        assert isinstance(
+            params, OpenSearchClientParams
+        ), f"Provided params was not of type OpenSearchClientParams:\n{params}"
+        paramsdict = asdict(params)
+        os_client = OpenSearch(**paramsdict)
+        os_client.ping()
+        return OpenSearchClient(os_client)
+
+    def write_many_records(self, records: list[BaseDBWriter.Record], target_params: BaseDBWriter.TargetParams):
+        assert isinstance(
+            target_params, OpenSearchTargetParams
+        ), f"Provided target_params was not of type OpenSearchTargetParams:\n{target_params}"
+        assert _narrow_list_of_os_records(records), f"A provided record was not of type OpenSearchRecord:\n{records}"
+
+        for success, info in parallel_bulk(self._client, [asdict(r) for r in records]):
+            if not success:
+                log.error("A Document failed to upload", info)
+
+    def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
+        assert isinstance(
+            target_params, OpenSearchTargetParams
+        ), f"Provided target_params was not of type OpenSearchTargetParams:\n{target_params}"
+        index_name = target_params.index_name
+        try:
+            self._client.indices.create(
+                index_name, body={"mappings": target_params.mappings, "settings": target_params.settings}
+            )
+        except RequestError as e:
+            if e.error != "resource_already_exists_exception":
+                raise e
+
+    def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> OpenSearchTargetParams:
+        def _string_values_to_python_types(obj: Any):
+            if isinstance(obj, dict):
+                for k in obj:
+                    obj[k] = _string_values_to_python_types(obj[k])
+                return obj
+            if isinstance(obj, list):
+                for i in range(len(obj)):
+                    obj[i] = _string_values_to_python_types(obj[i])
+                return obj
+            if isinstance(obj, str):
+                if obj == "true":
+                    return True
+                elif obj == "false":
+                    return False
+                elif obj.isnumeric():
+                    return int(obj)
+                try:
+                    return float(obj)
+                except ValueError:
+                    return obj
+            return obj
+
+        assert isinstance(
+            target_params, OpenSearchTargetParams
+        ), f"Provided target_params was not of type OpenSearchTargetParams:\n{target_params}"
+        index_name = target_params.index_name
+        response = self._client.indices.get(index_name)
+        mappings = _string_values_to_python_types(response.get(index_name, {}).get("mappings", {}))
+        assert isinstance(mappings, dict)
+        settings = _string_values_to_python_types(response.get(index_name, {}).get("settings", {}))
+        assert isinstance(settings, dict)
+        return OpenSearchTargetParams(index_name=index_name, mappings=mappings, settings=settings)
+
+
+@dataclass
+class OpenSearchRecord(BaseDBWriter.Record):
+    _source: dict[str, Any]
+    _index: str
+    _id: str
+
+    @classmethod
+    def from_doc(cls, document: Document, target_params: BaseDBWriter.TargetParams) -> "OpenSearchRecord":
+        assert isinstance(
+            target_params, OpenSearchTargetParams
+        ), f"Provided target_params was not of type OpenSearchTargetParams:\n{target_params}"
+        assert (
+            document.doc_id is not None
+        ), f"Cannot create opensearch record from Document without a doc_id:\n{document}"
         result = dict()
-        default = {
+        default: dict[str, Any] = {
             "doc_id": None,
             "type": None,
             "text_representation": None,
@@ -82,62 +175,21 @@ class OSDataSink(Datasink):
             "bbox": None,
             "shingles": None,
         }
+        data = document.data
         for k, v in default.items():
             if k in data:
                 result[k] = data[k]
             else:
                 result[k] = v
-        return result
+        return OpenSearchRecord(_index=target_params.index_name, _id=document.doc_id, _source=result)
 
-    @timetrace("OsrchWrite")
-    def write(self, blocks: Iterable[Block], ctx: TaskContext) -> Any:
-        builder = DelegatingBlockBuilder()
-        for block in blocks:
-            builder.add_block(block)
-        block = builder.build()
 
-        self.write_block(
-            block,
-            os_client_args=self.os_client_args,
-            index_name=self.index_name,
-            collect_failures_file_path=self.collect_failures_file_path,
-            number_of_allowed_failures_per_block=self.number_of_allowed_failures_per_block,
-        )
+def _narrow_list_of_os_records(records: list[BaseDBWriter.Record]) -> TypeGuard[list[OpenSearchRecord]]:
+    return all(isinstance(r, OpenSearchRecord) for r in records)
 
-        return "ok"
 
-    @staticmethod
-    def write_block(
-        block: Block,
-        *,
-        os_client_args: dict,
-        index_name: str,
-        collect_failures_file_path: str,
-        number_of_allowed_failures_per_block: int,
-    ):
-        client = OpenSearch(**os_client_args)
-
-        block = BlockAccessor.for_block(block).to_arrow().to_pylist()
-
-        def create_actions():
-            for i, row in enumerate(block):
-                doc = OSDataSink.extract_os_document(Document.from_row(row).data)
-                action = {"_index": index_name, "_id": doc["doc_id"], "_source": doc}
-                yield action
-
-        failures = []
-        for success, info in parallel_bulk(client, create_actions()):
-            if not success:
-                log.error("A Document failed to upload", info)
-                failures.append(info)
-
-                if len(failures) > number_of_allowed_failures_per_block:
-                    with open(collect_failures_file_path, "a") as f:
-                        for doc in failures:
-                            f.write(f"{doc}\n")
-                    raise RuntimeError(
-                        f"{number_of_allowed_failures_per_block} documents failed to index. "
-                        f"Refer to {collect_failures_file_path}."
-                    )
-
-        log.info("All the documents have been ingested!")
+class OpenSearchWriter(BaseDBWriter):
+    Client = OpenSearchClient
+    ClientParams = OpenSearchClientParams
+    Record = OpenSearchRecord
+    TargetParams = OpenSearchTargetParams

@@ -40,7 +40,7 @@ class Document(UserDict):
 
     @property
     def doc_id(self) -> Optional[str]:
-        """A unique identifier for the document. Defaults to a uuid."""
+        """A unique identifier for the document. Defaults to None."""
         return self.data.get("doc_id")
 
     @doc_id.setter
@@ -272,6 +272,13 @@ class MetadataDocument(Document):
     def metadata(self) -> None:
         """Delete all the metadata of this document."""
         self.data["metadata"] = {}
+
+
+def split_data_metadata(all: list[Document]) -> tuple[list[Document], list[MetadataDocument]]:
+    return (
+        [d for d in all if not isinstance(d, MetadataDocument)],
+        [d for d in all if isinstance(d, MetadataDocument)],
+    )
 
 
 class OpenSearchQuery(Document):

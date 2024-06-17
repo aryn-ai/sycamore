@@ -1,11 +1,16 @@
-from typing import Callable, Optional
+from typing import Any, Callable, Optional, TYPE_CHECKING
 
 from pyarrow.fs import FileSystem
 
 from sycamore import Context
 from sycamore.plan_nodes import Node
 from sycamore.data import Document
+from sycamore.writers.common import HostAndPort
 from sycamore.writers.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
+
+if TYPE_CHECKING:
+    # Shenanigans to avoid circular import
+    from sycamore.docset import DocSet
 
 
 class DocSetWriter:
@@ -21,8 +26,14 @@ class DocSetWriter:
         self.plan = plan
 
     def opensearch(
-        self, *, os_client_args: dict, index_name: str, index_settings: Optional[dict] = None, **resource_args
-    ) -> None:
+        self,
+        *,
+        os_client_args: dict,
+        index_name: str,
+        index_settings: Optional[dict] = None,
+        execute: bool = True,
+        **kwargs,
+    ) -> Optional["DocSet"]:
         """Writes the content of the DocSet into the specified OpenSearch index.
 
         Args:
@@ -32,7 +43,9 @@ class DocSetWriter:
             index_settings: Settings and mappings to pass when creating a new index. Specified as a Python dict
                 corresponding to the JSON paramters taken by the OpenSearch CreateIndex API:
                 https://opensearch.org/docs/latest/api-reference/index-apis/create-index/
-            resource_args: Arguments to pass to the underlying execution engine
+            execute: Execute the pipeline and write to opensearch on adding this operator. If false,
+                will return a new docset with the write in the plan
+            kwargs: Arguments to pass to the underlying execution engine
 
         Example:
             The following code shows how to read a pdf dataset into a ``DocSet`` and write it out to a
@@ -72,16 +85,71 @@ class DocSetWriter:
                      index_settings=index_settings)
         """
 
-        from sycamore.writers import OpenSearchWriter
+        from sycamore.writers.opensearch import OpenSearchWriter, OpenSearchClientParams, OpenSearchTargetParams
+        from typing import Any
+        import copy
+
+        # We mutate os_client_args, so mutate a copy
+        os_client_args = copy.deepcopy(os_client_args)
+
+        # Type narrowing for hosts joy
+        def _convert_to_host_port_list(hostlist: Any) -> list[HostAndPort]:
+            if not isinstance(hostlist, list):
+                raise ValueError('OpenSearch client args "hosts" param must be a list of hosts')
+            for h in hostlist:
+                if (
+                    not isinstance(h, dict)
+                    or "host" not in h
+                    or not isinstance(h["host"], str)
+                    or "port" not in h
+                    or not isinstance(h["port"], int)
+                ):
+                    raise ValueError(
+                        'OpenSearch client args "hosts" objects must consist of dicts of '
+                        "the form {'host': '<address>', 'port': <port num>}\n"
+                        f"Found: {h}"
+                    )
+            return [HostAndPort(host=h["host"], port=h["port"]) for h in hostlist]
+
+        hosts = os_client_args.get("hosts", None)
+        if hosts is not None:
+            os_client_args["hosts"] = _convert_to_host_port_list(hosts)
+        client_params = OpenSearchClientParams(**os_client_args)
+
+        target_params: OpenSearchTargetParams
+        if index_settings is not None:
+            idx_settings = index_settings.get("body", {}).get("settings", {})
+            idx_mappings = index_settings.get("body", {}).get("mappings", {})
+            target_params = OpenSearchTargetParams(index_name, idx_settings, idx_mappings)
+        else:
+            target_params = OpenSearchTargetParams(index_name, {}, {})
 
         os = OpenSearchWriter(
-            self.plan, index_name, os_client_args=os_client_args, index_settings=index_settings, **resource_args
+            self.plan, client_params=client_params, target_params=target_params, name="opensearch_write", **kwargs
         )
-        os.execute()
+
+        # We will probably want to break this at some point so that write
+        # doesn't execute automatically, and instead you need to say something
+        # like docset.write.opensearch().execute(), allowing sensible writes
+        # to multiple locations and post-write operations.
+        if execute:
+            # If execute, force execution
+            os.execute().materialize()
+            return None
+        else:
+            from sycamore.docset import DocSet
+
+            return DocSet(self.context, os)
 
     def weaviate(
-        self, *, wv_client_args: dict, collection_name: str, collection_config: Optional[dict] = None, **resource_args
-    ) -> None:
+        self,
+        *,
+        wv_client_args: dict,
+        collection_name: str,
+        collection_config: Optional[dict[str, Any]] = None,
+        execute: bool = True,
+        **kwargs,
+    ) -> Optional["DocSet"]:
         """Writes the content of the DocSet into the specified Weaviate collection.
 
         Args:
@@ -167,10 +235,40 @@ class DocSetWriter:
                     collection_config=collection_config_params
                 )
         """
-        from sycamore.writers import WeaviateWriter
+        from sycamore.writers.weaviate_writer import (
+            WeaviateDocumentWriter,
+            WeaviateCrossReferenceWriter,
+            WeaviateClientParams,
+            WeaviateTargetParams,
+            CollectionConfigCreate,
+        )
 
-        wv = WeaviateWriter(self.plan, collection_name, wv_client_args, collection_config, **resource_args)
-        wv.execute()
+        if collection_config is None:
+            collection_config = dict()
+        client_params = WeaviateClientParams(**wv_client_args)
+        collection_config_object: CollectionConfigCreate
+        if "name" in collection_config:
+            assert collection_config["name"] == collection_name
+            collection_config_object = CollectionConfigCreate(**collection_config)
+        else:
+            collection_config_object = CollectionConfigCreate(name=collection_name, **collection_config)
+        target_params = WeaviateTargetParams(name=collection_name, collection_config=collection_config_object)
+
+        wv_docs = WeaviateDocumentWriter(
+            self.plan, client_params, target_params, name="weaviate_write_documents", **kwargs
+        )
+        wv_refs = WeaviateCrossReferenceWriter(
+            wv_docs, client_params, target_params, name="weaviate_write_references", **kwargs
+        )
+
+        if execute:
+            # If execute, force execution
+            wv_refs.execute().materialize()
+            return None
+        else:
+            from sycamore.docset import DocSet
+
+            return DocSet(self.context, wv_refs)
 
     def pinecone(
         self,

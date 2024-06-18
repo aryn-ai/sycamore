@@ -26,14 +26,17 @@ class OpenSearchScan(Scan):
         response = self.os_client.search(index=self.index_name, scroll=scroll, size=200, body=self.query)
         scroll_id = response["_scroll_id"]
 
-        while True:
-            hits = response["hits"]["hits"]
-            for hit in hits:
-                result += [Document(hit["_source"])]
+        try:
+            while True:
+                hits = response["hits"]["hits"]
+                for hit in hits:
+                    result += [Document(hit["_source"])]
 
-            if not hits:
-                break
-            response = self.os_client.scroll(scroll_id=scroll_id, scroll=scroll)
+                if not hits:
+                    break
+                response = self.os_client.scroll(scroll_id=scroll_id, scroll=scroll)
+        finally:
+            self.os_client.clear_scroll(scroll_id=scroll_id)
         return from_items(items=[{"doc": doc.serialize()} for doc in result])
 
     def format(self):

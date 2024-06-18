@@ -1,7 +1,10 @@
+import time
+
 import pytest
 from opensearchpy import OpenSearch
 
 import sycamore
+from sycamore.connectors.opensearch import DEFAULT_OPENSEARCH_RECORD_PROPERTIES
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 
@@ -10,11 +13,7 @@ from sycamore.transforms.partition import UnstructuredPdfPartitioner
 def setup_index():
     index_settings = {
         "body": {
-            "settings": {
-                "index.knn": True,
-                "number_of_shards": 5,
-                "number_of_replicas": 1,
-            },
+            "settings": {"index.knn": True, "number_of_shards": 5, "number_of_replicas": 1},
             "mappings": {
                 "properties": {
                     "embedding": {
@@ -39,14 +38,13 @@ def setup_index():
     client.indices.delete(TestOpenSearchScan.INDEX, ignore_unavailable=True)
 
 
-def filter_doc(obj, exclude):
-    return {k: v for k, v in obj.__dict__.items() if k not in exclude}
+def filter_doc(obj, include):
+    return {k: v for k, v in obj.__dict__.items() if k in include}
 
 
 def compare_docs(doc1, doc2):
-    exclude = ["binary_representation"]
-    filtered_doc1 = filter_doc(doc1, exclude)
-    filtered_doc2 = filter_doc(doc2, exclude)
+    filtered_doc1 = filter_doc(doc1, DEFAULT_OPENSEARCH_RECORD_PROPERTIES.keys())
+    filtered_doc2 = filter_doc(doc2, DEFAULT_OPENSEARCH_RECORD_PROPERTIES.keys())
     return filtered_doc1 == filtered_doc2
 
 
@@ -58,7 +56,7 @@ class TestOpenSearchScan:
         "hosts": [{"host": "localhost", "port": 9200}],
         "http_compress": True,
         "http_auth": ("admin", "admin"),
-        "use_ssl": True,
+        "use_ssl": False,
         "verify_certs": False,
         "ssl_assert_hostname": False,
         "ssl_show_warn": False,
@@ -70,11 +68,10 @@ class TestOpenSearchScan:
         Validates data is readable from OpenSearch, and that we can rebuild processed Sycamore documents.
         """
 
-        paths = str(TEST_DIR / "resources/data/pdfs/")
+        path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
         context = sycamore.init()
         original_docs = (
-            context.read.binary(paths, binary_format="pdf")
-            .limit(1)
+            context.read.binary(path, binary_format="pdf")
             .partition(partitioner=UnstructuredPdfPartitioner())
             .explode()
             .write.opensearch(
@@ -87,7 +84,13 @@ class TestOpenSearchScan:
         )
 
         original_materialized = sorted(original_docs.take_all(), key=lambda d: d.doc_id)
+
+        # hack to allow opensearch time to index the data. Without this it's possible we try to query the index before
+        # all the records are available
+        time.sleep(1)
         retrieved_materialized = sorted(retrieved_docs.take_all(), key=lambda d: d.doc_id)
+
+        assert len(original_materialized) == len(retrieved_materialized)
 
         for original, retrieved in zip(original_materialized, retrieved_materialized):
             assert compare_docs(original, retrieved)

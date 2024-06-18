@@ -149,6 +149,19 @@ class OpenSearchClient(BaseDBWriter.Client):
         return OpenSearchTargetParams(index_name=index_name, mappings=mappings, settings=settings)
 
 
+DEFAULT_OPENSEARCH_RECORD_PROPERTIES: dict[str, Any] = {
+    "doc_id": None,
+    "type": None,
+    "text_representation": None,
+    "elements": [],
+    "embedding": None,
+    "parent_id": None,
+    "properties": {},
+    "bbox": None,
+    "shingles": None,
+}
+
+
 @dataclass
 class OpenSearchRecord(BaseDBWriter.Record):
     _source: dict[str, Any]
@@ -164,19 +177,9 @@ class OpenSearchRecord(BaseDBWriter.Record):
             document.doc_id is not None
         ), f"Cannot create opensearch record from Document without a doc_id:\n{document}"
         result = dict()
-        default: dict[str, Any] = {
-            "doc_id": None,
-            "type": None,
-            "text_representation": None,
-            "elements": [],
-            "embedding": None,
-            "parent_id": None,
-            "properties": {},
-            "bbox": None,
-            "shingles": None,
-        }
+
         data = document.data
-        for k, v in default.items():
+        for k, v in DEFAULT_OPENSEARCH_RECORD_PROPERTIES.items():
             if k in data:
                 result[k] = data[k]
             else:

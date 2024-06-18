@@ -85,7 +85,7 @@ class DocSetWriter:
                      index_settings=index_settings)
         """
 
-        from sycamore.writers.opensearch import OpenSearchWriter, OpenSearchClientParams, OpenSearchTargetParams
+        from sycamore.connectors.opensearch import OpenSearchWriter, OpenSearchClientParams, OpenSearchTargetParams
         from typing import Any
         import copy
 

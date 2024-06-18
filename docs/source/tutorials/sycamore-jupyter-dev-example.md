@@ -103,11 +103,11 @@ S3 (common for enterprise data) or other locations accessible by the demo query 
 os.makedirs(work_dir, exist_ok = True)
 metadata = {}
 for f in ["1706.03762", "2306.07303"]:
-    path = os.path.join(work_dir, f)
+    path = os.path.join(work_dir, f+".pdf")
     url = os.path.join("https://arxiv.org/pdf", f)
     if not Path(path).is_file():
         print("Downloading {} to {}".format(url, path))
-        subprocess.run(["curl", "-o", path+".pdf", url])
+        subprocess.run(["curl", "-o", path, url])
     metadata[path] = { "_location": url }
 
 manifest_path = os.path.join(work_dir, "manifest.json")

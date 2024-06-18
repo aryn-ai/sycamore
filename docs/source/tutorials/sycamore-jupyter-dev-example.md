@@ -108,7 +108,7 @@ for f in ["1706.03762", "2306.07303"]:
     if not Path(path).is_file():
         print("Downloading {} to {}".format(url, path))
         subprocess.run(["curl", "-o", path, url])
-    metadata[path] = { "_location": url }
+    metadata[path] = { "url": url }
 
 manifest_path = os.path.join(work_dir, "manifest.json")
 with open(manifest_path, "w") as f:

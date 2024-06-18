@@ -2,9 +2,7 @@ import pytest
 from opensearchpy import OpenSearch
 
 import sycamore
-from sycamore.functions import HuggingFaceTokenizer
 from sycamore.tests.config import TEST_DIR
-from sycamore.transforms.merge_elements import GreedyTextElementMerger
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 
 

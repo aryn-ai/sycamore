@@ -1,3 +1,5 @@
+from typing import Dict
+
 from opensearchpy import OpenSearch
 from ray.data import Dataset, from_items
 
@@ -10,7 +12,7 @@ class OpenSearchScan(Scan):
         self,
         index_name: str,
         os_client_args: dict,
-        query: dict = None,
+        query: Dict = None,
         **resource_args,
     ):
         super().__init__(**resource_args)

@@ -1,8 +1,18 @@
 import gzip
 import json
 from abc import ABC, abstractmethod
+from concurrent.futures import ProcessPoolExecutor
 from io import BytesIO, IOBase
-from typing import cast, BinaryIO, List, Tuple, Union
+from typing import cast, Any, BinaryIO, List, Tuple, Union, Generator
+from subprocess import PIPE, Popen
+from threading import Thread
+from queue import Queue
+import logging
+import tracemalloc
+import gc
+import linecache
+import tempfile
+import os
 
 import easyocr
 import pdf2image
@@ -28,6 +38,31 @@ def _batchify(iterable, n=1):
     length = len(iterable)
     for i in range(0, length, n):
         yield iterable[i : min(i + n, length)]
+
+
+def display_top(snapshot, key_type="lineno", limit=10):
+    snapshot = snapshot.filter_traces(
+        (
+            tracemalloc.Filter(False, "<frozen importlib._bootstrap>"),
+            tracemalloc.Filter(False, "<unknown>"),
+        )
+    )
+    top_stats = snapshot.statistics(key_type)
+
+    print("Top %s lines" % limit)
+    for index, stat in enumerate(top_stats[:limit], 1):
+        frame = stat.traceback[0]
+        print("#%s: %s:%s: %.1f KiB" % (index, frame.filename, frame.lineno, stat.size / 1024))
+        line = linecache.getline(frame.filename, frame.lineno).strip()
+        if line:
+            print("    %s" % line)
+
+    other = top_stats[limit:]
+    if other:
+        size = sum(stat.size for stat in other)
+        print("%s other: %.1f KiB" % (len(other), size / 1024))
+    total = sum(stat.size for stat in top_stats)
+    print("Total allocated size: %.1f KiB" % (total / 1024))
 
 
 class SycamorePDFPartitioner:
@@ -81,6 +116,47 @@ class SycamorePDFPartitioner:
         return inferred + unmatched
 
     def partition_pdf(
+        self,
+        file: BinaryIO,
+        threshold: float = 0.4,
+        use_ocr=False,
+        ocr_images=False,
+        ocr_tables=False,
+        extract_table_structure=False,
+        table_structure_extractor=None,
+        extract_images=False,
+        model_server_endpoint=None,
+        batch_size: int = 1,
+        batch_at_a_time=False,
+    ) -> List[List["Element"]]:
+        if batch_at_a_time:
+            assert model_server_endpoint is None, "batched conversion doesn't use model server"
+            return self._partition_pdf_batched(
+                file,
+                threshold,
+                use_ocr,
+                ocr_images,
+                ocr_tables,
+                extract_table_structure,
+                table_structure_extractor,
+                extract_images,
+                batch_size,
+            )
+        else:
+            return self._partition_pdf_sequenced(
+                file,
+                threshold,
+                use_ocr,
+                ocr_images,
+                ocr_tables,
+                extract_table_structure,
+                table_structure_extractor,
+                extract_images,
+                model_server_endpoint,
+                batch_size,
+            )
+
+    def _partition_pdf_sequenced(
         self,
         file: BinaryIO,
         threshold: float = 0.4,
@@ -168,6 +244,276 @@ class SycamorePDFPartitioner:
         LogTime("finish", point=True)
         return deformable_layout
 
+    def _partition_pdf_batched(
+        self,
+        file: BinaryIO,
+        threshold: float = 0.4,
+        use_ocr=False,
+        ocr_images=False,
+        ocr_tables=False,
+        extract_table_structure=False,
+        table_structure_extractor=None,
+        extract_images=False,
+        batch_size: int = 1,
+    ) -> List[List["Element"]]:
+        LogTime("partition_start", point=True)
+        with tempfile.NamedTemporaryFile(prefix="detr-pdf-input-") as pdffile:
+            with LogTime("write_pdf"):
+                data = file.read()
+                data_len = len(data)
+                pdffile.write(data)
+                data = b""
+                pdffile.flush()
+                logging.info(f"Wrote {pdffile.name}")
+            stat = os.stat(pdffile.name)
+            assert stat.st_size == data_len
+            assert os.path.isfile(pdffile.name), f"missing {pdffile.name}"
+            return self._partition_pdf_batched_named(
+                pdffile.name,
+                threshold,
+                use_ocr,
+                ocr_images,
+                ocr_tables,
+                extract_table_structure,
+                table_structure_extractor,
+                extract_images,
+                batch_size,
+            )
+
+    def _partition_pdf_batched_named(
+        self,
+        filename: str,
+        threshold: float = 0.4,
+        use_ocr=False,
+        ocr_images=False,
+        ocr_tables=False,
+        extract_table_structure=False,
+        table_structure_extractor=None,
+        extract_images=False,
+        batch_size: int = 1,
+    ) -> List[List["Element"]]:
+        if not table_structure_extractor:
+            table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
+
+        pdfminer = None
+        exec = ProcessPoolExecutor(max_workers=1)
+        if not use_ocr:
+            with LogTime("start_pdfminer", log_start=True):
+                pdfminer = exec.submit(self._run_pdfminer, filename)
+
+        deformable_layout = []
+        if tracemalloc.is_tracing():
+            before = tracemalloc.take_snapshot()
+        for i in self._batch_pdf_convert(filename, batch_size):
+            parts = self.process_batch(
+                i,
+                threshold,
+                use_ocr,
+                ocr_images,
+                ocr_tables,
+                extract_table_structure,
+                table_structure_extractor,
+                extract_images,
+            )
+            assert len(parts) == len(i)
+            deformable_layout.extend(parts)
+            if tracemalloc.is_tracing():
+                gc.collect()
+                after = tracemalloc.take_snapshot()
+                top_stats = after.compare_to(before, "lineno")
+
+                print("[ Top 10 differences ]")
+                for stat in top_stats[:10]:
+                    print(stat)
+                before = after
+                display_top(after)
+
+        if pdfminer is not None:
+            with LogTime("wait_for_pdfminer", log_start=True):
+                pdfminer_layout = pdfminer.result()
+            assert len(pdfminer_layout) == len(deformable_layout), f"{len(pdfminer_layout)} vs {len(deformable_layout)}"
+            with LogTime("pdfminer_supplement"):
+                for d, p in zip(deformable_layout, pdfminer_layout):
+                    self._supplement_text(d, p)
+
+        if tracemalloc.is_tracing():
+            (current, peak) = tracemalloc.get_traced_memory()
+            logging.info(f"Memory Usage current={current} peak={peak}")
+            top = tracemalloc.take_snapshot()
+            display_top(top)
+        return deformable_layout
+
+    def _batch_pdf_convert(self, filename: str, batch_size: int) -> Generator[List[Image.Image], None, None]:
+        """Note: model service will call this to get batches of images for processing"""
+        batch = []
+        for i in self._convert_from_path_streamed(filename):
+            batch.append(i)
+            if len(batch) == batch_size:
+                yield batch
+                batch = []
+
+        if len(batch) > 0:
+            yield batch
+
+    def _convert_from_path_streamed(self, pdf_path: str) -> Generator[Image.Image, None, None]:
+        class StdoutEOF:
+            pass
+
+        class StderrEOF:
+            pass
+
+        def capture_exception(q, fn, finish_msg):
+            try:
+                fn()
+            except e:
+                q.put(e)
+
+            q.put(finish_msg)
+
+        def read_stdout(fh, q):
+            HEADER_BYTES = 40
+            need_bytes = HEADER_BYTES
+            data = b""
+            while True:
+                if need_bytes > len(data):
+                    logging.debug(f"reading. have {len(data)}/{need_bytes}")
+                    part = fh.read(need_bytes - len(data))
+                    if part == b"":  # Eof
+                        assert len(data) == 0  # nothing left
+                        break
+                    data = data + part
+                else:
+                    logging.debug(f"no reading. have {len(data)}/{need_bytes}")
+
+                if len(data) < need_bytes:
+                    continue
+
+                code, size, rgb = tuple(data[0:HEADER_BYTES].split(b"\n")[0:3])
+                size_x, size_y = tuple(size.split(b" "))
+                file_size = len(code) + len(size) + len(rgb) + 3 + int(size_x) * int(size_y) * 3
+
+                if len(data) < file_size:
+                    need_bytes = file_size
+                    continue
+
+                img = Image.open(BytesIO(data[0:file_size])).convert("RGB")
+                q.put(img)
+                data = data[file_size:]
+                need_bytes = HEADER_BYTES
+
+        def read_stderr(fh, q):
+            while True:
+                line = fh.readline()
+                if line == b"":
+                    break
+
+                q.put(str(line, encoding="utf-8").rstrip())
+
+        with LogTime("convert_to_image"):
+            # If we don't do this, then if the stderr buffer fills up we could get stuck.
+            # Popen.communicate() reads the entire strings.
+            args = ["pdftoppm", "-r", "200", "-progress", pdf_path]
+            proc = Popen(args, stdout=PIPE, stderr=PIPE)
+            q: Queue = Queue()
+            t_out = Thread(target=capture_exception, args=(q, lambda: read_stdout(proc.stdout, q), StdoutEOF()))
+            t_out.start()
+            t_err = Thread(target=capture_exception, args=(q, lambda: read_stderr(proc.stderr, q), StderrEOF()))
+            t_err.start()
+
+            more_out = True
+            more_err = True
+            stderr = []
+            while more_out or more_err:
+                e = q.get()
+                if isinstance(e, Exception):
+                    raise e
+                elif isinstance(e, Image.Image):
+                    yield e
+                elif isinstance(e, str):
+                    logging.warning(f"pdftoppm stderr: {e}")
+                    stderr.append(e)
+                elif isinstance(e, StdoutEOF):
+                    more_out = False
+                elif isinstance(e, StderrEOF):
+                    more_err = False
+                else:
+                    raise ValueError(f"Unexpected thing on queue: {e}")
+
+            with LogTime("wait_for_pdftoppm_to_exit", log_start=True):
+                proc.wait()
+
+            assert proc.returncode is not None
+            if proc.returncode != 0:
+                raise ValueError(f"pdftoppm failed {proc.returncode}.  All stderr:{stderr}")
+
+    @staticmethod
+    def _run_pdfminer(pdf_path):
+        pdfminer = PDFMinerExtractor()
+        with LogTime("pdfminer_extract", log_start=True):
+            pdfminer_layout = pdfminer.extract(pdf_path)
+
+        return pdfminer_layout
+
+    def gc_tensor_dump(self):
+        if not tracemalloc.is_tracing():
+            return
+        import torch
+        import gc
+
+        count = 0
+        for obj in gc.get_objects():
+            try:
+                if torch.is_tensor(obj) or (hasattr(obj, "data") and torch.is_tensor(obj.data)):
+                    # print(type(obj), obj.size())
+                    count = count + 1
+            except Exception as e:
+                print(f"Exception {e}")
+        print(f"Found {count} tensors")
+
+    def process_batch(
+        self,
+        batch: list[Image.Image],
+        threshold,
+        use_ocr,
+        ocr_images,
+        ocr_tables,
+        extract_table_structure,
+        table_structure_extractor,
+        extract_images,
+    ) -> Any:
+
+        with LogTime("infer"):
+            deformable_layout = self.model.infer(batch, threshold, None)
+
+        self.gc_tensor_dump()
+        assert len(deformable_layout) == len(batch)
+
+        if use_ocr:
+            with LogTime("ocr"):
+                extract_ocr(batch, deformable_layout, ocr_images=ocr_images, ocr_tables=ocr_tables)
+        # else pdfminer happens in parent since it is whole document.
+
+        if extract_table_structure:
+            with LogTime("extract_table_structure_batch"):
+                for i, page_elements in enumerate(deformable_layout):
+                    image = batch[i]
+                    for element in page_elements:
+                        if isinstance(element, TableElement):
+                            table_structure_extractor.extract(element, image)
+
+        if extract_images:
+            with LogTime("extract_images_batch"):
+                for i, page_elements in enumerate(deformable_layout):
+                    image = batch[i]
+                    for element in page_elements:
+                        if isinstance(element, ImageElement) and element.bbox is not None:
+                            cropped_image = crop_to_bbox(image, element.bbox).convert("RGB")
+                            element.binary_representation = image_to_bytes(cropped_image)
+                            element.image_mode = cropped_image.mode
+                            element.image_size = cropped_image.size
+
+        return deformable_layout
+
 
 class SycamoreObjectDetection(ABC):
     """Wrapper class for the various object detection models."""
@@ -241,17 +587,24 @@ class DeformableDetr(SycamoreObjectDetection):
             results = response.json()
         else:
             results = []
+            LogTime("pre-infer", point=True)
             inputs = self.processor(images=images, return_tensors="pt").to(self._get_device())
+            LogTime("post-inputs", point=True)
             outputs = self.model(**inputs)
+            LogTime("post-outputs", point=True)
             target_sizes = torch.tensor([image.size[::-1] for image in images])
+            LogTime("post-target_sizes", point=True)
             results.extend(
                 self.processor.post_process_object_detection(outputs, target_sizes=target_sizes, threshold=threshold)
             )
+            LogTime("post-results", point=True)
 
             for result in results:
                 result["scores"] = result["scores"].tolist()
                 result["labels"] = result["labels"].tolist()
                 result["boxes"] = result["boxes"].tolist()
+
+        LogTime("pre-batched", point=True)
         batched_results = []
         for result, image in zip(results, images):
             (w, h) = image.size
@@ -264,6 +617,7 @@ class DeformableDetr(SycamoreObjectDetection):
                 )
                 elements.append(element)
             batched_results.append(elements)
+        LogTime("post-batched", point=True)
         return batched_results
 
 

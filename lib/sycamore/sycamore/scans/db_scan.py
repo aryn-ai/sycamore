@@ -12,7 +12,7 @@ class OpenSearchScan(Scan):
         self,
         index_name: str,
         os_client_args: dict,
-        query: Dict = None,
+        query=None,
         **resource_args,
     ):
         super().__init__(**resource_args)

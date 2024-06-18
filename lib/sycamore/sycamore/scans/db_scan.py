@@ -1,5 +1,3 @@
-from typing import Dict
-
 from opensearchpy import OpenSearch
 from ray.data import Dataset, from_items
 

@@ -1,8 +1,7 @@
-import sycamore
 import json
 from sycamore.transforms.aryn_partitioner import ArynPDFPartitioner
-from sycamore.transforms.partition import ArynPartitioner
 from sycamore.tests.config import TEST_DIR
+
 
 class TestArynPDFPartitioner:
     def test_partition(self):

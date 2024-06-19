@@ -9,8 +9,8 @@ from sycamore.data.table import Table, TableCell
 import sycamore
 from sycamore.tests.config import TEST_DIR
 
-from sycamore.transforms.aryn_partitioner import ArynPDFPartitioner
 from sycamore.transforms.partition import ArynPartitioner
+
 
 def test_detr_ocr():
     path = TEST_DIR / "resources/data/pdfs/Transformer.pdf"

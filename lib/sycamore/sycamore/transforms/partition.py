@@ -15,7 +15,7 @@ from sycamore.transforms.base import CompositeTransform
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
-from sycamore.utils import use_cuda
+from sycamore.utils import choose_device
 
 from sycamore.transforms.aryn_partitioner import _DEFAULT_ARYN_PARTITIONER_ADDRESS
 
@@ -406,8 +406,7 @@ class SycamorePartitioner(Partitioner):
         model_server_endpoint=None,
         batch_size: int = 1,
     ):
-        if not device:
-            device = "cuda" if use_cuda() else "cpu"
+        device = choose_device(device)
         super().__init__(device=device, batch_size=batch_size)
         self._model_name_or_path = model_name_or_path
         self._device = device

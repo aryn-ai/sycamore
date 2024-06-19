@@ -8,6 +8,7 @@ from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.utils.image_utils import base64_data_url
 from sycamore.utils.extract_json import extract_json
+from sycamore.utils.time_trace import timetrace
 
 
 class OpenAIImageSummarizer:
@@ -81,6 +82,7 @@ class OpenAIImageSummarizer:
         self.prompt = prompt
         self.include_context = include_context
 
+    @timetrace("SummImg")
     def summarize_image(
         self, image: Image.Image, preceding_context: Optional[str] = None, following_context: Optional[str] = None
     ):

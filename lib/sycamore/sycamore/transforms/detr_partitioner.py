@@ -1,30 +1,27 @@
+import gzip
+import json
 from abc import ABC, abstractmethod
 from io import BytesIO, IOBase
 from typing import cast, BinaryIO, List, Tuple, Union
 
-from sycamore.data import Element, BoundingBox, ImageElement, TableElement
-from sycamore.data.element import create_element
-from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
-from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
-from sycamore.utils import use_cuda
-
-from PIL import Image
+import easyocr
 import pdf2image
+import pytesseract
 import requests
-import json
-import gzip
-
 import torch
-
+from PIL import Image
 from pdfminer.converter import PDFPageAggregator
 from pdfminer.layout import LAParams
 from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
 from pdfminer.pdfpage import PDFPage
 from pdfminer.utils import open_filename
 
-import pytesseract
-
-import easyocr
+from sycamore.data import Element, BoundingBox, ImageElement, TableElement
+from sycamore.data.element import create_element
+from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
+from sycamore.utils import choose_device
+from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
+from sycamore.utils.time_trace import LogTime
 
 
 def _batchify(iterable, n=1):
@@ -118,44 +115,57 @@ class SycamorePDFPartitioner:
         if not table_structure_extractor:
             table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
 
-        images: list[Image.Image] = pdf2image.convert_from_bytes(file.read())
-        images = [im.convert("RGB") for im in images]
+        LogTime("partition_start", point=True)
+        with LogTime("convert2bytes"):
+            images: list[Image.Image] = pdf2image.convert_from_bytes(file.read())
+
+        with LogTime("toRGB"):
+            images = [im.convert("RGB") for im in images]
 
         batches = _batchify(images, batch_size)
         deformable_layout = []
-        for batch in batches:
-            deformable_layout += self.model.infer(batch, threshold, model_server_endpoint)
+        with LogTime("all_batches"):
+            for i, batch in enumerate(batches):
+                with LogTime(f"infer_one_batch {i}/{len(images)/batch_size}"):
+                    deformable_layout += self.model.infer(batch, threshold, model_server_endpoint)
 
         if use_ocr:
-            extract_ocr(images, deformable_layout, ocr_images=ocr_images, ocr_tables=ocr_tables)
+            with LogTime("ocr"):
+                extract_ocr(images, deformable_layout, ocr_images=ocr_images, ocr_tables=ocr_tables)
         else:
-            pdfminer = PDFMinerExtractor()
-            # The cast here is to make mypy happy. PDFMiner expects IOBase,
-            # but typing.BinaryIO doesn't extend from it. BytesIO
-            # (the concrete class) implements both.
-            pdfminer_layout = pdfminer.extract(cast(IOBase, file))
-            # page count should be the same
-            assert len(pdfminer_layout) == len(deformable_layout)
+            with LogTime("pdfminer"):
+                pdfminer = PDFMinerExtractor()
+                # The cast here is to make mypy happy. PDFMiner expects IOBase,
+                # but typing.BinaryIO doesn't extend from it. BytesIO
+                # (the concrete class) implements both.
+                with LogTime("pdfminer_extract", log_start=True):
+                    pdfminer_layout = pdfminer.extract(cast(IOBase, file))
+                # page count should be the same
+                assert len(pdfminer_layout) == len(deformable_layout)
 
-            for d, p in zip(deformable_layout, pdfminer_layout):
-                self._supplement_text(d, p)
+                with LogTime("pdfminer_supplement"):
+                    for d, p in zip(deformable_layout, pdfminer_layout):
+                        self._supplement_text(d, p)
 
         if extract_table_structure or extract_images:
-            for i, page_elements in enumerate(deformable_layout):
-                image = images[i]
-                for element in page_elements:
-                    if isinstance(element, TableElement) and extract_table_structure:
-                        table_structure_extractor.extract(element, image)
+            with LogTime("extract_images_or_table"):
+                for i, page_elements in enumerate(deformable_layout):
+                    with LogTime(f"extract_images_or_table_one {i}/{len(deformable_layout)}"):
+                        image = images[i]
+                        for element in page_elements:
+                            if isinstance(element, TableElement) and extract_table_structure:
+                                table_structure_extractor.extract(element, image)
 
-                    if isinstance(element, ImageElement) and extract_images:
-                        if element.bbox is None:
-                            continue
-                        cropped_image = crop_to_bbox(image, element.bbox).convert("RGB")
-                        element.binary_representation = image_to_bytes(cropped_image)
-                        element.image_mode = cropped_image.mode
-                        element.image_size = cropped_image.size
-                        print(element.properties)
+                            if isinstance(element, ImageElement) and extract_images:
+                                if element.bbox is None:
+                                    continue
+                                cropped_image = crop_to_bbox(image, element.bbox).convert("RGB")
+                                element.binary_representation = image_to_bytes(cropped_image)
+                                element.image_mode = cropped_image.mode
+                                element.image_size = cropped_image.size
+                                # print(element.properties)
 
+        LogTime("finish", point=True)
         return deformable_layout
 
 
@@ -199,17 +209,16 @@ class DeformableDetr(SycamoreObjectDetection):
 
         from transformers import AutoImageProcessor, DeformableDetrForObjectDetection
 
-        self.processor = AutoImageProcessor.from_pretrained(model_name_or_path)
-        self.model = DeformableDetrForObjectDetection.from_pretrained(model_name_or_path).to(self._get_device())
+        LogTime("loading_model", point=True)
+        with LogTime("load_model", log_start=True):
+            self.processor = AutoImageProcessor.from_pretrained(model_name_or_path)
+            self.model = DeformableDetrForObjectDetection.from_pretrained(model_name_or_path).to(self._get_device())
 
     # Note: We wrap this in a function so that we can execute on both the leader and the workers
     # to account for heterogeneous systems. Currently if you pass in an explicit device parameter
     # it will be applied everywhere.
     def _get_device(self) -> str:
-        if self.device is None:
-            return "cuda" if use_cuda() else "cpu"
-        else:
-            return self.device
+        return choose_device(self.device, detr=True)
 
     def infer(
         self, images: List[Image.Image], threshold: float, model_server_endpoint: str = ""
@@ -229,15 +238,13 @@ class DeformableDetr(SycamoreObjectDetection):
             results = response.json()
         else:
             results = []
-            for image in images:
-                inputs = self.processor(images=image, return_tensors="pt").to(self._get_device())
-                outputs = self.model(**inputs)
-                target_sizes = torch.tensor([image.size[::-1]])
-                results.append(
-                    self.processor.post_process_object_detection(
-                        outputs, target_sizes=target_sizes, threshold=threshold
-                    )[0]
-                )
+            inputs = self.processor(images=images, return_tensors="pt").to(self._get_device())
+            outputs = self.model(**inputs)
+            target_sizes = torch.tensor([image.size[::-1] for image in images])
+            results.extend(
+                self.processor.post_process_object_detection(outputs, target_sizes=target_sizes, threshold=threshold)
+            )
+
             for result in results:
                 result["scores"] = result["scores"].tolist()
                 result["labels"] = result["labels"].tolist()

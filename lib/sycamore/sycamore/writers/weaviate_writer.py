@@ -1,145 +1,235 @@
-import logging
-from typing import Any, Iterable, Optional
+from dataclasses import dataclass, asdict
+from typing import Optional, Union, Any
+from sycamore.writers.common import drop_types, flatten_data
+from typing_extensions import TypeGuard, TypeAlias
 
-from ray.data import Dataset, Datasink
-from ray.data._internal.delegating_block_builder import DelegatingBlockBuilder
-from ray.data._internal.execution.interfaces import TaskContext
-from ray.data.block import Block, BlockAccessor
-from sycamore.data.document import Document, MetadataDocument
-from sycamore.plan_nodes import Node, Write
-
-
-class WeaviateWriter(Write):
-    def __init__(
-        self,
-        plan: Node,
-        collection_name: str,
-        client_params: dict,
-        collection_config: Optional[dict],
-        **ray_remote_args,
-    ):
-        super().__init__(plan, **ray_remote_args)
-        self.collection_name = collection_name
-        self.client_params = client_params
-        self.collection_config = collection_config
-
-    def execute(self) -> Dataset:
-        dataset = self.child().execute()
-        datasink = WeaviateDatasink(self.collection_name, self.client_params, self.collection_config)
-        dataset.write_datasink(datasink, ray_remote_args=self.resource_args)
-        return dataset
+from sycamore.data.document import Document
+from sycamore.writers.base import BaseDBWriter
+from weaviate.classes.config import DataType, ReferenceProperty
+from weaviate.client import (
+    AdditionalConfig,
+    AuthCredentials,
+    ConnectionParams,
+    EmbeddedOptions,
+    UnexpectedStatusCodeError,
+)
+from weaviate.client import WeaviateClient as _WeaviateClient
+from weaviate.collections.classes.config import (
+    _CollectionConfigCreate,
+    CollectionConfig,
+)
+from weaviate.util import WeaviateInvalidInputError
 
 
-class WeaviateDatasink(Datasink):
-    def __init__(self, collection_name: str, client_params: dict, collection_config: Optional[dict]):
-        self._collection_name = collection_name
-        self._client_params = client_params
-        self._collection_config = collection_config
+@dataclass
+class WeaviateClientParams(BaseDBWriter.ClientParams):
+    connection_params: Optional[ConnectionParams] = None
+    embedded_options: Optional[EmbeddedOptions] = None
+    auth_client_secret: Optional[AuthCredentials] = None
+    additional_headers: Optional[dict] = None
+    additional_config: Optional[AdditionalConfig] = None
+    skip_init_checks: bool = False
 
-    def on_write_start(self):
-        from weaviate import WeaviateClient
 
-        with WeaviateClient(**self._client_params) as client:
-            if self._collection_config is not None:
-                if client.collections.exists(self._collection_name):
-                    logging.warning(
-                        f"Collection config was provided, but collection {self._collection_name} "
-                        "already exists, so ignoring provided config."
-                    )
+# This is mainsly so people don't feel weird about importing
+# this class. This kinda stuff is all over the wv8 codebase
+CollectionConfigCreate: TypeAlias = _CollectionConfigCreate
+
+
+@dataclass
+class WeaviateTargetParams(BaseDBWriter.TargetParams):
+    name: str
+    collection_config: Union[CollectionConfigCreate, CollectionConfig]
+
+    def compatible_with(self, other: BaseDBWriter.TargetParams) -> bool:
+        if not isinstance(other, WeaviateTargetParams):
+            return False
+        if self.name != other.name:
+            return False
+        my_flat_dict = self._as_flattened_dict()
+        other_flat_dict = other._as_flattened_dict()
+        for k in my_flat_dict:
+            if k not in other_flat_dict:
+                if "nestedProperties" in k:
+                    # Nested properties seem to not be handled
+                    # correctly by .to_dict(), so for now we'll
+                    # just ignore them.
+                    continue
+                return False
+            # Convert DataType.OBJECT_ARRAY to "object[]" (or the
+            # other enum values)
+            my_v = my_flat_dict[k]
+            other_v = other_flat_dict[k]
+            if isinstance(my_v, DataType):
+                my_v = my_v.value
+            if isinstance(other_v, DataType):
+                other_v = other_v.value
+            if my_v != other_v:
+                return False
+        return True
+
+    def _as_flattened_dict(self) -> dict[str, Any]:
+        if isinstance(self.collection_config, _CollectionConfigCreate):
+            my_dict = self.collection_config._to_dict()
+        else:
+            my_dict = self.collection_config.to_dict()
+        my_dict["properties"] = {p.get("name", str(i)): p for i, p in enumerate(my_dict.get("properties", []))}
+        my_flat_dict = dict(flatten_data(my_dict))
+        return my_flat_dict
+
+    def __repr__(self) -> str:
+        my_flat_dict = self._as_flattened_dict()
+        s = "=" * 80 + "\n"
+        return s + "\n".join(f"{k: <80}{v}" for k, v in my_flat_dict.items())
+
+
+class WeaviateClient(BaseDBWriter.Client):
+    def __init__(self, client: _WeaviateClient):
+        self._client = client
+
+    @classmethod
+    def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "WeaviateClient":
+        assert isinstance(params, WeaviateClientParams)
+        client = _WeaviateClient(**asdict(params))
+        return WeaviateClient(client)
+
+    def write_many_records(self, records: list[BaseDBWriter.Record], target_params: BaseDBWriter.TargetParams):
+        assert isinstance(target_params, WeaviateTargetParams)
+        assert _narrow_list_of_doc_records(records), f"Found a bad record in {records}"
+        with self._client:
+            with self._client.collections.get(target_params.name).batch.dynamic() as batch:
+                for r in records:
+                    if r.vector:
+                        batch.add_object(**asdict(r))
+                    else:
+                        batch.add_object(properties=r.properties, uuid=r.uuid)
+
+    def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
+        assert isinstance(target_params, WeaviateTargetParams)
+        try:
+            with self._client:
+                if isinstance(target_params.collection_config, CollectionConfig):
+                    self._client.collections.create_from_config(target_params.collection_config)
                 else:
-                    client.collections.create(**self._collection_config)
+                    cfg_crt = target_params.collection_config
+                    self._client.collections.create(
+                        name=target_params.name,
+                        description=cfg_crt.description,
+                        generative_config=cfg_crt.generativeSearch,
+                        inverted_index_config=cfg_crt.invertedIndexConfig,
+                        multi_tenancy_config=cfg_crt.multiTenancyConfig,
+                        properties=cfg_crt.properties,
+                        references=cfg_crt.references,
+                        replication_config=cfg_crt.replicationConfig,
+                        reranker_config=cfg_crt.rerankerConfig,
+                        sharding_config=cfg_crt.shardingConfig,
+                        vector_index_config=cfg_crt.vectorIndexConfig,
+                        vectorizer_config=cfg_crt.vectorizerConfig,
+                    )
+        except UnexpectedStatusCodeError as e:
+            if e.status_code == 422 and "already exists" in e.message:
+                return
+            raise e
 
-    def write(self, blocks: Iterable[Block], ctx: TaskContext) -> Any:
-        from weaviate import WeaviateClient
-        from weaviate.collections.classes.data import DataReference
+    def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> "WeaviateTargetParams":
+        assert isinstance(target_params, WeaviateTargetParams)
+        with self._client:
+            collection = self._client.collections.get(target_params.name)
+            ccfg = collection.config.get(simple=False)
+            return WeaviateTargetParams(name=target_params.name, collection_config=ccfg)
 
-        builder = DelegatingBlockBuilder()
-        for block in blocks:
-            builder.add_block(block)
-        block = builder.build()
-        client = WeaviateClient(**self._client_params)
-        with client:
-            collection = client.collections.get(self._collection_name)
-            with collection.batch.dynamic() as batch:
-                objects = self._extract_weaviate_objects(block)
-                refs = []
-                for obj in objects:
-                    obj_refs = obj.pop("references", None)
-                    if obj_refs is not None:
-                        for k, v in obj_refs.items():
-                            refs.append(DataReference(from_uuid=obj["uuid"], from_property=k, to_uuid=v))
-                    batch.add_object(**obj)
-                # Flush the objects first so that references can know about them
-                batch.flush()
-                for ref in refs:
-                    batch.add_reference(from_uuid=ref.from_uuid, from_property=ref.from_property, to=ref.to_uuid)
 
-    @staticmethod
-    def _extract_weaviate_objects(block):
-        # Weaviate doesn't like explicitly null values
-        def not_none(x):
-            return x is not None
+class WeaviateCrossReferenceClient(WeaviateClient):
+    @classmethod
+    def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "WeaviateCrossReferenceClient":
+        assert isinstance(params, WeaviateClientParams)
+        client = _WeaviateClient(**asdict(params))
+        return WeaviateCrossReferenceClient(client)
 
-        # Weaviate defaults empty lists to text[], which is often incorrect
-        def not_empty_list(x):
-            return not isinstance(x, list) or len(x) > 0
+    def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
+        assert isinstance(target_params, WeaviateTargetParams)
+        with self._client:
+            try:
+                collection = self._client.collections.get(target_params.name)
+                collection.config.add_reference(
+                    ref=ReferenceProperty(name="parent", target_collection=target_params.name)
+                )
+            except WeaviateInvalidInputError as e:
+                if "already exists" in e.message:
+                    return
+                raise e
 
-        def _trim_properties(props):
-            if isinstance(props, dict):
-                return _trim_properties_in_dict(props)
-            if isinstance(props, list):
-                return _trim_properties_in_list(props)
-            return props
+    def write_many_records(self, records: list[BaseDBWriter.Record], target_params: BaseDBWriter.TargetParams):
+        assert isinstance(target_params, WeaviateTargetParams)
+        assert _narrow_list_of_cr_records(records)
+        with self._client:
+            with self._client.collections.get(target_params.name).batch.dynamic() as batch:
+                for r in records:
+                    if r.to is not None:
+                        batch.add_reference(**asdict(r))
 
-        def _trim_properties_in_dict(props: dict) -> dict:
-            trim_children = ((k, _trim_properties(v)) for k, v in props.items())
-            trim_nones = filter(lambda pair: not_none(pair[1]), trim_children)
-            trim_lists = filter(lambda pair: not_empty_list(pair[1]), trim_nones)
-            return dict(trim_lists)
 
-        def _trim_properties_in_list(props: list) -> list:
-            trim_children = (_trim_properties(x) for x in props)
-            trim_nones = filter(not_none, trim_children)
-            trim_lists = filter(not_empty_list, trim_nones)
-            return list(trim_lists)
+@dataclass
+class WeaviateDocumentRecord(BaseDBWriter.Record):
+    uuid: str
+    properties: dict
+    vector: Optional[dict[str, list[float]]] = None
 
-        def record_to_object(record):
-            default = {
-                "doc_id": None,
-                "type": "",
-                "text_representation": "",
-                "elements": [],
-                "embedding": None,
-                "parent_id": None,
-                "properties": {},
-                "bbox": [],
-                "shingles": [],
-            }
-            doc = Document.from_row(record)
-            if isinstance(doc, MetadataDocument):
-                return None
+    @classmethod
+    def from_doc(cls, document: Document, target_params: BaseDBWriter.TargetParams) -> "WeaviateDocumentRecord":
+        assert isinstance(target_params, WeaviateTargetParams)
+        uuid = document.doc_id
+        if uuid is None:
+            raise ValueError(f"Cannot write documents without a doc_id. Found {document}")
+        properties = {
+            "properties": document.properties,
+            "type": document.type,
+            "text_representation": document.text_representation,
+            "bbox": document.bbox.coordinates if document.bbox else None,
+            "shingles": document.shingles,
+        }
+        droperties = drop_types(properties, drop_empty_lists=True)
+        assert isinstance(droperties, dict)
+        embedding = document.embedding
+        if embedding is not None:
+            return WeaviateDocumentRecord(uuid=uuid, properties=droperties, vector={"embedding": embedding})
+        else:
+            return WeaviateDocumentRecord(uuid=uuid, properties=droperties)
 
-            uuid = doc.doc_id
-            parent = doc.parent_id
-            data = doc.data
-            properties = {
-                "properties": data.get("properties", default["properties"]),
-                "type": data.get("type", default["type"]),
-                "text_representation": data.get("text_representation", default["text_representation"]),
-                "bbox": data.get("bbox", default["bbox"]),
-                "shingles": data.get("shingles", default["shingles"]),
-            }
-            object = {
-                "uuid": uuid,
-                "properties": _trim_properties(properties),
-            }
-            embedding = data.get("embedding", None)
-            if embedding is not None:
-                object["vector"] = {"embedding": embedding}
-            if parent:
-                object["references"] = {"parent": parent}
-            return object
 
-        records = BlockAccessor.for_block(block).to_arrow().to_pylist()
-        all = [record_to_object(r) for r in records]
-        return [a for a in all if a is not None]
+def _narrow_list_of_doc_records(records: list[BaseDBWriter.Record]) -> TypeGuard[list[WeaviateDocumentRecord]]:
+    return all(isinstance(r, WeaviateDocumentRecord) for r in records)
+
+
+@dataclass
+class WeaviateCrossReferenceRecord(BaseDBWriter.Record):
+    from_uuid: str
+    from_property: str
+    to: Optional[str]  # If this is None, then we don't write the cross-reference
+
+    @classmethod
+    def from_doc(cls, document: Document, target_params: BaseDBWriter.TargetParams) -> "WeaviateCrossReferenceRecord":
+        assert isinstance(target_params, WeaviateTargetParams)
+        from_uuid = document.doc_id
+        assert from_uuid is not None, f"Found a document with no doc_id: {document}"
+        to_uuid = document.parent_id
+        from_prop = "parent"
+        return WeaviateCrossReferenceRecord(from_uuid=from_uuid, to=to_uuid, from_property=from_prop)
+
+
+def _narrow_list_of_cr_records(records: list[BaseDBWriter.Record]) -> TypeGuard[list[WeaviateCrossReferenceRecord]]:
+    return all(isinstance(r, WeaviateCrossReferenceRecord) for r in records)
+
+
+class WeaviateDocumentWriter(BaseDBWriter):
+    Client = WeaviateClient
+    Record = WeaviateDocumentRecord
+    ClientParams = WeaviateClientParams
+    TargetParams = WeaviateTargetParams
+
+
+class WeaviateCrossReferenceWriter(BaseDBWriter):
+    Client = WeaviateCrossReferenceClient
+    Record = WeaviateCrossReferenceRecord
+    ClientParams = WeaviateClientParams
+    TargetParams = WeaviateTargetParams

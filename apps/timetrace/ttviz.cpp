@@ -12,12 +12,14 @@
 #include <array>
 #include <vector>
 #include <string>
+#include <string_view>
 #include <algorithm>
 #include <cassert>
 
 using std::pair;
 using std::vector;
 using std::string;
+using std::string_view;
 
 
 struct Rgb {
@@ -144,21 +146,32 @@ private:
 
 class Viz {
 public:
-  void addPath(const char *path) { paths_.push_back(path); }
+  Viz() : width_(1600), yinc_(18), outPath_("viz.png") {}
+
+  void addPath(const char *path) { inPaths_.push_back(path); }
+
+  void setSize(int width, int yinc) {
+    width_ = width;
+    yinc_ = yinc;
+  }
+
+  void setOutPath(const char *path) { outPath_ = path; }
 
   void run() {
+    // find beginning and end of time
     uint64_t first = 0xffffffffffffffff;
     uint64_t last = 0;
-    for (Iter it(paths_); it; ++it) {
+    for (Iter it(inPaths_); it; ++it) {
       const Rec &r = *it;
       first = std::min(first, r.t0);
       last = std::max(last, r.t1);
     }
     uint64_t dur = last - first;
 
+    // collect threads and names
     std::map<uint32_t, size_t> threads;
     std::map<string, size_t> names;
-    for (Iter it(paths_); it; ++it) {
+    for (Iter it(inPaths_); it; ++it) {
       const Rec &r = *it;
       if (!threads.contains(r.thread)) {
         size_t n = threads.size();
@@ -169,44 +182,46 @@ public:
         names[r.name] = n;
       }
     }
+    size_t thrCnt = threads.size();
+    size_t nameCnt = names.size();
 
-    size_t thrSiz = threads.size();
-    size_t nameSiz = names.size();
-
-    int wid = 3500;
-    int hit0 = 500;
-    int hit1 = 750;
-    int gap = 24;
-    int halfgap = gap / 2;
-    double yscale = hit0 / (thrSiz + 2.0);
-    double xscale = (wid - gap) / (dur + 2.0);
-    int halfy = yscale / 2;
-    Img im(wid, hit1);
+    // calculate some dimensions
+    int heightTop = yinc_ * thrCnt;
+    int heightBot = (yinc_ / 2) * nameCnt;
+    if (heightTop < 128)
+      heightTop = 128;
+    if (heightBot < 64)
+      heightBot = 64;
+    int heightAll = heightTop + heightBot;
+    int xgap = 12;
+    double yscale = heightTop / (thrCnt + 2.0);
+    double xscale = (width_ - xgap) / (dur + 2.0);
+    Img im(width_, heightAll);
 
     // per-thread timelines
-    for (size_t i = 0; i < thrSiz; ++i) {
+    for (size_t i = 0; i < thrCnt; ++i) {
       string ns = std::to_string(i);
-      int y = yscale * (i + 2) - halfy;
-      im.text(halfgap, y, ns.c_str(), 1); // white
+      int y = yscale * (i + 2) - (yscale / 2);
+      im.text(xgap / 2, y, ns.c_str(), 1); // white
     }
 
-    for (Iter it(paths_); it; ++it) {
+    for (Iter it(inPaths_); it; ++it) {
       const Rec &r = *it;
       int y = yscale * (threads[r.thread] + 2);
-      int x0 = gap + xscale * (r.t0 - first);
-      int x1 = gap + xscale * (r.t1 - first);
+      int x0 = xgap + xscale * (r.t0 - first);
+      int x1 = xgap + xscale * (r.t1 - first);
       int idx = names[r.name];
-      y += idx - (nameSiz / 2); // avoid overlapping lines
+      y += idx - (nameCnt / 2); // avoid overlapping lines
       im.line(x0, y, x1, y, idx + 2);
     }
-    double ww = wid / (nameSiz + 2);
+    double ww = width_ / (nameCnt + 1);
     for (const auto &[name, idx] : names) {
-      im.text(ww * (idx + 1), halfy, name.c_str(), idx + 2);
+      im.text((ww * idx) + (ww / 2), yscale / 2, name.c_str(), idx + 2);
     }
 
     // in-flight graph
     vector<pair<uint64_t, int>> events;
-    for (Iter it(paths_); it; ++it) {
+    for (Iter it(inPaths_); it; ++it) {
       const Rec &r = *it;
       events.emplace_back(r.t0, 1);
       events.emplace_back(r.t1, 0);
@@ -218,27 +233,26 @@ public:
       level = (start ? level + 1 : level - 1);
       maxlev = std::max(maxlev, level);
     }
-    double lscale = (hit1 - hit0) / (maxlev + 2.0);
+    double lscale = heightBot / (maxlev + 2.0);
     level = 0;
     uint64_t prev = events[0].first;
     for (auto [time, start] : events) {
-      int x0 = gap + xscale * (prev - first);
-      int x1 = gap + xscale * (time - first);
+      int x0 = xgap + xscale * (prev - first);
+      int x1 = xgap + xscale * (time - first);
       int y = lscale * level;
-      im.rect(x0, hit1 - 1 - y, x1, hit1 - 1, 21); // 21 = gray
+      im.rect(x0, heightAll - 1 - y, x1, heightAll - 1, 21); // 21 = gray
       level = (start ? level + 1 : level - 1);
       prev = time;
     }
-    int halfl = lscale / 2;
     for (int i = 1; i <= maxlev; ++i) {
       string ns = std::to_string(i);
-      int y = lscale * i;
-      im.text(halfgap, hit1 - 1 - halfl - y, ns.c_str(), 1); // 1 = white
+      int y = heightAll - 1 - (lscale / 2) - (lscale * i);
+      im.text(xgap / 2, y, ns.c_str(), 1); // 1 = white
     }
 
     // rss graph
     vector<pair<uint64_t, uint64_t>> samples;
-    for (Iter it(paths_); it; ++it) {
+    for (Iter it(inPaths_); it; ++it) {
       const Rec &r = *it;
       samples.emplace_back(r.t1, r.rss);
     }
@@ -246,31 +260,49 @@ public:
     uint64_t maxrss = 0;
     for (auto [time, rss] : samples)
       maxrss = std::max(maxrss, rss);
-    double rscale = (hit1 - hit0) / (maxrss + 2.0);
+    double rscale = heightBot / (maxrss + 2.0);
     uint64_t prevtime = first;
     uint64_t prevrss = 0;
     for (auto [time, rss] : samples) {
-      int x0 = gap + xscale * (prevtime - first);
-      int x1 = gap + xscale * (time - first);
-      int y0 = hit1 - 1 - rscale * prevrss;
-      int y1 = hit1 - 1 - rscale * rss;
+      int x0 = xgap + xscale * (prevtime - first);
+      int x1 = xgap + xscale * (time - first);
+      int y0 = heightAll - 1 - rscale * prevrss;
+      int y1 = heightAll - 1 - rscale * rss;
       im.line(x0, y0, x1, y1, 1); // 1 = white
       prevtime = time;
       prevrss = rss;
     }
 
-    im.outPng("viz.png");
+    im.outPng(outPath_.c_str());
   }
 
 private:
-  vector<string> paths_;
+  int width_;
+  int yinc_;
+  string outPath_;
+  vector<string> inPaths_;
 };
 
 
 int main(int argc, char **argv) {
   Viz viz;
-  for (int ii = 1; ii < argc; ++ii)
-    viz.addPath(argv[ii]);
+  for (int ii = 1; ii < argc; ++ii) {
+    if (argv[ii][0] != '-')
+      viz.addPath(argv[ii]);
+    else {
+      string_view arg = argv[ii];
+      if (arg == "-s")
+        viz.setSize(1024, 16);
+      else if (arg == "-m")
+        viz.setSize(1600, 18);
+      else if (arg == "-l")
+        viz.setSize(2400, 22);
+      else if (arg == "-xl")
+        viz.setSize(3600, 24);
+      else if ((arg == "-o") && ((ii + 1) < argc))
+        viz.setOutPath(argv[ii + 1]);
+    }
+  }
   viz.run();
   return 0;
 }

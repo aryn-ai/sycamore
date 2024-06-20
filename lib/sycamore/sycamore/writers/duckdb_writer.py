@@ -24,7 +24,7 @@ class DuckDBTargetParams(BaseDBWriter.TargetParams):
 
 
 class DuckDBClient(BaseDBWriter.Client):
-    def __init__(self, client_params: DuckDBClientParams = None):
+    def __init__(self, client_params: Optional[DuckDBClientParams] = None):
         db_name = client_params.db_name if client_params.db_name else ":memory:"
         self._client = duckdb.connect(db_name)
 
@@ -56,8 +56,8 @@ class DuckDBClient(BaseDBWriter.Client):
 @dataclass
 class DuckDBDocumentRecord(BaseDBWriter.Record):
     uuid: str
-    properties: Optional[dict[str, Any]] = None
     embeddings: list[float]
+    properties: Optional[dict[str, Any]] = None
 
     @classmethod
     def from_doc(cls, document: Document, target_params: BaseDBWriter.TargetParams) -> "DuckDBDocumentRecord":

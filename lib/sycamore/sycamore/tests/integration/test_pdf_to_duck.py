@@ -1,5 +1,3 @@
-import pytest
-
 import sycamore
 from sycamore.functions.tokenizer import HuggingFaceTokenizer
 from sycamore.llms import OpenAIModels, OpenAI

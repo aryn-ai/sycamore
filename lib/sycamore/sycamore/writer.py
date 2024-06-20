@@ -373,7 +373,8 @@ class DocSetWriter:
         client_params = DuckDBClientParams(db_name=db_name)
         target_params = DuckDBTargetParams(table_name=table_name)
 
-        ddb = DuckDBDocumentWriter(self.plan, client_params=client_params, target_params=target_params, name="duck_write_documents", **kwargs)
+        ddb = DuckDBDocumentWriter(self.plan, client_params=client_params, 
+                                   target_params=target_params, name="duck_write_documents", **kwargs)
         ddb.execute()
 
     def files(

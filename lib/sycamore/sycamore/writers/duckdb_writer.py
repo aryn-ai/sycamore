@@ -1,12 +1,11 @@
 from dataclasses import dataclass
-from typing import Optional, Union, Any
+from typing import Optional, Any
 from sycamore.writers.common import drop_types
-from typing_extensions import TypeGuard, TypeAlias
+from typing_extensions import TypeGuard
 
 from sycamore.data.document import Document
 from sycamore.writers.base import BaseDBWriter
 import duckdb
-from duckdb import CatalogException
 
 @dataclass
 class DuckDBClientParams(BaseDBWriter.ClientParams):
@@ -25,8 +24,8 @@ class DuckDBTargetParams(BaseDBWriter.TargetParams):
 
 
 class DuckDBClient(BaseDBWriter.Client):
-    def __init__(self, db_name: str = None):
-        db_name = db_name if db_name else ":memory:"
+    def __init__(self, client_params: DuckDBClientParams = None):
+        db_name = client_params.db_name if client_params.db_name else ":memory:"
         self._client = duckdb.connect(db_name)
 
     @classmethod
@@ -39,24 +38,26 @@ class DuckDBClient(BaseDBWriter.Client):
         assert _narrow_list_of_doc_records(records), f"Found a bad record in {records}"
         with self._client:
             for r in records:
-                self._client.execute(f"INSERT INTO {target_params.table_name} VALUES ({r.uuid}, {r.properties}, {r.embeddings})")
+                self._client.execute(f"""INSERT INTO {target_params.table_name}
+                                     VALUES ({r.uuid}, {r.properties}, {r.embeddings})""")
 
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
         assert isinstance(target_params, DuckDBTargetParams)
         with self._client:
-                self._client.execute("CREATE TABLE IF NOT EXISTS {target_params.table_name} (uuid TEXT PRIMARY KEY, properties STRUCT, embeddings ARRAY(FLOAT))")
+                self._client.execute("""CREATE TABLE IF NOT EXISTS {target_params.table_name} 
+                                     (uuid TEXT PRIMARY KEY, properties STRUCT, embeddings ARRAY(FLOAT))""")
 
     def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> "DuckDBTargetParams":
         assert isinstance(target_params, DuckDBTargetParams)
         with self._client:
-            return DuckDBTargetParams(name=target_params.table_name, embeddings=target_params.embeddings)
+            return DuckDBTargetParams(table_name=target_params.table_name)
 
 
 @dataclass
 class DuckDBDocumentRecord(BaseDBWriter.Record):
     uuid: str
     properties: Optional[dict[str, Any]] = None
-    embeddings: list[float] = None
+    embeddings: list[float]
 
     @classmethod
     def from_doc(cls, document: Document, target_params: BaseDBWriter.TargetParams) -> "DuckDBDocumentRecord":

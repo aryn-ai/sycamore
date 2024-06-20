@@ -549,6 +549,7 @@ class ArynPartitioner(Partitioner):
             result = ArynPDFPartitioner.partition_pdf(
                 binary,
                 self._aryn_token,
+                aryn_partitioner_address=self._aryn_partitioner_address,
                 threshold=self._threshold,
                 use_ocr=self._use_ocr,
                 ocr_images=self._ocr_images,

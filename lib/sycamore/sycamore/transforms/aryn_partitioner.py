@@ -3,8 +3,11 @@ from collections.abc import Mapping
 import requests
 import json
 from sycamore.data.element import create_element
+import time
 
 _DEFAULT_ARYN_PARTITIONER_ADDRESS = "https://api.aryn.cloud/v1/document/partition"
+_ARYN_PARTITIONING_SERVICE_WAIT_MESSAGE = '{"detail":"Please try again in a little while."}'
+_MAX_RETRIES = 6
 
 
 class ArynPDFPartitionerException(Exception):
@@ -33,9 +36,23 @@ class ArynPDFPartitioner:
             "extract_table_structure": extract_table_structure,
             "extract_images": extract_images,
         }
+
         files: Mapping = {"pdf": file, "options": json.dumps(options).encode("utf-8")}
         header = {"Authorization": f"Bearer {aryn_token}"}
-        response = requests.post(aryn_partitioner_address, files=files, headers=header)
+
+        last_status_code = 500
+        last_message = _ARYN_PARTITIONING_SERVICE_WAIT_MESSAGE
+        tries = 0
+        while (
+            last_status_code == 500 and last_message == _ARYN_PARTITIONING_SERVICE_WAIT_MESSAGE and tries < _MAX_RETRIES
+        ):
+            print("connecting...")
+            response = requests.post(aryn_partitioner_address, files=files, headers=header)
+            last_status_code = response.status_code
+            last_message = response.text
+            if tries > 0:
+                time.sleep(10 * (2**tries))  # Modified binary exponential backoff
+            tries += 1
 
         if response.status_code != 200:
             raise ArynPDFPartitionerException(f"Error: status_code: {response.status_code}, reason: {response.text}")

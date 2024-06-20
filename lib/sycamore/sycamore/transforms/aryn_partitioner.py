@@ -28,6 +28,7 @@ class ArynPDFPartitioner:
         ocr_tables: bool = False,
         extract_table_structure: bool = False,
         extract_images: bool = False,
+        max_retries: int = _MAX_RETRIES
     ) -> List[Element]:
         options = {
             "threshold": threshold,
@@ -45,7 +46,7 @@ class ArynPDFPartitioner:
         last_message = _ARYN_PARTITIONING_SERVICE_WAIT_MESSAGE
         tries = 0
         while (
-            last_status_code == 500 and last_message == _ARYN_PARTITIONING_SERVICE_WAIT_MESSAGE and tries < _MAX_RETRIES
+            last_status_code == 500 and last_message == _ARYN_PARTITIONING_SERVICE_WAIT_MESSAGE and tries < max_retries
         ):
             response = requests.post(aryn_partitioner_address, files=files, headers=header)
             last_status_code = response.status_code

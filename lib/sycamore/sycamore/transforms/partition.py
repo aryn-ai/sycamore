@@ -533,6 +533,7 @@ class ArynPartitioner(Partitioner):
         extract_table_structure: bool = False,
         extract_images: bool = False,
         aryn_partitioner_address: str = _DEFAULT_ARYN_PARTITIONER_ADDRESS,
+        max_retries: int = _MAX_RETRIES
     ):
         super().__init__(device="cpu", batch_size=1)
         self._aryn_token = aryn_token
@@ -543,6 +544,7 @@ class ArynPartitioner(Partitioner):
         self._extract_table_structure = extract_table_structure
         self._extract_images = extract_images
         self._aryn_partitioner_address = aryn_partitioner_address
+        self._max_retries = max_retries
 
     def partition(self, document: Document):
         binary = io.BytesIO(document.data["binary_representation"])
@@ -559,6 +561,7 @@ class ArynPartitioner(Partitioner):
                 ocr_tables=self._ocr_tables,
                 extract_table_structure=self._extract_table_structure,
                 extract_images=self._extract_images,
+                max_retries=self._max_retries
             )
         except Exception as e:
             path = document.properties["path"]

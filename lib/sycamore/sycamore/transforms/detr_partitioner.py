@@ -1,8 +1,14 @@
 import gzip
 import json
 from abc import ABC, abstractmethod
+from concurrent.futures import ProcessPoolExecutor
 from io import BytesIO, IOBase
-from typing import cast, BinaryIO, List, Tuple, Union
+from typing import cast, Any, BinaryIO, List, Tuple, Union
+import logging
+import tracemalloc
+import gc
+import tempfile
+import os
 
 import easyocr
 import pdf2image
@@ -22,6 +28,8 @@ from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_
 from sycamore.utils import choose_device
 from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
 from sycamore.utils.time_trace import LogTime
+from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
+from sycamore.utils.pdf import convert_from_path_streamed_batched
 
 
 def _batchify(iterable, n=1):
@@ -81,6 +89,47 @@ class SycamorePDFPartitioner:
         return inferred + unmatched
 
     def partition_pdf(
+        self,
+        file: BinaryIO,
+        threshold: float = 0.4,
+        use_ocr=False,
+        ocr_images=False,
+        ocr_tables=False,
+        extract_table_structure=False,
+        table_structure_extractor=None,
+        extract_images=False,
+        model_server_endpoint=None,
+        batch_size: int = 1,
+        batch_at_a_time=False,
+    ) -> List[List["Element"]]:
+        if batch_at_a_time:
+            assert model_server_endpoint is None, "batched conversion doesn't use model server"
+            return self._partition_pdf_batched(
+                file,
+                threshold,
+                use_ocr,
+                ocr_images,
+                ocr_tables,
+                extract_table_structure,
+                table_structure_extractor,
+                extract_images,
+                batch_size,
+            )
+        else:
+            return self._partition_pdf_sequenced(
+                file,
+                threshold,
+                use_ocr,
+                ocr_images,
+                ocr_tables,
+                extract_table_structure,
+                table_structure_extractor,
+                extract_images,
+                model_server_endpoint,
+                batch_size,
+            )
+
+    def _partition_pdf_sequenced(
         self,
         file: BinaryIO,
         threshold: float = 0.4,
@@ -168,6 +217,155 @@ class SycamorePDFPartitioner:
         LogTime("finish", point=True)
         return deformable_layout
 
+    def _partition_pdf_batched(
+        self,
+        file: BinaryIO,
+        threshold: float = 0.4,
+        use_ocr=False,
+        ocr_images=False,
+        ocr_tables=False,
+        extract_table_structure=False,
+        table_structure_extractor=None,
+        extract_images=False,
+        batch_size: int = 1,
+    ) -> List[List["Element"]]:
+        LogTime("partition_start", point=True)
+        with tempfile.NamedTemporaryFile(prefix="detr-pdf-input-") as pdffile:
+            with LogTime("write_pdf"):
+                data = file.read()
+                data_len = len(data)
+                pdffile.write(data)
+                del data
+                pdffile.flush()
+                logging.info(f"Wrote {pdffile.name}")
+            stat = os.stat(pdffile.name)
+            assert stat.st_size == data_len
+            return self._partition_pdf_batched_named(
+                pdffile.name,
+                threshold,
+                use_ocr,
+                ocr_images,
+                ocr_tables,
+                extract_table_structure,
+                table_structure_extractor,
+                extract_images,
+                batch_size,
+            )
+
+    def _partition_pdf_batched_named(
+        self,
+        filename: str,
+        threshold: float = 0.4,
+        use_ocr=False,
+        ocr_images=False,
+        ocr_tables=False,
+        extract_table_structure=False,
+        table_structure_extractor=None,
+        extract_images=False,
+        batch_size: int = 1,
+    ) -> List[List["Element"]]:
+        if extract_table_structure and not table_structure_extractor:
+            table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
+
+        pdfminer = None
+        exec = ProcessPoolExecutor(max_workers=1)
+        if not use_ocr:
+            with LogTime("start_pdfminer", log_start=True):
+                pdfminer = exec.submit(self._run_pdfminer, filename)
+
+        deformable_layout = []
+        if tracemalloc.is_tracing():
+            before = tracemalloc.take_snapshot()
+        for i in convert_from_path_streamed_batched(filename, batch_size):
+            parts = self.process_batch(
+                i,
+                threshold=threshold,
+                use_ocr=use_ocr,
+                ocr_images=ocr_images,
+                ocr_tables=ocr_tables,
+                extract_table_structure=extract_table_structure,
+                table_structure_extractor=table_structure_extractor,
+                extract_images=extract_images,
+            )
+            assert len(parts) == len(i)
+            deformable_layout.extend(parts)
+            if tracemalloc.is_tracing():
+                gc.collect()
+                after = tracemalloc.take_snapshot()
+                top_stats = after.compare_to(before, "lineno")
+
+                print("[ Top 10 differences ]")
+                for stat in top_stats[:10]:
+                    print(stat)
+                before = after
+                display_top(after)
+
+        if pdfminer is not None:
+            with LogTime("wait_for_pdfminer", log_start=True):
+                pdfminer_layout = pdfminer.result()
+            assert len(pdfminer_layout) == len(deformable_layout), f"{len(pdfminer_layout)} vs {len(deformable_layout)}"
+            with LogTime("pdfminer_supplement"):
+                for d, p in zip(deformable_layout, pdfminer_layout):
+                    self._supplement_text(d, p)
+
+        if tracemalloc.is_tracing():
+            (current, peak) = tracemalloc.get_traced_memory()
+            logging.info(f"Memory Usage current={current} peak={peak}")
+            top = tracemalloc.take_snapshot()
+            display_top(top)
+        return deformable_layout
+
+    @staticmethod
+    def _run_pdfminer(pdf_path):
+        pdfminer = PDFMinerExtractor()
+        with LogTime("pdfminer_extract", log_start=True):
+            pdfminer_layout = pdfminer.extract(pdf_path)
+
+        return pdfminer_layout
+
+    def process_batch(
+        self,
+        batch: list[Image.Image],
+        threshold,
+        use_ocr,
+        ocr_images,
+        ocr_tables,
+        extract_table_structure,
+        table_structure_extractor,
+        extract_images,
+    ) -> Any:
+        with LogTime("infer"):
+            deformable_layout = self.model.infer(batch, threshold, None)
+
+        gc_tensor_dump()
+        assert len(deformable_layout) == len(batch)
+
+        if use_ocr:
+            with LogTime("ocr"):
+                extract_ocr(batch, deformable_layout, ocr_images=ocr_images, ocr_tables=ocr_tables)
+        # else pdfminer happens in parent since it is whole document.
+
+        if extract_table_structure:
+            with LogTime("extract_table_structure_batch"):
+                for i, page_elements in enumerate(deformable_layout):
+                    image = batch[i]
+                    for element in page_elements:
+                        if isinstance(element, TableElement):
+                            table_structure_extractor.extract(element, image)
+
+        if extract_images:
+            with LogTime("extract_images_batch"):
+                for i, page_elements in enumerate(deformable_layout):
+                    image = batch[i]
+                    for element in page_elements:
+                        if isinstance(element, ImageElement) and element.bbox is not None:
+                            cropped_image = crop_to_bbox(image, element.bbox).convert("RGB")
+                            element.binary_representation = image_to_bytes(cropped_image)
+                            element.image_mode = cropped_image.mode
+                            element.image_size = cropped_image.size
+
+        return deformable_layout
+
 
 class SycamoreObjectDetection(ABC):
     """Wrapper class for the various object detection models."""
@@ -249,6 +447,7 @@ class DeformableDetr(SycamoreObjectDetection):
                 result["scores"] = result["scores"].tolist()
                 result["labels"] = result["labels"].tolist()
                 result["boxes"] = result["boxes"].tolist()
+
         batched_results = []
         for result, image in zip(results, images):
             (w, h) = image.size

@@ -405,6 +405,7 @@ class SycamorePartitioner(Partitioner):
         device=None,
         model_server_endpoint=None,
         batch_size: int = 1,
+        batch_at_a_time: bool = False,
     ):
         device = choose_device(device)
         super().__init__(device=device, batch_size=batch_size)
@@ -419,6 +420,7 @@ class SycamorePartitioner(Partitioner):
         self._extract_images = extract_images
         self._model_server_endpoint = model_server_endpoint
         self._batch_size = batch_size
+        self._batch_at_a_time = batch_at_a_time
 
     # For now, we reorder elements based on page, left/right column, y axle position then finally x axle position
     @staticmethod
@@ -473,6 +475,7 @@ class SycamorePartitioner(Partitioner):
                 extract_images=self._extract_images,
                 model_server_endpoint=self._model_server_endpoint,
                 batch_size=self._batch_size,
+                batch_at_a_time=self._batch_at_a_time,
             )
         except Exception as e:
             path = document.properties["path"]

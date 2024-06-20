@@ -129,7 +129,7 @@ class TestDocSetWriter:
         execute = mocker.patch.object(WeaviateDocumentWriter, "execute")
         docset.write.weaviate(wv_client_args={}, collection_name="Collection")
         execute.assert_called_once()
-    
+
     def test_duckdb(self, mocker):
         context = mocker.Mock(spec=Context)
         docset = DocSet(context, mocker.Mock(spec=Node))

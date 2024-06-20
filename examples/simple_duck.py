@@ -8,6 +8,7 @@ from sycamore.transforms.merge_elements import MarkedMerger
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.tests.config import TEST_DIR
+
 sys.path.append("../sycamore")
 
 model_name = "sentence-transformers/all-MiniLM-L6-v2"
@@ -31,4 +32,3 @@ ds = (
     .sketch(window=17)
 )
 ds.write.duck()
-    

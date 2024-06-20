@@ -8,7 +8,7 @@ from typing import List
 
 _DEFAULT_ARYN_PARTITIONER_ADDRESS = "https://api.aryn.cloud/v1/document/partition"
 _ARYN_PARTITIONING_SERVICE_WAIT_MESSAGE = '{"detail":"Please try again in a little while."}'
-_MAX_RETRIES = 6
+_ARYN_PARTITIONER_MAX_RETRIES = 6
 
 
 class ArynPDFPartitionerException(Exception):
@@ -28,7 +28,7 @@ class ArynPDFPartitioner:
         ocr_tables: bool = False,
         extract_table_structure: bool = False,
         extract_images: bool = False,
-        max_retries: int = _MAX_RETRIES
+        max_retries: int = _ARYN_PARTITIONER_MAX_RETRIES,
     ) -> List[Element]:
         options = {
             "threshold": threshold,

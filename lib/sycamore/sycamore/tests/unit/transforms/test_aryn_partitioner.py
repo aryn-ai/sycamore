@@ -11,6 +11,9 @@ class MockResponse:
         path = TEST_DIR / "resources/data/json/model_server_output_transformer.json"
         return json.loads(open(str(path), "r").read())
 
+    def text(self):
+        return ""
+
 
 class TestArynPDFPartitioner:
     def test_partition(self, mocker):

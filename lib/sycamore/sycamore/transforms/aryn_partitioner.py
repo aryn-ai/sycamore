@@ -46,7 +46,6 @@ class ArynPDFPartitioner:
         while (
             last_status_code == 500 and last_message == _ARYN_PARTITIONING_SERVICE_WAIT_MESSAGE and tries < _MAX_RETRIES
         ):
-            print("connecting...")
             response = requests.post(aryn_partitioner_address, files=files, headers=header)
             last_status_code = response.status_code
             last_message = response.text

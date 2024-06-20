@@ -4,7 +4,7 @@ import requests
 import json
 from sycamore.data.element import create_element
 
-_DEFAULT_ARYN_PARTITIONER_ADDRESS = "https://api.aryn.cloud:8000/v1/partition"
+_DEFAULT_ARYN_PARTITIONER_ADDRESS = "https://api.aryn.cloud/v1/document/partition"
 
 
 class ArynPDFPartitionerException(Exception):

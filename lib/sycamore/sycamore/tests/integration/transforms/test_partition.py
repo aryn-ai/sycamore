@@ -10,7 +10,10 @@ import sycamore
 from sycamore.tests.config import TEST_DIR
 
 from sycamore.transforms.partition import ArynPartitioner
+import os
+
 MODEL_SERVER_KEY = os.environ["MODEL_SERVER_KEY"]
+
 
 def test_detr_ocr():
     path = TEST_DIR / "resources/data/pdfs/Transformer.pdf"

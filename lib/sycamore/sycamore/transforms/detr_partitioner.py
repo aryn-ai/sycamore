@@ -28,7 +28,7 @@ from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_
 from sycamore.utils import use_cuda
 from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
 from sycamore.utils.time_trace import LogTime
-from sycamore.utils.memory_debugging import display_top
+from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
 from sycamore.utils.pdf import convert_from_path_streamed_batched
 
 
@@ -323,22 +323,6 @@ class SycamorePDFPartitioner:
 
         return pdfminer_layout
 
-    def gc_tensor_dump(self):
-        if not tracemalloc.is_tracing():
-            return
-        import torch
-        import gc
-
-        count = 0
-        for obj in gc.get_objects():
-            try:
-                if torch.is_tensor(obj) or (hasattr(obj, "data") and torch.is_tensor(obj.data)):
-                    # print(type(obj), obj.size())
-                    count = count + 1
-            except Exception as e:
-                print(f"Exception {e}")
-        print(f"Found {count} tensors")
-
     def process_batch(
         self,
         batch: list[Image.Image],
@@ -353,7 +337,7 @@ class SycamorePDFPartitioner:
         with LogTime("infer"):
             deformable_layout = self.model.infer(batch, threshold, None)
 
-        self.gc_tensor_dump()
+        gc_tensor_dump()
         assert len(deformable_layout) == len(batch)
 
         if use_ocr:

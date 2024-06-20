@@ -25,3 +25,20 @@ def display_top(snapshot, key_type="lineno", limit=10):
         print("%s other: %.1f KiB" % (len(other), size / 1024))
     total = sum(stat.size for stat in top_stats)
     print("Total allocated size: %.1f KiB" % (total / 1024))
+
+
+def gc_tensor_dump():
+    if not tracemalloc.is_tracing():
+        return
+    import torch
+    import gc
+
+    count = 0
+    for obj in gc.get_objects():
+        try:
+            if torch.is_tensor(obj) or (hasattr(obj, "data") and torch.is_tensor(obj.data)):
+                # print(type(obj), obj.size())
+                count = count + 1
+        except Exception as e:
+            print(f"Exception {e}")
+    print(f"Found {count} tensors")

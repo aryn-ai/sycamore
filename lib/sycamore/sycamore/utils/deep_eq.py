@@ -13,15 +13,15 @@ def assert_deep_eq(a, b, path):
 
     if isinstance(a, list) or isinstance(a, tuple):
         assert len(a) == len(b), f"length {len(a)} {len(b)} {path}"
-        for i, v in enumerate(a):
+        for i in range(len(a)):
             assert_deep_eq(a[i], b[i], path + [i])
         return True
 
     if isinstance(a, dict):
-        for k, v in a.items():
+        for k in a.keys():
             assert k in b, f"missing {k} in b={b} at {path} from {a}"
             assert_deep_eq(a[k], b[k], path + [k])
-        for k, v in b.items():
+        for k in b.keys():
             assert k in a, f"missing {k} in a={a} at {path} from {b}"
 
         return True
@@ -45,5 +45,5 @@ def deep_eq(a, b):
         assert_deep_eq(a, b, [])
         return True
     except AssertionError as e:
-        print(f"Fail {e}")
+        print(f"Equality failed: {e}")
         return False

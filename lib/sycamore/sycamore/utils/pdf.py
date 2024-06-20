@@ -20,7 +20,7 @@ def convert_from_path_streamed(pdf_path: str) -> Generator[Image.Image, None, No
     def capture_exception(q, fn, finish_msg):
         try:
             fn()
-        except e:
+        except Exception as e:
             q.put(e)
 
         q.put(finish_msg)
@@ -45,15 +45,14 @@ def convert_from_path_streamed(pdf_path: str) -> Generator[Image.Image, None, No
 
             code, size, rgb = tuple(data[0:HEADER_BYTES].split(b"\n")[0:3])
             size_x, size_y = tuple(size.split(b" "))
-            file_size = len(code) + len(size) + len(rgb) + 3 + int(size_x) * int(size_y) * 3
+            need_bytes = len(code) + len(size) + len(rgb) + 3 + int(size_x) * int(size_y) * 3
 
-            if len(data) < file_size:
-                need_bytes = file_size
+            if len(data) < need_bytes:
                 continue
 
-            img = Image.open(BytesIO(data[0:file_size])).convert("RGB")
+            img = Image.open(BytesIO(data[0:need_bytes])).convert("RGB")
             q.put(img)
-            data = data[file_size:]
+            data = data[need_bytes:]
             need_bytes = HEADER_BYTES
 
     def read_stderr(fh, q):
@@ -62,7 +61,7 @@ def convert_from_path_streamed(pdf_path: str) -> Generator[Image.Image, None, No
             if line == b"":
                 break
 
-            q.put(str(line, encoding="utf-8").rstrip())
+            q.put(line.decode().rstrip())
 
     with LogTime("convert_to_image"):
         # If we don't do this, then if the stderr buffer fills up we could get stuck.
@@ -70,9 +69,13 @@ def convert_from_path_streamed(pdf_path: str) -> Generator[Image.Image, None, No
         args = ["pdftoppm", "-r", "200", pdf_path]
         proc = Popen(args, stdout=PIPE, stderr=PIPE)
         q: Queue = Queue()
-        t_out = Thread(target=capture_exception, args=(q, lambda: read_stdout(proc.stdout, q), StdoutEOF()))
+        t_out = Thread(
+            target=capture_exception, daemon=True, args=(q, lambda: read_stdout(proc.stdout, q), StdoutEOF())
+        )
         t_out.start()
-        t_err = Thread(target=capture_exception, args=(q, lambda: read_stderr(proc.stderr, q), StderrEOF()))
+        t_err = Thread(
+            target=capture_exception, daemon=True, args=(q, lambda: read_stderr(proc.stderr, q), StderrEOF())
+        )
         t_err.start()
 
         more_out = True
@@ -100,6 +103,9 @@ def convert_from_path_streamed(pdf_path: str) -> Generator[Image.Image, None, No
         assert proc.returncode is not None
         if proc.returncode != 0:
             raise ValueError(f"pdftoppm failed {proc.returncode}.  All stderr:{stderr}")
+
+        t_out.join()
+        t_err.join()
 
 
 def convert_from_path_streamed_batched(filename: str, batch_size: int) -> Generator[List[Image.Image], None, None]:

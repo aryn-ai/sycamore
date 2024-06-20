@@ -56,6 +56,7 @@ easyocr = "^1.7.1"
 weaviate-client = "^4.6.1"
 pinecone-client = { version = "^4.1.0", extras = ["grpc"] }
 pinecone-text = "^0.9.0"
+duckdb = "1.0.0"
 
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"

@@ -342,6 +342,40 @@ class DocSetWriter:
         )
         pc.execute()
 
+    def duck(self, db_name=None, table_name="aryn_table", **kwargs):
+        """
+        Writes the content of the DocSet into a DuckDB database.
+
+        Args:
+            url: The URL of the DuckDB database. If not provided, the database will be in-memory.
+
+        Example:
+            The following shows how to read a pdf dataset into a ``DocSet`` and write it out
+            to a DuckDB database.
+
+            .. code-block:: python
+
+                model_name = "sentence-transformers/all-MiniLM-L6-v2"
+                tokenizer = HuggingFaceTokenizer(model_name)
+                ctx = sycamore.init()
+                ds = (
+                    ctx.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=SycamorePartitioner(extract_table_structure=True, extract_images=True))
+                    .explode()
+                    .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
+                    .term_frequency(tokenizer=tokenizer, with_token_ids=True)
+                    .sketch(window=17)
+                )
+
+                ds.write.duckdb(url="duckdb://")
+        """
+        from sycamore.writers.duckdb_writer import (DuckDBDocumentWriter, DuckDBClientParams, DuckDBTargetParams)
+        client_params = DuckDBClientParams(db_name=db_name)
+        target_params = DuckDBTargetParams(table_name=table_name)
+
+        ddb = DuckDBDocumentWriter(self.plan, client_params=client_params, target_params=target_params, name="duck_write_documents", **kwargs)
+        ddb.execute()
+
     def files(
         self,
         path: str,

@@ -29,7 +29,7 @@ def test_detr_ocr():
     assert "Attention Is All You Need" in set(str(d.text_representation).strip() for d in docs)
 
 
-def check_table_extraction(use_ocr: bool):
+def check_table_extraction(**kwargs):
     path = TEST_DIR / "resources/data/pdfs/basic_table.pdf"
 
     basic_table_result = Table(
@@ -62,13 +62,15 @@ def check_table_extraction(use_ocr: bool):
         ]
     )
 
-    context = sycamore.init()
+    from sycamore.utils.time_trace import ray_logging_setup
+
+    context = sycamore.init(ray_args={"runtime_env": {"worker_process_setup_hook": ray_logging_setup}})
 
     # TODO: The title on the paper is recognized as a section header rather than a page header at the moment.
     # The test will need to be updated if and when that changes.
     docs = (
         context.read.binary(paths=[str(path)], binary_format="pdf")
-        .partition(SycamorePartitioner(extract_table_structure=True, use_ocr=use_ocr))
+        .partition(SycamorePartitioner(extract_table_structure=True, **kwargs))
         .take_all()
     )
 
@@ -106,3 +108,24 @@ def test_table_extraction_with_ocr():
 
 def test_table_extraction_with_no_ocr():
     check_table_extraction(use_ocr=False)
+
+
+def test_table_extraction_with_ocr_batched():
+    import logging
+
+    logging.basicConfig(
+        level=logging.INFO, format="%(levelname)-8s %(asctime)s   %(filename)s:%(lineno)d   %(message)s"
+    )
+    check_table_extraction(use_ocr=True, batch_at_a_time=True)
+
+
+def test_sycamore_batched_sequenced():
+    import pathlib
+    from sycamore.transforms.detr_partitioner import SycamorePDFPartitioner
+    from sycamore.tests.unit.transforms.compare_detr_impls import compare_batched_sequenced
+
+    s = SycamorePDFPartitioner("Aryn/deformable-detr-DocLayNet")
+    for pdf in pathlib.Path(TEST_DIR).rglob("*.pdf"):
+        print(f"Testing {pdf}")
+        p = compare_batched_sequenced(s, pdf)
+        print(f"Compared {len(p)} pages")

@@ -1,5 +1,6 @@
 from sycamore.transforms.aryn_partitioner import ArynPDFPartitioner
 from sycamore.tests.config import TEST_DIR
+import json
 
 
 class MockResponse:
@@ -7,7 +8,8 @@ class MockResponse:
         self.status_code = 200
 
     def json(self):
-        return {}
+        path = TEST_DIR / "resources/data/json/model_server_output_transformer.json"
+        return json.loads(open(str(path), "r").read())
 
 
 class TestArynPDFPartitioner:

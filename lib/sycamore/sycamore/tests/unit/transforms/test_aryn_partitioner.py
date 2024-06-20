@@ -16,12 +16,12 @@ class MockResponse:
 
 
 class TestArynPDFPartitioner:
-    def test_partition(self, mocker):
+    def test_partition(self, mocker) -> None:
         mocker.patch("requests.post", return_value=MockResponse())
         with open(TEST_DIR / "resources/data/pdfs/Ray.pdf", "rb") as pdf:
             ArynPDFPartitioner.partition_pdf(pdf, aryn_token="")
 
-    def test_partition_extract_table_structure(self, mocker):
+    def test_partition_extract_table_structure(self, mocker) -> None:
         mocker.patch("requests.post", return_value=MockResponse())
         with open(TEST_DIR / "resources/data/pdfs/Transformer.pdf", "rb") as pdf:
             ArynPDFPartitioner.partition_pdf(pdf, aryn_token="", extract_table_structure=True)

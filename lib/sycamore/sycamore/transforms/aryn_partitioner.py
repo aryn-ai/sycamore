@@ -2,8 +2,9 @@ from typing import BinaryIO
 from collections.abc import Mapping
 import requests
 import json
-from sycamore.data.element import create_element
+from sycamore.data.element import create_element, Element
 import time
+from typing import List
 
 _DEFAULT_ARYN_PARTITIONER_ADDRESS = "https://api.aryn.cloud/v1/document/partition"
 _ARYN_PARTITIONING_SERVICE_WAIT_MESSAGE = '{"detail":"Please try again in a little while."}'
@@ -27,7 +28,7 @@ class ArynPDFPartitioner:
         ocr_tables: bool = False,
         extract_table_structure: bool = False,
         extract_images: bool = False,
-    ):
+    ) -> List[Element]:
         options = {
             "threshold": threshold,
             "use_ocr": use_ocr,

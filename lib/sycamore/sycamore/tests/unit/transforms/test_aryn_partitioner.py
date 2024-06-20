@@ -4,14 +4,14 @@ import json
 
 
 class MockResponse:
-    def __init__(self):
+    def __init__(self) -> None:
         self.status_code = 200
 
-    def json(self):
+    def json(self) -> dict:
         path = TEST_DIR / "resources/data/json/model_server_output_transformer.json"
         return json.loads(open(str(path), "r").read())
 
-    def text(self):
+    def text(self) -> str:
         return ""
 
 

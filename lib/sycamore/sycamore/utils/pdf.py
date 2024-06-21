@@ -68,7 +68,7 @@ def convert_from_path_streamed(pdf_path: str) -> Generator[Image.Image, None, No
         # Popen.communicate() reads the entire strings.
         args = ["pdftoppm", "-r", "200", pdf_path]
         proc = Popen(args, stdout=PIPE, stderr=PIPE)
-        q: Queue = Queue()
+        q: Queue = Queue(4)
         t_out = Thread(
             target=capture_exception, daemon=True, args=(q, lambda: read_stdout(proc.stdout, q), StdoutEOF())
         )

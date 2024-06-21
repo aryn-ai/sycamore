@@ -3,7 +3,6 @@ from collections.abc import Mapping
 import requests
 import json
 from sycamore.data.element import create_element, Element
-import time
 from typing import List
 import base64
 from tenacity import retry, retry_if_exception_type, wait_exponential, stop_after_delay

@@ -3,6 +3,7 @@ from sycamore.tests.config import TEST_DIR
 from sycamore.data.element import create_element
 from sycamore.utils.deep_eq import assert_deep_eq
 import json
+import base64
 
 
 class MockResponseNoTables:

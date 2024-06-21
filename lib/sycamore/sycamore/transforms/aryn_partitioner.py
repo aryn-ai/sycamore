@@ -23,12 +23,12 @@ class ArynContinuePDFPartitionerException(Exception):
 
 
 class ArynPDFPartitioner:
+    @staticmethod
     @retry(
         retry=retry_if_exception_type(ArynContinuePDFPartitionerException),
         wait=wait_exponential(multiplier=1, min=1),
         stop=stop_after_delay(_TEN_MINUTES),
     )
-    @staticmethod
     def partition_pdf(
         file: BinaryIO,
         aryn_token: str,

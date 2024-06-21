@@ -8,7 +8,6 @@ import base64
 from tenacity import retry, retry_if_exception_type, wait_exponential, stop_after_delay
 
 _DEFAULT_ARYN_PARTITIONER_ADDRESS = "https://api.aryn.cloud/v1/document/partition"
-_ARYN_PARTITIONING_SERVICE_WAIT_MESSAGE = '{"detail":"Please try again in a little while."}'
 _TEN_MINUTES = 600
 
 
@@ -55,7 +54,7 @@ class ArynPDFPartitioner:
         response = requests.post(aryn_partitioner_address, files=files, headers=header)
 
         if response.status_code != 200:
-            if response.status_code == 500 and response.text == _ARYN_PARTITIONING_SERVICE_WAIT_MESSAGE:
+            if response.status_code == 500:
                 raise ArynContinuePDFPartitionerException(
                     f"Error: status_code: {response.status_code}, reason: {response.text}"
                 )

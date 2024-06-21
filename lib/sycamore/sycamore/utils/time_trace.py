@@ -97,7 +97,7 @@ class TimeTrace:
             data.t0,
             data.t1,
             data.user,
-            data.syst,
+            data.sys,
             data.rss,
             self.name,
         )

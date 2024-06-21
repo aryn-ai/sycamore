@@ -217,11 +217,13 @@ def construct_deploy_try_again_fn(model_id):
         )
         if deploy_tasks["hits"]["total"]["value"] > 0:
             return deploy_tasks["hits"]["hits"][0]["_id"]
-        deploy_model_response = opensearch_request(
-            f"/_plugins/_ml/models/{model_id}/_deploy", log_name=f"deploy_{model_id}", method="POST"
-        )
+
+        req_path = f"/_plugins/_ml/models/{model_id}/_deploy"
+        deploy_model_response = opensearch_request(req_path, log_name=f"deploy_{model_id}", method="POST")
         if "task_id" not in deploy_model_response:
             die(f"deploy model failed somehow: {deploy_model_response}")
+
+        print(f"Called {req_path}, got back {deploy_model_response['task_id']}, logged to deploy_{model_id}")
         return deploy_model_response["task_id"]
 
     return inner_try_again

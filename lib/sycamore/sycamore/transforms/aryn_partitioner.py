@@ -6,10 +6,11 @@ from sycamore.data.element import create_element, Element
 import time
 from typing import List
 import base64
+from tenacity import retry, retry_if_exception_type, wait_exponential, stop_after_delay
 
 _DEFAULT_ARYN_PARTITIONER_ADDRESS = "https://api.aryn.cloud/v1/document/partition"
 _ARYN_PARTITIONING_SERVICE_WAIT_MESSAGE = '{"detail":"Please try again in a little while."}'
-_ARYN_PARTITIONER_MAX_RETRIES = 6
+_TEN_MINUTES = 600
 
 
 class ArynPDFPartitionerException(Exception):
@@ -17,7 +18,17 @@ class ArynPDFPartitionerException(Exception):
         super().__init__(message)
 
 
+class ArynContinuePDFPartitionerException(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
 class ArynPDFPartitioner:
+    @retry(
+        retry=retry_if_exception_type(ArynContinuePDFPartitionerException),
+        wait=wait_exponential(multiplier=1, min=1),
+        stop=stop_after_delay(_TEN_MINUTES),
+    )
     @staticmethod
     def partition_pdf(
         file: BinaryIO,
@@ -29,7 +40,6 @@ class ArynPDFPartitioner:
         ocr_tables: bool = False,
         extract_table_structure: bool = False,
         extract_images: bool = False,
-        max_retries: int = _ARYN_PARTITIONER_MAX_RETRIES,
     ) -> List[Element]:
         options = {
             "threshold": threshold,
@@ -43,20 +53,13 @@ class ArynPDFPartitioner:
         files: Mapping = {"pdf": file, "options": json.dumps(options).encode("utf-8")}
         header = {"Authorization": f"Bearer {aryn_token}"}
 
-        last_status_code = 500
-        last_message = _ARYN_PARTITIONING_SERVICE_WAIT_MESSAGE
-        tries = 0
-        while (
-            last_status_code == 500 and last_message == _ARYN_PARTITIONING_SERVICE_WAIT_MESSAGE and tries < max_retries
-        ):
-            response = requests.post(aryn_partitioner_address, files=files, headers=header)
-            last_status_code = response.status_code
-            last_message = response.text
-            if tries > 0:
-                time.sleep(10 * (2**tries))  # Modified binary exponential backoff
-            tries += 1
+        response = requests.post(aryn_partitioner_address, files=files, headers=header)
 
         if response.status_code != 200:
+            if response.status_code == 500 and response.text == _ARYN_PARTITIONING_SERVICE_WAIT_MESSAGE:
+                raise ArynContinuePDFPartitionerException(
+                    f"Error: status_code: {response.status_code}, reason: {response.text}"
+                )
             raise ArynPDFPartitionerException(f"Error: status_code: {response.status_code}, reason: {response.text}")
 
         response_json = response.json()

@@ -139,3 +139,22 @@ class TestSchema:
         doc = property_extractor.extract_properties(doc)
 
         assert doc.properties["entity"]["accidentNumber"] == "FTW95FA129"
+
+    def test_extract_properties_fixed_json(self, mocker):
+        llm = mocker.Mock(spec=LLM)
+        generate = mocker.patch.object(llm, "generate")
+        generate.return_value = '{"accidentNumber": "FTW95FA129"}'
+
+        doc = Document()
+        element1 = Element()
+        element1.text_representation = "".join(random.choices(string.ascii_letters, k=10))
+        element2 = Element()
+        element2.text_representation = "".join(random.choices(string.ascii_letters, k=20))
+        doc.elements = [element1, element2]
+
+        property_extractor = OpenAIPropertyExtractor(
+            llm, schema_name="AircraftIncident", schema={"accidentNumber": "string"}
+        )
+        doc = property_extractor.extract_properties(doc)
+
+        assert doc.properties["entity"]["accidentNumber"] == "FTW95FA129"

@@ -136,11 +136,15 @@ class OpenAIPropertyExtractor(PropertyExtractor):
         self,
         # properties: list[str],
         llm: LLM,
+        schema_name: Optional[str] = None,
+        schema: Optional[dict[str, str]] = None,
         num_of_elements: int = 10,
         prompt_formatter: Callable[[list[Element]], str] = element_list_formatter,
     ):
         super().__init__()
         self._llm = llm
+        self._schema_name = schema_name
+        self._schema = schema
         self._num_of_elements = num_of_elements
         self._prompt_formatter = prompt_formatter
 
@@ -168,8 +172,15 @@ class OpenAIPropertyExtractor(PropertyExtractor):
 
         prompt = PropertiesZeroShotGuidancePrompt()
 
-        schema_name = document.properties["_schema_class"]
-        schema = document.properties["_schema"]
+        if self._schema_name is not None:
+            schema_name = self._schema_name
+        else:
+            schema_name = document.properties["_schema_class"]
+
+        if self._schema is not None:
+            schema = self._schema
+        else:
+            schema = document.properties["_schema"]
 
         entities = self._llm.generate(
             prompt_kwargs={"prompt": prompt, "entity": schema_name, "properties": schema, "query": text}

@@ -87,7 +87,7 @@ class DocSetWriter:
                      index_settings=index_settings)
         """
 
-        from sycamore.writers.opensearch import OpenSearchWriter, OpenSearchClientParams, OpenSearchTargetParams
+        from sycamore.connectors.opensearch import OpenSearchWriter, OpenSearchClientParams, OpenSearchTargetParams
         from typing import Any
         import copy
 
@@ -127,7 +127,7 @@ class DocSetWriter:
             target_params = OpenSearchTargetParams(index_name, {}, {})
 
         os = OpenSearchWriter(
-            self.plan, client_params=client_params, target_params=target_params, name="opensearch_write", **kwargs
+            self.plan, client_params=client_params, target_params=target_params, name="OsrchWrite", **kwargs
         )
 
         # We will probably want to break this at some point so that write

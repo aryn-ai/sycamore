@@ -43,10 +43,21 @@ handle_outputs() {
 runtests() {
   docker system prune -f --volumes
   docker compose up reset
-  poetry run pytest apps/integration/ -p integration.conftest --noconftest --docker-tag latest_rc
-  # this is a complicated command, so: ^                        ^            ^ test against containers tagged latest_rc
-  #                                    |                     don't load conftest at pytest runtime; it's already loaded
-  #                                     load conftest with plugins, to capture the custom command line arg --docker-tag
+  debug=()
+  if [[ "$NOEXIT" != "" ]]; then
+      debug=(-o log_cli=true -s -x)
+      rm /tmp/abort 2>/dev/null
+  fi
+  # in noexit mode, print output (-o,-s), stop on the first error (-x)
+  set -x
+  poetry run pytest "${debug[@]}" \
+         apps/integration/ \
+         -p integration.conftest \
+         --noconftest \
+         --docker-tag latest_rc
+  # -p: load conftest with plugins, to capture the custom command line arg --docker-tag
+  # --noconftest: don't load conftest at pytest runtime; it's already loaded
+  # --docker-tag: test against containers tagged latest_rc
 }
 
 

@@ -16,11 +16,13 @@ class ArynPDFPartitionerException(Exception):
         super().__init__(message)
         self.can_retry = can_retry
 
+
 def _can_retry(e: Exception):
     if isinstance(e, ArynPDFPartitionerException):
         return e.can_retry
     else:
         return False
+
 
 class ArynPDFPartitioner:
     @staticmethod

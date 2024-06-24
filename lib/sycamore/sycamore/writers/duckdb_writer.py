@@ -1,70 +1,116 @@
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, is_dataclass
 from typing import Optional, Any
-from sycamore.writers.common import drop_types
 from typing_extensions import TypeGuard
 
 from sycamore.data.document import Document
 from sycamore.writers.base import BaseDBWriter
-import duckdb
+import random
+import string
+import os
+import csv
 
 
 @dataclass
 class DuckDBClientParams(BaseDBWriter.ClientParams):
-    db_name: Optional[str] = None
+    pass
 
 
 @dataclass
 class DuckDBTargetParams(BaseDBWriter.TargetParams):
-    table_name: str
+    parquet_location: str
 
     def compatible_with(self, other: BaseDBWriter.TargetParams) -> bool:
         if not isinstance(other, DuckDBTargetParams):
             return False
-        if self.table_name != other.table_name:
+        if self.parquet_location != other.parquet_location:
             return False
         return True
 
 
 class DuckDBClient(BaseDBWriter.Client):
     def __init__(self, client_params: DuckDBClientParams):
-        dict_params = asdict(client_params)
-        db_name = dict_params["db_name"] if "db_name" in dict_params else ":memory:"
-        self._client = duckdb.connect(db_name)
+        pass
 
     @classmethod
     def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "DuckDBClient":
         assert isinstance(params, DuckDBClientParams)
         return DuckDBClient(params)
 
-    def write_many_records(self, records: list[BaseDBWriter.Record], target_params: BaseDBWriter.TargetParams):
-        assert isinstance(target_params, DuckDBTargetParams)
+    def write_many_records(
+        self, records: list[BaseDBWriter.Record], target_params: BaseDBWriter.TargetParams, batch_size: int = 1000
+    ):
+        N = 10
+        dict_params = (
+            asdict(target_params)
+            if is_dataclass(target_params)
+            else (target_params.__dict__ if hasattr(target_params, "__dict__") else {})
+        )
         assert _narrow_list_of_doc_records(records), f"Found a bad record in {records}"
-        with self._client:
-            for r in records:
-                self._client.execute(
-                    f"""INSERT INTO {target_params.table_name}
-                                     VALUES ({r.uuid}, {r.properties}, {r.embeddings})"""
-                )
+        assert isinstance(target_params, DuckDBTargetParams)
+
+        # Determine file location
+        parquet_location = dict_params.get("parquet_location", "./tmp/duckdb")
+        file_location = os.path.join(parquet_location, "".join(random.choices(string.ascii_uppercase, k=N)) + ".csv")
+        while os.path.isfile(file_location):
+            file_location = os.path.join(
+                parquet_location, "".join(random.choices(string.ascii_uppercase, k=N)) + ".csv"
+            )
+        # Prepare the CSV file and directory
+        directory = os.path.dirname(file_location)
+        os.makedirs(directory, exist_ok=True)
+
+        headers = ["uuid", "embeddings", "properties", "text_representation", "bbox", "shingles", "type"]
+
+        def write_batch(batch_data: dict):
+            # If the file doesn't exist, write headers first
+            file_exists = os.path.isfile(file_location)
+
+            with open(file_location, "a", newline="") as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=headers)
+                if not file_exists:
+                    writer.writeheader()
+                for i in range(len(batch_data["uuid"])):
+                    row = {key: batch_data[key][i] for key in batch_data}
+                    writer.writerow(row)
+            for key in batch_data:
+                batch_data[key].clear()
+
+        batch_data: dict[str, list[Any]] = {key: [] for key in headers}
+
+        for r in records:
+            # Append the new data to the batch
+            batch_data["uuid"].append(r.uuid)
+            batch_data["embeddings"].append(r.embeddings)
+            batch_data["properties"].append(r.properties)
+            batch_data["text_representation"].append(r.text_representation)
+            batch_data["bbox"].append(r.bbox)
+            batch_data["shingles"].append(r.shingles)
+            batch_data["type"].append(r.type)
+
+            # If we've reached the batch size, write to the CSV file
+            if len(batch_data["uuid"]) >= batch_size:
+                write_batch(batch_data)
+        # Write any remaining records
+        if len(batch_data["uuid"]) > 0:
+            write_batch(batch_data)
 
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
         assert isinstance(target_params, DuckDBTargetParams)
-        with self._client:
-            self._client.execute(
-                """CREATE TABLE IF NOT EXISTS {target_params.table_name} 
-                                     (uuid TEXT PRIMARY KEY, properties STRUCT, embeddings ARRAY(FLOAT))"""
-            )
 
     def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> "DuckDBTargetParams":
         assert isinstance(target_params, DuckDBTargetParams)
-        with self._client:
-            return DuckDBTargetParams(table_name=target_params.table_name)
+        return DuckDBTargetParams(parquet_location=target_params.parquet_location)
 
 
 @dataclass
 class DuckDBDocumentRecord(BaseDBWriter.Record):
     uuid: str
-    embeddings: list[float]
+    embeddings: Optional[list[float]] = None
     properties: Optional[dict[str, Any]] = None
+    text_representation: Optional[str] = None
+    bbox: Optional[tuple[float, float, float, float]] = None
+    shingles: Optional[list[int]] = None
+    type: Optional[str] = None
 
     @classmethod
     def from_doc(cls, document: Document, target_params: BaseDBWriter.TargetParams) -> "DuckDBDocumentRecord":
@@ -73,18 +119,17 @@ class DuckDBDocumentRecord(BaseDBWriter.Record):
         if uuid is None:
             raise ValueError(f"Cannot write documents without a doc_id. Found {document}")
         embedding = document.embedding
-        if embedding is None:
-            raise ValueError(f"Cannot write documents without a embedding. Found {document}")
-        properties = {
-            "properties": document.properties,
-            "type": document.type,
-            "text_representation": document.text_representation,
-            "bbox": document.bbox.coordinates if document.bbox else None,
-            "shingles": document.shingles,
-        }
-        droperties = drop_types(properties, drop_empty_lists=True)
-        assert isinstance(droperties, dict)
-        return DuckDBDocumentRecord(uuid=uuid, properties=droperties, embeddings=embedding)
+        # if embedding is None:
+        #     raise ValueError(f"Cannot write documents without a embedding. Found {document}")
+        return DuckDBDocumentRecord(
+            uuid=uuid,
+            properties=document.properties,
+            type=document.type,
+            text_representation=document.text_representation,
+            bbox=document.bbox.coordinates if document.bbox else None,
+            shingles=document.shingles,
+            embeddings=embedding,
+        )
 
 
 def _narrow_list_of_doc_records(records: list[BaseDBWriter.Record]) -> TypeGuard[list[DuckDBDocumentRecord]]:

@@ -6,9 +6,11 @@ from sycamore.transforms.merge_elements import MarkedMerger
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.tests.config import TEST_DIR
+from sycamore.utils.time_trace import ray_logging_setup
+import duckdb
 
 
-def test_to_duck():
+def test_to_duckdb():
 
     model_name = "sentence-transformers/all-MiniLM-L6-v2"
     paths = str(TEST_DIR / "resources/data/pdfs/")
@@ -16,7 +18,7 @@ def test_to_duck():
     OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
     tokenizer = HuggingFaceTokenizer(model_name)
 
-    ctx = sycamore.init()
+    ctx = sycamore.init(ray_args={"runtime_env": {"worker_process_setup_hook": ray_logging_setup}})
 
     ds = (
         ctx.read.binary(paths, binary_format="pdf")
@@ -28,6 +30,9 @@ def test_to_duck():
         .split_elements(tokenizer=tokenizer, max_tokens=512)
         .explode()
         .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
-        .sketch(window=17)
     )
-    ds.write.duck()
+    true_count = ds.count()
+    ds.write.duckdb(table_name="duckdb_table")
+    conn = duckdb.connect(database=":default:")
+    duckdb_count = conn.execute("SELECT COUNT(*) FROM duckdb_table")
+    assert true_count == int(duckdb_count.fetchone()[0])

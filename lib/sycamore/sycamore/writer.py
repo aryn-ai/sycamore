@@ -7,6 +7,9 @@ from sycamore.plan_nodes import Node
 from sycamore.data import Document
 from sycamore.writers.common import HostAndPort
 from sycamore.writers.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
+import duckdb
+import glob
+import os
 
 if TYPE_CHECKING:
     # Shenanigans to avoid circular import
@@ -342,12 +345,15 @@ class DocSetWriter:
         )
         pc.execute()
 
-    def duck(self, db_name=None, table_name="aryn_table", **kwargs):
+    def duckdb(self, db_url=None, table_name=None, csv_directory_location=None, **kwargs):
         """
         Writes the content of the DocSet into a DuckDB database.
 
         Args:
-            url: The URL of the DuckDB database. If not provided, the database will be in-memory.
+            db_url: The URL of the DuckDB database. If not provided, the database will be in-memory.
+            table_name: The table name to write the data to when possible
+            csv_directory_location: The location to write the csv files to. If not provided, defaults to "./tmp/duckdb"
+            and is removed after execution.
 
         Example:
             The following shows how to read a pdf dataset into a ``DocSet`` and write it out
@@ -367,17 +373,37 @@ class DocSetWriter:
                     .sketch(window=17)
                 )
 
-                ds.write.duckdb(url="duckdb://")
+            ds.write.duckdb(table_name="duckdb")
         """
         from sycamore.writers.duckdb_writer import DuckDBDocumentWriter, DuckDBClientParams, DuckDBTargetParams
 
-        client_params = DuckDBClientParams(db_name=db_name)
-        target_params = DuckDBTargetParams(table_name=table_name)
-
+        csv_location = csv_directory_location if csv_directory_location is not None else "tmp/duckdb"
+        table_name = table_name if not None else "data"
+        client_params = DuckDBClientParams()
+        target_params = DuckDBTargetParams(parquet_location=csv_location)
         ddb = DuckDBDocumentWriter(
             self.plan, client_params=client_params, target_params=target_params, name="duck_write_documents", **kwargs
         )
-        ddb.execute()
+        ddb.execute().materialize()
+        sql_location = os.path.join(csv_location, "*.csv")
+        # Check if files are written (to gracefully handle tests to only check execution)
+        if bool(glob.glob(sql_location)):
+            client = duckdb.connect(":default:") if db_url is None else duckdb.connect(db_url)
+            client.sql(f"CREATE TABLE {table_name} AS SELECT * FROM read_csv('{sql_location}')")
+            # Flush out the csv files if not persisted
+            if not csv_directory_location:
+                try:
+                    for root, _, files in os.walk(csv_location):
+                        for file in files:
+                            file_path = os.path.join(root, file)
+                            try:
+                                os.unlink(file_path)
+                            except Exception as e:
+                                print(f"Error deleting {file_path}: {e}")
+                except Exception as e:
+                    print(f"Error deleting files in {csv_location}: {e}")
+        else:
+            print(f"No files in directory matching the pattern in {sql_location}")
 
     def files(
         self,

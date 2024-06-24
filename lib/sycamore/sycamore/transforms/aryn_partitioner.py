@@ -5,26 +5,27 @@ import json
 from sycamore.data.element import create_element, Element
 from typing import List
 import base64
-from tenacity import retry, retry_if_exception_type, wait_exponential, stop_after_delay
+from tenacity import retry, retry_if_exception, wait_exponential, stop_after_delay
 
 _DEFAULT_ARYN_PARTITIONER_ADDRESS = "https://api.aryn.cloud/v1/document/partition"
 _TEN_MINUTES = 600
 
 
 class ArynPDFPartitionerException(Exception):
-    def __init__(self, message):
+    def __init__(self, message, can_retry=False):
         super().__init__(message)
+        self.can_retry = can_retry
 
-
-class ArynContinuePDFPartitionerException(Exception):
-    def __init__(self, message):
-        super().__init__(message)
-
+def _can_retry(e: Exception):
+    if isinstance(e, ArynPDFPartitionerException):
+        return e.can_retry
+    else:
+        return False
 
 class ArynPDFPartitioner:
     @staticmethod
     @retry(
-        retry=retry_if_exception_type(ArynContinuePDFPartitionerException),
+        retry=retry_if_exception(_can_retry),
         wait=wait_exponential(multiplier=1, min=1),
         stop=stop_after_delay(_TEN_MINUTES),
     )
@@ -55,8 +56,8 @@ class ArynPDFPartitioner:
 
         if response.status_code != 200:
             if response.status_code == 500:
-                raise ArynContinuePDFPartitionerException(
-                    f"Error: status_code: {response.status_code}, reason: {response.text}"
+                raise ArynPDFPartitionerException(
+                    f"Error: status_code: {response.status_code}, reason: {response.text}", can_retry=True
                 )
             raise ArynPDFPartitionerException(f"Error: status_code: {response.status_code}, reason: {response.text}")
 

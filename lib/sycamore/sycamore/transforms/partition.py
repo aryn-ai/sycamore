@@ -545,7 +545,7 @@ class ArynPartitioner(Partitioner):
         self._aryn_partitioner_address = aryn_partitioner_address
 
     def partition(self, document: Document):
-        binary = io.BytesIO(document.data["binary_representation"])
+        binary = io.BytesIO(document.binary_representation)
         from sycamore.transforms.aryn_partitioner import ArynPDFPartitioner
 
         try:

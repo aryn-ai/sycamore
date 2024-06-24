@@ -11,7 +11,8 @@ import duckdb
 
 
 def test_to_duckdb():
-
+    table_name = "duckdb_table"
+    db_url = ":default:"
     model_name = "sentence-transformers/all-MiniLM-L6-v2"
     paths = str(TEST_DIR / "resources/data/pdfs/")
 
@@ -31,8 +32,8 @@ def test_to_duckdb():
         .explode()
         .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
     )
-    true_count = ds.count()
-    ds.write.duckdb(table_name="duckdb_table")
-    conn = duckdb.connect(database=":default:")
-    duckdb_count = conn.execute("SELECT COUNT(*) FROM duckdb_table")
-    assert true_count == int(duckdb_count.fetchone()[0])
+    ds_count = ds.count()
+    ds.write.duckdb(table_name=table_name, db_url=db_url)
+    conn = duckdb.connect(database=db_url)
+    duckdb_count = conn.execute(f"SELECT COUNT(*) FROM {table_name}")
+    assert ds_count == int(duckdb_count.fetchone()[0])

@@ -7,8 +7,9 @@ from sycamore.plan_nodes import Node
 from sycamore.data import Document
 from sycamore.writers.common import HostAndPort
 from sycamore.writers.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
-import glob
 import os
+import duckdb
+import glob
 
 if TYPE_CHECKING:
     # Shenanigans to avoid circular import
@@ -344,71 +345,106 @@ class DocSetWriter:
         )
         pc.execute()
 
-    def duckdb(self, db_url=None, table_name=None, execute: bool = True, csv_directory_location=None, **kwargs):
+    def duckdb(
+        self,
+        db_url: Optional[str] = None,
+        table_name: Optional[str] = None,
+        execute: bool = True,
+        csv_directory_location: Optional[str] = None,
+        **kwargs,
+    ):
         """
         Writes the content of the DocSet into a DuckDB database.
 
         Args:
             db_url: The URL of the DuckDB database. If not provided, the database will be in-memory.
             table_name: The table name to write the data to when possible
+            execute: Flag that determines whether to execute immediately
             csv_directory_location: The location to write the csv files to. If not provided, defaults to "./tmp/duckdb"
             and is removed after execution.
 
         Example:
             The following shows how to read a pdf dataset into a ``DocSet`` and write it out
-            to a DuckDB database.
+            to a DuckDB database and read from it.
 
             .. code-block:: python
-
+                table_name = "duckdb_table"
+                db_url = ":default:"
                 model_name = "sentence-transformers/all-MiniLM-L6-v2"
+                paths = str(TEST_DIR / "resources/data/pdfs/")
+
+                OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
                 tokenizer = HuggingFaceTokenizer(model_name)
-                ctx = sycamore.init()
+
+                ctx = sycamore.init(ray_args={"runtime_env": {"worker_process_setup_hook": ray_logging_setup}})
+
                 ds = (
                     ctx.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=SycamorePartitioner(extract_table_structure=True, extract_images=True))
+                    .partition(partitioner=UnstructuredPdfPartitioner())
+                    .regex_replace(COALESCE_WHITESPACE)
+                    .mark_bbox_preset(tokenizer=tokenizer)
+                    .merge(merger=MarkedMerger())
+                    .spread_properties(["path"])
+                    .split_elements(tokenizer=tokenizer, max_tokens=512)
                     .explode()
                     .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
-                    .term_frequency(tokenizer=tokenizer, with_token_ids=True)
-                    .sketch(window=17)
                 )
-
-            ds.write.duckdb(table_name="duckdb")
+                ds.write.duckdb(table_name=table_name, db_url=db_url)
+                conn = duckdb.connect(database=db_url)
+                duckdb_read = conn.execute(f"SELECT * FROM {table_name}")
         """
-        from sycamore.writers.duckdb_writer import DuckDBDocumentWriter, DuckDBClientParams, DuckDBTargetParams
-        import duckdb
+        from sycamore.writers.duckdb_csv_writer import DuckDBCSVWriter, DuckDBClientParams, DuckDBTargetParams
 
-        csv_location = csv_directory_location if csv_directory_location is not None else "tmp/duckdb"
-        table_name = table_name if not None else "data"
+        csv_location = csv_directory_location if csv_directory_location is not None else "tmp"
         client_params = DuckDBClientParams()
         target_params = DuckDBTargetParams(parquet_location=csv_location)
-        ddb = DuckDBDocumentWriter(
-            self.plan, client_params=client_params, target_params=target_params, name="duck_write_documents", **kwargs
+        ddb_csv = DuckDBCSVWriter(
+            self.plan,
+            client_params=client_params,
+            target_params=target_params,
+            name="duck_write_csv_documents",
+            **kwargs,
         )
-        if not execute:
-            from sycamore.docset import DocSet
-
-            return DocSet(self.context, ddb)
-        ddb.execute().materialize()
-        sql_location = os.path.join(csv_location, "*.csv")
-        # Check if files are written (to gracefully handle tests to only check execution)
-        if bool(glob.glob(sql_location)):
-            client = duckdb.connect(":default:") if db_url is None else duckdb.connect(db_url)
-            client.sql(f"CREATE TABLE {table_name} AS SELECT * FROM read_csv('{sql_location}')")
-            # Flush out the csv files if not persisted
-            if not csv_directory_location:
-                try:
-                    for root, _, files in os.walk(csv_location):
-                        for file in files:
-                            file_path = os.path.join(root, file)
-                            try:
-                                os.unlink(file_path)
-                            except Exception as e:
-                                print(f"Error deleting {file_path}: {e}")
-                except Exception as e:
-                    print(f"Error deleting files in {csv_location}: {e}")
+        if execute:
+            ddb_csv.execute().materialize()
+            sql_location = os.path.join(csv_location, "*.csv")
+            self.table_name = table_name if not None else "data"
+            if bool(glob.glob(sql_location)):
+                client = duckdb.connect(":default:") if db_url is None else duckdb.connect(db_url)
+                client.sql(f"CREATE TABLE {self.table_name} AS SELECT * FROM read_csv('{sql_location}')")
+                # Flush out the csv files if not persisted
+                if not csv_directory_location:
+                    try:
+                        for root, _, files in os.walk(csv_location):
+                            for file in files:
+                                file_path = os.path.join(root, file)
+                                try:
+                                    os.unlink(file_path)
+                                except Exception as e:
+                                    print(f"Error deleting {file_path}: {e}")
+                    except Exception as e:
+                        print(f"Error deleting files in {csv_location}: {e}")
+            else:
+                print(f"No files in directory matching the pattern in {sql_location}")
+            return None
         else:
-            print(f"No files in directory matching the pattern in {sql_location}")
-        return None
+            from sycamore.docset import DocSet
+            from sycamore.writers.duckdb_writer import DuckDB_Writer
+
+            if db_url is None or db_url == ":default:":
+                raise ValueError(
+                    f"Database cannot run in-memory when not executed immediately. Please specify a persistent database location"
+                )
+            ddb_writer = DuckDB_Writer(
+                ddb_csv,
+                csv_location=csv_location,
+                table_name=table_name,
+                csv_directory_location=csv_directory_location,
+                db_url=db_url,
+                name="duck_write_documents",
+                **kwargs,
+            )
+            return DocSet(self.context, ddb_writer)
 
     def files(
         self,

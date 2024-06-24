@@ -344,7 +344,7 @@ class DocSetWriter:
         )
         pc.execute()
 
-    def duckdb(self, db_url=None, table_name=None, csv_directory_location=None, **kwargs):
+    def duckdb(self, db_url=None, table_name=None, execute: bool = True, csv_directory_location=None, **kwargs):
         """
         Writes the content of the DocSet into a DuckDB database.
 
@@ -384,6 +384,10 @@ class DocSetWriter:
         ddb = DuckDBDocumentWriter(
             self.plan, client_params=client_params, target_params=target_params, name="duck_write_documents", **kwargs
         )
+        if not execute:
+            from sycamore.docset import DocSet
+
+            return DocSet(self.context, ddb)
         ddb.execute().materialize()
         sql_location = os.path.join(csv_location, "*.csv")
         # Check if files are written (to gracefully handle tests to only check execution)
@@ -404,6 +408,7 @@ class DocSetWriter:
                     print(f"Error deleting files in {csv_location}: {e}")
         else:
             print(f"No files in directory matching the pattern in {sql_location}")
+        return None
 
     def files(
         self,

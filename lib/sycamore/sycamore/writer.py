@@ -7,7 +7,6 @@ from sycamore.plan_nodes import Node
 from sycamore.data import Document
 from sycamore.writers.common import HostAndPort
 from sycamore.writers.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
-import duckdb
 import glob
 import os
 
@@ -376,6 +375,7 @@ class DocSetWriter:
             ds.write.duckdb(table_name="duckdb")
         """
         from sycamore.writers.duckdb_writer import DuckDBDocumentWriter, DuckDBClientParams, DuckDBTargetParams
+        import duckdb
 
         csv_location = csv_directory_location if csv_directory_location is not None else "tmp/duckdb"
         table_name = table_name if not None else "data"

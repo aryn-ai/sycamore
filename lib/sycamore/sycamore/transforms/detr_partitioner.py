@@ -100,7 +100,7 @@ class SycamorePDFPartitioner:
         extract_images=False,
         model_server_endpoint=None,
         batch_size: int = 1,
-        batch_at_a_time=False,
+        batch_at_a_time=True,
     ) -> List[List["Element"]]:
         if batch_at_a_time:
             assert model_server_endpoint is None, "batched conversion doesn't use model server"

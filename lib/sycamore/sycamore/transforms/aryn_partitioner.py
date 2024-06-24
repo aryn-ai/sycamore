@@ -17,7 +17,7 @@ class ArynPDFPartitionerException(Exception):
         self.can_retry = can_retry
 
 
-def _can_retry(e: Exception):
+def _can_retry(e: BaseException) -> bool:
     if isinstance(e, ArynPDFPartitionerException):
         return e.can_retry
     else:

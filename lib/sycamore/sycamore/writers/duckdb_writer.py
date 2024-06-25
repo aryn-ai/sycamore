@@ -57,7 +57,7 @@ class DuckDBClient(BaseDBWriter.Client):
             [
                 ("uuid", pa.string()),
                 ("embeddings", pa.list_(pa.float32())),
-                ("properties", pa.struct([])),  # Adjust based on your properties structure
+                ("properties", pa.map_(pa.string(), pa.string())),  # Adjust based on your properties structure
                 ("text_representation", pa.string()),
                 ("bbox", pa.string()),
                 ("shingles", pa.list_(pa.int64())),
@@ -67,7 +67,7 @@ class DuckDBClient(BaseDBWriter.Client):
 
         def write_batch(batch_data: dict):
             # If the file doesn't exist, write headers first
-            pa_table = pa.Table.from_pydict(batch_data)
+            pa_table = pa.Table.from_pydict(batch_data, schema=schema)
             client = duckdb.connect(str(dict_params.get("db_url")))
             nonlocal creation
             if creation:

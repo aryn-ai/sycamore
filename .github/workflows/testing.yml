@@ -13,6 +13,7 @@ env:
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
   AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
   SYCAMORE_S3_TEMP_PATH: s3://aryn-sycamore-integ-temp/
+  MODEL_SERVER_KEY: ${{ secrets.MODEL_SERVER_KEY }}
 # Permissions for AWS access
 permissions:
   id-token: write   # This is required for requesting the JWT

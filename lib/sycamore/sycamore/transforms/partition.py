@@ -17,6 +17,8 @@ from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
 from sycamore.utils import choose_device
 
+from sycamore.transforms.aryn_partitioner import _DEFAULT_ARYN_PARTITIONER_ADDRESS
+
 
 # This comparator helps sort the elements per page specifically when a page
 # has two columns
@@ -401,7 +403,6 @@ class SycamorePartitioner(Partitioner):
         table_structure_extractor=None,
         extract_images=False,
         device=None,
-        model_server_endpoint=None,
         batch_size: int = 1,
         batch_at_a_time: bool = False,
     ):
@@ -416,7 +417,6 @@ class SycamorePartitioner(Partitioner):
         self._extract_table_structure = extract_table_structure
         self._table_structure_extractor = table_structure_extractor
         self._extract_images = extract_images
-        self._model_server_endpoint = model_server_endpoint
         self._batch_size = batch_size
         self._batch_at_a_time = batch_at_a_time
 
@@ -471,7 +471,6 @@ class SycamorePartitioner(Partitioner):
                 extract_table_structure=self._extract_table_structure,
                 table_structure_extractor=self._table_structure_extractor,
                 extract_images=self._extract_images,
-                model_server_endpoint=self._model_server_endpoint,
                 batch_size=self._batch_size,
                 batch_at_a_time=self._batch_at_a_time,
             )
@@ -487,6 +486,83 @@ class SycamorePartitioner(Partitioner):
 
         document.elements = elements
         document = reorder_elements(document, self._elements_reorder)
+        return document
+
+
+class ArynPartitioner(Partitioner):
+    """
+    The ArynPartitioner runs a SycamorePartitioner on Aryn's GPU servers to offload compute.
+
+    Args:
+        aryn_token: The account token used to authenticate with Aryn's servers.
+        threshold: The threshold to use for accepting the models predicted bounding boxes. A lower
+             value will include more objects, but may have overlaps, a higher value will reduce the
+             number of overlaps, but may miss legitimate objects.
+        use_ocr: Whether to use OCR to extract text from the PDF. If false, we will attempt to extract
+             the text from the underlying PDF.
+        ocr_images: If set with use_ocr, will attempt to OCR regions of the document identified as images.
+        ocr_tables: If set with use_ocr, will attempt to OCR regions on the document identified as tables.
+             Should not be set when `extract_table_structure` is true.
+        extract_table_structure: If true, runs a separate table extraction model to extract cells from
+             regions of the document identified as tables.
+        extract_images: If true, crops each region identified as an image and attaches it to the associated
+             ImageElement. This can later be fed into the SummarizeImages transform.
+
+    Example:
+        The following shows an example of using the ArynPartitioner to partition a PDF and extract
+        both table structure and images.
+
+        .. code-block:: python
+
+            context = sycamore.init()
+            partitioner = ArynPartitioner(extract_table_structure=True, extract_images=True)
+            context.read.binary(paths, binary_format="pdf")\
+                .partition(partitioner=partitioner)
+    """
+
+    def __init__(
+        self,
+        aryn_token: str,
+        threshold: float = 0.4,
+        use_ocr: bool = False,
+        ocr_images: bool = False,
+        ocr_tables: bool = False,
+        extract_table_structure: bool = False,
+        extract_images: bool = False,
+        aryn_partitioner_address: str = _DEFAULT_ARYN_PARTITIONER_ADDRESS,
+    ):
+        super().__init__(device="cpu", batch_size=1)
+        self._aryn_token = aryn_token
+        self._threshold = threshold
+        self._use_ocr = use_ocr
+        self._ocr_images = ocr_images
+        self._ocr_tables = ocr_tables
+        self._extract_table_structure = extract_table_structure
+        self._extract_images = extract_images
+        self._aryn_partitioner_address = aryn_partitioner_address
+
+    def partition(self, document: Document):
+        binary = io.BytesIO(document.data["binary_representation"])
+        from sycamore.transforms.aryn_partitioner import ArynPDFPartitioner
+
+        try:
+            result = ArynPDFPartitioner.partition_pdf(
+                binary,
+                self._aryn_token,
+                aryn_partitioner_address=self._aryn_partitioner_address,
+                threshold=self._threshold,
+                use_ocr=self._use_ocr,
+                ocr_images=self._ocr_images,
+                ocr_tables=self._ocr_tables,
+                extract_table_structure=self._extract_table_structure,
+                extract_images=self._extract_images,
+            )
+        except Exception as e:
+            path = document.properties["path"]
+            raise RuntimeError(f"ArynPartitioner Error Processing {path}") from e
+
+        document.elements = result
+        document = reorder_elements(document, SycamorePartitioner._elements_reorder)
         return document
 
 

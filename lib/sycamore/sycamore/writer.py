@@ -7,9 +7,6 @@ from sycamore.plan_nodes import Node
 from sycamore.data import Document
 from sycamore.writers.common import HostAndPort
 from sycamore.writers.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
-import os
-import duckdb
-import glob
 
 if TYPE_CHECKING:
     # Shenanigans to avoid circular import
@@ -394,6 +391,7 @@ class DocSetWriter:
                 duckdb_read = conn.execute(f"SELECT * FROM {table_name}")
         """
         from sycamore.writers.duckdb_csv_writer import DuckDBCSVWriter, DuckDBClientParams, DuckDBTargetParams
+        from sycamore.writers.duckdb_writer import DuckDB_Writer
 
         csv_location = csv_directory_location if csv_directory_location is not None else "tmp"
         client_params = DuckDBClientParams()
@@ -405,46 +403,28 @@ class DocSetWriter:
             name="duck_write_csv_documents",
             **kwargs,
         )
+        if not execute and (db_url is None or db_url == ":default:"):
+            raise ValueError(
+                """Database cannot be run in-memory when not executed immediately. 
+                    Please specify a persistent database location"""
+            )
+        db_url = ":default:" if db_url is None else db_url
+        ddb_writer = DuckDB_Writer(
+            ddb_csv,
+            csv_location=csv_location,
+            table_name=table_name,
+            csv_directory_location=csv_directory_location,
+            db_url=db_url,
+            name="duck_write_documents",
+            **kwargs,
+        )
         if execute:
             ddb_csv.execute().materialize()
-            sql_location = os.path.join(csv_location, "*.csv")
-            self.table_name = table_name if not None else "data"
-            if bool(glob.glob(sql_location)):
-                client = duckdb.connect(":default:") if db_url is None else duckdb.connect(db_url)
-                client.sql(f"CREATE TABLE {self.table_name} AS SELECT * FROM read_csv('{sql_location}')")
-                # Flush out the csv files if not persisted
-                if not csv_directory_location:
-                    try:
-                        for root, _, files in os.walk(csv_location):
-                            for file in files:
-                                file_path = os.path.join(root, file)
-                                try:
-                                    os.unlink(file_path)
-                                except Exception as e:
-                                    print(f"Error deleting {file_path}: {e}")
-                    except Exception as e:
-                        print(f"Error deleting files in {csv_location}: {e}")
-            else:
-                print(f"No files in directory matching the pattern in {sql_location}")
+            ddb_writer.write_docs([])
             return None
         else:
             from sycamore.docset import DocSet
-            from sycamore.writers.duckdb_writer import DuckDB_Writer
 
-            if db_url is None or db_url == ":default:":
-                raise ValueError(
-                    """Database cannot be run in-memory when not executed immediately. 
-                    Please specify a persistent database location"""
-                )
-            ddb_writer = DuckDB_Writer(
-                ddb_csv,
-                csv_location=csv_location,
-                table_name=table_name,
-                csv_directory_location=csv_directory_location,
-                db_url=db_url,
-                name="duck_write_documents",
-                **kwargs,
-            )
             return DocSet(self.context, ddb_writer)
 
     def files(

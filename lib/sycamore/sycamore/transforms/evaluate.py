@@ -1,4 +1,3 @@
-import logging
 from typing import Optional, Dict, List, Union, Any
 
 from abc import ABC, abstractmethod
@@ -35,7 +34,10 @@ class QualityAssessment(Assessment):
 
 
 	@staticmethod
-	def create_evaluation_datapoint( json_dict: dict[str, Any], custom_question_augmentation: Dict  = {}, question_augmentation_filter: str  = ""  ):
+	def create_evaluation_datapoint( 
+		json_dict: Dict, 
+		custom_question_augmentation: Dict  = {}, 
+		question_augmentation_filter: str  = ""  ):
 		result = []
 		assert json_dict is not None
 		assert isinstance(json_dict,dict)
@@ -87,8 +89,7 @@ class Evaluate():
 	The Evaluate Transform runs the evaluation test for Question Answering on 
 	Index or list of indices against a ground truth
 	"""
-	def __init__(self, index: Union[str, List[str]], assessment: Optional[Assessment], **kwargs):
-		print(type(index))
+	def __init__(self, index: Union[str, List[str]], assessment: Assessment, **kwargs):
 		super().__init__()
 		if isinstance(index, List) and all(isinstance(i, str) for i in index):
 			self.result =  {index: assessment(index)for idx in index}

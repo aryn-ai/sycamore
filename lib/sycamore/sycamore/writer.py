@@ -433,7 +433,8 @@ class DocSetWriter:
 
             if db_url is None or db_url == ":default:":
                 raise ValueError(
-                    f"Database cannot run in-memory when not executed immediately. Please specify a persistent database location"
+                    """Database cannot be run in-memory when not executed immediately. 
+                    Please specify a persistent database location"""
                 )
             ddb_writer = DuckDB_Writer(
                 ddb_csv,

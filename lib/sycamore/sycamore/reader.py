@@ -7,7 +7,6 @@ from pyarrow.filesystem import FileSystem
 from sycamore import Context, DocSet
 from sycamore.data import Document
 from sycamore.scans import ArrowScan, BinaryScan, DocScan, PandasScan, JsonScan, JsonDocumentScan
-from sycamore.scans.db_scan import OpenSearchScan
 from sycamore.scans.file_scan import FileMetadataProvider
 
 
@@ -90,5 +89,7 @@ class DocSetReader:
         return DocSet(self._context, scan)
 
     def opensearch(self, os_client_args: dict, index_name: str) -> DocSet:
+        from sycamore.connectors.opensearch import OpenSearchScan
+
         scan = OpenSearchScan(index_name, os_client_args)
         return DocSet(self._context, scan)

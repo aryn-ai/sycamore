@@ -1,4 +1,4 @@
-from typing import Callable, Optional, TYPE_CHECKING
+from typing import Any, Callable, Optional, TYPE_CHECKING
 
 from pyarrow.fs import FileSystem
 
@@ -236,13 +236,13 @@ class DocSetWriter:
     def pinecone(
         self,
         *,
-        index_name,
-        index_spec=None,
-        namespace="",
-        dimensions=None,
-        distance_metric="cosine",
-        api_key=None,
-        execute=True,
+        index_name: str,
+        index_spec: Optional[Any] = None,
+        namespace: str = "",
+        dimensions: Optional[int] = None,
+        distance_metric: str = "cosine",
+        api_key: Optional[str] = None,
+        execute: bool = True,
         **kwargs,
     ) -> Optional["DocSet"]:
         """Writes the content of the DocSet into a Pinecone vector index.

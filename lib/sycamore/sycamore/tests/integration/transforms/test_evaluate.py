@@ -1,11 +1,6 @@
-from typing import Any
 
-import datasets
 import pytest
-
-import sycamore
-
-from sycamore.transforms.evaluate import * 
+from sycamore.transforms.evaluate import QualityAssessment,Evaluate
 
 
 class TestTransformEvaluate:
@@ -34,6 +29,10 @@ class TestTransformEvaluate:
     def test_pipeline(self):
         custom_question_augmentation = "{}, The product code is {}."
         question_augmentation_filter = 'properties._product_codes'
-        assessment = QualityAssessment(os_client_args=OS_CLIENT_ARGS, rag_config= OS_CONFIG, GT_path = './part_lookups.json', custom_question_augmentation=custom_question_augmentation, question_augmentation_filter = question_augmentation_filter)
+        assessment = QualityAssessment(
+            os_client_args=OS_CLIENT_ARGS, 
+            rag_config= OS_CONFIG, GT_path = './part_lookups.json', 
+            custom_question_augmentation=custom_question_augmentation, 
+            question_augmentation_filter = question_augmentation_filter)
         evaluate = Evaluate('5_sram_syca_openai_star_product_codes_20th',assessment)
         print(evaluate.result)

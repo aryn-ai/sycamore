@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Callable, Iterable, Optional, Dict, List, Union
+from typing import Optional, Dict, List, Union, Any
 
 from abc import ABC, abstractmethod
 
@@ -8,7 +8,7 @@ import sycamore
 from sycamore.reader import DocSetReader
 from sycamore.data import Document
 from sycamore.evaluation.pipeline import EvaluationPipeline
-from sycamore.evaluation import EvaluationDataPoint, EvaluationMetric
+from sycamore.evaluation import EvaluationDataPoint
 from sycamore.evaluation.metrics import document_retrieval_metrics, rouge_metrics
 
 class Assessment(ABC):
@@ -46,7 +46,9 @@ class QualityAssessment(Assessment):
 			document.filters = datapoint.get("Filters", None)
 			for filter in document.filters.keys():
 				document.filters[filter] = datapoint.get("Filters").get(filter)
-			document.question = custom_question_augmentation.format(document.question,document.filters.get(question_augmentation_filter)) 
+			document.question = custom_question_augmentation.format(
+				document.question,
+				document.filters.get(question_augmentation_filter)) 
 			source_documents = []
 			for search_result in datapoint["SearchContexts"]:
 				source_document = Document()
@@ -66,7 +68,12 @@ class QualityAssessment(Assessment):
 	def run_evaluation(self,index: str, *args, **kwargs):
 		custom_question_augmentation = str(self.custom_question_augmentation)
 		question_augmentation_filter = str(self.question_augmentation_filter)
-		input_docset = DocSetReader(self.ctx).json(paths =self.GT_path, doc_extractor= lambda json_dict: QualityAssessment.create_evaluation_datapoint(json_dict, custom_question_augmentation, question_augmentation_filter))
+		input_docset = DocSetReader(self.ctx).json(
+			paths =self.GT_path, 
+			doc_extractor= lambda json_dict: QualityAssessment.create_evaluation_datapoint(
+				json_dict, 
+				custom_question_augmentation, 
+				question_augmentation_filter))
 		pipeline = EvaluationPipeline(index = index
 									, os_client_args = self.os_client_args
 									, os_config = self.rag_config
@@ -84,7 +91,7 @@ class Evaluate():
 		print(type(index))
 		super().__init__()
 		if isinstance(index, List) and all(isinstance(i, str) for i in index):
-			self.result =  {sublist: assessment(index)for idx in index}
+			self.result =  {index: assessment(index)for idx in index}
 		elif isinstance(index, str):
 			self.result =  {index: assessment(index)}
 		else:

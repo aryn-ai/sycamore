@@ -273,14 +273,15 @@ class DocSetWriter:
     def pinecone(
         self,
         *,
-        index_name,
-        index_spec=None,
-        namespace="",
-        dimensions=None,
-        distance_metric="cosine",
-        api_key=None,
-        **resource_args,
-    ):
+        index_name: str,
+        index_spec: Optional[Any] = None,
+        namespace: str = "",
+        dimensions: Optional[int] = None,
+        distance_metric: str = "cosine",
+        api_key: Optional[str] = None,
+        execute: bool = True,
+        **kwargs,
+    ) -> Optional["DocSet"]:
         """Writes the content of the DocSet into a Pinecone vector index.
 
         Args:
@@ -299,7 +300,7 @@ class DocSetWriter:
                     Defaults to "cosine", but will not modify an already-existing index
             api_key: Pinecone service API Key. Defaults to None (will use the environment
                     variable PINECONE_API_KEY).
-            resource_args: Arguments to pass to the underlying execution engine
+            kwargs: Arguments to pass to the underlying execution engine
 
         Example:
             The following shows how to read a pdf dataset into a ``DocSet`` and write it out
@@ -328,19 +329,32 @@ class DocSetWriter:
                 )
 
         """
-        from sycamore.writers import PineconeWriter
+        from sycamore.writers.pinecone_writer import PineconeWriter, PineconeClientParams, PineconeTargetParams
+        import os
 
-        pc = PineconeWriter(
-            self.plan,
-            index_name,
-            index_spec,
-            namespace,
-            dimensions,
-            distance_metric,
-            api_key,
-            **resource_args,
+        if api_key is None:
+            api_key = os.environ.get("PINECONE_API_KEY", "")
+        assert (
+            api_key is not None
+        ), "Missing api key: either provide it as an argument or set the PINECONE_API_KEY env variable."
+        pcp = PineconeClientParams(api_key=api_key)
+        ptp = PineconeTargetParams(
+            index_name=index_name,
+            namespace=namespace,
+            index_spec=index_spec,
+            dimensions=dimensions,
+            distance_metric=distance_metric,
         )
-        pc.execute()
+
+        pc = PineconeWriter(self.plan, client_params=pcp, target_params=ptp, name="pinecone_write", **kwargs)
+        if execute:
+            # If execute, force execution
+            pc.execute().materialize()
+            return None
+        else:
+            from sycamore.docset import DocSet
+
+            return DocSet(self.context, pc)
 
     def files(
         self,

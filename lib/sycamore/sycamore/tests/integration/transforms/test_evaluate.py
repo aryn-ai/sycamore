@@ -6,7 +6,7 @@ from sycamore.transforms.evaluate import QualityAssessment,Evaluate
 class TestTransformEvaluate:
     INDEX = ""
 
-    self.OS_CLIENT_ARGS = {
+    OS_CLIENT_ARGS = {
         "hosts": [{"host": "localhost", "port": 9200}],
         "http_compress": True,
         "http_auth": ("admin", "admin"),
@@ -17,7 +17,7 @@ class TestTransformEvaluate:
         "timeout": 120,
     }
 
-    self.OS_CONFIG = {
+    OS_CONFIG = {
         "size": 10,
         "neural_search_k": 100,
         "embedding_model_id": "SE1lDZABqmytCSGjsh1L",

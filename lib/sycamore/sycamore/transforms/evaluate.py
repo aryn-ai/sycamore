@@ -1,22 +1,21 @@
-from typing import Optional, Dict, List, Union, Any
-
+from typing import Dict, List, Union, Any
 from abc import ABC, abstractmethod
 
 import os  
 import sycamore
 from sycamore.reader import DocSetReader
-from sycamore.data import Document
+from sycamore.data import Document, Element
 from sycamore.evaluation.pipeline import EvaluationPipeline
 from sycamore.evaluation import EvaluationDataPoint
 from sycamore.evaluation.metrics import document_retrieval_metrics, rouge_metrics
 
 class Assessment(ABC):
 	@abstractmethod
-	def run_evaluation(self, **kwargs):
+	def run_evaluation(self, index:str, **kwargs):
 		pass
 	
-	def __call__(self, index):
-		return self.run_evaluation(index)	
+	def __call__(self, index: str , **kwargs):
+		return self.run_evaluation(index , **kwargs)	
 	
 class QualityAssessment(Assessment): 
 	def __init__(self, GT_path: str , rag_config: Dict , **kwargs ) :
@@ -36,7 +35,7 @@ class QualityAssessment(Assessment):
 	@staticmethod
 	def create_evaluation_datapoint( 
 		json_dict: Dict, 
-		custom_question_augmentation: Dict  = {}, 
+		custom_question_augmentation: str  = "{}", 
 		question_augmentation_filter: str  = ""  ):
 		result = []
 		assert json_dict is not None
@@ -46,28 +45,32 @@ class QualityAssessment(Assessment):
 			document.raw = datapoint
 			document.ground_truth_answer = datapoint["Answer"]
 			document.filters = datapoint.get("Filters", None)
-			for filter in document.filters.keys():
-				document.filters[filter] = datapoint.get("Filters").get(filter)
-			document.question = custom_question_augmentation.format(
-				document.question,
-				document.filters.get(question_augmentation_filter)) 
-			source_documents = []
+			if document.filters:
+				for filter in document.filters.keys():
+					document.filters[filter] = datapoint.get("Filters").get(filter)
+				document.question = custom_question_augmentation.format(
+					document.question,
+					document.filters.get(question_augmentation_filter)) 
+			else:
+				document.filters = {}
+				document.question = custom_question_augmentation.format(document.question, "")
+			source_documents: List[Element] = []
 			for search_result in datapoint["SearchContexts"]:
-				source_document = Document()
+				source_document = Element()
 				properties = {
 					"_location": search_result["document_url"],
-					"page_number": search_result["page_numbers"][0]
+					"page_number": search_result["page_numbers"][0],
+					'doc_id': search_result["document_id"]
 				}
 				source_document.properties = properties
 				source_document.text_representation = search_result["text_representation"]
-				source_document.doc_id = search_result["document_id"]
 				source_documents += [source_document]
-			document.ground_truth_source_documents = source_documents
 
+			document.ground_truth_source_documents = source_documents
 			result += [{"doc": document.serialize()}]
 		return result
 
-	def run_evaluation(self,index: str, *args, **kwargs):
+	def run_evaluation(self,index: str, **kwargs):
 		custom_question_augmentation = str(self.custom_question_augmentation)
 		question_augmentation_filter = str(self.question_augmentation_filter)
 		input_docset = DocSetReader(self.ctx).json(
@@ -91,9 +94,10 @@ class Evaluate():
 	"""
 	def __init__(self, index: Union[str, List[str]], assessment: Assessment, **kwargs):
 		super().__init__()
-		if isinstance(index, List) and all(isinstance(i, str) for i in index):
-			self.result =  {index: assessment(index)for idx in index}
-		elif isinstance(index, str):
+
+		if isinstance(index, str):
 			self.result =  {index: assessment(index)}
+		elif isinstance(index, List) and all(isinstance(i, str) for i in index):
+			self.result =  {idx: assessment(idx)for idx in index}
 		else:
 			raise ValueError("Input must be a str or a list of str")

@@ -328,7 +328,7 @@ class SycamorePDFPartitioner:
         extract_images,
     ) -> Any:
         with LogTime("infer"):
-            deformable_layout = self.model.infer(batch, threshold, None)
+            deformable_layout = self.model.infer(batch, threshold)
 
         gc_tensor_dump()
         assert len(deformable_layout) == len(batch)

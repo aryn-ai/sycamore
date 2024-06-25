@@ -3,6 +3,7 @@ import sycamore
 from sycamore.data import Document, Element
 from sycamore.plan_nodes import Node
 from sycamore.connectors.opensearch import OpenSearchWriter
+from sycamore.connectors.weaviate import WeaviateDocumentWriter
 
 import json
 from pathlib import Path
@@ -13,7 +14,6 @@ from sycamore.writers.file_writer import (
     elements_to_bytes,
     json_properties_content,
 )
-from sycamore.writers.weaviate_writer import WeaviateDocumentWriter
 
 
 def generate_docs(num: int, type: str = "test", text=True, binary=False, num_elements=0) -> list[Document]:

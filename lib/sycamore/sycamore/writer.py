@@ -235,13 +235,13 @@ class DocSetWriter:
                     collection_config=collection_config_params
                 )
         """
-        from sycamore.writers.weaviate_writer import (
+        from sycamore.connectors.weaviate import (
             WeaviateDocumentWriter,
             WeaviateCrossReferenceWriter,
             WeaviateClientParams,
             WeaviateTargetParams,
-            CollectionConfigCreate,
         )
+        from sycamore.connectors.weaviate.weaviate_writer import CollectionConfigCreate
 
         if collection_config is None:
             collection_config = dict()

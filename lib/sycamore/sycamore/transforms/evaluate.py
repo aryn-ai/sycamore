@@ -1,10 +1,10 @@
-from typing import Dict, List, Union, Any
+from typing import Dict, List, Union
 from abc import ABC, abstractmethod
 
 import os  
 import sycamore
 from sycamore.reader import DocSetReader
-from sycamore.data import Document, Element
+from sycamore.data import Element
 from sycamore.evaluation.pipeline import EvaluationPipeline
 from sycamore.evaluation import EvaluationDataPoint
 from sycamore.evaluation.metrics import document_retrieval_metrics, rouge_metrics

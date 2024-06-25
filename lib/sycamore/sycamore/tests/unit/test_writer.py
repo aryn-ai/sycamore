@@ -14,7 +14,7 @@ from sycamore.writers.file_writer import (
     json_properties_content,
 )
 from sycamore.writers.weaviate_writer import WeaviateDocumentWriter
-from sycamore.writers.duckdb_csv_writer import DuckDBCSVWriter
+from sycamore.writers.duckdb_writer import DuckDBWriter
 
 
 def generate_docs(num: int, type: str = "test", text=True, binary=False, num_elements=0) -> list[Document]:
@@ -133,7 +133,7 @@ class TestDocSetWriter:
     def test_duckdb(self, mocker):
         context = mocker.Mock(spec=Context)
         docset = DocSet(context, mocker.Mock(spec=Node))
-        execute = mocker.patch.object(DuckDBCSVWriter, "execute")
+        execute = mocker.patch.object(DuckDBWriter, "execute")
         docset.write.duckdb()
         execute.assert_called_once()
 

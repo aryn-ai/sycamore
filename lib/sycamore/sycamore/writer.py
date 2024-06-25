@@ -7,6 +7,7 @@ from sycamore.plan_nodes import Node
 from sycamore.data import Document
 from sycamore.writers.common import HostAndPort
 from sycamore.writers.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
+from ray.data import ActorPoolStrategy
 
 if TYPE_CHECKING:
     # Shenanigans to avoid circular import
@@ -347,7 +348,6 @@ class DocSetWriter:
         db_url: Optional[str] = None,
         table_name: Optional[str] = None,
         execute: bool = True,
-        csv_directory_location: Optional[str] = None,
         **kwargs,
     ):
         """
@@ -390,35 +390,25 @@ class DocSetWriter:
                 conn = duckdb.connect(database=db_url)
                 duckdb_read = conn.execute(f"SELECT * FROM {table_name}")
         """
-        from sycamore.writers.duckdb_csv_writer import DuckDBCSVWriter, DuckDBClientParams, DuckDBTargetParams
-        from sycamore.writers.duckdb_writer import DuckDB_Writer
+        from sycamore.writers.duckdb_writer import DuckDBWriter, DuckDBClientParams, DuckDBTargetParams
 
-        csv_location = csv_directory_location if csv_directory_location is not None else "tmp"
         client_params = DuckDBClientParams()
-        target_params = DuckDBTargetParams(parquet_location=csv_location)
-        ddb_csv = DuckDBCSVWriter(
+        target_params = DuckDBTargetParams(db_url=db_url, table_name=table_name)
+        kwargs["compute"] = ActorPoolStrategy(size=1)
+        ddb = DuckDBWriter(
             self.plan,
             client_params=client_params,
             target_params=target_params,
-            name="duck_write_csv_documents",
-            **kwargs,
-        )
-        db_url = ":default:" if db_url is None else db_url
-        ddb_writer = DuckDB_Writer(
-            ddb_csv,
-            csv_location=csv_location,
-            table_name=table_name,
-            csv_directory_location=csv_directory_location,
-            db_url=db_url,
-            name="duck_write_documents",
+            name="duckdb_write_documents",
             **kwargs,
         )
         if execute:
-            ddb_csv.execute().materialize()
-            ddb_writer.write_docs([])
+            ddb.execute().materialize()
             return None
         else:
-            raise ValueError("Not Implemented")
+            from sycamore.docset import DocSet
+
+            return DocSet(self.context, ddb)
 
     def files(
         self,

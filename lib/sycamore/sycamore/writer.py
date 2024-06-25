@@ -403,11 +403,6 @@ class DocSetWriter:
             name="duck_write_csv_documents",
             **kwargs,
         )
-        if not execute and (db_url is None or db_url == ":default:"):
-            raise ValueError(
-                """Database cannot be run in-memory when not executed immediately. 
-                    Please specify a persistent database location"""
-            )
         db_url = ":default:" if db_url is None else db_url
         ddb_writer = DuckDB_Writer(
             ddb_csv,
@@ -423,9 +418,7 @@ class DocSetWriter:
             ddb_writer.write_docs([])
             return None
         else:
-            from sycamore.docset import DocSet
-
-            return DocSet(self.context, ddb_writer)
+            raise ValueError("Not Implemented")
 
     def files(
         self,

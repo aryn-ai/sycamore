@@ -54,9 +54,11 @@ class TestSycamorePDFPartitioner:
 
     def test_batched_sequenced(self):
         s = SycamorePDFPartitioner("Aryn/deformable-detr-DocLayNet")
-        d = compare_batched_sequenced(s, TEST_DIR / "../../../../apps/crawler/crawler/http/tests/visit_aryn.pdf")
+        d = compare_batched_sequenced(s, TEST_DIR / "../../../../apps/crawler/crawler/http/tests/visit_aryn.pdf",
+                                      cache_results=False)
         assert len(d) == 1
-        d = compare_batched_sequenced(s, TEST_DIR / "resources/data/pdfs/basic_table.pdf")
+        d = compare_batched_sequenced(s, TEST_DIR / "resources/data/pdfs/basic_table.pdf", cache_results=False)
         assert len(d) == 1
-        d = compare_batched_sequenced(s, TEST_DIR / "resources/data/pdfs/basic_table.pdf", use_ocr=True)
+        d = compare_batched_sequenced(s, TEST_DIR / "resources/data/pdfs/basic_table.pdf", use_ocr=True,
+                                      cache_results=False)
         assert len(d) == 1

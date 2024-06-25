@@ -3,6 +3,7 @@ import json
 from abc import ABC, abstractmethod
 from concurrent.futures import ProcessPoolExecutor
 from io import BytesIO, IOBase
+from pathlib import Path
 from typing import cast, Any, BinaryIO, List, Tuple, Union
 import logging
 import tracemalloc
@@ -26,6 +27,7 @@ from sycamore.data import Element, BoundingBox, ImageElement, TableElement
 from sycamore.data.element import create_element
 from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
 from sycamore.utils import choose_device
+from sycamore.utils.cache_manager import CacheManager
 from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
 from sycamore.utils.time_trace import LogTime
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
@@ -35,7 +37,7 @@ from sycamore.utils.pdf import convert_from_path_streamed_batched
 def _batchify(iterable, n=1):
     length = len(iterable)
     for i in range(0, length, n):
-        yield iterable[i : min(i + n, length)]
+        yield iterable[i: min(i + n, length)]
 
 
 class SycamorePDFPartitioner:
@@ -89,18 +91,20 @@ class SycamorePDFPartitioner:
         return inferred + unmatched
 
     def partition_pdf(
-        self,
-        file: BinaryIO,
-        threshold: float = 0.4,
-        use_ocr=False,
-        ocr_images=False,
-        ocr_tables=False,
-        extract_table_structure=False,
-        table_structure_extractor=None,
-        extract_images=False,
-        model_server_endpoint=None,
-        batch_size: int = 1,
-        batch_at_a_time=True,
+            self,
+            file: BinaryIO,
+            threshold: float = 0.4,
+            use_ocr=False,
+            ocr_images=False,
+            ocr_tables=False,
+            extract_table_structure=False,
+            table_structure_extractor=None,
+            extract_images=False,
+            model_server_endpoint=None,
+            batch_size: int = 1,
+            batch_at_a_time=True,
+            cache_results=True,
+            cache_location=""
     ) -> List[List["Element"]]:
         if batch_at_a_time:
             assert model_server_endpoint is None, "batched conversion doesn't use model server"
@@ -114,6 +118,8 @@ class SycamorePDFPartitioner:
                 table_structure_extractor,
                 extract_images,
                 batch_size,
+                cache_results,
+                cache_location
             )
         else:
             return self._partition_pdf_sequenced(
@@ -127,20 +133,24 @@ class SycamorePDFPartitioner:
                 extract_images,
                 model_server_endpoint,
                 batch_size,
+                cache_results,
+                cache_location
             )
 
     def _partition_pdf_sequenced(
-        self,
-        file: BinaryIO,
-        threshold: float = 0.4,
-        use_ocr=False,
-        ocr_images=False,
-        ocr_tables=False,
-        extract_table_structure=False,
-        table_structure_extractor=None,
-        extract_images=False,
-        model_server_endpoint=None,
-        batch_size: int = 1,
+            self,
+            file: BinaryIO,
+            threshold: float = 0.4,
+            use_ocr=False,
+            ocr_images=False,
+            ocr_tables=False,
+            extract_table_structure=False,
+            table_structure_extractor=None,
+            extract_images=False,
+            model_server_endpoint=None,
+            batch_size: int = 1,
+            cache_results=True,
+            cache_location=""
     ) -> List[List["Element"]]:
         """
         Partitions a PDF with the DeformableDETR model.
@@ -175,7 +185,7 @@ class SycamorePDFPartitioner:
         deformable_layout = []
         with LogTime("all_batches"):
             for i, batch in enumerate(batches):
-                with LogTime(f"infer_one_batch {i}/{len(images)/batch_size}"):
+                with LogTime(f"infer_one_batch {i}/{len(images) / batch_size}"):
                     deformable_layout += self.model.infer(batch, threshold, model_server_endpoint)
 
         if use_ocr:
@@ -188,7 +198,7 @@ class SycamorePDFPartitioner:
                 # but typing.BinaryIO doesn't extend from it. BytesIO
                 # (the concrete class) implements both.
                 with LogTime("pdfminer_extract", log_start=True):
-                    pdfminer_layout = pdfminer.extract(cast(IOBase, file))
+                    pdfminer_layout = pdfminer.extract(cast(IOBase, file), cache_results, cache_location)
                 # page count should be the same
                 assert len(pdfminer_layout) == len(deformable_layout)
 
@@ -218,16 +228,18 @@ class SycamorePDFPartitioner:
         return deformable_layout
 
     def _partition_pdf_batched(
-        self,
-        file: BinaryIO,
-        threshold: float = 0.4,
-        use_ocr=False,
-        ocr_images=False,
-        ocr_tables=False,
-        extract_table_structure=False,
-        table_structure_extractor=None,
-        extract_images=False,
-        batch_size: int = 1,
+            self,
+            file: BinaryIO,
+            threshold: float = 0.4,
+            use_ocr=False,
+            ocr_images=False,
+            ocr_tables=False,
+            extract_table_structure=False,
+            table_structure_extractor=None,
+            extract_images=False,
+            batch_size: int = 1,
+            cache_results=True,
+            cache_location=""
     ) -> List[List["Element"]]:
         LogTime("partition_start", point=True)
         with tempfile.NamedTemporaryFile(prefix="detr-pdf-input-") as pdffile:
@@ -250,19 +262,23 @@ class SycamorePDFPartitioner:
                 table_structure_extractor,
                 extract_images,
                 batch_size,
+                cache_results,
+                cache_location
             )
 
     def _partition_pdf_batched_named(
-        self,
-        filename: str,
-        threshold: float = 0.4,
-        use_ocr=False,
-        ocr_images=False,
-        ocr_tables=False,
-        extract_table_structure=False,
-        table_structure_extractor=None,
-        extract_images=False,
-        batch_size: int = 1,
+            self,
+            filename: str,
+            threshold: float = 0.4,
+            use_ocr=False,
+            ocr_images=False,
+            ocr_tables=False,
+            extract_table_structure=False,
+            table_structure_extractor=None,
+            extract_images=False,
+            batch_size: int = 1,
+            cache_results=True,
+            cache_location=""
     ) -> List[List["Element"]]:
         if extract_table_structure and not table_structure_extractor:
             table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
@@ -271,7 +287,7 @@ class SycamorePDFPartitioner:
         exec = ProcessPoolExecutor(max_workers=1)
         if not use_ocr:
             with LogTime("start_pdfminer", log_start=True):
-                pdfminer = exec.submit(self._run_pdfminer, filename)
+                pdfminer = exec.submit(self._run_pdfminer, filename, cache_results, cache_location)
 
         deformable_layout = []
         if tracemalloc.is_tracing():
@@ -316,23 +332,23 @@ class SycamorePDFPartitioner:
         return deformable_layout
 
     @staticmethod
-    def _run_pdfminer(pdf_path):
+    def _run_pdfminer(pdf_path, cache_results, cache_location):
         pdfminer = PDFMinerExtractor()
         with LogTime("pdfminer_extract", log_start=True):
-            pdfminer_layout = pdfminer.extract(pdf_path)
+            pdfminer_layout = pdfminer.extract(pdf_path, cache_results, cache_location)
 
         return pdfminer_layout
 
     def process_batch(
-        self,
-        batch: list[Image.Image],
-        threshold,
-        use_ocr,
-        ocr_images,
-        ocr_tables,
-        extract_table_structure,
-        table_structure_extractor,
-        extract_images,
+            self,
+            batch: list[Image.Image],
+            threshold,
+            use_ocr,
+            ocr_images,
+            ocr_tables,
+            extract_table_structure,
+            table_structure_extractor,
+            extract_images,
     ) -> Any:
         with LogTime("infer"):
             deformable_layout = self.model.infer(batch, threshold, None)
@@ -419,7 +435,7 @@ class DeformableDetr(SycamoreObjectDetection):
         return choose_device(self.device, detr=True)
 
     def infer(
-        self, images: List[Image.Image], threshold: float, model_server_endpoint: str = ""
+            self, images: List[Image.Image], threshold: float, model_server_endpoint: str = ""
     ) -> List[List[Element]]:
         if model_server_endpoint:
             endpoint = model_server_endpoint + self._model_name_or_path
@@ -479,8 +495,8 @@ class PDFMinerExtractor:
 
     @staticmethod
     def _convert_bbox_coordinates(
-        rect: Tuple[float, float, float, float],
-        height: float,
+            rect: Tuple[float, float, float, float],
+            height: float,
     ) -> Tuple[float, float, float, float]:
         """
         pdf coordinates are different, bottom left is origin, also two diagonal points defining a rectangle is
@@ -492,33 +508,44 @@ class PDFMinerExtractor:
         y2 = height - y2
         return x1, y1, x2, y2
 
-    def extract(self, filename: Union[str, IOBase]) -> List[List[Element]]:
+    def extract(self, filename: Union[str, IOBase], cache_results=True, cache_location="") -> List[List[Element]]:
         # The naming is slightly confusing, but `open_filename` accepts either
         # a filename (str) or a file-like object (IOBase)
-        with open_filename(filename, "rb") as fp:
-            fp = cast(BinaryIO, fp)
-            pages = []
-            for page, page_layout in self._open_pdfminer_pages_generator(fp):
-                width = page_layout.width
-                height = page_layout.height
-                texts: List[Element] = []
-                for obj in page_layout:
-                    x1, y1, x2, y2 = self._convert_bbox_coordinates(obj.bbox, height)
+        cache_dir = cache_location if cache_location else os.path.dirname(__file__)
+        cache_loc = cache_dir + "/PDFMiner_Cache"
+        Path(cache_loc).mkdir(exist_ok=True)
+        file_loc = os.path.join(cache_loc, CacheManager.get_hash_key(filename))
+        if os.path.exists(file_loc):
+            logging.info("Cache Hit for PDFMiner. Getting the result from cache.")
+            return CacheManager.get_cached_result(file_loc)
+        else:
+            with open_filename(filename, "rb") as fp:
+                fp = cast(BinaryIO, fp)
+                pages = []
+                for page, page_layout in self._open_pdfminer_pages_generator(fp):
+                    width = page_layout.width
+                    height = page_layout.height
+                    texts: List[Element] = []
+                    for obj in page_layout:
+                        x1, y1, x2, y2 = self._convert_bbox_coordinates(obj.bbox, height)
 
-                    if hasattr(obj, "get_text"):
-                        text = Element()
-                        text.type = "text"
-                        text.bbox = BoundingBox(x1 / width, y1 / height, x2 / width, y2 / height)
-                        text.text_representation = obj.get_text()
-                        if text.text_representation:
-                            texts.append(text)
+                        if hasattr(obj, "get_text"):
+                            text = Element()
+                            text.type = "text"
+                            text.bbox = BoundingBox(x1 / width, y1 / height, x2 / width, y2 / height)
+                            text.text_representation = obj.get_text()
+                            if text.text_representation:
+                                texts.append(text)
 
-                pages.append(texts)
-            return pages
+                    pages.append(texts)
+                if cache_results:
+                    logging.info("Cache Miss for PDFMiner. Storing the result to the cache.")
+                    CacheManager.cache_result(pages, file_loc)
+                return pages
 
 
 def extract_ocr(
-    images: list[Image.Image], elements: list[list[Element]], ocr_images=False, ocr_tables=False
+        images: list[Image.Image], elements: list[list[Element]], ocr_images=False, ocr_tables=False
 ) -> list[list[Element]]:
     for i, image in enumerate(images):
         width, height = image.size

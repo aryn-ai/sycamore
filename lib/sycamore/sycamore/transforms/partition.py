@@ -404,6 +404,8 @@ class SycamorePartitioner(Partitioner):
         model_server_endpoint=None,
         batch_size: int = 1,
         batch_at_a_time: bool = False,
+        cache_results=True,
+        cache_location=""
     ):
         device = choose_device(device)
         super().__init__(device=device, batch_size=batch_size)
@@ -419,6 +421,8 @@ class SycamorePartitioner(Partitioner):
         self._model_server_endpoint = model_server_endpoint
         self._batch_size = batch_size
         self._batch_at_a_time = batch_at_a_time
+        self.cache_results = cache_results
+        self.cache_location = cache_location
 
     # For now, we reorder elements based on page, left/right column, y axle position then finally x axle position
     @staticmethod
@@ -474,6 +478,8 @@ class SycamorePartitioner(Partitioner):
                 model_server_endpoint=self._model_server_endpoint,
                 batch_size=self._batch_size,
                 batch_at_a_time=self._batch_at_a_time,
+                cache_results=self.cache_results,
+                cache_location=self.cache_location
             )
         except Exception as e:
             path = document.properties["path"]

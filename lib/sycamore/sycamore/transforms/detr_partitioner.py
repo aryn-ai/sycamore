@@ -411,9 +411,7 @@ class DeformableDetr(SycamoreObjectDetection):
     def _get_device(self) -> str:
         return choose_device(self.device, detr=True)
 
-    def infer(
-        self, images: List[Image.Image], threshold: float
-    ) -> List[List[Element]]:
+    def infer(self, images: List[Image.Image], threshold: float) -> List[List[Element]]:
         results = []
         inputs = self.processor(images=images, return_tensors="pt").to(self._get_device())
         outputs = self.model(**inputs)

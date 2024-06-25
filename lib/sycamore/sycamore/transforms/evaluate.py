@@ -16,7 +16,7 @@ class Assessment(ABC):
 	def run_evaluation(self, **kwargs):
 		pass
 	
-	def run(self, index):
+	def __call__(self, index):
 		return self.run_evaluation(index)	
 	
 class QualityAssessment(Assessment): 
@@ -84,8 +84,8 @@ class Evaluate():
 		print(type(index))
 		super().__init__()
 		if isinstance(index, List) and all(isinstance(i, str) for i in index):
-			self.result =  {sublist: assessment.run(index)for idx in index}
+			self.result =  {sublist: assessment(index)for idx in index}
 		elif isinstance(index, str):
-			self.result =  {index: assessment.run(index)}
+			self.result =  {index: assessment(index)}
 		else:
 			raise ValueError("Input must be a str or a list of str")

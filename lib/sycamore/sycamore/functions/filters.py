@@ -1,6 +1,7 @@
 from sycamore.llms.openai import OpenAI
 from sycamore.data import Document
 
+
 def llm_filter(
     client: OpenAI,
     doc: Document,
@@ -8,7 +9,7 @@ def llm_filter(
     text: str = None,
     filter_prompt: str = None,
     system_prompt: str = None,
-    threshold: int = 3
+    threshold: int = 3,
 ) -> bool:
     """This operation filters your DocSet to only keep documents that score greater
     than or equal to the inputted threshold value from an LLM call that returns an int.
@@ -21,7 +22,7 @@ def llm_filter(
         filter_prompt: Custom prompt that you can use for filtering
         system_prompt: Custom prompt to the system
         threshold: Threshold for success, e.g. 3 (default scale is 0-5)
-    
+
     Returns:
         A boolean that indicates whether or not the text was accepted by the LLM Filter
 
@@ -44,7 +45,7 @@ def llm_filter(
         filter_prompt = f"""Given an entry and a question, you will answer the question relating to the entry. 
                 You only respond with 0, 1, 2, 3, 4, or 5 based on your confidence level. 0 is the most negative 
                 answer and 5 is the most positive answer. Question: {filter_question}; Entry: {text}"""
-    
+
     # sets prompt
     messages = [
         {
@@ -54,10 +55,10 @@ def llm_filter(
         {
             "role": "user",
             "content": filter_prompt,
-        }
+        },
     ]
     prompt_kwargs = {"messages": messages}
-        
+
     # call to LLM
     completion = client.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
 
@@ -70,6 +71,7 @@ def llm_filter(
         raise
 
     return return_value
+
 
 def match_filter(query: any, input: any) -> bool:
     """This operation filters your Docset to only keep documents that match the
@@ -99,8 +101,9 @@ def match_filter(query: any, input: any) -> bool:
     # if not string, exact match
     return query == input
 
+
 def range_filter(start: any, end: any, input: any) -> bool:
-    """This operation filters your Docset to only keep documents for which the value of the 
+    """This operation filters your Docset to only keep documents for which the value of the
     specified input is within the start:end range.
 
     Args:

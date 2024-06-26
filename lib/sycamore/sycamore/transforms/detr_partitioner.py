@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 import gc
 import gzip
 import json
@@ -5,7 +6,6 @@ import logging
 import os
 import tempfile
 import tracemalloc
-from abc import ABC, abstractmethod
 from concurrent.futures import ProcessPoolExecutor
 from io import BytesIO, IOBase
 from typing import cast, Any, BinaryIO, List, Tuple, Union
@@ -13,7 +13,6 @@ from typing import cast, Any, BinaryIO, List, Tuple, Union
 import easyocr
 import pdf2image
 import pytesseract
-import requests
 import torch
 from PIL import Image
 from pdfminer.converter import PDFPageAggregator
@@ -99,13 +98,11 @@ class SycamorePDFPartitioner:
         extract_table_structure=False,
         table_structure_extractor=None,
         extract_images=False,
-        model_server_endpoint=None,
         batch_size: int = 1,
         batch_at_a_time=True,
         cache_results=True,
     ) -> List[List["Element"]]:
         if batch_at_a_time:
-            assert model_server_endpoint is None, "batched conversion doesn't use model server"
             return self._partition_pdf_batched(
                 file,
                 threshold,
@@ -128,7 +125,6 @@ class SycamorePDFPartitioner:
                 extract_table_structure,
                 table_structure_extractor,
                 extract_images,
-                model_server_endpoint,
                 batch_size,
                 cache_results,
             )
@@ -143,7 +139,6 @@ class SycamorePDFPartitioner:
         extract_table_structure=False,
         table_structure_extractor=None,
         extract_images=False,
-        model_server_endpoint=None,
         batch_size: int = 1,
         cache_results=True,
     ) -> List[List["Element"]]:
@@ -180,8 +175,8 @@ class SycamorePDFPartitioner:
         deformable_layout = []
         with LogTime("all_batches"):
             for i, batch in enumerate(batches):
-                with LogTime(f"infer_one_batch {i}/{len(images) / batch_size}"):
-                    deformable_layout += self.model.infer(batch, threshold, model_server_endpoint)
+                with LogTime(f"infer_one_batch {i}/{len(images)/batch_size}"):
+                    deformable_layout += self.model.infer(batch, threshold)
 
         if use_ocr:
             with LogTime("ocr"):
@@ -343,7 +338,7 @@ class SycamorePDFPartitioner:
         extract_images,
     ) -> Any:
         with LogTime("infer"):
-            deformable_layout = self.model.infer(batch, threshold, None)
+            deformable_layout = self.model.infer(batch, threshold)
 
         gc_tensor_dump()
         assert len(deformable_layout) == len(batch)
@@ -426,35 +421,19 @@ class DeformableDetr(SycamoreObjectDetection):
     def _get_device(self) -> str:
         return choose_device(self.device, detr=True)
 
-    def infer(
-        self, images: List[Image.Image], threshold: float, model_server_endpoint: str = ""
-    ) -> List[List[Element]]:
-        if model_server_endpoint:
-            endpoint = model_server_endpoint + self._model_name_or_path
-            metadata = {
-                "threshold": threshold,
-                "modes": [image.mode for image in images],
-                "sizes": [image.size for image in images],
-            }
-            metadata_string = json.dumps(metadata)
-            files = [("metadata", gzip.compress(metadata_string.encode("utf-8")))] + [
-                ("images", gzip.compress(image.tobytes())) for image in images
-            ]
-            response = requests.post(endpoint, files=files)
-            results = response.json()
-        else:
-            results = []
-            inputs = self.processor(images=images, return_tensors="pt").to(self._get_device())
-            outputs = self.model(**inputs)
-            target_sizes = torch.tensor([image.size[::-1] for image in images])
-            results.extend(
-                self.processor.post_process_object_detection(outputs, target_sizes=target_sizes, threshold=threshold)
-            )
+    def infer(self, images: List[Image.Image], threshold: float) -> List[List[Element]]:
+        results = []
+        inputs = self.processor(images=images, return_tensors="pt").to(self._get_device())
+        outputs = self.model(**inputs)
+        target_sizes = torch.tensor([image.size[::-1] for image in images])
+        results.extend(
+            self.processor.post_process_object_detection(outputs, target_sizes=target_sizes, threshold=threshold)
+        )
 
-            for result in results:
-                result["scores"] = result["scores"].tolist()
-                result["labels"] = result["labels"].tolist()
-                result["boxes"] = result["boxes"].tolist()
+        for result in results:
+            result["scores"] = result["scores"].tolist()
+            result["labels"] = result["labels"].tolist()
+            result["boxes"] = result["boxes"].tolist()
 
         batched_results = []
         for result, image in zip(results, images):

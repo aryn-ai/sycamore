@@ -86,8 +86,34 @@ class QualityAssessment(Assessment):
 
 class Evaluate:
     """
-    The Evaluate Transform runs the evaluation test on
+    The Evaluate runs the evaluation test on
     Index or list of indices against a ground truth
+
+    Args:
+        context: The Sycamore context to use
+        index: Index or list of Index
+        assessment: The Assessment to run
+        GT_path: The path to ground truth
+        rag_config: Configration for RAG
+        os_client_args: Configration for connecting to opensearch
+        custom_question_augmentation: Custom String for Augmenting question
+        question_augmentation_filter: Filters values to be use in custom Question Augmentation
+
+    Returns:
+        Two EvaluationDataPoint, one for query level information and another with aggregate information
+
+    Example:
+        context = sycamore.init()
+
+        custom_question_augmentation = "{}, The product code is {}."
+        question_augmentation_filter = 'properties._product_codes'
+
+        assessment = QualityAssessment(os_client_args=OS_CLIENT_ARGS,
+            rag_config= OS_CONFIG,
+            GT_path = './test.json',
+            custom_question_augmentation=custom_question_augmentation,
+            question_augmentation_filter = question_augmentation_filter)
+        evaluate = Evaluate(context,'index_V1',assessment)
     """
 
     def __init__(self, context: Context, index: Union[str, List[str]], assessment: Assessment, **kwargs):

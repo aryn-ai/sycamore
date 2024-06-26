@@ -15,7 +15,6 @@ class DuckDBScan(Scan):
         con = duckdb.connect(database=self._db_url, read_only=True)
         data = con.execute(f"SELECT * from {self._table_name}").fetchdf().to_dict(orient="records")
         for object in data:
-            print(object)
             doc = Document(object)
             documents.append(doc)
 

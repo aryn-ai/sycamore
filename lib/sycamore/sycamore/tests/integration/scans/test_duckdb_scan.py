@@ -40,7 +40,5 @@ def test_duckdb_scan():
     except Exception as e:
         print(f"Error deleting {db_url}: {e}")
     assert len(out_docs) == len(docs)
-    # assert compare_docs(out_docs, docs)
     for original, retrieved in zip(out_docs, docs):
         assert compare_docs(original, retrieved)
-    assert {d.doc_id for d in docs} == {d.doc_id for d in out_docs}

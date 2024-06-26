@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from sycamore.data.document import Document, MetadataDocument
 from sycamore.plan_nodes import Node
-from sycamore.writers.base import BaseDBWriter
+from sycamore.connectors.writers.base import BaseDBWriter
 import pytest
 
 

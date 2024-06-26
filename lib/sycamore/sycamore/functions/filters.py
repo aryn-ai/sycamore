@@ -38,7 +38,7 @@ def llm_filter(
         text = doc.text_representation
 
     if system_prompt is None:
-        system_prompt = f"You are a helpful classifier that generously filters database entries based on questions."
+        system_prompt = "You are a helpful classifier that generously filters database entries based on questions."
 
     if filter_prompt is None:
         filter_prompt = f"""Given an entry and a question, you will answer the question relating to the entry. 
@@ -67,6 +67,7 @@ def llm_filter(
     except:
         # accounts for llm output errors
         return_value = False
+        raise
 
     return return_value
 

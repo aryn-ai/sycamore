@@ -7,6 +7,7 @@ from sycamore.plan_nodes import Node
 from sycamore.data import Document
 from sycamore.writers.common import HostAndPort
 from sycamore.writers.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
+from ray.data import ActorPoolStrategy
 
 if TYPE_CHECKING:
     # Shenanigans to avoid circular import
@@ -355,6 +356,71 @@ class DocSetWriter:
             from sycamore.docset import DocSet
 
             return DocSet(self.context, pc)
+
+    def duckdb(
+        self,
+        db_url: Optional[str] = None,
+        table_name: Optional[str] = None,
+        execute: bool = True,
+        **kwargs,
+    ):
+        """
+        Writes the content of the DocSet into a DuckDB database.
+
+        Args:
+            db_url: The URL of the DuckDB database. If not provided, the database will be in-memory.
+            table_name: The table name to write the data to when possible
+            execute: Flag that determines whether to execute immediately
+
+        Example:
+            The following shows how to read a pdf dataset into a ``DocSet`` and write it out
+            to a DuckDB database and read from it.
+
+            .. code-block:: python
+                table_name = "duckdb_table"
+                db_url = "tmp.db"
+                model_name = "sentence-transformers/all-MiniLM-L6-v2"
+                paths = str(TEST_DIR / "resources/data/pdfs/")
+
+                OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
+                tokenizer = HuggingFaceTokenizer(model_name)
+
+                ctx = sycamore.init(ray_args={"runtime_env": {"worker_process_setup_hook": ray_logging_setup}})
+
+                ds = (
+                    ctx.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=UnstructuredPdfPartitioner())
+                    .regex_replace(COALESCE_WHITESPACE)
+                    .mark_bbox_preset(tokenizer=tokenizer)
+                    .merge(merger=MarkedMerger())
+                    .spread_properties(["path"])
+                    .split_elements(tokenizer=tokenizer, max_tokens=512)
+                    .explode()
+                    .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
+                )
+                ds.write.duckdb(table_name=table_name, db_url=db_url)
+                conn = duckdb.connect(database=db_url)
+                duckdb_read = conn.execute(f"SELECT * FROM {table_name}")
+        """
+        from sycamore.writers.duckdb_writer import DuckDBWriter, DuckDBClientParams, DuckDBTargetParams
+
+        client_params = DuckDBClientParams()
+        target_params = DuckDBTargetParams(db_url=db_url, table_name=table_name)
+        kwargs["compute"] = ActorPoolStrategy(size=1)
+        ddb = DuckDBWriter(
+            self.plan,
+            client_params=client_params,
+            target_params=target_params,
+            name="duckdb_write_documents",
+            **kwargs,
+        )
+        if execute:
+            ddb.execute().materialize()
+            return None
+        else:
+            from sycamore.docset import DocSet
+
+            return DocSet(self.context, ddb)
 
     def files(
         self,

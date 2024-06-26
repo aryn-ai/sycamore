@@ -93,3 +93,10 @@ class DocSetReader:
 
         scan = OpenSearchScan(index_name, os_client_args)
         return DocSet(self._context, scan)
+
+    def weaviate(self, wv_client_args: dict, collection_name: str) -> DocSet:
+        from sycamore.connectors.weaviate import WeaviateScan, WeaviateClientParams
+
+        client_params = WeaviateClientParams(**wv_client_args)
+        scan = WeaviateScan(collection_name, client_params)
+        return DocSet(self._context, scan)

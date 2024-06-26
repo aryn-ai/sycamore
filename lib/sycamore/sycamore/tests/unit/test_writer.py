@@ -14,11 +14,7 @@ from sycamore.writers.file_writer import (
     elements_to_bytes,
     json_properties_content,
 )
-<<<<<<< hml-weaviate-scan
-=======
-from sycamore.writers.weaviate_writer import WeaviateDocumentWriter
 from sycamore.writers.duckdb_writer import DuckDBWriter
->>>>>>> main
 
 
 def generate_docs(num: int, type: str = "test", text=True, binary=False, num_elements=0) -> list[Document]:

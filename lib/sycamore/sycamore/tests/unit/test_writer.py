@@ -14,7 +14,7 @@ from sycamore.writers.file_writer import (
     json_properties_content,
 )
 from sycamore.writers.weaviate_writer import WeaviateDocumentWriter
-from sycamore.writers.duckdb_writer import DuckDBWriter
+from sycamore.connectors.duckdb.duckdb_writer import DuckDBWriter
 
 
 def generate_docs(num: int, type: str = "test", text=True, binary=False, num_elements=0) -> list[Document]:

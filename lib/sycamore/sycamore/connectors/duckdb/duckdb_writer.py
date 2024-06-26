@@ -3,8 +3,8 @@ from typing import Optional, Any, Dict
 from typing_extensions import TypeGuard
 
 from sycamore.data.document import Document
-from sycamore.writers.base import BaseDBWriter
-from sycamore.writers.common import convert_to_str_dict
+from sycamore.connectors.writers.base import BaseDBWriter
+from sycamore.connectors.writers.common import convert_to_str_dict
 import pyarrow as pa
 import duckdb
 import os
@@ -22,7 +22,7 @@ class DuckDBTargetParams(BaseDBWriter.TargetParams):
     batch_size: int = 1000
     schema: Optional[Dict[str, str]] = field(
         default_factory=lambda: {
-            "uuid": "VARCHAR",
+            "doc_id": "VARCHAR",
             "embeddings": "DOUBLE[]",
             "properties": "MAP(VARCHAR, VARCHAR)",
             "text_representation": "VARCHAR",
@@ -58,10 +58,10 @@ class DuckDBClient(BaseDBWriter.Client):
         assert isinstance(target_params, DuckDBTargetParams), f"Wrong kind of target parameters found: {target_params}"
         dict_params = asdict(target_params)
         N = target_params.batch_size * 1024  # Around 1 MB
-        headers = ["uuid", "embeddings", "properties", "text_representation", "bbox", "shingles", "type"]
+        headers = ["doc_id", "embeddings", "properties", "text_representation", "bbox", "shingles", "type"]
         schema = pa.schema(
             [
-                ("uuid", pa.string()),
+                ("doc_id", pa.string()),
                 ("embeddings", pa.list_(pa.float32())),
                 ("properties", pa.map_(pa.string(), pa.string())),
                 ("text_representation", pa.string()),
@@ -82,7 +82,7 @@ class DuckDBClient(BaseDBWriter.Client):
 
         for r in records:
             # Append the new data to the batch
-            batch_data["uuid"].append(r.uuid)
+            batch_data["doc_id"].append(r.doc_id)
             batch_data["embeddings"].append(r.embeddings)
             batch_data["properties"].append(convert_to_str_dict(r.properties) if r.properties else {})
             batch_data["text_representation"].append(r.text_representation)
@@ -94,7 +94,7 @@ class DuckDBClient(BaseDBWriter.Client):
             if batch_data.__sizeof__() >= N:
                 write_batch(batch_data)
         # Write any remaining records
-        if len(batch_data["uuid"]) > 0:
+        if len(batch_data["doc_id"]) > 0:
             write_batch(batch_data)
 
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
@@ -105,7 +105,7 @@ class DuckDBClient(BaseDBWriter.Client):
         try:
             if schema:
                 client.sql(
-                    f"""CREATE TABLE {dict_params.get('table_name')} (uuid {schema.get('uuid')},
+                    f"""CREATE TABLE {dict_params.get('table_name')} (doc_id {schema.get('doc_id')},
                       embeddings {schema.get('embeddings')}, properties {schema.get('properties')}, 
                       text_representation {schema.get('text_representation')}, bbox {schema.get('bbox')}, 
                       shingles {schema.get('shingles')}, type {schema.get('type')})"""
@@ -142,7 +142,7 @@ class DuckDBClient(BaseDBWriter.Client):
 
 @dataclass
 class DuckDBDocumentRecord(BaseDBWriter.Record):
-    uuid: str
+    doc_id: str
     embeddings: Optional[list[float]] = None
     properties: Optional[dict[str, Any]] = None
     text_representation: Optional[str] = None
@@ -153,12 +153,12 @@ class DuckDBDocumentRecord(BaseDBWriter.Record):
     @classmethod
     def from_doc(cls, document: Document, target_params: BaseDBWriter.TargetParams) -> "DuckDBDocumentRecord":
         assert isinstance(target_params, DuckDBTargetParams)
-        uuid = document.doc_id
-        if uuid is None:
+        doc_id = document.doc_id
+        if doc_id is None:
             raise ValueError(f"Cannot write documents without a doc_id. Found {document}")
         embedding = document.embedding
         return DuckDBDocumentRecord(
-            uuid=uuid,
+            doc_id=doc_id,
             properties=document.properties,
             type=document.type,
             text_representation=document.text_representation,

@@ -9,6 +9,29 @@ class HostAndPort:
     port: int
 
 
+DEFAULT_RECORD_PROPERTIES: dict[str, Any] = {
+    "doc_id": None,
+    "type": None,
+    "text_representation": None,
+    "elements": [],
+    "embedding": None,
+    "parent_id": None,
+    "properties": {},
+    "bbox": None,
+    "shingles": None,
+}
+
+
+def filter_doc(obj, include):
+    return {k: v for k, v in obj.__dict__.items() if k in include}
+
+
+def compare_docs(doc1, doc2):
+    filtered_doc1 = filter_doc(doc1, DEFAULT_RECORD_PROPERTIES.keys())
+    filtered_doc2 = filter_doc(doc2, DEFAULT_RECORD_PROPERTIES.keys())
+    return filtered_doc1 == filtered_doc2
+
+
 def _add_key_to_prefix(prefix, key):
     if len(prefix) == 0:
         return str(key)

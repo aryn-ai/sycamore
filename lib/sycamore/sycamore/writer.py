@@ -5,7 +5,7 @@ from pyarrow.fs import FileSystem
 from sycamore import Context
 from sycamore.plan_nodes import Node
 from sycamore.data import Document
-from sycamore.writers.common import HostAndPort
+from sycamore.connectors.writers.common import HostAndPort
 from sycamore.writers.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
 from ray.data import ActorPoolStrategy
 
@@ -402,7 +402,7 @@ class DocSetWriter:
                 conn = duckdb.connect(database=db_url)
                 duckdb_read = conn.execute(f"SELECT * FROM {table_name}")
         """
-        from sycamore.writers.duckdb_writer import DuckDBWriter, DuckDBClientParams, DuckDBTargetParams
+        from sycamore.connectors.duckdb.duckdb_writer import DuckDBWriter, DuckDBClientParams, DuckDBTargetParams
 
         client_params = DuckDBClientParams()
         target_params = DuckDBTargetParams(db_url=db_url, table_name=table_name)

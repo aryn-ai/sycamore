@@ -1,3 +1,4 @@
+from typing import Optional, Any
 from sycamore.llms.openai import OpenAI
 from sycamore.data import Document
 
@@ -6,9 +7,9 @@ def llm_filter(
     client: OpenAI,
     doc: Document,
     filter_question: str,
-    text: str = None,
-    filter_prompt: str = None,
-    system_prompt: str = None,
+    text: Optional[str] = None,
+    filter_prompt: Optional[str] = None,
+    system_prompt: Optional[str] = None,
     threshold: int = 3,
 ) -> bool:
     """This operation filters your DocSet to only keep documents that score greater
@@ -73,7 +74,7 @@ def llm_filter(
     return return_value
 
 
-def match_filter(query: any, input: any) -> bool:
+def match_filter(query: Any, input: Any) -> bool:
     """This operation filters your Docset to only keep documents that match the
     query on the specified input. If the query/input are strings, it looks for
     a substring match. For any type other than strings, it looks for an exact match.
@@ -102,7 +103,7 @@ def match_filter(query: any, input: any) -> bool:
     return query == input
 
 
-def range_filter(start: any, end: any, input: any) -> bool:
+def range_filter(start: Any, end: Any, input: Any) -> bool:
     """This operation filters your Docset to only keep documents for which the value of the
     specified input is within the start:end range.
 

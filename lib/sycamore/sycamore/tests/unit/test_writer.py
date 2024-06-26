@@ -1,5 +1,5 @@
-from sycamore import DocSet, Context
 import sycamore
+from sycamore import DocSet, Context
 from sycamore.data import Document, Element
 from sycamore.plan_nodes import Node
 from sycamore.connectors.opensearch import OpenSearchWriter
@@ -14,6 +14,7 @@ from sycamore.writers.file_writer import (
     json_properties_content,
 )
 from sycamore.writers.weaviate_writer import WeaviateDocumentWriter
+from sycamore.writers.duckdb_writer import DuckDBWriter
 
 
 def generate_docs(num: int, type: str = "test", text=True, binary=False, num_elements=0) -> list[Document]:
@@ -127,6 +128,13 @@ class TestDocSetWriter:
         docset = DocSet(context, mocker.Mock(spec=Node))
         execute = mocker.patch.object(WeaviateDocumentWriter, "execute")
         docset.write.weaviate(wv_client_args={}, collection_name="Collection")
+        execute.assert_called_once()
+
+    def test_duckdb(self, mocker):
+        context = mocker.Mock(spec=Context)
+        docset = DocSet(context, mocker.Mock(spec=Node))
+        execute = mocker.patch.object(DuckDBWriter, "execute")
+        docset.write.duckdb()
         execute.assert_called_once()
 
     def test_file_writer_text(self, tmp_path: Path):

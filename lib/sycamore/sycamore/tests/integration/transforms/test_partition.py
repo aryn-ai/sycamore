@@ -9,6 +9,11 @@ from sycamore.data.table import Table, TableCell
 import sycamore
 from sycamore.tests.config import TEST_DIR
 
+from sycamore.transforms.partition import ArynPartitioner
+import os
+
+MODEL_SERVER_KEY = os.environ["MODEL_SERVER_KEY"]
+
 
 def test_detr_ocr():
     path = TEST_DIR / "resources/data/pdfs/Transformer.pdf"
@@ -108,6 +113,23 @@ def test_table_extraction_with_ocr():
 
 def test_table_extraction_with_no_ocr():
     check_table_extraction(use_ocr=False)
+
+
+def test_aryn_partitioner():
+    path = TEST_DIR / "resources/data/pdfs/Transformer.pdf"
+
+    context = sycamore.init()
+
+    docs = (
+        context.read.binary(paths=[str(path)], binary_format="pdf")
+        .partition(ArynPartitioner(aryn_token=MODEL_SERVER_KEY))
+        .explode()
+        .filter(lambda doc: "page_number" in doc.properties and doc.properties["page_number"] == 1)
+        .filter(lambda doc: doc.type == "Section-header")
+        .take_all()
+    )
+
+    assert "Attention Is All You Need" in set(str(d.text_representation).strip() for d in docs)
 
 
 def test_table_extraction_with_ocr_batched():

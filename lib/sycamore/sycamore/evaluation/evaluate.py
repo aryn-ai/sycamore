@@ -2,21 +2,22 @@ from typing import Dict, List, Union
 from abc import ABC, abstractmethod
 
 import os
-import sycamore
 from sycamore.reader import DocSetReader
 from sycamore.data import Element
 from sycamore.evaluation.pipeline import EvaluationPipeline
 from sycamore.evaluation import EvaluationDataPoint
 from sycamore.evaluation.metrics import document_retrieval_metrics, rouge_metrics
+from sycamore import Context
 
 
 class Assessment(ABC):
+
     @abstractmethod
-    def run_evaluation(self, index: str, **kwargs):
+    def run_evaluation(self, ctx: Context, index: str, **kwargs):
         pass
 
-    def __call__(self, index: str, **kwargs):
-        return self.run_evaluation(index, **kwargs)
+    def __call__(self, context: Context, index: str, **kwargs):
+        return self.run_evaluation(context, index, **kwargs)
 
 
 class QualityAssessment(Assessment):
@@ -25,11 +26,7 @@ class QualityAssessment(Assessment):
         self.GT_path = GT_path
         self.rag_config = rag_config
         self.os_client_args = kwargs.get("os_client_args", "")
-        self.ctx = sycamore.init()
-        if kwargs.get("metrics", "") == "":
-            self.metrics = [document_retrieval_metrics, rouge_metrics]
-        else:
-            self.metrics = kwargs.get("metrics", "")
+        self.metrics = kwargs.get("metrics", [document_retrieval_metrics, rouge_metrics])
         self.custom_question_augmentation = kwargs.get("custom_question_augmentation", {})
         self.question_augmentation_filter = kwargs.get("question_augmentation_filter", "")
 
@@ -70,10 +67,10 @@ class QualityAssessment(Assessment):
             result += [{"doc": document.serialize()}]
         return result
 
-    def run_evaluation(self, index: str, **kwargs):
+    def run_evaluation(self, ctx: Context, index: str, **kwargs):
         custom_question_augmentation = str(self.custom_question_augmentation)
         question_augmentation_filter = str(self.question_augmentation_filter)
-        input_docset = DocSetReader(self.ctx).json(
+        input_docset = DocSetReader(ctx).json(
             paths=self.GT_path,
             doc_extractor=lambda json_dict: QualityAssessment.create_evaluation_datapoint(
                 json_dict, custom_question_augmentation, question_augmentation_filter
@@ -89,16 +86,16 @@ class QualityAssessment(Assessment):
 
 class Evaluate:
     """
-    The Evaluate Transform runs the evaluation test for Question Answering on
+    The Evaluate Transform runs the evaluation test on
     Index or list of indices against a ground truth
     """
 
-    def __init__(self, index: Union[str, List[str]], assessment: Assessment, **kwargs):
+    def __init__(self, context: Context, index: Union[str, List[str]], assessment: Assessment, **kwargs):
         super().__init__()
 
         if isinstance(index, str):
-            self.result = {index: assessment(index)}
+            self.result = {index: assessment(context, index)}
         elif isinstance(index, List) and all(isinstance(i, str) for i in index):
-            self.result = {idx: assessment(idx) for idx in index}
+            self.result = {idx: assessment(context, idx) for idx in index}
         else:
             raise ValueError("Input must be a str or a list of str")

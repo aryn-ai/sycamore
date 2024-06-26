@@ -1,5 +1,6 @@
 import pytest
-from sycamore.transforms.evaluate import QualityAssessment, Evaluate
+from sycamore.evaluation.evaluate import QualityAssessment, Evaluate
+import sycamore
 
 
 class TestTransformEvaluate:
@@ -27,6 +28,7 @@ class TestTransformEvaluate:
 
     @pytest.mark.skip(reason="Requires named models to configure os pipeline unless we setup the cluster on each run")
     def test_pipeline(self):
+        context = sycamore.init()
         custom_question_augmentation = "{}, The product code is {}."
         question_augmentation_filter = "properties._product_codes"
         assessment = QualityAssessment(
@@ -36,5 +38,5 @@ class TestTransformEvaluate:
             custom_question_augmentation=custom_question_augmentation,
             question_augmentation_filter=question_augmentation_filter,
         )
-        evaluate = Evaluate("5_sram_syca_openai_star_product_codes_20th", assessment)
+        evaluate = Evaluate(context, "5_sram_syca_openai_star_product_codes_20th", assessment)
         print(evaluate.result)

@@ -1,5 +1,6 @@
 import pytest
 
+from sycamore.tests.integration.scans.test_db_scan import compare_docs
 import weaviate
 from weaviate.classes.config import Property, ReferenceProperty
 from weaviate.client import ConnectionParams
@@ -40,6 +41,7 @@ def wv_client_args():
                 grpc_secure=False,
             ),
         }
+        client.collections.delete("TestCollection")
 
 
 def test_weaviate_scan(wv_client_args):
@@ -95,4 +97,9 @@ def test_weaviate_scan(wv_client_args):
 
     out_docs = ctx.read.weaviate(wv_client_args=wv_client_args, collection_name=collection).take_all()
     assert len(out_docs) == len(docs)
-    assert {d.doc_id for d in docs} == {d.doc_id for d in out_docs}
+    assert all(
+        compare_docs(original, plumbed)
+        for original, plumbed in zip(
+            sorted(docs, key=lambda d: d.doc_id or ""), sorted(out_docs, key=lambda d: d.doc_id or "")
+        )
+    )

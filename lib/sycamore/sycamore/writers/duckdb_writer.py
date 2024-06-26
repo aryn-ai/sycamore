@@ -19,7 +19,7 @@ class DuckDBClientParams(BaseDBWriter.ClientParams):
 class DuckDBTargetParams(BaseDBWriter.TargetParams):
     db_url: Optional[str] = "tmp.db"
     table_name: Optional[str] = "default_table"
-    batch_size: Optional[int] = 1000
+    batch_size: int = 1000
     schema: Optional[Dict[str, str]] = field(
         default_factory=lambda: {
             "uuid": "VARCHAR",
@@ -57,7 +57,7 @@ class DuckDBClient(BaseDBWriter.Client):
         assert _narrow_list_of_doc_records(records), f"Found a bad record in {records}"
         assert isinstance(target_params, DuckDBTargetParams), f"Wrong kind of target parameters found: {target_params}"
         dict_params = asdict(target_params)
-        N = int(str(dict_params.get("batch_size"))) ** 2  # Bit lesser than 1 MB
+        N = target_params.batch_size * 1024  # Around 1 MB
         headers = ["uuid", "embeddings", "properties", "text_representation", "bbox", "shingles", "type"]
         schema = pa.schema(
             [

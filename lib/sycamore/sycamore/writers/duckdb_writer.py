@@ -4,7 +4,7 @@ from typing_extensions import TypeGuard
 
 from sycamore.data.document import Document
 from sycamore.writers.base import BaseDBWriter
-import os
+from sycamore.writers.common import convert_to_str_dict
 import pyarrow as pa
 import duckdb
 
@@ -18,7 +18,6 @@ class DuckDBClientParams(BaseDBWriter.ClientParams):
 class DuckDBTargetParams(BaseDBWriter.TargetParams):
     db_url: Optional[str] = ":default:"
     table_name: Optional[str] = "default_table"
-    persist: Optional[bool] = True
 
     def compatible_with(self, other: BaseDBWriter.TargetParams) -> bool:
         if not isinstance(other, DuckDBTargetParams):
@@ -53,21 +52,20 @@ class DuckDBClient(BaseDBWriter.Client):
 
         headers = ["uuid", "embeddings", "properties", "text_representation", "bbox", "shingles", "type"]
         creation = True
-        schema = pa.schema(
-            [
-                ("uuid", pa.string()),
-                ("embeddings", pa.list_(pa.float32())),
-                ("properties", pa.map_(pa.string(), pa.string())),  # Adjust based on your properties structure
-                ("text_representation", pa.string()),
-                ("bbox", pa.string()),
-                ("shingles", pa.list_(pa.int64())),
-                ("type", pa.string()),
-            ]
-        )
+        # schema = pa.schema(
+        #     [
+        #         ("uuid", pa.string()),
+        #         ("embeddings", pa.list_(pa.float32())),
+        #         ("properties", pa.map_(pa.string(), pa.string())),
+        #         ("text_representation", pa.string()),
+        #         ("bbox", pa.list_(pa.float32())),
+        #         ("shingles", pa.list_(pa.int64())),
+        #         ("type", pa.string()),
+        #     ]
+        # )
 
         def write_batch(batch_data: dict):
-            # If the file doesn't exist, write headers first
-            pa_table = pa.Table.from_pydict(batch_data, schema=schema)
+            pa_table = pa.Table.from_pydict(batch_data)  # noqa
             client = duckdb.connect(str(dict_params.get("db_url")))
             nonlocal creation
             if creation:
@@ -92,16 +90,13 @@ class DuckDBClient(BaseDBWriter.Client):
 
             # If we've reached the batch size, write to the database
             if batch_data.__sizeof__() >= N:
+                batch_data["properties"] = (
+                    [convert_to_str_dict(i) for i in batch_data["properties"]] if batch_data["properties"] else []
+                )
                 write_batch(batch_data)
         # Write any remaining records
         if len(batch_data["uuid"]) > 0:
             write_batch(batch_data)
-        # Flush out the database if not persisted
-        if not target_params.persist:
-            try:
-                os.unlink(str(dict_params.get("db_url")))
-            except Exception as e:
-                print(f"Error deleting {dict_params.get('db_url')}: {e}")
 
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
         assert isinstance(target_params, DuckDBTargetParams)

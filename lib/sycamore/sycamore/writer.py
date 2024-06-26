@@ -371,8 +371,6 @@ class DocSetWriter:
             db_url: The URL of the DuckDB database. If not provided, the database will be in-memory.
             table_name: The table name to write the data to when possible
             execute: Flag that determines whether to execute immediately
-            csv_directory_location: The location to write the csv files to. If not provided, defaults to "./tmp/duckdb"
-            and is removed after execution.
 
         Example:
             The following shows how to read a pdf dataset into a ``DocSet`` and write it out
@@ -380,7 +378,7 @@ class DocSetWriter:
 
             .. code-block:: python
                 table_name = "duckdb_table"
-                db_url = ":default:"
+                db_url = "tmp.db"
                 model_name = "sentence-transformers/all-MiniLM-L6-v2"
                 paths = str(TEST_DIR / "resources/data/pdfs/")
 

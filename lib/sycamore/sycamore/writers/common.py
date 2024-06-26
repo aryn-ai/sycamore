@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Callable, Iterator, Union, Iterable, Tuple, Any
+import json
 
 
 @dataclass
@@ -41,6 +42,22 @@ def flatten_data(
         elif v is not None:
             items.append((_add_key_to_prefix(prefix, k), v))
     return items
+
+
+def convert_to_str_dict(data: dict[str, Any]) -> dict[str, str]:
+    result = {}
+    for key, value in data.items():
+        if isinstance(value, str):
+            result[key] = value
+        elif isinstance(value, (int, float, bool)):
+            result[key] = str(value)
+        elif value is None:
+            result[key] = ""
+        elif isinstance(value, (list, dict)):
+            result[key] = json.dumps(value, separators=(",", ":"))
+        else:
+            result[key] = repr(value)
+    return result
 
 
 def drop_types(

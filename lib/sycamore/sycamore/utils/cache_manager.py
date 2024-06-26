@@ -1,24 +1,23 @@
 import hashlib
-import pickle
-import threading
+import os
 from io import IOBase
-from typing import Union, Any
+from typing import Union
+import threading
+
+from diskcache import Cache
 
 
 class CacheManager:
     _lock = threading.Lock()
+    _cache = Cache(directory=os.path.join("/tmp/SycamoreCache", "PDFMinerCache"))
 
     @classmethod
-    def get_cached_result(cls, file_path: str):
-        with cls._lock:
-            with open(file_path, "rb") as f:
-                return pickle.load(f)
+    def get_cached_result(cls, hash_key: str):
+        return cls._cache.get(hash_key)
 
     @classmethod
-    def cache_result(cls, file_content: Any, file_path: str):
-        with cls._lock:
-            with open(file_path, "wb") as f:
-                pickle.dump(file_content, f)
+    def cache_result(cls, hash_key: str, hash_value):
+        cls._cache.set(hash_key, hash_value)
 
     @classmethod
     def get_hash_key(cls, file_path: Union[str, IOBase]) -> str:

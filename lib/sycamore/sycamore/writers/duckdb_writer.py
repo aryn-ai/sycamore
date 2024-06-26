@@ -1,5 +1,5 @@
-from dataclasses import dataclass, asdict, is_dataclass
-from typing import Optional, Any
+from dataclasses import dataclass, asdict, field
+from typing import Optional, Any, Dict
 from typing_extensions import TypeGuard
 
 from sycamore.data.document import Document
@@ -7,6 +7,7 @@ from sycamore.writers.base import BaseDBWriter
 from sycamore.writers.common import convert_to_str_dict
 import pyarrow as pa
 import duckdb
+import os
 
 
 @dataclass
@@ -16,8 +17,20 @@ class DuckDBClientParams(BaseDBWriter.ClientParams):
 
 @dataclass
 class DuckDBTargetParams(BaseDBWriter.TargetParams):
-    db_url: Optional[str] = ":default:"
+    db_url: Optional[str] = "tmp.db"
     table_name: Optional[str] = "default_table"
+    batch_size: Optional[int] = 1000
+    schema: Optional[Dict[str, str]] = field(
+        default_factory=lambda: {
+            "uuid": "VARCHAR",
+            "embeddings": "DOUBLE[]",
+            "properties": "MAP(VARCHAR, VARCHAR)",
+            "text_representation": "VARCHAR",
+            "bbox": "DOUBLE[]",
+            "shingles": "BIGINT[]",
+            "type": "VARCHAR",
+        }
+    )
 
     def compatible_with(self, other: BaseDBWriter.TargetParams) -> bool:
         if not isinstance(other, DuckDBTargetParams):
@@ -26,6 +39,8 @@ class DuckDBTargetParams(BaseDBWriter.TargetParams):
             return False
         if self.table_name != other.table_name:
             return False
+        if other.schema:
+            return self.schema == other.schema
         return True
 
 
@@ -38,41 +53,28 @@ class DuckDBClient(BaseDBWriter.Client):
         assert isinstance(params, DuckDBClientParams)
         return DuckDBClient(params)
 
-    def write_many_records(
-        self, records: list[BaseDBWriter.Record], target_params: BaseDBWriter.TargetParams, batch_size: int = 1000
-    ):
-        N = 1000 ^ 2  # Bit lesser than 1 MB
-        dict_params = (
-            asdict(target_params)
-            if is_dataclass(target_params)
-            else (target_params.__dict__ if hasattr(target_params, "__dict__") else {})
-        )
+    def write_many_records(self, records: list[BaseDBWriter.Record], target_params: BaseDBWriter.TargetParams):
         assert _narrow_list_of_doc_records(records), f"Found a bad record in {records}"
-        assert isinstance(target_params, DuckDBTargetParams)
-
+        assert isinstance(target_params, DuckDBTargetParams), f"Wrong kind of target parameters found: {target_params}"
+        dict_params = asdict(target_params)
+        N = int(str(dict_params.get("batch_size"))) ** 2  # Bit lesser than 1 MB
         headers = ["uuid", "embeddings", "properties", "text_representation", "bbox", "shingles", "type"]
-        creation = True
-        # schema = pa.schema(
-        #     [
-        #         ("uuid", pa.string()),
-        #         ("embeddings", pa.list_(pa.float32())),
-        #         ("properties", pa.map_(pa.string(), pa.string())),
-        #         ("text_representation", pa.string()),
-        #         ("bbox", pa.list_(pa.float32())),
-        #         ("shingles", pa.list_(pa.int64())),
-        #         ("type", pa.string()),
-        #     ]
-        # )
+        schema = pa.schema(
+            [
+                ("uuid", pa.string()),
+                ("embeddings", pa.list_(pa.float32())),
+                ("properties", pa.map_(pa.string(), pa.string())),
+                ("text_representation", pa.string()),
+                ("bbox", pa.list_(pa.float32())),
+                ("shingles", pa.list_(pa.int64())),
+                ("type", pa.string()),
+            ]
+        )
 
         def write_batch(batch_data: dict):
-            pa_table = pa.Table.from_pydict(batch_data)  # noqa
+            pa_table = pa.Table.from_pydict(batch_data, schema=schema)  # noqa
             client = duckdb.connect(str(dict_params.get("db_url")))
-            nonlocal creation
-            if creation:
-                client.sql(f"CREATE TABLE {dict_params.get('table_name')} AS SELECT * FROM pa_table")
-                creation = False
-            else:
-                client.sql(f"INSERT INTO {dict_params.get('table_name')} SELECT * FROM pa_table")
+            client.sql(f"INSERT INTO {dict_params.get('table_name')} SELECT * FROM pa_table")
             for key in batch_data:
                 batch_data[key].clear()
 
@@ -82,7 +84,7 @@ class DuckDBClient(BaseDBWriter.Client):
             # Append the new data to the batch
             batch_data["uuid"].append(r.uuid)
             batch_data["embeddings"].append(r.embeddings)
-            batch_data["properties"].append(r.properties)
+            batch_data["properties"].append(convert_to_str_dict(r.properties) if r.properties else {})
             batch_data["text_representation"].append(r.text_representation)
             batch_data["bbox"].append(r.bbox)
             batch_data["shingles"].append(r.shingles)
@@ -90,9 +92,6 @@ class DuckDBClient(BaseDBWriter.Client):
 
             # If we've reached the batch size, write to the database
             if batch_data.__sizeof__() >= N:
-                batch_data["properties"] = (
-                    [convert_to_str_dict(i) for i in batch_data["properties"]] if batch_data["properties"] else []
-                )
                 write_batch(batch_data)
         # Write any remaining records
         if len(batch_data["uuid"]) > 0:
@@ -100,10 +99,45 @@ class DuckDBClient(BaseDBWriter.Client):
 
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
         assert isinstance(target_params, DuckDBTargetParams)
+        dict_params = asdict(target_params)
+        schema = dict_params.get("schema")
+        client = duckdb.connect(str(dict_params.get("db_url")))
+        try:
+            if schema:
+                client.sql(
+                    f"""CREATE TABLE {dict_params.get('table_name')} (uuid {schema.get('uuid')},
+                      embeddings {schema.get('embeddings')}, properties {schema.get('properties')}, 
+                      text_representation {schema.get('text_representation')}, bbox {schema.get('bbox')}, 
+                      shingles {schema.get('shingles')}, type {schema.get('type')})"""
+                )
+            else:
+                print(
+                    f"""Error creating table {dict_params.get('table_name')} 
+                    in database {dict_params.get('db_url')}: no schema provided"""
+                )
+        except Exception as e:
+            print(f"Error creating table {dict_params.get('table_name')} in database {dict_params.get('db_url')}: {e}")
 
     def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> "DuckDBTargetParams":
         assert isinstance(target_params, DuckDBTargetParams)
-        return DuckDBTargetParams(db_url=target_params.db_url, table_name=target_params.table_name)
+        dict_params = asdict(target_params)
+        schema = None
+        if target_params.db_url and target_params.table_name and os.path.exists(target_params.db_url):
+            client = duckdb.connect(str(dict_params.get("db_url")))
+            try:
+                table = client.sql(f"SELECT * FROM {target_params.table_name}")
+                schema = dict(zip(table.columns, [repr(i) for i in table.dtypes]))
+            except Exception as e:
+                print(
+                    f"""Table {dict_params.get('table_name')} 
+                    does not exist in database {dict_params.get('table_name')}: {e}"""
+                )
+        return DuckDBTargetParams(
+            db_url=target_params.db_url,
+            table_name=target_params.table_name,
+            batch_size=target_params.batch_size,
+            schema=schema,
+        )
 
 
 @dataclass

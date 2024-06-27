@@ -3,6 +3,7 @@ from sycamore import DocSet, Context
 from sycamore.data import Document, Element
 from sycamore.plan_nodes import Node
 from sycamore.connectors.opensearch import OpenSearchWriter
+from sycamore.connectors.weaviate import WeaviateDocumentWriter
 
 import json
 from pathlib import Path

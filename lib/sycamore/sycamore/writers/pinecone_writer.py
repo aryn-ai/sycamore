@@ -8,8 +8,8 @@ from pinecone import PineconeApiException, PodSpec, ServerlessSpec
 from pinecone.grpc import PineconeGRPC, Vector
 from pinecone.grpc.vector_factory_grpc import VectorFactoryGRPC
 from sycamore.data.document import Document
-from sycamore.writers.base import BaseDBWriter
-from sycamore.writers.common import flatten_data
+from sycamore.connectors.writers.base import BaseDBWriter
+from sycamore.connectors.writers.common import flatten_data
 
 
 @dataclass

@@ -4,6 +4,7 @@ from sycamore.data import Document, Element
 from sycamore.plan_nodes import Node
 from sycamore.connectors.opensearch import OpenSearchWriter
 from sycamore.connectors.weaviate import WeaviateDocumentWriter
+from sycamore.connectors.duckdb import DuckDBWriter
 
 import json
 from pathlib import Path
@@ -14,7 +15,6 @@ from sycamore.writers.file_writer import (
     elements_to_bytes,
     json_properties_content,
 )
-from sycamore.writers.duckdb_writer import DuckDBWriter
 
 
 def generate_docs(num: int, type: str = "test", text=True, binary=False, num_elements=0) -> list[Document]:

@@ -8,6 +8,7 @@ from sycamore import Context, DocSet
 from sycamore.data import Document
 from sycamore.scans import ArrowScan, BinaryScan, DocScan, PandasScan, JsonScan, JsonDocumentScan
 from sycamore.scans.file_scan import FileMetadataProvider
+from sycamore.connectors.duckdb.duckdb_scan import DuckDBScan
 
 
 class DocSetReader:
@@ -92,6 +93,10 @@ class DocSetReader:
         from sycamore.connectors.opensearch import OpenSearchScan
 
         scan = OpenSearchScan(index_name, os_client_args)
+        return DocSet(self._context, scan)
+
+    def duckdb(self, db_url: str, table_name: str) -> DocSet:
+        scan = DuckDBScan(db_url=db_url, table_name=table_name)
         return DocSet(self._context, scan)
 
     def weaviate(self, wv_client_args: dict, collection_name: str) -> DocSet:

@@ -4,7 +4,7 @@ import pytest
 from opensearchpy import OpenSearch
 
 import sycamore
-from sycamore.connectors.opensearch import DEFAULT_OPENSEARCH_RECORD_PROPERTIES
+from sycamore.connectors.opensearch.opensearch_writer import DEFAULT_OPENSEARCH_RECORD_PROPERTIES
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 

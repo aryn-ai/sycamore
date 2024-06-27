@@ -726,6 +726,21 @@ class DocSet:
         filtered = Filter(self.plan, f=f, **resource_args)
         return DocSet(self.context, filtered)
 
+    def filter_elements(self, f: Callable[[Element], bool], **resource_args) -> "DocSet":
+        """
+        Applies the given filter function to each element in each Document in this DocsSet.
+
+        Args:
+            f: A Callable that takes an Element and returns True if the element should be retained.
+        """
+
+        def process_doc(doc: Document) -> Document:
+            new_elements = filter(f, doc.elements)
+            doc.elements = new_elements
+            return doc
+
+        return self.map(process_doc, **resource_args)
+
     def map_batch(
         self,
         f: Callable[[list[Document]], list[Document]],

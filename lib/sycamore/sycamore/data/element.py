@@ -177,6 +177,9 @@ def create_element(**kwargs) -> Element:
             kwargs["title"] = props.get("title")
             kwargs["columns"] = props.get("columns")
             kwargs["rows"] = props.get("rows")
+        if "table" in kwargs and isinstance(kwargs["table"], dict):
+            table = Table.from_dict(kwargs["table"])
+            kwargs["table"] = table
 
         return TableElement(**kwargs)
 

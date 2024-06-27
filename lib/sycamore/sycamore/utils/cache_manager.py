@@ -12,11 +12,11 @@ class CacheManager:
     _cache = Cache(directory=os.path.join("/tmp/SycamoreCache", "PDFMinerCache"))
 
     @classmethod
-    def get_cached_result(cls, hash_key: str):
+    def get(cls, hash_key: str):
         return cls._cache.get(hash_key)
 
     @classmethod
-    def cache_result(cls, hash_key: str, hash_value):
+    def set(cls, hash_key: str, hash_value):
         cls._cache.set(hash_key, hash_value)
 
     @classmethod

@@ -1,11 +1,9 @@
-from abc import ABC, abstractmethod
 import gc
-import gzip
-import json
 import logging
 import os
 import tempfile
 import tracemalloc
+from abc import ABC, abstractmethod
 from concurrent.futures import ProcessPoolExecutor
 from io import BytesIO, IOBase
 from typing import cast, Any, BinaryIO, List, Tuple, Union
@@ -100,7 +98,7 @@ class SycamorePDFPartitioner:
         extract_images=False,
         batch_size: int = 1,
         batch_at_a_time=True,
-        cache_results=True,
+        use_cache=True,
     ) -> List[List["Element"]]:
         if batch_at_a_time:
             return self._partition_pdf_batched(
@@ -113,7 +111,7 @@ class SycamorePDFPartitioner:
                 table_structure_extractor,
                 extract_images,
                 batch_size,
-                cache_results,
+                use_cache,
             )
         else:
             return self._partition_pdf_sequenced(
@@ -126,7 +124,7 @@ class SycamorePDFPartitioner:
                 table_structure_extractor,
                 extract_images,
                 batch_size,
-                cache_results,
+                use_cache,
             )
 
     def _partition_pdf_sequenced(
@@ -140,7 +138,7 @@ class SycamorePDFPartitioner:
         table_structure_extractor=None,
         extract_images=False,
         batch_size: int = 1,
-        cache_results=True,
+        use_cache=True,
     ) -> List[List["Element"]]:
         """
         Partitions a PDF with the DeformableDETR model.
@@ -188,7 +186,7 @@ class SycamorePDFPartitioner:
                 # but typing.BinaryIO doesn't extend from it. BytesIO
                 # (the concrete class) implements both.
                 with LogTime("pdfminer_extract", log_start=True):
-                    pdfminer_layout = pdfminer.extract(cast(IOBase, file), cache_results)
+                    pdfminer_layout = pdfminer.extract(cast(IOBase, file), use_cache)
                 # page count should be the same
                 assert len(pdfminer_layout) == len(deformable_layout)
 
@@ -228,7 +226,7 @@ class SycamorePDFPartitioner:
         table_structure_extractor=None,
         extract_images=False,
         batch_size: int = 1,
-        cache_results=True,
+        use_cache=True,
     ) -> List[List["Element"]]:
         LogTime("partition_start", point=True)
         with tempfile.NamedTemporaryFile(prefix="detr-pdf-input-") as pdffile:
@@ -251,7 +249,7 @@ class SycamorePDFPartitioner:
                 table_structure_extractor,
                 extract_images,
                 batch_size,
-                cache_results,
+                use_cache,
             )
 
     def _partition_pdf_batched_named(
@@ -265,7 +263,7 @@ class SycamorePDFPartitioner:
         table_structure_extractor=None,
         extract_images=False,
         batch_size: int = 1,
-        cache_results=True,
+        use_cache=True,
     ) -> List[List["Element"]]:
         if extract_table_structure and not table_structure_extractor:
             table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
@@ -274,7 +272,7 @@ class SycamorePDFPartitioner:
         exec = ProcessPoolExecutor(max_workers=1)
         if not use_ocr:
             with LogTime("start_pdfminer", log_start=True):
-                pdfminer = exec.submit(self._run_pdfminer, filename, cache_results)
+                pdfminer = exec.submit(self._run_pdfminer, filename, use_cache)
 
         deformable_layout = []
         if tracemalloc.is_tracing():
@@ -319,10 +317,10 @@ class SycamorePDFPartitioner:
         return deformable_layout
 
     @staticmethod
-    def _run_pdfminer(pdf_path, cache_results):
+    def _run_pdfminer(pdf_path, use_cache):
         pdfminer = PDFMinerExtractor()
         with LogTime("pdfminer_extract", log_start=True):
-            pdfminer_layout = pdfminer.extract(pdf_path, cache_results)
+            pdfminer_layout = pdfminer.extract(pdf_path, use_cache)
 
         return pdfminer_layout
 
@@ -479,12 +477,12 @@ class PDFMinerExtractor:
         y2 = height - y2
         return x1, y1, x2, y2
 
-    def extract(self, filename: Union[str, IOBase], cache_results=True) -> List[List[Element]]:
+    def extract(self, filename: Union[str, IOBase], use_cache=True) -> List[List[Element]]:
         # The naming is slightly confusing, but `open_filename` accepts either
         # a filename (str) or a file-like object (IOBase)
 
         hash_key = CacheManager.get_hash_key(filename)
-        cached_result = CacheManager.get_cached_result(hash_key)
+        cached_result = CacheManager.get(hash_key) if use_cache else None
         if cached_result:
             logging.info("Cache Hit for PDFMiner. Getting the result from cache.")
             return cached_result
@@ -508,9 +506,9 @@ class PDFMinerExtractor:
                                 texts.append(text)
 
                     pages.append(texts)
-                if cache_results:
+                if use_cache:
                     logging.info("Cache Miss for PDFMiner. Storing the result to the cache.")
-                    CacheManager.cache_result(hash_key, pages)
+                    CacheManager.set(hash_key, pages)
                 return pages
 
 

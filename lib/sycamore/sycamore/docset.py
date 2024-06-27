@@ -735,7 +735,7 @@ class DocSet:
         """
 
         def process_doc(doc: Document) -> Document:
-            new_elements = filter(f, doc.elements)
+            new_elements = [e for e in doc.elements if f(e)]
             doc.elements = new_elements
             return doc
 

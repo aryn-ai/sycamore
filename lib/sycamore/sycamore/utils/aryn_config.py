@@ -7,18 +7,21 @@ import logging
 
 _DEFAULT_PATH = os.path.join(pathlib.Path.home(), ".aryn", "config.yaml")
 
+
 class ArynConfig:
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
 
+
 _global_aryn_config_lock = threading.Lock()
 _global_aryn_config: Optional[ArynConfig] = None
+
 
 def get_aryn_api_key(requested_yaml_config_path: str = None) -> str:
     api_key = os.environ.get("ARYN_API_KEY")
     if api_key:
         return api_key
-    
+
     global_aryn_config = get_aryn_config(requested_yaml_config_path)
     return global_aryn_config.__dict__.get("aryn_token", "")
 
@@ -45,6 +48,5 @@ def get_aryn_config(requested_yaml_config_path: str = None) -> ArynConfig:
             except yaml.scanner.ScannerError as err:
                 logging.error(f"Unable to load {config_path}: {err}. Ignoring the config file.")
             _global_aryn_config = config
-        
+
         return _global_aryn_config
-    

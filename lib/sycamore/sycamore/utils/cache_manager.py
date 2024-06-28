@@ -1,8 +1,6 @@
 import hashlib
-import os
 from io import IOBase
 from typing import Union
-import threading
 
 from diskcache import Cache
 

@@ -15,7 +15,7 @@ class CacheManager:
         self._cache.set(hash_key, hash_value)
 
     @staticmethod
-    def get_hash_key(file_path: IOBase) -> str:
+    def get_hash_key(data: bytes) -> str:
         hash_sha256 = hashlib.sha256()
-        hash_sha256.update(file_path.read())
+        hash_sha256.update(data)
         return hash_sha256.hexdigest()

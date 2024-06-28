@@ -189,7 +189,7 @@ class SycamorePDFPartitioner:
                 # but typing.BinaryIO doesn't extend from it. BytesIO
                 # (the concrete class) implements both.
                 file_name = cast(IOBase, file)
-                hash_key = CacheManager.get_hash_key(file_name)
+                hash_key = CacheManager.get_hash_key(file_name.read())
                 with LogTime("pdfminer_extract", log_start=True):
                     pdfminer_layout = pdfminer.extract(file_name, hash_key, use_cache)
                 # page count should be the same
@@ -237,7 +237,7 @@ class SycamorePDFPartitioner:
         with tempfile.NamedTemporaryFile(prefix="detr-pdf-input-") as pdffile:
             with LogTime("write_pdf"):
                 data = file.read()
-                hash_key = CacheManager.get_hash_key(cast(IOBase, data))
+                hash_key = CacheManager.get_hash_key(data)
                 data_len = len(data)
                 pdffile.write(data)
                 del data

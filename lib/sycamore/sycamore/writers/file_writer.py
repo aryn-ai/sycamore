@@ -154,7 +154,7 @@ class FileWriter(Write):
         self.doc_to_bytes_fn = doc_to_bytes_fn
         self.ray_remote_args = ray_remote_args
 
-    def execute(self) -> Dataset:
+    def execute(self, **kwargs) -> Dataset:
         dataset = self.child().execute()
 
         dataset.write_datasink(
@@ -200,7 +200,7 @@ class JsonWriter(Write):
         self.filesystem = filesystem
         self.ray_remote_args = ray_remote_args
 
-    def execute(self) -> Dataset:
+    def execute(self, **kwargs) -> Dataset:
         ds = self.child().execute()
         sink = _JsonBlockDataSink(self.path, filesystem=self.filesystem)
         ds.write_datasink(sink, ray_remote_args=self.ray_remote_args)

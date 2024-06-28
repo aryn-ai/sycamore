@@ -10,7 +10,7 @@ class DuckDBScan(Scan):
         self._table_name = table_name
         self._db_url = db_url
 
-    def execute(self) -> Dataset:
+    def execute(self, **kwargs) -> Dataset:
         documents = []
         con = duckdb.connect(database=self._db_url, read_only=True)
         data = con.execute(f"SELECT * from {self._table_name}").fetchdf().to_dict(orient="records")

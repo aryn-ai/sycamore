@@ -12,7 +12,7 @@ class WeaviateScan(Scan):
         self._collection_name = collection_name
         self._connection_params = connection_params
 
-    def execute(self) -> Dataset:
+    def execute(self, **kwargs) -> Dataset:
         documents = []
         with WeaviateClient(**asdict(self._connection_params)) as wcl:
             collection = wcl.collections.get(self._collection_name)

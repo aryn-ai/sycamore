@@ -109,17 +109,21 @@ class BaseMapTransform(UnaryNode):
         self._constructor_kwargs = constructor_kwargs
         self._enable_auto_metadata = enable_auto_metadata
 
-    def execute(self,
-                write_intermediate_data: bool = False,
-                intermediate_datasink: Optional[Union[type | Datasink]] = None,
-                intermediate_datasink_kwargs: Optional[dict[str, Any]] = None,
-                **kwargs) -> "Dataset":
+    def execute(
+        self,
+        write_intermediate_data: bool = False,
+        intermediate_datasink: Optional[Union[type[Datasink], Datasink]] = None,
+        intermediate_datasink_kwargs: Optional[dict[str, Any]] = None,
+        **kwargs,
+    ) -> "Dataset":
         if "num_gpus" in self.resource_args:
             assert self.resource_args["num_gpus"] > 0
 
-        input_dataset = self.child().execute(write_intermediate_data,
-                                             intermediate_datasink,
-                                             intermediate_datasink_kwargs)
+        input_dataset = self.child().execute(
+            write_intermediate_data=write_intermediate_data,
+            intermediate_datasink=intermediate_datasink,
+            intermediate_datasink_kwargs=intermediate_datasink_kwargs,
+        )
         if isinstance(self._f, type):  # is f a class?
             # Maybe add a class as function variant if the caller specified TaskPoolStrategy
             result = input_dataset.map_batches(self._map_class(), **self.resource_args)
@@ -273,5 +277,5 @@ class CompositeTransform(UnaryNode):
 
         return docs
 
-    def execute(self) -> Dataset:
+    def execute(self, **kwargs) -> Dataset:
         return self.nodes[-1].execute()

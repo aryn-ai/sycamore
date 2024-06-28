@@ -23,7 +23,7 @@ class DuckDBTargetParams(BaseDBWriter.TargetParams):
     schema: Optional[Dict[str, str]] = field(
         default_factory=lambda: {
             "doc_id": "VARCHAR",
-            "embeddings": "DOUBLE[]",
+            "embeddings": "FLOAT[384]",
             "properties": "MAP(VARCHAR, VARCHAR)",
             "text_representation": "VARCHAR",
             "bbox": "DOUBLE[]",

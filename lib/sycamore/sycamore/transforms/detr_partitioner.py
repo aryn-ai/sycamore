@@ -36,6 +36,9 @@ def _batchify(iterable, n=1):
         yield iterable[i : min(i + n, length)]
 
 
+pdf_miner_cm = CacheManager("/tmp/SycamoreCache/PDFMinerCache")
+
+
 class SycamorePDFPartitioner:
     """
     This class contains the implementation of PDF partitioning using a Deformable DETR model.
@@ -173,7 +176,7 @@ class SycamorePDFPartitioner:
         deformable_layout = []
         with LogTime("all_batches"):
             for i, batch in enumerate(batches):
-                with LogTime(f"infer_one_batch {i}/{len(images)/batch_size}"):
+                with LogTime(f"infer_one_batch {i}/{len(images) / batch_size}"):
                     deformable_layout += self.model.infer(batch, threshold)
 
         if use_ocr:
@@ -454,7 +457,6 @@ class PDFMinerExtractor:
         param = LAParams()
         self.device = PDFPageAggregator(rm, laparams=param)
         self.interpreter = PDFPageInterpreter(rm, self.device)
-        self.cache_manager = CacheManager("/tmp/SycamoreCache/PDFMinerCache")
 
     def _open_pdfminer_pages_generator(self, fp: BinaryIO):
         pages = PDFPage.get_pages(fp)
@@ -482,8 +484,8 @@ class PDFMinerExtractor:
         # The naming is slightly confusing, but `open_filename` accepts either
         # a filename (str) or a file-like object (IOBase)
 
-        hash_key = self.cache_manager.get_hash_key(filename)
-        cached_result = self.cache_manager.get(hash_key) if use_cache else None
+        hash_key = pdf_miner_cm.get_hash_key(filename)
+        cached_result = pdf_miner_cm.get(hash_key) if use_cache else None
         if cached_result:
             logging.info("Cache Hit for PDFMiner. Getting the result from cache.")
             return cached_result
@@ -509,7 +511,7 @@ class PDFMinerExtractor:
                     pages.append(texts)
                 if use_cache:
                     logging.info("Cache Miss for PDFMiner. Storing the result to the cache.")
-                    self.cache_manager.set(hash_key, pages)
+                    pdf_miner_cm.set(hash_key, pages)
                 return pages
 
 

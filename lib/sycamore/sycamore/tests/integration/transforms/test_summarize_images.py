@@ -10,7 +10,7 @@ def test_summarize_images():
     context = sycamore.init()
     image_docs = (
         context.read.binary(paths=[str(path)], binary_format="pdf")
-        .partition(SycamorePartitioner(extract_images=True))
+        .partition(SycamorePartitioner(extract_images=True, use_cache=False))
         .transform(SummarizeImages)
         .explode()
         .filter(lambda d: d.type == "Image")

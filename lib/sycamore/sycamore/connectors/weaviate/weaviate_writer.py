@@ -40,6 +40,7 @@ CollectionConfigCreate: TypeAlias = _CollectionConfigCreate
 class WeaviateTargetParams(BaseDBWriter.TargetParams):
     name: str
     collection_config: Union[CollectionConfigCreate, CollectionConfig]
+    flatten_properties: bool = False
 
     def compatible_with(self, other: BaseDBWriter.TargetParams) -> bool:
         if not isinstance(other, WeaviateTargetParams):
@@ -136,7 +137,9 @@ class WeaviateClient(BaseDBWriter.Client):
         with self._client:
             collection = self._client.collections.get(target_params.name)
             ccfg = collection.config.get(simple=False)
-            return WeaviateTargetParams(name=target_params.name, collection_config=ccfg)
+            return WeaviateTargetParams(
+                name=target_params.name, collection_config=ccfg, flatten_properties=target_params.flatten_properties
+            )
 
 
 class WeaviateCrossReferenceClient(WeaviateClient):
@@ -189,6 +192,10 @@ class WeaviateDocumentRecord(BaseDBWriter.Record):
             "shingles": document.shingles,
         }
         droperties = drop_types(properties, drop_empty_lists=True)
+        if target_params.flatten_properties:
+            # Property names must be [a-zA-Z][_0-9a-zA-Z]{0,230}, so use __ as a separator rather than .
+            droperties = dict(flatten_data(droperties, allowed_list_types=[int, str, bool, float], separator="__"))
+            droperties = {k.replace("-", "_"): v for k, v in droperties.items()}  # e.g. properties__y-index is invalid
         assert isinstance(droperties, dict)
         embedding = document.embedding
         if embedding is not None:

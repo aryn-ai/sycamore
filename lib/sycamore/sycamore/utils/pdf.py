@@ -1,13 +1,18 @@
 import logging
-
+import os
+import tempfile
 from io import BytesIO
-from PIL import Image
 from queue import Queue
 from subprocess import PIPE, Popen
 from threading import Thread
 from typing import List, Generator
 
+from PIL import Image
+
+from sycamore.utils.cache_manager import CacheManager
 from sycamore.utils.time_trace import LogTime
+
+pdf_to_ppm_cache = CacheManager(os.path.join(tempfile.gettempdir(), "SycamoreCache/PDFToPPMCache"))
 
 
 def convert_from_path_streamed(pdf_path: str) -> Generator[Image.Image, None, None]:
@@ -108,14 +113,45 @@ def convert_from_path_streamed(pdf_path: str) -> Generator[Image.Image, None, No
         t_err.join()
 
 
-def convert_from_path_streamed_batched(filename: str, batch_size: int) -> Generator[List[Image.Image], None, None]:
+def convert_from_path_streamed_batched(
+    filename: str, batch_size: int, hash_key: str, use_cache: bool = True
+) -> Generator[List[Image.Image], None, None]:
     """Note: model service will call this to get batches of images for processing"""
+    images = pdf_to_ppm_cache.get(hash_key) if use_cache else None
+    if images:
+        print(f"PDFToPPM Cache Hit. Getting the results from cache.")
+        yield from yield_batches(images, batch_size)
+    else:
+        print(f"PDFToPPM Cache Miss. Getting the results.")
+        yield from load_images(filename, batch_size, use_cache, hash_key)
+
+
+def yield_batches(images: list, batch_size: int) -> Generator[List[Image.Image], None, None]:
     batch = []
+    for image in images:
+        batch.append(image)
+        if len(batch) == batch_size:
+            yield batch
+            batch = []
+    if len(batch) > 0:
+        yield batch
+
+
+def load_images(
+    filename: str, batch_size: int, use_cache: bool, hash_key: str
+) -> Generator[List[Image.Image], None, None]:
+    batch = []
+    all_images = []
     for i in convert_from_path_streamed(filename):
         batch.append(i)
         if len(batch) == batch_size:
             yield batch
+            all_images.extend(batch)
             batch = []
 
     if len(batch) > 0:
+        all_images.extend(batch)
         yield batch
+
+    if use_cache:
+        pdf_to_ppm_cache.set(hash_key, all_images)

@@ -36,7 +36,7 @@ def _batchify(iterable, n=1):
         yield iterable[i : min(i + n, length)]
 
 
-pdf_miner_cm = CacheManager("/tmp/SycamoreCache/PDFMinerCache")
+pdf_miner_cm = CacheManager(os.path.join(tempfile.gettempdir(), "SycamoreCache/PDFMinerCache"))
 
 
 class SycamorePDFPartitioner:

@@ -1,5 +1,4 @@
 import hashlib
-from io import IOBase
 
 from diskcache import Cache
 

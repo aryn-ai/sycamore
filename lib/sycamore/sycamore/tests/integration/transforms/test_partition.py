@@ -149,5 +149,5 @@ def test_sycamore_batched_sequenced():
     s = SycamorePDFPartitioner("Aryn/deformable-detr-DocLayNet")
     for pdf in pathlib.Path(TEST_DIR).rglob("*.pdf"):
         print(f"Testing {pdf}")
-        p = compare_batched_sequenced(s, pdf)
+        p = compare_batched_sequenced(s, pdf, use_cache=False)
         print(f"Compared {len(p)} pages")

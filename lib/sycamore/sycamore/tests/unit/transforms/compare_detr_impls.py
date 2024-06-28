@@ -1,6 +1,3 @@
-from io import IOBase
-from typing import cast
-
 from sycamore.utils.cache_manager import CacheManager
 from sycamore.utils.deep_eq import deep_eq
 

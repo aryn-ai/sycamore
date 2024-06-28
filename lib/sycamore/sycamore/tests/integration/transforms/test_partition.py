@@ -75,7 +75,7 @@ def check_table_extraction(**kwargs):
     # The test will need to be updated if and when that changes.
     docs = (
         context.read.binary(paths=[str(path)], binary_format="pdf")
-        .partition(SycamorePartitioner(extract_table_structure=True, **kwargs))
+        .partition(SycamorePartitioner(extract_table_structure=True, use_cache=False, **kwargs))
         .take_all()
     )
 

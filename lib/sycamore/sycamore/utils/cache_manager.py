@@ -15,12 +15,8 @@ class CacheManager:
     def set(self, hash_key: str, hash_value):
         self._cache.set(hash_key, hash_value)
 
-    def get_hash_key(self, file_path: Union[str, IOBase]) -> str:
+    @staticmethod
+    def get_hash_key(file_path: IOBase) -> str:
         hash_sha256 = hashlib.sha256()
-        if isinstance(file_path, IOBase):
-            hash_sha256.update(file_path.read())
-        else:
-            with open(file_path, "rb") as f:
-                for block in iter(lambda: f.read(4096), b""):
-                    hash_sha256.update(block)
+        hash_sha256.update(file_path.read())
         return hash_sha256.hexdigest()

@@ -80,9 +80,6 @@ class BaseMapTransform(UnaryNode):
         kwargs: Optional[dict[str, Any]] = None,
         constructor_args: Optional[Iterable[Any]] = None,
         constructor_kwargs: Optional[dict[str, Any]] = None,
-        write_intermediate_data: bool = False,
-        intermediate_datasink: Optional[Union[type | Datasink]] = None,
-        intermediate_datasink_kwargs: Optional[dict[str, Any]] = None,
         # If we auto-generate lineage, then the conversion to BaseMap has to go in a single PR
         # since everything needs to be updated to skip metadata. If we temporarily disable the
         # lineage metadata, then we can do the conversion to BaseMap in separate PRs.
@@ -110,18 +107,19 @@ class BaseMapTransform(UnaryNode):
         self._kwargs = kwargs
         self._constructor_args = constructor_args
         self._constructor_kwargs = constructor_kwargs
-
-        self._write_intermediate_data = write_intermediate_data
-        self._intermediate_datasink = intermediate_datasink
-        self._intermediate_datasink_kwargs = intermediate_datasink_kwargs
-
         self._enable_auto_metadata = enable_auto_metadata
 
-    def execute(self, **kwargs) -> "Dataset":
+    def execute(self,
+                write_intermediate_data: bool = False,
+                intermediate_datasink: Optional[Union[type | Datasink]] = None,
+                intermediate_datasink_kwargs: Optional[dict[str, Any]] = None,
+                **kwargs) -> "Dataset":
         if "num_gpus" in self.resource_args:
             assert self.resource_args["num_gpus"] > 0
 
-        input_dataset = self.child().execute()
+        input_dataset = self.child().execute(write_intermediate_data,
+                                             intermediate_datasink,
+                                             intermediate_datasink_kwargs)
         if isinstance(self._f, type):  # is f a class?
             # Maybe add a class as function variant if the caller specified TaskPoolStrategy
             result = input_dataset.map_batches(self._map_class(), **self.resource_args)
@@ -131,16 +129,15 @@ class BaseMapTransform(UnaryNode):
         else:
             result = input_dataset.map_batches(self._map_function(), **self.resource_args)
 
-        if self._write_intermediate_data:
-            assert self._intermediate_datasink is not None
-            if isinstance(self._intermediate_datasink, type):
-                intermediate_datasink_kwargs = self._intermediate_datasink_kwargs
+        if write_intermediate_data:
+            assert intermediate_datasink is not None
+            if isinstance(intermediate_datasink, type):
 
                 # ensure each nodes data is written in a separate directory
                 intermediate_datasink_kwargs["path"] = intermediate_datasink_kwargs["path"] + "/" + self._name
-                intermediate_datasink = self._intermediate_datasink(**intermediate_datasink_kwargs)
+                intermediate_datasink = intermediate_datasink(**intermediate_datasink_kwargs)
             else:
-                intermediate_datasink = self._intermediate_datasink
+                intermediate_datasink = intermediate_datasink
             result.write_datasink(intermediate_datasink)
         return result
 

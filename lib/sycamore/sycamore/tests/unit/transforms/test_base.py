@@ -31,8 +31,8 @@ class Common:
         return node
 
     @staticmethod
-    def outputs(node: Node):
-        all_docs = [Document.from_row(r) for r in node.execute().take()]
+    def outputs(node: Node, **kwargs):
+        all_docs = [Document.from_row(r) for r in node.execute(**kwargs).take()]
         docs = [d for d in all_docs if not isinstance(d, MetadataDocument)]
         metadata = [d for d in all_docs if isinstance(d, MetadataDocument)]
         return (docs, metadata)
@@ -305,10 +305,10 @@ class TestBaseMapTransform(Common):
                 args=["simple"],
                 kwargs={"extra2": "kwarg"},
                 enable_auto_metadata=True,
-                write_intermediate_data=True,
-                intermediate_datasink=_FileDataSink,
-                intermediate_datasink_kwargs=intermediate_datasink_kwargs,
-            )
+            ),
+            write_intermediate_data=True,
+            intermediate_datasink=_FileDataSink,
+            intermediate_datasink_kwargs=intermediate_datasink_kwargs,
         )
 
         # assert all

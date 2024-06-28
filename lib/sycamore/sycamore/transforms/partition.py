@@ -16,6 +16,7 @@ from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
 from sycamore.utils import choose_device
+from sycamore.utils.aryn_config import get_aryn_api_key
 
 from sycamore.transforms.aryn_partitioner import _DEFAULT_ARYN_PARTITIONER_ADDRESS
 
@@ -522,7 +523,7 @@ class ArynPartitioner(Partitioner):
 
     def __init__(
         self,
-        aryn_token: str,
+        aryn_api_key: str = "",
         threshold: float = 0.4,
         use_ocr: bool = False,
         ocr_images: bool = False,
@@ -532,7 +533,10 @@ class ArynPartitioner(Partitioner):
         aryn_partitioner_address: str = _DEFAULT_ARYN_PARTITIONER_ADDRESS,
     ):
         super().__init__(device="cpu", batch_size=1)
-        self._aryn_token = aryn_token
+        if not aryn_api_key:
+            self._aryn_api_key = get_aryn_api_key()
+        else:
+            self._aryn_api_key = aryn_api_key
         self._threshold = threshold
         self._use_ocr = use_ocr
         self._ocr_images = ocr_images
@@ -548,7 +552,7 @@ class ArynPartitioner(Partitioner):
         try:
             result = ArynPDFPartitioner.partition_pdf(
                 binary,
-                self._aryn_token,
+                self._aryn_api_key,
                 aryn_partitioner_address=self._aryn_partitioner_address,
                 threshold=self._threshold,
                 use_ocr=self._use_ocr,

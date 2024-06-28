@@ -1,6 +1,5 @@
 import hashlib
 from io import IOBase
-from typing import Union
 
 from diskcache import Cache
 

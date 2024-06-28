@@ -188,8 +188,10 @@ class SycamorePDFPartitioner:
                 # The cast here is to make mypy happy. PDFMiner expects IOBase,
                 # but typing.BinaryIO doesn't extend from it. BytesIO
                 # (the concrete class) implements both.
+                file_name = cast(IOBase, file)
+                hash_key = CacheManager.get_hash_key(file_name)
                 with LogTime("pdfminer_extract", log_start=True):
-                    pdfminer_layout = pdfminer.extract(cast(IOBase, file), use_cache)
+                    pdfminer_layout = pdfminer.extract(file_name, hash_key, use_cache)
                 # page count should be the same
                 assert len(pdfminer_layout) == len(deformable_layout)
 

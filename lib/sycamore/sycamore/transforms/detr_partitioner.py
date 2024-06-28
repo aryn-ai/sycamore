@@ -454,6 +454,7 @@ class PDFMinerExtractor:
         param = LAParams()
         self.device = PDFPageAggregator(rm, laparams=param)
         self.interpreter = PDFPageInterpreter(rm, self.device)
+        self.cache_manager = CacheManager("/tmp/SycamoreCache/PDFMinerCache")
 
     def _open_pdfminer_pages_generator(self, fp: BinaryIO):
         pages = PDFPage.get_pages(fp)
@@ -481,8 +482,8 @@ class PDFMinerExtractor:
         # The naming is slightly confusing, but `open_filename` accepts either
         # a filename (str) or a file-like object (IOBase)
 
-        hash_key = CacheManager.get_hash_key(filename)
-        cached_result = CacheManager.get(hash_key) if use_cache else None
+        hash_key = self.cache_manager.get_hash_key(filename)
+        cached_result = self.cache_manager.get(hash_key) if use_cache else None
         if cached_result:
             logging.info("Cache Hit for PDFMiner. Getting the result from cache.")
             return cached_result
@@ -508,7 +509,7 @@ class PDFMinerExtractor:
                     pages.append(texts)
                 if use_cache:
                     logging.info("Cache Miss for PDFMiner. Storing the result to the cache.")
-                    CacheManager.set(hash_key, pages)
+                    self.cache_manager.set(hash_key, pages)
                 return pages
 
 

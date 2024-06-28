@@ -1,3 +1,7 @@
+import os
+import pickle
+from pathlib import Path
+
 import ray
 import pytest
 
@@ -6,6 +10,7 @@ from ray.data import ActorPoolStrategy
 from sycamore.data import Document, MetadataDocument
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base import BaseMapTransform, CompositeTransform, get_name_from_callable, rename
+from sycamore.writers.file_writer import _FileDataSink
 
 
 class Common:
@@ -286,6 +291,46 @@ class TestBaseMapTransform(Common):
             assert m["c"] == c
             assert m["n"] == 1
             c = c + 1
+
+    def test_write_intermediate_data(self, mocker, tmp_path: Path):
+        intermediate_datasink_kwargs = {
+            "path": str(tmp_path),
+            "makedirs": True,
+            "doc_to_bytes_fn": lambda doc: pickle.dumps(doc),
+        }
+        self.outputs(
+            BaseMapTransform(
+                self.input_node(mocker),
+                f=self.fn_a,
+                args=["simple"],
+                kwargs={"extra2": "kwarg"},
+                enable_auto_metadata=True,
+                write_intermediate_data=True,
+                intermediate_datasink=_FileDataSink,
+                intermediate_datasink_kwargs=intermediate_datasink_kwargs,
+            )
+        )
+
+        # assert all
+        truth_id_to_content = dict()
+        for d in Common.dicts:
+            truth_id_to_content[d["doc_id"]] = d
+
+        reals = []
+        for dirpath, _, filenames in os.walk(tmp_path):
+            for filename in filenames:
+                file_path = os.path.join(dirpath, filename)
+                with open(file_path, "rb") as file:
+                    reals += [pickle.load(file)]
+
+        assert self.ndocs == len(reals)
+
+        for real in reals:
+            assert real.doc_id in truth_id_to_content
+
+            # assert all data in original source preserved in this implementation
+            for key, value in truth_id_to_content[real.doc_id].items():
+                assert real.data[key] == value
 
 
 class TestCompositeTransform(Common):

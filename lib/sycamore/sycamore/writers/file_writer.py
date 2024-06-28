@@ -227,11 +227,15 @@ class _FileDataSink(Datasink):
         filesystem: Optional[FileSystem] = None,
         filename_fn: Callable[[Document], str] = default_filename,
         doc_to_bytes_fn: Callable[[Document], bytes] = default_doc_to_bytes,
+        makedirs: bool = False,
     ):
         (paths, self._filesystem) = _resolve_paths_and_filesystem(path, filesystem)
         self._root = paths[0]
         self._filename_fn = filename_fn
         self._doc_to_bytes_fn = doc_to_bytes_fn
+
+        if makedirs:
+            self._filesystem.create_dir(path)
 
     def write(self, blocks: Iterable[Block], ctx: TaskContext) -> Any:
         for block in blocks:

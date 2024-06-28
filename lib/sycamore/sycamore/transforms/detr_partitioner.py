@@ -237,7 +237,7 @@ class SycamorePDFPartitioner:
         with tempfile.NamedTemporaryFile(prefix="detr-pdf-input-") as pdffile:
             with LogTime("write_pdf"):
                 data = file.read()
-                hash_key = CacheManager.get_hash_key(cast(IOBase,data))
+                hash_key = CacheManager.get_hash_key(cast(IOBase, data))
                 data_len = len(data)
                 pdffile.write(data)
                 del data

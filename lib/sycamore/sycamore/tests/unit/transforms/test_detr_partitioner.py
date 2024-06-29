@@ -1,5 +1,5 @@
 from sycamore.data import Element
-from sycamore.transforms.detr_partitioner import SycamorePDFPartitioner, DeformableDetr
+from sycamore.transforms.detr_partitioner import ArynPDFPartitioner, DeformableDetr
 from sycamore.data import BoundingBox
 from sycamore.tests.unit.transforms.compare_detr_impls import compare_batched_sequenced
 
@@ -8,7 +8,7 @@ import json
 from sycamore.tests.config import TEST_DIR
 
 
-class TestSycamorePDFPartitioner:
+class TestArynPDFPartitioner:
     def test_supplement_text(self):
         infer1 = Element()
         infer2 = Element()
@@ -35,7 +35,7 @@ class TestSycamorePDFPartitioner:
         miner5.bbox = BoundingBox(25, 250, 100, 300)
         miner6.bbox = BoundingBox(21, 71, 99, 99)
 
-        result = SycamorePDFPartitioner._supplement_text(
+        result = ArynPDFPartitioner._supplement_text(
             [infer1, infer2, infer3], [miner1, miner2, miner3, miner4, miner5, miner6]
         )
         assert result[0].text_representation == "hello, world 你好，世界 Bonjour le monde"
@@ -53,7 +53,7 @@ class TestSycamorePDFPartitioner:
                     json.dumps(element.properties)
 
     def test_batched_sequenced(self):
-        s = SycamorePDFPartitioner("Aryn/deformable-detr-DocLayNet")
+        s = ArynPDFPartitioner("Aryn/deformable-detr-DocLayNet")
         d = compare_batched_sequenced(s, TEST_DIR / "../../../../apps/crawler/crawler/http/tests/visit_aryn.pdf")
         assert len(d) == 1
         d = compare_batched_sequenced(s, TEST_DIR / "resources/data/pdfs/basic_table.pdf")

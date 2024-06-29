@@ -162,6 +162,7 @@ class ArynPDFPartitioner:
                     batch_size,
                 )
 
+    @staticmethod
     @retry(
         retry=retry_if_exception(_can_retry),
         wait=wait_exponential(multiplier=1, min=1),

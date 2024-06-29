@@ -375,10 +375,10 @@ class ArynPartitioner(Partitioner):
              regions of the document identified as tables. 
         table_structure_extractor: The table extraction implementaion to use when extract_table_structure
              is True. The default is the TableTransformerStructureExtractor. 
-             Cannot be set when local mode is false. 
+             Ignored when local mode is false. 
         extract_images: If true, crops each region identified as an image and attaches it to the associated
              ImageElement. This can later be fed into the SummarizeImages transform.
-        local: defaults to false
+        local: If false, runs the partitioner remotely. Defaults to false
         aryn_token: The account token used to authenticate with Aryn's servers.
         aryn_partitioner_address: The address of the server to use to partition the document
     
@@ -498,6 +498,36 @@ class ArynPartitioner(Partitioner):
         document.elements = elements
         document = reorder_elements(document, self._elements_reorder)
         return document
+
+
+class SycamorePartitioner(ArynPartitioner):
+    def __init__(
+        self,
+        model_name_or_path=ARYN_DETR_MODEL,
+        threshold: float = 0.4,
+        use_ocr=False,
+        ocr_images=False,
+        ocr_tables=False,
+        extract_table_structure=False,
+        table_structure_extractor=None,
+        extract_images=False,
+        device=None,
+        batch_size: int = 1,
+        batch_at_a_time: bool = False,
+    ):
+        device = choose_device(device)
+        super().__init__(
+            model_name_or_path=model_name_or_path,
+            threshold=threshold,
+            use_ocr=use_ocr,
+            ocr_images=ocr_images,
+            extract_table_structure=extract_table_structure,
+            extract_images=extract_images,
+            device=device,
+            batch_size=batch_size,
+            batch_at_a_time=batch_at_a_time,
+            local=True,
+        )
 
 
 class Partition(CompositeTransform):

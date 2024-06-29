@@ -9,7 +9,7 @@ from sycamore.connectors.duckdb import DuckDBWriter
 import json
 from pathlib import Path
 
-from sycamore.writers.file_writer import (
+from sycamore.connectors.file.file_writer import (
     default_filename,
     default_doc_to_bytes,
     elements_to_bytes,

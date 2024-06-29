@@ -4,8 +4,8 @@ import tempfile
 from typing import Any
 
 from sycamore.data import Document
-from sycamore.scans.file_scan import JsonManifestMetadataProvider
-from sycamore.scans import BinaryScan, JsonScan
+from sycamore.connectors.file.file_scan import JsonManifestMetadataProvider
+from sycamore.connectors.file import BinaryScan, JsonScan
 from sycamore.tests.config import TEST_DIR
 
 

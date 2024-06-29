@@ -8,8 +8,8 @@ from opensearchpy.exceptions import RequestError
 from opensearchpy.helpers import parallel_bulk
 
 from sycamore.data import Document
-from sycamore.connectors.writers.base import BaseDBWriter
-from sycamore.connectors.writers.common import HostAndPort, flatten_data, DEFAULT_RECORD_PROPERTIES
+from sycamore.connectors.writer_utils.base import BaseDBWriter
+from sycamore.connectors.writer_utils.common import HostAndPort, flatten_data, DEFAULT_RECORD_PROPERTIES
 
 log = logging.getLogger(__name__)
 

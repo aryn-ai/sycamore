@@ -5,7 +5,7 @@ from ray.data import Dataset, from_huggingface
 
 from sycamore.evaluation import EvaluationDataPoint
 from sycamore import DocSet, Context
-from sycamore.scans import MaterializedScan
+from sycamore.connectors.file import MaterializedScan
 
 
 class HuggingFaceScan(MaterializedScan):

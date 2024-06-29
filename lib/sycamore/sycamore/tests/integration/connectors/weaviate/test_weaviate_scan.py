@@ -1,6 +1,6 @@
 import pytest
 
-from sycamore.tests.integration.scans.test_opensearch_scan import compare_docs
+from sycamore.connectors.writer_utils.common import compare_docs
 import weaviate
 from weaviate.classes.config import Property, ReferenceProperty
 from weaviate.client import ConnectionParams

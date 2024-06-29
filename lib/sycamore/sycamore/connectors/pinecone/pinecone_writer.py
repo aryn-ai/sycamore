@@ -4,12 +4,13 @@ import json
 from sycamore.utils import batched
 from typing_extensions import TypeGuard
 
-from pinecone import PineconeApiException, PodSpec, ServerlessSpec
+from pinecone import PineconeException, PineconeApiException, PodSpec, ServerlessSpec
 from pinecone.grpc import PineconeGRPC, Vector
 from pinecone.grpc.vector_factory_grpc import VectorFactoryGRPC
 from sycamore.data.document import Document
-from sycamore.connectors.writers.base import BaseDBWriter
-from sycamore.connectors.writers.common import flatten_data
+from sycamore.connectors.writer_utils.base import BaseDBWriter
+from sycamore.connectors.writer_utils.common import flatten_data
+import time
 
 
 @dataclass
@@ -55,13 +56,20 @@ class PineconeClient(BaseDBWriter.Client):
         assert _narrow_list_of_pinecone_records(records), f"Found bad records in {records}"
         index = self._client.Index(target_params.index_name)
         async_results = []
+        wait_on_index(self._client, target_params.index_name)
         for batch in batched(records, self._batch_size):
             vectors = [r.to_grpc_vector() for r in batch if r.values is not None]
             res = index.upsert(vectors=vectors, namespace=target_params.namespace, async_req=True)
             async_results.append(res)
+            time.sleep(1)
         for res in async_results:
             # Force async completion. Errors are here
-            res.result()
+            try:
+                res.result()
+            except PineconeException as e:
+                print(e)
+                print("ERROR CHECK")
+                print(res)
 
     def create_target_idempotent(self, target_params: "BaseDBWriter.TargetParams"):
         assert isinstance(target_params, PineconeTargetParams)
@@ -138,6 +146,12 @@ class PineconeRecord(BaseDBWriter.Record):
         else:
             return VectorFactoryGRPC.build({"id": self.id, "values": self.values, "metadata": self.metadata})
 
+    def to_http_vector(self) -> dict:
+        if self.sparse_values:
+            return asdict(self)
+        else:
+            return {"id": self.id, "values": self.values, "metadata": self.metadata}
+
     @staticmethod
     def _validate_metadata(metadata: dict) -> TypeGuard[dict[str, Union[list[str], str, bool, int, float]]]:
         for k, v in metadata.items():
@@ -152,6 +166,22 @@ class PineconeRecord(BaseDBWriter.Record):
 
 def _narrow_list_of_pinecone_records(records: list[BaseDBWriter.Record]) -> TypeGuard[PineconeRecord]:
     return all(isinstance(r, PineconeRecord) for r in records)
+
+
+def wait_on_index(client: PineconeGRPC, index: str):
+    """
+    Takes the name of the index to wait for and blocks until it's available and ready.
+    """
+    ready = False
+    while not ready:
+        try:
+            desc = client.describe_index(index)
+            if desc.get("status")["ready"]:
+                return True
+        except PineconeException:
+            # NotFoundException means the index is created yet.
+            pass
+        time.sleep(1)
 
 
 class PineconeWriter(BaseDBWriter):

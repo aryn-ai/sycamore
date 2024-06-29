@@ -94,7 +94,10 @@ def drop_types(
     drop_additional_types: list[type] = [],
 ) -> Union[dict, list, tuple]:
     if isinstance(data, dict):
-        droppedd = {k: drop_types(v) for k, v in data.items()}
+        droppedd = {
+            k: drop_types(v, drop_nones, drop_empty_lists, drop_empty_dicts, drop_additional_types)
+            for k, v in data.items()
+        }
         if drop_nones:
             droppedd = _filter_dict(_none_filter, droppedd)
         if drop_empty_lists:
@@ -105,7 +108,7 @@ def drop_types(
             droppedd = _filter_dict(_make_type_filter(drop_additional_types), droppedd)
         return droppedd
     elif isinstance(data, (list, tuple)):
-        droppedl = [drop_types(v) for v in data]
+        droppedl = [drop_types(v, drop_nones, drop_empty_lists, drop_empty_dicts, drop_additional_types) for v in data]
         if drop_nones:
             droppedl = _filter_list(_none_filter, droppedl)
         if drop_empty_lists:
@@ -140,6 +143,6 @@ def _empty_dict_filter(x: Any) -> bool:
 
 def _make_type_filter(types: list[type]) -> Callable[[Any], bool]:
     def _type_filter(x):
-        return isinstance(x, tuple(types))
+        return not isinstance(x, tuple(types))
 
     return _type_filter

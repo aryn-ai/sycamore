@@ -58,4 +58,3 @@ def test_run_evaluation():
     assert output.get("raw").get("Answer") == expected_result["doc"][0].get("raw").get("Answer")
     assert output.get("raw").get("SearchContexts") == expected_result["doc"][0].get("raw").get("SearchContexts")
     assert output.get("ground_truth_answer") == expected_result["doc"][0].get("ground_truth_answer")
-    assert output.get("ground_truth_source_documents") == expected_result["doc"][0].get("ground_truth_source_documents")

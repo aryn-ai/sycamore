@@ -15,7 +15,7 @@ class FakeNode(Node):
     def __init__(self, doc: dict):
         self.doc = doc
 
-    def execute(self) -> ray.data.Dataset:
+    def execute(self, **kwargs) -> ray.data.Dataset:
         return ray.data.from_items([self.doc])
 
 

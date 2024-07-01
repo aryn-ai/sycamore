@@ -228,7 +228,7 @@ class JsonScan(FileScan):
 
         return properties
 
-    def execute(self) -> Dataset:
+    def execute(self, **kwargs) -> Dataset:
         json_dataset = read_json(
             self._paths,
             include_paths=True,
@@ -262,7 +262,7 @@ class JsonDocumentScan(FileScan):
         doc.data = json
         return [{"doc": doc.serialize()}]  # Make Ray row
 
-    def execute(self) -> Dataset:
+    def execute(self, **kwargs) -> Dataset:
         ds = read_json(
             self._paths,
             include_paths=True,

@@ -3,10 +3,15 @@ import statistics
 from typing import Tuple, Optional, Any
 
 from sycamore import DocSet
+from sycamore.context import Context
 from sycamore.data import Document, Element, OpenSearchQuery
 from sycamore.evaluation.data import EvaluationDataPoint, EvaluationSummary, EvaluationMetric
 from sycamore.evaluation.metrics import document_retrieval_metrics, rouge_metrics
 from sycamore.transforms.query import OpenSearchQueryExecutor
+
+from sycamore.transforms.extract_elem_test import extract_year
+from sycamore.transforms.embed import OpenAIEmbedder, SentenceTransformerEmbedder
+
 
 logger = logging.getLogger("ray")
 
@@ -20,6 +25,7 @@ class EvaluationPipeline:
         self,
         index: str,
         os_config: dict[str, str],
+        context: Optional[Context] = None,
         metrics: Optional[list[EvaluationMetric]] = None,
         query_executor: Optional[OpenSearchQueryExecutor] = None,
         os_client_args: Optional[dict] = None,
@@ -36,6 +42,7 @@ class EvaluationPipeline:
         else:
             self._query_executor = query_executor
         self._os_config = os_config
+        self._context = context
 
     def _add_filter(self, query_body: dict, filters: dict[str, str]):
         hybrid_query_match = query_body["query"]["hybrid"]["queries"][0]
@@ -55,40 +62,114 @@ class EvaluationPipeline:
 
     def _build_opensearch_query(self, doc: Document) -> Document:
         assert doc.type == "EvaluationDataPoint"
+        
+        qn = doc["question"]
+
+        if "additional_info" in doc:
+            company = doc["additional_info"]["company"]
+            year = doc["additional_info"]["year"]
+        else:
+            company = doc['raw']['doc_name'].split("_")[0]
+
+            no_year_ids = ["financebench_id_01858","financebench_id_07966","financebench_id_07507","financebench_id_08135","financebench_id_00799","financebench_id_01079","financebench_id_01148","financebench_id_01930","financebench_id_00563","financebench_id_01351",
+               "financebench_id_02608", "financebench_id_00685","financebench_id_01077","financebench_id_00288","financebench_id_00460","financebench_id_03838","financebench_id_00464","financebench_id_00585","financebench_id_02981","financebench_id_01346",
+               "financebench_id_01107","financebench_id_00839","financebench_id_00206","financebench_id_03718","financebench_id_03849","financebench_id_00552","financebench_id_04302","financebench_id_00735","financebench_id_00302","financebench_id_00283",
+               "financebench_id_00521","financebench_id_00605","financebench_id_00566","financebench_id_04784","financebench_id_06741"]
+            
+            if doc['raw']['financebench_id'] in no_year_ids:
+                year = extract_year(qn, company)
+            else:
+                year = str(doc['raw']['doc_period'])
+
+            calcs_reqd = True # TODO: list of qs requiring calcs
+
+            if calcs_reqd:
+                from sycamore.evaluation.subtasks import executor
+                qn = executor(qn, company, year, self._context) # TODO: figure out how to do this
+
+        # embedder = OpenAIEmbedder(batch_size=100)
+        embedder = SentenceTransformerEmbedder(model_name="sentence-transformers/all-mpnet-base-v2", batch_size=100)
+        qn_embedding = embedder.get_model().encode(qn).tolist()
+        # qn_embedding = embedder.generate_embeddings_text(qn)
+
         query = OpenSearchQuery(doc)
         query["index"] = self._index
-        query["query"] = {
-            "_source": {"excludes": ["embedding"]},
-            "query": {
-                "hybrid": {
-                    "queries": [
-                        {"match": {"text_representation": doc["question"]}},
-                        {
-                            "neural": {
-                                "embedding": {
-                                    "query_text": doc["question"],
-                                    "model_id": self._os_config["embedding_model_id"],
-                                    "k": self._os_config.get("neural_search_k", 100),
-                                }
+        
+        if year != "":
+            query["query"] = {
+                "_source": {"excludes": ["embedding"]},
+                "size": self._os_config.get("size", 20),
+                "query": {
+                    "knn": {
+                        "embedding": {
+                            "vector": qn_embedding,
+                            "k": self._os_config.get("neural_search_k", 100),
+                            "filter": {
+                                "bool": {
+                                    "must": [
+                                        {
+                                            "match": {
+                                                "text_representation": qn
+                                            }
+                                        },
+                                        {
+                                            "match_phrase": {
+                                                "properties.year": year
+                                            }
+                                        },
+                                        {
+                                            "match_phrase": {
+                                                "properties.company": company
+                                            }
+                                        }
+                                    ],
+                                },
                             }
-                        },
-                    ]
+                        }
+                    }
                 }
-            },
-            "size": self._os_config.get("size", 20),
-        }
+            }
+        else:
+            query["query"] = {
+                "_source": {"excludes": ["embedding"]},
+                "size": self._os_config.get("size", 20),
+                "query": {
+                    "knn": {
+                        "embedding": {
+                            "vector": qn_embedding,
+                            "k": self._os_config.get("neural_search_k", 100),
+                            "filter": {
+                                "bool": {
+                                    "must": [
+                                        {
+                                            "match": {
+                                                "text_representation": qn
+                                            }
+                                        },
+                                        {
+                                            "match_phrase": {
+                                                "properties.company": company
+                                            }
+                                        }
+                                    ],
+                                },
+                            }
+                        }
+                    }
+                }
+            }
 
         if "llm" in self._os_config:
             query["params"] = {"search_pipeline": self._os_config["search_pipeline"]}
             query["query"]["ext"] = {
                 "generative_qa_parameters": {
-                    "llm_question": doc["question"],
+                    "llm_question": qn,
                     "context_size": self._os_config.get("context_window", 10),
-                    "llm_model": self._os_config.get("llm", "gpt-4"),
+                    "llm_model": self._os_config.get("llm", "gpt-3.5-turbo"),
                 }
             }
             if self._os_config.get("rerank", False):
-                query["query"]["ext"]["rerank"] = {"query_context": {"query_text": doc["question"]}}
+                query["query"]["ext"]["rerank"] = {"query_context": {"query_text": qn}}
         if "filters" in doc:
             query["query"] = self._add_filter(query["query"], doc["filters"])
         return query
@@ -143,3 +224,15 @@ class EvaluationPipeline:
         aggregated_metrics = self._aggregate_metrics(query_level_metrics)
 
         return query_level_metrics, aggregated_metrics
+
+    def subtask_execute(self, input_dataset: DocSet) -> DocSet:
+        # 1. convert input dataset to opensearch queries [EvaluationDataPoint -> OpenSearchQuery]
+        opensearch_queries = input_dataset.map(self._build_opensearch_query)
+
+        # 2. execute opensearch queries [OpenSearchQuery -> OpenSearchQueryResult]
+        opensearch_results = opensearch_queries.query(query_executor=self._query_executor)
+
+        # 3. query level metrics [OpenSearchQueryResult -> EvaluatedEvaluationDataPoint]
+        query_level_metrics = opensearch_results.map(self._process_queries)
+
+        return query_level_metrics

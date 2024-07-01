@@ -10,6 +10,7 @@ from sycamore.llms.prompts.default_prompts import (
     TextSummarizerGuidancePrompt,
     SchemaZeroShotGuidancePrompt,
     PropertiesZeroShotGuidancePrompt,
+    RelevantInformationZeroShotGuidancePrompt
 )
 from sycamore.llms.prompts.default_prompts import _deprecated_prompts
 

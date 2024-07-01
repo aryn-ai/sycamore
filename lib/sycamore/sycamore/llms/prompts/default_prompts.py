@@ -109,6 +109,16 @@ class PropertiesZeroShotGuidancePrompt(SimpleGuidancePrompt):
     """
 
 
+class RelevantInformationZeroShotGuidancePrompt(SimpleGuidancePrompt):
+    system = "You are a helpful reference finder."
+    user = """You are given the text from a document containing expert knowledge on financial terms and interpreting SEC filings.
+    {knowledge}
+    You are also given a financial question that can be answered using SEC filings: {question}. Extract terms that are central to the question. Try to find relevant lines relating to these terms in the expert knowledge.
+    Return the relevant lines from the expert knowledge along with the subheading that these lines appears under. Do not return more than 3 relevant lines and do not return more than 1 subheading.
+    Do not return any other text. Do not return the financial terms you extract from the question. If there is no relevant text you can find, return the empty string "".
+    """
+
+
 _deprecated_prompts: dict[str, Type[GuidancePrompt]] = {
     "ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT": EntityExtractorZeroShotGuidancePrompt,
     "ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT_CHAT": EntityExtractorFewShotGuidancePrompt,

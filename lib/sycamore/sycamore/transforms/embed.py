@@ -108,6 +108,12 @@ class SentenceTransformerEmbedder(Embedder):
 
         return doc_batch
 
+    def get_model(self):
+        if not self._transformer:
+            return SentenceTransformer(self.model_name)
+        else:
+            return self._transformer
+
 
 class OpenAIEmbeddingModels(Enum):
     TEXT_EMBEDDING_ADA_002 = "text-embedding-ada-002"
@@ -183,6 +189,19 @@ class OpenAIEmbedder(Embedder):
                     i += 1
 
         return doc_batch
+
+    def generate_embeddings_text(self, sentence):
+        if self._client is None:
+            self._client = self.client_wrapper.get_client()
+
+        if isinstance(self._client, AzureOpenAIClient) and self.model_batch_size > 16:
+            logger.warn("The maximum batch size for emeddings on Azure Open AI is 16.")
+            self.model_batch_size = 16
+        
+        embedding = self._client.embeddings.create(model=self.model_name, input=sentence).data[0].embedding
+
+        return embedding
+        
 
 
 class BedrockEmbeddingModels(Enum):

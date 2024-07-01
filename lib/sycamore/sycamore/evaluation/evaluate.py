@@ -25,6 +25,7 @@ def add_searchContext_to_datapoint(datapoint: Document) -> List[Element]:
         source_documents += [source_document]
     return source_documents
 
+
 def add_filters_to_question(datapoint: EvaluationDataPoint) -> EvaluationDataPoint:
     datapoint = EvaluationDataPoint(datapoint)
     assert isinstance(datapoint, EvaluationDataPoint)

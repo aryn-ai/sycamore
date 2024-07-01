@@ -15,7 +15,7 @@ from sycamore.writers.file_writer import _FileDataSink
 
 class Common:
     dicts = [
-        {"doc_id": "pb1", "doc": "Beat it or I'll call the Brute Squad."},
+        {"doc_id": "pb1", "doc": "Beat it or I'll call the Brute Squad?"},
         {"doc_id": "pb2", "doc": "I'm on the Brute Squad."},
         {"doc_id": "pb3", "doc": "You ARE the Brute Squad!"},
     ]

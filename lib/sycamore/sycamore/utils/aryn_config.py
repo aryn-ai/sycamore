@@ -7,27 +7,26 @@ _DEFAULT_PATH = os.path.join(pathlib.Path.home(), ".aryn", "config.yaml")
 
 
 class ArynConfig:
-    def __init__(self, **kwargs):
-        self.__dict__.update(kwargs)
+    pass
 
 
-def get_aryn_api_key(requested_yaml_config_path: str = "") -> str:
+def get_aryn_api_key(config_path: str = "") -> str:
     api_key = os.environ.get("ARYN_API_KEY")
     if api_key:
         return api_key
 
-    global_aryn_config = get_aryn_config(requested_yaml_config_path)
+    global_aryn_config = get_aryn_config(config_path)
     return global_aryn_config.__dict__.get("aryn_token", "")
 
 
-def get_aryn_config(requested_yaml_config_path: str = "") -> ArynConfig:
-    config_path = requested_yaml_config_path or os.environ.get("ARYN_CONFIG") or _DEFAULT_PATH
+def get_aryn_config(config_path: str = "") -> ArynConfig:
+    config_path = config_path or os.environ.get("ARYN_CONFIG") or _DEFAULT_PATH
     config = ArynConfig()
     try:
         with open(config_path, "r") as yaml_file:
             aryn_env = yaml.safe_load(yaml_file)
             if aryn_env is None or not isinstance(aryn_env, dict):
-                logging.debug("Aryn YAML config appears to be empty.")
+                logging.warning("Aryn YAML config appears to be empty.")
                 return config
             config.__dict__.update(aryn_env)
             logging.debug(f"Aryn configuration: {vars(config)}")

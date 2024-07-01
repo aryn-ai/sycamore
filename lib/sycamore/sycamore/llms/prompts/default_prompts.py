@@ -79,6 +79,7 @@ class EntityExtractorFewShotGuidancePrompt(SimpleGuidancePrompt):
     {query}
     """
 
+
 class TextSummarizerGuidancePrompt(SimpleGuidancePrompt):
     system = "You are a helpful text summarizer."
     user = """Write a summary of the following. Use only the information provided.

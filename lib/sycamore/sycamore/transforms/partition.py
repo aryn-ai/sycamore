@@ -16,7 +16,7 @@ from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
 from sycamore.utils import choose_device
-from sycamore.utils.aryn_config import get_aryn_api_key
+from sycamore.utils.aryn_config import ArynConfig
 
 from sycamore.transforms.aryn_partitioner import _DEFAULT_ARYN_PARTITIONER_ADDRESS
 
@@ -534,7 +534,7 @@ class ArynPartitioner(Partitioner):
     ):
         super().__init__(device="cpu", batch_size=1)
         if not aryn_api_key:
-            self._aryn_api_key = get_aryn_api_key()
+            self._aryn_api_key = ArynConfig.get_aryn_api_key()
         else:
             self._aryn_api_key = aryn_api_key
         self._threshold = threshold

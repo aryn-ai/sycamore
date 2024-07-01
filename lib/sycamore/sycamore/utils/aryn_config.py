@@ -2,39 +2,52 @@ import os
 import pathlib
 import yaml
 import logging
+import threading
 
 _DEFAULT_PATH = os.path.join(pathlib.Path.home(), ".aryn", "config.yaml")
 
 
 class ArynConfig:
-    pass
+    _global_aryn_config_lock = threading.Lock()
+    _global_aryn_config = None
 
+    @classmethod
+    def get_aryn_api_key(cls, config_path: str = "") -> str:
+        api_key = os.environ.get("ARYN_API_KEY")
+        if api_key:
+            return api_key
 
-def get_aryn_api_key(config_path: str = "") -> str:
-    api_key = os.environ.get("ARYN_API_KEY")
-    if api_key:
-        return api_key
+        with cls._global_aryn_config_lock:
+            if cls._global_aryn_config:
+                return cls._global_aryn_config.get("aryn_token", "")
 
-    global_aryn_config = get_aryn_config(config_path)
-    return global_aryn_config.__dict__.get("aryn_token", "")
+        cls._get_aryn_config(config_path)
 
+        with cls._global_aryn_config_lock:
+            if cls._global_aryn_config:
+                return cls._global_aryn_config.get("aryn_token", "")
+            else:
+                return ""
 
-def get_aryn_config(config_path: str = "") -> ArynConfig:
-    config_path = config_path or os.environ.get("ARYN_CONFIG") or _DEFAULT_PATH
-    config = ArynConfig()
-    try:
-        with open(config_path, "r") as yaml_file:
-            aryn_env = yaml.safe_load(yaml_file)
-            if aryn_env is None or not isinstance(aryn_env, dict):
-                logging.warning("Aryn YAML config appears to be empty.")
-                return config
-            config.__dict__.update(aryn_env)
-            logging.debug(f"Aryn configuration: {vars(config)}")
-    except FileNotFoundError as err:
-        if config_path == _DEFAULT_PATH:
-            logging.debug(f"Aryn config YAML not present: {err}")
-        else:
-            logging.error(f"Unable to load specified aryn config {config_path}: {err}")
-    except yaml.scanner.ScannerError as err:
-        logging.error(f"Unable to load {config_path}: {err}. Ignoring the config file.")
-    return config
+    @classmethod
+    def _get_aryn_config(cls, config_path: str = "") -> None:
+        with cls._global_aryn_config_lock:
+            if cls._global_aryn_config:
+                return
+            config_path = config_path or os.environ.get("ARYN_CONFIG") or _DEFAULT_PATH
+
+            try:
+                with open(config_path, "r") as yaml_file:
+                    aryn_config = yaml.safe_load(yaml_file)
+                    cls._global_aryn_config = aryn_config
+                    if aryn_config is None or not isinstance(aryn_config, dict):
+                        logging.warning("Aryn YAML config appears to be empty.")
+                        return
+                    logging.debug(f"Aryn configuration: {aryn_config}")
+            except FileNotFoundError as err:
+                if config_path == _DEFAULT_PATH:
+                    logging.debug(f"Aryn config YAML not present: {err}")
+                else:
+                    logging.error(f"Unable to load specified aryn config {config_path}: {err}")
+            except yaml.scanner.ScannerError as err:
+                logging.error(f"Unable to load {config_path}: {err}. Ignoring the config file.")

@@ -1,8 +1,8 @@
 import logging
-from typing import Any, Callable, Iterable, Optional
+from typing import Any, Callable, Iterable, Optional, Union
 
 import numpy as np
-from ray.data import ActorPoolStrategy, Dataset
+from ray.data import ActorPoolStrategy, Dataset, Datasink
 
 from sycamore.data import Document, MetadataDocument
 from sycamore.data.document import split_data_metadata
@@ -109,20 +109,41 @@ class BaseMapTransform(UnaryNode):
         self._constructor_kwargs = constructor_kwargs
         self._enable_auto_metadata = enable_auto_metadata
 
-    def execute(self) -> "Dataset":
+    def execute(
+        self,
+        write_intermediate_data: bool = False,
+        intermediate_datasink: Optional[Union[type[Datasink], Datasink]] = None,
+        intermediate_datasink_kwargs: Optional[dict[str, Any]] = None,
+        **kwargs,
+    ) -> "Dataset":
         if "num_gpus" in self.resource_args:
             assert self.resource_args["num_gpus"] > 0
 
-        input_dataset = self.child().execute()
-
+        input_dataset = self.child().execute(
+            write_intermediate_data=write_intermediate_data,
+            intermediate_datasink=intermediate_datasink,
+            intermediate_datasink_kwargs=intermediate_datasink_kwargs,
+        )
         if isinstance(self._f, type):  # is f a class?
             # Maybe add a class as function variant if the caller specified TaskPoolStrategy
-            return input_dataset.map_batches(self._map_class(), **self.resource_args)
+            result = input_dataset.map_batches(self._map_class(), **self.resource_args)
         elif "compute" in self.resource_args and isinstance(self.resource_args["compute"], ActorPoolStrategy):
             # Ray requires a class for ActorPoolStrategy.
-            return input_dataset.map_batches(self._map_callable_as_class(), **self.resource_args)
+            result = input_dataset.map_batches(self._map_callable_as_class(), **self.resource_args)
         else:
-            return input_dataset.map_batches(self._map_function(), **self.resource_args)
+            result = input_dataset.map_batches(self._map_function(), **self.resource_args)
+
+        if write_intermediate_data:
+            assert intermediate_datasink is not None
+            if isinstance(intermediate_datasink, type):
+                assert intermediate_datasink_kwargs is not None
+                # ensure each nodes data is written in a separate directory
+                intermediate_datasink_kwargs["path"] = intermediate_datasink_kwargs["path"] + "/" + self._name
+                intermediate_datasink = intermediate_datasink(**intermediate_datasink_kwargs)
+            else:
+                intermediate_datasink = intermediate_datasink
+            result.write_datasink(intermediate_datasink)
+        return result
 
     def _local_process(self, in_docs: list[Document]) -> list[Document]:
         """Internal function for faster testing during the conversion to running on BaseMap.
@@ -256,5 +277,5 @@ class CompositeTransform(UnaryNode):
 
         return docs
 
-    def execute(self) -> Dataset:
+    def execute(self, **kwargs) -> Dataset:
         return self.nodes[-1].execute()

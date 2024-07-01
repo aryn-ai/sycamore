@@ -13,7 +13,7 @@ class Node(ABC):
         return "node"
 
     @abstractmethod
-    def execute(self) -> Dataset:
+    def execute(self, **kwargs) -> Dataset:
         pass
 
     def traverse_down(self, f: Callable[["Node"], "Node"]) -> "Node":

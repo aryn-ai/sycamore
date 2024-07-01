@@ -20,11 +20,11 @@ There are several options you can use in the Sycamore Partitioner for table extr
 Parameters:
 
 * ```model_name_or_path```: The HuggingFace coordinates or model local path. It defaults to ```SYCAMORE_DETR_MODEL```, and you should only change it if you are testing a custom model. * * ```threshold```: The threshold to use for accepting the models predicted bounding boxes. A lower value will include more objects, but may have overlaps, a higher value will reduce the number of overlaps, but may miss legitimate objects. It defaults to ```0.4```.
-* ```use_ocr```: If ```True```, the partitioner uses OCR to extract text from the PDF. It defaults to ```False```, where the partitioner attempts to directly extract the text from the underlying PDF in the bounding box. It currently uses Tesseract for extraction. 
-* ```ocr_images```: If set to ```True``` alongside ```use_ocr```, the partitioner will attempt to OCR regions of the document identified as images. 
+* ```use_ocr```: If ```True```, the partitioner uses OCR to extract text from the PDF. It defaults to ```False```, where the partitioner attempts to directly extract the text from the underlying PDF in the bounding box. It currently uses Tesseract for extraction.
+* ```ocr_images```: If set to ```True``` alongside ```use_ocr```, the partitioner will attempt to OCR regions of the document identified as images.
 * ```ocr_tables```: If set to ```True``` alongside ```use_ocr```, the partitioner will attempt to OCR regions on the document identified as tables. This should not be set when `extract_table_structure` is ```True```. It currently uses EasyOCR for extraction.
 * `extract_table_structure`: If `True`, the partitioner runs a separate table extraction model to extract cells from regions of the document identified as tables. Do not set if 'ocr_tables' is true.
-* `table_structure_extractor`: The table extraction implementation to use when `extract_table_structure` is `True`. The default is the `TableTransformerStructureExtractor`. 
+* `table_structure_extractor`: The table extraction implementation to use when `extract_table_structure` is `True`. The default is the `TableTransformerStructureExtractor`.
 * `extract_images`: If `True`, the partitioner crops each region identified as an image and attaches it to the associated `ImageElement`. This can later be fed into the `SummarizeImages` transform.
 
 Here is an example of chunking and using table extraction:

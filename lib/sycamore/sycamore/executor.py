@@ -13,6 +13,6 @@ class Execution:
         extension_rules = context.get_extension_rule()
         self.rewriter = Rewriter(extension_rules)
 
-    def execute(self, plan: Node) -> "Dataset":
+    def execute(self, plan: Node, **kwargs) -> "Dataset":
         self.rewriter.rewrite(plan)
-        return plan.execute()
+        return plan.execute(**kwargs)

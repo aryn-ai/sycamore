@@ -149,7 +149,7 @@ class BinaryScan(FileScan):
         logger.warning(f"Unrecognized extenstion {self._binary_format}; using {ret}")
         return ret
 
-    def execute(self) -> "Dataset":
+    def execute(self, **kwargs) -> Dataset:
         file_extensions = [self.format()] if self._filter_paths_by_extension else None
 
         files = read_binary_files(
@@ -228,7 +228,7 @@ class JsonScan(FileScan):
 
         return properties
 
-    def execute(self) -> Dataset:
+    def execute(self, **kwargs) -> Dataset:
         json_dataset = read_json(
             self._paths,
             include_paths=True,
@@ -262,7 +262,7 @@ class JsonDocumentScan(FileScan):
         doc.data = json
         return [{"doc": doc.serialize()}]  # Make Ray row
 
-    def execute(self) -> Dataset:
+    def execute(self, **kwargs) -> Dataset:
         ds = read_json(
             self._paths,
             include_paths=True,

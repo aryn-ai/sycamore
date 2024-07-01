@@ -74,7 +74,6 @@ class ArynPDFPartitioner:
             model_name_or_path: The HuggingFace coordinates or local path to the DeformableDETR weights to use.
             device: The device on which to run the model.
         """
-
         self.device = device
         self.model = DeformableDetr(model_name_or_path, device)
 
@@ -121,7 +120,7 @@ class ArynPDFPartitioner:
         batch_size: int = 1,
         batch_at_a_time=True,
         local=False,
-        aryn_token=False,
+        aryn_token: str = "",
         aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
     ) -> List[List[Element]]:
         if not local:

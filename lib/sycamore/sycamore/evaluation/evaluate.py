@@ -2,16 +2,45 @@ from typing import Dict, List, Union
 from abc import ABC, abstractmethod
 
 import os
-from sycamore.reader import DocSetReader
-from sycamore.data import Element
+from sycamore.data import Element, Document
 from sycamore.evaluation.pipeline import EvaluationPipeline
 from sycamore.evaluation import EvaluationDataPoint
 from sycamore.evaluation.metrics import document_retrieval_metrics, rouge_metrics
 from sycamore import Context
 
 
-class Assessment(ABC):
+def add_searchContext_to_datapoint(datapoint: Document) -> List[Element]:
+    assert isinstance(datapoint, Document)
+    source_documents: List[Element] = []
+    assert datapoint.get("raw") is not None
+    for search_result in datapoint["raw"].get("SearchContexts", []):
+        source_document = Element()
+        properties = {
+            "_location": search_result["document_url"],
+            "page_number": search_result["page_numbers"][0],
+            "doc_id": search_result["document_id"],
+        }
+        source_document.properties = properties
+        source_document.text_representation = search_result["text_representation"]
+        source_documents += [source_document]
+    return source_documents
 
+def add_filters_to_question(datapoint: EvaluationDataPoint) -> EvaluationDataPoint:
+    datapoint = EvaluationDataPoint(datapoint)
+    assert isinstance(datapoint, EvaluationDataPoint)
+    assert datapoint.raw is not None
+    template_Q = datapoint.raw["custom_question_augmentation"]
+    filter_Q = datapoint.raw["question_augmentation_filter"]
+    if datapoint.filters:
+        for filter in datapoint.filters.keys():
+            if datapoint.raw.get("Filters") is not None:
+                datapoint.filters[filter] = datapoint.raw.get("Filters").get(filter, "")
+        datapoint.ground_truth_source_documents = add_searchContext_to_datapoint(datapoint)
+        datapoint.question = template_Q.format(datapoint.raw["Question"], datapoint.filters.get(filter_Q))
+    return datapoint
+
+
+class Assessment(ABC):
     @abstractmethod
     def run_evaluation(self, ctx: Context, index: str, **kwargs):
         pass
@@ -23,7 +52,7 @@ class Assessment(ABC):
 class QualityAssessment(Assessment):
     def __init__(self, GT_path: str, rag_config: Dict, **kwargs):
         self.user = os.environ.get("USER", os.environ.get("USERNAME"))
-        self.GT_path = GT_path
+        self.gt_path = GT_path
         self.rag_config = rag_config
         self.os_client_args = kwargs.get("os_client_args", "")
         self.metrics = kwargs.get("metrics", [document_retrieval_metrics, rouge_metrics])
@@ -39,48 +68,28 @@ class QualityAssessment(Assessment):
         assert isinstance(json_dict, dict)
         for datapoint in json_dict["data"][:]:
             document = EvaluationDataPoint()
+            datapoint["custom_question_augmentation"] = custom_question_augmentation
+            datapoint["question_augmentation_filter"] = question_augmentation_filter
             document.raw = datapoint
             document.ground_truth_answer = datapoint["Answer"]
-            document.filters = datapoint.get("Filters", None)
-            if document.filters:
-                for filter in document.filters.keys():
-                    document.filters[filter] = datapoint.get("Filters").get(filter)
-                document.question = custom_question_augmentation.format(
-                    document.question, document.filters.get(question_augmentation_filter)
-                )
-            else:
-                document.filters = {}
-                document.question = custom_question_augmentation.format(document.question, "")
-            source_documents: List[Element] = []
-            for search_result in datapoint["SearchContexts"]:
-                source_document = Element()
-                properties = {
-                    "_location": search_result["document_url"],
-                    "page_number": search_result["page_numbers"][0],
-                    "doc_id": search_result["document_id"],
-                }
-                source_document.properties = properties
-                source_document.text_representation = search_result["text_representation"]
-                source_documents += [source_document]
-
-            document.ground_truth_source_documents = source_documents
+            document.filters = datapoint.get("Filters", {})
             result += [{"doc": document.serialize()}]
         return result
 
     def run_evaluation(self, ctx: Context, index: str, **kwargs):
         custom_question_augmentation = str(self.custom_question_augmentation)
         question_augmentation_filter = str(self.question_augmentation_filter)
-        input_docset = DocSetReader(ctx).json(
-            paths=self.GT_path,
+        input_docset = ctx.read.json(
+            paths=self.gt_path,
             doc_extractor=lambda json_dict: QualityAssessment.create_evaluation_datapoint(
                 json_dict, custom_question_augmentation, question_augmentation_filter
             ),
-        )
+        ).map(add_filters_to_question)
+
         pipeline = EvaluationPipeline(
             index=index, os_client_args=self.os_client_args, os_config=self.rag_config, metrics=self.metrics
         )
         query_level_metrics, aggregated_metrics = pipeline.execute(input_docset)
-
         return query_level_metrics.take_all(), aggregated_metrics
 
 
@@ -96,7 +105,7 @@ class Evaluate:
         GT_path: The path to ground truth
         rag_config: Configration for RAG
         os_client_args: Configration for connecting to opensearch
-        custom_question_augmentation: Custom String for Augmenting question
+        custom_question_augmentation: Custom String for Augmenting Question
         question_augmentation_filter: Filters values to be use in custom Question Augmentation
 
     Returns:

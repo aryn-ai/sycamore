@@ -24,7 +24,7 @@ class PineconeScan(Scan):
                 doc = Document({"doc_id": id, "embedding": data.values} | data.metadata)  # type: ignore
                 documents.append(doc)
         except PineconeApiException as e:
-            raise e
+            print(f"Read Request Failed: {e}")
         return from_items(items=[{"doc": doc.serialize()} for doc in documents])
 
     def format(self):

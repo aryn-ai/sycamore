@@ -40,7 +40,7 @@ class ArynConfig:
                 with open(config_path, "r") as yaml_file:
                     aryn_config = yaml.safe_load(yaml_file)
                     cls._global_aryn_config = aryn_config
-                    if aryn_config is None or not isinstance(aryn_config, dict):
+                    if not isinstance(aryn_config, dict):
                         logging.warning("Aryn YAML config appears to be empty.")
                         return
                     logging.debug(f"Aryn configuration: {aryn_config}")

@@ -13,7 +13,7 @@ class PineconeScan(Scan):
         self._api_key = api_key
         self._namespace = namespace
 
-    def execute(self) -> Dataset:
+    def execute(self, **kwargs) -> Dataset:
         documents = []
         try:
             client = PineconeGRPC(api_key=self._api_key)
@@ -26,7 +26,9 @@ class PineconeScan(Scan):
                 if data.sparse_vector:
                     term_frequency = dict(zip(data.sparse_vector.indices, data.sparse_vector.values))
                     data.metadata["properties.term_frequency"] = term_frequency
-                doc = Document({"doc_id": doc_id, "embedding": data.values} | unflatten_data(data.metadata))  # type: ignore
+                doc = Document(
+                    {"doc_id": doc_id, "embedding": data.values} | unflatten_data(data.metadata)
+                )  # type: ignore
                 documents.append(doc)
         except PineconeApiException as e:
             print(f"Read Request Failed: {e}")

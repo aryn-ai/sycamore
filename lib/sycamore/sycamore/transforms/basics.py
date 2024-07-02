@@ -27,7 +27,7 @@ class Limit(NonCPUUser, NonGPUUser, Transform):
         super().__init__(child)
         self._limit = limit
 
-    def execute(self) -> "Dataset":
+    def execute(self, **kwargs) -> Dataset:
         dataset = self.child().execute()
         return dataset.limit(self._limit)
 

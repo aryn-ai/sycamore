@@ -116,7 +116,7 @@ class DuckDBClient(BaseDBWriter.Client):
                 )
             else:
                 print(
-                    f"""Error creating table {dict_params.get('table_name')} 
+                    f"""Error creating table {dict_params.get('table_name')}
                     in database {dict_params.get('db_url')}: no schema provided"""
                 )
         except Exception as e:
@@ -133,7 +133,7 @@ class DuckDBClient(BaseDBWriter.Client):
                 schema = dict(zip(table.columns, [repr(i) for i in table.dtypes]))
             except Exception as e:
                 print(
-                    f"""Table {dict_params.get('table_name')} 
+                    f"""Table {dict_params.get('table_name')}
                     does not exist in database {dict_params.get('table_name')}: {e}"""
                 )
         return DuckDBTargetParams(

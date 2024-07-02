@@ -191,6 +191,7 @@ class TestDocSet:
                 Element(text_representation=f"Document {i} Element {j}", properties={"element_val": i})
                 for j in range(10)
             ]
+            docs.append(doc)
 
         context = sycamore.init()
         docset = context.read.document(docs).map_elements(self.double_element)
@@ -199,3 +200,23 @@ class TestDocSet:
         for doc in all_docs:
             for elem in doc.elements:
                 assert elem.properties["element_double"] == elem.properties["element_val"] * 2
+
+    def test_filter_elements(self):
+        docs = []
+        for i in range(10):
+            doc = Document(text_representation=f"Document {i}", doc_id=i, properties={"document_number": i})
+            doc.elements = [
+                Element(text_representation=f"Document {i} Element {j}", properties={"element_val": j})
+                for j in range(10)
+            ]
+            docs.append(doc)
+
+        context = sycamore.init()
+        docset = context.read.document(docs).filter_elements(lambda e: e.properties["element_val"] % 2 == 0)
+
+        all_docs = docset.take_all()
+        assert len(all_docs) == len(docs)
+
+        for doc in all_docs:
+            for elem in doc.elements:
+                assert elem.properties["element_val"] % 2 == 0

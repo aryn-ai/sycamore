@@ -71,9 +71,11 @@ class EntityExtractorZeroShotGuidancePrompt(SimpleGuidancePrompt):
 class EntityExtractorFewShotGuidancePrompt(SimpleGuidancePrompt):
     system = "You are a helpful entity extractor."
     # ruff: noqa: E501
-    user = """You are given a few text elements of a document. The {entity} of the document is in these few text elements. Using
-    this context, FIND,COPY, and RETURN the {entity}. Only return the {entity} as part of your answer. DO NOT
-    REPHRASE OR MAKE UP AN ANSWER.
+    user = """You are given a few text elements of a document. The {entity} of the document is in these few text elements. Here are
+    some example groups of text elements where the {entity} has been identified.
+    {examples}
+    Using the context from the document and the provided examples, FIND, COPY, and RETURN the {entity}. Only return the {entity} as part
+    of your answer. DO NOT REPHRASE OR MAKE UP AN ANSWER.
     {query}
     """
 

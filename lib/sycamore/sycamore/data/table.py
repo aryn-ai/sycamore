@@ -50,6 +50,25 @@ class TableCell:
             if a + 1 != b:
                 raise ValueError(f"Found non-contiguous cols in {self}.")
 
+    @classmethod
+    def from_dict(cls, dict_obj: dict[str, Any]) -> "TableCell":
+        for key in ["content", "rows", "cols"]:
+            if key not in dict_obj:
+                raise ValueError(f"Key {key} required to deserialize TableCell object.")
+
+        kwargs = {"content": dict_obj["content"], "rows": dict_obj["rows"], "cols": dict_obj["cols"]}
+
+        if "is_header" in dict_obj:
+            kwargs["is_header"] = dict_obj["is_header"]
+
+        if "bbox" in dict_obj and dict_obj["bbox"] is not None:
+            kwargs["bbox"] = BoundingBox(**dict_obj["bbox"])
+
+        if "properties" in dict_obj:
+            kwargs["properties"] = dict_obj["properties"]
+
+        return TableCell(**kwargs)
+
 
 DEFAULT_HTML_STYLE = """
 table, th, td {
@@ -104,6 +123,25 @@ class Table:
 
     def __hash__(self):
         return hash((self.cells))
+
+    @classmethod
+    def from_dict(cls, dict_obj: dict[str, Any]) -> "Table":
+        """Construct a table from a dict representation."""
+        if "cells" not in dict_obj:
+            raise ValueError("Table dict must contain 'cells' key.")
+
+        cells = [TableCell.from_dict(c) for c in dict_obj["cells"]]
+        caption = dict_obj["caption"] if "caption" in dict_obj else None
+
+        ret = Table(cells, caption)
+
+        if "num_rows" in dict_obj:
+            assert ret.num_rows == dict_obj["num_rows"]
+
+        if "num_cols" in dict_obj:
+            assert ret.num_cols == dict_obj["num_cols"]
+
+        return ret
 
     # This algorithm is modified from the TableTransformers code. The conversion to Pandas/CSV
     # is necessarily lossy since these formats requires tables to be square and don't support

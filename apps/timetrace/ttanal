@@ -8,6 +8,7 @@ from typing import NamedTuple
 FMT = "BxxxIQQQQQ48s"
 SIZE = struct.calcsize(FMT)
 
+
 class TimeTraceRec(NamedTuple):
     thread: int
     t0: int
@@ -17,12 +18,14 @@ class TimeTraceRec(NamedTuple):
     rss: int
     name: str
 
+
 def buf_to_rec(buf) -> TimeTraceRec:
     tup = struct.unpack(FMT, buf)
     ver, thr, t0, t1, user, syst, rss, name = tup
     assert ver == 0
-    name = name.decode().rstrip('\0')
+    name = name.decode().rstrip("\0")
     return TimeTraceRec(thr, t0, t1, user, syst, rss, name)
+
 
 def tt_reader(paths: list[str]):
     for path in paths:
@@ -32,6 +35,7 @@ def tt_reader(paths: list[str]):
                 if not buf:
                     break
                 yield buf_to_rec(buf)
+
 
 time_units = [
     ("ns", 0.000000001),
@@ -54,6 +58,7 @@ mem_units = [
     (None, None),
 ]
 
+
 def pretty_num(units: list[tuple[str, float]], s: float) -> str:
     if s == 0:
         return "0"
@@ -67,11 +72,14 @@ def pretty_num(units: list[tuple[str, float]], s: float) -> str:
             s /= val
             return f"{sign}{s:.3g}{unit}"
 
+
 def pretty_time(s: float) -> str:
     return pretty_num(time_units, s)
 
+
 def pretty_mem(s: float) -> str:
     return pretty_num(mem_units, s)
+
 
 class Analyze:
     def __init__(self, paths):
@@ -188,7 +196,8 @@ class Analyze:
         phigh = pretty_mem(high)
         print(f"sumrss {phigh}")
 
-def main(args = None):
+
+def main(args=None):
     if args is None:
         args = sys.argv[1:]
     aa = Analyze(args)

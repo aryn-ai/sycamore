@@ -18,6 +18,16 @@ class BoundingBox(ABC):
         self.x2 = x2
         self.y2 = y2
 
+    def __eq__(self, other):
+        if type(other) is not type(self):
+            return False
+        if self.x1 != other.x1 or self.x2 != other.x2 or self.y1 != other.y1 or self.y2 != other.y2:
+            return False
+        return True
+
+    def __hash__(self):
+        return hash((self.x1, self.y1, self.x2, self.y2))
+
     @classmethod
     def from_union(cls, boxes: Iterable["BoundingBox"]) -> "BoundingBox":
         """Returns the BoundingBox formed by unioning the specified sequence of BoundingBoxes."""

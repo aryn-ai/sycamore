@@ -23,7 +23,7 @@ class ArrowScan(MaterializedScan):
         super().__init__(**resource_args)
         self._tables = tables
 
-    def execute(self) -> Dataset:
+    def execute(self, **kwargs) -> Dataset:
         return from_arrow(tables=self._tables).map(lambda dict: {"doc": Document(dict).serialize()})
 
     def format(self):
@@ -40,7 +40,7 @@ class DocScan(MaterializedScan):
                 raise ValueError("each entry in list should be a document")
         self._docs = docs
 
-    def execute(self) -> Dataset:
+    def execute(self, **kwargs) -> Dataset:
         return from_items(items=[{"doc": doc.serialize()} for doc in self._docs])
 
     def format(self):
@@ -52,7 +52,7 @@ class PandasScan(MaterializedScan):
         super().__init__(**resource_args)
         self._dfs = dfs
 
-    def execute(self) -> Dataset:
+    def execute(self, **kwargs) -> Dataset:
         return from_pandas(dfs=self._dfs).map(lambda dict: {"doc": Document(dict).serialize()})
 
     def format(self):

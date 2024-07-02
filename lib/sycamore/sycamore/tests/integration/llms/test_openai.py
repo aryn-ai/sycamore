@@ -31,11 +31,7 @@ def test_cached_openai(tmp_path: Path):
     assert cm.get(key).get("result") == res
 
     # assert llm.generate is using cached result
-    custom_output = {
-        "result": "This is a custom response",
-        "prompt_kwargs": prompt_kwargs,
-        "llm_kwargs": {}
-    }
+    custom_output = {"result": "This is a custom response", "prompt_kwargs": prompt_kwargs, "llm_kwargs": {}}
     cm.set(key, custom_output)
 
     assert llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={}) == custom_output["result"]
@@ -49,11 +45,7 @@ def test_cached_openai_mismatch(tmp_path: Path):
     key = llm._get_cache_key(prompt_kwargs, {})
 
     # store a modified result in the cache (changed prompt_kwargs), ensure there is a cache miss
-    custom_output = {
-        "result": "This is a custom response",
-        "prompt_kwargs": {},
-        "llm_kwargs": {}
-    }
+    custom_output = {"result": "This is a custom response", "prompt_kwargs": {}, "llm_kwargs": {}}
     cm.set(key, custom_output)
 
     assert llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={}) != custom_output["result"]

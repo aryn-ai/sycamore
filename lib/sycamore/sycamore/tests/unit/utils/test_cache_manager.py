@@ -17,14 +17,8 @@ def get_hash(obj):
 class TestDiskCache:
     def test_disk_cache(self, tmp_path: Path):
         cm = CacheManager(cache=DiskCache(str(tmp_path)))
-        data1 = {
-            "key": 1,
-            "value": "one"
-        }
-        data2 = {
-            "key": 1,
-            "value": "one"
-        }
+        data1 = {"key": 1, "value": "one"}
+        data2 = {"key": 1, "value": "one"}
         # insert-delete
         assert cm.get(get_hash(data1)) is None
         cm.set(get_hash(data1), data1)
@@ -51,11 +45,8 @@ class TestS3Cache:
         key = "testkey"
         value = "testvalue"
 
-        response = {
-            "Body": json.dumps({"value": value, "cached_at": 900})
-        }
-        stubber.add_response("get_object", response,
-                             {"Bucket": "mybucket", "Key": "myprefix/testkey"})
+        response = {"Body": json.dumps({"value": value, "cached_at": 900})}
+        stubber.add_response("get_object", response, {"Bucket": "mybucket", "Key": "myprefix/testkey"})
 
         with stubber:
             result = cache.get(key)
@@ -72,11 +63,8 @@ class TestS3Cache:
         key = "testkey"
         value = "testvalue"
 
-        response = {
-            "Body": json.dumps({"value": value, "cached_at": 900})
-        }
-        stubber.add_response("get_object", response,
-                             {"Bucket": "mybucket", "Key": "myprefix/testkey"})
+        response = {"Body": json.dumps({"value": value, "cached_at": 900})}
+        stubber.add_response("get_object", response, {"Bucket": "mybucket", "Key": "myprefix/testkey"})
 
         with stubber:
             result = cache.get(key)
@@ -91,8 +79,11 @@ class TestS3Cache:
 
         key = "testkey"
 
-        stubber.add_client_error("get_object", service_error_code="NoSuchKey",
-                                 expected_params={"Bucket": "mybucket", "Key": "myprefix/testkey"})
+        stubber.add_client_error(
+            "get_object",
+            service_error_code="NoSuchKey",
+            expected_params={"Bucket": "mybucket", "Key": "myprefix/testkey"},
+        )
 
         with stubber:
             result = cache.get(key)
@@ -107,21 +98,12 @@ class TestS3Cache:
         cache = S3Cache(s3_client, s3_path, freshness_in_seconds=50)
 
         key = "testkey"
-        value = {
-            "keyA": "a",
-            "keyB": "b",
-            "keyC": {
-                "keyC.D": "d"
-            }
-        }
+        value = {"keyA": "a", "keyB": "b", "keyC": {"keyC.D": "d"}}
 
         params = {
-            "Body": json.dumps({
-                "value": value,
-                "cached_at": 1000
-            }, sort_keys=True, indent=2),
+            "Body": json.dumps({"value": value, "cached_at": 1000}, sort_keys=True, indent=2),
             "Bucket": "mybucket",
-            "Key": "myprefix/testkey"
+            "Key": "myprefix/testkey",
         }
         stubber.add_response("put_object", service_response={}, expected_params=params)
 

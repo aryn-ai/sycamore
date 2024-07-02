@@ -27,9 +27,7 @@ class DiskCache(Cache):
 
 
 class S3Cache(Cache):
-    def __init__(self, s3_client,
-                 s3_path: str,
-                 freshness_in_seconds: int = -1):
+    def __init__(self, s3_client, s3_path: str, freshness_in_seconds: int = -1):
         self._s3_client = s3_client
         self._s3_path = s3_path
         self._freshness_in_seconds = freshness_in_seconds
@@ -38,7 +36,6 @@ class S3Cache(Cache):
         parts = self._s3_path.replace("s3://", "").strip("/").split("/", 1)
         return parts[0], "/".join([parts[1], key]) if len(parts) == 2 else key
 
-
     def get(self, key: str):
         try:
             bucket, key = self._get_s3_bucket_and_key(key)
@@ -46,8 +43,10 @@ class S3Cache(Cache):
             content = json.loads(response["Body"])
 
             # If enforcing freshness, we require cached data to have metadata
-            if (self._freshness_in_seconds >= 0
-                    and self._freshness_in_seconds + content.get("cached_at", 0) < time.time()):
+            if (
+                self._freshness_in_seconds >= 0
+                and self._freshness_in_seconds + content.get("cached_at", 0) < time.time()
+            ):
                 return None
             data = content["value"]
             return data
@@ -60,10 +59,7 @@ class S3Cache(Cache):
     def set(self, key: str, value: Any):
         bucket, key = self._get_s3_bucket_and_key(key)
 
-        content = {
-            "value": value,
-            "cached_at": time.time()
-        }
+        content = {"value": value, "cached_at": time.time()}
 
         json_str = json.dumps(content, sort_keys=True, indent=2)
         self._s3_client.put_object(Body=json_str, Bucket=bucket, Key=key)

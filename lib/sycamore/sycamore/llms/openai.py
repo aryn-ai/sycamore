@@ -263,12 +263,9 @@ class OpenAI(LLM):
 
     @staticmethod
     def _get_cache_key(prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
-        combined = {
-            "prompt_kwargs": prompt_kwargs,
-            "llm_kwargs": llm_kwargs
-        }
+        combined = {"prompt_kwargs": prompt_kwargs, "llm_kwargs": llm_kwargs}
         json_str = json.dumps(combined, sort_keys=True)
-        hash_obj = hashlib.sha256(json_str.encode('utf-8'))
+        hash_obj = hashlib.sha256(json_str.encode("utf-8"))
         return hash_obj.hexdigest()
 
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Any:
@@ -279,8 +276,12 @@ class OpenAI(LLM):
                 if hit.get("prompt_kwargs") == prompt_kwargs and hit.get("llm_kwargs") == llm_kwargs:
                     return hit.get("result")
                 else:
-                    logger.warning("Found cache content mismatch, key=%s prompt_kwargs=%s llm_kwargs=%s",
-                                   key, prompt_kwargs, llm_kwargs)
+                    logger.warning(
+                        "Found cache content mismatch, key=%s prompt_kwargs=%s llm_kwargs=%s",
+                        key,
+                        prompt_kwargs,
+                        llm_kwargs,
+                    )
 
         if llm_kwargs is not None:
             result = self._generate_using_openai(prompt_kwargs, llm_kwargs)
@@ -289,14 +290,9 @@ class OpenAI(LLM):
 
         if self._cache:
             key = self._get_cache_key(prompt_kwargs, llm_kwargs)
-            item = {
-                "result": result,
-                "prompt_kwargs": prompt_kwargs,
-                "llm_kwargs": llm_kwargs
-            }
+            item = {"result": result, "prompt_kwargs": prompt_kwargs, "llm_kwargs": llm_kwargs}
             self._cache.set(key, item)
         return result
-
 
     def _generate_using_openai(self, prompt_kwargs, llm_kwargs) -> Any:
         kwargs = {

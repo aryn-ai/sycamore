@@ -16,7 +16,6 @@ from openai.types.chat import ChatCompletionMessageParam
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts import GuidancePrompt
 from sycamore.utils.cache import Cache
-import hashlib
 
 logger = logging.getLogger(__name__)
 

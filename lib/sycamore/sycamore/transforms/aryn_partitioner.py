@@ -33,7 +33,7 @@ class ArynPDFPartitioner:
     )
     def partition_pdf(
         file: BinaryIO,
-        aryn_token: str,
+        aryn_api_key: str,
         aryn_partitioner_address=_DEFAULT_ARYN_PARTITIONER_ADDRESS,
         threshold: float = 0.4,
         use_ocr: bool = False,
@@ -52,7 +52,7 @@ class ArynPDFPartitioner:
         }
 
         files: Mapping = {"pdf": file, "options": json.dumps(options).encode("utf-8")}
-        header = {"Authorization": f"Bearer {aryn_token}"}
+        header = {"Authorization": f"Bearer {aryn_api_key}"}
 
         response = requests.post(aryn_partitioner_address, files=files, headers=header)
 

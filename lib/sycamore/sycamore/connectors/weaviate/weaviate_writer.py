@@ -1,10 +1,10 @@
 from dataclasses import dataclass, asdict
 from typing import Optional, Union, Any
-from sycamore.connectors.writer_utils.common import drop_types, flatten_data
+from sycamore.connectors.common import drop_types, flatten_data
 from typing_extensions import TypeGuard, TypeAlias
 
 from sycamore.data.document import Document
-from sycamore.connectors.writer_utils.base import BaseDBWriter
+from sycamore.connectors.base import BaseDBWriter
 from weaviate.classes.config import DataType, ReferenceProperty
 from weaviate.client import (
     AdditionalConfig,

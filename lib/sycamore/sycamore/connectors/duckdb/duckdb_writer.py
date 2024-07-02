@@ -3,8 +3,8 @@ from typing import Optional, Any, Dict
 from typing_extensions import TypeGuard
 
 from sycamore.data.document import Document
-from sycamore.connectors.writer_utils.base import BaseDBWriter
-from sycamore.connectors.writer_utils.common import convert_to_str_dict
+from sycamore.connectors.base import BaseDBWriter
+from sycamore.connectors.common import convert_to_str_dict
 import pyarrow as pa
 import duckdb
 import os

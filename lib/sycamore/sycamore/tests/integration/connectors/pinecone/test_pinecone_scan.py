@@ -1,4 +1,4 @@
-from sycamore.connectors.writer_utils.common import compare_docs
+from sycamore.connectors.common import compare_docs
 from pinecone import ServerlessSpec
 
 import os

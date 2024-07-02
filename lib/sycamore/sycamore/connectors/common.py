@@ -67,6 +67,24 @@ def flatten_data(
     return items
 
 
+def unflatten_data(data: dict[str, Any], separator: str = ".") -> dict[str, Any]:
+    result: dict[Any, Any] = {}
+
+    for key, value in data.items():
+        parts = key.split(separator)
+        current = result
+
+        for i, part in enumerate(parts):
+            if i == len(parts) - 1:
+                current[part] = value
+            else:
+                if part not in current:
+                    current[part] = {}
+                current = current[part]
+    print(result)
+    return result
+
+
 def convert_to_str_dict(data: dict[str, Any]) -> dict[str, str]:
     result = {}
     for key, value in data.items():

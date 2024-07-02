@@ -8,8 +8,8 @@ from pinecone import PineconeException, PineconeApiException, PodSpec, Serverles
 from pinecone.grpc import PineconeGRPC, Vector
 from pinecone.grpc.vector_factory_grpc import VectorFactoryGRPC
 from sycamore.data.document import Document
-from sycamore.connectors.writer_utils.base import BaseDBWriter
-from sycamore.connectors.writer_utils.common import flatten_data
+from sycamore.connectors.base import BaseDBWriter
+from sycamore.connectors.common import flatten_data
 import time
 
 
@@ -172,7 +172,6 @@ def wait_on_index(client: PineconeGRPC, index: str):
     Takes the name of the index to wait for and blocks until it's available and ready.
     """
     ready = False
-    time.time()
     timeout = 30
     deadline = time.time() + timeout
     while not ready:
@@ -185,7 +184,7 @@ def wait_on_index(client: PineconeGRPC, index: str):
             pass
         time.sleep(1)
         if time.time() > deadline:
-            raise RuntimeError(f"Pinecone failed to create in {timeout} seconds")
+            raise RuntimeError(f"Pinecone failed to create index in {timeout} seconds")
 
 
 class PineconeWriter(BaseDBWriter):

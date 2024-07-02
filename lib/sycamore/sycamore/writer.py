@@ -5,7 +5,7 @@ from pyarrow.fs import FileSystem
 from sycamore import Context
 from sycamore.plan_nodes import Node
 from sycamore.data import Document
-from sycamore.connectors.writer_utils.common import HostAndPort
+from sycamore.connectors.common import HostAndPort
 from sycamore.connectors.file.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
 from ray.data import ActorPoolStrategy
 import logging

@@ -7,7 +7,7 @@ from sycamore.transforms.merge_elements import MarkedMerger
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.tests.config import TEST_DIR
-from sycamore.connectors.writer_utils.common import compare_docs
+from sycamore.connectors.common import compare_docs
 
 
 def test_duckdb_scan():

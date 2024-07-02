@@ -3,6 +3,7 @@ from sycamore.data import Document
 from pinecone import PineconeApiException
 from pinecone.grpc import PineconeGRPC
 from ray.data import Dataset, from_items
+from sycamore.connectors.common import unflatten_data
 
 
 class PineconeScan(Scan):
@@ -21,11 +22,11 @@ class PineconeScan(Scan):
             for pids in index.list(namespace=self._namespace):
                 ids.extend(pids)
             for id, data in dict(index.fetch(ids=ids, namespace=self._namespace)["vectors"]).items():
-                doc_id = id.str.split()[1] if len(id.str.split()) > 1 else id
+                doc_id = id.split("#")[1] if len(id.split("#")) > 1 else id
                 if data.sparse_vector:
                     term_frequency = dict(zip(data.sparse_vector.indices, data.sparse_vector.values))
-                    data.metadata["term_frequency"] = term_frequency
-                doc = Document({"doc_id": doc_id, "embedding": data.values} | data.metadata)  # type: ignore
+                    data.metadata["properties.term_frequency"] = term_frequency
+                doc = Document({"doc_id": doc_id, "embedding": data.values} | unflatten_data(data.metadata))  # type: ignore
                 documents.append(doc)
         except PineconeApiException as e:
             print(f"Read Request Failed: {e}")

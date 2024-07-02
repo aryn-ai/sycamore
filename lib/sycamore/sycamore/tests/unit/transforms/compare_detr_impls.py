@@ -12,10 +12,10 @@ def compare_batched_sequenced(partitioner, path, **kwargs):
 
 if __name__ == "__main__":
     import sys
-    from sycamore.transforms.detr_partitioner import SycamorePDFPartitioner
+    from sycamore.transforms.detr_partitioner import ArynPDFPartitioner
 
     assert len(sys.argv) == 2, "Usage: cmd <path>"
-    s = SycamorePDFPartitioner("Aryn/deformable-detr-DocLayNet")
+    s = ArynPDFPartitioner("Aryn/deformable-detr-DocLayNet")
     print(f"Comparing processing of {sys.argv[1]}")
     p = compare_batched_sequenced(s, sys.argv[1])
     print(f"Compared {len(p)} pages")

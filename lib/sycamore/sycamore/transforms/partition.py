@@ -13,6 +13,7 @@ from sycamore.data import BoundingBox, Document, Element, TableElement
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base import CompositeTransform
 from sycamore.transforms.extract_table import TableExtractor
+from sycamore.transforms.table_structure.extract import TableStructureExtractor
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
 from sycamore.utils import choose_device
@@ -402,7 +403,7 @@ class ArynPartitioner(Partitioner):
         ocr_images: bool = False,
         ocr_tables: bool = False,
         extract_table_structure: bool = False,
-        table_structure_extractor: bool = None,
+        table_structure_extractor: Optional[TableStructureExtractor] = None,
         extract_images: bool = False,
         device=None,
         batch_size: int = 1,
@@ -470,7 +471,7 @@ class ArynPartitioner(Partitioner):
         partitioner = ArynPDFPartitioner(self._model_name_or_path, device=self._device)
 
         try:
-            result = partitioner.partition_pdf(
+            elements = partitioner.partition_pdf(
                 binary,
                 self._threshold,
                 use_ocr=self._use_ocr,
@@ -488,12 +489,6 @@ class ArynPartitioner(Partitioner):
         except Exception as e:
             path = document.properties["path"]
             raise RuntimeError(f"SycamorePartitioner Error processing {path}") from e
-
-        elements = []
-        for i, r in enumerate(result):
-            for ele in r:
-                ele.properties["page_number"] = i + 1
-                elements.append(ele)
 
         document.elements = elements
         document = reorder_elements(document, self._elements_reorder)

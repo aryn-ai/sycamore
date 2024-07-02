@@ -122,7 +122,7 @@ class ArynPDFPartitioner:
         local=False,
         aryn_token: str = "",
         aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
-    ) -> List[List[Element]]:
+    ) -> List[Element]:
         if not local:
             return self._partition_remote(
                 file,
@@ -137,7 +137,7 @@ class ArynPDFPartitioner:
             )
         else:
             if batch_at_a_time:
-                return self._partition_pdf_batched(
+                temp = self._partition_pdf_batched(
                     file,
                     threshold,
                     use_ocr,
@@ -149,7 +149,7 @@ class ArynPDFPartitioner:
                     batch_size,
                 )
             else:
-                return self._partition_pdf_sequenced(
+                temp = self._partition_pdf_sequenced(
                     file,
                     threshold,
                     use_ocr,
@@ -160,6 +160,12 @@ class ArynPDFPartitioner:
                     extract_images,
                     batch_size,
                 )
+            elements = []
+            for i, r in enumerate(temp):
+                for ele in r:
+                    ele.properties["page_number"] = i + 1
+                    elements.append(ele)
+            return elements
 
     @staticmethod
     @retry(
@@ -177,7 +183,7 @@ class ArynPDFPartitioner:
         ocr_tables: bool = False,
         extract_table_structure: bool = False,
         extract_images: bool = False,
-    ) -> List[List[Element]]:
+    ) -> List[Element]:
         options = {
             "threshold": threshold,
             "use_ocr": use_ocr,

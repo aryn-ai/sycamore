@@ -3,7 +3,7 @@ import string
 
 import nltk
 
-from sycamore.transforms.partition import SYCAMORE_DETR_MODEL, SycamorePartitioner
+from sycamore.transforms.partition import ARYN_DETR_MODEL, SycamorePartitioner
 from sycamore.data import TableElement
 from sycamore.data.table import Table, TableCell
 import sycamore
@@ -24,7 +24,7 @@ def test_detr_ocr():
     # The test will need to be updated if and when that changes.
     docs = (
         context.read.binary(paths=[str(path)], binary_format="pdf")
-        .partition(SycamorePartitioner(SYCAMORE_DETR_MODEL, use_ocr=True))
+        .partition(SycamorePartitioner(ARYN_DETR_MODEL, use_ocr=True))
         .explode()
         .filter(lambda doc: "page_number" in doc.properties and doc.properties["page_number"] == 1)
         .filter(lambda doc: doc.type == "Section-header")

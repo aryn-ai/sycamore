@@ -9,16 +9,18 @@ from sycamore.evaluation.metrics import document_retrieval_metrics, rouge_metric
 from sycamore import Context
 
 
-def add_searchContext_to_datapoint(datapoint: Document) -> List[Element]:
-    assert isinstance(datapoint, Document)
+def add_search_context_to_datapoint(datapoint: Document) -> List[Element]:
+    assert datapoint.type == "EvaluationDataPoint"
     source_documents: List[Element] = []
     assert datapoint.get("raw") is not None
-    for search_result in datapoint["raw"].get("SearchContexts", []):
+    for search_result in datapoint.get("raw", {}).get("SearchContexts", []):
         source_document = Element()
+        pg_number = search_result.get("page_numbers", [search_result.get("page_number", None)])
+        assert pg_number is not None
         properties = {
-            "_location": search_result["document_url"],
-            "page_number": search_result["page_numbers"][0],
-            "doc_id": search_result["document_id"],
+            "_location": search_result.get("document_url", ""),
+            "page_number": pg_number[0],
+            "doc_id": search_result.get("document_id", [0]),
         }
         source_document.properties = properties
         source_document.text_representation = search_result["text_representation"]
@@ -27,8 +29,8 @@ def add_searchContext_to_datapoint(datapoint: Document) -> List[Element]:
 
 
 def add_filters_to_question(datapoint: EvaluationDataPoint) -> EvaluationDataPoint:
+    assert datapoint.type == "EvaluationDataPoint"
     datapoint = EvaluationDataPoint(datapoint)
-    assert isinstance(datapoint, EvaluationDataPoint)
     assert datapoint.raw is not None
     template_Q = datapoint.raw["custom_question_augmentation"]
     filter_Q = datapoint.raw["question_augmentation_filter"]
@@ -36,7 +38,7 @@ def add_filters_to_question(datapoint: EvaluationDataPoint) -> EvaluationDataPoi
         for filter in datapoint.filters.keys():
             if datapoint.raw.get("Filters") is not None:
                 datapoint.filters[filter] = datapoint.raw.get("Filters").get(filter, "")
-        datapoint.ground_truth_source_documents = add_searchContext_to_datapoint(datapoint)
+        datapoint.ground_truth_source_documents = add_search_context_to_datapoint(datapoint)
         datapoint.question = template_Q.format(datapoint.raw["Question"], datapoint.filters.get(filter_Q))
     return datapoint
 

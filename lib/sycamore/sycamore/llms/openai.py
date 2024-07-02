@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass
 from enum import Enum
 import logging
@@ -14,6 +15,8 @@ from openai.lib.azure import AzureADTokenProvider
 from openai.types.chat import ChatCompletionMessageParam
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts import GuidancePrompt
+from sycamore.utils.cache_manager import CacheManager
+import hashlib
 
 logger = logging.getLogger(__name__)
 
@@ -210,6 +213,7 @@ class OpenAI(LLM):
         api_key=None,
         client_wrapper: Optional[OpenAIClientWrapper] = None,
         params: Optional[OpenAIClientParameters] = None,
+        cache: Optional[CacheManager] = None,
         **kwargs,
     ):
         if isinstance(model_name, OpenAIModels):
@@ -225,8 +229,7 @@ class OpenAI(LLM):
             logger.warn("text-davinci-003 is deprecated. Falling back to gpt-3.5-turbo-instruct")
             self.model = OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value
 
-        self.model_name = self.model.name
-        super().__init__(self.model_name)
+        super().__init__(self.model.name, cache)
 
         # This is somewhat complex to provide a degree of backward compatibility.
         if client_wrapper is None:
@@ -251,18 +254,49 @@ class OpenAI(LLM):
         def deserializer(kwargs):
             return OpenAI(**kwargs)
 
-        kwargs = {"client_wrapper": self.client_wrapper, "model_name": self.model_name}
+        kwargs = {"client_wrapper": self.client_wrapper, "model_name": self._model_name}
 
-        return (deserializer, (kwargs,))
+        return deserializer, (kwargs,)
 
     def is_chat_mode(self):
         return self.model.is_chat
 
+    @staticmethod
+    def _get_cache_key(prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
+        combined = {
+            "prompt_kwargs": prompt_kwargs,
+            "llm_kwargs": llm_kwargs
+        }
+        json_str = json.dumps(combined, sort_keys=True)
+        hash_obj = hashlib.sha256(json_str.encode('utf-8'))
+        return hash_obj.hexdigest()
+
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Any:
+        if self._cache:
+            key = self._get_cache_key(prompt_kwargs, llm_kwargs)
+            hit = self._cache.get(key)
+            if hit:
+                if hit.get("prompt_kwargs") == prompt_kwargs and hit.get("llm_kwargs") == llm_kwargs:
+                    return hit.get("result")
+                else:
+                    logger.warning("Found cache content mismatch, key=%s prompt_kwargs=%s llm_kwargs=%s",
+                                   key, prompt_kwargs, llm_kwargs)
+
         if llm_kwargs is not None:
-            return self._generate_using_openai(prompt_kwargs, llm_kwargs)
+            result = self._generate_using_openai(prompt_kwargs, llm_kwargs)
         else:
-            return self._generate_using_guidance(prompt_kwargs)
+            result = self._generate_using_guidance(prompt_kwargs)
+
+        if self._cache:
+            key = self._get_cache_key(prompt_kwargs, llm_kwargs)
+            item = {
+                "result": result,
+                "prompt_kwargs": prompt_kwargs,
+                "llm_kwargs": llm_kwargs
+            }
+            self._cache.set(key, item)
+        return result
+
 
     def _generate_using_openai(self, prompt_kwargs, llm_kwargs) -> Any:
         kwargs = {

@@ -69,4 +69,3 @@ class S3Cache(Cache):
 
         json_str = json.dumps(content, sort_keys=True, indent=2)
         self._s3_client.put_object(Body=json_str, Bucket=bucket, Key=key)
-

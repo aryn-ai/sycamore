@@ -50,4 +50,4 @@ class ArynConfig:
                 else:
                     logging.error(f"Unable to load specified aryn config {config_path}: {err}")
             except yaml.scanner.ScannerError as err:
-                logging.error(f"Unable to load {config_path}: {err}. Ignoring the config file.")
+                logging.error(f"Unable to parse {config_path}: {err}. Ignoring the config file.")

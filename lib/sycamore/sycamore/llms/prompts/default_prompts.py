@@ -109,13 +109,13 @@ class PropertiesZeroShotGuidancePrompt(SimpleGuidancePrompt):
     """
 
 
-class RelevantInformationZeroShotGuidancePrompt(SimpleGuidancePrompt):
-    system = "You are a helpful reference finder."
-    user = """You are given the text from a document containing expert knowledge on financial terms and interpreting SEC filings.
-    {knowledge}
-    You are also given a financial question that can be answered using SEC filings: {question}. Extract terms that are central to the question. Try to find relevant lines relating to these terms in the expert knowledge.
-    Return the relevant lines from the expert knowledge along with the subheading that these lines appears under. Do not return more than 3 relevant lines and do not return more than 1 subheading.
-    Do not return any other text. Do not return the financial terms you extract from the question. If there is no relevant text you can find, return the empty string "".
+class TaskIdentifierZeroShotGuidancePrompt(SimpleGuidancePrompt):
+    system = "You are a helpful task identifier. You return a string containing no whitespace."
+    user = """You are given a dictionary where the keys are task IDs and the values are descriptions of tasks.
+    Using this context, FIND and RETURN only the task ID that best matches the given question.
+    Only return the task ID as a string. Do not return any additional information.
+    {task_descriptions}
+    Question: {question}
     """
 
 

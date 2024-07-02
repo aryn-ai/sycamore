@@ -25,7 +25,7 @@ class EvaluationPipeline:
         self,
         index: str,
         os_config: dict[str, str],
-        context: Optional[Context] = None,
+        # context: Optional[Context] = None,
         metrics: Optional[list[EvaluationMetric]] = None,
         query_executor: Optional[OpenSearchQueryExecutor] = None,
         os_client_args: Optional[dict] = None,
@@ -42,7 +42,6 @@ class EvaluationPipeline:
         else:
             self._query_executor = query_executor
         self._os_config = os_config
-        self._context = context
 
     def _add_filter(self, query_body: dict, filters: dict[str, str]):
         hybrid_query_match = query_body["query"]["hybrid"]["queries"][0]
@@ -68,24 +67,27 @@ class EvaluationPipeline:
         if "additional_info" in doc:
             company = doc["additional_info"]["company"]
             year = doc["additional_info"]["year"]
+            qn = qn.format(company=company, year=year)
+
         else:
             company = doc['raw']['doc_name'].split("_")[0]
 
             no_year_ids = ["financebench_id_01858","financebench_id_07966","financebench_id_07507","financebench_id_08135","financebench_id_00799","financebench_id_01079","financebench_id_01148","financebench_id_01930","financebench_id_00563","financebench_id_01351",
-               "financebench_id_02608", "financebench_id_00685","financebench_id_01077","financebench_id_00288","financebench_id_00460","financebench_id_03838","financebench_id_00464","financebench_id_00585","financebench_id_02981","financebench_id_01346",
-               "financebench_id_01107","financebench_id_00839","financebench_id_00206","financebench_id_03718","financebench_id_03849","financebench_id_00552","financebench_id_04302","financebench_id_00735","financebench_id_00302","financebench_id_00283",
-               "financebench_id_00521","financebench_id_00605","financebench_id_00566","financebench_id_04784","financebench_id_06741"]
+                "financebench_id_02608", "financebench_id_00685","financebench_id_01077","financebench_id_00288","financebench_id_00460","financebench_id_03838","financebench_id_00464","financebench_id_00585","financebench_id_02981","financebench_id_01346",
+                "financebench_id_01107","financebench_id_00839","financebench_id_00206","financebench_id_03718","financebench_id_03849","financebench_id_00552","financebench_id_04302","financebench_id_00735","financebench_id_00302","financebench_id_00283",
+                "financebench_id_00521","financebench_id_00605","financebench_id_00566","financebench_id_04784","financebench_id_06741"]
             
             if doc['raw']['financebench_id'] in no_year_ids:
                 year = extract_year(qn, company)
             else:
                 year = str(doc['raw']['doc_period'])
 
-            calcs_reqd = True # TODO: list of qs requiring calcs
+            calcs_reqd = True # TODO@aanya: list of qs requiring calcs
 
             if calcs_reqd:
                 from sycamore.evaluation.subtasks import executor
-                qn = executor(qn, company, year, self._context) # TODO: figure out how to do this
+                qn = executor(qn, company, year) + qn
+                print (qn)
 
         # embedder = OpenAIEmbedder(batch_size=100)
         embedder = SentenceTransformerEmbedder(model_name="sentence-transformers/all-mpnet-base-v2", batch_size=100)

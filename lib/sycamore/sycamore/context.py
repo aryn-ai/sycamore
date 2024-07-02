@@ -15,7 +15,8 @@ class Context:
         if "logging_level" not in ray_args:
             ray_args.update({"logging_level": logging.WARNING})
 
-        ray.init(**ray_args)
+        if not ray.is_initialized():
+            ray.init(**ray_args)
 
         self.extension_rules: list[Rule] = []
         self._internal_lock = threading.Lock()

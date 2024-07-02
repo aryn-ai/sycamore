@@ -70,7 +70,7 @@ def flatten_data(
     return items
 
 
-def unflatten_data(data: dict[str, Any], separator: str = ".") -> dict[str, Any]:
+def unflatten_data(data: dict[str, Any], separator: str = ".") -> dict[Any, Any]:
     result: dict[Any, Any] = {}
 
     for key, value in data.items():
@@ -78,12 +78,22 @@ def unflatten_data(data: dict[str, Any], separator: str = ".") -> dict[str, Any]
         current = result
 
         for i, part in enumerate(parts):
+            part_key: Union[str, int] = int(part) if part.isdigit() else part
+
             if i == len(parts) - 1:
-                current[part] = value
+                current[part_key] = value
             else:
-                if part not in current:
-                    current[part] = {}
-                current = current[part]
+                if part_key not in current:
+                    if parts[i + 1].isdigit():
+                        current[part_key] = []
+                    else:
+                        current[part_key] = {}
+                current = current[part_key]
+                if isinstance(current, list):
+                    while len(current) <= int(parts[i + 1]):
+                        current.append({})
+                    current = current[int(parts[i + 1])]
+
     return result
 
 

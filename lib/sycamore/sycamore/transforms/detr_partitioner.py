@@ -23,7 +23,7 @@ from sycamore.data import Element, BoundingBox, ImageElement, TableElement
 from sycamore.data.element import create_element
 from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
 from sycamore.utils import choose_device
-from sycamore.utils.cache_manager import CacheManager
+from sycamore.utils.cache_manager import CacheManager, DiskCache
 from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
 from sycamore.utils.pdf import convert_from_path_streamed_batched
@@ -36,7 +36,7 @@ def _batchify(iterable, n=1):
         yield iterable[i : min(i + n, length)]
 
 
-pdf_miner_cm = CacheManager(os.path.join(tempfile.gettempdir(), "SycamoreCache/PDFMinerCache"))
+pdf_miner_cm = CacheManager(cache=DiskCache(os.path.join(tempfile.gettempdir(), "SycamoreCache/PDFMinerCache")))
 
 
 class SycamorePDFPartitioner:

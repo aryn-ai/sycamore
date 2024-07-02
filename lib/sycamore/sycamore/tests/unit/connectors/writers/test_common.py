@@ -2,9 +2,9 @@ from sycamore.connectors.writers.common import convert_to_str_dict, drop_types, 
 
 
 def test_flatten_data_happy():
-    data = {"a": {"b": "c", "d": "e", "f": 32, "g": ["1", "2", "3", {"h": "i"}]}}
+    data = {"a": {"b": "c", "d.d": "e", "f": 32, "g": ["1", "2", "3", {"h": "i"}]}}
     flattened = dict(flatten_data(data))
-    assert flattened == {"a.b": "c", "a.d": "e", "a.f": 32, "a.g.0": "1", "a.g.1": "2", "a.g.2": "3", "a.g.3.h": "i"}
+    assert flattened == {"a.b": "c", "a.d.d": "e", "a.f": 32, "a.g.0": "1", "a.g.1": "2", "a.g.2": "3", "a.g.3.h": "i"}
 
 
 def test_flatten_data_separator():

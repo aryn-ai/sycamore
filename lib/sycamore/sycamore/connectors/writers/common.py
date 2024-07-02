@@ -94,30 +94,36 @@ def drop_types(
     drop_additional_types: list[type] = [],
 ) -> Union[dict, list, tuple]:
     if isinstance(data, dict):
-        droppedd = {
-            k: drop_types(v, drop_nones, drop_empty_lists, drop_empty_dicts, drop_additional_types)
+        dropped_dict = {
+            k: (
+                drop_types(v, drop_nones, drop_empty_lists, drop_empty_dicts, drop_additional_types)
+                if isinstance(v, (list, tuple, dict))
+                else v
+            )
             for k, v in data.items()
         }
         if drop_nones:
-            droppedd = _filter_dict(_none_filter, droppedd)
+            dropped_dict = _filter_dict(_none_filter, dropped_dict)
         if drop_empty_lists:
-            droppedd = _filter_dict(_empty_list_filter, droppedd)
+            dropped_dict = _filter_dict(_empty_list_filter, dropped_dict)
         if drop_empty_dicts:
-            droppedd = _filter_dict(_empty_dict_filter, droppedd)
+            dropped_dict = _filter_dict(_empty_dict_filter, dropped_dict)
         if len(drop_additional_types) > 0:
-            droppedd = _filter_dict(_make_type_filter(drop_additional_types), droppedd)
-        return droppedd
+            dropped_dict = _filter_dict(_make_type_filter(drop_additional_types), dropped_dict)
+        return dropped_dict
     elif isinstance(data, (list, tuple)):
-        droppedl = [drop_types(v, drop_nones, drop_empty_lists, drop_empty_dicts, drop_additional_types) for v in data]
+        dropped_list = [
+            drop_types(v, drop_nones, drop_empty_lists, drop_empty_dicts, drop_additional_types) for v in data
+        ]
         if drop_nones:
-            droppedl = _filter_list(_none_filter, droppedl)
+            dropped_list = _filter_list(_none_filter, dropped_list)
         if drop_empty_lists:
-            droppedl = _filter_list(_empty_list_filter, droppedl)
+            dropped_list = _filter_list(_empty_list_filter, dropped_list)
         if drop_empty_dicts:
-            droppedl = _filter_list(_empty_dict_filter, droppedl)
+            dropped_list = _filter_list(_empty_dict_filter, dropped_list)
         if len(drop_additional_types) > 0:
-            droppedl = _filter_list(_make_type_filter(drop_additional_types), droppedl)
-        return data.__class__(droppedl)
+            dropped_list = _filter_list(_make_type_filter(drop_additional_types), dropped_list)
+        return data.__class__(dropped_list)
     return data
 
 

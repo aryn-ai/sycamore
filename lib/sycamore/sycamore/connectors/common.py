@@ -32,11 +32,11 @@ def compare_docs(doc1, doc2):
     return filtered_doc1 == filtered_doc2
 
 
-def _add_key_to_prefix(prefix, key):
+def _add_key_to_prefix(prefix, key, separator="."):
     if len(prefix) == 0:
         return str(key)
     else:
-        return f"{prefix}.{key}"
+        return f"{prefix}{separator}{key}"
 
 
 def flatten_data(
@@ -44,6 +44,7 @@ def flatten_data(
     prefix: str = "",
     allowed_list_types: list[type] = [],
     homogeneous_lists: bool = True,
+    separator: str = ".",
 ) -> Iterable[Tuple[Any, Any]]:
     iterator: Union[Iterator[tuple[str, Any]], enumerate[Any]] = iter([])
     if isinstance(data, dict):
@@ -58,12 +59,14 @@ def flatten_data(
                 or (homogeneous_lists and any(all(isinstance(innerv, t) for innerv in v) for t in allowed_list_types))
             ):
                 # Allow lists of the allowed_list_types
-                items.append((_add_key_to_prefix(prefix, k), v))
+                items.append((_add_key_to_prefix(prefix, k, separator), v))
             else:
-                inner_values = flatten_data(v, _add_key_to_prefix(prefix, k), allowed_list_types, homogeneous_lists)
+                inner_values = flatten_data(
+                    v, _add_key_to_prefix(prefix, k, separator), allowed_list_types, homogeneous_lists, separator
+                )
                 items.extend([(innerk, innerv) for innerk, innerv in inner_values])
         elif v is not None:
-            items.append((_add_key_to_prefix(prefix, k), v))
+            items.append((_add_key_to_prefix(prefix, k, separator), v))
     return items
 
 

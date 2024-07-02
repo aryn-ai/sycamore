@@ -19,8 +19,8 @@ import torch
 
 
 def _make_scan_executor(path: Path, format: str) -> Callable[[], Dataset]:
-    def do_scan() -> Dataset:
-        return BinaryScan(str(path), binary_format=format).execute()
+    def do_scan(**kwargs) -> Dataset:
+        return BinaryScan(str(path), binary_format=format).execute(**kwargs)
 
     return do_scan
 

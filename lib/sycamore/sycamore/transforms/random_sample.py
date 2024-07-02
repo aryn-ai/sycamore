@@ -21,6 +21,6 @@ class RandomSample(Transform):
         self.fraction = fraction
         self.seed = seed
 
-    def execute(self) -> Dataset:
+    def execute(self, **kwargs) -> Dataset:
         dataset = self.child().execute()
         return dataset.random_sample(self.fraction, seed=self.seed)

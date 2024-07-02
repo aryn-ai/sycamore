@@ -19,7 +19,7 @@ class HuggingFaceScan(MaterializedScan):
         self._dataset = dataset
         self._doc_extractor = doc_extractor
 
-    def execute(self) -> Dataset:
+    def execute(self, **kwargs) -> Dataset:
         ray_ds = from_huggingface(self._dataset)
         processed = ray_ds.map(self._doc_extractor)
         return processed

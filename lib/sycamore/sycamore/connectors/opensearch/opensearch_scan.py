@@ -19,7 +19,7 @@ class OpenSearchScan(Scan):
         self.os_client = OpenSearch(**os_client_args)
         self.query = query
 
-    def execute(self) -> Dataset:
+    def execute(self, **kwargs) -> Dataset:
         result = []
 
         scroll = "1m"

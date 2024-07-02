@@ -8,7 +8,7 @@ class MockNode(Node):
         super().__init__([], **kwargs)
         self.value = 0
 
-    def execute(self):
+    def execute(self, **kwargs):
         pass
 
 

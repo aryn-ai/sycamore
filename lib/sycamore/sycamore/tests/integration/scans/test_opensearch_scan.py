@@ -4,7 +4,7 @@ import pytest
 from opensearchpy import OpenSearch
 
 import sycamore
-from sycamore.connectors.opensearch import DEFAULT_OPENSEARCH_RECORD_PROPERTIES
+from sycamore.connectors.writers.common import compare_docs
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 
@@ -36,16 +36,6 @@ def setup_index():
 
     # Delete after
     client.indices.delete(TestOpenSearchScan.INDEX, ignore_unavailable=True)
-
-
-def filter_doc(obj, include):
-    return {k: v for k, v in obj.__dict__.items() if k in include}
-
-
-def compare_docs(doc1, doc2):
-    filtered_doc1 = filter_doc(doc1, DEFAULT_OPENSEARCH_RECORD_PROPERTIES.keys())
-    filtered_doc2 = filter_doc(doc2, DEFAULT_OPENSEARCH_RECORD_PROPERTIES.keys())
-    return filtered_doc1 == filtered_doc2
 
 
 class TestOpenSearchScan:

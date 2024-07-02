@@ -362,31 +362,31 @@ class ArynPartitioner(Partitioner):
 
     Args:
         model_name_or_path: The HuggingFace coordinates or model local path. Should be set to
-             the default ARYN_DETR_MODEL unless you are testing a custom model. 
+             the default ARYN_DETR_MODEL unless you are testing a custom model.
              Ignored when local mode is false
         threshold: The threshold to use for accepting the model's predicted bounding boxes. A lower
              value will include more objects, but may have overlaps, a higher value will reduce the
-             number of overlaps, but may miss legitimate objects. 
+             number of overlaps, but may miss legitimate objects.
         use_ocr: Whether to use OCR to extract text from the PDF. If false, we will attempt to extract
-             the text from the underlying PDF. 
-        ocr_images: If set with use_ocr, will attempt to OCR regions of the document identified as images. 
+             the text from the underlying PDF.
+        ocr_images: If set with use_ocr, will attempt to OCR regions of the document identified as images.
         ocr_tables: If set with use_ocr, will attempt to OCR regions of the document identified as tables.
-             Should not be set when `extract_table_structure` is true. 
+             Should not be set when `extract_table_structure` is true.
         extract_table_structure: If true, runs a separate table extraction model to extract cells from
-             regions of the document identified as tables. 
+             regions of the document identified as tables.
         table_structure_extractor: The table extraction implementaion to use when extract_table_structure
-             is True. The default is the TableTransformerStructureExtractor. 
-             Ignored when local mode is false. 
+             is True. The default is the TableTransformerStructureExtractor.
+             Ignored when local mode is false.
         extract_images: If true, crops each region identified as an image and attaches it to the associated
              ImageElement. This can later be fed into the SummarizeImages transform.
         local: If false, runs the partitioner remotely. Defaults to false
         aryn_token: The account token used to authenticate with Aryn's servers.
         aryn_partitioner_address: The address of the server to use to partition the document
-    
+
     Example:
          The following shows an example of using the ArynPartitioner to partition a PDF and extract
          both table structure and image
-    
+
          .. code-block:: python
 
             context = scyamore.init()
@@ -411,6 +411,7 @@ class ArynPartitioner(Partitioner):
         local: bool = False,
         aryn_token: str = "",
         aryn_partitioner_address: str = DEFAULT_ARYN_PARTITIONER_ADDRESS,
+        use_cache=True,
     ):
         device = choose_device(device)
         super().__init__(device=device, batch_size=batch_size)
@@ -428,6 +429,7 @@ class ArynPartitioner(Partitioner):
         self._local = local
         self._aryn_token = aryn_token
         self._aryn_partitioner_address = aryn_partitioner_address
+        self._use_cache = use_cache
 
     # For now, we reorder elements based on page, left/right column, y axle position then finally x axle position
     @staticmethod
@@ -485,6 +487,7 @@ class ArynPartitioner(Partitioner):
                 local=self._local,
                 aryn_token=self._aryn_token,
                 aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
+                use_cache=self._use_cache,
             )
         except Exception as e:
             path = document.properties["path"]

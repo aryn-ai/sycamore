@@ -346,7 +346,7 @@ def anthropic_rag_streaming():
     os_result = request.json.get("os_result")
 
     user_prompt = """
-    Search results: 
+    Search results:
     """
     for i, s in enumerate(os_result["hits"]["hits"][0:10]):
         doc = ""
@@ -386,7 +386,7 @@ def anthropic_rag():
     os_result = request.json.get("os_result")
 
     user_prompt = """
-    Search results: 
+    Search results:
     """
     for i, s in enumerate(os_result["hits"]["hits"][0:10]):
         doc = ""

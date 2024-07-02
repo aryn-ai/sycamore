@@ -7,6 +7,7 @@ from typing import NamedTuple
 FMT = "BxxxIQQQQQ48s"
 SIZE = struct.calcsize(FMT)
 
+
 class TimeTraceRec(NamedTuple):
     thread: int
     t0: int
@@ -16,12 +17,14 @@ class TimeTraceRec(NamedTuple):
     rss: int
     name: str
 
+
 def buf_to_rec(buf) -> TimeTraceRec:
     tup = struct.unpack(FMT, buf)
     ver, thr, t0, t1, user, syst, rss, name = tup
     assert ver == 0
-    name = name.decode().rstrip('\0')
+    name = name.decode().rstrip("\0")
     return TimeTraceRec(thr, t0, t1, user, syst, rss, name)
+
 
 def tt_reader(paths: list[str]):
     for path in paths:
@@ -31,6 +34,7 @@ def tt_reader(paths: list[str]):
                 if not buf:
                     break
                 yield buf_to_rec(buf)
+
 
 class Cat:
     def run(self, paths):
@@ -42,7 +46,7 @@ class Cat:
             print(f"{t0:.3f} {rec.name} {wall:.6f} {rss:.0f}")
 
 
-def main(args = None):
+def main(args=None):
     if args is None:
         args = sys.argv[1:]
     cat = Cat()

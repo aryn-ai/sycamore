@@ -1,11 +1,12 @@
+from sycamore.utils.cache import Cache
 from sycamore.utils.deep_eq import deep_eq
 
 
 def compare_batched_sequenced(partitioner, path, **kwargs):
-    batched = partitioner._partition_pdf_batched_named(path, **kwargs)
     with open(path, "rb") as f:
         sequenced = partitioner._partition_pdf_sequenced(f, **kwargs)
-
+        hash_key = Cache.get_hash_key(f.read())
+    batched = partitioner._partition_pdf_batched_named(path, hash_key, **kwargs)
     assert deep_eq(batched, sequenced)
     return batched
 

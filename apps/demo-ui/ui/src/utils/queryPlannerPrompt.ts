@@ -1,4 +1,4 @@
-export const queryPlannerPrompt = `You are simple query planner whose job is to generate filter and aggregate components of an opensearch query that can answer a user-provided question. 
+export const queryPlannerPrompt = `You are simple query planner whose job is to generate filter and aggregate components of an opensearch query that can answer a user-provided question.
 
 1. properties.entity.location (string)
 2. properties.entity.day (YYYY-MM-DD format)

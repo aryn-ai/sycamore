@@ -8,8 +8,8 @@ from opensearchpy.exceptions import RequestError
 from opensearchpy.helpers import parallel_bulk
 
 from sycamore.data import Document
-from sycamore.writers.base import BaseDBWriter
-from sycamore.writers.common import HostAndPort, flatten_data
+from sycamore.connectors.writers.base import BaseDBWriter
+from sycamore.connectors.writers.common import HostAndPort, flatten_data, DEFAULT_RECORD_PROPERTIES
 
 log = logging.getLogger(__name__)
 
@@ -149,19 +149,6 @@ class OpenSearchClient(BaseDBWriter.Client):
         return OpenSearchTargetParams(index_name=index_name, mappings=mappings, settings=settings)
 
 
-DEFAULT_OPENSEARCH_RECORD_PROPERTIES: dict[str, Any] = {
-    "doc_id": None,
-    "type": None,
-    "text_representation": None,
-    "elements": [],
-    "embedding": None,
-    "parent_id": None,
-    "properties": {},
-    "bbox": None,
-    "shingles": None,
-}
-
-
 @dataclass
 class OpenSearchRecord(BaseDBWriter.Record):
     _source: dict[str, Any]
@@ -179,7 +166,7 @@ class OpenSearchRecord(BaseDBWriter.Record):
         result = dict()
 
         data = document.data
-        for k, v in DEFAULT_OPENSEARCH_RECORD_PROPERTIES.items():
+        for k, v in DEFAULT_RECORD_PROPERTIES.items():
             if k in data:
                 result[k] = data[k]
             else:

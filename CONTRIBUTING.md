@@ -8,7 +8,7 @@ To avoid duplicate or unnecessary work, please follow this process to make contr
 
 - Find or create an issue in GitHub. Leave a note on an existing issue to let the community know you are working on it, or create a new issue for a feature you would like to add. If there are significant design decisions to cover, please start a conversation in the issue to get feedback early.
 - Create a fork of Sycamore and start development in a feature branch. You can find information about how to set up Sycamore for development below. More information about development patterns in Github can be found [here](https://docs.github.com/en/get-started/quickstart/contributing-to-projects).
-- Make sure linting rules and all existing unit tests pass. Consider whether your changes need new tests, and make sure those pass as well. 
+- Make sure linting rules and all existing unit tests pass. Consider whether your changes need new tests, and make sure those pass as well.
 - Larger features may need new documentation. When in doubt, start a discussion on the associated issue.
 - Create a pull request against the `main` branch of this repository. Pull requests are lightweight, and we encourage you to create a draft PR early to get feedback.
 
@@ -76,7 +76,7 @@ poetry run pytest lib/sycamore/sycamore/tests/unit/
 
 # Integration Tests
 
-# Warning: as of 2024-05-17 the integration tests are currently broken. We are working on fixing them. 
+# Warning: as of 2024-05-17 the integration tests are currently broken. We are working on fixing them.
 # poetry run pytest lib/sycamore/sycamore/tests/integration/
 
 # All Tests

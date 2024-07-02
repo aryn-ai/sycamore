@@ -1,10 +1,13 @@
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 
+from sycamore.utils.cache import Cache
+
 
 class LLM(ABC):
-    def __init__(self, model_name):
+    def __init__(self, model_name, cache: Optional[Cache] = None):
         self._model_name = model_name
+        self._cache = cache
 
     @abstractmethod
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Any:

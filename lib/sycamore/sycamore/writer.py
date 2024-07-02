@@ -5,7 +5,7 @@ from pyarrow.fs import FileSystem
 from sycamore import Context
 from sycamore.plan_nodes import Node
 from sycamore.data import Document
-from sycamore.writers.common import HostAndPort
+from sycamore.connectors.writers.common import HostAndPort
 from sycamore.writers.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
 from ray.data import ActorPoolStrategy
 
@@ -148,6 +148,7 @@ class DocSetWriter:
         wv_client_args: dict,
         collection_name: str,
         collection_config: Optional[dict[str, Any]] = None,
+        flatten_properties: bool = False,
         execute: bool = True,
         **kwargs,
     ) -> Optional["DocSet"]:
@@ -161,7 +162,11 @@ class DocSetWriter:
                 method.If not provided, Weaviate will Auto-Schematize the incoming records, which may lead to
                 inconsistencies or failures. See more information at
                 https://weaviate.io/developers/weaviate/manage-data/collections#create-a-collection-and-define-properties
-            resource_args: Arguments to pass to the underlying execution engine
+            flatten_properties: Whether to flatten documents into pure key-value pairs or to allow nested
+                structures. Default is False (allow nested structures)
+            execute: Execute the pipeline and write to weaviate on adding this operator. If False,
+                will return a DocSet with this write in the plan. Default is True
+            kwargs: Arguments to pass to the underlying execution engine
 
         Example:
             The following code shows how to read a pdf dataset into a ``DocSet`` and write it out to a
@@ -236,13 +241,13 @@ class DocSetWriter:
                     collection_config=collection_config_params
                 )
         """
-        from sycamore.writers.weaviate_writer import (
+        from sycamore.connectors.weaviate import (
             WeaviateDocumentWriter,
             WeaviateCrossReferenceWriter,
             WeaviateClientParams,
             WeaviateTargetParams,
-            CollectionConfigCreate,
         )
+        from sycamore.connectors.weaviate.weaviate_writer import CollectionConfigCreate
 
         if collection_config is None:
             collection_config = dict()
@@ -253,7 +258,9 @@ class DocSetWriter:
             collection_config_object = CollectionConfigCreate(**collection_config)
         else:
             collection_config_object = CollectionConfigCreate(name=collection_name, **collection_config)
-        target_params = WeaviateTargetParams(name=collection_name, collection_config=collection_config_object)
+        target_params = WeaviateTargetParams(
+            name=collection_name, collection_config=collection_config_object, flatten_properties=flatten_properties
+        )
 
         wv_docs = WeaviateDocumentWriter(
             self.plan, client_params, target_params, name="weaviate_write_documents", **kwargs
@@ -402,7 +409,7 @@ class DocSetWriter:
                 conn = duckdb.connect(database=db_url)
                 duckdb_read = conn.execute(f"SELECT * FROM {table_name}")
         """
-        from sycamore.writers.duckdb_writer import DuckDBWriter, DuckDBClientParams, DuckDBTargetParams
+        from sycamore.connectors.duckdb.duckdb_writer import DuckDBWriter, DuckDBClientParams, DuckDBTargetParams
 
         client_params = DuckDBClientParams()
         target_params = DuckDBTargetParams(db_url=db_url, table_name=table_name)

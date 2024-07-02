@@ -98,7 +98,8 @@ class SentenceTransformerEmbedder(Embedder):
         assert self._transformer is not None
 
         text_batch = [self.pre_process_document(doc) for doc in doc_batch if doc.text_representation is not None]
-        embeddings = self._transformer.encode(text_batch, batch_size=self.model_batch_size, device=self.device)
+        if len(text_batch) > 0:
+            embeddings = self._transformer.encode(text_batch, batch_size=self.model_batch_size, device=self.device)
 
         i = 0
         for doc in doc_batch:

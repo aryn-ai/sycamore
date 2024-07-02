@@ -96,6 +96,14 @@ More Resources
 
 
 .. toctree::
+   :caption: Aryn Cloud
+   :maxdepth: 2
+   :hidden:
+
+   /tutorials/using_aryn_partitioning_service.md
+
+
+.. toctree::
    :caption: Data Ingestion and Preparation
    :maxdepth: 2
    :hidden:

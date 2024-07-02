@@ -3,7 +3,7 @@ from pathlib import Path
 from sycamore.llms import OpenAI, OpenAIModels, OpenAIClientWrapper
 from sycamore.llms.openai import OpenAIModel, OpenAIClientType
 from sycamore.llms.prompts.default_prompts import SimpleGuidancePrompt
-from sycamore.utils.cache_manager import CacheManager, DiskCache
+from sycamore.utils.cache import DiskCache
 
 
 # Note: These tests expect you to have OPENAI_API_KEY set in your environment.
@@ -19,8 +19,8 @@ def test_openai_defaults():
 
 
 def test_cached_openai(tmp_path: Path):
-    cm = CacheManager(cache=DiskCache(str(tmp_path)))
-    llm = OpenAI(OpenAIModels.GPT_3_5_TURBO, cache=cm)
+    cache = DiskCache(str(tmp_path))
+    llm = OpenAI(OpenAIModels.GPT_3_5_TURBO, cache=cache)
     prompt_kwargs = {"prompt": "Write a limerick about large language models."}
 
     key = llm._get_cache_key(prompt_kwargs, {})
@@ -28,25 +28,25 @@ def test_cached_openai(tmp_path: Path):
     res = llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
 
     # assert result is cached
-    assert cm.get(key).get("result") == res
+    assert cache.get(key).get("result") == res
 
     # assert llm.generate is using cached result
     custom_output = {"result": "This is a custom response", "prompt_kwargs": prompt_kwargs, "llm_kwargs": {}}
-    cm.set(key, custom_output)
+    cache.set(key, custom_output)
 
     assert llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={}) == custom_output["result"]
 
 
 def test_cached_openai_mismatch(tmp_path: Path):
-    cm = CacheManager(cache=DiskCache(str(tmp_path)))
-    llm = OpenAI(OpenAIModels.GPT_3_5_TURBO, cache=cm)
+    cache = DiskCache(str(tmp_path))
+    llm = OpenAI(OpenAIModels.GPT_3_5_TURBO, cache=cache)
     prompt_kwargs = {"prompt": "Write a limerick about large language models."}
 
     key = llm._get_cache_key(prompt_kwargs, {})
 
     # store a modified result in the cache (changed prompt_kwargs), ensure there is a cache miss
     custom_output = {"result": "This is a custom response", "prompt_kwargs": {}, "llm_kwargs": {}}
-    cm.set(key, custom_output)
+    cache.set(key, custom_output)
 
     assert llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={}) != custom_output["result"]
 

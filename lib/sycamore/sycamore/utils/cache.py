@@ -14,6 +14,12 @@ class Cache:
     def set(self, hash_key: str, hash_value):
         pass
 
+    @staticmethod
+    def get_hash_key(data: bytes) -> str:
+        hash_sha256 = hashlib.sha256()
+        hash_sha256.update(data)
+        return hash_sha256.hexdigest()
+
 
 class DiskCache(Cache):
     def __init__(self, cache_loc: str):
@@ -64,19 +70,3 @@ class S3Cache(Cache):
         json_str = json.dumps(content, sort_keys=True, indent=2)
         self._s3_client.put_object(Body=json_str, Bucket=bucket, Key=key)
 
-
-class CacheManager:
-    def __init__(self, cache: Cache):
-        self._cache = cache
-
-    def get(self, hash_key: str):
-        return self._cache.get(hash_key)
-
-    def set(self, hash_key: str, hash_value):
-        self._cache.set(hash_key, hash_value)
-
-    @staticmethod
-    def get_hash_key(data: bytes) -> str:
-        hash_sha256 = hashlib.sha256()
-        hash_sha256.update(data)
-        return hash_sha256.hexdigest()

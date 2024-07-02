@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import boto3
 from botocore.stub import Stubber
-from sycamore.utils.cache_manager import CacheManager, DiskCache, S3Cache
+from sycamore.utils.cache import DiskCache, S3Cache
 import hashlib
 
 
@@ -16,7 +16,7 @@ def get_hash(obj):
 
 class TestDiskCache:
     def test_disk_cache(self, tmp_path: Path):
-        cm = CacheManager(cache=DiskCache(str(tmp_path)))
+        cm = DiskCache(str(tmp_path))
         data1 = {"key": 1, "value": "one"}
         data2 = {"key": 1, "value": "one"}
         # insert-delete

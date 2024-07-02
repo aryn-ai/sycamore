@@ -9,10 +9,10 @@ from typing import List, Generator
 
 from PIL import Image
 
-from sycamore.utils.cache_manager import CacheManager, DiskCache
+from sycamore.utils.cache import DiskCache
 from sycamore.utils.time_trace import LogTime
 
-pdf_to_ppm_cache = CacheManager(DiskCache(os.path.join(tempfile.gettempdir(), "SycamoreCache/PDFToPPMCache")))
+pdf_to_ppm_cache = DiskCache(os.path.join(tempfile.gettempdir(), "SycamoreCache/PDFToPPMCache"))
 
 
 def convert_from_path_streamed(pdf_path: str) -> Generator[Image.Image, None, None]:

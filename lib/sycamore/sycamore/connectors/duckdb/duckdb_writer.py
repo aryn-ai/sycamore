@@ -17,13 +17,14 @@ class DuckDBClientParams(BaseDBWriter.ClientParams):
 
 @dataclass
 class DuckDBTargetParams(BaseDBWriter.TargetParams):
+    dimensions: int
     db_url: Optional[str] = "tmp.db"
     table_name: Optional[str] = "default_table"
     batch_size: int = 1000
     schema: Optional[Dict[str, str]] = field(
         default_factory=lambda: {
             "doc_id": "VARCHAR",
-            "embeddings": "FLOAT[384]",
+            "embeddings": "FLOAT[]",
             "properties": "MAP(VARCHAR, VARCHAR)",
             "text_representation": "VARCHAR",
             "bbox": "DOUBLE[]",
@@ -34,6 +35,8 @@ class DuckDBTargetParams(BaseDBWriter.TargetParams):
 
     def compatible_with(self, other: BaseDBWriter.TargetParams) -> bool:
         if not isinstance(other, DuckDBTargetParams):
+            return False
+        if self.dimensions != other.dimensions:
             return False
         if self.db_url != other.db_url:
             return False
@@ -104,9 +107,10 @@ class DuckDBClient(BaseDBWriter.Client):
         client = duckdb.connect(str(dict_params.get("db_url")))
         try:
             if schema:
+                embedding_size = schema.get("embeddings").str.split("[")[0] + str(dict_params.get("dimensions")) + "]"
                 client.sql(
                     f"""CREATE TABLE {dict_params.get('table_name')} (doc_id {schema.get('doc_id')},
-                      embeddings {schema.get('embeddings')}, properties {schema.get('properties')}, 
+                      embeddings {embedding_size}, properties {schema.get('properties')}, 
                       text_representation {schema.get('text_representation')}, bbox {schema.get('bbox')}, 
                       shingles {schema.get('shingles')}, type {schema.get('type')})"""
                 )
@@ -133,6 +137,7 @@ class DuckDBClient(BaseDBWriter.Client):
                     does not exist in database {dict_params.get('table_name')}: {e}"""
                 )
         return DuckDBTargetParams(
+            dimensions=target_params.dimensions,
             db_url=target_params.db_url,
             table_name=target_params.table_name,
             batch_size=target_params.batch_size,

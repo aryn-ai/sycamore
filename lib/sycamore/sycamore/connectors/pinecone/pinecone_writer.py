@@ -56,12 +56,10 @@ class PineconeClient(BaseDBWriter.Client):
         assert _narrow_list_of_pinecone_records(records), f"Found bad records in {records}"
         index = self._client.Index(target_params.index_name)
         async_results = []
-        wait_on_index(self._client, target_params.index_name)
         for batch in batched(records, self._batch_size):
             vectors = [r.to_grpc_vector() for r in batch if r.values is not None]
             res = index.upsert(vectors=vectors, namespace=target_params.namespace, async_req=True)
             async_results.append(res)
-            time.sleep(1)
         for res in async_results:
             # Force async completion. Errors are here
             try:
@@ -89,6 +87,7 @@ class PineconeClient(BaseDBWriter.Client):
     def get_existing_target_params(self, target_params: "BaseDBWriter.TargetParams") -> PineconeTargetParams:
         assert isinstance(target_params, PineconeTargetParams)
         index_dict = self._client.describe_index(target_params.index_name).to_dict()
+        wait_on_index(self._client, target_params.index_name)
         return PineconeTargetParams(
             index_name=index_dict["name"],
             dimensions=index_dict["dimension"],
@@ -173,15 +172,20 @@ def wait_on_index(client: PineconeGRPC, index: str):
     Takes the name of the index to wait for and blocks until it's available and ready.
     """
     ready = False
+    time.time()
+    timeout = 30
+    deadline = time.time() + timeout
     while not ready:
         try:
             desc = client.describe_index(index)
             if desc.get("status")["ready"]:
                 return True
         except PineconeException:
-            # NotFoundException means the index is created yet.
+            # NotFoundException means the index is not created yet.
             pass
         time.sleep(1)
+        if time.time() > deadline:
+            raise RuntimeError(f"Pinecone failed to create in {timeout} seconds")
 
 
 class PineconeWriter(BaseDBWriter):

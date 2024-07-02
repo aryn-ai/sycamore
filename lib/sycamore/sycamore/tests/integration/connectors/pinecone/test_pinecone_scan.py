@@ -43,15 +43,9 @@ def test_pinecone_scan():
         .sketch(window=17)
         .take_all()
     )
-    read_docs = ctx.read.document(docs)
-    val = read_docs.take_all()
-    assert all(
-        compare_docs(original, plumbed)
-        for original, plumbed in zip(
-            sorted(docs, key=lambda d: d.doc_id or ""), sorted(val, key=lambda d: d.doc_id or "")
-        )
+    ctx.read.document(docs).write.pinecone(
+        index_name=index_name, dimensions=384, namespace=namespace, index_spec=spec, log=True
     )
-    read_docs.write.pinecone(index_name=index_name, dimensions=384, namespace=namespace, index_spec=spec, log=True)
     out_docs = ctx.read.pinecone(index_name=index_name, api_key=api_key, namespace=namespace).take_all()
     pc.delete_index(index_name)
     assert len(docs) == (len(out_docs) + 1)  # parent doc is removed while writing

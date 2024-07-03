@@ -114,7 +114,7 @@ def convert_from_path_streamed(pdf_path: str) -> Generator[Image.Image, None, No
 
 
 def convert_from_path_streamed_batched(
-    filename: str, batch_size: int, file_checksum: str, use_cache: bool = True
+    filename: str, batch_size: int, file_checksum: str, use_cache: bool = False
 ) -> Generator[List[Image.Image], None, None]:
     """Note: model service will call this to get batches of images for processing"""
     images = pdf_to_ppm_cache.get(file_checksum) if use_cache else None

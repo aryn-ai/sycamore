@@ -101,7 +101,7 @@ class SycamorePDFPartitioner:
         extract_images=False,
         batch_size: int = 1,
         batch_at_a_time=True,
-        use_cache=True,
+        use_cache=False,
     ) -> List[List["Element"]]:
         if batch_at_a_time:
             return self._partition_pdf_batched(
@@ -141,7 +141,7 @@ class SycamorePDFPartitioner:
         table_structure_extractor=None,
         extract_images=False,
         batch_size: int = 1,
-        use_cache=True,
+        use_cache=False,
     ) -> List[List["Element"]]:
         """
         Partitions a PDF with the DeformableDETR model.
@@ -231,7 +231,7 @@ class SycamorePDFPartitioner:
         table_structure_extractor=None,
         extract_images=False,
         batch_size: int = 1,
-        use_cache=True,
+        use_cache=False,
     ) -> List[List["Element"]]:
         LogTime("partition_start", point=True)
         with tempfile.NamedTemporaryFile(prefix="detr-pdf-input-") as pdffile:
@@ -271,7 +271,7 @@ class SycamorePDFPartitioner:
         table_structure_extractor=None,
         extract_images=False,
         batch_size: int = 1,
-        use_cache=True,
+        use_cache=False,
     ) -> List[List["Element"]]:
         if extract_table_structure and not table_structure_extractor:
             table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
@@ -485,7 +485,7 @@ class PDFMinerExtractor:
         y2 = height - y2
         return x1, y1, x2, y2
 
-    def extract(self, filename: Union[str, IOBase], hash_key: str, use_cache=True) -> List[List[Element]]:
+    def extract(self, filename: Union[str, IOBase], hash_key: str, use_cache=False) -> List[List[Element]]:
         # The naming is slightly confusing, but `open_filename` accepts either
         # a filename (str) or a file-like object (IOBase)
 

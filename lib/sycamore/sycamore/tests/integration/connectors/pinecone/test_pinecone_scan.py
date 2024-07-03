@@ -43,9 +43,7 @@ def test_pinecone_scan():
         .sketch(window=17)
         .take_all()
     )
-    ctx.read.document(docs).write.pinecone(
-        index_name=index_name, dimensions=384, namespace=namespace, index_spec=spec, log=True
-    )
+    ctx.read.document(docs).write.pinecone(index_name=index_name, dimensions=384, namespace=namespace, index_spec=spec)
     out_docs = ctx.read.pinecone(index_name=index_name, api_key=api_key, namespace=namespace).take_all()
     pc.delete_index(index_name)
     assert len(docs) == (len(out_docs) + 1)  # parent doc is removed while writing

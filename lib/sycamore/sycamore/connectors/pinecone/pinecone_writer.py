@@ -58,6 +58,8 @@ class PineconeClient(BaseDBWriter.Client):
         async_results = []
         for batch in batched(records, self._batch_size):
             vectors = [r.to_grpc_vector() for r in batch if r.values is not None]
+            if len(vectors) == 0:
+                continue
             res = index.upsert(vectors=vectors, namespace=target_params.namespace, async_req=True)
             async_results.append(res)
         for res in async_results:

@@ -97,7 +97,6 @@ def unflatten_data(data: dict[str, Any], separator: str = ".") -> dict[Any, Any]
 
     for key, value in data.items():
         parts = parse_key(key)
-        # all_parts_are_digits = all(val.isdigit() for val in parts)
         current = result
         for i, part in enumerate(parts):
             part_key: Union[str, int] = int(part) if part.isdigit() else part
@@ -106,16 +105,9 @@ def unflatten_data(data: dict[str, Any], separator: str = ".") -> dict[Any, Any]
                 current[part_key] = value
             else:
                 next_part_is_digit = parts[i + 1].isdigit() if i + 1 < len(parts) else False
-                if isinstance(current, list):
-                    if len(current) <= int(part):
-                        current.extend("" for _ in range(int(part) - len(current) + 1))
-                    current = current[int(part_key)]
-                else:
-                    if part_key not in current:
-                        current[part_key] = [] if next_part_is_digit else {}
-                    current = current[part_key]
-                print(current)
-
+                if part_key not in current:
+                    current[part_key] = [] if next_part_is_digit else {}
+                current = current[part_key]
                 # If current is a list and the next part is a digit, ensure proper length
                 if isinstance(current, list):
                     if next_part_is_digit and len(current) <= int(parts[i + 1]):

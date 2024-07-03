@@ -44,7 +44,7 @@ class TestArynPDFPartitioner:
                         element.binary_representation = base64.b64decode(element.binary_representation)
                     expected_elements.append(element)
 
-                assert_deep_eq(partitioner.partition_pdf(pdf, aryn_token=""), expected_elements, [])
+                assert_deep_eq(partitioner.partition_pdf(pdf, aryn_api_key=""), expected_elements, [])
 
     def test_partition_extract_table_structure(self, mocker) -> None:
         mocker.patch("requests.post", return_value=MockResponseTables())
@@ -62,7 +62,7 @@ class TestArynPDFPartitioner:
                     expected_elements.append(element)
 
                 assert_deep_eq(
-                    partitioner.partition_pdf(pdf, extract_table_structure=True, aryn_token=""),
+                    partitioner.partition_pdf(pdf, extract_table_structure=True, aryn_api_key=""),
                     expected_elements,
                     [],
                 )

@@ -124,14 +124,14 @@ class ArynPDFPartitioner:
         batch_size: int = 1,
         batch_at_a_time=True,
         local=False,
-        aryn_token: str = "",
+        aryn_api_key: str = "",
         aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
         use_cache=True,
     ) -> List[Element]:
         if not local:
             return self._partition_remote(
                 file,
-                aryn_token,
+                aryn_api_key,
                 aryn_partitioner_address,
                 threshold,
                 use_ocr,
@@ -180,7 +180,7 @@ class ArynPDFPartitioner:
     )
     def _partition_remote(
         file: BinaryIO,
-        aryn_token: str,
+        aryn_api_key: str,
         aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
         threshold: float = 0.4,
         use_ocr: bool = False,
@@ -199,7 +199,7 @@ class ArynPDFPartitioner:
         }
 
         files: Mapping = {"pdf": file, "options": json.dumps(options).encode("utf-8")}
-        header = {"Authorization": f"Bearer {aryn_token}"}
+        header = {"Authorization": f"Bearer {aryn_api_key}"}
 
         response = requests.post(aryn_partitioner_address, files=files, headers=header)
 

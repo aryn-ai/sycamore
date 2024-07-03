@@ -17,6 +17,7 @@ from sycamore.transforms.table_structure.extract import TableStructureExtractor
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
 from sycamore.utils import choose_device
+from sycamore.utils.aryn_config import ArynConfig
 
 from sycamore.transforms.detr_partitioner import ARYN_DETR_MODEL, DEFAULT_ARYN_PARTITIONER_ADDRESS
 
@@ -409,12 +410,16 @@ class ArynPartitioner(Partitioner):
         batch_size: int = 1,
         batch_at_a_time: bool = False,
         local: bool = False,
-        aryn_token: str = "",
+        aryn_api_key: str = "",
         aryn_partitioner_address: str = DEFAULT_ARYN_PARTITIONER_ADDRESS,
         use_cache=True,
     ):
         device = choose_device(device)
         super().__init__(device=device, batch_size=batch_size)
+        if not aryn_api_key:
+            self._aryn_api_key = ArynConfig.get_aryn_api_key()
+        else:
+            self._aryn_api_key = aryn_api_key
         self._model_name_or_path = model_name_or_path
         self._device = device
         self._threshold = threshold
@@ -427,7 +432,6 @@ class ArynPartitioner(Partitioner):
         self._batch_size = batch_size
         self._batch_at_a_time = batch_at_a_time
         self._local = local
-        self._aryn_token = aryn_token
         self._aryn_partitioner_address = aryn_partitioner_address
         self._use_cache = use_cache
 
@@ -485,7 +489,7 @@ class ArynPartitioner(Partitioner):
                 batch_size=self._batch_size,
                 batch_at_a_time=self._batch_at_a_time,
                 local=self._local,
-                aryn_token=self._aryn_token,
+                aryn_api_key=self._aryn_api_key,
                 aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
                 use_cache=self._use_cache,
             )

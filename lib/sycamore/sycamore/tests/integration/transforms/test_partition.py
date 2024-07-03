@@ -122,7 +122,7 @@ def test_aryn_partitioner():
 
     docs = (
         context.read.binary(paths=[str(path)], binary_format="pdf")
-        .partition(ArynPartitioner(aryn_token=MODEL_SERVER_KEY))
+        .partition(ArynPartitioner(aryn_api_key=MODEL_SERVER_KEY))
         .explode()
         .filter(lambda doc: "page_number" in doc.properties and doc.properties["page_number"] == 1)
         .filter(lambda doc: doc.type == "Section-header")

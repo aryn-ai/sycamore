@@ -47,6 +47,8 @@ class WeaviateTargetParams(BaseDBWriter.TargetParams):
             return False
         if self.name != other.name:
             return False
+        if self.flatten_properties != other.flatten_properties:
+            return False
         my_flat_dict = self._as_flattened_dict()
         other_flat_dict = other._as_flattened_dict()
         for k in my_flat_dict:
@@ -157,8 +159,8 @@ class WeaviateCrossReferenceClient(WeaviateClient):
                 collection.config.add_reference(
                     ref=ReferenceProperty(name="parent", target_collection=target_params.name)
                 )
-            except WeaviateInvalidInputError as e:
-                if "already exists" in e.message:
+            except Exception as e:
+                if isinstance(e, WeaviateInvalidInputError) and "already exists" in e.message:
                     return
                 raise e
 
@@ -191,7 +193,7 @@ class WeaviateDocumentRecord(BaseDBWriter.Record):
             "bbox": document.bbox.coordinates if document.bbox else None,
             "shingles": document.shingles,
         }
-        droperties = drop_types(properties, drop_empty_lists=True)
+        droperties = drop_types(properties, drop_empty_lists=True, drop_empty_dicts=True)
         if target_params.flatten_properties:
             # Property names must be [a-zA-Z][_0-9a-zA-Z]{0,230}, so use __ as a separator rather than .
             droperties = dict(flatten_data(droperties, allowed_list_types=[int, str, bool, float], separator="__"))

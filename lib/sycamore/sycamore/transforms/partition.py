@@ -406,7 +406,7 @@ class SycamorePartitioner(Partitioner):
         device=None,
         batch_size: int = 1,
         batch_at_a_time: bool = False,
-        use_cache=True,
+        use_cache=False,
     ):
         device = choose_device(device)
         super().__init__(device=device, batch_size=batch_size)

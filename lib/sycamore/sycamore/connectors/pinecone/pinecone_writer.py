@@ -62,12 +62,7 @@ class PineconeClient(BaseDBWriter.Client):
             async_results.append(res)
         for res in async_results:
             # Force async completion. Errors are here
-            try:
-                res.result()
-            except PineconeException as e:
-                print(e)
-                print("ERROR CHECK")
-                print(res)
+            res.result()
 
     def create_target_idempotent(self, target_params: "BaseDBWriter.TargetParams"):
         assert isinstance(target_params, PineconeTargetParams)
@@ -178,7 +173,7 @@ def wait_on_index(client: PineconeGRPC, index: str):
         try:
             desc = client.describe_index(index)
             if desc.get("status")["ready"]:
-                return True
+                ready = True
         except PineconeException:
             # NotFoundException means the index is not created yet.
             pass

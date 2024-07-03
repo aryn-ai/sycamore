@@ -1,4 +1,4 @@
-from sycamore.connectors.writers.common import convert_to_str_dict, drop_types, flatten_data
+from sycamore.connectors.common import convert_to_str_dict, drop_types, flatten_data, unflatten_data
 
 
 def test_flatten_data_happy():
@@ -94,3 +94,66 @@ def test_drop_types_tuple_to_tuple():
     dropped = drop_types(data)
     assert isinstance(dropped, tuple)
     assert dropped == ("Hello",)
+
+
+def test_basic_unflattening():
+    data = {"a.b.c": 1, "a.b.d": 2, "a.e": 3}
+    unflattened = unflatten_data(data)
+    assert isinstance(unflattened, dict)
+    assert unflattened == {"a": {"b": {"c": 1, "d": 2}, "e": 3}}
+
+
+def test_numeric_keys():
+    data = {"a.0": "zero", "a.1": "one", "a.2": "two"}
+    unflattened = unflatten_data(data)
+    assert isinstance(unflattened, dict)
+    assert unflattened == {"a": ["zero", "one", "two"]}
+
+
+def test_deep_nesting():
+    data = {"a.b.c.d.e.f.g": "deep"}
+    unflattened = unflatten_data(data)
+    assert isinstance(unflattened, dict)
+    assert unflattened == {"a": {"b": {"c": {"d": {"e": {"f": {"g": "deep"}}}}}}}
+
+
+def test_empty_input():
+    data = {}
+    unflattened = unflatten_data(data)
+    assert isinstance(unflattened, dict)
+    assert unflattened == {}
+
+
+def test_no_nesting():
+    data = {"a": 1, "b": 2, "c": 3}
+    unflattened = unflatten_data(data)
+    assert isinstance(unflattened, dict)
+    assert unflattened == {"a": 1, "b": 2, "c": 3}
+
+
+def test_custom_separator():
+    data = {"a/b/c": 1, "a/b/d": 2}
+    unflattened = unflatten_data(data, separator="/")
+    assert isinstance(unflattened, dict)
+    assert unflattened == {"a": {"b": {"c": 1, "d": 2}}}
+
+
+def test_keys_with_dots():
+    data = {"a.b\\.c": 1, "a.b\\.d": 2}
+    unflattened = unflatten_data(data)
+    assert isinstance(unflattened, dict)
+    assert unflattened == {"a": {"b.c": 1, "b.d": 2}}
+
+
+def test_non_string_values():
+    data = {"a.b": 1, "a.c": [1, 2, 3], "a.d": {"nested": "dict"}}
+    unflattened = unflatten_data(data)
+    assert isinstance(unflattened, dict)
+    assert unflattened == {"a": {"b": 1, "c": [1, 2, 3], "d": {"nested": "dict"}}}
+
+
+def test_irregular_numeric_sequence():
+    data = {"a.0": "zero", "a.2": "two"}
+    unflattened = unflatten_data(data)
+    assert isinstance(unflattened, dict)
+    assert unflattened == {"a": ["zero", "", "two"]}

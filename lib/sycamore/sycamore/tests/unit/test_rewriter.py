@@ -1,5 +1,5 @@
 from sycamore.rules import EnforceResourceUsage
-from sycamore.scans import BinaryScan
+from sycamore.connectors.file import BinaryScan
 from sycamore.transforms import Partition, Explode
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 from sycamore.connectors.opensearch import OpenSearchClientParams, OpenSearchTargetParams, OpenSearchWriter

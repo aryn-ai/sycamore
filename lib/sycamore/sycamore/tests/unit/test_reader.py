@@ -3,7 +3,7 @@ from pathlib import Path
 
 import sycamore
 from sycamore.docset import DocSet
-from sycamore.scans.file_scan import JsonManifestMetadataProvider
+from sycamore.connectors.file.file_scan import JsonManifestMetadataProvider
 from sycamore.tests.config import TEST_DIR
 
 

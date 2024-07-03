@@ -110,8 +110,8 @@ class DuckDBClient(BaseDBWriter.Client):
                 embedding_size = schema.get("embeddings").str.split("[")[0] + str(dict_params.get("dimensions")) + "]"
                 client.sql(
                     f"""CREATE TABLE {dict_params.get('table_name')} (doc_id {schema.get('doc_id')},
-                      embeddings {embedding_size}, properties {schema.get('properties')}, 
-                      text_representation {schema.get('text_representation')}, bbox {schema.get('bbox')}, 
+                      embeddings {embedding_size}, properties {schema.get('properties')},
+                      text_representation {schema.get('text_representation')}, bbox {schema.get('bbox')},
                       shingles {schema.get('shingles')}, type {schema.get('type')})"""
                 )
             else:

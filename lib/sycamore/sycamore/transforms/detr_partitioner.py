@@ -23,7 +23,7 @@ from sycamore.data import Element, BoundingBox, ImageElement, TableElement
 from sycamore.data.element import create_element
 from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
 from sycamore.utils import choose_device
-from sycamore.utils.cache_manager import CacheManager
+from sycamore.utils.cache import Cache, DiskCache
 from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
 from sycamore.utils.pdf import convert_from_path_streamed_batched
@@ -36,7 +36,7 @@ def _batchify(iterable, n=1):
         yield iterable[i : min(i + n, length)]
 
 
-pdf_miner_cm = CacheManager(os.path.join(tempfile.gettempdir(), "SycamoreCache/PDFMinerCache"))
+pdf_miner_cache = DiskCache(os.path.join(tempfile.gettempdir(), "SycamoreCache/PDFMinerCache"))
 
 
 class SycamorePDFPartitioner:
@@ -189,7 +189,7 @@ class SycamorePDFPartitioner:
                 # but typing.BinaryIO doesn't extend from it. BytesIO
                 # (the concrete class) implements both.
                 file_name = cast(IOBase, file)
-                hash_key = CacheManager.get_hash_key(file_name.read())
+                hash_key = Cache.get_hash_key(file_name.read())
                 with LogTime("pdfminer_extract", log_start=True):
                     pdfminer_layout = pdfminer.extract(file_name, hash_key, use_cache)
                 # page count should be the same
@@ -237,7 +237,7 @@ class SycamorePDFPartitioner:
         with tempfile.NamedTemporaryFile(prefix="detr-pdf-input-") as pdffile:
             with LogTime("write_pdf"):
                 data = file.read()
-                hash_key = CacheManager.get_hash_key(data)
+                hash_key = Cache.get_hash_key(data)
                 data_len = len(data)
                 pdffile.write(data)
                 del data
@@ -489,7 +489,7 @@ class PDFMinerExtractor:
         # The naming is slightly confusing, but `open_filename` accepts either
         # a filename (str) or a file-like object (IOBase)
 
-        cached_result = pdf_miner_cm.get(hash_key) if use_cache else None
+        cached_result = pdf_miner_cache.get(hash_key) if use_cache else None
         if cached_result:
             logging.info("Cache Hit for PDFMiner. Getting the result from cache.")
             return cached_result
@@ -515,7 +515,7 @@ class PDFMinerExtractor:
                     pages.append(texts)
                 if use_cache:
                     logging.info("Cache Miss for PDFMiner. Storing the result to the cache.")
-                    pdf_miner_cm.set(hash_key, pages)
+                    pdf_miner_cache.set(hash_key, pages)
                 return pages
 
 

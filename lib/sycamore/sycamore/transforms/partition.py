@@ -14,6 +14,7 @@ from sycamore.plan_nodes import Node
 from sycamore.transforms.base import CompositeTransform
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.map import Map
+from sycamore.utils.cache import Cache
 from sycamore.utils.time_trace import timetrace
 from sycamore.utils import choose_device
 from sycamore.utils.aryn_config import ArynConfig
@@ -407,6 +408,7 @@ class SycamorePartitioner(Partitioner):
         batch_size: int = 1,
         batch_at_a_time: bool = False,
         use_cache=True,
+        cache: Optional[Cache] = None,
     ):
         device = choose_device(device)
         super().__init__(device=device, batch_size=batch_size)
@@ -422,6 +424,7 @@ class SycamorePartitioner(Partitioner):
         self._batch_size = batch_size
         self._batch_at_a_time = batch_at_a_time
         self._use_cache = use_cache
+        self._cache = cache
 
     # For now, we reorder elements based on page, left/right column, y axle position then finally x axle position
     @staticmethod
@@ -462,7 +465,7 @@ class SycamorePartitioner(Partitioner):
         binary = io.BytesIO(document.data["binary_representation"])
         from sycamore.transforms.detr_partitioner import SycamorePDFPartitioner
 
-        partitioner = SycamorePDFPartitioner(self._model_name_or_path, device=self._device)
+        partitioner = SycamorePDFPartitioner(self._model_name_or_path, device=self._device, cache=self._cache)
 
         try:
             result = partitioner.partition_pdf(

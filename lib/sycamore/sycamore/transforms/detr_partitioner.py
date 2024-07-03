@@ -6,7 +6,7 @@ import tracemalloc
 from abc import ABC, abstractmethod
 from concurrent.futures import ProcessPoolExecutor
 from io import BytesIO, IOBase
-from typing import cast, Any, BinaryIO, List, Tuple, Union
+from typing import cast, Any, BinaryIO, List, Tuple, Union, Optional
 
 import easyocr
 import pdf2image
@@ -47,7 +47,7 @@ class SycamorePDFPartitioner:
     SycamorePartitioner class.
     """
 
-    def __init__(self, model_name_or_path, device=None):
+    def __init__(self, model_name_or_path, device=None, cache: Optional[Cache] = None):
         """
         Initializes the SycamorePDFPartitioner and underlying DETR model.
 
@@ -57,7 +57,8 @@ class SycamorePDFPartitioner:
         """
 
         self.device = device
-        self.model = DeformableDetr(model_name_or_path, device)
+        self.cache = cache
+        self.model = DeformableDetr(model_name_or_path, device, cache)
 
     @staticmethod
     def _supplement_text(inferred: List[Element], text: List[Element], threshold: float = 0.5) -> List[Element]:
@@ -177,7 +178,7 @@ class SycamorePDFPartitioner:
         with LogTime("all_batches"):
             for i, batch in enumerate(batches):
                 with LogTime(f"infer_one_batch {i}/{len(images) / batch_size}"):
-                    deformable_layout += self.model.infer(batch, threshold)
+                    deformable_layout += self.model.infer(batch, threshold, use_cache)
 
         if use_ocr:
             with LogTime("ocr"):
@@ -295,6 +296,7 @@ class SycamorePDFPartitioner:
                 extract_table_structure=extract_table_structure,
                 table_structure_extractor=table_structure_extractor,
                 extract_images=extract_images,
+                use_cache=use_cache,
             )
             assert len(parts) == len(i)
             deformable_layout.extend(parts)
@@ -342,9 +344,10 @@ class SycamorePDFPartitioner:
         extract_table_structure,
         table_structure_extractor,
         extract_images,
+        use_cache,
     ) -> Any:
         with LogTime("infer"):
-            deformable_layout = self.model.infer(batch, threshold)
+            deformable_layout = self.model.infer(batch, threshold, use_cache)
 
         gc_tensor_dump()
         assert len(deformable_layout) == len(batch)
@@ -393,7 +396,7 @@ class SycamoreObjectDetection(ABC):
 
 
 class DeformableDetr(SycamoreObjectDetection):
-    def __init__(self, model_name_or_path, device=None):
+    def __init__(self, model_name_or_path, device=None, cache: Optional[Cache] = None):
         super().__init__()
 
         self.labels = [
@@ -413,6 +416,7 @@ class DeformableDetr(SycamoreObjectDetection):
 
         self.device = device
         self._model_name_or_path = model_name_or_path
+        self.cache = cache
 
         from transformers import AutoImageProcessor, DeformableDetrForObjectDetection
 
@@ -427,15 +431,13 @@ class DeformableDetr(SycamoreObjectDetection):
     def _get_device(self) -> str:
         return choose_device(self.device, detr=True)
 
-    def infer(self, images: List[Image.Image], threshold: float) -> List[List[Element]]:
-        results = []
-        inputs = self.processor(images=images, return_tensors="pt").to(self._get_device())
-        outputs = self.model(**inputs)
-        target_sizes = torch.tensor([image.size[::-1] for image in images])
-        results.extend(
-            self.processor.post_process_object_detection(outputs, target_sizes=target_sizes, threshold=threshold)
-        )
-
+    def infer(self, images: List[Image.Image], threshold: float, use_cache: bool = False) -> List[List[Element]]:
+        if use_cache and self.cache:
+            logging.info("Checking Cache")
+            results = self._get_cached_inference(images, threshold)
+        else:
+            logging.info("Skipping Cache check")
+            results = self._get_uncached_inference(images, threshold)
         for result in results:
             result["scores"] = result["scores"].tolist()
             result["labels"] = result["labels"].tolist()
@@ -454,6 +456,49 @@ class DeformableDetr(SycamoreObjectDetection):
                 elements.append(element)
             batched_results.append(elements)
         return batched_results
+
+    def _get_cached_inference(self, images: List[Image.Image], threshold: float) -> list:
+        results = []
+        uncached_images = []
+        uncached_indices = []
+
+        # First, check the cache for each image
+        for index, image in enumerate(images):
+            key = Cache.get_hash_key(image.tobytes())
+            cached_image = self.cache.get(key)
+            if cached_image:
+                logging.info("Cache hit. Returning the result from cache")
+                results.append(cached_image)
+            else:
+                uncached_images.append(image)
+                uncached_indices.append(index)
+                results.append(None)  # Placeholder for uncached image
+
+        # Process the uncached images in a batch
+        if uncached_images:
+            inputs = self.processor(images=uncached_images, return_tensors="pt").to(self._get_device())
+            outputs = self.model(**inputs)
+            target_sizes = torch.tensor([image.size[::-1] for image in uncached_images])
+            processed_images = self.processor.post_process_object_detection(
+                outputs, target_sizes=target_sizes, threshold=threshold
+            )
+
+            # Store processed images in the cache and update the result list
+            for index, processed_img in zip(uncached_indices, processed_images):
+                key = Cache.get_hash_key(images[index].tobytes())
+                self.cache.set(key, processed_img)
+                results[index] = processed_img
+        return results
+
+    def _get_uncached_inference(self, images: List[Image.Image], threshold: float) -> list:
+        results = []
+        inputs = self.processor(images=images, return_tensors="pt").to(self._get_device())
+        outputs = self.model(**inputs)
+        target_sizes = torch.tensor([image.size[::-1] for image in images])
+        results.extend(
+            self.processor.post_process_object_detection(outputs, target_sizes=target_sizes, threshold=threshold)
+        )
+        return results
 
 
 class PDFMinerExtractor:

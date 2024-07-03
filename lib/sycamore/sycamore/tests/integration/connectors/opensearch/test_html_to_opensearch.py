@@ -3,7 +3,7 @@ import tempfile
 
 from opensearchpy import OpenSearch
 import sycamore
-from sycamore.scans.file_scan import JsonManifestMetadataProvider
+from sycamore.connectors.file.file_scan import JsonManifestMetadataProvider
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.transforms.partition import HtmlPartitioner

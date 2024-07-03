@@ -70,6 +70,52 @@ def flatten_data(
     return items
 
 
+def unflatten_data(data: dict[str, Any], separator: str = ".") -> dict[Any, Any]:
+    result: dict[Any, Any] = {}
+
+    def parse_key(key: str) -> list:
+        # Handle escaped separator
+        parts = []
+        current = ""
+        escape = False
+        for char in key:
+            if escape:
+                if char == separator:
+                    current += separator
+                else:
+                    current += "\\" + char
+                escape = False
+            elif char == "\\":
+                escape = True
+            elif char == separator:
+                parts.append(current)
+                current = ""
+            else:
+                current += char
+        parts.append(current)
+        return parts
+
+    for key, value in data.items():
+        parts = parse_key(key)
+        current = result
+        for i, part in enumerate(parts):
+            part_key: Union[str, int] = int(part) if part.isdigit() else part
+            is_last = i == len(parts) - 1
+            if is_last:
+                current[part_key] = value
+            else:
+                next_part_is_digit = parts[i + 1].isdigit() if i + 1 < len(parts) else False
+                if part_key not in current:
+                    current[part_key] = [] if next_part_is_digit else {}
+                current = current[part_key]
+                # If current is a list and the next part is a digit, ensure proper length
+                if isinstance(current, list):
+                    if next_part_is_digit and len(current) <= int(parts[i + 1]):
+                        current.extend("" for _ in range(int(parts[i + 1]) - len(current) + 1))
+
+    return result
+
+
 def convert_to_str_dict(data: dict[str, Any]) -> dict[str, str]:
     result = {}
     for key, value in data.items():
@@ -94,27 +140,36 @@ def drop_types(
     drop_additional_types: list[type] = [],
 ) -> Union[dict, list, tuple]:
     if isinstance(data, dict):
-        droppedd = {k: drop_types(v) for k, v in data.items()}
+        dropped_dict = {
+            k: (
+                drop_types(v, drop_nones, drop_empty_lists, drop_empty_dicts, drop_additional_types)
+                if isinstance(v, (list, tuple, dict))
+                else v
+            )
+            for k, v in data.items()
+        }
         if drop_nones:
-            droppedd = _filter_dict(_none_filter, droppedd)
+            dropped_dict = _filter_dict(_none_filter, dropped_dict)
         if drop_empty_lists:
-            droppedd = _filter_dict(_empty_list_filter, droppedd)
+            dropped_dict = _filter_dict(_empty_list_filter, dropped_dict)
         if drop_empty_dicts:
-            droppedd = _filter_dict(_empty_dict_filter, droppedd)
+            dropped_dict = _filter_dict(_empty_dict_filter, dropped_dict)
         if len(drop_additional_types) > 0:
-            droppedd = _filter_dict(_make_type_filter(drop_additional_types), droppedd)
-        return droppedd
+            dropped_dict = _filter_dict(_make_type_filter(drop_additional_types), dropped_dict)
+        return dropped_dict
     elif isinstance(data, (list, tuple)):
-        droppedl = [drop_types(v) for v in data]
+        dropped_list = [
+            drop_types(v, drop_nones, drop_empty_lists, drop_empty_dicts, drop_additional_types) for v in data
+        ]
         if drop_nones:
-            droppedl = _filter_list(_none_filter, droppedl)
+            dropped_list = _filter_list(_none_filter, dropped_list)
         if drop_empty_lists:
-            droppedl = _filter_list(_empty_list_filter, droppedl)
+            dropped_list = _filter_list(_empty_list_filter, dropped_list)
         if drop_empty_dicts:
-            droppedl = _filter_list(_empty_dict_filter, droppedl)
+            dropped_list = _filter_list(_empty_dict_filter, dropped_list)
         if len(drop_additional_types) > 0:
-            droppedl = _filter_list(_make_type_filter(drop_additional_types), droppedl)
-        return data.__class__(droppedl)
+            dropped_list = _filter_list(_make_type_filter(drop_additional_types), dropped_list)
+        return data.__class__(dropped_list)
     return data
 
 
@@ -140,6 +195,6 @@ def _empty_dict_filter(x: Any) -> bool:
 
 def _make_type_filter(types: list[type]) -> Callable[[Any], bool]:
     def _type_filter(x):
-        return isinstance(x, tuple(types))
+        return not isinstance(x, tuple(types))
 
     return _type_filter

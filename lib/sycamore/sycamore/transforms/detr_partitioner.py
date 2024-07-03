@@ -6,7 +6,7 @@ import tracemalloc
 from abc import ABC, abstractmethod
 from concurrent.futures import ProcessPoolExecutor
 from io import BytesIO, IOBase
-from typing import cast, Any, BinaryIO, List, Tuple, Union
+from typing import cast, Any, BinaryIO, List, Tuple, Union, Optional
 
 import easyocr
 import pdf2image
@@ -36,9 +36,6 @@ def _batchify(iterable, n=1):
         yield iterable[i : min(i + n, length)]
 
 
-pdf_miner_cache = DiskCache(os.path.join(tempfile.gettempdir(), "SycamoreCache/PDFMinerCache"))
-
-
 class SycamorePDFPartitioner:
     """
     This class contains the implementation of PDF partitioning using a Deformable DETR model.
@@ -47,7 +44,7 @@ class SycamorePDFPartitioner:
     SycamorePartitioner class.
     """
 
-    def __init__(self, model_name_or_path, device=None):
+    def __init__(self, model_name_or_path, device=None, cache: Optional[Cache] = None):
         """
         Initializes the SycamorePDFPartitioner and underlying DETR model.
 
@@ -58,6 +55,7 @@ class SycamorePDFPartitioner:
 
         self.device = device
         self.model = DeformableDetr(model_name_or_path, device)
+        self.cache = cache
 
     @staticmethod
     def _supplement_text(inferred: List[Element], text: List[Element], threshold: float = 0.5) -> List[Element]:
@@ -191,7 +189,7 @@ class SycamorePDFPartitioner:
                 file_name = cast(IOBase, file)
                 hash_key = Cache.get_hash_key(file_name.read())
                 with LogTime("pdfminer_extract", log_start=True):
-                    pdfminer_layout = pdfminer.extract(file_name, hash_key, use_cache)
+                    pdfminer_layout = pdfminer.extract(file_name, hash_key, use_cache, self.cache)
                 # page count should be the same
                 assert len(pdfminer_layout) == len(deformable_layout)
 
@@ -280,7 +278,7 @@ class SycamorePDFPartitioner:
         exec = ProcessPoolExecutor(max_workers=1)
         if not use_ocr:
             with LogTime("start_pdfminer", log_start=True):
-                pdfminer = exec.submit(self._run_pdfminer, filename, hash_key, use_cache)
+                pdfminer = exec.submit(self._run_pdfminer, filename, hash_key, use_cache, self.cache)
 
         deformable_layout = []
         if tracemalloc.is_tracing():
@@ -325,10 +323,10 @@ class SycamorePDFPartitioner:
         return deformable_layout
 
     @staticmethod
-    def _run_pdfminer(pdf_path, hash_key, use_cache):
+    def _run_pdfminer(pdf_path, hash_key, use_cache, cache):
         pdfminer = PDFMinerExtractor()
         with LogTime("pdfminer_extract", log_start=True):
-            pdfminer_layout = pdfminer.extract(pdf_path, hash_key, use_cache)
+            pdfminer_layout = pdfminer.extract(pdf_path, hash_key, use_cache, cache)
 
         return pdfminer_layout
 
@@ -485,11 +483,11 @@ class PDFMinerExtractor:
         y2 = height - y2
         return x1, y1, x2, y2
 
-    def extract(self, filename: Union[str, IOBase], hash_key: str, use_cache=False) -> List[List[Element]]:
+    def extract(self, filename: Union[str, IOBase], hash_key: str, use_cache=False, cache=None) -> List[List[Element]]:
         # The naming is slightly confusing, but `open_filename` accepts either
         # a filename (str) or a file-like object (IOBase)
 
-        cached_result = pdf_miner_cache.get(hash_key) if use_cache else None
+        cached_result = cache.get(hash_key) if use_cache and cache else None
         if cached_result:
             logging.info("Cache Hit for PDFMiner. Getting the result from cache.")
             return cached_result
@@ -513,9 +511,9 @@ class PDFMinerExtractor:
                                 texts.append(text)
 
                     pages.append(texts)
-                if use_cache:
+                if use_cache and cache:
                     logging.info("Cache Miss for PDFMiner. Storing the result to the cache.")
-                    pdf_miner_cache.set(hash_key, pages)
+                    cache.set(hash_key, pages)
                 return pages
 
 

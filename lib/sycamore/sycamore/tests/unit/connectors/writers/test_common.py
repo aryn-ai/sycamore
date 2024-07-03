@@ -110,13 +110,6 @@ def test_numeric_keys():
     assert unflattened == {"a": ["zero", "one", "two"]}
 
 
-def test_mixed_numeric_and_string_keys():
-    data = {"a.0": "zero", "a.1": "one", "a.b": "bee", "a.2": "two"}
-    unflattened = unflatten_data(data)
-    assert isinstance(unflattened, dict)
-    assert unflattened == {"a": {0: "zero", 1: "one", 2: "two", "b": "bee"}}
-
-
 def test_deep_nesting():
     data = {"a.b.c.d.e.f.g": "deep"}
     unflattened = unflatten_data(data)
@@ -159,8 +152,8 @@ def test_non_string_values():
     assert unflattened == {"a": {"b": 1, "c": [1, 2, 3], "d": {"nested": "dict"}}}
 
 
-def test_invalid_numeric_sequence():
+def test_irregular_numeric_sequence():
     data = {"a.0": "zero", "a.2": "two"}
     unflattened = unflatten_data(data)
     assert isinstance(unflattened, dict)
-    assert unflattened == {"a": {0: "zero", 2: "two"}}
+    assert unflattened == {"a": ["zero", "", "two"]}

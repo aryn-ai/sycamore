@@ -73,26 +73,53 @@ def flatten_data(
 def unflatten_data(data: dict[str, Any], separator: str = ".") -> dict[Any, Any]:
     result: dict[Any, Any] = {}
 
-    for key, value in data.items():
-        parts = key.split(separator)
-        current = result
+    def parse_key(key: str) -> list:
+        # Handle escaped separator
+        parts = []
+        current = ""
+        escape = False
+        for char in key:
+            if escape:
+                if char == separator:
+                    current += separator
+                else:
+                    current += "\\" + char
+                escape = False
+            elif char == "\\":
+                escape = True
+            elif char == separator:
+                parts.append(current)
+                current = ""
+            else:
+                current += char
+        parts.append(current)
+        return parts
 
+    for key, value in data.items():
+        parts = parse_key(key)
+        # all_parts_are_digits = all(val.isdigit() for val in parts)
+        current = result
         for i, part in enumerate(parts):
             part_key: Union[str, int] = int(part) if part.isdigit() else part
-
-            if i == len(parts) - 1:
+            is_last = i == len(parts) - 1
+            if is_last:
                 current[part_key] = value
             else:
-                if part_key not in current:
-                    if parts[i + 1].isdigit():
-                        current[part_key] = []
-                    else:
-                        current[part_key] = {}
-                current = current[part_key]
+                next_part_is_digit = parts[i + 1].isdigit() if i + 1 < len(parts) else False
                 if isinstance(current, list):
-                    while len(current) <= int(parts[i + 1]):
-                        current.append({})
-                    current = current[int(parts[i + 1])]
+                    if len(current) <= int(part):
+                        current.extend("" for _ in range(int(part) - len(current) + 1))
+                    current = current[int(part_key)]
+                else:
+                    if part_key not in current:
+                        current[part_key] = [] if next_part_is_digit else {}
+                    current = current[part_key]
+                print(current)
+
+                # If current is a list and the next part is a digit, ensure proper length
+                if isinstance(current, list):
+                    if next_part_is_digit and len(current) <= int(parts[i + 1]):
+                        current.extend("" for _ in range(int(parts[i + 1]) - len(current) + 1))
 
     return result
 

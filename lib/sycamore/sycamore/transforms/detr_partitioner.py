@@ -285,7 +285,7 @@ class SycamorePDFPartitioner:
         deformable_layout = []
         if tracemalloc.is_tracing():
             before = tracemalloc.take_snapshot()
-        for i in convert_from_path_streamed_batched(filename, batch_size, hash_key, use_cache):
+        for i in convert_from_path_streamed_batched(filename, batch_size):
             parts = self.process_batch(
                 i,
                 threshold=threshold,

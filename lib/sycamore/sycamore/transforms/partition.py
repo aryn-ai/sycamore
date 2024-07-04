@@ -503,6 +503,13 @@ class ArynPartitioner(Partitioner):
 
 
 class SycamorePartitioner(ArynPartitioner):
+    """
+    The SycamorePartitioner is equivalent to the ArynPartitioner, except that it
+    only runs locally. This class mostly exists for backwards compatibility with
+    scripts written before the remote partitioning service existed. Please use
+    `ArynPartitioner` instead.
+    """
+
     def __init__(
         self,
         model_name_or_path=ARYN_DETR_MODEL,

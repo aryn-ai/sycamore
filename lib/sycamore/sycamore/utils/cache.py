@@ -3,6 +3,7 @@ import json
 import time
 from typing import Any
 
+import boto3
 import diskcache
 from botocore.exceptions import ClientError
 
@@ -33,20 +34,23 @@ class DiskCache(Cache):
 
 
 class S3Cache(Cache):
-    def __init__(self, s3_client, s3_path: str, freshness_in_seconds: int = -1):
-        self._s3_client = s3_client
+    def __init__(self, s3_path: str, freshness_in_seconds: int = -1):
         self._s3_path = s3_path
         self._freshness_in_seconds = freshness_in_seconds
+        self._s3_client = None
 
     def _get_s3_bucket_and_key(self, key):
         parts = self._s3_path.replace("s3://", "").strip("/").split("/", 1)
         return parts[0], "/".join([parts[1], key]) if len(parts) == 2 else key
 
     def get(self, key: str):
+        if not self._s3_client:
+            self._s3_client = boto3.client("s3")
         try:
+            assert self._s3_client is not None
             bucket, key = self._get_s3_bucket_and_key(key)
             response = self._s3_client.get_object(Bucket=bucket, Key=key)
-            content = json.loads(response["Body"])
+            content = json.loads(response["Body"].read())
 
             # If enforcing freshness, we require cached data to have metadata
             if (
@@ -63,6 +67,9 @@ class S3Cache(Cache):
                 raise
 
     def set(self, key: str, value: Any):
+        if not self._s3_client:
+            self._s3_client = boto3.client("s3")
+        assert self._s3_client is not None
         bucket, key = self._get_s3_bucket_and_key(key)
 
         content = {"value": value, "cached_at": time.time()}

@@ -65,6 +65,9 @@ class ArynPDFPartitioner:
 
         response_json = response.json()
 
+        response_json = response.json()
+        if isinstance(response_json, dict):
+            response_json = response_json.get("elements")
         elements = []
         for element_json in response_json:
             element = create_element(**element_json)

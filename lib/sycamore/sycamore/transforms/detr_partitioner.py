@@ -126,7 +126,7 @@ class ArynPDFPartitioner:
         local=False,
         aryn_api_key: str = "",
         aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
-        use_cache=True,
+        use_cache=False,
     ) -> List[Element]:
         if not local:
             return self._partition_remote(
@@ -152,6 +152,7 @@ class ArynPDFPartitioner:
                     table_structure_extractor=table_structure_extractor,
                     extract_images=extract_images,
                     batch_size=batch_size,
+                    use_cache=use_cache,
                 )
             else:
                 temp = self._partition_pdf_sequenced(
@@ -164,6 +165,7 @@ class ArynPDFPartitioner:
                     table_structure_extractor=table_structure_extractor,
                     extract_images=extract_images,
                     batch_size=batch_size,
+                    use_cache=use_cache,
                 )
             elements = []
             for i, r in enumerate(temp):
@@ -232,7 +234,7 @@ class ArynPDFPartitioner:
         table_structure_extractor=None,
         extract_images=False,
         batch_size: int = 1,
-        use_cache=True,
+        use_cache=False,
     ) -> List[List["Element"]]:
         """
         Partitions a PDF with the DeformableDETR model.
@@ -322,7 +324,7 @@ class ArynPDFPartitioner:
         table_structure_extractor=None,
         extract_images=False,
         batch_size: int = 1,
-        use_cache=True,
+        use_cache=False,
     ) -> List[List["Element"]]:
         LogTime("partition_start", point=True)
         with tempfile.NamedTemporaryFile(prefix="detr-pdf-input-") as pdffile:
@@ -362,7 +364,7 @@ class ArynPDFPartitioner:
         table_structure_extractor=None,
         extract_images=False,
         batch_size: int = 1,
-        use_cache=True,
+        use_cache=False,
     ) -> List[List["Element"]]:
         if extract_table_structure and not table_structure_extractor:
             table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
@@ -376,7 +378,7 @@ class ArynPDFPartitioner:
         deformable_layout = []
         if tracemalloc.is_tracing():
             before = tracemalloc.take_snapshot()
-        for i in convert_from_path_streamed_batched(filename, batch_size, hash_key, use_cache):
+        for i in convert_from_path_streamed_batched(filename, batch_size):
             parts = self.process_batch(
                 i,
                 threshold=threshold,
@@ -576,7 +578,7 @@ class PDFMinerExtractor:
         y2 = height - y2
         return x1, y1, x2, y2
 
-    def extract(self, filename: Union[str, IOBase], hash_key: str, use_cache=True) -> List[List[Element]]:
+    def extract(self, filename: Union[str, IOBase], hash_key: str, use_cache=False) -> List[List[Element]]:
         # The naming is slightly confusing, but `open_filename` accepts either
         # a filename (str) or a file-like object (IOBase)
 

@@ -12,7 +12,7 @@ from sycamore.transforms.partition import (
     UnstructuredPPTXPartitioner,
     SycamorePartitioner,
 )
-from sycamore.scans import BinaryScan
+from sycamore.connectors.file import BinaryScan
 from sycamore.tests.config import TEST_DIR
 
 import torch

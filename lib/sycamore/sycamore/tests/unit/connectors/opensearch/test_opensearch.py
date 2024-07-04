@@ -6,7 +6,7 @@ from sycamore.connectors.opensearch.opensearch_writer import (
     OpenSearchRecord,
     OpenSearchTargetParams,
 )
-from sycamore.connectors.writers.common import HostAndPort
+from sycamore.connectors.common import HostAndPort
 from sycamore.data.document import Document
 
 

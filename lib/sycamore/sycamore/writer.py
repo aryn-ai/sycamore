@@ -5,13 +5,16 @@ from pyarrow.fs import FileSystem
 from sycamore import Context
 from sycamore.plan_nodes import Node
 from sycamore.data import Document
-from sycamore.connectors.writers.common import HostAndPort
-from sycamore.writers.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
+from sycamore.connectors.common import HostAndPort
+from sycamore.connectors.file.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
 from ray.data import ActorPoolStrategy
+import logging
 
 if TYPE_CHECKING:
     # Shenanigans to avoid circular import
     from sycamore.docset import DocSet
+
+logger = logging.getLogger(__name__)
 
 
 class DocSetWriter:
@@ -288,6 +291,7 @@ class DocSetWriter:
         distance_metric: str = "cosine",
         api_key: Optional[str] = None,
         execute: bool = True,
+        log: bool = False,
         **kwargs,
     ) -> Optional["DocSet"]:
         """Writes the content of the DocSet into a Pinecone vector index.
@@ -337,13 +341,19 @@ class DocSetWriter:
                 )
 
         """
-        from sycamore.writers.pinecone_writer import PineconeWriter, PineconeClientParams, PineconeTargetParams
+        from sycamore.connectors.pinecone import (
+            PineconeWriter,
+            PineconeClientParams,
+            PineconeTargetParams,
+        )
         import os
 
+        if log:
+            logger.setLevel(20)
         if api_key is None:
             api_key = os.environ.get("PINECONE_API_KEY", "")
         assert (
-            api_key is not None
+            api_key is not None and len(api_key) != 0
         ), "Missing api key: either provide it as an argument or set the PINECONE_API_KEY env variable."
         pcp = PineconeClientParams(api_key=api_key)
         ptp = PineconeTargetParams(

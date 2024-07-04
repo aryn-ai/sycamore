@@ -412,7 +412,7 @@ class ArynPartitioner(Partitioner):
         local: bool = False,
         aryn_api_key: str = "",
         aryn_partitioner_address: str = DEFAULT_ARYN_PARTITIONER_ADDRESS,
-        use_cache=True,
+        use_cache=False,
     ):
         device = choose_device(device)
         super().__init__(device=device, batch_size=batch_size)

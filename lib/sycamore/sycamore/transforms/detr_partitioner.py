@@ -130,40 +130,40 @@ class ArynPDFPartitioner:
     ) -> List[Element]:
         if not local:
             return self._partition_remote(
-                file,
-                aryn_api_key,
-                aryn_partitioner_address,
-                threshold,
-                use_ocr,
-                ocr_images,
-                ocr_tables,
-                extract_table_structure,
-                extract_images,
+                file=file,
+                aryn_api_key=aryn_api_key,
+                aryn_partitioner_address=aryn_partitioner_address,
+                threshold=threshold,
+                use_ocr=use_ocr,
+                ocr_images=ocr_images,
+                ocr_tables=ocr_tables,
+                extract_table_structure=extract_table_structure,
+                extract_images=extract_images,
             )
         else:
             if batch_at_a_time:
                 temp = self._partition_pdf_batched(
-                    file,
-                    threshold,
-                    use_ocr,
-                    ocr_images,
-                    ocr_tables,
-                    extract_table_structure,
-                    table_structure_extractor,
-                    extract_images,
-                    batch_size,
+                    file=file,
+                    threshold=threshold,
+                    use_ocr=use_ocr,
+                    ocr_images=ocr_images,
+                    ocr_tables=ocr_tables,
+                    extract_table_structure=extract_table_structure,
+                    table_structure_extractor=table_structure_extractor,
+                    extract_images=extract_images,
+                    batch_size=batch_size,
                 )
             else:
                 temp = self._partition_pdf_sequenced(
-                    file,
-                    threshold,
-                    use_ocr,
-                    ocr_images,
-                    ocr_tables,
-                    extract_table_structure,
-                    table_structure_extractor,
-                    extract_images,
-                    batch_size,
+                    file=file,
+                    threshold=threshold,
+                    use_ocr=use_ocr,
+                    ocr_images=ocr_images,
+                    ocr_tables=ocr_tables,
+                    extract_table_structure=extract_table_structure,
+                    table_structure_extractor=table_structure_extractor,
+                    extract_images=extract_images,
+                    batch_size=batch_size,
                 )
             elements = []
             for i, r in enumerate(temp):

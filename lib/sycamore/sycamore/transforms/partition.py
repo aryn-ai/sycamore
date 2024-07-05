@@ -490,7 +490,7 @@ class ArynPartitioner(Partitioner):
                 batch_at_a_time=self._batch_at_a_time,
                 local=self._local,
                 aryn_api_key=self._aryn_api_key,
-                aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
+                aryn_partitioner_address=self._aryn_partitioner_address,
                 use_cache=self._use_cache,
             )
         except Exception as e:

@@ -376,10 +376,10 @@ class DocSetWriter:
 
     def duckdb(
         self,
+        dimensions: int,
         db_url: Optional[str] = None,
         table_name: Optional[str] = None,
         execute: bool = True,
-        dimensions: int = 384,
         **kwargs,
     ):
         """

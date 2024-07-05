@@ -48,7 +48,5 @@ The available options are listed below:
 
 * ```model_name_or_path```: The HuggingFace coordinates or model local path. It defaults to ```SYCAMORE_DETR_MODEL```, and you should only change it if you are testing a custom model. * * ```threshold```: The threshold to use for accepting the models predicted bounding boxes. A lower value will include more objects, but may have overlaps, a higher value will reduce the number of overlaps, but may miss legitimate objects. It defaults to ```0.4```.
 * ```use_ocr```: If ```true```, the partitioner uses OCR to extract text from the PDF. It defaults to ```false```, where the partitioner attempts to directly extract the text from the underlying PDF in the bounding box. It currently uses Tesseract for extraction.
-* ```ocr_images```: If set to ```true``` alongside ```use_ocr```, the partitioner will attempt to OCR regions of the document identified as images.
-* ```ocr_tables```: If set to ```true``` alongside ```use_ocr```, the partitioner will attempt to OCR regions on the document identified as tables. This should not be set when `extract_table_structure` is ```true```. It currently uses EasyOCR for extraction.
-* `extract_table_structure`: If `true`, the partitioner runs a separate table extraction model to extract cells from regions of the document identified as tables. Do not set if 'ocr_tables' is true.
+* `extract_table_structure`: If `true`, the partitioner runs a separate table extraction model to extract cells from regions of the document identified as tables.
 * `extract_images`: If `true`, the partitioner crops each region identified as an image and attaches it to the associated `ImageElement`. This can later be fed into the `SummarizeImages` transform.

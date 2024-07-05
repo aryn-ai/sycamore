@@ -32,7 +32,7 @@ def test_duckdb_scan():
         .sketch(window=17)
         .take_all()
     )
-    ctx.read.document(docs).write.duckdb(db_url=db_url, table_name=table_name)
+    ctx.read.document(docs).write.duckdb(db_url=db_url, table_name=table_name, dimensions=384)
 
     out_docs = ctx.read.duckdb(db_url=db_url, table_name=table_name).take_all()
     try:

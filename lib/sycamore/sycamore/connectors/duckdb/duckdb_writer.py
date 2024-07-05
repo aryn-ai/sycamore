@@ -24,7 +24,7 @@ class DuckDBTargetParams(BaseDBWriter.TargetParams):
     schema: Optional[Dict[str, str]] = field(
         default_factory=lambda: {
             "doc_id": "VARCHAR",
-            "embeddings": "FLOAT[]",
+            "embeddings": "FLOAT",
             "properties": "MAP(VARCHAR, VARCHAR)",
             "text_representation": "VARCHAR",
             "bbox": "DOUBLE[]",
@@ -42,7 +42,13 @@ class DuckDBTargetParams(BaseDBWriter.TargetParams):
             return False
         if self.table_name != other.table_name:
             return False
-        if other.schema:
+        if other.schema and self.schema:
+            if (
+                "embeddings" in other.schema
+                and "embeddings" in self.schema
+                and self.schema["embeddings"] != other.schema["embeddings"]
+            ):
+                self.schema["embeddings"] = self.schema["embeddings"] + "[" + str(self.dimensions) + "]"
             return self.schema == other.schema
         return True
 
@@ -107,7 +113,7 @@ class DuckDBClient(BaseDBWriter.Client):
         client = duckdb.connect(str(dict_params.get("db_url")))
         try:
             if schema:
-                embedding_size = schema.get("embeddings").str.split("[")[0] + str(dict_params.get("dimensions")) + "]"
+                embedding_size = schema.get("embeddings") + "[" + str(dict_params.get("dimensions")) + "]"
                 client.sql(
                     f"""CREATE TABLE {dict_params.get('table_name')} (doc_id {schema.get('doc_id')},
                       embeddings {embedding_size}, properties {schema.get('properties')},

@@ -213,7 +213,8 @@ class ArynPDFPartitioner:
             raise ArynPDFPartitionerException(f"Error: status_code: {response.status_code}, reason: {response.text}")
 
         response_json = response.json()
-
+        if isinstance(response_json, dict):
+            response_json = response_json.get("elements")
         elements = []
         for element_json in response_json:
             element = create_element(**element_json)

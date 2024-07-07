@@ -32,7 +32,7 @@ from sycamore.utils.cache import Cache, DiskCache
 from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
 from sycamore.utils.pdf import convert_from_path_streamed_batched
-from sycamore.utils.time_trace import LogTime
+from sycamore.utils.time_trace import LogTime, timetrace
 
 
 def _batchify(iterable, n=1):
@@ -450,6 +450,8 @@ class ArynPDFPartitioner:
 
         if extract_table_structure:
             with LogTime("extract_table_structure_batch"):
+                if table_structure_extractor is None:
+                    table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
                 for i, page_elements in enumerate(deformable_layout):
                     image = batch[i]
                     for element in page_elements:
@@ -613,6 +615,7 @@ class PDFMinerExtractor:
                 return pages
 
 
+@timetrace("OCR")
 def extract_ocr(
     images: list[Image.Image], elements: list[list[Element]], ocr_images=False, ocr_tables=False
 ) -> list[list[Element]]:

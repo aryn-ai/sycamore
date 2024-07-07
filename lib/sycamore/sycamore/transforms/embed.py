@@ -94,7 +94,7 @@ class SentenceTransformerEmbedder(Embedder):
         if not self._transformer:
             from sentence_transformers import SentenceTransformer
 
-            self._transformer = SentenceTransformer(self.model_name)
+            self._transformer = SentenceTransformer(self.model_name)  # type: ignore[assignment]
 
         assert self._transformer is not None
 

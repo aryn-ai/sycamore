@@ -79,6 +79,7 @@ class ArynPDFPartitioner:
         """
         self.device = device
         self.model = DeformableDetr(model_name_or_path, device)
+        self.ocr_table_reader = None
 
     @staticmethod
     def _supplement_text(inferred: List[Element], text: List[Element], threshold: float = 0.5) -> List[Element]:
@@ -254,6 +255,7 @@ class ArynPDFPartitioner:
         Returns:
            A list of lists of Elements. Each sublist corresponds to a page in the original PDF.
         """
+        import easyocr
 
         if not table_structure_extractor:
             table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
@@ -274,7 +276,16 @@ class ArynPDFPartitioner:
 
         if use_ocr:
             with LogTime("ocr"):
-                extract_ocr(images, deformable_layout, ocr_images=ocr_images, ocr_tables=ocr_tables)
+                if self.ocr_table_reader is None:
+                    self.ocr_table_reader = easyocr.Reader(["en"])
+
+                extract_ocr(
+                    images,
+                    deformable_layout,
+                    ocr_images=ocr_images,
+                    ocr_tables=ocr_tables,
+                    table_reader=self.ocr_table_reader,
+                )
         else:
             with LogTime("pdfminer"):
                 pdfminer = PDFMinerExtractor()
@@ -436,6 +447,8 @@ class ArynPDFPartitioner:
         table_structure_extractor,
         extract_images,
     ) -> Any:
+        import easyocr
+
         with LogTime("infer"):
             deformable_layout = self.model.infer(batch, threshold)
 
@@ -444,7 +457,16 @@ class ArynPDFPartitioner:
 
         if use_ocr:
             with LogTime("ocr"):
-                extract_ocr(batch, deformable_layout, ocr_images=ocr_images, ocr_tables=ocr_tables)
+                if self.ocr_table_reader is None:
+                    self.ocr_table_reader = easyocr.Reader(["en"])
+
+                extract_ocr(
+                    batch,
+                    deformable_layout,
+                    ocr_images=ocr_images,
+                    ocr_tables=ocr_tables,
+                    table_reader=self.ocr_table_reader,
+                )
         # else pdfminer happens in parent since it is whole document.
 
         if extract_table_structure:
@@ -616,7 +638,7 @@ class PDFMinerExtractor:
 
 @timetrace("OCR")
 def extract_ocr(
-    images: list[Image.Image], elements: list[list[Element]], ocr_images=False, ocr_tables=False
+    images: list[Image.Image], elements: list[list[Element]], ocr_images=False, ocr_tables=False, table_reader=None
 ) -> list[list[Element]]:
     for i, image in enumerate(images):
         width, height = image.size
@@ -632,7 +654,7 @@ def extract_ocr(
             #     continue
             elif elem.type == "table":
                 assert isinstance(elem, TableElement)
-                extract_table_ocr(image, elem)
+                extract_table_ocr(image, elem, reader=table_reader)
                 continue
 
             crop_box = (elem.bbox.x1 * width, elem.bbox.y1 * height, elem.bbox.x2 * width, elem.bbox.y2 * height)
@@ -646,9 +668,7 @@ def extract_ocr(
     return elements
 
 
-def extract_table_ocr(image: Image.Image, elem: TableElement):
-    import easyocr
-
+def extract_table_ocr(image: Image.Image, elem: TableElement, reader):
     width, height = image.size
 
     assert elem.bbox is not None
@@ -658,7 +678,6 @@ def extract_table_ocr(image: Image.Image, elem: TableElement):
     cropped_image.save(image_bytes, format="PNG")
 
     # TODO: support more languages
-    reader = easyocr.Reader(["en"])
     results = reader.readtext(image_bytes.getvalue())
 
     tokens = []

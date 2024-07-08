@@ -103,7 +103,7 @@ class OpenAIImageSummarizer:
         prompt_kwargs = {"messages": messages}
 
         raw_answer = self.openai.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
-        return extract_json(raw_answer.content)
+        return extract_json(raw_answer)
 
     def summarize_all_images(self, doc: Document) -> Document:
         for i, element in enumerate(doc.elements):

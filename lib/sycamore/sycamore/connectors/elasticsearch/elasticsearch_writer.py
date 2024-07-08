@@ -12,7 +12,7 @@ from elasticsearch.helpers import parallel_bulk
 
 @dataclass
 class ElasticClientParams(BaseDBWriter.ClientParams):
-    es_client_args: dict = {}
+    es_client_args: dict = field(default_factory=lambda: {})
     url: Optional[str] = None
 
 

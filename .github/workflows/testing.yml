@@ -89,7 +89,7 @@ jobs:
         ports:
           - 9200:9200
       elasticsearch:
-        image: amd/elasticsearch:8.14.2
+        image: elasticsearch:8.14.2
         env:
           discovery.type: "single-node"
           xpack.security.http.ssl.enabled: "false"

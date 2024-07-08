@@ -4,7 +4,7 @@ import pytest
 from opensearchpy import OpenSearch
 
 import sycamore
-from sycamore.connectors.writers.common import compare_docs
+from sycamore.connectors.common import compare_docs
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 

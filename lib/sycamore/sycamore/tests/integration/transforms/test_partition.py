@@ -3,7 +3,7 @@ import string
 
 import nltk
 
-from sycamore.transforms.partition import SYCAMORE_DETR_MODEL, SycamorePartitioner
+from sycamore.transforms.partition import ARYN_DETR_MODEL, SycamorePartitioner
 from sycamore.data import TableElement
 from sycamore.data.table import Table, TableCell
 import sycamore
@@ -24,7 +24,7 @@ def test_detr_ocr():
     # The test will need to be updated if and when that changes.
     docs = (
         context.read.binary(paths=[str(path)], binary_format="pdf")
-        .partition(SycamorePartitioner(SYCAMORE_DETR_MODEL, use_ocr=True))
+        .partition(SycamorePartitioner(ARYN_DETR_MODEL, use_ocr=True))
         .explode()
         .filter(lambda doc: "page_number" in doc.properties and doc.properties["page_number"] == 1)
         .filter(lambda doc: doc.type == "Section-header")
@@ -75,7 +75,7 @@ def check_table_extraction(**kwargs):
     # The test will need to be updated if and when that changes.
     docs = (
         context.read.binary(paths=[str(path)], binary_format="pdf")
-        .partition(SycamorePartitioner(extract_table_structure=True, use_cache=False, **kwargs))
+        .partition(ArynPartitioner(extract_table_structure=True, use_cache=False, local=True, **kwargs))
         .take_all()
     )
 
@@ -122,7 +122,7 @@ def test_aryn_partitioner():
 
     docs = (
         context.read.binary(paths=[str(path)], binary_format="pdf")
-        .partition(ArynPartitioner(aryn_token=MODEL_SERVER_KEY))
+        .partition(ArynPartitioner(aryn_api_key=MODEL_SERVER_KEY))
         .explode()
         .filter(lambda doc: "page_number" in doc.properties and doc.properties["page_number"] == 1)
         .filter(lambda doc: doc.type == "Section-header")
@@ -143,10 +143,10 @@ def test_table_extraction_with_ocr_batched():
 
 def test_sycamore_batched_sequenced():
     import pathlib
-    from sycamore.transforms.detr_partitioner import SycamorePDFPartitioner
+    from sycamore.transforms.detr_partitioner import ArynPDFPartitioner
     from sycamore.tests.unit.transforms.compare_detr_impls import compare_batched_sequenced
 
-    s = SycamorePDFPartitioner("Aryn/deformable-detr-DocLayNet")
+    s = ArynPDFPartitioner("Aryn/deformable-detr-DocLayNet")
     for pdf in pathlib.Path(TEST_DIR).rglob("*.pdf"):
         print(f"Testing {pdf}")
         p = compare_batched_sequenced(s, pdf, use_cache=False)

@@ -7,7 +7,6 @@ from typing import Any, Optional, Callable, Union
 from openai import OpenAI as OpenAIClient
 from openai import AzureOpenAI as AzureOpenAIClient
 from ray.data import ActorPoolStrategy
-from sentence_transformers import SentenceTransformer
 
 from sycamore.data import Document
 from sycamore.llms import OpenAIClientParameters
@@ -88,12 +87,14 @@ class SentenceTransformerEmbedder(Embedder):
     ):
         super().__init__(model_name, batch_size, model_batch_size, pre_process_document, device)
         self.type = type
-        self._transformer: Optional[SentenceTransformer] = None
+        self._transformer = None
 
     @timetrace("StEmbedder")
     def generate_embeddings(self, doc_batch: list[Document]) -> list[Document]:
         if not self._transformer:
-            self._transformer = SentenceTransformer(self.model_name)
+            from sentence_transformers import SentenceTransformer
+
+            self._transformer = SentenceTransformer(self.model_name)  # type: ignore[assignment]
 
         assert self._transformer is not None
 

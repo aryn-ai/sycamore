@@ -5,7 +5,7 @@ from ray.data import Dataset, from_huggingface
 
 from sycamore.evaluation import EvaluationDataPoint
 from sycamore import DocSet, Context
-from sycamore.scans import MaterializedScan
+from sycamore.connectors.file import MaterializedScan
 
 
 class HuggingFaceScan(MaterializedScan):
@@ -19,7 +19,7 @@ class HuggingFaceScan(MaterializedScan):
         self._dataset = dataset
         self._doc_extractor = doc_extractor
 
-    def execute(self) -> Dataset:
+    def execute(self, **kwargs) -> Dataset:
         ray_ds = from_huggingface(self._dataset)
         processed = ray_ds.map(self._doc_extractor)
         return processed

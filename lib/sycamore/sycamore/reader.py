@@ -6,9 +6,8 @@ from pyarrow.filesystem import FileSystem
 
 from sycamore import Context, DocSet
 from sycamore.data import Document
-from sycamore.scans import ArrowScan, BinaryScan, DocScan, PandasScan, JsonScan, JsonDocumentScan
-from sycamore.scans.file_scan import FileMetadataProvider
-from sycamore.connectors.duckdb.duckdb_scan import DuckDBScan
+from sycamore.connectors.file import ArrowScan, BinaryScan, DocScan, PandasScan, JsonScan, JsonDocumentScan
+from sycamore.connectors.file.file_scan import FileMetadataProvider
 
 
 class DocSetReader:
@@ -96,7 +95,15 @@ class DocSetReader:
         return DocSet(self._context, scan)
 
     def duckdb(self, db_url: str, table_name: str) -> DocSet:
+        from sycamore.connectors.duckdb import DuckDBScan
+
         scan = DuckDBScan(db_url=db_url, table_name=table_name)
+        return DocSet(self._context, scan)
+
+    def pinecone(self, index_name: str, api_key: str, namespace: str = "") -> DocSet:
+        from sycamore.connectors.pinecone import PineconeScan
+
+        scan = PineconeScan(index_name=index_name, api_key=api_key, namespace=namespace)
         return DocSet(self._context, scan)
 
     def weaviate(self, wv_client_args: dict, collection_name: str) -> DocSet:

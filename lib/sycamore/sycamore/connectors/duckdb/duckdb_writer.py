@@ -3,8 +3,8 @@ from typing import Optional, Any, Dict
 from typing_extensions import TypeGuard
 
 from sycamore.data.document import Document
-from sycamore.connectors.writers.base import BaseDBWriter
-from sycamore.connectors.writers.common import convert_to_str_dict
+from sycamore.connectors.base import BaseDBWriter
+from sycamore.connectors.common import convert_to_str_dict
 import pyarrow as pa
 import duckdb
 import os
@@ -106,13 +106,13 @@ class DuckDBClient(BaseDBWriter.Client):
             if schema:
                 client.sql(
                     f"""CREATE TABLE {dict_params.get('table_name')} (doc_id {schema.get('doc_id')},
-                      embeddings {schema.get('embeddings')}, properties {schema.get('properties')}, 
-                      text_representation {schema.get('text_representation')}, bbox {schema.get('bbox')}, 
+                      embeddings {schema.get('embeddings')}, properties {schema.get('properties')},
+                      text_representation {schema.get('text_representation')}, bbox {schema.get('bbox')},
                       shingles {schema.get('shingles')}, type {schema.get('type')})"""
                 )
             else:
                 print(
-                    f"""Error creating table {dict_params.get('table_name')} 
+                    f"""Error creating table {dict_params.get('table_name')}
                     in database {dict_params.get('db_url')}: no schema provided"""
                 )
         except Exception as e:
@@ -129,7 +129,7 @@ class DuckDBClient(BaseDBWriter.Client):
                 schema = dict(zip(table.columns, [repr(i) for i in table.dtypes]))
             except Exception as e:
                 print(
-                    f"""Table {dict_params.get('table_name')} 
+                    f"""Table {dict_params.get('table_name')}
                     does not exist in database {dict_params.get('table_name')}: {e}"""
                 )
         return DuckDBTargetParams(

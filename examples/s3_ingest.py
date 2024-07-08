@@ -8,7 +8,7 @@ sys.path.append("../sycamore")
 import sycamore
 from sycamore.functions.tokenizer import HuggingFaceTokenizer
 from sycamore.llms import OpenAIModels, OpenAI
-from sycamore.scans.file_scan import JsonManifestMetadataProvider
+from sycamore.connectors.file.file_scan import JsonManifestMetadataProvider
 from sycamore.transforms import COALESCE_WHITESPACE
 from sycamore.transforms.merge_elements import MarkedMerger
 from sycamore.transforms.partition import UnstructuredPdfPartitioner

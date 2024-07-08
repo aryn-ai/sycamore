@@ -12,8 +12,8 @@ from elasticsearch.helpers import parallel_bulk
 
 @dataclass
 class ElasticClientParams(BaseDBWriter.ClientParams):
+    es_client_args: dict = {}
     url: Optional[str] = None
-    es_client_args: Optional[dict] = None
 
 
 @dataclass

@@ -442,9 +442,9 @@ class DocSetWriter:
     def elasticsearch(
         self,
         *,
-        url: str,
         index_name: str,
-        es_client_args: dict,
+        url: Optional[str] = None,
+        es_client_args: dict = {},
         mappings: Optional[dict] = None,
         flatten_properties: bool = False,
         execute: bool = False,

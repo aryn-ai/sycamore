@@ -1,8 +1,10 @@
+import io
 import json
 from pathlib import Path
 from unittest.mock import patch
 
 import boto3
+from botocore.response import StreamingBody
 from botocore.stub import Stubber
 from sycamore.utils.cache import DiskCache, S3Cache
 import hashlib
@@ -40,12 +42,22 @@ class TestS3Cache:
         s3_client = boto3.client("s3")
         stubber = Stubber(s3_client)
         s3_path = "s3://mybucket/myprefix"
-        cache = S3Cache(s3_client, s3_path)
+        cache = S3Cache(s3_path)
+        cache._s3_client = s3_client
 
         key = "testkey"
         value = "testvalue"
 
-        response = {"Body": json.dumps({"value": value, "cached_at": 900})}
+        raw_response = json.dumps({"value": value, "cached_at": 900})
+        encoded_message = raw_response.encode()
+        raw_stream = StreamingBody(
+            io.BytesIO(encoded_message),
+            len(encoded_message)
+        )
+        response = {
+            'Body': raw_stream
+        }
+
         stubber.add_response("get_object", response, {"Bucket": "mybucket", "Key": "myprefix/testkey"})
 
         with stubber:
@@ -58,12 +70,22 @@ class TestS3Cache:
         s3_client = boto3.client("s3")
         stubber = Stubber(s3_client)
         s3_path = "s3://mybucket/myprefix"
-        cache = S3Cache(s3_client, s3_path, freshness_in_seconds=50)
+        cache = S3Cache(s3_path, freshness_in_seconds=50)
+        cache._s3_client = s3_client
 
         key = "testkey"
         value = "testvalue"
 
-        response = {"Body": json.dumps({"value": value, "cached_at": 900})}
+
+        raw_response = json.dumps({"value": value, "cached_at": 900})
+        encoded_message = raw_response.encode()
+        raw_stream = StreamingBody(
+            io.BytesIO(encoded_message),
+            len(encoded_message)
+        )
+        response = {
+            'Body': raw_stream
+        }
         stubber.add_response("get_object", response, {"Bucket": "mybucket", "Key": "myprefix/testkey"})
 
         with stubber:
@@ -75,7 +97,8 @@ class TestS3Cache:
         s3_client = boto3.client("s3")
         stubber = Stubber(s3_client)
         s3_path = "s3://mybucket/myprefix"
-        cache = S3Cache(s3_client, s3_path, freshness_in_seconds=50)
+        cache = S3Cache(s3_path, freshness_in_seconds=50)
+        cache._s3_client = s3_client
 
         key = "testkey"
 
@@ -95,7 +118,8 @@ class TestS3Cache:
         s3_client = boto3.client("s3")
         stubber = Stubber(s3_client)
         s3_path = "s3://mybucket/myprefix"
-        cache = S3Cache(s3_client, s3_path, freshness_in_seconds=50)
+        cache = S3Cache(s3_path, freshness_in_seconds=50)
+        cache._s3_client = s3_client
 
         key = "testkey"
         value = {"keyA": "a", "keyB": "b", "keyC": {"keyC.D": "d"}}

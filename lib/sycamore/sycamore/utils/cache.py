@@ -50,6 +50,7 @@ class S3Cache(Cache):
             assert self._s3_client is not None
             bucket, key = self._get_s3_bucket_and_key(key)
             response = self._s3_client.get_object(Bucket=bucket, Key=key)
+
             content = json.loads(response["Body"].read())
 
             # If enforcing freshness, we require cached data to have metadata

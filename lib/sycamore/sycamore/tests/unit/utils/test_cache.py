@@ -50,13 +50,8 @@ class TestS3Cache:
 
         raw_response = json.dumps({"value": value, "cached_at": 900})
         encoded_message = raw_response.encode()
-        raw_stream = StreamingBody(
-            io.BytesIO(encoded_message),
-            len(encoded_message)
-        )
-        response = {
-            'Body': raw_stream
-        }
+        raw_stream = StreamingBody(io.BytesIO(encoded_message), len(encoded_message))
+        response = {"Body": raw_stream}
 
         stubber.add_response("get_object", response, {"Bucket": "mybucket", "Key": "myprefix/testkey"})
 
@@ -76,16 +71,10 @@ class TestS3Cache:
         key = "testkey"
         value = "testvalue"
 
-
         raw_response = json.dumps({"value": value, "cached_at": 900})
         encoded_message = raw_response.encode()
-        raw_stream = StreamingBody(
-            io.BytesIO(encoded_message),
-            len(encoded_message)
-        )
-        response = {
-            'Body': raw_stream
-        }
+        raw_stream = StreamingBody(io.BytesIO(encoded_message), len(encoded_message))
+        response = {"Body": raw_stream}
         stubber.add_response("get_object", response, {"Bucket": "mybucket", "Key": "myprefix/testkey"})
 
         with stubber:

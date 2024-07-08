@@ -100,7 +100,7 @@ More Resources
    :maxdepth: 2
    :hidden:
 
-   /tutorials/using_aryn_partitioning_service.md
+   /aryn_cloud/aryn_partitioning_service.md
 
 
 .. toctree::

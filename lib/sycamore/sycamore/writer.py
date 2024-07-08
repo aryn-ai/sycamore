@@ -447,7 +447,7 @@ class DocSetWriter:
         es_client_args: dict = {},
         mappings: Optional[dict] = None,
         flatten_properties: bool = False,
-        execute: bool = False,
+        execute: bool = True,
         **kwargs,
     ) -> Optional["DocSet"]:
         """Writes the content of the DocSet into the specified Elasticsearch Cloud index.
@@ -497,11 +497,9 @@ class DocSetWriter:
             )
         else:
             target_params = ElasticTargetParams(index_name=index_name, flatten_properties=flatten_properties)
-
         es_docs = ElasticDocumentWriter(
             self.plan, client_params, target_params, name="elastic_document_writer", **kwargs
         )
-
         if execute:
             # If execute, force execution
             es_docs.execute().materialize()

@@ -93,6 +93,8 @@ jobs:
         env:
           discovery.type: "single-node"
           xpack.security.http.ssl.enabled: "false"
+          bootstrap.memory_lock: "true"
+          ES_JAVA_OPTS: "-Xms4g -Xmx4g" 
         ports:
           - 9300:9300
 

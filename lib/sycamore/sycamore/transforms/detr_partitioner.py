@@ -202,14 +202,28 @@ class ArynPDFPartitioner:
         files: Mapping = {"pdf": file, "options": json.dumps(options).encode("utf-8")}
         header = {"Authorization": f"Bearer {aryn_api_key}"}
 
+        logging.debug(f"ArynPartitioner POSTing to {aryn_partitioner_address} with files={files}")
         response = requests.post(aryn_partitioner_address, files=files, headers=header)
+        logging.debug("ArynPartitioner Recieved data")
 
         if response.status_code != 200:
             if response.status_code == 500:
-                raise ArynPDFPartitionerException(
-                    f"Error: status_code: {response.status_code}, reason: {response.text}", can_retry=True
+                logging.debug(
+                    "ArynPartitioner recieved a retry-able error {} x-aryn-call-id: {}".format(
+                        response, response.headers.get("x-aryn-call-id")
+                    )
                 )
-            raise ArynPDFPartitionerException(f"Error: status_code: {response.status_code}, reason: {response.text}")
+                raise ArynPDFPartitionerException(
+                    "Error: status_code: {}, reason: {} (x-aryn-call-id: {})".format(
+                        response.status_code, response.text, response.headers.get("x-aryn-call-id")
+                    ),
+                    can_retry=True,
+                )
+            raise ArynPDFPartitionerException(
+                "Error: status_code: {}, reason: {} (x-aryn-call-id: {})".format(
+                    response.status_code, response.text, response.headers.get("x-aryn-call-id")
+                )
+            )
 
         response_json = response.json()
         if isinstance(response_json, dict):

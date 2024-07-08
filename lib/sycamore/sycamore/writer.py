@@ -439,6 +439,82 @@ class DocSetWriter:
 
             return DocSet(self.context, ddb)
 
+    def elasticsearch(
+        self,
+        *,
+        url: str,
+        index_name: str,
+        mappings: Optional[dict] = None,
+        flatten_properties: bool = False,
+        execute: bool = False,
+        **kwargs,
+    ) -> Optional["DocSet"]:
+        """Writes the content of the DocSet into the specified Elasticsearch Cloud index.
+
+        Args:
+            url: Local collection to connect to
+            collection_name: The name of the Weaviate collection into which to load this DocSet.
+            collection_config: Keyword parameters that are passed to the weaviate client's `collections.create()`
+                method.If not provided, Weaviate will Auto-Schematize the incoming records, which may lead to
+                inconsistencies or failures. See more information at
+                https://weaviate.io/developers/weaviate/manage-data/collections#create-a-collection-and-define-properties
+            kwargs: Arguments to pass to the underlying execution engine
+
+        Example:
+            The following code shows how to read a pdf dataset into a ``DocSet`` and write it out to a
+            local Elasticsearch index called `test-index`.
+
+            url = "http://localhost:9200"
+            index_name = "test_index"
+            model_name = "sentence-transformers/all-MiniLM-L6-v2"
+            paths = str(TEST_DIR / "resources/data/pdfs/")
+
+            OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
+            tokenizer = HuggingFaceTokenizer(model_name)
+
+            ctx = sycamore.init()
+
+            ds = (
+                ctx.read.binary(paths, binary_format="pdf")
+                .partition(partitioner=UnstructuredPdfPartitioner())
+                .regex_replace(COALESCE_WHITESPACE)
+                .mark_bbox_preset(tokenizer=tokenizer)
+                .merge(merger=MarkedMerger())
+                .spread_properties(["path"])
+                .split_elements(tokenizer=tokenizer, max_tokens=512)
+                .explode()
+                .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
+                .sketch(window=17)
+            )
+            ds.write.elasticsearch(url=url, index_name=index_name)
+        """
+        from sycamore.connectors.elasticsearch import (
+            ElasticDocumentWriter,
+            ElasticClientParams,
+            ElasticTargetParams,
+        )
+
+        client_params = ElasticClientParams(url=url)
+        if mappings:
+            target_params = ElasticTargetParams(
+                index_name=index_name, mappings=mappings, flatten_properties=flatten_properties
+            )
+        else:
+            target_params = ElasticTargetParams(index_name=index_name, flatten_properties=flatten_properties)
+
+        es_docs = ElasticDocumentWriter(
+            self.plan, client_params, target_params, name="elastic_document_writer", **kwargs
+        )
+
+        if execute:
+            # If execute, force execution
+            es_docs.execute().materialize()
+            return None
+        else:
+            from sycamore.docset import DocSet
+
+            return DocSet(self.context, es_docs)
+
     def files(
         self,
         path: str,

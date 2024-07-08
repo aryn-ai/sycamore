@@ -15,7 +15,6 @@ env:
   SYCAMORE_S3_TEMP_PATH: s3://aryn-sycamore-integ-temp/
   MODEL_SERVER_KEY: ${{ secrets.MODEL_SERVER_KEY }}
   PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
-  ELASTIC_API_KEY: ${{ secrets.ELASTIC_API_KEY }}
 
 # Permissions for AWS access
 permissions:
@@ -89,6 +88,14 @@ jobs:
           discovery.type: "single-node"
         ports:
           - 9200:9200
+      elastic:
+        image: elasticsearch/elasticsearch:8.14.2
+        env:
+          discovery.type: "single-node"
+          xpack.security.http.ssl.enabled: "false"
+        ports:
+          - 9300:9300
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4

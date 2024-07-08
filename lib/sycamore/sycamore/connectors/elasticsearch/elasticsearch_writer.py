@@ -1,18 +1,19 @@
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Optional
 from sycamore.connectors.common import drop_types, flatten_data
 from typing_extensions import TypeGuard
 
 from sycamore.data.document import Document
 from sycamore.connectors.base import BaseDBWriter
 
-from elasticsearch import Elasticsearch, ApiError
+from elasticsearch import Elasticsearch, ApiError, DefaultType
 from elasticsearch.helpers import parallel_bulk
 
 
 @dataclass
 class ElasticClientParams(BaseDBWriter.ClientParams):
-    url: str
+    url: Optional[str] = None
+    es_client_args: Optional[dict] = None
 
 
 @dataclass
@@ -50,7 +51,9 @@ class ElasticClient(BaseDBWriter.Client):
     @classmethod
     def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "ElasticClient":
         assert isinstance(params, ElasticClientParams)
-        client = Elasticsearch(params.url)
+        client = Elasticsearch(**params.es_client_args)
+        if params.url:
+            client = Elasticsearch(params.url)
         return ElasticClient(client)
 
     def write_many_records(self, records: list[BaseDBWriter.Record], target_params: BaseDBWriter.TargetParams):

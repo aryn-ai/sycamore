@@ -444,6 +444,7 @@ class DocSetWriter:
         *,
         url: str,
         index_name: str,
+        es_client_args: dict,
         mappings: Optional[dict] = None,
         flatten_properties: bool = False,
         execute: bool = False,
@@ -452,13 +453,8 @@ class DocSetWriter:
         """Writes the content of the DocSet into the specified Elasticsearch Cloud index.
 
         Args:
-            url: Local collection to connect to
-            collection_name: The name of the Weaviate collection into which to load this DocSet.
-            collection_config: Keyword parameters that are passed to the weaviate client's `collections.create()`
-                method.If not provided, Weaviate will Auto-Schematize the incoming records, which may lead to
-                inconsistencies or failures. See more information at
-                https://weaviate.io/developers/weaviate/manage-data/collections#create-a-collection-and-define-properties
-            kwargs: Arguments to pass to the underlying execution engine
+            url: Local collection to connect to (if wanted in the case of local testing)
+            collection_name:
 
         Example:
             The following code shows how to read a pdf dataset into a ``DocSet`` and write it out to a
@@ -494,7 +490,7 @@ class DocSetWriter:
             ElasticTargetParams,
         )
 
-        client_params = ElasticClientParams(url=url)
+        client_params = ElasticClientParams(url=url, es_client_args=es_client_args)
         if mappings:
             target_params = ElasticTargetParams(
                 index_name=index_name, mappings=mappings, flatten_properties=flatten_properties

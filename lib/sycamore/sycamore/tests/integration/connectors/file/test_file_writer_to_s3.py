@@ -46,8 +46,8 @@ def image_page_filename(doc: Document):
 
 
 def test_convert_to_images(request):
-    from sycamore.tests.integration.test_file_writer_to_s3 import render_as_png
-    from sycamore.tests.integration.test_file_writer_to_s3 import image_page_filename
+    from sycamore.tests.integration.connectors.file.test_file_writer_to_s3 import render_as_png
+    from sycamore.tests.integration.connectors.file.test_file_writer_to_s3 import image_page_filename
 
     context = sycamore.init()
 

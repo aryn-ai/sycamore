@@ -3,8 +3,6 @@ from typing import Any
 
 from PIL import Image
 import pdf2image
-from transformers import TableTransformerForObjectDetection
-from torchvision import transforms
 import torch
 
 from sycamore.data import BoundingBox, Element, Document, TableElement
@@ -118,9 +116,13 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         if element.bbox is None:
             return element
 
+        from torchvision import transforms
+
         width, height = doc_image.size
 
         if self.structure_model is None:
+            from transformers import TableTransformerForObjectDetection
+
             self.structure_model = TableTransformerForObjectDetection.from_pretrained(self.model).to(self._get_device())
         assert self.structure_model is not None  # For typechecking
 

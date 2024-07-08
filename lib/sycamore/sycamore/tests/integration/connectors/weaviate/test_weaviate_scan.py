@@ -1,6 +1,6 @@
 import pytest
 
-from sycamore.tests.integration.scans.test_opensearch_scan import compare_docs
+from sycamore.connectors.common import compare_docs
 import weaviate
 from weaviate.classes.config import Property, ReferenceProperty
 from weaviate.client import ConnectionParams
@@ -24,7 +24,6 @@ def wv_client_args():
         "embedded_options": weaviate.embedded.EmbeddedOptions(version="1.24.0", port=port, grpc_port=grpc_port),
     }
     with weaviate.WeaviateClient(**weaviate_client_args) as client:
-        time.time()
         timeout = 30
         deadline = time.time() + timeout
         while not client.is_live():

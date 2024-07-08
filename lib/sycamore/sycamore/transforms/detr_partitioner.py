@@ -13,7 +13,6 @@ import requests
 import json
 from tenacity import retry, retry_if_exception, wait_exponential, stop_after_delay
 import base64
-import easyocr
 import pdf2image
 import pytesseract
 import torch
@@ -648,6 +647,8 @@ def extract_ocr(
 
 
 def extract_table_ocr(image: Image.Image, elem: TableElement):
+    import easyocr
+
     width, height = image.size
 
     assert elem.bbox is not None

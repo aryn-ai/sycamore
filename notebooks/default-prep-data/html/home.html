@@ -1,0 +1,2815 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+
+
+<meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+<title>
+Sort Benchmark Home Page
+</title>
+<style type="text/css">
+<!--
+body{color: #333333; font-size: 14px; font-family: "Trebuchet MS", Arial, sans-serif }
+dl{color: #333333; font-size: 14px; font-family: "Trebuchet MS", Arial, sans-serif }
+ol{color: #333333; font-size: 14px; font-family: "Trebuchet MS", Arial, sans-serif }
+ol li{color: #333333; font-size: 14px; font-family: "Trebuchet MS", Arial, sans-serif }
+p{color: #333333; font-size: 14px; font-family: "Trebuchet MS", Arial, sans-serif }
+ul{color: #333333; font-size: 14px; font-family: "Trebuchet MS", Arial, sans-serif }
+ul li{color: #333333; font-size: 14px; font-family: "Trebuchet MS", Arial, sans-serif }
+
+UL {margin-top:0pt; margin-bottom:0pt}
+
+P.newyear {color:green; text-align:left; margin-top:0; margin-bottom:0}
+P.oldyear {color:brown; text-align:left; margin-top:0; margin-bottom:0}
+P.record {color:black; margin-top:0; margin-bottom:0; font-weight:bold; }
+P.entryname {color:black; margin-top:0; margin-bottom:0; font-weight:bold; font-size:14pt;}
+P.remainder {color:#333333; margin-top:0; margin-bottom:0}
+P.question {color:black; margin-bottom:0pt}
+P.answer {color:#662222; margin-top:0pt; margin-bottom:0pt}
+P.answernew {color:#006600; margin-top:0pt; margin-bottom:0pt}
+OL.answer {color:#662222; margin-top:0pt; margin-bottom:0pt}
+UL.answer {color:#662222; margin-top:0pt; margin-bottom:0pt}
+UL.answernew {color:#006600; margin-top:0pt; margin-bottom:0pt}
+A {
+	text-decoration:none;
+}
+TABLE {
+	border-width: 0px 0px 0px 0px;
+	border-style:solid; 
+	border-color:gray; 
+	border-collapse:collapse;
+	border-spacing:0
+}
+TH {
+	border-width: 4px 4px 4px 4px;
+	border-style:solid; 
+	border-color:#8888FF; 
+	background-color:#AAFFAA;
+}
+TD {
+	border-width: 4px 4px 4px 4px;
+	border-style:solid; 
+	border-color:#8888FF;
+	text-align:center;
+	padding-top:0;
+	vertical-align:top;
+}
+TD.benchtitle {
+	font-weight:bold;
+	background-color:#FFAA66;
+	vertical-align:middle;
+}
+TD.benchdef {
+	text-align:left;
+}
+TH.empty {
+	border-width: 0px 0px 0px 0px;
+	border-style:solid; 
+	border-color:gray; 
+	background-color:#FFFFFF;
+}
+HR {
+	color:#8888FF;
+	background-color:#8888FF;
+	height:4px;
+	border:none;
+}
+-->
+</style>
+</head><body>
+<h1>
+Sort Benchmark Home Page
+</h1>
+<hr>
+<p>
+  <font color="red" size="+1"><i><b>New:</b></i></font>
+<!--  The deadline for the 2023 sort contest is 31 December 2023. -->
+We are happy to announce the 2023 winners listed below.
+The new records are listed in <font color="green">green</font>.
+Congratulations to the winners!
+</p>
+
+<h2>
+Background
+</h2>
+<p>
+Until 2007, the sort benchmarks were primarily defined, sponsored and 
+administered by Jim Gray.
+Following Jim's disappearance at sea in January 2007, 
+the sort benchmarks have been continued by a committee of past 
+colleagues and sort benchmark winners.
+The Sort Benchmark committee members include:
+</p>
+<ul>
+<li>Chris Nyberg of Ordinal Technology Corp
+</li><li>Mehul Shah of <a href="https://aryn.ai/"> Aryn.ai </a>
+</li><li>George Porter of UC San Diego Computer Science &amp; Engineering Dept
+</li></ul>
+
+<table>
+<caption style="font-size: 24pt; color: green;" align="top">
+Top Results
+</caption>
+<tbody><tr>
+<th class="empty" width="100px"> 
+</th>
+<th width="400px">
+Daytona
+</th>
+<th width="400px">
+Indy
+</th>
+</tr>
+<tr>
+<td class="benchtitle">
+Gray
+</td>
+<td>
+<!-- Current Daytona GraySort -->
+<p class="oldyear">2016, 44.8 TB/min</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/TencentSort2016.pdf">Tencent Sort</a>
+</p>
+<p class="remainder">
+100 TB in 134 Seconds
+<br>
+512 nodes x (2 OpenPOWER 10-core POWER8 2.926 GHz, 
+<br>
+512 GB memory, 4x Huawei ES3600P V3 1.2TB NVMe SSD, 
+<br>
+100Gb Mellanox ConnectX4-EN)
+<br>
+Jie Jiang,
+Lixiong Zheng,
+Junfeng Pu,
+<br>
+Xiong Cheng,
+Chongqing Zhao
+<br>
+Tencent Corporation
+<br>
+Mark R. Nutter,
+Jeremy D. Schaub
+</p>
+
+</td> 
+<td>
+<!-- Current Indy GraySort -->
+<p class="oldyear">2016, 60.7 TB/min</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/TencentSort2016.pdf">Tencent Sort</a>
+</p>
+<p class="remainder">
+100 TB in 98.8 Seconds
+<br>
+512 nodes x (2 OpenPOWER 10-core POWER8 2.926 GHz, 
+<br>
+512 GB memory, 4x Huawei ES3600P V3 1.2TB NVMe SSD, 
+<br>
+100Gb Mellanox ConnectX4-EN)
+<br>
+Jie Jiang,
+Lixiong Zheng,
+Junfeng Pu,
+<br>
+Xiong Cheng,
+Chongqing Zhao
+<br>
+Tencent Corporation
+<br>
+Mark R. Nutter,
+Jeremy D. Schaub
+</p>
+</td> 
+</tr>
+
+<tr>
+<td class="benchtitle">
+Cloud
+</td>
+<td>
+<!-- Current Daytona CloudSort -->
+<p class="oldyear">2016, $1.44 / TB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/NADSort2016.pdf">NADSort</a>
+</p>
+<p class="remainder">
+100 TB for $144
+<br>
+394 Alibaba Cloud ECS ecs.n1.large nodes x
+<br>
+(Haswell E5-2680 v3, 8 GB memory, 
+<br>
+40GB Ultra Cloud Disk, 4x 135GB SSD Cloud Disk)
+<br>
+Qian Wang, Rong Gu, Yihua Huang
+<br>
+Nanjing University
+<br>
+Reynold Xin
+<br>
+Databricks Inc.
+<br>
+Wei Wu, Jun Song, Junluan Xia
+<br>
+Alibaba Group Inc.
+</p>
+
+</td> 
+<td>
+<!-- Current Indy CloudSort -->
+<p class="oldyear">2022, $0.97 / TB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/ExoshuffleCloudSort2022.pdf">Exoshuffle-CloudSort</a>
+</p>
+<p class="remainder">
+100 TB for $97
+<br>
+40 Amazon EC2 i4i.4xlarge nodes
+<br>
+1 Amazon EC2 r6i.2xlarge node
+<br>
+Amazon S3 storage
+<br>
+Frank Sifei Luan
+<br>
+UC Berkeley
+<br>
+Stephanie Wang
+<br>
+UC Berkeley and Anyscale
+<br>
+Samyukta Yagati, Sean Kim, Kenneth Lien, Isaac Ong, Tony Hong
+<br>
+UC Berkeley
+<br>
+SangBin Cho, Eric Liang
+<br>
+Anyscale
+<br>
+Ion Stoica
+<br>
+UC Berkeley and Anyscale
+</p>
+
+</td> 
+</tr>
+
+
+<tr>
+<td class="benchtitle">
+Minute
+</td>
+<td>
+<!-- Current Daytona MinuteSort -->
+<p class="oldyear">2016, 37 TB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/TencentSort2016.pdf">Tencent Sort</a>
+</p>
+<p class="remainder">
+512 nodes x (2 OpenPOWER 10-core POWER8 2.926 GHz, 
+<br>
+512 GB memory, 4x Huawei ES3600P V3 1.2TB NVMe SSD, 
+<br>
+100Gb Mellanox ConnectX4-EN)
+<br>
+Jie Jiang,
+Lixiong Zheng,
+Junfeng Pu,
+<br>
+Xiong Cheng,
+Chongqing Zhao
+<br>
+Tencent Corporation
+<br>
+Mark R. Nutter,
+Jeremy D. Schaub
+</p>
+
+</td>
+<td>
+<!-- Current Indy MinuteSort -->
+<p class="oldyear">2016, 55 TB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/TencentSort2016.pdf">Tencent Sort</a>
+</p>
+<p class="remainder">
+512 nodes x (2 OpenPOWER 10-core POWER8 2.926 GHz, 
+<br>
+512 GB memory, 4x Huawei ES3600P V3 1.2TB NVMe SSD, 
+<br>
+100Gb Mellanox ConnectX4-EN)
+<br>
+Jie Jiang,
+Lixiong Zheng,
+Junfeng Pu,
+<br>
+Xiong Cheng,
+Chongqing Zhao
+<br>
+Tencent Corporation
+<br>
+Mark R. Nutter,
+Jeremy D. Schaub
+</p>
+
+</td>
+</tr>
+
+<tr>
+<td class="benchtitle">
+Joule
+<br>
+<font size="-1">10<sup>10</sup> recs</font>
+</td>
+<td>
+<!-- Current Daytona 1TB JouleSort -->
+<p class="newyear">2023, 59.3 KJoules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/MendSort2023.pdf">MendSort</a>
+<p class="remainder">
+169 K records sorted / joule
+<br>
+AMD Ryzen 7900, 96 GB RAM, Nsort, Rocky Linux 9.3,
+<br>
+5 WD SN850X 2 TB SSDs, 3 WD SN850X 1 TB SSDs
+<br>
+Igor Mendelev, Levi Mendelev, Yonathan Mendelev
+<br>
+mendsort@gmail.com
+</p>
+</td>
+<td>
+<!-- Current Indy 1TB JouleSort -->
+<p class="newyear">2023, 52.7 KJoules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/AMR5Sort2023.pdf">AMR5</a>
+</p>
+<p class="remainder">
+190 K records sorted / joule
+<br>
+AMD Ryzen 5800U, 64 GB RAM, Nsort, Ubuntu Server 23.04,
+<br>
+2 Samsung 970 EVO Plus 2 TB SSDs, 
+<br>
+Samsung BAR Plus 64 GB USB Flash Drive
+<br>
+Phillip Griffith
+</p>
+</td>
+</tr>
+
+</tbody></table>
+
+<h2>
+Common Rules
+</h2>
+<p>
+All the sort benchmarks share the following ground rules:
+</p>
+<ul>
+<li>
+Must sort to and from operating system files on secondary storage. 
+</li><li>
+No raw disk usage allowed since we are trying to test the IO subsystem. 
+</li><li>
+File or device striping (RAID 0) are allowed (encouraged) to get 
+bandwidth.
+If file striping is used then the concatenated files must form a sorted 
+file.
+</li><li>
+The output file must be created as part of the sort.
+</li><li>
+Time includes the launching of the sort program. 
+</li><li>
+The sort input records must be 100 bytes in length, with the first 10 
+bytes being a random key.
+</li><li>
+Use the 
+<a href="http://www.ordinal.com/gensort.html">gensort</a>
+record generator to create the input records.
+</li><li>
+The sort output file must be validated for correct key order and 
+checksum.
+</li><li>
+The hardware used should be commercially available (off-the-shelf),
+and unmodified (e.g. no processor over or under clocking).
+</li></ul>
+
+<h2>
+Sort Benchmarks
+</h2>
+<table>
+
+<tbody><tr>
+<td class="benchtitle" width="150px">
+GraySort
+</td>
+<td class="benchdef" width="750px">
+<p>
+<b>Metric: </b>
+Sort rate (TBs / minute) achieved while sorting a very large amount of 
+data 
+(currently 100 TB minimum).
+</p>
+</td>
+</tr>
+
+<tr>
+<td class="benchtitle" width="150px">
+CloudSort
+</td>
+<td class="benchdef" width="750px">
+<p>
+<b>Metric: </b>
+Minimum cost for sorting a very large amount of 
+data on a public cloud.
+(currently 100 TB).
+<br>
+Complete rules in the <a href="http://www.sortbenchmark.org/2014_06_CloudSort_v_0_4.pdf"> CloudSort </a> short paper.
+</p>
+</td>
+</tr>
+
+ 
+<tr>
+<td class="benchtitle">
+MinuteSort
+</td>
+<td class="benchdef">
+<p>
+<b>Metric: </b>
+Amount of data that can be sorted in 60.00 seconds or less.
+<br>
+Originally defined in 
+<a 
+href="http://research.microsoft.com/en-us/um/people/gray/alphasort.doc">
+AlphaSort</a> paper.
+</p>
+</td>
+</tr>
+ 
+<tr>
+<td class="benchtitle">
+JouleSort
+</td>
+<td class="benchdef">
+<p>
+<b>Metric: </b>
+Amount of energy required to sort
+10<sup>8</sup>,
+10<sup>9</sup>,
+10<sup>10</sup>, or
+10<sup>12</sup> records
+(10 GB, 100 GB, 1 TB, or 100TB).
+<br>
+Originally defined in 
+<a href="http://csl.stanford.edu/~christos/publications/2007.jsort.sigmod.pdf">JouleSort</a>
+paper.
+<br>
+<font color="brown">
+The 
+10<sup>8</sup>,
+10<sup>9</sup>
+and
+10<sup>12</sup> records JouleSort benchmarks are now deprecated.
+</font>
+</p>
+</td>
+</tr>
+
+<tr>
+<td class="benchtitle">
+PennySort
+</td>
+<td class="benchdef">
+<p>
+<b>Metric: </b>
+Amount of data that can be sorted for a penny's worth of system time.
+<br>
+Originally defined in 
+<a 
+href="http://research.microsoft.com/en-us/um/people/gray/alphasort.doc">
+AlphaSort</a> paper.
+<br>
+<font color="brown">
+PennySort is now deprecated.
+</font>
+</p>
+</td>
+</tr>
+
+ 
+<tr>
+<td class="benchtitle">
+TeraByte Sort
+</td>
+<td class="benchdef">
+<p>
+<b>Metric: </b>
+Elapsed time to sort 10<sup>12</sup> bytes of data.
+<br>
+<font color="brown">
+The TeraByte benchmark is now deprecated because it became essentially 
+the same as MinuteSort.
+</font>
+</p>
+</td>
+</tr>
+ 
+<tr>
+<td class="benchtitle">
+Datamation Sort
+</td>
+<td class="benchdef">
+<p>
+<b>Metric: </b>
+Amount of time to sort one million records (100 MB).
+<br>
+This is the original sort benchmark, defined in
+<a 
+href="http://sortbenchmark.org/AMeasureOfTransactionProcessingPower.doc">A
+ Measure of Transaction Processing Power  With 25 others Datamation, V 
+31.7, April 1985, pp 112-118.</a>
+Originally, winners took 1 hour, now 1 second!
+<font color="brown">
+So the benchmark is deprecated.
+</font>
+</p></td>
+</tr>
+</tbody></table>
+
+<h2>
+Benchmark Categories
+</h2>
+<p>
+For each sort benchmark, there are two categories:
+</p>
+<table>
+<tbody><tr>
+<th width="400px">
+Daytona (stock car)
+</th>
+<th width="400px">
+Indy (formula 1)
+</th>
+</tr>
+<tr>
+<td>
+<p>
+Sort code must be general purpose.
+</p>
+</td>
+<td>
+<p>
+Need only sort 100-byte records with 10-byte keys.
+</p>
+</td>
+</tr>
+</tbody></table>
+
+
+<h2>
+Complete Rules
+</h2>
+<p>
+For the detailed rules, see the
+<a href="http://sortbenchmark.org/FAQ.html">frequently asked 
+questions (FAQ) </a>.
+</p>
+
+<h2>
+Process
+</h2>
+<p>
+Entries must include a document describing the algorithm and the 
+hardware in enough detail so that others could reproduce the result. 
+Click on the title of any previous winning sort to view sort description document.</p>
+
+
+<h2>
+New Entries
+</h2> 
+<p>
+The submission deadline for the 2024 contest has not been set yet.
+</p>
+
+<table>
+<caption style="font-size: 24pt; color: brown;" align="top">
+Past Winners
+</caption>
+<tbody><tr>
+<th class="empty" width="100px"> 
+</th>
+<th width="400px">
+Daytona
+</th>
+<th width="400px">
+Indy
+</th>
+</tr>
+<tr>
+<td class="benchtitle">
+Gray
+</td>
+<td>
+<!-- Past Daytona GraySort -->
+<p class="oldyear">2015, 15.9 TB/min</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/FuxiSort2015.pdf">FuxiSort</a>
+</p>
+<p class="remainder">
+100 TB in 377 seconds
+<br>
+3,134 nodes x (2 Xeon E5-2630 2.30Ghz, 
+<br>
+96 GB memory, 12x2 TB SATA HD, 10 Gb/s Ethernet)
+<br>
++ 243 nodes x (2 Xeon E5-2650v2 2.60Ghz, 
+<br>
+128 GB memory, 12x2 TB SATA HD, 10 Gb/s Ethernet)
+<br>
+Jiamang Wang,
+Yongjun Wu,
+Hua Cai,
+Zhipeng Tang,
+Zhiqiang Lv,
+<br>
+Bin Lu,
+Yangyu Tao,
+Chao Li,
+Jingren Zhou,
+Hong Tang
+<br>
+Alibaba Group Inc
+</p>
+<br>
+
+<p class="oldyear">2014, 4.35 TB/min</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/TritonSort2014.pdf">TritonSort</a>
+</p>
+<p class="remainder">
+100 TB in 1,378 seconds
+<br>
+186 Amazon EC2 i2.8xlarge nodes x
+<br>
+(32 vCores - 2.50Ghz Intel Xeon E5-2670 v2, 244GB memory, 8x800 GB SSD)
+<br>
+<a href="http://cseweb.ucsd.edu/~mconley/">Michael Conley,</a>
+<a href="http://cseweb.ucsd.edu/~vahdat/">Amin Vahdat,</a>
+<br>
+<a href="http://cseweb.ucsd.edu/~gmporter/">George Porter</a>
+<br>
+University of California, San Diego
+</p>
+<br>
+
+<p class="oldyear">2014, 4.27 TB/min</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/ApacheSpark2014.pdf">Apache Spark</a>
+</p>
+<p class="remainder">
+100 TB in 1,406 seconds
+<br>
+207 Amazon EC2 i2.8xlarge nodes x
+<br>
+(32 vCores - 2.5Ghz Intel Xeon E5-2670 v2, 244GB memory, 8x800 GB SSD)
+<br>
+Reynold Xin, Parviz Deyhim, Xiangrui Meng,
+<br>
+Ali Ghodsi, Matei Zaharia
+<br>
+<a href="http://www.databricks.com">Databricks</a>
+</p>
+<br>
+
+<p class="oldyear">2013, 1.42 TB/min</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/Yahoo2013Sort.pdf">Hadoop</a>
+</p>
+<p class="remainder">
+102.5 TB in 4,328 seconds
+<br>
+2100 nodes x 
+<br>
+(2 2.3Ghz hexcore Xeon E5-2630, 64 GB memory, 12x3TB disks)
+<br>
+<a href="http://people.apache.org/~tgraves/ThomasGraves.html">Thomas Graves</a>
+<br>
+Yahoo! Inc.
+</p>
+
+<p>
+</p>
+<p class="oldyear">2011, 0.725 TB/min</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/2011_06_tritonsort.pdf">TritonSort</a>
+</p>
+<p class="remainder">
+100 TB in 8,274 seconds
+<br>
+52 nodes x 
+<br>
+(2 Quadcore processors, 24 GB memory, 16x500GB disks)
+<br>
+Cisco Nexus 5096 switch
+<br>
+<a href="http://cseweb.ucsd.edu/~arasmuss/">Alex Rasmussen,</a>
+<a href="http://cseweb.ucsd.edu/~mconley/">Michael Conley,</a>
+<br>
+<a href="http://cseweb.ucsd.edu/~gmporter/">George Porter,</a>
+<a href="http://cseweb.ucsd.edu/~vahdat/">Amin Vahdat,</a>
+<br>
+University of California, San Diego
+</p>
+
+<p>
+</p>
+<p class="oldyear">2009, 0.578 TB/min</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/Yahoo2009.pdf">Hadoop</a>
+</p>
+<p class="remainder">
+100 TB in 173 minutes
+<br>
+3452 nodes x (2 Quadcore Xeons, 8 GB memory, 4 SATA)
+<br>
+<a href="http://people.apache.org/%7Eomalley">Owen O'Malley</a>
+and
+<a href="http://people.apache.org/%7Eacmurthy">Arun Murthy</a>
+<br>
+Yahoo Inc.
+</p>
+</td> 
+<td>
+<!-- Past Indy GraySort -->
+<p class="oldyear">2015, 18.2 TB/min</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/FuxiSort2015.pdf">FuxiSort</a>
+</p>
+<p class="remainder">
+100 TB in 329 seconds
+<br>
+3,134 nodes x (2 Xeon E5-2630 2.30Ghz, 
+<br>
+96 GB memory, 12x2 TB SATA HD, 10 Gb/s Ethernet)
+<br>
++ 243 nodes x (2 Xeon E5-2650v2 2.60Ghz, 
+<br>
+128 GB memory, 12x2 TB SATA HD, 10 Gb/s Ethernet)
+<br>
+Jiamang Wang,
+Yongjun Wu,
+Hua Cai,
+Zhipeng Tang,
+Zhiqiang Lv,
+<br>
+Bin Lu,
+Yangyu Tao,
+Chao Li,
+Jingren Zhou,
+Hong Tang
+<br>
+Alibaba Group Inc
+</p>
+<br>
+
+<p class="oldyear">2014, 8.38 TB/min</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/BaiduSort2014.pdf">BaiduSort</a>
+</p>
+<p class="remainder">
+100 TB in 716 seconds
+<br>
+982 nodes x 
+<br>
+(2 2.10Ghz Intel Xeon E5-2450, 192 GB memory, 8x3TB 7200 RPM SATA)
+<br>
+Dasheng Jiang
+<br>
+Baidu Inc. and Peking University
+</p>
+<br>
+
+<p class="oldyear">2013, 1.42 TB/min</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/Yahoo2013Sort.pdf">Hadoop</a>
+</p>
+<p class="remainder">
+102.5 TB in 4,328 seconds
+<br>
+2100 nodes x 
+<br>
+(2 2.3Ghz hexcore Xeon E5-2630, 64 GB memory, 12x3TB disks)
+<br>
+<a href="http://people.apache.org/~tgraves/ThomasGraves.html">Thomas Graves</a>
+<br>
+Yahoo! Inc.
+</p>
+<br>
+
+<p>
+</p>
+<p class="oldyear">2011, 0.938 TB/min</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/2011_06_tritonsort.pdf">TritonSort</a>
+</p>
+<p class="remainder">
+100 TB in 6,395 seconds
+<br>
+52 nodes x 
+<br>
+(2 Quadcore processors, 24 GB memory, 16x500GB disks)
+<br>
+Cisco Nexus 5096 switch
+<br>
+<a href="http://cseweb.ucsd.edu/~arasmuss/">Alex Rasmussen,</a>
+<a href="http://cseweb.ucsd.edu/~mconley/">Michael Conley,</a>
+<br>
+<a href="http://cseweb.ucsd.edu/~gmporter/">George Porter,</a>
+<a href="http://cseweb.ucsd.edu/~vahdat/">Amin Vahdat,</a>
+<br>
+University of California, San Diego
+</p>
+
+<p>
+</p>
+<p class="oldyear">2010, 0.582 TB/min</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/tritonsort_2010_May_15.pdf">TritonSort</a>
+</p>
+<p class="remainder">
+100 TB in 10,318 seconds
+<br>
+47 nodes x 
+<br>
+(2 Quadcore processors, 24 GB memory, 16x500GB disks)
+<br>
+Cisco Nexus 5020 switch
+<br>
+<a href="http://cseweb.ucsd.edu/~arasmuss/">Alex Rasmussen,</a>
+Radhika Niranjan Mysore,
+<br>
+<a href="http://cseweb.ucsd.edu/~hmadhyastha/">Harsha V. Madhyastha,</a>
+<a href="http://cseweb.ucsd.edu/~mconley/">Michael Conley,</a>
+<br>
+<a href="http://cseweb.ucsd.edu/~gmporter/">George Porter,</a>
+<a href="http://cseweb.ucsd.edu/~vahdat/">Amin Vahdat,</a>
+<br>
+University of California, San Diego
+<br>
+<a href="http://www.alexpucher.com">Alexander Pucher</a>
+<br>
+Vienna University of Technology
+</p>
+
+<p>
+</p>
+<p class="oldyear">2009, 0.564 TB/min</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/demsort.pdf">DEMSort</a>
+</p>
+<p class="remainder">
+100 TB in 10,628 seconds
+<br>
+195 nodes x 
+<br>
+(2 Quadcore processors, 16 GB memory, 4x250GB disks)
+<br>
+288-port InfiniBand 4xDDR switch
+<br>
+<a href="http://liinwww.ira.uka.de/%7Erahn/">Mirko Rahn,</a>
+<a href="http://algo2.iti.kit.edu/english/sanders.php">Peter 
+Sanders,</a>
+<br>
+<a href="http://algo2.iti.kit.edu/english/singler.php">Johannes
+ Singler</a>
+and 
+Tim Kieritz
+<br>
+Karlsruhe Institute of Technology, Germany
+</p>
+</td> 
+</tr>
+
+
+<tr>
+<td class="benchtitle">
+Cloud
+</td>
+<td>
+<!-- Past Daytona CloudSort -->
+<p class="oldyear">2014, $4.51 / TB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/TritonSort2014.pdf">TritonSort</a>
+</p>
+<p class="remainder">
+100 TB for $451
+<br>
+330 Amazon EC2 r3.4xlarge nodes x
+<br>
+(16 vCores - 2.50Ghz Intel Xeon E5-2670 v2, 122 GB memory, 320GB SSD, 8x135GB EBS gp2)
+<br>
+<a href="http://cseweb.ucsd.edu/~mconley/">Michael Conley,</a>
+<a href="http://cseweb.ucsd.edu/~vahdat/">Amin Vahdat,</a>
+<br>
+<a href="http://cseweb.ucsd.edu/~gmporter/">George Porter</a>
+<br>
+University of California, San Diego
+</p>
+
+
+</td>
+<td>
+<!-- Past Indy CloudSort -->
+<p class="oldyear">2016, $1.44 / TB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/NADSort2016.pdf">NADSort</a>
+</p>
+<p class="remainder">
+100 TB for $144
+<br>
+394 Alibaba Cloud ECS ecs.n1.large nodes x
+<br>
+(Haswell E5-2680 v3, 8 GB memory, 
+<br>
+40GB Ultra Cloud Disk, 4x 135GB SSD Cloud Disk)
+<br>
+Qian Wang, Rong Gu, Yihua Huang
+<br>
+Nanjing University
+<br>
+Reynold Xin
+<br>
+Databricks Inc.
+<br>
+Wei Wu, Jun Song, Junluan Xia
+<br>
+Alibaba Group Inc.
+</p>
+
+<br>
+
+<p class="oldyear">2014, $4.51 / TB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/TritonSort2014.pdf">TritonSort</a>
+</p>
+<p class="remainder">
+100 TB for $451
+<br>
+330 Amazon EC2 r3.4xlarge nodes x
+<br>
+(16 vCores - 2.50Ghz Intel Xeon E5-2670 v2, 122 GB memory, 320GB SSD, 8x135GB EBS gp2)
+<br>
+<a href="http://cseweb.ucsd.edu/~mconley/">Michael Conley,</a>
+<a href="http://cseweb.ucsd.edu/~vahdat/">Amin Vahdat,</a>
+<br>
+<a href="http://cseweb.ucsd.edu/~gmporter/">George Porter</a>
+<br>
+University of California, San Diego
+</p>
+
+
+</td>
+</tr>
+
+<tr>
+<td class="benchtitle">
+Minute
+</td>
+<td>
+<!-- Past Daytona MinuteSort -->
+<p class="oldyear">2015, 7.7 TB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/FuxiSort2015.pdf">FuxiSort</a>
+</p>
+<p class="remainder">
+3,134 nodes x (2 Xeon E5-2630 2.30Ghz, 
+<br>
+96 GB memory, 12x2 TB SATA HD, 10 Gb/s Ethernet)
+<br>
++ 243 nodes x (2 Xeon E5-2650v2 2.60Ghz, 
+<br>
+128 GB memory, 12x2 TB SATA HD, 10 Gb/s Ethernet)
+<br>
+Jiamang Wang,
+Yongjun Wu,
+Hua Cai,
+Zhipeng Tang,
+Zhiqiang Lv,
+<br>
+Bin Lu,
+Yangyu Tao,
+Chao Li,
+Jingren Zhou,
+Hong Tang
+<br>
+Alibaba Group Inc
+</p>
+
+<br>
+
+<p class="oldyear">2014, 3.7 TB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/DeepSort2014.pdf">DeepSort</a>
+</p>
+<p class="remainder">
+384 nodes x 
+<br>
+(2 2.10Ghz Intel Xeon hexa-core, 64 GB memory, 8 7200 RPM hard drives)
+<br>
+Zheng Li, Juhan Lee
+<br>
+Samsung
+</p>
+<br>
+
+<p class="oldyear">2012, 1,401 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/FlatDatacenterStorage2012.pdf">Flat Datacenter Storage</a>
+</p>
+<p class="remainder">
+256 heterogeneous nodes, 1033 disks
+<br>
+Johnson Apacible, Rich Draves, Jeremy Elson, Jinliang Fan,
+Owen Hofmann, Jon Howell, Ed Nightingale, Reuben Olinksy, Yutaka Suzue
+<br>
+Microsoft Research
+</p>
+
+<p>
+</p>
+<p class="oldyear">2009, 500 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/Yahoo2009.pdf">Hadoop</a>
+</p>
+<p class="remainder">
+1406 nodes x (2 Quadcore Xeons, 8 GB memory, 4 SATA)
+<br>
+<a href="http://people.apache.org/%7Eomalley">Owen O'Malley</a>
+and
+<a href="http://people.apache.org/%7Eacmurthy">Arun Murthy</a>
+<br>
+Yahoo Inc.
+</p>
+
+<p>
+</p>
+<p class="oldyear">2007, 214 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/tokutera.pdf">TokuSampleSort</a>
+</p>
+<p class="remainder">
+tx2500 disk cluster
+<br>
+400 nodes x (2 processors, 6-disk RAID, 8 GB memory)
+<br>Bradley C. Kuszmaul, MIT
+</p>
+
+<p>
+</p>
+<p class="oldyear">2006, 40 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/2006_NeoSortMinute.pdf">NeoSort</a>
+</p>
+<p class="remainder">
+Windows, Fujitsu 32 Itanium2, 128 SAN disks
+<br>Chris Nyberg, Charles Koester
+<br>
+Ordinal Technology Corp
+</p>
+
+<p>
+</p>
+<p class="oldyear">2004, 34 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/2004_Nsort_Minutesort.pdf">Nsort</a>
+</p>
+<p class="remainder">
+Windows, 32 Itanium2, 2,350 disks
+<br>Chris Nyberg, Charles Koester<br>Ordinal
+</p>
+
+<p>
+</p>
+<p class="oldyear">2000, 12 GB</p>
+<p class="entryname">
+Nsort
+</p>
+<p class="remainder">
+SGI 32 cpu Origin     IRIX  
+</p>
+
+<p>
+</p>
+<p class="oldyear">1998, 5.8 GB</p>
+<p class="entryname">
+Nsort
+</p>
+<p class="remainder">
+SGI 32 cpu Origin     IRIX 
+</p>
+
+<p>
+</p>
+<p class="oldyear">1997, 3.5 GB</p>
+<p class="entryname">
+Nsort
+</p>
+<p class="remainder">
+IRIX Challenge
+<br>
+Ordinal Technology Corp
+</p>
+
+<p>
+</p>
+<p class="oldyear">1995, 1.1 GB</p>
+<p class="entryname">
+AlphaSort
+</p>
+<p class="remainder">
+Nyberg
+</p>
+
+<p>
+</p>
+<p class="oldyear"></p>
+<p class="entryname">
+</p>
+<p class="remainder">
+</p>
+
+</td>
+<td>
+<!-- Past Indy MinuteSort -->
+<p class="oldyear">2015, 11 TB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/FuxiSort2015.pdf">FuxiSort</a>
+</p>
+<p class="remainder">
+3,134 nodes x (2 Xeon E5-2630 2.30Ghz, 
+<br>
+96 GB memory, 12x2 TB SATA HD, 10 Gb/s Ethernet)
+<br>
++ 243 nodes x (2 Xeon E5-2650v2 2.60Ghz, 
+<br>
+128 GB memory, 12x2 TB SATA HD, 10 Gb/s Ethernet)
+<br>
+Jiamang Wang,
+Yongjun Wu,
+Hua Cai,
+Zhipeng Tang,
+Zhiqiang Lv,
+<br>
+Bin Lu,
+Yangyu Tao,
+Chao Li,
+Jingren Zhou,
+Hong Tang
+<br>
+Alibaba Group Inc
+</p>
+
+<br>
+
+<p class="oldyear">2014, 7.0 TB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/BaiduSort2014.pdf">BaiduSort</a>
+</p>
+<p class="remainder">
+993 nodes x 
+<br>
+(2 2.10Ghz Intel Xeon E5-2450, 192 GB memory, 8x3TB 7200 RPM SATA)
+<br>
+Dasheng Jiang
+<br>
+Baidu Inc. and Peking University
+</p>
+<br>
+
+<p class="oldyear">2012, 1,470 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/FlatDatacenterStorage2012.pdf">Flat Datacenter Storage</a>
+</p>
+<p class="remainder">
+256 heterogeneous nodes, 1033 disks
+<br>
+Johnson Apacible, Rich Draves, Jeremy Elson, Jinliang Fan,
+Owen Hofmann, Jon Howell, Ed Nightingale, Reuben Olinksy, Yutaka Suzue
+<br>
+Microsoft Research
+</p>
+
+<p>
+</p>
+<p class="oldyear">2011, 1353GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/2011_06_tritonsort.pdf">TritonSort</a>
+</p>
+<p class="remainder">
+52 nodes x 
+<br>
+(2 Quadcore processors, 24 GB memory, 16x500GB disks)
+<br>
+Cisco Nexus 5096 switch
+<br>
+<a href="http://cseweb.ucsd.edu/~arasmuss/">Alex Rasmussen,</a>
+<a href="http://cseweb.ucsd.edu/~mconley/">Michael Conley,</a>
+<br>
+<a href="http://cseweb.ucsd.edu/~gmporter/">George Porter,</a>
+<a href="http://cseweb.ucsd.edu/~vahdat/">Amin Vahdat,</a>
+<br>
+University of California, San Diego
+</p>
+<br>
+<p class="oldyear">2010, 1014 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/tritonsort_2010_May_15.pdf">TritonSort</a>
+</p>
+<p class="remainder">
+52 nodes x 
+<br>
+(2 Quadcore processors, 24 GB memory, 16x500GB disks)
+<br>
+Cisco Nexus 5020 switch
+<br>
+<a href="http://cseweb.ucsd.edu/~arasmuss/">Alex Rasmussen,</a>
+Radhika Niranjan Mysore,
+<br>
+<a href="http://cseweb.ucsd.edu/~hmadhyastha/">Harsha V. Madhyastha,</a>
+<a href="http://cseweb.ucsd.edu/~mconley/">Michael Conley,</a>
+<br>
+<a href="http://cseweb.ucsd.edu/~gmporter/">George Porter,</a>
+<a href="http://cseweb.ucsd.edu/~vahdat/">Amin Vahdat,</a>
+<br>
+University of California, San Diego
+<br>
+<a href="http://www.alexpucher.com">Alexander Pucher</a>
+<br>
+Vienna University of Technology
+</p>
+<p>
+</p>
+<p class="oldyear">2009, 955 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/demsort.pdf">DEMSort</a>
+</p>
+<p class="remainder">
+195 nodes x 
+<br>
+(2 Quadcore processors, 16 GB memory, 4x250GB disks)
+<br>
+288-port InfiniBand 4xDDR switch
+<br>
+<a href="http://liinwww.ira.uka.de/%7Erahn/">Mirko Rahn,</a>
+<a href="http://algo2.iti.kit.edu/english/sanders.php">Peter 
+Sanders,</a>
+<br>
+<a href="http://algo2.iti.kit.edu/english/singler.php">Johannes
+ Singler</a>
+and 
+Tim Kieritz
+<br>
+Karlsruhe Institute of Technology, Germany
+</p>
+
+<p>
+</p>
+<p class="oldyear">2007, 264 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/tokutera.pdf">TokuSampleSort</a>
+</p>
+<p class="remainder">
+tx2500 disk cluster
+<br>
+400 nodes x (2 processors, 6-disk RAID, 8 GB memory)
+<br>Bradley C. Kuszmaul, MIT
+</p>
+
+<p>
+</p>
+<p class="oldyear">2005, 125 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/2005_SCS_Wyllie.pdf">SCS</a>
+</p>
+<p class="remainder">
+Linux, 80 Itanium2, 2,520 SAN disks
+<br>
+Jim Wyllie, IBM Almaden Research
+</p>
+
+<p>
+</p>
+<p class="oldyear">2004, 32 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/2004_Nsort_Minutesort.pdf">Nsort</a>
+</p>
+<p class="remainder">
+32 x Itanium2 WinServer
+<br>Chris Nyberg, Charles Koester
+<br>Ordinal Technology
+</p>
+
+<p>
+</p>
+<p class="oldyear">2000, 21.8 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/Y2000_MinuteSort.pdf">NOW+HPVMsort</a>
+</p>
+<p class="remainder">
+64 nodes WinNT
+<br>
+Luis Rivera, Xianan Zhang, Andrew Chien
+<br>UCSD
+</p>
+
+<p>
+</p>
+<p class="oldyear">1999, 10,3 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/UCSD_99_MinuteSort.zip">NOW+MPI 
+HPVMsort</a>
+</p>
+<p class="remainder">
+Luis Rivera, UIUC
+<br>Andrew Chien, UCSD
+</p>
+
+<p>
+</p>
+<p class="oldyear">1998, 8.41 GB</p>
+<p class="entryname">
+<a href="http://now.cs.berkeley.edu/NowSort/index.html">NowSort</a>
+</p>
+<p class="remainder">
+95 UltraSparc + MyrinetSolaris 
+UC Berkeley
+</p>
+
+<p>
+</p>
+<p class="oldyear">1997, 3.5 GB</p>
+<p class="entryname">
+Nsort
+</p>
+<p class="remainder">
+SGI/Nyberg,Koester
+<br>
+Nsort/Irix/Challenge
+</p>
+
+<p>
+</p>
+<p class="oldyear">1995, 1.08 GB</p>
+<p class="entryname">
+AlphaSort
+</p>
+<p class="remainder">
+Nyberg
+</p>
+
+</td>
+</tr>
+
+<tr>
+<td class="benchtitle">
+Joule
+<br>
+<font size="-1">10<sup>8</sup> recs</font>
+<br>
+<font size="-2">
+(deprecated)
+</font>
+</td>
+<td>
+<!-- Past Daytona 10GB JouleSort -->
+<p class="oldyear">2013, 889 Joules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/NTOSort2013.pdf">NTOSort</a>
+</p>
+<p class="remainder">
+112,545 records sorted / joule
+<br>
+Lenovo X220,
+2.8 Ghz Intel i5-2640M, 16GB RAM, Nsort, Windows 8,
+<br>
+1 OCZ 120GB mSATA Nocti SSD, 2 Samsung 840 Pro 256GB SSDs
+<br>
+<a href="mailto:Andreas.Ebert@microsoft.com">Andreas Ebert</a>
+<br>
+Microsoft
+</p>
+<br>
+
+<p class="oldyear">2012, 1,393 Joules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/fawnsort-joulesort-2012.pdf">FAWNSort</a>
+</p>
+<p class="remainder">
+71,800 records sorted / joule
+<br>
+Intel Core i7-2700K 3.5 GHz, 16GB RAM, Nsort,
+<br>
+16 x 300 GB Intel 710 Series SSDs, 1 160 GB Intel 510 Series SSD 
+<br>
+<a href="http://www.pittsburgh.intel-research.net/people/pillai/">Padmanabhan Pillai</a>,
+<a href="http://www.pittsburgh.intel-research.net/people/kaminsky/">Michael Kaminsky</a>, 
+<a href="http://www.pittsburgh.intel-research.net/people/kozuch/">Michael A. Kozuch</a>,
+<br>
+Intel Labs Pittsburgh
+<br>
+<a href="http://www.cs.cmu.edu/~dga/">David Andersen</a> 
+<br>
+Carnegie Mellon University 
+
+<p>
+</p>
+<p class="oldyear">2011, 1,430 Joules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/fawnsort_2011.pdf">FAWNSort</a>
+</p>
+<p class="remainder">
+69,900 records sorted / joule
+<br>
+Intel Core i5-2400S 2.5 GHz, 16GB RAM, Nsort,
+<br>
+7 x 120 GB Intel 510 Series SSDs
+<br>
+<a href="http://www.pittsburgh.intel-research.net/people/pillai/">Padmanabhan Pillai</a>,
+<a href="http://www.pittsburgh.intel-research.net/people/kaminsky/">Michael Kaminsky</a>, 
+<a href="http://www.pittsburgh.intel-research.net/people/kozuch/">Michael A. Kozuch</a>,
+<br>
+Intel Labs Pittsburgh
+<br>
+<a href="http://www.cs.cmu.edu/~vrv/">Vijay Vasudevan</a>, 
+Lawrence Tan, 
+<a href="http://www.cs.cmu.edu/~dga/">David Andersen</a> 
+<br>
+Carnegie Mellon University 
+<p>
+</p>
+
+<p class="oldyear">2010, 2.2 KJoules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/fawnsort_2010.pdf">FAWNSort</a>
+</p>
+<p class="remainder">
+44,900 records sorted / joule
+<br>
+Intel Xeon L3426 1.86GHz, 12GB RAM, Nsort,
+<br>
+Fusion-io ioDrive (80GB), 4 x Intel X25-E (3 x 32GB, 1 x 64GB)
+<br>
+<a href="http://www.cs.cmu.edu/~vrv/">Vijay Vasudevan</a>, 
+Lawrence Tan, 
+<a href="http://www.cs.cmu.edu/~dga/">David Andersen</a> 
+<br>
+Carnegie Mellon University 
+<br>
+<a href="http://www.pittsburgh.intel-research.net/people/kaminsky/">Michael Kaminsky</a>, 
+<a href="http://www.pittsburgh.intel-research.net/people/kozuch/">Michael A. Kozuch</a>,
+<a href="http://www.pittsburgh.intel-research.net/people/pillai/">Padmanabhan Pillai</a>
+<br>
+Intel Labs Pittsburgh
+<p>
+</p>
+<p class="oldyear">2010 Jan 
+1, 4.0 KJoules </p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/flashsort_2010_Jan_01.pdf">FlashSort</a>
+ 
+</p>
+<p class="remainder">
+24,800 records sorted / joule 
+<br>
+Quad Core AMD Opteron 2373 2.01GHz, 16GB RAM
+<br>
+80GB FusionIO 
+<br>
+John D. Davis (Microsoft Research) 
+<br> 
+Suzanne Rivoire (Sonoma State University)
+<br>
+</p>
+<p class="oldyear">2007, 8.6 KJoules</p>
+<p class="entryname">
+<a 
+href="http://www.hpl.hp.com/personal/Mehul_Shah/papers/sigmod_2007_rivoire.pdf">CoolSort</a>
+</p>
+<p class="remainder">
+11,600 records sorted / joule
+<br>
+Mobile Core 2 Duo, 13 SATA laptop disks, 2GB RAM, <a 
+href="http://www.ordinal.com/">Nsort</a>
+<br>
+<a href="http://www.stanford.edu/%7Eskrufi">Suzanne Rivoire</a>
+(Stanford),
+<a href="http://www.hpl.hp.com/personal/Mehul_Shah/index.html">Mehul A. 
+Shah</a>
+(HP Labs),
+<br>
+<a href="http://www.hpl.hp.com/personal/Partha_Ranganathan/index.html">Partha
+ Ranganathan</a>
+(HP Labs),
+<a href="http://csl.stanford.edu/%7Echristos">Christos Kozyrakis</a>
+(Stanford)
+</p>
+</td>
+<td>
+<!-- Past Indy 10GB JouleSort -->
+<p class="oldyear">2013, 889 Joules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/NTOSort2013.pdf">NTOSort</a>
+</p>
+<p class="remainder">
+112,545 records sorted / joule
+<br>
+Lenovo X220,
+2.8 Ghz Intel i5-2640M, 16GB RAM, Nsort, Windows 8,
+<br>
+1 OCZ 120GB mSATA Nocti SSD, 2 Samsung 840 Pro 256GB SSDs
+<br>
+<a href="mailto:Andreas.Ebert@microsoft.com">Andreas Ebert</a>
+<br>
+Microsoft
+</p>
+<br>
+
+<p class="oldyear">2012, 1,393 Joules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/fawnsort-joulesort-2012.pdf">FAWNSort</a>
+</p>
+<p class="remainder">
+71,800 records sorted / joule
+<br>
+Intel Core i7-2700K 3.5 GHz, 16GB RAM, Nsort,
+<br>
+16 x 300 GB Intel 710 Series SSDs, 1 160 GB Intel 510 Series SSD 
+<br>
+<a href="http://www.pittsburgh.intel-research.net/people/pillai/">Padmanabhan Pillai</a>,
+<a href="http://www.pittsburgh.intel-research.net/people/kaminsky/">Michael Kaminsky</a>, 
+<a href="http://www.pittsburgh.intel-research.net/people/kozuch/">Michael A. Kozuch</a>,
+<br>
+Intel Labs Pittsburgh
+<br>
+<a href="http://www.cs.cmu.edu/~dga/">David Andersen</a> 
+<br>
+Carnegie Mellon University 
+</p>
+
+<p>
+</p>
+<p class="oldyear">2011, 1,430 Joules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/fawnsort_2011.pdf">FAWNSort</a>
+</p>
+<p class="remainder">
+69,900 records sorted / joule
+<br>
+Intel Core i5-2400S 2.5 GHz, 16GB RAM, Nsort,
+<br>
+7 x 120 GB Intel 510 Series SSDs
+<br>
+<a href="http://www.pittsburgh.intel-research.net/people/pillai/">Padmanabhan Pillai</a>,
+<a href="http://www.pittsburgh.intel-research.net/people/kaminsky/">Michael Kaminsky</a>, 
+<a href="http://www.pittsburgh.intel-research.net/people/kozuch/">Michael A. Kozuch</a>,
+<br>
+Intel Labs Pittsburgh
+<br>
+<a href="http://www.cs.cmu.edu/~vrv/">Vijay Vasudevan</a>, 
+Lawrence Tan, 
+<a href="http://www.cs.cmu.edu/~dga/">David Andersen</a> 
+<br>
+Carnegie Mellon University 
+<p>
+</p>
+
+<p class="oldyear">2010, 2.2 KJoules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/fawnsort_2010.pdf">FAWNSort</a>
+</p>
+<p class="remainder">
+44,900 records sorted / joule
+<br>
+Intel Xeon L3426 1.86GHz, 12GB RAM, Nsort,
+<br>
+Fusion-io ioDrive (80GB), 4 x Intel X25-E (3 x 32GB, 1 x 64GB)
+<br>
+<a href="http://www.cs.cmu.edu/~vrv/">Vijay Vasudevan</a>, 
+Lawrence Tan, 
+<a href="http://www.cs.cmu.edu/~dga/">David Andersen</a> 
+<br>
+Carnegie Mellon University 
+<br>
+<a href="http://www.pittsburgh.intel-research.net/people/kaminsky/">Michael Kaminsky</a>, 
+<a href="http://www.pittsburgh.intel-research.net/people/kozuch/">Michael A. Kozuch</a>,
+<a href="http://www.pittsburgh.intel-research.net/people/pillai/">Padmanabhan Pillai</a>
+<br>
+Intel Labs Pittsburgh
+<p>
+</p>
+<p class="oldyear">2010, 2.3 KJoules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/ecosort_2010_May_15.pdf">EcoSort</a> 
+</p>
+<p class="remainder">
+42,600 records sorted / joule 
+<br>
+Intel Atom 330 1.6GHz, 4GB RAM,
+<br>
+4 x Super Talent UltraDrive GX MLC 256GB 
+<br>
+<a href="http://www.ae.cs.uni-frankfurt.de/staff/beckmann">Andreas Beckmann</a>, 
+<a href="http://www.ae.cs.uni-frankfurt.de/staff/umeyer">Ulrich Meyer</a>
+<br>
+Goethe University Frankfurt am Main, Germany
+<br>
+<a href="http://algo2.iti.kit.edu/english/sanders.php">Peter 
+Sanders,</a>
+<a href="http://algo2.iti.kit.edu/english/singler.php">Johannes
+ Singler</a>
+<br>
+Karlsruhe Institute of Technology, Germany
+<br>
+</p>
+<p>
+</p>
+<p class="oldyear">2010 Jan 
+1, 2.8 KJoules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/ecosort_2010_Jan_01.pdf">EcoSort</a> 
+</p>
+<p class="remainder">
+35,500 records sorted / joule 
+<br>
+Intel Atom 330 1.6GHz, 4GB RAM,
+<br>
+4 x SuperTalent UltraDrive GX MLC 256GB 
+<br>
+<a href="http://www.ae.cs.uni-frankfurt.de/staff/beckmann">Andreas Beckmann</a>, 
+<a href="http://www.ae.cs.uni-frankfurt.de/staff/umeyer">Ulrich Meyer</a>
+<br>
+Goethe University Frankfurt am Main, Germany
+<br>
+<a href="http://algo2.iti.kit.edu/english/sanders.php">Peter 
+Sanders,</a>
+<a href="http://algo2.iti.kit.edu/english/singler.php">Johannes
+ Singler</a>
+<br>
+Karlsruhe Institute of Technology, Germany
+<br>
+</p>
+
+</td>
+</tr>
+
+<tr>
+<td class="benchtitle">
+Joule
+<br>
+<font size="-1">10<sup>9</sup> recs</font>
+<br>
+<font size="-2">
+(deprecated)
+</font>
+</td>
+<td>
+<!-- Past Daytona 100GB JouleSort -->
+<p class="oldyear">2013, 12,092 Joules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/NTOSort2013.pdf">NTOSort</a>
+</p>
+<p class="remainder">
+82,697 records sorted / joule
+<br>
+Lenovo X220,
+2.8 Ghz Intel i5-2640M, 16GB RAM, Nsort, Windows 8,
+<br>
+1 OCZ 120GB mSATA Nocti SSD, 2 Samsung 840 Pro 256GB SSDs
+<br>
+<a href="mailto:Andreas.Ebert@microsoft.com">Andreas Ebert</a>
+<br>
+Microsoft
+</p>
+<br>
+
+<p class="oldyear">2012, 21.0 KJoules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/fawnsort-joulesort-2012.pdf">FAWNSort</a>
+</p>
+<p class="remainder">
+47,500 records sorted / joule
+<br>
+Intel Core i7-2700K 3.5 GHz, 8GB RAM, Nsort,
+<br>
+16 x 300 GB Intel 710 Series SSDs, 1 160 GB Intel 510 Series SSD 
+<br>
+<a href="http://www.pittsburgh.intel-research.net/people/pillai/">Padmanabhan Pillai</a>,
+<a href="http://www.pittsburgh.intel-research.net/people/kaminsky/">Michael Kaminsky</a>, 
+<a href="http://www.pittsburgh.intel-research.net/people/kozuch/">Michael A. Kozuch</a>,
+<br>
+Intel Labs Pittsburgh
+<br>
+<a href="http://www.cs.cmu.edu/~dga/">David Andersen</a> 
+<br>
+Carnegie Mellon University 
+</p>
+
+<p>
+</p>
+<p class="oldyear">2010, 27.9 KJoules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/ecosort_2010_May_15.pdf">Nsort</a> 
+</p>
+<p class="remainder">
+35,800 records sorted / joule 
+<br>
+Intel Atom 330 1.6GHz, 4GB RAM,
+<br>
+4 x Super Talent UltraDrive GX MLC 256GB 
+<br>
+<a href="http://www.ae.cs.uni-frankfurt.de/staff/beckmann">Andreas Beckmann</a>, 
+<a href="http://www.ae.cs.uni-frankfurt.de/staff/umeyer">Ulrich Meyer</a>
+<br>
+Goethe University Frankfurt am Main, Germany
+<br>
+<a href="http://algo2.iti.kit.edu/english/sanders.php">Peter 
+Sanders,</a>
+<a href="http://algo2.iti.kit.edu/english/singler.php">Johannes
+ Singler</a>
+<br>
+Karlsruhe Institute of Technology, Germany
+</p>
+<p>
+</p>
+
+<p class="oldyear">2007, 88 KJoules</p>
+<p class="entryname">
+<a 
+href="http://www.hpl.hp.com/personal/Mehul_Shah/papers/sigmod_2007_rivoire.pdf">CoolSort</a>
+</p>
+<p class="remainder">
+11,300 records sorted / joule
+<br>
+Mobile Core 2 Duo, 13 SATA laptop disks, 2GB RAM, <a 
+href="http://www.ordinal.com/">Nsort</a>
+<br>
+<a href="http://www.stanford.edu/%7Eskrufi">Suzanne Rivoire</a>
+(Stanford),
+<a href="http://www.hpl.hp.com/personal/Mehul_Shah/index.html">Mehul A. 
+Shah</a>
+(HP Labs),
+<br>
+<a href="http://www.hpl.hp.com/personal/Partha_Ranganathan/index.html">Partha
+ Ranganathan</a>
+(HP Labs),
+<a href="http://csl.stanford.edu/%7Echristos">Christos Kozyrakis</a>
+(Stanford)
+</p>
+</td>
+<td>
+<!-- Past Indy 100GB JouleSort -->
+<p class="oldyear">2013, 12,092 Joules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/NTOSort2013.pdf">NTOSort</a>
+</p>
+<p class="remainder">
+82,697 records sorted / joule
+<br>
+Lenovo X220,
+2.8 Ghz Intel i5-2640M, 16GB RAM, Nsort, Windows 8,
+<br>
+1 OCZ 120GB mSATA Nocti SSD, 2 Samsung 840 Pro 256GB SSDs
+<br>
+<a href="mailto:Andreas.Ebert@microsoft.com">Andreas Ebert</a>
+<br>
+Microsoft
+</p>
+<br>
+
+<p class="oldyear">2012, 21.0 KJoules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/fawnsort-joulesort-2012.pdf">FAWNSort</a>
+</p>
+<p class="remainder">
+47,500 records sorted / joule
+<br>
+Intel Core i7-2700K 3.5 GHz, 8GB RAM, Nsort,
+<br>
+16 x 300 GB Intel 710 Series SSDs, 1 160 GB Intel 510 Series SSD 
+<br>
+<a href="http://www.pittsburgh.intel-research.net/people/pillai/">Padmanabhan Pillai</a>,
+<a href="http://www.pittsburgh.intel-research.net/people/kaminsky/">Michael Kaminsky</a>, 
+<a href="http://www.pittsburgh.intel-research.net/people/kozuch/">Michael A. Kozuch</a>,
+<br>
+Intel Labs Pittsburgh
+<br>
+<a href="http://www.cs.cmu.edu/~dga/">David Andersen</a> 
+<br>
+Carnegie Mellon University 
+</p>
+
+<p>
+</p>
+<p class="oldyear">2010, 25.1 KJoules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/ecosort_2010_May_15.pdf">EcoSort</a> 
+</p>
+<p class="remainder">
+39,900 records sorted / joule 
+<br>
+Intel Atom 330 1.6GHz, 4GB RAM,
+<br>
+4 x Super Talent UltraDrive GX MLC 256GB 
+<br>
+<a href="http://www.ae.cs.uni-frankfurt.de/staff/beckmann">Andreas Beckmann</a>, 
+<a href="http://www.ae.cs.uni-frankfurt.de/staff/umeyer">Ulrich Meyer</a>
+<br>
+Goethe University Frankfurt am Main, Germany
+<br>
+<a href="http://algo2.iti.kit.edu/english/sanders.php">Peter 
+Sanders,</a>
+<a href="http://algo2.iti.kit.edu/english/singler.php">Johannes
+ Singler</a>
+<br>
+Karlsruhe Institute of Technology, Germany
+</p>
+<p>
+</p>
+
+<p class="oldyear">2010 Jan 
+1, 27.5 KJoules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/ecosort_2010_Jan_01.pdf">EcoSort</a> 
+</p>
+<p class="remainder">
+36,400 records sorted / joule 
+<br>
+Intel Atom 330 1.6GHz, 4GB RAM,
+<br>
+4 x SuperTalent UltraDrive GX MLC 256GB 
+<br>
+<a href="http://www.ae.cs.uni-frankfurt.de/staff/beckmann">Andreas Beckmann</a>, 
+<a href="http://www.ae.cs.uni-frankfurt.de/staff/umeyer">Ulrich Meyer</a>
+<br>
+Goethe University Frankfurt am Main, Germany
+<br>
+<a href="http://algo2.iti.kit.edu/english/sanders.php">Peter 
+Sanders,</a>
+<a href="http://algo2.iti.kit.edu/english/singler.php">Johannes
+ Singler</a>
+<br>
+Karlsruhe Institute of Technology, Germany
+</p>
+
+<p>
+</p>
+<p class="oldyear">2009, 87 KJoules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/OzJoule2009.pdf">OzSort</a>
+</p>
+<p class="remainder">
+11,600 records sorted / joule
+<br>
+2.6 Ghz AMD Athlon LE-1640, 4GB RAM, 
+<br>
+7x160 GB 7200 RPM SATA, Linux
+<br>
+<a href="http://www.naskitis.com">Nikolas Askitis</a>
+and Ranjan Sinha
+<br>
+Univ. Melbourne, Australia
+</p>
+</td>
+</tr>
+
+<tr>
+<td class="benchtitle">
+Joule
+<br>
+<font size="-1">10<sup>10</sup> recs</font>
+</td>
+<td>
+<!-- Past Daytona 1TB JouleSort -->
+<p class="oldyear">2021, 138 KJoules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/RezSort2021.pdf">RezSort</a>
+<p class="remainder">
+72 K records sorted / joule
+<br>
+Intel i7-10700, 16GB RAM, Nsort, Ubuntu 18.04.5 LTS,
+<br>
+2 SK hynix Gold P31 1TB SSDs, 1 Samsung 980 Pro 2TB SSD
+<br>
+<a href="https://wreda.github.io/">Waleed Reda</a>
+<br>
+Universit&eacute; catholique de Louvain, KTH Royal Institute of Technology
+<br>
+<a href="https://people.kth.se/~dejanko/">Dejan Kosti&cacute;</a>
+<br>
+KTH Royal Institute of Technology
+</p>
+<br>
+<p class="oldyear">2019, 163 KJoules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/TaichiSort2019.pdf">TaichiSort</a>
+</p>
+<p class="remainder">
+61 K records sorted / joule
+<br>
+Intel i7-9700, 32GB RAM, Nsort, Ubuntu 16.04.3 LTS,
+<br>
+2 Intel DC 3600 series PCIe NVMe SSD (1.2 TB), 1 Intel DC 3600 series PCIe NVMe
+SSD (2.0 TB)
+<br>
+Ming Liu, Kaiyuan Zhang, Arvind Krishnamurthy
+<br>
+University of Washington
+<br>
+Simon Peter
+<br>
+University of Texas at Austin
+</p>
+<br>
+<p class="oldyear">2013, 168 KJoules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/NTOSort2013.pdf">NTOSort</a>
+</p>
+<p class="remainder">
+59 K records sorted / joule
+<br>
+Intel i7-3770K, 16GB RAM, Nsort, Windows 8,
+<br>
+16 Samsung 840 Pro 256GB SSDs, 1 Samsung 840 Pro 128GB SSD
+<br>
+<a href="mailto:Andreas.Ebert@microsoft.com">Andreas Ebert</a>
+<br>
+Microsoft
+</p>
+<br>
+<p class="oldyear">2012, 229 KJoules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/fawnsort-joulesort-2012.pdf">FAWNSort</a>
+</p>
+<p class="remainder">
+43,700 records sorted / joule
+<br>
+Intel Core i7-2700K 3.5 GHz, 8GB RAM, Nsort,
+<br>
+16 x 300 GB Intel 710 Series SSDs, 1 160 GB Intel 510 Series SSD 
+<br>
+<a href="http://www.pittsburgh.intel-research.net/people/pillai/">Padmanabhan Pillai</a>,
+<a href="http://www.pittsburgh.intel-research.net/people/kaminsky/">Michael Kaminsky</a>, 
+<a href="http://www.pittsburgh.intel-research.net/people/kozuch/">Michael A. Kozuch</a>,
+<br>
+Intel Labs Pittsburgh
+<br>
+<a href="http://www.cs.cmu.edu/~dga/">David Andersen</a> 
+<br>
+Carnegie Mellon University 
+</p>
+
+<p>
+</p>
+<p class="oldyear">2011, 1,900 KJoules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/demsort_2011.pdf">Nsort</a> 
+</p>
+<p class="remainder">
+5,273 records sorted / joule 
+<br>
+2 x Intel Xeon X5550 2.67 GHz, 48 GB RAM
+<br>
+8 x 1TB Seagate 7200RPM SATA HDD
+<br>
+<a href="http://www.ae.cs.uni-frankfurt.de/staff/beckmann">Andreas Beckmann</a>, 
+<a href="http://www.ae.cs.uni-frankfurt.de/staff/umeyer">Ulrich Meyer</a>
+<br>
+Goethe University Frankfurt am Main, Germany
+<br>
+<a href="http://algo2.iti.kit.edu/english/sanders.php">Peter 
+Sanders,</a>
+<a href="http://algo2.iti.kit.edu/english/singler.php">Johannes
+ Singler</a>
+<br>
+Karlsruhe Institute of Technology, Germany
+</p>
+<p>
+</p>
+
+<p class="oldyear">2007, 2920 KJoules</p>
+<p class="entryname">
+<a 
+href="http://www.hpl.hp.com/personal/Mehul_Shah/papers/sigmod_2007_rivoire.pdf">CoolSort</a>
+</p>
+<p class="remainder">
+3,425 records sorted / joule
+<br>
+Intel Xeon 5130 2GHz, 4GB RAM, 
+<br>
+12 x Seagate Barracuda ES 7200rpm 500GB, <a 
+href="http://www.ordinal.com/">Nsort</a>
+<br>
+<a href="http://www.stanford.edu/%7Eskrufi">Suzanne Rivoire</a>
+(Stanford),
+<a href="http://www.hpl.hp.com/personal/Mehul_Shah/index.html">Mehul A. 
+Shah</a>
+(HP Labs),
+<br>
+<a href="http://www.hpl.hp.com/personal/Partha_Ranganathan/index.html">Partha
+ Ranganathan</a>
+(HP Labs),
+<a href="http://csl.stanford.edu/%7Echristos">Christos Kozyrakis</a>
+(Stanford)
+</p>
+</td>
+<td>
+<!-- Past Indy 1TB JouleSort -->
+<p class="oldyear">2022, 63 KJoules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/ELSAR2022.pdf">ELSAR</a>
+</p>
+<p class="remainder">
+159 K records sorted / joule
+<br>
+Intel Core i5-12600K, 32GB RAM, Ubuntu 20.04 Server,
+<br>
+4 WD_BLACK SN850 2TB
+<br>
+Ani Kristo, Brown University
+<br>
+Padmanabhan Pillai, Intel Labs
+<br>
+Tim Kraska, MIT and Amazon
+</p>
+<br>
+<p class="oldyear">2019, 89 KJoules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/KioxiaSort2019.pdf">KioxiaSort</a>
+</p>
+<p class="remainder">
+112 K records sorted / joule
+<br>
+Intel i9-9900K, 64GB RAM, Ubuntu 19.04 Server,
+<br>
+8 CFD CSSD-M2B1TPG3VNF (1TB), 1 Toshiba XG5-P KXG50PNV2T04 (2TB)
+<br>
+<a href="mailto:shintarou.sano@kioxia.com">Shintaro Sano</a>,
+<a href="mailto:tomoya.suzuki@kioxia.com">Tomoya Suzuki</a>
+<br>
+Kioxia Corporation
+<br>
+<a href="mailto:z.tobasy@gmail.com">Zaid Mahmoud</a>
+<br>
+Princess Sumaya University for Technology
+<p>
+</p>
+<p class="oldyear">2013, 168 KJoules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/NTOSort2013.pdf">NTOSort</a>
+</p>
+<p class="remainder">
+59,444 records sorted / joule
+<br>
+Intel i7-3770K, 16GB RAM, Nsort, Windows 8,
+<br>
+16 Samsung 840 Pro 256GB SSDs, 1 Samsung 840 Pro 128GB SSD
+<br>
+<a href="mailto:Andreas.Ebert@microsoft.com">Andreas Ebert</a>
+<br>
+Microsoft
+</p>
+
+<p>
+</p>
+<p class="oldyear">2012, 229 KJoules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/fawnsort-joulesort-2012.pdf">FAWNSort</a>
+</p>
+<p class="remainder">
+43,700 records sorted / joule
+<br>
+Intel Core i7-2700K 3.5 GHz, 8GB RAM, Nsort,
+<br>
+16 x 300 GB Intel 710 Series SSDs, 1 160 GB Intel 510 Series SSD 
+<br>
+<a href="http://www.pittsburgh.intel-research.net/people/pillai/">Padmanabhan Pillai</a>,
+<a href="http://www.pittsburgh.intel-research.net/people/kaminsky/">Michael Kaminsky</a>, 
+<a href="http://www.pittsburgh.intel-research.net/people/kozuch/">Michael A. Kozuch</a>,
+<br>
+Intel Labs Pittsburgh
+<br>
+<a href="http://www.cs.cmu.edu/~dga/">David Andersen</a> 
+<br>
+Carnegie Mellon University 
+</p>
+
+<p>
+</p>
+<p class="oldyear">2010, 572 KJoules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/ecosort_2010_May_15.pdf">DEMSort</a> 
+</p>
+<p class="remainder">
+17,500 records sorted / joule 
+<br>
+Intel Atom 330 1.6GHz, 4GB RAM,
+<br>
+4 x Super Talent UltraDrive GX MLC 256GB 
+<br>
+<a href="http://www.ae.cs.uni-frankfurt.de/staff/beckmann">Andreas Beckmann</a>, 
+<a href="http://www.ae.cs.uni-frankfurt.de/staff/umeyer">Ulrich Meyer</a>
+<br>
+Goethe University Frankfurt am Main, Germany
+<br>
+<a href="http://algo2.iti.kit.edu/english/sanders.php">Peter 
+Sanders,</a>
+<a href="http://algo2.iti.kit.edu/english/singler.php">Johannes
+ Singler</a>
+<br>
+Karlsruhe Institute of Technology, Germany
+</p>
+<p>
+</p>
+
+<p class="oldyear">2010 Jan 
+1, 724 KJoules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/ecosort_2010_Jan_01.pdf">DEMSort</a> 
+</p>
+<p class="remainder">
+13,800 records sorted / joule 
+<br>
+Intel Atom 330 1.6GHz, 4GB RAM,
+<br>
+4 x SuperTalent UltraDrive GX MLC 256GB 
+<br>
+<a href="http://www.ae.cs.uni-frankfurt.de/staff/beckmann">Andreas Beckmann</a>, 
+<a href="http://www.ae.cs.uni-frankfurt.de/staff/umeyer">Ulrich Meyer</a>
+<br>
+Goethe University Frankfurt am Main, Germany
+<br>
+<a href="http://algo2.iti.kit.edu/english/sanders.php">Peter 
+Sanders,</a>
+<a href="http://algo2.iti.kit.edu/english/singler.php">Johannes
+ Singler</a>
+<br>
+Karlsruhe Institute of Technology, Germany
+<br>
+</p>
+
+</td>
+</tr>
+
+<tr>
+<td class="benchtitle">
+Joule
+<br>
+<font size="-1">10<sup>12</sup> recs</font>
+<br>
+<font size="-2">
+(deprecated)
+</font>
+</td>
+<td>
+<!-- Past Daytona 100TB JouleSort -->
+<p class="oldyear">2011, 132 MJoules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/2011_06_tritonsort.pdf">TritonSort</a>
+</p>
+<p class="remainder">
+7,595 records sorted / joule 
+<br>
+52 nodes x 
+<br>
+(2 Quadcore processors, 24 GB memory, 16x500GB disks)
+<br>
+Cisco Nexus 5096 switch
+<br>
+<a href="http://cseweb.ucsd.edu/~arasmuss/">Alex Rasmussen,</a>
+<a href="http://cseweb.ucsd.edu/~mconley/">Michael Conley,</a>
+<br>
+<a href="http://cseweb.ucsd.edu/~gmporter/">George Porter,</a>
+<a href="http://cseweb.ucsd.edu/~vahdat/">Amin Vahdat,</a>
+<br>
+University of California, San Diego
+</p>
+</td>
+<td>
+<!-- Past Indy 100TB JouleSort -->
+<p class="oldyear">2011, 103 MJoules</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/2011_06_tritonsort.pdf">TritonSort</a>
+</p>
+<p class="remainder">
+9,700 records sorted / joule
+<br>
+52 nodes x 
+<br>
+(2 Quadcore processors, 24 GB memory, 16x500GB disks)
+<br>
+Cisco Nexus 5096 switch
+<br>
+<a href="http://cseweb.ucsd.edu/~arasmuss/">Alex Rasmussen,</a>
+<a href="http://cseweb.ucsd.edu/~mconley/">Michael Conley,</a>
+<br>
+<a href="http://cseweb.ucsd.edu/~gmporter/">George Porter,</a>
+<a href="http://cseweb.ucsd.edu/~vahdat/">Amin Vahdat,</a>
+<br>
+University of California, San Diego
+</p>
+</td>
+</tr>
+
+<tr>
+<td class="benchtitle">
+Penny
+<br>
+<font size="-2">
+(deprecated)
+</font>
+</td>
+<td>
+<!-- Past Daytona PennySort -->
+<p class="oldyear">2011, 286 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/psort_2011.pdf">psort</a>
+</p>
+<p class="remainder">
+2.7 Ghz AMD Sempron, 4 GB RAM, 
+<br>
+5x320 GB 7200 RPM Samsung SpinPoint F4 HD332GJ, Linux
+<br>
+Paolo Bertasi, Federica Bogo, Marco Bressan and Enoch Peserico
+<br>
+Univ. Padova, Italy
+</p>
+<br>
+
+<p class="oldyear">2009, 223 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/psort2009.pdf">psort</a>
+</p>
+<p class="remainder">
+2.6 Ghz AMD Athlon LE 1640, 4 GB RAM, 
+<br>
+5x160 GB 7200 RPM SATA, Linux
+<br>
+Paolo Bertasi, Marco Bressan and Enoch Peserico
+<br>
+Univ. Padova, Italy
+</p>
+<p>
+</p>
+<p class="oldyear">2008, 181 GB</p>
+1,812 M records in 2,408 seconds
+<p class="entryname">
+<a href="http://sortbenchmark.org/psort.pdf">psort</a>
+</p>
+<p class="remainder">
+2.4 Ghz AMD Athlon 64, 2 GB RAM, 4x160GB SATA disks
+<br>
+Linux
+<br>
+Paolo Bertasi, Marco Bressan and Enoch Peserico
+<br>
+Univ. Padova, Italy
+</p>
+<p></p>
+<p class="oldyear">2007, 39 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/tokupenny.pdf">TokuMergeSort</a>
+</p>
+<p class="remainder">
+330$ system
+<br>
+2 Ghz AMD Athlon 4200+, 512 MB RAM,
+<br>
+2x80GB SATA disks
+<br>
+<a href="http://bradley.csail.mit.edu/%7Ebradley/">Bradley C. Kuszmaul</a>
+, MIT
+</p>
+
+
+<p></p>
+<p class="oldyear">2006, 34 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/BSIS-PennySort_2006.pdf">Bytes-Split-Index
+ Sort (BSIS)</a>
+</p>
+<p class="remainder">
+$760 system
+<br>
+1.8 GHz AMD, 1 GB RAM, 4x80GB SATA disks, WindowsXP
+<br>
+<a href="http://spaces.msn.com/lavahx">Xing Huang</a>
+and
+<a href="http://faculty.math.tsinghua.edu.cn/%7Ebsong">BinHeng Song</a>
+<br>
+<a href="http://www.tsinghua.edu.cn/eng/index.html">School of Software, 
+Tsinghua U.</a>
+, Beijing, China
+<br>
+<a href="http://spaces.msn.com/bohuang2006">Bo Huang</a>
+<br>
+<a href="http://www.zhuzit.edu.cn/en/">Math &amp; CS, Hunan U. of 
+Technology</a>
+, Zhuzhou, China
+</p>
+
+
+<p></p>
+<p class="oldyear">2005, 15 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/2005_PostMansSort.pdf">PostManSort</a>
+</p>
+<p class="remainder">
+979 sec on a $951 Wintel 2 SATA  
+<br>
+<a href="mailto:ramey@rrsd.com">Robert Ramey</a>
+</p>
+
+
+
+<p></p>
+<p class="oldyear">2004, 10 GB</p>
+<p class="entryname">
+<a href="http://www.hpl.hp.com/hosted/sortbenchmark/THsort.pdf">THsort</a>
+</p>
+<p class="remainder">
+(105 million records)
+<br>1098 seconds on a $857 Linux/AMD
+<br>
+<a href="mailto:liup@tirc.cs.tsinghua.edu.cn">Peng Liu,</a>
+<a href="mailto:shiyao00@mails.tsinghua.edu.cn">Yao Shi,</a>
+<a href="mailto:tension7@163.com">Li Zhang,</a>
+<a href="mailto:zhangkuo99@mails.tsinghua.edu.cn">Kuo Zhang,</a>
+<a href="mailto:wangtianthu@x263.net">Tian Wang,</a>
+<br>
+<a href="mailto:tianzunchong99@mails.tsinghua.edu.cn">ZunChong Tian,</a>
+<a href="mailto:wanghao_solo@sohu.com">Hao Wang,</a>
+<a href="mailto:wangxg@tsinghua.edu.cn">Xiaoge Wang</a>
+<br>
+<a href="http://www.zhuzit.edu.cn/en/">Tsinghua University,</a>
+Beijing, China 
+</p>
+
+
+
+<p></p>
+<p class="oldyear">2000, 4.5 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/Y2000_PennySort.pdf">HMsort</a>
+</p>
+<p class="remainder">
+<a href="mailto:helmk@msn.com">Brad Helmkamp,</a>
+<a href="mailto:keithmc@ix.netcom.com">Keith McCready</a>
+<br>
+<a href="http://www.stenograph.com/sorting/">Stenograph LLC</a>
+</p>
+
+
+<p></p>
+<p class="oldyear">1999, 2.6 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/HMsort_1999PennySort.doc">HMsort</a>
+</p>
+<p class="remainder">
+<a href="mailto:helmk@msn.com">Brad Helmkamp,</a>
+<a href="mailto:keithmc@ix.netcom.com">Keith McCready</a>
+<br>
+<a href="http://www.stenograph.com/sorting/">Stenograph LLC</a>
+</p>
+
+<p></p>
+<p class="oldyear">1998, 1.3 GB</p>
+<p class="entryname">
+PostmanSort/NT 
+</p>
+<p class="remainder">
+<a href="http://www.rrsd.com/">Robert Ramey Software</a>
+</p>
+</td>
+
+<td>
+<!-- Past Indy PennySort -->
+<p class="oldyear">2011, 334 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/psort_2011.pdf">psort</a>
+</p>
+<p class="remainder">
+2.7 Ghz AMD Sempron, 4 GB RAM, 
+<br>
+5x320 GB 7200 RPM Samsung SpinPoint F4 HD332GJ, Linux
+<br>
+Paolo Bertasi, Federica Bogo, Marco Bressan and Enoch Peserico
+<br>
+Univ. Padova, Italy
+</p>
+<br>
+
+<p class="oldyear">2010, 252 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/ozsort-2010.pdf">OzSort 2.0</a>
+</p>
+<p class="remainder">
+2.8 Ghz AMD Athlon II 240, 4GB RAM, 
+<br>
+6x160 GB 7200 RPM SATA-II, Linux
+<br>
+<a href="http://www.naskitis.com">Nikolas Askitis</a>
+<br>
+Univ. Melbourne, Australia
+</p>
+<br>
+<p class="oldyear">2009, 248 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/psort2009.pdf">psort</a>
+</p>
+<p class="remainder">
+2.6 Ghz AMD Athlon LE 1640, 4 GB RAM, 
+<br>
+5x160 GB 7200 RPM SATA, Linux
+<br>
+Paolo Bertasi, Marco Bressan and Enoch Peserico
+<br>
+Univ. Padova, Italy
+</p>
+<p>
+</p>
+<p class="oldyear">2009, 246 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/OzPenny2009.pdf">OzSort</a>
+</p>
+<p class="remainder">
+2.7 Ghz AMD Kuma X2 7750+, 4GB RAM, 
+<br>
+5x160 GB 7200 RPM SATA, Linux
+<br>
+<a href="http://www.naskitis.com">Nikolas Askitis</a>
+and Ranjan Sinha
+<br>
+Univ. Melbourne, Australia
+</p>
+
+<p>
+</p>
+<p class="oldyear">2008, 190 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/psort.pdf">psort</a>
+</p>
+<p class="remainder">
+2.4 Ghz AMD Athlon 64, 2 GB RAM, 4x160GB SATA disks, Linux
+<br>
+Paolo Bertasi, Marco Bressan and Enoch Peserico
+<br>
+Univ. Padova, Italy
+</p>
+
+<p>
+</p>
+<p class="oldyear">2006, 59 GB</p>
+<p class="entryname">
+<a 
+href="http://research.microsoft.com/research/pubs/view.aspx?msr_tr_id=MSR-TR-2005-183">GpuTeraSort</a>
+</p>
+<p class="remainder">
+3 GHz Pentium IV, 2 GB RAM, 7800GT Nvidia graphics card,
+<br>
+9x80GB SATA disks (4 data and 5 runs) WindowsXP
+<br>
+<a href="http://www.cs.unc.edu/%7Enaga/">Naga Govindaraju,</a>
+<a href="http://www.cs.unc.edu/%7Eritesh/">Ritesh Kumar,</a>
+<br>
+<a href="http://www.cs.unc.edu/%7Edm/">Dinesh Manocha,</a>
+<a href="http://research.microsoft.com/%7Egray/">Jim Gray</a>
+<br>
+<a href="http://www.cs.unc.edu/">U. North Carolina at Chapel Hill,</a>
+USA 
+</p>
+
+<p>
+</p>
+<p class="oldyear">2003, 43 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/SheenkSort.pdf">SheenkSort</a>
+</p>
+<p class="remainder">
+Linux/AMD system
+<br>
+<a href="mailto:yanglei@sheenk.com">Lei Yang,</a>
+<a href="mailto:hansen@sheenk.com">Hui Huang,</a>
+<br>
+<a href="mailto:cos@sheenk.com">Zheng Wan,</a>
+<a href="mailto:songtao@sheenk.com">Tao Song</a>
+<br>
+Tsinghua University, Beijing, China
+</p>
+
+<p>
+</p>
+<p class="oldyear">2001, 12 GB</p>
+<p class="entryname">
+DMsort
+</p>
+<p class="remainder">
+Araron Darling, Alex Mohr,
+<br>
+U. Wisconsin, Madison
+</p>
+
+<p>
+</p>
+<p class="oldyear">2000, 4.5 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/Y2000_PennySort.pdf">HMsort</a>
+</p>
+<p class="remainder">
+<a href="mailto:helmk@msn.com">Brad Helmkamp,</a>
+<a href="mailto:keithmc@ix.netcom.com">Keith McCready</a>
+<br>
+<a href="http://www.stenograph.com/sorting/">Stenograph LLC</a>
+</p>
+
+<p>
+</p>
+<p class="oldyear">1999, 2.6 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/HMsort_1999PennySort.doc">HMsort</a>
+</p>
+<p class="remainder">
+<a href="mailto:helmk@msn.com">Brad Helmkamp,</a>
+<a href="mailto:keithmc@ix.netcom.com">Keith McCready</a>
+<br>
+<a href="http://www.stenograph.com/sorting/">Stenograph LLC</a>
+</p>
+
+<p>
+</p>
+<p class="oldyear">1998, 1.5 GB</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/PennySort.doc">NT Sort</a>
+</p>
+<p class="remainder">
+Microsoft
+</p>
+</td>
+</tr>
+
+
+<tr>
+<td class="benchtitle">
+TeraByte
+<br>
+<font size="-2">
+(deprecated)
+</font>
+</td>
+<td>
+<!-- Past Daytona TeraSort -->
+<p class="oldyear">2008, 3.48 minutes</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/YahooHadoop.pdf">Hadoop</a>
+</p>
+<p class="remainder">
+910 nodes x (4 dual-core processors, 4 disks, 8 GB memory)
+<br>Owen OMalley, Yahoo
+</p>
+
+<p>
+</p>
+<p class="oldyear">2007, 4.95 min</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/tokutera.pdf">TokuSampleSort</a>
+</p>
+<p class="remainder">
+tx2500 disk cluster
+<br>
+400 nodes x (2 processors, 6-disk RAID, 8 GB memory)
+<br><a href="http://bradley.csail.mit.edu/%7Ebradley/">Bradley C. 
+Kuszmaul</a>
+, MIT
+</p>
+
+<p>
+</p>
+<p class="oldyear">2004, 33 min</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/2004_Nsort_Minutesort.pdf">Nsort</a>
+</p>
+<p class="remainder">
+Windows, 32 Itanium2, 2,350 SAN disks
+<br>Chris Nyberg, Charles Koester<br>Ordinal Technology
+</p>
+
+<p>
+</p>
+<p class="oldyear">2000, 49 min</p>
+<p class="entryname">
+<a 
+href="http://www.usenix.org/publications/library/proceedings/usenix-nt99/full_papers/fineberg/fineberg.pdf">Tandem
+ FastSort</a>
+</p>
+<p class="remainder">
+68x2 Compaq Tandem Sandia 
+<br>Daivd  Cossock , Sam Fineberg,
+<br>Pankaj Mehra , John Peck
+<br>Tandem
+</p>
+
+<p>
+</p>
+<p class="oldyear">1998, 151 min</p>
+<p class="entryname">
+Nsort
+</p>
+<p class="remainder">
+SGI  32x Origin 2000
+<br>Chris Nyberg, Charles Koester
+<br>Ordinal Technology
+</p>
+</td>
+
+<td>
+<!-- Past Indy TeraSort -->
+<p class="oldyear">2007, 3.28 minutes</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/tokutera.pdf">TokuSampleSort</a>
+</p>
+<p class="remainder">
+tx2500 disk cluster
+<br>
+400 nodes x (2 processors, 6-disk RAID, 8 GB memory)
+<br><a href="http://bradley.csail.mit.edu/%7Ebradley/">Bradley C. 
+Kuszmaul</a>
+, MIT
+</p>
+
+<p>
+</p>
+<p class="oldyear">2005, 7.25 min</p>
+<p class="entryname">
+<a 
+href="http://research.microsoft.com/research/pubs/view.aspx?msr_tr_id=MSR-TR-2005-183">SCS</a>
+</p>
+<p class="remainder">
+Linux, 80 Itanium2, 2,520 SAN disks
+<br><a href="mailto:WYLLIE@almaden.ibm.com">Jim Wyllie</a>
+, IBM Almaden Research
+</p>
+
+<p>
+</p>
+<p class="oldyear">2000, 18 min</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/SPsort.pdf">SPsort</a>
+</p>
+<p class="remainder">
+1952 SP  cluster 2168 disks
+<br><a href="mailto:WYLLIE@almaden.ibm.com">Jim Wyllie</a>
+, IBM Almaden Research
+</p>
+
+<p>
+</p>
+<p class="oldyear">1998, 151 min</p>
+<p class="entryname">
+Nsort
+</p>
+<p class="remainder">
+SGI  32x Origin 2000
+<br>Chris Nyberg, Charles Koester
+<br>Ordinal Technology
+</p>
+
+</td>
+</tr>
+
+<tr>
+<td class="benchtitle">
+Datamation
+<br>
+<font size="-2">
+(deprecated)
+</font>
+</td>
+<td>
+</td>
+<td>
+<!-- Past Datamation Sort -->
+<p class="oldyear">2001, .44 sec</p>
+<p class="entryname">
+<a href="http://www.cs.wisc.edu/wind/Publications/wind-sort-tr.html">
+Datamation 2001: A Sorting Odyssey</a>
+</p>
+<p class="remainder">
+NOW-sort on 32 Linux PCs
+<br>(2xP3(550 MHz), 1 GB, 5x9GB disks). 
+<br>Florentina Popovici, John Bent, Brian Forney,
+<br>Andrea Arpaci Dusseau, Remzi Arpaci Dusseau
+</p>
+
+<p>
+</p>
+<p class="oldyear">2000, .998 sec</p>
+<p class="entryname">
+<a href="http://sortbenchmark.org/Y2000_Datamation_DiaprismSorter.pdf">
+Mitsubishi DIAPRISM Hardware Sorter 
+</a>
+</p>
+<p class="remainder">
+HP 4 x 550MHz Xeon PC server + 32 SCSI disks, Windows NT4
+<br>Shinsuke Azuma, Takao Sakuma, Tetsuya Takeo, 
+<br>Takaaki Ando, Kenji Shirai
+<br>Mitsubishi Electric Corp.
+</p>
+
+<p>
+</p>
+<p class="oldyear">1999, 1.18 sec</p>
+<p class="entryname">
+Millennium Sort
+</p>
+<p class="remainder">
+16x2 Dell NT  Myrinet  
+<br>Phillip Buonadonna, Spencer Low, Josh Coates
+<br>UC Berkeley
+</p>
+
+<p>
+</p>
+<p class="oldyear">1997, 2.4 sec</p>
+<p class="entryname">
+NowSort
+</p>
+<p class="remainder">
+Arpaci-Dusseau
+<br> UC Berkeley
+</p>
+
+<p>
+</p>
+<p class="oldyear">1996, 4.2 sec</p>
+<p class="entryname">
+Nsort
+</p>
+<p class="remainder">
+SGI Challenge
+<br>Chris Nyberg, Charles Koester
+<br>Ordinal Technology
+</p>
+
+<p>
+</p>
+<p class="oldyear">1994, 7 sec</p>
+<p class="entryname">
+AlphaSort
+</p>
+<p class="remainder">
+Nyberg, DEC
+</p>
+
+<p>
+</p>
+<p class="oldyear">1993, 9 sec</p>
+<p class="entryname">
+AlphaSort
+</p>
+<p class="remainder">
+Nyberg, DEC
+</p>
+
+<p>
+</p>
+<p class="oldyear">1988, 28 sec</p>
+<p class="entryname">
+Cray1
+</p>
+<p class="remainder">
+Weinberger
+</p>
+
+<p>
+</p>
+<p class="oldyear">1987, 980 sec</p>
+<p class="entryname">
+Tandem
+</p>
+<p class="remainder">
+Tsukerman
+</p>
+
+</td>
+</tr>
+
+</tbody></table>
+
+<p>
+This page is maintained by Chris Nyberg (chris dot nyberg at ordinal dot
+ com) and Mehul Shah (mashah at gmail dot com).
+</p>
+  
+
+</body></html>

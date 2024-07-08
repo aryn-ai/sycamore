@@ -71,20 +71,32 @@ class EvaluationPipeline:
 
         else:
             company = doc['raw']['doc_name'].split("_")[0]
+            q_id = doc['raw']['financebench_id']
 
-            no_year_ids = ["financebench_id_01858","financebench_id_07966","financebench_id_07507","financebench_id_08135","financebench_id_00799","financebench_id_01079","financebench_id_01148","financebench_id_01930","financebench_id_00563","financebench_id_01351",
-                "financebench_id_02608", "financebench_id_00685","financebench_id_01077","financebench_id_00288","financebench_id_00460","financebench_id_03838","financebench_id_00464","financebench_id_00585","financebench_id_02981","financebench_id_01346",
-                "financebench_id_01107","financebench_id_00839","financebench_id_00206","financebench_id_03718","financebench_id_03849","financebench_id_00552","financebench_id_04302","financebench_id_00735","financebench_id_00302","financebench_id_00283",
-                "financebench_id_00521","financebench_id_00605","financebench_id_00566","financebench_id_04784","financebench_id_06741"]
+            no_year_ids = [
+                "financebench_id_01858", "financebench_id_07966", "financebench_id_07507", "financebench_id_08135", "financebench_id_00799", "financebench_id_01079", "financebench_id_01148",
+                "financebench_id_01930", "financebench_id_00563", "financebench_id_01351", "financebench_id_02608", "financebench_id_00685", "financebench_id_01077", "financebench_id_00288",
+                "financebench_id_00460", "financebench_id_03838", "financebench_id_00464", "financebench_id_00585", "financebench_id_02981", "financebench_id_01346", "financebench_id_01107",
+                "financebench_id_00839", "financebench_id_00206", "financebench_id_03718", "financebench_id_03849", "financebench_id_00552", "financebench_id_04302", "financebench_id_00735",
+                "financebench_id_00302", "financebench_id_00283", "financebench_id_00521", "financebench_id_00605", "financebench_id_00566", "financebench_id_04784", "financebench_id_06741"
+            ]
             
-            if doc['raw']['financebench_id'] in no_year_ids:
+            if q_id in no_year_ids:
                 year = extract_year(qn, company)
             else:
                 year = str(doc['raw']['doc_period'])
 
-            calcs_reqd = True # TODO@aanya: list of qs requiring calcs
+            calcs_reqd = [
+                "financebench_id_00499", "financebench_id_00807", "financebench_id_02987", "financebench_id_07966", "financebench_id_00540", "financebench_id_10420", "financebench_id_06655",
+                "financebench_id_00684", "financebench_id_00222", "financebench_id_04254", "financebench_id_00070", "financebench_id_02608", "financebench_id_00685", "financebench_id_04660",
+                "financebench_id_00678", "financebench_id_03473", "financebench_id_09724", "financebench_id_06272", "financebench_id_10130", "financebench_id_02981", "financebench_id_00005",
+                "financebench_id_05915", "financebench_id_00790", "financebench_id_04103", "financebench_id_03471", "financebench_id_04854", "financebench_id_10136", "financebench_id_02119",
+                "financebench_id_00206", "financebench_id_10499", "financebench_id_04412", "financebench_id_03031", "financebench_id_03718", "financebench_id_03849", "financebench_id_04458",
+                "financebench_id_04302", "financebench_id_04080", "financebench_id_00080", "financebench_id_03620", "financebench_id_04481", "financebench_id_00216", "financebench_id_00215",
+                "financebench_id_06247", "financebench_id_04784", "financebench_id_04980", "financebench_id_03029", "financebench_id_00585", "financebench_id_01351"
+            ]
 
-            if calcs_reqd:
+            if q_id in calcs_reqd:
                 from sycamore.evaluation.subtasks import executor
                 qn = executor(qn, company, year) + qn
                 print (qn)

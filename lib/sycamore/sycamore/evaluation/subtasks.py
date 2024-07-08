@@ -44,19 +44,45 @@ task_descriptions = {
     "QR": "Questions that ask about the quick ratio of a company",
     "FATR": "Questions that inquire about the fixed asset turnover ratio of a company",
     "CAPREV3": "Questions that ask about the 3 year average of capex as a percentage of revenue",
-    "ITR": "Questions about inventory turnover ratio"
+    "ITR": "Questions about inventory turnover ratio",
+    "ROA": "Questions about return on assets (ROA)",
+    "DPO": "Questions about days payable outstanding",
+    "GM2": "Questions about gross margin profile relative to the previous year",
+    "EBITDA": "Questions about EBITDA",
+    "WC": "Questions about a company's working capital",
+    "ANPM3": "Questions about the 3 year average net profit margin of a company",
+    "WCR": "Questions about a company's working capital ratio",
+    "COGSM": "Questions about a company's COGS percentage margin",
+    "DPR": "Questions about dividend payout ratio",
+    "AUOIM3": "Questions about 3 year average unadjusted operating income percentage margin",
+    "CCC": "Questions about cash conversion cycle",
+    "FCF": "Questions about free cash flow",
+    "RR": "Questions about retention ratio",
+    "SA": "Questions about what shareholders receive if a company liquidates all assets",
+    "ATR": "Questions about asset turnover ratio",
+    "CAGR2": "Questions about 2 year total revenue CAGR",
+    "EBITDAM": "Questions about the ebitda percentage margin of a company",
+    "COGSREV3": "Questions about the 3 year average of cost of goods sold as a percentage of revenue",
+    "CAPEX": "Questions about only the capital expenditure of a company and no additional information or metrics",
+    "ETR2": "Questions about the effective tax rate of a company relative to the previous year"
 }
 
 task_list = {
+    # "CAPINT": [
+    #     "What is the capital expenditure of {company} in {year}? This value can be found in the cash flow statement. Synonyms for capital expenditure are: capital spending; purchases of property, plant, and equipment (PP&E); acquisition expenses.",
+    #     "What is the revenue of {company} in {year}? This value can be found on the first line of the income statement. Synonyms for revenue are: sales; net sales; net revenue.",
+    #     "Divide the capital expenditure by revenue. If this ratio is less than 1, {company} is not capital intensive. If the ratio is greater than 1, {company} is capital intensive. Calculate this ratio and determine whether {company} is capital intensive."
+    # ],
     "CAPINT": [
-        "What is the capital expenditure of {company} in {year}? This value can be found in the cash flow statement. Synonyms for capital expenditure are: capital spending; purchases of property, plant, and equipment (PP&E); acquisition expenses.",
+        "What is the total assets of {company} in {year}? This value can be found on the consolidated balance sheet.",
         "What is the revenue of {company} in {year}? This value can be found on the first line of the income statement. Synonyms for revenue are: sales; net sales; net revenue.",
-        "Divide the capital expenditure by revenue. If this ratio is less than 1, {company} is not capital intensive. If the ratio is greater than 1, {company} is capital intensive. Calculate this ratio and determine whether {company} is capital intensive."
-               ],
+        "Divide the total assets by revenue. If this ratio is less than 1, {company} is not capital intensive. If the ratio is greater than 1, {company} is capital intensive. Calculate this ratio and determine whether {company} is capital intensive."
+    ],
     "QR": [
         "What is the total current assets of {company} in {year}? This value can be found on the consolidated balance sheet.",
         "What is the total inventories of {company} in {year}? This value can be found on the consolidated balance sheet.",
         "What is the total current liabilities of {company} in {year}? This value can be found on the consolidated balance sheet.",
+        # "Find the phrase 'total current liabilities' in the consolidated balance sheet. What is the first value listed beside it?",
         "Find the quick ratio using the formula (assets – inventory)/liabilities. If the quick ratio is above 1, {company} has a healthy liquidity profile. Else, it does not. Use this metric to answer the following question."
     ],
     "FATR": [
@@ -70,9 +96,112 @@ task_list = {
         "Find the average capital expenditure across all three years. Find the average revenue across all three years. Divide average expenditure by average revenue. Use this metric to answer the following question. Show the calculation in your answer."
     ],
     "ITR": [
-        "What is the cost of sales (also referred to as cost of goods sold) of {company} in {year}? This value can be found on the consolidated statements of operations.",
+        "What is the cost of sales (also referred to as cost of goods sold) of {company} in {year}? This value can be found on the consolidated statements of operations. Cost of goods sold is also referred to as 'total cost of revenue' or 'cost of sales'.",
         "What is the total inventories of {company} in {year}? This value can be found on the consolidated balance sheet.",
         "The inventory turnover ratio is the cost of sales or cost of goods sold divided by inventory. Calculate this metric, then use it to answer the following question."
+    ],
+    "ROA": [
+        "What is the net income of {company} in {year}? This value can be found on the consolidated statement of cash flows.",
+        "What is the total assets of {company} in {year}? This value can be found on the balance sheet.",
+        "Calculate the return on assets (ROA) using the formula net income / total assets. Use this to answer the following question."
+    ],
+	"DPO": [
+        "What is the cost of goods sold (COGS) for {company} in {year}? This value can be found on the income statement.  Cost of goods sold is also referred to as 'total cost of revenue' or 'cost of sales'.",
+        "What is the accounts payable for {company} in {year}? What is the accounts payable for {company} in the previous year? These values can be found on the balance sheet.",
+        "What is the inventory for {company} in {year}? What is the inventory for {company} in the previous year? These values can be found on the balance sheet.",
+        "Calculate the days payable outstanding (DPO) using the formula ((accounts payable in {year} + accounts payable in previous year) / (COGS in {year} + inventory in {year} - inventory in the previous year)) * 365. Use this to answer the following question."
+    ],
+    "GM2": [
+        "What is the total revenue of {company} in {year}? What is the total revenue of {company} in the previous year? This value can be found on the income statement.",
+        "What is the cost of goods sold (COGS) for {company} in {year}? What is the cost of goods sold (COGS) for {company} in the previous year? This value can be found on the income statement. Cost of goods sold is also referred to as 'total cost of revenue' or 'cost of sales'.",
+        "Calculate the gross margin in {year} using the formula (revenue - COGS) / revenue. Calculate the gross margin in the previous year using the same formula. Use these values to answer the following question."
+    ],
+    "EBITDA": [
+        "What is the unadjusted operating income of {company} in {year}? This value can be found on the income statement.",
+        "What is the depreciation and amortization amount for {company} in {year}? This value can be found on the cash flow statement.",
+        "Calculate unadjusted operating income + depreciation and amortization to find unadjusted EBITDA. Use this metric to answer the following question."
+    ],
+    "WC": [
+        "What is the total current assets of {company} in {year}? This value can be found on the balance sheet.",
+        "What is the total current liabilities of {company} in {year}? This value can be found on the balance sheet.",
+        "Calculate the working capital using the formula total current assets - total current liabilities. Use this metric to answer the following question."
+    ],
+    "ANPM3": [
+        "What is the net income of {company} for {year}, the previous year, and the year before that? These values can be found on the income statements.",
+        "What is the total revenue of {company} for {year}, the previous year, and the year before that? These values can be found on the income statements.",
+        "Calculate the net profit margin for each year using the formula: net income / total revenue. Calculate the 3-year average net profit margin by averaging the net profit margins of the three years. Use this metric to answer the following question."
+    ],
+    "WCR": [
+        "What is the total current assets of {company} in {year}? This value can be found on the balance sheet.",
+        "What is the total current liabilities of {company} in {year}? This value can be found on the balance sheet.",
+        "Calculate the working capital ratio using the formula total current assets / total current liabilities. Use this metric to answer the following question."
+    ],
+    "COGSM": [
+        "What is the cost of goods sold (COGS) for {company} in {year}? This value can be found on the income statement. Cost of goods sold is also referred to as 'total cost of revenue' or 'cost of sales'.",
+        "What is the net revenue of {company} in {year}? This value can be found on the income statement.",
+        "Calculate the COGS percentage margin using the formula (COGS / net revenue) * 100. Use this metric to answer the following question."
+    ],
+    "DPR": [
+        "What is the total dividends paid by {company} in {year}? This value can be found in the cash flow statement or the notes to the financial statements.",
+        "What is the net income attributable to shareholders of {company} in {year}? This value can be found on the income statement.",
+        "Calculate the dividend payout ratio using the formula (total dividends paid / net income attributable to shareholders) * 100. Use this metric to answer the following question."
+    ],
+    "AUOIM3": [
+        "What is the unadjusted operating income of {company} for {year}, the previous year, and the year before that? This value can be found on the income statements or the cash flow statements.",
+        "What is the total revenue of {company} for {year}, the previous year, and the year before that? This value can be found on the income statements.",
+        "Calculate the unadjusted operating income percentage margin for each year using the formula (unadjusted operating income / total revenue) * 100. Calculate the 3-year average unadjusted operating income percentage margin by averaging the margins of the three years. This metric indicates the average profitability of {company} from its core operations over the specified period."
+    ],
+    "CCC": [
+        "What is the inventory for {company} in {year}? What is the inventory for {company} in the previous year? These values can be found on the balance sheet.",
+        "What is the cost of goods sold (COGS) for {company} in {year}? This value can be found on the income statement. Cost of goods sold is also referred to as 'total cost of revenue' or 'cost of sales'.",
+        "What is the trade receivables for {company} in {year}? What is the trade receivables for {company} in the previous year? These values can be found on the balance sheet.",
+        "What is the revenue of {company} in {year}? This value can be found on the first line of the income statement. Synonyms for revenue are: sales; net sales; net revenue.",
+        "What is the accounts payable for {company} in {year}? What is the accounts payable for {company} in the previous year? These values can be found on the balance sheet.",
+        "What is the inventory for {company} in {year}? What is the inventory for {company} in the previous year? These values can be found on the balance sheet.",
+        "Calculate DIO as 365 * ((inventory in {year} + inventory in previous year)/(2*COGS in {year})). Calculate DSO as 365 * ((trade receivables in {year} + trade receivables in previous year)/(2*revenue in {year})). Calculate DPO as ((accounts payable in {year} + accounts payable in previous year) / (COGS in {year} + inventory in {year} - inventory in the previous year)) * 365. Finally, calculate CCC as DIO + DSO - DPO. Use this metric to answer the following question."
+    ],
+    "FCF": [
+        "What is the cash from operations for {company} in {year}? This value can be found on the cash flow statement.",
+        "What is the capital expenditure of {company} in {year}? This value can be found in the cash flow statement. Synonyms for capital expenditure are: capital spending; purchases of property, plant, and equipment (PP&E); acquisition expenses.",
+        "Calculate the free cash flow using the formula cash from operations - capital expenditure. Use this metric to answer the following question."
+    ],
+    "RR": [
+        "What is the net income of {company} in {year}? This value can be found on the income statement.",
+        "What is the total dividends paid by {company} in {year}? This value can be found in the cash flow statement or the notes to the financial statements.",
+        "Calculate the retention ratio using the formula (net income - dividends paid) / net income. Use this metric to answer the following question."
+    ],
+    "SA": [
+        "What is the TBVPS of {company} in {year}?",
+        "The TBVPS is the amount that could be received by each stakeholder if {company} liquidated all its assets to pay its shareholders. Use this metric to answer the following question."
+    ],
+    "ATR": [
+        "What is the total revenue of {company} in {year}? This value can be found on the first line of the income statement. Synonyms for revenue are: sales; net sales; net revenue.",
+        "What is the total assets of {company} in {year}? What is the total assets of {company} in the previous year? These values can be found in the balance sheet.",
+        "Calculate the fixed asset turnover ratio using the formula (2*revenue / (total assets in {year} + total assets in previous year)). Use this metric to answer the following question."
+    ],
+    "CAGR2": [
+        "What is the revenue of {company} in {year}? This value can be found on the first line of the income statement. Synonyms for revenue are: sales; net sales; net revenue.",
+        "What is the revenue of {company} in {year} - 2? This value can be found on the first line of the income statement. Synonyms for revenue are: sales; net sales; net revenue.",
+        "Calculate the 2-year total revenue CAGR as sqrt(revenue in {year}/revenue in {year} - 2) - 1. Use this metric to answer the following question."
+    ],
+    "EBITDAM": [
+        "What is the unadjusted operating income of {company} in {year}? This value can be found on the income statement.",
+        "What is the depreciation and amortization amount for {company} in {year}? This value can be found on the cash flow statement.",
+        "What is the total revenue of {company} in {year}? This value can be found on the first line of the income statement. Synonyms for revenue are: sales; net sales; net revenue.",
+        "Calculate EBITDA % margin using the formula: (unadjusted operating income + depreciation and amortization)*100/total revenue. Use this metric to answer the following question."
+    ],
+    "COGSREV3": [
+        "What is the total cost of goods sold of {company} for {year}, the previous year, and the year before that? These values can be found on the income statements. Cost of goods sold is also referred to as 'total cost of revenue' or 'cost of sales'.",
+        "What is the revenue of {company} in {year}, in the previous year, and 2 years prior? This value can be found on the first line of the income statement. Synonyms for revenue are: sales; net sales; net revenue.",
+        "For each year, divide the cost of goods sold in that year by the revenue in that year. Find the average of this ratio across all three years. Use this metric to answer the following question. Show the calculation in your answer."
+	],
+    "CAPEX": [
+        "What is the capital expenditure of {company} in {year}? This value can be found in the cash flow statement. Synonyms for capital expenditure are: capital spending; purchases of property, plant, and equipment (PP&E); acquisition expenses."
+    ],
+    "ETR2": [
+        "What is the income tax expense/benefit of {company} in {year}? What is the income tax expense/benefit of {company} in the previous year? These values can be found on the consolidated statement of operations.",
+        "What is the loss before income taxes of {company} in {year}? What is the loss before income taxes of {company} in the previous year? These values can be found on the consolidated statement of operations.",
+        "For each year, divide the income tax expense/benefit by the loss before income taxes. This will output the effective tax rate for each year. Use this metric to answer the following question."
     ]
 }
 

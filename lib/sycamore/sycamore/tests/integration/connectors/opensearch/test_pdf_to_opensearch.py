@@ -4,7 +4,6 @@ import uuid
 import boto3
 from urllib.parse import urlparse
 from opensearchpy import OpenSearch
-from pathlib import Path
 
 import sycamore
 from sycamore.functions import HuggingFaceTokenizer

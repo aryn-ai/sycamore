@@ -206,6 +206,10 @@ class OpenAIClientWrapper:
 OpenAIClientParameters = OpenAIClientWrapper
 
 
+def openai_deserializer(kwargs):
+    return OpenAI(**kwargs)
+
+
 class OpenAI(LLM):
     def __init__(
         self,
@@ -250,12 +254,10 @@ class OpenAI(LLM):
     # The actual openai client is not pickleable, This just says to pickle the wrapper, which can be used to
     # recreate the client on the other end.
     def __reduce__(self):
-        def deserializer(kwargs):
-            return OpenAI(**kwargs)
 
         kwargs = {"client_wrapper": self.client_wrapper, "model_name": self._model_name, "cache": self._cache}
 
-        return deserializer, (kwargs,)
+        return openai_deserializer, (kwargs,)
 
     def is_chat_mode(self):
         return self.model.is_chat

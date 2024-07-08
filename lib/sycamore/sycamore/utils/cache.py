@@ -33,6 +33,10 @@ class DiskCache(Cache):
         self._cache.set(hash_key, hash_value)
 
 
+def s3_cache_deserializer(kwargs):
+    return S3Cache(**kwargs)
+
+
 class S3Cache(Cache):
     def __init__(self, s3_path: str, freshness_in_seconds: int = -1):
         self._s3_path = s3_path
@@ -77,3 +81,11 @@ class S3Cache(Cache):
 
         json_str = json.dumps(content, sort_keys=True, indent=2)
         self._s3_client.put_object(Body=json_str, Bucket=bucket, Key=key)
+
+    # The actual s3 client is not pickleable, This just says to pickle the wrapper, which can be used to
+    # recreate the client on the other end.
+    def __reduce__(self):
+
+        kwargs = {"s3_path": self._s3_path, "freshness_in_seconds": self._freshness_in_seconds}
+
+        return s3_cache_deserializer, (kwargs,)

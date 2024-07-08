@@ -6,7 +6,7 @@ from typing_extensions import TypeGuard
 from sycamore.data.document import Document
 from sycamore.connectors.base import BaseDBWriter
 
-from elasticsearch import Elasticsearch, ApiError, DefaultType
+from elasticsearch import Elasticsearch, ApiError
 from elasticsearch.helpers import parallel_bulk
 
 

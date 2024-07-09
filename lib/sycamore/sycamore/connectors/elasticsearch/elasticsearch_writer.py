@@ -12,8 +12,8 @@ from elasticsearch.helpers import parallel_bulk
 
 @dataclass
 class ElasticClientParams(BaseDBWriter.ClientParams):
+    url: str
     es_client_args: dict = field(default_factory=lambda: {})
-    url: Optional[str] = None
 
 
 @dataclass
@@ -51,9 +51,7 @@ class ElasticClient(BaseDBWriter.Client):
     @classmethod
     def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "ElasticClient":
         assert isinstance(params, ElasticClientParams)
-        client = Elasticsearch(**params.es_client_args)
-        if params.url:
-            client = Elasticsearch(params.url)
+        client = Elasticsearch(params.url, **params.es_client_args)
         return ElasticClient(client)
 
     def write_many_records(self, records: list[BaseDBWriter.Record], target_params: BaseDBWriter.TargetParams):

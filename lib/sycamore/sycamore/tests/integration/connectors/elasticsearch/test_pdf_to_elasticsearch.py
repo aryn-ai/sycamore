@@ -6,10 +6,16 @@ from sycamore.transforms.merge_elements import MarkedMerger
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.tests.config import TEST_DIR
+from elasticsearch import Elasticsearch
 
 
 def test_to_elasticsearch():
-    url = "http://localhost:9300"
+    url = "http://localhost:9200"
+    client = Elasticsearch("http://localhost:9200")
+
+    # pass client object to info() method
+    elastic_info = Elasticsearch.info(client)
+    print(elastic_info)
     index_name = "test_index"
     model_name = "sentence-transformers/all-MiniLM-L6-v2"
     paths = str(TEST_DIR / "resources/data/pdfs/")

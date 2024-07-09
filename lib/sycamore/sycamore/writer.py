@@ -443,7 +443,7 @@ class DocSetWriter:
         self,
         *,
         index_name: str,
-        url: Optional[str] = None,
+        url: str = "",
         es_client_args: dict = {},
         mappings: Optional[dict] = None,
         flatten_properties: bool = False,
@@ -453,15 +453,21 @@ class DocSetWriter:
         """Writes the content of the DocSet into the specified Elasticsearch Cloud index.
 
         Args:
-            url: Local collection to connect to (if wanted in the case of local testing)
-            collection_name:
-
+            url: Connection endpoint for the Elasticsearch instance. Note that this must be paired with the
+                necessary client arguments
+            es_client_args: Authentication arguments to be specified (if needed). See more information at
+                https://elasticsearch-py.readthedocs.io/en/v8.14.0/api/elasticsearch.html
+            mappings: Mapping of the Elasticsearch index, can be optionally specified
+            flatten_properties: Whether to flatten documents into pure key-value pairs or to allow nested
+                structures. Default is False (allow nested structures)
+            execute: Execute the pipeline and write to weaviate on adding this operator. If False,
+                will return a DocSet with this write in the plan. Default is True
         Example:
             The following code shows how to read a pdf dataset into a ``DocSet`` and write it out to a
             local Elasticsearch index called `test-index`.
 
             url = "http://localhost:9200"
-            index_name = "test_index"
+            index_name = "test-index"
             model_name = "sentence-transformers/all-MiniLM-L6-v2"
             paths = str(TEST_DIR / "resources/data/pdfs/")
 
@@ -491,12 +497,11 @@ class DocSetWriter:
         )
 
         client_params = ElasticClientParams(url=url, es_client_args=es_client_args)
+        target_params = ElasticTargetParams(index_name=index_name, flatten_properties=flatten_properties)
         if mappings:
             target_params = ElasticTargetParams(
                 index_name=index_name, mappings=mappings, flatten_properties=flatten_properties
             )
-        else:
-            target_params = ElasticTargetParams(index_name=index_name, flatten_properties=flatten_properties)
         es_docs = ElasticDocumentWriter(
             self.plan, client_params, target_params, name="elastic_document_writer", **kwargs
         )

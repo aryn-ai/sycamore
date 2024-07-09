@@ -325,7 +325,7 @@ class TestBaseMapTransform(Common):
         for d in Common.dicts:
             truth_id_to_content[d["doc_id"]] = d
 
-        # assert
+        # assert there is a directory for each node
         directories = next(os.walk(tmp_path))[1]
         assert {"node_1", "node_2"} == set(directories)
 

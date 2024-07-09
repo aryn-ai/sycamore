@@ -6,7 +6,6 @@ from sycamore.transforms.merge_elements import MarkedMerger
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.tests.config import TEST_DIR
-from elasticsearch import Elasticsearch
 
 
 def test_to_elasticsearch():

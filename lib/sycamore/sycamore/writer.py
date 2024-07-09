@@ -378,6 +378,8 @@ class DocSetWriter:
         self,
         db_url: Optional[str] = None,
         table_name: Optional[str] = None,
+        batch_size: Optional[int] = None,
+        schema: Optional[dict[str, str]] = None,
         execute: bool = True,
         **kwargs,
     ):
@@ -422,7 +424,18 @@ class DocSetWriter:
         from sycamore.connectors.duckdb.duckdb_writer import DuckDBWriter, DuckDBClientParams, DuckDBTargetParams
 
         client_params = DuckDBClientParams()
-        target_params = DuckDBTargetParams(db_url=db_url, table_name=table_name)
+        target_params = DuckDBTargetParams(
+            **{
+                k: v
+                for k, v in {
+                    "db_url": db_url,
+                    "table_name": table_name,
+                    "batch_size": batch_size,
+                    "schema": schema,
+                }.items()
+                if v is not None
+            }  # type: ignore
+        )
         kwargs["compute"] = ActorPoolStrategy(size=1)
         ddb = DuckDBWriter(
             self.plan,

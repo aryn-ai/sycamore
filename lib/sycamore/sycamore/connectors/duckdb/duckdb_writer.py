@@ -17,10 +17,10 @@ class DuckDBClientParams(BaseDBWriter.ClientParams):
 
 @dataclass
 class DuckDBTargetParams(BaseDBWriter.TargetParams):
-    db_url: Optional[str] = "tmp.db"
-    table_name: Optional[str] = "default_table"
+    db_url: str = "tmp.db"
+    table_name: str = "default_table"
     batch_size: int = 1000
-    schema: Optional[Dict[str, str]] = field(
+    schema: Dict[str, str] = field(
         default_factory=lambda: {
             "doc_id": "VARCHAR",
             "embeddings": "DOUBLE[]",
@@ -121,8 +121,10 @@ class DuckDBClient(BaseDBWriter.Client):
     def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> "DuckDBTargetParams":
         assert isinstance(target_params, DuckDBTargetParams)
         dict_params = asdict(target_params)
-        schema = None
-        if target_params.db_url and target_params.table_name and os.path.exists(target_params.db_url):
+        schema = target_params.schema
+        if not target_params.db_url or not os.path.exists(target_params.db_url):
+            raise ValueError(f"Must provide valid disk location. Location Specified: {target_params.db_url}")
+        if target_params.db_url and target_params.table_name:
             client = duckdb.connect(str(dict_params.get("db_url")))
             try:
                 table = client.sql(f"SELECT * FROM {target_params.table_name}")

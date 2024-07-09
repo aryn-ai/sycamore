@@ -1,7 +1,7 @@
 ## Embed
 The Embed Transform is responsible for generating embeddings for your Documents or Elements. These embeddings are stored in a special ``embedding`` property on each document.
 
-This Embed transform takes a single argument -- the `embedder`, which encapsulates a specific embedding model and it's parameters. The currently supported models are listed below. More information can be found in the {doc}`API documentation </APIs/transforms/embed>`
+This Embed transform takes a single argument -- the `embedder`, which encapsulates a specific embedding model and it's parameters. The currently supported models are listed below. More information can be found in the {doc}`API documentation </APIs/transforms/embed>`.
 
 ### SentenceTransformers
 

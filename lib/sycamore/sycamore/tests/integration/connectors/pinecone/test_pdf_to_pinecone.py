@@ -14,7 +14,8 @@ from pinecone.grpc import PineconeGRPC
 
 def test_to_pinecone():
     spec = ServerlessSpec(cloud="aws", region="us-east-1")
-    index_name = f"test-index-{generate_random_string().lower()}"
+    index_name = "test-index"
+    namespace = f"{generate_random_string().lower()}"
     model_name = "sentence-transformers/all-MiniLM-L6-v2"
     paths = str(TEST_DIR / "resources/data/pdfs/Transformer.pdf")
     api_key = os.environ.get("PINECONE_API_KEY", "")
@@ -38,5 +39,5 @@ def test_to_pinecone():
         .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
         .sketch(window=17)
     )
-    ds.write.pinecone(index_name=index_name, dimensions=384, index_spec=spec)
-    pc.delete_index(index_name)
+    ds.write.pinecone(index_name=index_name, namespace=namespace, dimensions=384, index_spec=spec)
+    pc.Index(index_name).delete(namespace=namespace, delete_all=True)

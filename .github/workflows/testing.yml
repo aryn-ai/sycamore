@@ -93,10 +93,11 @@ jobs:
         env:
           discovery.type: "single-node"
           xpack.security.http.ssl.enabled: "false"
+          xpack.security.enabled: "false"
           bootstrap.memory_lock: "true"
-          ES_JAVA_OPTS: "-Xms4g -Xmx4g" 
+          ES_JAVA_OPTS: "-Xms2g -Xmx2g" 
         ports:
-          - 9300:9300
+          - 9201:9200
 
     steps:
       - name: Checkout

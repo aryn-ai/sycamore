@@ -10,12 +10,12 @@ from elasticsearch import Elasticsearch
 
 
 def test_to_elasticsearch():
-    url = "http://localhost:9200"
-    client = Elasticsearch("http://localhost:9200")
+    url = "http://localhost:9201"
+    # client = Elasticsearch("http://localhost:9201")
 
-    # pass client object to info() method
-    elastic_info = Elasticsearch.info(client)
-    print(elastic_info)
+    # # pass client object to info() method
+    # elastic_info = Elasticsearch.info(client)
+    # print(elastic_info)
     index_name = "test_index"
     model_name = "sentence-transformers/all-MiniLM-L6-v2"
     paths = str(TEST_DIR / "resources/data/pdfs/")

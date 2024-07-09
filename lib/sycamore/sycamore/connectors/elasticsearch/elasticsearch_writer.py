@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 from sycamore.connectors.common import drop_types, flatten_data
 from typing_extensions import TypeGuard
 

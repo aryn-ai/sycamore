@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Optional
 from sycamore.connectors.common import drop_types, flatten_data
 from typing_extensions import TypeGuard
 
@@ -25,10 +25,10 @@ class ElasticTargetParams(BaseDBWriter.TargetParams):
                 "embeddings": {
                     "type": "dense_vector",
                     "dims": 384,
-                    "index": "true",
+                    "index": True,
                     "similarity": "cosine",
                 },
-                "properties": {"type": "json"},
+                "properties": {"type": "object"},
             }
         }
     )
@@ -75,10 +75,7 @@ class ElasticClient(BaseDBWriter.Client):
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
         assert isinstance(target_params, ElasticTargetParams)
         try:
-            with self._client:
-                self._client.indices.create(
-                    index=target_params.index_name, mappings=target_params.mappings, timeout="30"
-                )
+            self._client.indices.create(index=target_params.index_name, mappings=target_params.mappings, timeout="30s")
         except ApiError as e:
             if e.status_code == 400:
                 return
@@ -86,21 +83,28 @@ class ElasticClient(BaseDBWriter.Client):
 
     def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> "ElasticTargetParams":
         assert isinstance(target_params, ElasticTargetParams)
-        with self._client:
+        try:
             data = self._client.indices.get_mapping(index=target_params.index_name)
-            mapping_keys = data[target_params.index_name]["mappings"].keys()
-            return ElasticTargetParams(
-                index_name=target_params.index_name,
-                mappings=mapping_keys,
-                flatten_properties=target_params.flatten_properties,
-            )
+            mappings = data[target_params.index_name]["mappings"]
+            if "properties" in mappings and "embeddings" in mappings["properties"]:
+                try:
+                    mappings["properties"]["embeddings"].pop("index_options")
+                except Exception as e:
+                    print(f"Failed to pop index_options from embeddings: {e}")
+        except ApiError as e:
+            raise e
+        return ElasticTargetParams(
+            index_name=target_params.index_name,
+            mappings=mappings,
+            flatten_properties=target_params.flatten_properties,
+        )
 
 
 @dataclass
 class ElasticDocumentRecord(BaseDBWriter.Record):
     doc_id: str
     properties: dict
-    embeddings: list[float]
+    embeddings: Optional[list[float]]
 
     @classmethod
     def from_doc(cls, document: Document, target_params: BaseDBWriter.TargetParams) -> "ElasticDocumentRecord":
@@ -109,8 +113,6 @@ class ElasticDocumentRecord(BaseDBWriter.Record):
         embedding = document.embedding
         if doc_id is None:
             raise ValueError(f"Cannot write documents without a doc_id. Found {document}")
-        if embedding is None:
-            raise ValueError(f"Cannot write documents without an embedding. Found {document}")
         properties = {
             "properties": document.properties,
             "type": document.type,

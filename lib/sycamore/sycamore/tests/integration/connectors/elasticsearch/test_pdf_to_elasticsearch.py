@@ -11,14 +11,9 @@ from elasticsearch import Elasticsearch
 
 def test_to_elasticsearch():
     url = "http://localhost:9201"
-    # client = Elasticsearch("http://localhost:9201")
-
-    # # pass client object to info() method
-    # elastic_info = Elasticsearch.info(client)
-    # print(elastic_info)
     index_name = "test_index"
     model_name = "sentence-transformers/all-MiniLM-L6-v2"
-    paths = str(TEST_DIR / "resources/data/pdfs/")
+    paths = str(TEST_DIR / "resources/data/pdfs/Transformer.pdf")
 
     OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
     tokenizer = HuggingFaceTokenizer(model_name)

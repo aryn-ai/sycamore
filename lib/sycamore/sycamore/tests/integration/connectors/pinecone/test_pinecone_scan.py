@@ -16,7 +16,7 @@ from pinecone.grpc import PineconeGRPC
 def test_pinecone_scan():
 
     spec = ServerlessSpec(cloud="aws", region="us-east-1")
-    index_name = f"test-index-{generate_random_string()}"
+    index_name = f"test-index-{generate_random_string().lower()}"
     model_name = "sentence-transformers/all-MiniLM-L6-v2"
     namespace = "test-namespace"
     paths = str(TEST_DIR / "resources/data/pdfs/Transformer.pdf")

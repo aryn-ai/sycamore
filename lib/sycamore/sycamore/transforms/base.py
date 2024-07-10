@@ -138,8 +138,8 @@ class BaseMapTransform(UnaryNode):
             if isinstance(intermediate_datasink, type):
                 assert intermediate_datasink_kwargs is not None
                 # ensure each nodes data is written in a separate directory
-                intermediate_datasink_kwargs["path"] = intermediate_datasink_kwargs["path"] + "/" + self._name
-                intermediate_datasink = intermediate_datasink(**intermediate_datasink_kwargs)
+                path = intermediate_datasink_kwargs["path"] + "/" + self._name
+                intermediate_datasink = intermediate_datasink(**{**intermediate_datasink_kwargs, "path": path})
             else:
                 intermediate_datasink = intermediate_datasink
             result.write_datasink(intermediate_datasink)

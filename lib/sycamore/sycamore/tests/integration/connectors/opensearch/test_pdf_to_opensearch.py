@@ -1,17 +1,22 @@
-import sycamore
-from sycamore.functions import HuggingFaceTokenizer
-from sycamore.transforms.embed import SentenceTransformerEmbedder
+import os
+import uuid
 
-from sycamore.transforms.extract_entity import OpenAIEntityExtractor
-from sycamore.llms import OpenAIModels, OpenAI
-from sycamore.transforms.partition import UnstructuredPdfPartitioner
-from sycamore.tests.config import TEST_DIR
-from sycamore.transforms.merge_elements import GreedyTextElementMerger
-
+import boto3
+from urllib.parse import urlparse
 from opensearchpy import OpenSearch
 
+import sycamore
+from sycamore.functions import HuggingFaceTokenizer
+from sycamore.llms import OpenAIModels, OpenAI
+from sycamore.tests.config import TEST_DIR
+from sycamore.transforms.embed import SentenceTransformerEmbedder
+from sycamore.transforms.extract_entity import OpenAIEntityExtractor
+from sycamore.transforms.merge_elements import GreedyTextElementMerger
+from sycamore.transforms.partition import UnstructuredPdfPartitioner
+from sycamore.utils.cache import S3Cache
 
-def test_pdf_to_opensearch():
+
+def test_pdf_to_opensearch_with_llm_caching():
     os_client_args = {
         "hosts": [{"host": "localhost", "port": 9200}],
         "http_compress": True,
@@ -92,33 +97,67 @@ def test_pdf_to_opensearch():
 
         """
 
-    paths = str(TEST_DIR / "resources/data/pdfs/")
+    s3_cache_base_path = os.environ["SYCAMORE_S3_TEMP_PATH"]
+    test_path = str(uuid.uuid4())
+    s3_cache_path = os.path.join(s3_cache_base_path, test_path)
+    parsed_s3_url = urlparse(s3_cache_path)
+    bucket = parsed_s3_url.netloc
+    s3_path = parsed_s3_url.path
 
-    openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
+    pdf_base_path = TEST_DIR / "resources/data/pdfs/"
+    paths = str(pdf_base_path)
+
+    s3_client = boto3.client("s3")
+    openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value, cache=S3Cache(s3_cache_path))
     tokenizer = HuggingFaceTokenizer("thenlper/gte-small")
 
-    context = sycamore.init()
-    ds = (
-        context.read.binary(paths, binary_format="pdf")
-        .partition(partitioner=UnstructuredPdfPartitioner())
-        .extract_entity(
-            entity_extractor=OpenAIEntityExtractor("title", llm=openai_llm, prompt_template=title_context_template)
+    try:
+        context = sycamore.init()
+        ds = (
+            context.read.binary(paths, binary_format="pdf")
+            .partition(partitioner=UnstructuredPdfPartitioner())
+            .extract_entity(
+                entity_extractor=OpenAIEntityExtractor("title", llm=openai_llm, prompt_template=title_context_template)
+            )
+            .extract_entity(
+                entity_extractor=OpenAIEntityExtractor(
+                    "authors", llm=openai_llm, prompt_template=author_context_template
+                )
+            )
+            .merge(GreedyTextElementMerger(tokenizer=tokenizer, max_tokens=300))
+            .explode()
+            .sketch()
+            .embed(
+                embedder=SentenceTransformerEmbedder(
+                    batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2"
+                )
+            )
         )
-        .extract_entity(
-            entity_extractor=OpenAIEntityExtractor("authors", llm=openai_llm, prompt_template=author_context_template)
-        )
-        .merge(GreedyTextElementMerger(tokenizer=tokenizer, max_tokens=300))
-        .explode()
-        .sketch()
-        .embed(
-            embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
-        )
-    )
 
-    ds.write.opensearch(
-        os_client_args=os_client_args,
-        index_name="toyindex",
-        index_settings=index_settings,
-    )
+        ds.write.opensearch(
+            os_client_args=os_client_args,
+            index_name="toyindex",
+            index_settings=index_settings,
+        )
 
-    OpenSearch(**os_client_args).indices.delete("toyindex")
+        OpenSearch(**os_client_args).indices.delete("toyindex")
+
+        # validate caching
+
+        if s3_path.startswith("/"):
+            s3_path = s3_path.lstrip("/")
+        if not s3_path.endswith("/"):
+            s3_path = s3_path + "/"
+
+        response = s3_client.list_objects_v2(Bucket=bucket, Prefix=s3_path)
+
+        keys = set()
+        if "Contents" in response:
+            for obj in response["Contents"]:
+                keys.add(obj["Key"])
+
+        # assert we've cached 2 (2 extract_entity calls) * number of pdfs
+        assert len(keys) == 2 * len(list(pdf_base_path.glob("*.pdf")))
+    finally:
+        s3_client.delete_objects(Bucket=bucket, Delete={"Objects": [{"Key": k} for k in keys]})
+        s3_client.delete_object(Bucket=bucket, Key=s3_path)

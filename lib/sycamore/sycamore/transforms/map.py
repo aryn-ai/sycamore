@@ -21,8 +21,8 @@ class Map(BaseMapTransform):
             transformed_dataset = map_transformer.execute()
     """
 
-    def __init__(self, child: Optional[Node], *, f: Any, **resource_args):
-        super().__init__(child, f=Map.wrap(f), **{"name": get_name_from_callable(f), **resource_args})
+    def __init__(self, child: Optional[Node], *, f: Any, **kwargs):
+        super().__init__(child, f=Map.wrap(f), **{"name": get_name_from_callable(f), **kwargs})
 
     @staticmethod
     def wrap(f: Any) -> Callable[[list[Document]], list[Document]]:
@@ -73,8 +73,8 @@ class FlatMap(BaseMapTransform):
 
     """
 
-    def __init__(self, child: Optional[Node], *, f: Callable[[Document], list[Document]], **resource_args):
-        super().__init__(child, f=FlatMap.wrap(f), name=get_name_from_callable(f), **resource_args)
+    def __init__(self, child: Optional[Node], *, f: Callable[[Document], list[Document]], **kwargs):
+        super().__init__(child, f=FlatMap.wrap(f), **{"name": get_name_from_callable(f), **kwargs})
 
     @staticmethod
     def wrap(f: Callable[[Document], list[Document]]) -> Callable[[list[Document]], list[Document]]:
@@ -136,7 +136,7 @@ class MapBatch(BaseMapTransform):
         f_kwargs: Optional[dict[str, Any]] = None,
         f_constructor_args: Optional[Iterable[Any]] = None,
         f_constructor_kwargs: Optional[dict[str, Any]] = None,
-        **resource_args
+        **kwargs
     ):
         super().__init__(
             child,
@@ -145,7 +145,7 @@ class MapBatch(BaseMapTransform):
             kwargs=f_kwargs,
             constructor_args=f_constructor_args,
             constructor_kwargs=f_constructor_kwargs,
-            **resource_args
+            **kwargs
         )
 
     def run(self, docs: list[Document]) -> list[Document]:

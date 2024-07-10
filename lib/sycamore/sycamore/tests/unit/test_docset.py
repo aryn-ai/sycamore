@@ -80,11 +80,24 @@ class TestDocSet:
         assert isinstance(docset.lineage(), Map)
         assert docset.lineage()._name == test_name
 
-    def test_flat_map(self, mocker):
+    def test_flat_map_default_name(self, mocker):
         context = mocker.Mock(spec=Context)
         docset = DocSet(context, None)
-        docset = docset.flat_map(f=lambda doc: [doc])
+
+        def f(doc):
+            return [doc]
+
+        docset = docset.flat_map(f=f)
         assert isinstance(docset.lineage(), FlatMap)
+        assert docset.lineage()._name == get_name_from_callable(f)
+
+    def test_flat_map_customt_name(self, mocker):
+        test_name = "test_flat_map_1"
+        context = mocker.Mock(spec=Context)
+        docset = DocSet(context, None)
+        docset = docset.flat_map(f=lambda doc: [doc], name=test_name)
+        assert isinstance(docset.lineage(), FlatMap)
+        assert docset.lineage()._name == test_name
 
     def test_map_batch(self, mocker):
         context = mocker.Mock(spec=Context)

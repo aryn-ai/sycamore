@@ -9,7 +9,12 @@ from opensearchpy.helpers import parallel_bulk
 
 from sycamore.data import Document
 from sycamore.connectors.base import BaseDBWriter
-from sycamore.connectors.common import HostAndPort, flatten_data, DEFAULT_RECORD_PROPERTIES
+from sycamore.connectors.common import (
+    HostAndPort,
+    flatten_data,
+    check_dictionary_compatibility,
+    DEFAULT_RECORD_PROPERTIES,
+)
 
 log = logging.getLogger(__name__)
 
@@ -69,12 +74,7 @@ class OpenSearchTargetParams(BaseDBWriter.TargetParams):
                 return False
         my_flat_mappings = dict(flatten_data(self.mappings))
         other_flat_mappings = dict(flatten_data(other.mappings))
-        for k in my_flat_mappings:
-            if k not in other_flat_mappings:
-                return False
-            if my_flat_mappings[k] != other_flat_mappings[k]:
-                return False
-        return True
+        return check_dictionary_compatibility(my_flat_mappings, other_flat_mappings)
 
 
 class OpenSearchClient(BaseDBWriter.Client):

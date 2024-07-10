@@ -1,26 +1,22 @@
-from pinecone import ServerlessSpec
-
-import os
 import sycamore
 from sycamore.functions.tokenizer import HuggingFaceTokenizer
+from sycamore.llms import OpenAIModels, OpenAI
 from sycamore.transforms import COALESCE_WHITESPACE
 from sycamore.transforms.merge_elements import MarkedMerger
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.tests.config import TEST_DIR
-from pinecone.grpc import PineconeGRPC
+from elasticsearch import Elasticsearch
 
 
-def test_to_pinecone():
-    spec = ServerlessSpec(cloud="aws", region="us-east-1")
-    index_name = "test-index-write"
+def test_to_elasticsearch():
+    url = "http://localhost:9201"
+    index_name = "test_index-other"
+    wait_for_completion = "wait_for"
     model_name = "sentence-transformers/all-MiniLM-L6-v2"
     paths = str(TEST_DIR / "resources/data/pdfs/Transformer.pdf")
-    api_key = os.environ.get("PINECONE_API_KEY", "")
-    assert (
-        api_key is not None and len(api_key) != 0
-    ), "Missing api key: either provide it as an argument or set the PINECONE_API_KEY env variable."
-    pc = PineconeGRPC(api_key=api_key)
+
+    OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
     tokenizer = HuggingFaceTokenizer(model_name)
 
     ctx = sycamore.init()
@@ -37,5 +33,9 @@ def test_to_pinecone():
         .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
         .sketch(window=17)
     )
-    ds.write.pinecone(index_name=index_name, dimensions=384, index_spec=spec)
-    pc.delete_index(index_name)
+    count = ds.count()
+    ds.write.elasticsearch(url=url, index_name=index_name, wait_for_completion=wait_for_completion)
+    with Elasticsearch(url) as es_client:
+        es_count = int(es_client.cat.count(index=index_name, format="json")[0]["count"])
+        es_client.indices.delete(index=index_name)
+    assert count == es_count

@@ -22,7 +22,7 @@ class Map(BaseMapTransform):
     """
 
     def __init__(self, child: Optional[Node], *, f: Any, **resource_args):
-        super().__init__(child, f=Map.wrap(f), name=get_name_from_callable(f), **resource_args)
+        super().__init__(child, f=Map.wrap(f), **{"name": get_name_from_callable(f), **resource_args})
 
     @staticmethod
     def wrap(f: Any) -> Callable[[list[Document]], list[Document]]:

@@ -38,10 +38,21 @@ To write a Docset to a DuckDB database table from Sycamore, use the DocSet `.wri
 ```
 - execute: Whether to execute the write immediately. The default value is set to `True`.
 
-Finally, to use the writer, call write at the end of a Sycamore pipeline as done below. Note that the writer forces execution of all transforms before it, so would normally come at the end of a Sycamore pipeline. Given a DocSet `ds`, run a write with the following code:
+To use the writer, call write at the end of a Sycamore pipeline as done below:
 
 ```
 ds.write.duckdb(table_name=table_name, db_url=db_url)
 ```
 
-More information can be found in the {doc}`API documentation </APIs/data_preparation/docsetwriter>`.
+Note that the writer forces execution of all transforms before it, so would normally come at the end of a Sycamore pipeline. More information can be found in the {doc}`API documentation </APIs/data_preparation/docsetwriter>`.
+
+## Reading from DuckDB
+
+Reading from the DuckDB takes in only the `db_url` and `table_name` arguments, with the same specification and defaults as before. To read from a DuckDB database into a Sycamore DocSet, use the following code:
+
+```
+ctx = sycamore.init()
+ctx.read.duckdb(db_url=db_url, table_name=table_name)
+```
+
+More information can be found in the {doc}`API documentation </APIs/data_preparation/docsetreader>`.

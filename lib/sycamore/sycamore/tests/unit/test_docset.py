@@ -64,7 +64,10 @@ class TestDocSet:
     def test_map_default_name(self, mocker):
         context = mocker.Mock(spec=Context)
         docset = DocSet(context, None)
-        f = lambda doc: doc
+
+        def f(doc):
+            return doc
+
         docset = docset.map(f=f)
         assert isinstance(docset.lineage(), Map)
         assert docset.lineage()._name == get_name_from_callable(f)

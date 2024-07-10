@@ -445,8 +445,9 @@ class DocSetWriter:
         index_name: str,
         url: str = "",
         es_client_args: dict = {},
+        wait_for_completion: str = "false",
+        settings: Optional[dict] = None,
         mappings: Optional[dict] = None,
-        flatten_properties: bool = False,
         execute: bool = True,
         **kwargs,
     ) -> Optional["DocSet"]:
@@ -457,9 +458,10 @@ class DocSetWriter:
                 necessary client arguments
             es_client_args: Authentication arguments to be specified (if needed). See more information at
                 https://elasticsearch-py.readthedocs.io/en/v8.14.0/api/elasticsearch.html
+            wait_for_completion: Whether to wait for completion or not. See more information and valid values at
+                https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-refresh.html
             mappings: Mapping of the Elasticsearch index, can be optionally specified
-            flatten_properties: Whether to flatten documents into pure key-value pairs or to allow nested
-                structures. Default is False (allow nested structures)
+            settings: Settings of the Elasticsearch index, can be optionally specified
             execute: Execute the pipeline and write to weaviate on adding this operator. If False,
                 will return a DocSet with this write in the plan. Default is True
         Example:
@@ -497,11 +499,19 @@ class DocSetWriter:
         )
 
         client_params = ElasticClientParams(url=url, es_client_args=es_client_args)
-        target_params = ElasticTargetParams(index_name=index_name, flatten_properties=flatten_properties)
-        if mappings:
-            target_params = ElasticTargetParams(
-                index_name=index_name, mappings=mappings, flatten_properties=flatten_properties
-            )
+        target_params = ElasticTargetParams(index_name=index_name)
+        target_params = ElasticTargetParams(
+            index_name=index_name,
+            wait_for_completion=wait_for_completion,
+            **{
+                k: v
+                for k, v in {
+                    "mappings": mappings,
+                    "settings": settings,
+                }.items()
+                if v is not None
+            },  # type: ignore
+        )
         es_docs = ElasticDocumentWriter(
             self.plan, client_params, target_params, name="elastic_document_writer", **kwargs
         )

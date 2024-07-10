@@ -6,11 +6,13 @@ from sycamore.transforms.merge_elements import MarkedMerger
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.tests.config import TEST_DIR
+from elasticsearch import Elasticsearch
 
 
 def test_to_elasticsearch():
     url = "http://localhost:9201"
-    index_name = "test_index"
+    index_name = "test_index-other"
+    wait_for_completion = "wait_for"
     model_name = "sentence-transformers/all-MiniLM-L6-v2"
     paths = str(TEST_DIR / "resources/data/pdfs/Transformer.pdf")
 
@@ -31,4 +33,10 @@ def test_to_elasticsearch():
         .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
         .sketch(window=17)
     )
-    ds.write.elasticsearch(url=url, index_name=index_name)
+    count = ds.count()
+    ds.write.elasticsearch(url=url, index_name=index_name, wait_for_completion=wait_for_completion)
+    es_client = Elasticsearch(url)
+    es_count = int(es_client.cat.count(index=index_name, format="json")[0]["count"])
+    es_client.indices.delete(index=index_name)
+    es_client.close()
+    assert count == es_count

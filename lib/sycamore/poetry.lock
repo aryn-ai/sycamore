@@ -8071,4 +8071,4 @@ docs = ["furo", "myst-parser", "sphinx"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.12"
-content-hash = "6d4e4a2e6328a4a7adc6fb7c7ca26b5fa78c7fb53d895294b4372707c1bb8c37"
+content-hash = "c7330c8ca8cbf158a390a9b02cf319cfe607b187136d88e15d66865a3794937d"

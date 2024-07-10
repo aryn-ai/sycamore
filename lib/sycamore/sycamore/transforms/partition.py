@@ -13,12 +13,13 @@ from sycamore.data import BoundingBox, Document, Element, TableElement
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base import CompositeTransform
 from sycamore.transforms.extract_table import TableExtractor
+from sycamore.transforms.table_structure.extract import TableStructureExtractor
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
 from sycamore.utils import choose_device
 from sycamore.utils.aryn_config import ArynConfig
 
-from sycamore.transforms.aryn_partitioner import _DEFAULT_ARYN_PARTITIONER_ADDRESS
+from sycamore.transforms.detr_partitioner import ARYN_DETR_MODEL, DEFAULT_ARYN_PARTITIONER_ADDRESS
 
 
 # This comparator helps sort the elements per page specifically when a page
@@ -355,61 +356,73 @@ class HtmlPartitioner(Partitioner):
         return document
 
 
-SYCAMORE_DETR_MODEL = "Aryn/deformable-detr-DocLayNet"
-
-
-class SycamorePartitioner(Partitioner):
+class ArynPartitioner(Partitioner):
     """
-    The SycamorePartitioner uses an object recognition model to partition the document into
+    The ArynPartitioner uses an object recognition model to partition the document into
     structured elements.
 
     Args:
         model_name_or_path: The HuggingFace coordinates or model local path. Should be set to
-             the default SYCAMORE_DETR_MODEL unless you are testing a custom model.
-        threshold: The threshold to use for accepting the models predicted bounding boxes. A lower
+             the default ARYN_DETR_MODEL unless you are testing a custom model.
+             Ignored when local mode is false
+        threshold: The threshold to use for accepting the model's predicted bounding boxes. A lower
              value will include more objects, but may have overlaps, a higher value will reduce the
              number of overlaps, but may miss legitimate objects.
         use_ocr: Whether to use OCR to extract text from the PDF. If false, we will attempt to extract
              the text from the underlying PDF.
         ocr_images: If set with use_ocr, will attempt to OCR regions of the document identified as images.
-        ocr_tables: If set with use_ocr, will attempt to OCR regions on the document identified as tables.
+        ocr_tables: If set with use_ocr, will attempt to OCR regions of the document identified as tables.
              Should not be set when `extract_table_structure` is true.
         extract_table_structure: If true, runs a separate table extraction model to extract cells from
              regions of the document identified as tables.
         table_structure_extractor: The table extraction implementaion to use when extract_table_structure
              is True. The default is the TableTransformerStructureExtractor.
+             Ignored when local mode is false.
         extract_images: If true, crops each region identified as an image and attaches it to the associated
              ImageElement. This can later be fed into the SummarizeImages transform.
+        local: If false, runs the partitioner remotely. Defaults to false
+        aryn_token: The account token used to authenticate with Aryn's servers.
+        aryn_partitioner_address: The address of the server to use to partition the document
 
     Example:
-         The following shows an example of using the SycamorePartitioner to partition a PDF and extract
+         The following shows an example of using the ArynPartitioner to partition a PDF and extract
          both table structure and image
 
          .. code-block:: python
 
             context = scyamore.init()
-            partitioner = SycamorePartitioner(extract_table_structure=True, extract_images=True)
+            partitioner = ArynPartitioner(local=True, extract_table_structure=True, extract_images=True)
             context.read.binary(paths, binary_format="pdf")\
                  .partition(partitioner=partitioner)
     """
 
     def __init__(
         self,
-        model_name_or_path=SYCAMORE_DETR_MODEL,
+        model_name_or_path=ARYN_DETR_MODEL,
         threshold: float = 0.4,
-        use_ocr=False,
-        ocr_images=False,
-        ocr_tables=False,
-        extract_table_structure=False,
-        table_structure_extractor=None,
-        extract_images=False,
+        use_ocr: bool = False,
+        ocr_images: bool = False,
+        ocr_tables: bool = False,
+        extract_table_structure: bool = False,
+        table_structure_extractor: Optional[TableStructureExtractor] = None,
+        extract_images: bool = False,
         device=None,
         batch_size: int = 1,
         batch_at_a_time: bool = False,
-        use_cache=True,
+        local: bool = False,
+        aryn_api_key: str = "",
+        aryn_partitioner_address: str = DEFAULT_ARYN_PARTITIONER_ADDRESS,
+        use_cache=False,
     ):
-        device = choose_device(device)
+        if local:
+            device = choose_device(device)
+        else:
+            device = "cpu"
         super().__init__(device=device, batch_size=batch_size)
+        if not aryn_api_key:
+            self._aryn_api_key = ArynConfig.get_aryn_api_key()
+        else:
+            self._aryn_api_key = aryn_api_key
         self._model_name_or_path = model_name_or_path
         self._device = device
         self._threshold = threshold
@@ -421,6 +434,8 @@ class SycamorePartitioner(Partitioner):
         self._extract_images = extract_images
         self._batch_size = batch_size
         self._batch_at_a_time = batch_at_a_time
+        self._local = local
+        self._aryn_partitioner_address = aryn_partitioner_address
         self._use_cache = use_cache
 
     # For now, we reorder elements based on page, left/right column, y axle position then finally x axle position
@@ -460,12 +475,12 @@ class SycamorePartitioner(Partitioner):
     @timetrace("SycamorePdf")
     def partition(self, document: Document) -> Document:
         binary = io.BytesIO(document.data["binary_representation"])
-        from sycamore.transforms.detr_partitioner import SycamorePDFPartitioner
+        from sycamore.transforms.detr_partitioner import ArynPDFPartitioner
 
-        partitioner = SycamorePDFPartitioner(self._model_name_or_path, device=self._device)
+        partitioner = ArynPDFPartitioner(self._model_name_or_path, device=self._device)
 
         try:
-            result = partitioner.partition_pdf(
+            elements = partitioner.partition_pdf(
                 binary,
                 self._threshold,
                 use_ocr=self._use_ocr,
@@ -476,101 +491,55 @@ class SycamorePartitioner(Partitioner):
                 extract_images=self._extract_images,
                 batch_size=self._batch_size,
                 batch_at_a_time=self._batch_at_a_time,
+                local=self._local,
+                aryn_api_key=self._aryn_api_key,
+                aryn_partitioner_address=self._aryn_partitioner_address,
                 use_cache=self._use_cache,
             )
         except Exception as e:
             path = document.properties["path"]
             raise RuntimeError(f"SycamorePartitioner Error processing {path}") from e
 
-        elements = []
-        for i, r in enumerate(result):
-            for ele in r:
-                ele.properties["page_number"] = i + 1
-                elements.append(ele)
-
         document.elements = elements
         document = reorder_elements(document, self._elements_reorder)
         return document
 
 
-class ArynPartitioner(Partitioner):
+class SycamorePartitioner(ArynPartitioner):
     """
-    The ArynPartitioner runs a SycamorePartitioner on Aryn's GPU servers to offload compute.
-
-    Args:
-        aryn_token: The account token used to authenticate with Aryn's servers.
-        threshold: The threshold to use for accepting the models predicted bounding boxes. A lower
-             value will include more objects, but may have overlaps, a higher value will reduce the
-             number of overlaps, but may miss legitimate objects.
-        use_ocr: Whether to use OCR to extract text from the PDF. If false, we will attempt to extract
-             the text from the underlying PDF.
-        ocr_images: If set with use_ocr, will attempt to OCR regions of the document identified as images.
-        ocr_tables: If set with use_ocr, will attempt to OCR regions on the document identified as tables.
-             Should not be set when `extract_table_structure` is true.
-        extract_table_structure: If true, runs a separate table extraction model to extract cells from
-             regions of the document identified as tables.
-        extract_images: If true, crops each region identified as an image and attaches it to the associated
-             ImageElement. This can later be fed into the SummarizeImages transform.
-
-    Example:
-        The following shows an example of using the ArynPartitioner to partition a PDF and extract
-        both table structure and images.
-
-        .. code-block:: python
-
-            context = sycamore.init()
-            partitioner = ArynPartitioner(extract_table_structure=True, extract_images=True)
-            context.read.binary(paths, binary_format="pdf")\
-                .partition(partitioner=partitioner)
+    The SycamorePartitioner is equivalent to the ArynPartitioner, except that it
+    only runs locally. This class mostly exists for backwards compatibility with
+    scripts written before the remote partitioning service existed. Please use
+    `ArynPartitioner` instead.
     """
 
     def __init__(
         self,
-        aryn_api_key: str = "",
+        model_name_or_path=ARYN_DETR_MODEL,
         threshold: float = 0.4,
-        use_ocr: bool = False,
-        ocr_images: bool = False,
-        ocr_tables: bool = False,
-        extract_table_structure: bool = False,
-        extract_images: bool = False,
-        aryn_partitioner_address: str = _DEFAULT_ARYN_PARTITIONER_ADDRESS,
+        use_ocr=False,
+        ocr_images=False,
+        ocr_tables=False,
+        extract_table_structure=False,
+        table_structure_extractor=None,
+        extract_images=False,
+        device=None,
+        batch_size: int = 1,
+        batch_at_a_time: bool = False,
     ):
-        super().__init__(device="cpu", batch_size=1)
-        if not aryn_api_key:
-            self._aryn_api_key = ArynConfig.get_aryn_api_key()
-        else:
-            self._aryn_api_key = aryn_api_key
-        self._threshold = threshold
-        self._use_ocr = use_ocr
-        self._ocr_images = ocr_images
-        self._ocr_tables = ocr_tables
-        self._extract_table_structure = extract_table_structure
-        self._extract_images = extract_images
-        self._aryn_partitioner_address = aryn_partitioner_address
-
-    def partition(self, document: Document):
-        binary = io.BytesIO(document.data["binary_representation"])
-        from sycamore.transforms.aryn_partitioner import ArynPDFPartitioner
-
-        try:
-            result = ArynPDFPartitioner.partition_pdf(
-                binary,
-                self._aryn_api_key,
-                aryn_partitioner_address=self._aryn_partitioner_address,
-                threshold=self._threshold,
-                use_ocr=self._use_ocr,
-                ocr_images=self._ocr_images,
-                ocr_tables=self._ocr_tables,
-                extract_table_structure=self._extract_table_structure,
-                extract_images=self._extract_images,
-            )
-        except Exception as e:
-            path = document.properties["path"]
-            raise RuntimeError(f"ArynPartitioner Error Processing {path}") from e
-
-        document.elements = result
-        document = reorder_elements(document, SycamorePartitioner._elements_reorder)
-        return document
+        device = choose_device(device)
+        super().__init__(
+            model_name_or_path=model_name_or_path,
+            threshold=threshold,
+            use_ocr=use_ocr,
+            ocr_images=ocr_images,
+            extract_table_structure=extract_table_structure,
+            extract_images=extract_images,
+            device=device,
+            batch_size=batch_size,
+            batch_at_a_time=batch_at_a_time,
+            local=True,
+        )
 
 
 class Partition(CompositeTransform):

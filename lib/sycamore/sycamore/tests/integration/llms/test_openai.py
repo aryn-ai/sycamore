@@ -15,7 +15,26 @@ def test_openai_defaults():
 
     res = llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
 
-    assert len(res.content) > 0
+    assert len(res) > 0
+
+
+def test_openai_messages_defaults():
+    llm = OpenAI(OpenAIModels.GPT_3_5_TURBO)
+    messages = [
+        {
+            "role": "system",
+            "content": "You are a social media influencer",
+        },
+        {
+            "role": "user",
+            "content": "Write a caption for a recent trip to a sunny beach",
+        },
+    ]
+    prompt_kwargs = {"messages": messages}
+
+    res = llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
+
+    assert len(res) > 0
 
 
 def test_cached_openai(tmp_path: Path):
@@ -35,6 +54,29 @@ def test_cached_openai(tmp_path: Path):
     cache.set(key, custom_output)
 
     assert llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={}) == custom_output["result"]
+
+
+def test_cached_guidance(tmp_path: Path):
+    cache = DiskCache(str(tmp_path))
+    llm = OpenAI(OpenAIModels.GPT_3_5_TURBO, cache=cache)
+    prompt_kwargs = {"prompt": TestGuidancePrompt()}
+
+    key = llm._get_cache_key(prompt_kwargs, None)
+
+    res = llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs=None)
+
+    # assert result is cached
+    assert cache.get(key).get("result") == res
+
+    # assert llm.generate is using cached result
+    custom_output = {
+        "result": "This is a custom response",
+        "prompt_kwargs": {"prompt": TestGuidancePrompt()},
+        "llm_kwargs": None,
+    }
+    cache.set(key, custom_output)
+
+    assert llm.generate(prompt_kwargs={"prompt": TestGuidancePrompt()}, llm_kwargs=None) == custom_output["result"]
 
 
 def test_cached_openai_mismatch(tmp_path: Path):

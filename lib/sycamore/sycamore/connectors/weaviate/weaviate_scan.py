@@ -19,7 +19,7 @@ class WeaviateScan(Scan):
             collection = wcl.collections.get(self._collection_name)
             for object in collection.iterator(include_vector=True):
                 doc = Document(
-                    object.vector | unflatten_data(object.properties, "__") | {"doc_id": str(object.uuid)}
+                    object.vector | unflatten_data(dict(object.properties), "__") | {"doc_id": str(object.uuid)}
                 )  # type: ignore
                 documents.append(doc)
 

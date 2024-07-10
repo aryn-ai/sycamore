@@ -4,11 +4,15 @@ import os
 import tempfile
 import tracemalloc
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from concurrent.futures import ProcessPoolExecutor
 from io import BytesIO, IOBase
 from typing import cast, Any, BinaryIO, List, Tuple, Union
 
-import easyocr
+import requests
+import json
+from tenacity import retry, retry_if_exception, wait_exponential, stop_after_delay
+import base64
 import pdf2image
 import pytesseract
 import torch
@@ -27,7 +31,7 @@ from sycamore.utils.cache import Cache, DiskCache
 from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
 from sycamore.utils.pdf import convert_from_path_streamed_batched
-from sycamore.utils.time_trace import LogTime
+from sycamore.utils.time_trace import LogTime, timetrace
 
 
 def _batchify(iterable, n=1):
@@ -36,28 +40,46 @@ def _batchify(iterable, n=1):
         yield iterable[i : min(i + n, length)]
 
 
+ARYN_DETR_MODEL = "Aryn/deformable-detr-DocLayNet"
+DEFAULT_ARYN_PARTITIONER_ADDRESS = "https://api.aryn.cloud/v1/document/partition"
+_TEN_MINUTES = 600
+
+
+class ArynPDFPartitionerException(Exception):
+    def __init__(self, message, can_retry=False):
+        super().__init__(message)
+        self.can_retry = can_retry
+
+
+def _can_retry(e: BaseException) -> bool:
+    if isinstance(e, ArynPDFPartitionerException):
+        return e.can_retry
+    else:
+        return False
+
+
 pdf_miner_cache = DiskCache(os.path.join(tempfile.gettempdir(), "SycamoreCache/PDFMinerCache"))
 
 
-class SycamorePDFPartitioner:
+class ArynPDFPartitioner:
     """
     This class contains the implementation of PDF partitioning using a Deformable DETR model.
 
     This is an implementation class. Callers looking to partition a DocSet should use the
-    SycamorePartitioner class.
+    ArynPartitioner class.
     """
 
-    def __init__(self, model_name_or_path, device=None):
+    def __init__(self, model_name_or_path=ARYN_DETR_MODEL, device=None):
         """
-        Initializes the SycamorePDFPartitioner and underlying DETR model.
+        Initializes the ArynPDFPartitioner and underlying DETR model.
 
         Args:
             model_name_or_path: The HuggingFace coordinates or local path to the DeformableDETR weights to use.
             device: The device on which to run the model.
         """
-
         self.device = device
         self.model = DeformableDetr(model_name_or_path, device)
+        self.ocr_table_reader = None
 
     @staticmethod
     def _supplement_text(inferred: List[Element], text: List[Element], threshold: float = 0.5) -> List[Element]:
@@ -101,34 +123,120 @@ class SycamorePDFPartitioner:
         extract_images=False,
         batch_size: int = 1,
         batch_at_a_time=True,
+        local=False,
+        aryn_api_key: str = "",
+        aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
         use_cache=False,
-    ) -> List[List["Element"]]:
-        if batch_at_a_time:
-            return self._partition_pdf_batched(
-                file,
-                threshold,
-                use_ocr,
-                ocr_images,
-                ocr_tables,
-                extract_table_structure,
-                table_structure_extractor,
-                extract_images,
-                batch_size,
-                use_cache,
+    ) -> List[Element]:
+        if not local:
+            return self._partition_remote(
+                file=file,
+                aryn_api_key=aryn_api_key,
+                aryn_partitioner_address=aryn_partitioner_address,
+                threshold=threshold,
+                use_ocr=use_ocr,
+                ocr_images=ocr_images,
+                ocr_tables=ocr_tables,
+                extract_table_structure=extract_table_structure,
+                extract_images=extract_images,
             )
         else:
-            return self._partition_pdf_sequenced(
-                file,
-                threshold,
-                use_ocr,
-                ocr_images,
-                ocr_tables,
-                extract_table_structure,
-                table_structure_extractor,
-                extract_images,
-                batch_size,
-                use_cache,
+            if batch_at_a_time:
+                temp = self._partition_pdf_batched(
+                    file=file,
+                    threshold=threshold,
+                    use_ocr=use_ocr,
+                    ocr_images=ocr_images,
+                    ocr_tables=ocr_tables,
+                    extract_table_structure=extract_table_structure,
+                    table_structure_extractor=table_structure_extractor,
+                    extract_images=extract_images,
+                    batch_size=batch_size,
+                    use_cache=use_cache,
+                )
+            else:
+                temp = self._partition_pdf_sequenced(
+                    file=file,
+                    threshold=threshold,
+                    use_ocr=use_ocr,
+                    ocr_images=ocr_images,
+                    ocr_tables=ocr_tables,
+                    extract_table_structure=extract_table_structure,
+                    table_structure_extractor=table_structure_extractor,
+                    extract_images=extract_images,
+                    batch_size=batch_size,
+                    use_cache=use_cache,
+                )
+            elements = []
+            for i, r in enumerate(temp):
+                for ele in r:
+                    ele.properties["page_number"] = i + 1
+                    elements.append(ele)
+            return elements
+
+    @staticmethod
+    @retry(
+        retry=retry_if_exception(_can_retry),
+        wait=wait_exponential(multiplier=1, min=1),
+        stop=stop_after_delay(_TEN_MINUTES),
+    )
+    def _partition_remote(
+        file: BinaryIO,
+        aryn_api_key: str,
+        aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
+        threshold: float = 0.4,
+        use_ocr: bool = False,
+        ocr_images: bool = False,
+        ocr_tables: bool = False,
+        extract_table_structure: bool = False,
+        extract_images: bool = False,
+    ) -> List[Element]:
+        options = {
+            "threshold": threshold,
+            "use_ocr": use_ocr,
+            "ocr_images": ocr_images,
+            "ocr_tables": ocr_tables,
+            "extract_table_structure": extract_table_structure,
+            "extract_images": extract_images,
+        }
+
+        files: Mapping = {"pdf": file, "options": json.dumps(options).encode("utf-8")}
+        header = {"Authorization": f"Bearer {aryn_api_key}"}
+
+        logging.debug(f"ArynPartitioner POSTing to {aryn_partitioner_address} with files={files}")
+        response = requests.post(aryn_partitioner_address, files=files, headers=header)
+        logging.debug("ArynPartitioner Recieved data")
+
+        if response.status_code != 200:
+            if response.status_code == 500:
+                logging.debug(
+                    "ArynPartitioner recieved a retry-able error {} x-aryn-call-id: {}".format(
+                        response, response.headers.get("x-aryn-call-id")
+                    )
+                )
+                raise ArynPDFPartitionerException(
+                    "Error: status_code: {}, reason: {} (x-aryn-call-id: {})".format(
+                        response.status_code, response.text, response.headers.get("x-aryn-call-id")
+                    ),
+                    can_retry=True,
+                )
+            raise ArynPDFPartitionerException(
+                "Error: status_code: {}, reason: {} (x-aryn-call-id: {})".format(
+                    response.status_code, response.text, response.headers.get("x-aryn-call-id")
+                )
             )
+
+        response_json = response.json()
+        if isinstance(response_json, dict):
+            response_json = response_json.get("elements")
+        elements = []
+        for element_json in response_json:
+            element = create_element(**element_json)
+            if element.binary_representation:
+                element.binary_representation = base64.b64decode(element.binary_representation)
+            elements.append(element)
+
+        return elements
 
     def _partition_pdf_sequenced(
         self,
@@ -161,6 +269,7 @@ class SycamorePDFPartitioner:
         Returns:
            A list of lists of Elements. Each sublist corresponds to a page in the original PDF.
         """
+        import easyocr
 
         if not table_structure_extractor:
             table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
@@ -181,7 +290,16 @@ class SycamorePDFPartitioner:
 
         if use_ocr:
             with LogTime("ocr"):
-                extract_ocr(images, deformable_layout, ocr_images=ocr_images, ocr_tables=ocr_tables)
+                if self.ocr_table_reader is None:
+                    self.ocr_table_reader = easyocr.Reader(["en"])
+
+                extract_ocr(
+                    images,
+                    deformable_layout,
+                    ocr_images=ocr_images,
+                    ocr_tables=ocr_tables,
+                    table_reader=self.ocr_table_reader,
+                )
         else:
             with LogTime("pdfminer"):
                 pdfminer = PDFMinerExtractor()
@@ -343,6 +461,8 @@ class SycamorePDFPartitioner:
         table_structure_extractor,
         extract_images,
     ) -> Any:
+        import easyocr
+
         with LogTime("infer"):
             deformable_layout = self.model.infer(batch, threshold)
 
@@ -351,11 +471,22 @@ class SycamorePDFPartitioner:
 
         if use_ocr:
             with LogTime("ocr"):
-                extract_ocr(batch, deformable_layout, ocr_images=ocr_images, ocr_tables=ocr_tables)
+                if self.ocr_table_reader is None:
+                    self.ocr_table_reader = easyocr.Reader(["en"])
+
+                extract_ocr(
+                    batch,
+                    deformable_layout,
+                    ocr_images=ocr_images,
+                    ocr_tables=ocr_tables,
+                    table_reader=self.ocr_table_reader,
+                )
         # else pdfminer happens in parent since it is whole document.
 
         if extract_table_structure:
             with LogTime("extract_table_structure_batch"):
+                if table_structure_extractor is None:
+                    table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
                 for i, page_elements in enumerate(deformable_layout):
                     image = batch[i]
                     for element in page_elements:
@@ -519,8 +650,9 @@ class PDFMinerExtractor:
                 return pages
 
 
+@timetrace("OCR")
 def extract_ocr(
-    images: list[Image.Image], elements: list[list[Element]], ocr_images=False, ocr_tables=False
+    images: list[Image.Image], elements: list[list[Element]], ocr_images=False, ocr_tables=False, table_reader=None
 ) -> list[list[Element]]:
     for i, image in enumerate(images):
         width, height = image.size
@@ -536,7 +668,7 @@ def extract_ocr(
             #     continue
             elif elem.type == "table":
                 assert isinstance(elem, TableElement)
-                extract_table_ocr(image, elem)
+                extract_table_ocr(image, elem, reader=table_reader)
                 continue
 
             crop_box = (elem.bbox.x1 * width, elem.bbox.y1 * height, elem.bbox.x2 * width, elem.bbox.y2 * height)
@@ -550,7 +682,7 @@ def extract_ocr(
     return elements
 
 
-def extract_table_ocr(image: Image.Image, elem: TableElement):
+def extract_table_ocr(image: Image.Image, elem: TableElement, reader):
     width, height = image.size
 
     assert elem.bbox is not None
@@ -560,7 +692,6 @@ def extract_table_ocr(image: Image.Image, elem: TableElement):
     cropped_image.save(image_bytes, format="PNG")
 
     # TODO: support more languages
-    reader = easyocr.Reader(["en"])
     results = reader.readtext(image_bytes.getvalue())
 
     tokens = []

@@ -298,10 +298,19 @@ class TestBaseMapTransform(Common):
             "makedirs": True,
             "doc_to_bytes_fn": lambda doc: pickle.dumps(doc),
         }
+        node_a = BaseMapTransform(
+            self.input_node(mocker),
+            f=self.fn_a,
+            name="node_1",
+            args=["simple"],
+            kwargs={"extra2": "kwarg"},
+            enable_auto_metadata=True,
+        )
         self.outputs(
             BaseMapTransform(
-                self.input_node(mocker),
+                node_a,
                 f=self.fn_a,
+                name="node_2",
                 args=["simple"],
                 kwargs={"extra2": "kwarg"},
                 enable_auto_metadata=True,
@@ -316,6 +325,10 @@ class TestBaseMapTransform(Common):
         for d in Common.dicts:
             truth_id_to_content[d["doc_id"]] = d
 
+        # assert there is a directory for each node
+        directories = next(os.walk(tmp_path))[1]
+        assert {"node_1", "node_2"} == set(directories)
+
         reals = []
         for dirpath, _, filenames in os.walk(tmp_path):
             for filename in filenames:
@@ -323,7 +336,8 @@ class TestBaseMapTransform(Common):
                 with open(file_path, "rb") as file:
                     reals += [pickle.load(file)]
 
-        assert self.ndocs == len(reals)
+        # 2 transforms == each doc processed and written twice
+        assert 2 * self.ndocs == len(reals)
 
         for real in reals:
             assert real.doc_id in truth_id_to_content

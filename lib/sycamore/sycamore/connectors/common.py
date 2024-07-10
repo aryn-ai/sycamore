@@ -26,6 +26,15 @@ def filter_doc(obj, include):
     return {k: v for k, v in obj.__dict__.items() if k in include}
 
 
+def check_dictionary_compatibility(dict1: dict[Any, Any], dict2: dict[Any, Any]):
+    for k in dict1:
+        if k not in dict2:
+            return False
+        if dict1[k] != dict2[k]:
+            return False
+    return True
+
+
 def compare_docs(doc1, doc2):
     filtered_doc1 = filter_doc(doc1, DEFAULT_RECORD_PROPERTIES.keys())
     filtered_doc2 = filter_doc(doc2, DEFAULT_RECORD_PROPERTIES.keys())

@@ -499,7 +499,6 @@ class DocSetWriter:
         )
 
         client_params = ElasticClientParams(url=url, es_client_args=es_client_args)
-        target_params = ElasticTargetParams(index_name=index_name)
         target_params = ElasticTargetParams(
             index_name=index_name,
             wait_for_completion=wait_for_completion,

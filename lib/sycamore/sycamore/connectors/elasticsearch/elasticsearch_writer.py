@@ -4,6 +4,7 @@ from typing_extensions import TypeGuard
 
 from sycamore.data.document import Document
 from sycamore.connectors.base import BaseDBWriter
+from sycamore.connectors.common import flatten_data, check_dictionary_compatibility
 
 from elasticsearch import Elasticsearch, ApiError
 from elasticsearch.helpers import parallel_bulk
@@ -41,9 +42,22 @@ class ElasticTargetParams(BaseDBWriter.TargetParams):
             return False
         if self.wait_for_completion != other.wait_for_completion:
             return False
-        if not compare_nested_dicts(self.mappings, other.mappings):
-            return False
-        return compare_nested_dicts(self.settings, other.settings)
+        my_flat_settings = dict(flatten_data(self.settings))
+        other_flat_settings = dict(flatten_data(other.settings))
+        for k in my_flat_settings:
+            other_k = k
+            if k not in other_flat_settings:
+                if "index." + k in other_flat_settings:
+                    # You can specify index params without the "index" part and
+                    # they'll come back with the "index" part
+                    other_k = "index." + k
+                else:
+                    return False
+            if my_flat_settings[k] != other_flat_settings[other_k]:
+                return False
+        my_flat_mappings = dict(flatten_data(self.mappings))
+        other_flat_mappings = dict(flatten_data(other.mappings))
+        return check_dictionary_compatibility(my_flat_mappings, other_flat_mappings)
 
 
 class ElasticClient(BaseDBWriter.Client):
@@ -129,22 +143,6 @@ class ElasticDocumentRecord(BaseDBWriter.Record):
 
 def _narrow_list_of_doc_records(records: list[BaseDBWriter.Record]) -> TypeGuard[list[ElasticDocumentRecord]]:
     return all(isinstance(r, ElasticDocumentRecord) for r in records)
-
-
-def compare_nested_dicts(dict1: dict[Any, Any], dict2: dict[Any, Any]):
-    for key, value in dict1.items():
-        if value == "object":
-            continue
-        if key not in dict2:
-            return False
-        if isinstance(value, dict):
-            if not isinstance(dict2[key], dict):
-                return False
-            if not compare_nested_dicts(value, dict2[key]):
-                return False
-        elif dict1[key] != dict2[key]:
-            return False
-    return True
 
 
 class ElasticDocumentWriter(BaseDBWriter):

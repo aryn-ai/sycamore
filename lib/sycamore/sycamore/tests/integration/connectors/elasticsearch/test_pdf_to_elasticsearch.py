@@ -35,8 +35,7 @@ def test_to_elasticsearch():
     )
     count = ds.count()
     ds.write.elasticsearch(url=url, index_name=index_name, wait_for_completion=wait_for_completion)
-    es_client = Elasticsearch(url)
-    es_count = int(es_client.cat.count(index=index_name, format="json")[0]["count"])
-    es_client.indices.delete(index=index_name)
-    es_client.close()
+    with Elasticsearch(url) as es_client:
+        es_count = int(es_client.cat.count(index=index_name, format="json")[0]["count"])
+        es_client.indices.delete(index=index_name)
     assert count == es_count

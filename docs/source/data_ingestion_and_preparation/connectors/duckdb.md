@@ -1,6 +1,6 @@
 # DuckDB
 
-[DuckDB](https://duckdb.org/) is an in-process analytical database that uses a SQL dialect and can read data from CSV, Parquet and JSON file formats. It requires no external dependencies and has the ability to run in-process on its host application. This simplicity in deployment makes it a good choice for lightweight operations when using Sycamore for development work or with low data loads.
+[DuckDB](https://duckdb.org/) is an in-process analytical database that uses a SQL dialect. It requires no external dependencies and has the ability to run in-process on its host application. This simplicity in deployment makes it a good choice for lightweight operations when using Sycamore for development work or with low data loads.
 
 ## Configuration for DuckDB
 
@@ -48,7 +48,7 @@ Note that the writer forces execution of all transforms before it, so would norm
 
 ## Reading from DuckDB
 
-Reading from the DuckDB takes in only the `db_url` and `table_name` arguments, with the same specification and defaults as before. To read from a DuckDB database into a Sycamore DocSet, use the following code:
+Reading from the DuckDB takes in only the `db_url` and `table_name` arguments, with the same specification and defaults as above. To read from a DuckDB table into a Sycamore DocSet, use the following code:
 
 ```
 ctx = sycamore.init()

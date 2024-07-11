@@ -376,8 +376,11 @@ class DocSetWriter:
 
     def duckdb(
         self,
+        dimensions: int,
         db_url: Optional[str] = None,
         table_name: Optional[str] = None,
+        batch_size: Optional[int] = None,
+        schema: Optional[dict[str, str]] = None,
         execute: bool = True,
         **kwargs,
     ):
@@ -385,8 +388,11 @@ class DocSetWriter:
         Writes the content of the DocSet into a DuckDB database.
 
         Args:
+            dimensions: The dimensions of the embeddings of each vector (required paramater)
             db_url: The URL of the DuckDB database. If not provided, the database will be in-memory.
             table_name: The table name to write the data to when possible
+            batch_size: The file batch size when loading entries into the DuckDB database table
+            schema: Defines the schema of the table to enter entries
             execute: Flag that determines whether to execute immediately
 
         Example:
@@ -422,7 +428,19 @@ class DocSetWriter:
         from sycamore.connectors.duckdb.duckdb_writer import DuckDBWriter, DuckDBClientParams, DuckDBTargetParams
 
         client_params = DuckDBClientParams()
-        target_params = DuckDBTargetParams(db_url=db_url, table_name=table_name)
+        target_params = DuckDBTargetParams(
+            **{
+                k: v
+                for k, v in {
+                    "db_url": db_url,
+                    "table_name": table_name,
+                    "batch_size": batch_size,
+                    "schema": schema,
+                    "dimensions": dimensions,
+                }.items()
+                if v is not None
+            }  # type: ignore
+        )
         kwargs["compute"] = ActorPoolStrategy(size=1)
         ddb = DuckDBWriter(
             self.plan,
@@ -438,6 +456,90 @@ class DocSetWriter:
             from sycamore.docset import DocSet
 
             return DocSet(self.context, ddb)
+
+    def elasticsearch(
+        self,
+        *,
+        index_name: str,
+        url: str = "",
+        es_client_args: dict = {},
+        wait_for_completion: str = "false",
+        settings: Optional[dict] = None,
+        mappings: Optional[dict] = None,
+        execute: bool = True,
+        **kwargs,
+    ) -> Optional["DocSet"]:
+        """Writes the content of the DocSet into the specified Elasticsearch Cloud index.
+
+        Args:
+            url: Connection endpoint for the Elasticsearch instance. Note that this must be paired with the
+                necessary client arguments
+            es_client_args: Authentication arguments to be specified (if needed). See more information at
+                https://elasticsearch-py.readthedocs.io/en/v8.14.0/api/elasticsearch.html
+            wait_for_completion: Whether to wait for completion or not. See more information and valid values at
+                https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-refresh.html
+            mappings: Mapping of the Elasticsearch index, can be optionally specified
+            settings: Settings of the Elasticsearch index, can be optionally specified
+            execute: Execute the pipeline and write to weaviate on adding this operator. If False,
+                will return a DocSet with this write in the plan. Default is True
+        Example:
+            The following code shows how to read a pdf dataset into a ``DocSet`` and write it out to a
+            local Elasticsearch index called `test-index`.
+
+            url = "http://localhost:9200"
+            index_name = "test-index"
+            model_name = "sentence-transformers/all-MiniLM-L6-v2"
+            paths = str(TEST_DIR / "resources/data/pdfs/")
+
+            OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
+            tokenizer = HuggingFaceTokenizer(model_name)
+
+            ctx = sycamore.init()
+
+            ds = (
+                ctx.read.binary(paths, binary_format="pdf")
+                .partition(partitioner=UnstructuredPdfPartitioner())
+                .regex_replace(COALESCE_WHITESPACE)
+                .mark_bbox_preset(tokenizer=tokenizer)
+                .merge(merger=MarkedMerger())
+                .spread_properties(["path"])
+                .split_elements(tokenizer=tokenizer, max_tokens=512)
+                .explode()
+                .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
+                .sketch(window=17)
+            )
+            ds.write.elasticsearch(url=url, index_name=index_name)
+        """
+        from sycamore.connectors.elasticsearch import (
+            ElasticDocumentWriter,
+            ElasticClientParams,
+            ElasticTargetParams,
+        )
+
+        client_params = ElasticClientParams(url=url, es_client_args=es_client_args)
+        target_params = ElasticTargetParams(
+            index_name=index_name,
+            wait_for_completion=wait_for_completion,
+            **{
+                k: v
+                for k, v in {
+                    "mappings": mappings,
+                    "settings": settings,
+                }.items()
+                if v is not None
+            },  # type: ignore
+        )
+        es_docs = ElasticDocumentWriter(
+            self.plan, client_params, target_params, name="elastic_document_writer", **kwargs
+        )
+        if execute:
+            # If execute, force execution
+            es_docs.execute().materialize()
+            return None
+        else:
+            from sycamore.docset import DocSet
+
+            return DocSet(self.context, es_docs)
 
     def files(
         self,

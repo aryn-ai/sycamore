@@ -88,6 +88,17 @@ jobs:
           discovery.type: "single-node"
         ports:
           - 9200:9200
+      elasticsearch:
+        image: elasticsearch:8.14.2
+        env:
+          discovery.type: "single-node"
+          xpack.security.http.ssl.enabled: "false"
+          xpack.security.enabled: "false"
+          bootstrap.memory_lock: "true"
+          ES_JAVA_OPTS: "-Xms2g -Xmx2g" 
+        ports:
+          - 9201:9200
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4

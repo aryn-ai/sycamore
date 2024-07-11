@@ -24,6 +24,7 @@ from sycamore.transforms import (
 )
 
 from sycamore.llms import LLM
+from sycamore.transforms.base import get_name_from_callable
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor
 from sycamore.transforms import Filter
@@ -60,17 +61,43 @@ class TestDocSet:
         docset = docset.query(query_executor=query_executor)
         assert isinstance(docset.lineage(), Query)
 
-    def test_map(self, mocker):
+    def test_map_default_name(self, mocker):
         context = mocker.Mock(spec=Context)
         docset = DocSet(context, None)
-        docset = docset.map(f=lambda doc: doc)
-        assert isinstance(docset.lineage(), Map)
 
-    def test_flat_map(self, mocker):
+        def f(doc):
+            return doc
+
+        docset = docset.map(f=f)
+        assert isinstance(docset.lineage(), Map)
+        assert docset.lineage()._name == get_name_from_callable(f)
+
+    def test_map_custom_name(self, mocker):
+        test_name = "test_map_1"
         context = mocker.Mock(spec=Context)
         docset = DocSet(context, None)
-        docset = docset.flat_map(f=lambda doc: [doc])
+        docset = docset.map(f=lambda doc: doc, name=test_name)
+        assert isinstance(docset.lineage(), Map)
+        assert docset.lineage()._name == test_name
+
+    def test_flat_map_default_name(self, mocker):
+        context = mocker.Mock(spec=Context)
+        docset = DocSet(context, None)
+
+        def f(doc):
+            return [doc]
+
+        docset = docset.flat_map(f=f)
         assert isinstance(docset.lineage(), FlatMap)
+        assert docset.lineage()._name == get_name_from_callable(f)
+
+    def test_flat_map_customt_name(self, mocker):
+        test_name = "test_flat_map_1"
+        context = mocker.Mock(spec=Context)
+        docset = DocSet(context, None)
+        docset = docset.flat_map(f=lambda doc: [doc], name=test_name)
+        assert isinstance(docset.lineage(), FlatMap)
+        assert docset.lineage()._name == test_name
 
     def test_map_batch(self, mocker):
         context = mocker.Mock(spec=Context)

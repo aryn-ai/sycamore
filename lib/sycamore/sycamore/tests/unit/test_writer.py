@@ -142,7 +142,7 @@ class TestDocSetWriter:
         context = mocker.Mock(spec=Context)
         docset = DocSet(context, mocker.Mock(spec=Node))
         execute = mocker.patch.object(DuckDBWriter, "execute")
-        docset.write.duckdb()
+        docset.write.duckdb(dimensions=384)
         execute.assert_called_once()
 
     def test_file_writer_text(self, tmp_path: Path):

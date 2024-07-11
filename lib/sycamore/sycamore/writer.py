@@ -376,6 +376,7 @@ class DocSetWriter:
 
     def duckdb(
         self,
+        dimensions: int,
         db_url: Optional[str] = None,
         table_name: Optional[str] = None,
         execute: bool = True,
@@ -422,7 +423,7 @@ class DocSetWriter:
         from sycamore.connectors.duckdb.duckdb_writer import DuckDBWriter, DuckDBClientParams, DuckDBTargetParams
 
         client_params = DuckDBClientParams()
-        target_params = DuckDBTargetParams(db_url=db_url, table_name=table_name)
+        target_params = DuckDBTargetParams(db_url=db_url, table_name=table_name, dimensions=dimensions)
         kwargs["compute"] = ActorPoolStrategy(size=1)
         ddb = DuckDBWriter(
             self.plan,

@@ -31,7 +31,7 @@ def test_to_duckdb():
         .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
     )
     ds_count = ds.count()
-    ds.write.duckdb(table_name=table_name, db_url=db_url)
+    ds.write.duckdb(table_name=table_name, db_url=db_url, dimensions=384)
     conn = duckdb.connect(database=db_url)
     duckdb_count = conn.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0]
     # delete the database

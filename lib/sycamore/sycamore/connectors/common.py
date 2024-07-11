@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Callable, Iterator, Union, Iterable, Tuple, Any
 import json
+import string
+import random
 
 
 @dataclass
@@ -20,6 +22,11 @@ DEFAULT_RECORD_PROPERTIES: dict[str, Any] = {
     "bbox": None,
     "shingles": None,
 }
+
+
+def generate_random_string(length=8):
+    characters = string.ascii_letters + string.digits
+    return "".join(random.choice(characters) for _ in range(length))
 
 
 def filter_doc(obj, include):

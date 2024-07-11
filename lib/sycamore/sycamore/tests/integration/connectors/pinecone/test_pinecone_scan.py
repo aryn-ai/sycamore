@@ -1,5 +1,6 @@
 from sycamore.connectors.common import compare_docs
 from pinecone import ServerlessSpec
+from sycamore.connectors.common import generate_random_string
 
 import os
 import sycamore
@@ -15,9 +16,9 @@ from pinecone.grpc import PineconeGRPC
 def test_pinecone_scan():
 
     spec = ServerlessSpec(cloud="aws", region="us-east-1")
-    index_name = "test-index-scan"
+    index_name = "test-index-read"
     model_name = "sentence-transformers/all-MiniLM-L6-v2"
-    namespace = "test-namespace"
+    namespace = f"{generate_random_string().lower()}"
     paths = str(TEST_DIR / "resources/data/pdfs/Transformer.pdf")
     api_key = os.environ.get("PINECONE_API_KEY", "")
     assert (
@@ -45,7 +46,7 @@ def test_pinecone_scan():
     )
     ctx.read.document(docs).write.pinecone(index_name=index_name, dimensions=384, namespace=namespace, index_spec=spec)
     out_docs = ctx.read.pinecone(index_name=index_name, api_key=api_key, namespace=namespace).take_all()
-    pc.delete_index(index_name)
+    pc.Index(index_name).delete(namespace=namespace, delete_all=True)
     assert len(docs) == (len(out_docs) + 1)  # parent doc is removed while writing
     assert all(
         compare_docs(original, plumbed)

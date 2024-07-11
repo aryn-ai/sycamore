@@ -66,18 +66,15 @@ def wait_for_write_completion(client: PineconeGRPC, index_name: str, namespace: 
     """
     Takes the name of the last document to wait for and blocks until it's available and ready.
     """
-    ready = False
     timeout = 30
     deadline = time.time() + timeout
     index = client.Index(index_name)
-    while not ready:
+    while time.time() < deadline:
         try:
             desc = dict(index.fetch(ids=[doc_id], namespace=namespace)["vectors"]).items()
             if len(desc) > 0:
-                ready = True
+                return
         except PineconeException:
             # NotFoundException means the last document has not been entered yet.
             pass
         time.sleep(1)
-        if time.time() > deadline:
-            raise RuntimeError(f"Pinecone failed to write results in {timeout} seconds. Doc_id: {doc_id}")

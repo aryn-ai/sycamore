@@ -379,6 +379,8 @@ class DocSetWriter:
         dimensions: int,
         db_url: Optional[str] = None,
         table_name: Optional[str] = None,
+        batch_size: Optional[int] = None,
+        schema: Optional[dict[str, str]] = None,
         execute: bool = True,
         **kwargs,
     ):
@@ -386,8 +388,11 @@ class DocSetWriter:
         Writes the content of the DocSet into a DuckDB database.
 
         Args:
+            dimensions: The dimensions of the embeddings of each vector (required paramater)
             db_url: The URL of the DuckDB database. If not provided, the database will be in-memory.
             table_name: The table name to write the data to when possible
+            batch_size: The file batch size when loading entries into the DuckDB database table
+            schema: Defines the schema of the table to enter entries
             execute: Flag that determines whether to execute immediately
 
         Example:
@@ -423,7 +428,19 @@ class DocSetWriter:
         from sycamore.connectors.duckdb.duckdb_writer import DuckDBWriter, DuckDBClientParams, DuckDBTargetParams
 
         client_params = DuckDBClientParams()
-        target_params = DuckDBTargetParams(db_url=db_url, table_name=table_name, dimensions=dimensions)
+        target_params = DuckDBTargetParams(
+            **{
+                k: v
+                for k, v in {
+                    "db_url": db_url,
+                    "table_name": table_name,
+                    "batch_size": batch_size,
+                    "schema": schema,
+                    "dimensions": dimensions,
+                }.items()
+                if v is not None
+            }  # type: ignore
+        )
         kwargs["compute"] = ActorPoolStrategy(size=1)
         ddb = DuckDBWriter(
             self.plan,

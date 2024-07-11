@@ -22,7 +22,7 @@ To write a Docset to a DuckDB database table from Sycamore, use the DocSet `.wri
 - db_url: The DuckDB database file path location. If there isn't a database already at this location, one will be created. Since only persistent databases are supported, only valid file paths are supported, with an error thrown otherwise. Keeping the database in memory (by use of an `:memory:` tag) will also throw an error. The default value is set to `tmp.db`.
 - table_name: The chosen table for the documents. Note that if the table already exists, its schema will be validated to ensure writes can happen successfully. The default value is set to `default_table`.
 - batch_size: Specifies the file batch size (multiplied by 1024) while entering entries into DuckDB. The default value is set to `1000`.
-- schema: Specifies the schema of the table to enter entries into. Note that the entries must be compatible with the underlying PyArrow representation otherwise an error will be thrown. The default value is given below:
+- schema: Specifies the schema of the table to enter entries. Note that the entries must be compatible with the underlying PyArrow representation otherwise an error will be thrown. The default value is given below:
 ```
     schema: Optional[Dict[str, str]] = field(
         default_factory=lambda: {

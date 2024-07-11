@@ -388,8 +388,11 @@ class DocSetWriter:
         Writes the content of the DocSet into a DuckDB database.
 
         Args:
+            dimensions: The dimensions of the embeddings of each vector (required paramater)
             db_url: The URL of the DuckDB database. If not provided, the database will be in-memory.
             table_name: The table name to write the data to when possible
+            batch_size: The file batch size when loading entries into the DuckDB database table
+            schema: Defines the schema of the table to enter entries
             execute: Flag that determines whether to execute immediately
 
         Example:
@@ -433,7 +436,7 @@ class DocSetWriter:
                     "table_name": table_name,
                     "batch_size": batch_size,
                     "schema": schema,
-                  "dimensions": dimensions,
+                    "dimensions": dimensions,
                 }.items()
                 if v is not None
             }  # type: ignore

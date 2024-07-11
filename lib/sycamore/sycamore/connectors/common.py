@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Callable, Iterator, Union, Iterable, Tuple, Any
 import json
+import string
+import random
 
 
 @dataclass
@@ -22,8 +24,22 @@ DEFAULT_RECORD_PROPERTIES: dict[str, Any] = {
 }
 
 
+def generate_random_string(length=8):
+    characters = string.ascii_letters + string.digits
+    return "".join(random.choice(characters) for _ in range(length))
+
+
 def filter_doc(obj, include):
     return {k: v for k, v in obj.__dict__.items() if k in include}
+
+
+def check_dictionary_compatibility(dict1: dict[Any, Any], dict2: dict[Any, Any]):
+    for k in dict1:
+        if k not in dict2:
+            return False
+        if dict1[k] != dict2[k]:
+            return False
+    return True
 
 
 def compare_docs(doc1, doc2):

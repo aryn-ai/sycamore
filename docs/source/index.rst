@@ -107,6 +107,7 @@ More Resources
    /data_ingestion_and_preparation/running_a_data_preparation_job.md
    /data_ingestion_and_preparation/generative_ai_configuration.md
    /data_ingestion_and_preparation/transforms.rst
+   /data_ingestion_and_preparation/connectors.rst
 
 
 .. toctree::

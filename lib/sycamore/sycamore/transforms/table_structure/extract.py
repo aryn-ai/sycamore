@@ -100,7 +100,7 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         return tokens
 
     @timetrace("tblExtr")
-    def extract(self, element: TableElement, doc_image: Image.Image) -> TableElement:
+    def extract(self, element: TableElement, doc_image: Image.Image, use_ocr) -> TableElement:
         """Extracts the table structure from the specified element using a TableTransformer model.
 
         Takes a TableElement containing a bounding box, for example from the SycamorePartitioner,
@@ -175,6 +175,10 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
             cell.bbox.translate_self(crop_box[0], crop_box[1]).to_relative_self(width, height)
 
         element.table = table
+
+        if use_ocr:
+            element.text_representation = table.to_csv()
+        
         return element
 
 

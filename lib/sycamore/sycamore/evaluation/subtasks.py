@@ -1,21 +1,20 @@
 import json
 from typing import Any
 import sycamore
+from sycamore.connectors.file.materialized_scan import DocScan
 from sycamore.data.document import Document
 from sycamore.docset import DocSet
 from sycamore.evaluation.data import EvaluationDataPoint
 from sycamore.evaluation.pipeline import EvaluationPipeline
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.llms.prompts.default_prompts import TaskIdentifierZeroShotGuidancePrompt
-from sycamore.scans.materialized_scan import DocScan
 from sycamore.transforms.query import OpenSearchQueryExecutor
-from sycamore.writers.file_writer import JSONEncodeWithUserDict
 
 
 task_list = {}
 task_descriptions = ""
 openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
-prompt = TaskIdentifierZeroShotGuidancePrompt() # TODO@aanya: create a new prompt with question, tasks
+prompt = TaskIdentifierZeroShotGuidancePrompt()
 
 INDEX = "metadata-eval-2.0-mpnet"
 
@@ -196,7 +195,7 @@ task_list = {
         "For each year, divide the cost of goods sold in that year by the revenue in that year. Find the average of this ratio across all three years. Use this metric to answer the following question. Show the calculation in your answer."
 	],
     "CAPEX": [
-        "What is the capital expenditure of {company} in {year}? This value can be found in the cash flow statement. Synonyms for capital expenditure are: capital spending; purchases of property, plant, and equipment (PP&E); acquisition expenses."
+        "Synonyms for capital expenditure are: capital spending; purchases of property, plant, and equipment (PP&E); acquisition expenses."
     ],
     "ETR2": [
         "What is the income tax expense/benefit of {company} in {year}? What is the income tax expense/benefit of {company} in the previous year? These values can be found on the consolidated statement of operations.",
@@ -262,7 +261,11 @@ def executor(question, company, year):
     print (task_id)
 
     subtask_list = task_list[task_id]
+
+    if len(subtask_list) == 1:
+        return subtask_list[0]
+    
     results = collector(subtask_list[:-1], company, year)
     print (results)
 
-    return " ".join(results) + subtask_list[-1] if results else "Failed"
+    return " ".join(results) + subtask_list[-1] if results else ""

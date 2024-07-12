@@ -112,6 +112,7 @@ class SentenceTransformerEmbedder(Embedder):
 
     def get_model(self):
         if not self._transformer:
+            from sentence_transformers import SentenceTransformer
             return SentenceTransformer(self.model_name)
         else:
             return self._transformer

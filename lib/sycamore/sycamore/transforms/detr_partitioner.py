@@ -324,7 +324,7 @@ class ArynPDFPartitioner:
                         image = images[i]
                         for element in page_elements:
                             if isinstance(element, TableElement) and extract_table_structure:
-                                table_structure_extractor.extract(element, image)
+                                table_structure_extractor.extract(element, image, use_ocr)
 
                             if isinstance(element, ImageElement) and extract_images:
                                 if element.bbox is None:

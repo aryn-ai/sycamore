@@ -8,13 +8,13 @@ import datasets
 
 import sycamore
 from datasets import Dataset
+from sycamore.connectors.file.file_writer import JSONEncodeWithUserDict
 from sycamore.data import Element
 from sycamore.evaluation import EvaluationDataPoint, EvaluationMetric
 from sycamore.evaluation.metrics import document_retrieval_metrics, rouge_metrics
 from sycamore.evaluation.datasets import EvaluationDataSetReader
 from sycamore.evaluation.pipeline import EvaluationPipeline
 from sycamore.transforms.query import OpenSearchQueryExecutor
-from sycamore.writers.file_writer import JSONEncodeWithUserDict
 
 def _hf_to_qa_datapoint(datapoint: dict[str, Any]) -> dict[str, Any]:
     document = EvaluationDataPoint()
@@ -34,7 +34,7 @@ def _hf_to_qa_datapoint(datapoint: dict[str, Any]) -> dict[str, Any]:
     document["raw"] = datapoint
     return {"doc": document.serialize()}
 
-INDEX = "metadata-eval-2.0-mpnet"
+INDEX = "textract-mpnet"
 
 if os.path.exists("/.dockerenv"):
     opensearch_host = "opensearch"
@@ -64,11 +64,11 @@ OS_CONFIG = {
 }
 
 base_path = str(Path(__file__).parent)
-output_path = "/home/admin/sycamore/examples/" + "/sycpartitioner-subtasks.json"
+output_path = "/home/admin/sycamore/examples/fb-results" + "/test.json"
 
 context = sycamore.init()
 reader = EvaluationDataSetReader(context)
-hf_dataset = datasets.load_dataset("PatronusAI/financebench", split='train[2:3]')
+hf_dataset = datasets.load_dataset("PatronusAI/financebench", split='train[0:10]')
 input_docset = reader.huggingface(hf_dataset, doc_extractor=_hf_to_qa_datapoint)
 
 data = {

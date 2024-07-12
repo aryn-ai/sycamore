@@ -34,7 +34,10 @@ class Explode(SingleThreadUser, NonGPUUser, FlatMap):
 
         for i, element in enumerate(parent.elements):
             cur = Document(element.data)
-            cur.doc_id = str(uuid.uuid4())
+            if 'doc_id' in cur.data:
+                cur.doc_id = cur.data['doc_id']
+            else:
+                cur.doc_id = str(uuid.uuid4())
             cur.parent_id = parent.doc_id
             for doc_property in parent.properties.keys():
                 if doc_property.startswith("_"):

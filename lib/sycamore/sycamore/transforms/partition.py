@@ -381,7 +381,7 @@ class ArynPartitioner(Partitioner):
         extract_images: If true, crops each region identified as an image and attaches it to the associated
              ImageElement. This can later be fed into the SummarizeImages transform.
         local: If false, runs the partitioner remotely. Defaults to false
-        aryn_token: The account token used to authenticate with Aryn's servers.
+        aryn_api_key: The account token used to authenticate with Aryn's servers.
         aryn_partitioner_address: The address of the server to use to partition the document
 
     Example:
@@ -409,12 +409,12 @@ class ArynPartitioner(Partitioner):
         device=None,
         batch_size: int = 1,
         batch_at_a_time: bool = False,
-        local: bool = False,
+        use_partitioning_service: bool = True,
         aryn_api_key: str = "",
         aryn_partitioner_address: str = DEFAULT_ARYN_PARTITIONER_ADDRESS,
         use_cache=False,
     ):
-        if local:
+        if not use_partitioning_service:
             device = choose_device(device)
         else:
             device = "cpu"
@@ -434,7 +434,7 @@ class ArynPartitioner(Partitioner):
         self._extract_images = extract_images
         self._batch_size = batch_size
         self._batch_at_a_time = batch_at_a_time
-        self._local = local
+        self._use_partitioning_service = use_partitioning_service
         self._aryn_partitioner_address = aryn_partitioner_address
         self._use_cache = use_cache
 
@@ -491,7 +491,7 @@ class ArynPartitioner(Partitioner):
                 extract_images=self._extract_images,
                 batch_size=self._batch_size,
                 batch_at_a_time=self._batch_at_a_time,
-                local=self._local,
+                use_partitioning_service=self._use_partitioning_service,
                 aryn_api_key=self._aryn_api_key,
                 aryn_partitioner_address=self._aryn_partitioner_address,
                 use_cache=self._use_cache,

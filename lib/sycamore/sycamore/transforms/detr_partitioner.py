@@ -123,12 +123,12 @@ class ArynPDFPartitioner:
         extract_images=False,
         batch_size: int = 1,
         batch_at_a_time=True,
-        local=False,
+        use_partitioning_service=False,
         aryn_api_key: str = "",
         aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
         use_cache=False,
     ) -> List[Element]:
-        if not local:
+        if use_partitioning_service:
             return self._partition_remote(
                 file=file,
                 aryn_api_key=aryn_api_key,

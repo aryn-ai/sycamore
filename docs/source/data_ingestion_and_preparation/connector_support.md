@@ -5,3 +5,4 @@ A final step in a Sycamore processing job is to load the data into a target data
 Further information for each supported database and its relevant documentation is given below:
 
 * [DuckDB](./connectors/duckdb.md)
+* [Pinecone](./connectors/pinecone.md)

@@ -413,6 +413,7 @@ class ArynPartitioner(Partitioner):
         aryn_api_key: str = "",
         aryn_partitioner_address: str = DEFAULT_ARYN_PARTITIONER_ADDRESS,
         use_cache=False,
+        selection_size: int = 25,
     ):
         if local:
             device = choose_device(device)
@@ -437,6 +438,7 @@ class ArynPartitioner(Partitioner):
         self._local = local
         self._aryn_partitioner_address = aryn_partitioner_address
         self._use_cache = use_cache
+        self._selection_size = selection_size
 
     # For now, we reorder elements based on page, left/right column, y axle position then finally x axle position
     @staticmethod
@@ -495,6 +497,7 @@ class ArynPartitioner(Partitioner):
                 aryn_api_key=self._aryn_api_key,
                 aryn_partitioner_address=self._aryn_partitioner_address,
                 use_cache=self._use_cache,
+                selection_size=self._selection_size,
             )
         except Exception as e:
             path = document.properties["path"]

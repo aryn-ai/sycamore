@@ -538,7 +538,7 @@ class SycamorePartitioner(ArynPartitioner):
             device=device,
             batch_size=batch_size,
             batch_at_a_time=batch_at_a_time,
-            local=True,
+            use_partitioning_service=False,
         )
 
 

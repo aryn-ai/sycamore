@@ -1,14 +1,14 @@
 # Aryn Partitioning Service
 
 
-You can use the Aryn Partitioning Service to segment PDF's into labeled bounding boxes identifying titles, tables, table rows and columns, images, and regular text.
+You can use the Aryn Partitioning Service to segment PDF's into labeled bounding boxes identifying titles, tables, table rows and columns, images, and regular text. Bounding boxes are returned as JSON with their associated text for easy use.
 
 There are two ways to use the Aryn Partitioning Service: through the `ArynPartitioner` and directly from the HTTP service.
 
 To follow along below, we will need an Aryn API key, which we can get at [aryn.ai/cloud](https://www.aryn.ai/cloud). You will recieve the API key in your email inbox.
 ## Using Aryn Partitioner
 
-Say you have a set of pdfs located at the path stored in `work_dir`, and a manifest of them at `manifest_path`. We partition these documents with the code snippet below:
+Say you have a set of pdfs located at the path stored in `work_dir`. We partition these documents with the code snippet below:
 
 ```python
 aryn_api_key = "PUT API KEY HERE"
@@ -17,7 +17,16 @@ ctx = sycamore.init()
 pdf_docset = context.read.binary(work_dir, binary_format="pdf")
 partitioned_docset = pdf_docset.partition(ArynPartitioner(aryn_api_key=aryn_api_key))
 ```
-
+Alternatively, we can store our Aryn API key at `~/.aryn/config` like so:
+```toml
+aryn_token: "PUT API KEY HERE"
+```
+Which makes our Sycamore script the following:
+```python
+ctx = sycamore.init()
+pdf_docset = context.read.binary(work_dir, binary_format="pdf")
+partitioned_docset = pdf_docset.partition(ArynPartitioner())
+```
 ## Using `curl`
 
 `curl` an example document to use with the partitioning service if you do not have one already.

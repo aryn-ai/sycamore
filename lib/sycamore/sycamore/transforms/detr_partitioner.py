@@ -128,7 +128,7 @@ class ArynPDFPartitioner:
         aryn_api_key: str = "",
         aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
         use_cache=False,
-        selection_size: int = 25,
+        pages_per_call: int = 25,
     ) -> List[Element]:
         if not local:
             return self._partition_remote(
@@ -141,7 +141,7 @@ class ArynPDFPartitioner:
                 ocr_tables=ocr_tables,
                 extract_table_structure=extract_table_structure,
                 extract_images=extract_images,
-                selection_size=selection_size,
+                pages_per_call=pages_per_call,
             )
         else:
             if batch_at_a_time:
@@ -255,7 +255,7 @@ class ArynPDFPartitioner:
         ocr_tables: bool = False,
         extract_table_structure: bool = False,
         extract_images: bool = False,
-        selection_size: int = 25,
+        pages_per_call: int = 25,
     ) -> List[Element]:
         file.seek(0)
         pdf_reader = PyPDF2.PdfReader(file)
@@ -264,7 +264,7 @@ class ArynPDFPartitioner:
 
         result = []
         low = 0
-        high = selection_size - 1
+        high = pages_per_call - 1
         while low < page_count:
             result.extend(
                 ArynPDFPartitioner._call_remote_partitioner(
@@ -281,7 +281,7 @@ class ArynPDFPartitioner:
                 )
             )
             low = high + 1
-            high += selection_size
+            high += pages_per_call
 
         return result
 

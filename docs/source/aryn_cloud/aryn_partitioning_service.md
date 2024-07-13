@@ -14,7 +14,7 @@ Say you have a set of pdfs located at the path stored in `work_dir`, and a manif
 aryn_api_key = "PUT API KEY HERE"
 
 ctx = sycamore.init()
-pdf_docset = context.read.binary(work_dir, binary_format="pdf", metadata_provider=JsonManifestMetadataProvider(manifest_path))
+pdf_docset = context.read.binary(work_dir, binary_format="pdf")
 partitioned_docset = pdf_docset.partition(ArynPartitioner(aryn_api_key=aryn_api_key))
 ```
 

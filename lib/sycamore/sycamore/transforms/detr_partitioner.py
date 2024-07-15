@@ -129,7 +129,7 @@ class ArynPDFPartitioner:
         aryn_api_key: str = "",
         aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
         use_cache=False,
-        pages_per_call: int = 25,
+        pages_per_call: int = -1,
     ) -> List[Element]:
         if not local:
             return self._partition_remote(
@@ -256,7 +256,7 @@ class ArynPDFPartitioner:
         ocr_tables: bool = False,
         extract_table_structure: bool = False,
         extract_images: bool = False,
-        pages_per_call: int = 25,
+        pages_per_call: int = -1,
     ) -> List[Element]:
         file.seek(0)
         parser = PDFParser(file)
@@ -267,6 +267,8 @@ class ArynPDFPartitioner:
         result = []
         low = 0
         high = pages_per_call - 1
+        if pages_per_call == -1:
+            high = page_count
         while low < page_count:
             result.extend(
                 ArynPDFPartitioner._call_remote_partitioner(

@@ -413,7 +413,7 @@ class ArynPartitioner(Partitioner):
         aryn_api_key: str = "",
         aryn_partitioner_address: str = DEFAULT_ARYN_PARTITIONER_ADDRESS,
         use_cache=False,
-        pages_per_call: int = 25,
+        pages_per_call: int = -1,
     ):
         if local:
             device = choose_device(device)

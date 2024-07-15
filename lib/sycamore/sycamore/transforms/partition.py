@@ -380,9 +380,15 @@ class ArynPartitioner(Partitioner):
              Ignored when local mode is false.
         extract_images: If true, crops each region identified as an image and attaches it to the associated
              ImageElement. This can later be fed into the SummarizeImages transform.
+        device: Device on which to run the partitioning model locally. One of 'cpu', 'cuda', and 'mps'. If
+             not set, Sycamore will choose based on what's available. If running remotely, this doesn't
+             matter.
+        batch_size: How many pages to partition at once. Default is 1.
+        batch_at_a_time: When running remotely, send only one batch at a time. Default is False
         local: If false, runs the partitioner remotely. Defaults to false
         aryn_token: The account token used to authenticate with Aryn's servers.
         aryn_partitioner_address: The address of the server to use to partition the document
+        use_cache: Cache results from the partitioner for faster inferences on the same documents in future runs.
 
     Example:
          The following shows an example of using the ArynPartitioner to partition a PDF and extract

@@ -6,7 +6,7 @@
 
 *Please look at the [Pinecone API documentation](https://docs.pinecone.io/home) for in-depth background on the following. We specify the essential portions for creating a new Vector DB outside of Sycamore below.*
 
-Pinecone exist solely in its cloud infrastructure hosted via AWS. To set up a new Pinecone GRPC client connection in Python, generate a new [Pinecone API key](https://www.app.pinecone.io/), install the *pinecone* python package and run the following code:
+Pinecone is accessible via its cloud infrastructure hosted on AWS and GCP. To set up a new Pinecone GRPC client connection in Python, generate a new [Pinecone API key](https://www.app.pinecone.io/), install the *pinecone* python package and run the following code:
 
 ```
 from pinecone.grpc import PineconeGRPC, Vector
@@ -28,5 +28,9 @@ To write a Docset to a Pinecone index from Sycamore, use the DocSet `docset.writ
 - kwargs: Arguments to pass to the underlying execution engine
 
 To use the writer, call write at the end of a Sycamore pipeline as done below:
+
+```
+ds.write.pinecone(index_name=index_name, namespace=namespace, dimensions=384, index_spec=spec)
+```
 
 Note that the writer forces execution of all transforms before it, so would normally come at the end of a Sycamore pipeline. More information can be found in the {doc}`API documentation </APIs/data_preparation/docsetwriter>`.

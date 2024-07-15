@@ -19,10 +19,11 @@ import torch
 from PIL import Image
 from pdfminer.converter import PDFPageAggregator
 from pdfminer.layout import LAParams
-from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
+from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager, resolve1
 from pdfminer.pdfpage import PDFPage
 from pdfminer.utils import open_filename
-import PyPDF2
+from pdfminer.pdfparser import PDFParser
+from pdfminer.pdfdocument import PDFDocument
 
 from sycamore.data import Element, BoundingBox, ImageElement, TableElement
 from sycamore.data.element import create_element
@@ -258,8 +259,9 @@ class ArynPDFPartitioner:
         pages_per_call: int = 25,
     ) -> List[Element]:
         file.seek(0)
-        pdf_reader = PyPDF2.PdfReader(file)
-        page_count = len(pdf_reader.pages)
+        parser = PDFParser(file)
+        document = PDFDocument(parser)
+        page_count = resolve1(document.catalog["Pages"])["Count"]
         file.seek(0)
 
         result = []

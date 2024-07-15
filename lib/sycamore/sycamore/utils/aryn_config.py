@@ -45,6 +45,6 @@ class ArynConfig:
                         return
                     logging.debug(f"Aryn configuration: {aryn_config}")
             except FileNotFoundError as err:
-                logging.error(f"Unable to load aryn config {config_path}: {err}")
+                logging.debug(f"Unable to load Aryn config {config_path}: {err}")
             except yaml.scanner.ScannerError as err:
                 logging.error(f"Unable to parse {config_path}: {err}. Ignoring the config file.")

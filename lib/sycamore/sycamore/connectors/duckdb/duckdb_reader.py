@@ -1,9 +1,8 @@
 from sycamore.data import Document
 
 from dataclasses import dataclass
-from typing import Optional, Any
+from typing import Optional
 
-from sycamore.data.document import Document
 from sycamore.connectors.base_reader import BaseDBReader
 import duckdb
 

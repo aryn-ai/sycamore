@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from typing import Optional
 from ray.data import Dataset, from_items
-from sycamore.connectors.common import flatten_data
 
 from sycamore.data.document import Document
 from sycamore.plan_nodes import Node, Read

@@ -383,7 +383,8 @@ class ArynPartitioner(Partitioner):
         device: Device on which to run the partitioning model locally. One of 'cpu', 'cuda', and 'mps'. If
              not set, Sycamore will choose based on what's available. If running remotely, this doesn't
              matter.
-        batch_size: How many pages to partition at once. Default is 1.
+        batch_size: How many pages to partition at once, when running locally. Default is 1. Ignored when
+             running remotely.
         batch_at_a_time: When running remotely, send only one batch at a time. Default is False
         local: If false, runs the partitioner remotely. Defaults to false
         aryn_api_key: The account token used to authenticate with Aryn's servers.

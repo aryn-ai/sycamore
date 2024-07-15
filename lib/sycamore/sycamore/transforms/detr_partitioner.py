@@ -19,9 +19,11 @@ import torch
 from PIL import Image
 from pdfminer.converter import PDFPageAggregator
 from pdfminer.layout import LAParams
-from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
+from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager, resolve1
 from pdfminer.pdfpage import PDFPage
 from pdfminer.utils import open_filename
+from pdfminer.pdfparser import PDFParser
+from pdfminer.pdfdocument import PDFDocument
 
 from sycamore.data import Element, BoundingBox, ImageElement, TableElement
 from sycamore.data.element import create_element
@@ -127,6 +129,7 @@ class ArynPDFPartitioner:
         aryn_api_key: str = "",
         aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
         use_cache=False,
+        pages_per_call: int = -1,
     ) -> List[Element]:
         if not local:
             return self._partition_remote(
@@ -139,6 +142,7 @@ class ArynPDFPartitioner:
                 ocr_tables=ocr_tables,
                 extract_table_structure=extract_table_structure,
                 extract_images=extract_images,
+                pages_per_call=pages_per_call,
             )
         else:
             if batch_at_a_time:
@@ -180,7 +184,7 @@ class ArynPDFPartitioner:
         wait=wait_exponential(multiplier=1, min=1),
         stop=stop_after_delay(_TEN_MINUTES),
     )
-    def _partition_remote(
+    def _call_remote_partitioner(
         file: BinaryIO,
         aryn_api_key: str,
         aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
@@ -190,7 +194,9 @@ class ArynPDFPartitioner:
         ocr_tables: bool = False,
         extract_table_structure: bool = False,
         extract_images: bool = False,
+        selected_pages: list = [],
     ) -> List[Element]:
+        file.seek(0)
         options = {
             "threshold": threshold,
             "use_ocr": use_ocr,
@@ -198,6 +204,7 @@ class ArynPDFPartitioner:
             "ocr_tables": ocr_tables,
             "extract_table_structure": extract_table_structure,
             "extract_images": extract_images,
+            "selected_pages": selected_pages,
         }
 
         files: Mapping = {"pdf": file, "options": json.dumps(options).encode("utf-8")}
@@ -237,6 +244,50 @@ class ArynPDFPartitioner:
             elements.append(element)
 
         return elements
+
+    @staticmethod
+    def _partition_remote(
+        file: BinaryIO,
+        aryn_api_key: str,
+        aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
+        threshold: float = 0.4,
+        use_ocr: bool = False,
+        ocr_images: bool = False,
+        ocr_tables: bool = False,
+        extract_table_structure: bool = False,
+        extract_images: bool = False,
+        pages_per_call: int = -1,
+    ) -> List[Element]:
+        file.seek(0)
+        parser = PDFParser(file)
+        document = PDFDocument(parser)
+        page_count = resolve1(document.catalog["Pages"])["Count"]
+        file.seek(0)
+
+        result = []
+        low = 0
+        high = pages_per_call - 1
+        if pages_per_call == -1:
+            high = page_count
+        while low < page_count:
+            result.extend(
+                ArynPDFPartitioner._call_remote_partitioner(
+                    file=file,
+                    aryn_api_key=aryn_api_key,
+                    aryn_partitioner_address=aryn_partitioner_address,
+                    threshold=threshold,
+                    use_ocr=use_ocr,
+                    ocr_images=ocr_images,
+                    ocr_tables=ocr_tables,
+                    extract_table_structure=extract_table_structure,
+                    extract_images=extract_images,
+                    selected_pages=[[low, min(high, page_count)]],
+                )
+            )
+            low = high + 1
+            high += pages_per_call
+
+        return result
 
     def _partition_pdf_sequenced(
         self,

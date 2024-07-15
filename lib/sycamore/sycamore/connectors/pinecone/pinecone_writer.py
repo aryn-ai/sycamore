@@ -8,7 +8,7 @@ from pinecone import PineconeException, PineconeApiException, PodSpec, Serverles
 from pinecone.grpc import PineconeGRPC, Vector
 from pinecone.grpc.vector_factory_grpc import VectorFactoryGRPC
 from sycamore.data.document import Document
-from sycamore.connectors.base import BaseDBWriter
+from sycamore.connectors.base_writer import BaseDBWriter
 from sycamore.connectors.common import flatten_data
 import time
 

@@ -12,7 +12,7 @@ from sycamore.connectors.common import compare_docs
 
 def test_duckdb_scan():
     table_name = "duckdb_table"
-    db_url = "tmp.db"
+    db_url = "tmp_read.db"
     paths = str(TEST_DIR / "resources/data/pdfs/Transformer.pdf")
     model_name = "sentence-transformers/all-MiniLM-L6-v2"
     tokenizer = HuggingFaceTokenizer(model_name)

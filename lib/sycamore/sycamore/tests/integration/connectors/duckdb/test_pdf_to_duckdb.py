@@ -12,7 +12,7 @@ import os
 
 def test_to_duckdb():
     table_name = "duckdb_table"
-    db_url = "tmp.db"
+    db_url = "tmp_write.db"
     model_name = "sentence-transformers/all-MiniLM-L6-v2"
     paths = str(TEST_DIR / "resources/data/pdfs/")
 

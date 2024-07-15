@@ -8,7 +8,7 @@ from opensearchpy.exceptions import RequestError
 from opensearchpy.helpers import parallel_bulk
 
 from sycamore.data import Document
-from sycamore.connectors.base import BaseDBWriter
+from sycamore.connectors.base_writer import BaseDBWriter
 from sycamore.connectors.common import (
     HostAndPort,
     flatten_data,

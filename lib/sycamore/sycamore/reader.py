@@ -4,6 +4,7 @@ from pandas import DataFrame
 from pyarrow import Table
 from pyarrow.filesystem import FileSystem
 
+from sycamore.plan_nodes import Node
 from sycamore import Context, DocSet
 from sycamore.data import Document
 from sycamore.connectors.file import ArrowScan, BinaryScan, DocScan, PandasScan, JsonScan, JsonDocumentScan
@@ -11,8 +12,9 @@ from sycamore.connectors.file.file_scan import FileMetadataProvider
 
 
 class DocSetReader:
-    def __init__(self, context: Context):
+    def __init__(self, context: Context, plan: Optional[Node] = None):
         self._context = context
+        self.plan = plan
 
     def binary(
         self,
@@ -94,11 +96,15 @@ class DocSetReader:
         scan = OpenSearchScan(index_name, os_client_args)
         return DocSet(self._context, scan)
 
-    def duckdb(self, db_url: str, table_name: str) -> DocSet:
-        from sycamore.connectors.duckdb import DuckDBScan
+    def duckdb(self, db_url: str, table_name: str, query: Optional[str] = None, on_input_docs: bool = False) -> DocSet:
+        from sycamore.connectors.duckdb import DuckDBReader, DuckDBReaderClientParams, DuckDBReaderQueryParams
 
-        scan = DuckDBScan(db_url=db_url, table_name=table_name)
-        return DocSet(self._context, scan)
+        client_params = DuckDBReaderClientParams()
+        query_params = DuckDBReaderQueryParams(
+            db_url=db_url, table_name=table_name, query=query, on_input_docs=on_input_docs
+        )
+        ddbr = DuckDBReader(self.plan, client_params=client_params, query_params=query_params)
+        return DocSet(self._context, ddbr)
 
     def pinecone(self, index_name: str, api_key: str, namespace: str = "") -> DocSet:
         from sycamore.connectors.pinecone import PineconeScan

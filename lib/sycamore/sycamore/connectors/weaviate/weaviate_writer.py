@@ -4,7 +4,7 @@ from sycamore.connectors.common import drop_types, flatten_data
 from typing_extensions import TypeGuard, TypeAlias
 
 from sycamore.data.document import Document
-from sycamore.connectors.base import BaseDBWriter
+from sycamore.connectors.base_writer import BaseDBWriter
 from weaviate.classes.config import DataType, ReferenceProperty
 from weaviate.client import (
     AdditionalConfig,

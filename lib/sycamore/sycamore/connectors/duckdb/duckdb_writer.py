@@ -3,7 +3,7 @@ from typing import Optional, Any, Dict
 from typing_extensions import TypeGuard
 
 from sycamore.data.document import Document
-from sycamore.connectors.base import BaseDBWriter
+from sycamore.connectors.base_writer import BaseDBWriter
 from sycamore.connectors.common import convert_to_str_dict
 import pyarrow as pa
 import duckdb
@@ -11,12 +11,12 @@ import os
 
 
 @dataclass
-class DuckDBClientParams(BaseDBWriter.ClientParams):
+class DuckDBWriterClientParams(BaseDBWriter.ClientParams):
     pass
 
 
 @dataclass
-class DuckDBTargetParams(BaseDBWriter.TargetParams):
+class DuckDBWriterTargetParams(BaseDBWriter.TargetParams):
     dimensions: int
     db_url: Optional[str] = "tmp.db"
     table_name: Optional[str] = "default_table"
@@ -34,7 +34,7 @@ class DuckDBTargetParams(BaseDBWriter.TargetParams):
     )
 
     def compatible_with(self, other: BaseDBWriter.TargetParams) -> bool:
-        if not isinstance(other, DuckDBTargetParams):
+        if not isinstance(other, DuckDBWriterTargetParams):
             return False
         if self.dimensions != other.dimensions:
             return False
@@ -56,17 +56,19 @@ class DuckDBTargetParams(BaseDBWriter.TargetParams):
 
 
 class DuckDBClient(BaseDBWriter.Client):
-    def __init__(self, client_params: DuckDBClientParams):
+    def __init__(self, client_params: DuckDBWriterClientParams):
         pass
 
     @classmethod
     def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "DuckDBClient":
-        assert isinstance(params, DuckDBClientParams)
+        assert isinstance(params, DuckDBWriterClientParams)
         return DuckDBClient(params)
 
     def write_many_records(self, records: list[BaseDBWriter.Record], target_params: BaseDBWriter.TargetParams):
         assert _narrow_list_of_doc_records(records), f"Found a bad record in {records}"
-        assert isinstance(target_params, DuckDBTargetParams), f"Wrong kind of target parameters found: {target_params}"
+        assert isinstance(
+            target_params, DuckDBWriterTargetParams
+        ), f"Wrong kind of target parameters found: {target_params}"
         dict_params = asdict(target_params)
         N = target_params.batch_size * 1024  # Around 1 MB
         headers = ["doc_id", "embeddings", "properties", "text_representation", "bbox", "shingles", "type"]
@@ -109,7 +111,7 @@ class DuckDBClient(BaseDBWriter.Client):
             write_batch(batch_data)
 
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
-        assert isinstance(target_params, DuckDBTargetParams)
+        assert isinstance(target_params, DuckDBWriterTargetParams)
         dict_params = asdict(target_params)
         schema = dict_params.get("schema")
         client = duckdb.connect(str(dict_params.get("db_url")))
@@ -130,8 +132,8 @@ class DuckDBClient(BaseDBWriter.Client):
         except Exception as e:
             print(f"Error creating table {dict_params.get('table_name')} in database {dict_params.get('db_url')}: {e}")
 
-    def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> "DuckDBTargetParams":
-        assert isinstance(target_params, DuckDBTargetParams)
+    def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> "DuckDBWriterTargetParams":
+        assert isinstance(target_params, DuckDBWriterTargetParams)
         dict_params = asdict(target_params)
         schema = target_params.schema
         if not target_params.db_url or not os.path.exists(target_params.db_url):
@@ -146,7 +148,7 @@ class DuckDBClient(BaseDBWriter.Client):
                     f"""Table {dict_params.get('table_name')}
                     does not exist in database {dict_params.get('table_name')}: {e}"""
                 )
-        return DuckDBTargetParams(
+        return DuckDBWriterTargetParams(
             dimensions=target_params.dimensions,
             db_url=target_params.db_url,
             table_name=target_params.table_name,
@@ -167,7 +169,7 @@ class DuckDBDocumentRecord(BaseDBWriter.Record):
 
     @classmethod
     def from_doc(cls, document: Document, target_params: BaseDBWriter.TargetParams) -> "DuckDBDocumentRecord":
-        assert isinstance(target_params, DuckDBTargetParams)
+        assert isinstance(target_params, DuckDBWriterTargetParams)
         doc_id = document.doc_id
         if doc_id is None:
             raise ValueError(f"Cannot write documents without a doc_id. Found {document}")
@@ -190,5 +192,5 @@ def _narrow_list_of_doc_records(records: list[BaseDBWriter.Record]) -> TypeGuard
 class DuckDBWriter(BaseDBWriter):
     Client = DuckDBClient
     Record = DuckDBDocumentRecord
-    ClientParams = DuckDBClientParams
-    TargetParams = DuckDBTargetParams
+    ClientParams = DuckDBWriterClientParams
+    TargetParams = DuckDBWriterTargetParams

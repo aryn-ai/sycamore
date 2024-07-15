@@ -425,10 +425,14 @@ class DocSetWriter:
                 conn = duckdb.connect(database=db_url)
                 duckdb_read = conn.execute(f"SELECT * FROM {table_name}")
         """
-        from sycamore.connectors.duckdb.duckdb_writer import DuckDBWriter, DuckDBClientParams, DuckDBTargetParams
+        from sycamore.connectors.duckdb.duckdb_writer import (
+            DuckDBWriter,
+            DuckDBWriterClientParams,
+            DuckDBWriterTargetParams,
+        )
 
-        client_params = DuckDBClientParams()
-        target_params = DuckDBTargetParams(
+        client_params = DuckDBWriterClientParams()
+        target_params = DuckDBWriterTargetParams(
             **{
                 k: v
                 for k, v in {

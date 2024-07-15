@@ -215,7 +215,7 @@ class ArynPDFPartitioner:
         logging.debug("ArynPartitioner Recieved data")
 
         if response.status_code != 200:
-            if response.status_code == 500:
+            if response.status_code == 500 or response.status_code == 502:
                 logging.debug(
                     "ArynPartitioner recieved a retry-able error {} x-aryn-call-id: {}".format(
                         response, response.headers.get("x-aryn-call-id")

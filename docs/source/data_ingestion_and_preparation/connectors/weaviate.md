@@ -58,7 +58,7 @@ To write a DocSet to a Weaviate Collection from Sycamore, use the `docset.write.
 - `collection_name`: The name of the collection to write to.
 - `collection_config`: (optional) A dictionary of keyword parameters passed to the Weaviate client's [`collection.create(...)`](https://weaviate.io/developers/weaviate/client-libraries/python#instantiate-a-collection) method. A name specified here must match the `collection_name` argument.
 - `flatten_properties`: (optional, default=`False`) Whether to flatten nested property objects during the write. Weaviate can store flattened and nested properties, but will only filter and aggregate top-level properties, meaning they need to be flattened.
-- `execute`: (optional, defaul=`True`) Whether to execute this sycamore pipeline now, or return a docset to add more transforms.
+- `execute`: (optional, default=`True`) Whether to execute this sycamore pipeline now, or return a docset to add more transforms.
 
 To write a docset to the weaviate instance run by the docker compose above, we can write the following:
 

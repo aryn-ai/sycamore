@@ -390,7 +390,7 @@ class ArynPartitioner(Partitioner):
         aryn_partitioner_address: The address of the server to use to partition the document
         use_cache: Cache results from the partitioner for faster inferences on the same documents in future runs.
         pages_per_call: Number of pages to send in a single call to the remote service. Default is -1,
-             which means any.
+             which means send all pages in one call.
 
     Example:
          The following shows an example of using the ArynPartitioner to partition a PDF and extract

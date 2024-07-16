@@ -30,6 +30,11 @@ To write a Docset to a Pinecone index from Sycamore, use the DocSet `docset.writ
 To use the writer, call write at the end of a Sycamore pipeline as done below:
 
 ```
+from pinecone import ServerlessSpec
+
+spec = ServerlessSpec(cloud="aws", region="us-east-1")
+index_name = "test-index-write"
+namespace = f"{generate_random_string().lower()}"
 ds.write.pinecone(index_name=index_name, namespace=namespace, dimensions=384, index_spec=spec)
 ```
 

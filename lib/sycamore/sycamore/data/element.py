@@ -1,5 +1,6 @@
 from collections import UserDict
 from io import BytesIO
+import json
 from typing import Any, Optional
 
 from PIL import Image
@@ -64,6 +65,19 @@ class Element(UserDict):
     @properties.deleter
     def properties(self) -> None:
         self.data["properties"] = {}
+
+    def __str__(self) -> str:
+        """Return a pretty-printed string representing this Element."""
+        d = {
+            "type": self.type,
+            "text_representation": self.text_representation[0:40] + "..." if self.text_representation else None,
+            "binary_representation": (
+                f"<{len(self.binary_representation)} bytes>" if self.binary_representation else None
+            ),
+            "bbox": str(self.bbox),
+            "properties": self.properties,
+        }
+        return json.dumps(d, indent=2)
 
 
 class ImageElement(Element):

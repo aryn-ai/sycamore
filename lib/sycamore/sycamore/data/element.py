@@ -169,6 +169,18 @@ class TableElement(Element):
     def tokens(self, tokens: list[dict[str, Any]]) -> None:
         self.data["tokens"] = tokens
 
+    @property
+    def text_representation(self) -> Optional[str]:
+        if "_override_text" in self.data:
+            return self.data["_override_text"]
+        if self.data["table"]:
+            return self.data["table"].to_csv()
+        return super().text_representation
+
+    @text_representation.setter
+    def text_representation(self, value: str) -> None:
+        self.data["_override_text"] = value
+
 
 def create_element(**kwargs) -> Element:
     if "type" in kwargs and kwargs["type"].lower() == "table":

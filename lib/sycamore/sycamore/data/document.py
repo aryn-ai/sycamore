@@ -200,10 +200,12 @@ class Document(UserDict):
             "lineage_id": self.lineage_id,
             "type": self.type,
             "text_representation": self.text_representation[0:40] + "..." if self.text_representation else None,
-            "binary_representation": f"<{len(self.binary_representation)} bytes>" if self.binary_representation else None,
+            "binary_representation": (
+                f"<{len(self.binary_representation)} bytes>" if self.binary_representation else None
+            ),
             "elements": [str(e) for e in self.elements],
-            "embedding": f"<{len(self.embedding)} floats>" if self.embedding else None,
-            "shingles": f"<{len(self.shingles)} ints>" if self.shingles else None,
+            "embedding": (str(self.embedding[0:4]) + f"... <{len(self.embedding)} total>") if self.embedding else None,
+            "shingles": (str(self.shingles[0:4]) + f"... <{len(self.shingles)} total>") if self.shingles else None,
             "parent_id": self.parent_id,
             "bbox": str(self.bbox),
             "properties": self.properties,

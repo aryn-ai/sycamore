@@ -126,7 +126,6 @@ class Table:
     def __hash__(self):
         return hash((self.cells))
 
-
     @classmethod
     def from_dict(cls, dict_obj: dict[str, Any]) -> "Table":
         """Construct a table from a dict representation."""
@@ -183,6 +182,7 @@ class Table:
         cur_row = -1
 
         cells = []
+        caption = None
 
         # Traverse the tree of elements in a pre-order traversal.
         for tag in root.find_all(recursive=True):
@@ -212,10 +212,28 @@ class Table:
 
                 cur_col += colspan
 
+            elif tag.name == "caption":
+                caption = tag.get_text()
+
             else:
                 continue
 
-        return Table(cells)
+        # Fix columns where rowspans should be inserted
+        for c in cells:
+            if len(c.rows) == 1:
+                continue
+            rows_to_increment = c.rows[1:]
+            increment_by = len(c.cols)
+            increment_after = c.cols[0]
+            # Yes this is quadratic. I'm assuming tables are smaller than LLMs.
+            for c2 in cells:
+                if c2 is c:
+                    continue
+                if c2.cols[0] >= increment_after and c2.rows[0] in rows_to_increment:
+                    for i in range(len(c2.cols)):
+                        c2.cols[i] += increment_by
+
+        return Table(cells, caption=caption)
 
     # This algorithm is modified from the TableTransformers code. The conversion to Pandas/CSV
     # is necessarily lossy since these formats requires tables to be square and don't support

@@ -363,10 +363,6 @@ test_cases = [
     SmithsonianSampleTable(),
 ]
 
-test_cases = [
-    SimpleTableMultiRowHeader(),
-]
-
 
 @pytest.mark.parametrize("test_case", test_cases)
 def test_to_csv(test_case):
@@ -480,7 +476,7 @@ def test_table_from_dict_missing():
     actual = Table.from_dict({"cells": json_cells, "caption": caption})
     assert actual == expected
 
-    
+
 @pytest.mark.parametrize("test_case", test_cases)
 def test_from_html(test_case):
     actual = Table.from_html(html_str=test_case.canonical_html())

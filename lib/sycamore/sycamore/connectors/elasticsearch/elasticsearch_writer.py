@@ -57,7 +57,7 @@ class ElasticTargetParams(BaseDBWriter.TargetParams):
                 return False
         my_flat_mappings = dict(flatten_data(self.mappings))
         other_flat_mappings = dict(flatten_data(other.mappings))
-        return check_dictionary_compatibility(my_flat_mappings, other_flat_mappings)
+        return check_dictionary_compatibility(my_flat_mappings, other_flat_mappings, ["type"])
 
 
 class ElasticClient(BaseDBWriter.Client):

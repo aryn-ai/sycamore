@@ -4,7 +4,7 @@
 
 ## Configuration for Weaviate
 
-*Please see the Weaviate's [installation](https://weaviate.io/developers/weaviate/installation) page for more in-depth information on installing, configuring, and running Weaviate. We specify the setup required to run a simple demo app.*
+*Please see Weaviate's [installation](https://weaviate.io/developers/weaviate/installation) page for more in-depth information on installing, configuring, and running Weaviate. We specify the setup required to run a simple demo app.*
 
 We recommend running Weaviate through docker compose. The provided `compose.yml` file runs Weaviate along with a sidecar local embedding service to make querying easier.
 

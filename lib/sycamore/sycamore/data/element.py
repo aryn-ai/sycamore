@@ -71,7 +71,9 @@ class Element(UserDict):
         d = {
             "type": self.type,
             "text_representation": self.text_representation[0:40] + "..." if self.text_representation else None,
-            "binary_representation": f"<{len(self.binary_representation)} bytes>" if self.binary_representation else None,
+            "binary_representation": (
+                f"<{len(self.binary_representation)} bytes>" if self.binary_representation else None
+            ),
             "bbox": str(self.bbox),
             "properties": self.properties,
         }

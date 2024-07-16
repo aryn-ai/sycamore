@@ -1,18 +1,19 @@
-import json
-from dataclasses import dataclass
-from enum import Enum
 import logging
 import os
+import pickle
+from dataclasses import dataclass
+from enum import Enum
 from typing import Any, Optional, TypedDict, Union, cast
 
+from guidance.models import AzureOpenAIChat, AzureOpenAICompletion
 from guidance.models import Model
 from guidance.models import OpenAI as GuidanceOpenAI
-from guidance.models import AzureOpenAIChat, AzureOpenAICompletion
-from openai import OpenAI as OpenAIClient
 from openai import AzureOpenAI as AzureOpenAIClient
+from openai import OpenAI as OpenAIClient
 from openai import max_retries as DEFAULT_MAX_RETRIES
 from openai.lib.azure import AzureADTokenProvider
 from openai.types.chat import ChatCompletionMessageParam
+
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts import GuidancePrompt
 from sycamore.utils.cache import Cache
@@ -205,6 +206,10 @@ class OpenAIClientWrapper:
 OpenAIClientParameters = OpenAIClientWrapper
 
 
+def openai_deserializer(kwargs):
+    return OpenAI(**kwargs)
+
+
 class OpenAI(LLM):
     def __init__(
         self,
@@ -227,7 +232,6 @@ class OpenAI(LLM):
         if self.model.name == OpenAIModels.TEXT_DAVINCI.value.name:
             logger.warn("text-davinci-003 is deprecated. Falling back to gpt-3.5-turbo-instruct")
             self.model = OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value
-
         super().__init__(self.model.name, cache)
 
         # This is somewhat complex to provide a degree of backward compatibility.
@@ -250,12 +254,10 @@ class OpenAI(LLM):
     # The actual openai client is not pickleable, This just says to pickle the wrapper, which can be used to
     # recreate the client on the other end.
     def __reduce__(self):
-        def deserializer(kwargs):
-            return OpenAI(**kwargs)
 
-        kwargs = {"client_wrapper": self.client_wrapper, "model_name": self._model_name}
+        kwargs = {"client_wrapper": self.client_wrapper, "model_name": self._model_name, "cache": self._cache}
 
-        return deserializer, (kwargs,)
+        return openai_deserializer, (kwargs,)
 
     def is_chat_mode(self):
         return self.model.is_chat
@@ -263,8 +265,8 @@ class OpenAI(LLM):
     def _get_cache_key(self, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
         assert self._cache
         combined = {"prompt_kwargs": prompt_kwargs, "llm_kwargs": llm_kwargs}
-        json_str = json.dumps(combined, sort_keys=True)
-        return self._cache.get_hash_key(json_str.encode("utf-8"))
+        data = pickle.dumps(combined)
+        return self._cache.get_hash_key(data)
 
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Any:
         cache_key = None
@@ -293,7 +295,7 @@ class OpenAI(LLM):
             self._cache.set(cache_key, item)
         return result
 
-    def _generate_using_openai(self, prompt_kwargs, llm_kwargs) -> Any:
+    def _generate_using_openai(self, prompt_kwargs, llm_kwargs) -> str:
         kwargs = {
             "temperature": 0,
             **llm_kwargs,
@@ -308,9 +310,9 @@ class OpenAI(LLM):
             raise ValueError("Either prompt or messages must be present in prompt_kwargs.")
 
         completion = self._client.chat.completions.create(model=self._model_name, messages=messages, **kwargs)
-        return completion.choices[0].message
+        return completion.choices[0].message.content
 
-    def _generate_using_guidance(self, prompt_kwargs) -> Any:
+    def _generate_using_guidance(self, prompt_kwargs) -> str:
         guidance_model = self.client_wrapper.get_guidance_model(self.model)
         prompt: GuidancePrompt = prompt_kwargs.pop("prompt")
         prediction = prompt.execute(guidance_model, **prompt_kwargs)

@@ -1,23 +1,25 @@
 import sycamore
 from sycamore.functions.tokenizer import HuggingFaceTokenizer
+from sycamore.llms import OpenAIModels, OpenAI
 from sycamore.transforms import COALESCE_WHITESPACE
 from sycamore.transforms.merge_elements import MarkedMerger
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.tests.config import TEST_DIR
-from sycamore.utils.time_trace import ray_logging_setup
-import duckdb
-import os
+from elasticsearch import Elasticsearch
 
 
-def test_to_duckdb():
-    table_name = "duckdb_table"
-    db_url = "tmp.db"
+def test_to_elasticsearch():
+    url = "http://localhost:9201"
+    index_name = "test_index-other"
+    wait_for_completion = "wait_for"
     model_name = "sentence-transformers/all-MiniLM-L6-v2"
-    paths = str(TEST_DIR / "resources/data/pdfs/")
+    paths = str(TEST_DIR / "resources/data/pdfs/Transformer.pdf")
 
+    OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
     tokenizer = HuggingFaceTokenizer(model_name)
-    ctx = sycamore.init(ray_args={"runtime_env": {"worker_process_setup_hook": ray_logging_setup}})
+
+    ctx = sycamore.init()
 
     ds = (
         ctx.read.binary(paths, binary_format="pdf")
@@ -29,14 +31,11 @@ def test_to_duckdb():
         .split_elements(tokenizer=tokenizer, max_tokens=512)
         .explode()
         .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
+        .sketch(window=17)
     )
-    ds_count = ds.count()
-    ds.write.duckdb(table_name=table_name, db_url=db_url, dimensions=384)
-    conn = duckdb.connect(database=db_url)
-    duckdb_count = conn.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0]
-    # delete the database
-    try:
-        os.unlink(db_url)
-    except Exception as e:
-        print(f"Error deleting {db_url}: {e}")
-    assert ds_count == int(duckdb_count)
+    count = ds.count()
+    ds.write.elasticsearch(url=url, index_name=index_name, wait_for_completion=wait_for_completion)
+    with Elasticsearch(url) as es_client:
+        es_count = int(es_client.cat.count(index=index_name, format="json")[0]["count"])
+        es_client.indices.delete(index=index_name)
+    assert count == es_count

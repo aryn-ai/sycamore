@@ -380,9 +380,19 @@ class ArynPartitioner(Partitioner):
              Ignored when local mode is false.
         extract_images: If true, crops each region identified as an image and attaches it to the associated
              ImageElement. This can later be fed into the SummarizeImages transform.
+        device: Device on which to run the partitioning model locally. One of 'cpu', 'cuda', and 'mps'. If
+             not set, Sycamore will choose based on what's available. If running remotely, this doesn't
+             matter.
+        batch_size: How many pages to partition at once, when running locally. Default is 1. Ignored when
+             running remotely.
+        batch_at_a_time: When running locally, run inference on the pages in batches in order to not load
+             all pages into memory at the same time. Default is False
         local: If false, runs the partitioner remotely. Defaults to false
-        aryn_token: The account token used to authenticate with Aryn's servers.
+        aryn_api_key: The account token used to authenticate with Aryn's servers.
         aryn_partitioner_address: The address of the server to use to partition the document
+        use_cache: Cache results from the partitioner for faster inferences on the same documents in future runs.
+        pages_per_call: Number of pages to send in a single call to the remote service. Default is -1,
+             which means send all pages in one call.
 
     Example:
          The following shows an example of using the ArynPartitioner to partition a PDF and extract
@@ -413,6 +423,7 @@ class ArynPartitioner(Partitioner):
         aryn_api_key: str = "",
         aryn_partitioner_address: str = DEFAULT_ARYN_PARTITIONER_ADDRESS,
         use_cache=False,
+        pages_per_call: int = -1,
     ):
         if local:
             device = choose_device(device)
@@ -437,6 +448,7 @@ class ArynPartitioner(Partitioner):
         self._local = local
         self._aryn_partitioner_address = aryn_partitioner_address
         self._use_cache = use_cache
+        self._pages_per_call = pages_per_call
 
     # For now, we reorder elements based on page, left/right column, y axle position then finally x axle position
     @staticmethod
@@ -495,6 +507,7 @@ class ArynPartitioner(Partitioner):
                 aryn_api_key=self._aryn_api_key,
                 aryn_partitioner_address=self._aryn_partitioner_address,
                 use_cache=self._use_cache,
+                pages_per_call=self._pages_per_call,
             )
         except Exception as e:
             path = document.properties["path"]

@@ -380,22 +380,22 @@ class Table:
 
     def to_tree(self) -> "TableTree":
         root = TableTree(tag="table")
-        parents = [root]
+        if len(self.cells) == 0:
+            return root
 
-        curr_row = -1
-        curr_section = None
-        row = None
+        curr_row = 0
+        row = TableTree(tag="tr")
+        root.children.append(row)
 
         # TODO: We should eventually put these in <thead> and <tbody> tags.
         for cell in self.cells:
-            cell_attribs = {}
 
             rowspan = len(cell.rows)
             colspan = len(cell.cols)
 
             if cell.rows[0] > curr_row:
                 curr_row = cell.rows[0]
-                row = TableCell(tag="tr")
+                row = TableTree(tag="tr")
                 root.children.append(row)
 
             leaf_tag = "th" if cell.is_header else "td"
@@ -420,7 +420,14 @@ class Table:
 
 
 class TableTree(apted.helpers.Tree):
-    def __init__(self, tag, colspan=None, rowspan=None, text=None, children=None):
+    def __init__(
+        self,
+        tag: str,
+        colspan: Optional[int] = None,
+        rowspan: Optional[int] = None,
+        text: Optional[str] = None,
+        children: Optional[list["TableTree"]] = None,
+    ):
         self.tag = tag
         self.colspan = colspan
         self.rowspan = rowspan
@@ -433,18 +440,25 @@ class TableTree(apted.helpers.Tree):
     def bracket(self) -> str:
         """Return the bracket format of this tree, which is what apted expects."""
 
-        if self.tag == "td":
-            result = f'"tag": {self.tag}, "colspan": self.colspan, "rowspan": self.rowspan, "text": {self.text}'
+        if self.tag in {"td", "th"}:
+            result = f'"tag": {self.tag}, "colspan": {self.colspan}, "rowspan": {self.rowspan}, "text": {self.text}'
         else:
             result = f'"tag": {self.tag}'
-        result += "".join(child.bracket())
+        result += "".join(child.bracket() for child in self.children)
         return "{{{}}}".format(result)
 
-    def to_html():
-        pass
+    def get_size(self) -> int:
+        return 1 + sum(child.get_size() for child in self.children)
+
+    def to_html(self):
+        if self.text:
+            assert len(self.children) == 0, f"Found text in a non leaf node??? {self.bracket()}"
+            return f'<{self.tag} colspan="{self.colspan}" rowspan="{self.rowspan}">{self.text}</{self.tag}>'
+        else:
+            return f'<{self.tag}>{"".join(c.to_html() for c in self.children)}</{self.tag}>'
 
 
-def ted_score(table1: Table, table2: Table) -> float:
+def ted_score(table1: TableTree, table2: TableTree) -> float:
     """Computes the tree edit distance (TED) score between two Tables
 
     https://github.com/ibm-aur-nlp/PubTabNet/blob/7b03ef8f54f747fa3accf7b9354520a41b30ab40/src/metric.py
@@ -453,5 +467,8 @@ def ted_score(table1: Table, table2: Table) -> float:
         table1:
         table2:
     """
+    tt1 = table1.to_tree()
+    tt2 = table2.to_tree()
 
-    pass
+    distance = apted.APTED(tt1, tt2).compute_edit_distance()
+    return 1.0 - float(distance) / max(table1.get_size(), table2.get_size())

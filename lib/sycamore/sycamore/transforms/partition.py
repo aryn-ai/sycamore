@@ -385,7 +385,8 @@ class ArynPartitioner(Partitioner):
              matter.
         batch_size: How many pages to partition at once, when running locally. Default is 1. Ignored when
              running remotely.
-        batch_at_a_time: When running remotely, send only one batch at a time. Default is False
+        batch_at_a_time: When running locally, run inference on the pages in batches in order to not load
+             all pages into memory at the same time. Default is False
         local: If false, runs the partitioner remotely. Defaults to false
         aryn_api_key: The account token used to authenticate with Aryn's servers.
         aryn_partitioner_address: The address of the server to use to partition the document

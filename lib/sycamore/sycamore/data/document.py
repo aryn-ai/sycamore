@@ -1,4 +1,5 @@
 from collections import UserDict
+import json
 from typing import Any, Optional
 import uuid
 
@@ -191,6 +192,23 @@ class Document(UserDict):
     def to_row(self) -> dict[str, bytes]:
         """Serialize this document into a row for use with Ray."""
         return {"doc": self.serialize()}
+
+    def __str__(self) -> str:
+        """Return a pretty-printed string representing this document."""
+        d = {
+            "doc_id": self.doc_id,
+            "lineage_id": self.lineage_id,
+            "type": self.type,
+            "text_representation": self.text_representation[0:40] + "..." if self.text_representation else None,
+            "binary_representation": f"<{len(self.binary_representation)} bytes>" if self.binary_representation else None,
+            "elements": [str(e) for e in self.elements],
+            "embedding": f"<{len(self.embedding)} floats>" if self.embedding else None,
+            "shingles": f"<{len(self.shingles)} ints>" if self.shingles else None,
+            "parent_id": self.parent_id,
+            "bbox": str(self.bbox),
+            "properties": self.properties,
+        }
+        return json.dumps(d, indent=2)
 
 
 class MetadataDocument(Document):

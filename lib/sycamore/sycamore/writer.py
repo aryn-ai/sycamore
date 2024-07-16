@@ -460,8 +460,8 @@ class DocSetWriter:
     def elasticsearch(
         self,
         *,
+        url: str,
         index_name: str,
-        url: str = "",
         es_client_args: dict = {},
         wait_for_completion: str = "false",
         settings: Optional[dict] = None,
@@ -473,11 +473,11 @@ class DocSetWriter:
 
         Args:
             url: Connection endpoint for the Elasticsearch instance. Note that this must be paired with the
-                necessary client arguments
+                necessary client arguments below
             es_client_args: Authentication arguments to be specified (if needed). See more information at
                 https://elasticsearch-py.readthedocs.io/en/v8.14.0/api/elasticsearch.html
-            wait_for_completion: Whether to wait for completion or not. See more information and valid values at
-                https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-refresh.html
+            wait_for_completion: Whether to wait for completion of the write before proceeding with next steps. See more information
+            and valid values at https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-refresh.html
             mappings: Mapping of the Elasticsearch index, can be optionally specified
             settings: Settings of the Elasticsearch index, can be optionally specified
             execute: Execute the pipeline and write to weaviate on adding this operator. If False,
@@ -486,7 +486,7 @@ class DocSetWriter:
             The following code shows how to read a pdf dataset into a ``DocSet`` and write it out to a
             local Elasticsearch index called `test-index`.
 
-            url = "http://localhost:9200"
+            url = "http://localhost:9201"
             index_name = "test-index"
             model_name = "sentence-transformers/all-MiniLM-L6-v2"
             paths = str(TEST_DIR / "resources/data/pdfs/")

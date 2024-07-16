@@ -22,17 +22,27 @@ from sycamore.utils.aryn_config import ArynConfig
 from sycamore.transforms.detr_partitioner import ARYN_DETR_MODEL, DEFAULT_ARYN_PARTITIONER_ADDRESS
 
 
-# This comparator helps sort the elements per page specifically when a page
-# has two columns
-def _elements_reorder_comparator(element1: Element, element2: Element) -> int:
-    # In PixelSpace (default coordinate system), the coordinates of each
-    # element starts in the top left corner and proceeds counter-clockwise. The
-    # following function checks if the x0 point of the element is in the
+def _pageless_reorder_comparator(element1: Element, element2: Element) -> int:
+    # The following function checks if the x0 point of the element is in the
     # left column
     def element_in_left_col(e: Element) -> bool:
         if e.bbox is None:
             raise RuntimeError("Element BBox is None")
         return e.bbox.x1 <= 0.5
+
+    if element_in_left_col(element1) and not element_in_left_col(element2):
+        return -1
+    elif not element_in_left_col(element1) and element_in_left_col(element2):
+        return 1
+    else:
+        return 0
+
+
+# This comparator helps sort the elements per page specifically when a page
+# has two columns
+def _elements_reorder_comparator(element1: Element, element2: Element) -> int:
+    # In PixelSpace (default coordinate system), the coordinates of each
+    # element starts in the top left corner and proceeds counter-clockwise.
 
     page1 = element1.properties["page_number"]
     page2 = element2.properties["page_number"]
@@ -42,12 +52,7 @@ def _elements_reorder_comparator(element1: Element, element2: Element) -> int:
     elif page1 > page2:
         return 1
     else:
-        if element_in_left_col(element1) and not element_in_left_col(element2):
-            return -1
-        elif not element_in_left_col(element1) and element_in_left_col(element2):
-            return 1
-        else:
-            return 0
+        return _pageless_reorder_comparator(element1, element2)
 
 
 class Partitioner(ABC):

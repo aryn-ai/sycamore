@@ -123,7 +123,7 @@ class ArynPDFPartitioner:
         extract_images=False,
         batch_size: int = 1,
         batch_at_a_time=True,
-        use_partitioning_service=False,
+        use_partitioning_service=True,
         aryn_api_key: str = "",
         aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
         use_cache=False,

@@ -458,7 +458,7 @@ class TableTree(apted.helpers.Tree):
             return f'<{self.tag}>{"".join(c.to_html() for c in self.children)}</{self.tag}>'
 
 
-def ted_score(table1: TableTree, table2: TableTree) -> float:
+def ted_score(table1: Table, table2: Table) -> float:
     """Computes the tree edit distance (TED) score between two Tables
 
     https://github.com/ibm-aur-nlp/PubTabNet/blob/7b03ef8f54f747fa3accf7b9354520a41b30ab40/src/metric.py
@@ -471,4 +471,4 @@ def ted_score(table1: TableTree, table2: TableTree) -> float:
     tt2 = table2.to_tree()
 
     distance = apted.APTED(tt1, tt2).compute_edit_distance()
-    return 1.0 - float(distance) / max(table1.get_size(), table2.get_size())
+    return 1.0 - float(distance) / max(tt1.get_size(), tt2.get_size(), 1)

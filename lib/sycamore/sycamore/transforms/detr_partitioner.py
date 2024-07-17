@@ -4,7 +4,6 @@ import os
 import tempfile
 import tracemalloc
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
 from concurrent.futures import ProcessPoolExecutor
 from io import BytesIO, IOBase
 from typing import cast, Any, BinaryIO, List, Tuple, Union

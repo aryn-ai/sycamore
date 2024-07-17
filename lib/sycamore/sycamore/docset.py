@@ -11,7 +11,7 @@ from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.augment_text import TextAugmentor
 from sycamore.transforms.embed import Embedder
 from sycamore.transforms.extract_entity import EntityExtractor
-from sycamore.transforms.extract_graph import GraphMetadata
+from sycamore.transforms.extract_graph import GraphExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
 from sycamore.transforms.partition import Partitioner
 from sycamore.transforms.summarize import Summarizer
@@ -481,13 +481,14 @@ class DocSet:
 
         schema = ExtractBatchSchema(self.plan, schema_extractor=schema_extractor)
         return DocSet(self.context, schema)
-
-    def extract_graph_metadata(self, metadata: list[GraphMetadata], **kwargs) -> "DocSet":
+    
+    def extract_graph_structure(self, extractors: list[GraphExtractor], **kwargs) -> "DocSet":
+        
         """
         Extracts metadata from documents into a format that sets up resulting docset to be loaded into neo4j
 
         Args:
-            metadata: A list of GraphMetadata that is extracted from each doc in the docset
+            extractors: A list of GraphExtractor objects which determine what is extracted from the docset
 
         Example:
             .. code-block:: python
@@ -501,46 +502,15 @@ class DocSet:
                 ds = (
                     ctx.read.manifest(metadata_provider=JsonManifestMetadataProvider(manifest),...)
                     .partition(partitioner=SycamorePartitioner(...), num_gpus=0.1)
-                    .extract_graph_metadata(metadata=metadata)
+                    .extract_graph_structure(extractors=[MetadataExtractor(metadata=metadata)])
                     .explode()
                 )
         """
-        from sycamore import Execution
-        from sycamore.reader import DocSetReader
-        from collections import defaultdict
-        import uuid
+        docset = self
+        for extractor in extractors:
+            docset = extractor.extract(self)
 
-        nodes = defaultdict(lambda: defaultdict(dict))
-        execution = Execution(self.context, self.plan)
-        dataset = execution.execute(self.plan)
-        all_docs = [Document.from_row(row) for row in dataset.take_all(None)]
-        docs = [d for d in all_docs if not isinstance(d, MetadataDocument)]
-        for doc in docs:
-            for m in metadata:
-                value = doc["properties"][m.nodeKey]
-                if nodes[m.nodeKey][value] == {}:
-                    nodes[m.nodeKey][value] = {
-                        "doc_id": str(uuid.uuid4()),
-                        "label": str(m.nodeLabel),
-                        "type": "metadata",
-                        "relationships": {},
-                        "properties": {str(m.nodeKey): str(value)},
-                    }
-                rel = {
-                    "START_ID": str(doc.doc_id),
-                    "END_ID": str(nodes[m.nodeKey][value]["doc_id"]),
-                    "TYPE": str(m.relLabel),
-                    "properties": {},
-                }
-                nodes[m.nodeKey][value]["relationships"][str(uuid.uuid4())] = rel
-
-        # docset must be larger than size 0
-        for label in nodes.values():
-            for value in label.values():
-                docs[0]["elements"].append(value)
-
-        reader = DocSetReader(self.context)
-        return reader.document(docs)
+        return docset
 
     def extract_properties(self, property_extractor: PropertyExtractor, **kwargs) -> "DocSet":
         """

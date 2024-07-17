@@ -270,11 +270,11 @@ class ArynPDFPartitioner:
         file.seek(0)
 
         result = []
-        low = 0
-        high = pages_per_call - 1
+        low = 1
+        high = pages_per_call
         if pages_per_call == -1:
             high = page_count
-        while low < page_count:
+        while low <= page_count:
             result.extend(
                 ArynPDFPartitioner._call_remote_partitioner(
                     file=file,

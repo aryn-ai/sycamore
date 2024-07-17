@@ -9,7 +9,7 @@ from ray.data import ActorPoolStrategy
 from sycamore.functions import TextOverlapChunker, Chunker
 from sycamore.functions import CharacterTokenizer, Tokenizer
 from sycamore.functions import reorder_elements
-from sycamore.data import BoundingBox, Document, Element, TableElement
+from sycamore.data import BoundingBox, Document, Element, TableElement, Table
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base import CompositeTransform
 from sycamore.transforms.extract_table import TableExtractor
@@ -332,24 +332,9 @@ class HtmlPartitioner(Partitioner):
                 if len(table.find_all("table")) > 0:
                     continue
 
-                table_element = TableElement()
-
-                # find headers if they exist
-                headers = table.findAll("th")
-                if len(headers) > 0:
-                    table_element.columns = [tag.text for tag in headers]
-
-                table_element.text_representation = table.text
+                table_object = Table.from_html(html_tag=table)
+                table_element = TableElement(table=table_object)
                 table_element.properties.update(document.properties)
-
-                # parse all rows, use all text as content
-                rows = table.findAll("tr")
-                table_element.rows = []
-                for row in rows:
-                    cols = row.findAll("td")
-                    if len(cols) > 0:
-                        row_vals = [tag.text for tag in cols]
-                        table_element.rows += [row_vals]
                 elements.append(table_element)
         document.elements = document.elements + elements
 

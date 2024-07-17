@@ -486,6 +486,25 @@ class DocSet:
     def extract_graph_metadata(self, metadata: list[GraphMetadata], **kwargs) -> "DocSet":
         """
         Extracts metadata from documents into a format that sets up resulting docset to be loaded into neo4j
+
+        Args:
+            metadata: A list of GraphMetadata that is extracted from each doc in the docset
+
+        Example:
+            .. code-block:: python
+
+                metadata = [GraphMetadata(nodeKey='company',nodeLabel='Company',relLabel='FILED_BY'),
+                GraphMetadata(nodeKey='gics_sector',nodeLabel='Sector',relLabel='IN_SECTOR'),
+                GraphMetadata(nodeKey='doc_type',nodeLabel='Document Type',relLabel='IS_TYPE'),
+                GraphMetadata(nodeKey='doc_period',nodeLabel='Year',relLabel='FILED_DURING'),
+                ]
+
+                ds = (
+                    ctx.read.manifest(metadata_provider=JsonManifestMetadataProvider(manifest), binary_format="pdf", filesystem=fsys)
+                    .partition(partitioner=SycamorePartitioner(extract_table_structure=True, use_ocr=True, extract_images=True), num_gpus=0.1)
+                    .extract_graph_metadata(metadata=metadata)
+                    .explode()
+                )
         """
         from sycamore import Execution
         from sycamore.reader import DocSetReader

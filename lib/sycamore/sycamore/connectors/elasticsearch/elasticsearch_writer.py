@@ -3,7 +3,7 @@ from typing import Any, Optional
 from typing_extensions import TypeGuard
 
 from sycamore.data.document import Document
-from sycamore.connectors.base import BaseDBWriter
+from sycamore.connectors.base_writer import BaseDBWriter
 from sycamore.connectors.common import flatten_data, check_dictionary_compatibility
 
 from elasticsearch import Elasticsearch, ApiError

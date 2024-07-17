@@ -9,47 +9,38 @@ import duckdb
 
 @dataclass
 class DuckDBReaderClientParams(BaseDBReader.ClientParams):
-    pass
+    db_url: str
 
 
 @dataclass
 class DuckDBReaderQueryParams(BaseDBReader.QueryParams):
-    db_url: str
     table_name: str
-    on_input_docs: bool
     query: Optional[str]
 
 
 class DuckDBReaderClient(BaseDBReader.Client):
     def __init__(self, client_params: DuckDBReaderClientParams):
-        pass
+        self._client = duckdb.connect(database=client_params.db_url, read_only=True)
 
     @classmethod
     def from_client_params(cls, params: BaseDBReader.ClientParams) -> "DuckDBReaderClient":
         assert isinstance(params, DuckDBReaderClientParams)
         return DuckDBReaderClient(params)
 
-    def read_records(self, input_docs: list[Document], query_params: BaseDBReader.QueryParams):
+    def read_records(self, query_params: BaseDBReader.QueryParams):
         assert isinstance(
             query_params, DuckDBReaderQueryParams
         ), f"Wrong kind of query parameters found: {query_params}"
-        con = duckdb.connect(database=query_params.db_url, read_only=True)
-        results = []
-        if query_params.on_input_docs and query_params.query:
-            for doc in input_docs:  # noqa
-                results.append(DuckDBReaderDocumentRecord(output=con.execute(f"{query_params.query}")))
+        if query_params.query:
+            results = DuckDBReaderDocumentRecord(self._client.execute(query_params.query))
         else:
-            if query_params.query:
-                results = [DuckDBReaderDocumentRecord(con.execute(query_params.query))]
-            else:
-                results = [DuckDBReaderDocumentRecord(con.execute(f"SELECT * from {query_params.table_name}"))]
+            results = DuckDBReaderDocumentRecord(self._client.execute(f"SELECT * from {query_params.table_name}"))
         return results
 
     def check_target_presence(self, query_params: BaseDBReader.QueryParams):
         assert isinstance(query_params, DuckDBReaderQueryParams)
-        client = duckdb.connect(query_params.db_url, read_only=True)
         try:
-            client.sql(f"SELECT * FROM {query_params.table_name}")
+            self._client.sql(f"SELECT * FROM {query_params.table_name}")
             return True
         except Exception:
             return False

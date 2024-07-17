@@ -99,11 +99,9 @@ class DocSetReader:
     def duckdb(self, db_url: str, table_name: str, query: Optional[str] = None, on_input_docs: bool = False) -> DocSet:
         from sycamore.connectors.duckdb import DuckDBReader, DuckDBReaderClientParams, DuckDBReaderQueryParams
 
-        client_params = DuckDBReaderClientParams()
-        query_params = DuckDBReaderQueryParams(
-            db_url=db_url, table_name=table_name, query=query, on_input_docs=on_input_docs
-        )
-        ddbr = DuckDBReader(self.plan, client_params=client_params, query_params=query_params)
+        client_params = DuckDBReaderClientParams(db_url=db_url)
+        query_params = DuckDBReaderQueryParams(table_name=table_name, query=query)
+        ddbr = DuckDBReader(client_params=client_params, query_params=query_params)
         return DocSet(self._context, ddbr)
 
     def pinecone(self, index_name: str, api_key: str, namespace: str = "") -> DocSet:

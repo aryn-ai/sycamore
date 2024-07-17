@@ -77,14 +77,6 @@ class Scan(SingleThreadUser, NonGPUUser, LeafNode):
         pass
 
 
-class Read(SingleThreadUser, NonGPUUser, UnaryNode):
-    def __init__(self, child: Optional[Node], **resource_args):
-        super().__init__(child, **resource_args)
-
-    def __str__(self):
-        return "read"
-
-
 class Transform(UnaryNode):
     def __init__(self, child: Node, **resource_args):
         super().__init__(child, **resource_args)

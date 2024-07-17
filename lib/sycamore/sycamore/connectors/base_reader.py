@@ -1,16 +1,15 @@
 from dataclasses import dataclass
 
 from abc import ABC, abstractmethod
-from typing import Optional
 from ray.data import Dataset, from_items
 
 from sycamore.data.document import Document
-from sycamore.plan_nodes import Node, Read
+from sycamore.plan_nodes import Scan
 from sycamore.utils.ray_utils import check_serializable
 from sycamore.utils.time_trace import TimeTrace
 
 
-class BaseDBReader(Read):
+class BaseDBReader(Scan):
 
     # Type param for the client
     class Client(ABC):
@@ -20,9 +19,7 @@ class BaseDBReader(Read):
             pass
 
         @abstractmethod
-        def read_records(
-            self, input_docs: list[Document], query_params: "BaseDBReader.QueryParams"
-        ) -> list["BaseDBReader.Record"]:
+        def read_records(self, query_params: "BaseDBReader.QueryParams") -> "BaseDBReader.Record":
             pass
 
         @abstractmethod
@@ -50,27 +47,27 @@ class BaseDBReader(Read):
 
     def __init__(
         self,
-        plan: Optional[Node],
         client_params: ClientParams,
         query_params: QueryParams,
         **kwargs,
     ):
-        super().__init__(plan, **kwargs)
-        check_serializable(client_params, query_params, filter)
+        super().__init__(**kwargs)
+        check_serializable(client_params, query_params)
         self._client_params = client_params
         self._query_params = query_params
 
-    def read_docs(self, input_docs: list[Document]) -> Dataset:
+    def read_docs(self) -> list[Document]:
         client = self.Client.from_client_params(self._client_params)
 
         if not client.check_target_presence(self._query_params):
             raise ValueError("Target is not present\n" f"Parameters: {self._query_params}\n")
-        records = client.read_records(input_docs=input_docs, query_params=self._query_params)
-        docs = [self.Record.to_doc(r, self._query_params) for r in records]
-        flat_docs = [item for sublist in docs for item in sublist]
-        input_docs.extend(flat_docs)
-        return from_items(items=[{"doc": doc.serialize()} for doc in input_docs])
+        records = client.read_records(query_params=self._query_params)
+        docs = self.Record.to_doc(records, self._query_params)
+        return docs
 
-    def execute(self, input_docs: list[Document] = [], **kwargs) -> Dataset:
+    def execute(self, **kwargs) -> Dataset:
         with TimeTrace("Reader"):
-            return self.read_docs(input_docs=input_docs)
+            return from_items(items=[{"doc": doc.serialize()} for doc in self.read_docs()])
+
+    def format(self):
+        return "reader"

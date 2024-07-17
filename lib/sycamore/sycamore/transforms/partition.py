@@ -414,10 +414,10 @@ class ArynPartitioner(Partitioner):
         aryn_partitioner_address: str = DEFAULT_ARYN_PARTITIONER_ADDRESS,
         use_cache=False,
     ):
-        if not use_partitioning_service:
-            device = choose_device(device)
-        else:
+        if use_partitioning_service:
             device = "cpu"
+        else:
+            device = choose_device(device)
         super().__init__(device=device, batch_size=batch_size)
         if not aryn_api_key:
             self._aryn_api_key = ArynConfig.get_aryn_api_key()

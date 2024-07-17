@@ -33,8 +33,10 @@ def filter_doc(obj, include):
     return {k: v for k, v in obj.__dict__.items() if k in include}
 
 
-def check_dictionary_compatibility(dict1: dict[Any, Any], dict2: dict[Any, Any]):
+def check_dictionary_compatibility(dict1: dict[Any, Any], dict2: dict[Any, Any], ignore: list[str] = []):
     for k in dict1:
+        if ignore and any(val in k for val in ignore):
+            continue
         if k not in dict2:
             return False
         if dict1[k] != dict2[k]:

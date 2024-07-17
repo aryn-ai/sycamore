@@ -499,8 +499,8 @@ class DocSet:
                 ]
 
                 ds = (
-                    ctx.read.manifest(metadata_provider=JsonManifestMetadataProvider(manifest), binary_format="pdf", filesystem=fsys)
-                    .partition(partitioner=SycamorePartitioner(extract_table_structure=True, use_ocr=True, extract_images=True), num_gpus=0.1)
+                    ctx.read.manifest(metadata_provider=JsonManifestMetadataProvider(manifest),...)
+                    .partition(partitioner=SycamorePartitioner(...), num_gpus=0.1)
                     .extract_graph_metadata(metadata=metadata)
                     .explode()
                 )

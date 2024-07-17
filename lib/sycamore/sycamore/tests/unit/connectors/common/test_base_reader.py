@@ -16,12 +16,7 @@ class FakeClient(BaseDBReader.Client):
 
     def read_records(self, query_params: BaseDBReader.QueryParams):
         assert isinstance(query_params, FakeQueryParams)
-        record = FakeRecord(
-            [
-                {"doc_id": "m1", "text_representation": "it's time to play the music"},
-                {"doc_id": "m2", "text_representation": "it's time to light the lights"},
-            ]
-        )
+        record = Common.record
         return record
 
     def check_target_presence(self, query_params: BaseDBReader.QueryParams):
@@ -29,15 +24,14 @@ class FakeClient(BaseDBReader.Client):
         return query_params.target_name == "target"
 
 
-class FakeRecord(BaseDBReader.Record):
+class FakeQueryResponse(BaseDBReader.QueryResponse):
     def __init__(self, output: list[Any]):
         self.output = output
 
-    @classmethod
-    def to_doc(cls, record: "BaseDBReader.Record", query_params: BaseDBReader.QueryParams):
-        assert isinstance(record, FakeRecord) and isinstance(query_params, FakeQueryParams)
+    def to_docs(self, query_params: BaseDBReader.QueryParams):
+        assert isinstance(self, FakeQueryResponse) and isinstance(query_params, FakeQueryParams)
         docs = []
-        for r in record.output:
+        for r in self.output:
             docs.append(Document(r))
         return docs
 
@@ -54,13 +48,13 @@ class FakeQueryParams(BaseDBReader.QueryParams):
 
 class FakeReader(BaseDBReader):
     Client = FakeClient
-    Record = FakeRecord
+    QueryResponse = FakeQueryResponse
     ClientParams = FakeClientParams
     QueryParams = FakeQueryParams
 
 
 class Common:
-    record = FakeRecord(
+    record = FakeQueryResponse(
         [
             {"doc_id": "m1", "text_representation": "it's time to play the music"},
             {"doc_id": "m2", "text_representation": "it's time to light the lights"},
@@ -88,7 +82,7 @@ class TestBaseDBReader(Common):
     def test_fake_reader_has_correct_inner_classes(self):
         assert FakeReader.Client == FakeClient
         assert FakeReader.ClientParams == FakeClientParams
-        assert FakeReader.Record == FakeRecord
+        assert FakeReader.QueryResponse == FakeQueryResponse
         assert FakeReader.QueryParams == FakeQueryParams
 
     def test_nonmatching_target_params_then_fail(self):

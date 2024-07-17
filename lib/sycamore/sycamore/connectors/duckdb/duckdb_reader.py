@@ -2,6 +2,7 @@ from sycamore.data import Document
 
 from dataclasses import dataclass
 from typing import Optional
+from sycamore.connectors.common import convert_from_str_dict
 
 from sycamore.connectors.base_reader import BaseDBReader
 import duckdb
@@ -32,9 +33,9 @@ class DuckDBReaderClient(BaseDBReader.Client):
             query_params, DuckDBReaderQueryParams
         ), f"Wrong kind of query parameters found: {query_params}"
         if query_params.query:
-            results = DuckDBReaderDocumentRecord(self._client.execute(query_params.query))
+            results = DuckDBReaderQueryResponse(self._client.execute(query_params.query))
         else:
-            results = DuckDBReaderDocumentRecord(self._client.execute(f"SELECT * from {query_params.table_name}"))
+            results = DuckDBReaderQueryResponse(self._client.execute(f"SELECT * from {query_params.table_name}"))
         return results
 
     def check_target_presence(self, query_params: BaseDBReader.QueryParams):
@@ -47,21 +48,24 @@ class DuckDBReaderClient(BaseDBReader.Client):
 
 
 @dataclass
-class DuckDBReaderDocumentRecord(BaseDBReader.Record):
+class DuckDBReaderQueryResponse(BaseDBReader.QueryResponse):
     output: duckdb.DuckDBPyConnection
 
-    @classmethod
-    def to_doc(cls, record: "BaseDBReader.Record", query_params: "BaseDBReader.QueryParams") -> list[Document]:
-        assert isinstance(record, DuckDBReaderDocumentRecord)
-        data = record.output.fetchdf().to_dict(orient="records")
+    def to_docs(self, query_params: "BaseDBReader.QueryParams") -> list[Document]:
+        assert isinstance(self, DuckDBReaderQueryResponse)
+        data = self.output.fetchdf()
+        data = data.to_dict(orient="records")
         result = []
         for object in data:
+            val = object.get("properties")
+            if val is not None:
+                object["properties"] = convert_from_str_dict(dict(zip(val["key"], val["value"])))
             result.append(Document(object))
         return result
 
 
 class DuckDBReader(BaseDBReader):
     Client = DuckDBReaderClient
-    Record = DuckDBReaderDocumentRecord
+    Record = DuckDBReaderQueryResponse
     ClientParams = DuckDBReaderClientParams
     QueryParams = DuckDBReaderQueryParams

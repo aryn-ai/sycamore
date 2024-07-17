@@ -19,7 +19,7 @@ class BaseDBReader(Scan):
             pass
 
         @abstractmethod
-        def read_records(self, query_params: "BaseDBReader.QueryParams") -> "BaseDBReader.Record":
+        def read_records(self, query_params: "BaseDBReader.QueryParams") -> "BaseDBReader.QueryResponse":
             pass
 
         @abstractmethod
@@ -27,10 +27,9 @@ class BaseDBReader(Scan):
             pass
 
     # Type param for the objects that are read from the db
-    class Record(ABC):
-        @classmethod
+    class QueryResponse(ABC):
         @abstractmethod
-        def to_doc(cls, record: "BaseDBReader.Record", query_params: "BaseDBReader.QueryParams") -> list[Document]:
+        def to_docs(self, query_params: "BaseDBReader.QueryParams") -> list[Document]:
             pass
 
     # Type param for the object used to estabilish the read target
@@ -62,7 +61,7 @@ class BaseDBReader(Scan):
         if not client.check_target_presence(self._query_params):
             raise ValueError("Target is not present\n" f"Parameters: {self._query_params}\n")
         records = client.read_records(query_params=self._query_params)
-        docs = self.Record.to_doc(records, self._query_params)
+        docs = records.to_docs(query_params=self._query_params)
         return docs
 
     def execute(self, **kwargs) -> Dataset:

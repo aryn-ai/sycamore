@@ -21,7 +21,7 @@ class MockOneShotKaClient:
     def __init__(self) -> None:
         self.resp = MockResponse()
 
-    def post(self, headers, form) -> dict:
+    def post(self, headers, form) -> bytes:
         path = TEST_DIR / "resources/data/json/model_server_output_transformer.json"
         return open(str(path), "rb").read()
 
@@ -30,7 +30,7 @@ class MockOneShotKaClientTables:
     def __init__(self) -> None:
         self.resp = MockResponse()
 
-    def post(self, headers, form) -> dict:
+    def post(self, headers, form) -> bytes:
         path = TEST_DIR / "resources/data/json/model_server_output_transformer_extract_tables.json"
         return open(str(path), "rb").read()
 

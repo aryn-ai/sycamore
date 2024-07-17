@@ -222,7 +222,7 @@ class ArynPDFPartitioner:
             if c.resp.status == 500 or c.resp.status == 502:
                 logging.debug(
                     "ArynPartitioner recieved a retry-able error {} x-aryn-call-id: {}".format(
-                        response, dict(c.resp.getheaders()).get("x-aryn-call-id")
+                        response.decode("utf-8"), dict(c.resp.getheaders()).get("x-aryn-call-id")
                     )
                 )
                 raise ArynPDFPartitionerException(

@@ -481,7 +481,6 @@ class DocSet:
 
         schema = ExtractBatchSchema(self.plan, schema_extractor=schema_extractor)
         return DocSet(self.context, schema)
-    
 
     def extract_graph_metadata(self, metadata: list[GraphMetadata], **kwargs) -> "DocSet":
         """
@@ -518,25 +517,30 @@ class DocSet:
         docs = [d for d in all_docs if not isinstance(d, MetadataDocument)]
         for doc in docs:
             for m in metadata:
-                value = doc['properties'][m.nodeKey]
-                if(nodes[m.nodeKey][value] == {}):
+                value = doc["properties"][m.nodeKey]
+                if nodes[m.nodeKey][value] == {}:
                     nodes[m.nodeKey][value] = {
-                        'doc_id': str(uuid.uuid4()),
-                        'label': str(m.nodeLabel),
-                        'type': 'metadata',
-                        'relationships': {},
-                        'properties': {str(m.nodeKey): str(value)}}
-                rel = {'START_ID': str(doc.doc_id),'END_ID': str(nodes[m.nodeKey][value]['doc_id']),'TYPE': str(m.relLabel), 'properties': {}}
-                nodes[m.nodeKey][value]['relationships'][str(uuid.uuid4())] = rel
-            
-        #docset must be larger than size 0
+                        "doc_id": str(uuid.uuid4()),
+                        "label": str(m.nodeLabel),
+                        "type": "metadata",
+                        "relationships": {},
+                        "properties": {str(m.nodeKey): str(value)},
+                    }
+                rel = {
+                    "START_ID": str(doc.doc_id),
+                    "END_ID": str(nodes[m.nodeKey][value]["doc_id"]),
+                    "TYPE": str(m.relLabel),
+                    "properties": {},
+                }
+                nodes[m.nodeKey][value]["relationships"][str(uuid.uuid4())] = rel
+
+        # docset must be larger than size 0
         for label in nodes.values():
             for value in label.values():
                 docs[0]["elements"].append(value)
 
         reader = DocSetReader(self.context)
         return reader.document(docs)
-
 
     def extract_properties(self, property_extractor: PropertyExtractor, **kwargs) -> "DocSet":
         """

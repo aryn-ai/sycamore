@@ -1,13 +1,10 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 
-from sycamore.data import Document
-from sycamore.plan_nodes import Node
-from sycamore.transforms.map import Map
-from sycamore.utils.time_trace import timetrace
 
 class GraphData(ABC):
     def __init__(self):
         pass
+
 
 class GraphMetadata(GraphData):
     """
@@ -16,8 +13,8 @@ class GraphMetadata(GraphData):
         nodeLabel: The label used in neo4j the node of a piece of metadata
         relLabel: The label used in neo4j for the relationship between the document and a piece of metadata
     """
+
     def __init__(self, nodeKey: str, nodeLabel: str, relLabel: str):
         self.nodeKey = nodeKey
         self.nodeLabel = nodeLabel
         self.relLabel = relLabel
-

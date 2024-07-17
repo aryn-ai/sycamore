@@ -9,7 +9,6 @@ from concurrent.futures import ProcessPoolExecutor
 from io import BytesIO, IOBase
 from typing import cast, Any, BinaryIO, List, Tuple, Union
 
-import requests
 import json
 from tenacity import retry, retry_if_exception, wait_exponential, stop_after_delay
 import base64
@@ -34,6 +33,7 @@ from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
 from sycamore.utils.pdf import convert_from_path_streamed_batched
 from sycamore.utils.time_trace import LogTime, timetrace
+from sycamore.utils.http import OneShotKaClient
 
 
 def _batchify(iterable, n=1):
@@ -207,33 +207,37 @@ class ArynPDFPartitioner:
             "selected_pages": selected_pages,
         }
 
-        files: Mapping = {"pdf": file, "options": json.dumps(options).encode("utf-8")}
-        header = {"Authorization": f"Bearer {aryn_api_key}"}
+        with tempfile.NamedTemporaryFile(prefix="Aryn-Partitioning-Service-") as f:
+            f.write(file.read())
+            f.flush()
+            form = {"pdf": f"@{f.name}", "options": json.dumps(options)}
+            header = {"Authorization": f"Bearer {aryn_api_key}"}
 
-        logging.debug(f"ArynPartitioner POSTing to {aryn_partitioner_address} with files={files}")
-        response = requests.post(aryn_partitioner_address, files=files, headers=header)
-        logging.debug("ArynPartitioner Recieved data")
+            c = OneShotKaClient(aryn_partitioner_address)
+            logging.debug(f"ArynPartitioner POSTing to {aryn_partitioner_address} with form={form}")
+            response = c.post(form=form, headers=header)
+            logging.debug("ArynPartitioner Recieved data")
 
-        if response.status_code != 200:
-            if response.status_code == 500 or response.status_code == 502:
+        if c.resp.status != 200:
+            if c.resp.status == 500 or c.resp.status == 502:
                 logging.debug(
                     "ArynPartitioner recieved a retry-able error {} x-aryn-call-id: {}".format(
-                        response, response.headers.get("x-aryn-call-id")
+                        response, dict(c.resp.getheaders()).get("x-aryn-call-id")
                     )
                 )
                 raise ArynPDFPartitionerException(
                     "Error: status_code: {}, reason: {} (x-aryn-call-id: {})".format(
-                        response.status_code, response.text, response.headers.get("x-aryn-call-id")
+                        c.resp.status, response.decode("utf-8"), dict(c.resp.getheaders()).get("x-aryn-call-id")
                     ),
                     can_retry=True,
                 )
             raise ArynPDFPartitionerException(
                 "Error: status_code: {}, reason: {} (x-aryn-call-id: {})".format(
-                    response.status_code, response.text, response.headers.get("x-aryn-call-id")
+                    c.resp.status, response.decode("utf-8"), dict(c.resp.getheaders()).get("x-aryn-call-id")
                 )
             )
 
-        response_json = response.json()
+        response_json = json.loads(response)
         if isinstance(response_json, dict):
             response_json = response_json.get("elements")
         elements = []

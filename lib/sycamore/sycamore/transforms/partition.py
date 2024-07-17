@@ -424,16 +424,16 @@ class ArynPartitioner(Partitioner):
         device=None,
         batch_size: int = 1,
         batch_at_a_time: bool = False,
-        local: bool = False,
+        use_partitioning_service: bool = True,
         aryn_api_key: str = "",
         aryn_partitioner_address: str = DEFAULT_ARYN_PARTITIONER_ADDRESS,
         use_cache=False,
         pages_per_call: int = -1,
     ):
-        if local:
-            device = choose_device(device)
-        else:
+        if use_partitioning_service:
             device = "cpu"
+        else:
+            device = choose_device(device)
         super().__init__(device=device, batch_size=batch_size)
         if not aryn_api_key:
             self._aryn_api_key = ArynConfig.get_aryn_api_key()
@@ -450,7 +450,7 @@ class ArynPartitioner(Partitioner):
         self._extract_images = extract_images
         self._batch_size = batch_size
         self._batch_at_a_time = batch_at_a_time
-        self._local = local
+        self._use_partitioning_service = use_partitioning_service
         self._aryn_partitioner_address = aryn_partitioner_address
         self._use_cache = use_cache
         self._pages_per_call = pages_per_call
@@ -508,7 +508,7 @@ class ArynPartitioner(Partitioner):
                 extract_images=self._extract_images,
                 batch_size=self._batch_size,
                 batch_at_a_time=self._batch_at_a_time,
-                local=self._local,
+                use_partitioning_service=self._use_partitioning_service,
                 aryn_api_key=self._aryn_api_key,
                 aryn_partitioner_address=self._aryn_partitioner_address,
                 use_cache=self._use_cache,
@@ -556,7 +556,7 @@ class SycamorePartitioner(ArynPartitioner):
             device=device,
             batch_size=batch_size,
             batch_at_a_time=batch_at_a_time,
-            local=True,
+            use_partitioning_service=False,
         )
 
 

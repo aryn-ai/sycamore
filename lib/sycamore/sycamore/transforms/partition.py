@@ -416,6 +416,7 @@ class ArynPartitioner(Partitioner):
         model_name_or_path=ARYN_DETR_MODEL,
         threshold: float = 0.4,
         use_ocr: bool = False,
+        preempt_work: bool = False,
         ocr_images: bool = False,
         ocr_tables: bool = False,
         extract_table_structure: bool = False,
@@ -443,6 +444,7 @@ class ArynPartitioner(Partitioner):
         self._device = device
         self._threshold = threshold
         self._use_ocr = use_ocr
+        self._preempt_work = preempt_work
         self._ocr_images = ocr_images
         self._ocr_tables = ocr_tables
         self._extract_table_structure = extract_table_structure
@@ -501,6 +503,7 @@ class ArynPartitioner(Partitioner):
                 binary,
                 self._threshold,
                 use_ocr=self._use_ocr,
+                preempt_work=self._preempt_work,
                 ocr_images=self._ocr_images,
                 ocr_tables=self._ocr_tables,
                 extract_table_structure=self._extract_table_structure,

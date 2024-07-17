@@ -11,7 +11,7 @@ from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.augment_text import TextAugmentor
 from sycamore.transforms.embed import Embedder
 from sycamore.transforms.extract_entity import EntityExtractor
-from sycamore.transforms.extract_graph import GraphExtractor, GraphMetadata
+from sycamore.transforms.extract_graph import GraphMetadata
 from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
 from sycamore.transforms.partition import Partitioner
 from sycamore.transforms.summarize import Summarizer

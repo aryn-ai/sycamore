@@ -215,9 +215,6 @@ class Table:
             elif tag.name == "caption":
                 caption = tag.get_text()
 
-            else:
-                continue
-
         # Fix columns where rowspans should be inserted
         for c in cells:
             if len(c.rows) == 1:

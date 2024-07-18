@@ -510,7 +510,7 @@ class DocSet:
         for extractor in extractors:
             docset = extractor.extract(self)
 
-        return docset
+        return docset        
 
     def extract_properties(self, property_extractor: PropertyExtractor, **kwargs) -> "DocSet":
         """

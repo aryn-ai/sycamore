@@ -585,7 +585,7 @@ class Partition(CompositeTransform):
         self, child: Node, partitioner: Partitioner, table_extractor: Optional[TableExtractor] = None, **resource_args
     ):
         ops = []
-        if isinstance(partitioner, ArynPartitioner) and partitioner.use_partitioning_service:
+        if isinstance(partitioner, ArynPartitioner) and partitioner._use_partitioning_service:
             resource_args["compute"] = ActorPoolStrategy(size=1)
         if partitioner.device == "cuda":
             if "num_gpus" not in resource_args:

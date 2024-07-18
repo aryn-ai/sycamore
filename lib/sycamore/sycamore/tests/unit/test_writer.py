@@ -5,7 +5,7 @@ from sycamore.plan_nodes import Node
 from sycamore.connectors.opensearch import OpenSearchWriter
 from sycamore.connectors.weaviate import WeaviateDocumentWriter
 from sycamore.connectors.duckdb import DuckDBWriter
-from sycamore.connectors.elasticsearch import ElasticDocumentWriter
+from sycamore.connectors.elasticsearch import ElasticsearchDocumentWriter
 
 import json
 from pathlib import Path

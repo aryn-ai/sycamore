@@ -16,6 +16,7 @@ class ElasticsearchReaderClientParams(BaseDBReader.ClientParams):
 class ElasticsearchReaderQueryParams(BaseDBReader.QueryParams):
     index_name: str
     query: Dict = field(default_factory=lambda: {"match_all": {}})
+    keep_alive = "1m"
     kwargs: Dict = field(default_factory=lambda: {})
 
 
@@ -33,14 +34,29 @@ class ElasticsearchReaderClient(BaseDBReader.Client):
         assert isinstance(
             query_params, ElasticsearchReaderQueryParams
         ), f"Wrong kind of query parameters found: {query_params}"
-        results = ElasticsearchReaderQueryResponse(
-            list(
-                self._client.search(index=query_params.index_name, query=query_params.query, **query_params.kwargs)[
-                    "hits"
-                ]["hits"]
-            )
-        )
-        return results
+        no_specification = ["query", "pit", "search_after", "index_name"]
+        assert all(no_specification) not in query_params.kwargs
+        if not query_params.kwargs.get("track_total_hits"):
+            query_params.kwargs["track_total_hits"] = False
+        if not query_params.kwargs.get("sort"):
+            query_params.kwargs["sort"] = [
+                {"_shard_doc": "desc"},
+            ]
+        pit = self._client.open_point_in_time(index=query_params.index_name, keep_alive=query_params.keep_alive)["id"]
+        pit_dict = {"id": pit, "keep_alive": query_params.keep_alive}
+        overall_list = []
+        return_object = self._client.search(pit=pit_dict, query=query_params.query, **query_params.kwargs)
+        results_list = list(return_object["hits"]["hits"])
+        overall_list.extend(results_list)
+        while results_list:
+            query_params.kwargs["search_after"] = results_list[-1]["sort"]
+            pit = return_object["pit_id"]
+            pit_dict["id"] = pit
+            return_object = self._client.search(pit=pit_dict, query=query_params.query, **query_params.kwargs)
+            results_list = list(return_object["hits"]["hits"])
+            overall_list.extend(results_list)
+        self._client.close_point_in_time(id=pit)
+        return ElasticsearchReaderQueryResponse(overall_list)
 
     def check_target_presence(self, query_params: BaseDBReader.QueryParams):
         assert isinstance(query_params, ElasticsearchReaderQueryParams)

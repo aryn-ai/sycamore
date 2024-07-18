@@ -37,7 +37,7 @@ def test_to_elasticsearch():
     )
     ctx.read.document(docs).write.elasticsearch(url=url, index_name=index_name, wait_for_completion=wait_for_completion)
     target_doc_id = docs[-1].doc_id if docs[-1].doc_id else ""
-    out_docs = ctx.read.elasticsearch(url=url, index_name=index_name, size=len(docs)).take_all()
+    out_docs = ctx.read.elasticsearch(url=url, index_name=index_name).take_all()
     query_params = {"term": {"_id": target_doc_id}}
     query_docs = ctx.read.elasticsearch(url=url, index_name=index_name, query=query_params).take_all()
     with Elasticsearch(url) as es_client:

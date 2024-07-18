@@ -1,4 +1,4 @@
-from typing import Optional, Union, Callable
+from typing import Optional, Union, Callable, Dict
 
 from pandas import DataFrame
 from pyarrow import Table
@@ -104,11 +104,13 @@ class DocSetReader:
         ddbr = DuckDBReader(client_params=client_params, query_params=query_params)
         return DocSet(self._context, ddbr)
 
-    def pinecone(self, index_name: str, api_key: str, namespace: str = "") -> DocSet:
-        from sycamore.connectors.pinecone import PineconeScan
+    def pinecone(self, index_name: str, api_key: str, query: Optional[Dict] = None, namespace: str = "") -> DocSet:
+        from sycamore.connectors.pinecone import PineconeReader, PineconeReaderClientParams, PineconeReaderQueryParams
 
-        scan = PineconeScan(index_name=index_name, api_key=api_key, namespace=namespace)
-        return DocSet(self._context, scan)
+        client_params = PineconeReaderClientParams(api_key=api_key)
+        query_params = PineconeReaderQueryParams(index_name=index_name, query=query, namespace=namespace)
+        pr = PineconeReader(client_params=client_params, query_params=query_params)
+        return DocSet(self._context, pr)
 
     def weaviate(self, wv_client_args: dict, collection_name: str) -> DocSet:
         from sycamore.connectors.weaviate import WeaviateScan, WeaviateClientParams

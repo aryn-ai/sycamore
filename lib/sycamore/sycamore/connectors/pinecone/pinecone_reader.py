@@ -27,7 +27,7 @@ class PineconeReaderClient(BaseDBReader.Client):
         assert isinstance(params, PineconeReaderClientParams)
         return PineconeReaderClient(params)
 
-    def read_records(self, query_params: BaseDBReader.QueryParams):
+    def read_records(self, query_params: BaseDBReader.QueryParams) -> "PineconeReaderQueryResponse":
         assert isinstance(
             query_params, PineconeReaderQueryParams
         ), f"Wrong kind of query parameters found: {query_params}"

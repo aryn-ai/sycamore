@@ -110,6 +110,20 @@ class DocSetReader:
         scan = PineconeScan(index_name=index_name, api_key=api_key, namespace=namespace)
         return DocSet(self._context, scan)
 
+    def elasticsearch(
+        self, db_url: str, table_name: str, query: Optional[Dict] = None, on_input_docs: bool = False
+    ) -> DocSet:
+        from sycamore.connectors.elasticsearch import (
+            ElasticsearchReader,
+            ElasticsearchReaderClientParams,
+            ElasticsearchReaderQueryParams,
+        )
+
+        client_params = ElasticsearchReaderClientParams(db_url=db_url)
+        query_params = ElasticsearchReaderQueryParams(table_name=table_name, query=query)
+        ddbr = ElasticsearchReader(client_params=client_params, query_params=query_params)
+        return DocSet(self._context, ddbr)
+
     def weaviate(self, wv_client_args: dict, collection_name: str) -> DocSet:
         from sycamore.connectors.weaviate import WeaviateScan, WeaviateClientParams
 

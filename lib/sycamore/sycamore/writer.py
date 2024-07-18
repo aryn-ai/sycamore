@@ -515,13 +515,13 @@ class DocSetWriter:
             ds.write.elasticsearch(url=url, index_name=index_name)
         """
         from sycamore.connectors.elasticsearch import (
-            ElasticDocumentWriter,
-            ElasticClientParams,
-            ElasticTargetParams,
+            ElasticsearchDocumentWriter,
+            ElasticsearchWriterClientParams,
+            ElasticsearchWriterTargetParams,
         )
 
-        client_params = ElasticClientParams(url=url, es_client_args=es_client_args)
-        target_params = ElasticTargetParams(
+        client_params = ElasticsearchWriterClientParams(url=url, es_client_args=es_client_args)
+        target_params = ElasticsearchWriterTargetParams(
             index_name=index_name,
             wait_for_completion=wait_for_completion,
             **{
@@ -533,7 +533,7 @@ class DocSetWriter:
                 if v is not None
             },  # type: ignore
         )
-        es_docs = ElasticDocumentWriter(
+        es_docs = ElasticsearchDocumentWriter(
             self.plan, client_params, target_params, name="elastic_document_writer", **kwargs
         )
         if execute:

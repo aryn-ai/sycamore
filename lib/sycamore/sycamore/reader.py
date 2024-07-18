@@ -1,4 +1,4 @@
-from typing import Optional, Union, Callable
+from typing import Optional, Union, Callable, Dict
 
 from pandas import DataFrame
 from pyarrow import Table
@@ -104,14 +104,16 @@ class DocSetReader:
         ddbr = DuckDBReader(client_params=client_params, query_params=query_params)
         return DocSet(self._context, ddbr)
 
-    def pinecone(self, index_name: str, api_key: str, namespace: str = "") -> DocSet:
-        from sycamore.connectors.pinecone import PineconeScan
+    def pinecone(self, index_name: str, api_key: str, query: Optional[Dict] = None, namespace: str = "") -> DocSet:
+        from sycamore.connectors.pinecone import PineconeReader, PineconeReaderClientParams, PineconeReaderQueryParams
 
-        scan = PineconeScan(index_name=index_name, api_key=api_key, namespace=namespace)
-        return DocSet(self._context, scan)
+        client_params = PineconeReaderClientParams(api_key=api_key)
+        query_params = PineconeReaderQueryParams(index_name=index_name, query=query, namespace=namespace)
+        pr = PineconeReader(client_params=client_params, query_params=query_params)
+        return DocSet(self._context, pr)
 
     def elasticsearch(
-        self, db_url: str, table_name: str, query: Optional[Dict] = None, on_input_docs: bool = False
+        self, url: str, index_name: str, es_client_args: dict = {}, query: Optional[Dict] = None, **kwargs
     ) -> DocSet:
         from sycamore.connectors.elasticsearch import (
             ElasticsearchReader,
@@ -119,10 +121,15 @@ class DocSetReader:
             ElasticsearchReaderQueryParams,
         )
 
-        client_params = ElasticsearchReaderClientParams(db_url=db_url)
-        query_params = ElasticsearchReaderQueryParams(table_name=table_name, query=query)
-        ddbr = ElasticsearchReader(client_params=client_params, query_params=query_params)
-        return DocSet(self._context, ddbr)
+        client_params = ElasticsearchReaderClientParams(url=url, es_client_args=es_client_args)
+        query_params = (
+            ElasticsearchReaderQueryParams(index_name=index_name, query=query, kwargs=kwargs)
+            if query is not None
+            else ElasticsearchReaderQueryParams(index_name=index_name, kwargs=kwargs)
+        )
+
+        esr = ElasticsearchReader(client_params=client_params, query_params=query_params)
+        return DocSet(self._context, esr)
 
     def weaviate(self, wv_client_args: dict, collection_name: str) -> DocSet:
         from sycamore.connectors.weaviate import WeaviateScan, WeaviateClientParams

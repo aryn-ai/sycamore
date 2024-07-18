@@ -1,11 +1,9 @@
 from sycamore.data import Document
-from pinecone.grpc import PineconeGRPC
-from sycamore.connectors.common import unflatten_data
 from sycamore.connectors.base_reader import BaseDBReader
 from dataclasses import dataclass, field
-from typing import Optional, Dict
+from typing import Dict
 
-from elasticsearch import Elasticsearch, ApiError
+from elasticsearch import Elasticsearch
 
 
 @dataclass
@@ -17,8 +15,8 @@ class ElasticsearchReaderClientParams(BaseDBReader.ClientParams):
 @dataclass
 class ElasticsearchReaderQueryParams(BaseDBReader.QueryParams):
     index_name: str
-    size: int
     query: Dict = field(default_factory=lambda: {"match_all": {}})
+    kwargs: Dict = field(default_factory=lambda: {})
 
 
 class ElasticsearchReaderClient(BaseDBReader.Client):
@@ -35,9 +33,12 @@ class ElasticsearchReaderClient(BaseDBReader.Client):
         assert isinstance(
             query_params, ElasticsearchReaderQueryParams
         ), f"Wrong kind of query parameters found: {query_params}"
-        print(self._client.search(index=query_params.index_name, query=query_params.query, size=query_params.size))
         results = ElasticsearchReaderQueryResponse(
-            list(self._client.search(index=query_params.index_name, query=query_params.query, size=query_params.size))
+            list(
+                self._client.search(index=query_params.index_name, query=query_params.query, **query_params.kwargs)[
+                    "hits"
+                ]["hits"]
+            )
         )
         return results
 
@@ -54,12 +55,10 @@ class ElasticsearchReaderQueryResponse(BaseDBReader.QueryResponse):
         assert isinstance(self, ElasticsearchReaderQueryResponse)
         result = []
         for data in self.output:
-            doc_id = data.id.split("#")[1] if len(data.id.split("#")) > 1 else id
-            if data.sparse_vector:
-                term_frequency = dict(zip(data.sparse_vector.indices, data.sparse_vector.values))
-                data.metadata["properties.term_frequency"] = term_frequency
-            metadata = data.metadata if data.metadata else {}
-            doc = Document({"doc_id": doc_id, "embedding": data.values} | unflatten_data(metadata))  # type: ignore
+            doc_id = data["_id"]
+            doc = Document(
+                {"doc_id": doc_id, "embedding": data["_source"].get("embeddings"), **data["_source"].get("properties")}
+            )
             result.append(doc)
         return result
 

@@ -343,8 +343,8 @@ class DocSetWriter:
         """
         from sycamore.connectors.pinecone import (
             PineconeWriter,
-            PineconeClientParams,
-            PineconeTargetParams,
+            PineconeWriterClientParams,
+            PineconeWriterTargetParams,
         )
         import os
 
@@ -355,8 +355,8 @@ class DocSetWriter:
         assert (
             api_key is not None and len(api_key) != 0
         ), "Missing api key: either provide it as an argument or set the PINECONE_API_KEY env variable."
-        pcp = PineconeClientParams(api_key=api_key)
-        ptp = PineconeTargetParams(
+        pcp = PineconeWriterClientParams(api_key=api_key)
+        ptp = PineconeWriterTargetParams(
             index_name=index_name,
             namespace=namespace,
             index_spec=index_spec,

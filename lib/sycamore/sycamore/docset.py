@@ -841,6 +841,18 @@ class DocSet:
         query = Query(self.plan, query_executor, **resource_args)
         return DocSet(self.context, query)
 
+    def sort(self, descending: bool, field: str, default_val: Optional[Any] = None) -> "DocSet":
+        """
+        Sort DocSet by specified field.
+
+        Args:
+            descending: Whether or not to sort in descending order (first to last).
+            field: Document field in relation to Document using dotted notation, e.g. properties.filetype
+        """
+        from sycamore.transforms import Sort
+
+        return DocSet(self.context, Sort(self.plan, descending, field, default_val))
+
     @property
     def write(self) -> DocSetWriter:
         """

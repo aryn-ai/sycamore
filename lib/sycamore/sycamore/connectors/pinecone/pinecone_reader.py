@@ -1,16 +1,9 @@
-from sycamore.plan_nodes import Scan
 from sycamore.data import Document
-from pinecone import PineconeApiException
 from pinecone.grpc import PineconeGRPC
-from ray.data import Dataset, from_items
 from sycamore.connectors.common import unflatten_data
 from sycamore.connectors.base_reader import BaseDBReader
-
-
-from sycamore.data import Document
-
 from dataclasses import dataclass
-from typing import Optional, Dict, Union
+from typing import Optional, Dict
 
 
 @dataclass

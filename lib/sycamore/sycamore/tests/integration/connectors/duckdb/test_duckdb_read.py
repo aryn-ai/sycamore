@@ -33,13 +33,16 @@ def test_duckdb_scan():
         .take_all()
     )
     ctx.read.document(docs).write.duckdb(db_url=db_url, table_name=table_name, dimensions=384)
-
+    target_doc_id = docs[-1].doc_id if docs[-1].doc_id else ""
     out_docs = ctx.read.duckdb(db_url=db_url, table_name=table_name).take_all()
+    query = f"SELECT * from {table_name} WHERE doc_id == '{target_doc_id}'"
+    query_docs = ctx.read.duckdb(db_url=db_url, table_name=table_name, query=query).take_all()
     try:
         os.unlink(db_url)
     except Exception as e:
         print(f"Error deleting {db_url}: {e}")
     assert len(out_docs) == len(docs)
+    assert len(query_docs) == 1  # exactly one doc should be returned
     assert all(
         compare_docs(original, plumbed)
         for original, plumbed in zip(

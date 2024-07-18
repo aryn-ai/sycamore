@@ -10,7 +10,7 @@ from sycamore.connectors.base_reader import BaseDBReader
 from sycamore.data import Document
 
 from dataclasses import dataclass
-from typing import Optional, Dict
+from typing import Optional, Dict, Union
 
 
 @dataclass
@@ -40,13 +40,13 @@ class PineconeReaderClient(BaseDBReader.Client):
         ), f"Wrong kind of query parameters found: {query_params}"
         index = self._client.Index(query_params.index_name)
         if query_params.query:
-            results = PineconeReaderQueryResponse(dict(index.query(**query_params.query)["matches"]))
+            results = PineconeReaderQueryResponse(list(index.query(**query_params.query)["matches"]))
         else:
             ids = []
             for pids in index.list(namespace=query_params.namespace):
                 ids.extend(pids)
             results = PineconeReaderQueryResponse(
-                dict(index.fetch(ids=ids, namespace=query_params.namespace)["vectors"])
+                list(dict(index.fetch(ids=ids, namespace=query_params.namespace)["vectors"]).values())
             )
         return results
 
@@ -61,13 +61,13 @@ class PineconeReaderClient(BaseDBReader.Client):
 
 @dataclass
 class PineconeReaderQueryResponse(BaseDBReader.QueryResponse):
-    output: Dict
+    output: list
 
     def to_docs(self, query_params: "BaseDBReader.QueryParams") -> list[Document]:
         assert isinstance(self, PineconeReaderQueryResponse)
         result = []
-        for id, data in self.output.items():
-            doc_id = id.split("#")[1] if len(id.split("#")) > 1 else id
+        for data in self.output:
+            doc_id = data.id.split("#")[1] if len(data.id.split("#")) > 1 else id
             if data.sparse_vector:
                 term_frequency = dict(zip(data.sparse_vector.indices, data.sparse_vector.values))
                 data.metadata["properties.term_frequency"] = term_frequency

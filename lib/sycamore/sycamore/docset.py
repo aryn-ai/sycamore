@@ -848,6 +848,7 @@ class DocSet:
         Args:
             descending: Whether or not to sort in descending order (first to last).
             field: Document field in relation to Document using dotted notation, e.g. properties.filetype
+            default_val: Default value to use if field does not exist in Document
         """
         from sycamore.transforms import Sort
 

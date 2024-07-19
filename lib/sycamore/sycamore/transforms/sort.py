@@ -27,6 +27,7 @@ class Sort(Transform):
 
         # sorts the dataset
         ds = ds.sort("key", descending=self._descending)
+        ds = ds.drop_columns(["key"])
         return ds
 
     def make_map_fn_sort(self):

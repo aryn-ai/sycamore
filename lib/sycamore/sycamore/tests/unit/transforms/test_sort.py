@@ -10,7 +10,6 @@ from sycamore.data import Document
 class TestSort:
     @pytest.fixture()
     def docs(self) -> list[Document]:
-        print("Generating docs")
         doc_list = [
             # text_representation is random 6 letter strings
             Document(
@@ -33,40 +32,21 @@ class TestSort:
 
     def test_sort_descending(self, docset: DocSet):
         sorted_docset = docset.sort(True, "text_representation")
-        sorted = True
         doc_list = sorted_docset.take_all()
 
         for i in range(1, len(doc_list)):
-            if doc_list[i].text_representation > doc_list[i - 1].text_representation:
-                sorted = False
-                break
-
-        assert sorted
+            assert doc_list[i].text_representation <= doc_list[i - 1].text_representation
 
     def test_sort_ascending(self, docset: DocSet):
         sorted_docset = docset.sort(False, "properties.document_number")
-        sorted = True
         doc_list = sorted_docset.take_all()
 
         for i in range(1, len(doc_list)):
-            if doc_list[i].properties["document_number"] < doc_list[i - 1].properties["document_number"]:
-                sorted = False
-                break
-
-        assert sorted
+            assert doc_list[i].properties["document_number"] >= doc_list[i - 1].properties["document_number"]
 
     def test_default_value(self, docset: DocSet):
         sorted_docset = docset.sort(False, "doc_id.even", 0)
-        sorted = True
         doc_list = sorted_docset.take_all()
 
         for i in range(1, len(doc_list)):
-
-            if "even" not in doc_list[i].doc_id or "even" not in doc_list[i - 1].doc_id:
-                continue
-
-            if doc_list[i].doc_id["even"] < doc_list[i - 1].doc_id["even"]:
-                sorted = False
-                break
-
-        assert sorted
+            assert doc_list[i].doc_id.get("even", 0) >= doc_list[i - 1].doc_id.get("even", 0)

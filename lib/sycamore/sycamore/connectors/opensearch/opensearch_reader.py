@@ -31,14 +31,6 @@ class OpenSearchReaderClient(BaseDBReader.Client):
         assert isinstance(
             query_params, OpenSearchReaderQueryParams
         ), f"Wrong kind of query parameters found: {query_params}"
-        # no_specification = ["query", "pit", "search_after", "index_name"]
-        # assert all(no_specification) not in query_params.kwargs
-        # if not query_params.kwargs.get("track_total_hits"):
-        #     query_params.kwargs["track_total_hits"] = False
-        # if not query_params.kwargs.get("sort"):
-        #     query_params.kwargs["sort"] = [
-        #         {"_shard_doc": "desc"},
-        #     ]
         scroll = "1m"
         response = self._client.search(index=query_params.index_name, scroll=scroll, size=200, body=query_params.query)
         scroll_id = response["_scroll_id"]

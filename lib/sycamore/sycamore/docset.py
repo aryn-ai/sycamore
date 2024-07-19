@@ -481,9 +481,8 @@ class DocSet:
 
         schema = ExtractBatchSchema(self.plan, schema_extractor=schema_extractor)
         return DocSet(self.context, schema)
-    
+
     def extract_graph_structure(self, extractors: list[GraphExtractor], **kwargs) -> "DocSet":
-        
         """
         Extracts metadata from documents into a format that sets up resulting docset to be loaded into neo4j
 
@@ -510,7 +509,7 @@ class DocSet:
         for extractor in extractors:
             docset = extractor.extract(self)
 
-        return docset        
+        return docset
 
     def extract_properties(self, property_extractor: PropertyExtractor, **kwargs) -> "DocSet":
         """

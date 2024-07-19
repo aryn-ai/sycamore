@@ -134,7 +134,7 @@ class TestDocSetWriter:
     def test_elasticsearch(self, mocker):
         context = mocker.Mock(spec=Context)
         docset = DocSet(context, mocker.Mock(spec=Node))
-        execute = mocker.patch.object(ElasticDocumentWriter, "execute")
+        execute = mocker.patch.object(ElasticsearchDocumentWriter, "execute")
         docset.write.elasticsearch(url="", index_name="index")
         execute.assert_called_once()
 

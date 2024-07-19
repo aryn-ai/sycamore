@@ -3,6 +3,7 @@ import pytest
 from sycamore.connectors.common import compare_docs
 import weaviate
 from weaviate.classes.config import Property, ReferenceProperty
+from weaviate.classes.query import Filter
 from weaviate.client import ConnectionParams
 from weaviate.collections.classes.config import Configure, DataType
 
@@ -43,7 +44,7 @@ def wv_client_args():
         client.collections.delete("TestCollection")
 
 
-def test_weaviate_scan(wv_client_args):
+def test_weaviate_read(wv_client_args):
 
     paths = str(TEST_DIR / "resources/data/pdfs/Transformer.pdf")
     model_name = "sentence-transformers/all-MiniLM-L6-v2"
@@ -93,8 +94,13 @@ def test_weaviate_scan(wv_client_args):
     ctx.read.document(docs).write.weaviate(
         wv_client_args=wv_client_args, collection_name=collection, collection_config=collection_config_params
     )
-
     out_docs = ctx.read.weaviate(wv_client_args=wv_client_args, collection_name=collection).take_all()
+    target_doc_id = docs[-1].doc_id if docs[-1].doc_id else ""
+    fetch_object_dict = {"filters": Filter.by_id().equal(target_doc_id)}
+    query_docs = ctx.read.weaviate(
+        wv_client_args=wv_client_args, collection_name=collection, fetch_objects=fetch_object_dict
+    ).take_all()
+    assert len(query_docs) == 1  # exactly one doc should be returned
     assert len(out_docs) == len(docs)
     assert all(
         compare_docs(original, plumbed)

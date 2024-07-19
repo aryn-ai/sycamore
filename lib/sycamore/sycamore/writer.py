@@ -248,7 +248,7 @@ class DocSetWriter:
             WeaviateDocumentWriter,
             WeaviateCrossReferenceWriter,
             WeaviateClientParams,
-            WeaviateTargetParams,
+            WeaviateWriterTargetParams,
         )
         from sycamore.connectors.weaviate.weaviate_writer import CollectionConfigCreate
 
@@ -261,7 +261,7 @@ class DocSetWriter:
             collection_config_object = CollectionConfigCreate(**collection_config)
         else:
             collection_config_object = CollectionConfigCreate(name=collection_name, **collection_config)
-        target_params = WeaviateTargetParams(
+        target_params = WeaviateWriterTargetParams(
             name=collection_name, collection_config=collection_config_object, flatten_properties=flatten_properties
         )
 

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, Any
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.data import Document, MetadataDocument
@@ -60,14 +60,14 @@ class MetadataExtractor(GraphExtractor):
         """
         Extracts metadata from documents and stores them in the 'nodes' key of 'properties in each document
         """
-        nodes = {}
+        nodes: Dict[str, Dict[str, Any]] = {}
         for m in self.metadata:
             if m.nodeKey not in doc["properties"]:
                 continue
 
             key = str(m.nodeKey)
             value = str(doc["properties"][m.nodeKey])
-            node = {"label": str(m.nodeLabel), "type": "metadata", "properties": {key: value}, "relationships": {}}
+            node = {"type": "metadata", "properties": {key: value}, "label": str(m.nodeLabel), "relationships": {}}
             nodes[key + "_" + value] = node
 
             rel = {

@@ -1,4 +1,5 @@
 from sycamore import Context
+import sycamore
 from sycamore.reader import DocSetReader
 from sycamore.transforms.extract_graph import GraphMetadata, MetadataExtractor
 from sycamore.data import Document
@@ -40,7 +41,8 @@ class TestGraphExtractor:
     ]
 
     def test_graph_extractor(self):
-        reader = DocSetReader(Context())
+        context = sycamore.init()
+        reader = DocSetReader(context)
         ds = reader.document(self.docs)
 
         metadata = [

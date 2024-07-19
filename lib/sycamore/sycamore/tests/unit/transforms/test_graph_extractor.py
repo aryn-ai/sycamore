@@ -1,4 +1,3 @@
-from sycamore import Context
 import sycamore
 from sycamore.reader import DocSetReader
 from sycamore.transforms.extract_graph import GraphMetadata, MetadataExtractor

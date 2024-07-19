@@ -15,6 +15,7 @@ class OpenSearchReaderClientParams(BaseDBReader.ClientParams):
 class OpenSearchReaderQueryParams(BaseDBReader.QueryParams):
     index_name: str
     query: Dict = field(default_factory=lambda: {"query": {"match_all": {}}})
+    kwargs: Dict = field(default_factory=lambda: {})
 
 
 class OpenSearchReaderClient(BaseDBReader.Client):
@@ -31,8 +32,12 @@ class OpenSearchReaderClient(BaseDBReader.Client):
         assert isinstance(
             query_params, OpenSearchReaderQueryParams
         ), f"Wrong kind of query parameters found: {query_params}"
-        scroll = "1m"
-        response = self._client.search(index=query_params.index_name, scroll=scroll, size=200, body=query_params.query)
+        assert "index" not in query_params.kwargs and "body" not in query_params.kwargs
+        if "scroll" not in query_params.kwargs:
+            query_params.kwargs["scroll"] = "1m"
+        if "size" not in query_params.kwargs:
+            query_params.kwargs["size"] = 200
+        response = self._client.search(index=query_params.index_name, body=query_params.query, **query_params.kwargs)
         scroll_id = response["_scroll_id"]
         result = []
         try:
@@ -43,7 +48,7 @@ class OpenSearchReaderClient(BaseDBReader.Client):
 
                 if not hits:
                     break
-                response = self._client.scroll(scroll_id=scroll_id, scroll=scroll)
+                response = self._client.scroll(scroll_id=scroll_id, scroll=query_params.kwargs["scroll"])
         finally:
             self._client.clear_scroll(scroll_id=scroll_id)
         return OpenSearchReaderQueryResponse(result)
@@ -63,7 +68,11 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
         for data in self.output:
             doc_id = data["_id"]
             doc = Document(
-                {"doc_id": doc_id, "embedding": data["_source"].get("embeddings"), **data["_source"].get("properties")}
+                {
+                    "doc_id": doc_id,
+                    "embedding": data["_source"].get("embeddings"),
+                    **data["_source"].get("properties", {}),
+                }
             )
             result.append(doc)
         return result

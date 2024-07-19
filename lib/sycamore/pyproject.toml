@@ -43,6 +43,7 @@ fsspec = "2024.2.0" # See poetry-lock/pyproject.toml
 timm = "^0.9.12"
 cryptography = "^42.0.3"
 aiohttp = "^3.9.2"
+apted = "^1.0.3"
 
 # Dependencies for building docs. Defined as an extra
 # so they can be installed using pip on RTD.

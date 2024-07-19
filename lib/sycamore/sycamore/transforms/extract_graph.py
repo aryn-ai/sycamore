@@ -16,6 +16,8 @@ class GraphData(ABC):
 
 class GraphMetadata(GraphData):
     """
+    Object which handles what fields to extract metadata from and what fields to represent them as in neo4j
+
     Args:
         nodeKey: Key used to access document metadata in the document['properties] dictionary
         nodeLabel: The label used in neo4j the node of a piece of metadata

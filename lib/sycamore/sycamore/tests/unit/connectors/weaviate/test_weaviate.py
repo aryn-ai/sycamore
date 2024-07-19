@@ -2,7 +2,7 @@ import pytest
 
 from sycamore.connectors.weaviate.weaviate_writer import (
     CollectionConfigCreate,
-    WeaviateClient,
+    WeaviateWriterClient,
     WeaviateClientParams,
     WeaviateCrossReferenceClient,
     WeaviateCrossReferenceRecord,
@@ -80,7 +80,7 @@ class TestWeaviateTargetParams:
         cn = "TestNumber3"
         cp = collection_params_a(cn)
         wtp_a = WeaviateWriterTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
-        wcl = WeaviateClient(embedded_client)
+        wcl = WeaviateWriterClient(embedded_client)
         wcl.create_target_idempotent(wtp_a)
         wtp_b = wcl.get_existing_target_params(wtp_a)
         assert wtp_a.compatible_with(wtp_b)
@@ -117,7 +117,7 @@ class TestWeaviateClient:
         wcl = TestWeaviateClient.mock_client(mocker)
         wcl.collections.create = mocker.Mock()
         wcl.collections.create.return_value = True
-        client = WeaviateClient(wcl)
+        client = WeaviateWriterClient(wcl)
         client.create_target_idempotent(wtp_a)
         wcl.collections.create.assert_called_once()
 
@@ -125,14 +125,14 @@ class TestWeaviateClient:
         cn = "TestNumber5"
         cp = collection_params_a(cn)
         wtp_a = WeaviateWriterTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
-        real_client = WeaviateClient(embedded_client)
+        real_client = WeaviateWriterClient(embedded_client)
         real_client.create_target_idempotent(wtp_a)
         wtp_b = real_client.get_existing_target_params(wtp_a)
 
         fake_inner_client = TestWeaviateClient.mock_client(mocker)
         fake_inner_client.collections.create_from_config = mocker.Mock()
         fake_inner_client.collections.create_from_config.return_value = True
-        fake_client = WeaviateClient(fake_inner_client)
+        fake_client = WeaviateWriterClient(fake_inner_client)
         fake_client.create_target_idempotent(wtp_b)
         fake_inner_client.collections.create_from_config.assert_called_once()
 
@@ -149,7 +149,7 @@ class TestWeaviateClient:
         wcl = TestWeaviateClient.mock_client(mocker)
         wbatch = TestWeaviateClient.mock_batch(mocker, wcl)
         wbatch.add_object = mocker.Mock()
-        client = WeaviateClient(wcl)
+        client = WeaviateWriterClient(wcl)
 
         client.write_many_records(docs, wtp_a)
         assert wbatch.add_object.call_count == 3

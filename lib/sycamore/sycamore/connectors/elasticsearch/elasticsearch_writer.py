@@ -11,13 +11,13 @@ from elasticsearch.helpers import parallel_bulk
 
 
 @dataclass
-class ElasticClientParams(BaseDBWriter.ClientParams):
+class ElasticsearchWriterClientParams(BaseDBWriter.ClientParams):
     url: str
     es_client_args: dict = field(default_factory=lambda: {})
 
 
 @dataclass
-class ElasticTargetParams(BaseDBWriter.TargetParams):
+class ElasticsearchWriterTargetParams(BaseDBWriter.TargetParams):
     index_name: str
     settings: dict[str, Any] = field(default_factory=lambda: {})
     mappings: dict[str, Any] = field(
@@ -36,7 +36,7 @@ class ElasticTargetParams(BaseDBWriter.TargetParams):
     wait_for_completion: str = "false"
 
     def compatible_with(self, other: BaseDBWriter.TargetParams) -> bool:
-        if not isinstance(other, ElasticTargetParams):
+        if not isinstance(other, ElasticsearchWriterTargetParams):
             return False
         if self.index_name != other.index_name:
             return False
@@ -60,18 +60,18 @@ class ElasticTargetParams(BaseDBWriter.TargetParams):
         return check_dictionary_compatibility(my_flat_mappings, other_flat_mappings, ["type"])
 
 
-class ElasticClient(BaseDBWriter.Client):
+class ElasticsearchWriterClient(BaseDBWriter.Client):
     def __init__(self, client: Elasticsearch):
         self._client = client
 
     @classmethod
-    def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "ElasticClient":
-        assert isinstance(params, ElasticClientParams)
+    def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "ElasticsearchWriterClient":
+        assert isinstance(params, ElasticsearchWriterClientParams)
         client = Elasticsearch(params.url, **params.es_client_args)
-        return ElasticClient(client)
+        return ElasticsearchWriterClient(client)
 
     def write_many_records(self, records: list[BaseDBWriter.Record], target_params: BaseDBWriter.TargetParams):
-        assert isinstance(target_params, ElasticTargetParams)
+        assert isinstance(target_params, ElasticsearchWriterTargetParams)
         assert _narrow_list_of_doc_records(records), f"Found a bad record in {records}"
         with self._client:
 
@@ -91,7 +91,7 @@ class ElasticClient(BaseDBWriter.Client):
                     print(f"Insert Operation Unsuccessful: {info}")
 
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
-        assert isinstance(target_params, ElasticTargetParams)
+        assert isinstance(target_params, ElasticsearchWriterTargetParams)
         try:
             self._client.indices.create(
                 index=target_params.index_name,
@@ -104,13 +104,13 @@ class ElasticClient(BaseDBWriter.Client):
                 return
             raise e
 
-    def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> "ElasticTargetParams":
-        assert isinstance(target_params, ElasticTargetParams)
+    def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> "ElasticsearchWriterTargetParams":
+        assert isinstance(target_params, ElasticsearchWriterTargetParams)
         mappings_data = self._client.indices.get_mapping(index=target_params.index_name)
         mappings = mappings_data[target_params.index_name]["mappings"]
         settings_data = self._client.indices.get_settings(index=target_params.index_name)
         settings = settings_data[target_params.index_name]["settings"]
-        return ElasticTargetParams(
+        return ElasticsearchWriterTargetParams(
             index_name=target_params.index_name,
             mappings=mappings,
             settings=settings,
@@ -119,14 +119,16 @@ class ElasticClient(BaseDBWriter.Client):
 
 
 @dataclass
-class ElasticDocumentRecord(BaseDBWriter.Record):
+class ElasticsearchWriterDocumentRecord(BaseDBWriter.Record):
     doc_id: str
     properties: dict
     embeddings: Optional[list[float]]
 
     @classmethod
-    def from_doc(cls, document: Document, target_params: BaseDBWriter.TargetParams) -> "ElasticDocumentRecord":
-        assert isinstance(target_params, ElasticTargetParams)
+    def from_doc(
+        cls, document: Document, target_params: BaseDBWriter.TargetParams
+    ) -> "ElasticsearchWriterDocumentRecord":
+        assert isinstance(target_params, ElasticsearchWriterTargetParams)
         doc_id = document.doc_id
         embedding = document.embedding
         if doc_id is None:
@@ -138,15 +140,17 @@ class ElasticDocumentRecord(BaseDBWriter.Record):
             "bbox": document.bbox.coordinates if document.bbox else None,
             "shingles": document.shingles,
         }
-        return ElasticDocumentRecord(doc_id=doc_id, properties=properties, embeddings=embedding)
+        return ElasticsearchWriterDocumentRecord(doc_id=doc_id, properties=properties, embeddings=embedding)
 
 
-def _narrow_list_of_doc_records(records: list[BaseDBWriter.Record]) -> TypeGuard[list[ElasticDocumentRecord]]:
-    return all(isinstance(r, ElasticDocumentRecord) for r in records)
+def _narrow_list_of_doc_records(
+    records: list[BaseDBWriter.Record],
+) -> TypeGuard[list[ElasticsearchWriterDocumentRecord]]:
+    return all(isinstance(r, ElasticsearchWriterDocumentRecord) for r in records)
 
 
-class ElasticDocumentWriter(BaseDBWriter):
-    Client = ElasticClient
-    Record = ElasticDocumentRecord
-    ClientParams = ElasticClientParams
-    TargetParams = ElasticTargetParams
+class ElasticsearchDocumentWriter(BaseDBWriter):
+    Client = ElasticsearchWriterClient
+    Record = ElasticsearchWriterDocumentRecord
+    ClientParams = ElasticsearchWriterClientParams
+    TargetParams = ElasticsearchWriterTargetParams

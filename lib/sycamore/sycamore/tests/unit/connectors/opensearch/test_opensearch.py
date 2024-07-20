@@ -1,10 +1,10 @@
 from opensearchpy import OpenSearch, RequestError
 import pytest
-from sycamore.connectors.opensearch.opensearch_writer import (
-    OpenSearchClient,
-    OpenSearchClientParams,
-    OpenSearchRecord,
-    OpenSearchTargetParams,
+from sycamore.connectors.opensearch import (
+    OpenSearchWriterClient,
+    OpenSearchWriterClientParams,
+    OpenSearchWriterRecord,
+    OpenSearchWriterTargetParams,
 )
 from sycamore.connectors.common import HostAndPort
 from sycamore.data.document import Document
@@ -13,14 +13,16 @@ from sycamore.data.document import Document
 class TestOpenSearchTargetParams:
 
     def test_compat_equal_params(self):
-        p1 = OpenSearchTargetParams(index_name="test")
-        p2 = OpenSearchTargetParams(index_name="test")
+        p1 = OpenSearchWriterTargetParams(index_name="test")
+        p2 = OpenSearchWriterTargetParams(index_name="test")
         assert p1.compatible_with(p2)
         assert p2.compatible_with(p1)
 
     def test_compat_smaller_params(self):
-        p1 = OpenSearchTargetParams(index_name="test", settings={"key": "value"}, mappings={"otherkey": "othervalue"})
-        p2 = OpenSearchTargetParams(
+        p1 = OpenSearchWriterTargetParams(
+            index_name="test", settings={"key": "value"}, mappings={"otherkey": "othervalue"}
+        )
+        p2 = OpenSearchWriterTargetParams(
             index_name="test",
             settings={"key": "value", "setting": "2"},
             mappings={"otherkey": "othervalue", "fourthkey": "fourthvalue"},
@@ -29,18 +31,18 @@ class TestOpenSearchTargetParams:
         assert not p2.compatible_with(p1)
 
     def test_compat_diff_index_names(self):
-        p1 = OpenSearchTargetParams(index_name="test")
-        p2 = OpenSearchTargetParams(index_name="nottest")
+        p1 = OpenSearchWriterTargetParams(index_name="test")
+        p2 = OpenSearchWriterTargetParams(index_name="nottest")
         assert not p1.compatible_with(p2)
         assert not p2.compatible_with(p1)
 
     def test_compat_nested_params(self):
-        p1 = OpenSearchTargetParams(
+        p1 = OpenSearchWriterTargetParams(
             index_name="test",
             settings={"key": {"nestedkey": "nestedvalue", "othernestedkey": "othernestedvalue"}},
             mappings={"otherkey": "othervalue"},
         )
-        p2 = OpenSearchTargetParams(
+        p2 = OpenSearchWriterTargetParams(
             index_name="test",
             settings={"key.nestedkey": "nestedvalue", "key": {"othernestedkey": "othernestedvalue"}},
             mappings={"otherkey": "othervalue"},
@@ -49,10 +51,10 @@ class TestOpenSearchTargetParams:
         assert p2.compatible_with(p1)
 
     def test_compat_index_autonesting(self):
-        p1 = OpenSearchTargetParams(
+        p1 = OpenSearchWriterTargetParams(
             index_name="test", settings={"index": {"key": "value"}, "index.otherkey": "othervalue"}
         )
-        p2 = OpenSearchTargetParams(index_name="test", settings={"key": "value", "otherkey": "othervalue"})
+        p2 = OpenSearchWriterTargetParams(index_name="test", settings={"key": "value", "otherkey": "othervalue"})
         assert not p1.compatible_with(p2)
         assert p2.compatible_with(p1)
 
@@ -64,8 +66,8 @@ class TestOpenSearchClient:
         client.indices.create = mocker.Mock()
         client.indices.create.side_effect = RequestError(400, "resource_already_exists_exception", {})
 
-        params = OpenSearchTargetParams(index_name="found")
-        osc_testing = OpenSearchClient(client)
+        params = OpenSearchWriterTargetParams(index_name="found")
+        osc_testing = OpenSearchWriterClient(client)
 
         # Should not fail
         osc_testing.create_target_idempotent(params)
@@ -76,8 +78,8 @@ class TestOpenSearchClient:
         client.indices.create = mocker.Mock()
         client.indices.create.side_effect = RequestError(400, "could_not_create_index_for_some_other_reason", {})
 
-        params = OpenSearchTargetParams(index_name="fail")
-        osc_testing = OpenSearchClient(client)
+        params = OpenSearchWriterTargetParams(index_name="fail")
+        osc_testing = OpenSearchWriterClient(client)
 
         with pytest.raises(RequestError) as einfo:
             osc_testing.create_target_idempotent(params)
@@ -113,8 +115,8 @@ class TestOpenSearchClient:
                 },
             }
         }
-        p1 = OpenSearchTargetParams(index_name="test")
-        osc_testing = OpenSearchClient(client)
+        p1 = OpenSearchWriterTargetParams(index_name="test")
+        osc_testing = OpenSearchWriterClient(client)
         p2 = osc_testing.get_existing_target_params(p1)
         mappings = p2.mappings
         assert mappings["bool_key"] is True
@@ -141,27 +143,27 @@ class TestOpenSearchClient:
     def test_create_client_from_params(self, mocker):
         ping = mocker.patch.object(OpenSearch, "ping")
         ping.return_value = True
-        client_params = OpenSearchClientParams(hosts=[HostAndPort(host="localhost", port=9200)])
-        OpenSearchClient.from_client_params(client_params)
+        client_params = OpenSearchWriterClientParams(hosts=[HostAndPort(host="localhost", port=9200)])
+        OpenSearchWriterClient.from_client_params(client_params)
 
     def test_write_many_documents(self, mocker):
         client = mocker.Mock(spec=OpenSearch)
         parallel_blk = mocker.patch("sycamore.connectors.opensearch.opensearch_writer.parallel_bulk")
         parallel_blk.return_value = []
         records = [
-            OpenSearchRecord(_source={"field": 1}, _index="test", _id="1"),
-            OpenSearchRecord(_source={"field": 2}, _index="test", _id="2"),
+            OpenSearchWriterRecord(_source={"field": 1}, _index="test", _id="1"),
+            OpenSearchWriterRecord(_source={"field": 2}, _index="test", _id="2"),
         ]
-        target_params = OpenSearchTargetParams(index_name="test")
-        osc_testing = OpenSearchClient(client)
+        target_params = OpenSearchWriterTargetParams(index_name="test")
+        osc_testing = OpenSearchWriterClient(client)
         osc_testing.write_many_records(records, target_params)
 
 
 class TestOpenSearchRecord:
     def test_from_document_only_text(self):
-        tp = OpenSearchTargetParams(index_name="test")
+        tp = OpenSearchWriterTargetParams(index_name="test")
         document = Document({"text_representation": "text", "doc_id": "id"})
-        record = OpenSearchRecord.from_doc(document, tp)
+        record = OpenSearchWriterRecord.from_doc(document, tp)
         assert record._source == {
             "doc_id": "id",
             "type": None,
@@ -177,7 +179,7 @@ class TestOpenSearchRecord:
         assert record._index == tp.index_name
 
     def test_from_document_all_fields(self):
-        tp = OpenSearchTargetParams(index_name="test")
+        tp = OpenSearchWriterTargetParams(index_name="test")
         data = {
             "text_representation": "text_representation",
             "type": "text",
@@ -190,13 +192,13 @@ class TestOpenSearchRecord:
             "doc_id": "id",
         }
         document = Document(data)
-        record = OpenSearchRecord.from_doc(document, tp)
+        record = OpenSearchWriterRecord.from_doc(document, tp)
         assert record._source == data
         assert record._id == document.doc_id
         assert record._index == tp.index_name
 
     def test_from_document_too_many_fields(self):
-        tp = OpenSearchTargetParams(index_name="test")
+        tp = OpenSearchWriterTargetParams(index_name="test")
         data = {
             "text_representation": "text_representation",
             "type": "text",
@@ -208,7 +210,7 @@ class TestOpenSearchRecord:
             "another_field": "something",
         }
         document = Document(data)
-        record = OpenSearchRecord.from_doc(document, tp)
+        record = OpenSearchWriterRecord.from_doc(document, tp)
         assert record._source == {
             "text_representation": "text_representation",
             "type": "text",

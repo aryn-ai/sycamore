@@ -90,11 +90,21 @@ class DocSetReader:
         scan = PandasScan(dfs)
         return DocSet(self._context, scan)
 
-    def opensearch(self, os_client_args: dict, index_name: str) -> DocSet:
-        from sycamore.connectors.opensearch import OpenSearchScan
+    def opensearch(self, os_client_args: dict, index_name: str, query: Optional[Dict] = None) -> DocSet:
+        from sycamore.connectors.opensearch import (
+            OpenSearchReader,
+            OpenSearchReaderClientParams,
+            OpenSearchReaderQueryParams,
+        )
 
-        scan = OpenSearchScan(index_name, os_client_args)
-        return DocSet(self._context, scan)
+        client_params = OpenSearchReaderClientParams(os_client_args=os_client_args)
+        query_params = (
+            OpenSearchReaderQueryParams(index_name=index_name, query=query)
+            if query is not None
+            else OpenSearchReaderQueryParams(index_name=index_name)
+        )
+        osr = OpenSearchReader(client_params=client_params, query_params=query_params)
+        return DocSet(self._context, osr)
 
     def duckdb(self, db_url: str, table_name: str, query: Optional[str] = None, on_input_docs: bool = False) -> DocSet:
         from sycamore.connectors.duckdb import DuckDBReader, DuckDBReaderClientParams, DuckDBReaderQueryParams

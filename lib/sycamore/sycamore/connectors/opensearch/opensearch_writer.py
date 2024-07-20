@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 
 
 @dataclass
-class OpenSearchClientParams(BaseDBWriter.ClientParams):
+class OpenSearchWriterClientParams(BaseDBWriter.ClientParams):
     hosts: list[HostAndPort] = field(default_factory=lambda: [HostAndPort(host="localhost", port=9200)])
     http_compress: bool = True
     http_auth: tuple[str, str] = ("admin", "admin")
@@ -32,7 +32,7 @@ class OpenSearchClientParams(BaseDBWriter.ClientParams):
 
 
 @dataclass
-class OpenSearchTargetParams(BaseDBWriter.TargetParams):
+class OpenSearchWriterTargetParams(BaseDBWriter.TargetParams):
     index_name: str
     settings: dict[str, Any] = field(default_factory=lambda: {"index.knn": True})
     mappings: dict[str, Any] = field(
@@ -55,7 +55,7 @@ class OpenSearchTargetParams(BaseDBWriter.TargetParams):
         a bunch of other stuff, like creation time or UUID, where we don't want to
         demand equality. We also flatten for consistency.
         """
-        if not isinstance(other, OpenSearchTargetParams):
+        if not isinstance(other, OpenSearchWriterTargetParams):
             return False
         if self.index_name != other.index_name:
             return False
@@ -77,24 +77,24 @@ class OpenSearchTargetParams(BaseDBWriter.TargetParams):
         return check_dictionary_compatibility(my_flat_mappings, other_flat_mappings)
 
 
-class OpenSearchClient(BaseDBWriter.Client):
+class OpenSearchWriterClient(BaseDBWriter.Client):
     def __init__(self, os_client: OpenSearch):
         self._client = os_client
 
     @classmethod
-    def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "OpenSearchClient":
+    def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "OpenSearchWriterClient":
         assert isinstance(
-            params, OpenSearchClientParams
-        ), f"Provided params was not of type OpenSearchClientParams:\n{params}"
+            params, OpenSearchWriterClientParams
+        ), f"Provided params was not of type OpenSearchWriterClientParams:\n{params}"
         paramsdict = asdict(params)
         os_client = OpenSearch(**paramsdict)
         os_client.ping()
-        return OpenSearchClient(os_client)
+        return OpenSearchWriterClient(os_client)
 
     def write_many_records(self, records: list[BaseDBWriter.Record], target_params: BaseDBWriter.TargetParams):
         assert isinstance(
-            target_params, OpenSearchTargetParams
-        ), f"Provided target_params was not of type OpenSearchTargetParams:\n{target_params}"
+            target_params, OpenSearchWriterTargetParams
+        ), f"Provided target_params was not of type OpenSearchWriterTargetParams:\n{target_params}"
         assert _narrow_list_of_os_records(records), f"A provided record was not of type OpenSearchRecord:\n{records}"
 
         for success, info in parallel_bulk(self._client, [asdict(r) for r in records]):
@@ -103,8 +103,8 @@ class OpenSearchClient(BaseDBWriter.Client):
 
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
         assert isinstance(
-            target_params, OpenSearchTargetParams
-        ), f"Provided target_params was not of type OpenSearchTargetParams:\n{target_params}"
+            target_params, OpenSearchWriterTargetParams
+        ), f"Provided target_params was not of type OpenSearchWriterTargetParams:\n{target_params}"
         index_name = target_params.index_name
         try:
             self._client.indices.create(
@@ -114,7 +114,7 @@ class OpenSearchClient(BaseDBWriter.Client):
             if e.error != "resource_already_exists_exception":
                 raise e
 
-    def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> OpenSearchTargetParams:
+    def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> OpenSearchWriterTargetParams:
         def _string_values_to_python_types(obj: Any):
             if isinstance(obj, dict):
                 for k in obj:
@@ -138,28 +138,28 @@ class OpenSearchClient(BaseDBWriter.Client):
             return obj
 
         assert isinstance(
-            target_params, OpenSearchTargetParams
-        ), f"Provided target_params was not of type OpenSearchTargetParams:\n{target_params}"
+            target_params, OpenSearchWriterTargetParams
+        ), f"Provided target_params was not of type OpenSearchWriterTargetParams:\n{target_params}"
         index_name = target_params.index_name
         response = self._client.indices.get(index_name)
         mappings = _string_values_to_python_types(response.get(index_name, {}).get("mappings", {}))
         assert isinstance(mappings, dict)
         settings = _string_values_to_python_types(response.get(index_name, {}).get("settings", {}))
         assert isinstance(settings, dict)
-        return OpenSearchTargetParams(index_name=index_name, mappings=mappings, settings=settings)
+        return OpenSearchWriterTargetParams(index_name=index_name, mappings=mappings, settings=settings)
 
 
 @dataclass
-class OpenSearchRecord(BaseDBWriter.Record):
+class OpenSearchWriterRecord(BaseDBWriter.Record):
     _source: dict[str, Any]
     _index: str
     _id: str
 
     @classmethod
-    def from_doc(cls, document: Document, target_params: BaseDBWriter.TargetParams) -> "OpenSearchRecord":
+    def from_doc(cls, document: Document, target_params: BaseDBWriter.TargetParams) -> "OpenSearchWriterRecord":
         assert isinstance(
-            target_params, OpenSearchTargetParams
-        ), f"Provided target_params was not of type OpenSearchTargetParams:\n{target_params}"
+            target_params, OpenSearchWriterTargetParams
+        ), f"Provided target_params was not of type OpenSearchWriterTargetParams:\n{target_params}"
         assert (
             document.doc_id is not None
         ), f"Cannot create opensearch record from Document without a doc_id:\n{document}"
@@ -171,15 +171,15 @@ class OpenSearchRecord(BaseDBWriter.Record):
                 result[k] = data[k]
             else:
                 result[k] = v
-        return OpenSearchRecord(_index=target_params.index_name, _id=document.doc_id, _source=result)
+        return OpenSearchWriterRecord(_index=target_params.index_name, _id=document.doc_id, _source=result)
 
 
-def _narrow_list_of_os_records(records: list[BaseDBWriter.Record]) -> TypeGuard[list[OpenSearchRecord]]:
-    return all(isinstance(r, OpenSearchRecord) for r in records)
+def _narrow_list_of_os_records(records: list[BaseDBWriter.Record]) -> TypeGuard[list[OpenSearchWriterRecord]]:
+    return all(isinstance(r, OpenSearchWriterRecord) for r in records)
 
 
 class OpenSearchWriter(BaseDBWriter):
-    Client = OpenSearchClient
-    ClientParams = OpenSearchClientParams
-    Record = OpenSearchRecord
-    TargetParams = OpenSearchTargetParams
+    Client = OpenSearchWriterClient
+    ClientParams = OpenSearchWriterClientParams
+    Record = OpenSearchWriterRecord
+    TargetParams = OpenSearchWriterTargetParams

@@ -89,7 +89,11 @@ class DocSetWriter:
                      index_settings=index_settings)
         """
 
-        from sycamore.connectors.opensearch import OpenSearchWriter, OpenSearchClientParams, OpenSearchTargetParams
+        from sycamore.connectors.opensearch import (
+            OpenSearchWriter,
+            OpenSearchWriterClientParams,
+            OpenSearchWriterTargetParams,
+        )
         from typing import Any
         import copy
 
@@ -118,15 +122,15 @@ class DocSetWriter:
         hosts = os_client_args.get("hosts", None)
         if hosts is not None:
             os_client_args["hosts"] = _convert_to_host_port_list(hosts)
-        client_params = OpenSearchClientParams(**os_client_args)
+        client_params = OpenSearchWriterClientParams(**os_client_args)
 
-        target_params: OpenSearchTargetParams
+        target_params: OpenSearchWriterTargetParams
         if index_settings is not None:
             idx_settings = index_settings.get("body", {}).get("settings", {})
             idx_mappings = index_settings.get("body", {}).get("mappings", {})
-            target_params = OpenSearchTargetParams(index_name, idx_settings, idx_mappings)
+            target_params = OpenSearchWriterTargetParams(index_name, idx_settings, idx_mappings)
         else:
-            target_params = OpenSearchTargetParams(index_name, {}, {})
+            target_params = OpenSearchWriterTargetParams(index_name, {}, {})
 
         os = OpenSearchWriter(
             self.plan, client_params=client_params, target_params=target_params, name="OsrchWrite", **kwargs

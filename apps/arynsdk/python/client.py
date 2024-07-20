@@ -1,6 +1,8 @@
-import io
+from typing import BinaryIO
+from collections.abc import Mapping
 import requests
 import json
+from pprint import pprint 
 
 # Replace with your token
 aryn_token = "YOUR_TOKEN"
@@ -22,9 +24,10 @@ def check_options(kwargs: dict):
 
     return True
 
+
 #
 # Sends file to the Aryn Partitioning Service and returns a dict of its document structure and text
-# 
+#
 #
 # Options for the Aryn Partitioning Service are:
 #
@@ -39,7 +42,8 @@ def check_options(kwargs: dict):
 #
 #        The defaults are what the Service will use, if not passed into the function
 
-def partition_file(file: io, token: str, **kwargs) -> dict:
+
+def partition_file(file: BinaryIO, token: str, **kwargs) -> dict:
 
     check_options(kwargs)
 
@@ -47,17 +51,17 @@ def partition_file(file: io, token: str, **kwargs) -> dict:
 
     print(f"{options_str}")
 
-    files = { "options": options_str.encode('utf-8'),
-              "pdf": file }
-    
+    files : Mapping = {"options": options_str.encode("utf-8"), "pdf": file}
+
     http_header = {"Authorization": "Bearer {}".format(token)}
 
-    files = { "pdf": file }
-    
     resp = requests.post(aps_url, files=files, headers=http_header)
 
     if resp.status_code != 200:
-        raise requests.exceptions.HTTPError(f"Error: status_code: {resp.status_code}, reason: {resp.text}")
+        raise requests.exceptions.HTTPError(
+            f"Error: status_code: {resp.status_code}, reason: {resp.text}",
+            response = resp
+        )
 
     return resp.json()
 
@@ -72,41 +76,41 @@ def test_partition_file():
     f = open(simple_test_file, "rb")
     my_resp = partition_file(f, aryn_token)
     print("----------")
-    print(my_resp)
+    pprint(my_resp)
     f.close()
 
     f = open(simple_test_file, "rb")
-    my_resp = partition_file(f, aryn_token)
+    my_resp = partition_file(f, aryn_token, use_ocr=True)
     print("----------")
-    print(my_resp)
+    pprint(my_resp)
     f.close()
 
     f = open(simple_test_file, "rb")
-    my_resp = partition_file(f, aryn_token, threshold = 0.35)
+    my_resp = partition_file(f, aryn_token, threshold=0.35)
     print("----------")
-    print(my_resp)
+    pprint(my_resp)
 
     f.seek(0)
     try:
-        my_resp = partition_file(f, aryn_token, my_thres = 0.4)
+        my_resp = partition_file(f, aryn_token, my_thres=0.4)
         print("----------")
-        print(my_resp)
+        pprint(my_resp)
     except KeyError as k:
         print(f"Caught incorrect param: {k}")
 
     f.seek(0)
-    my_resp = partition_file(f, aryn_token, extract_table_structure = True, extract_images = True)
+    my_resp = partition_file(f, aryn_token, extract_table_structure=True, extract_images=True)
     print("----------")
-    print(my_resp)
+    pprint(my_resp)
 
 
 def test_large_file():
 
     f = open(large_test_file, "rb")
-    my_resp = partition_file(f, aryn_token, threshold = 0.35)
+    my_resp = partition_file(f, aryn_token, threshold=0.35)
     print("----------")
-    print(my_resp)
+    pprint(my_resp)
 
 
-#test_partition_file()
-#test_large_file()
+# test_partition_file()
+# test_large_file()

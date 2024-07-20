@@ -2,7 +2,7 @@ from typing import BinaryIO
 from collections.abc import Mapping
 import requests
 import json
-from pprint import pprint 
+from pprint import pprint
 
 # Replace with your token
 aryn_token = "YOUR_TOKEN"
@@ -13,6 +13,7 @@ large_test_file = "PATH_TO_LARGE_FILE"
 
 # URL for Aryn Partitioning Service (APS)
 aps_url = "https://api.aryn.cloud/v1/document/partition"
+
 
 def check_options(kwargs: dict):
 
@@ -51,7 +52,7 @@ def partition_file(file: BinaryIO, token: str, **kwargs) -> dict:
 
     print(f"{options_str}")
 
-    files : Mapping = {"options": options_str.encode("utf-8"), "pdf": file}
+    files: Mapping = {"options": options_str.encode("utf-8"), "pdf": file}
 
     http_header = {"Authorization": "Bearer {}".format(token)}
 
@@ -59,8 +60,7 @@ def partition_file(file: BinaryIO, token: str, **kwargs) -> dict:
 
     if resp.status_code != 200:
         raise requests.exceptions.HTTPError(
-            f"Error: status_code: {resp.status_code}, reason: {resp.text}",
-            response = resp
+            f"Error: status_code: {resp.status_code}, reason: {resp.text}", response=resp
         )
 
     return resp.json()

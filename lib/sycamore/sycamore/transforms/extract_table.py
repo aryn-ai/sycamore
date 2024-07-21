@@ -5,7 +5,7 @@ from abc import abstractmethod, ABC
 from collections import OrderedDict
 from typing import Optional, Any
 
-import PyPDF2
+import pypdf
 import boto3
 from botocore.exceptions import ClientError
 from textractor import Textractor
@@ -215,8 +215,8 @@ class CachedTextractTableExtractor(TextractTableExtractor):
 
             # Clip the pages which have tables into a new tmp pdf and upload for textract
             binary = io.BytesIO(document.data["binary_representation"])
-            pdf_reader = PyPDF2.PdfReader(binary)
-            pdf_writer = PyPDF2.PdfWriter()
+            pdf_reader = pypdf.PdfReader(binary)
+            pdf_writer = pypdf.PdfWriter()
             for page_number in document_page_mapping:
                 page = pdf_reader.pages[page_number - 1]  # Page numbers start from 0
                 pdf_writer.add_page(page)

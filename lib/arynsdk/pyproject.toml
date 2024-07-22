@@ -8,8 +8,10 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.12"
-requests = "^2.32.3"
+requests = "^2.32"
 
+[tool.poetry.group.dev.dependencies]
+sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }
 
 [build-system]
 requires = ["poetry-core"]

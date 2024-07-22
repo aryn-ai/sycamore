@@ -329,6 +329,22 @@ doc = ["doc8", "sphinx (>=7.0.0)", "sphinx-autobuild", "sphinx-autodoc-typehints
 test = ["dateparser (==1.*)", "pre-commit", "pytest", "pytest-cov", "pytest-mock", "pytz (==2021.1)", "simplejson (==3.*)"]
 
 [[package]]
+name = "arynsdk"
+version = "0.1.0"
+description = "The client library for Aryn services"
+optional = false
+python-versions = ">=3.9,<3.12"
+files = []
+develop = true
+
+[package.dependencies]
+requests = "^2.32"
+
+[package.source]
+type = "directory"
+url = "lib/arynsdk"
+
+[[package]]
 name = "asttokens"
 version = "2.4.1"
 description = "Annotate AST trees with source code positions"
@@ -8088,4 +8104,4 @@ docs = ["furo", "myst-parser", "sphinx"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.12"
-content-hash = "1e7d90fd8d2eaf69a3d7ef7ae499719fbe65d198a95d490a85d5845c81147334"
+content-hash = "49e72477b0f15efee1807d19a5b2e53a33f1fcda8a5bbc714ba45eaec94e9daf"

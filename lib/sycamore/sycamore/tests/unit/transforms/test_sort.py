@@ -44,6 +44,10 @@ class TestSort:
             assert doc_list[i].properties["document_number"] >= doc_list[i - 1].properties["document_number"]
 
     def test_default_value(self, docset: DocSet):
+        with pytest.raises(Exception):
+            sorted_docset = docset.sort(False, "properties.even")
+            doc_list = sorted_docset.take_all()
+
         sorted_docset = docset.sort(False, "properties.even", 0)
         doc_list = sorted_docset.take_all()
 
@@ -62,9 +66,12 @@ class TestSort:
         context = sycamore.init()
         docset = context.read.document(doc_list)
 
+        with pytest.raises(Exception):
+            sorted_docset = docset.sort(False, "text_representation")
+            sorted_doc_list = sorted_docset.take_all(include_metadata=True)
+
         # must include default value for docsets with MetadataDocuments
         sorted_docset = docset.sort(False, "text_representation", "A")
-
         sorted_doc_list = sorted_docset.take_all(include_metadata=True)
 
         for i in range(len(sorted_doc_list)):

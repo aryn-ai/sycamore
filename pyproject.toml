@@ -5,6 +5,7 @@ description = "Sycamore is an LLM-powered semantic data preparation system for b
 authors = ["aryn.ai <opensource@aryn.ai>"]
 readme = "README.md"
 repository = "https://github.com/aryn-ai/sycamore.git"
+packages = [{ include = "arynsdk", from = "apps/" }]
 
 
 [tool.poetry.urls]
@@ -56,9 +57,9 @@ line-length = 120
 [tool.black]
 line-length = 120
 
-[mypy]
-mypy_path = "apps/crawler/crawler/s3:apps/crawler/crawler/http"
-explicit_package_bases = true
+# [mypy]
+# mypy_path = "apps/crawler/crawler/s3:apps/crawler/crawler/http"
+# explicit_package_bases = true
 
 [tool.mypy]
 exclude = ["notebooks", "docs"]

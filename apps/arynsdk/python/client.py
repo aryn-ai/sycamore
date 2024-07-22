@@ -1,29 +1,11 @@
-from typing import BinaryIO
+from typing import BinaryIO, Optional
 from collections.abc import Mapping
 import requests
 import json
-from pprint import pprint
 
-# Replace with your token
-aryn_token = "YOUR_TOKEN"
-
-# Replace with test files
-simple_test_file = "PATH_TO_SIMPLE_FILE"
-large_test_file = "PATH_TO_LARGE_FILE"
 
 # URL for Aryn Partitioning Service (APS)
 aps_url = "https://api.aryn.cloud/v1/document/partition"
-
-
-def check_options(kwargs: dict):
-
-    valid_options = ("threshold", "use_ocr", "extract_table_structure", "extract_images")
-
-    for key in kwargs:
-        if key not in valid_options:
-            raise KeyError(f"{key} is not a valid option")
-
-    return True
 
 
 #
@@ -44,11 +26,22 @@ def check_options(kwargs: dict):
 #        The defaults are what the Service will use, if not passed into the function
 
 
-def partition_file(file: BinaryIO, token: str, **kwargs) -> dict:
+def partition_file(
+    file: BinaryIO,
+    token: str,
+    tables_to_pandas: bool = True,
+    threshold: Optional[float] = None,
+    use_ocr: bool = False,
+    extract_table_structure: bool = False,
+    extract_images: bool = False,
+) -> dict:
 
-    check_options(kwargs)
-
-    options_str = json.dumps(kwargs)
+    options_str = _json_options(
+        threshold=threshold,
+        use_ocr=use_ocr,
+        extract_table_structure=extract_table_structure,
+        extract_images=extract_images,
+    )
 
     print(f"{options_str}")
 
@@ -63,53 +56,83 @@ def partition_file(file: BinaryIO, token: str, **kwargs) -> dict:
             f"Error: status_code: {resp.status_code}, reason: {resp.text}", response=resp
         )
 
-    return resp.json()
+    if tables_to_pandas:
+        return _tables_to_pandas(resp.json())
+    else:
+        return resp.json()
+
+
+def _json_options(
+    threshold: Optional[float] = None,
+    use_ocr: bool = False,
+    extract_table_structure: bool = False,
+    extract_images: bool = False,
+) -> str:
+    options = dict()
+    if threshold:
+        options["threshold"] = threshold
+    if use_ocr:
+        options["use_ocr"] = use_ocr
+    if extract_images:
+        options["extract_images"] = extract_images
+    if extract_table_structure:
+        options["extract_table_structure"] = extract_table_structure
+    return json.dumps(options)
+
+
+# Heavily adapted from lib/sycamore/data/table.py::Table.to_csv()
+def _tables_to_pandas(data: dict) -> dict:
+    import pandas as pd
+    import numpy as np
+    from collections import OrderedDict
+
+    for e in data["elements"]:
+        if e["type"] == "table":
+            table = e["table"]
+            header_rows = sorted(
+                set(row_num for cell in table["cells"] for row_num in cell["rows"] if cell["is_header"])
+            )
+            i = -1
+            for i in range(len(header_rows)):
+                if header_rows[i] != i:
+                    break
+            max_header_prefix_row = i
+            grid_width = table["num_cols"]
+            grid_height = table["num_rows"]
+
+            grid = np.empty([grid_height, grid_width], dtype="object")
+            for cell in table["cells"]:
+                if cell["is_header"] and cell["rows"][0] <= max_header_prefix_row:
+                    for col in cell["cols"]:
+                        grid[cell["rows"][0], col] = cell["content"]
+                    for row in cell["rows"][1:]:
+                        for col in cell["cols"]:
+                            grid[row, col] = ""
+                else:
+                    grid[cell["rows"][0], cell["cols"][0]] = cell["content"]
+                    for col in cell["cols"][1:]:
+                        grid[cell["rows"][0], col] = ""
+                    for row in cell["rows"][1:]:
+                        for col in cell["cols"]:
+                            grid[row, col] = ""
+
+            header = grid[: max_header_prefix_row + 1, :]
+            flattened_header = []
+            for npcol in header.transpose():
+                flattened_header.append(" | ".join(OrderedDict.fromkeys((c for c in npcol if c != ""))))
+            df = pd.DataFrame(
+                grid[max_header_prefix_row + 1 :, :],
+                index=None,
+                columns=flattened_header if max_header_prefix_row >= 0 else None,
+            )
+            e["dataframe"] = df
+
+    return data
 
 
 def add_bbox_to_pdf():
 
     return "Unimplemented"
-
-
-def test_partition_file():
-
-    f = open(simple_test_file, "rb")
-    my_resp = partition_file(f, aryn_token)
-    print("----------")
-    pprint(my_resp)
-    f.close()
-
-    f = open(simple_test_file, "rb")
-    my_resp = partition_file(f, aryn_token, use_ocr=True)
-    print("----------")
-    pprint(my_resp)
-    f.close()
-
-    f = open(simple_test_file, "rb")
-    my_resp = partition_file(f, aryn_token, threshold=0.35)
-    print("----------")
-    pprint(my_resp)
-
-    f.seek(0)
-    try:
-        my_resp = partition_file(f, aryn_token, my_thres=0.4)
-        print("----------")
-        pprint(my_resp)
-    except KeyError as k:
-        print(f"Caught incorrect param: {k}")
-
-    f.seek(0)
-    my_resp = partition_file(f, aryn_token, extract_table_structure=True, extract_images=True)
-    print("----------")
-    pprint(my_resp)
-
-
-def test_large_file():
-
-    f = open(large_test_file, "rb")
-    my_resp = partition_file(f, aryn_token, threshold=0.35)
-    print("----------")
-    pprint(my_resp)
 
 
 # test_partition_file()

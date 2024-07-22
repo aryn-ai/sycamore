@@ -4,7 +4,7 @@ import random
 
 import sycamore
 from sycamore import DocSet
-from sycamore.data import Document
+from sycamore.data import Document, MetadataDocument
 
 
 class TestSort:
@@ -49,3 +49,30 @@ class TestSort:
 
         for i in range(1, len(doc_list)):
             assert doc_list[i].properties.get("even", 0) >= doc_list[i - 1].properties.get("even", 0)
+
+    def test_metadata_document(self):
+        doc_list = [
+            Document(text_representation="Z"),
+            Document(text_representation="B"),
+            MetadataDocument(),
+            Document(text_representation="C"),
+            MetadataDocument(),
+        ]
+
+        context = sycamore.init()
+        docset = context.read.document(doc_list)
+
+        # must include default value for docsets with MetadataDocuments
+        sorted_docset = docset.sort(False, "text_representation", "A")
+
+        sorted_doc_list = sorted_docset.take_all(include_metadata=True)
+
+        for i in range(len(sorted_doc_list)):
+            if i == 0 or i == 1:
+                assert isinstance(sorted_doc_list[i], MetadataDocument)
+            if i == 2:
+                assert sorted_doc_list[i].text_representation == "B"
+            if i == 3:
+                assert sorted_doc_list[i].text_representation == "C"
+            if i == 4:
+                assert sorted_doc_list[i].text_representation == "Z"

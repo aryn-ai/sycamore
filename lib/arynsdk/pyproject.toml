@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "arynsdk"
+version = "0.1.0"
+description = "The client library for Aryn services"
+authors = ["aryn.ai <opensource@aryn.ai>"]
+license = "Apache 2.0"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.12"
+requests = "^2.32.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

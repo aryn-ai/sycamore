@@ -70,9 +70,9 @@ class TestSort:
         for i in range(len(sorted_doc_list)):
             if i == 0 or i == 1:
                 assert isinstance(sorted_doc_list[i], MetadataDocument)
-            if i == 2:
+            elif i == 2:
                 assert sorted_doc_list[i].text_representation == "B"
-            if i == 3:
+            elif i == 3:
                 assert sorted_doc_list[i].text_representation == "C"
-            if i == 4:
+            elif i == 4:
                 assert sorted_doc_list[i].text_representation == "Z"

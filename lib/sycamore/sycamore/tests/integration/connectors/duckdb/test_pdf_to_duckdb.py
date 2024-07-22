@@ -5,7 +5,6 @@ from sycamore.transforms.merge_elements import MarkedMerger
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.tests.config import TEST_DIR
-from sycamore.utils.time_trace import ray_logging_setup
 import duckdb
 import os
 
@@ -17,7 +16,7 @@ def test_to_duckdb():
     paths = str(TEST_DIR / "resources/data/pdfs/")
 
     tokenizer = HuggingFaceTokenizer(model_name)
-    ctx = sycamore.init(ray_args={"runtime_env": {"worker_process_setup_hook": ray_logging_setup}})
+    ctx = sycamore.init()
 
     ds = (
         ctx.read.binary(paths, binary_format="pdf")

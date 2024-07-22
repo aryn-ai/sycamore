@@ -15,7 +15,7 @@ from pinecone import PineconeException
 import time
 
 
-def test_pinecone_scan():
+def test_pinecone_read():
 
     spec = ServerlessSpec(cloud="aws", region="us-east-1")
     index_name = "test-index-read"

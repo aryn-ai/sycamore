@@ -141,9 +141,14 @@ class DocSetReader:
         esr = ElasticsearchReader(client_params=client_params, query_params=query_params)
         return DocSet(self._context, esr)
 
-    def weaviate(self, wv_client_args: dict, collection_name: str) -> DocSet:
-        from sycamore.connectors.weaviate import WeaviateScan, WeaviateClientParams
+    def weaviate(self, wv_client_args: dict, collection_name: str, **kwargs) -> DocSet:
+        from sycamore.connectors.weaviate import (
+            WeaviateReader,
+            WeaviateReaderClientParams,
+            WeaviateReaderQueryParams,
+        )
 
-        client_params = WeaviateClientParams(**wv_client_args)
-        scan = WeaviateScan(collection_name, client_params)
-        return DocSet(self._context, scan)
+        client_params = WeaviateReaderClientParams(**wv_client_args)
+        query_params = WeaviateReaderQueryParams(collection_name=collection_name, query_kwargs=kwargs)
+        wr = WeaviateReader(client_params=client_params, query_params=query_params)
+        return DocSet(self._context, wr)

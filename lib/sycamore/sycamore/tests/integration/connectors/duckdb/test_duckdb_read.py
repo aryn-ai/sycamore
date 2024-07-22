@@ -10,7 +10,7 @@ from sycamore.tests.config import TEST_DIR
 from sycamore.connectors.common import compare_docs
 
 
-def test_duckdb_scan():
+def test_duckdb_read():
     table_name = "duckdb_table"
     db_url = "tmp_read.db"
     paths = str(TEST_DIR / "resources/data/pdfs/Transformer.pdf")

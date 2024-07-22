@@ -44,24 +44,23 @@ class WeaviateReaderClient(BaseDBReader.Client):
             query_params, WeaviateReaderQueryParams
         ), f"Wrong kind of query parameters found: {query_params}"
         with self._client:
-            query = None
-            collection = []
+            collection = None
             if query_params.query_kwargs:
-                query = self._client.collections.get(query_params.collection_name).query
+                collection = self._client.collections.get(query_params.collection_name).query
                 for method, value in query_params.query_kwargs.items():
                     if value is not None:
-                        method_name = f"{method}"
-                        if hasattr(query, method_name):
-                            query = getattr(query, method_name)(**value)
+                        method_name = str(method)
+                        if hasattr(collection, method_name):
+                            collection = getattr(collection, method_name)(**value)
                         else:
                             raise ValueError(f"Error: Method '{method_name}' not found in query object.")
-                query = query.objects  # type: ignore
+                collection = collection.objects if hasattr(collection, "objects") else list[collection]  # type: ignore
             else:
                 collection = list(
                     self._client.collections.get(query_params.collection_name).iterator(include_vector=True)
                 )
-            results = WeaviateReaderQueryResponse(collection=collection, query_output=query)
-        return results
+            results = WeaviateReaderQueryResponse(collection=collection)
+            return results
 
     def check_target_presence(self, query_params: BaseDBReader.QueryParams):
         assert isinstance(query_params, WeaviateReaderQueryParams)
@@ -71,16 +70,19 @@ class WeaviateReaderClient(BaseDBReader.Client):
 
 @dataclass
 class WeaviateReaderQueryResponse(BaseDBReader.QueryResponse):
-    collection: list
-    query_output: Any
+    collection: Any
+
+    def __init__(self, collection):
+        self.collection = collection
 
     def to_docs(self, query_params: "BaseDBReader.QueryParams") -> list[Document]:
         assert isinstance(self, WeaviateReaderQueryResponse)
         result = []
-        output_list = self.query_output if self.query_output else self.collection
-        for object in output_list:
+        for object in self.collection:
             doc = Document(
-                object.vector | unflatten_data(dict(object.properties), "__") | {"doc_id": str(object.uuid)}
+                (object.vector if hasattr(object, "vector") else {})
+                | unflatten_data(dict(object.properties), "__")
+                | {"doc_id": str(object.uuid)}
             )  # type: ignore
             result.append(doc)
         return result

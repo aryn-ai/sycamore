@@ -38,6 +38,7 @@ class Sort(Transform):
                 fields = self._field.split(".")
                 val = getattr(doc, fields[0])
                 if len(fields) > 1:
+                    assert fields[0] == "properties"
                     for f in fields[1:]:
                         val = val[f]
 

@@ -31,6 +31,7 @@ from sycamore.transforms.random_sample import RandomSample
 from sycamore.transforms.split_elements import SplitElements
 from sycamore.transforms.query import Query
 from sycamore.transforms.term_frequency import TermFrequency
+from sycamore.transforms.sort import Sort
 
 __all__ = [
     "COALESCE_WHITESPACE",
@@ -69,4 +70,5 @@ __all__ = [
     "SplitElements",
     "Query",
     "TermFrequency",
+    "Sort",
 ]

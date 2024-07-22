@@ -2,10 +2,11 @@ from typing import BinaryIO, Optional
 from collections.abc import Mapping
 import requests
 import json
+import logging
 
 
 # URL for Aryn Partitioning Service (APS)
-aps_url = "https://api.aryn.cloud/v1/document/partition"
+APS_URL = "https://api.aryn.cloud/v1/document/partition"
 
 
 #
@@ -34,6 +35,7 @@ def partition_file(
     use_ocr: bool = False,
     extract_table_structure: bool = False,
     extract_images: bool = False,
+    aps_url: str = APS_URL,
 ) -> dict:
 
     options_str = _json_options(
@@ -43,7 +45,7 @@ def partition_file(
         extract_images=extract_images,
     )
 
-    print(f"{options_str}")
+    logging.debug(f"{options_str}")
 
     files: Mapping = {"options": options_str.encode("utf-8"), "pdf": file}
 
@@ -87,7 +89,7 @@ def _tables_to_pandas(data: dict) -> dict:
     from collections import OrderedDict
 
     for e in data["elements"]:
-        if e["type"] == "table":
+        if e["type"] == "table" and e["table"] is not None:
             table = e["table"]
             header_rows = sorted(
                 set(row_num for cell in table["cells"] for row_num in cell["rows"] if cell["is_header"])
@@ -131,9 +133,4 @@ def _tables_to_pandas(data: dict) -> dict:
 
 
 def add_bbox_to_pdf():
-
-    return "Unimplemented"
-
-
-# test_partition_file()
-# test_large_file()
+    raise NotImplementedError("Function add_bbox_to_pdf is not implemented")

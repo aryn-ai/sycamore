@@ -144,10 +144,10 @@ class MetadataExtractor(GraphExtractor):
 
         reader = DocSetReader(docset.context)
         return reader.document(docs)
-    
+
+
 class SupervisedExtractor(GraphExtractor):
     pass
-
 
 
 class ExtractMetadata(Map):

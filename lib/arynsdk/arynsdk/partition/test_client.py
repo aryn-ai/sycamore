@@ -1,7 +1,7 @@
 import os
 from pprint import pprint
 
-from arynsdk.python.client import partition_file
+from arynsdk.partition import partition_file
 
 # Replace with your token
 aryn_token = os.environ["ARYN_API_KEY"]

@@ -9,24 +9,6 @@ import logging
 APS_URL = "https://api.aryn.cloud/v1/document/partition"
 
 
-#
-# Sends file to the Aryn Partitioning Service and returns a dict of its document structure and text
-#
-#
-# Options for the Aryn Partitioning Service are:
-#
-#        threshold:  value in [0.0 .. 1.0] to specify the cutoff for detecting bounding boxes.
-#                    default: 0.4
-#        use_ocr:    boolean to specify extracting text using an OCR model instead of extracting embedded text in PDF.
-#                    default: False
-#        extract_table_structure: boolean to specfy extracting tables and their structural content.
-#                    default: False
-#        extract_images: boolean that Mark doesn't know what it does.
-#                    default: False
-#
-#        The defaults are what the Service will use, if not passed into the function
-
-
 def partition_file(
     file: BinaryIO,
     token: str,
@@ -37,6 +19,44 @@ def partition_file(
     extract_images: bool = False,
     aps_url: str = APS_URL,
 ) -> dict:
+    """
+    Sends file to the Aryn Partitioning Service and returns a dict of its document structure and text
+
+    Args:
+        file:       open pdf file to partition
+        token:      aryn api key
+        tables_to_pandas:   convert tables to pandas DataFrame representation.
+                    default: True
+        threshold:  value in [0.0 .. 1.0] to specify the cutoff for detecting bounding boxes.
+                    default: None (APS will choose)
+        use_ocr:    extract text using an OCR model instead of extracting embedded text in PDF.
+                    default: False
+        extract_table_structure: extract tables and their structural content.
+                    default: False
+        extract_images: extract image contents.
+                    default: False
+        aps_url: url of the Aryn Partitioning Service endpoint.
+                    default: "https://api.aryn.cloud/v1/document/partition"
+
+    Returns:
+        A dictionary containing "status" and "elements"
+
+    Example:
+         .. code-block:: python
+
+            from arynsdk.partition import partition_file
+
+            with open("my-favorite-pdf.pdf", "rb") as f:
+                data = partition_file(
+                    f,
+                    "MY-ARYN-TOKEN",
+                    tables_to_pandas=True,
+                    use_ocr=True,
+                    extract_table_structure=True,
+                    extract_images=True
+                )
+            elements = data['elements']
+    """
 
     options_str = _json_options(
         threshold=threshold,

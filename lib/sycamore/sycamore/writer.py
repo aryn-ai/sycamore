@@ -412,7 +412,7 @@ class DocSetWriter:
                 OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
                 tokenizer = HuggingFaceTokenizer(model_name)
 
-                ctx = sycamore.init(ray_args={"runtime_env": {"worker_process_setup_hook": ray_logging_setup}})
+                ctx = sycamore.init()
 
                 ds = (
                     ctx.read.binary(paths, binary_format="pdf")

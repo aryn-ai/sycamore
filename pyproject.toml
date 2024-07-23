@@ -57,9 +57,9 @@ line-length = 120
 [tool.black]
 line-length = 120
 
-# [mypy]
-# mypy_path = "apps/crawler/crawler/s3:apps/crawler/crawler/http"
-# explicit_package_bases = true
+[mypy]
+mypy_path = "apps/crawler/crawler/s3:apps/crawler/crawler/http"
+explicit_package_bases = true
 
 [tool.mypy]
 exclude = ["notebooks", "docs"]

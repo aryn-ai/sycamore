@@ -15,7 +15,7 @@ from pinecone import PineconeException
 import time
 
 
-def test_pinecone_scan():
+def test_pinecone_read():
 
     spec = ServerlessSpec(cloud="aws", region="us-east-1")
     index_name = "test-index-read"
@@ -52,8 +52,13 @@ def test_pinecone_scan():
         target_doc_id = f"{docs[-1].parent_id}#{target_doc_id}" if docs[-1].parent_id else target_doc_id
     wait_for_write_completion(client=pc, index_name=index_name, namespace=namespace, doc_id=target_doc_id)
     out_docs = ctx.read.pinecone(index_name=index_name, api_key=api_key, namespace=namespace).take_all()
+    query_params = {"namespace": namespace, "id": target_doc_id, "top_k": 1, "include_values": True}
+    query_docs = ctx.read.pinecone(
+        index_name=index_name, api_key=api_key, query=query_params, namespace=namespace
+    ).take_all()
     pc.Index(index_name).delete(namespace=namespace, delete_all=True)
     assert len(docs) == (len(out_docs) + 1)  # parent doc is removed while writing
+    assert len(query_docs) == 1  # exactly one doc should be returned
     assert all(
         compare_docs(original, plumbed)
         for original, plumbed in zip(

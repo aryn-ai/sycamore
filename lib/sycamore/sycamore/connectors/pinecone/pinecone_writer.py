@@ -8,13 +8,13 @@ from pinecone import PineconeException, PineconeApiException, PodSpec, Serverles
 from pinecone.grpc import PineconeGRPC, Vector
 from pinecone.grpc.vector_factory_grpc import VectorFactoryGRPC
 from sycamore.data.document import Document
-from sycamore.connectors.base import BaseDBWriter
+from sycamore.connectors.base_writer import BaseDBWriter
 from sycamore.connectors.common import flatten_data
 import time
 
 
 @dataclass
-class PineconeTargetParams(BaseDBWriter.TargetParams):
+class PineconeWriterTargetParams(BaseDBWriter.TargetParams):
     index_name: str
     namespace: str = ""
     index_spec: Union[None, dict, ServerlessSpec, PodSpec] = None
@@ -22,7 +22,7 @@ class PineconeTargetParams(BaseDBWriter.TargetParams):
     distance_metric: str = "cosine"
 
     def compatible_with(self, other: BaseDBWriter.TargetParams) -> bool:
-        if not isinstance(other, PineconeTargetParams):
+        if not isinstance(other, PineconeWriterTargetParams):
             return False
         if self.index_spec is not None and other.index_spec is not None:
             my_is = self.index_spec if isinstance(self.index_spec, dict) else self.index_spec.asdict()
@@ -36,23 +36,23 @@ class PineconeTargetParams(BaseDBWriter.TargetParams):
 
 
 @dataclass
-class PineconeClientParams(BaseDBWriter.ClientParams):
+class PineconeWriterClientParams(BaseDBWriter.ClientParams):
     api_key: str
     batch_size: int = 100
 
 
-class PineconeClient(BaseDBWriter.Client):
+class PineconeWriterClient(BaseDBWriter.Client):
     def __init__(self, api_key: str, batch_size: int):
         self._client = PineconeGRPC(api_key=api_key)
         self._batch_size = batch_size
 
     @classmethod
-    def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "PineconeClient":
-        assert isinstance(params, PineconeClientParams)
-        return PineconeClient(params.api_key, params.batch_size)
+    def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "PineconeWriterClient":
+        assert isinstance(params, PineconeWriterClientParams)
+        return PineconeWriterClient(params.api_key, params.batch_size)
 
     def write_many_records(self, records: list["BaseDBWriter.Record"], target_params: "BaseDBWriter.TargetParams"):
-        assert isinstance(target_params, PineconeTargetParams)
+        assert isinstance(target_params, PineconeWriterTargetParams)
         assert _narrow_list_of_pinecone_records(records), f"Found bad records in {records}"
         index = self._client.Index(target_params.index_name)
         async_results = []
@@ -67,7 +67,7 @@ class PineconeClient(BaseDBWriter.Client):
             res.result()
 
     def create_target_idempotent(self, target_params: "BaseDBWriter.TargetParams"):
-        assert isinstance(target_params, PineconeTargetParams)
+        assert isinstance(target_params, PineconeWriterTargetParams)
         if target_params.dimensions and target_params.index_spec:
             try:
                 self._client.create_index(
@@ -81,11 +81,11 @@ class PineconeClient(BaseDBWriter.Client):
                     return
                 raise e
 
-    def get_existing_target_params(self, target_params: "BaseDBWriter.TargetParams") -> PineconeTargetParams:
-        assert isinstance(target_params, PineconeTargetParams)
+    def get_existing_target_params(self, target_params: "BaseDBWriter.TargetParams") -> PineconeWriterTargetParams:
+        assert isinstance(target_params, PineconeWriterTargetParams)
         index_dict = self._client.describe_index(target_params.index_name).to_dict()
         wait_on_index(self._client, target_params.index_name)
-        return PineconeTargetParams(
+        return PineconeWriterTargetParams(
             index_name=index_dict["name"],
             dimensions=index_dict["dimension"],
             index_spec=index_dict["spec"],
@@ -95,19 +95,19 @@ class PineconeClient(BaseDBWriter.Client):
 
 
 @dataclass
-class PineconeRecord(BaseDBWriter.Record):
+class PineconeWriterRecord(BaseDBWriter.Record):
     id: str
     values: Optional[list[float]]
     metadata: dict[str, Union[list[str], str, bool, int, float]]
-    sparse_values: Optional["PineconeRecord.SparseVector"]
+    sparse_values: Optional["PineconeWriterRecord.SparseVector"]
 
     class SparseVector(TypedDict):
         indices: list[int]
         values: list[float]
 
     @classmethod
-    def from_doc(cls, document: Document, target_params: "BaseDBWriter.TargetParams") -> "PineconeRecord":
-        assert isinstance(target_params, PineconeTargetParams)
+    def from_doc(cls, document: Document, target_params: "BaseDBWriter.TargetParams") -> "PineconeWriterRecord":
+        assert isinstance(target_params, PineconeWriterTargetParams)
         assert document.doc_id is not None, f"Document found with null id: {document}"
         if document.parent_id is None:
             id = document.doc_id
@@ -131,10 +131,10 @@ class PineconeRecord(BaseDBWriter.Record):
                     "Please use `docset.term_frequency(tokenizer, with_token_ids=True)` for pinecone hybrid search"
                 )
             sparse_values = [float(v) for v in tf_table.values()]
-            sparse_vector = PineconeRecord.SparseVector(indices=sparse_indices, values=sparse_values)
+            sparse_vector = PineconeWriterRecord.SparseVector(indices=sparse_indices, values=sparse_values)
         metadata = dict(flatten_data(metadata, allowed_list_types=[str]))
-        assert PineconeRecord._validate_metadata(metadata)
-        return PineconeRecord(id, values, metadata, sparse_vector)
+        assert PineconeWriterRecord._validate_metadata(metadata)
+        return PineconeWriterRecord(id, values, metadata, sparse_vector)
 
     def to_grpc_vector(self) -> Vector:
         if self.sparse_values:
@@ -160,8 +160,8 @@ class PineconeRecord(BaseDBWriter.Record):
         return True
 
 
-def _narrow_list_of_pinecone_records(records: list[BaseDBWriter.Record]) -> TypeGuard[PineconeRecord]:
-    return all(isinstance(r, PineconeRecord) for r in records)
+def _narrow_list_of_pinecone_records(records: list[BaseDBWriter.Record]) -> TypeGuard[PineconeWriterRecord]:
+    return all(isinstance(r, PineconeWriterRecord) for r in records)
 
 
 def wait_on_index(client: PineconeGRPC, index: str):
@@ -185,7 +185,7 @@ def wait_on_index(client: PineconeGRPC, index: str):
 
 
 class PineconeWriter(BaseDBWriter):
-    Client = PineconeClient
-    Record = PineconeRecord
-    TargetParams = PineconeTargetParams
-    ClientParams = PineconeClientParams
+    Client = PineconeWriterClient
+    Record = PineconeWriterRecord
+    TargetParams = PineconeWriterTargetParams
+    ClientParams = PineconeWriterClientParams

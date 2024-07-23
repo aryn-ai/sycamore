@@ -36,6 +36,9 @@ from sycamore.utils.pdf import convert_from_path_streamed_batched
 from sycamore.utils.time_trace import LogTime, timetrace
 
 
+logger = logging.getLogger(__name__)
+
+
 def _batchify(iterable, n=1):
     length = len(iterable)
     for i in range(0, length, n):
@@ -80,7 +83,10 @@ class ArynPDFPartitioner:
             device: The device on which to run the model.
         """
         self.device = device
-        self.model = DeformableDetr(model_name_or_path, device)
+        if model_name_or_path is None:
+            self.model = None
+        else:
+            self.model = DeformableDetr(model_name_or_path, device)
         self.ocr_table_reader = None
 
     @staticmethod
@@ -132,6 +138,7 @@ class ArynPDFPartitioner:
         pages_per_call: int = -1,
     ) -> List[Element]:
         if use_partitioning_service:
+            assert aryn_api_key != ""
             return self._partition_remote(
                 file=file,
                 aryn_api_key=aryn_api_key,
@@ -145,6 +152,7 @@ class ArynPDFPartitioner:
                 pages_per_call=pages_per_call,
             )
         else:
+            assert self.model is not None
             if batch_at_a_time:
                 temp = self._partition_pdf_batched(
                     file=file,
@@ -210,32 +218,55 @@ class ArynPDFPartitioner:
         files: Mapping = {"pdf": file, "options": json.dumps(options).encode("utf-8")}
         header = {"Authorization": f"Bearer {aryn_api_key}"}
 
-        logging.debug(f"ArynPartitioner POSTing to {aryn_partitioner_address} with files={files}")
-        response = requests.post(aryn_partitioner_address, files=files, headers=header)
-        logging.debug("ArynPartitioner Recieved data")
+        logger.debug(f"ArynPartitioner POSTing to {aryn_partitioner_address} with files={files}")
+        response = requests.post(aryn_partitioner_address, files=files, headers=header, stream=True)
+        lines = []
+        in_status = False
+        for line in response.iter_lines():
+            if line:
+                lines.append(line)
+                if line.startswith(b'  "status"'):
+                    in_status = True
+                if not in_status:
+                    continue
+                if line.startswith(b"  ],"):
+                    in_status = False
+                    continue
+                if line.startswith(b'    "T+'):
+                    t = json.loads(line.decode("utf-8").removesuffix(","))
+                    logger.info(f"ArynPartitioner: {t}")
+
+        body = b"".join(lines).decode("utf-8")
+        logger.debug("ArynPartitioner Recieved data")
 
         if response.status_code != 200:
             if response.status_code == 500 or response.status_code == 502:
-                logging.debug(
+                logger.debug(
                     "ArynPartitioner recieved a retry-able error {} x-aryn-call-id: {}".format(
                         response, response.headers.get("x-aryn-call-id")
                     )
                 )
                 raise ArynPDFPartitionerException(
                     "Error: status_code: {}, reason: {} (x-aryn-call-id: {})".format(
-                        response.status_code, response.text, response.headers.get("x-aryn-call-id")
+                        response.status_code, body, response.headers.get("x-aryn-call-id")
                     ),
                     can_retry=True,
                 )
             raise ArynPDFPartitionerException(
                 "Error: status_code: {}, reason: {} (x-aryn-call-id: {})".format(
-                    response.status_code, response.text, response.headers.get("x-aryn-call-id")
+                    response.status_code, body, response.headers.get("x-aryn-call-id")
                 )
             )
 
-        response_json = response.json()
+        response_json = json.loads(body)
         if isinstance(response_json, dict):
+            status = response_json.get("status", [])
+            if "error" in response_json:
+                raise ArynPDFPartitionerException(
+                    f"Error partway through processing: {response_json['error']}\nPartial Status:\n{status}"
+                )
             response_json = response_json.get("elements")
+
         elements = []
         for element_json in response_json:
             element = create_element(**element_json)
@@ -265,11 +296,11 @@ class ArynPDFPartitioner:
         file.seek(0)
 
         result = []
-        low = 0
-        high = pages_per_call - 1
+        low = 1
+        high = pages_per_call
         if pages_per_call == -1:
             high = page_count
-        while low < page_count:
+        while low <= page_count:
             result.extend(
                 ArynPDFPartitioner._call_remote_partitioner(
                     file=file,
@@ -411,7 +442,7 @@ class ArynPDFPartitioner:
                 pdffile.write(data)
                 del data
                 pdffile.flush()
-                logging.info(f"Wrote {pdffile.name}")
+                logger.info(f"Wrote {pdffile.name}")
             stat = os.stat(pdffile.name)
             assert stat.st_size == data_len
             return self._partition_pdf_batched_named(
@@ -488,7 +519,7 @@ class ArynPDFPartitioner:
 
         if tracemalloc.is_tracing():
             (current, peak) = tracemalloc.get_traced_memory()
-            logging.info(f"Memory Usage current={current} peak={peak}")
+            logger.info(f"Memory Usage current={current} peak={peak}")
             top = tracemalloc.take_snapshot()
             display_top(top)
         return deformable_layout
@@ -673,7 +704,7 @@ class PDFMinerExtractor:
 
         cached_result = pdf_miner_cache.get(hash_key) if use_cache else None
         if cached_result:
-            logging.info("Cache Hit for PDFMiner. Getting the result from cache.")
+            logger.info("Cache Hit for PDFMiner. Getting the result from cache.")
             return cached_result
         else:
             with open_filename(filename, "rb") as fp:
@@ -696,7 +727,7 @@ class PDFMinerExtractor:
 
                     pages.append(texts)
                 if use_cache:
-                    logging.info("Cache Miss for PDFMiner. Storing the result to the cache.")
+                    logger.info("Cache Miss for PDFMiner. Storing the result to the cache.")
                     pdf_miner_cache.set(hash_key, pages)
                 return pages
 

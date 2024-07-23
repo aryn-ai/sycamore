@@ -26,21 +26,21 @@ def setup_index():
             },
         }
     }
-    client = OpenSearch(**TestOpenSearchScan.OS_CLIENT_ARGS)
+    client = OpenSearch(**TestOpenSearchRead.OS_CLIENT_ARGS)
 
     # Recreate before
-    client.indices.delete(TestOpenSearchScan.INDEX, ignore_unavailable=True)
-    client.indices.create(TestOpenSearchScan.INDEX, **index_settings)
+    client.indices.delete(TestOpenSearchRead.INDEX, ignore_unavailable=True)
+    client.indices.create(TestOpenSearchRead.INDEX, **index_settings)
 
-    yield TestOpenSearchScan.INDEX
+    yield TestOpenSearchRead.INDEX
 
     # Delete after
-    client.indices.delete(TestOpenSearchScan.INDEX, ignore_unavailable=True)
+    client.indices.delete(TestOpenSearchRead.INDEX, ignore_unavailable=True)
 
 
-class TestOpenSearchScan:
+class TestOpenSearchRead:
 
-    INDEX = "test_opensearch_scan"
+    INDEX = "test_opensearch_read"
 
     OS_CLIENT_ARGS = {
         "hosts": [{"host": "localhost", "port": 9200}],
@@ -65,22 +65,29 @@ class TestOpenSearchScan:
             .partition(partitioner=UnstructuredPdfPartitioner())
             .explode()
             .write.opensearch(
-                os_client_args=TestOpenSearchScan.OS_CLIENT_ARGS, index_name=TestOpenSearchScan.INDEX, execute=False
+                os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS, index_name=TestOpenSearchRead.INDEX, execute=False
             )
+            .take_all()
         )
 
         retrieved_docs = context.read.opensearch(
-            os_client_args=TestOpenSearchScan.OS_CLIENT_ARGS, index_name=TestOpenSearchScan.INDEX
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS, index_name=TestOpenSearchRead.INDEX
         )
-
-        original_materialized = sorted(original_docs.take_all(), key=lambda d: d.doc_id)
+        target_doc_id = original_docs[-1].doc_id if original_docs[-1].doc_id else ""
+        query = {"query": {"term": {"_id": target_doc_id}}}
+        query_docs = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS, index_name=TestOpenSearchRead.INDEX, query=query
+        )
+        original_materialized = sorted(original_docs, key=lambda d: d.doc_id)
 
         # hack to allow opensearch time to index the data. Without this it's possible we try to query the index before
         # all the records are available
         time.sleep(1)
         retrieved_materialized = sorted(retrieved_docs.take_all(), key=lambda d: d.doc_id)
-
+        query_materialized = query_docs.take_all()
+        with OpenSearch(**TestOpenSearchRead.OS_CLIENT_ARGS) as os_client:
+            os_client.indices.delete(TestOpenSearchRead.INDEX)
         assert len(original_materialized) == len(retrieved_materialized)
-
+        assert len(query_materialized) == 1  # exactly one doc should be returned
         for original, retrieved in zip(original_materialized, retrieved_materialized):
             assert compare_docs(original, retrieved)

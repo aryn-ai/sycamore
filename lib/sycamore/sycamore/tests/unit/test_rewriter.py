@@ -2,7 +2,7 @@ from sycamore.rules import EnforceResourceUsage
 from sycamore.connectors.file import BinaryScan
 from sycamore.transforms import Partition, Explode
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
-from sycamore.connectors.opensearch import OpenSearchClientParams, OpenSearchTargetParams, OpenSearchWriter
+from sycamore.connectors.opensearch import OpenSearchWriterClientParams, OpenSearchWriterTargetParams, OpenSearchWriter
 
 
 class TestRewriter:
@@ -10,7 +10,9 @@ class TestRewriter:
         scan = BinaryScan("path", binary_format="pdf")
         partition = Partition(scan, UnstructuredPdfPartitioner())
         explode = Explode(partition)
-        writer = OpenSearchWriter(explode, OpenSearchClientParams(), OpenSearchTargetParams(index_name="test"))
+        writer = OpenSearchWriter(
+            explode, OpenSearchWriterClientParams(), OpenSearchWriterTargetParams(index_name="test")
+        )
 
         rule = EnforceResourceUsage()
         writer.traverse_down(rule)

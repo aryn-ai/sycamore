@@ -89,7 +89,11 @@ class DocSetWriter:
                      index_settings=index_settings)
         """
 
-        from sycamore.connectors.opensearch import OpenSearchWriter, OpenSearchClientParams, OpenSearchTargetParams
+        from sycamore.connectors.opensearch import (
+            OpenSearchWriter,
+            OpenSearchWriterClientParams,
+            OpenSearchWriterTargetParams,
+        )
         from typing import Any
         import copy
 
@@ -118,15 +122,15 @@ class DocSetWriter:
         hosts = os_client_args.get("hosts", None)
         if hosts is not None:
             os_client_args["hosts"] = _convert_to_host_port_list(hosts)
-        client_params = OpenSearchClientParams(**os_client_args)
+        client_params = OpenSearchWriterClientParams(**os_client_args)
 
-        target_params: OpenSearchTargetParams
+        target_params: OpenSearchWriterTargetParams
         if index_settings is not None:
             idx_settings = index_settings.get("body", {}).get("settings", {})
             idx_mappings = index_settings.get("body", {}).get("mappings", {})
-            target_params = OpenSearchTargetParams(index_name, idx_settings, idx_mappings)
+            target_params = OpenSearchWriterTargetParams(index_name, idx_settings, idx_mappings)
         else:
-            target_params = OpenSearchTargetParams(index_name, {}, {})
+            target_params = OpenSearchWriterTargetParams(index_name, {}, {})
 
         os = OpenSearchWriter(
             self.plan, client_params=client_params, target_params=target_params, name="OsrchWrite", **kwargs
@@ -248,7 +252,7 @@ class DocSetWriter:
             WeaviateDocumentWriter,
             WeaviateCrossReferenceWriter,
             WeaviateClientParams,
-            WeaviateTargetParams,
+            WeaviateWriterTargetParams,
         )
         from sycamore.connectors.weaviate.weaviate_writer import CollectionConfigCreate
 
@@ -261,7 +265,7 @@ class DocSetWriter:
             collection_config_object = CollectionConfigCreate(**collection_config)
         else:
             collection_config_object = CollectionConfigCreate(name=collection_name, **collection_config)
-        target_params = WeaviateTargetParams(
+        target_params = WeaviateWriterTargetParams(
             name=collection_name, collection_config=collection_config_object, flatten_properties=flatten_properties
         )
 
@@ -343,8 +347,8 @@ class DocSetWriter:
         """
         from sycamore.connectors.pinecone import (
             PineconeWriter,
-            PineconeClientParams,
-            PineconeTargetParams,
+            PineconeWriterClientParams,
+            PineconeWriterTargetParams,
         )
         import os
 
@@ -355,8 +359,8 @@ class DocSetWriter:
         assert (
             api_key is not None and len(api_key) != 0
         ), "Missing api key: either provide it as an argument or set the PINECONE_API_KEY env variable."
-        pcp = PineconeClientParams(api_key=api_key)
-        ptp = PineconeTargetParams(
+        pcp = PineconeWriterClientParams(api_key=api_key)
+        ptp = PineconeWriterTargetParams(
             index_name=index_name,
             namespace=namespace,
             index_spec=index_spec,
@@ -408,7 +412,7 @@ class DocSetWriter:
                 OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
                 tokenizer = HuggingFaceTokenizer(model_name)
 
-                ctx = sycamore.init(ray_args={"runtime_env": {"worker_process_setup_hook": ray_logging_setup}})
+                ctx = sycamore.init()
 
                 ds = (
                     ctx.read.binary(paths, binary_format="pdf")
@@ -425,10 +429,14 @@ class DocSetWriter:
                 conn = duckdb.connect(database=db_url)
                 duckdb_read = conn.execute(f"SELECT * FROM {table_name}")
         """
-        from sycamore.connectors.duckdb.duckdb_writer import DuckDBWriter, DuckDBClientParams, DuckDBTargetParams
+        from sycamore.connectors.duckdb.duckdb_writer import (
+            DuckDBWriter,
+            DuckDBWriterClientParams,
+            DuckDBWriterTargetParams,
+        )
 
-        client_params = DuckDBClientParams()
-        target_params = DuckDBTargetParams(
+        client_params = DuckDBWriterClientParams()
+        target_params = DuckDBWriterTargetParams(
             **{
                 k: v
                 for k, v in {
@@ -511,13 +519,13 @@ class DocSetWriter:
             ds.write.elasticsearch(url=url, index_name=index_name)
         """
         from sycamore.connectors.elasticsearch import (
-            ElasticDocumentWriter,
-            ElasticClientParams,
-            ElasticTargetParams,
+            ElasticsearchDocumentWriter,
+            ElasticsearchWriterClientParams,
+            ElasticsearchWriterTargetParams,
         )
 
-        client_params = ElasticClientParams(url=url, es_client_args=es_client_args)
-        target_params = ElasticTargetParams(
+        client_params = ElasticsearchWriterClientParams(url=url, es_client_args=es_client_args)
+        target_params = ElasticsearchWriterTargetParams(
             index_name=index_name,
             wait_for_completion=wait_for_completion,
             **{
@@ -529,7 +537,7 @@ class DocSetWriter:
                 if v is not None
             },  # type: ignore
         )
-        es_docs = ElasticDocumentWriter(
+        es_docs = ElasticsearchDocumentWriter(
             self.plan, client_params, target_params, name="elastic_document_writer", **kwargs
         )
         if execute:

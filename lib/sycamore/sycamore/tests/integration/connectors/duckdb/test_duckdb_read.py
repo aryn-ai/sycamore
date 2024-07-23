@@ -1,3 +1,5 @@
+import os
+
 import sycamore
 from sycamore.functions.tokenizer import HuggingFaceTokenizer
 from sycamore.transforms import COALESCE_WHITESPACE
@@ -5,20 +7,19 @@ from sycamore.transforms.merge_elements import MarkedMerger
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.tests.config import TEST_DIR
-import duckdb
-import os
+from sycamore.connectors.common import compare_docs
 
 
-def test_to_duckdb():
+def test_duckdb_read():
     table_name = "duckdb_table"
-    db_url = "tmp_write.db"
+    db_url = "tmp_read.db"
+    paths = str(TEST_DIR / "resources/data/pdfs/Transformer.pdf")
     model_name = "sentence-transformers/all-MiniLM-L6-v2"
-    paths = str(TEST_DIR / "resources/data/pdfs/")
-
     tokenizer = HuggingFaceTokenizer(model_name)
+
     ctx = sycamore.init()
 
-    ds = (
+    docs = (
         ctx.read.binary(paths, binary_format="pdf")
         .partition(partitioner=UnstructuredPdfPartitioner())
         .regex_replace(COALESCE_WHITESPACE)
@@ -28,14 +29,23 @@ def test_to_duckdb():
         .split_elements(tokenizer=tokenizer, max_tokens=512)
         .explode()
         .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
+        .sketch(window=17)
+        .take_all()
     )
-    ds_count = ds.count()
-    ds.write.duckdb(table_name=table_name, db_url=db_url, dimensions=384)
-    conn = duckdb.connect(database=db_url)
-    duckdb_count = conn.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0]
-    # delete the database
+    ctx.read.document(docs).write.duckdb(db_url=db_url, table_name=table_name, dimensions=384)
+    target_doc_id = docs[-1].doc_id if docs[-1].doc_id else ""
+    out_docs = ctx.read.duckdb(db_url=db_url, table_name=table_name).take_all()
+    query = f"SELECT * from {table_name} WHERE doc_id == '{target_doc_id}'"
+    query_docs = ctx.read.duckdb(db_url=db_url, table_name=table_name, query=query).take_all()
     try:
         os.unlink(db_url)
     except Exception as e:
         print(f"Error deleting {db_url}: {e}")
-    assert ds_count == int(duckdb_count)
+    assert len(out_docs) == len(docs)
+    assert len(query_docs) == 1  # exactly one doc should be returned
+    assert all(
+        compare_docs(original, plumbed)
+        for original, plumbed in zip(
+            sorted(docs, key=lambda d: d.doc_id or ""), sorted(out_docs, key=lambda d: d.doc_id or "")
+        )
+    )

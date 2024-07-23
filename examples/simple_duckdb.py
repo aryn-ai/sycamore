@@ -8,7 +8,6 @@ from sycamore.transforms.merge_elements import MarkedMerger
 from sycamore.transforms.partition import SycamorePartitioner
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.transforms.embed import SentenceTransformerEmbedder
-from sycamore.utils.time_trace import ray_logging_setup
 from sycamore.tests.config import TEST_DIR
 from simple_config import title_template
 
@@ -22,7 +21,7 @@ davinci_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
 
 tokenizer = HuggingFaceTokenizer(model_name)
 
-ctx = sycamore.init(ray_args={"runtime_env": {"worker_process_setup_hook": ray_logging_setup}})
+ctx = sycamore.init()
 
 ds = (
     ctx.read.binary(paths, binary_format="pdf")

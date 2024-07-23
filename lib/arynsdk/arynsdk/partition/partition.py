@@ -28,13 +28,14 @@ def partition_file(
     Sends file to the Aryn Partitioning Service and returns a dict of its document structure and text
 
     Args:
-        file:               open pdf file to partition
-        aryn_api_key:       aryn api key, provided as a string
-        aryn_config:        ArynConfig object, used for finding an api key. If aryn_api_key is set it will override this.
+        file: open pdf file to partition
+        aryn_api_key: aryn api key, provided as a string
+        aryn_config: ArynConfig object, used for finding an api key.
+            If aryn_api_key is set it will override this.
             default: The default ArynConfig looks in the env var ARYN_API_KEY and the file ~/.aryn/config.yaml
         threshold:  value in [0.0 .. 1.0] to specify the cutoff for detecting bounding boxes.
             default: None (APS will choose)
-        use_ocr:    extract text using an OCR model instead of extracting embedded text in PDF.
+        use_ocr: extract text using an OCR model instead of extracting embedded text in PDF.
             default: False
         extract_table_structure: extract tables and their structural content.
             default: False

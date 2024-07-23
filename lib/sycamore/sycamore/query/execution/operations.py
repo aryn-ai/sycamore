@@ -1,4 +1,9 @@
 import json
+from typing import Any, List, Optional, Union
+
+from datetime import datetime
+from dateutil import parser
+from ray.data import Dataset
 
 from sycamore import DocSet, Execution
 from sycamore.data import Document, MetadataDocument
@@ -8,11 +13,7 @@ from sycamore.utils.extract_json import extract_json
 from sycamore.plan_nodes import Scan
 
 
-from ray.data import Dataset
 
-from datetime import datetime
-from typing import Any, List, Optional
-from dateutil import parser
 
 ################## HELPERS #################
 
@@ -324,7 +325,7 @@ def count_operation(docset: DocSet, field: Optional[str] = None, primaryField: O
 # operations.math_operation(1, 2, "subtract")
 # operations.math_operation(1, 2, "divide")
 # operations.math_operation(1, 2, "multiply")
-def math_operation(val1: int, val2: int, operator: str) -> int | float:
+def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
     """Basic arithmetic operations on integers."""
     if operator == "add":
         return val1 + val2

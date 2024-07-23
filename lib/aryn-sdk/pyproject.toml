@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "arynsdk"
+name = "aryn-sdk"
 version = "0.1.0"
 description = "The client library for Aryn services"
 authors = ["aryn.ai <opensource@aryn.ai>"]
@@ -9,6 +9,9 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = ">=3.9,<3.12"
 requests = "^2.32"
+pandas = ">=2.0"
+numpy = ">=1.21.5"
+pyyaml = "^6.0.1"
 
 [tool.poetry.group.dev.dependencies]
 sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }

@@ -35,7 +35,7 @@ sycamore-crawler = { path = "apps/crawler", develop = true }
 remote-processors = { path = "lib/remote-processors", develop = true }
 integration = { path = "apps/integration", develop = true }
 sycamore-poetry-lock = { path = "lib/poetry-lock", develop = true }
-arynsdk = { path = "lib/arynsdk", develop = true }
+aryn-sdk = { path = "lib/aryn-sdk", develop = true }
 ruff = "^0.0.287"
 black = "^24.4"
 pre-commit = "^3.4.0"

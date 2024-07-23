@@ -329,7 +329,7 @@ doc = ["doc8", "sphinx (>=7.0.0)", "sphinx-autobuild", "sphinx-autodoc-typehints
 test = ["dateparser (==1.*)", "pre-commit", "pytest", "pytest-cov", "pytest-mock", "pytz (==2021.1)", "simplejson (==3.*)"]
 
 [[package]]
-name = "arynsdk"
+name = "aryn-sdk"
 version = "0.1.0"
 description = "The client library for Aryn services"
 optional = false
@@ -338,11 +338,14 @@ files = []
 develop = true
 
 [package.dependencies]
+numpy = ">=1.21.5"
+pandas = ">=2.0"
+pyyaml = "^6.0.1"
 requests = "^2.32"
 
 [package.source]
 type = "directory"
-url = "lib/arynsdk"
+url = "lib/aryn-sdk"
 
 [[package]]
 name = "asttokens"
@@ -8104,4 +8107,4 @@ docs = ["furo", "myst-parser", "sphinx"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.12"
-content-hash = "49e72477b0f15efee1807d19a5b2e53a33f1fcda8a5bbc714ba45eaec94e9daf"
+content-hash = "3fdf8dff1c31f69da92d916c9c5c8aa4e93edfc86f3066d29adf04c553483ddf"

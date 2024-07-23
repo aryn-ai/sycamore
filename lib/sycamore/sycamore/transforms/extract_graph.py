@@ -35,54 +35,10 @@ class GraphExtractor(ABC):
         pass
 
     @abstractmethod
-    def extract(self, document: "DocSet") -> "DocSet":
+    def extract(self, docset: "DocSet") -> "DocSet":
         pass
 
-
-class MetadataExtractor(GraphExtractor):
-    """
-    Extracts metadata from documents and represents them as nodes and relationship in neo4j
-
-    Args:
-        metadata: a list of GraphMetadata that is used to determine what metadata is extracted
-    """
-
-    def __init__(self, metadata: list[GraphMetadata]):
-        self.metadata = metadata
-
-    def extract(self, docset: "DocSet") -> "DocSet":
-        docset.plan = ExtractMetadata(docset.plan, self)
-        docset = self.resolve_metadata(docset)
-
-        return docset
-
-    def extract_metadata(self, doc: Document) -> Document:
-        """
-        Extracts metadata from documents and stores them in the 'nodes' key of 'properties in each document
-        """
-        nodes: Dict[str, Dict[str, Any]] = {}
-        for m in self.metadata:
-            if m.nodeKey not in doc["properties"]:
-                continue
-
-            key = m.nodeKey
-            value = str(doc["properties"][m.nodeKey])
-            node = {"type": "metadata", "properties": {key: value}, "label": str(m.nodeLabel), "relationships": {}}
-            nodes[key + "_" + value] = node
-
-            rel = {
-                "TYPE": m.relLabel,
-                "properties": {},
-                "START_ID": str(doc.doc_id),
-                "START_LABEL": doc.data["label"],
-            }
-            nodes[key + "_" + value]["relationships"][str(uuid.uuid4())] = rel
-            del doc["properties"][m.nodeKey]
-
-        doc["properties"]["nodes"] = nodes
-        return doc
-
-    def resolve_metadata(self, docset: "DocSet") -> "DocSet":
+    def resolve(self, docset: "DocSet") -> "DocSet":
         """
         Aggregates 'nodes' from every document and resolves duplicate nodes
         """
@@ -139,15 +95,58 @@ class MetadataExtractor(GraphExtractor):
                 if "nodes" in doc["properties"]:
                     del doc["properties"]["nodes"]
 
+        doc = Document()
         for value in result["nodes"].values():
-            docs[0]["elements"].append(value)
+            doc["elements"].append(value)
+
+        docs.append(doc)
 
         reader = DocSetReader(docset.context)
         return reader.document(docs)
 
 
-class SupervisedExtractor(GraphExtractor):
-    pass
+class MetadataExtractor(GraphExtractor):
+    """
+    Extracts metadata from documents and represents them as nodes and relationship in neo4j
+
+    Args:
+        metadata: a list of GraphMetadata that is used to determine what metadata is extracted
+    """
+
+    def __init__(self, metadata: list[GraphMetadata]):
+        self.metadata = metadata
+
+    def extract(self, docset: "DocSet") -> "DocSet":
+        docset.plan = ExtractMetadata(docset.plan, self)
+        docset = self.resolve(docset)
+
+        return docset
+
+    def extract_metadata(self, doc: Document) -> Document:
+        """
+        Extracts metadata from documents and stores them in the 'nodes' key of 'properties in each document
+        """
+        nodes: Dict[str, Dict[str, Any]] = {}
+        for m in self.metadata:
+            if m.nodeKey not in doc["properties"]:
+                continue
+
+            key = m.nodeKey
+            value = str(doc["properties"][m.nodeKey])
+            node = {"type": "metadata", "properties": {key: value}, "label": str(m.nodeLabel), "relationships": {}}
+            nodes[key + "_" + value] = node
+
+            rel = {
+                "TYPE": m.relLabel,
+                "properties": {},
+                "START_ID": str(doc.doc_id),
+                "START_LABEL": doc.data["label"],
+            }
+            nodes[key + "_" + value]["relationships"][str(uuid.uuid4())] = rel
+            del doc["properties"][m.nodeKey]
+
+        doc["properties"]["nodes"] = nodes
+        return doc
 
 
 class ExtractMetadata(Map):

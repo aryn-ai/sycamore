@@ -92,3 +92,37 @@ docset.write.weaviate(
 ```
 
 More information can be found in the {doc}`API documentation </APIs/data_preparation/docsetwriter>`.
+
+## Reading from Weaviate
+
+Reading from a Weaviate collection takes in the `wv_client_args` and `collection_name` arguments, with the same specification and defaults as above. It also takes in the arguments below:
+
+- kwargs: (Optional) Search queries to pass into Weaviate. Note each keyword method argument must have its parameters specified
+as a dictionary. Will default to a full scan if not specified..
+
+To read from a Weaviate collection into a Sycamore DocSet, use the following code:
+
+```python
+from weaviate.client import ConnectionParams
+
+ctx = sycamore.init()
+
+collection_name = "MyCollection"
+client_args = {
+    "connection_params": ConnectionParams.from_params(
+        http_host="localhost",
+        http_port=8080,
+        http_secure=False,
+        grpc_host="localhost",
+        grpc_port=50051,
+        grpc_secure=False,
+    )
+}
+target_doc_id = "target"
+fetch_object_dict = {"filters": Filter.by_id().equal(target_doc_id)}
+query_docs = ctx.read.weaviate(
+        wv_client_args=wv_client_args, collection_name=collection, fetch_objects=fetch_object_dict
+    ).take_all()
+```
+
+More information can be found in the {doc}`API documentation </APIs/data_preparation/docsetreader>`.

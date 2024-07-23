@@ -37,22 +37,41 @@ With this you can run Elasticsearch with a simple `docker compose up`.
 To write a DocSet to a Elasticsearch index from Sycamore, use the `docset.write.elasticsearch(...)` function. The Elasticsearch writer takes the following arguments:
 
 - `url`: Connection endpoint for the Elasticsearch instance. Note that this must be paired with the necessary client arguments below
+-  `index_name`: Index name to write to in the Elasticsearch instance
 - `es_client_args`: (optional) Authentication arguments to be specified (if needed). See more information at https://elasticsearch-py.readthedocs.io/en/v8.14.0/api/elasticsearch.html
 - `wait_for_completion`: (optional, default=`"false"`) Whether to wait for completion of the write before proceeding with next steps. See more information and valid values at https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-refresh.html
 - `mappings`: (optional) Mappings of the Elasticsearch index, can be optionally specified
 - `settings`:(optional) Settings of the Elasticsearch index, can be optionally specified
 - `execute`: (optional, default=`True`) Whether to execute this sycamore pipeline now, or return a docset to add more transforms.
 
-To write a docset to the Elasticsearch index run by the docker compose above, we can write the following:
+To write a docset to a local Elasticsearch index run by the docker compose above, we can write the following:
 
 ```python
 url = "http://localhost:9201"
-index_name = "test_index-other"
+index_name = "test_index-write"
+wait_for_completion = "wait_for"
 
-docset.write.elasticsearch(
-    url=url,
-    index_name=index_name
-)
+ds.write.elasticsearch(url=url, index_name=index_name, wait_for_completion=wait_for_completion)
 ```
 
 More information can be found in the {doc}`API documentation </APIs/data_preparation/docsetwriter>`.
+
+## Reading from Elasticsearch
+
+Reading from an Elasticsearch index takes in the `index_name`, `url`,  and `es_client_args` arguments, with the same specification and defaults as above. It also takes in the arguments below:
+
+- query: (Optional) SQL query to read from the table. If not specified, the read will perform a full scan of the table
+- kwargs: (Optional) Parameters to pass in to the Elasticsearch search query.
+
+To read from a Elasticsearch index into a Sycamore DocSet, use the following code:
+
+```python
+ctx = sycamore.init()
+url = "http://localhost:9201"
+index_name = "test_index-read"
+target_doc_id = "target"
+query_params = {"term": {"_id": target_doc_id}}
+query_docs = ctx.read.elasticsearch(url=url, index_name=index_name, query=query_params).take_all()
+```
+
+More information can be found in the {doc}`API documentation </APIs/data_preparation/docsetreader>`.

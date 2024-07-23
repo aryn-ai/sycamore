@@ -1,5 +1,6 @@
 from typing import BinaryIO, Optional
 from collections.abc import Mapping
+from arynsdk.config import ArynConfig
 import requests
 import json
 import logging
@@ -11,7 +12,8 @@ APS_URL = "https://api.aryn.cloud/v1/document/partition"
 
 def partition_file(
     file: BinaryIO,
-    token: str,
+    aryn_api_key: Optional[str] = None,
+    aryn_config: ArynConfig = ArynConfig(),
     tables_to_pandas: bool = True,
     threshold: Optional[float] = None,
     use_ocr: bool = False,
@@ -23,20 +25,22 @@ def partition_file(
     Sends file to the Aryn Partitioning Service and returns a dict of its document structure and text
 
     Args:
-        file:       open pdf file to partition
-        token:      aryn api key
+        file:               open pdf file to partition
+        aryn_api_key:       aryn api key, provided as a string
+        aryn_config:        ArynConfig object, used for finding an api key. If aryn_api_key is set it will override this.
+            default: The default ArynConfig looks in the env var ARYN_API_KEY and the file ~/.aryn/config.yaml
         tables_to_pandas:   convert tables to pandas DataFrame representation.
-                    default: True
+            default: True
         threshold:  value in [0.0 .. 1.0] to specify the cutoff for detecting bounding boxes.
-                    default: None (APS will choose)
+            default: None (APS will choose)
         use_ocr:    extract text using an OCR model instead of extracting embedded text in PDF.
-                    default: False
+            default: False
         extract_table_structure: extract tables and their structural content.
-                    default: False
+            default: False
         extract_images: extract image contents.
-                    default: False
+            default: False
         aps_url: url of the Aryn Partitioning Service endpoint.
-                    default: "https://api.aryn.cloud/v1/document/partition"
+            default: "https://api.aryn.cloud/v1/document/partition"
 
     Returns:
         A dictionary containing "status" and "elements"
@@ -57,6 +61,10 @@ def partition_file(
                 )
             elements = data['elements']
     """
+    if aryn_api_key is not None:
+        if aryn_config is not None:
+            logging.warn("Both aryn_api_key and aryn_config were provided. Using aryn_api_key")
+        aryn_config = ArynConfig(aryn_api_key=aryn_api_key)
 
     options_str = _json_options(
         threshold=threshold,
@@ -69,7 +77,7 @@ def partition_file(
 
     files: Mapping = {"options": options_str.encode("utf-8"), "pdf": file}
 
-    http_header = {"Authorization": "Bearer {}".format(token)}
+    http_header = {"Authorization": "Bearer {}".format(aryn_config.api_key())}
 
     resp = requests.post(aps_url, files=files, headers=http_header)
 

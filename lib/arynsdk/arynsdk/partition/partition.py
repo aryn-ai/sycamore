@@ -41,7 +41,7 @@ def partition_file(
             default: False
         extract_images: extract image contents.
             default: False
-        selected_pages: list of individual pages from the pdf to partition
+        selected_pages: list of individual pages (1-indexed) from the pdf to partition
             default: None
         aps_url: url of the Aryn Partitioning Service endpoint.
             default: "https://api.aryn.cloud/v1/document/partition"
@@ -80,9 +80,7 @@ def partition_file(
     logging.debug(f"{options_str}")
 
     files: Mapping = {"options": options_str.encode("utf-8"), "pdf": file}
-
     http_header = {"Authorization": "Bearer {}".format(aryn_config.api_key())}
-
     resp = requests.post(aps_url, files=files, headers=http_header)
 
     if resp.status_code != 200:

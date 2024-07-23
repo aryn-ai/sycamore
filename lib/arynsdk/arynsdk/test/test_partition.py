@@ -1,7 +1,7 @@
 import os
 from pprint import pprint
 
-from arynsdk.partition import partition_file
+from arynsdk.partition import partition_file, tables_to_pandas
 from arynsdk.config import ArynConfig
 
 # Replace with your token
@@ -47,9 +47,9 @@ def test_partition_file():
 def test_table():
     with open(simple_test_file, "rb") as f:
         response = partition_file(f, extract_table_structure=True, use_ocr=True)
-    pprint(response)
-    for table in filter(lambda e: e["type"] == "table", response["elements"]):
-        print(table["dataframe"])
+    elts_and_tables = tables_to_pandas(response)
+    for table, df in filter(lambda e: e[0]["type"] == "table", elts_and_tables):
+        print(df)
 
 
 # def test_large_file():

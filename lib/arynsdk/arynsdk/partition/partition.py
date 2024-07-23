@@ -4,6 +4,9 @@ from arynsdk.config import ArynConfig
 import requests
 import json
 import logging
+import pandas as pd
+import numpy as np
+from collections import OrderedDict
 
 
 # URL for Aryn Partitioning Service (APS)
@@ -14,7 +17,6 @@ def partition_file(
     file: BinaryIO,
     aryn_api_key: Optional[str] = None,
     aryn_config: ArynConfig = ArynConfig(),
-    tables_to_pandas: bool = True,
     threshold: Optional[float] = None,
     use_ocr: bool = False,
     extract_table_structure: bool = False,
@@ -30,8 +32,6 @@ def partition_file(
         aryn_api_key:       aryn api key, provided as a string
         aryn_config:        ArynConfig object, used for finding an api key. If aryn_api_key is set it will override this.
             default: The default ArynConfig looks in the env var ARYN_API_KEY and the file ~/.aryn/config.yaml
-        tables_to_pandas:   convert tables to pandas DataFrame representation.
-            default: True
         threshold:  value in [0.0 .. 1.0] to specify the cutoff for detecting bounding boxes.
             default: None (APS will choose)
         use_ocr:    extract text using an OCR model instead of extracting embedded text in PDF.
@@ -56,8 +56,7 @@ def partition_file(
             with open("my-favorite-pdf.pdf", "rb") as f:
                 data = partition_file(
                     f,
-                    "MY-ARYN-TOKEN",
-                    tables_to_pandas=True,
+                    aryn_api_key="MY-ARYN-TOKEN",
                     use_ocr=True,
                     extract_table_structure=True,
                     extract_images=True
@@ -90,10 +89,7 @@ def partition_file(
             f"Error: status_code: {resp.status_code}, reason: {resp.text}", response=resp
         )
 
-    if tables_to_pandas:
-        return _tables_to_pandas(resp.json())
-    else:
-        return resp.json()
+    return resp.json()
 
 
 def _json_options(
@@ -118,11 +114,32 @@ def _json_options(
 
 
 # Heavily adapted from lib/sycamore/data/table.py::Table.to_csv()
-def _tables_to_pandas(data: dict) -> dict:
-    import pandas as pd
-    import numpy as np
-    from collections import OrderedDict
+def tables_to_pandas(data: dict) -> list[tuple[dict, Optional[pd.DataFrame]]]:
+    """
+    For every table element in the provided partitioning response, create a pandas
+    DataFrame representing the tabular data. Return a list containing all the elements,
+    with tables paired with their corresponding DataFrames.
 
+    Args:
+        data: a response from ``partition_file``
+
+    Example:
+         .. code-block:: python
+
+            from arynsdk.partition import partition_file, tables_to_pandas
+
+            with open("my-favorite-pdf.pdf", "rb") as f:
+                data = partition_file(
+                    f,
+                    aryn_api_key="MY-ARYN-TOKEN",
+                    use_ocr=True,
+                    extract_table_structure=True,
+                    extract_images=True
+                )
+            elts_and_dataframes = tables_to_pandas(data)
+
+    """
+    results = []
     for e in data["elements"]:
         if e["type"] == "table" and e["table"] is not None:
             table = e["table"]
@@ -162,9 +179,11 @@ def _tables_to_pandas(data: dict) -> dict:
                 index=None,
                 columns=flattened_header if max_header_prefix_row >= 0 else None,
             )
-            e["dataframe"] = df
+            results.append((e, df))
+        else:
+            results.append((e, None))
 
-    return data
+    return results
 
 
 def add_bbox_to_pdf():

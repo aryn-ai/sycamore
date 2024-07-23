@@ -1,0 +1,39 @@
+name: Draft release for aryn-sdk
+
+on:
+  push:
+    tags:
+      - "sdk-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  draft-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install poetry
+        run: pipx install poetry
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: "poetry"
+      - name: Install
+        run: poetry install
+        working-directory: lib/aryn-sdk
+      - name: build
+        run: poetry build
+        working-directory: lib/aryn-sdk
+      - name: Generate Changelog
+        run: |
+          git log --format="* %s by %aE" $(git describe --tags --abbrev=0 --match 'sdk-v*' \
+          --match 'v0.1.16' @^)..@ -- lib/aryn-sdk > ${{ github.workspace }}-CHANGELOG.txt
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          body_path: ${{ github.workspace }}-CHANGELOG.txt
+          files: |
+            lib/aryn-sdk/dist/*.tar.gz

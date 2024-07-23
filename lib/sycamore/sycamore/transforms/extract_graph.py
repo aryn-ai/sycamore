@@ -128,21 +128,21 @@ class MetadataExtractor(GraphExtractor):
         """
         nodes: Dict[str, Dict[str, Any]] = {}
         for m in self.metadata:
-            if m.nodeKey not in doc["properties"]:
+            key = m.nodeKey
+            value = str(doc["properties"].get(key))
+            if value == "None":
                 continue
 
-            key = m.nodeKey
-            value = str(doc["properties"][m.nodeKey])
-            node = {"type": "metadata", "properties": {key: value}, "label": str(m.nodeLabel), "relationships": {}}
-            nodes[key + "_" + value] = node
-
+            node = {"type": "metadata", "properties": {key: value}, "label": m.nodeLabel, "relationships": {}}
             rel = {
                 "TYPE": m.relLabel,
                 "properties": {},
                 "START_ID": str(doc.doc_id),
                 "START_LABEL": doc.data["label"],
             }
-            nodes[key + "_" + value]["relationships"][str(uuid.uuid4())] = rel
+
+            node["relationships"][str(uuid.uuid4())] = rel
+            nodes[key + "_" + value] = node
             del doc["properties"][m.nodeKey]
 
         doc["properties"]["nodes"] = nodes

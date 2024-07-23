@@ -1,4 +1,4 @@
-from typing import BinaryIO, Optional
+from typing import BinaryIO, Optional, Union
 from collections.abc import Mapping
 from arynsdk.config import ArynConfig
 import requests
@@ -19,6 +19,7 @@ def partition_file(
     use_ocr: bool = False,
     extract_table_structure: bool = False,
     extract_images: bool = False,
+    selected_pages: Optional[list[int]] = None,
     aps_url: str = APS_URL,
 ) -> dict:
     """
@@ -39,6 +40,8 @@ def partition_file(
             default: False
         extract_images: extract image contents.
             default: False
+        selected_pages: list of individual pages from the pdf to partition
+            default: None
         aps_url: url of the Aryn Partitioning Service endpoint.
             default: "https://api.aryn.cloud/v1/document/partition"
 
@@ -71,6 +74,7 @@ def partition_file(
         use_ocr=use_ocr,
         extract_table_structure=extract_table_structure,
         extract_images=extract_images,
+        selected_pages=selected_pages,
     )
 
     logging.debug(f"{options_str}")
@@ -97,8 +101,9 @@ def _json_options(
     use_ocr: bool = False,
     extract_table_structure: bool = False,
     extract_images: bool = False,
+    selected_pages: Optional[list[int]] = None,
 ) -> str:
-    options = dict()
+    options: dict[str, Union[float, bool, list[int]]] = dict()
     if threshold:
         options["threshold"] = threshold
     if use_ocr:
@@ -107,6 +112,8 @@ def _json_options(
         options["extract_images"] = extract_images
     if extract_table_structure:
         options["extract_table_structure"] = extract_table_structure
+    if selected_pages:
+        options["selected_pages"] = selected_pages
     return json.dumps(options)
 
 

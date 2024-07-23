@@ -49,13 +49,17 @@ class LlmPlanner:
         sure to include each operation as a separate step.
         2. Do not return any information except the standard json objects.
         3. Only use operators described below.
-        4. Only use EXACT field names from the DATA_SCHEMA described below and fields created from **LlmExtract**. Any new fields 
-        created by *LlmExtract* will be nested in properties. e.g. if a new field called "state" is added, when referencing it in
-        another operation, you should use "properties.state"
-        5. If an optional field is given in an operator's schema, but is not included in the query plan, mark it as null.
+        4. Only use EXACT field names from the DATA_SCHEMA described below and fields created
+            from **LlmExtract**. Any new fields created by *LlmExtract* will be nested in properties.
+            e.g. if a new field called "state" is added, when referencing it in another operation,
+            you should use "properties.state".
+        5. If an optional field is given in an operator's schema, but is not included in the query
+            plan, mark it as null.
         6. If you cannot generate a plan to answer a question, return an empty list.
-        7. The first step of each plan will always be a **LoadData** operation that returns a data table.
-        8. The last step of each plan will always be a **LlmGenerate** operation to generate an english answer.
+        7. The first step of each plan will always be a **LoadData** operation that returns a data
+            table.
+        8. The last step of each plan will always be a **LlmGenerate** operation to generate an
+            English answer.
         """
 
         # data schema
@@ -328,7 +332,7 @@ class LlmPlanner:
 
         # parse string as json
         parsed_plan = extract_json(llm_json_plan)
-        assert type(parsed_plan) == list
+        assert isinstance(parsed_plan, list)
 
         nodes: Dict[str, LogicalOperator] = dict()
         downstream_dependencies: Dict[str, List[int]] = dict()

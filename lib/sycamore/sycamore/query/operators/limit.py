@@ -10,11 +10,15 @@ class Limit(LogicalOperator):
     @staticmethod
     def description() -> str:
         return """
-        **Limit**: Limits a data table to the first K entries. Parameters are *description*, *K*, *input*, and *id*. Returns a data table.
-        - *description* is a written description of the purpose of this operation in this context and justification of why you chose to use it.
+        **Limit**: Limits a data table to the first K entries.
+            Parameters are *description*, *K*, *input*, and *id*. Returns a data table.
+        - *description* is a written description of the purpose of this operation in this context
+            and justification of why you chose to use it.
         - *K* is the number of rows of the data table to return.
-        - *input* is a list of operation ids that this operation depends on. For this operation, *input* should only contain one id of an operation that returns a data table (len(input) == 1).
-        - *id* is a uniquely assigned integer that serves as an identifier
+        - *input* is a list of operation ids that this operation depends on. For this operation,
+            *input* should only contain one id of an operation that returns a data table
+            (len(input) == 1).
+        - *id* is a uniquely assigned integer that serves as an identifier.
         """
 
     @staticmethod

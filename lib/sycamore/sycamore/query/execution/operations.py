@@ -13,8 +13,6 @@ from sycamore.utils.extract_json import extract_json
 from sycamore.plan_nodes import Scan
 
 
-
-
 ################## HELPERS #################
 
 BASE_PROPS = [
@@ -32,19 +30,12 @@ BASE_PROPS = [
 
 
 def field_to_value(doc: Document, field: str) -> any:
-
     fields = field.split(".")
-
-    try:
-        value = getattr(doc, fields[0])
-    except:
-        raise Exception("Invalid document field")
-
+    value = getattr(doc, fields[0])
     if len(fields) > 1:
         assert fields[0] == "properties"
         for f in fields[1:]:
             value = value[f]
-
     return value
 
 
@@ -56,7 +47,7 @@ def convert_string_to_date(date_string: str) -> datetime:
 def threshold_filter(doc: Document, threshold) -> bool:
     try:
         return_value = int(doc.properties["LlmFilterOutput"]) >= threshold
-    except:
+    except Exception:
         # accounts for llm output errors
         return_value = False
 
@@ -223,7 +214,7 @@ def llm_extract_operation(
     """
 
     if messages is None and (question is None or format is None or discrete is None):
-        raise Exception('"question", "format", and "discrete" must be specified for default messages')
+        raise ValueError('"question", "format", and "discrete" must be specified for default messages')
 
     if field is None:
         field = "text_representation"
@@ -232,15 +223,15 @@ def llm_extract_operation(
 
     if messages is None:
 
-        format_string = f"""The format of your resopnse should be {format}. Use standard convention to determine the style of your response. Do
-        not include any abbreviations."""
+        format_string = f"""The format of your resopnse should be {format}. Use standard convention
+        to determine the style of your response. Do not include any abbreviations."""
 
         # sets message
         messages = [
             {
                 "role": "system",
-                "content": """You are a helpful entity extractor that creates a new field in a database 
-                    from your reponse to a question on an existing field.""",
+                "content": """You are a helpful entity extractor that creates a new field in a
+                database from your reponse to a question on an existing field.""",
             }
         ]
 
@@ -248,15 +239,17 @@ def llm_extract_operation(
             messages.append(
                 {
                     "role": "user",
-                    "content": f"""Question: {question} Use this existing related database field "{field}" to answer the question: {value}. {format_string}""",
+                    "content": f"""Question: {question} Use this existing related database field
+                    "{field}" to answer the question: {value}. {format_string}""",
                 }
             )
             messages.append(
                 {
                     "role": "user",
-                    "content": """The following sentence should be valid: The answer to the question based on the existing field is {answer}. Your response
-                    should ONLY contain answer.
-                    If you are not able to extract the new field given the information, respond ONLY with None""",
+                    "content": """The following sentence should be valid: The answer to the
+                    question based on the existing field is {answer}. Your response should ONLY
+                    contain the answer. If you are not able to extract the new field given the
+                    information, respond ONLY with None""",
                 }
             )
 
@@ -264,8 +257,10 @@ def llm_extract_operation(
             messages.append(
                 {
                     "role": "user",
-                    "content": f"""Question: {question} Use this existing related database field "{field}" to answer the question: {value}. Include
-                    as much relevant detail as possible that is related to/could help answer this question. Respond in sentences, not just a single word or phrase.""",
+                    "content": f"""Question: {question} Use this existing related database field
+                    "{field}" to answer the question: {value}. Include as much relevant detail as
+                    possible that is related to/could help answer this question. Respond in
+                    sentences, not just a single word or phrase.""",
                 }
             )
 
@@ -292,9 +287,10 @@ def llm_extract_operation(
 # num_unique_dates = operations.count_operation(docset, True, "dateTimeType")
 # num_total_dates = operations.count_operation(docset)
 def count_operation(docset: DocSet, field: Optional[str] = None, primaryField: Optional[str] = None, **kwargs) -> int:
-    """Returns a DocSet count. When count_unique is false, the number of entries in the DocSet are returned. When count_unique is
-    true, "field" must be specified and must be present in doc.properties. When count_unique is true, this function returns the number
-    of rows in the DocSet with a unique value corresponding to "field"."""
+    """Returns a DocSet count. When count_unique is false, the number of entries in the DocSet are
+    returned. When count_unique is true, "field" must be specified and must be present in
+    doc.properties. When count_unique is true, this function returns the number of rows in the
+    DocSet with a unique value corresponding to "field"."""
 
     # none are specified -> normal count
     if field is None and primaryField is None:
@@ -341,7 +337,8 @@ def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
 
 ######################################################################################################################################
 # USAGE EXAMPLE
-# operations.llm_generate_operation("database of airplane incidents (NTSB)", "How many incidents occurred between 1/1/2022 and 1/20/2022?", 13)
+# operations.llm_generate_operation("database of airplane incidents (NTSB)",
+# "How many incidents occurred between 1/1/2022 and 1/20/2022?", 13)
 def llm_generate_operation(client: OpenAI, question: str, result_description: str, result_data: Any, **kwargs) -> str:
     if isinstance(result_data, DocSet):
         text = f"Description: {result_description}\n"
@@ -367,13 +364,15 @@ def llm_generate_operation(client: OpenAI, question: str, result_description: st
     messages = [
         {
             "role": "system",
-            "content": f"You are a helpful conversational English response generator for queries regarding database entries.",
+            "content": """You are a helpful conversational English response
+            generator for queries regarding database entries.""",
         },
         {
             "role": "user",
-            "content": f"""The following question and answer are in regards to database entries. Respond ONLY with
-                a conversational English response WITH JUSTIFICATION to the question \"{question}\" given the answer \"{text}\". Include as
-                much detail/evidence as possible""",
+            "content": f"""The following question and answer are in regards to database entries.
+                Respond ONLY with a conversational English response WITH JUSTIFICATION to the
+                question \"{question}\" given the answer \"{text}\". Include as much detail/evidence
+                as possible.""",
         },
     ]
     prompt_kwargs = {"messages": messages}
@@ -421,9 +420,20 @@ def top_k_operation(
     return docset
 
 
-sc_form_groups_prompt = """You are given a list of values corresponding to the database field "{field}". Categorize the occurrences of "{field}" and create relevant non-overlapping group. Return ONLY JSON with the various categorized groups of "{field}" that can be used to determine the answer to the following question "{description}", so form groups accordingly. Return your answer in the following JSON format and check your work: {{"groups": ["string"]}}. For example, if the question is "What are the most common types of food in this dataset?" and the values are "banana, milk, yogurt, chocolate, oranges", you would return something like {{"groups": ['fruit', 'dairy', 'dessert', 'other]}}. Form groups to encompass as many entries as possible and don't create multiple groups with the same meaning. Here is the list values corresponding to "{field}": "{text}"."""
+sc_form_groups_prompt = """You are given a list of values corresponding to the database field
+"{field}". Categorize the occurrences of "{field}" and create relevant non-overlapping group.
+Return ONLY JSON with the various categorized groups of "{field}" that can be used to determine
+the answer to the following question "{description}", so form groups accordingly. Return your
+answer in the following JSON format and check your work: {{"groups": ["string"]}}. For example,
+if the question is "What are the most common types of food in this dataset?" and the values are
+"banana, milk, yogurt, chocolate, oranges", you would return something like
+    {{"groups": ['fruit', 'dairy', 'dessert', 'other]}}.
+Form groups to encompass as many entries as possible and don't create multiple groups with
+the same meaning. Here is the list values corresponding to "{field}": "{text}"."""
 
-sc_assign_groups_prompt = """Categorize the database entry you are given corresponding to "{field}" into one of the following groups: "{groups}". Perform your best work to assign the group. Return ONLY the string corresponding to the selected group. Here is the database entry you will use: """
+sc_assign_groups_prompt = """Categorize the database entry you are given corresponding to "{field}"
+into one of the following groups: "{groups}". Perform your best work to assign the group. Return
+ONLY the string corresponding to the selected group. Here is the database entry you will use: """
 
 
 def semantic_cluster(client: OpenAI, docset: DocSet, description: str, field: str) -> DocSet:
@@ -449,7 +459,7 @@ def semantic_cluster(client: OpenAI, docset: DocSet, description: str, field: st
 
     groups = extract_json(completion)
 
-    assert type(groups) == dict
+    assert isinstance(groups, dict)
 
     messagesForExtract = [
         {"role": "user", "content": sc_assign_groups_prompt.format(field=field, groups=groups["groups"])}
@@ -484,7 +494,7 @@ def make_map_fn_count(field: str, default_val: Any, unique_field: Optional[str] 
                 new_doc["unique"] = val
             return new_doc
 
-        except:
+        except Exception:
             if unique_field is not None:
                 return {"doc": None, "key": None, "unique": None}
             else:

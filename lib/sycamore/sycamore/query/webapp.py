@@ -8,11 +8,8 @@ import tempfile
 from typing import Any
 
 import streamlit as st
-import matplotlib.pyplot as plt
-import networkx as nx
 from streamlit_ace import st_ace
 from streamlit_agraph import agraph, Node, Edge, Config
-from streamlit_agraph.config import Config
 
 
 from sycamore.query.client import LunaClient
@@ -90,7 +87,7 @@ def show_dag(plan: LogicalPlan):
         hierarchical=True,
         direction="UD",
     )
-    return_value = agraph(nodes=nodes, edges=edges, config=config)
+    agraph(nodes=nodes, edges=edges, config=config)
 
 
 def run_query(query: str, index: str, plan_only: bool, do_trace: bool):

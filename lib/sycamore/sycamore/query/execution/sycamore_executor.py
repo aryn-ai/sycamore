@@ -16,7 +16,6 @@ from sycamore.query.operators.topk import TopK
 from structlog.contextvars import clear_contextvars, bind_contextvars
 from sycamore import Context, DocSet
 
-from sycamore.query.execution.metrics import LunaLogger
 from sycamore.query.execution.physical_operator import MathOperator
 from sycamore.query.execution.sycamore_operator import (
     SycamoreLoadData,

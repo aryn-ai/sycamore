@@ -1,17 +1,11 @@
-import json
 import pytest
-from unittest.mock import MagicMock
-from typing import Any, Optional, List, Dict, Tuple
+from typing import Optional, List
 
-from ray.data import Dataset, from_items
 from sycamore import DocSet, Context
 from sycamore.connectors.base_reader import BaseDBReader
 from sycamore.data import Document
 from sycamore.plan_nodes import Node
 from sycamore.reader import DocSetReader
-from sycamore.query.execution.sycamore_operator import SycamoreOperator
-from sycamore.query.operators.logical_operator import LogicalOperator
-from sycamore.query.execution.physical_operator import get_var_name
 
 MOCK_SCAN_NUM_DOCUMENTS = 20
 

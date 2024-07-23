@@ -1,9 +1,11 @@
-from typing import Dict, List, Optional, Self
+from typing import Any, Dict, List, Optional
 
 
 class Node:
 
-    def __init__(self, node_id: str, dependencies: List[Self] = None, downstream_nodes: List[Self] = None) -> None:
+    def __init__(
+        self, node_id: str, dependencies: Optional[List[Any]] = None, downstream_nodes: Optional[List[Any]] = None
+    ) -> None:
         super().__init__()
         self.node_id = node_id
         self.dependencies = dependencies

@@ -1,3 +1,4 @@
+from arynsdk.partition.partition import tables_to_pandas
 import pytest
 import json
 from pathlib import Path
@@ -101,3 +102,14 @@ def test_partition_it_no_api_key():
             partition_file(f, aryn_api_key="")
     assert einfo.value.response.status_code == 403
     assert einfo.value.response.json().get("detail") == "Not authenticated"
+
+
+def test_data_to_pandas():
+    with open(RESOURCE_DIR / "json" / "3m_output_ocr_table.json", "r") as f:
+        data = json.load(f)
+    elts_and_dfs = tables_to_pandas(data)
+    assert len(elts_and_dfs) == 5
+    df = elts_and_dfs[0][1]
+    assert df is not None
+    assert df.columns.to_list() == ["(Millions)", "2018", "2017", "2016"]
+    assert df["2018"][13] == "134"

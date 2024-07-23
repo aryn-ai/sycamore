@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from concurrent.futures import ProcessPoolExecutor
 from io import BytesIO, IOBase
-from typing import cast, Any, BinaryIO, List, Tuple, Union
+from typing import cast, Any, BinaryIO, List, Tuple, Union, Optional
 
 import requests
 import json
@@ -74,7 +74,7 @@ class ArynPDFPartitioner:
     ArynPartitioner class.
     """
 
-    def __init__(self, model_name_or_path=ARYN_DETR_MODEL, device=None):
+    def __init__(self, model_name_or_path, device=None, cache: Optional[Cache] = None):
         """
         Initializes the ArynPDFPartitioner and underlying DETR model.
 
@@ -86,7 +86,7 @@ class ArynPDFPartitioner:
         if model_name_or_path is None:
             self.model = None
         else:
-            self.model = DeformableDetr(model_name_or_path, device)
+            self.model = DeformableDetr(model_name_or_path, device, cache)
         self.ocr_table_reader = None
 
     @staticmethod
@@ -368,7 +368,7 @@ class ArynPDFPartitioner:
         with LogTime("all_batches"):
             for i, batch in enumerate(batches):
                 with LogTime(f"infer_one_batch {i}/{len(images) / batch_size}"):
-                    deformable_layout += self.model.infer(batch, threshold)
+                    deformable_layout += self.model.infer(batch, threshold, use_cache)
 
         if use_ocr:
             with LogTime("ocr"):
@@ -495,6 +495,7 @@ class ArynPDFPartitioner:
                 extract_table_structure=extract_table_structure,
                 table_structure_extractor=table_structure_extractor,
                 extract_images=extract_images,
+                use_cache=use_cache,
             )
             assert len(parts) == len(i)
             deformable_layout.extend(parts)
@@ -542,11 +543,12 @@ class ArynPDFPartitioner:
         extract_table_structure,
         table_structure_extractor,
         extract_images,
+        use_cache,
     ) -> Any:
         import easyocr
 
         with LogTime("infer"):
-            deformable_layout = self.model.infer(batch, threshold)
+            deformable_layout = self.model.infer(batch, threshold, use_cache)
 
         gc_tensor_dump()
         assert len(deformable_layout) == len(batch)
@@ -606,7 +608,7 @@ class SycamoreObjectDetection(ABC):
 
 
 class DeformableDetr(SycamoreObjectDetection):
-    def __init__(self, model_name_or_path, device=None):
+    def __init__(self, model_name_or_path, device=None, cache: Optional[Cache] = None):
         super().__init__()
 
         self.labels = [
@@ -626,6 +628,7 @@ class DeformableDetr(SycamoreObjectDetection):
 
         self.device = device
         self._model_name_or_path = model_name_or_path
+        self.cache = cache
 
         from transformers import AutoImageProcessor, DeformableDetrForObjectDetection
 
@@ -640,19 +643,14 @@ class DeformableDetr(SycamoreObjectDetection):
     def _get_device(self) -> str:
         return choose_device(self.device, detr=True)
 
-    def infer(self, images: List[Image.Image], threshold: float) -> List[List[Element]]:
-        results = []
-        inputs = self.processor(images=images, return_tensors="pt").to(self._get_device())
-        outputs = self.model(**inputs)
-        target_sizes = torch.tensor([image.size[::-1] for image in images])
-        results.extend(
-            self.processor.post_process_object_detection(outputs, target_sizes=target_sizes, threshold=threshold)
-        )
+    def infer(self, images: List[Image.Image], threshold: float, use_cache: bool = False) -> List[List[Element]]:
+        if use_cache and self.cache:
+            print("Checking Cache for Image to JSON")
+            results = self._get_cached_inference(images, threshold)
+        else:
+            print("Skipping Cache check for Image to JSON")
+            results = self._get_uncached_inference(images, threshold)
 
-        for result in results:
-            result["scores"] = result["scores"].tolist()
-            result["labels"] = result["labels"].tolist()
-            result["boxes"] = result["boxes"].tolist()
 
         batched_results = []
         for result, image in zip(results, images):
@@ -666,7 +664,51 @@ class DeformableDetr(SycamoreObjectDetection):
                 )
                 elements.append(element)
             batched_results.append(elements)
+            if self.cache:
+                key = Cache.get_hash_key(image.tobytes())
+                self.cache.set(key, result)
+
         return batched_results
+
+    def _get_cached_inference(self, images: List[Image.Image], threshold: float) -> list:
+        results = []
+        uncached_images = []
+        uncached_indices = []
+
+        # First, check the cache for each image
+        for index, image in enumerate(images):
+            key = Cache.get_hash_key(image.tobytes())
+            cached_image = self.cache.get(key)
+            if cached_image:
+                print("Cache hit. Returning the result from cache")
+                results.append(cached_image)
+            else:
+                uncached_images.append(image)
+                uncached_indices.append(index)
+                results.append(None)  # Placeholder for uncached image
+
+        # Process the uncached images in a batch
+        if uncached_images:
+            print("Cache Miss")
+            processed_images = self._get_uncached_inference(uncached_images, threshold)
+            # Store processed images in the cache and update the result list
+            for index, processed_img in zip(uncached_indices, processed_images):
+                results[index] = processed_img
+        return results
+
+    def _get_uncached_inference(self, images: List[Image.Image], threshold: float) -> list:
+        results = []
+        inputs = self.processor(images=images, return_tensors="pt").to(self._get_device())
+        outputs = self.model(**inputs)
+        target_sizes = torch.tensor([image.size[::-1] for image in images])
+        results.extend(
+            self.processor.post_process_object_detection(outputs, target_sizes=target_sizes, threshold=threshold)
+        )
+        for result in results:
+            result["scores"] = result["scores"].tolist()
+            result["labels"] = result["labels"].tolist()
+            result["boxes"] = result["boxes"].tolist()
+        return results
 
 
 class PDFMinerExtractor:

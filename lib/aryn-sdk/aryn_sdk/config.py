@@ -3,7 +3,6 @@ import os
 from pathlib import Path
 from typing import Optional
 import yaml
-import logging
 
 _DEFAULT_PATH = Path.home() / ".aryn" / "config.yaml"
 _ARYN_API_KEY_ENV_VAR = "ARYN_API_KEY"
@@ -24,8 +23,7 @@ class ArynConfig:
                 data = yaml.safe_load(f)
                 if "aryn_token" in data:
                     return data["aryn_token"]
-        logging.warn(
+        raise ValueError(
             f"Could not find an aryn api key. Checked the {_ARYN_API_KEY_ENV_VAR} env "
             f"var, the {self._aryn_config_path} config file, and the aryn_api_key parameter"
         )
-        return ""

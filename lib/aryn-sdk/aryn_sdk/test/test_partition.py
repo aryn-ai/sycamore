@@ -59,13 +59,19 @@ def test_partition(pdf, kwargs, response, mocker):
         response_data = json.load(f)
     resp_object = mocker.Mock()
     resp_object.status_code = 200
-    resp_object.json.return_value = response_data
+    # This seems stupid
+    resp_object.iter_lines.return_value = json.dumps(response_data, indent=2).encode("UTF-8").split(sep=b"\n")
 
     mocker.patch("requests.post").return_value = resp_object
 
     with open(pdf, "rb") as f:
-        new_response = partition_file(f, **kwargs)
-    assert new_response == response_data
+        if kwargs.get("selected_pages") == [0]:
+            with pytest.raises(ValueError) as einfo:
+                new_response = partition_file(f, **kwargs)
+            assert "Invalid page number (0)" in str(einfo.value)
+        else:
+            new_response = partition_file(f, **kwargs)
+            assert new_response == response_data
 
 
 @pytest.mark.parametrize(

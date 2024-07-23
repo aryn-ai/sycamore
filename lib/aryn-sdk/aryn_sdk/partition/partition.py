@@ -24,11 +24,10 @@ def partition_file(
     aryn_config: ArynConfig = ArynConfig(),
     threshold: Optional[float] = None,
     use_ocr: bool = False,
-    ocr_tables: bool = False,
     ocr_images: bool = False,
     extract_table_structure: bool = False,
     extract_images: bool = False,
-    selected_pages: Optional[list[int]] = None,
+    selected_pages: Optional[list[Union[list[int], int]]] = None,
     aps_url: str = APS_URL,
 ) -> dict:
     """
@@ -43,9 +42,6 @@ def partition_file(
         threshold:  value in [0.0 .. 1.0] to specify the cutoff for detecting bounding boxes.
             default: None (APS will choose)
         use_ocr: extract text using an OCR model instead of extracting embedded text in PDF.
-            default: False
-        ocr_tables: attempt to use OCR to generate a text representation of detected tables. Do not use in
-            conjunction with ``extract_table_structure``.
             default: False
         ocr_images: attempt to use OCR to generate a text representation of detected images.
             default: False
@@ -85,7 +81,6 @@ def partition_file(
         threshold=threshold,
         use_ocr=use_ocr,
         ocr_images=ocr_images,
-        ocr_tables=ocr_tables,
         extract_table_structure=extract_table_structure,
         extract_images=extract_images,
         selected_pages=selected_pages,
@@ -133,19 +128,17 @@ def partition_file(
 def _json_options(
     threshold: Optional[float] = None,
     use_ocr: bool = False,
-    ocr_tables: bool = False,
     ocr_images: bool = False,
     extract_table_structure: bool = False,
     extract_images: bool = False,
-    selected_pages: Optional[list[int]] = None,
+    selected_pages: Optional[list[Union[list[int], int]]] = None,
 ) -> str:
-    options: dict[str, Union[float, bool, list[int]]] = dict()
+    # isn't type-checking fun
+    options: dict[str, Union[float, bool, list[Union[list[int], int]]]] = dict()
     if threshold:
         options["threshold"] = threshold
     if use_ocr:
         options["use_ocr"] = use_ocr
-    if ocr_tables:
-        options["ocr_tables"] = ocr_tables
     if ocr_images:
         options["ocr_images"] = ocr_images
     if extract_images:
@@ -228,7 +221,3 @@ def tables_to_pandas(data: dict) -> list[tuple[dict, Optional[pd.DataFrame]]]:
             results.append((e, None))
 
     return results
-
-
-def add_bbox_to_pdf():
-    raise NotImplementedError("Function add_bbox_to_pdf is not implemented")

@@ -133,8 +133,13 @@ class MetadataExtractor(GraphExtractor):
             if value == "None":
                 continue
 
-            node = {"type": "metadata", "properties": {key: value}, "label": m.nodeLabel, "relationships": {}}
-            rel = {
+            node: Dict[str, Any] = {
+                "type": "metadata",
+                "properties": {key: value},
+                "label": m.nodeLabel,
+                "relationships": {},
+            }
+            rel: Dict[str, Any] = {
                 "TYPE": m.relLabel,
                 "properties": {},
                 "START_ID": str(doc.doc_id),

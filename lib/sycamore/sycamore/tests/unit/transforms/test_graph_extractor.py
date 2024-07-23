@@ -56,7 +56,7 @@ class TestGraphExtractor:
         nested_dict = defaultdict(lambda: defaultdict(list))
 
         for entry in docs:
-            if not {'label','properties','relationships'} <= entry.keys():
+            if not {"label", "properties", "relationships"} <= entry.keys():
                 continue
             label = entry["label"]
             properties = entry["properties"]

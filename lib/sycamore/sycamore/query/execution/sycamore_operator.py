@@ -21,7 +21,6 @@ from sycamore.query.execution.operations import (
     count_operation,
     llm_extract_operation,
     top_k_operation,
-    sort_operation,
 )
 from sycamore.llms import OpenAI, OpenAIModels
 from sycamore.utils.cache import S3Cache
@@ -155,6 +154,7 @@ class SycamoreLlmGenerate(SycamoreOperator):
             question=self.logical_node.data.get("question"),
             result_description=self.logical_node.data["description"],
             result_data=self.inputs[0],
+            **self.get_execute_args(),
         )
         return result
 
@@ -205,8 +205,7 @@ class SycamoreLlmFilter(SycamoreOperator):
             docset=self.inputs[0],
             filter_question=logical_node.data.get("question"),
             field=logical_node.data.get("field"),
-            filter_prompt=None,
-            system_prompt=None,
+            messages=None,
             threshold=3,
             **self.get_node_args(),
         )
@@ -385,8 +384,8 @@ class SycamoreLlmExtract(SycamoreOperator):
                 client=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(s3_cache_path) if s3_cache_path else None),
                 doc=doc,
                 question=logical_node.data.get("question"),
-                field=logical_node.data.get("field"),
                 new_field=logical_node.data.get("newField"),
+                field=logical_node.data.get("field"),
                 format=logical_node.data.get("format"),
                 discrete=logical_node.data.get("discrete"),
             ),
@@ -410,8 +409,8 @@ class SycamoreLlmExtract(SycamoreOperator):
         client=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
         doc=doc,
         question='{self.logical_node.data.get("question")}',
-        field='{self.logical_node.data.get("field")}',
         new_field='{self.logical_node.data.get("newField")}',
+        field='{self.logical_node.data.get("field")}',
         format='{self.logical_node.data.get("format")}',
         discrete='{self.logical_node.data.get("discrete")}',
     ),
@@ -443,24 +442,20 @@ class SycamoreSort(SycamoreOperator):
         # load into local vars for Ray serialization magic
         logical_node = self.logical_node
 
-        result = sort_operation(
-            docset=self.inputs[0],
-            descending=logical_node.data.get("descending"),
-            field=logical_node.data.get("field"),
-            **self.get_node_args(),
+        result = self.inputs[0].sort(
+            descending=logical_node.data.get("descending"), field=logical_node.data.get("field")
         )
+
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         result = f"""
-{output_var or get_var_name(self.logical_node)} = sort_operation(
-    docset={input_var or get_var_name(self.logical_node.dependencies[0])},
+{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(self.logical_node.dependencies[0])}.sort(
     descending={self.logical_node.data.get("descending")},
-    field='{self.logical_node.data.get("field")}',
-    **{self.get_execute_args()},
+    field='{self.logical_node.data.get("field")}'
 )
 """
-        return result, ["from sycamore.query.execution.operations import sort_operation"]
+        return result, []
 
 
 class SycamoreTopK(SycamoreOperator):

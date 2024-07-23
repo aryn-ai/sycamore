@@ -71,6 +71,7 @@ def test_llm_generate():
             question=logical_node.data.get("question"),
             result_description=logical_node.data.get("description"),
             result_data=load_node,
+            **sycamore_operator.get_execute_args(),
         )
 
 
@@ -94,8 +95,7 @@ def test_llm_filter():
             docset=doc_set,
             filter_question=logical_node.data.get("question"),
             field=logical_node.data.get("field"),
-            filter_prompt=None,
-            system_prompt=None,
+            messages=None,
             threshold=3,
             name=logical_node.node_id,
         )
@@ -154,23 +154,18 @@ def test_llm_extract():
 
 
 def test_sort():
-    with patch("sycamore.query.execution.sycamore_operator.sort_operation") as mock_impl:
-        # Define the mock return value
-        mock_impl.return_value = "success"
+    context = sycamore.init()
+    doc_set = Mock(spec=DocSet)
+    return_doc_set = Mock(spec=DocSet)
+    doc_set.sort.return_value = return_doc_set
+    logical_node = Sort("node_id", {"descending": True, "field": "properties.counter", "id": 0})
+    sycamore_operator = SycamoreSort(context, logical_node, query_id="test", inputs=[doc_set])
+    result = sycamore_operator.execute()
 
-        doc_set = Mock(spec=DocSet)
-        context = sycamore.init()
-        logical_node = Sort("node_id", {"descending": True, "field": "name", "id": 0})
-        sycamore_operator = SycamoreSort(context, logical_node, query_id="test", inputs=[doc_set])
-        result = sycamore_operator.execute()
-
-        assert result == "success"
-        mock_impl.assert_called_once_with(
-            docset=doc_set,
-            descending=logical_node.data.get("descending"),
-            field=logical_node.data.get("field"),
-            **sycamore_operator.get_node_args(),
-        )
+    doc_set.sort.assert_called_once_with(
+        descending=logical_node.data.get("descending"), field=logical_node.data.get("field")
+    )
+    assert result == return_doc_set
 
 
 def test_top_k():

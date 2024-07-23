@@ -1,6 +1,5 @@
 import json
 
-import ray
 from sycamore import DocSet, Execution
 from sycamore.data import Document, MetadataDocument
 from sycamore.llms.openai import OpenAI
@@ -70,10 +69,9 @@ def threshold_filter(doc: Document, threshold) -> bool:
 def llm_filter_operation(
     client: OpenAI,
     docset: DocSet,
-    filter_question: str,
+    filter_question: Optional[str] = None,
     field: Optional[str] = None,
-    filter_prompt: Optional[str] = None,
-    system_prompt: Optional[str] = None,
+    messages: Optional[List[dict]] = None,
     threshold: int = 3,
     **resource_args,
 ) -> bool:
@@ -89,31 +87,31 @@ def llm_filter_operation(
     - system_prompt: Custom prompt to the system
     - threshold: Threshold for success, e.g. 3 (default scale is 0-5)
     """
+    if filter_question is None and messages is None:
+        raise Exception("Filter question must be specified for default value of messages.")
+
     if field is None:
         field = "text_representation"
 
-    if system_prompt is None:
-        system_prompt = "You are a helpful classifier that generously filters database entries based on questions."
-
-    if filter_prompt is None:
-        filter_prompt = f"""Given an entry and a question, you will answer the question relating to the entry. 
-                You only respond with 0, 1, 2, 3, 4, or 5 based on your confidence level. 0 is the most negative 
-                answer and 5 is the most positive answer. Question: {filter_question}; """
-
-    # sets prompt
-    messages = [
-        {
-            "role": "system",
-            "content": system_prompt,
-        },
-        {
-            "role": "user",
-            "content": filter_prompt,
-        },
-    ]
+    if messages is None:
+        # sets prompt
+        messages = [
+            {
+                "role": "system",
+                "content": "You are a helpful classifier that generously filters database entries based on questions.",
+            },
+            {
+                "role": "user",
+                "content": f"""Given an entry and a question, you will answer the question relating to the entry. 
+                    You only respond with 0, 1, 2, 3, 4, or 5 based on your confidence level. 0 is the most negative 
+                    answer and 5 is the most positive answer. Question: {filter_question}; Entry: """,
+            },
+        ]
 
     docset = docset.map(
-        lambda doc: llm_extract_operation(client, doc, None, field, "LlmFilterOutput", None, None, messages)
+        lambda doc: llm_extract_operation(
+            client=client, doc=doc, new_field="LlmFilterOutput", field=field, messages=messages
+        )
     )
     docset = docset.filter(lambda doc: threshold_filter(doc, threshold), **resource_args)
 
@@ -205,11 +203,11 @@ def range_filter_operation(doc: Document, field: str, start: any = None, end: an
 def llm_extract_operation(
     client: OpenAI,
     doc: Document,
-    question: str,
-    field: str,
     new_field: str,
-    format: str,
-    discrete: bool,
+    field: Optional[str] = None,
+    question: Optional[str] = None,
+    format: Optional[str] = None,
+    discrete: Optional[bool] = None,
     messages: Optional[List[dict]] = None,
 ) -> Document:
     """This operation adds a new property to your Docset based on a question to the LLM
@@ -222,6 +220,12 @@ def llm_extract_operation(
     - new_field: The new database field created with the extracted entity (in properties)
     - (optional) model: OpenAI model to use, e.g. "gpt-4o"
     """
+
+    if messages is None and (question is None or format is None or discrete is None):
+        raise Exception('"question", "format", and "discrete" must be specified for default messages')
+
+    if field is None:
+        field = "text_representation"
 
     value = field_to_value(doc, field)
 
@@ -268,7 +272,7 @@ def llm_extract_operation(
         messages.append(
             {
                 "role": "user",
-                "content": f"""Here is value of the database field you will use: {value}.""",
+                "content": f"{value}",
             }
         )
 
@@ -337,12 +341,10 @@ def math_operation(val1: int, val2: int, operator: str) -> int | float:
 ######################################################################################################################################
 # USAGE EXAMPLE
 # operations.llm_generate_operation("database of airplane incidents (NTSB)", "How many incidents occurred between 1/1/2022 and 1/20/2022?", 13)
-def llm_generate_operation(
-    client: OpenAI, question: str, result_description: str, result_data: Any, topic: str = "database entries"
-) -> str:
+def llm_generate_operation(client: OpenAI, question: str, result_description: str, result_data: Any, **kwargs) -> str:
     if isinstance(result_data, DocSet):
         text = f"Description: {result_description}\n"
-        for doc in result_data.take():
+        for doc in result_data.take(**kwargs):
             text += "\n"
             if "entity" in doc.properties:
                 text += "Details: " + json.dumps(doc.properties["entity"], indent=2) + "\n"
@@ -356,11 +358,6 @@ def llm_generate_operation(
             if doc.text_representation:
                 text += doc.text_representation
             text += "\n"
-
-    elif isinstance(result_data, dict):
-        text = """You are given a dictionary. The keys are unique values for the field 
-        specified, the values are their corresponding counts.\n"""
-        text += json.dumps(result_data, indent=2)
     else:
         text = str(result_data)
     """Generates a conversational English response to a question, given a topic and answer."""
@@ -369,11 +366,11 @@ def llm_generate_operation(
     messages = [
         {
             "role": "system",
-            "content": f"You are a helpful conversational English response generator for queries regarding {topic}.",
+            "content": f"You are a helpful conversational English response generator for queries regarding database entries.",
         },
         {
             "role": "user",
-            "content": f"""The following question and answer are in regards to {topic}. Respond ONLY with
+            "content": f"""The following question and answer are in regards to database entries. Respond ONLY with
                 a conversational English response WITH JUSTIFICATION to the question \"{question}\" given the answer \"{text}\". Include as
                 much detail/evidence as possible""",
         },
@@ -388,10 +385,6 @@ def llm_generate_operation(
 
 
 ######################################################################################################################################
-
-
-def sort_operation(docset: DocSet, descending: bool, field: str, **kwargs) -> DocSet:
-    return DocSet(docset.context, Sort(docset.plan, descending, field))
 
 
 def count_aggregate_operation(docset: DocSet, field, unique_field, **kwargs) -> DocSet:
@@ -421,77 +414,50 @@ def top_k_operation(
     docset = count_aggregate_operation(docset, field, unique_field, **kwargs)
 
     # the names of the fields being "key" and "count" could cause problems down the line?
-    docset = sort_operation(docset, descending, "properties.count")
+    # uses 0 as default value -> end of docset
+    docset = docset.sort(descending, "properties.count", 0)
     docset = docset.limit(k)
     return docset
+
+
+sc_form_groups_prompt = """You are given a list of values corresponding to the database field "{field}". Categorize the occurrences of "{field}" and create relevant non-overlapping group. Return ONLY JSON with the various categorized groups of "{field}" that can be used to determine the answer to the following question "{description}", so form groups accordingly. Return your answer in the following JSON format and check your work: {{"groups": ["string"]}}. For example, if the question is "What are the most common types of food in this dataset?" and the values are "banana, milk, yogurt, chocolate, oranges", you would return something like {{"groups": ['fruit', 'dairy', 'dessert', 'other]}}. Form groups to encompass as many entries as possible and don't create multiple groups with the same meaning. Here is the list values corresponding to "{field}": "{text}"."""
+
+sc_assign_groups_prompt = """Categorize the database entry you are given corresponding to "{field}" into one of the following groups: "{groups}". Perform your best work to assign the group. Return ONLY the string corresponding to the selected group. Here is the database entry you will use: """
 
 
 def semantic_cluster(client: OpenAI, docset: DocSet, description: str, field: str) -> DocSet:
 
     text = ""
-    counter = 0
-    for doc in docset.take_all():
-        text += f"Document {counter}: "
-        text += field_to_value(doc, field) + "\n"
-        counter += 1
-
-    # print(text)
+    for i, doc in enumerate(docset.take_all()):
+        if i != 0:
+            text += ", "
+        text += field_to_value(doc, field)
 
     # sets message
     messages = [
         {
-            "role": "system",
-            "content": f"""You are given a list of documents and a corresponding field "{field}". 
-                CATEGORIZE the occurrences of {field} and create relevant non-overlapping GROUPS. Return ONLY 
-                json with the various categorized GROUPS of {field} that can be used to 
-                determine the answer to the following question "{description}", so form
-                GROUPS accordingly.""",
-        },
-        {
             "role": "user",
-            "content": """Return your answer in the following JSON format and check your work:
-                {
-                    "groups": ["string"]
-                }
-                e.g. if the question is "what are the most common types of food in this dataset?"
-                and values are "doc 1: banana, doc 2: milk, doc 3: yogurt, doc 4: chocolate, doc 5: oranges", you would
-                return something like {"groups": ['fruit', 'dairy', 'dessert', 'other]}. Form groups to encompass as many entries
-                as possible and don't create multiple groups with the same meaning.  
-
-                """,
-        },
-        {"role": "user", "content": f"""Here is the list of documents and a corresponding field "{field}": {text}"""},
+            "content": sc_form_groups_prompt.format(field=field, description=description, text=text),
+        }
     ]
 
-    # print(messages)
     prompt_kwargs = {"messages": messages}
 
     # call to LLM
     completion = client.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0})
 
-    # Uncomment for debugging
-    # print(completion)
-
     groups = extract_json(completion)
 
     assert type(groups) == dict
-    # print("GROUPS", groups['groups'])
 
     messagesForExtract = [
-        {
-            "role": "system",
-            "content": f"""Categorize the database entry you are given corresponding to {field} into one of the following groups: {groups['groups']}.
-            Perform your best work to assign the group""",
-        },
-        {
-            "role": "user",
-            "content": """Return ONLY the string corresponding to the selected group.
-                """,
-        },
+        {"role": "user", "content": sc_assign_groups_prompt.format(field=field, groups=groups["groups"])}
     ]
 
     docset = docset.map(
-        lambda doc: llm_extract_operation(client, doc, None, field, "ClusterAssignment", None, True, messagesForExtract)
+        lambda doc: llm_extract_operation(
+            client=client, doc=doc, new_field="ClusterAssignment", field=field, messages=messagesForExtract
+        )
     )
 
     # LLM response
@@ -499,47 +465,6 @@ def semantic_cluster(client: OpenAI, docset: DocSet, description: str, field: st
 
 
 ############## NODES ################
-
-
-def make_map_fn_sort(field: str, default_val: Any):
-    def ray_callable(input_dict: dict[str, Any]) -> dict[str, Any]:
-        doc = Document.from_row(input_dict)
-
-        try:
-            val = field_to_value(doc, field)
-        except:
-            val = default_val
-
-        # updates row to include new col
-        new_doc = doc.to_row()
-        new_doc["key"] = val
-
-        return new_doc
-
-    return ray_callable
-
-
-class Sort(Transform):
-    """
-    Sort function that allows you to sort by field in doc.properties
-    """
-
-    def __init__(self, child: Node, descending: bool, field: str):
-        super().__init__(child)
-        self._descending = descending
-        self._field = field
-
-    def execute(self, **kwargs) -> "Dataset":
-        # creates dataset
-        ds = self.child().execute(**kwargs)
-
-        # adds a "key" column containing desired field
-        map_fn = make_map_fn_sort(self._field, None)
-        ds = ds.map(map_fn)
-
-        # sorts the dataset
-        ds = ds.sort("key", descending=self._descending)
-        return ds
 
 
 def make_map_fn_count(field: str, default_val: Any, unique_field: Optional[str] = None):

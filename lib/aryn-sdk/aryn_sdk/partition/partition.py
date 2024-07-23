@@ -2,6 +2,7 @@ from typing import BinaryIO, Optional, Union
 from collections.abc import Mapping
 from aryn_sdk.config import ArynConfig
 import requests
+import sys
 import json
 import logging
 import pandas as pd
@@ -11,6 +12,10 @@ from collections import OrderedDict
 
 # URL for Aryn Partitioning Service (APS)
 APS_URL = "https://api.aryn.cloud/v1/document/partition"
+
+_logger = logging.getLogger(__name__)
+_logger.setLevel(logging.INFO)
+_logger.addHandler(logging.StreamHandler(sys.stderr))
 
 
 def partition_file(
@@ -86,18 +91,43 @@ def partition_file(
         selected_pages=selected_pages,
     )
 
-    logging.debug(f"{options_str}")
+    _logger.debug(f"{options_str}")
 
     files: Mapping = {"options": options_str.encode("utf-8"), "pdf": file}
     http_header = {"Authorization": "Bearer {}".format(aryn_config.api_key())}
     resp = requests.post(aps_url, files=files, headers=http_header)
+    lines = []
+    in_status = False
+    for line in resp.iter_lines():
+        if line:
+            lines.append(line)
+            if line.startswith(b'  "status"'):
+                in_status = True
+            if not in_status:
+                continue
+            if line.startswith(b"  ],"):
+                in_status = False
+                continue
+            if line.startswith(b'    "T+'):
+                t = json.loads(line.decode("utf-8").removesuffix(","))
+                _logger.info(
+                    f"ArynPartitioner: {t}",
+                )
+    body = b"".join(lines).decode("utf-8")
+    _logger.debug("ArynPartitioner Recieved data")
 
     if resp.status_code != 200:
         raise requests.exceptions.HTTPError(
             f"Error: status_code: {resp.status_code}, reason: {resp.text}", response=resp
         )
 
-    return resp.json()
+    data = json.loads(body)
+    assert isinstance(data, dict)
+    status = data.get("status", [])
+    if "error" in data:
+        raise ValueError(f"Error partway through processing: {data['error']}\nPartial Status:\n{status}")
+
+    return data
 
 
 def _json_options(

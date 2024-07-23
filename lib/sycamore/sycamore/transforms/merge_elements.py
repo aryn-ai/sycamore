@@ -136,13 +136,17 @@ class GreedyTextElementMerger(ElementMerger):
         return new_elt
 
 class GreedySectionMerger(ElementMerger):
-    def __init__(self, merge_across_pages: bool = True):
+    def __init__(self, tokenizer: Tokenizer, max_tokens: int, merge_across_pages: bool = True):
+        self.tokenizer = tokenizer
+        self.max_tokens = max_tokens
         self.merge_across_pages = merge_across_pages
 
     def preprocess_element(self, element: Element) -> Element:
+        element.data["token_count"] = len(self.tokenizer.tokenize(element.text_representation or ""))
         return element
 
     def postprocess_element(self, element: Element) -> Element:
+        del element.data["token_count"]
         return element
 
     def should_merge(self, element1: Element, element2: Element) -> bool:
@@ -151,6 +155,9 @@ class GreedySectionMerger(ElementMerger):
         if not self.merge_across_pages and element1.properties["page_number"] != element2.properties["page_number"]:
             return False
 
+        if element1.data["token_count"] + 1 + element2.data["token_count"] > self.max_tokens:
+            return False
+        
         # MERGE adjacent 'text' elements (but not across pages - see above)
         if ((element1 != None) and (element1.type == 'Text') and 
             (element2 != None) and (element2.type == 'Text')):
@@ -184,7 +191,9 @@ class GreedySectionMerger(ElementMerger):
         Returns:
             Tuple[Element, int]: a new merged element from the inputs (and number of tokens in it)
         """
-
+        
+        tok1 = elt1.data["token_count"]
+        tok2 = elt2.data["token_count"]
         new_elt = Element()
         # 'text' + 'text' = 'text'
         # 'image' + 'text' = 'image+text'
@@ -209,19 +218,25 @@ class GreedySectionMerger(ElementMerger):
         # Merge text representations by concatenation with a newline
         if elt1.text_representation is None or elt2.text_representation is None:
             new_elt.text_representation = elt1.text_representation or elt2.text_representation
+            new_elt.data["token_count"] = max(tok1, tok2)
+
         else:
             if new_elt.type == "Image+Text":
                 # text rep = summary(image) + text
                 new_elt.text_representation = elt1.properties['summary']['summary'] + "\n" + elt2.text_representation
+
             elif new_elt.type == "Section-header+table":
                 # text rep = header text + table html
                 if elt2.table:
                     new_elt.text_representation = elt1.text_representation + "\n" + elt2.table.to_html()
+                    new_elt.data["token_count"] = tok1 + 1 + tok2
                 else:
                     new_elt.text_representation = elt1.text_representation
+                    new_elt.data["token_count"] = tok1
             else:
                 # text + text   
                 new_elt.text_representation = elt1.text_representation + "\n" + elt2.text_representation
+                new_elt.data["token_count"] = tok1 + 1 + tok2
 
         # Merge bbox by taking the coords that make the largest box
         if elt1.bbox is None and elt2.bbox is None:

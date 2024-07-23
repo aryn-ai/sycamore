@@ -1,6 +1,6 @@
 from typing import BinaryIO, Optional, Union
 from collections.abc import Mapping
-from arynsdk.config import ArynConfig
+from aryn_sdk.config import ArynConfig
 import requests
 import json
 import logging

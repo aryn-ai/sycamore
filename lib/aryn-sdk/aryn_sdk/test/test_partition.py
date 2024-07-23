@@ -1,9 +1,9 @@
-from arynsdk.partition.partition import tables_to_pandas
+from aryn_sdk.partition.partition import tables_to_pandas
 import pytest
 import json
 from pathlib import Path
 
-from arynsdk.partition import partition_file
+from aryn_sdk.partition import partition_file
 from requests.exceptions import HTTPError
 
 RESOURCE_DIR = Path(__file__).parent / "resources"

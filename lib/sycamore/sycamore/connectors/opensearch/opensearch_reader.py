@@ -66,12 +66,9 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
         assert isinstance(self, OpenSearchReaderQueryResponse)
         result = []
         for data in self.output:
-            doc_id = data["_id"]
             doc = Document(
                 {
-                    "doc_id": doc_id,
-                    "embedding": data["_source"].get("embeddings"),
-                    **data["_source"].get("properties", {}),
+                    **data.get("_source", {}),
                 }
             )
             result.append(doc)

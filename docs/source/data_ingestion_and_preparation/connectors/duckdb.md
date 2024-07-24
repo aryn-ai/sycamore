@@ -23,7 +23,7 @@ To write a Docset to a DuckDB database table from Sycamore, use the DocSet `.wri
 - table_name: The chosen table for the documents. Note that if the table already exists, its schema will be validated to ensure writes can happen successfully. The default value is set to `default_table`.
 - batch_size: Specifies the file batch size (multiplied by 1024) while entering entries into DuckDB. The default value is set to `1000`.
 - schema: Specifies the schema of the table to enter entries. Note that the entries must be compatible with the underlying PyArrow representation otherwise an error will be thrown. The default value is given below:
-```
+```python
     schema: Optional[Dict[str, str]] = field(
         default_factory=lambda: {
             "doc_id": "VARCHAR",
@@ -40,7 +40,7 @@ To write a Docset to a DuckDB database table from Sycamore, use the DocSet `.wri
 
 To use the writer, call write at the end of a Sycamore pipeline as done below:
 
-```
+```python
 ds.write.duckdb(table_name=table_name, db_url=db_url)
 ```
 
@@ -48,11 +48,21 @@ Note that the writer forces execution of all transforms before it, so would norm
 
 ## Reading from DuckDB
 
-Reading from the DuckDB takes in only the `db_url` and `table_name` arguments, with the same specification and defaults as above. To read from a DuckDB table into a Sycamore DocSet, use the following code:
+Reading from a DuckDB table takes in the `db_url` and `table_name` arguments, with the same specification and defaults as above. It also takes in the arguments below:
 
-```
+- create_hnsw_table: (Optional) SQL query to add an HNSW index to DuckDB before conducting a read.
+- query: (Optional) SQL query to read from the table. If not specified, the read will perform a full scan of the table
+
+
+To read from a DuckDB table into a Sycamore DocSet, use the following code:
+
+```python
 ctx = sycamore.init()
-ctx.read.duckdb(db_url=db_url, table_name=table_name)
+table_name = "duckdb_table"
+db_url = "tmp_read.db"  
+target_doc_id = "target"
+query = f"SELECT * from {table_name} WHERE doc_id == '{target_doc_id}'"
+query_docs = ctx.read.duckdb(db_url=db_url, table_name=table_name, query=query).take_all()
 ```
 
 More information can be found in the {doc}`API documentation </APIs/data_preparation/docsetreader>`.

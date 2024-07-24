@@ -11,9 +11,11 @@ from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.augment_text import TextAugmentor
 from sycamore.transforms.embed import Embedder
 from sycamore.transforms.extract_entity import EntityExtractor
+from sycamore.transforms.extract_graph import GraphExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
 from sycamore.transforms.partition import Partitioner
 from sycamore.transforms.summarize import Summarizer
+from sycamore.transforms.llm_query import LLMTextQueryAgent
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.merge_elements import ElementMerger
 from sycamore.writer import DocSetWriter
@@ -481,6 +483,35 @@ class DocSet:
         schema = ExtractBatchSchema(self.plan, schema_extractor=schema_extractor)
         return DocSet(self.context, schema)
 
+    def extract_graph_structure(self, extractors: list[GraphExtractor], **kwargs) -> "DocSet":
+        """
+        Extracts metadata from documents into a format that sets up resulting docset to be loaded into neo4j
+
+        Args:
+            extractors: A list of GraphExtractor objects which determine what is extracted from the docset
+
+        Example:
+            .. code-block:: python
+
+                metadata = [GraphMetadata(nodeKey='company',nodeLabel='Company',relLabel='FILED_BY'),
+                GraphMetadata(nodeKey='gics_sector',nodeLabel='Sector',relLabel='IN_SECTOR'),
+                GraphMetadata(nodeKey='doc_type',nodeLabel='Document Type',relLabel='IS_TYPE'),
+                GraphMetadata(nodeKey='doc_period',nodeLabel='Year',relLabel='FILED_DURING'),
+                ]
+
+                ds = (
+                    ctx.read.manifest(metadata_provider=JsonManifestMetadataProvider(manifest),...)
+                    .partition(partitioner=SycamorePartitioner(...), num_gpus=0.1)
+                    .extract_graph_structure(extractors=[MetadataExtractor(metadata=metadata)])
+                    .explode()
+                )
+        """
+        docset = self
+        for extractor in extractors:
+            docset = extractor.extract(self)
+
+        return docset
+
     def extract_properties(self, property_extractor: PropertyExtractor, **kwargs) -> "DocSet":
         """
         Extracts properties from each Document in this DocSet based on the `_schema` property.
@@ -840,6 +871,39 @@ class DocSet:
 
         query = Query(self.plan, query_executor, **resource_args)
         return DocSet(self.context, query)
+
+    def sort(self, descending: bool, field: str, default_val: Optional[Any] = None) -> "DocSet":
+        """
+        Sort DocSet by specified field.
+
+        Args:
+            descending: Whether or not to sort in descending order (first to last).
+            field: Document field in relation to Document using dotted notation, e.g. properties.filetype
+            default_val: Default value to use if field does not exist in Document
+        """
+        from sycamore.transforms import Sort
+
+        return DocSet(self.context, Sort(self.plan, descending, field, default_val))
+
+    def llm_query(self, query_agent: LLMTextQueryAgent, **kwargs) -> "DocSet":
+        """
+        Executes an LLM Query on a specified field (element or document), and returns the response
+
+        Example:
+            .. code-block:: python
+
+                prompt="Tell me the important numbers from this element"
+                llm_query_agent = LLMElementTextSummarizer(prompt=prompt)
+
+                context = sycamore.init()
+                pdf_docset = context.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=UnstructuredPdfPartitioner())
+                    .llm_query(query_agent=llm_query_agent)
+        """
+        from sycamore.transforms import LLMQuery
+
+        queries = LLMQuery(self.plan, query_agent=query_agent, **kwargs)
+        return DocSet(self.context, queries)
 
     @property
     def write(self) -> DocSetWriter:

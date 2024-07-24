@@ -252,7 +252,7 @@ class DocSetWriter:
             WeaviateDocumentWriter,
             WeaviateCrossReferenceWriter,
             WeaviateClientParams,
-            WeaviateTargetParams,
+            WeaviateWriterTargetParams,
         )
         from sycamore.connectors.weaviate.weaviate_writer import CollectionConfigCreate
 
@@ -265,7 +265,7 @@ class DocSetWriter:
             collection_config_object = CollectionConfigCreate(**collection_config)
         else:
             collection_config_object = CollectionConfigCreate(name=collection_name, **collection_config)
-        target_params = WeaviateTargetParams(
+        target_params = WeaviateWriterTargetParams(
             name=collection_name, collection_config=collection_config_object, flatten_properties=flatten_properties
         )
 
@@ -393,7 +393,7 @@ class DocSetWriter:
 
         Args:
             dimensions: The dimensions of the embeddings of each vector (required paramater)
-            db_url: The URL of the DuckDB database. If not provided, the database will be in-memory.
+            db_url: The URL of the DuckDB database.
             table_name: The table name to write the data to when possible
             batch_size: The file batch size when loading entries into the DuckDB database table
             schema: Defines the schema of the table to enter entries
@@ -412,7 +412,7 @@ class DocSetWriter:
                 OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
                 tokenizer = HuggingFaceTokenizer(model_name)
 
-                ctx = sycamore.init(ray_args={"runtime_env": {"worker_process_setup_hook": ray_logging_setup}})
+                ctx = sycamore.init()
 
                 ds = (
                     ctx.read.binary(paths, binary_format="pdf")
@@ -426,8 +426,6 @@ class DocSetWriter:
                     .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
                 )
                 ds.write.duckdb(table_name=table_name, db_url=db_url)
-                conn = duckdb.connect(database=db_url)
-                duckdb_read = conn.execute(f"SELECT * FROM {table_name}")
         """
         from sycamore.connectors.duckdb.duckdb_writer import (
             DuckDBWriter,
@@ -477,11 +475,12 @@ class DocSetWriter:
         execute: bool = True,
         **kwargs,
     ) -> Optional["DocSet"]:
-        """Writes the content of the DocSet into the specified Elasticsearch Cloud index.
+        """Writes the content of the DocSet into the specified Elasticsearch index.
 
         Args:
             url: Connection endpoint for the Elasticsearch instance. Note that this must be paired with the
                 necessary client arguments below
+            index_name: Index name to write to in the Elasticsearch instance
             es_client_args: Authentication arguments to be specified (if needed). See more information at
                 https://elasticsearch-py.readthedocs.io/en/v8.14.0/api/elasticsearch.html
             wait_for_completion: Whether to wait for completion of the write before proceeding with next steps.

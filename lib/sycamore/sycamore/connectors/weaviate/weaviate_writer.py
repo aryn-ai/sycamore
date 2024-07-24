@@ -13,7 +13,7 @@ from weaviate.client import (
     EmbeddedOptions,
     UnexpectedStatusCodeError,
 )
-from weaviate.client import WeaviateClient as _WeaviateClient
+from weaviate.client import WeaviateClient
 from weaviate.collections.classes.config import (
     _CollectionConfigCreate,
     CollectionConfig,
@@ -37,13 +37,13 @@ CollectionConfigCreate: TypeAlias = _CollectionConfigCreate
 
 
 @dataclass
-class WeaviateTargetParams(BaseDBWriter.TargetParams):
+class WeaviateWriterTargetParams(BaseDBWriter.TargetParams):
     name: str
     collection_config: Union[CollectionConfigCreate, CollectionConfig]
     flatten_properties: bool = False
 
     def compatible_with(self, other: BaseDBWriter.TargetParams) -> bool:
-        if not isinstance(other, WeaviateTargetParams):
+        if not isinstance(other, WeaviateWriterTargetParams):
             return False
         if self.name != other.name:
             return False
@@ -86,18 +86,18 @@ class WeaviateTargetParams(BaseDBWriter.TargetParams):
         return s + "\n".join(f"{k: <80}{v}" for k, v in my_flat_dict.items())
 
 
-class WeaviateClient(BaseDBWriter.Client):
-    def __init__(self, client: _WeaviateClient):
+class WeaviateWriterClient(BaseDBWriter.Client):
+    def __init__(self, client: WeaviateClient):
         self._client = client
 
     @classmethod
-    def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "WeaviateClient":
+    def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "WeaviateWriterClient":
         assert isinstance(params, WeaviateClientParams)
-        client = _WeaviateClient(**asdict(params))
-        return WeaviateClient(client)
+        client = WeaviateClient(**asdict(params))
+        return WeaviateWriterClient(client)
 
     def write_many_records(self, records: list[BaseDBWriter.Record], target_params: BaseDBWriter.TargetParams):
-        assert isinstance(target_params, WeaviateTargetParams)
+        assert isinstance(target_params, WeaviateWriterTargetParams)
         assert _narrow_list_of_doc_records(records), f"Found a bad record in {records}"
         with self._client:
             with self._client.collections.get(target_params.name).batch.dynamic() as batch:
@@ -108,7 +108,7 @@ class WeaviateClient(BaseDBWriter.Client):
                         batch.add_object(properties=r.properties, uuid=r.uuid)
 
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
-        assert isinstance(target_params, WeaviateTargetParams)
+        assert isinstance(target_params, WeaviateWriterTargetParams)
         try:
             with self._client:
                 if isinstance(target_params.collection_config, CollectionConfig):
@@ -134,25 +134,25 @@ class WeaviateClient(BaseDBWriter.Client):
                 return
             raise e
 
-    def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> "WeaviateTargetParams":
-        assert isinstance(target_params, WeaviateTargetParams)
+    def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> "WeaviateWriterTargetParams":
+        assert isinstance(target_params, WeaviateWriterTargetParams)
         with self._client:
             collection = self._client.collections.get(target_params.name)
             ccfg = collection.config.get(simple=False)
-            return WeaviateTargetParams(
+            return WeaviateWriterTargetParams(
                 name=target_params.name, collection_config=ccfg, flatten_properties=target_params.flatten_properties
             )
 
 
-class WeaviateCrossReferenceClient(WeaviateClient):
+class WeaviateCrossReferenceClient(WeaviateWriterClient):
     @classmethod
     def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "WeaviateCrossReferenceClient":
         assert isinstance(params, WeaviateClientParams)
-        client = _WeaviateClient(**asdict(params))
+        client = WeaviateClient(**asdict(params))
         return WeaviateCrossReferenceClient(client)
 
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
-        assert isinstance(target_params, WeaviateTargetParams)
+        assert isinstance(target_params, WeaviateWriterTargetParams)
         with self._client:
             try:
                 collection = self._client.collections.get(target_params.name)
@@ -165,7 +165,7 @@ class WeaviateCrossReferenceClient(WeaviateClient):
                 raise e
 
     def write_many_records(self, records: list[BaseDBWriter.Record], target_params: BaseDBWriter.TargetParams):
-        assert isinstance(target_params, WeaviateTargetParams)
+        assert isinstance(target_params, WeaviateWriterTargetParams)
         assert _narrow_list_of_cr_records(records)
         with self._client:
             with self._client.collections.get(target_params.name).batch.dynamic() as batch:
@@ -175,14 +175,14 @@ class WeaviateCrossReferenceClient(WeaviateClient):
 
 
 @dataclass
-class WeaviateDocumentRecord(BaseDBWriter.Record):
+class WeaviateWriterDocumentRecord(BaseDBWriter.Record):
     uuid: str
     properties: dict
     vector: Optional[dict[str, list[float]]] = None
 
     @classmethod
-    def from_doc(cls, document: Document, target_params: BaseDBWriter.TargetParams) -> "WeaviateDocumentRecord":
-        assert isinstance(target_params, WeaviateTargetParams)
+    def from_doc(cls, document: Document, target_params: BaseDBWriter.TargetParams) -> "WeaviateWriterDocumentRecord":
+        assert isinstance(target_params, WeaviateWriterTargetParams)
         uuid = document.doc_id
         if uuid is None:
             raise ValueError(f"Cannot write documents without a doc_id. Found {document}")
@@ -201,13 +201,13 @@ class WeaviateDocumentRecord(BaseDBWriter.Record):
         assert isinstance(droperties, dict)
         embedding = document.embedding
         if embedding is not None:
-            return WeaviateDocumentRecord(uuid=uuid, properties=droperties, vector={"embedding": embedding})
+            return WeaviateWriterDocumentRecord(uuid=uuid, properties=droperties, vector={"embedding": embedding})
         else:
-            return WeaviateDocumentRecord(uuid=uuid, properties=droperties)
+            return WeaviateWriterDocumentRecord(uuid=uuid, properties=droperties)
 
 
-def _narrow_list_of_doc_records(records: list[BaseDBWriter.Record]) -> TypeGuard[list[WeaviateDocumentRecord]]:
-    return all(isinstance(r, WeaviateDocumentRecord) for r in records)
+def _narrow_list_of_doc_records(records: list[BaseDBWriter.Record]) -> TypeGuard[list[WeaviateWriterDocumentRecord]]:
+    return all(isinstance(r, WeaviateWriterDocumentRecord) for r in records)
 
 
 @dataclass
@@ -218,7 +218,7 @@ class WeaviateCrossReferenceRecord(BaseDBWriter.Record):
 
     @classmethod
     def from_doc(cls, document: Document, target_params: BaseDBWriter.TargetParams) -> "WeaviateCrossReferenceRecord":
-        assert isinstance(target_params, WeaviateTargetParams)
+        assert isinstance(target_params, WeaviateWriterTargetParams)
         from_uuid = document.doc_id
         assert from_uuid is not None, f"Found a document with no doc_id: {document}"
         to_uuid = document.parent_id
@@ -231,14 +231,14 @@ def _narrow_list_of_cr_records(records: list[BaseDBWriter.Record]) -> TypeGuard[
 
 
 class WeaviateDocumentWriter(BaseDBWriter):
-    Client = WeaviateClient
-    Record = WeaviateDocumentRecord
+    Client = WeaviateWriterClient
+    Record = WeaviateWriterDocumentRecord
     ClientParams = WeaviateClientParams
-    TargetParams = WeaviateTargetParams
+    TargetParams = WeaviateWriterTargetParams
 
 
 class WeaviateCrossReferenceWriter(BaseDBWriter):
     Client = WeaviateCrossReferenceClient
     Record = WeaviateCrossReferenceRecord
     ClientParams = WeaviateClientParams
-    TargetParams = WeaviateTargetParams
+    TargetParams = WeaviateWriterTargetParams

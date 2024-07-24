@@ -7,6 +7,8 @@ import boto3
 import diskcache
 from botocore.exceptions import ClientError
 
+BLOCK_SIZE = 65536
+
 
 class Cache:
     def get(self, hash_key: str):
@@ -16,10 +18,24 @@ class Cache:
         pass
 
     @staticmethod
-    def get_hash_key(data: bytes) -> str:
+    def get_hash_bytes(data: bytes) -> hashlib.sha256:
         hash_sha256 = hashlib.sha256()
         hash_sha256.update(data)
-        return hash_sha256.hexdigest()
+        return hash_sha256
+
+    @staticmethod
+    def get_hash_file(file_path: str) -> hashlib.sha256:
+        sha = hashlib.sha256()
+        with open(file_path, "rb") as file:
+            file_buffer = file.read(BLOCK_SIZE)
+            while len(file_buffer) > 0:
+                sha.update(file_buffer)
+                file_buffer = file.read(BLOCK_SIZE)
+        return sha
+
+    @staticmethod
+    def update_hash(existing_hash: hashlib.sha256, new_content: Any) -> hashlib.sha256:
+        return existing_hash.update(new_content)
 
 
 class DiskCache(Cache):

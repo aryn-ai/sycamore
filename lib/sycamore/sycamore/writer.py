@@ -393,7 +393,7 @@ class DocSetWriter:
 
         Args:
             dimensions: The dimensions of the embeddings of each vector (required paramater)
-            db_url: The URL of the DuckDB database. If not provided, the database will be in-memory.
+            db_url: The URL of the DuckDB database.
             table_name: The table name to write the data to when possible
             batch_size: The file batch size when loading entries into the DuckDB database table
             schema: Defines the schema of the table to enter entries
@@ -426,8 +426,6 @@ class DocSetWriter:
                     .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
                 )
                 ds.write.duckdb(table_name=table_name, db_url=db_url)
-                conn = duckdb.connect(database=db_url)
-                duckdb_read = conn.execute(f"SELECT * FROM {table_name}")
         """
         from sycamore.connectors.duckdb.duckdb_writer import (
             DuckDBWriter,
@@ -477,11 +475,12 @@ class DocSetWriter:
         execute: bool = True,
         **kwargs,
     ) -> Optional["DocSet"]:
-        """Writes the content of the DocSet into the specified Elasticsearch Cloud index.
+        """Writes the content of the DocSet into the specified Elasticsearch index.
 
         Args:
             url: Connection endpoint for the Elasticsearch instance. Note that this must be paired with the
                 necessary client arguments below
+            index_name: Index name to write to in the Elasticsearch instance
             es_client_args: Authentication arguments to be specified (if needed). See more information at
                 https://elasticsearch-py.readthedocs.io/en/v8.14.0/api/elasticsearch.html
             wait_for_completion: Whether to wait for completion of the write before proceeding with next steps.

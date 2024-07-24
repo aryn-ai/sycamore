@@ -11,6 +11,7 @@ from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.augment_text import TextAugmentor
 from sycamore.transforms.embed import Embedder
 from sycamore.transforms.extract_entity import EntityExtractor
+from sycamore.transforms.extract_graph import GraphExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
 from sycamore.transforms.partition import Partitioner
 from sycamore.transforms.summarize import Summarizer
@@ -480,6 +481,35 @@ class DocSet:
 
         schema = ExtractBatchSchema(self.plan, schema_extractor=schema_extractor)
         return DocSet(self.context, schema)
+
+    def extract_graph_structure(self, extractors: list[GraphExtractor], **kwargs) -> "DocSet":
+        """
+        Extracts metadata from documents into a format that sets up resulting docset to be loaded into neo4j
+
+        Args:
+            extractors: A list of GraphExtractor objects which determine what is extracted from the docset
+
+        Example:
+            .. code-block:: python
+
+                metadata = [GraphMetadata(nodeKey='company',nodeLabel='Company',relLabel='FILED_BY'),
+                GraphMetadata(nodeKey='gics_sector',nodeLabel='Sector',relLabel='IN_SECTOR'),
+                GraphMetadata(nodeKey='doc_type',nodeLabel='Document Type',relLabel='IS_TYPE'),
+                GraphMetadata(nodeKey='doc_period',nodeLabel='Year',relLabel='FILED_DURING'),
+                ]
+
+                ds = (
+                    ctx.read.manifest(metadata_provider=JsonManifestMetadataProvider(manifest),...)
+                    .partition(partitioner=SycamorePartitioner(...), num_gpus=0.1)
+                    .extract_graph_structure(extractors=[MetadataExtractor(metadata=metadata)])
+                    .explode()
+                )
+        """
+        docset = self
+        for extractor in extractors:
+            docset = extractor.extract(self)
+
+        return docset
 
     def extract_properties(self, property_extractor: PropertyExtractor, **kwargs) -> "DocSet":
         """

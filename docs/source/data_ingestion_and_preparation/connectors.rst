@@ -14,3 +14,6 @@ Further information for each supported database and its relevant documentation i
     ./connectors/duckdb.md
     ./connectors/weaviate.md
     ./connectors/pinecone.md
+    ./connectors/elasticsearch.md
+    ./connectors/opensearch.md
+

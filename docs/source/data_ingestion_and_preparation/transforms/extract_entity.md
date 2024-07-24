@@ -13,5 +13,5 @@ title_prompt_template = """
     "Ganymede 2020
 """
 
-docset = docset.extract_entity(entity_extractor=OpenAIEntityExtractor("title", llm=openai_llm, prompt_template=title_context_template))
+docset = docset.extract_entity(entity_extractor=OpenAIEntityExtractor("title", llm=openai_llm, prompt_template=title_prompt_template))
 ```

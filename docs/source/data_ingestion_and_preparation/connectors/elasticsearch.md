@@ -44,7 +44,7 @@ To write a DocSet to a Elasticsearch index from Sycamore, use the `docset.write.
 - `settings`:(optional) Settings of the Elasticsearch index, can be optionally specified
 - `execute`: (optional, default=`True`) Whether to execute this sycamore pipeline now, or return a docset to add more transforms.
 
-To write a docset to a local Elasticsearch index run by the docker compose above, we can write the following:
+To write a docset to a local Elasticsearch index run by the Docker compose above, we can write the following:
 
 ```python
 url = "http://localhost:9201"

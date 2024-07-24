@@ -50,7 +50,7 @@ Note that the writer forces execution of all transforms before it, so would norm
 
 Reading from a DuckDB table takes in the `db_url` and `table_name` arguments, with the same specification and defaults as above. It also takes in the arguments below:
 
-- create_hnsw_table: (Optional) SQL query to add an HNSW index to the DuckDB before conducting a read.
+- create_hnsw_table: (Optional) SQL query to add an HNSW index to DuckDB before conducting a read.
 - query: (Optional) SQL query to read from the table. If not specified, the read will perform a full scan of the table
 
 

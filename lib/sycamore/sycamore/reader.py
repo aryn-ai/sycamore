@@ -179,24 +179,24 @@ class DocSetReader:
         Reads the contents of Pandas Dataframes into a DocSet
 
         Args:
-            dfs: Pandas Dataframes to read into a DocSet
+            dfs: Pandas DataFrames to read into a DocSet
         """
         scan = PandasScan(dfs)
         return DocSet(self._context, scan)
 
     def opensearch(self, os_client_args: dict, index_name: str, query: Optional[Dict] = None) -> DocSet:
         """
-        Reads the content of an Opensearch index into a DocSet.
+        Reads the content of an OpenSearch index into a DocSet.
 
         Args:
             os_client_args: Keyword parameters that are passed to the opensearch-py OpenSearch client constructor.
                 See more information at https://opensearch.org/docs/latest/clients/python-low-level/
-            index_name: Index name to write to in the Elasticsearch instance
-            query: (Optional) Query to perform on the index. Note that this must be specified in the Opensearch
+            index_name: Index name to write to in the OpenSearch instance
+            query: (Optional) Query to perform on the index. Note that this must be specified in the OpenSearch
             Query DSL as a dictionary. Otherwise, it defaults to a full scan of the table. See more information at
             https://opensearch.org/docs/latest/query-dsl/
         Example:
-            The following shows how to write to data into a Elasticsearch Index, and read it back into a DocSet.
+            The following shows how to write to data into a OpenSearch Index, and read it back into a DocSet.
 
             .. code-block:: python
                 INDEX = "test_opensearch_read"
@@ -301,7 +301,7 @@ class DocSetReader:
 
     def pinecone(self, index_name: str, api_key: str, namespace: str = "", query: Optional[Dict] = None) -> DocSet:
         """
-        Reads the content of a DuckDB database index into a DocSet.
+        Reads the content of a Pinecone database index into a DocSet.
 
         Args:
             index_name: Name of the pinecone index to ingest into

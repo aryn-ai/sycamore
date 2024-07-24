@@ -98,7 +98,7 @@ More information can be found in the {doc}`API documentation </APIs/data_prepara
 Reading from a Weaviate collection takes in the `wv_client_args` and `collection_name` arguments, with the same specification and defaults as above. It also takes in the arguments below:
 
 - kwargs: (Optional) Search queries to pass into Weaviate. Note each keyword method argument must have its parameters specified
-as a dictionary. Will default to a full scan if not specified..
+as a dictionary. Will default to a full scan if not specified.
 
 To read from a Weaviate collection into a Sycamore DocSet, use the following code:
 

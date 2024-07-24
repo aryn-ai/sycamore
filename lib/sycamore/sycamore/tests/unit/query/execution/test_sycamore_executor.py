@@ -1,10 +1,11 @@
 from unittest.mock import patch
+from typing import Dict
 
 import pytest
 import sycamore
 
 from sycamore.query.execution.sycamore_executor import SycamoreExecutor
-from sycamore.query.logical_plan import LogicalPlan
+from sycamore.query.logical_plan import LogicalPlan, Node
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.loaddata import LoadData
 
@@ -26,7 +27,7 @@ def test_count_docs_query_plan() -> LogicalPlan:
 
     load_node.downstream_nodes = [count_node]
     count_node.dependencies = [load_node]
-    nodes = {
+    nodes: Dict[str, Node] = {
         "load": load_node,
         "count": count_node,
     }

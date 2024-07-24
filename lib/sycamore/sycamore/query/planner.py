@@ -341,6 +341,8 @@ class LlmPlanner:
         for step in parsed_plan:
             node_id = step["id"]
             cls = classes.get(step["operatorName"])
+            if cls is None:
+                raise ValueError(f"Operator {step['operatorName']} not found")
             node = cls(node_id, step)
             node.description = step.get("description", "")
             nodes[node_id] = node

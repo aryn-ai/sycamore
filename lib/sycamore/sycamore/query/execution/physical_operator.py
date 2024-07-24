@@ -25,7 +25,7 @@ class PhysicalOperator:
         inputs (List[Any]): List of inputs required to execute the node. Varies based on node type.
     """
 
-    def __init__(self, logical_node: LogicalOperator, query_id: str, inputs: List[Any] = None) -> None:
+    def __init__(self, logical_node: LogicalOperator, query_id: str, inputs: Optional[List[Any]] = None) -> None:
         super().__init__()
         self.logical_node = logical_node
         self.query_id = query_id
@@ -56,21 +56,33 @@ class MathOperator(PhysicalOperator):
         super().__init__(logical_node, query_id, inputs)
 
     def execute(self) -> Any:
+        assert self.logical_node.data is not None
+        operator = self.logical_node.data.get("type")
         assert (
-            isinstance(self.inputs[0], int)
-            or isinstance(self.inputs[0], float)
-            and isinstance(self.inputs[1], int)
-            or isinstance(self.inputs[1], float)
+            self.inputs is not None
+            and len(self.inputs) == 2
+            and (
+                isinstance(self.inputs[0], int)
+                or isinstance(self.inputs[0], float)
+                and isinstance(self.inputs[1], int)
+                or isinstance(self.inputs[1], float)
+            )
+            and operator is not None
+            and isinstance(operator, str)
         )
-        result = math_operation(val1=self.inputs[0], val2=self.inputs[1], operator=self.logical_node.data.get("type"))
+        result = math_operation(val1=self.inputs[0], val2=self.inputs[1], operator=operator)
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
+        assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) == 2
+        assert self.logical_node.data is not None
+        operator = self.logical_node.data.get("type")
+        assert operator is not None and isinstance(operator, str)
         result = f"""
 {output_var or get_var_name(self.logical_node)} = math_operation(
     val1={input_var or get_var_name(self.logical_node.dependencies[0])},
     val2={input_var or get_var_name(self.logical_node.dependencies[1])},
-    operator='{self.logical_node.data.get("type")}'
+    operator='{operator}'
 )
 """
         return result, ["from sycamore.query.execution.operations import math_operation"]

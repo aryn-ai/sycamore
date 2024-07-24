@@ -1,5 +1,5 @@
 import uuid
-from typing import Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
 import structlog
 from sycamore.query.operators.count import Count
@@ -10,6 +10,7 @@ from sycamore.query.operators.llmfilter import LlmFilter
 from sycamore.query.operators.llmgenerate import LlmGenerate
 from sycamore.query.operators.loaddata import LoadData
 from sycamore.query.operators.logical_operator import LogicalOperator
+from sycamore.query.execution.physical_operator import PhysicalOperator
 from sycamore.query.operators.math import Math
 from sycamore.query.operators.sort import Sort
 from sycamore.query.operators.topk import TopK
@@ -46,7 +47,7 @@ class SycamoreExecutor:
     def __init__(
         self,
         context: Context,
-        os_client_args: any,
+        os_client_args: Any,
         s3_cache_path: Optional[str] = None,
         trace_dir: Optional[str] = None,
         dry_run: bool = False,
@@ -66,9 +67,9 @@ class SycamoreExecutor:
             log.info("Using tracer: %s", trace_dir)
         if self.dry_run:
             log.info("Executing in dry-mode")
-            self.node_id_to_node = {}
-            self.node_id_to_code = {}
-            self.imports = []
+            self.node_id_to_node: Dict[str, LogicalOperator] = {}
+            self.node_id_to_code: Dict[str, str] = {}
+            self.imports: List[str] = []
 
     @staticmethod
     def get_node_args(query_id: str, logical_node: LogicalOperator) -> Dict:
@@ -95,7 +96,7 @@ class SycamoreExecutor:
         log.info("Executing node")
         # Process node
         result = None
-        operation = None
+        operation: Optional[PhysicalOperator] = None
         if isinstance(logical_node, LoadData):
             operation = SycamoreLoadData(
                 context=self.context,
@@ -179,13 +180,15 @@ class SycamoreExecutor:
         if result is None:
             if self.dry_run:
                 code, imports = operation.script()
-                self.imports += [imports]
+                self.imports += imports
                 self.node_id_to_code[logical_node.node_id] = code
                 self.node_id_to_node[logical_node.node_id] = logical_node
             else:
                 result = operation.execute()
 
-        self.processed[logical_node.node_id] = result
+        if result is not None:
+            assert isinstance(result, DocSet)
+            self.processed[logical_node.node_id] = result
         log.info("Executed node", result=str(result))
         return result
 

@@ -79,7 +79,7 @@ class DatasetScan(Scan):
         super().__init__(**resource_args)
         self._dataset = dataset
 
-    def execute(self) -> Dataset:
+    def execute(self, **kwargs) -> Dataset:
         return self._dataset
 
     def format(self):

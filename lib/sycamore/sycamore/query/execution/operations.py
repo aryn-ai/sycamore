@@ -29,7 +29,7 @@ BASE_PROPS = [
 ]
 
 
-def field_to_value(doc: Document, field: str) -> any:
+def field_to_value(doc: Document, field: str) -> Any:
     fields = field.split(".")
     value = getattr(doc, fields[0])
     if len(fields) > 1:
@@ -66,7 +66,7 @@ def llm_filter_operation(
     messages: Optional[List[dict]] = None,
     threshold: int = 3,
     **resource_args,
-) -> bool:
+) -> DocSet:
     """This operation filters your DocSet to only keep documents that score greater
     than or equal to the inputted threshold value from an LLM call that returns an int.
 
@@ -119,7 +119,7 @@ def llm_filter_operation(
 # field = doc.properties["entity"]["aircraft"]
 # return operations.match_filter_operation(query, field)
 # docset = docset.filter(wrapper)
-def match_filter_operation(doc: Document, query: any, field: any, ignore_case: bool = True) -> bool:
+def match_filter_operation(doc: Document, query: str, field: str, ignore_case: bool = True) -> bool:
     """This operation filters your Docset to only keep documents that match the inputted
     query on the specified field. If the query/inputted field are strings, it looks for
     a substring match. For any type other than strings, it looks for an exact match.
@@ -153,34 +153,51 @@ def match_filter_operation(doc: Document, query: any, field: any, ignore_case: b
 #     end_date = datetime.datetime(2023, 1, 20)
 #     return operations.range_filter_operation(start_date, end_date, doc.properties["dateTimeType"])
 # docset = docset.filter(wrapper)
-def range_filter_operation(doc: Document, field: str, start: any = None, end: any = None, date: bool = False) -> bool:
+def range_filter_operation(
+    doc: Document,
+    field: str,
+    start: Optional[Any] = None,
+    end: Optional[Any] = None,
+    date: Optional[bool]=False,
+) -> bool:
     """This operation filters your Docset to only keep documents for which the value of the
     specified field is within the start:end range.
 
     Inputs:
+    - field: The field to run the range filter on
     - start: The start value for the range
     - end: The end value for the range
-    - field: The field to run the range filter on
+    - date: Interpret the values for start, end, and value as strings containing date values.
     """
 
     value = field_to_value(doc, field)
+    if value is None:
+        raise ValueError(f"field {field} must be present in the document")
 
     if date:
-        value = convert_string_to_date(value)
+        if not isinstance(value, str):
+            raise ValueError("value must be a string for date filtering")
+        value_comp = convert_string_to_date(value)
+        if start and not isinstance(start, str):
+            raise ValueError("start must be a string for date filtering")
+        start_comp = convert_string_to_date(start) if start else None
+        if end and not isinstance(end, str):
+            raise ValueError("end must be a string for date filtering")
+        end_comp = convert_string_to_date(end) if end else None
+    else:
+        value_comp = value
+        start_comp = start
+        end_comp = end
 
-        if start is not None:
-            start = convert_string_to_date(start)
-
-        if end is not None:
-            end = convert_string_to_date(end)
-
-    if start is None:
-        return value <= end
-
-    if end is None:
-        return value >= start
-
-    return value >= start and value <= end
+    if start_comp is None:
+        if end_comp is None:
+            raise ValueError("At least one of start or end must be specified")
+        return value_comp <= end_comp
+    if end_comp is None:
+        if start_comp is None:
+            raise ValueError("At least one of start or end must be specified")
+        return value_comp >= start_comp
+    return value_comp >= start_comp and value_comp <= end_comp
 
 
 ######################################################################################################################################
@@ -300,6 +317,8 @@ def count_operation(docset: DocSet, field: Optional[str] = None, primaryField: O
         if field is not None:
             unique_field = field
         else:
+            if primaryField is None:
+                raise ValueError("Must specify either 'field' or 'primaryField'")
             unique_field = primaryField
         unique_docs = set()
         execution = Execution(docset.context, docset.plan)
@@ -403,7 +422,7 @@ def top_k_operation(
     description: str,
     descending: bool = True,
     use_llm: bool = False,
-    unique_field: str = None,
+    unique_field: Optional[str] = None,
     **kwargs,
 ) -> DocSet:
 
@@ -522,7 +541,7 @@ class CountAggregate(Transform):
     Aggregation function that allows you to aggregate by field in doc.properties
     """
 
-    def __init__(self, child: Node, field: str, unique_field: str = None):
+    def __init__(self, child: Node, field: str, unique_field: Optional[str] = None):
         super().__init__(child)
         self._field = field
         self._unique_field = unique_field
@@ -553,7 +572,7 @@ class DatasetScan(Scan):
         super().__init__(**resource_args)
         self._dataset = dataset
 
-    def execute(self) -> Dataset:
+    def execute(self, **kwargs) -> Dataset:
         return self._dataset
 
     def format(self):

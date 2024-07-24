@@ -84,7 +84,7 @@ def configure_logging(logfile: Optional[str] = None, log_level=logging.WARN):
         file_handler = logging.FileHandler(logfile)
         file_handler.setLevel(log_level)
         structlog.configure_once(
-            processors=processors,
+            processors=processors,  # type: ignore
             logger_factory=CustomLoggerFactory(file_handler),
             wrapper_class=structlog.make_filtering_bound_logger(log_level),
             cache_logger_on_first_use=True,

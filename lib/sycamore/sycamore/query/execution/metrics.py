@@ -32,7 +32,7 @@ class LunaLogger(Datasink):
         self,
         query_id: str,
         node_id: str,
-        path: str = None,
+        path: Optional[str] = None,
         filesystem: Optional[FileSystem] = None,
         makedirs: bool = False,
         verbose: bool = False,

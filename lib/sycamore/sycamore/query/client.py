@@ -247,6 +247,7 @@ def main():
 
     if args.show_dag:
         import matplotlib.pyplot as plt
+
         visualize_plan(plan)
         plt.show()
 

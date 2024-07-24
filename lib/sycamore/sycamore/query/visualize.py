@@ -1,9 +1,9 @@
-
 from sycamore.query.logical_plan import LogicalPlan
 
 
 def build_graph(plan: LogicalPlan):
     import networkx as nx
+
     graph = nx.DiGraph()
     for node in plan.nodes().values():
         graph.add_node(node.node_id, description=f"{type(node).__name__}\n{node.description}")

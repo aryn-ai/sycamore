@@ -158,7 +158,7 @@ def range_filter_operation(
     field: str,
     start: Optional[Any] = None,
     end: Optional[Any] = None,
-    date: Optional[bool]=False,
+    date: Optional[bool] = False,
 ) -> bool:
     """This operation filters your Docset to only keep documents for which the value of the
     specified field is within the start:end range.

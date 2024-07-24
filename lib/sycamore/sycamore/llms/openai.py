@@ -265,7 +265,7 @@ class OpenAI(LLM):
 
     def _get_cache_key(self, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
         assert self._cache
-        combined = {"prompt_kwargs": prompt_kwargs, "llm_kwargs": llm_kwargs}
+        combined = {"prompt_kwargs": prompt_kwargs, "llm_kwargs": llm_kwargs, "model_name": self.model.name}
         data = pickle.dumps(combined)
         return self._cache.get_hash_key(data)
 
@@ -275,14 +275,19 @@ class OpenAI(LLM):
             cache_key = self._get_cache_key(prompt_kwargs, llm_kwargs)
             hit = self._cache.get(cache_key)
             if hit:
-                if hit.get("prompt_kwargs") == prompt_kwargs and hit.get("llm_kwargs") == llm_kwargs:
+                if (
+                    hit.get("prompt_kwargs") == prompt_kwargs
+                    and hit.get("llm_kwargs") == llm_kwargs
+                    and hit.get("model_name") == self.model.name
+                ):
                     return hit.get("result")
                 else:
                     logger.warning(
-                        "Found cache content mismatch, key=%s prompt_kwargs=%s llm_kwargs=%s",
+                        "Found cache content mismatch, key=%s prompt_kwargs=%s llm_kwargs=%s model_name=%s",
                         cache_key,
                         prompt_kwargs,
                         llm_kwargs,
+                        self.model.name,
                     )
 
         if llm_kwargs is not None:
@@ -292,7 +297,12 @@ class OpenAI(LLM):
 
         if self._cache:
             assert cache_key
-            item = {"result": result, "prompt_kwargs": prompt_kwargs, "llm_kwargs": llm_kwargs}
+            item = {
+                "result": result,
+                "prompt_kwargs": prompt_kwargs,
+                "llm_kwargs": llm_kwargs,
+                "model_name": self.model.name,
+            }
             self._cache.set(cache_key, item)
         return result
 

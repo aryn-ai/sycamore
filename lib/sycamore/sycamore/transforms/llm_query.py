@@ -25,7 +25,8 @@ class LLMTextQueryAgent(LLMQueryAgent):
         client_wrapper: (Optional) Specifications for the OpenAI client wrapper. Ignored if openai_model is specified
         output_property: (Optional) The output property to add results in. Defaults to 'llm_response'
         llm_kwargs: (Optional) LLM keyword argument for the underlying execution engine
-        per_element: (Optional) Whether to execute the call per each element or on the Document itself. Defaults to True.
+        per_element: (Optional) Whether to execute the call per each element or on the Document itself. Defaults to
+        True.
 
     Example:
          .. code-block:: python

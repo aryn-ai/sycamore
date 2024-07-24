@@ -35,7 +35,6 @@ from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
 from sycamore.utils.pdf import convert_from_path_streamed_batched
 from sycamore.utils.time_trace import LogTime, timetrace
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -74,7 +73,7 @@ class ArynPDFPartitioner:
     ArynPartitioner class.
     """
 
-    def __init__(self, model_name_or_path, device=None, cache: Optional[Cache] = None):
+    def __init__(self, model_name_or_path=ARYN_DETR_MODEL, device=None, cache: Optional[Cache] = None):
         """
         Initializes the ArynPDFPartitioner and underlying DETR model.
 
@@ -368,6 +367,7 @@ class ArynPDFPartitioner:
         with LogTime("all_batches"):
             for i, batch in enumerate(batches):
                 with LogTime(f"infer_one_batch {i}/{len(images) / batch_size}"):
+                    assert self.model is not None
                     deformable_layout += self.model.infer(batch, threshold, use_cache)
 
         if use_ocr:
@@ -548,6 +548,7 @@ class ArynPDFPartitioner:
         import easyocr
 
         with LogTime("infer"):
+            assert self.model is not None
             deformable_layout = self.model.infer(batch, threshold, use_cache)
 
         gc_tensor_dump()
@@ -645,12 +646,9 @@ class DeformableDetr(SycamoreObjectDetection):
 
     def infer(self, images: List[Image.Image], threshold: float, use_cache: bool = False) -> List[List[Element]]:
         if use_cache and self.cache:
-            print("Checking Cache for Image to JSON")
             results = self._get_cached_inference(images, threshold)
         else:
-            print("Skipping Cache check for Image to JSON")
             results = self._get_uncached_inference(images, threshold)
-
 
         batched_results = []
         for result, image in zip(results, images):
@@ -665,8 +663,9 @@ class DeformableDetr(SycamoreObjectDetection):
                 elements.append(element)
             batched_results.append(elements)
             if self.cache:
-                key = Cache.get_hash_key(image.tobytes())
-                self.cache.set(key, result)
+                hash_ctx = Cache.get_hash_context(image.tobytes())
+                hash_ctx.update(threshold)
+                self.cache.set(hash_ctx.hexdigest(), result)
 
         return batched_results
 
@@ -677,11 +676,12 @@ class DeformableDetr(SycamoreObjectDetection):
 
         # First, check the cache for each image
         for index, image in enumerate(images):
-            key = Cache.get_hash_key(image.tobytes())
-            cached_image = self.cache.get(key)
-            if cached_image:
-                print("Cache hit. Returning the result from cache")
-                results.append(cached_image)
+            key = Cache.get_hash_context(image.tobytes()).update(threshold).hexdigest()
+            assert self.cache is not None
+            cached_layout = self.cache.get(key)
+            if cached_layout:
+                logger.info(f"Cache Hit for ImageToJson. Cache hit-rate is {self.cache.get_hit_rate()}")
+                results.append(cached_layout)
             else:
                 uncached_images.append(image)
                 uncached_indices.append(index)
@@ -689,7 +689,6 @@ class DeformableDetr(SycamoreObjectDetection):
 
         # Process the uncached images in a batch
         if uncached_images:
-            print("Cache Miss")
             processed_images = self._get_uncached_inference(uncached_images, threshold)
             # Store processed images in the cache and update the result list
             for index, processed_img in zip(uncached_indices, processed_images):
@@ -746,7 +745,7 @@ class PDFMinerExtractor:
 
         cached_result = pdf_miner_cache.get(hash_key) if use_cache else None
         if cached_result:
-            logger.info("Cache Hit for PDFMiner. Getting the result from cache.")
+            logger.info(f"Cache Hit for PDFMiner. Cache hit-rate is {pdf_miner_cache.get_hit_rate()}")
             return cached_result
         else:
             with open_filename(filename, "rb") as fp:

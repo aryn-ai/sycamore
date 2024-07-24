@@ -11,23 +11,44 @@ from botocore.exceptions import ClientError
 BLOCK_SIZE = 1048576  # 1 MiB
 
 
+class HashWrapper:
+    def __init__(self, algorithm="sha256"):
+        self.hash_obj = hashlib.new(algorithm)
+
+    def update(self, data):
+        self.hash_obj.update(data)
+
+    def hexdigest(self):
+        return self.hash_obj.hexdigest()
+
+
 class Cache:
+
+    def __init__(self):
+        self.cache_hits = 0
+        self.total_accesses = 0
+
     def get(self, hash_key: str):
         pass
 
     def set(self, hash_key: str, hash_value):
         pass
 
-    @staticmethod
-    def get_hash_context(data: bytes) -> hashlib._Hash:
-        hash_sha256 = hashlib.sha256()
-        hash_sha256.update(data)
-        return hash_sha256
+    def get_hit_rate(self):
+        if self.total_accesses == 0:
+            return 0.0
+        return self.cache_hits / self.total_accesses
 
     @staticmethod
-    def get_hash_context_file(file_path: str, hash_context: Optional[hashlib._Hash] = None) -> hashlib._Hash:
+    def get_hash_context(data: bytes) -> HashWrapper:
+        hash_ctx = HashWrapper()
+        hash_ctx.update(data)
+        return hash_ctx
+
+    @staticmethod
+    def get_hash_context_file(file_path: str, hash_context: Optional[HashWrapper] = None) -> HashWrapper:
         if not hash_context:
-            hash_context = hashlib.sha256()
+            hash_context = HashWrapper()
         with open(file_path, "rb") as file:
             while True:
                 file_buffer = file.read(BLOCK_SIZE)
@@ -39,10 +60,15 @@ class Cache:
 
 class DiskCache(Cache):
     def __init__(self, cache_loc: str):
+        super().__init__()
         self._cache = diskcache.Cache(directory=cache_loc)
 
     def get(self, hash_key: str):
-        return self._cache.get(hash_key)
+        v = self._cache.get(hash_key)
+        if v:
+            self.cache_hits += 1
+        self.total_accesses += 1
+        return v
 
     def set(self, hash_key: str, hash_value):
         self._cache.set(hash_key, hash_value)
@@ -54,6 +80,7 @@ def s3_cache_deserializer(kwargs):
 
 class S3Cache(Cache):
     def __init__(self, s3_path: str, freshness_in_seconds: int = -1):
+        super().__init__()
         self._s3_path = s3_path
         self._freshness_in_seconds = freshness_in_seconds
         self._s3_client = None
@@ -79,12 +106,15 @@ class S3Cache(Cache):
             ):
                 return None
             data = content["value"]
+            self.cache_hits += 1
             return data
         except ClientError as e:
             if e.response["Error"]["Code"] == "NoSuchKey":
                 return None
             else:
                 raise
+        finally:
+            self.total_accesses += 1
 
     def set(self, key: str, value: Any):
         if not self._s3_client:

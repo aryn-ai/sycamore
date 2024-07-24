@@ -4,7 +4,6 @@ from sycamore.data import Element, Document
 from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Node
 from sycamore.llms import LLM
 from sycamore.transforms.map import Map
-from sycamore.transforms.augment_text import JinjaTextAugmentor
 from sycamore.utils.time_trace import timetrace
 from jinja2.sandbox import SandboxedEnvironment
 
@@ -17,8 +16,9 @@ class LLMTextQueryAgent:
         prompt: A prompt to be passed into the underlying LLM execution engine
         llm: (LLM) An instance of the LLM class to be pass into the user
         output_property: (Optional) The output property to add results in. Defaults to 'llm_response'
-        format_kwargs: (Optional) Formatting arguments passed in to define the prompt
-        number_of_elements: (Optional) if not executed per element
+        format_kwargs: (Optional) Formatting arguments passed in to define the prompt, uses a Jinja Sandbox
+        number_of_elements: (Optional) Parameter to either limit the number of elements or to add an llm response to the
+        entire document using a prefix of elements
         llm_kwargs: (Optional) LLM keyword argument for the underlying execution engine
         per_element: (Optional) Whether to execute the call per each element or on the Document itself. Defaults to
         True.
@@ -55,9 +55,9 @@ class LLMTextQueryAgent:
 
     def execute_query(self, document: Document) -> Document:
         if self._per_element:
-            elements = []
+            elements = document.elements
             for idx, element in enumerate(document.elements):
-                elements.append(self._query_text_object(element))
+                elements[idx] = self._query_text_object(element)
                 if self._number_of_elements and idx >= self._number_of_elements:
                     break
             document.elements = elements
@@ -76,20 +76,20 @@ class LLMTextQueryAgent:
         return document
 
     @timetrace("LLMQueryText")
-    def _query_text_object(self, element: Union[Document, Element]) -> Union[Document, Element]:
-        if element.text_representation:
+    def _query_text_object(self, object: Union[Document, Element]) -> Union[Document, Element]:
+        if object.text_representation:
             if self._format_kwargs:
                 prompt = (
                     SandboxedEnvironment()
                     .from_string(source=self._prompt, globals=self._format_kwargs)
-                    .render(doc=element)
+                    .render(doc=object)
                 )
             else:
-                prompt = self._prompt + "\n" + element["text_representation"]
+                prompt = self._prompt + "\n" + object["text_representation"]
             prompt_kwargs = {"prompt": prompt}
             llm_resp = self._llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs=self._llm_kwargs)
-            element["properties"][self._output_property] = llm_resp
-        return element
+            object["properties"][self._output_property] = llm_resp
+        return object
 
 
 class LLMQuery(NonCPUUser, NonGPUUser, Map):

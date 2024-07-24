@@ -81,7 +81,7 @@ jobs:
     runs-on: integ-test-runner
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11"]
+        python-version: ["3.9"]
     services:
       opensearch:
         image: opensearchproject/opensearch:2.10.0

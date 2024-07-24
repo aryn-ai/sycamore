@@ -1,32 +1,10 @@
 import { HeaderComponent } from ".";
 import { render, screen } from "../../../../test-utils";
 import { Settings } from "../../../../Types";
-
-const mockUseMediaQuery = jest.fn();
-const mockUseMantineTheme = jest.fn();
-
-jest.mock("@mantine/hooks", () => ({
-  useMediaQuery: () => mockUseMediaQuery(),
-}));
-jest.mock("@mantine/core", () => ({
-  useMantineTheme: () => mockUseMantineTheme(),
-  createStyles: () => () => ({}),
-}));
-jest.mock("@mantine/prism", () => ({
-  Prism: () => <div>Mocked Prism Component</div>,
-}));
-jest.mock("@mantine/dates", () => ({
-  Dates: () => <div>Mocked Date Component</div>,
-}));
-
-jest.mock("@emotion/react", () => ({
-  ...jest.requireActual("@emotion/react"),
-  useTheme: () => ({}),
-}));
+import "@testing-library/jest-dom";
 
 describe("HeaderComponent", () => {
   it("renders logo and settings on larger screens", () => {
-    mockUseMediaQuery.mockReturnValue(false);
     const settings = new Settings({
       openSearchIndex: "myIndex",
       modelName: "myModel",

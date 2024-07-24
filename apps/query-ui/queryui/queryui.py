@@ -1,6 +1,6 @@
-# This is a demo web UI for LUnA based on Streamlit.
+# This is a demo web UI for Sycamore Query based on Streamlit.
 #
-# To run: poetry run python -m streamlit run sycamore/query/webapp.py
+# To run: poetry run python -m streamlit run queryui/queryui.py
 
 import os
 import pickle

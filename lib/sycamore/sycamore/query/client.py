@@ -16,7 +16,6 @@ from typing import Optional, Tuple
 import os
 import uuid
 
-import matplotlib.pyplot as plt
 from opensearchpy import OpenSearch
 from opensearchpy.client.indices import IndicesClient
 import structlog
@@ -247,6 +246,7 @@ def main():
         client.dump_traces(os.path.join(os.path.abspath(args.trace_dir), "luna.log"), query_id)
 
     if args.show_dag:
+        import matplotlib.pyplot as plt
         visualize_plan(plan)
         plt.show()
 

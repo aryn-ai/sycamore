@@ -1,10 +1,10 @@
-from typing import Dict, Any
+from typing import Any, Dict, Optional
 
 from sycamore.query.operators.logical_operator import LogicalOperator
 
 
 class LlmExtract(LogicalOperator):
-    def __init__(self, node_id: str, data: Dict[Any, Any] = None) -> None:
+    def __init__(self, node_id: str, data: Optional[Dict[Any, Any]] = None) -> None:
         super().__init__(node_id, data)
 
     @staticmethod

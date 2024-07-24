@@ -6,7 +6,7 @@ Modifications Copyright Aryn Inc.
 """
 
 from collections import OrderedDict, defaultdict
-from typing import Optional
+from typing import Any, Dict, List, Optional
 import xml.etree.ElementTree as ET
 
 import numpy as np
@@ -509,7 +509,7 @@ def nms(objects, match_criteria="object2_overlap", match_threshold=0.05, keep_hi
     return [obj for idx, obj in enumerate(objects) if not suppression[idx]]
 
 
-def align_headers(headers, rows):
+def align_headers(headers, rows) -> List[Dict[str, Any]]:
     """
     Adjust the header boundary to be the convex hull of the rows it intersects
     at least 50% of the height of.
@@ -518,7 +518,7 @@ def align_headers(headers, rows):
     eliminate anything besides the top-most header.
     """
 
-    aligned_headers = []
+    aligned_headers: List[Dict[str, Any]] = []
 
     for row in rows:
         row["header"] = False

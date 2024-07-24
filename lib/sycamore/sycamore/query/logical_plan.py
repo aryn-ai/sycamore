@@ -15,7 +15,7 @@ class Node:
         pass
 
     def type(self) -> str:
-        pass
+        raise NotImplementedError
 
 
 def print_dag(node: Node, indent: int = 0, verbose=False) -> None:

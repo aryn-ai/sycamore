@@ -22,12 +22,12 @@ class LogicalOperator(Node):
 
     @staticmethod
     def description() -> str:
-        pass
+        raise NotImplementedError
 
     @staticmethod
     def input_schema() -> Dict[str, Any]:
-        pass
+        raise NotImplementedError
 
     @staticmethod
     def output_schema() -> Dict[str, Any]:
-        pass
+        raise NotImplementedError

@@ -13,7 +13,7 @@ packages = [{ include = "sycamore" }]
 "Documentation" = "https://sycamore.readthedocs.io"
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.9.7 || >3.9.7,<3.12"
+python = ">=3.9,<3.12"
 opensearch-py = "^2.3.1"
 pandas = "2.1.1"
 pdf2image = "^1.16.3"
@@ -83,9 +83,6 @@ jupyter-lsp = "^2.2.2"
 ipywidgets = "^8.1.0"
 matplotlib = "^3.9.1"
 rich = "^13.7.1"
-streamlit = "^1.36.0"
-streamlit-ace = "^0.1.1"
-streamlit-agraph = "^0.0.45"
 
 [tool.poetry.group.docker.dependencies]
 requests = "^2"

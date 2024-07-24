@@ -28,12 +28,10 @@ def make_aggregation_map_fn(field: str, default_val: Any):
 
 
 def accumulate_row(doc, doc_bytes, fn):
-    # print(f"In accumulate_row: {doc} {doc_bytes}")
     return fn(Document.deserialize(doc), Document.deserialize(doc_bytes["doc"])).serialize()
 
 
 def merge(x, y, fn):
-    # print(f"In merge: {Document.deserialize(x)} {Document.deserialize(y)}")
     return fn(Document.deserialize(x), Document.deserialize(y)).serialize()
 
 
@@ -58,8 +56,6 @@ class DocSetAggregate(AggregateFn):
 
 def sum_val_agg(doc1: Document, doc2: Document) -> Document:
     doc3 = Document(**doc1.data)
-    # print(f"{type(doc1)} {type(doc2)}")
-    # print(f"{doc1} {doc2}")
     new_sum = doc1.properties["sum_val"] + doc2.properties["sum_val"]
     doc3.properties.update(doc1.properties)
     doc3.properties.update(doc2.properties)

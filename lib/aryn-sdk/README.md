@@ -38,3 +38,21 @@ with open("partition-me.pdf", "rb") as f:
 elements_and_tables = tables_to_pandas(data)
 dataframes = [table for (element, table) in elements_and_tables if table is not None]
 ```
+
+Visualize partitioned documents by drawing on the bounding boxes:
+
+```python
+from aryn_sdk.partition import partition_file, draw_with_boxes
+
+with open("partition-me.pdf", "rb") as f:
+    data = partition_file(
+        f,
+        use_ocr=True,
+        extract_table_structure=True,
+        extract_images=True
+    )
+page_pics = draw_with_boxes("partition-me.pdf", data, draw_table_cells=True)
+
+from IPython.display import display
+display(page_pics[0])
+```

@@ -44,6 +44,7 @@ timm = "^0.9.12"
 cryptography = "^42.0.3"
 aiohttp = "^3.9.2"
 apted = "^1.0.3"
+fasteners = "^0.19"
 
 # Dependencies for building docs. Defined as an extra
 # so they can be installed using pip on RTD.

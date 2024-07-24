@@ -17,6 +17,7 @@ import pdf2image
 import pytesseract
 import torch
 from PIL import Image
+import fasteners
 from pdfminer.converter import PDFPageAggregator
 from pdfminer.layout import LAParams
 from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager, resolve1
@@ -37,7 +38,7 @@ from sycamore.utils.time_trace import LogTime, timetrace
 
 
 logger = logging.getLogger(__name__)
-
+_DETR_LOCK_FILE = "./detr.lock"
 
 def _batchify(iterable, n=1):
     length = len(iterable)
@@ -627,12 +628,14 @@ class DeformableDetr(SycamoreObjectDetection):
         self.device = device
         self._model_name_or_path = model_name_or_path
 
-        from transformers import AutoImageProcessor, DeformableDetrForObjectDetection
+        lock = fasteners.InterProcessLock(_DETR_LOCK_FILE)
+        with lock:
+            from transformers import AutoImageProcessor, DeformableDetrForObjectDetection
 
-        LogTime("loading_model", point=True)
-        with LogTime("load_model", log_start=True):
-            self.processor = AutoImageProcessor.from_pretrained(model_name_or_path)
-            self.model = DeformableDetrForObjectDetection.from_pretrained(model_name_or_path).to(self._get_device())
+            LogTime("loading_model", point=True)
+            with LogTime("load_model", log_start=True):
+                self.processor = AutoImageProcessor.from_pretrained(model_name_or_path)
+                self.model = DeformableDetrForObjectDetection.from_pretrained(model_name_or_path).to(self._get_device())
 
     # Note: We wrap this in a function so that we can execute on both the leader and the workers
     # to account for heterogeneous systems. Currently if you pass in an explicit device parameter

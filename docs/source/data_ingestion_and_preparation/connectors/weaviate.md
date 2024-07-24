@@ -12,37 +12,37 @@ We recommend running Weaviate through docker compose. The provided `compose.yml`
   <summary><i>compose.yml</i></summary>
 
   ```yaml
-version: "3.4"
-services:
-  weaviate:
-    command:
-      - --host
-      - 0.0.0.0
-      - --port
-      - "8080"
-      - --scheme
-      - http
-    image: cr.weaviate.io/semitechnologies/weaviate:1.25.0
-    ports:
-      - 8080:8080
-      - 50051:50051
-    volumes:
-      - weaviate_data:/var/lib/weaviate
-    restart: on-failure:0
-    environment:
-      QUERY_DEFAULTS_LIMIT: 25
-      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "true"
-      PERSISTENCE_DATA_PATH: "/var/lib/weaviate"
-      DEFAULT_VECTORIZER_MODULE: "text2vec-transformers"
-      ENABLE_MODULES: "text2vec-transformers"
-      TRANSFORMERS_INFERENCE_API: http://t2v-transformers:8080
-      CLUSTER_HOSTNAME: "node1"
-  t2v-transformers:
-    image: cr.weaviate.io/semitechnologies/transformers-inference:sentence-transformers-all-MiniLM-L6-v2
-    environment:
-      ENABLE_CUDA: 0
-volumes:
-  weaviate_data:
+  version: "3.4"
+  services:
+    weaviate:
+      command:
+        - --host
+        - 0.0.0.0
+        - --port
+        - "8080"
+        - --scheme
+        - http
+      image: cr.weaviate.io/semitechnologies/weaviate:1.25.0
+      ports:
+        - 8080:8080
+        - 50051:50051
+      volumes:
+        - weaviate_data:/var/lib/weaviate
+      restart: on-failure:0
+      environment:
+        QUERY_DEFAULTS_LIMIT: 25
+        AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "true"
+        PERSISTENCE_DATA_PATH: "/var/lib/weaviate"
+        DEFAULT_VECTORIZER_MODULE: "text2vec-transformers"
+        ENABLE_MODULES: "text2vec-transformers"
+        TRANSFORMERS_INFERENCE_API: http://t2v-transformers:8080
+        CLUSTER_HOSTNAME: "node1"
+    t2v-transformers:
+      image: cr.weaviate.io/semitechnologies/transformers-inference:sentence-transformers-all-MiniLM-L6-v2
+      environment:
+        ENABLE_CUDA: 0
+  volumes:
+    weaviate_data:
   ```
 
   Note the choice of embedding model specified in the compose file.

@@ -12,21 +12,21 @@ For local development and testing, we recommend running Elasticsearch through do
   <summary><i>compose.yml</i></summary>
 
   ```yaml
-version: "3.8"
-services:
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.2
-    ports:
-      - 9201:9200
-    restart: on-failure
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - ES_JAVA_OPTS=-Xms4g -Xmx4g
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
+  version: "3.8"
+  services:
+    elasticsearch:
+      image: docker.elastic.co/elasticsearch/elasticsearch:8.14.2
+      ports:
+        - 9201:9200
+      restart: on-failure
+      environment:
+        - discovery.type=single-node
+        - xpack.security.enabled=false
+        - ES_JAVA_OPTS=-Xms4g -Xmx4g
+      ulimits:
+        memlock:
+          soft: -1
+          hard: -1
   ```
 </details>
 

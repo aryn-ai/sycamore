@@ -18,6 +18,7 @@ class DuckDBReaderClientParams(BaseDBReader.ClientParams):
 class DuckDBReaderQueryParams(BaseDBReader.QueryParams):
     table_name: str
     query: Optional[str]
+    create_hnsw_table: Optional[str]
 
 
 class DuckDBReaderClient(BaseDBReader.Client):
@@ -34,6 +35,8 @@ class DuckDBReaderClient(BaseDBReader.Client):
         assert isinstance(
             query_params, DuckDBReaderQueryParams
         ), f"Wrong kind of query parameters found: {query_params}"
+        if query_params.create_hnsw_table:
+            self._client.execute(query_params.create_hnsw_table)
         if query_params.query:
             results = DuckDBReaderQueryResponse(self._client.execute(query_params.query))
         else:

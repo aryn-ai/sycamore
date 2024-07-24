@@ -24,20 +24,27 @@ class OneShotKaClient:
     def set_agent(self, a: str) -> None:
         self.agent = a
 
-    def get(self, headers: dict[str, str] = {}) -> bytes:
+    def get(self, *, headers: Optional[dict[str, str]] = None) -> bytes:
         hdr = {
             "User-Agent": self.agent,
             "Host": self.up.netloc,
             "Accept": "*/*",
             "Accept-Encoding": "identity",
         }
-        hdr.update(headers)
+        if headers:
+            hdr.update(headers)
 
         self._htconn()
         self.conn.request("GET", self.up.path, headers=hdr)
         return self._finish()
 
-    def post(self, *, headers: dict[str, str] = {}, form: dict[str, str] = {}) -> bytes:
+    def post(
+        self,
+        *,
+        headers: Optional[dict[str, str]] = None,
+        form: Optional[dict[str, str]] = None,
+        cache: Optional[dict[str, bytes]] = None,
+    ) -> bytes:
         bnd = self._boundary()
         hdr = {
             "User-Agent": self.agent,
@@ -47,21 +54,25 @@ class OneShotKaClient:
             "Transfer-Encoding": "chunked",
             "Content-Type": f"multipart/form-data; boundary={bnd}",
         }
-        hdr.update(headers)
+        if headers:
+            hdr.update(headers)
 
-        ary = self.form2lines(bnd, form)
-        data = b"\r\n".join(ary)
+        data = self.form2bytes(bnd, form, cache)
         self._htconn()
         self.conn.request("POST", self.up.path, body=data, headers=hdr, encode_chunked=True)
         return self._finish()
 
-    def form2lines(self, bnd: str, form: dict[str, str]) -> list[bytes]:
+    def form2bytes(self, bnd: str, form: Optional[dict[str, str]], cache: Optional[dict[str, bytes]]) -> bytes:
+        form = form if form else {}
+        cache = cache if cache else {}
         ary = []
         for k, v in form.items():
             if v.startswith("@"):
                 path = v[1:]
-                with open(path, "rb") as fp:
-                    buf = fp.read()
+                buf = cache.get(path)
+                if buf is None:
+                    with open(path, "rb") as fp:
+                        buf = fp.read()
                 typ, enc = mimetypes.guess_type(path)
                 fn = path.split("/")[-1]
                 strs = [
@@ -84,7 +95,7 @@ class OneShotKaClient:
             ary.extend(bary)
         ary.append(f"--{bnd}--".encode())  # terminator
         ary.append(b"")
-        return ary
+        return b"\r\n".join(ary)
 
     @property
     def resp(self) -> http.client.HTTPResponse:
@@ -93,6 +104,10 @@ class OneShotKaClient:
     @property
     def status(self) -> int:
         return self._resp.status
+
+    @property
+    def reason(self) -> str:
+        return self._resp.reason
 
     def getheader(self, name, default=None) -> Optional[str]:
         return self._resp.getheader(name, default)

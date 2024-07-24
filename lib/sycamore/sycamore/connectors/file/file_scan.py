@@ -156,7 +156,7 @@ class BinaryScan(FileScan):
             self._paths,
             include_paths=True,
             filesystem=self._filesystem,
-            parallelism=self.parallelism,
+            override_num_blocks=self.parallelism,
             ray_remote_args=self.resource_args,
             file_extensions=file_extensions,
         )

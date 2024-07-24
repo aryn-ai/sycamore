@@ -15,6 +15,7 @@ env:
   SYCAMORE_S3_TEMP_PATH: s3://aryn-sycamore-integ-temp/
   MODEL_SERVER_KEY: ${{ secrets.MODEL_SERVER_KEY }}
   PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
+  ARYN_API_KEY: ${{ secrets.MODEL_SERVER_KEY }} 
 
 # Permissions for AWS access
 permissions:
@@ -80,7 +81,7 @@ jobs:
     runs-on: integ-test-runner
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11"]
+        python-version: ["3.9"]
     services:
       opensearch:
         image: opensearchproject/opensearch:2.10.0

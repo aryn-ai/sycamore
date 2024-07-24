@@ -16,7 +16,7 @@ class TestDocSetReader:
 
     def test_json(self):
         context = sycamore.init()
-        docset = context.read.binary("s3://bucket/prefix/json", binary_format="json")
+        docset = context.read.json("s3://bucket/prefix/json")
         assert isinstance(docset, DocSet)
         assert docset.plan.format() == "json"
 

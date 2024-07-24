@@ -67,9 +67,7 @@ def check_table_extraction(**kwargs):
         ]
     )
 
-    from sycamore.utils.time_trace import ray_logging_setup
-
-    context = sycamore.init(ray_args={"runtime_env": {"worker_process_setup_hook": ray_logging_setup}})
+    context = sycamore.init()
 
     # TODO: The title on the paper is recognized as a section header rather than a page header at the moment.
     # The test will need to be updated if and when that changes.

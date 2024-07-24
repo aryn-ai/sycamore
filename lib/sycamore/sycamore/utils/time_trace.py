@@ -146,24 +146,6 @@ class _ZeroRU:
         self.ru_stime = 0
 
 
-def ray_logging_setup():
-    """Use this like:
-
-    ctx = sycamore.init(ray_args={"runtime_env": {"worker_process_setup_hook": ray_logging_setup}})
-
-    When ray starts up you should see:
-    (pid=###) ERROR:root:RayLoggingSetup-Before (expect -After; if missing there is a bug)
-    (pid=###) RayLoggingSetup-After
-
-    If either of those are missing there is a bug.
-    """
-    logging.error("RayLoggingSetup-Before (expect -After; if missing there is a bug)")
-    global logger
-    logger = logging.getLogger("ray")
-    logger.setLevel(logging.INFO)
-    logger.info("RayLoggingSetup-After")
-
-
 class LogTime:
     def __init__(self, name: str, *, point: bool = False, log_start: bool = False):
         if point:

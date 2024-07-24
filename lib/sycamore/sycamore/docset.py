@@ -14,6 +14,7 @@ from sycamore.transforms.extract_entity import EntityExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
 from sycamore.transforms.partition import Partitioner
 from sycamore.transforms.summarize import Summarizer
+from sycamore.transforms.llm_query import LLMQueryAgent
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.merge_elements import ElementMerger
 from sycamore.writer import DocSetWriter
@@ -853,6 +854,26 @@ class DocSet:
         from sycamore.transforms import Sort
 
         return DocSet(self.context, Sort(self.plan, descending, field, default_val))
+
+    def llm_query(self, query_agent: LLMQueryAgent, **kwargs) -> "DocSet":
+        """
+        Executes an LLM Query on a specified field (element or document), and returns the response
+
+        Example:
+            .. code-block:: python
+
+                prompt="Tell me the important numbers from this element"
+                llm_query_agent = LLMElementTextSummarizer(prompt=prompt)
+
+                context = sycamore.init()
+                pdf_docset = context.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=UnstructuredPdfPartitioner())
+                    .llm_query(query_agent=llm_query_agent)
+        """
+        from sycamore.transforms import LLMQuery
+
+        queries = LLMQuery(self.plan, query_agent=query_agent, **kwargs)
+        return DocSet(self.context, queries)
 
     @property
     def write(self) -> DocSetWriter:

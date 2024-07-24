@@ -142,7 +142,10 @@ class GreedySectionMerger(ElementMerger):
         self.merge_across_pages = merge_across_pages
 
     def preprocess_element(self, element: Element) -> Element:
-        element.data["token_count"] = len(self.tokenizer.tokenize(element.text_representation or ""))
+        if element.type == 'Image' and "summary" in element.properties:
+            element.data["token_count"] = len(self.tokenizer.tokenize(element.properties['summary'] or ""))
+        else:
+            element.data["token_count"] = len(self.tokenizer.tokenize(element.text_representation or ""))
         return element
 
     def postprocess_element(self, element: Element) -> Element:
@@ -150,6 +153,9 @@ class GreedySectionMerger(ElementMerger):
         return element
 
     def should_merge(self, element1: Element, element2: Element) -> bool:
+        # deal with empty elements
+        if "page_number" not in element1.properties or "page_number" not in element2.properties or element1.type == None or element2.type == None:
+            return False
 
         # DO NOT MERGE across pages
         if not self.merge_across_pages and element1.properties["page_number"] != element2.properties["page_number"]:
@@ -191,7 +197,7 @@ class GreedySectionMerger(ElementMerger):
         Returns:
             Tuple[Element, int]: a new merged element from the inputs (and number of tokens in it)
         """
-        
+
         tok1 = elt1.data["token_count"]
         tok2 = elt2.data["token_count"]
         new_elt = Element()
@@ -223,8 +229,12 @@ class GreedySectionMerger(ElementMerger):
         else:
             if new_elt.type == "Image+Text":
                 # text rep = summary(image) + text
-                new_elt.text_representation = elt1.properties['summary']['summary'] + "\n" + elt2.text_representation
-
+                if "summary" in elt1.properties:
+                    new_elt.text_representation = elt1.properties['summary'] + "\n" + elt2.text_representation
+                else:
+                    new_elt.text_representation = elt1.text_representation + "\n" + elt2.text_representation
+                new_elt.data["token_count"] = tok1 + 1 + tok2    
+ 
             elif new_elt.type == "Section-header+table":
                 # text rep = header text + table html
                 if elt2.table:

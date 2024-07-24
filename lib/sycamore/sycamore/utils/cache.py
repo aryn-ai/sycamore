@@ -8,7 +8,7 @@ import boto3
 import diskcache
 from botocore.exceptions import ClientError
 
-BLOCK_SIZE = 1000000  # 1 MB
+BLOCK_SIZE = 1048576  # 1 MiB
 
 
 class Cache:

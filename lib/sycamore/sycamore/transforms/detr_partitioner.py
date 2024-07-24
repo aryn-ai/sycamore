@@ -38,7 +38,7 @@ from sycamore.utils.time_trace import LogTime, timetrace
 
 
 logger = logging.getLogger(__name__)
-_DETR_LOCK_FILE = "./detr.lock"
+_DETR_LOCK_FILE = "/tmp/Aryn-Detr.lock"
 
 def _batchify(iterable, n=1):
     length = len(iterable)

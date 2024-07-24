@@ -4,14 +4,14 @@
 [![Docs](https://readthedocs.org/projects/sycamore/badge/?version=stable)](https://sycamore.readthedocs.io/en/stable/?badge=stable)
 ![License](https://img.shields.io/github/license/aryn-ai/sycamore)
 
-`arynsdk` is a simple client library for interacting with Aryn cloud services.
+`aryn-sdk` is a simple client library for interacting with Aryn cloud services.
 
 ## Aryn Partitioning Service
 
-Partition pdf files with the Aryn Partitioning Service (APS) through `arynsdk`:
+Partition pdf files with the Aryn Partitioning Service (APS) through `aryn-sdk`:
 
 ```python
-from arynsdk.partition import partition_file
+from aryn_sdk.partition import partition_file
 
 with open("partition-me.pdf", "rb") as f:
     data = partition_file(
@@ -26,7 +26,7 @@ elements = data['elements']
 Convert partitioned tables to pandas dataframes for easier use:
 
 ```python
-from arynsdk.partition import partition_file, tables_to_pandas
+from aryn_sdk.partition import partition_file, tables_to_pandas
 
 with open("partition-me.pdf", "rb") as f:
     data = partition_file(

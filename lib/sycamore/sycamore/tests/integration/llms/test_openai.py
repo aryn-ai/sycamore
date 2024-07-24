@@ -116,24 +116,24 @@ def test_cached_openai_different_models(tmp_path: Path):
     llm_GPT_4O_MINI = OpenAI(OpenAIModels.GPT_4O_MINI, cache=cache)
 
     prompt_kwargs = {"prompt": "Write a limerick about large language models."}
+
+    # populate cache
     key_GPT_3_5_TURBO = llm_GPT_3_5_TURBO._get_cache_key(prompt_kwargs, {})
     res_GPT_3_5_TURBO = llm_GPT_3_5_TURBO.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
+    key_GPT_4O_MINI = llm_GPT_4O_MINI._get_cache_key(prompt_kwargs, {})
+    res_GPT_4O_MINI = llm_GPT_4O_MINI.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
 
-    # assert result is cached
+    # check proper cached results
     assert cache.get(key_GPT_3_5_TURBO).get("result") == res_GPT_3_5_TURBO
     assert cache.get(key_GPT_3_5_TURBO).get("prompt_kwargs") == prompt_kwargs
     assert cache.get(key_GPT_3_5_TURBO).get("llm_kwargs") == {}
     assert cache.get(key_GPT_3_5_TURBO).get("model_name") == "gpt-3.5-turbo"
-
-    key_GPT_4O_MINI = llm_GPT_4O_MINI._get_cache_key(prompt_kwargs, {})
-    res_GPT_4O_MINI = llm_GPT_4O_MINI.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
-
-    # assert result is cached
     assert cache.get(key_GPT_4O_MINI).get("result") == res_GPT_4O_MINI
     assert cache.get(key_GPT_4O_MINI).get("prompt_kwargs") == prompt_kwargs
     assert cache.get(key_GPT_4O_MINI).get("llm_kwargs") == {}
     assert cache.get(key_GPT_4O_MINI).get("model_name") == "gpt-4o-mini"
 
+    # check for difference with model change
     assert key_GPT_3_5_TURBO != key_GPT_4O_MINI
     assert res_GPT_3_5_TURBO != res_GPT_4O_MINI
 

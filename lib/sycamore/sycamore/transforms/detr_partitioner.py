@@ -389,7 +389,7 @@ class ArynPDFPartitioner:
                 # but typing.BinaryIO doesn't extend from it. BytesIO
                 # (the concrete class) implements both.
                 file_name = cast(IOBase, file)
-                hash_key = Cache.get_hash_bytes(file_name.read()).hexdigest()
+                hash_key = Cache.get_hash_context(file_name.read()).hexdigest()
                 with LogTime("pdfminer_extract", log_start=True):
                     pdfminer_layout = pdfminer.extract(file_name, hash_key, use_cache)
                 # page count should be the same
@@ -436,7 +436,7 @@ class ArynPDFPartitioner:
         LogTime("partition_start", point=True)
         with tempfile.NamedTemporaryFile(prefix="detr-pdf-input-") as pdffile:
             with LogTime("write_pdf"):
-                file_hash = Cache.get_hash_file(pdffile.name)
+                file_hash = Cache.get_hash_context_file(pdffile.name)
                 data = file.read()
                 data_len = len(data)
                 pdffile.write(data)

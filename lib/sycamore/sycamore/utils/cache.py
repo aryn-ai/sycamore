@@ -1,13 +1,14 @@
+from __future__ import annotations
 import hashlib
 import json
 import time
-from typing import Any
+from typing import Any, Optional
 
 import boto3
 import diskcache
 from botocore.exceptions import ClientError
 
-BLOCK_SIZE = 65536
+BLOCK_SIZE = 1000000  # 1 MB
 
 
 class Cache:
@@ -18,24 +19,22 @@ class Cache:
         pass
 
     @staticmethod
-    def get_hash_bytes(data: bytes) -> hashlib.sha256:
+    def get_hash_context(data: bytes) -> hashlib._Hash:
         hash_sha256 = hashlib.sha256()
         hash_sha256.update(data)
         return hash_sha256
 
     @staticmethod
-    def get_hash_file(file_path: str) -> hashlib.sha256:
-        sha = hashlib.sha256()
+    def get_hash_context_file(file_path: str, hash_context: Optional[hashlib._Hash] = None) -> hashlib._Hash:
+        if not hash_context:
+            hash_context = hashlib.sha256()
         with open(file_path, "rb") as file:
-            file_buffer = file.read(BLOCK_SIZE)
-            while len(file_buffer) > 0:
-                sha.update(file_buffer)
+            while True:
                 file_buffer = file.read(BLOCK_SIZE)
-        return sha
-
-    @staticmethod
-    def update_hash(existing_hash: hashlib.sha256, new_content: Any) -> hashlib.sha256:
-        return existing_hash.update(new_content)
+                if not file_buffer:
+                    break
+                hash_context.update(file_buffer)
+        return hash_context
 
 
 class DiskCache(Cache):

@@ -12,20 +12,20 @@ For local development and testing, we recommend running OpenSearch through docke
   <summary><i>compose.yml</i></summary>
 
   ```yaml
-version: '3'
-services:
-  opensearch:
-    image: opensearchproject/opensearch:2.10.0
-    container_name: opensearch
-    environment:
-      - discovery.type=single-node
-      - bootstrap.memory_lock=true # Disable JVM heap memory swapping
-    ulimits:
-      memlock:
-        soft: -1 # Set memlock to unlimited (no soft or hard limit)
-        hard: -1
-    ports:
-      - 9200:9200 # REST API
+  version: '3'
+  services:
+    opensearch:
+      image: opensearchproject/opensearch:2.10.0
+      container_name: opensearch
+      environment:
+        - discovery.type=single-node
+        - bootstrap.memory_lock=true # Disable JVM heap memory swapping
+      ulimits:
+        memlock:
+          soft: -1 # Set memlock to unlimited (no soft or hard limit)
+          hard: -1
+      ports:
+        - 9200:9200 # REST API
   ```
 </details>
 

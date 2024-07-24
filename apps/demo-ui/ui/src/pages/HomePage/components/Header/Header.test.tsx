@@ -1,8 +1,5 @@
-// HeaderComponent.test.jsx
-
 import { HeaderComponent } from ".";
 import { render, screen } from "../../../../test-utils";
-import { customRender } from "../../../../test-utils/render";
 import { Settings } from "../../../../Types";
 
 const mockUseMediaQuery = jest.fn();
@@ -36,7 +33,7 @@ describe("HeaderComponent", () => {
       modelId: "myModelId",
     });
 
-    customRender(
+    render(
       <HeaderComponent
         navBarOpened={false}
         setNavBarOpened={jest.fn()}

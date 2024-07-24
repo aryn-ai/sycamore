@@ -2,7 +2,6 @@
 
 import HomePage, { theme } from ".";
 import { Settings } from "../../Types";
-import { customRender } from "../../test-utils/render";
 import { MantineProvider } from "@mantine/core";
 import { render as rtlRender } from "@testing-library/react";
 
@@ -31,7 +30,7 @@ jest.mock("@emotion/react", () => ({
 //   default: () => <div>Mocked HeaderComponent</div>,
 // }));
 describe("HomePage", () => {
-  test("renders logo and settings on larger screens", () => {
+  it("renders logo and settings on larger screens", () => {
     mockUseMediaQuery.mockReturnValue(false);
     const settings = new Settings({
       openSearchIndex: "myIndex",

@@ -14,7 +14,7 @@ export const AllTheProviders = ({
   // console.log("comp" + JSON.stringify(comp));
   return comp;
 };
-export const customRender = async (
+export const render = async (
   ui: React.ReactNode,
   options?: Omit<RenderOptions, "wrapper">,
 ) => {
@@ -27,7 +27,7 @@ export const customRender = async (
 };
 
 // Same implementation as above
-// export const customRender = (children: ReactElement) => {
+// export const render = (children: ReactElement) => {
 //   return rtlRender(children, {
 //     wrapper: ({ children }: { children: React.ReactNode }) => (
 //       <MantineProvider theme={theme}>{children}</MantineProvider>

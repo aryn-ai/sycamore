@@ -340,6 +340,8 @@ develop = true
 [package.dependencies]
 numpy = ">=1.21.5"
 pandas = ">=2.0"
+pdf2image = "^1.16.3"
+pillow = ">=10.0.0"
 pyyaml = "^6.0.1"
 requests = "^2.32"
 

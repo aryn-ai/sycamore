@@ -15,7 +15,7 @@ from sycamore.query.operators.math import Math
 from sycamore.query.operators.sort import Sort
 from sycamore.query.operators.topk import TopK
 from structlog.contextvars import clear_contextvars, bind_contextvars
-from sycamore import Context, DocSet
+from sycamore import Context
 
 from sycamore.query.execution.physical_operator import MathOperator
 from sycamore.query.execution.sycamore_operator import (
@@ -58,7 +58,7 @@ class SycamoreExecutor:
         self.s3_cache_path = s3_cache_path
         self.os_client_args = os_client_args
         self.trace_dir = trace_dir
-        self.processed: Dict[str, DocSet] = dict()
+        self.processed: Dict[str, Any] = dict()
         self.dry_run = dry_run
 
         if self.s3_cache_path:
@@ -186,9 +186,7 @@ class SycamoreExecutor:
             else:
                 result = operation.execute()
 
-        if result is not None:
-            assert isinstance(result, DocSet)
-            self.processed[logical_node.node_id] = result
+        self.processed[logical_node.node_id] = result
         log.info("Executed node", result=str(result))
         return result
 

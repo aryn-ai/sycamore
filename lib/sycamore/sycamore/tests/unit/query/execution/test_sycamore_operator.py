@@ -182,7 +182,7 @@ def test_top_k():
             "node_id",
             {
                 "descending": True,
-                "k": 10,
+                "K": 10,
                 "field": "name",
                 "id": 0,
                 "description": "some description",

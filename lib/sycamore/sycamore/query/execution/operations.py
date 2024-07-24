@@ -119,7 +119,7 @@ def llm_filter_operation(
 # field = doc.properties["entity"]["aircraft"]
 # return operations.match_filter_operation(query, field)
 # docset = docset.filter(wrapper)
-def match_filter_operation(doc: Document, query: str, field: str, ignore_case: bool = True) -> bool:
+def match_filter_operation(doc: Document, query: Any, field: str, ignore_case: bool = True) -> bool:
     """This operation filters your Docset to only keep documents that match the inputted
     query on the specified field. If the query/inputted field are strings, it looks for
     a substring match. For any type other than strings, it looks for an exact match.

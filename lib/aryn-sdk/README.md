@@ -56,3 +56,5 @@ page_pics = draw_with_boxes("partition-me.pdf", data, draw_table_cells=True)
 from IPython.display import display
 display(page_pics[0])
 ```
+
+> Note: visualizing documents requires `poppler`, a pdf processing library, to be installed. Instructions for installing poppler can be found [here](https://pypi.org/project/pdf2image/)

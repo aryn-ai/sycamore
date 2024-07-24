@@ -14,7 +14,7 @@ class TestLLMQuery:
         doc.elements = [element1]
         prompt = "Give me a one word summary response about the text"
         output_property = "output_property"
-        query_agent = LLMTextQueryAgent(prompt=prompt, openai_model=llm, output_property=output_property)
+        query_agent = LLMTextQueryAgent(prompt=prompt, llm=llm, output_property=output_property)
         doc = query_agent.execute_query(doc)
 
         assert output_property not in doc.elements[0].properties
@@ -31,7 +31,7 @@ class TestLLMQuery:
         doc.elements = [element1, element2]
         prompt = "Give me a one word summary response about the text"
         output_property = "output_property"
-        query_agent = LLMTextQueryAgent(prompt=prompt, openai_model=llm, output_property=output_property)
+        query_agent = LLMTextQueryAgent(prompt=prompt, llm=llm, output_property=output_property)
         doc = query_agent.execute_query(doc)
 
         assert doc.elements[0].properties[output_property] == {"summary": "summary"}
@@ -50,9 +50,7 @@ class TestLLMQuery:
 
         prompt = "Give me a one word summary response about the text"
         output_property = "output_property"
-        query_agent = LLMTextQueryAgent(
-            prompt=prompt, openai_model=llm, per_element=False, output_property=output_property
-        )
+        query_agent = LLMTextQueryAgent(prompt=prompt, llm=llm, per_element=False, output_property=output_property)
         doc = query_agent.execute_query(doc)
 
         assert doc.properties[output_property] == {"summary": "summary"}

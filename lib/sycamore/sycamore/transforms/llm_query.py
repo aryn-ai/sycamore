@@ -1,29 +1,24 @@
-from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, Any, Union
 
 from sycamore.data import Element, Document
-from sycamore.llms.openai import OpenAIModels
 from sycamore.plan_nodes import NonCPUUser, NonGPUUser, Node
-from sycamore.llms import OpenAI, OpenAIClientWrapper
+from sycamore.llms import LLM
 from sycamore.transforms.map import Map
+from sycamore.transforms.augment_text import JinjaTextAugmentor
 from sycamore.utils.time_trace import timetrace
+from jinja2.sandbox import SandboxedEnvironment
 
 
-class LLMQueryAgent(ABC):
-    @abstractmethod
-    def execute_query(self, document: Document) -> Document:
-        pass
-
-
-class LLMTextQueryAgent(LLMQueryAgent):
+class LLMTextQueryAgent:
     """
     LLMTextQueryAgent uses a specified LLM to execute LLM queries about a document
 
     Args:
         prompt: A prompt to be passed into the underlying LLM execution engine
-        openai_model: (Optional) The type of OpenAI model to be used in the execution. Defaults to GPT-4O
-        client_wrapper: (Optional) Specifications for the OpenAI client wrapper. Ignored if openai_model is specified
+        llm: (LLM) An instance of the LLM class to be pass into the user
         output_property: (Optional) The output property to add results in. Defaults to 'llm_response'
+        format_kwargs: (Optional) Formatting arguments passed in to define the prompt
+        number_of_elements: (Optional) if not executed per element
         llm_kwargs: (Optional) LLM keyword argument for the underlying execution engine
         per_element: (Optional) Whether to execute the call per each element or on the Document itself. Defaults to
         True.
@@ -40,47 +35,59 @@ class LLMTextQueryAgent(LLMQueryAgent):
                 .llm_query(query_agent=llm_query_agent)
     """
 
-    model = OpenAIModels.GPT_4O
-
     def __init__(
         self,
         prompt: str,
-        openai_model: Optional[OpenAI] = None,
-        client_wrapper: Optional[OpenAIClientWrapper] = None,
+        llm: LLM,
         output_property: str = "llm_response",
+        format_kwargs: Optional[dict[str, Any]] = None,
+        number_of_elements: Optional[int] = None,
         llm_kwargs: dict = {},
         per_element: bool = True,
     ):
-        if openai_model is not None:
-            self._openai = openai_model
-        else:
-            self._openai = OpenAI(model_name=self.model, client_wrapper=client_wrapper, max_retries=5)
+        self._llm = llm
         self._prompt = prompt
         self._output_property = output_property
         self._llm_kwargs = llm_kwargs
         self._per_element = per_element
+        self._format_kwargs = format_kwargs
+        self._number_of_elements = number_of_elements
 
     def execute_query(self, document: Document) -> Document:
         if self._per_element:
             elements = []
-            for element in document.elements:
-                elements.append(self._summarize_text_element(element))
+            for idx, element in enumerate(document.elements):
+                elements.append(self._query_text_object(element))
+                if self._number_of_elements and idx >= self._number_of_elements:
+                    break
             document.elements = elements
+        elif self._number_of_elements:  # limit to a number of elements
+            text_representation = self._prompt
+            for idx, element in enumerate(document.elements):
+                text_representation += "\n" + element["text_representation"]
+                if idx >= self._number_of_elements:
+                    break
+            prompt_kwargs = {"prompt": text_representation}
+            llm_resp = self._llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs=self._llm_kwargs)
+            document["properties"][self._output_property] = llm_resp
         else:
             if document.text_representation:
-                prompt = self._prompt + "\n" + document["text_representation"]
-                prompt_kwargs = {"prompt": prompt}
-                llm_resp = self._openai.generate(prompt_kwargs=prompt_kwargs, llm_kwargs=self._llm_kwargs)
-                document["properties"][self._output_property] = llm_resp
+                document = self._query_text_object(document)
         return document
 
     @timetrace("LLMQueryText")
-    def _summarize_text_element(self, element: Element) -> Element:
+    def _query_text_object(self, element: Union[Document, Element]) -> Union[Document, Element]:
         if element.text_representation:
-            prompt = self._prompt
-            prompt += "\n" + element["text_representation"]
+            if self._format_kwargs:
+                prompt = (
+                    SandboxedEnvironment()
+                    .from_string(source=self._prompt, globals=self._format_kwargs)
+                    .render(doc=element)
+                )
+            else:
+                prompt = self._prompt + "\n" + element["text_representation"]
             prompt_kwargs = {"prompt": prompt}
-            llm_resp = self._openai.generate(prompt_kwargs=prompt_kwargs, llm_kwargs=self._llm_kwargs)
+            llm_resp = self._llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs=self._llm_kwargs)
             element["properties"][self._output_property] = llm_resp
         return element
 
@@ -90,5 +97,5 @@ class LLMQuery(NonCPUUser, NonGPUUser, Map):
     The LLM Query Transform executes user defined queries on a document or the elements within it.
     """
 
-    def __init__(self, child: Node, query_agent: LLMQueryAgent, **kwargs):
+    def __init__(self, child: Node, query_agent: LLMTextQueryAgent, **kwargs):
         super().__init__(child, f=query_agent.execute_query, **kwargs)

@@ -213,6 +213,7 @@ class ArynPDFPartitioner:
             "extract_table_structure": extract_table_structure,
             "extract_images": extract_images,
             "selected_pages": selected_pages,
+            "source": "sycamore",
         }
 
         files: Mapping = {"pdf": file, "options": json.dumps(options).encode("utf-8")}

@@ -22,6 +22,20 @@ import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import { thumbToBool } from "../../utils/ChatboxUtils";
 import { HeaderComponent } from "./components/Header";
 
+export const theme = {
+  fontFamily:
+    '"Segoe UI",Roboto,Helvetica Neue,Arial,"Noto Sans",sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji"',
+  fontFamilyMonospace: "Monaco, Courier, monospace",
+  headings: { fontFamily: "Greycliff CF, sans-serif" },
+  fontSizes: {
+    xs: "0.8rem",
+    sm: "1rem",
+    md: "1.1rem",
+    lg: "1.2rem",
+    xl: "1.4rem",
+  },
+};
+
 export default function HomePage() {
   const [settings, setSettings] = useState(new Settings());
   const [searchResults, setSearchResults] = useState(
@@ -146,21 +160,7 @@ export default function HomePage() {
   }
 
   return (
-    <MantineProvider
-      theme={{
-        fontFamily:
-          '"Segoe UI",Roboto,Helvetica Neue,Arial,"Noto Sans",sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji"',
-        fontFamilyMonospace: "Monaco, Courier, monospace",
-        headings: { fontFamily: "Greycliff CF, sans-serif" },
-        fontSizes: {
-          xs: "0.8rem",
-          sm: "1rem",
-          md: "1.1rem",
-          lg: "1.2rem",
-          xl: "1.4rem",
-        },
-      }}
-    >
+    <MantineProvider theme={theme}>
       <AppShell
         padding="md"
         header={

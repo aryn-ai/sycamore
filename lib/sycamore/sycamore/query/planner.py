@@ -220,7 +220,7 @@ class LlmPlanner:
                 {
                     "operatorName": "LlmExtract",
                     "description": "Extract the country",
-                    "question": "What country was responsible for this ship? E.g. China, Mexico, Australia",
+                    "question": "What country was responsible for this ship?",
                     "field": "text_representation",
                     "newField": "country",
                     "format": "string",

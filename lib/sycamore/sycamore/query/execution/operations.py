@@ -43,6 +43,7 @@ SC_ASSIGN_GROUPS_PROMPT = """Categorize the database entry you are given corresp
 into one of the following groups: "{groups}". Perform your best work to assign the group. Return
 ONLY the string corresponding to the selected group. Here is the database entry you will use: """
 
+
 def field_to_value(doc: Document, field: str) -> Any:
     """
     Extracts the value for a particular document field.
@@ -85,11 +86,12 @@ def threshold_filter(doc: Document, threshold) -> bool:
 
     return return_value
 
+
 def llm_filter_operation(
     client: OpenAI,
     docset: DocSet,
     filter_question: Optional[str] = None,
-    field: Optional[str] = "text_representation",
+    field: Optional[str] = None,
     messages: Optional[List[dict]] = None,
     threshold: int = 3,
     **resource_args,
@@ -103,7 +105,7 @@ def llm_filter_operation(
         docset: DocSet to filter.
         filter_question: Question used for filtering during LLM call
         field: Document field to filter based on.
-        messages: Custom LLM prompt. 
+        messages: Custom LLM prompt.
         threshold: Cutoff that determines whether or not to keep document.
         **resource_args
 
@@ -128,6 +130,9 @@ def llm_filter_operation(
             },
         ]
 
+    if field is None:
+        field = "text_representation"
+
     docset = docset.map(
         lambda doc: llm_extract_operation(
             client=client, doc=doc, new_field="LlmFilterOutput", field=field, messages=messages
@@ -137,9 +142,10 @@ def llm_filter_operation(
 
     return docset
 
+
 def match_filter_operation(doc: Document, query: Any, field: str, ignore_case: bool = True) -> bool:
     """
-    Only keep documents that match the query on the specified field. 
+    Only keep documents that match the query on the specified field.
     Performs substring matching for strings.
 
     Args:
@@ -158,7 +164,7 @@ def match_filter_operation(doc: Document, query: Any, field: str, ignore_case: b
             query = "Cessna"
             field = "properties.entity.aircraft"
             return match_filter_operation(doc, query, field)
-        
+
         docset = docset.filter(wrapper)
     """
     value = field_to_value(doc, field)
@@ -175,6 +181,7 @@ def match_filter_operation(doc: Document, query: Any, field: str, ignore_case: b
 
     # if not string, exact match
     return query == value
+
 
 def range_filter_operation(
     doc: Document,
@@ -205,7 +212,7 @@ def range_filter_operation(
             start = "July 1, 2020"
             end = "July 30, 2020"
             return range_filter_operation(doc, field, start, end, True)
-        
+
         docset = docset.filter(wrapper)
     """
     value = field_to_value(doc, field)
@@ -237,11 +244,12 @@ def range_filter_operation(
         return value_comp >= start_comp
     return value_comp >= start_comp and value_comp <= end_comp
 
+
 def llm_extract_operation(
     client: OpenAI,
     doc: Document,
     new_field: str,
-    field: Optional[str] = "text_representation",
+    field: Optional[str] = None,
     question: Optional[str] = None,
     format: Optional[str] = None,
     discrete: Optional[bool] = None,
@@ -259,7 +267,7 @@ def llm_extract_operation(
         format: Indicates the format of the answer (e.g. "string").
         discrete: Indicates if the answer is a discrete value.
         messages: Custom prompt.
-    
+
     Returns:
         A document with an added field under doc.properties.
 
@@ -274,12 +282,15 @@ def llm_extract_operation(
             format = "string"
             discrete = False
             return llm_extract_operation(client, doc, new_field, field, question, format, discrete)
-        
+
         docset = docset.map(wrapper)
     """
 
     if messages is None and (question is None or format is None or discrete is None):
         raise ValueError('"question", "format", and "discrete" must be specified for default messages')
+
+    if field is None:
+        field = "text_representation"
 
     value = field_to_value(doc, field)
 
@@ -344,6 +355,7 @@ def llm_extract_operation(
 
     return doc
 
+
 def count_operation(docset: DocSet, field: Optional[str] = None, primary_field: Optional[str] = None, **kwargs) -> int:
     """
     Counts the number of document in a DocSet. Counts by field or primary_field if specified.
@@ -353,7 +365,7 @@ def count_operation(docset: DocSet, field: Optional[str] = None, primary_field: 
         field: Field to count based on. Takes precedence over primary_field if both are specified.
         primary_field: Primary field for a document to be considered different.
         **kwargs
-    
+
     Returns:
         An integer.
     """
@@ -379,6 +391,7 @@ def count_operation(docset: DocSet, field: Optional[str] = None, primary_field: 
             unique_docs.add(value)
         return len(unique_docs)
 
+
 def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
     """
     Basic arithmetic operations on integers.
@@ -387,7 +400,7 @@ def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
         val1: First integer in operation.
         val2: Second integer in operation.
         operator: Type of operation; "add", "subtract", "divide", or "multiply"
-    
+
     Returns:
         An integer or floating point number.
     """
@@ -402,6 +415,7 @@ def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
     else:
         raise ValueError("Invalid math operator " + operator)
 
+
 def llm_generate_operation(
     client: OpenAI, question: str, result_description: str, result_data: List[Any], **kwargs
 ) -> str:
@@ -414,7 +428,7 @@ def llm_generate_operation(
         result_description: Description of each of the inputs in result_data.
         result_data: List of inputs.
         **kwargs
-    
+
     Returns:
         Conversational response to question.
     """
@@ -428,7 +442,7 @@ def llm_generate_operation(
             for doc in result.take(NUM_DOCS_GENERATE, **kwargs):
                 if isinstance(doc, MetadataDocument):
                     continue
-                props_dict = doc.properties.get('entity', {})
+                props_dict = doc.properties.get("entity", {})
                 props_dict.update({p: doc.properties[p] for p in set(doc.properties) - set(BASE_PROPS)})
                 props_dict["text_representation"] = (
                     doc.text_representation[:NUM_TEXT_CHARS_GENERATE] if doc.text_representation is not None else None
@@ -471,15 +485,17 @@ def make_filter_fn_join(field: str, join_set: set) -> Callable[[Document], bool]
     Args:
         field: Document field to filter based on
         join_set: Set that contains valid field values.
-    
+
     Returns:
         Function that can be called inside of DocSet.filter
     """
+
     def filter_fn_join(doc: Document) -> bool:
         value = field_to_value(doc, field)
         return value in join_set
 
     return filter_fn_join
+
 
 def join_operation(docset1: DocSet, docset2: DocSet, field1: str, field2: str) -> DocSet:
     """
@@ -490,7 +506,7 @@ def join_operation(docset1: DocSet, docset2: DocSet, field1: str, field2: str) -
         docset2: DocSet to filter.
         field1: Field in docset1 to filter based on.
         field2: Field in docset2 to filter.
-    
+
     Returns:
         A joined DocSet.
     """
@@ -512,6 +528,7 @@ def join_operation(docset1: DocSet, docset2: DocSet, field1: str, field2: str) -
 
     return joined_docset
 
+
 def count_aggregate_operation(docset: DocSet, field, unique_field, **kwargs) -> DocSet:
     """
     Performs a count aggregation on a DocSet.
@@ -521,13 +538,14 @@ def count_aggregate_operation(docset: DocSet, field, unique_field, **kwargs) -> 
         field: Field to aggregate based on.
         unique_field: Determines what makes a unique document.
         **kwargs
-    
+
     Returns:
-        A DocSet with "properties.key" (unique values of document field) 
+        A DocSet with "properties.key" (unique values of document field)
         and "properties.count" (frequency counts for unique values).
     """
     dataset = CountAggregate(docset.plan, field, unique_field).execute(**kwargs)
     return DocSet(docset.context, DatasetScan(dataset))
+
 
 def top_k_operation(
     client: OpenAI,
@@ -553,9 +571,9 @@ def top_k_operation(
         use_llm: Indicates whether an LLM should be used to normalize values of document field.
         unique_field: Determines what makes a unique document.
         **kwargs
-    
+
     Returns:
-        A DocSet with "properties.key" (unique values of document field) 
+        A DocSet with "properties.key" (unique values of document field)
         and "properties.count" (frequency counts for unique values) which is
         sorted based on descending and contains k records.
     """
@@ -573,6 +591,7 @@ def top_k_operation(
         docset = docset.limit(k)
     return docset
 
+
 def semantic_cluster(client: OpenAI, docset: DocSet, description: str, field: str) -> DocSet:
     """
     Normalizes a particular field of a DocSet. Identifies and assigns each document to a "group".
@@ -582,7 +601,7 @@ def semantic_cluster(client: OpenAI, docset: DocSet, description: str, field: st
         docset: DocSet to form groups for.
         description: Description of purpose of this operation.
         field: Field to make/assign groups based on.
-    
+
     Returns:
         A DocSet with an additional field "properties.ClusterAssignment".
     """
@@ -622,6 +641,7 @@ def semantic_cluster(client: OpenAI, docset: DocSet, description: str, field: st
     # LLM response
     return docset
 
+
 def make_map_fn_count(field: str, unique_field: Optional[str] = None) -> Callable[[dict[str, Any]], dict[str, Any]]:
     """
     Creates a map function that can be called on a Ray Dataset
@@ -631,10 +651,11 @@ def make_map_fn_count(field: str, unique_field: Optional[str] = None) -> Callabl
     Args:
         field: Document field to add as a column.
         unique_field: Unique document field to as a column.
-    
+
     Returns:
         Function that can be called inside of DocSet.filter
     """
+
     def ray_callable(input_dict: dict[str, Any]) -> dict[str, Any]:
         doc = Document.from_row(input_dict)
 
@@ -665,7 +686,7 @@ def filterOutNone(row: dict[str, Any]) -> bool:
 
     Args:
         row: Input Dataset row.
-    
+
     Returns:
         Boolean that indicates whether or not to keep row.
     """
@@ -683,7 +704,7 @@ def add_doc_column(row: dict[str, Any]) -> dict[str, Any]:
 
     Args:
         row: Input Dataset row.
-    
+
     Returns:
         Row with added doc column.
     """
@@ -726,6 +747,7 @@ class DatasetScan(Scan):
     """
     Scans a dataset.
     """
+
     def __init__(self, dataset: Dataset, **resource_args):
         super().__init__(**resource_args)
         self._dataset = dataset

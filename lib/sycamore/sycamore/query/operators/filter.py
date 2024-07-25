@@ -7,7 +7,8 @@ class Filter(LogicalOperator):
     """
     Logical filter operator for exact match or range filtering.
     """
-    def __init__(self, node_id: str, data: Optional[Dict[Any, Any]] = None) -> None:
+
+    def __init__(self, node_id: str, data: Optional[Dict[Any, Any]] = None):
         super().__init__(node_id, data)
 
     @staticmethod

@@ -11,7 +11,7 @@ from elasticsearch import Elasticsearch
 
 def test_to_elasticsearch():
     url = "http://localhost:9201"
-    index_name = "test_index-other"
+    index_name = "test_index-write"
     wait_for_completion = "wait_for"
     model_name = "sentence-transformers/all-MiniLM-L6-v2"
     paths = str(TEST_DIR / "resources/data/pdfs/Transformer.pdf")

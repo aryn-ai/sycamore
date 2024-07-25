@@ -37,6 +37,7 @@ class OpenAIModels(Enum):
     GPT_3_5_TURBO = OpenAIModel(name="gpt-3.5-turbo", is_chat=True)
     GPT_4_TURBO = OpenAIModel(name="gpt-4-turbo", is_chat=True)
     GPT_4O = OpenAIModel(name="gpt-4o", is_chat=True)
+    GPT_4O_MINI = OpenAIModel(name="gpt-4o-mini", is_chat=True)
     GPT_3_5_TURBO_INSTRUCT = OpenAIModel(name="gpt-3.5-turbo-instruct", is_chat=False)
 
     @classmethod
@@ -264,9 +265,9 @@ class OpenAI(LLM):
 
     def _get_cache_key(self, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
         assert self._cache
-        combined = {"prompt_kwargs": prompt_kwargs, "llm_kwargs": llm_kwargs}
+        combined = {"prompt_kwargs": prompt_kwargs, "llm_kwargs": llm_kwargs, "model_name": self.model.name}
         data = pickle.dumps(combined)
-        return self._cache.get_hash_key(data)
+        return self._cache.get_hash_context(data).hexdigest()
 
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Any:
         cache_key = None
@@ -274,14 +275,19 @@ class OpenAI(LLM):
             cache_key = self._get_cache_key(prompt_kwargs, llm_kwargs)
             hit = self._cache.get(cache_key)
             if hit:
-                if hit.get("prompt_kwargs") == prompt_kwargs and hit.get("llm_kwargs") == llm_kwargs:
+                if (
+                    hit.get("prompt_kwargs") == prompt_kwargs
+                    and hit.get("llm_kwargs") == llm_kwargs
+                    and hit.get("model_name") == self.model.name
+                ):
                     return hit.get("result")
                 else:
                     logger.warning(
-                        "Found cache content mismatch, key=%s prompt_kwargs=%s llm_kwargs=%s",
+                        "Found cache content mismatch, key=%s prompt_kwargs=%s llm_kwargs=%s model_name=%s",
                         cache_key,
                         prompt_kwargs,
                         llm_kwargs,
+                        self.model.name,
                     )
 
         if llm_kwargs is not None:
@@ -291,7 +297,12 @@ class OpenAI(LLM):
 
         if self._cache:
             assert cache_key
-            item = {"result": result, "prompt_kwargs": prompt_kwargs, "llm_kwargs": llm_kwargs}
+            item = {
+                "result": result,
+                "prompt_kwargs": prompt_kwargs,
+                "llm_kwargs": llm_kwargs,
+                "model_name": self.model.name,
+            }
             self._cache.set(cache_key, item)
         return result
 

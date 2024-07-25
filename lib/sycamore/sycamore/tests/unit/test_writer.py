@@ -5,7 +5,7 @@ from sycamore.plan_nodes import Node
 from sycamore.connectors.opensearch import OpenSearchWriter
 from sycamore.connectors.weaviate import WeaviateDocumentWriter
 from sycamore.connectors.duckdb import DuckDBWriter
-from sycamore.connectors.elasticsearch import ElasticDocumentWriter
+from sycamore.connectors.elasticsearch import ElasticsearchDocumentWriter
 
 import json
 from pathlib import Path
@@ -134,7 +134,7 @@ class TestDocSetWriter:
     def test_elasticsearch(self, mocker):
         context = mocker.Mock(spec=Context)
         docset = DocSet(context, mocker.Mock(spec=Node))
-        execute = mocker.patch.object(ElasticDocumentWriter, "execute")
+        execute = mocker.patch.object(ElasticsearchDocumentWriter, "execute")
         docset.write.elasticsearch(url="", index_name="index")
         execute.assert_called_once()
 

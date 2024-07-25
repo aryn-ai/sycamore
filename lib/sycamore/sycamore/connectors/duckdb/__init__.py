@@ -1,15 +1,15 @@
-from sycamore.connectors.duckdb.duckdb_scan import DuckDBScan
+from sycamore.connectors.duckdb.duckdb_reader import DuckDBReader, DuckDBReaderClientParams, DuckDBReaderQueryParams
 from sycamore.connectors.duckdb.duckdb_writer import (
     DuckDBWriter,
-    DuckDBClient,
-    DuckDBClientParams,
-    DuckDBTargetParams,
+    DuckDBWriterClientParams,
+    DuckDBWriterTargetParams,
 )
 
 __all__ = [
     "DuckDBWriter",
-    "DuckDBClient",
-    "DuckDBClientParams",
-    "DuckDBTargetParams",
-    "DuckDBScan",
+    "DuckDBWriterClientParams",
+    "DuckDBWriterTargetParams",
+    "DuckDBReader",
+    "DuckDBReaderClientParams",
+    "DuckDBReaderQueryParams",
 ]

@@ -2,12 +2,12 @@ import pytest
 
 from sycamore.connectors.weaviate.weaviate_writer import (
     CollectionConfigCreate,
-    WeaviateClient,
+    WeaviateWriterClient,
     WeaviateClientParams,
     WeaviateCrossReferenceClient,
     WeaviateCrossReferenceRecord,
-    WeaviateDocumentRecord,
-    WeaviateTargetParams,
+    WeaviateWriterDocumentRecord,
+    WeaviateWriterTargetParams,
 )
 from sycamore.data.document import Document
 import weaviate
@@ -61,24 +61,26 @@ class TestWeaviateTargetParams:
     def test_target_params_compat_with_self(self):
         cn = "TestNumber1"
         cp = collection_params_a(cn)
-        wtp_a = WeaviateTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
-        wtp_b = WeaviateTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
+        wtp_a = WeaviateWriterTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
+        wtp_b = WeaviateWriterTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
         assert wtp_a.compatible_with(wtp_b)
         assert wtp_b.compatible_with(wtp_a)
 
     def test_target_params_incompat_with_diff_flattens(self):
         cn = "TestNumber2"
         cp = collection_params_a(cn)
-        wtp_a = WeaviateTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
-        wtp_b = WeaviateTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp), flatten_properties=True)
+        wtp_a = WeaviateWriterTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
+        wtp_b = WeaviateWriterTargetParams(
+            name=cn, collection_config=CollectionConfigCreate(**cp), flatten_properties=True
+        )
         assert not wtp_a.compatible_with(wtp_b)
         assert not wtp_b.compatible_with(wtp_a)
 
     def test_target_params_compat_through_weaviate_object(self, embedded_client):
         cn = "TestNumber3"
         cp = collection_params_a(cn)
-        wtp_a = WeaviateTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
-        wcl = WeaviateClient(embedded_client)
+        wtp_a = WeaviateWriterTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
+        wcl = WeaviateWriterClient(embedded_client)
         wcl.create_target_idempotent(wtp_a)
         wtp_b = wcl.get_existing_target_params(wtp_a)
         assert wtp_a.compatible_with(wtp_b)
@@ -111,43 +113,43 @@ class TestWeaviateClient:
     def test_create_target_normal(self, mocker):
         cn = "TestNumber4"
         cp = collection_params_a(cn)
-        wtp_a = WeaviateTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
+        wtp_a = WeaviateWriterTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
         wcl = TestWeaviateClient.mock_client(mocker)
         wcl.collections.create = mocker.Mock()
         wcl.collections.create.return_value = True
-        client = WeaviateClient(wcl)
+        client = WeaviateWriterClient(wcl)
         client.create_target_idempotent(wtp_a)
         wcl.collections.create.assert_called_once()
 
     def test_create_target_from_target(self, mocker, embedded_client):
         cn = "TestNumber5"
         cp = collection_params_a(cn)
-        wtp_a = WeaviateTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
-        real_client = WeaviateClient(embedded_client)
+        wtp_a = WeaviateWriterTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
+        real_client = WeaviateWriterClient(embedded_client)
         real_client.create_target_idempotent(wtp_a)
         wtp_b = real_client.get_existing_target_params(wtp_a)
 
         fake_inner_client = TestWeaviateClient.mock_client(mocker)
         fake_inner_client.collections.create_from_config = mocker.Mock()
         fake_inner_client.collections.create_from_config.return_value = True
-        fake_client = WeaviateClient(fake_inner_client)
+        fake_client = WeaviateWriterClient(fake_inner_client)
         fake_client.create_target_idempotent(wtp_b)
         fake_inner_client.collections.create_from_config.assert_called_once()
 
     def test_write_many_documents(self, mocker):
         docs = [
-            WeaviateDocumentRecord(uuid="1", properties={"field": "value"}, vector={"embedding": [0.2] * 4}),
-            WeaviateDocumentRecord(uuid="2", properties={"field": "othervalue"}, vector={"embedding": [0.1] * 4}),
-            WeaviateDocumentRecord(uuid="3", properties={"field": "no_vector"}),
+            WeaviateWriterDocumentRecord(uuid="1", properties={"field": "value"}, vector={"embedding": [0.2] * 4}),
+            WeaviateWriterDocumentRecord(uuid="2", properties={"field": "othervalue"}, vector={"embedding": [0.1] * 4}),
+            WeaviateWriterDocumentRecord(uuid="3", properties={"field": "no_vector"}),
         ]
         cn = "TestNumber6"
         cp = collection_params_a(cn)
-        wtp_a = WeaviateTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
+        wtp_a = WeaviateWriterTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
 
         wcl = TestWeaviateClient.mock_client(mocker)
         wbatch = TestWeaviateClient.mock_batch(mocker, wcl)
         wbatch.add_object = mocker.Mock()
-        client = WeaviateClient(wcl)
+        client = WeaviateWriterClient(wcl)
 
         client.write_many_records(docs, wtp_a)
         assert wbatch.add_object.call_count == 3
@@ -165,8 +167,8 @@ class TestWeaviateDocumentRecord:
         )
         cn = "TestNumber7"
         cp = collection_params_a(cn)
-        wtp_a = WeaviateTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
-        record = WeaviateDocumentRecord.from_doc(doc, wtp_a)
+        wtp_a = WeaviateWriterTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
+        record = WeaviateWriterDocumentRecord.from_doc(doc, wtp_a)
         assert record.uuid == "id"
         assert record.properties == {
             "properties": {"field": "value", "nested": {"object": "value"}},
@@ -185,8 +187,10 @@ class TestWeaviateDocumentRecord:
         )
         cn = "TestNumber8"
         cp = collection_params_a(cn)
-        wtp_a = WeaviateTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp), flatten_properties=True)
-        record = WeaviateDocumentRecord.from_doc(doc, wtp_a)
+        wtp_a = WeaviateWriterTargetParams(
+            name=cn, collection_config=CollectionConfigCreate(**cp), flatten_properties=True
+        )
+        record = WeaviateWriterDocumentRecord.from_doc(doc, wtp_a)
         assert record.uuid == "id"
         assert record.properties == {
             "properties__field": "value",
@@ -199,8 +203,8 @@ class TestWeaviateDocumentRecord:
         doc = Document({"doc_id": "id", "text_representation": "helloworld", "embedding": [0.4] * 19})
         cn = "TestNumber9"
         cp = collection_params_a(cn)
-        wtp_a = WeaviateTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
-        record = WeaviateDocumentRecord.from_doc(doc, wtp_a)
+        wtp_a = WeaviateWriterTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
+        record = WeaviateWriterDocumentRecord.from_doc(doc, wtp_a)
         assert record.uuid == "id"
         assert record.properties == {"text_representation": "helloworld"}
         assert record.vector == {"embedding": [0.4] * 19}
@@ -216,8 +220,8 @@ class TestWeaviateDocumentRecord:
         )
         cn = "TestNumber10"
         cp = collection_params_a(cn)
-        wtp_a = WeaviateTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
-        record = WeaviateDocumentRecord.from_doc(doc, wtp_a)
+        wtp_a = WeaviateWriterTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
+        record = WeaviateWriterDocumentRecord.from_doc(doc, wtp_a)
         assert record.uuid == "id"
         assert record.properties == {
             "text_representation": "my second document",
@@ -253,7 +257,7 @@ class TestWeaviateCrossReferenceClient:
     def test_create_target_idempotent_success(self, mocker):
         cn = "TestNumber11"
         cp = collection_params_a(cn)
-        wtp = WeaviateTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
+        wtp = WeaviateWriterTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
 
         wcl = TestWeaviateClient.mock_client(mocker)
         mc = TestWeaviateCrossReferenceClient.mock_collection_config(mocker, wcl)
@@ -266,7 +270,7 @@ class TestWeaviateCrossReferenceClient:
     def test_create_target_idempotent_fails_expectedly(self, mocker):
         cn = "TestNumber12"
         cp = collection_params_a(cn)
-        wtp = WeaviateTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
+        wtp = WeaviateWriterTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
 
         wcl = TestWeaviateClient.mock_client(mocker)
         mc = TestWeaviateCrossReferenceClient.mock_collection_config(mocker, wcl)
@@ -280,7 +284,7 @@ class TestWeaviateCrossReferenceClient:
     def test_create_target_idempotent_fails_unexpectedly(self, mocker):
         cn = "TestNumber13"
         cp = collection_params_a(cn)
-        wtp = WeaviateTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
+        wtp = WeaviateWriterTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
 
         wcl = TestWeaviateClient.mock_client(mocker)
         mc = TestWeaviateCrossReferenceClient.mock_collection_config(mocker, wcl)
@@ -303,7 +307,7 @@ class TestWeaviateCrossReferenceClient:
         ]
         cn = "TestNumber14"
         cp = collection_params_a(cn)
-        wtp_a = WeaviateTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
+        wtp_a = WeaviateWriterTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
 
         wcl = TestWeaviateClient.mock_client(mocker)
         wbatch = TestWeaviateClient.mock_batch(mocker, wcl)
@@ -322,7 +326,7 @@ class TestWeaviateCrossReferenceRecord:
         ]
         cn = "TestNumber15"
         cp = collection_params_a(cn)
-        wtp_a = WeaviateTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
+        wtp_a = WeaviateWriterTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
         cr_records = [WeaviateCrossReferenceRecord.from_doc(d, wtp_a) for d in docs]
         assert len(cr_records) == 2
         assert cr_records[0] == WeaviateCrossReferenceRecord(

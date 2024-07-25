@@ -301,11 +301,11 @@ class TestOperations:
         assert count_operation(words_and_ids_docset) == 9
 
     def test_count_primary_or_field(self, words_and_ids_docset):
-        assert count_operation(words_and_ids_docset, field="doc_id", primaryField=None) == 8
-        assert count_operation(words_and_ids_docset, field=None, primaryField="doc_id") == 8
+        assert count_operation(words_and_ids_docset, field="doc_id", primary_field=None) == 8
+        assert count_operation(words_and_ids_docset, field=None, primary_field="doc_id") == 8
 
     def test_count_unique_primary_and_field(self, words_and_ids_docset):
-        assert count_operation(words_and_ids_docset, field="doc_id", primaryField="text_representation") == 8
+        assert count_operation(words_and_ids_docset, field="doc_id", primary_field="text_representation") == 8
 
     # Math
     def test_math(self):

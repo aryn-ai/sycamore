@@ -378,7 +378,7 @@ def count_operation(docset: DocSet, field: Optional[str] = None, primary_field: 
             unique_field = field
         else:
             if primary_field is None:
-                raise ValueError("Must specify either 'field' or 'primaryField'")
+                raise ValueError("Must specify either 'field' or 'primary_field'")
             unique_field = primary_field
         unique_docs = set()
         execution = Execution(docset.context, docset.plan)

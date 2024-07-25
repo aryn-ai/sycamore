@@ -145,7 +145,7 @@ def test_count():
         mock_impl.assert_called_once_with(
             docset=doc_set,
             field=logical_node.data.get("field"),
-            primaryField=logical_node.data.get("primaryField"),
+            primary_field=logical_node.data.get("primaryField"),
             **sycamore_operator.get_execute_args(),
         )
 

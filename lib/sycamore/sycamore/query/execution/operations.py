@@ -360,7 +360,7 @@ def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
 # USAGE EXAMPLE
 # operations.llm_generate_operation("database of airplane incidents (NTSB)",
 # "How many incidents occurred between 1/1/2022 and 1/20/2022?", 13)
-def llm_generate_operation(client: OpenAI, question: str, result_description: str, result_data: Any, **kwargs) -> str:
+def llm_generate_operation(client: OpenAI, question: str, result_description: str, result_data: List[Any], **kwargs) -> str:
     text = f"Description: {result_description}\n"
 
     for i, result in enumerate(result_data):

@@ -9,6 +9,7 @@ from sycamore.llms import LLM
 from sycamore.query.execution.operations import (
     convert_string_to_date,
     field_to_value,
+    join_operation,
     llm_extract_operation,
     llm_filter_operation,
     llm_generate_operation,
@@ -89,7 +90,10 @@ class TestOperations:
 
     @pytest.fixture
     def number_docset(self, generate_docset):
-        return generate_docset({"text_representation": ["1", "2", "one", "two", "1", "3"]})
+        return generate_docset(
+            {"text_representation": ["1", "2", "one", "two", "1", "3"],
+            "doc_id": [1, 8, 5, 17, 13, 11]},
+            )
 
     # Filters
     def test_llm_filter(self, test_docset):
@@ -253,11 +257,11 @@ class TestOperations:
 
     # LLM Generate
     def test_llm_generate(words_and_ids_docset):
-        response = llm_generate_operation(client=MockLLM(), question="", result_description="", result_data="")
+        response = llm_generate_operation(client=MockLLM(), question="", result_description="", result_data=[""])
         assert response == ""
 
         response = llm_generate_operation(
-            client=MockLLM(), question="", result_description="", result_data=words_and_ids_docset
+            client=MockLLM(), question="", result_description="", result_data=[words_and_ids_docset]
         )
         assert response == ""
 

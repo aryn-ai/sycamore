@@ -8,6 +8,7 @@ from collections.abc import Mapping
 from concurrent.futures import ProcessPoolExecutor
 from io import BytesIO, IOBase
 from typing import cast, Any, BinaryIO, List, Tuple, Union
+from pathlib import Path
 
 import requests
 import json
@@ -35,7 +36,7 @@ from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
 from sycamore.utils.pdf import convert_from_path_streamed_batched
 from sycamore.utils.time_trace import LogTime, timetrace
-
+from sycamore.utils.pytorch_dir import get_pytorch_build_directory
 
 logger = logging.getLogger(__name__)
 _DETR_LOCK_FILE = "/tmp/Aryn-Detr.lock"
@@ -630,6 +631,9 @@ class DeformableDetr(SycamoreObjectDetection):
         self._model_name_or_path = model_name_or_path
 
         with fasteners.InterProcessLock(_DETR_LOCK_FILE):
+            lockfile = Path(get_pytorch_build_directory("MultiScaleDeformableAttention", False)) / "lock"
+            lockfile.unlink(missing_ok=True)
+
             from transformers import AutoImageProcessor, DeformableDetrForObjectDetection
 
             LogTime("loading_model", point=True)

@@ -14,7 +14,23 @@ from sycamore.evaluation import EvaluationDataPoint, EvaluationMetric
 from sycamore.evaluation.metrics import document_retrieval_metrics, rouge_metrics
 from sycamore.evaluation.datasets import EvaluationDataSetReader
 from sycamore.evaluation.pipeline import EvaluationPipeline
+from sycamore.transforms.extract_elem_test import extract_year
 from sycamore.transforms.query import OpenSearchQueryExecutor
+
+subtask_path="/home/admin/subtask_info.json"
+
+with open(subtask_path) as json_file:
+    data = json.load(json_file)
+
+calcs_reqd = data["calculation_ids"]
+
+no_year_ids = [
+    "financebench_id_01858", "financebench_id_07966", "financebench_id_07507", "financebench_id_08135", "financebench_id_00799", "financebench_id_01079", "financebench_id_01148",
+    "financebench_id_01930", "financebench_id_00563", "financebench_id_01351", "financebench_id_02608", "financebench_id_01077", "financebench_id_00288",
+    "financebench_id_00460", "financebench_id_03838", "financebench_id_00464", "financebench_id_00585", "financebench_id_02981", "financebench_id_01346", "financebench_id_01107",
+    "financebench_id_00839", "financebench_id_00206", "financebench_id_03718", "financebench_id_03849", "financebench_id_00552", "financebench_id_04302", "financebench_id_00735",
+    "financebench_id_00302", "financebench_id_00283", "financebench_id_00521", "financebench_id_00605", "financebench_id_00566", "financebench_id_04784", "financebench_id_06741"
+]
 
 def _hf_to_qa_datapoint(datapoint: dict[str, Any]) -> dict[str, Any]:
     document = EvaluationDataPoint()
@@ -30,6 +46,15 @@ def _hf_to_qa_datapoint(datapoint: dict[str, Any]) -> dict[str, Any]:
             "page_numbers": page_numbers
         }
     })]
+
+    document.additional_info = {}
+    document.additional_info["subtasks_reqd"] = True if datapoint["financebench_id"] in calcs_reqd else False
+    
+    # filters
+    company = datapoint['doc_name'].split("_")[0]
+    year = extract_year(document.question, company) if datapoint["financebench_id"] in no_year_ids else (datapoint['doc_period'])
+    document.filters = {"company": company}
+    if year: document.filters["year"] = int(year)
     
     document["raw"] = datapoint
     return {"doc": document.serialize()}
@@ -72,7 +97,7 @@ hf_dataset = datasets.load_dataset("PatronusAI/financebench", split='train[0:10]
 input_docset = reader.huggingface(hf_dataset, doc_extractor=_hf_to_qa_datapoint)
 
 data = {
-    "experiment_name": "FinanceBench gpt-3.5-turbo openai embedder",
+    "experiment_name": "FinanceBench gpt-3.5-turbo textract subtasks",
     "description": "gpt-3.5-turbo",
     "created_by": "aanyapratapneni",
     "index": INDEX,
@@ -86,12 +111,21 @@ pipeline = EvaluationPipeline(
     os_config=OS_CONFIG,
     metrics=[document_retrieval_metrics, rouge_metrics],
     query_executor=OpenSearchQueryExecutor(OS_CLIENT_ARGS),
+    subtask_path=subtask_path,
 )
 
+# start = time.time()
+# query_level_metrics, aggregated_metrics = pipeline.execute(input_docset)
+# # query_level_metrics = pipeline.execute(input_docset)
+# data["query_level_data"] = query_level_metrics.take_all()
+# data["aggregate_data"] = aggregated_metrics
+# data["evaluation_time"] = f'{"{:.2f}".format(time.time() - start)} seconds'
+# with open(output_path, "w+") as outfile:
+#     json.dump(data, outfile, cls=JSONEncodeWithUserDict)
+
 start = time.time()
-query_level_metrics, aggregated_metrics = pipeline.execute(input_docset)
+query_level_metrics = pipeline.subtask_execute(input_docset)
 data["query_level_data"] = query_level_metrics.take_all()
-data["aggregate_data"] = aggregated_metrics
 data["evaluation_time"] = f'{"{:.2f}".format(time.time() - start)} seconds'
 with open(output_path, "w+") as outfile:
     json.dump(data, outfile, cls=JSONEncodeWithUserDict)

@@ -116,6 +116,13 @@ class DrawBoxes:
             for e in doc.elements:
                 if isinstance(e, TableElement) and e.table is not None:
                     e.table.draw(canvas)
+                    # for token in e.tokens:
+                    #     token['bbox'][0] += e.bbox.x1*size[0]
+                    #     token['bbox'][1] += e.bbox.y1*size[1]
+                    #     token['bbox'][2] += e.bbox.x1*size[0]
+                    #     token['bbox'][3] += e.bbox.y1*size[1]
+
+                    # try_draw_boxes(canvas, e.tokens)
 
         png_image = BytesIO()
         image.save(png_image, format="PNG")

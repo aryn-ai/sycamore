@@ -191,8 +191,9 @@ class CachedTextractTableExtractor(TextractTableExtractor):
         # cache miss
 
         document_page_mapping = list(
+            # 'table' capitalization
             OrderedDict.fromkeys(
-                [element.properties["page_number"] for element in document.elements if element.type == "Table"]
+                [element.properties["page_number"] for element in document.elements if element.type == "table"]
             )
         )
 
@@ -246,5 +247,10 @@ class CachedTextractTableExtractor(TextractTableExtractor):
                     if document_page_mapping
                     else table.properties["page_number"]
                 )
+            # remove detr table elements before adding textract table elements
+            for element in document.elements:
+                if element.type == 'table':
+                    document.elements.remove(element)
+            
             document.elements = document.elements + tables
         return document

@@ -29,6 +29,8 @@ class EvaluationPipeline:
         metrics: Optional[list[EvaluationMetric]] = None,
         query_executor: Optional[OpenSearchQueryExecutor] = None,
         os_client_args: Optional[dict] = None,
+        subtask_path: Optional[str] = None,
+        subtask: Optional[bool] = False,
     ) -> None:
         super().__init__()
         if metrics is None:
@@ -42,148 +44,79 @@ class EvaluationPipeline:
         else:
             self._query_executor = query_executor
         self._os_config = os_config
+        self._subtask_path = subtask_path
+        self._subtask = subtask
 
     def _add_filter(self, query_body: dict, filters: dict[str, str]):
-        hybrid_query_match = query_body["query"]["hybrid"]["queries"][0]
-        hybrid_query_match = {
-            "bool": {
-                "must": [hybrid_query_match],
-                "filter": [{"match_phrase": {f"{k}.keyword": filters[k]}} for k in filters],
-            }
-        }
-        query_body["query"]["hybrid"]["queries"][0] = hybrid_query_match
-        hybrid_query_neural = query_body["query"]["hybrid"]["queries"][1]
-        hybrid_query_neural["neural"]["embedding"]["filter"] = {
-            "bool": {"must": [{"match_phrase": {k: filters[k]}} for k in filters]}
-        }
-        query_body["query"]["hybrid"]["queries"][1] = hybrid_query_neural
+        hybrid_query_match = query_body["query"]["knn"]["embedding"]["filter"]["bool"]["must"]
+        for key, val in filters.items():
+            hybrid_query_match.append(
+                {
+                    "match_phrase": {
+                        "properties." + key: val
+                    }
+                }
+            )
+        query_body["query"]["knn"]["embedding"]["filter"]["bool"]["must"] = hybrid_query_match
         return query_body
 
     def _build_opensearch_query(self, doc: Document) -> Document:
         assert doc.type == "EvaluationDataPoint"
-        
-        qn = doc["question"]
+        query = OpenSearchQuery(doc)
+        query["index"] = self._index
 
-        if "additional_info" in doc:
-            company = doc["additional_info"]["company"]
-            year = doc["additional_info"]["year"]
-            qn = qn.format(company=company, year=year)
+        if self._subtask_path and doc["additional_info"]["subtasks_reqd"]:
+            from sycamore.evaluation.subtasks_general import executor
+            doc["question"] = executor(
+                question = doc["question"],
+                filters = doc["filters"],
+                filepath = self._subtask_path,
+                index = self._index,
+                query_executor = self._query_executor,
+                os_config = self._os_config
+            ) + doc["question"]
 
-        else:
-            company = doc['raw']['doc_name'].split("_")[0]
-            q_id = doc['raw']['financebench_id']
-
-            no_year_ids = [
-                "financebench_id_01858", "financebench_id_07966", "financebench_id_07507", "financebench_id_08135", "financebench_id_00799", "financebench_id_01079", "financebench_id_01148",
-                "financebench_id_01930", "financebench_id_00563", "financebench_id_01351", "financebench_id_02608", "financebench_id_00685", "financebench_id_01077", "financebench_id_00288",
-                "financebench_id_00460", "financebench_id_03838", "financebench_id_00464", "financebench_id_00585", "financebench_id_02981", "financebench_id_01346", "financebench_id_01107",
-                "financebench_id_00839", "financebench_id_00206", "financebench_id_03718", "financebench_id_03849", "financebench_id_00552", "financebench_id_04302", "financebench_id_00735",
-                "financebench_id_00302", "financebench_id_00283", "financebench_id_00521", "financebench_id_00605", "financebench_id_00566", "financebench_id_04784", "financebench_id_06741"
-            ]
-            
-            if q_id in no_year_ids:
-                year = extract_year(qn, company)
-            else:
-                year = str(doc['raw']['doc_period'])
-
-            calcs_reqd = [
-                "financebench_id_00499", "financebench_id_00807", "financebench_id_02987", "financebench_id_07966", "financebench_id_00540", "financebench_id_10420", "financebench_id_06655",
-                "financebench_id_00684", "financebench_id_00222", "financebench_id_04254", "financebench_id_00070", "financebench_id_02608", "financebench_id_00685", "financebench_id_04660",
-                "financebench_id_00678", "financebench_id_03473", "financebench_id_09724", "financebench_id_06272", "financebench_id_10130", "financebench_id_02981", "financebench_id_00005",
-                "financebench_id_05915", "financebench_id_00790", "financebench_id_04103", "financebench_id_03471", "financebench_id_04854", "financebench_id_10136", "financebench_id_02119",
-                "financebench_id_00206", "financebench_id_10499", "financebench_id_04412", "financebench_id_03031", "financebench_id_03718", "financebench_id_03849", "financebench_id_04458",
-                "financebench_id_04302", "financebench_id_04080", "financebench_id_00080", "financebench_id_03620", "financebench_id_04481", "financebench_id_00216", "financebench_id_00215",
-                "financebench_id_06247", "financebench_id_04784", "financebench_id_04980", "financebench_id_03029", "financebench_id_00585", "financebench_id_01351"
-            ]
-
-            if q_id in calcs_reqd:
-                from sycamore.evaluation.subtasks import executor
-                qn = executor(qn, company, year) + qn
-                print (qn)
-
-        # embedder = OpenAIEmbedder(batch_size=100)
         embedder = SentenceTransformerEmbedder(model_name="sentence-transformers/all-mpnet-base-v2", batch_size=100)
-        qn_embedding = embedder.get_model().encode(qn).tolist()
-        # qn_embedding = embedder.generate_embeddings_text(qn)
+        qn_embedding = embedder.get_model().encode(doc["question"]).tolist()
 
         query = OpenSearchQuery(doc)
         query["index"] = self._index
         
-        if year != "":
-            query["query"] = {
-                "_source": {"excludes": ["embedding"]},
-                "size": self._os_config.get("size", 20),
-                "query": {
-                    "knn": {
-                        "embedding": {
-                            "vector": qn_embedding,
-                            "k": self._os_config.get("neural_search_k", 100),
-                            "filter": {
-                                "bool": {
-                                    "must": [
-                                        {
-                                            "match": {
-                                                "text_representation": qn
-                                            }
-                                        },
-                                        {
-                                            "match_phrase": {
-                                                "properties.year": year
-                                            }
-                                        },
-                                        {
-                                            "match_phrase": {
-                                                "properties.company": company
-                                            }
+        query["query"] = {
+            "_source": {"excludes": ["embedding"]},
+            "size": self._os_config.get("size", 20),
+            "query": {
+                "knn": {
+                    "embedding": {
+                        "vector": qn_embedding,
+                        "k": self._os_config.get("neural_search_k", 100),
+                        "filter": {
+                            "bool": {
+                                "must": [
+                                    {
+                                        "match": {
+                                            "text_representation": doc["question"]
                                         }
-                                    ],
-                                },
-                            }
+                                    },
+                                ],
+                            },
                         }
                     }
                 }
             }
-        else:
-            query["query"] = {
-                "_source": {"excludes": ["embedding"]},
-                "size": self._os_config.get("size", 20),
-                "query": {
-                    "knn": {
-                        "embedding": {
-                            "vector": qn_embedding,
-                            "k": self._os_config.get("neural_search_k", 100),
-                            "filter": {
-                                "bool": {
-                                    "must": [
-                                        {
-                                            "match": {
-                                                "text_representation": qn
-                                            }
-                                        },
-                                        {
-                                            "match_phrase": {
-                                                "properties.company": company
-                                            }
-                                        }
-                                    ],
-                                },
-                            }
-                        }
-                    }
-                }
-            }
+        }
 
         if "llm" in self._os_config:
             query["params"] = {"search_pipeline": self._os_config["search_pipeline"]}
             query["query"]["ext"] = {
                 "generative_qa_parameters": {
-                    "llm_question": qn,
+                    "llm_question": doc["question"],
                     "context_size": self._os_config.get("context_window", 10),
                     "llm_model": self._os_config.get("llm", "gpt-3.5-turbo"),
                 }
             }
             if self._os_config.get("rerank", False):
-                query["query"]["ext"]["rerank"] = {"query_context": {"query_text": qn}}
+                query["query"]["ext"]["rerank"] = {"query_context": {"query_text": doc["question"]}}
         if "filters" in doc:
             query["query"] = self._add_filter(query["query"], doc["filters"])
         return query

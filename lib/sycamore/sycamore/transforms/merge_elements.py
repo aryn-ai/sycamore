@@ -69,6 +69,8 @@ class GreedyTextElementMerger(ElementMerger):
             return False
         if element1.data["token_count"] + 1 + element2.data["token_count"] > self.max_tokens:
             return False
+        # if element2.type in ['Page-header', 'table']:
+        #     return False
         return True
 
     def merge(self, elt1: Element, elt2: Element) -> Element:

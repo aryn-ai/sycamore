@@ -9,6 +9,7 @@ from concurrent.futures import ProcessPoolExecutor
 from io import BytesIO, IOBase
 from typing import cast, Any, BinaryIO, List, Tuple, Union
 from pathlib import Path
+import pwd
 
 import requests
 import json
@@ -39,7 +40,7 @@ from sycamore.utils.time_trace import LogTime, timetrace
 from sycamore.utils.pytorch_dir import get_pytorch_build_directory
 
 logger = logging.getLogger(__name__)
-_DETR_LOCK_FILE = "~/.cache/Aryn-Detr.lock"
+_DETR_LOCK_FILE = f"{pwd.getpwuid(os.getuid()).pw_dir}/.cache/Aryn-Detr.lock"
 
 
 def _batchify(iterable, n=1):

@@ -16,6 +16,9 @@ from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
 
 
+DEFAULT_S3_CACHE_PATH="s3://aryn-temp/llm_cache/luna/ntsb"
+
+
 def execute(code: str):
     try:
         exec(code, globals(), globals())
@@ -138,7 +141,7 @@ with st.form("query_form"):
     with col4:
         use_cache = st.toggle("Use cache")
     with st.expander("Advanced"):
-        st.text_input("S3 cache path", key="s3_cache_path", value="s3://aryn-temp/llm_cache/ntsb/luna/")
+        st.text_input("S3 cache path", key="s3_cache_path", value=DEFAULT_S3_CACHE_PATH)
 
 if submitted:
     st.session_state.query_set = True

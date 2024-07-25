@@ -21,6 +21,10 @@ from sycamore.utils.cache import Cache
 logger = logging.getLogger(__name__)
 
 
+# Base URL for Helicone API, if configured using the SYCAMORE_HELICONE_API_KEY environment variable.
+HELICONE_BASE_URL = "https://oai.helicone.ai/v1"
+
+
 class OpenAIClientType(Enum):
     OPENAI = 0
     AZURE = 1
@@ -68,14 +72,16 @@ class OpenAIClientWrapper:
         **kwargs,
     ):
         if api_type is not None:
-            logger.warn("WARNING: The api_type parameter is deprecated. Please use client_type instead.")
+            logger.warning("WARNING: The api_type parameter is deprecated. Please use client_type instead.")
             if api_type in {"azure", "azure_ad", "azuread"}:
                 client_type = OpenAIClientType.AZURE
             else:
                 client_type = OpenAIClientType.OPENAI
 
         if api_base is not None:
-            logger.warn("WARNING: The api_base parameter is deprecated. Please use base_url or azure_endpoint instead.")
+            logger.warning(
+                "WARNING: The api_base parameter is deprecated. Please use base_url or azure_endpoint instead."
+            )
 
             if azure_endpoint is None:
                 azure_endpoint = api_base
@@ -116,12 +122,25 @@ class OpenAIClientWrapper:
 
     def get_client(self) -> OpenAIClient:
         if self.client_type == OpenAIClientType.OPENAI:
+            # We currently only support Helicone with OpenAI.
+            base_url = self.base_url
+            extra_kwargs = self.extra_kwargs
+            if "SYCAMORE_HELICONE_API_KEY" in os.environ:
+                if self.base_url is not None:
+                    logging.warning("SYCAMORE_HELICONE_API_KEY found in environment. Ignoring base_url.")
+                base_url = HELICONE_BASE_URL
+                if "default_headers" not in extra_kwargs:
+                    extra_kwargs["default_headers"] = {}
+                extra_kwargs["default_headers"].update(
+                    {"Helicone-Auth": f"Bearer {os.environ['SYCAMORE_HELICONE_API_KEY']}"}
+                )
+
             return OpenAIClient(
                 api_key=self.api_key,
                 organization=self.organization,
-                base_url=self.base_url,
+                base_url=base_url,
                 max_retries=self.max_retries,
-                **self.extra_kwargs,
+                **extra_kwargs,
             )
         elif self.client_type == OpenAIClientType.AZURE:
             return AzureOpenAIClient(

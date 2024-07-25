@@ -4,6 +4,9 @@ from sycamore.query.operators.logical_operator import LogicalOperator
 
 
 class LlmGenerate(LogicalOperator):
+    """
+    Logical operator for creating a conversational response using LLMs.
+    """
     def __init__(self, node_id: str, data: Optional[Dict[Any, Any]] = None) -> None:
         super().__init__(node_id, data)
 

@@ -4,6 +4,9 @@ from sycamore.query.operators.logical_operator import LogicalOperator
 
 
 class TopK(LogicalOperator):
+    """
+    Logical operator for finding K most frequent occurrences of a database field.
+    """
     def __init__(self, node_id: str, data: Optional[Dict[Any, Any]] = None) -> None:
         super().__init__(node_id, data)
 

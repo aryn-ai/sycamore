@@ -367,7 +367,7 @@ class SycamoreCount(SycamoreOperator):
         result = count_operation(
             docset=self.inputs[0],
             field=logical_node.data.get("field"),
-            primaryField=logical_node.data.get("primaryField"),
+            primary_field=logical_node.data.get("primaryField"),
             **self.get_execute_args(),
         )
         return result

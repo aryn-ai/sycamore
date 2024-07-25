@@ -20,8 +20,8 @@ from sycamore.query.execution.operations import (
     count_operation,
     semantic_cluster,
     top_k_operation,
-    sc_form_groups_prompt,
-    sc_assign_groups_prompt,
+    SC_FORM_GROUPS_PROMPT,
+    SC_ASSIGN_GROUPS_PROMPT,
 )
 
 
@@ -34,11 +34,11 @@ class MockLLM(LLM):
             return 4
         elif prompt_kwargs == {"messages": [{"role": "user", "content": "test2"}]} and llm_kwargs == {}:
             return 2
-        elif prompt_kwargs["messages"][0]["content"] == sc_form_groups_prompt.format(
+        elif prompt_kwargs["messages"][0]["content"] == SC_FORM_GROUPS_PROMPT.format(
             field="text_representation", description="", text="1, 2, one, two, 1, 3"
         ):
             return '{"groups": ["group1", "group2", "group3"]}'
-        elif prompt_kwargs["messages"][0]["content"] == sc_assign_groups_prompt.format(
+        elif prompt_kwargs["messages"][0]["content"] == SC_ASSIGN_GROUPS_PROMPT.format(
             field="text_representation", groups=["group1", "group2", "group3"]
         ):
             value = prompt_kwargs["messages"][1]["content"]

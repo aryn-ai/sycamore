@@ -223,7 +223,7 @@ class ArynPDFPartitioner:
         response = requests.post(aryn_partitioner_address, files=files, headers=header, stream=True)
         lines = []
         in_status = False
-        for line in response.iter_lines():
+        for line in response.iter_lines(chunk_size=None):
             if line:
                 lines.append(line)
                 if line.startswith(b'  "status"'):

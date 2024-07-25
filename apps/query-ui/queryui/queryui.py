@@ -96,7 +96,7 @@ def run_query(query: str, index: str, plan_only: bool, do_trace: bool):
     if do_trace:
         trace_dir = tempfile.mkdtemp()
         st.write(f"Writing execution traces to `{trace_dir}`")
-    client = SycamoreClient(trace_dir=trace_dir)
+    client = SycamoreQueryClient(trace_dir=trace_dir)
     with st.spinner("Getting schema..."):
         schema = client.get_opensearch_schema(index)
     with st.spinner("Generating plan..."):

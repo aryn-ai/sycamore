@@ -6,8 +6,11 @@ from sycamore.query.logical_plan import Node
 
 
 class LogicalOperator(Node):
+    """
+    Logical operator class for LLM prompting.
+    """
 
-    def __init__(self, node_id: str, data: Optional[Dict[Any, Any]] = None) -> None:
+    def __init__(self, node_id: str, data: Optional[Dict[Any, Any]] = None):
         super().__init__(node_id)
         self.data = data
 

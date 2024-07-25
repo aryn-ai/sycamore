@@ -4,19 +4,23 @@ from sycamore.query.operators.logical_operator import LogicalOperator
 
 
 class Limit(LogicalOperator):
-    def __init__(self, node_id: str, data: Optional[Dict[Any, Any]] = None) -> None:
+    """
+    Logical limit operator for limiting a dataset to K records.
+    """
+
+    def __init__(self, node_id: str, data: Optional[Dict[Any, Any]] = None):
         super().__init__(node_id, data)
 
     @staticmethod
     def description() -> str:
         return """
-        **Limit**: Limits a data table to the first K entries.
-            Parameters are *description*, *K*, *input*, and *id*. Returns a data table.
+        **Limit**: Limits a database to the first K records.
+            Parameters are *description*, *K*, *input*, and *id*. Returns a database.
         - *description* is a written description of the purpose of this operation in this context
             and justification of why you chose to use it.
-        - *K* is the number of rows of the data table to return.
+        - *K* is the number of records of the database to return.
         - *input* is a list of operation ids that this operation depends on. For this operation,
-            *input* should only contain one id of an operation that returns a data table
+            *input* should only contain one id of an operation that returns a database
             (len(input) == 1).
         - *id* is a uniquely assigned integer that serves as an identifier.
         """

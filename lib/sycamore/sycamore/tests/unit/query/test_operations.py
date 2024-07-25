@@ -1,14 +1,16 @@
 from datetime import datetime
-from typing import Dict, List, Any, Optional
+from typing import Callable, Dict, List, Any, Optional
 
 import pytest
 
 import sycamore
 from sycamore.data import Document
+from sycamore.docset import DocSet
 from sycamore.llms import LLM
 from sycamore.query.execution.operations import (
     convert_string_to_date,
     field_to_value,
+    join_operation,
     llm_extract_operation,
     llm_filter_operation,
     llm_generate_operation,
@@ -18,8 +20,8 @@ from sycamore.query.execution.operations import (
     count_operation,
     semantic_cluster,
     top_k_operation,
-    sc_form_groups_prompt,
-    sc_assign_groups_prompt,
+    SC_FORM_GROUPS_PROMPT,
+    SC_ASSIGN_GROUPS_PROMPT,
 )
 
 
@@ -32,11 +34,11 @@ class MockLLM(LLM):
             return 4
         elif prompt_kwargs == {"messages": [{"role": "user", "content": "test2"}]} and llm_kwargs == {}:
             return 2
-        elif prompt_kwargs["messages"][0]["content"] == sc_form_groups_prompt.format(
+        elif prompt_kwargs["messages"][0]["content"] == SC_FORM_GROUPS_PROMPT.format(
             field="text_representation", description="", text="1, 2, one, two, 1, 3"
         ):
             return '{"groups": ["group1", "group2", "group3"]}'
-        elif prompt_kwargs["messages"][0]["content"] == sc_assign_groups_prompt.format(
+        elif prompt_kwargs["messages"][0]["content"] == SC_ASSIGN_GROUPS_PROMPT.format(
             field="text_representation", groups=["group1", "group2", "group3"]
         ):
             value = prompt_kwargs["messages"][1]["content"]
@@ -55,8 +57,8 @@ class MockLLM(LLM):
 
 class TestOperations:
     @pytest.fixture
-    def generate_docset(self):
-        def _generate(docs_info: Dict[str, List[Any]]):
+    def generate_docset(self) -> Callable[[Dict[str, List[Any]]], DocSet]:
+        def _generate(docs_info: Dict[str, List[Any]]) -> DocSet:
             # make sure same length
             keys = list(docs_info.keys())
             num_docs = len(docs_info[keys[0]])
@@ -76,7 +78,7 @@ class TestOperations:
         return _generate
 
     @pytest.fixture
-    def words_and_ids_docset(self, generate_docset):
+    def words_and_ids_docset(self, generate_docset) -> DocSet:
         texts = {
             "text_representation": ["submarine", None, "awesome", True, "unSubtle", "Sub", "sunny", "", 4],
             "doc_id": [1, 3, 5, 9, 3, 2, 4, 6, 7],
@@ -84,12 +86,14 @@ class TestOperations:
         return generate_docset(texts)
 
     @pytest.fixture
-    def test_docset(self, generate_docset):
+    def test_docset(self, generate_docset) -> DocSet:
         return generate_docset({"text_representation": ["test1", "test2"]})
 
     @pytest.fixture
-    def number_docset(self, generate_docset):
-        return generate_docset({"text_representation": ["1", "2", "one", "two", "1", "3"]})
+    def number_docset(self, generate_docset) -> DocSet:
+        return generate_docset(
+            {"text_representation": ["1", "2", "one", "two", "1", "3"], "parent_id": [8, 1, 11, 17, 13, 5]},
+        )
 
     # Filters
     def test_llm_filter(self, test_docset):
@@ -253,24 +257,55 @@ class TestOperations:
 
     # LLM Generate
     def test_llm_generate(words_and_ids_docset):
-        response = llm_generate_operation(client=MockLLM(), question="", result_description="", result_data="")
+        response = llm_generate_operation(client=MockLLM(), question="", result_description="", result_data=[""])
         assert response == ""
 
         response = llm_generate_operation(
-            client=MockLLM(), question="", result_description="", result_data=words_and_ids_docset
+            client=MockLLM(), question="", result_description="", result_data=[words_and_ids_docset]
         )
         assert response == ""
+
+    # Join
+    def test_join(self, words_and_ids_docset, number_docset):
+        joined_docset = join_operation(
+            docset1=number_docset, docset2=words_and_ids_docset, field1="parent_id", field2="doc_id"
+        )
+        assert joined_docset.count() == 2
+
+        for doc in joined_docset.take():
+            assert doc.doc_id == 5 or doc.doc_id == 1
+
+            if doc.doc_id == 5:
+                assert doc.text_representation == "awesome"
+
+            elif doc.doc_id == 1:
+                assert doc.text_representation == "submarine"
+
+        joined_docset_reverse = join_operation(
+            docset1=words_and_ids_docset, docset2=number_docset, field1="doc_id", field2="parent_id"
+        )
+
+        assert joined_docset_reverse.count() == 2
+
+        for doc in joined_docset_reverse.take():
+            assert doc.parent_id == 5 or doc.parent_id == 1
+
+            if doc.parent_id == 5:
+                assert doc.text_representation == "3"
+
+            elif doc.parent_id == 1:
+                assert doc.text_representation == "2"
 
     # Count
     def test_count_normal(self, words_and_ids_docset):
         assert count_operation(words_and_ids_docset) == 9
 
     def test_count_primary_or_field(self, words_and_ids_docset):
-        assert count_operation(words_and_ids_docset, field="doc_id", primaryField=None) == 8
-        assert count_operation(words_and_ids_docset, field=None, primaryField="doc_id") == 8
+        assert count_operation(words_and_ids_docset, field="doc_id", primary_field=None) == 8
+        assert count_operation(words_and_ids_docset, field=None, primary_field="doc_id") == 8
 
     def test_count_unique_primary_and_field(self, words_and_ids_docset):
-        assert count_operation(words_and_ids_docset, field="doc_id", primaryField="text_representation") == 8
+        assert count_operation(words_and_ids_docset, field="doc_id", primary_field="text_representation") == 8
 
     # Math
     def test_math(self):

@@ -2,12 +2,14 @@ import unittest
 from unittest.mock import patch, ANY, Mock
 
 import sycamore
+from sycamore.query.operators.join import Join
 from sycamore.query.operators.llmextract import LlmExtract
 from sycamore import DocSet
 
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.limit import Limit
 from sycamore.query.execution.sycamore_operator import (
+    SycamoreJoin,
     SycamoreLoadData,
     SycamoreLlmGenerate,
     SycamoreLlmFilter,
@@ -70,7 +72,7 @@ def test_llm_generate():
             client=ANY,
             question=logical_node.data.get("question"),
             result_description=logical_node.data.get("description"),
-            result_data=load_node,
+            result_data=[load_node],
             **sycamore_operator.get_execute_args(),
         )
 
@@ -143,8 +145,29 @@ def test_count():
         mock_impl.assert_called_once_with(
             docset=doc_set,
             field=logical_node.data.get("field"),
-            primaryField=logical_node.data.get("primaryField"),
+            primary_field=logical_node.data.get("primaryField"),
             **sycamore_operator.get_execute_args(),
+        )
+
+
+def test_join():
+    with patch("sycamore.query.execution.sycamore_operator.join_operation") as mock_impl:
+        # Define the mock return value
+        mock_impl.return_value = "success"
+
+        doc_set1 = Mock(spec=DocSet)
+        doc_set2 = Mock(spec=DocSet)
+        context = sycamore.init()
+        logical_node = Join("node_id", {"fieldOne": "field1", "fieldTwo": "field2", "id": 0})
+        sycamore_operator = SycamoreJoin(context, logical_node, query_id="test", inputs=[doc_set1, doc_set2])
+        result = sycamore_operator.execute()
+
+        assert result == "success"
+        mock_impl.assert_called_once_with(
+            docset1=doc_set1,
+            docset2=doc_set2,
+            field1=logical_node.data.get("fieldOne"),
+            field2=logical_node.data.get("fieldTwo"),
         )
 
 
@@ -158,12 +181,14 @@ def test_sort():
     doc_set = Mock(spec=DocSet)
     return_doc_set = Mock(spec=DocSet)
     doc_set.sort.return_value = return_doc_set
-    logical_node = Sort("node_id", {"descending": True, "field": "properties.counter", "id": 0})
+    logical_node = Sort("node_id", {"descending": True, "field": "properties.counter", "defaultValue": 0, "id": 0})
     sycamore_operator = SycamoreSort(context, logical_node, query_id="test", inputs=[doc_set])
     result = sycamore_operator.execute()
 
     doc_set.sort.assert_called_once_with(
-        descending=logical_node.data.get("descending"), field=logical_node.data.get("field")
+        descending=logical_node.data.get("descending"),
+        field=logical_node.data.get("field"),
+        default_val=logical_node.data.get("defaultValue"),
     )
     assert result == return_doc_set
 
@@ -216,7 +241,7 @@ def test_limit(mock_docs):
     sycamore_operator = SycamoreLimit(context, logical_node, query_id="test", inputs=[doc_set])
     result = sycamore_operator.execute()
 
-    doc_set.limit.assert_called_once_with(k, **sycamore_operator.get_execute_args())
+    doc_set.limit.assert_called_once_with(k)
     assert len(result) == 2
 
 

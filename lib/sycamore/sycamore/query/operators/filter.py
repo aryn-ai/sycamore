@@ -4,7 +4,11 @@ from sycamore.query.operators.logical_operator import LogicalOperator
 
 
 class Filter(LogicalOperator):
-    def __init__(self, node_id: str, data: Optional[Dict[Any, Any]] = None) -> None:
+    """
+    Logical filter operator for exact match or range filtering.
+    """
+
+    def __init__(self, node_id: str, data: Optional[Dict[Any, Any]] = None):
         super().__init__(node_id, data)
 
     @staticmethod
@@ -13,7 +17,7 @@ class Filter(LogicalOperator):
         *Filter**: Basic filters for data when field already exists. Used in cases where LLM filter
             is not necessary.
         Parameters are *description*, *rangeFilter*, *query*, *start*, *end*, *field*, *input*,
-            and *id*. Returns a data table.
+            and *id*. Returns a database.
         - *description* is a written description of the purpose of this operation in this context
             and justification of why you chose to use it.
         - *rangeFilter* is a Boolean. If true, it will use an inclusive range filter (in which case
@@ -28,10 +32,10 @@ class Filter(LogicalOperator):
         - *query* is the value to search for when using a match filter.
         - *start* is the start value for the range filter.
         - *end* is the end value for the range filter.
-        - *field* is the name of the databse field to filter based on.
+        - *field* is the name of the database field to filter based on.
         - *date* is a Boolean that specifies if a range filter is being performed on a date.
         - *input* is a list of operation ids that this operation depends on. For this operation,
-            *input* should only contain one id of an operation that returns a data table
+            *input* should only contain one id of an operation that returns a database
             (len(input) == 1).
         - *id* is a uniquely assigned integer that serves as an identifier.
         """

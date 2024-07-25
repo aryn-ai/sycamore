@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Dict, Any
+from typing import TYPE_CHECKING, Dict, Any, Optional
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.data import Document, MetadataDocument
+import json
 import uuid
 
 if TYPE_CHECKING:
@@ -28,6 +29,12 @@ class GraphMetadata(GraphData):
         self.nodeKey = nodeKey
         self.nodeLabel = nodeLabel
         self.relLabel = relLabel
+
+class GraphEntity(GraphData):
+    def __init__(self, entityLabel: str, entityDescription: Optional[str] = None):
+        self.label = entityLabel
+        self.description = entityDescription
+
 
 
 class GraphExtractor(ABC):
@@ -97,7 +104,9 @@ class GraphExtractor(ABC):
 
         doc = Document()
         for value in result["nodes"].values():
-            doc["elements"].append(value)
+            node = Document(value)
+            doc.children.append(node)
+        doc.data['EXTRACTED_NODES'] = True
 
         docs.append(doc)
 
@@ -117,12 +126,12 @@ class MetadataExtractor(GraphExtractor):
         self.metadata = metadata
 
     def extract(self, docset: "DocSet") -> "DocSet":
-        docset.plan = ExtractMetadata(docset.plan, self)
+        docset.plan = ExtractFeatures(docset.plan, self)
         docset = self.resolve(docset)
 
         return docset
 
-    def extract_metadata(self, doc: Document) -> Document:
+    def _extract(self, doc: Document) -> Document:
         """
         Extracts metadata from documents and stores them in the 'nodes' key of 'properties in each document
         """
@@ -152,12 +161,105 @@ class MetadataExtractor(GraphExtractor):
 
         doc["properties"]["nodes"] = nodes
         return doc
+    
+class SupervisedExtractor(GraphExtractor):
+    def __init__(self, entities: list[GraphEntity], llm):
+        self.entities = entities
+        self.llm = llm
+
+    def extract(self, docset: "DocSet") -> "DocSet":
+        docset.plan = ExtractFeatures(docset.plan, self)
+        docset = self.resolve(docset)
+        return docset
+
+    def _extract(self, doc: Document) -> Document:
+        from multiprocessing import Pool
+        if 'EXTRACTED_NODES' in doc.data:
+            return doc
+        
+        pool = Pool(processes=8)
+        res = pool.map(self.extract_from_section,doc.children)
+        nodes = {}
+        for i, section in enumerate(doc.children):
+            for node in res[i]["entities"]:
+                node = {
+                    "type": "extracted",
+                    "properties": {"name": node["name"]},
+                    "label": node["type"],
+                    "relationships": {},
+                }
+                rel: Dict[str, Any] = {
+                "TYPE": "CONTAINS",
+                "properties": {},
+                "START_ID": str(section.doc_id),
+                "START_LABEL": section.data["label"],
+                }
+                node["relationships"][str(uuid.uuid4())] = rel
+
+                key = str(node["label"] + "_" + node["properties"]["name"])
+                if key not in nodes:
+                    nodes[key] = node
+                else:
+                    for rel_uuid, rel in node["relationships"].items():
+                        nodes[key]["relationships"][rel_uuid] = rel
+
+        doc["properties"]["nodes"] = nodes
+
+        return doc
+    
+    def extract_from_section(self, section: Document) -> dict:
+        labels = [e.label + ": " + e.description for e in self.entities]
+        res = self.llm.generate(
+        prompt_kwargs={
+            "prompt": str(GraphEntityExtractorPrompt(labels, section.data['summary'])),
+            "entities": labels,
+            "query": section.data['summary']
+        },
+        llm_kwargs={
+            "response_format": {"type" : "json_object"}
+        })
+        return json.loads(res)#+"\n\n"+section.data['summary']+"\n\n"
+    
+def GraphEntityExtractorPrompt(entities, query):
+    return f"""
+    -Goal-
+    You are a helpful information extraction system.
+
+    You will be given a sequence of data in different formats(text, table, Section-header) in order.
+    Your job is to extract entities that match the following types and descriptions.
+
+    
+    -Instructions-
+    Entity Types and Descriptions: [{entities}]
+
+    Identify all entities that fit one of the following types and their descriptions.
+    For each of these entities extract the following information.
+    - entity_name: Name of the entity, capitalized
+    - entity_type: One of the following types listed above.
+
+    Format each entity that fits one of the types and their description as a json object.
+    Then, collect all json objects into a single json array named entities.
+
+    **Format Example:**
+    {{
+    entities: [
+    {{"name": <entity_name>, "type": <entity_type>}},
+    {{"name": <entity_name>, "type": <entity_type>}},
+    ...]
+    }}
+
+    -Real Data-
+    ######################
+    Entity_types: {entities}
+    Text: {query}
+    ######################
+    Output:"""
 
 
-class ExtractMetadata(Map):
+class ExtractFeatures(Map):
     """
     Extracts metadata from each document
     """
 
-    def __init__(self, child: Node, extractor: MetadataExtractor, **resource_args):
-        super().__init__(child, f=extractor.extract_metadata, **resource_args)
+    def __init__(self, child: Node, extractor: GraphExtractor, **resource_args):
+        super().__init__(child, f=extractor._extract, **resource_args)

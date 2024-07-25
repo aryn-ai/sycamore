@@ -64,14 +64,18 @@ class EvaluationPipeline:
 
         if self._subtask_path and doc["additional_info"]["subtasks_reqd"]:
             from sycamore.evaluation.subtasks import executor
-            doc["question"] = executor(
-                question = doc["question"],
-                filters = doc["filters"],
-                filepath = self._subtask_path,
-                index = self._index,
-                query_executor = self._query_executor,
-                os_config = self._os_config
-            ) + doc["question"]
+
+            doc["question"] = (
+                executor(
+                    question=doc["question"],
+                    filters=doc["filters"],
+                    filepath=self._subtask_path,
+                    index=self._index,
+                    query_executor=self._query_executor,
+                    os_config=self._os_config,
+                )
+                + doc["question"]
+            )
 
         query["query"] = {
             "_source": {"excludes": ["embedding"]},

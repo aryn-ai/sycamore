@@ -113,7 +113,7 @@ def run_query(query: str, index: str, plan_only: bool, do_trace: bool, use_cache
     if not plan_only:
         with st.spinner("Running query..."):
             _, result = client.run_plan(plan)
-        st.subheader('Result', divider='rainbow')
+        st.subheader("Result", divider="rainbow")
         st.success(result)
     else:
         generate_code(client, plan)

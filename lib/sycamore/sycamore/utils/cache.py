@@ -11,7 +11,7 @@ from botocore.exceptions import ClientError
 BLOCK_SIZE = 1048576  # 1 MiB
 
 
-class HashWrapper:
+class HashContext:
     """
     This is a wrapper class for the hash context as Python/mypy/IDE does not like accessing _Hash from hashlib
     """
@@ -19,9 +19,8 @@ class HashWrapper:
     def __init__(self, algorithm="sha256"):
         self.hash_obj = hashlib.new(algorithm)
 
-    def update(self, data: list[bytes]):
-        for d in data:
-            self.hash_obj.update(d)
+    def update(self, data: bytes):
+        self.hash_obj.update(data)
 
     def hexdigest(self):
         return self.hash_obj.hexdigest()
@@ -45,33 +44,30 @@ class Cache:
         return self.cache_hits / self.total_accesses
 
     @staticmethod
-    def get_hash_context(data: Union[bytes, list[bytes]]) -> HashWrapper:
-        if isinstance(data, bytes):
-            data = [data]
-        hash_ctx = HashWrapper()
+    def get_hash_context(data: bytes, hash_ctx: Optional[HashContext] = None) -> HashContext:
+        if not hash_ctx:
+            hash_ctx = HashContext()
         hash_ctx.update(data)
         return hash_ctx
 
     @staticmethod
-    def get_hash_context_file(
-        file_path: Union[str, BinaryIO], hash_context: Optional[HashWrapper] = None
-    ) -> HashWrapper:
-        if not hash_context:
-            hash_context = HashWrapper()
+    def get_hash_context_file(file_path: Union[str, BinaryIO], hash_ctx: Optional[HashContext] = None) -> HashContext:
+        if not hash_ctx:
+            hash_ctx = HashContext()
 
         if isinstance(file_path, BinaryIO):
-            return Cache._update_ctx(file_path, hash_context)
+            return Cache._update_ctx(file_path, hash_ctx)
         else:
             with open(file_path, "rb") as file:
-                return Cache._update_ctx(file, hash_context)
+                return Cache._update_ctx(file, hash_ctx)
 
     @staticmethod
-    def _update_ctx(file_obj: BinaryIO, hash_ctx: HashWrapper):
+    def _update_ctx(file_obj: BinaryIO, hash_ctx: HashContext):
         while True:
             file_buffer = file_obj.read(BLOCK_SIZE)
             if not file_buffer:
                 break
-            hash_ctx.update([file_buffer])
+            hash_ctx.update(file_buffer)
         return hash_ctx
 
 

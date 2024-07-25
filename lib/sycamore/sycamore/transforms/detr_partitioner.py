@@ -711,7 +711,10 @@ class DeformableDetr(SycamoreObjectDetection):
         return results
 
     def _get_hash_key(self, image: Image.Image, threshold: float) -> str:
-        return Cache.get_hash_context([image.tobytes(), f"{threshold:.6f}".encode(), _VERSION.encode()]).hexdigest()
+        hash_ctx = Cache.get_hash_context(image.tobytes())
+        hash_ctx.update(f"{threshold:.6f}".encode())
+        hash_ctx.update(_VERSION.encode())
+        return hash_ctx.hexdigest()
 
 
 class PDFMinerExtractor:

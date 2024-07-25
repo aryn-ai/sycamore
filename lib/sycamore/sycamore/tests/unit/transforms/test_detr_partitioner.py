@@ -46,7 +46,7 @@ class TestArynPDFPartitioner:
     def test_infer(self):
         with Image.open(TEST_DIR / "resources/data/imgs/sample-detr-image.png") as image:
             d = DeformableDetr("Aryn/deformable-detr-DocLayNet")
-            results = d.infer((image,), 0.7)
+            results = d.infer([image], 0.7)
 
             for result in results:
                 for element in result:

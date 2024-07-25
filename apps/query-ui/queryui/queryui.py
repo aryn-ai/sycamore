@@ -16,7 +16,7 @@ from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
 
 
-DEFAULT_S3_CACHE_PATH="s3://aryn-temp/llm_cache/luna/ntsb"
+DEFAULT_S3_CACHE_PATH = "s3://aryn-temp/llm_cache/luna/ntsb"
 
 
 def execute(code: str):

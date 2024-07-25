@@ -1,5 +1,4 @@
 import json
-from typing import Any
 import sycamore
 from sycamore.connectors.file.materialized_scan import DocScan
 from sycamore.data.document import Document

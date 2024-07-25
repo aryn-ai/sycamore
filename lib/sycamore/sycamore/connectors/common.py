@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Callable, Iterator, Union, Iterable, Tuple, Any
+from typing import Callable, Iterator, Union, Iterable, Tuple, Any, Dict
 import json
 import string
 import random
@@ -147,6 +147,31 @@ def convert_to_str_dict(data: dict[str, Any]) -> dict[str, str]:
             result[key] = json.dumps(value, separators=(",", ":"))
         else:
             result[key] = repr(value)
+    return result
+
+
+def convert_from_str_dict(data: dict[str, str]) -> dict[str, Any]:
+    result: Dict[str, Any] = {}
+    for key, value in data.items():
+        if value == "":
+            result[key] = None
+        elif value.lower() == "true":
+            result[key] = True
+        elif value.lower() == "false":
+            result[key] = False
+        else:
+            try:
+                result[key] = int(value)
+            except ValueError:
+                try:
+                    result[key] = float(value)
+                except ValueError:
+                    try:
+                        # Try to parse as JSON (for lists and dicts)
+                        result[key] = json.loads(value)
+                    except json.JSONDecodeError:
+                        # If all else fails, keep it as a string
+                        result[key] = value
     return result
 
 

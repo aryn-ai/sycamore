@@ -7,13 +7,47 @@ import ray
 from sycamore.rules import Rule
 
 
+def _ray_logging_setup():
+    # The commented out lines allow for easier testing that logging is working correctly since
+    # they will emit information at the start.
+
+    # logging.error("RayLoggingSetup-Before (expect -After; if missing there is a bug)")
+
+    ## WARNING: There can be weird interactions in jupyter/ray with auto-reload. Without the
+    ## Spurious log [0-2]: messages below to verify that log messages are being properly
+    ## propogated.  Spurious log 1 seems to somehow be required.  Without it, the remote map
+    ## worker messages are less likely to come back.
+
+    ## Some documentation for ray implies things should use the ray logger
+    ray_logger = logging.getLogger("ray")
+    ray_logger.setLevel(logging.INFO)
+    # ray_logger.info("Spurious log 2: Verifying that log messages are propogated")
+
+    ## Make the default logging show info messages
+    logging.getLogger().setLevel(logging.INFO)
+    logging.info("Spurious log 1: Verifying that log messages are propogated")
+    # logging.error("RayLoggingSetup-After-2Error")
+
+    ## Verify that another logger would also log properly
+    other_logger = logging.getLogger("other_logger")
+    other_logger.setLevel(logging.INFO)
+    # other_logger.info("RayLoggingSetup-After-3")
+
+
 class Context:
     def __init__(self, ray_args: Optional[dict[str, Any]] = None):
         if ray_args is None:
             ray_args = {}
 
         if "logging_level" not in ray_args:
-            ray_args.update({"logging_level": logging.WARNING})
+            ray_args.update({"logging_level": logging.INFO})
+
+        if "runtime_env" not in ray_args:
+            ray_args["runtime_env"] = {}
+
+        if "worker_process_setup_hook" not in ray_args["runtime_env"]:
+            # logging.error("Spurious log 0: If you do not see spurious log 1 & 2, log messages are being dropped")
+            ray_args["runtime_env"]["worker_process_setup_hook"] = _ray_logging_setup
 
         if not ray.is_initialized():
             ray.init(**ray_args)
@@ -61,3 +95,10 @@ def init(ray_args: Optional[dict[str, Any]] = None) -> Context:
             _global_context = Context(ray_args)
 
         return _global_context
+
+
+def shutdown() -> None:
+    global _global_context
+    with _context_lock:
+        ray.shutdown()
+        _global_context = None

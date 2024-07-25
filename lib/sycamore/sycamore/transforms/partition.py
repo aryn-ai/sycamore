@@ -9,12 +9,13 @@ from ray.data import ActorPoolStrategy
 from sycamore.functions import TextOverlapChunker, Chunker
 from sycamore.functions import CharacterTokenizer, Tokenizer
 from sycamore.functions import reorder_elements
-from sycamore.data import BoundingBox, Document, Element, TableElement
+from sycamore.data import BoundingBox, Document, Element, TableElement, Table
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base import CompositeTransform
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.table_structure.extract import TableStructureExtractor
 from sycamore.transforms.map import Map
+from sycamore.utils.cache import Cache
 from sycamore.utils.time_trace import timetrace
 from sycamore.utils import choose_device
 from sycamore.utils.aryn_config import ArynConfig
@@ -337,24 +338,9 @@ class HtmlPartitioner(Partitioner):
                 if len(table.find_all("table")) > 0:
                     continue
 
-                table_element = TableElement()
-
-                # find headers if they exist
-                headers = table.findAll("th")
-                if len(headers) > 0:
-                    table_element.columns = [tag.text for tag in headers]
-
-                table_element.text_representation = table.text
+                table_object = Table.from_html(html_tag=table)
+                table_element = TableElement(table=table_object)
                 table_element.properties.update(document.properties)
-
-                # parse all rows, use all text as content
-                rows = table.findAll("tr")
-                table_element.rows = []
-                for row in rows:
-                    cols = row.findAll("td")
-                    if len(cols) > 0:
-                        row_vals = [tag.text for tag in cols]
-                        table_element.rows += [row_vals]
                 elements.append(table_element)
         document.elements = document.elements + elements
 
@@ -424,16 +410,17 @@ class ArynPartitioner(Partitioner):
         device=None,
         batch_size: int = 1,
         batch_at_a_time: bool = False,
-        local: bool = False,
+        use_partitioning_service: bool = True,
         aryn_api_key: str = "",
         aryn_partitioner_address: str = DEFAULT_ARYN_PARTITIONER_ADDRESS,
         use_cache=False,
         pages_per_call: int = -1,
+        cache: Optional[Cache] = None,
     ):
-        if local:
-            device = choose_device(device)
-        else:
+        if use_partitioning_service:
             device = "cpu"
+        else:
+            device = choose_device(device)
         super().__init__(device=device, batch_size=batch_size)
         if not aryn_api_key:
             self._aryn_api_key = ArynConfig.get_aryn_api_key()
@@ -450,9 +437,10 @@ class ArynPartitioner(Partitioner):
         self._extract_images = extract_images
         self._batch_size = batch_size
         self._batch_at_a_time = batch_at_a_time
-        self._local = local
+        self._use_partitioning_service = use_partitioning_service
         self._aryn_partitioner_address = aryn_partitioner_address
         self._use_cache = use_cache
+        self._cache = cache
         self._pages_per_call = pages_per_call
 
     # For now, we reorder elements based on page, left/right column, y axle position then finally x axle position
@@ -494,7 +482,7 @@ class ArynPartitioner(Partitioner):
         binary = io.BytesIO(document.data["binary_representation"])
         from sycamore.transforms.detr_partitioner import ArynPDFPartitioner
 
-        partitioner = ArynPDFPartitioner(self._model_name_or_path, device=self._device)
+        partitioner = ArynPDFPartitioner(self._model_name_or_path, device=self._device, cache=self._cache)
 
         try:
             elements = partitioner.partition_pdf(
@@ -508,7 +496,7 @@ class ArynPartitioner(Partitioner):
                 extract_images=self._extract_images,
                 batch_size=self._batch_size,
                 batch_at_a_time=self._batch_at_a_time,
-                local=self._local,
+                use_partitioning_service=self._use_partitioning_service,
                 aryn_api_key=self._aryn_api_key,
                 aryn_partitioner_address=self._aryn_partitioner_address,
                 use_cache=self._use_cache,
@@ -556,7 +544,7 @@ class SycamorePartitioner(ArynPartitioner):
             device=device,
             batch_size=batch_size,
             batch_at_a_time=batch_at_a_time,
-            local=True,
+            use_partitioning_service=False,
         )
 
 
@@ -585,7 +573,8 @@ class Partition(CompositeTransform):
         self, child: Node, partitioner: Partitioner, table_extractor: Optional[TableExtractor] = None, **resource_args
     ):
         ops = []
-
+        if isinstance(partitioner, ArynPartitioner) and partitioner._use_partitioning_service:
+            resource_args["compute"] = ActorPoolStrategy(size=1)
         if partitioner.device == "cuda":
             if "num_gpus" not in resource_args:
                 resource_args["num_gpus"] = 1.0

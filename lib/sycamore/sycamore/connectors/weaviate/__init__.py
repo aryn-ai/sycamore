@@ -2,14 +2,20 @@ from sycamore.connectors.weaviate.weaviate_writer import (
     WeaviateDocumentWriter,
     WeaviateCrossReferenceWriter,
     WeaviateClientParams,
-    WeaviateTargetParams,
+    WeaviateWriterTargetParams,
 )
-from sycamore.connectors.weaviate.weaviate_scan import WeaviateScan
+from sycamore.connectors.weaviate.weaviate_reader import (
+    WeaviateReader,
+    WeaviateReaderQueryParams,
+    WeaviateReaderClientParams,
+)
 
 __all__ = [
     "WeaviateDocumentWriter",
     "WeaviateCrossReferenceWriter",
     "WeaviateClientParams",
-    "WeaviateTargetParams",
-    "WeaviateScan",
+    "WeaviateWriterTargetParams",
+    "WeaviateReader",
+    "WeaviateReaderQueryParams",
+    "WeaviateReaderClientParams",
 ]

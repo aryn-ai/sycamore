@@ -13,7 +13,8 @@ class Document(UserDict):
     types of document may have different properties, they all contain the following common fields in Sycamore:
     """
 
-    def __init__(self, document=None, /, **kwargs):
+    def __init__(self, document=None, /, hierarchical=False, **kwargs):
+        self.hierarchical = hierarchical
         if isinstance(document, bytes):
             from pickle import loads
 
@@ -24,6 +25,11 @@ class Document(UserDict):
         super().__init__(document, **kwargs)
         if "properties" not in self.data:
             self.data["properties"] = {}
+
+        ########## EXPERIMENTAL
+        if "children" not in self.data:
+            self.data["children"] = []
+        ##########
 
         if "elements" not in self.data or self.data["elements"] is None:
             self.data["elements"] = []
@@ -109,6 +115,23 @@ class Document(UserDict):
     def elements(self) -> None:
         """Delete the elements of this document."""
         self.data["elements"] = []
+
+    ################# EXPERIMENTAL
+    @property
+    def children(self) -> list["Document"]:
+        """TODO"""
+        return self.data["children"]
+
+    @children.setter
+    def children(self, children: list["Document"]):
+        """TODO"""
+        self.data["children"] = children
+
+    @children.deleter
+    def children(self) -> None:
+        """TODO"""
+        self.data["children"] = []
+    #################
 
     @property
     def embedding(self) -> Optional[list[float]]:
@@ -221,6 +244,7 @@ class MetadataDocument(Document):
         self.data["metadata"].update(kwargs)
         del self.data["lineage_id"]
         del self.data["elements"]
+        del self.data["children"]
 
     # Override some of the common operations to make it hard to mis-use metadata. If any of these
     # are called it means that something tried to process a MetadataDocument as if it was a
@@ -269,6 +293,18 @@ class MetadataDocument(Document):
     @elements.setter
     def elements(self, elements: list[Element]):
         raise ValueError("MetadataDocument does not have elements")
+
+    ################# EXPERIMENTAL
+    @property
+    def children(self) -> list["Document"]:
+        """TODO"""
+        raise ValueError("MetadataDocument does not have children")
+
+    @children.setter
+    def children(self, children: list["Document"]):
+        """TODO"""
+        raise ValueError("MetadataDocument does not have children")
+    #################
 
     @property
     def properties(self):

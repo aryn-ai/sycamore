@@ -23,8 +23,11 @@ class Explode(SingleThreadUser, NonGPUUser, FlatMap):
             exploded_dataset = explode_transform.execute()
     """
 
-    def __init__(self, child: Node, **resource_args):
-        super().__init__(child, f=Explode.explode, **resource_args)
+    def __init__(self, child: Node, hierarchical: bool, **resource_args):
+        if(hierarchical):
+            super().__init__(child, f=Explode.explode_hierarchical, **resource_args)
+        else:
+            super().__init__(child, f=Explode.explode, **resource_args)
 
     @staticmethod
     @timetrace("explode")
@@ -48,3 +51,12 @@ class Explode(SingleThreadUser, NonGPUUser, FlatMap):
             documents.append(cur)
         del parent.elements
         return documents
+    
+    def explode_hierarchical(parent: Document) -> list[Document]:
+        documents: list[Document] = [parent]
+        for document in parent.children:
+            documents.extend(Explode.explode_hierarchical(document))
+        
+        del parent.children
+        return documents
+

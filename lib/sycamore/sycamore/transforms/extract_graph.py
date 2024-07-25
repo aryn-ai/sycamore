@@ -162,7 +162,7 @@ class MetadataExtractor(GraphExtractor):
         doc["properties"]["nodes"] = nodes
         return doc
     
-class SupervisedExtractor(GraphExtractor):
+class EntityExtractor(GraphExtractor):
     def __init__(self, entities: list[GraphEntity], llm):
         self.entities = entities
         self.llm = llm
@@ -178,7 +178,7 @@ class SupervisedExtractor(GraphExtractor):
             return doc
         
         pool = Pool(processes=8)
-        res = pool.map(self.extract_from_section,doc.children)
+        res = pool.map(self._extract_from_section,doc.children)
         pool.close()
         nodes = {}
         for i, section in enumerate(doc.children):
@@ -208,7 +208,7 @@ class SupervisedExtractor(GraphExtractor):
 
         return doc
     
-    def extract_from_section(self, section: Document) -> dict:
+    def _extract_from_section(self, section: Document) -> dict:
         labels = [e.label + ": " + e.description for e in self.entities]
         res = self.llm.generate(
         prompt_kwargs={
@@ -219,7 +219,7 @@ class SupervisedExtractor(GraphExtractor):
         llm_kwargs={
             "response_format": {"type" : "json_object"}
         })
-        return json.loads(res)#+"\n\n"+section.data['summary']+"\n\n"
+        return json.loads(res)
     
 def GraphEntityExtractorPrompt(entities, query):
     return f"""

@@ -360,7 +360,9 @@ def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
 # USAGE EXAMPLE
 # operations.llm_generate_operation("database of airplane incidents (NTSB)",
 # "How many incidents occurred between 1/1/2022 and 1/20/2022?", 13)
-def llm_generate_operation(client: OpenAI, question: str, result_description: str, result_data: List[Any], **kwargs) -> str:
+def llm_generate_operation(
+    client: OpenAI, question: str, result_description: str, result_data: List[Any], **kwargs
+) -> str:
     text = f"Description: {result_description}\n"
 
     for i, result in enumerate(result_data):
@@ -418,17 +420,15 @@ def make_filter_fn_join(field: str, join_set=set):
 
 
 def join_operation(docset1: DocSet, docset2: DocSet, field1: str, field2: str) -> DocSet:
-    unique_vals = set()
+
     execution = Execution(docset1.context, docset1.plan)
     dataset = execution.execute(docset1.plan)
+
+    unique_vals = set()
     for row in dataset.iter_rows():
         doc = Document.from_row(row)
         if isinstance(doc, MetadataDocument):
             continue
-        value = field_to_value(doc, field1)
-        unique_vals.add(value)
-
-    for doc in docset1.take_all():
         value = field_to_value(doc, field1)
         unique_vals.add(value)
 

@@ -1,10 +1,11 @@
 from datetime import datetime
-from typing import Dict, List, Any, Optional
+from typing import Callable, Dict, List, Any, Optional
 
 import pytest
 
 import sycamore
 from sycamore.data import Document
+from sycamore.docset import DocSet
 from sycamore.llms import LLM
 from sycamore.query.execution.operations import (
     convert_string_to_date,
@@ -53,11 +54,9 @@ class MockLLM(LLM):
     def is_chat_mode(self):
         return True
 
-
-class TestOperations:
     @pytest.fixture
-    def generate_docset(self):
-        def _generate(docs_info: Dict[str, List[Any]]):
+    def generate_docset(self) -> Callable[[Dict[str, List[Any]]], DocSet]:
+        def _generate(docs_info: Dict[str, List[Any]]) -> DocSet:
             # make sure same length
             keys = list(docs_info.keys())
             num_docs = len(docs_info[keys[0]])
@@ -77,7 +76,7 @@ class TestOperations:
         return _generate
 
     @pytest.fixture
-    def words_and_ids_docset(self, generate_docset):
+    def words_and_ids_docset(self, generate_docset) -> DocSet:
         texts = {
             "text_representation": ["submarine", None, "awesome", True, "unSubtle", "Sub", "sunny", "", 4],
             "doc_id": [1, 3, 5, 9, 3, 2, 4, 6, 7],
@@ -85,15 +84,14 @@ class TestOperations:
         return generate_docset(texts)
 
     @pytest.fixture
-    def test_docset(self, generate_docset):
+    def test_docset(self, generate_docset) -> DocSet:
         return generate_docset({"text_representation": ["test1", "test2"]})
 
     @pytest.fixture
-    def number_docset(self, generate_docset):
+    def number_docset(self, generate_docset) -> DocSet:
         return generate_docset(
-            {"text_representation": ["1", "2", "one", "two", "1", "3"],
-            "doc_id": [1, 8, 5, 17, 13, 11]},
-            )
+            {"text_representation": ["1", "2", "one", "two", "1", "3"], "nums": [1, 8, 5, 17, 13, 11]},
+        )
 
     # Filters
     def test_llm_filter(self, test_docset):
@@ -264,6 +262,22 @@ class TestOperations:
             client=MockLLM(), question="", result_description="", result_data=[words_and_ids_docset]
         )
         assert response == ""
+
+    # Join
+    def test_join(self, words_and_ids_docset, number_docset):
+        joined_docset = join_operation(
+            docset1=number_docset, docset2=words_and_ids_docset, field1="nums", field2="doc_id"
+        )
+        assert joined_docset.count() == 2
+
+        for doc in joined_docset.take():
+            assert doc.doc_id == 5 or doc.doc_id == 1
+
+            if doc.doc_id == 5:
+                assert doc.text_representation == "awesome"
+
+            elif doc.doc_id == 1:
+                assert doc.text_representation == "submarine"
 
     # Count
     def test_count_normal(self, words_and_ids_docset):

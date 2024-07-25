@@ -163,7 +163,9 @@ def test_sort():
     result = sycamore_operator.execute()
 
     doc_set.sort.assert_called_once_with(
-        descending=logical_node.data.get("descending"), field=logical_node.data.get("field"), default_val=logical_node.data.get("defaultValue")
+        descending=logical_node.data.get("descending"),
+        field=logical_node.data.get("field"),
+        default_val=logical_node.data.get("defaultValue"),
     )
     assert result == return_doc_set
 

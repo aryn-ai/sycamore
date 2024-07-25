@@ -65,6 +65,7 @@ class OpenAIClientWrapper:
         api_version: Optional[str] = None,
         azure_ad_token: Optional[str] = None,
         azure_ad_token_provider: Optional[AzureADTokenProvider] = None,
+        disable_helicone: Optional[bool] = None,
         # Deprecated names that we support for backwards compatibility.
         api_type: Optional[str] = None,
         api_base: Optional[str] = None,
@@ -108,6 +109,7 @@ class OpenAIClientWrapper:
         self.api_version = api_version
         self.azure_ad_token = azure_ad_token
         self.azure_ad_token_provider = azure_ad_token_provider
+        self.disable_helicone = disable_helicone
         self.extra_kwargs = kwargs
 
         # The OpenAI Python library is happy to pull Azure creds from the AZURE_OPENAI_API_KEY environment variable,
@@ -125,7 +127,7 @@ class OpenAIClientWrapper:
             # We currently only support Helicone with OpenAI.
             base_url = self.base_url
             extra_kwargs = self.extra_kwargs
-            if "SYCAMORE_HELICONE_API_KEY" in os.environ:
+            if "SYCAMORE_HELICONE_API_KEY" in os.environ and self.disable_helicone is not True:
                 if self.base_url is not None:
                     logging.warning("SYCAMORE_HELICONE_API_KEY found in environment. Ignoring base_url.")
                 base_url = HELICONE_BASE_URL

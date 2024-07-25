@@ -60,19 +60,19 @@ class Cache:
             hash_context = HashWrapper()
 
         if isinstance(file_path, BinaryIO):
-            while True:
-                file_buffer = file_path.read(BLOCK_SIZE)
-                if not file_buffer:
-                    break
-                hash_context.update([file_buffer])
+            return Cache._update_ctx(file_path, hash_context)
         else:
             with open(file_path, "rb") as file:
-                while True:
-                    file_buffer = file.read(BLOCK_SIZE)
-                    if not file_buffer:
-                        break
-                    hash_context.update([file_buffer])
-        return hash_context
+                return Cache._update_ctx(file, hash_context)
+
+    @staticmethod
+    def _update_ctx(file_obj: BinaryIO, hash_ctx: HashWrapper):
+        while True:
+            file_buffer = file_obj.read(BLOCK_SIZE)
+            if not file_buffer:
+                break
+            hash_ctx.update([file_buffer])
+        return hash_ctx
 
 
 class DiskCache(Cache):

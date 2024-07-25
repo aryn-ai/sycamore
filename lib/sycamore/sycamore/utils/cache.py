@@ -108,8 +108,8 @@ class S3Cache(Cache):
 
             # If enforcing freshness, we require cached data to have metadata
             if (
-                    self._freshness_in_seconds >= 0
-                    and self._freshness_in_seconds + content.get("cached_at", 0) < time.time()
+                self._freshness_in_seconds >= 0
+                and self._freshness_in_seconds + content.get("cached_at", 0) < time.time()
             ):
                 return None
             data = content["value"]

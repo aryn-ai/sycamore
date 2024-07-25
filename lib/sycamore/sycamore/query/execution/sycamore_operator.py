@@ -561,7 +561,7 @@ class SycamoreTopK(SycamoreOperator):
         field = logical_node.data.get("field")
         assert field is not None and isinstance(field, str)
         k = logical_node.data.get("K")
-        assert k is not None and isinstance(k, int), f"K is {k}, expected None or int"
+        assert k is None or isinstance(k, int), f"K is {k}, expected None or int"
         description = logical_node.data.get("description")
         assert description is not None and isinstance(description, str)
         descending = logical_node.data.get("descending") or False

@@ -629,8 +629,7 @@ class DeformableDetr(SycamoreObjectDetection):
         self.device = device
         self._model_name_or_path = model_name_or_path
 
-        lock = fasteners.InterProcessLock(_DETR_LOCK_FILE)
-        with lock:
+        with fasteners.InterProcessLock(_DETR_LOCK_FILE):
             from transformers import AutoImageProcessor, DeformableDetrForObjectDetection
 
             LogTime("loading_model", point=True)

@@ -10,6 +10,7 @@ from sycamore.query.operators.llmfilter import LlmFilter
 from sycamore.query.operators.llmgenerate import LlmGenerate
 from sycamore.query.operators.loaddata import LoadData
 from sycamore.query.operators.topk import TopK
+from sycamore.query.operators.join import Join
 
 from sycamore.query.execution.operations import (
     llm_generate_operation,
@@ -19,6 +20,7 @@ from sycamore.query.execution.operations import (
     count_operation,
     llm_extract_operation,
     top_k_operation,
+    join_operation,
 )
 from sycamore.llms import OpenAI, OpenAIModels
 from sycamore.utils.cache import S3Cache
@@ -158,7 +160,7 @@ class SycamoreLlmGenerate(SycamoreOperator):
             client=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(self.s3_cache_path) if self.s3_cache_path else None),
             question=question,
             result_description=description,
-            result_data=self.inputs[0],
+            result_data=self.inputs,
             **self.get_execute_args(),
         )
         return result
@@ -506,9 +508,10 @@ class SycamoreSort(SycamoreOperator):
         assert logical_node.data is not None
         descending = logical_node.data.get("descending") or False
         field = logical_node.data.get("field")
+        default_val = logical_node.data.get("defaultValue")
         assert field is not None and isinstance(field, str)
 
-        result = self.inputs[0].sort(descending=descending, field=field)
+        result = self.inputs[0].sort(descending=descending, field=field, default_val=default_val)
 
         return result
 
@@ -613,6 +616,64 @@ class SycamoreTopK(SycamoreOperator):
         return result, ["from sycamore.query.execution.operations import top_k_operation"]
 
 
+class SycamoreJoin(SycamoreOperator):
+    """
+    Return 2 DocSets joined
+    """
+
+    def __init__(
+        self,
+        context: Context,
+        logical_node: Join,
+        query_id: str,
+        inputs: Optional[List[Any]] = None,
+        trace_dir: Optional[str] = None,
+    ) -> None:
+        super().__init__(
+            context=context, logical_node=logical_node, query_id=query_id, inputs=inputs, trace_dir=trace_dir
+        )
+
+    def execute(self) -> Any:
+        assert self.inputs and len(self.inputs) == 2, "Join requires 2 input nodes"
+        assert isinstance(self.inputs[0], DocSet) and isinstance(
+            self.inputs[1], DocSet
+        ), "Join requires 2 DocSet inputs"
+
+        logical_node = self.logical_node
+        assert logical_node.data is not None
+        field1 = logical_node.data.get("fieldOne")
+        assert field1 is not None and isinstance(field1, str)
+        field2 = logical_node.data.get("fieldTwo")
+        assert field2 is not None and isinstance(field2, str)
+
+        result = join_operation(
+            docset1=self.inputs[0],
+            docset2=self.inputs[1],
+            field1=field1,
+            field2=field2,
+        )
+        return result
+
+    def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
+        logical_node = self.logical_node
+        assert logical_node.data is not None
+        field1 = logical_node.data.get("fieldOne")
+        assert field1 is not None and isinstance(field1, str)
+        field2 = logical_node.data.get("fieldTwo")
+        assert field2 is not None and isinstance(field2, str)
+        assert logical_node.dependencies is not None and len(logical_node.dependencies) == 2
+
+        result = f"""
+{output_var or get_var_name(self.logical_node)} = join_operation(
+    docset1={input_var or get_var_name(logical_node.dependencies[0])},
+    docset2={input_var or get_var_name(logical_node.dependencies[2])},
+    field1='{field1}',
+    field2='{field2}'
+)
+"""
+        return result, ["from sycamore.query.execution.operations import join_operation"]
+
+
 class SycamoreLimit(SycamoreOperator):
     """
     Limit the number of results on a DocSet
@@ -638,7 +699,7 @@ class SycamoreLimit(SycamoreOperator):
         k = logical_node.data.get("K")
         assert k is not None and isinstance(k, int)
 
-        result = self.inputs[0].limit(k, **self.get_execute_args())
+        result = self.inputs[0].limit(k)
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:

@@ -132,7 +132,9 @@ def match_filter_operation(doc: Document, query: Any, field: str, ignore_case: b
     value = field_to_value(doc, field)
 
     # substring matching
-    if isinstance(query, str) and isinstance(value, str):
+    if isinstance(query, str) or isinstance(value, str):
+        query = str(query)
+        value = str(value)
         if ignore_case:
             value = value.lower()
             query = query.lower()
@@ -359,39 +361,42 @@ def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
 # operations.llm_generate_operation("database of airplane incidents (NTSB)",
 # "How many incidents occurred between 1/1/2022 and 1/20/2022?", 13)
 def llm_generate_operation(client: OpenAI, question: str, result_description: str, result_data: Any, **kwargs) -> str:
-    if isinstance(result_data, DocSet):
-        text = f"Description: {result_description}\n"
-        for doc in result_data.take(**kwargs):
-            text += "\n"
-            if "entity" in doc.properties:
-                text += "Details: " + json.dumps(doc.properties["entity"], indent=2) + "\n"
-                props_dict = doc.properties["entity"]
-            else:
-                props_dict = {}
+    text = f"Description: {result_description}\n"
 
-            props_dict.update({p: doc.properties[p] for p in set(doc.properties) - set(BASE_PROPS)})
+    for i, result in enumerate(result_data):
+        text += f"Input {i + 1}:\n"
 
-            text += "Details: " + json.dumps(props_dict, indent=2) + "\n"
-            if doc.text_representation:
-                text += doc.text_representation
-            text += "\n"
-    else:
-        text = str(result_data)
-    """Generates a conversational English response to a question, given a topic and answer."""
+        if isinstance(result, DocSet):
+            for doc in result.take(60, **kwargs):
+                if isinstance(doc, MetadataDocument):
+                    continue
+                if "entity" in doc.properties:
+                    props_dict = doc.properties["entity"]
+                else:
+                    props_dict = {}
+
+                props_dict.update({p: doc.properties[p] for p in set(doc.properties) - set(BASE_PROPS)})
+                props_dict["text_representation"] = (
+                    doc.text_representation[:2500] if doc.text_representation is not None else None
+                )
+
+                text += json.dumps(props_dict, indent=2) + "\n"
+
+        else:
+            text += str(result_data) + "\n"
 
     # sets message
     messages = [
         {
             "role": "system",
-            "content": """You are a helpful conversational English response
-            generator for queries regarding database entries.""",
+            "content": """You are a helpful conversational English response generator for queries 
+                regarding database entries.""",
         },
         {
             "role": "user",
-            "content": f"""The following question and answer are in regards to database entries.
-                Respond ONLY with a conversational English response WITH JUSTIFICATION to the
-                question \"{question}\" given the answer \"{text}\". Include as much detail/evidence
-                as possible.""",
+            "content": f"""The following question and answer are in regards to database entries. 
+                Respond ONLY with a conversational English response WITH JUSTIFICATION to the question
+                 \"{question}\" given the answer \"{text}\". Include as much detail/evidence as possible""",
         },
     ]
     prompt_kwargs = {"messages": messages}
@@ -401,6 +406,37 @@ def llm_generate_operation(client: OpenAI, question: str, result_description: st
 
     # LLM response
     return completion
+
+
+def make_filter_fn_join(field: str, join_set=set):
+
+    def filter_fn_join(doc: Document) -> bool:
+        value = field_to_value(doc, field)
+        return value in join_set
+
+    return filter_fn_join
+
+
+def join_operation(docset1: DocSet, docset2: DocSet, field1: str, field2: str) -> DocSet:
+    unique_vals = set()
+    execution = Execution(docset1.context, docset1.plan)
+    dataset = execution.execute(docset1.plan)
+    for row in dataset.iter_rows():
+        doc = Document.from_row(row)
+        if isinstance(doc, MetadataDocument):
+            continue
+        value = field_to_value(doc, field1)
+        unique_vals.add(value)
+
+    for doc in docset1.take_all():
+        value = field_to_value(doc, field1)
+        unique_vals.add(value)
+
+    filter_fn_join = make_filter_fn_join(field2, unique_vals)
+
+    joined_docset = docset2.filter(lambda doc: filter_fn_join(doc))
+
+    return joined_docset
 
 
 ######################################################################################################################################
@@ -418,7 +454,7 @@ def top_k_operation(
     client: OpenAI,
     docset: DocSet,
     field: str,
-    k: int,
+    k: Union[int, None],
     description: str,
     descending: bool = True,
     use_llm: bool = False,
@@ -435,7 +471,8 @@ def top_k_operation(
     # the names of the fields being "key" and "count" could cause problems down the line?
     # uses 0 as default value -> end of docset
     docset = docset.sort(descending, "properties.count", 0)
-    docset = docset.limit(k)
+    if k is not None:
+        docset = docset.limit(k)
     return docset
 
 

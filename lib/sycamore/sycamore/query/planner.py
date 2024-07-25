@@ -30,7 +30,6 @@ class LlmPlanner:
         os_client: OpenSearch,
         operators: Optional[List[LogicalOperator]] = None,
         openai_client: Optional[OpenAI] = None,
-        openai_model: str = "gpt-4o",
         use_examples: bool = True,
     ) -> None:
         super().__init__()
@@ -40,26 +39,24 @@ class LlmPlanner:
         self._os_config = os_config
         self._os_client = os_client
         self._openai_client = openai_client or OpenAI(OpenAIModels.GPT_4O.value)
-        self._openai_model = openai_model
         self._use_examples = use_examples
 
     def generate_prompt(self, query):
         prompt = """
-        1. Return your answer as a standard json list of operators. Make 
-        sure to include each operation as a separate step.
-        2. Do not return any information except the standard json objects.
+        1. Return your answer as a standard JSON list of operators. Make sure to include each 
+            operation as a separate step.
+        2. Do not return any information except the standard JSON objects.
         3. Only use operators described below.
-        4. Only use EXACT field names from the DATA_SCHEMA described below and fields created
-            from **LlmExtract**. Any new fields created by *LlmExtract* will be nested in properties.
-            e.g. if a new field called "state" is added, when referencing it in another operation,
-            you should use "properties.state".
-        5. If an optional field is given in an operator's schema, but is not included in the query
-            plan, mark it as null.
+        4. Only use EXACT field names from the DATA_SCHEMA described below and fields created 
+            from *LlmExtract*. Any new fields created by *LlmExtract* will be nested in properties. 
+            e.g. if a new field called "state" is added, when referencing it in another operation, 
+            you should use "properties.state". A database returned from *TopK* operation only has 
+            "properties.key" or "properties.count"; you can only reference one of those fields. 
+        5. If an optional field does not have a value in the query plan, return null in it's place.
         6. If you cannot generate a plan to answer a question, return an empty list.
-        7. The first step of each plan will always be a **LoadData** operation that returns a data
-            table.
-        8. The last step of each plan will always be a **LlmGenerate** operation to generate an
-            English answer.
+        7. The first step of each plan MUST be a **LoadData** operation that returns a database.
+        8. The last step of each plan MUST be a **LlmGenerate** operation to generate an English 
+            answer.
         """
 
         # data schema
@@ -111,7 +108,8 @@ class LlmPlanner:
                 },
                 {
                     "operatorName": "LlmGenerate",
-                    "description": "Generate an English response to the original question",
+                    "description": "Generate an English response to the original question. 
+                        Input 1 is a database that contains incidents in Georgia.",
                     "question": "Were there any incidents in Georgia?",
                     "input": [1],
                     "id": 2
@@ -148,7 +146,9 @@ class LlmPlanner:
                 },
                 {
                     "operatorName": "LlmGenerate",
-                    "description": "Generate an English response to the question",
+                    "description": "description": "Generate an English response to the 
+                        question. Input 1 is a number that corresponds to the number of 
+                        cities that accidents occurred in.",
                     "question": "How many cities did Cessna aircrafts have incidents in?",
                     "input": [2],
                     "id": 3
@@ -183,6 +183,7 @@ class LlmPlanner:
                     "description": "Sort in descending order by revenue",
                     "descending": true,
                     "field": "properties.entity.revenue",
+                    "defaultValue": 0
                     "input": [1],
                     "id": 2,
                 },
@@ -195,7 +196,9 @@ class LlmPlanner:
                 }
                 {
                     "operatorName": "LlmGenerate",
-                    "description": "Generate an English response to the question",
+                    "description": "description": "Generate an English response to 
+                        the question. Input 1 is a database that contains information 
+                        about the 2 law firms with the highest revenue.",
                     "question": "Which 2 law firms had the highest revenue in 2022?",
                     "input": [3],
                     "id": 4
@@ -217,7 +220,7 @@ class LlmPlanner:
                 {
                     "operatorName": "LlmExtract",
                     "description": "Extract the country",
-                    "question": "What country was responsible for this ship?",
+                    "question": "What country was responsible for this ship? E.g. China, Mexico, Australia",
                     "field": "text_representation",
                     "newField": "country",
                     "format": "string",
@@ -238,7 +241,9 @@ class LlmPlanner:
                 },
                 {
                     "operatorName": "LlmGenerate",
-                    "description": "Generate an English response to the question",
+                    "description": "description": "Generate an English response to the 
+                        question. Input 1 is a database that the top 5 water bodies shipwrecks 
+                        occurred in and their corresponding frequency counts.",
                     "question": "Which 5 countries were responsible for the most shipwrecks?",
                     "input": [2],
                     "id": 3
@@ -294,7 +299,8 @@ class LlmPlanner:
                 }
                 {
                     "operatorName": "LlmGenerate",
-                    "description": "Generate an English response to the question",
+                    "description": "Generate an English response to the question. Input 1 is a 
+                        number that is the fraction of shipwrecks that occurred in 2023.",
                     "question": "What percent of shipwrecks occurred in 2023?",
                     "input": [4],
                     "id": 5

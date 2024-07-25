@@ -22,10 +22,10 @@ $ cd lib/sycamore && poetry run python sycamore/query/examples/ntsb_index_script
 
 ## Using the web interface
 
-There is a simple web app you can use to interact with LUnA. You can run it with:
+There is a simple web app you can use to interact with Sycamore Query. You can run it with:
 
 ```bash
-$ cd lib/sycamore && poetry run python -m streamlit run ./libs/sycamore/sycamore/query/webapp.py
+$ cd apps/query-ui && poetry run python -m streamlit run ./queryui/queryui.py
 ```
 
 You can use this to issue a query against an index in the locally-running OpenSearch cluster.
@@ -52,5 +52,5 @@ Run `poetry run ./libs/sycamore/sycamore/query/client.py --help` for more option
 
 ## Using a Jupyter notebook
 
-You can also use a Jupyter notebook to issue LUnA queries. The notebook in `notebooks/query-demo.ipynb`
+You can also use a Jupyter notebook to issue Sycamore queries. The notebook in `notebooks/query-demo.ipynb`
 gives a good example.

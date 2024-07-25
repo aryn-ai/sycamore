@@ -58,56 +58,56 @@ class EvaluationPipeline:
         return query_body
 
     def _build_opensearch_query(self, doc: Document) -> Document:
-            assert doc.type == "EvaluationDataPoint"
-            query = OpenSearchQuery(doc)
-            query["index"] = self._index
+        assert doc.type == "EvaluationDataPoint"
+        query = OpenSearchQuery(doc)
+        query["index"] = self._index
 
-            if self._subtask_path and doc["additional_info"]["subtasks_reqd"]:
-                from sycamore.evaluation.subtasks import executor
-                doc["question"] = executor(
-                    question = doc["question"],
-                    filters = doc["filters"],
-                    filepath = self._subtask_path,
-                    index = self._index,
-                    query_executor = self._query_executor,
-                    os_config = self._os_config
-                ) + doc["question"]
+        if self._subtask_path and doc["additional_info"]["subtasks_reqd"]:
+            from sycamore.evaluation.subtasks import executor
+            doc["question"] = executor(
+                question = doc["question"],
+                filters = doc["filters"],
+                filepath = self._subtask_path,
+                index = self._index,
+                query_executor = self._query_executor,
+                os_config = self._os_config
+            ) + doc["question"]
 
-            query["query"] = {
-                "_source": {"excludes": ["embedding"]},
-                "query": {
-                    "hybrid": {
-                        "queries": [
-                            {"match": {"text_representation": doc["question"]}},
-                            {
-                                "neural": {
-                                    "embedding": {
-                                        "query_text": doc["question"],
-                                        "model_id": self._os_config["embedding_model_id"],
-                                        "k": self._os_config.get("neural_search_k", 100),
-                                    }
+        query["query"] = {
+            "_source": {"excludes": ["embedding"]},
+            "query": {
+                "hybrid": {
+                    "queries": [
+                        {"match": {"text_representation": doc["question"]}},
+                        {
+                            "neural": {
+                                "embedding": {
+                                    "query_text": doc["question"],
+                                    "model_id": self._os_config["embedding_model_id"],
+                                    "k": self._os_config.get("neural_search_k", 100),
                                 }
-                            },
-                        ]
-                    }
-                },
-                "size": self._os_config.get("size", 20),
-            }
-
-            if "llm" in self._os_config:
-                query["params"] = {"search_pipeline": self._os_config["search_pipeline"]}
-                query["query"]["ext"] = {
-                    "generative_qa_parameters": {
-                        "llm_question": doc["question"],
-                        "context_size": self._os_config.get("context_window", 10),
-                        "llm_model": self._os_config.get("llm", "gpt-4"),
-                    }
+                            }
+                        },
+                    ]
                 }
-                if self._os_config.get("rerank", False):
-                    query["query"]["ext"]["rerank"] = {"query_context": {"query_text": doc["question"]}}
-            if "filters" in doc:
-                query["query"] = self._add_filter(query["query"], doc["filters"])
-            return query
+            },
+            "size": self._os_config.get("size", 20),
+        }
+
+        if "llm" in self._os_config:
+            query["params"] = {"search_pipeline": self._os_config["search_pipeline"]}
+            query["query"]["ext"] = {
+                "generative_qa_parameters": {
+                    "llm_question": doc["question"],
+                    "context_size": self._os_config.get("context_window", 10),
+                    "llm_model": self._os_config.get("llm", "gpt-4"),
+                }
+            }
+            if self._os_config.get("rerank", False):
+                query["query"]["ext"]["rerank"] = {"query_context": {"query_text": doc["question"]}}
+        if "filters" in doc:
+            query["query"] = self._add_filter(query["query"], doc["filters"])
+        return query
 
     def _process_queries(self, query_result: Document) -> Document:
         logger.debug(("Query result: " + str(query_result.keys())))

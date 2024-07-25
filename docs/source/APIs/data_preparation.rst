@@ -7,6 +7,8 @@ These APIs are used for writing data preparation jobs and loading data into Syca
    :maxdepth: 2
 
    /APIs/data_preparation/docset.rst
+   /APIs/data_preparation/context.rst
+   /APIs/data_preparation/node.rst
    /APIs/data_preparation/docsetwriter.rst
    /APIs/data_preparation/document.rst
    /APIs/data_preparation/functions.rst

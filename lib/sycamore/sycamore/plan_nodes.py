@@ -6,8 +6,9 @@ from ray.data import Dataset
 
 class Node(ABC):
     """
-    A Node is the abstract base unit of a Sycamore Transform, which allows DocSets to transform themselves into end results. Sycamore processes this as
-    a directed tree graph, which allows transforms to be linked to each other and then implemented
+    A Node is the abstract base unit of a Sycamore Transform, which allows DocSets to transform themselves into end
+    results. Sycamore processes this as a directed tree graph, which allows transforms to be linked to each other
+    and then implemented
     """
 
     def __init__(self, children: list[Optional["Node"]], **resource_args):

@@ -35,8 +35,9 @@ def _ray_logging_setup():
 
 
 class Context:
-    """A class to implement a Sycamore Context, which initializes a Ray Worker and provides the ability to read data into a
-    DocSet
+    """
+    A class to implement a Sycamore Context, which initializes a Ray Worker and provides the ability
+    to read data into a DocSet
     """
 
     def __init__(self, ray_args: Optional[dict[str, Any]] = None):

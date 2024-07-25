@@ -12,6 +12,10 @@ BLOCK_SIZE = 1048576  # 1 MiB
 
 
 class HashWrapper:
+    """
+    This is a wrapper class for the hash context as Python/mypy/IDE does not like accessing _Hash from hashlib
+    """
+
     def __init__(self, algorithm="sha256"):
         self.hash_obj = hashlib.new(algorithm)
 
@@ -104,8 +108,8 @@ class S3Cache(Cache):
 
             # If enforcing freshness, we require cached data to have metadata
             if (
-                self._freshness_in_seconds >= 0
-                and self._freshness_in_seconds + content.get("cached_at", 0) < time.time()
+                    self._freshness_in_seconds >= 0
+                    and self._freshness_in_seconds + content.get("cached_at", 0) < time.time()
             ):
                 return None
             data = content["value"]

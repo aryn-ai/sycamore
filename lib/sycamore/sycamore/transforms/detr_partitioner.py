@@ -36,6 +36,7 @@ from sycamore.utils.pdf import convert_from_path_streamed_batched
 from sycamore.utils.time_trace import LogTime, timetrace
 
 logger = logging.getLogger(__name__)
+_VERSION = "0.2024.07.24"
 
 
 def _batchify(iterable, n=1):
@@ -709,7 +710,7 @@ class DeformableDetr(SycamoreObjectDetection):
         return results
 
     def _get_hash_key(self, image: Image.Image, threshold: float) -> str:
-        return Cache.get_hash_context([image.tobytes(), str(threshold).encode()]).hexdigest()
+        return Cache.get_hash_context([image.tobytes(), f"{threshold:.6f}".encode(), _VERSION.encode()]).hexdigest()
 
 
 class PDFMinerExtractor:

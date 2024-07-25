@@ -339,7 +339,7 @@ class DocSet:
         plan = SplitElements(self.plan, tokenizer, max_tokens, **kwargs)
         return DocSet(self.context, plan)
 
-    def explode(self, **resource_args) -> "DocSet":
+    def explode(self,hierarchical=False, **resource_args) -> "DocSet":
         """
         Applies the Explode transform on the Docset.
 
@@ -352,7 +352,7 @@ class DocSet:
         """
         from sycamore.transforms.explode import Explode
 
-        explode = Explode(self.plan, **resource_args)
+        explode = Explode(self.plan, hierarchical=hierarchical, **resource_args)
         return DocSet(self.context, explode)
 
     def embed(self, embedder: Embedder, **kwargs) -> "DocSet":
@@ -507,7 +507,7 @@ class DocSet:
         """
         docset = self
         for extractor in extractors:
-            docset = extractor.extract(self)
+            docset = extractor.extract(docset)
 
         return docset
 

@@ -8,6 +8,8 @@ from collections.abc import Mapping
 from concurrent.futures import ProcessPoolExecutor
 from io import BytesIO, IOBase
 from typing import cast, Any, BinaryIO, List, Tuple, Union, Optional
+from pathlib import Path
+import pwd
 
 import requests
 import json
@@ -17,6 +19,7 @@ import pdf2image
 import pytesseract
 import torch
 from PIL import Image
+import fasteners
 from pdfminer.converter import PDFPageAggregator
 from pdfminer.layout import LAParams
 from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager, resolve1
@@ -34,8 +37,10 @@ from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
 from sycamore.utils.pdf import convert_from_path_streamed_batched
 from sycamore.utils.time_trace import LogTime, timetrace
+from sycamore.utils.pytorch_dir import get_pytorch_build_directory
 
 logger = logging.getLogger(__name__)
+_DETR_LOCK_FILE = f"{pwd.getpwuid(os.getuid()).pw_dir}/.cache/Aryn-Detr.lock"
 _VERSION = "0.2024.07.24"
 
 
@@ -633,12 +638,16 @@ class DeformableDetr(SycamoreObjectDetection):
         self._model_name_or_path = model_name_or_path
         self.cache = cache
 
-        from transformers import AutoImageProcessor, DeformableDetrForObjectDetection
+        with fasteners.InterProcessLock(_DETR_LOCK_FILE):
+            lockfile = Path(get_pytorch_build_directory("MultiScaleDeformableAttention", False)) / "lock"
+            lockfile.unlink(missing_ok=True)
 
-        LogTime("loading_model", point=True)
-        with LogTime("load_model", log_start=True):
-            self.processor = AutoImageProcessor.from_pretrained(model_name_or_path)
-            self.model = DeformableDetrForObjectDetection.from_pretrained(model_name_or_path).to(self._get_device())
+            from transformers import AutoImageProcessor, DeformableDetrForObjectDetection
+
+            LogTime("loading_model", point=True)
+            with LogTime("load_model", log_start=True):
+                self.processor = AutoImageProcessor.from_pretrained(model_name_or_path)
+                self.model = DeformableDetrForObjectDetection.from_pretrained(model_name_or_path).to(self._get_device())
 
     # Note: We wrap this in a function so that we can execute on both the leader and the workers
     # to account for heterogeneous systems. Currently if you pass in an explicit device parameter

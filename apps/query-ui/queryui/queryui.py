@@ -90,13 +90,17 @@ def show_dag(plan: LogicalPlan):
     agraph(nodes=nodes, edges=edges, config=config)
 
 
-def run_query(query: str, index: str, plan_only: bool, do_trace: bool):
+def run_query(query: str, index: str, plan_only: bool, do_trace: bool, use_cache: bool):
     """Run the given query."""
     trace_dir = None
     if do_trace:
         trace_dir = tempfile.mkdtemp()
         st.write(f"Writing execution traces to `{trace_dir}`")
-    client = SycamoreQueryClient(trace_dir=trace_dir)
+    if use_cache:
+        st.write(f"Using cache at `{st.session_state.s3_cache_path}`")
+    client = SycamoreQueryClient(
+        trace_dir=trace_dir, s3_cache_path=st.session_state.s3_cache_path if use_cache else None
+    )
     with st.spinner("Getting schema..."):
         schema = client.get_opensearch_schema(index)
     with st.spinner("Generating plan..."):
@@ -124,19 +128,23 @@ with st.form("query_form"):
     st.text_input("Query", key="query")
     option = st.selectbox("Index", indices, key="index")
     schema_container = st.container()
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
         submitted = st.form_submit_button("Run query")
     with col2:
         plan_only = st.toggle("Plan only")
     with col3:
         do_trace = st.toggle("Capture traces")
+    with col4:
+        use_cache = st.toggle("Use cache")
+    with st.expander("Advanced"):
+        st.text_input("S3 cache path", key="s3_cache_path", value="s3://aryn-temp/llm_cache/ntsb/luna/")
 
 if submitted:
     st.session_state.query_set = True
     show_schema(schema_container, client.get_opensearch_schema(st.session_state.index))
-    run_query(st.session_state.query, st.session_state.index, plan_only, do_trace)
+    run_query(st.session_state.query, st.session_state.index, plan_only, do_trace, use_cache)
 
-if "query_set" in st.session_state and st.session_state.query_set:
+elif "query_set" in st.session_state and st.session_state.query_set:
     show_schema(schema_container, client.get_opensearch_schema(st.session_state.index))
-    run_query(st.session_state.query, st.session_state.index, plan_only, do_trace)
+    run_query(st.session_state.query, st.session_state.index, plan_only, do_trace, use_cache)

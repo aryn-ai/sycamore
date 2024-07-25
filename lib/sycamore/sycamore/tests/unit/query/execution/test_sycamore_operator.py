@@ -2,12 +2,14 @@ import unittest
 from unittest.mock import patch, ANY, Mock
 
 import sycamore
+from sycamore.query.operators.join import Join
 from sycamore.query.operators.llmextract import LlmExtract
 from sycamore import DocSet
 
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.limit import Limit
 from sycamore.query.execution.sycamore_operator import (
+    SycamoreJoin,
     SycamoreLoadData,
     SycamoreLlmGenerate,
     SycamoreLlmFilter,
@@ -145,6 +147,27 @@ def test_count():
             field=logical_node.data.get("field"),
             primaryField=logical_node.data.get("primaryField"),
             **sycamore_operator.get_execute_args(),
+        )
+
+
+def test_join():
+    with patch("sycamore.query.execution.sycamore_operator.join_operation") as mock_impl:
+        # Define the mock return value
+        mock_impl.return_value = "success"
+
+        doc_set1 = Mock(spec=DocSet)
+        doc_set2 = Mock(spec=DocSet)
+        context = sycamore.init()
+        logical_node = Join("node_id", {"fieldOne": "field1", "fieldTwo": "field2", "id": 0})
+        sycamore_operator = SycamoreJoin(context, logical_node, query_id="test", inputs=[doc_set1, doc_set2])
+        result = sycamore_operator.execute()
+
+        assert result == "success"
+        mock_impl.assert_called_once_with(
+            docset1=doc_set1,
+            docset2=doc_set2,
+            field1=logical_node.data.get("fieldOne"),
+            field2=logical_node.data.get("fieldTwo"),
         )
 
 

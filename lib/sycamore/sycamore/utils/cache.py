@@ -2,7 +2,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import boto3
 import diskcache
@@ -15,8 +15,9 @@ class HashWrapper:
     def __init__(self, algorithm="sha256"):
         self.hash_obj = hashlib.new(algorithm)
 
-    def update(self, data):
-        self.hash_obj.update(data)
+    def update(self, data: list[bytes]):
+        for d in data:
+            self.hash_obj.update(d)
 
     def hexdigest(self):
         return self.hash_obj.hexdigest()
@@ -40,7 +41,9 @@ class Cache:
         return self.cache_hits / self.total_accesses
 
     @staticmethod
-    def get_hash_context(data: bytes) -> HashWrapper:
+    def get_hash_context(data: Union[bytes, list[bytes]]) -> HashWrapper:
+        if isinstance(data, bytes):
+            data = [data]
         hash_ctx = HashWrapper()
         hash_ctx.update(data)
         return hash_ctx
@@ -54,7 +57,7 @@ class Cache:
                 file_buffer = file.read(BLOCK_SIZE)
                 if not file_buffer:
                     break
-                hash_context.update(file_buffer)
+                hash_context.update([file_buffer])
         return hash_context
 
 
@@ -65,7 +68,7 @@ class DiskCache(Cache):
 
     def get(self, hash_key: str):
         v = self._cache.get(hash_key)
-        if v:
+        if v is not None:
             self.cache_hits += 1
         self.total_accesses += 1
         return v

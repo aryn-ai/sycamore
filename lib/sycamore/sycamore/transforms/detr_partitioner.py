@@ -663,9 +663,8 @@ class DeformableDetr(SycamoreObjectDetection):
                 elements.append(element)
             batched_results.append(elements)
             if self.cache:
-                hash_ctx = Cache.get_hash_context(image.tobytes())
-                hash_ctx.update(threshold)
-                self.cache.set(hash_ctx.hexdigest(), result)
+                hash_key = self._get_hash_key(image, threshold)
+                self.cache.set(hash_key, result)
 
         return batched_results
 
@@ -676,7 +675,7 @@ class DeformableDetr(SycamoreObjectDetection):
 
         # First, check the cache for each image
         for index, image in enumerate(images):
-            key = Cache.get_hash_context(image.tobytes()).update(threshold).hexdigest()
+            key = self._get_hash_key(image, threshold)
             assert self.cache is not None
             cached_layout = self.cache.get(key)
             if cached_layout:
@@ -708,6 +707,9 @@ class DeformableDetr(SycamoreObjectDetection):
             result["labels"] = result["labels"].tolist()
             result["boxes"] = result["boxes"].tolist()
         return results
+
+    def _get_hash_key(self, image: Image.Image, threshold: float) -> str:
+        return Cache.get_hash_context([image.tobytes(), str(threshold).encode()]).hexdigest()
 
 
 class PDFMinerExtractor:

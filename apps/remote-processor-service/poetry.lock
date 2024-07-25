@@ -3129,6 +3129,18 @@ files = [
 dev = ["black", "mypy", "pytest"]
 
 [[package]]
+name = "overrides"
+version = "7.7.0"
+description = "A decorator to automatically detect mismatch when overriding a method."
+category = "dev"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "overrides-7.7.0-py3-none-any.whl", hash = "sha256:c7ed9d062f78b8e4c1a7b70bd8796b35ead4d9f510227ef9c5dc7626c60d7e49"},
+    {file = "overrides-7.7.0.tar.gz", hash = "sha256:55158fa3d93b98cc75299b1e67078ad9003ca27945c76162c1c0766d6f91820a"},
+]
+
+[[package]]
 name = "packaging"
 version = "24.1"
 description = "Core utilities for Python packages"
@@ -5168,6 +5180,24 @@ files = [
 ]
 
 [[package]]
+name = "structlog"
+version = "24.4.0"
+description = "Structured Logging for Python"
+category = "dev"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "structlog-24.4.0-py3-none-any.whl", hash = "sha256:597f61e80a91cc0749a9fd2a098ed76715a1c8a01f73e336b746504d1aad7610"},
+    {file = "structlog-24.4.0.tar.gz", hash = "sha256:b27bfecede327a6d2da5fbc96bd859f114ecc398a6389d664f62085ee7ae6fc4"},
+]
+
+[package.extras]
+dev = ["freezegun (>=0.2.8)", "mypy (>=1.4)", "pretend", "pytest (>=6.0)", "pytest-asyncio (>=0.17)", "rich", "simplejson", "twisted"]
+docs = ["cogapp", "furo", "myst-parser", "sphinx", "sphinx-notfound-page", "sphinxcontrib-mermaid", "sphinxext-opengraph", "twisted"]
+tests = ["freezegun (>=0.2.8)", "pretend", "pytest (>=6.0)", "pytest-asyncio (>=0.17)", "simplejson"]
+typing = ["mypy (>=1.4)", "rich", "twisted"]
+
+[[package]]
 name = "sycamore-ai"
 version = "0.1.17"
 description = "Sycamore is an LLM-powered semantic data preparation system for building search applications."
@@ -5196,6 +5226,7 @@ guidance = "0.1.14"
 jinja2 = "^3.1"
 openai = "^1.14.1"
 opensearch-py = "^2.3.1"
+overrides = "^7.7.0"
 pandas = "2.1.1"
 pdf2image = "^1.16.3"
 pdfminer-six = "20221105"
@@ -5210,6 +5241,7 @@ ray = {version = "^2.20.0", extras = ["default"]}
 rouge = "^1.0.1"
 sentence-transformers = "^3.0.1"
 setuptools = "69.5.1"
+structlog = "^24.2.0"
 tenacity = "^8.4.1"
 timm = "^0.9.12"
 torch = "^2.3.0"

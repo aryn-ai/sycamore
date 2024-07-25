@@ -179,6 +179,7 @@ class SupervisedExtractor(GraphExtractor):
         
         pool = Pool(processes=8)
         res = pool.map(self.extract_from_section,doc.children)
+        pool.close()
         nodes = {}
         for i, section in enumerate(doc.children):
             for node in res[i]["entities"]:

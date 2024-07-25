@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 class DocSet:
     """
-    A DocSet, short for “documentation set”, is a distributed collection of documents bundled together for processing.
+    A DocSet, short for “Document Set”, is a distributed collection of documents bundled together for processing.
     Sycamore provides a variety of transformations on DocSets to help customers handle unstructured data easily.
     """
 

@@ -54,6 +54,8 @@ class MockLLM(LLM):
     def is_chat_mode(self):
         return True
 
+
+class TestOperations:
     @pytest.fixture
     def generate_docset(self) -> Callable[[Dict[str, List[Any]]], DocSet]:
         def _generate(docs_info: Dict[str, List[Any]]) -> DocSet:
@@ -90,7 +92,7 @@ class MockLLM(LLM):
     @pytest.fixture
     def number_docset(self, generate_docset) -> DocSet:
         return generate_docset(
-            {"text_representation": ["1", "2", "one", "two", "1", "3"], "nums": [1, 8, 5, 17, 13, 11]},
+            {"text_representation": ["1", "2", "one", "two", "1", "3"], "parent_id": [8, 1, 11, 17, 13, 5]},
         )
 
     # Filters
@@ -266,7 +268,7 @@ class MockLLM(LLM):
     # Join
     def test_join(self, words_and_ids_docset, number_docset):
         joined_docset = join_operation(
-            docset1=number_docset, docset2=words_and_ids_docset, field1="nums", field2="doc_id"
+            docset1=number_docset, docset2=words_and_ids_docset, field1="parent_id", field2="doc_id"
         )
         assert joined_docset.count() == 2
 
@@ -278,6 +280,21 @@ class MockLLM(LLM):
 
             elif doc.doc_id == 1:
                 assert doc.text_representation == "submarine"
+
+        joined_docset_reverse = join_operation(
+            docset1=words_and_ids_docset, docset2=number_docset, field1="doc_id", field2="parent_id"
+        )
+
+        assert joined_docset_reverse.count() == 2
+
+        for doc in joined_docset_reverse.take():
+            assert doc.parent_id == 5 or doc.parent_id == 1
+
+            if doc.parent_id == 5:
+                assert doc.text_representation == "3"
+
+            elif doc.parent_id == 1:
+                assert doc.text_representation == "2"
 
     # Count
     def test_count_normal(self, words_and_ids_docset):

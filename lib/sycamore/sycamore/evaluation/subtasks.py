@@ -2,6 +2,7 @@ import json
 from typing import Any
 import sycamore
 from sycamore.connectors.file.materialized_scan import DocScan
+from sycamore.data.document import Document
 from sycamore.docset import DocSet
 from sycamore.evaluation.data import EvaluationDataPoint
 from sycamore.evaluation.pipeline import EvaluationPipeline
@@ -12,11 +13,12 @@ from sycamore.transforms.query import OpenSearchQueryExecutor
 openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
 prompt = TaskIdentifierZeroShotGuidancePrompt()
 
-def subtask_to_qa_datapoint(question: str, filters: dict[str, str], code: str) -> dict[str, Any]:
+def subtask_to_qa_datapoint(question: str, filters: dict[str, str], code: str) -> Document:
     question = question.format(**filters)
 
     document = EvaluationDataPoint()
-    document.question = question + "Return only the code "+ code +" alongside the amount found and no additional information."
+    document.question = (question + "Return only the code " + code + 
+                        " alongside the amount found and no additional information.")
     document.filters = filters
 
     document["raw"] = question
@@ -48,7 +50,9 @@ def collector(terms, filters, instructions, index, query_executor, os_config):
     return answers
 
 
-def executor(question: str, filters: dict, filepath: str, index: str, query_executor: OpenSearchQueryExecutor, os_config: dict[str, str]):
+def executor(question: str, filters: dict, filepath: str, index: str,
+             query_executor: OpenSearchQueryExecutor, os_config: dict[str, str]):
+
     with open(filepath) as json_file:
         data = json.load(json_file)
 

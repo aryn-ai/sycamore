@@ -2,7 +2,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, BinaryIO
 
 import boto3
 import diskcache
@@ -53,16 +53,26 @@ class Cache:
         return hash_ctx
 
     @staticmethod
-    def get_hash_context_file(file_path: str, hash_context: Optional[HashWrapper] = None) -> HashWrapper:
+    def get_hash_context_file(
+        file_path: Union[str, BinaryIO], hash_context: Optional[HashWrapper] = None
+    ) -> HashWrapper:
         if not hash_context:
             hash_context = HashWrapper()
-        with open(file_path, "rb") as file:
-            while True:
-                file_buffer = file.read(BLOCK_SIZE)
-                if not file_buffer:
-                    break
-                hash_context.update([file_buffer])
-        return hash_context
+
+        if isinstance(file_path, BinaryIO):
+            return Cache._update_ctx(file_path, hash_context)
+        else:
+            with open(file_path, "rb") as file:
+                return Cache._update_ctx(file, hash_context)
+
+    @staticmethod
+    def _update_ctx(file_obj: BinaryIO, hash_ctx: HashWrapper):
+        while True:
+            file_buffer = file_obj.read(BLOCK_SIZE)
+            if not file_buffer:
+                break
+            hash_ctx.update([file_buffer])
+        return hash_ctx
 
 
 class DiskCache(Cache):

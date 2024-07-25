@@ -127,7 +127,9 @@ def convert_from_path_streamed_batched(filename: str, batch_size: int) -> Genera
 
 def pdf_to_image_files(pdf_path: str, file_dir: Path) -> Generator[Path, None, None]:
     """Writes the files (streamed) into file_dir.  Caller is responsible for calling
-    path.unlink() to cleanup the files."""
+    path.unlink() to cleanup the files.
+
+    Note: model service will call this to get images for processing"""
 
     class StdoutEOF:
         pass

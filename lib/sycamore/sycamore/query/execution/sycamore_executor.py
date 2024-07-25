@@ -35,7 +35,7 @@ log = structlog.get_logger(__name__)
 
 
 class SycamoreExecutor:
-    """The LUnA query executor that processes a logical plan and executes it using Sycamore.
+    """The Sycamore Query executor that processes a logical plan and executes it using Sycamore.
 
     Args:
         context (Context): The Sycamore context to use.

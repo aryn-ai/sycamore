@@ -22,7 +22,7 @@ def pickle_name(doc: Document, extension="pickle"):
     return f"{doc.doc_id}.{extension}"
 
 
-class LunaLogger(Datasink):
+class SycamoreQueryLogger(Datasink):
     """
     Custom data sink for Sycamore nodes. It emits metrics using the structlog interface and attaches query and
     node information along with each record. Supports a verbose mode that writes raw documents as well.

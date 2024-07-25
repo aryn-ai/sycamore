@@ -52,7 +52,7 @@ DEFAULT_OS_CLIENT_ARGS = {
 
 
 def configure_logging(logfile: Optional[str] = None, log_level=logging.WARN):
-    """Configure logging for LUnA query execution."""
+    """Configure logging for Sycamore query execution."""
 
     class CustomLoggerFactory(structlog.stdlib.LoggerFactory):
         """Custom logger factory that directs output to a file."""
@@ -91,8 +91,8 @@ def configure_logging(logfile: Optional[str] = None, log_level=logging.WARN):
         )
 
 
-class LunaClient:
-    """A client for the LUnA query engine.
+class SycamoreQueryClient:
+    """A client for the Sycamore Query engine.
 
     Args:
         s3_cache_path (optional): S3 path to use for LLM result caching.
@@ -176,7 +176,7 @@ class LunaClient:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run a LUnA query against an index.")
+    parser = argparse.ArgumentParser(description="Run a Sycamore query against an index.")
     parser.add_argument("query", type=str, help="Query to run against the index.", nargs="?", default=None)
     parser.add_argument("--show-indices", action="store_true", help="Show all indices")
     parser.add_argument("--index", type=str, help="Index name")
@@ -198,7 +198,7 @@ def main():
 
     if args.trace_dir:
         os.makedirs(os.path.abspath(args.trace_dir), exist_ok=True)
-        logfile = f"{os.path.abspath(args.trace_dir)}/luna.log"
+        logfile = f"{os.path.abspath(args.trace_dir)}/sycamore.log"
         configure_logging(logfile, log_level=logging.INFO)
     else:
         configure_logging(log_level=args.log_level)
@@ -210,7 +210,7 @@ def main():
         # Make trace_dir absolute.
         args.trace_dir = os.path.abspath(args.trace_dir)
 
-    client = LunaClient(s3_cache_path=args.s3_cache_path, trace_dir=args.trace_dir)
+    client = SycamoreQueryClient(s3_cache_path=args.s3_cache_path, trace_dir=args.trace_dir)
 
     if args.show_indices:
         for index in client.get_opensearch_incides():
@@ -242,8 +242,8 @@ def main():
     console.print(result)
 
     if args.dump_traces:
-        console.rule(f"Execution traces from {args.trace_dir}/luna.log")
-        client.dump_traces(os.path.join(os.path.abspath(args.trace_dir), "luna.log"), query_id)
+        console.rule(f"Execution traces from {args.trace_dir}/sycamore.log")
+        client.dump_traces(os.path.join(os.path.abspath(args.trace_dir), "sycamore.log"), query_id)
 
     if args.show_dag:
         import matplotlib.pyplot as plt

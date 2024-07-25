@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from typing import Any, Optional, List, Dict, Tuple
 
+from sycamore.query.execution.metrics import SycamoreQueryLogger
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.filter import Filter
 from sycamore.query.operators.limit import Limit
@@ -9,8 +10,6 @@ from sycamore.query.operators.llmfilter import LlmFilter
 from sycamore.query.operators.llmgenerate import LlmGenerate
 from sycamore.query.operators.loaddata import LoadData
 from sycamore.query.operators.topk import TopK
-
-from sycamore.query.execution.metrics import LunaLogger
 
 from sycamore.query.execution.operations import (
     llm_generate_operation,
@@ -82,7 +81,7 @@ class SycamoreOperator(PhysicalOperator):
             )
         args = {
             "write_intermediate_data": True,
-            "intermediate_datasink": LunaLogger,
+            "intermediate_datasink": SycamoreQueryLogger,
             "intermediate_datasink_kwargs": intermediate_datasink_kwargs,
         }
         args.update(self.get_node_args())

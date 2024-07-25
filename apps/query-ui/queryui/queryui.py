@@ -12,7 +12,7 @@ from streamlit_ace import st_ace
 from streamlit_agraph import agraph, Node, Edge, Config
 
 
-from sycamore.query.client import LunaClient
+from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
 
 
@@ -96,7 +96,7 @@ def run_query(query: str, index: str, plan_only: bool, do_trace: bool):
     if do_trace:
         trace_dir = tempfile.mkdtemp()
         st.write(f"Writing execution traces to `{trace_dir}`")
-    client = LunaClient(trace_dir=trace_dir)
+    client = SycamoreClient(trace_dir=trace_dir)
     with st.spinner("Getting schema..."):
         schema = client.get_opensearch_schema(index)
     with st.spinner("Generating plan..."):
@@ -114,10 +114,10 @@ def run_query(query: str, index: str, plan_only: bool, do_trace: bool):
         st.button("Show traces", on_click=lambda: show_traces(trace_dir))
 
 
-client = LunaClient()
+client = SycamoreQueryClient()
 indices = client.get_opensearch_incides()
 
-st.title("LUnA Query Demo")
+st.title("Sycamore Query Demo")
 
 
 with st.form("query_form"):

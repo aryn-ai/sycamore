@@ -267,7 +267,7 @@ class OpenAI(LLM):
         assert self._cache
         combined = {"prompt_kwargs": prompt_kwargs, "llm_kwargs": llm_kwargs, "model_name": self.model.name}
         data = pickle.dumps(combined)
-        return self._cache.get_hash_key(data)
+        return self._cache.get_hash_context(data).hexdigest()
 
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Any:
         cache_key = None

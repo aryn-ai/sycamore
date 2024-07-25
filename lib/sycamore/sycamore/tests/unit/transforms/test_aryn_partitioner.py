@@ -30,7 +30,7 @@ class TestArynPDFPartitioner:
         with open(TEST_DIR / "resources/data/json/model_server_output_transformer.json") as expected_text:
             with open(TEST_DIR / "resources/data/pdfs/Transformer.pdf", "rb") as pdf:
                 expected_json = json.loads(expected_text.read())
-                partitioner = ArynPDFPartitioner()
+                partitioner = ArynPDFPartitioner(None)
                 expected_elements = []
                 for element_json in expected_json:
                     element = create_element(**element_json)
@@ -47,7 +47,7 @@ class TestArynPDFPartitioner:
         ) as expected_text:
             with open(TEST_DIR / "resources/data/pdfs/Transformer.pdf", "rb") as pdf:
                 expected_json = json.loads(expected_text.read())
-                partitioner = ArynPDFPartitioner()
+                partitioner = ArynPDFPartitioner(None)
                 expected_elements = []
                 for element_json in expected_json:
                     element = create_element(**element_json)

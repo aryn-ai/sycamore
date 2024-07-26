@@ -4,6 +4,7 @@ from typing import Any, Optional
 
 import ray
 
+from sycamore.config import Config
 from sycamore.rules import Rule
 
 
@@ -35,7 +36,7 @@ def _ray_logging_setup():
 
 
 class Context:
-    def __init__(self, ray_args: Optional[dict[str, Any]] = None):
+    def __init__(self, ray_args: Optional[dict[str, Any]] = None, config: Config = Config()):
         if ray_args is None:
             ray_args = {}
 
@@ -52,6 +53,7 @@ class Context:
         ray.init(**ray_args)
 
         self.extension_rules: list[Rule] = []
+        self._config = config
         self._internal_lock = threading.Lock()
 
     @property
@@ -59,6 +61,10 @@ class Context:
         from sycamore.reader import DocSetReader
 
         return DocSetReader(self)
+
+    @property
+    def config(self) -> Config:
+        return self._config
 
     def register_rule(self, rule: Rule) -> None:
         with self._internal_lock:
@@ -78,7 +84,7 @@ _context_lock = threading.Lock()
 _global_context: Optional[Context] = None
 
 
-def init(ray_args: Optional[dict[str, Any]] = None) -> Context:
+def init(ray_args: Optional[dict[str, Any]] = None, config: Optional[Config] = None) -> Context:
     global _global_context
     with _context_lock:
         if _global_context is None:
@@ -91,9 +97,15 @@ def init(ray_args: Optional[dict[str, Any]] = None) -> Context:
 
             sycamore_logger.setup_logger()
 
-            _global_context = Context(ray_args)
+            _global_context = Context(ray_args, config)
 
         return _global_context
+
+
+def current(ray_args: Optional[dict[str, Any]] = None, config: Optional[Config] = None) -> Context:
+    if _global_context:
+        return _global_context
+    return init(ray_args, config)
 
 
 def shutdown() -> None:

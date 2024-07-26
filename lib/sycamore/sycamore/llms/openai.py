@@ -14,6 +14,7 @@ from openai import max_retries as DEFAULT_MAX_RETRIES
 from openai.lib.azure import AzureADTokenProvider
 from openai.types.chat import ChatCompletionMessageParam
 
+from sycamore import context
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts import GuidancePrompt
 from sycamore.utils.cache import Cache
@@ -214,13 +215,16 @@ def openai_deserializer(kwargs):
 class OpenAI(LLM):
     def __init__(
         self,
-        model_name: Union[OpenAIModels, OpenAIModel, str],
+        model_name: Union[OpenAIModels, OpenAIModel, str] = None,
         api_key=None,
         client_wrapper: Optional[OpenAIClientWrapper] = None,
         params: Optional[OpenAIClientParameters] = None,
         cache: Optional[Cache] = None,
         **kwargs,
     ):
+        if model_name is None:
+            config = context.current().config
+            model_name = config.openai_model_name
         if isinstance(model_name, OpenAIModels):
             self.model = model_name.value
         elif isinstance(model_name, OpenAIModel):

@@ -23,7 +23,28 @@ with open("partition-me.pdf", "rb") as f:
 elements = data['elements']
 ```
 
-Convert partitioned tables to pandas dataframes for easier use:
+Convert a partitioned table element to a pandas dataframe for easier use:
+
+```python
+from aryn_sdk.partition import partition_file, table_elem_to_dataframe
+
+with open("partition-me.pdf", "rb") as f:
+    data = partition_file(
+        f,
+        use_ocr=True,
+        extract_table_structure=True,
+        extract_images=True
+    )
+
+# Find the first table and convert it to a dataframe
+df = None
+for element in data['elements']:
+    if element['type'] == 'table':
+        df = table_elem_to_dataframe(element)
+        break
+```
+
+Or convert all partitioned tables to pandas dataframes in one shot:
 
 ```python
 from aryn_sdk.partition import partition_file, tables_to_pandas

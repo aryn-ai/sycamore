@@ -15,12 +15,12 @@ env:
   SYCAMORE_S3_TEMP_PATH: s3://aryn-sycamore-integ-temp/
   MODEL_SERVER_KEY: ${{ secrets.MODEL_SERVER_KEY }}
   PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
-  ARYN_API_KEY: ${{ secrets.MODEL_SERVER_KEY }} 
+  ARYN_API_KEY: ${{ secrets.MODEL_SERVER_KEY }}
 
 # Permissions for AWS access
 permissions:
-  id-token: write   # This is required for requesting the JWT
-  contents: read    # This is required for actions/checkout
+  id-token: write # This is required for requesting the JWT
+  contents: read # This is required for actions/checkout
 
 jobs:
   sycamore-unit-tests:
@@ -38,10 +38,12 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'poetry'
+          cache: "poetry"
       - name: Install sycamore
         run: poetry install
         working-directory: lib/sycamore
+      - name: Update Apt
+        run: sudo apt-get update
       - name: Install poppler and tesseract
         run: sudo apt-get install -y poppler-utils tesseract-ocr
       - name: Run tests
@@ -52,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [ "3.9", "3.10", "3.11" ]
+        python-version: ["3.9", "3.10", "3.11"]
 
     steps:
       - name: Checkout
@@ -65,7 +67,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'poetry'
+          cache: "poetry"
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
@@ -96,7 +98,7 @@ jobs:
           xpack.security.http.ssl.enabled: "false"
           xpack.security.enabled: "false"
           bootstrap.memory_lock: "true"
-          ES_JAVA_OPTS: "-Xms2g -Xmx2g" 
+          ES_JAVA_OPTS: "-Xms2g -Xmx2g"
         ports:
           - 9201:9200
 
@@ -109,13 +111,15 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'poetry'
+          cache: "poetry"
       - name: Install sycamore
         run: poetry install
 
       - name: Download nltk packages
         run: poetry run python -m nltk.downloader punkt averaged_perceptron_tagger
 
+      - name: Update Apt
+        run: sudo apt-get update
       - name: Install poppler and tesseract
         run: sudo apt-get install -y poppler-utils tesseract-ocr
 

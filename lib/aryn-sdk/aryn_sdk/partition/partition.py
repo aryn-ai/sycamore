@@ -60,7 +60,7 @@ def partition_file(
     Example:
          .. code-block:: python
 
-            from arynsdk.partition import partition_file
+            from aryn_sdk.partition import partition_file
 
             with open("my-favorite-pdf.pdf", "rb") as f:
                 data = partition_file(
@@ -155,7 +155,35 @@ def _json_options(
     return json.dumps(options)
 
 
+# Heavily adapted from lib/sycamore/data/table.py::Table.to_csv()
 def table_elem_to_dataframe(elem: dict) -> Optional[pd.DataFrame]:
+    """
+    Create a pandas DataFrame representing the tabular data inside the provided table element.
+    If the element is not of type 'table' or doesn't contain any table data, return None instead.
+
+    Args:
+        elem: An element from the 'elements' field of a ``partition_file`` response.
+
+    Example:
+         .. code-block:: python
+
+            from aryn_sdk.partition import partition_file, table_elem_to_dataframe
+
+            with open("partition-me.pdf", "rb") as f:
+                data = partition_file(
+                    f,
+                    use_ocr=True,
+                    extract_table_structure=True,
+                    extract_images=True
+                )
+
+            # Find the first table and convert it to a dataframe
+            df = None
+            for element in data['elements']:
+                if element['type'] == 'table':
+                    df = table_elem_to_dataframe(element)
+                    break
+    """
 
     if (elem["type"] != "table") or (elem["table"] is None):
         return None
@@ -200,7 +228,6 @@ def table_elem_to_dataframe(elem: dict) -> Optional[pd.DataFrame]:
     return df
 
 
-# Heavily adapted from lib/sycamore/data/table.py::Table.to_csv()
 def tables_to_pandas(data: dict) -> list[tuple[dict, Optional[pd.DataFrame]]]:
     """
     For every table element in the provided partitioning response, create a pandas
@@ -213,7 +240,7 @@ def tables_to_pandas(data: dict) -> list[tuple[dict, Optional[pd.DataFrame]]]:
     Example:
          .. code-block:: python
 
-            from arynsdk.partition import partition_file, tables_to_pandas
+            from aryn_sdk.partition import partition_file, tables_to_pandas
 
             with open("my-favorite-pdf.pdf", "rb") as f:
                 data = partition_file(

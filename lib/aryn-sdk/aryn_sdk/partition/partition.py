@@ -98,38 +98,48 @@ def partition_file(
             f"Error: status_code: {resp.status_code}, reason: {resp.text}", response=resp
         )
 
-    lines = []
-    in_status = False
-    partial_line = [b""]
+    content = []
+    partial_line = []
+    in_status = True
+    in_bulk = False
+    partial_line_size = 0
+    partial_line_bulk_size = 100_000
     for part in resp.iter_content(None):
         if not part:
             continue
-        these_lines = part.split(b"\n")
-        if len(these_lines) == 1:
-            # there was not newline, so this is an inner chunk of the partial
-            partial_line.append(these_lines[0])
+
+        content.append(part)
+        if in_bulk or not in_status:
             continue
 
-        # there was a newline, so the partial is complete
-        # new partial is the end of the string
-        these_lines[0] = b"".join(partial_line + [these_lines[0]])
-        partial_line = [these_lines.pop()]
-        lines.extend(these_lines)
+        these_lines = []
+        if b"\n" in part:
+            partlines = part.split(b"\n")
+            partial_line.append(partlines[0])
+            these_lines = [b"".join(partial_line)] + partlines[1:-1]
+            partial_line = [partlines[-1]]
+            partial_line_size = len(partlines[-1])
+
+        else:
+            partial_line.append(part)
+            partial_line_size += len(part)
+            if partial_line_size > partial_line_bulk_size:
+                in_bulk = True
 
         for line in these_lines:
             if line.startswith(b'  "status"'):
                 in_status = True
             if not in_status:
-                continue
+                break
             if line.startswith(b"  ],"):
                 in_status = False
-                continue
+                break
             if line.startswith(b'    "T+'):
                 t = json.loads(line.decode("utf-8").removesuffix(","))
                 _logger.info(
                     f"ArynPartitioner: {t}",
                 )
-    body = b"".join(lines + partial_line).decode("utf-8")
+    body = b"".join(content).decode("utf-8")
     _logger.debug("Recieved data from ArynPartitioner")
 
     data = json.loads(body)

@@ -359,12 +359,12 @@ class LlmPlanner:
                 continue
             inputs = []
             for dependency_id in node.data["input"]:
-                downstream_dependencies[dependency_id] = downstream_dependencies.get(dependency_id, list()) + [node_id]
+                downstream_dependencies[dependency_id] = downstream_dependencies.get(dependency_id, list()) + [node]
                 inputs += [nodes.get(dependency_id)]
             node.dependencies = inputs
 
         for node_id, node in nodes.items():
-            if node_id in downstream_dependencies:
+            if node_id in downstream_dependencies.keys():
                 node.downstream_nodes = downstream_dependencies[node_id]
 
         resultNodes = list(filter(lambda n: n.downstream_nodes is None, nodes.values()))

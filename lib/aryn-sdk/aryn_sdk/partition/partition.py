@@ -100,9 +100,23 @@ def partition_file(
 
     lines = []
     in_status = False
-    for line in resp.iter_lines():
-        if line:
-            lines.append(line)
+    partial_line = [b""]
+    for part in resp.iter_content(None):
+        if not part:
+            continue
+        these_lines = part.split(b"\n")
+        if len(these_lines) == 1:
+            # there was not newline, so this is an inner chunk of the partial
+            partial_line.append(these_lines[0])
+            continue
+
+        # there was a newline, so the partial is complete
+        # new partial is the end of the string
+        these_lines[0] = b"".join(partial_line + [these_lines[0]])
+        partial_line = [these_lines.pop()]
+        lines.extend(these_lines)
+
+        for line in these_lines:
             if line.startswith(b'  "status"'):
                 in_status = True
             if not in_status:
@@ -115,7 +129,7 @@ def partition_file(
                 _logger.info(
                     f"ArynPartitioner: {t}",
                 )
-    body = b"".join(lines).decode("utf-8")
+    body = b"".join(lines + partial_line).decode("utf-8")
     _logger.debug("Recieved data from ArynPartitioner")
 
     data = json.loads(body)

@@ -136,7 +136,7 @@ def _json_options(
     selected_pages: Optional[list[Union[list[int], int]]] = None,
 ) -> str:
     # isn't type-checking fun
-    options: dict[str, Union[float, bool, list[Union[list[int], int]]]] = dict()
+    options: dict[str, Union[float, bool, str, list[Union[list[int], int]]]] = dict()
     if threshold:
         options["threshold"] = threshold
     if use_ocr:
@@ -149,6 +149,9 @@ def _json_options(
         options["extract_table_structure"] = extract_table_structure
     if selected_pages:
         options["selected_pages"] = selected_pages
+
+    options["source"] = "aryn-sdk"
+
     return json.dumps(options)
 
 

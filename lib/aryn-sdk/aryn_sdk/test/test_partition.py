@@ -9,6 +9,7 @@ from requests.exceptions import HTTPError
 RESOURCE_DIR = Path(__file__).parent / "resources"
 
 
+# Unit tests
 @pytest.mark.parametrize(
     "pdf, kwargs, response",
     [
@@ -55,11 +56,13 @@ RESOURCE_DIR = Path(__file__).parent / "resources"
     ],
 )
 def test_partition(pdf, kwargs, response, mocker):
+
     with open(response, "r") as f:
         response_data = json.load(f)
     resp_object = mocker.Mock()
     resp_object.status_code = 200
-    # This seems stupid
+
+    # Mock the response from the file,
     resp_object.iter_lines.return_value = json.dumps(response_data, indent=2).encode("UTF-8").split(sep=b"\n")
 
     mocker.patch("requests.post").return_value = resp_object
@@ -72,6 +75,9 @@ def test_partition(pdf, kwargs, response, mocker):
         else:
             new_response = partition_file(f, **kwargs)
             assert new_response == response_data
+
+
+# Integration tests
 
 
 @pytest.mark.parametrize(
@@ -95,11 +101,23 @@ def test_partition(pdf, kwargs, response, mocker):
     ],
 )
 def test_partition_it(pdf, kwargs, response):
+
     with open(response, "r") as f:
         response_data = json.load(f)
+
     with open(pdf, "rb") as f:
         new_response = partition_file(f, **kwargs)
+
     assert response_data["elements"] == new_response["elements"]
+
+
+def test_partition_it_zero_page():
+
+    with pytest.raises(ValueError) as einfo:
+        with open(RESOURCE_DIR / "pdfs" / "SPsort.pdf", "rb") as f:
+            partition_file(f, selected_pages=[0])
+
+    assert "Invalid page number (0)" in str(einfo.value)
 
 
 def test_partition_it_no_api_key():

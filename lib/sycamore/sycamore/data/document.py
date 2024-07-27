@@ -16,7 +16,7 @@ class Document(UserDict):
     def __init__(self, document=None, /, **kwargs):
         if isinstance(document, bytes):
             from pickle import loads
-            
+
             document = loads(document)
             if "metadata" in document:
                 raise ValueError("metadata must be deserialized with Document.deserialize not Document.__init__")

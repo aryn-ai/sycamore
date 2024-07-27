@@ -120,13 +120,12 @@ class SycamoreLoadData(SycamoreOperator):
         return (
             f"""
 os_client_args = {self.os_client_args}
-{output_var or get_var_name(self.logical_node)} = OpenSearchScan(
+{output_var or get_var_name(self.logical_node)} = context.read.opensearch(
     os_client_args=os_client_args,
-    index_name='{self.logical_node.data["index"]}',
-    **{self.get_node_args()},
+    index_name='{self.logical_node.data["index"]}'
 )
 """,
-            ["from sycamore.connectors.opensearch import OpenSearchScan"],
+            [],
         )
 
 
@@ -181,10 +180,14 @@ class SycamoreLlmGenerate(SycamoreOperator):
     client=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
     question='{question}',
     result_description='{description}',
-    result_data={input_var or get_var_name(self.logical_node.dependencies[0])}
+    result_data={[input_var or get_var_name(inp) for inp in self.logical_node.dependencies]}
 )
+print({output_var or get_var_name(self.logical_node)})
 """
-        return result, ["from sycamore.query.execution.operations import llm_generate_operation"]
+        return result, [
+            "from sycamore.query.execution.operations import llm_generate_operation",
+            "from sycamore.llms import OpenAI, OpenAIModels",
+        ]
 
 
 class SycamoreLlmFilter(SycamoreOperator):
@@ -250,7 +253,10 @@ class SycamoreLlmFilter(SycamoreOperator):
     **{self.get_node_args()},
 )
 """
-        return result, ["from sycamore.query.execution.operations import llm_filter_operation"]
+        return result, [
+            "from sycamore.query.execution.operations import llm_filter_operation",
+            "from sycamore.llms import OpenAI, OpenAIModels",
+        ]
 
 
 class SycamoreFilter(SycamoreOperator):
@@ -376,7 +382,6 @@ class SycamoreCount(SycamoreOperator):
         assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) == 1
         assert self.logical_node.data is not None
         assert "field" in self.logical_node.data or "primaryField" in self.logical_node.data
-        script = ""
         imports = ["from sycamore.query.execution.operations import count_operation"]
         script = f"""
 {output_var or get_var_name(self.logical_node)} = count_operation(
@@ -388,7 +393,7 @@ class SycamoreCount(SycamoreOperator):
         if self.logical_node.data.get("primaryField"):
             script += f"""primaryField='{self.logical_node.data.get("primaryField")}',
     """
-            script += f"""**{get_str_for_dict(self.get_execute_args())},
+        script += f"""**{get_str_for_dict(self.get_execute_args())},
 )
 """
         return script, imports
@@ -481,7 +486,10 @@ class SycamoreLlmExtract(SycamoreOperator):
     **{self.get_node_args()},
 )
 """
-        return result, ["from sycamore.query.execution.operations import llm_extract_operation"]
+        return result, [
+            "from sycamore.query.execution.operations import llm_extract_operation",
+            "from sycamore.llms import OpenAI, OpenAIModels",
+        ]
 
 
 class SycamoreSort(SycamoreOperator):
@@ -613,7 +621,10 @@ class SycamoreTopK(SycamoreOperator):
     **{self.get_execute_args()},
 )
 """
-        return result, ["from sycamore.query.execution.operations import top_k_operation"]
+        return result, [
+            "from sycamore.query.execution.operations import top_k_operation",
+            "from sycamore.llms import OpenAI, OpenAIModels",
+        ]
 
 
 class SycamoreJoin(SycamoreOperator):

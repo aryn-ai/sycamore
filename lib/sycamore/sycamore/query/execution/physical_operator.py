@@ -19,8 +19,6 @@ def get_str_for_dict(value: Dict):
         else:
             items.append(f"{repr(k)}: {repr(v)}")
     return "{" + ", ".join(items) + "}"
-    # serialized_dict = {k: (v.__name__ if isinstance(v, type) else v) for k, v in value.items()}
-    # return repr(serialized_dict)
 
 
 class PhysicalOperator:

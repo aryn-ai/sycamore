@@ -100,45 +100,29 @@ def partition_file(
 
     content = []
     partial_line = []
-    in_status = True
     in_bulk = False
-    partial_line_size = 0
-    partial_line_bulk_size = 100_000
     for part in resp.iter_content(None):
         if not part:
             continue
 
         content.append(part)
-        if in_bulk or not in_status:
+        if in_bulk:
             continue
 
-        these_lines = []
-        if b"\n" in part:
-            partlines = part.split(b"\n")
-            partial_line.append(partlines[0])
-            these_lines = [b"".join(partial_line)] + partlines[1:-1]
-            partial_line = [partlines[-1]]
-            partial_line_size = len(partlines[-1])
+        partial_line.append(part)
+        if b"\n" not in part:
+            continue
 
-        else:
-            partial_line.append(part)
-            partial_line_size += len(part)
-            if partial_line_size > partial_line_bulk_size:
-                in_bulk = True
+        these_lines = b"".join(partial_line).split(b"\n")
+        partial_line = [these_lines.pop()]
 
         for line in these_lines:
-            if line.startswith(b'  "status"'):
-                in_status = True
-            if not in_status:
-                break
             if line.startswith(b"  ],"):
-                in_status = False
+                in_bulk = True
                 break
             if line.startswith(b'    "T+'):
                 t = json.loads(line.decode("utf-8").removesuffix(","))
-                _logger.info(
-                    f"ArynPartitioner: {t}",
-                )
+                _logger.info(f"ArynPartitioner: {t}")
     body = b"".join(content).decode("utf-8")
     _logger.debug("Recieved data from ArynPartitioner")
 

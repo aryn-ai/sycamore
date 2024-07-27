@@ -13,11 +13,9 @@ class Document(UserDict):
     types of document may have different properties, they all contain the following common fields in Sycamore:
     """
 
-    def __init__(self, document=None, /, hierarchical=False, **kwargs):
-        self.hierarchical = hierarchical
+    def __init__(self, document=None, /, **kwargs):
         if isinstance(document, bytes):
             from pickle import loads
-
             document = loads(document)
             if "metadata" in document:
                 raise ValueError("metadata must be deserialized with Document.deserialize not Document.__init__")
@@ -25,11 +23,6 @@ class Document(UserDict):
         super().__init__(document, **kwargs)
         if "properties" not in self.data:
             self.data["properties"] = {}
-
-        ########## EXPERIMENTAL
-        if "children" not in self.data:
-            self.data["children"] = []
-        ##########
 
         if "elements" not in self.data or self.data["elements"] is None:
             self.data["elements"] = []
@@ -116,23 +109,6 @@ class Document(UserDict):
         """Delete the elements of this document."""
         self.data["elements"] = []
 
-    ################# EXPERIMENTAL
-    @property
-    def children(self) -> list["Document"]:
-        """TODO"""
-        return self.data["children"]
-
-    @children.setter
-    def children(self, children: list["Document"]):
-        """TODO"""
-        self.data["children"] = children
-
-    @children.deleter
-    def children(self) -> None:
-        """TODO"""
-        self.data["children"] = []
-    #################
-
     @property
     def embedding(self) -> Optional[list[float]]:
         """Get the embedding for this document."""
@@ -204,6 +180,8 @@ class Document(UserDict):
         data = loads(raw)
         if "metadata" in data:
             return MetadataDocument(data)
+        elif "children" in data:
+            return HierarchicalDocument(data)
         else:
             return Document(data)
 
@@ -244,7 +222,6 @@ class MetadataDocument(Document):
         self.data["metadata"].update(kwargs)
         del self.data["lineage_id"]
         del self.data["elements"]
-        del self.data["children"]
 
     # Override some of the common operations to make it hard to mis-use metadata. If any of these
     # are called it means that something tried to process a MetadataDocument as if it was a
@@ -294,18 +271,6 @@ class MetadataDocument(Document):
     def elements(self, elements: list[Element]):
         raise ValueError("MetadataDocument does not have elements")
 
-    ################# EXPERIMENTAL
-    @property
-    def children(self) -> list["Document"]:
-        """TODO"""
-        raise ValueError("MetadataDocument does not have children")
-
-    @children.setter
-    def children(self, children: list["Document"]):
-        """TODO"""
-        raise ValueError("MetadataDocument does not have children")
-    #################
-
     @property
     def properties(self):
         raise ValueError("MetadataDocument does not have properties")
@@ -335,6 +300,64 @@ def split_data_metadata(all: list[Document]) -> tuple[list[Document], list[Metad
         [d for d in all if not isinstance(d, MetadataDocument)],
         [d for d in all if isinstance(d, MetadataDocument)],
     )
+
+
+############### EXPERIMENTAL
+class HierarchicalDocument(Document):
+    def __init__(self, document=None, **kwargs):
+        super().__init__(document)
+        if "doc_id" not in self.data:
+            self.doc_id = str(uuid.uuid4())
+        if "children" not in self.data:
+            self.children = []
+        if "elements" in self.data:
+            for element in self.data["elements"]:
+                self.children.append(HierarchicalDocument(Document(element.data)))
+
+        del self.data["elements"]
+
+    @property
+    def children(self) -> list["HierarchicalDocument"]:
+        """TODO"""
+        return self.data["children"]
+
+    @children.setter
+    def children(self, children: list["HierarchicalDocument"]):
+        """TODO"""
+        self.data["children"] = children
+        
+    @children.deleter
+    def children(self) -> None:
+        """TODO"""
+        self.data["children"] = []
+
+    @property
+    def elements(self) -> list[Element]:
+        raise ValueError("MetadataDocument does not have elements")
+
+    @elements.setter
+    def elements(self, elements: list[Element]):
+        raise ValueError("MetadataDocument does not have elements")
+
+    def __str__(self) -> str:
+        """Return a pretty-printed string representing this document."""
+        d = {
+            "doc_id": self.doc_id,
+            "lineage_id": self.lineage_id,
+            "type": self.type,
+            "text_representation": self.text_representation[0:40] + "..." if self.text_representation else None,
+            "binary_representation": (
+                f"<{len(self.binary_representation)} bytes>" if self.binary_representation else None
+            ),
+            "children": [str(c) for c in self.children],
+            "embedding": (str(self.embedding[0:4]) + f"... <{len(self.embedding)} total>") if self.embedding else None,
+            "shingles": (str(self.shingles[0:4]) + f"... <{len(self.shingles)} total>") if self.shingles else None,
+            "parent_id": self.parent_id,
+            "bbox": str(self.bbox),
+            "properties": self.properties,
+        }
+        return json.dumps(d, indent=2)
+###############
 
 
 class OpenSearchQuery(Document):

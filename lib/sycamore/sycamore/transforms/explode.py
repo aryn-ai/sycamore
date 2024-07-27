@@ -1,4 +1,4 @@
-from sycamore.data import Document
+from sycamore.data import Document, HierarchicalDocument
 from sycamore.data.element import TableElement
 from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import FlatMap
@@ -23,25 +23,25 @@ class Explode(SingleThreadUser, NonGPUUser, FlatMap):
             exploded_dataset = explode_transform.execute()
     """
 
-    def __init__(self, child: Node, hierarchical: bool, **resource_args):
-        if(hierarchical):
-            super().__init__(child, f=Explode.explode_hierarchical, **resource_args)
-        else:
-            super().__init__(child, f=Explode.explode, **resource_args)
+    def __init__(self, child: Node, **resource_args):
+        super().__init__(child, f=Explode.explode, **resource_args)
 
     @staticmethod
     @timetrace("explode")
     def explode(parent: Document) -> list[Document]:
-        documents: list[Document] = [parent]
+        if(isinstance(parent, HierarchicalDocument)):
+            return Explode.explode_hierarchical(parent)
+        if(isinstance(parent, Document)):
+            return Explode.explode_default(parent)
 
+    
+    def explode_default(parent: Document) -> list[Document]:
+        documents: list[Document] = [parent]
         import uuid
 
         for i, element in enumerate(parent.elements):
             cur = Document(element.data)
-            if "doc_id" in cur.data:
-                cur.doc_id = cur.data["doc_id"]
-            else:
-                cur.doc_id = str(uuid.uuid4())
+            cur.doc_id = str(uuid.uuid4())
             cur.parent_id = parent.doc_id
             if isinstance(element, TableElement):
                 cur.text_representation = element.text_representation
@@ -52,8 +52,8 @@ class Explode(SingleThreadUser, NonGPUUser, FlatMap):
         del parent.elements
         return documents
     
-    def explode_hierarchical(parent: Document) -> list[Document]:
-        documents: list[Document] = [parent]
+    def explode_hierarchical(parent: HierarchicalDocument) -> list[HierarchicalDocument]:
+        documents: list[HierarchicalDocument] = [parent]
         for document in parent.children:
             documents.extend(Explode.explode_hierarchical(document))
         

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Dict, Any, Optional
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
-from sycamore.data import Document, MetadataDocument
+from sycamore.data import Document, MetadataDocument, HierarchicalDocument
 import json
 import uuid
 
@@ -102,9 +102,9 @@ class GraphExtractor(ABC):
                 if "nodes" in doc["properties"]:
                     del doc["properties"]["nodes"]
 
-        doc = Document()
+        doc = HierarchicalDocument()
         for value in result["nodes"].values():
-            node = Document(value)
+            node = HierarchicalDocument(value)
             doc.children.append(node)
         doc.data['EXTRACTED_NODES'] = True
 
@@ -177,7 +177,7 @@ class EntityExtractor(GraphExtractor):
         if 'EXTRACTED_NODES' in doc.data:
             return doc
         
-        pool = Pool(processes=8)
+        pool = Pool(processes=1)
         res = pool.map(self._extract_from_section,doc.children)
         pool.close()
         nodes = {}

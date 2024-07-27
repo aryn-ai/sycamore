@@ -2,7 +2,7 @@ import pytest
 from opensearchpy import OpenSearch
 
 import sycamore
-from config import TEST_DIR
+from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 

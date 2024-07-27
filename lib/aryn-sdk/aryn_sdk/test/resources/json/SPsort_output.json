@@ -1,1 +1,1151 @@
-{"status": ["Incremental status will be shown here during execution.", "Until you get a line that matches '  ]\n', you can convert the partial", "output to a json document by appending '\"\"]}' to the partial output.", "", ""], "elements": [{"type": "Text", "bbox": [0.14681899126838235, 0.30218597412109377, 0.848895263671875, 0.41659298983487214], "properties": {"score": 0.9298610091209412, "page_number": 1}, "text_representation": "In December 1998, a 488 node IBM RS/6000 SP* sorted a terabyte of data (10 billion 100 byte records) in\n17 minutes, 37 seconds.  This is more than 2.5 times faster than the previous record for a problem of this\nmagnitude.  The SPsort program itself was custom-designed for this benchmark, but the cluster, its\ninterconnection hardware, disk subsystem, operating system, file system, communication library, and job\nmanagement software are all IBM products.  The system sustained an aggregate data rate of 2.8 GB/s from\nmore than 6 TB of disks managed by the GPFS global shared file system during the sort.  Simultaneous\nwith these transfers, 1.9 GB/s of local disk I/O and 5.6 GB/s of interprocessor communication were also\nsustained.\n"}, {"type": "Text", "bbox": [0.14710727467256435, 0.7094775945490057, 0.8550252757352941, 0.8823457475142046], "properties": {"score": 0.929555356502533, "page_number": 1}, "text_representation": "The benchmark machine is a 488 node IBM RS/6000 SP, located in the IBM SP system test lab in\nPoughkeepsie, New York.  Figure 1 shows the organization of this machine.  Each node contains four\n332MHz PowerPC* 604e processors, 1.5 GB of RAM, at least one 32 bit 33 MHz PCI bus, and a 9 GB\nSCSI disk.  The nodes communicate with one another through the high-speed SP switch with a bi-\ndirectional link bandwidth to each node of 150 megabytes/second.  The switch adapter in each node is\nattached directly to the memory bus, so it does not have to share bandwidth with other devices on the PCI\nbus.  Of the 488 nodes, 432 are compute nodes, while the remaining 56 are configured as storage nodes.\nGlobal storage consists of 1680 4.5 GB Serial Storage Architecture (SSA*) disk drives, organized into 336\ntwin-tailed 4+P RAID-5 arrays, for a total of just over 6 TB of user-accessible space attached to the storage\nnodes.  Compute nodes are packaged 16 to a rack, while the storage nodes, which have 3 PCI busses and\nconsequently are larger, are packaged 8 to a rack.  In total, the CPU and switch hardware occupies 34 racks,\nand the global disks require another 18 racks.\n"}, {"type": "Text", "bbox": [0.14677959666532628, 0.4913937655362216, 0.8547881002987132, 0.64927001953125], "properties": {"score": 0.9147736430168152, "page_number": 1}, "text_representation": "The speed of sorting has long been used as a measure of computer systems I/O and communication\nperformance.  In 1985, an article in Datamation magazine proposed a sort of one million records of 100\nbytes each, with random 10 bytes keys, as a useful measure of computer systems I/O performance [1].  The\nground rules of that benchmark require that all input must start on disk, all output must end on disk, and\nthat the overhead to start the program and create the output files must be included in the benchmark time.\nInput and output must use operating system files, not raw disk partitions.  The first published time for this\nbenchmark was an hour [12].  With constant improvements in computer hardware and sort algorithms, this\ntime diminished to just a few seconds [7].  At that point, variations on the basic theme evolved [6].\n\u201cMinuteSort\u201d [3, 8] measures how much can be sorted in one minute and \u201cPennySort\u201d [5] measures how\nmuch can be sorted for one cent, assuming a particular depreciation period.  Recently, several groups\nreported sorting one terabyte of data [8, 9, 10].  SPsort improves substantially upon the best of these results.\n"}, {"type": "Section-header", "bbox": [0.14687787224264706, 0.6754059392755681, 0.23221774830537684, 0.6892924915660511], "properties": {"score": 0.8540988564491272, "page_number": 1}, "text_representation": "Hardware\n"}, {"type": "Section-header", "bbox": [0.14619633394129136, 0.45649486194957384, 0.249862258013557, 0.47087474476207386], "properties": {"score": 0.8512004613876343, "page_number": 1}, "text_representation": "Introduction\n"}, {"type": "Section-header", "bbox": [0.1457416399787454, 0.26848521839488637, 0.22136041977826287, 0.28215559525923295], "properties": {"score": 0.8485802412033081, "page_number": 1}, "text_representation": "Abstract\n"}, {"type": "Section-header", "bbox": [0.43552116842830885, 0.22252555153586648, 0.5647090059168198, 0.2349723399769176], "properties": {"score": 0.6633284687995911, "page_number": 1}, "text_representation": "February 4, 1999\n"}, {"type": "Section-header", "bbox": [0.25801759607651653, 0.14799718683416194, 0.7434876206341912, 0.16699282559481535], "properties": {"score": 0.4984451234340668, "page_number": 1}, "text_representation": "SPsort: How to Sort a Terabyte Quickly\n"}, {"type": "List-item", "bbox": [0.1484660249597886, 0.6961178311434659, 0.8300392779181985, 0.7407209361683239], "properties": {"score": 0.8886812329292297, "page_number": 2}}, {"type": "List-item", "bbox": [0.1480189603917739, 0.7415091219815341, 0.8478128590303309, 0.7707082852450284], "properties": {"score": 0.887768030166626, "page_number": 2}}, {"type": "List-item", "bbox": [0.14871314553653492, 0.6511799760298296, 0.8355559225643382, 0.6801187411221591], "properties": {"score": 0.8876640200614929, "page_number": 2}, "text_representation": "cluster administration, such as authentication, coordinated software installation, error reporting, and\nhardware environment monitoring and control,\nhigh-speed IP communication using the SP switch,\n"}, {"type": "List-item", "bbox": [0.1486518052045037, 0.8386013516512784, 0.8356989602481618, 0.8687898947975853], "properties": {"score": 0.8836402297019958, "page_number": 2}}, {"type": "Text", "bbox": [0.14772543514476102, 0.5995682040127841, 0.834970703125, 0.6435265003551136], "properties": {"score": 0.8673338890075684, "page_number": 2}, "text_representation": "Each node in the SP cluster runs AIX version 4.3.2 to provide X/Open compliant application interfaces.\nParallel System Support Program version 3.1 provides the basic cluster management software, including\nthe following functions:\n\u2022 \n"}, {"type": "List-item", "bbox": [0.14901387831744026, 0.8231267200816761, 0.6878902659696691, 0.838353437943892], "properties": {"score": 0.8619488477706909, "page_number": 2}}, {"type": "List-item", "bbox": [0.14819832296932445, 0.6809275124289773, 0.5108283906824449, 0.6958200905539773], "properties": {"score": 0.8447414040565491, "page_number": 2}}, {"type": "List-item", "bbox": [0.14867879530962777, 0.8087529407848011, 0.4011990535960478, 0.8228825794566761], "properties": {"score": 0.8432695269584656, "page_number": 2}}, {"type": "Section-header", "bbox": [0.1471073195513557, 0.5644370893998579, 0.29594426772173715, 0.5815557861328124], "properties": {"score": 0.8065081834793091, "page_number": 2}, "text_representation": "System Software\n"}, {"type": "Text", "bbox": [0.1473368745691636, 0.7847897616299716, 0.7729996266084559, 0.8001107510653409], "properties": {"score": 0.6991426944732666, "page_number": 2}}, {"type": "Image", "bbox": [0.14007473216337316, 0.10813348249955611, 0.8585111012178309, 0.5147043124112216], "properties": {"score": 0.6740006804466248, "image_size": null, "image_mode": null, "image_format": null, "page_number": 2}, "text_representation": "488 nodes, 52 racks\n1952 processors, 2168 disks\n732 GB RAM, 12 TB total raw disk space\n 27 Compute racks\n16 nodes/rack, each node has\n   4 x 332 Mhz PowerPC 604e\n   1.5 GB RAM\n   1 32 x 33 PCI bus\n   9 GB SCSI disk\n  150 MB/s full duplex switch link\n 7 Storage racks\n8 nodes/rack, each node has\n   4 x 332 Mhz PowerPC 604e\n   1.5 GB RAM\n   3 32 x 33 PCI bus\n   9 GB SCSI disk\n   3 SSA RAID-5 adapters\n   150 MB/s full duplex switch link\n 18 SSA disk racks\n6 drawers/rack, each drawer has\n  up to 16 4.5 GB disks\n1680 disks in total\n Figure 1.  Sort benchmark machine.\n"}, {"type": "Text", "bbox": [0.14685392491957722, 0.7322377707741478, 0.8508853687959559, 0.7888863858309659], "properties": {"score": 0.9458465576171875, "page_number": 3}, "text_representation": "SPsort is a custom C++ implementation optimized for the extended Datamation sort benchmark.  It uses\nstandard SP and AIX services: X/Open compliant file system access through GPFS, MPI message passing\nbetween nodes, Posix pthreads, and the SP Parallel Environment to initiate and control the sort job running\non many nodes.\n"}, {"type": "Text", "bbox": [0.14719429464901196, 0.28745244806463066, 0.8566162827435662, 0.44638466574928976], "properties": {"score": 0.9449511170387268, "page_number": 3}, "text_representation": "General Parallel File System version 1.2 (GPFS) manages the 336 RAID arrays as a single mountable file\nsystem. GPFS uses wide striping to distribute files across multiple disks and storage nodes.  This allows all\nof the I/O subsystem bandwidth to be brought to bear on a single file when necessary.  Distributed file\nsystems such as NFS, AFS, DFS, NetWare**, or Windows NT Server*** all have a client/server structure, in\nwhich all disk accesses are made by a single server.  The aggregate throughput of these client/server file\nsystems does not scale as nodes are added, since the throughput is limited to that of the central server.  In\ncontrast, GPFS is a true cluster file system; there is no central server and therefore no single node that can\nbe saturated with data transfer requests.  Instead, GPFS accesses data directly from the VSD server that\nowns the disk on which they are stored.  Thus, the throughput of a GPFS file system scales according to the\nminimum of the aggregate switch bandwidth of the client nodes and the aggregate I/O or switch bandwidth\nof the VSD server nodes.\n"}, {"type": "Text", "bbox": [0.14690208883846506, 0.15643077503551137, 0.8533893899356617, 0.22817689375443892], "properties": {"score": 0.9419254064559937, "page_number": 3}, "text_representation": "LoadLeveler version 3.1 is primarily used on the SP to schedule long-running jobs according to their\nresource requirements.  It also plays the secondary role of managing access to windows into switch adapter\nRAM to avoid conflicts between multiple processes using user-space MPI on a node at the same time.\nAlthough SPsort is the only process active on each node during the sort benchmark, LoadLeveler is still\nresponsible for assigning its switch adapter window.\n"}, {"type": "Text", "bbox": [0.14746287626378676, 0.09037127408114347, 0.8440777228860294, 0.14828886552290482], "properties": {"score": 0.9372804760932922, "page_number": 3}, "text_representation": "PE also includes a high-performance implementation of the Message Passing Interface standard (MPI), by\nwhich processes on multiple nodes can communicate [11].  As its underlying transport mechanism, MPI\nallows applications to send data across the SP switch either through kernel calls that send IP packets or\nthrough direct writes into memory on the switch adapter.\n"}, {"type": "Text", "bbox": [0.14661050235523898, 0.797646484375, 0.8364727424172794, 0.8547002618963068], "properties": {"score": 0.9336977005004883, "page_number": 3}, "text_representation": "The sort employs techniques that have appeared before in other record-setting sorts. Its fundamental\nstructure is a two-phase bucket sort: in the first phase, the program partitions the key space into\napproximately equal-sized segments and appoints a node to handle each segment.  Every node is\nresponsible for reading a portion of the input and distributing records to other nodes according to the key\n"}, {"type": "Text", "bbox": [0.1470569116928998, 0.6005261785333806, 0.844611026539522, 0.65829833984375], "properties": {"score": 0.9257156252861023, "page_number": 3}, "text_representation": "The current release of GPFS limits the maximum file size in the 6 TB global file system to approximately\n475 GB.  Since 1000 GB are needed to hold the input and output of the sort, SPsort uses three input files,\ntwo of size 333 GB and one of 334 GB.  There are also three output files of approximately the same sizes.\nThe concatenation of the three output files forms the sorted result.\n"}, {"type": "Text", "bbox": [0.1471038459329044, 0.5203631036931818, 0.8466909610523897, 0.5924984463778409], "properties": {"score": 0.9253917932510376, "page_number": 3}, "text_representation": "In addition to data transfers, many of the common control functions in GPFS are also distributed in a\nscalable way.  For example, when SPsort writes its output, many nodes are writing into non-overlapping\nregions of the same file simultaneously, and each of these nodes must be able to allocate disk blocks.  The\nGPFS space allocation maps are organized in such a way that multiple nodes can concurrently allocate\nspace nearly independently of one another, preventing space allocation from becoming a bottleneck.\n"}, {"type": "Text", "bbox": [0.14707190120921415, 0.45502194491299713, 0.838145751953125, 0.5125003329190341], "properties": {"score": 0.9198836088180542, "page_number": 3}, "text_representation": "No semantic sacrifices have been made in delivering this level of performance; instances of GPFS\ncoordinate their activity such that X/Open file semantics are preserved1.  Every node sees the same name\nspace and file contents at all times.  GPFS supports cluster-wide atomicity of reads and writes and the\nproper handling of removal of a file that is still open on some other node.\n"}, {"type": "Section-header", "bbox": [0.1472065465590533, 0.6979501620205966, 0.2645105698529412, 0.713007646040483], "properties": {"score": 0.8386707305908203, "page_number": 3}, "text_representation": "Sort Program\n"}, {"type": "Section-header", "bbox": [0.14755668191348806, 0.2528835227272727, 0.2493951416015625, 0.2682641324129972], "properties": {"score": 0.8147367835044861, "page_number": 3}, "text_representation": "File System\n"}, {"type": "Footnote", "bbox": [0.14612224803251378, 0.8808725253018466, 0.8144880227481618, 0.9082154430042614], "properties": {"score": 0.6239798665046692, "page_number": 3}, "text_representation": "1 GPFS release 1.2 does not support the mmap system call.  There are also minor deviations from the\nX/Open standard in the handling of file access and modification times.\n"}, {"type": "Text", "bbox": [0.14694071152630975, 0.090548095703125, 0.8565589096966911, 0.19139647050337358], "properties": {"score": 0.942352831363678, "page_number": 4}, "text_representation": "partition [4].  At the end of the first phase, records have been partitioned by key such that the lowest keys\nare held by node 0, the next lowest keys by node 1, etc.  After this distribution phase is complete, nodes\nsend their counts of how many records they each hold to a master node, which computes where in the\noutput files each node should begin writing and distributes this information to every node.  In the second\nphase of the sort, nodes independently sort the records they were sent during the first phase and write them\ninto the appropriate position in one of the output files.  Because the keys are chosen from a uniform random\ndistribution, the number of records sent to each node to be processed during phase 2 is roughly equal.\n"}, {"type": "Text", "bbox": [0.14723620246438418, 0.5425365101207387, 0.8512140251608455, 0.7013652454723012], "properties": {"score": 0.9421537518501282, "page_number": 4}, "text_representation": "Earlier research has demonstrated the importance of paying close attention to processor cache performance\nfor the CPU-intensive portions of sort algorithms [7].  Generally, this has meant working with a more\ncompact representation of the data to be sorted and organizing the data for good cache locality.  One\npopular representation, and the one that is used here during the second phase of the sort, is to form an\nauxiliary array of record descriptors.  Each descriptor contains the high-order word of the record key and a\npointer to the whole 100 byte record in memory.  To sort the descriptor array in a cache-friendly way,\nSPsort uses a radix sort [2].  While building the descriptor array, the program counts the number of times\neach distinct value occurs for each of the byte positions in the high-order word of the key.  This yields four\nhistograms, each with 256 entries.  Using 32 bit counters for each entry requires a total of 4K bytes to hold\nall of the histograms for one local sub-bucket, which fits easily within the 32K L1 cache of a 604e\nprocessor.\n"}, {"type": "Text", "bbox": [0.14684972426470588, 0.7100083229758523, 0.8565935202205882, 0.8107755903764204], "properties": {"score": 0.9419258832931519, "page_number": 4}, "text_representation": "Next, the program scans through the descriptor array and copies descriptors into a second descriptor array\nof the same size.  The position where SPsort moves a descriptor is based on the low-order byte of its key\nword.  The program maintains an array of 256 pointers, one for each byte value, giving the location in the\nsecond descriptor array where the next descriptor should be moved for each key byte value.  This array is\ninitialized by computing cumulative sums of the histogram counts of the low-order key bytes.  During this\npart of the algorithm, the cache must hold the array of pointers (256 x 4 bytes), as well as one cache line for\neach key byte value (256*32 bytes).  This requires only 9K, which again is well within the L1 cache size.\n"}, {"type": "Text", "bbox": [0.14692378324620864, 0.8190406383167613, 0.8470561667049632, 0.8910536887428977], "properties": {"score": 0.9392157196998596, "page_number": 4}, "text_representation": "After the descriptor array has been sorted by the low-order byte of the high-order key word, SPsort repeats\nthe process for the next most significant byte of the key.  This sort is stable, so sorting on the next most\nsignificant byte of the key preserves the order of the least significant byte within equal values for the next\nmost significant key byte.  Once this has been done for all four bytes, the original descriptor array is\nordered by the high-order 32 bits of the 10 byte record keys.\n"}, {"type": "Text", "bbox": [0.14706632726332722, 0.32363178599964487, 0.8540631462545956, 0.4535563243519176], "properties": {"score": 0.9378113150596619, "page_number": 4}, "text_representation": "Sorting a terabyte on 400 nodes implies that each node receives about 2.5 GB of data during the\ndistribution phase.  It is not necessary to write all of these data to temporary disk (a two-pass sort), since a\nsignificant amount of memory is available for buffering.  As records arrive at a node during the distribution\nphase, SPsort further classifies them by their keys into one of 16 local sub-buckets.  Buffers full of records\nbelonging to the first 5 of these sub-buckets with lowest key values remain in RAM, while buffers holding\nrecords in the other 11 sub-buckets are written to the local SCSI disk.  When the output phase of the sort\nfinishes with a resident sub-bucket, the buffers it occupies are used to read buffers from a non-resident sub-\nbucket with higher key values.  Since approximately 11/16 of the records are written to scratch disks,\nSPsort can be considered to perform a 1.6875-pass sort.\n"}, {"type": "Text", "bbox": [0.14691627053653492, 0.19951364690607246, 0.8564703728170956, 0.31539412064985795], "properties": {"score": 0.9367212057113647, "page_number": 4}, "text_representation": "Given sufficient RAM, all of the records distributed during the first phase of the sort could be cached in\nmemory.  In this case, the program would be considered a one-pass sort, since each record would be read\nfrom disk and written to disk exactly once.  However, the 488 node SP has only 732 GB of RAM, so a one-\npass sort is not possible.  Therefore, SPsort uses space on the local disks of compute nodes to buffer records\ndistributed during the first phase. Since these local disks contain other data (e.g. the operating system), the\navailability of free space on the local disks determines how many compute nodes can be used in the sort.  A\ntotal of 400 nodes had enough local free space to participate in the terabyte sort.  In addition to these\ncompute nodes, one node controls the sort, and another runs the GPFS lock manager.\n"}, {"type": "Text", "bbox": [0.14702827004825367, 0.46212865656072444, 0.8469457289751838, 0.533541093306108], "properties": {"score": 0.9210678339004517, "page_number": 4}, "text_representation": "While the first phase of SPsort distributes records to the nodes responsible for each key range, designated\nmaster nodes create the three output files.  Following an MPI synchronization barrier to insure that the file\ncreations have completed, each node opens one of the output files.  Since this all happens in parallel with\nrecord distribution, the overhead to create and open the output files does not increase the running time of\nthe sort.\n"}, {"type": "Text", "bbox": [0.14676874497357537, 0.09152141224254261, 0.848975040211397, 0.20588045987215908], "properties": {"score": 0.9468467831611633, "page_number": 5}, "text_representation": "In the next part of phase two, SPsort outputs the records in the sub-bucket whose descriptor array was just\nsorted.  Since there are 10 billion records in a terabyte, but only about 4.3 billion possible values for the\nhigh-order word of the sort key, ties are common in the descriptor array.  The output phase locates runs of\nrecords in the descriptor array with the same value of the high-order word of their keys.  When it finds a\nrun, it sorts the descriptors of those records using bubble sort, comparing all 10 bytes of their keys.  Since\nthe runs are very short on average (2.3 records), the quadratic complexity of bubble sort does not adversely\nimpact the running time of the sort.  After SPsort generates a sorted run, it gathers the records in the run\ninto an output buffer and writes them to disk asynchronously.\n"}, {"type": "Text", "bbox": [0.14700615377987133, 0.5427183948863636, 0.8504360064338236, 0.7010054709694602], "properties": {"score": 0.9454143047332764, "page_number": 5}, "text_representation": "Figure 2 shows the aggregate data rates across all nodes for both global disk and local disk, each separated\ninto read and write bandwidth.  Some cautions are in order before interpreting these data.  The numbers on\nthe graph were obtained by running the AIX iostat utility on only two nodes: one of the VSD servers and\none of the nodes executing the SPsort program.  The data rates obtained from iostat were then extrapolated\nto 56 and 400 nodes, respectively, to produce the graphs.  Although the workloads seen by each VSD\nserver and sort node are statistically similar due to round-robin striping by GPFS, extrapolation is not an\nideal way to measure aggregate throughput.  The peak in the VSD read throughput above 3 GB/s early in\nthe run is probably an artifact of this extrapolation.  Nevertheless, there is evidence in the form of thread\ntimestamps from all 400 nodes that corroborates the overall shape of the throughput curves.  The iostat\noutput was not synchronized with the execution of the sort program.  Thus, elapsed time zero in Figure 2\nwas arbitrarily assigned to the sample just before the I/O rate began to rise.\n"}, {"type": "Text", "bbox": [0.14665084838867187, 0.8633718594637784, 0.8302512494255515, 0.905487060546875], "properties": {"score": 0.944847047328949, "page_number": 5}, "text_representation": "Between the distribution phase and the output phase nodes had to determine where in their output file to\nbegin writing.  While this synchronization between nodes went on, nodes sorted their first resident sub-\nbucket and collected the first few output buffers.  Once all nodes finished reading and were allowed to\n"}, {"type": "Text", "bbox": [0.1467718146829044, 0.7103624933416193, 0.85124267578125, 0.8536477938565341], "properties": {"score": 0.9380870461463928, "page_number": 5}, "text_representation": "During the distribution phase of the sort, SPsort read 1 TB of input data from GPFS.  Once the sort\nprogram reached steady state, it read from GPFS at a rate of about 2.8 GB/s.  Almost all (399/400) of the\ndata read during this phase passed through the SP switch twice: once from the VSD server to the GPFS\nclient reading the data, and again when the sort program sent each record to the node responsible for its\nportion of the key space.  Thus, the sustained switch throughput during this interval was 5.6 GB/s.  The\nGPFS read rate tailed off near the end of the first phase because some nodes finished reading before others.\nAs records arrived at a node, SPsort classified them into one of 16 sub-buckets, and wrote 11 of these sub-\nbuckets to local disk.  Local writes during the distribution phase occurred at an aggregate rate of over 1.9\nGB/s in steady state.  This is close to 11/16 of the input rate, as expected.  The distribution phase ended\nafter about 380 seconds.\n"}, {"type": "Text", "bbox": [0.14687457813936122, 0.361184775612571, 0.8475574448529412, 0.4758047207919034], "properties": {"score": 0.9367948174476624, "page_number": 5}, "text_representation": "To prove that the output files really are sorted, a parallel validation program reads overlapping sequential\nsegments of the output and verifies that the keys are in sorted order.  From the point of view of SPsort, the\n90 bytes following the key field in each record are just uninterpreted data.  In fact, the program that\ngenerates the input files places the file name, record number, several words of random data, and a record\nchecksum here.  The validation program uses this checksum to make sure that SPsort corrupts no records.\nIt also computes the checksum of all record checksums.  Comparing this value with the same calculation\nperformed on the input files guards against lost or repeated records in the output.  For the terabyte sort, the\nvalidation program ran on 64 nodes and required 12 minutes to confirm that the output was correct.\n"}, {"type": "Text", "bbox": [0.14711776733398438, 0.26650509920987214, 0.8484410184972426, 0.35213883833451703], "properties": {"score": 0.9331529140472412, "page_number": 5}, "text_representation": "Each node running the sort program is a 4-way SMP.  To overlap as much computation as possible, SPsort\nuses multiple threads on each node during both phases of the sort.  At least one thread is dedicated to each\nactivity that might possibly block, such as GPFS or local disk input/output or MPI message sends and\nreceives.  Threads pass buffers to one another through simple producer/consumer queues.  If a consumer\nthread attempts to dequeue a buffer from an empty queue, it blocks until data become available or until the\nproducer signals end-of-file on the buffer queue.\n"}, {"type": "Text", "bbox": [0.1470158655503217, 0.21510946100408382, 0.8390151798023897, 0.25731542413884945], "properties": {"score": 0.9138420820236206, "page_number": 5}, "text_representation": "After all sub-buckets have been sorted and written, each node closes its output file and performs a barrier\nsynchronization operation.  When the master node knows that all nodes have finished writing, it insures\nthat all buffered output data are safely on disk to satisfy the rules of the benchmark.\n"}, {"type": "Section-header", "bbox": [0.14697864308076747, 0.5079046630859375, 0.33659466911764707, 0.5227824263139205], "properties": {"score": 0.8726181983947754, "page_number": 5}, "text_representation": "Performance Analysis\n"}, {"type": "Text", "bbox": [0.146656395407284, 0.09065577420321377, 0.8466839240579044, 0.19141068892045454], "properties": {"score": 0.9422587156295776, "page_number": 6}, "text_representation": "begin their output, they very quickly achieved nearly 2 GB/s write bandwidth to GPFS, then stabilized at\nabout 2.25 GB/s for the bulk of the output phase.  The steady state output rate was lower than the steady\nstate input rate because each node read from all three input files during the distribution phase, but only\nwrote into one of the three output files during the output phase.  Thus, there was more total sequential\nprefetching going on during the distribution phase than there was sequential writebehind during the output\nphase.  The overhead of allocating space for the output files was not a major factor in the difference\nbetween read and write throughput.  The output phase finished after about 860 seconds of elapsed time.\n"}, {"type": "Text", "bbox": [0.14653313131893383, 0.4258534656871449, 0.8431370634191176, 0.5265015758167614], "properties": {"score": 0.9401553869247437, "page_number": 6}, "text_representation": "In addition to the external measurements taken by iostat, SPsort also gathers internal statistics.  Counts of\nhow often consumer threads had to wait for data from their upstream producer threads confirmed that the\nsort program was able to drive GPFS to its full throughput.  The program also captures high-resolution\ntimestamps at some of the interesting points during its execution. The clocks of different nodes are\nsynchronized to within about one millisecond, so these timestamps can reliably sequence events across\nnodes.  Besides acting as an independent confirmation of the length of the two sort phases, these data also\nyield other interesting facts.  For example, the actual sort of the descriptor array for a single sub-bucket\n"}, {"type": "Text", "bbox": [0.14655265359317554, 0.1999856844815341, 0.8532350068933824, 0.41722917036576707], "properties": {"score": 0.9397386312484741, "page_number": 6}, "text_representation": "The most striking of the four curves in Figure 2 is the throughput of reading from the local disk.  Recall\nthat this curve was obtained by extrapolating the reads done by a single node.  It is easier to explain this\ncurve by describing the activity of a single node, which requires scaling the peak throughput back by a\nfactor of 400, to a little over 9 MB/s.  At the end of the distribution phase, SPsort started a thread on each\nnode to read non-resident sub-buckets back into RAM.  This thread consumed all available buffers as\nquickly as possible at about time 380 seconds, then had to wait for more buffers to become available.  At\nthis point, only a portion of the first non-resident sub-bucket had been read back into RAM.  Once the first\nresident sub-bucket was sorted and written to the output file, SPsort freed the buffers it was using, allowing\nthe local read thread to wake up and use the buffers to read the remaining part of the first non-resident sub-\nbucket and the beginning of the next one.  In the hardware configuration used, GPFS output bandwidth was\nless than that of the 400 local disks, so the rate of filling buffers with data from non-resident sub-buckets\nwas greater than the rate at which they could be emptied into GPFS. Thus, the read fast, run out of buffers,\nblock pattern repeated for all 11 of the non-resident sub-buckets, each one producing a peak in the local\nread throughput graph.  By elapsed time 700 seconds, no more non-resident data remained, so no further\nlocal reads were required while SPsort sorted and wrote out the last 5 sub-buckets..\n"}, {"type": "Image", "bbox": [0.14885869643267463, 0.5873452481356534, 0.8655327292049633, 0.8834461004083807], "properties": {"score": 0.8939490914344788, "image_size": null, "image_mode": null, "image_format": null, "page_number": 6}, "text_representation": "s\n/\nB\nG\n 4.0\n 3.5\n 3.0\n 2.5\n 2.0\n 1.5\n 1.0\n 0.5\n 0.0\n GPFS read\nGPFS write\nLocal read\nLocal write\n 0\n 100\n 200\n 300\n 400\n 500\n 600\n 700\n 800\n 900\n Elapsed time (seconds)\n"}, {"type": "Caption", "bbox": [0.35830027860753677, 0.9006082430752841, 0.7124633071001838, 0.913770751953125], "properties": {"score": 0.8276466131210327, "page_number": 6}, "text_representation": "Figure 2.  Extrapolated aggregate disk bandwidth.\n"}, {"type": "Text", "bbox": [0.14676225550034466, 0.5528626598011364, 0.84946044921875, 0.6402300470525568], "properties": {"score": 0.9428659081459045, "page_number": 7}, "text_representation": "Analysis of the performance of SPsort is hampered by the fact that the author had only one opportunity to\nrun it on 400 nodes with 1 TB of input data.  Despite careful preparation, not all measurements that should\nhave been taken were made during that one run.  As a result, it is not possible to assess the relative\nmagnitudes each of the preceding reasons. It is not even possible to say whether most of the overhead\nhappened before or after the I/O shown in Figure 2.  Furthermore, just a few hours after the sort ran, the\nmachine was disassembled for shipment to a customer site.\n"}, {"type": "Text", "bbox": [0.1469351645076976, 0.18427946610884233, 0.8583902516084558, 0.28659806685014205], "properties": {"score": 0.9364960193634033, "page_number": 7}, "text_representation": "By far the most interesting number to come out of the timestamp data is the length of program startup and\nshutdown.  The duration between the earliest time when SPsort started on some node until the time after the\nfinal fsync on the master node was 872 seconds.  This is only slightly longer than the time during which\nI/O was occurring on VSD servers according to Figure 2.  However, the total time required to run the shell\nscript for the 1 TB benchmark was 1057 seconds.  The ground rules of the sort benchmark require reporting\nthe longer time, but 185 seconds of overhead to start up and shut down a program on 400 nodes seems\npuzzling, and probably easily improved.  Possible reasons for this long time include the following:\n\u2022  Setting up the PE environment.  To run SPsort under PE, a remote execution daemon may need to be\nstarted on each node, and once running it needs to set up TCP connections for the standard input,\noutput, and error of the sort program on that node.\n"}, {"type": "Text", "bbox": [0.14691507676068474, 0.7207091175426137, 0.8460299144071691, 0.7784930974786932], "properties": {"score": 0.9349493980407715, "page_number": 7}, "text_representation": "Clearly, the first piece of future work would be to run the sort with additional instrumentation to quantify\nand then improve the overhead of initiation and termination.  Aside from simply turning off the gathering\nof timestamp data, there are also options to disable unnecessary parts of the PE setup that were not known\nto the author when he ran the test in December.\n"}, {"type": "Text", "bbox": [0.1472313106761259, 0.08951902216131037, 0.8558544203814338, 0.1766778564453125], "properties": {"score": 0.9305617213249207, "page_number": 7}, "text_representation": "took only about 0.8 seconds.  Furthermore, this time is always completely overlapped with other\nprocessing.  The sort of the first sub-bucket occurs while nodes are exchanging record count data to\ndetermine where to start writing in their output file.  Sorts of all subsequent sub-buckets occur while the\nrecords of the previous sub-bucket are being gathered into buffers and written to the output file.  Thus, at\nleast for the tested configuration, further improvements to CPU performance in the second phase of the sort\nare unnecessary.\n"}, {"type": "Text", "bbox": [0.1465536947811351, 0.7865713223544034, 0.8535781680836397, 0.8590298184481534], "properties": {"score": 0.9275469779968262, "page_number": 7}, "text_representation": "There are a large number of tunable parameters in SPsort that were not explored thoroughly due to time\npressure.  These include the number and size of various kinds of buffers, the number of resident and non-\nresident sub-buckets, the style of MPI communication used, and the number of MPI send and receive\nthreads.  Increasing the depth of writebehind in GPFS should bring the write bandwidth up to that achieved\nfor read.\n"}, {"type": "Text", "bbox": [0.1468219712201287, 0.866788330078125, 0.8378560862821691, 0.8959842196377841], "properties": {"score": 0.9116605520248413, "page_number": 7}, "text_representation": "During the first sort phase, some nodes finish reading and distributing their portion of the input\nsignificantly before the last node.  Since GPFS makes all input data globally accessible, nodes that finish\n"}, {"type": "List-item", "bbox": [0.14733174043543198, 0.33892289595170455, 0.857190372242647, 0.382649619362571], "properties": {"score": 0.891872763633728, "page_number": 7}, "text_representation": "\u2022  Assigning switch adapter resources.  The sort program appears as an interactive job to the LoadLeveler\njob scheduler, but it still needs to be assigned a window into switch adapter RAM on every node\nbefore it can use user-space MPI message passing.\n"}, {"type": "List-item", "bbox": [0.14818325267118565, 0.29457095059481536, 0.8429925178079044, 0.3384554776278409], "properties": {"score": 0.8869739174842834, "page_number": 7}}, {"type": "List-item", "bbox": [0.14756259693818935, 0.42810513583096593, 0.8559063361672794, 0.501289950284091], "properties": {"score": 0.8719032406806946, "page_number": 7}, "text_representation": "\u2022  Loading the program.  The SPsort program binary was resident in GPFS, and had never been run on\nmost of the 400 nodes since the last time the nodes were rebooted.  Since VSD does no caching, the\ndisk block containing the program was read from disk many times before the nodes started running.\n\u2022  Outputting the timestamps.  Each node collects several hundred timestamps while it is running.  These\ncalls are quite cheap, probably under one microsecond each.  However, after SPsort finishes all of its\nsorting work on a node, it converts and outputs all of its timestamps.  This output gets funneled back to\nthe primary node, which labels it and redirects it into another GPFS file. This file ended up containing\nover 138,000 lines of output.\n"}, {"type": "Section-header", "bbox": [0.14697534000172335, 0.6860256680575284, 0.25676055908203127, 0.7021817294034091], "properties": {"score": 0.8643868565559387, "page_number": 7}, "text_representation": "Future Work\n"}, {"type": "List-item", "bbox": [0.147724806841682, 0.38333376797762786, 0.8479788028492647, 0.42762609308416194], "properties": {"score": 0.8368871808052063, "page_number": 7}}, {"type": "List-item", "bbox": [0.1474377800436581, 0.501777177290483, 0.8417096306295956, 0.5306037486683238], "properties": {"score": 0.7856566309928894, "page_number": 7}, "text_representation": "\u2022  Tearing down the PE environment.  Everything that was set up to run the sort needs to be cleaned up\n"}, {"type": "Text", "bbox": [0.1466234005198759, 0.2951209050958807, 0.8352061552159926, 0.41021514892578126], "properties": {"score": 0.9445976614952087, "page_number": 8}, "text_representation": "It is possible to scale the sort still further using a super-cluster of SPs interconnected with High\nPerformance Gateway Nodes (HPGN).  The sectors of such a super-cluster are interconnected through\nmultiple parallel paths with a total bandwidth measured in GB/s, and MPI communication is supported\nacross these paths.  Thus, if the startup overhead can be reduced, it should be possible in principle to\nmodify the sort program described here to take advantage of all of the resources of a super-cluster and\nimprove the sort time for a terabyte by a factor proportional to the size of the super-cluster.  An alternate\napproach would be to sort a larger input dataset, thus amortizing the startup cost across more data and\ndriving up the sort rate as measured in GB/s.\n"}, {"type": "Text", "bbox": [0.14714267506318934, 0.09061279990456321, 0.8473298196231618, 0.16280391346324574], "properties": {"score": 0.9425615072250366, "page_number": 8}, "text_representation": "early could be assigned another segment of the input to process.  This would require restructuring the\ndivision of labor among nodes, but would not be difficult.  The effect on performance would be to sharpen\nthe knee of the GPFS read throughput curve in Figure 2, leading to a shorter distribution phase.  Applying\nthe same technique to the output phase is problematic, since the data that need to be written to GPFS are\nonly available on the node to which they were sent during the distribution phase.\n"}, {"type": "Text", "bbox": [0.14662772683536304, 0.17120665116743608, 0.8484713924632353, 0.2864688942649148], "properties": {"score": 0.9397950768470764, "page_number": 8}, "text_representation": "Running the sort program on a more balanced configuration would improve its price-performance\nsubstantially.  The ultimate bottleneck proved to be the VSD servers.  Without changing the hardware\nconfiguration, it should be possible to drive data through GPFS just as fast using 256 nodes instead of 400.\nThis would increase the amount of temporary storage required on each sort node to 4 GB, still much\nsmaller than the 9 GB local disks.  It would also increase the required bandwidth to the local disks.  By\nincreasing the amount of RAM used to cache resident sub-buckets from 780 MB to 1000 MB, it should be\npossible to handle this higher throughput on the existing local disks.  Adding an additional local disk to\neach node would permit a further significant reduction in the number of nodes.\n"}, {"type": "Footnote", "bbox": [0.14749199362362134, 0.6358022793856534, 0.8509428854549632, 0.6633402321555397], "properties": {"score": 0.7761271595954895, "page_number": 9}}, {"type": "List-item", "bbox": [0.1466852434943704, 0.5336445201526988, 0.8331664321001838, 0.5619051846590909], "properties": {"score": 0.7209709286689758, "page_number": 9}, "text_representation": "[11] Snir, M., Otto, S., Huss-Lederman, S., Walker, D., and Dongarra, J. MPI: The Complete Reference,\n"}, {"type": "List-item", "bbox": [0.14633709178251378, 0.49088789506392044, 0.852704647288603, 0.5331321022727272], "properties": {"score": 0.7136127948760986, "page_number": 9}, "text_representation": "[10] http://www.sgi.com/newsroom/press_releases/1997/december/sorting_release.html  \u201cSilicon Graphics\nccNUMA Origin Servers First to Break Terabyte Data Sort Barrier.\u201d  SGI press release from 12/97\nannouncing the first terabyte sort: 2.5 hours for 1 TB.\n"}, {"type": "List-item", "bbox": [0.14702195111443014, 0.44690168900923294, 0.8496504480698529, 0.48946022727272726], "properties": {"score": 0.7035868763923645, "page_number": 9}, "text_representation": "[9] http://www.sandia.gov/LabNews/LN11-20-98/sort_story.htm  \u201cSandia and Compaq Computer Corp.\n team together to set world record in large database sorting.\u201d  Description of terabyte sort at Sandia Lab\non 11/20/98 in \u201cunder 50 minutes.\u201d\n"}, {"type": "List-item", "bbox": [0.14628589405732997, 0.5628389670632102, 0.8241034294577206, 0.5907731489701704], "properties": {"score": 0.6921210885047913, "page_number": 9}, "text_representation": "[12] Tsukerman, A., \"FastSort\u2013 An External Sort Using Parallel Processing,\" Tandem Systems Review,\n"}, {"type": "List-item", "bbox": [0.14682969037224264, 0.4173271040482954, 0.8218245203354779, 0.445471884987571], "properties": {"score": 0.6749135851860046, "page_number": 9}, "text_representation": "[8] http://www.ordinal.com/  Home page of Ordinal Corp., whose NSORT program holds a record for\n"}, {"type": "List-item", "bbox": [0.14711860207950367, 0.37373357599431817, 0.8089955767463235, 0.41647166859019885], "properties": {"score": 0.6679388284683228, "page_number": 9}}, {"type": "List-item", "bbox": [0.14717051786534927, 0.3454461669921875, 0.8293495088465074, 0.37263172496448865], "properties": {"score": 0.6575987935066223, "page_number": 9}}, {"type": "List-item", "bbox": [0.14700075934914983, 0.25750688032670455, 0.8433872357536765, 0.3005252907492898], "properties": {"score": 0.6393867135047913, "page_number": 9}, "text_representation": "[4] DeWitt, D.J., Naughton, J.F., and Schneider, D.A. \"Parallel Sorting on a Shared-Nothing Architecture\nUsing Probabilistic Splitting,\" Proc. First Int. Conf. on Parallel and Distributed Info Systems, IEEE\nPress, January 1992, pp. 280-291.\n"}, {"type": "List-item", "bbox": [0.14693206787109375, 0.3008421464399858, 0.838336971507353, 0.34414525812322444], "properties": {"score": 0.638669490814209, "page_number": 9}, "text_representation": "[5] Gray, J., Coates, J., and Nyberg, C.  \u201cPerformance/Price Sort and PennySort.\u201d  Technical Report MS-\n"}, {"type": "List-item", "bbox": [0.14689358879538145, 0.14142722389914772, 0.834593075022978, 0.18402421431107954], "properties": {"score": 0.6303939819335938, "page_number": 9}, "text_representation": "[1] Anon., Et-Al. (1985). \"A Measure of Transaction Processing Power.\u201d Datamation. V.31(7): pp. 112-\n118. Also in Readings in Database Systems, M.J. Stonebraker ed., Morgan Kaufmann, San Mateo,\n1989.\n"}, {"type": "List-item", "bbox": [0.14677706550149355, 0.1853567921031605, 0.8549383903952206, 0.21235708063299005], "properties": {"score": 0.6230476498603821, "page_number": 9}, "text_representation": "[2] Agarwal, R.C. \"A Super Scalar Sort Algorithm for RISC Processors.\" ACM SIGMOD '96, pp. 240-246,\n"}, {"type": "List-item", "bbox": [0.14703714707318474, 0.21366152676669034, 0.8556505629595588, 0.2564280839399858], "properties": {"score": 0.6020030379295349, "page_number": 9}, "text_representation": "[3] Arpaci-Dusseau, A.C., Arpaci-Dusseau, R.H., Culler, D.E., Hellerstein, J.M., and Patterson, D.A.\n \u201cHigh-Performance Sorting on Networks of Workstations.\" ACM SIGMOD '97, Tucson, Arizona, May,\n1997.  Available at http://now.cs.berkeley.edu/NowSort/nowSort.ps.\n"}, {"type": "Footnote", "bbox": [0.14805549172794116, 0.6793568004261363, 0.8600829360064338, 0.7065876908735795], "properties": {"score": 0.5644134879112244, "page_number": 9}}, {"type": "Footnote", "bbox": [0.1479825636919807, 0.6643576882102272, 0.7600702263327206, 0.6777910267223012], "properties": {"score": 0.4488600790500641, "page_number": 9}}, {"type": "Section-header", "bbox": [0.14678016213809741, 0.10643675370649858, 0.24975160486557904, 0.12251423228870739], "properties": {"score": 0.4207715690135956, "page_number": 9}, "text_representation": "References\n"}]}
+{
+  "status": [
+    "Incremental status will be shown here during execution.",
+    "Until you get a line that matches '  ]\n', you can convert the partial",
+    "output to a json document by appending '\"\"]}' to the partial output.",
+    "",
+    "T+   0.00: Server version 0.2024.06.28",
+    "T+   0.00: Received request with aryn_call_id=134418ca-c401-4944-9ddd-a529644990e4",
+    "T+   0.00: Waiting for scheduling",
+    "T+   0.00: Preprocessing document",
+    "T+   0.01: Done preprocessing document",
+    "T+   1.87: completed page 1",
+    "T+   2.93: completed page 2",
+    "T+   3.29: completed page 3",
+    "T+   3.80: completed page 4",
+    "T+   5.60: completed page 5",
+    "T+   7.61: completed page 6",
+    "T+   8.01: completed page 7",
+    "T+   9.41: completed page 8",
+    "T+   9.99: completed page 9",
+    ""
+  ],
+  "elements": [
+    {
+      "type": "Section-header",
+      "bbox": [
+        0.25801759607651653,
+        0.14799718683416194,
+        0.7434876206341912,
+        0.16699282559481535
+      ],
+      "properties": {
+        "score": 0.4984451234340668,
+        "page_number": 1
+      },
+      "text_representation": "SPsort: How to Sort a Terabyte Quickly\n"
+    },
+    {
+      "type": "Section-header",
+      "bbox": [
+        0.43552116842830885,
+        0.22252555153586648,
+        0.5647090059168198,
+        0.2349723399769176
+      ],
+      "properties": {
+        "score": 0.6633284687995911,
+        "page_number": 1
+      },
+      "text_representation": "February 4, 1999\n"
+    },
+    {
+      "type": "Section-header",
+      "bbox": [
+        0.1457416399787454,
+        0.26848521839488637,
+        0.22136041977826287,
+        0.28215559525923295
+      ],
+      "properties": {
+        "score": 0.8485802412033081,
+        "page_number": 1
+      },
+      "text_representation": "Abstract\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14681899126838235,
+        0.30218597412109377,
+        0.848895263671875,
+        0.41659298983487214
+      ],
+      "properties": {
+        "score": 0.9298610091209412,
+        "page_number": 1
+      },
+      "text_representation": "In December 1998, a 488 node IBM RS/6000 SP* sorted a terabyte of data (10 billion 100 byte records) in\n17 minutes, 37 seconds.  This is more than 2.5 times faster than the previous record for a problem of this\nmagnitude.  The SPsort program itself was custom-designed for this benchmark, but the cluster, its\ninterconnection hardware, disk subsystem, operating system, file system, communication library, and job\nmanagement software are all IBM products.  The system sustained an aggregate data rate of 2.8 GB/s from\nmore than 6 TB of disks managed by the GPFS global shared file system during the sort.  Simultaneous\nwith these transfers, 1.9 GB/s of local disk I/O and 5.6 GB/s of interprocessor communication were also\nsustained.\n"
+    },
+    {
+      "type": "Section-header",
+      "bbox": [
+        0.14619633394129136,
+        0.45649486194957384,
+        0.249862258013557,
+        0.47087474476207386
+      ],
+      "properties": {
+        "score": 0.8512004613876343,
+        "page_number": 1
+      },
+      "text_representation": "Introduction\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14677959666532628,
+        0.4913937655362216,
+        0.8547881002987132,
+        0.64927001953125
+      ],
+      "properties": {
+        "score": 0.9147736430168152,
+        "page_number": 1
+      },
+      "text_representation": "The speed of sorting has long been used as a measure of computer systems I/O and communication\nperformance.  In 1985, an article in Datamation magazine proposed a sort of one million records of 100\nbytes each, with random 10 bytes keys, as a useful measure of computer systems I/O performance [1].  The\nground rules of that benchmark require that all input must start on disk, all output must end on disk, and\nthat the overhead to start the program and create the output files must be included in the benchmark time.\nInput and output must use operating system files, not raw disk partitions.  The first published time for this\nbenchmark was an hour [12].  With constant improvements in computer hardware and sort algorithms, this\ntime diminished to just a few seconds [7].  At that point, variations on the basic theme evolved [6].\n“MinuteSort” [3, 8] measures how much can be sorted in one minute and “PennySort” [5] measures how\nmuch can be sorted for one cent, assuming a particular depreciation period.  Recently, several groups\nreported sorting one terabyte of data [8, 9, 10].  SPsort improves substantially upon the best of these results.\n"
+    },
+    {
+      "type": "Section-header",
+      "bbox": [
+        0.14687787224264706,
+        0.6754059392755681,
+        0.23221774830537684,
+        0.6892924915660511
+      ],
+      "properties": {
+        "score": 0.8540988564491272,
+        "page_number": 1
+      },
+      "text_representation": "Hardware\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14710727467256435,
+        0.7094775945490057,
+        0.8550252757352941,
+        0.8823457475142046
+      ],
+      "properties": {
+        "score": 0.929555356502533,
+        "page_number": 1
+      },
+      "text_representation": "The benchmark machine is a 488 node IBM RS/6000 SP, located in the IBM SP system test lab in\nPoughkeepsie, New York.  Figure 1 shows the organization of this machine.  Each node contains four\n332MHz PowerPC* 604e processors, 1.5 GB of RAM, at least one 32 bit 33 MHz PCI bus, and a 9 GB\nSCSI disk.  The nodes communicate with one another through the high-speed SP switch with a bi-\ndirectional link bandwidth to each node of 150 megabytes/second.  The switch adapter in each node is\nattached directly to the memory bus, so it does not have to share bandwidth with other devices on the PCI\nbus.  Of the 488 nodes, 432 are compute nodes, while the remaining 56 are configured as storage nodes.\nGlobal storage consists of 1680 4.5 GB Serial Storage Architecture (SSA*) disk drives, organized into 336\ntwin-tailed 4+P RAID-5 arrays, for a total of just over 6 TB of user-accessible space attached to the storage\nnodes.  Compute nodes are packaged 16 to a rack, while the storage nodes, which have 3 PCI busses and\nconsequently are larger, are packaged 8 to a rack.  In total, the CPU and switch hardware occupies 34 racks,\nand the global disks require another 18 racks.\n"
+    },
+    {
+      "type": "Image",
+      "bbox": [
+        0.14007473216337316,
+        0.10813348249955611,
+        0.8585111012178309,
+        0.5147043124112216
+      ],
+      "properties": {
+        "score": 0.6740006804466248,
+        "image_size": null,
+        "image_mode": null,
+        "image_format": null,
+        "page_number": 2
+      },
+      "text_representation": "488 nodes, 52 racks\n1952 processors, 2168 disks\n732 GB RAM, 12 TB total raw disk space\n 27 Compute racks\n16 nodes/rack, each node has\n   4 x 332 Mhz PowerPC 604e\n   1.5 GB RAM\n   1 32 x 33 PCI bus\n   9 GB SCSI disk\n  150 MB/s full duplex switch link\n 7 Storage racks\n8 nodes/rack, each node has\n   4 x 332 Mhz PowerPC 604e\n   1.5 GB RAM\n   3 32 x 33 PCI bus\n   9 GB SCSI disk\n   3 SSA RAID-5 adapters\n   150 MB/s full duplex switch link\n 18 SSA disk racks\n6 drawers/rack, each drawer has\n  up to 16 4.5 GB disks\n1680 disks in total\n Figure 1.  Sort benchmark machine.\n"
+    },
+    {
+      "type": "Section-header",
+      "bbox": [
+        0.1471073195513557,
+        0.5644370893998579,
+        0.29594426772173715,
+        0.5815557861328124
+      ],
+      "properties": {
+        "score": 0.8065081834793091,
+        "page_number": 2
+      },
+      "text_representation": "System Software\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14772543514476102,
+        0.5995682040127841,
+        0.834970703125,
+        0.6435265003551136
+      ],
+      "properties": {
+        "score": 0.8673338890075684,
+        "page_number": 2
+      },
+      "text_representation": "Each node in the SP cluster runs AIX version 4.3.2 to provide X/Open compliant application interfaces.\nParallel System Support Program version 3.1 provides the basic cluster management software, including\nthe following functions:\n• \n"
+    },
+    {
+      "type": "List-item",
+      "bbox": [
+        0.14871314553653492,
+        0.6511799760298296,
+        0.8355559225643382,
+        0.6801187411221591
+      ],
+      "properties": {
+        "score": 0.8876640200614929,
+        "page_number": 2
+      },
+      "text_representation": "cluster administration, such as authentication, coordinated software installation, error reporting, and\nhardware environment monitoring and control,\nhigh-speed IP communication using the SP switch,\n"
+    },
+    {
+      "type": "List-item",
+      "bbox": [
+        0.14819832296932445,
+        0.6809275124289773,
+        0.5108283906824449,
+        0.6958200905539773
+      ],
+      "properties": {
+        "score": 0.8447414040565491,
+        "page_number": 2
+      }
+    },
+    {
+      "type": "List-item",
+      "bbox": [
+        0.1484660249597886,
+        0.6961178311434659,
+        0.8300392779181985,
+        0.7407209361683239
+      ],
+      "properties": {
+        "score": 0.8886812329292297,
+        "page_number": 2
+      }
+    },
+    {
+      "type": "List-item",
+      "bbox": [
+        0.1480189603917739,
+        0.7415091219815341,
+        0.8478128590303309,
+        0.7707082852450284
+      ],
+      "properties": {
+        "score": 0.887768030166626,
+        "page_number": 2
+      }
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.1473368745691636,
+        0.7847897616299716,
+        0.7729996266084559,
+        0.8001107510653409
+      ],
+      "properties": {
+        "score": 0.6991426944732666,
+        "page_number": 2
+      }
+    },
+    {
+      "type": "List-item",
+      "bbox": [
+        0.14867879530962777,
+        0.8087529407848011,
+        0.4011990535960478,
+        0.8228825794566761
+      ],
+      "properties": {
+        "score": 0.8432695269584656,
+        "page_number": 2
+      }
+    },
+    {
+      "type": "List-item",
+      "bbox": [
+        0.14901387831744026,
+        0.8231267200816761,
+        0.6878902659696691,
+        0.838353437943892
+      ],
+      "properties": {
+        "score": 0.8619488477706909,
+        "page_number": 2
+      }
+    },
+    {
+      "type": "List-item",
+      "bbox": [
+        0.1486518052045037,
+        0.8386013516512784,
+        0.8356989602481618,
+        0.8687898947975853
+      ],
+      "properties": {
+        "score": 0.8836402297019958,
+        "page_number": 2
+      }
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14746287626378676,
+        0.09037127408114347,
+        0.8440777228860294,
+        0.14828886552290482
+      ],
+      "properties": {
+        "score": 0.9372804760932922,
+        "page_number": 3
+      },
+      "text_representation": "PE also includes a high-performance implementation of the Message Passing Interface standard (MPI), by\nwhich processes on multiple nodes can communicate [11].  As its underlying transport mechanism, MPI\nallows applications to send data across the SP switch either through kernel calls that send IP packets or\nthrough direct writes into memory on the switch adapter.\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14690208883846506,
+        0.15643077503551137,
+        0.8533893899356617,
+        0.22817689375443892
+      ],
+      "properties": {
+        "score": 0.9419254064559937,
+        "page_number": 3
+      },
+      "text_representation": "LoadLeveler version 3.1 is primarily used on the SP to schedule long-running jobs according to their\nresource requirements.  It also plays the secondary role of managing access to windows into switch adapter\nRAM to avoid conflicts between multiple processes using user-space MPI on a node at the same time.\nAlthough SPsort is the only process active on each node during the sort benchmark, LoadLeveler is still\nresponsible for assigning its switch adapter window.\n"
+    },
+    {
+      "type": "Section-header",
+      "bbox": [
+        0.14755668191348806,
+        0.2528835227272727,
+        0.2493951416015625,
+        0.2682641324129972
+      ],
+      "properties": {
+        "score": 0.8147367835044861,
+        "page_number": 3
+      },
+      "text_representation": "File System\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14719429464901196,
+        0.28745244806463066,
+        0.8566162827435662,
+        0.44638466574928976
+      ],
+      "properties": {
+        "score": 0.9449511170387268,
+        "page_number": 3
+      },
+      "text_representation": "General Parallel File System version 1.2 (GPFS) manages the 336 RAID arrays as a single mountable file\nsystem. GPFS uses wide striping to distribute files across multiple disks and storage nodes.  This allows all\nof the I/O subsystem bandwidth to be brought to bear on a single file when necessary.  Distributed file\nsystems such as NFS, AFS, DFS, NetWare**, or Windows NT Server*** all have a client/server structure, in\nwhich all disk accesses are made by a single server.  The aggregate throughput of these client/server file\nsystems does not scale as nodes are added, since the throughput is limited to that of the central server.  In\ncontrast, GPFS is a true cluster file system; there is no central server and therefore no single node that can\nbe saturated with data transfer requests.  Instead, GPFS accesses data directly from the VSD server that\nowns the disk on which they are stored.  Thus, the throughput of a GPFS file system scales according to the\nminimum of the aggregate switch bandwidth of the client nodes and the aggregate I/O or switch bandwidth\nof the VSD server nodes.\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14707190120921415,
+        0.45502194491299713,
+        0.838145751953125,
+        0.5125003329190341
+      ],
+      "properties": {
+        "score": 0.9198836088180542,
+        "page_number": 3
+      },
+      "text_representation": "No semantic sacrifices have been made in delivering this level of performance; instances of GPFS\ncoordinate their activity such that X/Open file semantics are preserved1.  Every node sees the same name\nspace and file contents at all times.  GPFS supports cluster-wide atomicity of reads and writes and the\nproper handling of removal of a file that is still open on some other node.\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.1471038459329044,
+        0.5203631036931818,
+        0.8466909610523897,
+        0.5924984463778409
+      ],
+      "properties": {
+        "score": 0.9253917932510376,
+        "page_number": 3
+      },
+      "text_representation": "In addition to data transfers, many of the common control functions in GPFS are also distributed in a\nscalable way.  For example, when SPsort writes its output, many nodes are writing into non-overlapping\nregions of the same file simultaneously, and each of these nodes must be able to allocate disk blocks.  The\nGPFS space allocation maps are organized in such a way that multiple nodes can concurrently allocate\nspace nearly independently of one another, preventing space allocation from becoming a bottleneck.\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.1470569116928998,
+        0.6005261785333806,
+        0.844611026539522,
+        0.65829833984375
+      ],
+      "properties": {
+        "score": 0.9257156252861023,
+        "page_number": 3
+      },
+      "text_representation": "The current release of GPFS limits the maximum file size in the 6 TB global file system to approximately\n475 GB.  Since 1000 GB are needed to hold the input and output of the sort, SPsort uses three input files,\ntwo of size 333 GB and one of 334 GB.  There are also three output files of approximately the same sizes.\nThe concatenation of the three output files forms the sorted result.\n"
+    },
+    {
+      "type": "Section-header",
+      "bbox": [
+        0.1472065465590533,
+        0.6979501620205966,
+        0.2645105698529412,
+        0.713007646040483
+      ],
+      "properties": {
+        "score": 0.8386707305908203,
+        "page_number": 3
+      },
+      "text_representation": "Sort Program\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14685392491957722,
+        0.7322377707741478,
+        0.8508853687959559,
+        0.7888863858309659
+      ],
+      "properties": {
+        "score": 0.9458465576171875,
+        "page_number": 3
+      },
+      "text_representation": "SPsort is a custom C++ implementation optimized for the extended Datamation sort benchmark.  It uses\nstandard SP and AIX services: X/Open compliant file system access through GPFS, MPI message passing\nbetween nodes, Posix pthreads, and the SP Parallel Environment to initiate and control the sort job running\non many nodes.\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14661050235523898,
+        0.797646484375,
+        0.8364727424172794,
+        0.8547002618963068
+      ],
+      "properties": {
+        "score": 0.9336977005004883,
+        "page_number": 3
+      },
+      "text_representation": "The sort employs techniques that have appeared before in other record-setting sorts. Its fundamental\nstructure is a two-phase bucket sort: in the first phase, the program partitions the key space into\napproximately equal-sized segments and appoints a node to handle each segment.  Every node is\nresponsible for reading a portion of the input and distributing records to other nodes according to the key\n"
+    },
+    {
+      "type": "Footnote",
+      "bbox": [
+        0.14612224803251378,
+        0.8808725253018466,
+        0.8144880227481618,
+        0.9082154430042614
+      ],
+      "properties": {
+        "score": 0.6239798665046692,
+        "page_number": 3
+      },
+      "text_representation": "1 GPFS release 1.2 does not support the mmap system call.  There are also minor deviations from the\nX/Open standard in the handling of file access and modification times.\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14694071152630975,
+        0.090548095703125,
+        0.8565589096966911,
+        0.19139647050337358
+      ],
+      "properties": {
+        "score": 0.942352831363678,
+        "page_number": 4
+      },
+      "text_representation": "partition [4].  At the end of the first phase, records have been partitioned by key such that the lowest keys\nare held by node 0, the next lowest keys by node 1, etc.  After this distribution phase is complete, nodes\nsend their counts of how many records they each hold to a master node, which computes where in the\noutput files each node should begin writing and distributes this information to every node.  In the second\nphase of the sort, nodes independently sort the records they were sent during the first phase and write them\ninto the appropriate position in one of the output files.  Because the keys are chosen from a uniform random\ndistribution, the number of records sent to each node to be processed during phase 2 is roughly equal.\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14691627053653492,
+        0.19951364690607246,
+        0.8564703728170956,
+        0.31539412064985795
+      ],
+      "properties": {
+        "score": 0.9367212057113647,
+        "page_number": 4
+      },
+      "text_representation": "Given sufficient RAM, all of the records distributed during the first phase of the sort could be cached in\nmemory.  In this case, the program would be considered a one-pass sort, since each record would be read\nfrom disk and written to disk exactly once.  However, the 488 node SP has only 732 GB of RAM, so a one-\npass sort is not possible.  Therefore, SPsort uses space on the local disks of compute nodes to buffer records\ndistributed during the first phase. Since these local disks contain other data (e.g. the operating system), the\navailability of free space on the local disks determines how many compute nodes can be used in the sort.  A\ntotal of 400 nodes had enough local free space to participate in the terabyte sort.  In addition to these\ncompute nodes, one node controls the sort, and another runs the GPFS lock manager.\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14706632726332722,
+        0.32363178599964487,
+        0.8540631462545956,
+        0.4535563243519176
+      ],
+      "properties": {
+        "score": 0.9378113150596619,
+        "page_number": 4
+      },
+      "text_representation": "Sorting a terabyte on 400 nodes implies that each node receives about 2.5 GB of data during the\ndistribution phase.  It is not necessary to write all of these data to temporary disk (a two-pass sort), since a\nsignificant amount of memory is available for buffering.  As records arrive at a node during the distribution\nphase, SPsort further classifies them by their keys into one of 16 local sub-buckets.  Buffers full of records\nbelonging to the first 5 of these sub-buckets with lowest key values remain in RAM, while buffers holding\nrecords in the other 11 sub-buckets are written to the local SCSI disk.  When the output phase of the sort\nfinishes with a resident sub-bucket, the buffers it occupies are used to read buffers from a non-resident sub-\nbucket with higher key values.  Since approximately 11/16 of the records are written to scratch disks,\nSPsort can be considered to perform a 1.6875-pass sort.\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14702827004825367,
+        0.46212865656072444,
+        0.8469457289751838,
+        0.533541093306108
+      ],
+      "properties": {
+        "score": 0.9210678339004517,
+        "page_number": 4
+      },
+      "text_representation": "While the first phase of SPsort distributes records to the nodes responsible for each key range, designated\nmaster nodes create the three output files.  Following an MPI synchronization barrier to insure that the file\ncreations have completed, each node opens one of the output files.  Since this all happens in parallel with\nrecord distribution, the overhead to create and open the output files does not increase the running time of\nthe sort.\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14723620246438418,
+        0.5425365101207387,
+        0.8512140251608455,
+        0.7013652454723012
+      ],
+      "properties": {
+        "score": 0.9421537518501282,
+        "page_number": 4
+      },
+      "text_representation": "Earlier research has demonstrated the importance of paying close attention to processor cache performance\nfor the CPU-intensive portions of sort algorithms [7].  Generally, this has meant working with a more\ncompact representation of the data to be sorted and organizing the data for good cache locality.  One\npopular representation, and the one that is used here during the second phase of the sort, is to form an\nauxiliary array of record descriptors.  Each descriptor contains the high-order word of the record key and a\npointer to the whole 100 byte record in memory.  To sort the descriptor array in a cache-friendly way,\nSPsort uses a radix sort [2].  While building the descriptor array, the program counts the number of times\neach distinct value occurs for each of the byte positions in the high-order word of the key.  This yields four\nhistograms, each with 256 entries.  Using 32 bit counters for each entry requires a total of 4K bytes to hold\nall of the histograms for one local sub-bucket, which fits easily within the 32K L1 cache of a 604e\nprocessor.\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14684972426470588,
+        0.7100083229758523,
+        0.8565935202205882,
+        0.8107755903764204
+      ],
+      "properties": {
+        "score": 0.9419258832931519,
+        "page_number": 4
+      },
+      "text_representation": "Next, the program scans through the descriptor array and copies descriptors into a second descriptor array\nof the same size.  The position where SPsort moves a descriptor is based on the low-order byte of its key\nword.  The program maintains an array of 256 pointers, one for each byte value, giving the location in the\nsecond descriptor array where the next descriptor should be moved for each key byte value.  This array is\ninitialized by computing cumulative sums of the histogram counts of the low-order key bytes.  During this\npart of the algorithm, the cache must hold the array of pointers (256 x 4 bytes), as well as one cache line for\neach key byte value (256*32 bytes).  This requires only 9K, which again is well within the L1 cache size.\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14692378324620864,
+        0.8190406383167613,
+        0.8470561667049632,
+        0.8910536887428977
+      ],
+      "properties": {
+        "score": 0.9392157196998596,
+        "page_number": 4
+      },
+      "text_representation": "After the descriptor array has been sorted by the low-order byte of the high-order key word, SPsort repeats\nthe process for the next most significant byte of the key.  This sort is stable, so sorting on the next most\nsignificant byte of the key preserves the order of the least significant byte within equal values for the next\nmost significant key byte.  Once this has been done for all four bytes, the original descriptor array is\nordered by the high-order 32 bits of the 10 byte record keys.\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14676874497357537,
+        0.09152141224254261,
+        0.848975040211397,
+        0.20588045987215908
+      ],
+      "properties": {
+        "score": 0.9468467831611633,
+        "page_number": 5
+      },
+      "text_representation": "In the next part of phase two, SPsort outputs the records in the sub-bucket whose descriptor array was just\nsorted.  Since there are 10 billion records in a terabyte, but only about 4.3 billion possible values for the\nhigh-order word of the sort key, ties are common in the descriptor array.  The output phase locates runs of\nrecords in the descriptor array with the same value of the high-order word of their keys.  When it finds a\nrun, it sorts the descriptors of those records using bubble sort, comparing all 10 bytes of their keys.  Since\nthe runs are very short on average (2.3 records), the quadratic complexity of bubble sort does not adversely\nimpact the running time of the sort.  After SPsort generates a sorted run, it gathers the records in the run\ninto an output buffer and writes them to disk asynchronously.\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.1470158655503217,
+        0.21510946100408382,
+        0.8390151798023897,
+        0.25731542413884945
+      ],
+      "properties": {
+        "score": 0.9138420820236206,
+        "page_number": 5
+      },
+      "text_representation": "After all sub-buckets have been sorted and written, each node closes its output file and performs a barrier\nsynchronization operation.  When the master node knows that all nodes have finished writing, it insures\nthat all buffered output data are safely on disk to satisfy the rules of the benchmark.\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14711776733398438,
+        0.26650509920987214,
+        0.8484410184972426,
+        0.35213883833451703
+      ],
+      "properties": {
+        "score": 0.9331529140472412,
+        "page_number": 5
+      },
+      "text_representation": "Each node running the sort program is a 4-way SMP.  To overlap as much computation as possible, SPsort\nuses multiple threads on each node during both phases of the sort.  At least one thread is dedicated to each\nactivity that might possibly block, such as GPFS or local disk input/output or MPI message sends and\nreceives.  Threads pass buffers to one another through simple producer/consumer queues.  If a consumer\nthread attempts to dequeue a buffer from an empty queue, it blocks until data become available or until the\nproducer signals end-of-file on the buffer queue.\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14687457813936122,
+        0.361184775612571,
+        0.8475574448529412,
+        0.4758047207919034
+      ],
+      "properties": {
+        "score": 0.9367948174476624,
+        "page_number": 5
+      },
+      "text_representation": "To prove that the output files really are sorted, a parallel validation program reads overlapping sequential\nsegments of the output and verifies that the keys are in sorted order.  From the point of view of SPsort, the\n90 bytes following the key field in each record are just uninterpreted data.  In fact, the program that\ngenerates the input files places the file name, record number, several words of random data, and a record\nchecksum here.  The validation program uses this checksum to make sure that SPsort corrupts no records.\nIt also computes the checksum of all record checksums.  Comparing this value with the same calculation\nperformed on the input files guards against lost or repeated records in the output.  For the terabyte sort, the\nvalidation program ran on 64 nodes and required 12 minutes to confirm that the output was correct.\n"
+    },
+    {
+      "type": "Section-header",
+      "bbox": [
+        0.14697864308076747,
+        0.5079046630859375,
+        0.33659466911764707,
+        0.5227824263139205
+      ],
+      "properties": {
+        "score": 0.8726181983947754,
+        "page_number": 5
+      },
+      "text_representation": "Performance Analysis\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14700615377987133,
+        0.5427183948863636,
+        0.8504360064338236,
+        0.7010054709694602
+      ],
+      "properties": {
+        "score": 0.9454143047332764,
+        "page_number": 5
+      },
+      "text_representation": "Figure 2 shows the aggregate data rates across all nodes for both global disk and local disk, each separated\ninto read and write bandwidth.  Some cautions are in order before interpreting these data.  The numbers on\nthe graph were obtained by running the AIX iostat utility on only two nodes: one of the VSD servers and\none of the nodes executing the SPsort program.  The data rates obtained from iostat were then extrapolated\nto 56 and 400 nodes, respectively, to produce the graphs.  Although the workloads seen by each VSD\nserver and sort node are statistically similar due to round-robin striping by GPFS, extrapolation is not an\nideal way to measure aggregate throughput.  The peak in the VSD read throughput above 3 GB/s early in\nthe run is probably an artifact of this extrapolation.  Nevertheless, there is evidence in the form of thread\ntimestamps from all 400 nodes that corroborates the overall shape of the throughput curves.  The iostat\noutput was not synchronized with the execution of the sort program.  Thus, elapsed time zero in Figure 2\nwas arbitrarily assigned to the sample just before the I/O rate began to rise.\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.1467718146829044,
+        0.7103624933416193,
+        0.85124267578125,
+        0.8536477938565341
+      ],
+      "properties": {
+        "score": 0.9380870461463928,
+        "page_number": 5
+      },
+      "text_representation": "During the distribution phase of the sort, SPsort read 1 TB of input data from GPFS.  Once the sort\nprogram reached steady state, it read from GPFS at a rate of about 2.8 GB/s.  Almost all (399/400) of the\ndata read during this phase passed through the SP switch twice: once from the VSD server to the GPFS\nclient reading the data, and again when the sort program sent each record to the node responsible for its\nportion of the key space.  Thus, the sustained switch throughput during this interval was 5.6 GB/s.  The\nGPFS read rate tailed off near the end of the first phase because some nodes finished reading before others.\nAs records arrived at a node, SPsort classified them into one of 16 sub-buckets, and wrote 11 of these sub-\nbuckets to local disk.  Local writes during the distribution phase occurred at an aggregate rate of over 1.9\nGB/s in steady state.  This is close to 11/16 of the input rate, as expected.  The distribution phase ended\nafter about 380 seconds.\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14665084838867187,
+        0.8633718594637784,
+        0.8302512494255515,
+        0.905487060546875
+      ],
+      "properties": {
+        "score": 0.944847047328949,
+        "page_number": 5
+      },
+      "text_representation": "Between the distribution phase and the output phase nodes had to determine where in their output file to\nbegin writing.  While this synchronization between nodes went on, nodes sorted their first resident sub-\nbucket and collected the first few output buffers.  Once all nodes finished reading and were allowed to\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.146656395407284,
+        0.09065577420321377,
+        0.8466839240579044,
+        0.19141068892045454
+      ],
+      "properties": {
+        "score": 0.9422587156295776,
+        "page_number": 6
+      },
+      "text_representation": "begin their output, they very quickly achieved nearly 2 GB/s write bandwidth to GPFS, then stabilized at\nabout 2.25 GB/s for the bulk of the output phase.  The steady state output rate was lower than the steady\nstate input rate because each node read from all three input files during the distribution phase, but only\nwrote into one of the three output files during the output phase.  Thus, there was more total sequential\nprefetching going on during the distribution phase than there was sequential writebehind during the output\nphase.  The overhead of allocating space for the output files was not a major factor in the difference\nbetween read and write throughput.  The output phase finished after about 860 seconds of elapsed time.\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14655265359317554,
+        0.1999856844815341,
+        0.8532350068933824,
+        0.41722917036576707
+      ],
+      "properties": {
+        "score": 0.9397386312484741,
+        "page_number": 6
+      },
+      "text_representation": "The most striking of the four curves in Figure 2 is the throughput of reading from the local disk.  Recall\nthat this curve was obtained by extrapolating the reads done by a single node.  It is easier to explain this\ncurve by describing the activity of a single node, which requires scaling the peak throughput back by a\nfactor of 400, to a little over 9 MB/s.  At the end of the distribution phase, SPsort started a thread on each\nnode to read non-resident sub-buckets back into RAM.  This thread consumed all available buffers as\nquickly as possible at about time 380 seconds, then had to wait for more buffers to become available.  At\nthis point, only a portion of the first non-resident sub-bucket had been read back into RAM.  Once the first\nresident sub-bucket was sorted and written to the output file, SPsort freed the buffers it was using, allowing\nthe local read thread to wake up and use the buffers to read the remaining part of the first non-resident sub-\nbucket and the beginning of the next one.  In the hardware configuration used, GPFS output bandwidth was\nless than that of the 400 local disks, so the rate of filling buffers with data from non-resident sub-buckets\nwas greater than the rate at which they could be emptied into GPFS. Thus, the read fast, run out of buffers,\nblock pattern repeated for all 11 of the non-resident sub-buckets, each one producing a peak in the local\nread throughput graph.  By elapsed time 700 seconds, no more non-resident data remained, so no further\nlocal reads were required while SPsort sorted and wrote out the last 5 sub-buckets..\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14653313131893383,
+        0.4258534656871449,
+        0.8431370634191176,
+        0.5265015758167614
+      ],
+      "properties": {
+        "score": 0.9401553869247437,
+        "page_number": 6
+      },
+      "text_representation": "In addition to the external measurements taken by iostat, SPsort also gathers internal statistics.  Counts of\nhow often consumer threads had to wait for data from their upstream producer threads confirmed that the\nsort program was able to drive GPFS to its full throughput.  The program also captures high-resolution\ntimestamps at some of the interesting points during its execution. The clocks of different nodes are\nsynchronized to within about one millisecond, so these timestamps can reliably sequence events across\nnodes.  Besides acting as an independent confirmation of the length of the two sort phases, these data also\nyield other interesting facts.  For example, the actual sort of the descriptor array for a single sub-bucket\n"
+    },
+    {
+      "type": "Image",
+      "bbox": [
+        0.14885869643267463,
+        0.5873452481356534,
+        0.8655327292049633,
+        0.8834461004083807
+      ],
+      "properties": {
+        "score": 0.8939490914344788,
+        "image_size": null,
+        "image_mode": null,
+        "image_format": null,
+        "page_number": 6
+      },
+      "text_representation": "s\n/\nB\nG\n 4.0\n 3.5\n 3.0\n 2.5\n 2.0\n 1.5\n 1.0\n 0.5\n 0.0\n GPFS read\nGPFS write\nLocal read\nLocal write\n 0\n 100\n 200\n 300\n 400\n 500\n 600\n 700\n 800\n 900\n Elapsed time (seconds)\n"
+    },
+    {
+      "type": "Caption",
+      "bbox": [
+        0.35830027860753677,
+        0.9006082430752841,
+        0.7124633071001838,
+        0.913770751953125
+      ],
+      "properties": {
+        "score": 0.8276466131210327,
+        "page_number": 6
+      },
+      "text_representation": "Figure 2.  Extrapolated aggregate disk bandwidth.\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.1472313106761259,
+        0.08951902216131037,
+        0.8558544203814338,
+        0.1766778564453125
+      ],
+      "properties": {
+        "score": 0.9305617213249207,
+        "page_number": 7
+      },
+      "text_representation": "took only about 0.8 seconds.  Furthermore, this time is always completely overlapped with other\nprocessing.  The sort of the first sub-bucket occurs while nodes are exchanging record count data to\ndetermine where to start writing in their output file.  Sorts of all subsequent sub-buckets occur while the\nrecords of the previous sub-bucket are being gathered into buffers and written to the output file.  Thus, at\nleast for the tested configuration, further improvements to CPU performance in the second phase of the sort\nare unnecessary.\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.1469351645076976,
+        0.18427946610884233,
+        0.8583902516084558,
+        0.28659806685014205
+      ],
+      "properties": {
+        "score": 0.9364960193634033,
+        "page_number": 7
+      },
+      "text_representation": "By far the most interesting number to come out of the timestamp data is the length of program startup and\nshutdown.  The duration between the earliest time when SPsort started on some node until the time after the\nfinal fsync on the master node was 872 seconds.  This is only slightly longer than the time during which\nI/O was occurring on VSD servers according to Figure 2.  However, the total time required to run the shell\nscript for the 1 TB benchmark was 1057 seconds.  The ground rules of the sort benchmark require reporting\nthe longer time, but 185 seconds of overhead to start up and shut down a program on 400 nodes seems\npuzzling, and probably easily improved.  Possible reasons for this long time include the following:\n•  Setting up the PE environment.  To run SPsort under PE, a remote execution daemon may need to be\nstarted on each node, and once running it needs to set up TCP connections for the standard input,\noutput, and error of the sort program on that node.\n"
+    },
+    {
+      "type": "List-item",
+      "bbox": [
+        0.14818325267118565,
+        0.29457095059481536,
+        0.8429925178079044,
+        0.3384554776278409
+      ],
+      "properties": {
+        "score": 0.8869739174842834,
+        "page_number": 7
+      }
+    },
+    {
+      "type": "List-item",
+      "bbox": [
+        0.14733174043543198,
+        0.33892289595170455,
+        0.857190372242647,
+        0.382649619362571
+      ],
+      "properties": {
+        "score": 0.891872763633728,
+        "page_number": 7
+      },
+      "text_representation": "•  Assigning switch adapter resources.  The sort program appears as an interactive job to the LoadLeveler\njob scheduler, but it still needs to be assigned a window into switch adapter RAM on every node\nbefore it can use user-space MPI message passing.\n"
+    },
+    {
+      "type": "List-item",
+      "bbox": [
+        0.147724806841682,
+        0.38333376797762786,
+        0.8479788028492647,
+        0.42762609308416194
+      ],
+      "properties": {
+        "score": 0.8368871808052063,
+        "page_number": 7
+      }
+    },
+    {
+      "type": "List-item",
+      "bbox": [
+        0.14756259693818935,
+        0.42810513583096593,
+        0.8559063361672794,
+        0.501289950284091
+      ],
+      "properties": {
+        "score": 0.8719032406806946,
+        "page_number": 7
+      },
+      "text_representation": "•  Loading the program.  The SPsort program binary was resident in GPFS, and had never been run on\nmost of the 400 nodes since the last time the nodes were rebooted.  Since VSD does no caching, the\ndisk block containing the program was read from disk many times before the nodes started running.\n•  Outputting the timestamps.  Each node collects several hundred timestamps while it is running.  These\ncalls are quite cheap, probably under one microsecond each.  However, after SPsort finishes all of its\nsorting work on a node, it converts and outputs all of its timestamps.  This output gets funneled back to\nthe primary node, which labels it and redirects it into another GPFS file. This file ended up containing\nover 138,000 lines of output.\n"
+    },
+    {
+      "type": "List-item",
+      "bbox": [
+        0.1474377800436581,
+        0.501777177290483,
+        0.8417096306295956,
+        0.5306037486683238
+      ],
+      "properties": {
+        "score": 0.7856566309928894,
+        "page_number": 7
+      },
+      "text_representation": "•  Tearing down the PE environment.  Everything that was set up to run the sort needs to be cleaned up\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14676225550034466,
+        0.5528626598011364,
+        0.84946044921875,
+        0.6402300470525568
+      ],
+      "properties": {
+        "score": 0.9428659081459045,
+        "page_number": 7
+      },
+      "text_representation": "Analysis of the performance of SPsort is hampered by the fact that the author had only one opportunity to\nrun it on 400 nodes with 1 TB of input data.  Despite careful preparation, not all measurements that should\nhave been taken were made during that one run.  As a result, it is not possible to assess the relative\nmagnitudes each of the preceding reasons. It is not even possible to say whether most of the overhead\nhappened before or after the I/O shown in Figure 2.  Furthermore, just a few hours after the sort ran, the\nmachine was disassembled for shipment to a customer site.\n"
+    },
+    {
+      "type": "Section-header",
+      "bbox": [
+        0.14697534000172335,
+        0.6860256680575284,
+        0.25676055908203127,
+        0.7021817294034091
+      ],
+      "properties": {
+        "score": 0.8643868565559387,
+        "page_number": 7
+      },
+      "text_representation": "Future Work\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14691507676068474,
+        0.7207091175426137,
+        0.8460299144071691,
+        0.7784930974786932
+      ],
+      "properties": {
+        "score": 0.9349493980407715,
+        "page_number": 7
+      },
+      "text_representation": "Clearly, the first piece of future work would be to run the sort with additional instrumentation to quantify\nand then improve the overhead of initiation and termination.  Aside from simply turning off the gathering\nof timestamp data, there are also options to disable unnecessary parts of the PE setup that were not known\nto the author when he ran the test in December.\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.1465536947811351,
+        0.7865713223544034,
+        0.8535781680836397,
+        0.8590298184481534
+      ],
+      "properties": {
+        "score": 0.9275469779968262,
+        "page_number": 7
+      },
+      "text_representation": "There are a large number of tunable parameters in SPsort that were not explored thoroughly due to time\npressure.  These include the number and size of various kinds of buffers, the number of resident and non-\nresident sub-buckets, the style of MPI communication used, and the number of MPI send and receive\nthreads.  Increasing the depth of writebehind in GPFS should bring the write bandwidth up to that achieved\nfor read.\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.1468219712201287,
+        0.866788330078125,
+        0.8378560862821691,
+        0.8959842196377841
+      ],
+      "properties": {
+        "score": 0.9116605520248413,
+        "page_number": 7
+      },
+      "text_representation": "During the first sort phase, some nodes finish reading and distributing their portion of the input\nsignificantly before the last node.  Since GPFS makes all input data globally accessible, nodes that finish\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14714267506318934,
+        0.09061279990456321,
+        0.8473298196231618,
+        0.16280391346324574
+      ],
+      "properties": {
+        "score": 0.9425615072250366,
+        "page_number": 8
+      },
+      "text_representation": "early could be assigned another segment of the input to process.  This would require restructuring the\ndivision of labor among nodes, but would not be difficult.  The effect on performance would be to sharpen\nthe knee of the GPFS read throughput curve in Figure 2, leading to a shorter distribution phase.  Applying\nthe same technique to the output phase is problematic, since the data that need to be written to GPFS are\nonly available on the node to which they were sent during the distribution phase.\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14662772683536304,
+        0.17120665116743608,
+        0.8484713924632353,
+        0.2864688942649148
+      ],
+      "properties": {
+        "score": 0.9397950768470764,
+        "page_number": 8
+      },
+      "text_representation": "Running the sort program on a more balanced configuration would improve its price-performance\nsubstantially.  The ultimate bottleneck proved to be the VSD servers.  Without changing the hardware\nconfiguration, it should be possible to drive data through GPFS just as fast using 256 nodes instead of 400.\nThis would increase the amount of temporary storage required on each sort node to 4 GB, still much\nsmaller than the 9 GB local disks.  It would also increase the required bandwidth to the local disks.  By\nincreasing the amount of RAM used to cache resident sub-buckets from 780 MB to 1000 MB, it should be\npossible to handle this higher throughput on the existing local disks.  Adding an additional local disk to\neach node would permit a further significant reduction in the number of nodes.\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.1466234005198759,
+        0.2951209050958807,
+        0.8352061552159926,
+        0.41021514892578126
+      ],
+      "properties": {
+        "score": 0.9445976614952087,
+        "page_number": 8
+      },
+      "text_representation": "It is possible to scale the sort still further using a super-cluster of SPs interconnected with High\nPerformance Gateway Nodes (HPGN).  The sectors of such a super-cluster are interconnected through\nmultiple parallel paths with a total bandwidth measured in GB/s, and MPI communication is supported\nacross these paths.  Thus, if the startup overhead can be reduced, it should be possible in principle to\nmodify the sort program described here to take advantage of all of the resources of a super-cluster and\nimprove the sort time for a terabyte by a factor proportional to the size of the super-cluster.  An alternate\napproach would be to sort a larger input dataset, thus amortizing the startup cost across more data and\ndriving up the sort rate as measured in GB/s.\n"
+    },
+    {
+      "type": "Section-header",
+      "bbox": [
+        0.14678016213809741,
+        0.10643675370649858,
+        0.24975160486557904,
+        0.12251423228870739
+      ],
+      "properties": {
+        "score": 0.4207715690135956,
+        "page_number": 9
+      },
+      "text_representation": "References\n"
+    },
+    {
+      "type": "List-item",
+      "bbox": [
+        0.14689358879538145,
+        0.14142722389914772,
+        0.834593075022978,
+        0.18402421431107954
+      ],
+      "properties": {
+        "score": 0.6303939819335938,
+        "page_number": 9
+      },
+      "text_representation": "[1] Anon., Et-Al. (1985). \"A Measure of Transaction Processing Power.” Datamation. V.31(7): pp. 112-\n118. Also in Readings in Database Systems, M.J. Stonebraker ed., Morgan Kaufmann, San Mateo,\n1989.\n"
+    },
+    {
+      "type": "List-item",
+      "bbox": [
+        0.14677706550149355,
+        0.1853567921031605,
+        0.8549383903952206,
+        0.21235708063299005
+      ],
+      "properties": {
+        "score": 0.6230476498603821,
+        "page_number": 9
+      },
+      "text_representation": "[2] Agarwal, R.C. \"A Super Scalar Sort Algorithm for RISC Processors.\" ACM SIGMOD '96, pp. 240-246,\n"
+    },
+    {
+      "type": "List-item",
+      "bbox": [
+        0.14703714707318474,
+        0.21366152676669034,
+        0.8556505629595588,
+        0.2564280839399858
+      ],
+      "properties": {
+        "score": 0.6020030379295349,
+        "page_number": 9
+      },
+      "text_representation": "[3] Arpaci-Dusseau, A.C., Arpaci-Dusseau, R.H., Culler, D.E., Hellerstein, J.M., and Patterson, D.A.\n “High-Performance Sorting on Networks of Workstations.\" ACM SIGMOD '97, Tucson, Arizona, May,\n1997.  Available at http://now.cs.berkeley.edu/NowSort/nowSort.ps.\n"
+    },
+    {
+      "type": "List-item",
+      "bbox": [
+        0.14700075934914983,
+        0.25750688032670455,
+        0.8433872357536765,
+        0.3005252907492898
+      ],
+      "properties": {
+        "score": 0.6393867135047913,
+        "page_number": 9
+      },
+      "text_representation": "[4] DeWitt, D.J., Naughton, J.F., and Schneider, D.A. \"Parallel Sorting on a Shared-Nothing Architecture\nUsing Probabilistic Splitting,\" Proc. First Int. Conf. on Parallel and Distributed Info Systems, IEEE\nPress, January 1992, pp. 280-291.\n"
+    },
+    {
+      "type": "List-item",
+      "bbox": [
+        0.14693206787109375,
+        0.3008421464399858,
+        0.838336971507353,
+        0.34414525812322444
+      ],
+      "properties": {
+        "score": 0.638669490814209,
+        "page_number": 9
+      },
+      "text_representation": "[5] Gray, J., Coates, J., and Nyberg, C.  “Performance/Price Sort and PennySort.”  Technical Report MS-\n"
+    },
+    {
+      "type": "List-item",
+      "bbox": [
+        0.14717051786534927,
+        0.3454461669921875,
+        0.8293495088465074,
+        0.37263172496448865
+      ],
+      "properties": {
+        "score": 0.6575987935066223,
+        "page_number": 9
+      }
+    },
+    {
+      "type": "List-item",
+      "bbox": [
+        0.14711860207950367,
+        0.37373357599431817,
+        0.8089955767463235,
+        0.41647166859019885
+      ],
+      "properties": {
+        "score": 0.6679388284683228,
+        "page_number": 9
+      }
+    },
+    {
+      "type": "List-item",
+      "bbox": [
+        0.14682969037224264,
+        0.4173271040482954,
+        0.8218245203354779,
+        0.445471884987571
+      ],
+      "properties": {
+        "score": 0.6749135851860046,
+        "page_number": 9
+      },
+      "text_representation": "[8] http://www.ordinal.com/  Home page of Ordinal Corp., whose NSORT program holds a record for\n"
+    },
+    {
+      "type": "List-item",
+      "bbox": [
+        0.14702195111443014,
+        0.44690168900923294,
+        0.8496504480698529,
+        0.48946022727272726
+      ],
+      "properties": {
+        "score": 0.7035868763923645,
+        "page_number": 9
+      },
+      "text_representation": "[9] http://www.sandia.gov/LabNews/LN11-20-98/sort_story.htm  “Sandia and Compaq Computer Corp.\n team together to set world record in large database sorting.”  Description of terabyte sort at Sandia Lab\non 11/20/98 in “under 50 minutes.”\n"
+    },
+    {
+      "type": "List-item",
+      "bbox": [
+        0.14633709178251378,
+        0.49088789506392044,
+        0.852704647288603,
+        0.5331321022727272
+      ],
+      "properties": {
+        "score": 0.7136127948760986,
+        "page_number": 9
+      },
+      "text_representation": "[10] http://www.sgi.com/newsroom/press_releases/1997/december/sorting_release.html  “Silicon Graphics\nccNUMA Origin Servers First to Break Terabyte Data Sort Barrier.”  SGI press release from 12/97\nannouncing the first terabyte sort: 2.5 hours for 1 TB.\n"
+    },
+    {
+      "type": "List-item",
+      "bbox": [
+        0.1466852434943704,
+        0.5336445201526988,
+        0.8331664321001838,
+        0.5619051846590909
+      ],
+      "properties": {
+        "score": 0.7209709286689758,
+        "page_number": 9
+      },
+      "text_representation": "[11] Snir, M., Otto, S., Huss-Lederman, S., Walker, D., and Dongarra, J. MPI: The Complete Reference,\n"
+    },
+    {
+      "type": "List-item",
+      "bbox": [
+        0.14628589405732997,
+        0.5628389670632102,
+        0.8241034294577206,
+        0.5907731489701704
+      ],
+      "properties": {
+        "score": 0.6921210885047913,
+        "page_number": 9
+      },
+      "text_representation": "[12] Tsukerman, A., \"FastSort– An External Sort Using Parallel Processing,\" Tandem Systems Review,\n"
+    },
+    {
+      "type": "Footnote",
+      "bbox": [
+        0.14749199362362134,
+        0.6358022793856534,
+        0.8509428854549632,
+        0.6633402321555397
+      ],
+      "properties": {
+        "score": 0.7761271595954895,
+        "page_number": 9
+      }
+    },
+    {
+      "type": "Footnote",
+      "bbox": [
+        0.1479825636919807,
+        0.6643576882102272,
+        0.7600702263327206,
+        0.6777910267223012
+      ],
+      "properties": {
+        "score": 0.4488600790500641,
+        "page_number": 9
+      }
+    },
+    {
+      "type": "Footnote",
+      "bbox": [
+        0.14805549172794116,
+        0.6793568004261363,
+        0.8600829360064338,
+        0.7065876908735795
+      ],
+      "properties": {
+        "score": 0.5644134879112244,
+        "page_number": 9
+      }
+    }
+  ]
+}

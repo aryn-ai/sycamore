@@ -57,13 +57,15 @@ RESOURCE_DIR = Path(__file__).parent / "resources"
 )
 def test_partition(pdf, kwargs, response, mocker):
 
-    with open(response, "r") as f:
-        response_data = json.load(f)
+    with open(response, "rb") as f:
+        byteses = f.read()
+
+    response_data = json.loads(byteses.decode("utf-8"))
     resp_object = mocker.Mock()
     resp_object.status_code = 200
 
     # Mock the response from the file,
-    resp_object.iter_lines.return_value = json.dumps(response_data, indent=2).encode("UTF-8").split(sep=b"\n")
+    resp_object.iter_content.return_value = byteses.split(sep=b"\n")
 
     mocker.patch("requests.post").return_value = resp_object
 
@@ -133,7 +135,7 @@ def test_data_to_pandas():
         data = json.load(f)
     elts_and_dfs = tables_to_pandas(data)
     assert len(elts_and_dfs) == 5
-    df = elts_and_dfs[0][1]
+    df = elts_and_dfs[2][1]
     assert df is not None
     assert df.columns.to_list() == ["(Millions)", "2018", "2017", "2016"]
     assert df["2018"][13] == "134"

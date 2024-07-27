@@ -98,24 +98,32 @@ def partition_file(
             f"Error: status_code: {resp.status_code}, reason: {resp.text}", response=resp
         )
 
-    lines = []
-    in_status = False
-    for line in resp.iter_lines():
-        if line:
-            lines.append(line)
-            if line.startswith(b'  "status"'):
-                in_status = True
-            if not in_status:
-                continue
+    content = []
+    partial_line = []
+    in_bulk = False
+    for part in resp.iter_content(None):
+        if not part:
+            continue
+
+        content.append(part)
+        if in_bulk:
+            continue
+
+        partial_line.append(part)
+        if b"\n" not in part:
+            continue
+
+        these_lines = b"".join(partial_line).split(b"\n")
+        partial_line = [these_lines.pop()]
+
+        for line in these_lines:
             if line.startswith(b"  ],"):
-                in_status = False
-                continue
+                in_bulk = True
+                break
             if line.startswith(b'    "T+'):
                 t = json.loads(line.decode("utf-8").removesuffix(","))
-                _logger.info(
-                    f"ArynPartitioner: {t}",
-                )
-    body = b"".join(lines).decode("utf-8")
+                _logger.info(f"ArynPartitioner: {t}")
+    body = b"".join(content).decode("utf-8")
     _logger.debug("Recieved data from ArynPartitioner")
 
     data = json.loads(body)

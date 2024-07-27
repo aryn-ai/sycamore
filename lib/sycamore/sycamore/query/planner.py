@@ -43,19 +43,19 @@ class LlmPlanner:
 
     def generate_prompt(self, query):
         prompt = """
-        1. Return your answer as a standard JSON list of operators. Make sure to include each 
+        1. Return your answer as a standard JSON list of operators. Make sure to include each
             operation as a separate step.
         2. Do not return any information except the standard JSON objects.
         3. Only use operators described below.
-        4. Only use EXACT field names from the DATA_SCHEMA described below and fields created 
-            from *LlmExtract*. Any new fields created by *LlmExtract* will be nested in properties. 
-            e.g. if a new field called "state" is added, when referencing it in another operation, 
-            you should use "properties.state". A database returned from *TopK* operation only has 
-            "properties.key" or "properties.count"; you can only reference one of those fields. 
+        4. Only use EXACT field names from the DATA_SCHEMA described below and fields created
+            from *LlmExtract*. Any new fields created by *LlmExtract* will be nested in properties.
+            e.g. if a new field called "state" is added, when referencing it in another operation,
+            you should use "properties.state". A database returned from *TopK* operation only has
+            "properties.key" or "properties.count"; you can only reference one of those fields.
         5. If an optional field does not have a value in the query plan, return null in its place.
         6. If you cannot generate a plan to answer a question, return an empty list.
         7. The first step of each plan MUST be a **LoadData** operation that returns a database.
-        8. The last step of each plan MUST be a **LlmGenerate** operation to generate an English 
+        8. The last step of each plan MUST be a **LlmGenerate** operation to generate an English
             answer.
         """
 
@@ -75,11 +75,11 @@ class LlmPlanner:
         for operator in OPERATORS:
             prompt += f"""
             {operator.description()}
-            
+
             Definition:
             {operator.input_schema()}
             ------------------
-            
+
             """
 
         # examples
@@ -108,14 +108,14 @@ class LlmPlanner:
                 },
                 {
                     "operatorName": "LlmGenerate",
-                    "description": "Generate an English response to the original question. 
+                    "description": "Generate an English response to the original question.
                         Input 1 is a database that contains incidents in Georgia.",
                     "question": "Were there any incidents in Georgia?",
                     "input": [1],
                     "id": 2
                 }
             ]
-            
+
             EXAMPLE 2:
             Data description: Database of aircraft incidents
             Question: How many cities did Cessna aircrafts have incidents in?
@@ -146,8 +146,8 @@ class LlmPlanner:
                 },
                 {
                     "operatorName": "LlmGenerate",
-                    "description": "description": "Generate an English response to the 
-                        question. Input 1 is a number that corresponds to the number of 
+                    "description": "description": "Generate an English response to the
+                        question. Input 1 is a number that corresponds to the number of
                         cities that accidents occurred in.",
                     "question": "How many cities did Cessna aircrafts have incidents in?",
                     "input": [2],
@@ -196,8 +196,8 @@ class LlmPlanner:
                 }
                 {
                     "operatorName": "LlmGenerate",
-                    "description": "description": "Generate an English response to 
-                        the question. Input 1 is a database that contains information 
+                    "description": "description": "Generate an English response to
+                        the question. Input 1 is a database that contains information
                         about the 2 law firms with the highest revenue.",
                     "question": "Which 2 law firms had the highest revenue in 2022?",
                     "input": [3],
@@ -241,8 +241,8 @@ class LlmPlanner:
                 },
                 {
                     "operatorName": "LlmGenerate",
-                    "description": "description": "Generate an English response to the 
-                        question. Input 1 is a database that the top 5 water bodies shipwrecks 
+                    "description": "description": "Generate an English response to the
+                        question. Input 1 is a database that the top 5 water bodies shipwrecks
                         occurred in and their corresponding frequency counts.",
                     "question": "Which 5 countries were responsible for the most shipwrecks?",
                     "input": [2],
@@ -291,15 +291,15 @@ class LlmPlanner:
                     "id": 3
                 },
                 {
-                    "operatorName": "Math", 
+                    "operatorName": "Math",
                     "description": "Divide the number of shipwrecks in 2023 by the total number",
-                    "type": "divide", 
-                    "input": [3, 1], 
+                    "type": "divide",
+                    "input": [3, 1],
                     "id": 4
                 }
                 {
                     "operatorName": "LlmGenerate",
-                    "description": "Generate an English response to the question. Input 1 is a 
+                    "description": "Generate an English response to the question. Input 1 is a
                         number that is the fraction of shipwrecks that occurred in 2023.",
                     "question": "What percent of shipwrecks occurred in 2023?",
                     "input": [4],
@@ -359,12 +359,12 @@ class LlmPlanner:
                 continue
             inputs = []
             for dependency_id in node.data["input"]:
-                downstream_dependencies[dependency_id] = downstream_dependencies.get(dependency_id, list()) + [node_id]
+                downstream_dependencies[dependency_id] = downstream_dependencies.get(dependency_id, list()) + [node]
                 inputs += [nodes.get(dependency_id)]
             node.dependencies = inputs
 
         for node_id, node in nodes.items():
-            if node_id in downstream_dependencies:
+            if node_id in downstream_dependencies.keys():
                 node.downstream_nodes = downstream_dependencies[node_id]
 
         resultNodes = list(filter(lambda n: n.downstream_nodes is None, nodes.values()))

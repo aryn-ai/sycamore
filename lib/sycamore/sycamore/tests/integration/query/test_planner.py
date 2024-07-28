@@ -2,7 +2,7 @@ from typing import List
 
 from opensearchpy import OpenSearch
 
-from integration.query.conftest import OS_CLIENT_ARGS, OS_CONFIG
+from sycamore.tests.integration.query.conftest import OS_CLIENT_ARGS, OS_CONFIG
 from sycamore.query.logical_plan import Node
 from sycamore.query.planner import LlmPlanner
 

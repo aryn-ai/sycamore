@@ -12,7 +12,7 @@ def test_simple_openai_planner(query_integration_test_index: str):
     Simple test ensuring nodes are being creating and dependencies are being set.
     Using a simple query here for consistent query plans.
     """
-    os_client = OpenSearch(**OS_CLIENT_ARGS)
+    os_client = OpenSearch(OS_CLIENT_ARGS)
 
     schema = {"location": "string", "airplaneType": "string"}
     planner = LlmPlanner(query_integration_test_index, data_schema=schema, os_config=OS_CONFIG, os_client=os_client)

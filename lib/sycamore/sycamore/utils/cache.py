@@ -2,6 +2,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+from tempfile import SpooledTemporaryFile
 from typing import Any, Optional, Union, BinaryIO
 
 import boto3
@@ -51,18 +52,19 @@ class Cache:
         return hash_ctx
 
     @staticmethod
-    def get_hash_context_file(file_path: Union[str, BinaryIO], hash_ctx: Optional[HashContext] = None) -> HashContext:
+    def get_hash_context_file(file_path: Union[str, BinaryIO, SpooledTemporaryFile], hash_ctx: Optional[HashContext] = None) -> (
+            HashContext):
         if not hash_ctx:
             hash_ctx = HashContext()
 
-        if isinstance(file_path, BinaryIO):
+        if isinstance(file_path, BinaryIO) or isinstance(file_path, SpooledTemporaryFile):
             return Cache._update_ctx(file_path, hash_ctx)
         else:
             with open(file_path, "rb") as file:
                 return Cache._update_ctx(file, hash_ctx)
 
     @staticmethod
-    def _update_ctx(file_obj: BinaryIO, hash_ctx: HashContext):
+    def _update_ctx(file_obj: Union[BinaryIO, SpooledTemporaryFile], hash_ctx: HashContext):
         while True:
             file_buffer = file_obj.read(BLOCK_SIZE)
             if not file_buffer:

@@ -43,7 +43,7 @@ with open("mydocument.pdf", "rb") as f:
 
 ### Key management
 
-By default, `aryn-sdk` looks for Aryn api keys first in the environment variable `ARYN_API_KEY`, and then in `~/.aryn/config.yaml`. You can override this behavior by specifying a key directly or a different path to the aryn config file:
+By default, `aryn-sdk` looks for Aryn API keys first in the environment variable `ARYN_API_KEY`, and then in `~/.aryn/config.yaml`. You can override this behavior by specifying a key directly or a different path to the Aryn config file:
 ```python
 from aryn_sdk.partition import partition_file
 from aryn_sdk.config import ArynConfig
@@ -53,9 +53,9 @@ with open("mydocument.pdf", "rb") as f:
     data = partition_file(f, aryn_config=ArynConfig(aryn_config_path="~/dotfiles/.aryn/config.yaml"))
 ```
 
-### Helpers
+### Helper Functions
 
-`aryn_sdk` provides a couple helper functions to make working with and visualizing the output of `partition_file` easier.
+`aryn_sdk` provides some helper functions to make working with and visualizing the output of `partition_file` easier.
 
 ```python
 from aryn_sdk.partition import partition_file, table_elem_to_dataframe, draw_with_boxes

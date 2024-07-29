@@ -218,7 +218,7 @@ class EntityExtractor(GraphExtractor):
 
     def _extract_from_section(self, summary: str) -> dict:
         labels = [e.label + ": " + e.description for e in self.entities]
-        res = self.llm.generate_async(
+        res = self.llm.generate(
             prompt_kwargs={
                 "prompt": str(GraphEntityExtractorPrompt(labels, summary)),
                 "entities": labels,

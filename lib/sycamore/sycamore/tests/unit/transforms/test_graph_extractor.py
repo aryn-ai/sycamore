@@ -82,14 +82,8 @@ class TestGraphExtractor:
         def __init__(self):
             super().__init__(model_name="mock_model")
 
-        def setAsynchronous(self, asynchronous: bool):
-            pass
 
         def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
-            return "title"
-
-        async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
-            await asyncio.sleep(1)
             return """{
                 "entities": [
                     {

@@ -184,8 +184,6 @@ class EntityExtractor(GraphExtractor):
         if "EXTRACTED_NODES" in doc.data:
             return doc
 
-        self.llm.setAsynchronous(True)
-
         pool = Pool(processes=8)
         res = pool.map(self._extract_from_section, [child.data["summary"] for child in doc.children])
         pool.close()

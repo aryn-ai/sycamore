@@ -48,6 +48,7 @@ class DocSetReader:
         The following shows how read pdfs from an S3 file path.
 
         .. code-block:: python
+
             paths = "s3://aryn-public/sort-benchmark/pdf/"
             # Initializng sycamore which also initializes Ray underneath
             context = sycamore.init()
@@ -89,6 +90,7 @@ class DocSetReader:
         The following shows how read a JSON manifest file into a Sycamore DocSet.
 
         .. code-block:: python
+
             base_path = str("resources/data/htmls/")
             remote_url = "https://en.wikipedia.org/wiki/Binary_search_algorithm"
             indexed_at = "2023-10-04"
@@ -139,6 +141,7 @@ class DocSetReader:
          The following shows how read a JSON file into a Sycamore DocSet.
 
          .. code-block:: python
+         
             docset = context.read.json("s3://bucket/prefix/json")
         """
         json_scan = JsonScan(
@@ -206,6 +209,7 @@ class DocSetReader:
             The following shows how to write to data into a OpenSearch Index, and read it back into a DocSet.
 
             .. code-block:: python
+
                 INDEX = "test_opensearch_read"
 
                 OS_CLIENT_ARGS = {
@@ -272,6 +276,7 @@ class DocSetReader:
             The following shows how to write to data into a DuckDB database and get it back as a DocSet.
 
             .. code-block:: python
+
                 table_name = "duckdb_table"
                 db_url = "tmp_read.db"
                 paths = str(TEST_DIR / "resources/data/pdfs/Transformer.pdf")
@@ -325,6 +330,7 @@ class DocSetReader:
             The following shows how to write to data into a Pinecone index and read it back as a DocSet.
 
             .. code-block:: python
+
                 spec = ServerlessSpec(cloud="aws", region="us-east-1")
                 index_name = "test-index-read"
                 model_name = "sentence-transformers/all-MiniLM-L6-v2"
@@ -396,6 +402,7 @@ class DocSetReader:
             The following shows how to write to data into a Elasticsearch Index, and read it back into a DocSet.
 
             .. code-block:: python
+            
                 url = "http://localhost:9201"
                 index_name = "test_index-read"
                 wait_for_completion = "wait_for"

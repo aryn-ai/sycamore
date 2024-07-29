@@ -203,11 +203,14 @@ class SycamoreExecutor:
     def get_code_string(self):
         result = ""
         unique_import_str = set()
-        for import_list in self.imports:
-            for import_str in import_list:
-                unique_import_str.add(import_str)
+        for import_str in self.imports:
+            unique_import_str.add(import_str)
         for import_str in unique_import_str:
             result += import_str + "\n"
+        # Default imports
+        result += "from sycamore.query.execution.metrics import SycamoreQueryLogger\n"
+        result += "import sycamore\n\n"
+        result += "context = sycamore.init()\n"
         for node_id in sorted(self.node_id_to_node):
             result += f"# {self.node_id_to_node[node_id].data['description']}" + "\n"
             result += self.node_id_to_code[node_id] + "\n"

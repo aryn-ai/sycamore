@@ -493,29 +493,31 @@ class DocSetWriter:
             The following code shows how to read a pdf dataset into a ``DocSet`` and write it out to a
             local Elasticsearch index called `test-index`.
 
-            url = "http://localhost:9201"
-            index_name = "test-index"
-            model_name = "sentence-transformers/all-MiniLM-L6-v2"
-            paths = str(TEST_DIR / "resources/data/pdfs/")
+            .. code-block:: python
 
-            OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
-            tokenizer = HuggingFaceTokenizer(model_name)
+                url = "http://localhost:9201"
+                index_name = "test-index"
+                model_name = "sentence-transformers/all-MiniLM-L6-v2"
+                paths = str(TEST_DIR / "resources/data/pdfs/")
 
-            ctx = sycamore.init()
+                OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
+                tokenizer = HuggingFaceTokenizer(model_name)
 
-            ds = (
-                ctx.read.binary(paths, binary_format="pdf")
-                .partition(partitioner=UnstructuredPdfPartitioner())
-                .regex_replace(COALESCE_WHITESPACE)
-                .mark_bbox_preset(tokenizer=tokenizer)
-                .merge(merger=MarkedMerger())
-                .spread_properties(["path"])
-                .split_elements(tokenizer=tokenizer, max_tokens=512)
-                .explode()
-                .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
-                .sketch(window=17)
-            )
-            ds.write.elasticsearch(url=url, index_name=index_name)
+                ctx = sycamore.init()
+
+                ds = (
+                    ctx.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=UnstructuredPdfPartitioner())
+                    .regex_replace(COALESCE_WHITESPACE)
+                    .mark_bbox_preset(tokenizer=tokenizer)
+                    .merge(merger=MarkedMerger())
+                    .spread_properties(["path"])
+                    .split_elements(tokenizer=tokenizer, max_tokens=512)
+                    .explode()
+                    .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
+                    .sketch(window=17)
+                )
+                ds.write.elasticsearch(url=url, index_name=index_name)
         """
         from sycamore.connectors.elasticsearch import (
             ElasticsearchDocumentWriter,

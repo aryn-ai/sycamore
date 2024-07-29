@@ -12,6 +12,13 @@ from sycamore.connectors.file.file_scan import FileMetadataProvider
 
 
 class DocSetReader:
+    """
+    Contains interfaces for reading from external storage systems.
+
+    Users should not instantiate this class directly, but instead access an instance using
+    :meth:`sycamore.context.read`
+    """
+
     def __init__(self, context: Context, plan: Optional[Node] = None):
         self._context = context
         self.plan = plan

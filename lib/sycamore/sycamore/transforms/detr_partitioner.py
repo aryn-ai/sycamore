@@ -226,23 +226,46 @@ class ArynPDFPartitioner:
 
         logger.debug(f"ArynPartitioner POSTing to {aryn_partitioner_address} with files={files}")
         response = requests.post(aryn_partitioner_address, files=files, headers=header, stream=True)
-        lines = []
+        content = []
         in_status = False
-        for line in response.iter_lines():
-            if line:
-                lines.append(line)
+        in_bulk = False
+        partial_line = b""
+        for part in response.iter_content(None):
+            if not part:
+                continue
+
+            content.append(part)
+            if in_bulk:
+                continue
+            partial_line = partial_line + part
+            if b"\n" not in part:
+                # Make sure we don't go O(n^2) from constantly appending to our partial_line.
+                if len(partial_line) > 100000:
+                    logger.warning("Too many bytes without newline. Skipping incremental status")
+                    in_bulk = True
+
+                continue
+
+            lines = partial_line.split(b"\n")
+            if part.endswith(b"\n"):
+                partial_line = b""
+            else:
+                partial_line = lines.pop()
+
+            for line in lines:
                 if line.startswith(b'  "status"'):
                     in_status = True
                 if not in_status:
                     continue
                 if line.startswith(b"  ],"):
                     in_status = False
+                    in_bulk = True
                     continue
                 if line.startswith(b'    "T+'):
                     t = json.loads(line.decode("utf-8").removesuffix(","))
                     logger.info(f"ArynPartitioner: {t}")
 
-        body = b"".join(lines).decode("utf-8")
+        body = b"".join(content).decode("utf-8")
         logger.debug("ArynPartitioner Recieved data")
 
         if response.status_code != 200:
@@ -720,7 +743,10 @@ class DeformableDetr(SycamoreObjectDetection):
         return results
 
     def _get_hash_key(self, image: Image.Image, threshold: float) -> str:
-        return Cache.get_hash_context([image.tobytes(), f"{threshold:.6f}".encode(), _VERSION.encode()]).hexdigest()
+        hash_ctx = Cache.get_hash_context(image.tobytes())
+        hash_ctx.update(f"{threshold:.6f}".encode())
+        hash_ctx.update(_VERSION.encode())
+        return hash_ctx.hexdigest()
 
 
 class PDFMinerExtractor:

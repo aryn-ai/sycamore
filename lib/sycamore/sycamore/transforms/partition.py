@@ -346,6 +346,39 @@ class HtmlPartitioner(Partitioner):
 
         return document
 
+    def transform_transcript_elements(self, document: Document) -> Document:
+        if not document.binary_representation:
+            return document
+        parts = document.binary_representation.decode().split("\n")
+        if not parts:
+            return document
+        elements = []
+        start_time = ""
+        speaker = ""
+        end_time = ""
+        text = ""
+        for i in parts:
+            if i == "":
+                continue
+            assert i.startswith("[")
+            time_ix = i.find(" ")
+            assert time_ix > 0
+            spk_ix = i.find(" ", time_ix + 1)
+            assert spk_ix > 0
+            if start_time != "":
+                end_time = i[0:time_ix]
+                elements.append(
+                    Element({"start_time": start_time, "end_time": end_time, "speaker": speaker, "text": text})
+                )
+            start_time = i[0:time_ix]
+            speaker = i[time_ix:spk_ix]
+            text = i[spk_ix:]
+        if start_time != "":
+            end_time = i[0:time_ix]
+            elements.append(Element({"start_time": start_time, "end_time": "N/A", "speaker": speaker, "text": text}))
+        document.elements = elements
+        return document
+
 
 class ArynPartitioner(Partitioner):
     """

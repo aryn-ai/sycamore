@@ -10,7 +10,7 @@ class MockResponseNoTables:
     def __init__(self) -> None:
         self.status_code = 200
 
-    def iter_lines(self):
+    def iter_content(self, chunksize):
         path = TEST_DIR / "resources/data/json/model_server_output_transformer.json"
         yield open(str(path), "rb").read()
 
@@ -19,7 +19,7 @@ class MockResponseTables:
     def __init__(self) -> None:
         self.status_code = 200
 
-    def iter_lines(self):
+    def iter_content(self, chunksize):
         path = TEST_DIR / "resources/data/json/model_server_output_transformer_extract_tables.json"
         yield open(str(path), "rb").read()
 

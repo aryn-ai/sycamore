@@ -179,21 +179,15 @@ class EntityExtractor(GraphExtractor):
         return docset
 
     def _extract(self, doc: HierarchicalDocument) -> HierarchicalDocument:
-        import asyncio
-
+        from multiprocessing import Pool
         if "EXTRACTED_NODES" in doc.data:
             return doc
 
         self.llm.setAsynchronous(True)
 
-        async def gather_extractions():
-            semaphore = asyncio.Semaphore(100)
-            labels = [e.label + ": " + e.description for e in self.entities]
-            tasks = [self._extract_from_section(semaphore, labels, child.data["summary"]) for child in doc.children]
-            return await asyncio.gather(*tasks)
-
-        res = asyncio.run(gather_extractions())
-        self.llm.setAsynchronous(False)
+        pool = Pool(processes=8)
+        res = pool.map(self._extract_from_section,[child.data["summary"] for child in doc.children])
+        pool.close()
 
         nodes = {}
         for i, section in enumerate(doc.children):
@@ -223,18 +217,18 @@ class EntityExtractor(GraphExtractor):
 
         return doc
 
-    async def _extract_from_section(self, semaphore, labels, summary: str) -> dict:
-        async with semaphore:
-            res = await self.llm.generate_async(
-                prompt_kwargs={
-                    "prompt": str(GraphEntityExtractorPrompt(labels, summary)),
-                    "entities": labels,
-                    "query": summary,
-                },
-                llm_kwargs={"response_format": {"type": "json_object"}},
-            )
+    def _extract_from_section(self, summary: str) -> dict:
+        labels = [e.label + ": " + e.description for e in self.entities]
+        res = self.llm.generate_async(
+            prompt_kwargs={
+                "prompt": str(GraphEntityExtractorPrompt(labels, summary)),
+                "entities": labels,
+                "query": summary,
+            },
+            llm_kwargs={"response_format": {"type": "json_object"}},
+        )
 
-            return json.loads(res)
+        return json.loads(res)
 
 
 def GraphEntityExtractorPrompt(entities, query):

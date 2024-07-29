@@ -49,6 +49,10 @@ class Embedder(ABC):
     def generate_embeddings(self, doc_batch: list[Document]) -> list[Document]:
         pass
 
+    @abstractmethod
+    def generate_text_embedding(self, text: str) -> list[float]:
+        pass
+
 
 class SentenceTransformerEmbedder(Embedder):
     """
@@ -109,6 +113,9 @@ class SentenceTransformerEmbedder(Embedder):
                 i += 1
 
         return doc_batch
+
+    def generate_text_embedding(self, text: str) -> list[float]:
+        return self.get_model().encode(text).tolist()
 
     def get_model(self):
         if not self._transformer:
@@ -193,7 +200,7 @@ class OpenAIEmbedder(Embedder):
 
         return doc_batch
 
-    def generate_embeddings_text(self, sentence):
+    def generate_text_embedding(self, text: str) -> list[float]:
         if self._client is None:
             self._client = self.client_wrapper.get_client()
 
@@ -201,7 +208,7 @@ class OpenAIEmbedder(Embedder):
             logger.warn("The maximum batch size for emeddings on Azure Open AI is 16.")
             self.model_batch_size = 16
         
-        embedding = self._client.embeddings.create(model=self.model_name, input=sentence).data[0].embedding
+        embedding = self._client.embeddings.create(model=self.model_name, input=text).data[0].embedding
 
         return embedding
         
@@ -268,6 +275,14 @@ class BedrockEmbedder(Embedder):
             if doc.text_representation is not None:
                 doc.embedding = self._generate_embedding(client, self.pre_process_document(doc))
         return doc_batch
+    
+    def generate_text_embedding(self, text: str) -> list[float]:
+        import boto3
+
+        boto3.session.Session(*self.boto_session_args, **self.boto_session_kwargs)
+        client = boto3.client("bedrock-runtime")
+
+        return self._generate_embedding(client, text)
 
 
 class Embed(MapBatch):

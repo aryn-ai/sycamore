@@ -1,21 +1,25 @@
 import json
-from typing import Any
 import sycamore
 from sycamore.connectors.file.materialized_scan import DocScan
+from sycamore.data.document import Document
 from sycamore.docset import DocSet
 from sycamore.evaluation.data import EvaluationDataPoint
 from sycamore.evaluation.pipeline import EvaluationPipeline
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.llms.prompts.default_prompts import TaskIdentifierZeroShotGuidancePrompt
+from sycamore.transforms.query import OpenSearchQueryExecutor
 
 openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
 prompt = TaskIdentifierZeroShotGuidancePrompt()
 
-def subtask_to_qa_datapoint(question: str, filters: dict[str, str], code: str) -> dict[str, Any]:
+
+def subtask_to_qa_datapoint(question: str, filters: dict[str, str], code: str) -> Document:
     question = question.format(**filters)
 
     document = EvaluationDataPoint()
-    document.question = question + "Return only the code "+ code +" alongside the amount found and no additional information."
+    document.question = (
+        question + "Return only the code " + code + " alongside the amount found and no additional information."
+    )
     document.filters = filters
 
     document["raw"] = question
@@ -23,45 +27,39 @@ def subtask_to_qa_datapoint(question: str, filters: dict[str, str], code: str) -
 
 
 def collector(terms, filters, instructions, index, query_executor, os_config):
-    # called by executor
-    # set up input docset containing questions from subtask list
-        # need to figure out how to set this up: likely need a datapoint to docset converter (_hf_to_qa_datapoint type)
-        # call question to eval data point function on all subtasks
-        # get list of eval data points
-        # give this to DocScan, return json_scan
-        # create docset with json_scan, context
-    # create EvaluationPipeline object
-    # modify EvaluationPipeline execute to not aggregate
-    # collect all generated answers, return
-
     docs = [subtask_to_qa_datapoint(instructions[term], filters, term) for term in terms]
     json_scan = DocScan(docs=docs)
-    
+
     context = sycamore.init()
     input_docset = DocSet(context, json_scan)
 
     pipeline = EvaluationPipeline(
-        index=index,
-        os_config=os_config,
-        query_executor=query_executor,
-        metrics=[],
-        subtask=True
+        index=index, os_config=os_config, query_executor=query_executor, metrics=[], subtask=True
     )
 
     query_level_metrics = pipeline.execute(input_docset)[0]
     results = query_level_metrics.take_all()
-    
+
     answers = []
     for result in results:
         answers.append(result["generated_answer"])
-    
+
     return answers
 
 
-def executor(question, filters, filepath, index, query_executor, os_config):
+def executor(
+    question: str,
+    filters: dict,
+    filepath: str,
+    index: str,
+    query_executor: OpenSearchQueryExecutor,
+    os_config: dict[str, str],
+):
+
     with open(filepath) as json_file:
         data = json.load(json_file)
 
+    # LLM call to find formula
     task_id = openai_llm.generate(
         prompt_kwargs={
             "prompt": prompt,
@@ -91,10 +89,10 @@ def executor(question, filters, filepath, index, query_executor, os_config):
         for formula in task_formulas[task_id][:-1]:
             terms = [term for term in subtask_instructions.keys() if term in formula]
             results = collector(terms, filters, subtask_instructions, index, query_executor, os_config)
-            final_q += "Formula: " + formula + " Values: ["  + ", ".join(results) + "]. "
+            final_q += "Formula: " + formula + " Values: [" + ", ".join(results) + "]. "
 
     # instructions provided
     if len(task_formulas[task_id]) > 1:
         final_q += task_formulas[task_id][-1].format(**filters)
-    
+
     return final_q

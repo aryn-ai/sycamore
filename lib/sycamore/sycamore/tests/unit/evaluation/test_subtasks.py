@@ -17,8 +17,9 @@ from sycamore.evaluation.datasets import EvaluationDataSetReader
 from sycamore.evaluation.pipeline import EvaluationPipeline
 from sycamore.transforms.extract_elem_test import extract_year
 from sycamore.transforms.query import OpenSearchQueryExecutor
+from sycamore.evaluation.subtasks_map import SubtaskExecutor
 
-subtask_path="/home/admin/subtask_info.json"
+subtask_path="/home/admin/subtask_info_copy.json"
 
 with open(subtask_path) as json_file:
     data = json.load(json_file)
@@ -49,7 +50,7 @@ def _hf_to_qa_datapoint(datapoint: dict[str, Any]) -> dict[str, Any]:
     })]
 
     document.additional_info = {}
-    document.additional_info["subtasks_reqd"] = True if datapoint["financebench_id"] in calcs_reqd else False
+    document.properties["subtasks_reqd"] = True if datapoint["financebench_id"] in calcs_reqd else False
     
     # filters
     company = datapoint['doc_name'].split("_")[0]
@@ -59,9 +60,6 @@ def _hf_to_qa_datapoint(datapoint: dict[str, Any]) -> dict[str, Any]:
     
     document["raw"] = datapoint
     return {"doc": document.serialize()}
-
-def get_subtask_results(document: Document) -> list[Document]:
-    pass
 
 INDEX = "textract-mpnet"
 
@@ -93,12 +91,23 @@ OS_CONFIG = {
 }
 
 base_path = str(Path(__file__).parent)
-output_path = "/home/admin/sycamore/examples/fb-results" + "/test.json"
+output_path = "test.json"
+output_path2 = "test2.json"
 
 context = sycamore.init()
 reader = EvaluationDataSetReader(context)
 hf_dataset = datasets.load_dataset("PatronusAI/financebench", split='train[0:10]')
 input_docset = reader.huggingface(hf_dataset, doc_extractor=_hf_to_qa_datapoint)
+
+sub_exec = SubtaskExecutor(subtask_path, INDEX, OS_CONFIG, query_executor=OpenSearchQueryExecutor(OS_CLIENT_ARGS))
+
+# print ("\n\nFINAL", sub_exec.execute(input_docset).take_all())
+
+start = time.time()
+subtask_docs = sub_exec.execute(input_docset)
+# data["evaluation_time"] = f'{"{:.2f}".format(time.time() - start)} seconds'
+with open(output_path, "w+") as outfile:
+    json.dump(subtask_docs, outfile, cls=JSONEncodeWithUserDict)
 
 data = {
     "experiment_name": "FinanceBench gpt-3.5-turbo textract subtasks",
@@ -115,21 +124,12 @@ pipeline = EvaluationPipeline(
     os_config=OS_CONFIG,
     metrics=[document_retrieval_metrics, rouge_metrics],
     query_executor=OpenSearchQueryExecutor(OS_CLIENT_ARGS),
-    subtask_path=subtask_path,
+    subtask_docs=subtask_docs
 )
 
-# start = time.time()
-# query_level_metrics, aggregated_metrics = pipeline.execute(input_docset)
-# # query_level_metrics = pipeline.execute(input_docset)
-# data["query_level_data"] = query_level_metrics.take_all()
-# data["aggregate_data"] = aggregated_metrics
-# data["evaluation_time"] = f'{"{:.2f}".format(time.time() - start)} seconds'
-# with open(output_path, "w+") as outfile:
-#     json.dump(data, outfile, cls=JSONEncodeWithUserDict)
-
 start = time.time()
-query_level_metrics = pipeline.subtask_execute(input_docset)
+query_level_metrics = pipeline.execute(input_docset)[0]
 data["query_level_data"] = query_level_metrics.take_all()
 data["evaluation_time"] = f'{"{:.2f}".format(time.time() - start)} seconds'
-with open(output_path, "w+") as outfile:
+with open(output_path2, "w+") as outfile:
     json.dump(data, outfile, cls=JSONEncodeWithUserDict)

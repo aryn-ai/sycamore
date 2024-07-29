@@ -48,7 +48,7 @@ class EvaluationPipeline:
             hybrid_query_match.append(
                 {
                     "match_phrase": {
-                        "properties." + key: val
+                        key: val
                     }
                 }
             )
@@ -67,12 +67,12 @@ class EvaluationPipeline:
             for document in filtered_docs:
                 formula = document.text_representation
                 if formula:
-                    subtask_str += "Formula: " + formula + "; Values: "
+                    subtask_str += " Formula: " + formula + "; Values: "
                     for elem in document.elements:
                         subtask_str += elem["generated_answer"]
             subtask_str += " Instructions: " + instructions + " Use this information to answer the following question. "
 
-            doc["question"] = subtask_str + doc["question"]
+            doc["question"] = subtask_str.format(**doc["filters"]) + doc["question"]
 
         qn_embedding = self._embedder.generate_text_embedding(doc["question"])
 

@@ -65,7 +65,7 @@ class SubtaskExecutor():
             hybrid_query_match.append(
                 {
                     "match_phrase": {
-                        "properties." + key: val
+                        key: val
                     }
                 }
             )

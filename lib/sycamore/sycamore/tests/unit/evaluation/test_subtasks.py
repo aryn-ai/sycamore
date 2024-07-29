@@ -56,8 +56,8 @@ def _hf_to_qa_datapoint(datapoint: dict[str, Any]) -> dict[str, Any]:
     # filters
     company = datapoint['doc_name'].split("_")[0]
     year = extract_year(document.question, company) if datapoint["financebench_id"] in no_year_ids else (datapoint['doc_period'])
-    document.filters = {"company": company}
-    if year: document.filters["year"] = int(year)
+    document.filters = {"properties.company": company}
+    if year: document.filters["properties.year"] = int(year)
     
     document["raw"] = datapoint
     return {"doc": document.serialize()}

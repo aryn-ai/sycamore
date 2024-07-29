@@ -40,12 +40,12 @@ def check_image(image: Image.Image, expected_color=(0, 0, 255, 255)) -> None:
     assert expected_color in set((color_tup[1] for color_tup in raw_colors))
 
 
-def test_draw_boxes_bbox(source_image, image_boxes):
+def test_draw_boxes_bbox(source_image, image_boxes) -> None:
     output: Image.Image = try_draw_boxes(source_image, image_boxes)
     check_image(output)
 
 
-def test_draw_boxes_object_bbox(source_image, image_boxes):
+def test_draw_boxes_object_bbox(source_image, image_boxes) -> None:
     class BBoxHolder:
         def __init__(self, bbox):
             self._bbox = bbox
@@ -59,25 +59,25 @@ def test_draw_boxes_object_bbox(source_image, image_boxes):
     check_image(output)
 
 
-def test_draw_boxes_coord_list(source_image, image_boxes):
+def test_draw_boxes_coord_list(source_image, image_boxes) -> None:
     boxes = [b.coordinates for b in image_boxes]
     output: Image.Image = try_draw_boxes(source_image, boxes)
     check_image(output)
 
 
-def test_draw_boxes_point_list(source_image, image_boxes):
+def test_draw_boxes_point_list(source_image, image_boxes) -> None:
     boxes = [[(b.x1, b.y1), (b.x2, b.y1), (b.x2, b.y2), (b.x1, b.y2)] for b in image_boxes]
     output: Image.Image = try_draw_boxes(source_image, boxes)
     check_image(output)
 
 
-def test_draw_boxes_two_points(source_image, image_boxes):
+def test_draw_boxes_two_points(source_image, image_boxes) -> None:
     boxes = [((b.x1, b.y1), (b.x2, b.y2)) for b in image_boxes]
     output: Image.Image = try_draw_boxes(source_image, boxes)
     check_image(output)
 
 
-def test_draw_boxes_dict(source_image, image_boxes):
+def test_draw_boxes_dict(source_image, image_boxes) -> None:
     boxes = [{"bbox": b.coordinates} for b in image_boxes]
     output: Image.Image = try_draw_boxes(source_image, boxes)
     check_image(output)

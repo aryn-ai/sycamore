@@ -509,7 +509,7 @@ def nms(objects, match_criteria="object2_overlap", match_threshold=0.05, keep_hi
     return [obj for idx, obj in enumerate(objects) if not suppression[idx]]
 
 
-def align_headers(headers, rows):
+def align_headers(headers, rows) -> list[dict[str, list]]:
     """
     Adjust the header boundary to be the convex hull of the rows it intersects
     at least 50% of the height of.
@@ -518,7 +518,7 @@ def align_headers(headers, rows):
     eliminate anything besides the top-most header.
     """
 
-    aligned_headers = []
+    aligned_headers: list[dict[str, list]] = []
 
     for row in rows:
         row["header"] = False
@@ -557,6 +557,7 @@ def align_headers(headers, rows):
             # Having more than 1 header is not supported currently.
             break
 
+    assert header_rect is not None
     header = {"bbox": header_rect.to_list()}
     aligned_headers.append(header)
 

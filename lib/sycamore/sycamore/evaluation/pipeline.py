@@ -140,6 +140,8 @@ class EvaluationPipeline:
         query_level_metrics = opensearch_results.map(self._process_queries)
 
         # 4. aggregation metrics [[EvaluatedEvaluationDataPoint] -> EvaluatedQASummary]
-        aggregated_metrics = self._aggregate_metrics(query_level_metrics)
-
-        return query_level_metrics, aggregated_metrics
+        if self._metrics:
+            aggregated_metrics = self._aggregate_metrics(query_level_metrics)
+            return query_level_metrics, aggregated_metrics
+        
+        return query_level_metrics, None

@@ -114,6 +114,9 @@ class EvaluationPipeline:
         summary.metrics = {}
         metric_data: dict[str, Any] = {}
 
+        if not self._metrics:
+            return summary
+
         for metric in self._metrics:
             metric_data[metric.metric_name()] = {}
             summary.metrics[metric.metric_name()] = {}
@@ -140,8 +143,6 @@ class EvaluationPipeline:
         query_level_metrics = opensearch_results.map(self._process_queries)
 
         # 4. aggregation metrics [[EvaluatedEvaluationDataPoint] -> EvaluatedQASummary]
-        if self._metrics:
-            aggregated_metrics = self._aggregate_metrics(query_level_metrics)
-            return query_level_metrics, aggregated_metrics
+        aggregated_metrics = self._aggregate_metrics(query_level_metrics)
         
-        return query_level_metrics, None
+        return query_level_metrics, aggregated_metrics

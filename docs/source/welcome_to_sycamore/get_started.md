@@ -32,7 +32,7 @@ For more info:
 * [Querying your data](/querying_data/demo_query_ui.md)
 * [Using Jupyter notebook to customize data preparation code](/data_ingestion_and_preparation/using_jupyter.md)
 
->By default, the Docker compose uses the stable version of the containers. You can choose a specific version to run, e.g. latest (last build pushed), latest_rc (last release candidate), or 0.YYYY.MM.DD (date-stamped release). To specify a version, set the VERSION environment variable, e.g. VERSION=latest_rc docker compose up --pull=always. See the .env file if you want to specify different versions for the separate containers.*
+>By default, `docker compose` uses the stable version of the containers. You can choose a specific version to run, e.g. `latest` (last build pushed), `latest_rc` (last release candidate), or `0.YYYY.MM.DD` (date-stamped release). To specify a version, set the `VERSION` environment variable, e.g. `VERSION=latest_rc docker compose up --pull=always`. See the `.env` file if you want to specify different versions for the separate containers.
 
 ### Optional: Configure AWS Credentials for Amazon Textract usage
 

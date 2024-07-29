@@ -10,6 +10,6 @@ Detr Partitioner
 .. autoclass:: sycamore.transforms.detr_partitioner.SycamoreObjectDetection
    :members:
    :show-inheritance:
-.. autoclass:: sycamore.transforms.detr_partitioner.SycamorePDFPartitioner
+.. autoclass:: sycamore.transforms.detr_partitioner.ArynPDFPartitioner
    :members:
    :show-inheritance:

@@ -326,7 +326,7 @@ class HierarchicalDocument(Document):
     def children(self, children: list["HierarchicalDocument"]):
         """TODO"""
         self.data["children"] = children
-        
+
     @children.deleter
     def children(self) -> None:
         """TODO"""
@@ -358,6 +358,8 @@ class HierarchicalDocument(Document):
             "properties": self.properties,
         }
         return json.dumps(d, indent=2)
+
+
 ###############
 
 

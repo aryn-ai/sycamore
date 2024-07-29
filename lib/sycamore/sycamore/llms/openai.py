@@ -10,6 +10,7 @@ from guidance.models import Model
 from guidance.models import OpenAI as GuidanceOpenAI
 from openai import AzureOpenAI as AzureOpenAIClient
 from openai import OpenAI as OpenAIClient
+from openai import AsyncOpenAI as AsyncOpenAIClient
 from openai import max_retries as DEFAULT_MAX_RETRIES
 from openai.lib.azure import AzureADTokenProvider
 from openai.types.chat import ChatCompletionMessageParam
@@ -114,15 +115,24 @@ class OpenAIClientWrapper:
 
             self.api_key = os.environ.get("AZURE_OPENAI_API_KEY")
 
-    def get_client(self) -> OpenAIClient:
+    def get_client(self, asynchronous: bool = False) -> OpenAIClient:
         if self.client_type == OpenAIClientType.OPENAI:
-            return OpenAIClient(
-                api_key=self.api_key,
-                organization=self.organization,
-                base_url=self.base_url,
-                max_retries=self.max_retries,
-                **self.extra_kwargs,
-            )
+            if asynchronous:
+                return AsyncOpenAIClient(
+                    api_key=self.api_key,
+                    organization=self.organization,
+                    base_url=self.base_url,
+                    max_retries=self.max_retries,
+                    **self.extra_kwargs,
+                )
+            else:
+                return OpenAIClient(
+                    api_key=self.api_key,
+                    organization=self.organization,
+                    base_url=self.base_url,
+                    max_retries=self.max_retries,
+                    **self.extra_kwargs,
+                )
         elif self.client_type == OpenAIClientType.AZURE:
             return AzureOpenAIClient(
                 azure_endpoint=str(self.azure_endpoint),
@@ -263,6 +273,9 @@ class OpenAI(LLM):
     def is_chat_mode(self):
         return self.model.is_chat
 
+    def setAsynchronous(self, asynchronous: bool):
+        self._client = self.client_wrapper.get_client(asynchronous=asynchronous)
+
     def _get_cache_key(self, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
         assert self._cache
         combined = {"prompt_kwargs": prompt_kwargs, "llm_kwargs": llm_kwargs, "model_name": self.model.name}
@@ -306,6 +319,40 @@ class OpenAI(LLM):
             self._cache.set(cache_key, item)
         return result
 
+    async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Any:
+        cache_key = None
+        if self._cache:
+            cache_key = self._get_cache_key(prompt_kwargs, llm_kwargs)
+            hit = self._cache.get(cache_key)
+            if hit:
+                if (
+                    hit.get("prompt_kwargs") == prompt_kwargs
+                    and hit.get("llm_kwargs") == llm_kwargs
+                    and hit.get("model_name") == self.model.name
+                ):
+                    return hit.get("result")
+                else:
+                    logger.warning(
+                        "Found cache content mismatch, key=%s prompt_kwargs=%s llm_kwargs=%s model_name=%s",
+                        cache_key,
+                        prompt_kwargs,
+                        llm_kwargs,
+                        self.model.name,
+                    )
+
+        result = await self._generate_async_using_openai(prompt_kwargs, llm_kwargs)
+
+        if self._cache:
+            assert cache_key
+            item = {
+                "result": result,
+                "prompt_kwargs": prompt_kwargs,
+                "llm_kwargs": llm_kwargs,
+                "model_name": self.model.name,
+            }
+            self._cache.set(cache_key, item)
+        return result
+
     def _generate_using_openai(self, prompt_kwargs, llm_kwargs) -> str:
         kwargs = {
             "temperature": 0,
@@ -321,6 +368,23 @@ class OpenAI(LLM):
             raise ValueError("Either prompt or messages must be present in prompt_kwargs.")
 
         completion = self._client.chat.completions.create(model=self._model_name, messages=messages, **kwargs)
+        return completion.choices[0].message.content
+
+    async def _generate_async_using_openai(self, prompt_kwargs, llm_kwargs) -> str:
+        kwargs = {
+            "temperature": 0,
+            **llm_kwargs,
+        }
+
+        if "prompt" in prompt_kwargs:
+            prompt = prompt_kwargs.get("prompt")
+            messages: list[ChatCompletionMessageParam] = [{"role": "user", "content": f"{prompt}"}]
+        elif "messages" in prompt_kwargs:
+            messages = prompt_kwargs["messages"]
+        else:
+            raise ValueError("Either prompt or messages must be present in prompt_kwargs.")
+
+        completion = await self._client.chat.completions.create(model=self._model_name, messages=messages, **kwargs)
         return completion.choices[0].message.content
 
     def _generate_using_guidance(self, prompt_kwargs) -> str:

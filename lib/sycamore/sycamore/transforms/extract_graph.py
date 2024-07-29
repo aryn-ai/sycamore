@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Dict, Any, Optional
+from sycamore.llms import OpenAI
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.data import Document, MetadataDocument, HierarchicalDocument
@@ -30,11 +31,11 @@ class GraphMetadata(GraphData):
         self.nodeLabel = nodeLabel
         self.relLabel = relLabel
 
+
 class GraphEntity(GraphData):
     def __init__(self, entityLabel: str, entityDescription: Optional[str] = None):
         self.label = entityLabel
         self.description = entityDescription
-
 
 
 class GraphExtractor(ABC):
@@ -106,7 +107,7 @@ class GraphExtractor(ABC):
         for value in result["nodes"].values():
             node = HierarchicalDocument(value)
             doc.children.append(node)
-        doc.data['EXTRACTED_NODES'] = True
+        doc.data["EXTRACTED_NODES"] = True
 
         docs.append(doc)
 
@@ -161,9 +162,10 @@ class MetadataExtractor(GraphExtractor):
 
         doc["properties"]["nodes"] = nodes
         return doc
-    
+
+
 class EntityExtractor(GraphExtractor):
-    def __init__(self, entities: list[GraphEntity], llm):
+    def __init__(self, entities: list[GraphEntity], llm: OpenAI):
         self.entities = entities
         self.llm = llm
 
@@ -173,13 +175,22 @@ class EntityExtractor(GraphExtractor):
         return docset
 
     def _extract(self, doc: Document) -> Document:
-        from multiprocessing import Pool
-        if 'EXTRACTED_NODES' in doc.data:
+        import asyncio
+
+        if "EXTRACTED_NODES" in doc.data:
             return doc
-        
-        pool = Pool(processes=1)
-        res = pool.map(self._extract_from_section,doc.children)
-        pool.close()
+
+        self.llm.setAsynchronous(True)
+
+        async def gather_extractions():
+            semaphore = asyncio.Semaphore(100)
+            labels = [e.label + ": " + e.description for e in self.entities]
+            tasks = [self._extract_from_section(semaphore, labels, child.data["summary"]) for child in doc.children]
+            return await asyncio.gather(*tasks)
+
+        res = asyncio.run(gather_extractions())
+        self.llm.setAsynchronous(False)
+
         nodes = {}
         for i, section in enumerate(doc.children):
             for node in res[i]["entities"]:
@@ -190,10 +201,10 @@ class EntityExtractor(GraphExtractor):
                     "relationships": {},
                 }
                 rel: Dict[str, Any] = {
-                "TYPE": "CONTAINS",
-                "properties": {},
-                "START_ID": str(section.doc_id),
-                "START_LABEL": section.data["label"],
+                    "TYPE": "CONTAINS",
+                    "properties": {},
+                    "START_ID": str(section.doc_id),
+                    "START_LABEL": section.data["label"],
                 }
                 node["relationships"][str(uuid.uuid4())] = rel
 
@@ -207,20 +218,21 @@ class EntityExtractor(GraphExtractor):
         doc["properties"]["nodes"] = nodes
 
         return doc
-    
-    def _extract_from_section(self, section: Document) -> dict:
-        labels = [e.label + ": " + e.description for e in self.entities]
-        res = self.llm.generate(
-        prompt_kwargs={
-            "prompt": str(GraphEntityExtractorPrompt(labels, section.data['summary'])),
-            "entities": labels,
-            "query": section.data['summary']
-        },
-        llm_kwargs={
-            "response_format": {"type" : "json_object"}
-        })
-        return json.loads(res)
-    
+
+    async def _extract_from_section(self, semaphore, labels, summary: str) -> dict:
+        async with semaphore:
+            res = await self.llm.generate_async(
+                prompt_kwargs={
+                    "prompt": str(GraphEntityExtractorPrompt(labels, summary)),
+                    "entities": labels,
+                    "query": summary,
+                },
+                llm_kwargs={"response_format": {"type": "json_object"}},
+            )
+
+            return json.loads(res)
+
+
 def GraphEntityExtractorPrompt(entities, query):
     return f"""
     -Goal-

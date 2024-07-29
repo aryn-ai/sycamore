@@ -29,12 +29,11 @@ class Explode(SingleThreadUser, NonGPUUser, FlatMap):
     @staticmethod
     @timetrace("explode")
     def explode(parent: Document) -> list[Document]:
-        if(isinstance(parent, HierarchicalDocument)):
+        if isinstance(parent, HierarchicalDocument):
             return Explode.explode_hierarchical(parent)
-        if(isinstance(parent, Document)):
+        if isinstance(parent, Document):
             return Explode.explode_default(parent)
 
-    
     def explode_default(parent: Document) -> list[Document]:
         documents: list[Document] = [parent]
         import uuid
@@ -51,12 +50,11 @@ class Explode(SingleThreadUser, NonGPUUser, FlatMap):
             documents.append(cur)
         del parent.elements
         return documents
-    
+
     def explode_hierarchical(parent: HierarchicalDocument) -> list[HierarchicalDocument]:
         documents: list[HierarchicalDocument] = [parent]
         for document in parent.children:
             documents.extend(Explode.explode_hierarchical(document))
-        
+
         del parent.children
         return documents
-

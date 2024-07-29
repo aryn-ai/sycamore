@@ -39,4 +39,5 @@ class TestTransformEvaluate:
             question_augmentation_filter=question_augmentation_filter,
         )
         evaluate = Evaluate(context, "5_sram_syca_openai_star_product_codes_20th", assessment)
+        evaluate.run()
         print(evaluate.result)

@@ -123,7 +123,7 @@ class OpenAIClientWrapper:
 
             self.api_key = os.environ.get("AZURE_OPENAI_API_KEY")
 
-    def get_client(self, asynchronous: bool = False) -> OpenAIClient:
+    def get_client(self, asynchronous: bool = False) -> Union[OpenAIClient,AsyncOpenAIClient]:
         if self.client_type == OpenAIClientType.OPENAI:
             # We currently only support Helicone with OpenAI.
             base_url = self.base_url
@@ -137,12 +137,12 @@ class OpenAIClientWrapper:
                 extra_kwargs["default_headers"].update(
                     {"Helicone-Auth": f"Bearer {os.environ['SYCAMORE_HELICONE_API_KEY']}"}
                 )
-                
+
             if asynchronous:
                 return AsyncOpenAIClient(
                     api_key=self.api_key,
                     organization=self.organization,
-                    base_url=self.base_url,
+                    base_url=base_url,
                     max_retries=self.max_retries,
                     **self.extra_kwargs,
                 )
@@ -150,7 +150,7 @@ class OpenAIClientWrapper:
                 return OpenAIClient(
                     api_key=self.api_key,
                     organization=self.organization,
-                    base_url=self.base_url,
+                    base_url=base_url,
                     max_retries=self.max_retries,
                     **self.extra_kwargs,
                 )

@@ -46,6 +46,10 @@ class GraphExtractor(ABC):
     def extract(self, docset: "DocSet") -> "DocSet":
         pass
 
+    @abstractmethod
+    def _extract(self, doc: "HierarchicalDocument") -> "HierarchicalDocument":
+        pass
+
     def resolve(self, docset: "DocSet") -> "DocSet":
         """
         Aggregates 'nodes' from every document and resolves duplicate nodes
@@ -132,7 +136,7 @@ class MetadataExtractor(GraphExtractor):
 
         return docset
 
-    def _extract(self, doc: Document) -> Document:
+    def _extract(self, doc: HierarchicalDocument) -> HierarchicalDocument:
         """
         Extracts metadata from documents and stores them in the 'nodes' key of 'properties in each document
         """
@@ -174,7 +178,7 @@ class EntityExtractor(GraphExtractor):
         docset = self.resolve(docset)
         return docset
 
-    def _extract(self, doc: Document) -> Document:
+    def _extract(self, doc: HierarchicalDocument) -> HierarchicalDocument:
         import asyncio
 
         if "EXTRACTED_NODES" in doc.data:
@@ -241,7 +245,7 @@ def GraphEntityExtractorPrompt(entities, query):
     You will be given a sequence of data in different formats(text, table, Section-header) in order.
     Your job is to extract entities that match the following types and descriptions.
 
-    
+
     -Instructions-
     Entity Types and Descriptions: [{entities}]
 

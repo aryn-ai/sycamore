@@ -6,6 +6,7 @@ from sycamore import DocSet
 from sycamore.data import Document, Element, OpenSearchQuery
 from sycamore.evaluation.data import EvaluationDataPoint, EvaluationSummary, EvaluationMetric
 from sycamore.evaluation.metrics import document_retrieval_metrics, rouge_metrics
+from sycamore.transforms.embed import Embedder, SentenceTransformerEmbedder
 from sycamore.transforms.query import OpenSearchQueryExecutor
 
 logger = logging.getLogger("ray")
@@ -24,6 +25,7 @@ class EvaluationPipeline:
         query_executor: Optional[OpenSearchQueryExecutor] = None,
         os_client_args: Optional[dict] = None,
         subtask_docs: Optional[DocSet] = None,
+        embedder: Optional[Embedder] = SentenceTransformerEmbedder(model_name="sentence-transformers/all-MiniLM-L6-v2", batch_size=100)
     ) -> None:
         super().__init__()
         if metrics is None:
@@ -38,21 +40,19 @@ class EvaluationPipeline:
             self._query_executor = query_executor
         self._os_config = os_config
         self._subtask_docs = subtask_docs
+        self._embedder = embedder
 
     def _add_filter(self, query_body: dict, filters: dict[str, str]):
-        hybrid_query_match = query_body["query"]["hybrid"]["queries"][0]
-        hybrid_query_match = {
-            "bool": {
-                "must": [hybrid_query_match],
-                "filter": [{"match_phrase": {f"{k}.keyword": filters[k]}} for k in filters],
-            }
-        }
-        query_body["query"]["hybrid"]["queries"][0] = hybrid_query_match
-        hybrid_query_neural = query_body["query"]["hybrid"]["queries"][1]
-        hybrid_query_neural["neural"]["embedding"]["filter"] = {
-            "bool": {"must": [{"match_phrase": {k: filters[k]}} for k in filters]}
-        }
-        query_body["query"]["hybrid"]["queries"][1] = hybrid_query_neural
+        hybrid_query_match = query_body["query"]["knn"]["embedding"]["filter"]["bool"]["must"]
+        for key, val in filters.items():
+            hybrid_query_match.append(
+                {
+                    "match_phrase": {
+                        "properties." + key: val
+                    }
+                }
+            )
+        query_body["query"]["knn"]["embedding"]["filter"]["bool"]["must"] = hybrid_query_match
         return query_body
 
     def _build_opensearch_query(self, doc: Document) -> Document:
@@ -74,25 +74,33 @@ class EvaluationPipeline:
 
             doc["question"] = subtask_str + doc["question"]
 
+        qn_embedding = self._embedder.generate_text_embedding(doc["question"])
+
+        query = OpenSearchQuery(doc)
+        query["index"] = self._index
+        
         query["query"] = {
             "_source": {"excludes": ["embedding"]},
-            "query": {
-                "hybrid": {
-                    "queries": [
-                        {"match": {"text_representation": doc["question"]}},
-                        {
-                            "neural": {
-                                "embedding": {
-                                    "query_text": doc["question"],
-                                    "model_id": self._os_config["embedding_model_id"],
-                                    "k": self._os_config.get("neural_search_k", 100),
-                                }
-                            }
-                        },
-                    ]
-                }
-            },
             "size": self._os_config.get("size", 20),
+            "query": {
+                "knn": {
+                    "embedding": {
+                        "vector": qn_embedding,
+                        "k": self._os_config.get("neural_search_k", 100),
+                        "filter": {
+                            "bool": {
+                                "must": [
+                                    {
+                                        "match": {
+                                            "text_representation": doc["question"]
+                                        }
+                                    },
+                                ],
+                            },
+                        }
+                    }
+                }
+            }
         }
 
         if "llm" in self._os_config:

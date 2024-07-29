@@ -1,27 +1,32 @@
 import json
-import sycamore
-from sycamore.connectors.file.materialized_scan import DocScan
+from typing import Optional
 from sycamore.data.document import Document, OpenSearchQuery
 from sycamore.data.element import Element
 from sycamore.docset import DocSet
 from sycamore.evaluation.data import EvaluationDataPoint
-from sycamore.evaluation.pipeline import EvaluationPipeline
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.llms.prompts.default_prompts import TaskIdentifierZeroShotGuidancePrompt
-from sycamore.transforms.embed import SentenceTransformerEmbedder
-from sycamore.transforms.query import OpenSearchQueryExecutor, QueryExecutor
+from sycamore.transforms.embed import Embedder, SentenceTransformerEmbedder
+from sycamore.transforms.query import QueryExecutor
 
 openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
 prompt = TaskIdentifierZeroShotGuidancePrompt()
 
 class SubtaskExecutor():
-    def __init__(self, filepath: str, index: str, os_config: str, query_executor: QueryExecutor):
+    def __init__(self,
+                 filepath: str,
+                 index: str,
+                 os_config: str,
+                 query_executor: QueryExecutor,
+                 embedder: Optional[Embedder] = SentenceTransformerEmbedder(model_name="sentence-transformers/all-MiniLM-L6-v2", batch_size=100)
+                 ):
         with open(filepath) as json_file:
             self._subtask_data = json.load(json_file)
 
         self._index = index
         self._os_config = os_config
         self._query_executor = query_executor
+        self._embedder = embedder
 
     def _get_formulas(self, document: EvaluationDataPoint) -> list[Document]:
         f_list = []
@@ -75,14 +80,9 @@ class SubtaskExecutor():
             sub_doc = OpenSearchQuery()
             sub_doc.index = self._index
             
-            # TODO@aanya: create embedding -- generalize query for all embedders (same for add_filter)
-
             subtask += "Return only the code " + term + " alongside the amount found and no additional information."
+            qn_embedding = self._embedder.generate_text_embeddings(subtask)
 
-            embedder = SentenceTransformerEmbedder(model_name="sentence-transformers/all-mpnet-base-v2", batch_size=100)
-            qn_embedding = embedder.generate_text_embeddings(subtask)
-
-            # qn_embedding = ""
             sub_doc.query = {
                 "_source": {"excludes": ["embedding"]},
                 "size": self._os_config.get("size", 20),

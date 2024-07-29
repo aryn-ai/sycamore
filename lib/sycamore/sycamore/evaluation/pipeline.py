@@ -10,7 +10,7 @@ from sycamore.evaluation.metrics import document_retrieval_metrics, rouge_metric
 from sycamore.transforms.query import OpenSearchQueryExecutor
 
 from sycamore.transforms.extract_elem_test import extract_year
-from sycamore.transforms.embed import OpenAIEmbedder, SentenceTransformerEmbedder
+from sycamore.transforms.embed import Embedder, OpenAIEmbedder, SentenceTransformerEmbedder
 
 
 logger = logging.getLogger("ray")
@@ -25,7 +25,6 @@ class EvaluationPipeline:
         self,
         index: str,
         os_config: dict[str, str],
-        # context: Optional[Context] = None,
         metrics: Optional[list[EvaluationMetric]] = None,
         query_executor: Optional[OpenSearchQueryExecutor] = None,
         os_client_args: Optional[dict] = None,

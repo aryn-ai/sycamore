@@ -15,6 +15,7 @@ from sycamore.evaluation import EvaluationDataPoint, EvaluationMetric
 from sycamore.evaluation.metrics import document_retrieval_metrics, rouge_metrics
 from sycamore.evaluation.datasets import EvaluationDataSetReader
 from sycamore.evaluation.pipeline import EvaluationPipeline
+from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.transforms.extract_elem_test import extract_year
 from sycamore.transforms.query import OpenSearchQueryExecutor
 from sycamore.evaluation.subtasks_map import SubtaskExecutor
@@ -99,7 +100,8 @@ reader = EvaluationDataSetReader(context)
 hf_dataset = datasets.load_dataset("PatronusAI/financebench", split='train[0:10]')
 input_docset = reader.huggingface(hf_dataset, doc_extractor=_hf_to_qa_datapoint)
 
-sub_exec = SubtaskExecutor(subtask_path, INDEX, OS_CONFIG, query_executor=OpenSearchQueryExecutor(OS_CLIENT_ARGS))
+sub_exec = SubtaskExecutor(subtask_path, INDEX, OS_CONFIG, query_executor=OpenSearchQueryExecutor(OS_CLIENT_ARGS),
+                           embedder=SentenceTransformerEmbedder(model_name="sentence-transformers/all-mpnet-base-v2", batch_size=100))
 
 # print ("\n\nFINAL", sub_exec.execute(input_docset).take_all())
 

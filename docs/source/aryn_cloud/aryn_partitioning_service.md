@@ -93,7 +93,7 @@ We can extract the table structure from our document with the following command.
 
 ```bash
 export ARYN_API_KEY="PUT API KEY HERE"
-curl "https://api.aryn.cloud/v1/document/partition" -o "document.json" -H "Authorization: Bearer $ARYN_TOKEN" -F "pdf=@document.pdf" -F "options={\"extract_table_structure\": true}";
+curl "https://api.aryn.cloud/v1/document/partition" -o "document.json" -H "Authorization: Bearer $ARYN_API_KEY" -F "pdf=@document.pdf" -F "options={\"extract_table_structure\": true}";
 ```
 
 The available options are listed below:
@@ -107,5 +107,5 @@ You can use multiple options at the same time like in the example below:
 
 ```bash
 export ARYN_API_KEY="PUT API KEY HERE"
-curl "https://api.aryn.cloud/v1/document/partition" -o "document.json" -H "Authorization: Bearer $ARYN_TOKEN" -F "pdf=@document.pdf" -F "options={\"extract_table_structure\": true, \"threshold\": 0.2}";
+curl "https://api.aryn.cloud/v1/document/partition" -o "document.json" -H "Authorization: Bearer $ARYN_API_KEY" -F "pdf=@document.pdf" -F "options={\"extract_table_structure\": true, \"threshold\": 0.2}";
 ```

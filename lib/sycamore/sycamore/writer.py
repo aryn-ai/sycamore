@@ -484,7 +484,7 @@ class DocSetWriter:
             es_client_args: Authentication arguments to be specified (if needed). See more information at
                 https://elasticsearch-py.readthedocs.io/en/v8.14.0/api/elasticsearch.html
             wait_for_completion: Whether to wait for completion of the write before proceeding with next steps.
-            See more information at https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-refresh.html
+                See more information at https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-refresh.html
             mappings: Mapping of the Elasticsearch index, can be optionally specified
             settings: Settings of the Elasticsearch index, can be optionally specified
             execute: Execute the pipeline and write to weaviate on adding this operator. If False,

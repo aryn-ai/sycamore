@@ -3,6 +3,7 @@ import threading
 from typing import Any, Optional
 
 import ray
+import ray.data
 
 from sycamore.rules import Rule
 
@@ -35,7 +36,7 @@ def _ray_logging_setup():
 
 
 class Context:
-    def __init__(self, ray_args: Optional[dict[str, Any]] = None):
+    def __init__(self, ray_args: Optional[dict[str, Any]] = None, enable_progress_bars=False):
         if ray_args is None:
             ray_args = {}
 
@@ -50,6 +51,9 @@ class Context:
             ray_args["runtime_env"]["worker_process_setup_hook"] = _ray_logging_setup
 
         ray.init(**ray_args)
+
+        # Disable progress bars by default while https://github.com/ray-project/ray/issues/44983 is open.
+        ray.data.DataContext.get_current().enable_progress_bars = enable_progress_bars
 
         self.extension_rules: list[Rule] = []
         self._internal_lock = threading.Lock()
@@ -78,7 +82,7 @@ _context_lock = threading.Lock()
 _global_context: Optional[Context] = None
 
 
-def init(ray_args: Optional[dict[str, Any]] = None) -> Context:
+def init(ray_args: Optional[dict[str, Any]] = None, enable_progress_bars=False) -> Context:
     global _global_context
     with _context_lock:
         if _global_context is None:
@@ -91,7 +95,7 @@ def init(ray_args: Optional[dict[str, Any]] = None) -> Context:
 
             sycamore_logger.setup_logger()
 
-            _global_context = Context(ray_args)
+            _global_context = Context(ray_args, enable_progress_bars=enable_progress_bars)
 
         return _global_context
 

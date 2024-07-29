@@ -29,12 +29,14 @@ class Explode(SingleThreadUser, NonGPUUser, FlatMap):
 
     @staticmethod
     @timetrace("explode")
-    def explode(parent: Union[Document, HierarchicalDocument]) -> list[Union[Document, HierarchicalDocument]]:
+    def explode(parent: Union[Document, HierarchicalDocument]) -> Union[list[Document],list[HierarchicalDocument]]:
         if isinstance(parent, HierarchicalDocument):
             return Explode.explode_hierarchical(parent)
         if isinstance(parent, Document):
             return Explode.explode_default(parent)
 
+    @staticmethod
+    @timetrace("explode")
     def explode_default(parent: Document) -> list[Document]:
         documents: list[Document] = [parent]
         import uuid
@@ -52,6 +54,8 @@ class Explode(SingleThreadUser, NonGPUUser, FlatMap):
         del parent.elements
         return documents
 
+    @staticmethod
+    @timetrace("explode")
     def explode_hierarchical(parent: HierarchicalDocument) -> list[HierarchicalDocument]:
         documents: list[HierarchicalDocument] = [parent]
         for document in parent.children:

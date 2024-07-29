@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Dict, Any, Optional
+from typing import TYPE_CHECKING, Dict, Any
 from sycamore.llms import OpenAI
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map

@@ -5,7 +5,6 @@ from sycamore.reader import DocSetReader
 from sycamore.transforms.extract_graph import GraphMetadata, MetadataExtractor, GraphEntity, EntityExtractor
 from sycamore.data import HierarchicalDocument
 from collections import defaultdict
-import asyncio
 
 
 class TestGraphExtractor:
@@ -81,7 +80,6 @@ class TestGraphExtractor:
     class MockLLM(LLM):
         def __init__(self):
             super().__init__(model_name="mock_model")
-
 
         def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
             return """{

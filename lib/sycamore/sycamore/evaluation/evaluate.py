@@ -1,15 +1,19 @@
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Any
 from abc import ABC, abstractmethod
 
 import os
 from sycamore.data import Element, Document
 from sycamore.evaluation.pipeline import EvaluationPipeline
-from sycamore.evaluation import EvaluationDataPoint
-from sycamore.evaluation.metrics import document_retrieval_metrics, rouge_metrics
+from sycamore.evaluation import EvaluationDataPoint, EvaluationMetric
+from sycamore.evaluation.metrics import document_retrieval_metrics
 from sycamore import Context
 
 
 def add_search_context_to_datapoint(datapoint: Document) -> List[Element]:
+    """
+    This function adds raw inforation from json ground truth and properties
+    to each evaluation datapoint
+    """
     assert datapoint.type == "EvaluationDataPoint"
     source_documents: List[Element] = []
     assert datapoint.get("raw") is not None
@@ -29,6 +33,10 @@ def add_search_context_to_datapoint(datapoint: Document) -> List[Element]:
 
 
 def add_filters_to_question(datapoint: EvaluationDataPoint) -> EvaluationDataPoint:
+    """
+    This function adds properties, search context and custom question augmentation to
+    evaluation datapoints
+    """
     assert datapoint.type == "EvaluationDataPoint"
     datapoint = EvaluationDataPoint(datapoint)
     assert datapoint.raw is not None
@@ -53,19 +61,45 @@ class Assessment(ABC):
 
 
 class QualityAssessment(Assessment):
-    def __init__(self, GT_path: str, rag_config: Dict, **kwargs):
+    """
+    This Class run Question Answering benchmarking on each datapoint and
+    measure performance
+
+    Attributes:
+        gt_path: Path to ground truth, supports JSON format
+        rag_config: Configration for RAG
+        os_client_args: Configration for connecting to opensearch
+        custom_question_augmentation: Custom String for Augmenting Question
+        question_augmentation_filter: Filters values to be use in custom Question Augmentation
+        metrics: Metrics to test score on, eg document_retrieval_metrics
+        custom_question_augmentation: A string to format questions
+        question_augmentation_filter: A Filter string to be used in formating question
+    """
+
+    def __init__(
+        self,
+        gt_path: str,
+        rag_config: Dict[str, Any],
+        os_client_args: Dict[str, Any],
+        metrics: List[EvaluationMetric] = [document_retrieval_metrics],
+        custom_question_augmentation: str = "{}",
+        question_augmentation_filter: str = "",
+    ):
         self.user = os.environ.get("USER", os.environ.get("USERNAME"))
-        self.gt_path = GT_path
+        self.gt_path = gt_path
         self.rag_config = rag_config
-        self.os_client_args = kwargs.get("os_client_args", "")
-        self.metrics = kwargs.get("metrics", [document_retrieval_metrics, rouge_metrics])
-        self.custom_question_augmentation = kwargs.get("custom_question_augmentation", {})
-        self.question_augmentation_filter = kwargs.get("question_augmentation_filter", "")
+        self.os_client_args = os_client_args
+        self.metrics = metrics
+        self.custom_question_augmentation = custom_question_augmentation
+        self.question_augmentation_filter = question_augmentation_filter
 
     @staticmethod
     def create_evaluation_datapoint(
         json_dict: Dict, custom_question_augmentation: str = "{}", question_augmentation_filter: str = ""
-    ):
+    ) -> List:
+        """
+        This method creates evaluation datapoint from JSON file
+        """
         result = []
         assert json_dict is not None
         assert isinstance(json_dict, dict)
@@ -79,7 +113,13 @@ class QualityAssessment(Assessment):
             result += [{"doc": document.serialize()}]
         return result
 
-    def run_evaluation(self, ctx: Context, index: str, **kwargs):
+    def run_evaluation(self, ctx: Context, index: str, **kwargs) -> tuple[list[Document], Document]:
+        """
+        This method runs evaluation test by following steps
+        1. Create evaluation datapoint
+        2. Create evaluation pipeline
+        3. Using Datapoint on pipeline for evaluation
+        """
         custom_question_augmentation = str(self.custom_question_augmentation)
         question_augmentation_filter = str(self.question_augmentation_filter)
         input_docset = ctx.read.json(
@@ -99,17 +139,12 @@ class QualityAssessment(Assessment):
 class Evaluate:
     """
     The Evaluate runs the evaluation test on
-    Index or list of indices against a ground truth
+    index or list of indices against a ground truth
 
     Args:
-        context: The Sycamore context to use
+        context: The Sycamore Context to use
         index: Index or list of Index
-        assessment: The Assessment to run
-        GT_path: The path to ground truth
-        rag_config: Configration for RAG
-        os_client_args: Configration for connecting to opensearch
-        custom_question_augmentation: Custom String for Augmenting Question
-        question_augmentation_filter: Filters values to be use in custom Question Augmentation
+        assessment: The Assessment to run, there is only one right now
 
     Returns:
         Two EvaluationDataPoint, one for query level information and another with aggregate information
@@ -122,18 +157,27 @@ class Evaluate:
 
         assessment = QualityAssessment(os_client_args=OS_CLIENT_ARGS,
             rag_config= OS_CONFIG,
-            GT_path = './test.json',
+            gt_path = './test.json',
             custom_question_augmentation=custom_question_augmentation,
             question_augmentation_filter = question_augmentation_filter)
-        evaluate = Evaluate(context,'index_V1',assessment)
+        evaluate = Evaluate(context,'index_V1',assessment).run()
     """
 
-    def __init__(self, context: Context, index: Union[str, List[str]], assessment: Assessment, **kwargs):
+    def __init__(self, context: Context, index: Union[str, List[str]], assessment: Assessment):
+        self.context = context
+        self.index = index
+        self.assessment = assessment
+        self._result = None
         super().__init__()
 
-        if isinstance(index, str):
-            self.result = {index: assessment(context, index)}
-        elif isinstance(index, List) and all(isinstance(i, str) for i in index):
-            self.result = {idx: assessment(context, idx) for idx in index}
+    @property
+    def result(self):
+        return self._result
+
+    def run(self):
+        if isinstance(self.index, str):
+            self._result = {self.index: self.assessment(self.context, self.index)}
+        elif isinstance(self.index, List) and all(isinstance(i, str) for i in self.index):
+            self._result = {idx: self.assessment(self.context, idx) for idx in self.index}
         else:
             raise ValueError("Input must be a str or a list of str")

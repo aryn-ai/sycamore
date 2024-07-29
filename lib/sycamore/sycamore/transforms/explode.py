@@ -1,3 +1,4 @@
+from typing import Union
 from sycamore.data import Document, HierarchicalDocument
 from sycamore.data.element import TableElement
 from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
@@ -28,7 +29,7 @@ class Explode(SingleThreadUser, NonGPUUser, FlatMap):
 
     @staticmethod
     @timetrace("explode")
-    def explode(parent: Document) -> list[Document]:
+    def explode(parent: Union[Document, HierarchicalDocument]) -> list[Union[Document, HierarchicalDocument]]:
         if isinstance(parent, HierarchicalDocument):
             return Explode.explode_hierarchical(parent)
         if isinstance(parent, Document):

@@ -333,8 +333,8 @@ class OpenAI(LLM):
             **llm_kwargs,
         }
 
-        if "SYCAMORE_HELICONE_USER" in os.environ:
-            kwargs.update({"user": os.environ.get("SYCAMORE_HELICONE_USER")})
+        if "SYCAMORE_OPENAI_USER" in os.environ:
+            kwargs.update({"user": os.environ.get("SYCAMORE_OPENAI_USER")})
 
         if "prompt" in prompt_kwargs:
             prompt = prompt_kwargs.get("prompt")

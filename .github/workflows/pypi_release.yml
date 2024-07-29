@@ -18,8 +18,8 @@ jobs:
         run: pipx install poetry
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
-          cache: 'poetry'
+          python-version: "3.11"
+          cache: "poetry"
       - name: Install
         run: poetry install
         working-directory: lib/sycamore

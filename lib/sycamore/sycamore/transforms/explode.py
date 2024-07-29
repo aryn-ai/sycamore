@@ -29,7 +29,7 @@ class Explode(SingleThreadUser, NonGPUUser, FlatMap):
 
     @staticmethod
     @timetrace("explode")
-    def explode(parent: Union[Document, HierarchicalDocument]) -> Union[list[Document],list[HierarchicalDocument]]:
+    def explode(parent: Union[Document, HierarchicalDocument]) -> Union[list[Document], list[HierarchicalDocument]]:
         if isinstance(parent, HierarchicalDocument):
             return Explode.explode_hierarchical(parent)
         if isinstance(parent, Document):

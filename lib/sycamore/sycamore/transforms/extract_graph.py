@@ -180,13 +180,14 @@ class EntityExtractor(GraphExtractor):
 
     def _extract(self, doc: HierarchicalDocument) -> HierarchicalDocument:
         from multiprocessing import Pool
+
         if "EXTRACTED_NODES" in doc.data:
             return doc
 
         self.llm.setAsynchronous(True)
 
         pool = Pool(processes=8)
-        res = pool.map(self._extract_from_section,[child.data["summary"] for child in doc.children])
+        res = pool.map(self._extract_from_section, [child.data["summary"] for child in doc.children])
         pool.close()
 
         nodes = {}

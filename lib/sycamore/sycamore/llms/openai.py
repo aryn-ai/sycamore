@@ -284,7 +284,6 @@ class OpenAI(LLM):
     def is_chat_mode(self):
         return self.model.is_chat
 
-
     def _get_cache_key(self, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
         assert self._cache
         combined = {"prompt_kwargs": prompt_kwargs, "llm_kwargs": llm_kwargs, "model_name": self.model.name}
@@ -327,7 +326,6 @@ class OpenAI(LLM):
             }
             self._cache.set(cache_key, item)
         return result
-
 
     def _generate_using_openai(self, prompt_kwargs, llm_kwargs) -> str:
         kwargs = {

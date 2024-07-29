@@ -296,7 +296,7 @@ def llm_extract_operation(
 
     if messages is None:
 
-        format_string = f"""The format of your resopnse should be {format}. Use standard convention
+        format_string = f"""The format of your response should be {format}. Use standard convention
         to determine the style of your response. Do not include any abbreviations."""
 
         # sets message

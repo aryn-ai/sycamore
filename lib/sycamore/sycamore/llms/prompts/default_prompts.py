@@ -108,6 +108,15 @@ class PropertiesZeroShotGuidancePrompt(SimpleGuidancePrompt):
     {query}
     """
 
+class OpenAIMessagesPrompt():
+    def init(self, model: GuidanceModel, **kwargs) -> str:
+        pass
+
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return self.__dict__ == other.__dict__
+        return False
+
 
 _deprecated_prompts: dict[str, Type[GuidancePrompt]] = {
     "ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT": EntityExtractorZeroShotGuidancePrompt,

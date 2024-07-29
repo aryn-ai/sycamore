@@ -239,7 +239,6 @@ class TestOperations:
             filtered_ids.append(doc.text_representation)
         assert filtered_ids == ["January 1, 2022", "2022-05-04", "September 19, 2022", "2022-06-07T03:47:00Z"]
 
-
     # LLM Generate
     def test_llm_generate(words_and_ids_docset):
         response = llm_generate_operation(client=MockLLM(), question="", result_description="", result_data=[""])

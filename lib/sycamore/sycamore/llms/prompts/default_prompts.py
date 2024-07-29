@@ -107,7 +107,8 @@ class PropertiesZeroShotGuidancePrompt(SimpleGuidancePrompt):
     Only return JSON as part of your answer. If no entity is in the text, return "None".
     {query}
     """
-    
+
+
 class OpenAIMessage:
     def __init__(self, role: str, content: str):
         self.role = role
@@ -115,6 +116,7 @@ class OpenAIMessage:
 
     def to_dict(self) -> Dict[str, str]:
         return {"role": self.role, "content": self.content}
+
 
 class OpenAIMessagesPromptBase:
     def __init__(self):
@@ -127,43 +129,47 @@ class OpenAIMessagesPromptBase:
     def get_messages_dict(self) -> List[Dict[str, str]]:
         return [message.to_dict() for message in self.messages]
 
+
 class EntityExtractorMessagesPrompt(OpenAIMessagesPromptBase):
-    def __init__(self,
-                 question: str,
-                 field: str,
-                 format: str,
-                 discrete: bool = False):
+    def __init__(self, question: str, field: str, format: str, discrete: bool = False):
         super().__init__()
 
         self.add_message(
             "system",
-            ("You are a helpful entity extractor that creates a new field in a "
-            "database from your response to a question on an existing field. ")
+            (
+                "You are a helpful entity extractor that creates a new field in a "
+                "database from your response to a question on an existing field. "
+            ),
         )
 
         if discrete:
             self.add_message(
                 "user",
-                (f"The format of your response should be {format}. "
-                "Use standard convention to determine the style of your response. Do not include any abbreviations. "
-                "The following sentence should be valid: The answer to the"
-                "question based on the existing field is \"your response\". Your response should ONLY "
-                "contain the answer. If you are not able to extract the new field given the "
-                "information, respond with None. "
-                f"Question: {question} Use the value of the database field "
-                f"\"{field}\" to answer the question: ")
+                (
+                    f"The format of your response should be {format}. "
+                    "Use standard convention to determine the style of your response. Do not include any abbreviations. "
+                    "The following sentence should be valid: The answer to the "
+                    'question based on the existing field is "your response". Your response should ONLY '
+                    "contain the answer. If you are not able to extract the new field given the "
+                    "information, respond with None. "
+                    f"Question: {question} Use the value of the database field "
+                    f'"{field}" to answer the question: '
+                ),
             )
         else:
             self.add_message(
                 "user",
-                (f"Include as much relevant detail as "
-                "possible that is related to/could help answer this question. Respond in "
-                "sentences, not just a single word or phrase."
-                f"Question: {question} Use this existing related database field "
-                f"\"{field}\" to answer the question: ")
+                (
+                    f"Include as much relevant detail as "
+                    "possible that is related to/could help answer this question. Respond in "
+                    "sentences, not just a single word or phrase."
+                    f"Question: {question} Use this existing related database field "
+                    f'"{field}" to answer the question: '
+                ),
             )
 
-class OpenAIMessagesPrompt():
+
+class OpenAIMessagesPrompt:
     def init(self, model: GuidanceModel, **kwargs) -> str:
         pass
 

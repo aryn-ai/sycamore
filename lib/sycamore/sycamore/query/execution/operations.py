@@ -80,7 +80,7 @@ def convert_string_to_date(date_string: str) -> datetime:
 
 def threshold_filter(doc: Document, threshold) -> bool:
     try:
-        return_value = int(doc.properties["LlmFilterOutput"]) >= threshold
+        return_value = int(doc.properties["_autogen_LlmFilterOutput"]) >= threshold
     except Exception:
         # accounts for llm output errors
         return_value = False
@@ -134,12 +134,9 @@ def llm_filter_operation(
     if field is None:
         field = "text_representation"
 
-    entity_extractor = OpenAIEntityExtractor(entity_name="_autogen_LlmFilterOutput", 
-                                                 llm=client,
-                                                 use_elements=False,
-                                                 messages=messages,
-                                                 field=field
-                                            )
+    entity_extractor = OpenAIEntityExtractor(
+        entity_name="_autogen_LlmFilterOutput", llm=client, use_elements=False, messages=messages, field=field
+    )
     docset = docset.extract_entity(entity_extractor=entity_extractor, **resource_args)
     docset = docset.filter(lambda doc: threshold_filter(doc, threshold), **resource_args)
 
@@ -472,7 +469,7 @@ def top_k_operation(
 
     if use_llm:
         docset = semantic_cluster(client, docset, description, field)
-        field = "properties.ClusterAssignment"
+        field = "properties._autogen_ClusterAssignment"
 
     docset = count_aggregate_operation(docset, field, unique_field, **kwargs)
 
@@ -495,7 +492,7 @@ def semantic_cluster(client: OpenAI, docset: DocSet, description: str, field: st
         field: Field to make/assign groups based on.
 
     Returns:
-        A DocSet with an additional field "properties.ClusterAssignment".
+        A DocSet with an additional field "properties._autogen_ClusterAssignment".
     """
     text = ""
     for i, doc in enumerate(docset.take_all()):
@@ -524,12 +521,13 @@ def semantic_cluster(client: OpenAI, docset: DocSet, description: str, field: st
         {"role": "user", "content": SC_ASSIGN_GROUPS_PROMPT.format(field=field, groups=groups["groups"])}
     ]
 
-    entity_extractor = OpenAIEntityExtractor(entity_name="_autogen_ClusterAssignment", 
-                                                 llm=client,
-                                                 use_elements=False,
-                                                 messages=messagesForExtract,
-                                                 field=field
-                                            )
+    entity_extractor = OpenAIEntityExtractor(
+        entity_name="_autogen_ClusterAssignment",
+        llm=client,
+        use_elements=False,
+        messages=messagesForExtract,
+        field=field,
+    )
     docset = docset.extract_entity(entity_extractor=entity_extractor)
 
     # LLM response

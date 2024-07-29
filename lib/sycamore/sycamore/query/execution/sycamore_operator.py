@@ -431,14 +431,17 @@ class SycamoreLlmExtract(SycamoreOperator):
         assert fmt is None or isinstance(fmt, str)
         discrete = logical_node.data.get("discrete") or False
 
-        messages = EntityExtractorMessagesPrompt(question=question, field=field, format=fmt, discrete=discrete).get_messages_dict()
+        messages = EntityExtractorMessagesPrompt(
+            question=question, field=field, format=fmt, discrete=discrete
+        ).get_messages_dict()
 
-        entity_extractor = OpenAIEntityExtractor(entity_name=new_field, 
-                                                 llm=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(s3_cache_path) if s3_cache_path else None),
-                                                 use_elements=False,
-                                                 messages=messages,
-                                                 field=field
-                                            )
+        entity_extractor = OpenAIEntityExtractor(
+            entity_name=new_field,
+            llm=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(s3_cache_path) if s3_cache_path else None),
+            use_elements=False,
+            messages=messages,
+            field=field,
+        )
         result = self.inputs[0].extract_entity(entity_extractor=entity_extractor, **self.get_node_args())
 
         # filter out docs with the extracted field labeled as "None"

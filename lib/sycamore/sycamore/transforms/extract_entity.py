@@ -119,13 +119,13 @@ class OpenAIEntityExtractor(EntityExtractor):
         )
 
         return entities
-    
+
     def _handle_document_field_prompting(self, document: Document) -> Any:
         if self._field is None:
             self._field = "text_representation"
 
         value = document.field_to_value(self._field)
-        self._messages.append({"role": "user", "content": value})
+        self._messages.append({"role": "user", "content": f"{value}"})
 
         response = self._llm.generate(prompt_kwargs={"messages": self._messages}, llm_kwargs={})
         return response

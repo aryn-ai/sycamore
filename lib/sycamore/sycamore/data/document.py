@@ -211,7 +211,7 @@ class Document(UserDict):
             "properties": self.properties,
         }
         return json.dumps(d, indent=2)
-    
+
     def field_to_value(self, field: str) -> Any:
         """
         Extracts the value for a particular document field.

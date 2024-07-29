@@ -144,5 +144,5 @@ class EvaluationPipeline:
 
         # 4. aggregation metrics [[EvaluatedEvaluationDataPoint] -> EvaluatedQASummary]
         aggregated_metrics = self._aggregate_metrics(query_level_metrics)
-        
+
         return query_level_metrics, aggregated_metrics

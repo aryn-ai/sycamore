@@ -33,7 +33,7 @@ class GraphMetadata(GraphData):
 
 
 class GraphEntity(GraphData):
-    def __init__(self, entityLabel: str, entityDescription: Optional[str] = None):
+    def __init__(self, entityLabel: str, entityDescription: str):
         self.label = entityLabel
         self.description = entityDescription
 

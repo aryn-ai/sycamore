@@ -127,7 +127,7 @@ class OpenAIMessagesPromptBase:
     def get_messages_dict(self) -> List[Dict[str, str]]:
         return [message.to_dict() for message in self.messages]
 
-class LLMQueryMessagesPrompt(OpenAIMessagesPromptBase):
+class EntityExtractorMessagesPrompt(OpenAIMessagesPromptBase):
     def __init__(self,
                  question: str,
                  field: str,

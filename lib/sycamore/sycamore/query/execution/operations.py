@@ -9,6 +9,7 @@ from sycamore import DocSet, Execution
 from sycamore.data import Document, MetadataDocument
 from sycamore.llms.openai import OpenAI
 from sycamore.plan_nodes import Node, Transform
+from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.utils.extract_json import extract_json
 from sycamore.plan_nodes import Scan
 
@@ -133,11 +134,13 @@ def llm_filter_operation(
     if field is None:
         field = "text_representation"
 
-    docset = docset.map(
-        lambda doc: llm_extract_operation(
-            client=client, doc=doc, new_field="LlmFilterOutput", field=field, messages=messages
-        )
-    )
+    entity_extractor = OpenAIEntityExtractor(entity_name="_autogen_LlmFilterOutput", 
+                                                 llm=client,
+                                                 use_elements=False,
+                                                 messages=messages,
+                                                 field=field
+                                            )
+    docset = docset.extract_entity(entity_extractor=entity_extractor, **resource_args)
     docset = docset.filter(lambda doc: threshold_filter(doc, threshold), **resource_args)
 
     return docset
@@ -243,117 +246,6 @@ def range_filter_operation(
             raise ValueError("At least one of start or end must be specified")
         return value_comp >= start_comp
     return value_comp >= start_comp and value_comp <= end_comp
-
-
-def llm_extract_operation(
-    client: OpenAI,
-    doc: Document,
-    new_field: str,
-    field: Optional[str] = None,
-    question: Optional[str] = None,
-    format: Optional[str] = None,
-    discrete: Optional[bool] = None,
-    messages: Optional[List[dict]] = None,
-) -> Document:
-    """
-    Adds a new property to document based LLM call.
-
-    Args:
-        client: LLM client.
-        doc: Document to add property to.
-        new_field: Name of new field.
-        field: Field to filter based on.
-        question: Question to ask LLM.
-        format: Indicates the format of the answer (e.g. "string").
-        discrete: Indicates if the answer is a discrete value.
-        messages: Custom prompt.
-
-    Returns:
-        A document with an added field under doc.properties.
-
-    Example:
-        .. code-block:: python
-
-        def wrapper(doc: Document) -> Document:
-            client = LLM()
-            new_field = "cause"
-            field = "properties.description"
-            question = "Why did this incident occur?"
-            format = "string"
-            discrete = False
-            return llm_extract_operation(client, doc, new_field, field, question, format, discrete)
-
-        docset = docset.map(wrapper)
-    """
-
-    if messages is None and (question is None or format is None or discrete is None):
-        raise ValueError('"question", "format", and "discrete" must be specified for default messages')
-
-    if field is None:
-        field = "text_representation"
-
-    value = field_to_value(doc, field)
-
-    if messages is None:
-
-        format_string = f"""The format of your response should be {format}. Use standard convention
-        to determine the style of your response. Do not include any abbreviations."""
-
-        # sets message
-        messages = [
-            {
-                "role": "system",
-                "content": """You are a helpful entity extractor that creates a new field in a
-                database from your reponse to a question on an existing field.""",
-            }
-        ]
-
-        if discrete:
-            messages.append(
-                {
-                    "role": "user",
-                    "content": f"""Question: {question} Use this existing related database field
-                    "{field}" to answer the question: {value}. {format_string}""",
-                }
-            )
-            messages.append(
-                {
-                    "role": "user",
-                    "content": """The following sentence should be valid: The answer to the
-                    question based on the existing field is {answer}. Your response should ONLY
-                    contain the answer. If you are not able to extract the new field given the
-                    information, respond ONLY with None""",
-                }
-            )
-
-        else:
-            messages.append(
-                {
-                    "role": "user",
-                    "content": f"""Question: {question} Use this existing related database field
-                    "{field}" to answer the question: {value}. Include as much relevant detail as
-                    possible that is related to/could help answer this question. Respond in
-                    sentences, not just a single word or phrase.""",
-                }
-            )
-
-    else:
-        messages.append(
-            {
-                "role": "user",
-                "content": f"{value}",
-            }
-        )
-
-    prompt_kwargs = {"messages": messages}
-
-    # call to LLM
-    completion = client.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
-
-    # adds new property
-    doc.properties.update({new_field: completion})
-
-    return doc
 
 
 def count_operation(docset: DocSet, field: Optional[str] = None, primary_field: Optional[str] = None, **kwargs) -> int:
@@ -632,11 +524,13 @@ def semantic_cluster(client: OpenAI, docset: DocSet, description: str, field: st
         {"role": "user", "content": SC_ASSIGN_GROUPS_PROMPT.format(field=field, groups=groups["groups"])}
     ]
 
-    docset = docset.map(
-        lambda doc: llm_extract_operation(
-            client=client, doc=doc, new_field="ClusterAssignment", field=field, messages=messagesForExtract
-        )
-    )
+    entity_extractor = OpenAIEntityExtractor(entity_name="_autogen_ClusterAssignment", 
+                                                 llm=client,
+                                                 use_elements=False,
+                                                 messages=messagesForExtract,
+                                                 field=field
+                                            )
+    docset = docset.extract_entity(entity_extractor=entity_extractor)
 
     # LLM response
     return docset

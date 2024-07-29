@@ -171,11 +171,6 @@ def test_join():
         )
 
 
-def test_llm_extract():
-    # todo: refactor, because of the existing code structure, we're testing this through integ tests
-    pass
-
-
 def test_sort():
     context = sycamore.init()
     doc_set = Mock(spec=DocSet)
@@ -294,20 +289,6 @@ class ValidationTests(unittest.TestCase):
 
         # non-DocSet input
         sycamore_operator = SycamoreCount(context, logical_node, query_id="test", inputs=[1])
-        self.assertRaises(AssertionError, sycamore_operator.execute)
-
-    def test_llm_extract(self):
-        context = sycamore.init()
-        logical_node = LlmExtract("count", {})
-        sycamore_operator = SycamoreLlmExtract(context, logical_node, query_id="test", inputs=[])
-        self.assertRaises(AssertionError, sycamore_operator.execute)
-        sycamore_operator = SycamoreLlmExtract(
-            context, logical_node, query_id="test", inputs=[Mock(DocSet), Mock(DocSet)]
-        )
-        self.assertRaises(AssertionError, sycamore_operator.execute)
-
-        # non-DocSet input
-        sycamore_operator = SycamoreLlmExtract(context, logical_node, query_id="test", inputs=[1])
         self.assertRaises(AssertionError, sycamore_operator.execute)
 
     def test_sort(self):

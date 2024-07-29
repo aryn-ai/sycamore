@@ -67,6 +67,7 @@ class OpenAIEntityExtractor(EntityExtractor):
         prompt_template: Optional[str] = None,
         num_of_elements: int = 10,
         prompt_formatter: Callable[[list[Element]], str] = element_list_formatter,
+        use_elements: bool = True,
         messages: Optional[List[dict]] = [],
         field: str = None,
     ):
@@ -75,12 +76,13 @@ class OpenAIEntityExtractor(EntityExtractor):
         self._num_of_elements = num_of_elements
         self._prompt_template = prompt_template
         self._prompt_formatter = prompt_formatter
+        self._use_elements = use_elements
         self._messages = messages
         self._field = field
 
     @timetrace("OaExtract")
     def extract_entity(self, document: Document) -> Document:
-        if self._field is None:
+        if self._use_elements:
             if self._prompt_template:
                 entities = self._handle_few_shot_prompting(document)
             else:

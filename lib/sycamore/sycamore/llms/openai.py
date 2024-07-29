@@ -137,13 +137,13 @@ class OpenAIClientWrapper:
                     {"Helicone-Auth": f"Bearer {os.environ['SYCAMORE_HELICONE_API_KEY']}"}
                 )
 
-                return OpenAIClient(
-                    api_key=self.api_key,
-                    organization=self.organization,
-                    base_url=base_url,
-                    max_retries=self.max_retries,
-                    **self.extra_kwargs,
-                )
+            return OpenAIClient(
+                api_key=self.api_key,
+                organization=self.organization,
+                base_url=base_url,
+                max_retries=self.max_retries,
+                **extra_kwargs,
+            )
         elif self.client_type == OpenAIClientType.AZURE:
             return AzureOpenAIClient(
                 azure_endpoint=str(self.azure_endpoint),

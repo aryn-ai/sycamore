@@ -1,1 +1,14 @@
-{"status": ["Incremental status will be shown here during execution.", "Until you get a line that matches '  ]\n', you can convert the partial", "output to a json document by appending '\"\"]}' to the partial output.", "", ""], "error": "400: Invalid page number (0): for this document, page numbers must be at least 1 and at most 9"}
+{
+  "status": [
+    "Incremental status will be shown here during execution.",
+    "Until you get a line that matches '  ]\n', you can convert the partial",
+    "output to a json document by appending '\"\"]}' to the partial output.",
+    "",
+    "T+   0.00: Server version 0.2024.06.28",
+    "T+   0.00: Received request with aryn_call_id=0910ded3-bda9-4ea7-95cf-e41bb3f04f6d",
+    "T+   0.00: Waiting for scheduling",
+    "T+   0.00: Preprocessing document",
+    ""
+  ],
+  "error": "400: Invalid page number (0): for this document, page numbers must be at least 1 and at most 9"
+}

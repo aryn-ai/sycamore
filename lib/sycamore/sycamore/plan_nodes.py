@@ -5,6 +5,12 @@ from ray.data import Dataset
 
 
 class Node(ABC):
+    """
+    A Node is the abstract base unit of a Sycamore Transform, which allows DocSets to transform themselves into end
+    results. Sycamore processes this as a directed tree graph, which allows transforms to be linked to each other
+    and then implemented
+    """
+
     def __init__(self, children: list[Optional["Node"]], **resource_args):
         self.children = children
         self.resource_args = resource_args
@@ -17,11 +23,17 @@ class Node(ABC):
         pass
 
     def traverse_down(self, f: Callable[["Node"], "Node"]) -> "Node":
+        """
+        Allows a function to be applied to a node first and then all of its children
+        """
         f(self)
         self.children = [c.traverse_down(f) for c in self.children if c is not None]
         return self
 
     def traverse_up(self, f: Callable[["Node"], "Node"]) -> "Node":
+        """
+        Allows a function to be applied to all of a node's children first and then itelf
+        """
         self.children = [c.traverse_up(f) for c in self.children if c is not None]
         f(self)
         return self

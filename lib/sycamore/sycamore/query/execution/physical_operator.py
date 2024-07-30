@@ -11,8 +11,13 @@ def get_var_name(logical_node: LogicalOperator):
 
 
 def get_str_for_dict(value: Dict):
-    serialized_dict = {k: (v.__name__ if isinstance(v, type) else v) for k, v in value.items()}
-    return str(serialized_dict)
+    items = []
+    for k, v in value.items():
+        if isinstance(v, type):  # Check if the value is a class
+            items.append(f"{repr(k)}: {v.__name__}")
+        else:
+            items.append(f"{repr(k)}: {repr(v)}")
+    return "{" + ", ".join(items) + "}"
 
 
 class PhysicalOperator:

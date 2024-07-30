@@ -119,7 +119,7 @@ def llm_filter_operation(
     entity_extractor = OpenAIEntityExtractor(
         entity_name="_autogen_LlmFilterOutput", llm=client, use_elements=False, messages=messages, field=field
     )
-    docset = docset.extract_entity(entity_extractor=entity_extractor, **resource_args)
+    docset = docset.extract_entity(entity_extractor=entity_extractor)
     docset = docset.filter(lambda doc: threshold_filter(doc, threshold), **resource_args)
 
     return docset

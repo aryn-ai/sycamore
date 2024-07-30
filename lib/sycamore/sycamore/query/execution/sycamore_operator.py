@@ -448,12 +448,6 @@ class SycamoreLlmExtract(SycamoreOperator):
             field=field,
         )
         result = self.inputs[0].extract_entity(entity_extractor=entity_extractor, **self.get_node_args())
-
-        # filter out docs with the extracted field labeled as "None"
-        def filterNone(doc):
-            return doc.properties[logical_node.data.get("newField")] != "None"
-
-        result = result.filter(lambda doc: filterNone(doc))
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
@@ -474,21 +468,26 @@ class SycamoreLlmExtract(SycamoreOperator):
         if self.s3_cache_path:
             cache_string = f", cache=S3Cache('{self.s3_cache_path}')"
         result = f"""
-{output_var or get_var_name(logical_node)} = {input_var or get_var_name(logical_node.dependencies[0])}.map(
-    lambda doc: llm_extract_operation(
-        client=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
-        doc=doc,
-        question='{question}',
-        new_field='{new_field}',
-        field='{field}',
-        format='{fmt}',
-        discrete={discrete},
-    ),
-    **{self.get_node_args()},
-)
-"""
+        messages = EntityExtractorMessagesPrompt(
+                question='{question}', field='{field}', format='{fmt}, discrete={discrete}
+            ).get_messages_dict()
+
+        entity_extractor = OpenAIEntityExtractor(
+            entity_name='{new_field}',
+            llm=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
+            use_elements=False,
+            messages=messages,
+            field='{field}',
+        )
+    {output_var or get_var_name(logical_node)} = 
+        {input_var or get_var_name(logical_node.dependencies[0])}.extract_entity(
+                entity_extractor=entity_extractor,
+                **{self.get_node_args()}
+            )
+    """
         return result, [
-            "from sycamore.query.execution.operations import llm_extract_operation",
+            "from sycamore.llms.prompts.default_prompts import EntityExtractorMessagesPrompt",
+            "from sycamore.transforms.extract_entity import OpenAIEntityExtractor",
             "from sycamore.llms import OpenAI, OpenAIModels",
         ]
 

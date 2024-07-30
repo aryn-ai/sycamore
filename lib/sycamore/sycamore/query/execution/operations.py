@@ -277,7 +277,8 @@ def count_operation(docset: DocSet, field: Optional[str] = None, primary_field: 
             if isinstance(doc, MetadataDocument):
                 continue
             value = field_to_value(doc, unique_field)
-            unique_docs.add(value)
+            if value is not None and value != "None":
+                unique_docs.add(value)
         return len(unique_docs)
 
 

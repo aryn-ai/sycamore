@@ -183,9 +183,7 @@ def test_llm_extract():
         context = sycamore.init()
         doc_set = Mock(spec=DocSet)
         return_doc_set = Mock(spec=DocSet)
-        filtered_doc_set = Mock(spec=DocSet)
         doc_set.extract_entity.return_value = return_doc_set
-        return_doc_set.filter.return_value = filtered_doc_set
 
         logical_node = LlmExtract(
             "node_id",
@@ -194,7 +192,7 @@ def test_llm_extract():
         sycamore_operator = SycamoreLlmExtract(context, logical_node, query_id="test", inputs=[doc_set])
         result = sycamore_operator.execute()
 
-        # Assert that EntityExtractorMessagesPrompt was called with the expected arguments
+        # assert EntityExtractorMessagesPrompt called with expected arguments
         MockEntityExtractorMessagesPrompt.assert_called_once_with(
             question=logical_node.data.get("question"),
             field=logical_node.data.get("field"),
@@ -202,7 +200,7 @@ def test_llm_extract():
             discrete=logical_node.data.get("discrete"),
         )
 
-        # Assert that OpenAIEntityExtractor was called with the expected arguments
+        # assert OpenAIEntityExtractor called with expected arguments
         MockOpenAIEntityExtractor.assert_called_once_with(
             entity_name=logical_node.data.get("newField"),
             llm=ANY,
@@ -211,17 +209,12 @@ def test_llm_extract():
             field=logical_node.data.get("field"),
         )
 
-        # Assert that extract_entity was called with the expected arguments
+        # assert extract_entity called with expected arguments
         doc_set.extract_entity.assert_called_once_with(
             entity_extractor=MockOpenAIEntityExtractor(),
             name=logical_node.node_id,
         )
-
-        # Assert that the filtering was applied correctly
-        return_doc_set.filter.assert_called_once()
-
-        # Assert that the result is the filtered_doc_set
-        assert result == filtered_doc_set
+        assert result == return_doc_set
 
 
 def test_sort():

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import logging
-from typing import Dict, List, Optional, Type
+from typing import Dict, List, Type
 
 from guidance.models import Chat, Instruct, Model as GuidanceModel
 from guidance import gen, user, system, assistant, instruction

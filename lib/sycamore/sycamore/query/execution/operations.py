@@ -531,29 +531,24 @@ def make_map_fn_count(field: str, unique_field: Optional[str] = None) -> Callabl
 
     def ray_callable(input_dict: dict[str, Any]) -> dict[str, Any]:
         doc = Document.from_row(input_dict)
-
-        val = doc.field_to_value(field)
-
-        if val is None:
-            if unique_field is not None:
-                return {"doc": None, "key": None, "unique": None}
-            else:
-                return {"doc": None, "key": None}
-
-        # updates row to include new col
+        key_val = doc.field_to_value(field)
+        
+        if key_val is None:
+            return {"doc": None, "key": None, "unique": None} if unique_field is not None else {"doc": None, "key": None}
+        
         new_doc = doc.to_row()
-        new_doc["key"] = val
+        new_doc["key"] = key_val
 
         if unique_field is not None:
-            val = str(doc.field_to_value(unique_field))
-            if val is None:
+            unique_val = doc.field_to_value(unique_field)
+            if unique_val is None:
                 return {"doc": None, "key": None, "unique": None}
-            # updates row to include new col
-            new_doc["unique"] = val
-
+            new_doc["unique"] = str(unique_val)
+        
         return new_doc
 
     return ray_callable
+
 
 
 def filterOutNone(row: dict[str, Any]) -> bool:

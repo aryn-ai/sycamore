@@ -26,8 +26,8 @@ def test_simple_openai_planner(query_integration_test_index: str):
     assert type(nodes[1]).__name__ == "Count"
     assert type(nodes[2]).__name__ == "LlmGenerate"
 
-    assert [nodes[1]] == nodes[0].downstream_nodes
-    assert [nodes[2]] == nodes[1].downstream_nodes
+    assert [nodes[1]] == nodes[0]._downstream_nodes
+    assert [nodes[2]] == nodes[1]._downstream_nodes
 
-    assert [nodes[0]] == nodes[1].dependencies
-    assert [nodes[1]] == nodes[2].dependencies
+    assert [nodes[0]] == nodes[1]._dependencies
+    assert [nodes[1]] == nodes[2]._dependencies

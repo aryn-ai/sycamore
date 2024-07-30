@@ -25,8 +25,8 @@ def test_count_docs_query_plan() -> LogicalPlan:
         },
     )
 
-    load_node.downstream_nodes = [count_node]
-    count_node.dependencies = [load_node]
+    load_node._downstream_nodes = [count_node]
+    count_node._dependencies = [load_node]
     nodes: Dict[str, Node] = {
         "load": load_node,
         "count": count_node,

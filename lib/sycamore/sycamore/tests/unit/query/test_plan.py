@@ -28,15 +28,15 @@ def test_plan():
     node_3 = DummyOperator("node_3")
     node_4 = DummyOperator("final")
 
-    root_node.downstream_nodes = [node_2, node_3]
+    root_node._downstream_nodes = [node_2, node_3]
 
-    node_2.dependencies = [root_node]
-    node_2.downstream_nodes = [node_4]
+    node_2._dependencies = [root_node]
+    node_2._downstream_nodes = [node_4]
 
-    node_3.dependencies = [root_node]
-    node_3.downstream_nodes = [node_4]
+    node_3._dependencies = [root_node]
+    node_3._downstream_nodes = [node_4]
 
-    node_4.dependencies = [node_2, node_3]
+    node_4._dependencies = [node_2, node_3]
 
     nodes = {
         "root": root_node,
@@ -77,4 +77,9 @@ def test_count_operator():
     assert schema["primaryField"].field_name == "primaryField"
     assert schema["primaryField"].description == "Primary field that represents what a unique entry is considered for the data provided."
     assert schema["primaryField"].type_hint == "typing.Optional[str]"
+
+    assert "_dependencies" not in schema
+    assert "_downstream_nodes" not in schema
+    assert "dependencies" not in schema
+    assert "downstream_nodes" not in schema
 

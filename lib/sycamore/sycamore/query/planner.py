@@ -361,13 +361,16 @@ class LlmPlanner:
             for dependency_id in node.data["input"]:
                 downstream_dependencies[dependency_id] = downstream_dependencies.get(dependency_id, list()) + [node]
                 inputs += [nodes.get(dependency_id)]
-            node.dependencies = inputs
+            # pylint: disable=protected-access
+            node._dependencies = inputs
 
         for node_id, node in nodes.items():
             if node_id in downstream_dependencies.keys():
-                node.downstream_nodes = downstream_dependencies[node_id]
+                # pylint: disable=protected-access
+                node._downstream_nodes = downstream_dependencies[node_id]
 
-        resultNodes = list(filter(lambda n: n.downstream_nodes is None, nodes.values()))
+        # pylint: disable=protected-access
+        resultNodes = list(filter(lambda n: n._downstream_nodes is None, nodes.values()))
         if len(resultNodes) == 0:
             raise Exception("Invalid plan: Plan requires at least one LlmGenerate result node")
         return resultNodes[0], nodes

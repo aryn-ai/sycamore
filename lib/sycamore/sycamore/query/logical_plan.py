@@ -8,8 +8,8 @@ class Node(BaseModel):
 
     Args:
         node_id: The ID of the node.
-        dependencies: The nodes that this node depends on.
-        downstream_nodes: The nodes that depend on this node.
+        _dependencies: The nodes that this node depends on.
+        _downstream_nodes: The nodes that depend on this node.
     """
 
     # This allows pydantic to pick up field descriptions from
@@ -19,8 +19,21 @@ class Node(BaseModel):
     node_id: int
     """A unique integer ID representing this node."""
 
-    dependencies: Optional[List["Node"]] = None
-    downstream_nodes: Optional[List["Node"]] = None
+    # These are underscored here to prevent them from leaking out to the
+    # input_schema used by the planner.
+
+    _dependencies: Optional[List["Node"]] = None
+    _downstream_nodes: Optional[List["Node"]] = None
+
+    @property
+    def dependencies(self) -> Optional[List["Node"]]:
+        """The nodes that this node depends on."""
+        return self._dependencies
+
+    @property
+    def downstream_nodes(self) -> Optional[List["Node"]]:
+        """The nodes that depend on this node."""
+        return self._downstream_nodes
 
     def __str__(self) -> str:
         return f"Id: {self.node_id} Op: {type(self).__name__}"

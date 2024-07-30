@@ -45,26 +45,6 @@ into one of the following groups: "{groups}". Perform your best work to assign t
 ONLY the string corresponding to the selected group. Here is the database entry you will use: """
 
 
-def field_to_value(doc: Document, field: str) -> Any:
-    """
-    Extracts the value for a particular document field.
-
-    Args:
-        doc: The document
-        field: The field in dotted notation to indicate nesting, e.g. doc.properties.schema.
-
-    Returns:
-        The value associated with the document field.
-    """
-    fields = field.split(".")
-    value = getattr(doc, fields[0])
-    if len(fields) > 1:
-        assert fields[0] == "properties"
-        for f in fields[1:]:
-            value = value[f]
-    return value
-
-
 def convert_string_to_date(date_string: str) -> datetime:
     """
     Creates datetime object given a date string.
@@ -169,7 +149,7 @@ def match_filter_operation(doc: Document, query: Any, field: str, ignore_case: b
 
         docset = docset.filter(wrapper)
     """
-    value = field_to_value(doc, field)
+    value = doc.field_to_value(field)
 
     # substring matching
     if isinstance(query, str) or isinstance(value, str):
@@ -217,8 +197,8 @@ def range_filter_operation(
 
         docset = docset.filter(wrapper)
     """
-    value = field_to_value(doc, field)
-    if value is None:
+    value = doc.field_to_value(field)
+    if value is None or value != "None":
         raise ValueError(f"field {field} must be present in the document")
 
     if date:
@@ -278,7 +258,7 @@ def count_operation(docset: DocSet, field: Optional[str] = None, primary_field: 
             doc = Document.from_row(row)
             if isinstance(doc, MetadataDocument):
                 continue
-            value = field_to_value(doc, unique_field)
+            value = doc.field_to_value(unique_field)
             if value is not None and value != "None":
                 unique_docs.add(value)
         return len(unique_docs)
@@ -383,7 +363,7 @@ def make_filter_fn_join(field: str, join_set: set) -> Callable[[Document], bool]
     """
 
     def filter_fn_join(doc: Document) -> bool:
-        value = field_to_value(doc, field)
+        value = str(doc.field_to_value(field))
         return value in join_set
 
     return filter_fn_join
@@ -411,7 +391,7 @@ def join_operation(docset1: DocSet, docset2: DocSet, field1: str, field2: str) -
         doc = Document.from_row(row)
         if isinstance(doc, MetadataDocument):
             continue
-        value = field_to_value(doc, field1)
+        value = str(doc.field_to_value(field1))
         unique_vals.add(value)
 
     # filters docset2 based on matches of field2 with unique values
@@ -501,7 +481,7 @@ def semantic_cluster(client: OpenAI, docset: DocSet, description: str, field: st
     for i, doc in enumerate(docset.take_all()):
         if i != 0:
             text += ", "
-        text += field_to_value(doc, field)
+        text += str(doc.field_to_value(field))
 
     # sets message
     messages = [
@@ -554,24 +534,24 @@ def make_map_fn_count(field: str, unique_field: Optional[str] = None) -> Callabl
     def ray_callable(input_dict: dict[str, Any]) -> dict[str, Any]:
         doc = Document.from_row(input_dict)
 
-        try:
-            val = field_to_value(doc, field)
-            # updates row to include new col
-            new_doc = doc.to_row()
-            new_doc["key"] = val
+        val = doc.field_to_value(field)
 
-            if unique_field is not None:
-                val = field_to_value(doc, unique_field)
-                # updates row to include new col
-                new_doc["unique"] = val
-            return new_doc
-
-        except Exception:
+        if val is None:
             if unique_field is not None:
                 return {"doc": None, "key": None, "unique": None}
             else:
                 return {"doc": None, "key": None}
+            
+        # updates row to include new col
+        new_doc = doc.to_row()
+        new_doc["key"] = val
 
+        if unique_field is not None:
+            val = str(doc.field_to_value(unique_field))
+            # updates row to include new col
+            new_doc["unique"] = val
+
+        return new_doc
     return ray_callable
 
 

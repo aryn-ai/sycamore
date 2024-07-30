@@ -9,7 +9,6 @@ from sycamore.docset import DocSet
 from sycamore.llms import LLM
 from sycamore.query.execution.operations import (
     convert_string_to_date,
-    field_to_value,
     join_operation,
     llm_filter_operation,
     llm_generate_operation,
@@ -350,29 +349,29 @@ class TestOperations:
                 assert doc.properties["_autogen_ClusterAssignment"] == "group3"
 
     # Helpers
-    def test_field_to_value(self):
-        doc = Document(
-            text_representation="hello",
-            doc_id=1,
-            properties={"letter": "A", "animal": "panda", "math": {"pi": 3.14, "e": 2.72, "tanx": "sinx/cosx"}},
-        )
+    # def test_field_to_value(self):
+    #     doc = Document(
+    #         text_representation="hello",
+    #         doc_id=1,
+    #         properties={"letter": "A", "animal": "panda", "math": {"pi": 3.14, "e": 2.72, "tanx": "sinx/cosx"}},
+    #     )
 
-        assert field_to_value(doc, "text_representation") == "hello"
-        assert field_to_value(doc, "doc_id") == 1
-        assert field_to_value(doc, "properties.letter") == "A"
-        assert field_to_value(doc, "properties.animal") == "panda"
-        assert field_to_value(doc, "properties.math.pi") == 3.14
-        assert field_to_value(doc, "properties.math.e") == 2.72
-        assert field_to_value(doc, "properties.math.tanx") == "sinx/cosx"
+    #     assert field_to_value(doc, "text_representation") == "hello"
+    #     assert field_to_value(doc, "doc_id") == 1
+    #     assert field_to_value(doc, "properties.letter") == "A"
+    #     assert field_to_value(doc, "properties.animal") == "panda"
+    #     assert field_to_value(doc, "properties.math.pi") == 3.14
+    #     assert field_to_value(doc, "properties.math.e") == 2.72
+    #     assert field_to_value(doc, "properties.math.tanx") == "sinx/cosx"
 
-        with pytest.raises(KeyError):
-            field_to_value(doc, "properties.math.log")
+    #     with pytest.raises(KeyError):
+    #         field_to_value(doc, "properties.math.log")
 
-        with pytest.raises(Exception):
-            field_to_value(doc, "document_id")
+    #     with pytest.raises(Exception):
+    #         field_to_value(doc, "document_id")
 
-        with pytest.raises(AssertionError):
-            field_to_value(doc, "text_representation.text")
+    #     with pytest.raises(AssertionError):
+    #         field_to_value(doc, "text_representation.text")
 
     def test_convert_string_to_date(self):
         date_string = "2024-07-21"

@@ -166,7 +166,7 @@ class Table:
 
         if html_str is not None:
             html_str = html_str.strip()
-            if not html_str.startswith("<table>") or not html_str.endswith("</table>"):
+            if not html_str.startswith("<table") or not html_str.endswith("</table>"):
                 raise ValueError("html_str must be a valid html table enclosed in <table></table> tags.")
 
             root = BeautifulSoup(html_str, "html.parser")

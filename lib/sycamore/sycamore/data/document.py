@@ -311,7 +311,7 @@ class HierarchicalDocument(Document):
         self.doc_id = self.data.get("doc_id", str(uuid.uuid4()))
         self.children = self.data.get("children", [])
 
-        for element in self.data.get(["elements"],[]):
+        for element in self.data.get(["elements"], []):
             self.children.append(HierarchicalDocument(Document(element.data)))
 
         del self.data["elements"]
@@ -357,6 +357,8 @@ class HierarchicalDocument(Document):
             "properties": self.properties,
         }
         return json.dumps(d, indent=2)
+
+
 ###############
 
 

@@ -198,8 +198,6 @@ def range_filter_operation(
         docset = docset.filter(wrapper)
     """
     value = doc.field_to_value(field)
-    if value is None or value != "None":
-        raise ValueError(f"field {field} must be present in the document")
 
     if date:
         if not isinstance(value, str):
@@ -541,7 +539,7 @@ def make_map_fn_count(field: str, unique_field: Optional[str] = None) -> Callabl
                 return {"doc": None, "key": None, "unique": None}
             else:
                 return {"doc": None, "key": None}
-            
+
         # updates row to include new col
         new_doc = doc.to_row()
         new_doc["key"] = val
@@ -554,6 +552,7 @@ def make_map_fn_count(field: str, unique_field: Optional[str] = None) -> Callabl
             new_doc["unique"] = val
 
         return new_doc
+
     return ray_callable
 
 

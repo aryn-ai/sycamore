@@ -220,11 +220,11 @@ class Document(UserDict):
             field: The field in dotted notation to indicate nesting, e.g. properties.schema
 
         Returns:
-            The value associated with the document field. 
+            The value associated with the document field.
             Returns None if field does not exist in document.
         """
         fields = field.split(".")
-        value = getattr(self, fields[0], None)
+        value = self.get(fields[0], None)
         if len(fields) > 1:
             for f in fields[1:]:
                 if isinstance(value, dict):

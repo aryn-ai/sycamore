@@ -1,5 +1,6 @@
 from sycamore.data.document import Document
 
+
 class TestFieldToValue:
     def test_field_to_value(self):
         doc = Document(

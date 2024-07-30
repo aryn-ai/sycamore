@@ -109,6 +109,16 @@ class PropertiesZeroShotGuidancePrompt(SimpleGuidancePrompt):
     """
 
 
+class TaskIdentifierZeroShotGuidancePrompt(SimpleGuidancePrompt):
+    system = "You are a helpful task identifier. You return a string containing no whitespace."
+    user = """You are given a dictionary where the keys are task IDs and the values are descriptions of tasks.
+    Using this context, FIND and RETURN only the task ID that best matches the given question.
+    Only return the task ID as a string. Do not return any additional information.
+    {task_descriptions}
+    Question: {question}
+    """
+
+
 _deprecated_prompts: dict[str, Type[GuidancePrompt]] = {
     "ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT": EntityExtractorZeroShotGuidancePrompt,
     "ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT_CHAT": EntityExtractorFewShotGuidancePrompt,

@@ -49,6 +49,9 @@ class Embedder(ABC):
     def generate_embeddings(self, doc_batch: list[Document]) -> list[Document]:
         pass
 
+    @abstractmethod
+    def generate_text_embedding(self, text: str) -> list[float]:
+        pass
 
 class SentenceTransformerEmbedder(Embedder):
     """
@@ -110,6 +113,12 @@ class SentenceTransformerEmbedder(Embedder):
 
         return doc_batch
 
+    def generate_text_embedding(self, text: str) -> list[float]:
+        if not self._transformer:
+            from sentence_transformers import SentenceTransformer
+            self._transformer = SentenceTransformer(self.model_name)
+
+        return self._transformer.encode(text).tolist()
 
 class OpenAIEmbeddingModels(Enum):
     TEXT_EMBEDDING_ADA_002 = "text-embedding-ada-002"
@@ -186,6 +195,17 @@ class OpenAIEmbedder(Embedder):
 
         return doc_batch
 
+    def generate_text_embedding(self, text: str) -> list[float]:
+        if self._client is None:
+            self._client = self.client_wrapper.get_client()
+
+        if isinstance(self._client, AzureOpenAIClient) and self.model_batch_size > 16:
+            logger.warn("The maximum batch size for emeddings on Azure Open AI is 16.")
+            self.model_batch_size = 16
+
+        embedding = self._client.embeddings.create(model=self.model_name, input=text).data[0].embedding
+
+        return embedding
 
 class BedrockEmbeddingModels(Enum):
     TITAN_EMBED_TEXT_V1 = "amazon.titan-embed-text-v1"
@@ -248,6 +268,14 @@ class BedrockEmbedder(Embedder):
             if doc.text_representation is not None:
                 doc.embedding = self._generate_embedding(client, self.pre_process_document(doc))
         return doc_batch
+
+    def generate_text_embedding(self, text: str) -> list[float]:
+        import boto3
+
+        boto3.session.Session(*self.boto_session_args, **self.boto_session_kwargs)
+        client = boto3.client("bedrock-runtime")
+
+        return self._generate_embedding(client, text)
 
 
 class Embed(MapBatch):

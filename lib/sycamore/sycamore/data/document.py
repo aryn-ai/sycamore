@@ -217,8 +217,7 @@ class Document(UserDict):
         Extracts the value for a particular document field.
 
         Args:
-            doc: The document
-            field: The field in dotted notation to indicate nesting, e.g. doc.properties.schema.
+            field: The field in dotted notation to indicate nesting, e.g. properties.schema
 
         Returns:
             The value associated with the document field.

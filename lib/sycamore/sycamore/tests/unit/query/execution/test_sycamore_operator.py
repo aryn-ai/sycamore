@@ -172,8 +172,49 @@ def test_join():
 
 
 def test_llm_extract():
-    # todo: refactor, because of the existing code structure, we're testing this through integ tests
-    pass
+    with (
+        patch("sycamore.query.execution.sycamore_operator.OpenAI"),
+        patch(
+            "sycamore.query.execution.sycamore_operator.EntityExtractorMessagesPrompt"
+        ) as MockEntityExtractorMessagesPrompt,
+        patch("sycamore.query.execution.sycamore_operator.OpenAIEntityExtractor") as MockOpenAIEntityExtractor,
+    ):
+
+        context = sycamore.init()
+        doc_set = Mock(spec=DocSet)
+        return_doc_set = Mock(spec=DocSet)
+        doc_set.extract_entity.return_value = return_doc_set
+
+        logical_node = LlmExtract(
+            "node_id",
+            {"question": "", "newField": "new", "field": "properties.counter", "format": "", "discrete": True, "id": 0},
+        )
+        sycamore_operator = SycamoreLlmExtract(context, logical_node, query_id="test", inputs=[doc_set])
+        result = sycamore_operator.execute()
+
+        # assert EntityExtractorMessagesPrompt called with expected arguments
+        MockEntityExtractorMessagesPrompt.assert_called_once_with(
+            question=logical_node.data.get("question"),
+            field=logical_node.data.get("field"),
+            format=logical_node.data.get("format"),
+            discrete=logical_node.data.get("discrete"),
+        )
+
+        # assert OpenAIEntityExtractor called with expected arguments
+        MockOpenAIEntityExtractor.assert_called_once_with(
+            entity_name=logical_node.data.get("newField"),
+            llm=ANY,
+            use_elements=False,
+            messages=ANY,
+            field=logical_node.data.get("field"),
+        )
+
+        # assert extract_entity called with expected arguments
+        doc_set.extract_entity.assert_called_once_with(
+            entity_extractor=MockOpenAIEntityExtractor(),
+            name=logical_node.node_id,
+        )
+        assert result == return_doc_set
 
 
 def test_sort():
@@ -296,6 +337,18 @@ class ValidationTests(unittest.TestCase):
         sycamore_operator = SycamoreCount(context, logical_node, query_id="test", inputs=[1])
         self.assertRaises(AssertionError, sycamore_operator.execute)
 
+    def test_sort(self):
+        context = sycamore.init()
+        logical_node = Sort("count", {})
+        sycamore_operator = SycamoreSort(context, logical_node, query_id="test", inputs=[])
+        self.assertRaises(AssertionError, sycamore_operator.execute)
+        sycamore_operator = SycamoreSort(context, logical_node, query_id="test", inputs=[Mock(DocSet), Mock(DocSet)])
+        self.assertRaises(AssertionError, sycamore_operator.execute)
+
+        # non-DocSet input
+        sycamore_operator = SycamoreSort(context, logical_node, query_id="test", inputs=[1])
+        self.assertRaises(AssertionError, sycamore_operator.execute)
+
     def test_llm_extract(self):
         context = sycamore.init()
         logical_node = LlmExtract("count", {})
@@ -308,18 +361,6 @@ class ValidationTests(unittest.TestCase):
 
         # non-DocSet input
         sycamore_operator = SycamoreLlmExtract(context, logical_node, query_id="test", inputs=[1])
-        self.assertRaises(AssertionError, sycamore_operator.execute)
-
-    def test_sort(self):
-        context = sycamore.init()
-        logical_node = Sort("count", {})
-        sycamore_operator = SycamoreSort(context, logical_node, query_id="test", inputs=[])
-        self.assertRaises(AssertionError, sycamore_operator.execute)
-        sycamore_operator = SycamoreSort(context, logical_node, query_id="test", inputs=[Mock(DocSet), Mock(DocSet)])
-        self.assertRaises(AssertionError, sycamore_operator.execute)
-
-        # non-DocSet input
-        sycamore_operator = SycamoreSort(context, logical_node, query_id="test", inputs=[1])
         self.assertRaises(AssertionError, sycamore_operator.execute)
 
     def test_topk(self):

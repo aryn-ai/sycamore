@@ -26,8 +26,8 @@ class LlmExtract(LogicalOperator):
         - *newField* is the name of the new field to add.
         - *format* is the format the new field should be in, e.g. number.
         - *discrete* is a Boolean. It is true ONLY if *newField* has a known finite number of
-            possible values (e.g. number, letter, continent, color). It is ALWAYS false otherwise
-            (any free text outputs).
+            possible values (e.g. number, letter, continent, color, country, state). A discrete
+            value will not use abbreviations. *discrete* is false otherwise (any free text outputs).
         - *input* is a list of operation ids that this operation depends on. For this operation,
             *input* should only contain one id of an operation that returns a database
             (len(input) == 1).

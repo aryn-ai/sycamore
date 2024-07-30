@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Any, Optional
+from typing import Callable, Any, List, Optional
 
 
 from sycamore.data import Element, Document
@@ -67,19 +67,28 @@ class OpenAIEntityExtractor(EntityExtractor):
         prompt_template: Optional[str] = None,
         num_of_elements: int = 10,
         prompt_formatter: Callable[[list[Element]], str] = element_list_formatter,
+        use_elements: Optional[bool] = True,
+        messages: List[dict] = [],
+        field: Optional[str] = None,
     ):
         super().__init__(entity_name)
         self._llm = llm
         self._num_of_elements = num_of_elements
         self._prompt_template = prompt_template
         self._prompt_formatter = prompt_formatter
+        self._use_elements = use_elements
+        self._messages = messages
+        self._field = field
 
     @timetrace("OaExtract")
     def extract_entity(self, document: Document) -> Document:
-        if self._prompt_template:
-            entities = self._handle_few_shot_prompting(document)
+        if self._use_elements:
+            if self._prompt_template:
+                entities = self._handle_few_shot_prompting(document)
+            else:
+                entities = self._handle_zero_shot_prompting(document)
         else:
-            entities = self._handle_zero_shot_prompting(document)
+            entities = self._handle_document_field_prompting(document)
 
         document.properties.update({f"{self._entity_name}": entities})
 
@@ -110,6 +119,16 @@ class OpenAIEntityExtractor(EntityExtractor):
         )
 
         return entities
+
+    def _handle_document_field_prompting(self, document: Document) -> Any:
+        if self._field is None:
+            self._field = "text_representation"
+
+        value = document.field_to_value(self._field)
+        self._messages.append({"role": "user", "content": f"{value}"})
+
+        response = self._llm.generate(prompt_kwargs={"messages": self._messages}, llm_kwargs={})
+        return response
 
 
 class ExtractEntity(Map):

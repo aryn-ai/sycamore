@@ -15,6 +15,8 @@ jobs:
     environment:
       name: PyPI
       url: https://pypi.org/project/aryn-sdk/
+    permissions:
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4

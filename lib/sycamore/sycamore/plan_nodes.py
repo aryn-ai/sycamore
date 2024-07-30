@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Optional
+from typing import Callable, Optional, TYPE_CHECKING
 
-from ray.data import Dataset
+if TYPE_CHECKING:
+    from ray import Dataset
 
 
 class Node(ABC):
@@ -19,7 +20,7 @@ class Node(ABC):
         return "node"
 
     @abstractmethod
-    def execute(self, **kwargs) -> Dataset:
+    def execute(self, **kwargs) -> "Dataset":
         pass
 
     def traverse_down(self, f: Callable[["Node"], "Node"]) -> "Node":

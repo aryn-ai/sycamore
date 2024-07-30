@@ -43,6 +43,9 @@ class DocScan(MaterializedScan):
     def execute(self, **kwargs) -> Dataset:
         return from_items(items=[{"doc": doc.serialize()} for doc in self._docs])
 
+    def local_source(self) -> list[Document]:
+        return self._docs
+
     def format(self):
         return "document"
 

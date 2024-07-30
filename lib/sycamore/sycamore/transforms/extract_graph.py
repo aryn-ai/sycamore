@@ -1,15 +1,16 @@
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Dict, Any
-from sycamore.llms import OpenAI
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.data import Document, MetadataDocument, HierarchicalDocument
 import json
 import uuid
+import logging
 
 if TYPE_CHECKING:
     from sycamore.docset import DocSet
 
+logger = logging.getLogger(__name__)
 
 class GraphData(ABC):
     def __init__(self):
@@ -33,6 +34,13 @@ class GraphMetadata(GraphData):
 
 
 class GraphEntity(GraphData):
+    """
+    Object which contains the label and description of an entity type that is to be extracted from unstructured text
+
+    Args:
+        entityLabel: Label of entity(i.e. Person, Company, Country)
+        entityDescription: Description of what the entity is
+    """
     def __init__(self, entityLabel: str, entityDescription: str):
         self.label = entityLabel
         self.description = entityDescription
@@ -58,8 +66,19 @@ class GraphExtractor(ABC):
         from sycamore.reader import DocSetReader
         from ray.data.aggregate import AggregateFn
 
+        reader = DocSetReader(docset.context)
+
+        #Get list[Document] representation of docset, trigger execute with take_all()
         execution = Execution(docset.context, docset.plan)
         dataset = execution.execute(docset.plan)
+        docs = dataset.take_all(None)
+        docs = [Document.deserialize(d["doc"]) for d in docs]
+
+        #Update docset and dataset to version after execute
+        docset = reader.document(docs)
+        execution = Execution(docset.context, docset.plan)
+        dataset = execution.execute(docset.plan)
+
 
         def extract_nodes(row):
             doc = Document.deserialize(row["doc"])
@@ -99,8 +118,6 @@ class GraphExtractor(ABC):
         )
 
         result = dataset.aggregate(aggregation)
-        docs = dataset.take_all(None)
-        docs = [Document.deserialize(d["doc"]) for d in docs]
 
         for doc in docs:
             if "properties" in doc:
@@ -115,7 +132,6 @@ class GraphExtractor(ABC):
 
         docs.append(doc)
 
-        reader = DocSetReader(docset.context)
         return reader.document(docs)
 
 
@@ -124,22 +140,22 @@ class MetadataExtractor(GraphExtractor):
     Extracts metadata from documents and represents them as nodes and relationship in neo4j
 
     Args:
-        metadata: a list of GraphMetadata that is used to determine what metadata is extracted
+        metadata: A list of GraphMetadata that is used to determine what metadata is extracted
     """
 
     def __init__(self, metadata: list[GraphMetadata]):
         self.metadata = metadata
 
     def extract(self, docset: "DocSet") -> "DocSet":
+        """
+        Extracts metadata from documents and creates an additional document in the docset that stores those nodes
+        """
         docset.plan = ExtractFeatures(docset.plan, self)
         docset = self.resolve(docset)
 
         return docset
 
     def _extract(self, doc: HierarchicalDocument) -> HierarchicalDocument:
-        """
-        Extracts metadata from documents and stores them in the 'nodes' key of 'properties in each document
-        """
         nodes: Dict[str, Dict[str, Any]] = {}
         for m in self.metadata:
             key = m.nodeKey
@@ -169,11 +185,21 @@ class MetadataExtractor(GraphExtractor):
 
 
 class EntityExtractor(GraphExtractor):
-    def __init__(self, entities: list[GraphEntity], llm: OpenAI):
+    """
+    Extracts entities chosen by the user by using LLMs
+
+    Args:
+        entities: A list of GraphEntity that determines what entities are extracted
+        llm: The LLM that is used to extract the entities
+    """
+    def __init__(self, entities: list[GraphEntity], llm):
         self.entities = entities
         self.llm = llm
 
     def extract(self, docset: "DocSet") -> "DocSet":
+        """
+        Extracts entities from documents then creates an additional document in the docset where they are stored as nodes
+        """
         docset.plan = ExtractFeatures(docset.plan, self)
         docset = self.resolve(docset)
         return docset
@@ -181,12 +207,14 @@ class EntityExtractor(GraphExtractor):
     def _extract(self, doc: HierarchicalDocument) -> HierarchicalDocument:
         from multiprocessing import Pool
 
-        if "EXTRACTED_NODES" in doc.data:
-            return doc
-
-        pool = Pool(processes=8)
+        if "EXTRACTED_NODES" in doc.data or not isinstance(doc,HierarchicalDocument):
+           return doc
+        
+        logger.warn("LENGTH: "+str(len(doc.children)))
+        pool = Pool(processes=16)
         res = pool.map(self._extract_from_section, [child.data["summary"] for child in doc.children])
         pool.close()
+        pool.join()
 
         nodes = {}
         for i, section in enumerate(doc.children):
@@ -212,7 +240,7 @@ class EntityExtractor(GraphExtractor):
                     for rel_uuid, rel in node["relationships"].items():
                         nodes[key]["relationships"][rel_uuid] = rel
 
-        doc["properties"]["nodes"] = nodes
+        doc["properties"]["nodes"] = {}
 
         return doc
 
@@ -220,14 +248,18 @@ class EntityExtractor(GraphExtractor):
         labels = [e.label + ": " + e.description for e in self.entities]
         res = self.llm.generate(
             prompt_kwargs={
-                "prompt": str(GraphEntityExtractorPrompt(labels, summary)),
-                "entities": labels,
-                "query": summary,
+                "prompt": str(GraphEntityExtractorPrompt(labels, summary))
             },
-            llm_kwargs={"response_format": {"type": "json_object"}},
+            llm_kwargs={"response_format": {"type": "json_object"}}
         )
+        try:
+            return json.loads(res)
+        except json.JSONDecodeError:
+            logger.warn("LLM Output failed to be decoded to JSON")
+            logger.warn("Input: " + summary)
+            logger.warn("Output: " + res)
+            return {"entities": []}
 
-        return json.loads(res)
 
 
 def GraphEntityExtractorPrompt(entities, query):
@@ -253,8 +285,8 @@ def GraphEntityExtractorPrompt(entities, query):
     **Format Example:**
     {{
     entities: [
-    {{"name": <entity_name>, "type": <entity_type>}},
-    {{"name": <entity_name>, "type": <entity_type>}},
+    {{"name": <entity_name_1>, "type": <entity_type_1>}},
+    {{"name": <entity_name_2>, "type": <entity_type_2>}},
     ...]
     }}
 
@@ -268,7 +300,7 @@ def GraphEntityExtractorPrompt(entities, query):
 
 class ExtractFeatures(Map):
     """
-    Extracts metadata from each document
+    Extracts features determined by a specific extractor from each document
     """
 
     def __init__(self, child: Node, extractor: GraphExtractor, **resource_args):

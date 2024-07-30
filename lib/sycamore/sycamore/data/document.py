@@ -307,38 +307,37 @@ def split_data_metadata(all: list[Document]) -> tuple[list[Document], list[Metad
 class HierarchicalDocument(Document):
     def __init__(self, document=None, **kwargs):
         super().__init__(document)
-        if "doc_id" not in self.data:
-            self.doc_id = str(uuid.uuid4())
-        if "children" not in self.data:
-            self.children = []
-        if "elements" in self.data:
-            for element in self.data["elements"]:
-                self.children.append(HierarchicalDocument(Document(element.data)))
+
+        self.doc_id = self.data.get("doc_id", str(uuid.uuid4()))
+        self.children = self.data.get("children", [])
+
+        for element in self.data.get(["elements"],[]):
+            self.children.append(HierarchicalDocument(Document(element.data)))
 
         del self.data["elements"]
 
     @property
     def children(self) -> list["HierarchicalDocument"]:
-        """TODO"""
+        """Returns this documents children"""
         return self.data["children"]
 
     @children.setter
     def children(self, children: list["HierarchicalDocument"]):
-        """TODO"""
+        """Sets the children of this document"""
         self.data["children"] = children
 
     @children.deleter
     def children(self) -> None:
-        """TODO"""
+        """Deletes all children that belong to this document"""
         self.data["children"] = []
 
     @property
     def elements(self) -> list[Element]:
-        raise ValueError("MetadataDocument does not have elements")
+        raise ValueError("HierarchicalDocument does not have elements")
 
     @elements.setter
     def elements(self, elements: list[Element]):
-        raise ValueError("MetadataDocument does not have elements")
+        raise ValueError("HierarchicalDocument does not have elements")
 
     def __str__(self) -> str:
         """Return a pretty-printed string representing this document."""
@@ -358,8 +357,6 @@ class HierarchicalDocument(Document):
             "properties": self.properties,
         }
         return json.dumps(d, indent=2)
-
-
 ###############
 
 

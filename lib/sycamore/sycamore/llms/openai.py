@@ -139,7 +139,7 @@ class OpenAIClientWrapper:
                 # Add SYCAMORE_HELICONE_TAG value to the Helicone-Property-Tag header if it is set.
                 if "SYCAMORE_HELICONE_TAG" in os.environ:
                     extra_kwargs["default_headers"].update(
-                        {"Helicone-Property-Tag": f"{os.environ['SYCAMORE_HELICONE_TAG']}"}
+                        {"Helicone-Property-Tag": os.environ["SYCAMORE_HELICONE_TAG"]}
                     )
 
             return OpenAIClient(

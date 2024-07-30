@@ -168,6 +168,7 @@ class EntityExtractorMessagesPrompt(OpenAIMessagesPromptBase):
                 ),
             )
 
+
 _deprecated_prompts: dict[str, Type[GuidancePrompt]] = {
     "ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT": EntityExtractorZeroShotGuidancePrompt,
     "ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT_CHAT": EntityExtractorFewShotGuidancePrompt,

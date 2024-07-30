@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class Node(BaseModel):
@@ -12,7 +12,13 @@ class Node(BaseModel):
         downstream_nodes: The nodes that depend on this node.
     """
 
-    node_id: str
+    # This allows pydantic to pick up field descriptions from
+    # docstrings.
+    model_config = ConfigDict(use_attribute_docstrings=True)
+
+    node_id: int
+    """A unique integer ID representing this node."""
+
     dependencies: Optional[List["Node"]] = None
     downstream_nodes: Optional[List["Node"]] = None
 

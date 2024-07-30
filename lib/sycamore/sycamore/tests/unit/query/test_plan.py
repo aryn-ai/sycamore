@@ -51,18 +51,30 @@ def test_plan():
 
 
 def test_count_operator():
-    c = Count(node_id="test_id", description="Count operator", field="test_field")
-    assert c.node_id == "test_id"
+    c = Count(node_id=77, description="Count operator", field="test_field")
+    assert c.node_id == 77
     assert c.description == "Count operator"
     assert c.field == "test_field"
     assert c.usage().startswith("**Count**: Determines the length of a particular database")
     schema = c.input_schema()
+
     assert "description" in schema
-    assert schema["description"] == "typing.Optional[str]"
+    assert schema["description"].field_name == "description"
+    assert schema["description"].description == "A detailed description of why this operator was chosen for this query plan."
+    assert schema["description"].type_hint == "typing.Optional[str]"
+
     assert "node_id" in schema
-    assert schema["node_id"] == "<class 'str'>"
+    assert schema["node_id"].field_name == "node_id"
+    assert schema["node_id"].description == "A unique integer ID representing this node."
+    assert schema["node_id"].type_hint == "<class 'int'>"
+
     assert "field" in schema
-    assert schema["field"] == "typing.Optional[str]"
+    assert schema["field"].field_name == "field"
+    assert schema["field"].description == "Non-primary database field to return a count based on."
+    assert schema["field"].type_hint == "typing.Optional[str]"
+
     assert "primaryField" in schema
-    assert schema["primaryField"] == "typing.Optional[str]"
+    assert schema["primaryField"].field_name == "primaryField"
+    assert schema["primaryField"].description == "Primary field that represents what a unique entry is considered for the data provided."
+    assert schema["primaryField"].type_hint == "typing.Optional[str]"
 

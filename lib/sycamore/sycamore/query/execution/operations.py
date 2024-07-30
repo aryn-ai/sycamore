@@ -134,6 +134,8 @@ def llm_filter_operation(
     if field is None:
         field = "text_representation"
 
+    docset = docset.filter(lambda doc: doc.field_to_value(field) is not None and doc.field_to_value(field) != "None")
+
     entity_extractor = OpenAIEntityExtractor(
         entity_name="_autogen_LlmFilterOutput", llm=client, use_elements=False, messages=messages, field=field
     )

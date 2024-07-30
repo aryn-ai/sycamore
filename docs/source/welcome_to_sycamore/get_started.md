@@ -6,21 +6,25 @@ Sycamore is deployed using Docker, and you can launch it locally or on a virtual
 
 1. Clone the Sycamore repo:
 
-`git clone https://github.com/aryn-ai/sycamore`
+```bash
+git clone https://github.com/aryn-ai/sycamore
+```
 
 2. Create OpenAI Key for LLM access. Sycamore’s default configuration uses OpenAI for RAG and entity extraction. You can create an OpenAI account [here](https://platform.openai.com/signup), or if you already have one, you can retrieve your key [here](https://platform.openai.com/account/api-keys).
 
 3. Set OpenAI Key:
 
-`export OPENAI_API_KEY=YOUR-KEY`
+```bash
+export OPENAI_API_KEY=YOUR-KEY
+```
 
-4. Go to:
-
-`/sycamore`
+4. Go to `/sycamore`
 
 5. Launch Sycamore. Containers will be pulled from DockerHub:
 
-`docker compose up --pull=always`
+```bash
+docker compose up --pull=always
+```
 
 Note: You can alternately remove the `--pull=always` and instead run `docker compose pull` to control when new images are downloaded. `--pull=always` guarantees you have the most recent images for the specified version.
 

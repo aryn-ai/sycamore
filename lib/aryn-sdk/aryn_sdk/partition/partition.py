@@ -2,7 +2,6 @@ from typing import BinaryIO, Optional, Union
 from collections.abc import Mapping
 from aryn_sdk.config import ArynConfig
 import requests
-from requests.exceptions import HTTPError
 import sys
 import json
 import logging

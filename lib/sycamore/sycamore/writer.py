@@ -329,7 +329,7 @@ class DocSetWriter:
                 ctx = sycamore.init()
                 ds = (
                     ctx.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=SycamorePartitioner(extract_table_structure=True, extract_images=True))
+                    .partition(partitioner=ArynPartitioner(extract_table_structure=True, extract_images=True))
                     .explode()
                     .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
                     .term_frequency(tokenizer=tokenizer, with_token_ids=True)

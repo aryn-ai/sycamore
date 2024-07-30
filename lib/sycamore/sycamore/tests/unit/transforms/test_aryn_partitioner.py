@@ -10,7 +10,7 @@ class MockResponseNoTables:
     def __init__(self) -> None:
         self.status_code = 200
 
-    def iter_lines(self):
+    def iter_content(self, chunksize):
         path = TEST_DIR / "resources/data/json/model_server_output_transformer.json"
         yield open(str(path), "rb").read()
 
@@ -19,7 +19,7 @@ class MockResponseTables:
     def __init__(self) -> None:
         self.status_code = 200
 
-    def iter_lines(self):
+    def iter_content(self, chunksize):
         path = TEST_DIR / "resources/data/json/model_server_output_transformer_extract_tables.json"
         yield open(str(path), "rb").read()
 
@@ -30,7 +30,7 @@ class TestArynPDFPartitioner:
         with open(TEST_DIR / "resources/data/json/model_server_output_transformer.json") as expected_text:
             with open(TEST_DIR / "resources/data/pdfs/Transformer.pdf", "rb") as pdf:
                 expected_json = json.loads(expected_text.read())
-                partitioner = ArynPDFPartitioner()
+                partitioner = ArynPDFPartitioner(None)
                 expected_elements = []
                 for element_json in expected_json:
                     element = create_element(**element_json)
@@ -47,7 +47,7 @@ class TestArynPDFPartitioner:
         ) as expected_text:
             with open(TEST_DIR / "resources/data/pdfs/Transformer.pdf", "rb") as pdf:
                 expected_json = json.loads(expected_text.read())
-                partitioner = ArynPDFPartitioner()
+                partitioner = ArynPDFPartitioner(None)
                 expected_elements = []
                 for element_json in expected_json:
                     element = create_element(**element_json)

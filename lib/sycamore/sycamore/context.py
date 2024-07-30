@@ -36,6 +36,11 @@ def _ray_logging_setup():
 
 
 class Context:
+    """
+    A class to implement a Sycamore Context, which initializes a Ray Worker and provides the ability
+    to read data into a DocSet
+    """
+
     def __init__(self, ray_args: Optional[dict[str, Any]] = None, config: Config = Config()):
         if ray_args is None:
             ray_args = {}
@@ -67,15 +72,25 @@ class Context:
         return self._config
 
     def register_rule(self, rule: Rule) -> None:
+        """
+        Allows for the registration of Rules in the Sycamore Context that allow for communication with the
+        underlying Ray context and can specify additional performance optimizations
+        """
         with self._internal_lock:
             self.extension_rules.append(rule)
 
     def get_extension_rule(self) -> list[Rule]:
+        """
+        Returns all Rules currently registered in the Context
+        """
         with self._internal_lock:
             copied = self.extension_rules.copy()
         return copied
 
     def deregister_rule(self, rule: Rule) -> None:
+        """
+        Removes a currently registered Rule from the context
+        """
         with self._internal_lock:
             self.extension_rules.remove(rule)
 

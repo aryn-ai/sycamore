@@ -15,7 +15,7 @@ A DocSet, short for “documentation set,” is a distributed collection of docu
 ```context = sycamore.init()
 docset = context.read\
     .binary("s3://bucket/prefix", binary_format="pdf")\
-    .partition(partitioner=UnstructuredPdfPartitioner())\
+    .partition(partitioner=ArynPartitioner())\
     .explode()\
     .sketch()\
     .embed(SentenceTransformerEmbedder(

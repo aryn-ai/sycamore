@@ -141,7 +141,7 @@ class DocSetReader:
          The following shows how read a JSON file into a Sycamore DocSet.
 
          .. code-block:: python
-         
+
             docset = context.read.json("s3://bucket/prefix/json")
         """
         json_scan = JsonScan(
@@ -402,7 +402,7 @@ class DocSetReader:
             The following shows how to write to data into a Elasticsearch Index, and read it back into a DocSet.
 
             .. code-block:: python
-            
+
                 url = "http://localhost:9201"
                 index_name = "test_index-read"
                 wait_for_completion = "wait_for"

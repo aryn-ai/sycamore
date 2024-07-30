@@ -67,9 +67,9 @@ class OpenAIEntityExtractor(EntityExtractor):
         prompt_template: Optional[str] = None,
         num_of_elements: int = 10,
         prompt_formatter: Callable[[list[Element]], str] = element_list_formatter,
-        use_elements: bool = True,
-        messages: Optional[List[dict]] = [],
-        field: str = None,
+        use_elements: Optional[bool] = True,
+        messages: List[dict] = [],
+        field: Optional[str] = None,
     ):
         super().__init__(entity_name)
         self._llm = llm

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import logging
-from typing import Dict, List, Type
+from typing import Dict, List, Optional, Type
 
 from guidance.models import Chat, Instruct, Model as GuidanceModel
 from guidance import gen, user, system, assistant, instruction
@@ -131,7 +131,7 @@ class OpenAIMessagesPromptBase:
 
 
 class EntityExtractorMessagesPrompt(OpenAIMessagesPromptBase):
-    def __init__(self, question: str, field: str, format: str, discrete: bool = False):
+    def __init__(self, question: Optional[str], field: Optional[str], format: Optional[str], discrete: bool = False):
         super().__init__()
 
         self.add_message(
@@ -167,17 +167,6 @@ class EntityExtractorMessagesPrompt(OpenAIMessagesPromptBase):
                     f'"{field}" to answer the question: '
                 ),
             )
-
-
-class OpenAIMessagesPrompt:
-    def init(self, model: GuidanceModel, **kwargs) -> str:
-        pass
-
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return self.__dict__ == other.__dict__
-        return False
-
 
 _deprecated_prompts: dict[str, Type[GuidancePrompt]] = {
     "ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT": EntityExtractorZeroShotGuidancePrompt,

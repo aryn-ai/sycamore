@@ -234,6 +234,8 @@ class Document(UserDict):
 
 class MetadataDocument(Document):
     def __init__(self, document=None, **kwargs):
+        # Do not pass kwargs to parent; metadata docs take everything into data["metadata"]
+        # so we do not want them in the generic userdict.
         super().__init__(document)
         if "metadata" not in self.data:
             self.data["metadata"] = {}

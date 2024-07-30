@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.abspath("./"))
 sys.path.insert(1, os.path.abspath("../../lib/sycamore/sycamore/"))
 
 project = "Sycamore"
-copyright = "2023, Aryn Inc."
+copyright = "2024, Aryn Inc."
 author = "The Aryn Team"
 
 # -- General configuration ---------------------------------------------------

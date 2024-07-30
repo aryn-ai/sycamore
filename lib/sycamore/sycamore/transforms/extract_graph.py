@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 class GraphData(ABC):
     def __init__(self):
         pass
@@ -41,6 +42,7 @@ class GraphEntity(GraphData):
         entityLabel: Label of entity(i.e. Person, Company, Country)
         entityDescription: Description of what the entity is
     """
+
     def __init__(self, entityLabel: str, entityDescription: str):
         self.label = entityLabel
         self.description = entityDescription
@@ -68,17 +70,16 @@ class GraphExtractor(ABC):
 
         reader = DocSetReader(docset.context)
 
-        #Get list[Document] representation of docset, trigger execute with take_all()
+        # Get list[Document] representation of docset, trigger execute with take_all()
         execution = Execution(docset.context, docset.plan)
         dataset = execution.execute(docset.plan)
         docs = dataset.take_all(None)
         docs = [Document.deserialize(d["doc"]) for d in docs]
 
-        #Update docset and dataset to version after execute
+        # Update docset and dataset to version after execute
         docset = reader.document(docs)
         execution = Execution(docset.context, docset.plan)
         dataset = execution.execute(docset.plan)
-
 
         def extract_nodes(row):
             doc = Document.deserialize(row["doc"])
@@ -192,13 +193,14 @@ class EntityExtractor(GraphExtractor):
         entities: A list of GraphEntity that determines what entities are extracted
         llm: The LLM that is used to extract the entities
     """
+
     def __init__(self, entities: list[GraphEntity], llm):
         self.entities = entities
         self.llm = llm
 
     def extract(self, docset: "DocSet") -> "DocSet":
         """
-        Extracts entities from documents then creates an additional document in the docset where they are stored as nodes
+        Extracts entities from documents then creates a document in the docset where they are stored as nodes
         """
         docset.plan = ExtractFeatures(docset.plan, self)
         docset = self.resolve(docset)
@@ -207,10 +209,9 @@ class EntityExtractor(GraphExtractor):
     def _extract(self, doc: HierarchicalDocument) -> HierarchicalDocument:
         from multiprocessing import Pool
 
-        if "EXTRACTED_NODES" in doc.data or not isinstance(doc,HierarchicalDocument):
-           return doc
-        
-        logger.warn("LENGTH: "+str(len(doc.children)))
+        if "EXTRACTED_NODES" in doc.data or not isinstance(doc, HierarchicalDocument):
+            return doc
+
         pool = Pool(processes=16)
         res = pool.map(self._extract_from_section, [child.data["summary"] for child in doc.children])
         pool.close()
@@ -240,17 +241,15 @@ class EntityExtractor(GraphExtractor):
                     for rel_uuid, rel in node["relationships"].items():
                         nodes[key]["relationships"][rel_uuid] = rel
 
-        doc["properties"]["nodes"] = {}
+        doc["properties"]["nodes"] = nodes
 
         return doc
 
     def _extract_from_section(self, summary: str) -> dict:
         labels = [e.label + ": " + e.description for e in self.entities]
         res = self.llm.generate(
-            prompt_kwargs={
-                "prompt": str(GraphEntityExtractorPrompt(labels, summary))
-            },
-            llm_kwargs={"response_format": {"type": "json_object"}}
+            prompt_kwargs={"prompt": str(GraphEntityExtractorPrompt(labels, summary))},
+            llm_kwargs={"response_format": {"type": "json_object"}},
         )
         try:
             return json.loads(res)
@@ -259,7 +258,6 @@ class EntityExtractor(GraphExtractor):
             logger.warn("Input: " + summary)
             logger.warn("Output: " + res)
             return {"entities": []}
-
 
 
 def GraphEntityExtractorPrompt(entities, query):

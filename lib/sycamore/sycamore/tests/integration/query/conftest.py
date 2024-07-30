@@ -2,8 +2,10 @@ import pytest
 from opensearchpy import OpenSearch
 
 import sycamore
+from sycamore.functions import HuggingFaceTokenizer
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.embed import SentenceTransformerEmbedder
+from sycamore.transforms.merge_elements import GreedyTextElementMerger
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 
 QUERY_INTEGRATION_TEST_INDEX_NAME = "sycamore_query_ntsb_integration_tests"
@@ -46,12 +48,15 @@ def query_integration_test_index():
         }
     }
     paths = str(TEST_DIR / "resources/data/pdfs/ntsb-report.pdf")
+    model_name = "sentence-transformers/all-MiniLM-L6-v2"
+    tokenizer = HuggingFaceTokenizer(model_name)
 
     context = sycamore.init()
     ds = (
         context.read.binary(paths, binary_format="pdf")
         .limit(1)
         .partition(partitioner=UnstructuredPdfPartitioner())
+        .merge(GreedyTextElementMerger(tokenizer=tokenizer, max_tokens=1000))
         .explode()
         .embed(
             embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")

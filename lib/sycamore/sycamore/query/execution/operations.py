@@ -363,7 +363,7 @@ def make_filter_fn_join(field: str, join_set: set) -> Callable[[Document], bool]
     """
 
     def filter_fn_join(doc: Document) -> bool:
-        value = str(doc.field_to_value(field))
+        value = doc.field_to_value(field)
         return value in join_set
 
     return filter_fn_join
@@ -391,7 +391,7 @@ def join_operation(docset1: DocSet, docset2: DocSet, field1: str, field2: str) -
         doc = Document.from_row(row)
         if isinstance(doc, MetadataDocument):
             continue
-        value = str(doc.field_to_value(field1))
+        value = doc.field_to_value(field1)
         unique_vals.add(value)
 
     # filters docset2 based on matches of field2 with unique values
@@ -548,6 +548,8 @@ def make_map_fn_count(field: str, unique_field: Optional[str] = None) -> Callabl
 
         if unique_field is not None:
             val = str(doc.field_to_value(unique_field))
+            if val is None:
+                return {"doc": None, "key": None, "unique": None}
             # updates row to include new col
             new_doc["unique"] = val
 

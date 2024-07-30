@@ -224,15 +224,11 @@ class Document(UserDict):
             Returns None if field does not exist in document.
         """
         fields = field.split(".")
-        if hasattr(self, fields[0]):
-            value = getattr(self, fields[0])
-        else:
-            return None
+        value = getattr(self, fields[0], None)
         if len(fields) > 1:
-            assert fields[0] == "properties"
             for f in fields[1:]:
-                if f in value:
-                    value = value[f]
+                if isinstance(value, dict):
+                    value = value.get(f, None)
                 else:
                     return None
         return value

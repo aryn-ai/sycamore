@@ -136,6 +136,11 @@ class OpenAIClientWrapper:
                 extra_kwargs["default_headers"].update(
                     {"Helicone-Auth": f"Bearer {os.environ['SYCAMORE_HELICONE_API_KEY']}"}
                 )
+                # Add SYCAMORE_HELICONE_TAG value to the Helicone-Property-Tag header if it is set.
+                if "SYCAMORE_HELICONE_TAG" in os.environ:
+                    extra_kwargs["default_headers"].update(
+                        {"Helicone-Property-Tag": f"{os.environ['SYCAMORE_HELICONE_TAG']}"}
+                    )
 
             return OpenAIClient(
                 api_key=self.api_key,

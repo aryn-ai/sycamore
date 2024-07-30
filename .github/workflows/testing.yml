@@ -18,6 +18,7 @@ env:
   ARYN_API_KEY: ${{ secrets.MODEL_SERVER_KEY }}
   SYCAMORE_HELICONE_API_KEY: ${{ secrets.HELICONE_API_KEY }}
   SYCAMORE_OPENAI_USER: 'sycamore-github-ci'
+  SYCAMORE_HELICONE_TAG: ${{ github.ref }}
 
 # Permissions for AWS access
 permissions:

@@ -1,4 +1,4 @@
-from typing import Dict, List, Union, Any
+from typing import Dict, List, Union, Any, Tuple
 from abc import ABC, abstractmethod
 
 import os
@@ -11,8 +11,8 @@ from sycamore import Context
 
 def add_search_context_to_datapoint(datapoint: Document) -> List[Element]:
     """
-    This function adds raw inforation from json ground truth and properties
-    to each evaluation datapoint
+    This function adds raw information from JSON ground truth and properties
+    to each evaluation datapoint.
     """
     assert datapoint.type == "EvaluationDataPoint"
     source_documents: List[Element] = []
@@ -35,7 +35,7 @@ def add_search_context_to_datapoint(datapoint: Document) -> List[Element]:
 def add_filters_to_question(datapoint: EvaluationDataPoint) -> EvaluationDataPoint:
     """
     This function adds properties, search context and custom question augmentation to
-    evaluation datapoints
+    evaluation datapoints.
     """
     assert datapoint.type == "EvaluationDataPoint"
     datapoint = EvaluationDataPoint(datapoint)
@@ -62,18 +62,18 @@ class Assessment(ABC):
 
 class QualityAssessment(Assessment):
     """
-    This Class run Question Answering benchmarking on each datapoint and
-    measure performance
+    This Class runs Question Answering benchmarking on each datapoint and
+    measure performance.
 
     Attributes:
-        gt_path: Path to ground truth, supports JSON format
-        rag_config: Configration for RAG
-        os_client_args: Configration for connecting to opensearch
-        custom_question_augmentation: Custom String for Augmenting Question
-        question_augmentation_filter: Filters values to be use in custom Question Augmentation
-        metrics: Metrics to test score on, eg document_retrieval_metrics
-        custom_question_augmentation: A string to format questions
-        question_augmentation_filter: A Filter string to be used in formating question
+        gt_path: Path to ground truth, supports JSON format.
+        rag_config: Configration for RAG.
+        os_client_args: Configration for connecting to opensearch.
+        custom_question_augmentation: Custom String for Augmenting Question.
+        question_augmentation_filter: Filters values to be use in custom Question Augmentation.
+        metrics: Metrics to test score on, eg document_retrieval_metrics.
+        custom_question_augmentation: A string to format questions.
+        question_augmentation_filter: A Filter string to be used in formating question.
     """
 
     def __init__(
@@ -96,9 +96,9 @@ class QualityAssessment(Assessment):
     @staticmethod
     def create_evaluation_datapoint(
         json_dict: Dict, custom_question_augmentation: str = "{}", question_augmentation_filter: str = ""
-    ) -> List:
+    ) -> List[Dict[str, bytes]]:
         """
-        This method creates evaluation datapoint from JSON file
+        This method creates evaluation datapoint from JSON file.
         """
         result = []
         assert json_dict is not None
@@ -113,12 +113,12 @@ class QualityAssessment(Assessment):
             result += [{"doc": document.serialize()}]
         return result
 
-    def run_evaluation(self, ctx: Context, index: str, **kwargs) -> tuple[list[Document], Document]:
+    def run_evaluation(self, ctx: Context, index: str, **kwargs) -> Tuple[List[Document], Document]:
         """
-        This method runs evaluation test by following steps
-        1. Create evaluation datapoint
-        2. Create evaluation pipeline
-        3. Using Datapoint on pipeline for evaluation
+        This method runs evaluation test by following steps:
+        1. Creating evaluation datapoint.
+        2. Creating evaluation pipeline.
+        3. Using datapoint on pipeline for evaluation.
         """
         custom_question_augmentation = str(self.custom_question_augmentation)
         question_augmentation_filter = str(self.question_augmentation_filter)
@@ -139,15 +139,15 @@ class QualityAssessment(Assessment):
 class Evaluate:
     """
     The Evaluate runs the evaluation test on
-    index or list of indices against a ground truth
+    index or list of indices against a ground truth.
 
     Args:
-        context: The Sycamore Context to use
-        index: Index or list of Index
-        assessment: The Assessment to run, there is only one right now
+        context: The Sycamore Context to use.
+        index: Index or list of Index.
+        assessment: The Assessment to run, there is only one right now.
 
     Returns:
-        Two EvaluationDataPoint, one for query level information and another with aggregate information
+        Two EvaluationDataPoint, one for query level information and another with aggregate information.
 
     Example:
         context = sycamore.init()

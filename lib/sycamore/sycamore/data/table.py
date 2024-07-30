@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 
 import apted
 from bs4 import BeautifulSoup, Tag
-from sycamore.data import BoundingBox
+from sycamore.data.bbox import BoundingBox
 from PIL import Image, ImageDraw
 import numpy as np
 from pandas import DataFrame

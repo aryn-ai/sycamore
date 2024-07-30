@@ -73,7 +73,7 @@ class Common:
 
 class TestBaseDBWriter(Common):
 
-    def test_fake_writer_e2e_happy(self, mocker, tmp_path):
+    def test_fake_writer_e2e_happy(self, mocker, tmp_path) -> None:
         input_node = mocker.Mock(spec=Node)
         client_params = FakeClientParams(fspath=tmp_path)
         target_params = FakeTargetParams(dirname="target", mode="fake")
@@ -94,7 +94,7 @@ class TestBaseDBWriter(Common):
         assert FakeWriter.Record == FakeRecord
         assert FakeWriter.TargetParams == FakeTargetParams
 
-    def test_fake_writer_filtered_happy(self, mocker, tmp_path):
+    def test_fake_writer_filtered_happy(self, mocker, tmp_path) -> None:
         input_node = mocker.Mock(spec=Node)
         client_params = FakeClientParams(fspath=tmp_path)
         target_params = FakeTargetParams(dirname="target", mode="fake")

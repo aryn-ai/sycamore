@@ -52,6 +52,7 @@ class LlmPlanner:
             e.g. if a new field called "state" is added, when referencing it in another operation,
             you should use "properties.state". A database returned from *TopK* operation only has
             "properties.key" or "properties.count"; you can only reference one of those fields.
+            Other than those, DO NOT USE ANY OTHER FIELD NAMES.
         5. If an optional field does not have a value in the query plan, return null in its place.
         6. If you cannot generate a plan to answer a question, return an empty list.
         7. The first step of each plan MUST be a **LoadData** operation that returns a database.

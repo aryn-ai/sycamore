@@ -35,12 +35,7 @@ class Sort(Transform):
             doc = Document.from_row(input_dict)
 
             try:
-                fields = self._field.split(".")
-                val = getattr(doc, fields[0])
-                if len(fields) > 1:
-                    assert fields[0] == "properties"
-                    for f in fields[1:]:
-                        val = val[f]
+                val = doc.field_to_value(self._field)
 
             except Exception as e:
                 if self._default_val is None:

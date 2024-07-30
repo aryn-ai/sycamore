@@ -145,6 +145,16 @@ class BaseMapTransform(UnaryNode):
             result.write_datasink(intermediate_datasink)
         return result
 
+    def local_execute(self, all_docs: list[Document]) -> list[Document]:
+        docs = [d for d in all_docs if not isinstance(d, MetadataDocument)]
+        metadata = [d for d in all_docs if isinstance(d, MetadataDocument)]
+        outputs = self._local_process(docs)
+        to_docs = [d for d in outputs if not isinstance(d, MetadataDocument)]
+        if self._enable_auto_metadata and (len(docs) > 0 or len(to_docs) > 0):
+            outputs.extend(BaseMapTransform._update_lineage(docs, to_docs))
+        outputs.extend(metadata)
+        return outputs
+
     def _local_process(self, in_docs: list[Document]) -> list[Document]:
         """Internal function for faster testing during the conversion to running on BaseMap.
         If extended with metadata support, this could become more real."""
@@ -240,7 +250,7 @@ class BaseMapTransform(UnaryNode):
             )
 
         to_docs = [d for d in outputs if not isinstance(d, MetadataDocument)]
-        if enable_auto_metadata:
+        if enable_auto_metadata and (len(docs) > 0 or len(to_docs) > 0):
             outputs.extend(BaseMapTransform._update_lineage(docs, to_docs))
         outputs.extend(metadata)
         return {"doc": [d.serialize() for d in outputs]}

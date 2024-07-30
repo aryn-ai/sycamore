@@ -102,13 +102,13 @@ S3 (common for enterprise data) or other locations accessible by the demo query 
 ```python
 os.makedirs(work_dir, exist_ok = True)
 metadata = {}
-for f in ["1706.03762.pdf", "2306.07303.pdf"]:
-    path = os.path.join(work_dir, f)
+for f in ["1706.03762", "2306.07303"]:
+    path = os.path.join(work_dir, f+".pdf")
     url = os.path.join("https://arxiv.org/pdf", f)
     if not Path(path).is_file():
         print("Downloading {} to {}".format(url, path))
         subprocess.run(["curl", "-o", path, url])
-    metadata[path] = { "_location": url }
+    metadata[path] = { "url": url }
 
 manifest_path = os.path.join(work_dir, "manifest.json")
 with open(manifest_path, "w") as f:

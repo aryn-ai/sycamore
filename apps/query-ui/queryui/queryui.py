@@ -62,7 +62,7 @@ def generate_code(client, plan):
 def show_dag(plan: LogicalPlan):
     nodes = []
     edges = []
-    for node in plan.nodes().values():
+    for node in plan.nodes.values():
         nodes.append(
             Node(
                 id=node.node_id,
@@ -77,7 +77,7 @@ def show_dag(plan: LogicalPlan):
                 margin=30,
             )
         )
-    for node in plan.nodes().values():
+    for node in plan.nodes.values():
         if node.dependencies:
             for dep in node.dependencies:
                 edges.append(Edge(source=dep.node_id, target=node.node_id, color="#ffffff"))

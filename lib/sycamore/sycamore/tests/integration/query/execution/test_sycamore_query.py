@@ -33,7 +33,6 @@ class TestSycamoreQuery:
         plan = client.generate_plan(
             "What percent of  environmentally caused incidents were due to wind?", "ntsb", schema
         )
-        plan.show()
         query_id, result = client.run_plan(plan, dry_run=codegen)
         assert isinstance(result, str)
         assert len(result) > 0

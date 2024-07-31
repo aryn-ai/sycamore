@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Any
+from typing import Optional, Any
 
 
 class Config:
@@ -9,9 +9,9 @@ class Config:
 
     LLM = "llm"
 
-    def __init__(self, config: Dict[str, Any] = None) -> None:
+    def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
         super().__init__()
-        self.config: Dict[str, Any] = config or dict()
+        self.config: dict[str, Any] = config or dict()
 
     def get(self, key: str) -> Optional[Any]:
         return self.config.get(key, None)

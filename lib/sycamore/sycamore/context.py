@@ -49,7 +49,9 @@ class Context:
     to read data into a DocSet
     """
 
-    def __init__(self, exec_mode=ExecMode.RAY, ray_args: Optional[dict[str, Any]] = None, config: Config = Config()):
+    def __init__(
+        self, exec_mode=ExecMode.RAY, ray_args: Optional[dict[str, Any]] = None, config: Optional[Config] = None
+    ):
         self.exec_mode = exec_mode
         if self.exec_mode == ExecMode.RAY:
             import ray
@@ -74,7 +76,7 @@ class Context:
             assert False, f"unsupported mode {self.exec_mode}"
 
         self.extension_rules: list[Rule] = []
-        self._config = config
+        self._config = config or Config()
         self._internal_lock = threading.Lock()
 
     @property

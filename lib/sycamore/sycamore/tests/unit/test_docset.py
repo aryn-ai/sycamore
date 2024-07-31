@@ -256,7 +256,7 @@ class TestDocSet:
                 num = 20
             else:
                 num = i
-            docs.append(Document(text_representation="", doc_id = num))
+            docs.append(Document(text_representation="", doc_id=num))
 
         context = sycamore.init()
         docset = context.read.document(docs)

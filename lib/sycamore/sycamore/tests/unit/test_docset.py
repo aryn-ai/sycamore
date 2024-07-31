@@ -252,6 +252,16 @@ class TestDocSet:
 
         docs = []
         for i in range(10):
+            docs.append(Document(text_representation=""))
+
+        context = sycamore.init()
+        docset = context.read.document(docs)
+        assert docset.count() == 10
+
+    def test_count_distinct(self):
+
+        docs = []
+        for i in range(10):
             if i == 8 or i == 9:
                 num = 20
             else:
@@ -260,5 +270,4 @@ class TestDocSet:
 
         context = sycamore.init()
         docset = context.read.document(docs)
-        assert docset.count() == 10
-        assert docset.count("doc_id") == 9
+        assert docset.count_distinct("doc_id") == 9

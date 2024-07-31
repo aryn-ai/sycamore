@@ -133,17 +133,54 @@ def test_filter_exact_match(mock_docs):
 def test_count():
     context = sycamore.init()
     doc_set = Mock(spec=DocSet)
-    return_value = 5
-    doc_set.count.return_value = return_value
-    logical_node = Count("node_id", {"field": "properties.counter", "primaryField": "text_representation", "id": 0})
-    sycamore_operator = SycamoreCount(context, logical_node, query_id="test", inputs=[doc_set])
-    result = sycamore_operator.execute()
 
-    doc_set.count.assert_called_once_with(
-        field=logical_node.data.get("field"),
-        **sycamore_operator.get_execute_args(),
+    return_value_count = 5
+    doc_set.count.return_value = return_value_count
+    logical_node_count = Count("node_id", {"field": None, "primaryField": None, "id": 0})
+    sycamore_operator = SycamoreCount(context, logical_node_count, query_id="test", inputs=[doc_set])
+    count_result = sycamore_operator.execute()
+
+    doc_set.count.assert_called_once_with(**sycamore_operator.get_execute_args())
+
+    assert count_result == return_value_count
+
+
+def test_count_distinct():
+    context = sycamore.init()
+    doc_set = Mock(spec=DocSet)
+
+    return_value_count_distinct = 6
+    doc_set.count_distinct.return_value = return_value_count_distinct
+    logical_node_count_distinct = Count(
+        "node_id", {"field": "properties.counter", "primaryField": "text_representation", "id": 0}
     )
-    assert result == return_value
+    sycamore_operator = SycamoreCount(context, logical_node_count_distinct, query_id="test", inputs=[doc_set])
+    count_distinct_result = sycamore_operator.execute()
+
+    doc_set.count_distinct.assert_called_once_with(
+        field=logical_node_count_distinct.data.get("field"), **sycamore_operator.get_execute_args()
+    )
+
+    assert count_distinct_result == return_value_count_distinct
+
+
+def test_count_distinct_primary_field():
+    context = sycamore.init()
+    doc_set = Mock(spec=DocSet)
+
+    return_value_count_distinct_primary = 7
+    doc_set.count_distinct.return_value = return_value_count_distinct_primary
+    logical_node_count_distinct_primary = Count(
+        "node_id", {"field": None, "primaryField": "text_representation", "id": 0}
+    )
+    sycamore_operator = SycamoreCount(context, logical_node_count_distinct_primary, query_id="test", inputs=[doc_set])
+    count_distinct_primary_result = sycamore_operator.execute()
+
+    doc_set.count_distinct.assert_called_once_with(
+        field=logical_node_count_distinct_primary.data.get("primaryField"), **sycamore_operator.get_execute_args()
+    )
+
+    assert count_distinct_primary_result == return_value_count_distinct_primary
 
 
 def test_join():

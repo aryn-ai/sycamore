@@ -374,24 +374,35 @@ class SycamoreCount(SycamoreOperator):
         # load into local vars for Ray serialization magic
         logical_node = self.logical_node
         assert logical_node.data is not None
+        field = logical_node.data.get("field")
+        primary_field = logical_node.data.get("primaryField")
 
-        result = self.inputs[0].count(
-            field=logical_node.data.get("field") or logical_node.data.get("primaryField"), **self.get_execute_args()
-        )
+        if field is None and primary_field is None:
+            result = self.inputs[0].count(**self.get_execute_args())
+        else:
+            field_name = field or primary_field
+            assert isinstance(field_name, str)
+            result = self.inputs[0].count_distinct(
+                field=field_name, **self.get_execute_args()
+            )
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) == 1
         assert self.logical_node.data is not None
+        field = self.logical_node.data.get("field")
+        primary_field = self.logical_node.data.get("primaryField")
+
         imports: list[str] = []
-        script = (
-            f"""{output_var or get_var_name(self.logical_node)} ="""
-            f"""{input_var or get_var_name(self.logical_node.dependencies[0])}.count("""
-        )
-        if self.logical_node.data.get("field"):
-            script += f"""field='{self.logical_node.data.get("field")}', """
-        elif self.logical_node.data.get("primaryField"):
-            script += f"""field='{self.logical_node.data.get("primaryField")}', """
+        script = f"""{output_var or get_var_name(self.logical_node)} ="""
+        if field is None and primary_field is None:
+            script += f"""{input_var or get_var_name(self.logical_node.dependencies[0])}.count("""
+        else:
+            script += f"""{input_var or get_var_name(self.logical_node.dependencies[0])}.count_distinct("""
+            if self.logical_node.data.get("field"):
+                script += f"""field='{self.logical_node.data.get("field")}', """
+            elif self.logical_node.data.get("primaryField"):
+                script += f"""field='{self.logical_node.data.get("primaryField")}', """
         script += f"""**{get_str_for_dict(self.get_execute_args())})"""
         return script, imports
 

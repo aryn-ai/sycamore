@@ -225,7 +225,7 @@ def range_filter_operation(
     return value_comp >= start_comp and value_comp <= end_comp
 
 
-def count_operation(docset: DocSet, field: Optional[str] = None, primary_field: Optional[str] = None, **kwargs) -> int:
+def count_operation(docset: DocSet, field: Optional[str] = None, **kwargs) -> int:
     """
     Counts the number of document in a DocSet. Counts by field or primary_field if specified.
 
@@ -239,16 +239,10 @@ def count_operation(docset: DocSet, field: Optional[str] = None, primary_field: 
         An integer.
     """
     # normal count
-    if field is None and primary_field is None:
+    if field is None:
         return docset.count(**kwargs)
 
     else:
-        if field is not None:
-            unique_field = field
-        else:
-            if primary_field is None:
-                raise ValueError("Must specify either 'field' or 'primary_field'")
-            unique_field = primary_field
         unique_docs = set()
         execution = Execution(docset.context, docset.plan)
         dataset = execution.execute(docset.plan, **kwargs)
@@ -256,7 +250,7 @@ def count_operation(docset: DocSet, field: Optional[str] = None, primary_field: 
             doc = Document.from_row(row)
             if isinstance(doc, MetadataDocument):
                 continue
-            value = doc.field_to_value(unique_field)
+            value = doc.field_to_value(field)
             if value is not None and value != "None":
                 unique_docs.add(value)
         return len(unique_docs)

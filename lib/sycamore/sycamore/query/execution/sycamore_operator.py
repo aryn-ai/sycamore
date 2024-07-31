@@ -375,12 +375,10 @@ class SycamoreCount(SycamoreOperator):
         # load into local vars for Ray serialization magic
         logical_node = self.logical_node
         assert logical_node.data is not None
-        assert "field" in logical_node.data or "primaryField" in logical_node.data
 
         result = count_operation(
             docset=self.inputs[0],
-            field=logical_node.data.get("field"),
-            primary_field=logical_node.data.get("primaryField"),
+            field=logical_node.data.get("field") or logical_node.data.get("primaryField"),
             **self.get_execute_args(),
         )
         return result

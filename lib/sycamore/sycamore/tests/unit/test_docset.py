@@ -91,7 +91,7 @@ class TestDocSet:
         assert isinstance(docset.lineage(), FlatMap)
         assert docset.lineage()._name == get_name_from_callable(f)
 
-    def test_flat_map_customt_name(self, mocker):
+    def test_flat_map_custom_name(self, mocker):
         test_name = "test_flat_map_1"
         context = mocker.Mock(spec=Context)
         docset = DocSet(context, None)

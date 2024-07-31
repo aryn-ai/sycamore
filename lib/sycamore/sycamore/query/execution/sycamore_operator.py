@@ -375,7 +375,6 @@ class SycamoreCount(SycamoreOperator):
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) == 1
         assert isinstance(self.logical_node, Count)
-        assert self.logical_node.field or self.logical_node.primary_field
         imports = ["from sycamore.query.execution.operations import count_operation"]
         script = f"""
 {output_var or get_var_name(self.logical_node)} = count_operation(

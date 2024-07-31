@@ -98,7 +98,7 @@ class DocSetWriter:
         from typing import Any
         import copy
 
-        if not os_client_args:
+        if os_client_args is None:
             os_client_args = self.context.config.get(Config.OPENSEARCH_CLIENT_CONFIG)
         assert os_client_args is not None
 

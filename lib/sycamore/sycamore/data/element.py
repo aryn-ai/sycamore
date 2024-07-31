@@ -5,8 +5,8 @@ from typing import Any, Optional
 
 from PIL import Image
 
-from sycamore.data import BoundingBox
-from sycamore.data import Table
+from sycamore.data.bbox import BoundingBox
+from sycamore.data.table import Table
 
 
 class Element(UserDict):

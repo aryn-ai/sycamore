@@ -163,3 +163,4 @@ More Resources
    /APIs/data_preparation.rst
    /APIs/conversation_memory.rst
    /APIs/transforms.rst
+   /APIs/aryn-sdk.rst

@@ -4,9 +4,10 @@ import pprint
 import sys
 from typing import Callable, Optional, Any, Iterable, Type
 
-from sycamore import Context
+from sycamore.context import Context
 from sycamore.data import Document, Element, MetadataDocument
 from sycamore.functions.tokenizer import Tokenizer
+from sycamore.lineage import Materialize, MaterializeMode
 from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.augment_text import TextAugmentor
 from sycamore.transforms.embed import Embedder
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 class DocSet:
     """
-    A DocSet, short for “documentation set,” is a distributed collection of documents bundled together for processing.
+    A DocSet, short for “Document Set”, is a distributed collection of documents bundled together for processing.
     Sycamore provides a variety of transformations on DocSets to help customers handle unstructured data easily.
     """
 
@@ -71,7 +72,7 @@ class DocSet:
 
                 context = sycamore.init()
                 pdf_docset = context.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=SycamorePartitioner())
+                    .partition(partitioner=ArynPartitioner())
                     .show()
         """
         documents = self.take(limit)
@@ -127,7 +128,7 @@ class DocSet:
 
                 context = sycamore.init()
                 pdf_docset = context.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=SycamorePartitioner())
+                    .partition(partitioner=ArynPartitioner())
                     .count()
         """
         from sycamore import Execution
@@ -159,17 +160,15 @@ class DocSet:
 
                 context = sycamore.init()
                 pdf_docset = context.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=SycamorePartitioner())
+                    .partition(partitioner=ArynPartitioner())
                     .take()
 
         """
         from sycamore import Execution
 
         execution = Execution(self.context, self.plan)
-        dataset = execution.execute(self.plan, **kwargs)
         ret = []
-        for row in dataset.iter_rows():
-            doc = Document.from_row(row)
+        for doc in execution.execute_iter(self.plan, **kwargs):
             if not include_metadata and isinstance(doc, MetadataDocument):
                 continue
             ret.append(doc)
@@ -210,7 +209,7 @@ class DocSet:
 
                 context = sycamore.init()
                 pdf_docset = context.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=SycamorePartitioner())
+                    .partition(partitioner=ArynPartitioner())
                     .explode()
                     .limit()
 
@@ -232,7 +231,7 @@ class DocSet:
 
                 context = sycamore.init()
                 pdf_docset = context.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=SycamorePartitioner())
+                    .partition(partitioner=ArynPartitioner())
         """
         from sycamore.transforms import Partition
 
@@ -285,7 +284,7 @@ class DocSet:
             .. code-block:: python
 
                pdf_docset = context.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=SycamorePartitioner())
+                    .partition(partitioner=ArynPartitioner())
                     .spread_properties(["title"])
                     .explode()
         """
@@ -313,7 +312,7 @@ class DocSet:
                                         prompt_template=part_name_template)
             context = sycamore.init()
             pdf_docset = context.read.binary(paths, binary_format="pdf")
-                .partition(partitioner=SycamorePartitioner())
+                .partition(partitioner=ArynPartitioner())
                 .extract_entity(entity_extractor)
                 .explode()
                 .augment_text(augmentor)
@@ -331,7 +330,7 @@ class DocSet:
             .. code-block:: python
 
                pdf_docset = context.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=SycamorePartitioner())
+                    .partition(partitioner=ArynPartitioner())
                     .split_elements(tokenizer=tokenizer, max_tokens=512)
                     .explode()
         """
@@ -348,7 +347,7 @@ class DocSet:
             .. code-block:: python
 
                 pdf_docset = context.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=SycamorePartitioner())
+                    .partition(partitioner=ArynPartitioner())
                     .explode()
         """
         from sycamore.transforms.explode import Explode
@@ -372,7 +371,7 @@ class DocSet:
 
                 context = sycamore.init()
                 pdf_docset = context.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=SycamorePartitioner())
+                    .partition(partitioner=ArynPartitioner())
                     .explode()
                     .embed(embedder=embedder)
         """
@@ -401,7 +400,7 @@ class DocSet:
 
                  context = sycamore.init()
                  pdf_docset = context.read.binary(paths, binary_format="pdf")
-                     .partition(partitioner=SycamorePartitioner())
+                     .partition(partitioner=ArynPartitioner())
                      .extract_entity(entity_extractor=entity_extractor)
 
         """
@@ -444,7 +443,7 @@ class DocSet:
 
                 context = sycamore.init()
                 pdf_docset = context.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=SycamorePartitioner())
+                    .partition(partitioner=ArynPartitioner())
                     .extract_schema(schema_extractor=schema_extractor)
         """
 
@@ -474,7 +473,7 @@ class DocSet:
 
                 context = sycamore.init()
                 pdf_docset = context.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=SycamorePartitioner())
+                    .partition(partitioner=ArynPartitioner())
                     .extract_batch_schema(schema_extractor=schema_extractor)
         """
 
@@ -501,7 +500,7 @@ class DocSet:
 
                 ds = (
                     ctx.read.manifest(metadata_provider=JsonManifestMetadataProvider(manifest),...)
-                    .partition(partitioner=SycamorePartitioner(...), num_gpus=0.1)
+                    .partition(partitioner=ArynPartitioner(...), num_gpus=0.1)
                     .extract_graph_structure(extractors=[MetadataExtractor(metadata=metadata)])
                     .explode()
                 )
@@ -529,7 +528,7 @@ class DocSet:
                 context = sycamore.init()
 
                 pdf_docset = context.read.binary(paths, binary_format="pdf")
-                    .partition(partition=SycamorePartitioner())
+                    .partition(partition=ArynPartitioner())
                     .extract_properties(property_extractor)
         """
         from sycamore.transforms import ExtractProperties
@@ -550,7 +549,7 @@ class DocSet:
 
                 context = sycamore.init()
                 pdf_docset = context.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=SycamorePartitioner())
+                    .partition(partitioner=ArynPartitioner())
                     .summarize(summarizer=summarizer)
         """
         from sycamore.transforms import Summarize
@@ -599,7 +598,7 @@ class DocSet:
 
                 context = sycamore.init()
                 pdf_docset = context.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=SycamorePartitioner())
+                    .partition(partitioner=ArynPartitioner())
                     .merge(merger=merger)
         """
         from sycamore.transforms import Merge
@@ -617,7 +616,7 @@ class DocSet:
 
                from sycamore.transforms import COALESCE_WHITESPACE
                ds = context.read.binary(paths, binary_format="pdf")
-                   .partition(partitioner=SycamorePartitioner())
+                   .partition(partitioner=ArynPartitioner())
                    .regex_replace(COALESCE_WHITESPACE)
                    .regex_replace([(r"\d+", "1313"), (r"old", "new")])
                    .explode()
@@ -642,7 +641,7 @@ class DocSet:
             .. code-block:: python
 
                ds = context.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=SycamorePartitioner())
+                    .partition(partitioner=ArynPartitioner())
                     .explode()
                     .sketch(window=17)
         """
@@ -662,7 +661,7 @@ class DocSet:
                 tk = OpenAITokenizer("gpt-3.5-turbo")
                 context = sycamore.init()
                 context.read.binary(paths, binary_format="pdf")
-                    .partition(SycamorePartitioner())
+                    .partition(ArynPartitioner())
                     .explode()
                     .term_frequency(tokenizer=tk)
                     .show()
@@ -687,7 +686,7 @@ class DocSet:
 
                from sycamore.transforms import FooBar
                ds = context.read.binary(paths, binary_format="pdf")
-                   .partition(partitioner=SycamorePartitioner())
+                   .partition(partitioner=ArynPartitioner())
                    .transform(cls=FooBar, arg=123)
         """
         plan = cls(self.plan, **kwargs)  # type: ignore
@@ -722,7 +721,7 @@ class DocSet:
 
                 context = sycamore.init()
                 pdf_docset = context.read.binary(paths, binary_format="pdf")
-                .partition(partitioner=SycamorePartitioner())
+                .partition(partitioner=ArynPartitioner())
                 .flat_map(custom_flat_mapping_function)
 
         """
@@ -748,7 +747,7 @@ class DocSet:
 
                 context = sycamore.init()
                 pdf_docset = context.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=SycamorePartitioner())
+                    .partition(partitioner=ArynPartitioner())
                     .filter(custom_filter)
 
         """
@@ -913,7 +912,7 @@ class DocSet:
 
         Example:
              The following example shows reading a DocSet from a collection of PDFs, partitioning
-             it using the ``SycamorePartitioner``, and then writing it to a new OpenSearch index.
+             it using the ``ArynPartitioner``, and then writing it to a new OpenSearch index.
 
              .. code-block:: python
 
@@ -941,7 +940,7 @@ class DocSet:
 
                 context = sycamore.init()
                 pdf_docset = context.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=SycamorePartitioner())
+                    .partition(partitioner=ArynPartitioner())
 
                 pdf.write.opensearch(
                      os_client_args=os_client_args,
@@ -949,3 +948,15 @@ class DocSet:
                      index_settings=index_settings)
         """
         return DocSetWriter(self.context, self.plan)
+
+    def materialize(self, path=None, mode=MaterializeMode.INMEM_VERIFY_ONLY, max_retries=1, keep=0) -> "DocSet":
+        """
+        Guarantees reliable execution up to this point, allows for
+        follow on execution based on the checkpoint if the checkpoint is named.
+        """
+
+        assert path is None, "unimplemented"
+        assert mode == MaterializeMode.INMEM_VERIFY_ONLY, "unimplemented"
+        assert max_retries == 1, "unimplemented"
+        assert keep == 0, "unimplemented"
+        return DocSet(self.context, Materialize(self.plan))

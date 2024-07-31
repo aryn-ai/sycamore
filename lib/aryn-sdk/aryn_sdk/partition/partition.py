@@ -130,8 +130,12 @@ def partition_file(
     assert isinstance(data, dict)
     status = data.get("status", [])
     if "error" in data:
-        raise ValueError(f"Error partway through processing: {data['error']}\nPartial Status:\n{status}")
-
+        error_msg = (
+            "Limit Exceeded:"
+            if "Please try again in a little while" in data["error"]
+            else "Error partway through processing:"
+        )
+        raise ValueError(f"{error_msg} {data['error']}\nPartial Status:\n{status}")
     return data
 
 

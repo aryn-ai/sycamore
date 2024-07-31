@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import logging
-from typing import Type
+from typing import Optional, Type
 
 from guidance.models import Chat, Instruct, Model as GuidanceModel
 from guidance import gen, user, system, assistant, instruction
@@ -107,6 +107,66 @@ class PropertiesZeroShotGuidancePrompt(SimpleGuidancePrompt):
     Only return JSON as part of your answer. If no entity is in the text, return "None".
     {query}
     """
+
+
+class OpenAIMessage:
+    def __init__(self, role: str, content: str):
+        self.role = role
+        self.content = content
+
+    def to_dict(self) -> dict[str, str]:
+        return {"role": self.role, "content": self.content}
+
+
+class OpenAIMessagesPromptBase:
+    def __init__(self):
+        self.messages = []
+
+    def add_message(self, role: str, content: str) -> None:
+        message = OpenAIMessage(role, content)
+        self.messages.append(message)
+
+    def get_messages_dict(self) -> list[dict[str, str]]:
+        return [message.to_dict() for message in self.messages]
+
+
+class EntityExtractorMessagesPrompt(OpenAIMessagesPromptBase):
+    def __init__(self, question: Optional[str], field: Optional[str], format: Optional[str], discrete: bool = False):
+        super().__init__()
+
+        self.add_message(
+            "system",
+            (
+                "You are a helpful entity extractor that creates a new field in a "
+                "database from your response to a question on an existing field. "
+            ),
+        )
+
+        if discrete:
+            self.add_message(
+                "user",
+                (
+                    f"The format of your response should be {format}. "
+                    "Use standard convention to determine the style of your response. Do not include any abbreviations. "
+                    "The following sentence should be valid: The answer to the "
+                    'question based on the existing field is "your response". Your response should ONLY '
+                    "contain the answer. If you are not able to extract the new field given the "
+                    "information, respond with None. "
+                    f"Question: {question} Use the value of the database field "
+                    f'"{field}" to answer the question: '
+                ),
+            )
+        else:
+            self.add_message(
+                "user",
+                (
+                    f"Include as much relevant detail as "
+                    "possible that is related to/could help answer this question. Respond in "
+                    "sentences, not just a single word or phrase."
+                    f"Question: {question} Use this existing related database field "
+                    f'"{field}" to answer the question: '
+                ),
+            )
 
 
 _deprecated_prompts: dict[str, Type[GuidancePrompt]] = {

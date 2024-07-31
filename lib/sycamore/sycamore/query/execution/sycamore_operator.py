@@ -18,7 +18,6 @@ from sycamore.query.execution.operations import (
     llm_filter_operation,
     range_filter_operation,
     match_filter_operation,
-    count_operation,
     top_k_operation,
     join_operation,
 )
@@ -376,32 +375,29 @@ class SycamoreCount(SycamoreOperator):
         logical_node = self.logical_node
         assert logical_node.data is not None
 
-        result = count_operation(
-            docset=self.inputs[0],
+        result = self.inputs[0].count(
             field=logical_node.data.get("field") or logical_node.data.get("primaryField"),
-            **self.get_execute_args(),
-        )
+            **self.get_execute_args()
+            )
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) == 1
         assert self.logical_node.data is not None
-        assert "field" in self.logical_node.data or "primaryField" in self.logical_node.data
-        imports = ["from sycamore.query.execution.operations import count_operation"]
         script = f"""
-{output_var or get_var_name(self.logical_node)} = count_operation(
-    docset={input_var or get_var_name(self.logical_node.dependencies[0])},
+{output_var or get_var_name(self.logical_node)} =
+    {input_var or get_var_name(self.logical_node.dependencies[0])}.count(
     """
         if self.logical_node.data.get("field"):
             script += f"""field='{self.logical_node.data.get("field")}',
     """
-        if self.logical_node.data.get("primaryField"):
-            script += f"""primaryField='{self.logical_node.data.get("primaryField")}',
+        elif self.logical_node.data.get("primaryField"):
+            script += f"""field='{self.logical_node.data.get("primaryField")}',
     """
         script += f"""**{get_str_for_dict(self.get_execute_args())},
 )
 """
-        return script, imports
+        return script
 
 
 class SycamoreLlmExtract(SycamoreOperator):

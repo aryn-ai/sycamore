@@ -131,23 +131,19 @@ def test_filter_exact_match(mock_docs):
 
 
 def test_count():
-    with patch("sycamore.query.execution.sycamore_operator.count_operation") as mock_impl:
-        # Define the mock return value
-        mock_impl.return_value = "success"
+    context = sycamore.init()
+    doc_set = Mock(spec=DocSet)
+    return_value = 5
+    doc_set.count.return_value = return_value
+    logical_node = Count("node_id", {"field": "properties.counter", "primaryField": "text_representation", "id": 0})
+    sycamore_operator = SycamoreCount(context, logical_node, query_id="test", inputs=[doc_set])
+    result = sycamore_operator.execute()
 
-        doc_set = Mock(spec=DocSet)
-        context = sycamore.init()
-        logical_node = Count("node_id", {"question": "who?", "field": "name", "id": 0})
-        sycamore_operator = SycamoreCount(context, logical_node, query_id="test", inputs=[doc_set])
-        result = sycamore_operator.execute()
-
-        assert result == "success"
-        mock_impl.assert_called_once_with(
-            docset=doc_set,
-            field=logical_node.data.get("field"),
-            primary_field=logical_node.data.get("primaryField"),
-            **sycamore_operator.get_execute_args(),
-        )
+    doc_set.count.assert_called_once_with(
+        field=logical_node.data.get("field"),
+        **sycamore_operator.get_execute_args(),
+    )
+    assert result == return_value
 
 
 def test_join():

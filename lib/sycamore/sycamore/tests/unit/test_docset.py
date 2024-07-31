@@ -247,3 +247,18 @@ class TestDocSet:
         for doc in all_docs:
             for elem in doc.elements:
                 assert elem.properties["element_val"] % 2 == 0
+
+    def test_count(self):
+
+        docs = []
+        for i in range(10):
+            if i == 8 or i == 9:
+                num = 20
+            else:
+                num = i
+            docs.append(Document(text_representation="", doc_id = num))
+
+        context = sycamore.init()
+        docset = context.read.document(docs)
+        assert docset.count() == 10
+        assert docset.count("doc_id") == 9

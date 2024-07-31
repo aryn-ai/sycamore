@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from typing import Callable, Any, List, Optional
 
 from sycamore import context
-from sycamore.config import Config
 from sycamore.data import Element, Document
 from sycamore.llms import LLM
 from sycamore.llms.prompts import (

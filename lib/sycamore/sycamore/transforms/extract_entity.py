@@ -74,7 +74,7 @@ class OpenAIEntityExtractor(EntityExtractor):
     ):
         super().__init__(entity_name)
         if llm is None:
-            llm = context.current().config.get(Config.LLM)
+            llm = context.current().config.llm
             assert llm is not None
         self._llm = llm
         self._num_of_elements = num_of_elements

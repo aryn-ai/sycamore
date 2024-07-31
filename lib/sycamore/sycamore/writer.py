@@ -99,11 +99,11 @@ class DocSetWriter:
         import copy
 
         if os_client_args is None:
-            os_client_args = self.context.config.get(Config.OPENSEARCH_CLIENT_CONFIG)
+            os_client_args = self.context.config.opensearch_client_config
         assert os_client_args is not None
 
         if not index_name:
-            index_name = self.context.config.get(Config.OPENSEARCH_INDEX_NAME)
+            index_name = self.context.config.opensearch_index_name
         assert index_name is not None
 
         # We mutate os_client_args, so mutate a copy
@@ -136,7 +136,7 @@ class DocSetWriter:
         target_params: OpenSearchWriterTargetParams
 
         if index_settings is None:
-            index_settings = self.context.config.get(Config.OPENSEARCH_INDEX_SETTINGS)
+            index_settings = self.context.config.opensearch_index_settings
 
         if index_settings is not None:
             idx_settings = index_settings.get("body", {}).get("settings", {})

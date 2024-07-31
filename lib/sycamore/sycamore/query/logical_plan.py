@@ -1,6 +1,6 @@
 from typing import List, Mapping, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, SerializeAsAny
 
 
 class Node(BaseModel):
@@ -49,7 +49,7 @@ class LogicalPlan(BaseModel):
         openai_plan: The OpenAI plan that was used to generate this plan.
     """
 
-    result_node: Node
+    result_node: SerializeAsAny[Node]
     query: str
-    nodes: Mapping[int, Node]
+    nodes: Mapping[int, SerializeAsAny[Node]]
     openai_plan: Optional[str] = None

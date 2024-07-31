@@ -12,20 +12,16 @@ class DummyOperator(LogicalOperator):
 
 def test_plan():
     node_1 = DummyOperator(node_id=1, description="node_1")
-    node_2 = DummyOperator(node_id=1, description="node_2")
-    node_3 = DummyOperator(node_id=2, description="node_3")
-    node_4 = DummyOperator(node_id=3, description="final")
+    node_2 = DummyOperator(node_id=2, description="node_2", dummy="test2")
+    node_3 = DummyOperator(node_id=3, description="node_3", dummy="test3")
+    node_4 = DummyOperator(node_id=4, description="final")
 
     node_1._downstream_nodes = [node_2, node_3]
-
     node_2._dependencies = [node_1]
     node_2._downstream_nodes = [node_4]
-
     node_3._dependencies = [node_1]
     node_3._downstream_nodes = [node_4]
-
     node_4._dependencies = [node_2, node_3]
-
     nodes = {
         1: node_1,
         2: node_2,
@@ -36,6 +32,22 @@ def test_plan():
     plan = LogicalPlan(result_node=node_4, nodes=nodes, query="Test query plan")
     assert plan.result_node == node_4
     assert plan.nodes == nodes
+
+    serialized = plan.model_dump()
+    assert serialized["result_node"] == node_4.model_dump()
+    assert serialized["nodes"] == {k: v.model_dump() for k, v in nodes.items()}
+    assert node_1.model_dump()["node_id"] == 1
+    assert node_1.model_dump()["description"] == "node_1"
+    assert node_1.model_dump()["dummy"] is None
+    assert node_2.model_dump()["node_id"] == 2
+    assert node_2.model_dump()["description"] == "node_2"
+    assert node_2.model_dump()["dummy"] == "test2"
+    assert node_3.model_dump()["node_id"] == 3
+    assert node_3.model_dump()["description"] == "node_3"
+    assert node_3.model_dump()["dummy"] == "test3"
+    assert node_4.model_dump()["node_id"] == 4
+    assert node_4.model_dump()["description"] == "final"
+    assert node_4.model_dump()["dummy"] is None
 
 
 def test_count_operator():

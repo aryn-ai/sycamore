@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Callable, Any, List, Optional
 
-
+from sycamore import Context, context
+from sycamore.config import Config
 from sycamore.data import Element, Document
 from sycamore.plan_nodes import Node
 from sycamore.llms import LLM
@@ -63,7 +64,7 @@ class OpenAIEntityExtractor(EntityExtractor):
     def __init__(
         self,
         entity_name: str,
-        llm: LLM,
+        llm: Optional[LLM] = None,
         prompt_template: Optional[str] = None,
         num_of_elements: int = 10,
         prompt_formatter: Callable[[list[Element]], str] = element_list_formatter,
@@ -72,6 +73,8 @@ class OpenAIEntityExtractor(EntityExtractor):
         field: Optional[str] = None,
     ):
         super().__init__(entity_name)
+        if llm is None:
+            llm = context.current().config.get(Config.LLM)
         self._llm = llm
         self._num_of_elements = num_of_elements
         self._prompt_template = prompt_template

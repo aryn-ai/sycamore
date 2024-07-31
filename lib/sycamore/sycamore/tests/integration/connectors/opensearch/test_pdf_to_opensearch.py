@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 from opensearchpy import OpenSearch
 
 import sycamore
+from sycamore.config import Config
 from sycamore.functions import HuggingFaceTokenizer
 from sycamore.llms import OpenAIModels, OpenAI
 from sycamore.tests.config import TEST_DIR
@@ -97,7 +98,7 @@ def test_pdf_to_opensearch_with_llm_caching():
 
         """
 
-    s3_cache_base_path = os.environ["SYCAMORE_S3_TEMP_PATH"]
+    s3_cache_base_path = os.environ.get("SYCAMORE_S3_TEMP_PATH", "s3://aryn-sycamore-integ-temp/")
     test_path = str(uuid.uuid4())
     s3_cache_path = os.path.join(s3_cache_base_path, test_path)
     parsed_s3_url = urlparse(s3_cache_path)
@@ -110,20 +111,24 @@ def test_pdf_to_opensearch_with_llm_caching():
     s3_client = boto3.client("s3")
     openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value, cache=S3Cache(s3_cache_path))
     tokenizer = HuggingFaceTokenizer("thenlper/gte-small")
+    keys = set()
 
     try:
-        context = sycamore.init()
+        context = sycamore.init(
+            config=Config(
+                {
+                    Config.OPENSEARCH_CLIENT_CONFIG: os_client_args,
+                    Config.OPENSEARCH_INDEX_NAME: "toyindex",
+                    Config.OPENSEARCH_INDEX_SETTINGS: index_settings,
+                    Config.LLM: openai_llm,
+                }
+            )
+        )
         ds = (
             context.read.binary(paths, binary_format="pdf")
             .partition(partitioner=UnstructuredPdfPartitioner())
-            .extract_entity(
-                entity_extractor=OpenAIEntityExtractor("title", llm=openai_llm, prompt_template=title_context_template)
-            )
-            .extract_entity(
-                entity_extractor=OpenAIEntityExtractor(
-                    "authors", llm=openai_llm, prompt_template=author_context_template
-                )
-            )
+            .extract_entity(entity_extractor=OpenAIEntityExtractor("title", prompt_template=title_context_template))
+            .extract_entity(entity_extractor=OpenAIEntityExtractor("authors", prompt_template=author_context_template))
             .merge(GreedyTextElementMerger(tokenizer=tokenizer, max_tokens=300))
             .explode()
             .sketch()
@@ -133,12 +138,7 @@ def test_pdf_to_opensearch_with_llm_caching():
                 )
             )
         )
-
-        ds.write.opensearch(
-            os_client_args=os_client_args,
-            index_name="toyindex",
-            index_settings=index_settings,
-        )
+        ds.write.opensearch()
 
         OpenSearch(**os_client_args).indices.delete("toyindex")
 
@@ -151,7 +151,6 @@ def test_pdf_to_opensearch_with_llm_caching():
 
         response = s3_client.list_objects_v2(Bucket=bucket, Prefix=s3_path)
 
-        keys = set()
         if "Contents" in response:
             for obj in response["Contents"]:
                 keys.add(obj["Key"])
@@ -159,5 +158,6 @@ def test_pdf_to_opensearch_with_llm_caching():
         # assert we've cached 2 (2 extract_entity calls) * number of pdfs
         assert len(keys) == 2 * len(list(pdf_base_path.glob("*.pdf")))
     finally:
-        s3_client.delete_objects(Bucket=bucket, Delete={"Objects": [{"Key": k} for k in keys]})
+        if len(keys) > 0:
+            s3_client.delete_objects(Bucket=bucket, Delete={"Objects": [{"Key": k} for k in keys]})
         s3_client.delete_object(Bucket=bucket, Key=s3_path)

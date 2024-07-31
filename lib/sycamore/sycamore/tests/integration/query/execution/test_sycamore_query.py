@@ -29,10 +29,11 @@ class TestSycamoreQuery:
         Test that has a fork in the DAG, ensures we can support multiple execution paths.
         """
         client = SycamoreQueryClient()
-        schema = client.get_opensearch_schema(query_integration_test_index)
+        schema = client.get_opensearch_schema("ntsb")
         plan = client.generate_plan(
-            "What percentage of all incidents happened in california", query_integration_test_index, schema
+            "What percent of  environmentally caused incidents were due to wind?", "ntsb", schema
         )
+        plan.show()
         query_id, result = client.run_plan(plan, dry_run=codegen)
         assert isinstance(result, str)
         assert len(result) > 0

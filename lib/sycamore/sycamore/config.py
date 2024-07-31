@@ -1,22 +1,21 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 
 
 class Config:
-    def __init__(self, config: Dict[str, str] = None) -> None:
+
+    OPENSEARCH_CLIENT_CONFIG = "opensearch.client_config"
+    OPENSEARCH_INDEX_NAME = "opensearch.index_name"
+    OPENSEARCH_INDEX_SETTINGS = "opensearch.index_settings"
+
+    LLM = "llm"
+
+    def __init__(self, config: Dict[str, Any] = None) -> None:
         super().__init__()
-        self.config: Dict[str, str] = config or dict()
+        self.config: Dict[str, Any] = config or dict()
 
-    def get(self, key: str) -> str:
-        return self.config.get(key)
+    def get(self, key: str) -> Optional[Any]:
+        return self.config.get(key, None)
 
-    def set(self, key: str, val: str) -> str:
+    def set(self, key: str, val: Any) -> Any:
         self.config[key] = val
         return self.config[key]
-
-    @property
-    def openai_model_name(self) -> Optional[str]:
-        return self.config.get("openai_model_name")
-
-    @openai_model_name.setter
-    def openai_model_name(self, value: str):
-        self.config["openai_model_name"] = value

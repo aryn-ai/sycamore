@@ -3,6 +3,7 @@ from typing import Any, Callable, Optional, TYPE_CHECKING
 from pyarrow.fs import FileSystem
 
 from sycamore import Context
+from sycamore.config import Config
 from sycamore.plan_nodes import Node
 from sycamore.data import Document
 from sycamore.connectors.common import HostAndPort
@@ -32,8 +33,8 @@ class DocSetWriter:
     def opensearch(
         self,
         *,
-        os_client_args: dict,
-        index_name: str,
+        os_client_args: Optional[dict] = None,
+        index_name: Optional[str] = None,
         index_settings: Optional[dict] = None,
         execute: bool = True,
         **kwargs,
@@ -97,6 +98,14 @@ class DocSetWriter:
         from typing import Any
         import copy
 
+        if not os_client_args:
+            os_client_args = self.context.config.get(Config.OPENSEARCH_CLIENT_CONFIG)
+            assert os_client_args is not None
+
+        if not index_name:
+            index_name = self.context.config.get(Config.OPENSEARCH_INDEX_NAME)
+            assert index_name is not None
+
         # We mutate os_client_args, so mutate a copy
         os_client_args = copy.deepcopy(os_client_args)
 
@@ -125,6 +134,10 @@ class DocSetWriter:
         client_params = OpenSearchWriterClientParams(**os_client_args)
 
         target_params: OpenSearchWriterTargetParams
+
+        if index_settings is None:
+            index_settings = self.context.config.get(Config.OPENSEARCH_INDEX_SETTINGS)
+
         if index_settings is not None:
             idx_settings = index_settings.get("body", {}).get("settings", {})
             idx_mappings = index_settings.get("body", {}).get("mappings", {})

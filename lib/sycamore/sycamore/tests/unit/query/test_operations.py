@@ -9,9 +9,7 @@ from sycamore.docset import DocSet
 from sycamore.llms import LLM
 from sycamore.query.execution.operations import (
     convert_string_to_date,
-    field_to_value,
     join_operation,
-    llm_extract_operation,
     llm_filter_operation,
     llm_generate_operation,
     match_filter_operation,
@@ -104,7 +102,7 @@ class TestOperations:
         assert filtered_docset.count() == 1
         for doc in filtered_docset.take():
             assert doc.text_representation == "test1"
-            assert int(doc.properties["LlmFilterOutput"]) == 4
+            assert int(doc.properties["_autogen_LlmFilterOutput"]) == 4
 
         filtered_docset = llm_filter_operation(
             client=MockLLM(), docset=test_docset, field="text_representation", messages=[], threshold=2
@@ -114,9 +112,9 @@ class TestOperations:
 
         for doc in filtered_docset.take():
             if doc.text_representation == "test1":
-                assert int(doc.properties["LlmFilterOutput"]) == 4
+                assert int(doc.properties["_autogen_LlmFilterOutput"]) == 4
             elif doc.text_representation == "test2":
-                assert int(doc.properties["LlmFilterOutput"]) == 2
+                assert int(doc.properties["_autogen_LlmFilterOutput"]) == 2
 
     def test_match_filter_number(self, words_and_ids_docset):
         query = 3
@@ -240,21 +238,6 @@ class TestOperations:
             filtered_ids.append(doc.text_representation)
         assert filtered_ids == ["January 1, 2022", "2022-05-04", "September 19, 2022", "2022-06-07T03:47:00Z"]
 
-    # LLM Extract
-    def test_llm_extract(self, test_docset):
-        extracted_docset = test_docset.map(
-            lambda doc: llm_extract_operation(
-                client=MockLLM(), doc=doc, new_field="new_field", field="text_representation", messages=[]
-            )
-        )
-
-        assert extracted_docset.count() == 2
-        for doc in extracted_docset.take():
-            if doc.text_representation == "test1":
-                assert int(doc.properties["new_field"]) == 4
-            elif doc.text_representation == "test2":
-                assert int(doc.properties["new_field"]) == 2
-
     # LLM Generate
     def test_llm_generate(words_and_ids_docset):
         response = llm_generate_operation(client=MockLLM(), question="", result_description="", result_data=[""])
@@ -359,36 +342,11 @@ class TestOperations:
         )
         for doc in cluster_docset.take():
             if doc.text_representation == "1" or doc.text_representation == "one":
-                assert doc.properties["ClusterAssignment"] == "group1"
+                assert doc.properties["_autogen_ClusterAssignment"] == "group1"
             elif doc.text_representation == "2" or doc.text_representation == "two":
-                assert doc.properties["ClusterAssignment"] == "group2"
+                assert doc.properties["_autogen_ClusterAssignment"] == "group2"
             elif doc.text_representation == "3" or doc.text_representation == "three":
-                assert doc.properties["ClusterAssignment"] == "group3"
-
-    # Helpers
-    def test_field_to_value(self):
-        doc = Document(
-            text_representation="hello",
-            doc_id=1,
-            properties={"letter": "A", "animal": "panda", "math": {"pi": 3.14, "e": 2.72, "tanx": "sinx/cosx"}},
-        )
-
-        assert field_to_value(doc, "text_representation") == "hello"
-        assert field_to_value(doc, "doc_id") == 1
-        assert field_to_value(doc, "properties.letter") == "A"
-        assert field_to_value(doc, "properties.animal") == "panda"
-        assert field_to_value(doc, "properties.math.pi") == 3.14
-        assert field_to_value(doc, "properties.math.e") == 2.72
-        assert field_to_value(doc, "properties.math.tanx") == "sinx/cosx"
-
-        with pytest.raises(KeyError):
-            field_to_value(doc, "properties.math.log")
-
-        with pytest.raises(Exception):
-            field_to_value(doc, "document_id")
-
-        with pytest.raises(AssertionError):
-            field_to_value(doc, "text_representation.text")
+                assert doc.properties["_autogen_ClusterAssignment"] == "group3"
 
     def test_convert_string_to_date(self):
         date_string = "2024-07-21"

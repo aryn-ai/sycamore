@@ -7,6 +7,7 @@ from typing import Callable, Optional, Any, Iterable, Type
 from sycamore.context import Context
 from sycamore.data import Document, Element, MetadataDocument
 from sycamore.functions.tokenizer import Tokenizer
+from sycamore.lineage import Materialize, MaterializeMode
 from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.augment_text import TextAugmentor
 from sycamore.transforms.embed import Embedder
@@ -166,10 +167,8 @@ class DocSet:
         from sycamore import Execution
 
         execution = Execution(self.context, self.plan)
-        dataset = execution.execute(self.plan, **kwargs)
         ret = []
-        for row in dataset.iter_rows():
-            doc = Document.from_row(row)
+        for doc in execution.execute_iter(self.plan, **kwargs):
             if not include_metadata and isinstance(doc, MetadataDocument):
                 continue
             ret.append(doc)
@@ -949,3 +948,15 @@ class DocSet:
                      index_settings=index_settings)
         """
         return DocSetWriter(self.context, self.plan)
+
+    def materialize(self, path=None, mode=MaterializeMode.INMEM_VERIFY_ONLY, max_retries=1, keep=0) -> "DocSet":
+        """
+        Guarantees reliable execution up to this point, allows for
+        follow on execution based on the checkpoint if the checkpoint is named.
+        """
+
+        assert path is None, "unimplemented"
+        assert mode == MaterializeMode.INMEM_VERIFY_ONLY, "unimplemented"
+        assert max_retries == 1, "unimplemented"
+        assert keep == 0, "unimplemented"
+        return DocSet(self.context, Materialize(self.plan))

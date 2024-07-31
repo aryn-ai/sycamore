@@ -56,7 +56,19 @@ class SimpleTable(TableFormatTestCase):
                 </tr>
               </tbody>
             </table>
+            """,
             """
+            <table frame="hsides">
+              <tr>
+                <td>1</td>
+                <td>2</td>
+              </tr>
+              <tr>
+                <td>3</td>
+                <td>4</td>
+              </tr>
+            </table>
+            """,
         ]
 
     def csv(self) -> str:
@@ -482,3 +494,8 @@ def test_from_html(test_case):
     actual = Table.from_html(html_str=test_case.canonical_html())
     expected = test_case.table()
     assert actual == expected
+
+    if hasattr(test_case, "other_html"):
+        for other_html in test_case.other_html():
+            actual = Table.from_html(html_str=other_html)
+            assert actual == expected

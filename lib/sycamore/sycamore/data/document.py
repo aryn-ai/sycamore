@@ -212,6 +212,27 @@ class Document(UserDict):
         }
         return json.dumps(d, indent=2)
 
+    def field_to_value(self, field: str) -> Any:
+        """
+        Extracts the value for a particular document field.
+
+        Args:
+            field: The field in dotted notation to indicate nesting, e.g. properties.schema
+
+        Returns:
+            The value associated with the document field.
+            Returns None if field does not exist in document.
+        """
+        fields = field.split(".")
+        value = self.get(fields[0], None)
+        if len(fields) > 1:
+            for f in fields[1:]:
+                if isinstance(value, dict):
+                    value = value.get(f, None)
+                else:
+                    return None
+        return value
+
 
 class MetadataDocument(Document):
     def __init__(self, document=None, **kwargs):
@@ -221,8 +242,12 @@ class MetadataDocument(Document):
         if "metadata" not in self.data:
             self.data["metadata"] = {}
         self.data["metadata"].update(kwargs)
+        if "lineage_links" in self.metadata:
+            assert len(self.metadata["lineage_links"]["from_ids"]) > 0
+
         del self.data["lineage_id"]
         del self.data["elements"]
+        del self.data["properties"]
 
     # Override some of the common operations to make it hard to mis-use metadata. If any of these
     # are called it means that something tried to process a MetadataDocument as if it was a

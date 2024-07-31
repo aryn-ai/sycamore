@@ -52,6 +52,7 @@ class LlmPlanner:
             e.g. if a new field called "state" is added, when referencing it in another operation,
             you should use "properties.state". A database returned from *TopK* operation only has
             "properties.key" or "properties.count"; you can only reference one of those fields.
+            Other than those, DO NOT USE ANY OTHER FIELD NAMES.
         5. If an optional field does not have a value in the query plan, return null in its place.
         6. If you cannot generate a plan to answer a question, return an empty list.
         7. The first step of each plan MUST be a **LoadData** operation that returns a database.
@@ -88,6 +89,14 @@ class LlmPlanner:
             EXAMPLE 1:
 
             Data description: Database of aircraft incidents
+            Schema: {
+                        'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
+                        'properties.entity.aircraft': "(<class 'int'>) e.g. (Boeing 123), (Cessna Mini 5), (Piper 0.5),
+                        'properties.entity.location': "(<class 'str'>) e.g. (Atlanta, GA), (Phoenix, Arizona), 
+                            (Boise, Idaho),
+                        'properties.entity.accidentNumber': "(<class 'str'>) e.g. (3589), (5903), (7531L),
+                        'text_representation': '(<class 'str'>) Can be assumed to have all other details'
+                    }
             Question: Were there any incidents in Georgia?
             Answer:
             [
@@ -118,6 +127,13 @@ class LlmPlanner:
 
             EXAMPLE 2:
             Data description: Database of aircraft incidents
+            Schema: {
+                        'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
+                        'properties.entity.aircraft': "(<class 'int'>) e.g. (Boeing 123), (Cessna Mini 5), (Piper 0.5),
+                        'properties.entity.city': "(<class 'str'>) e.g. (Orlando, FL), (Palo Alto, CA), (Orlando, FL),
+                        'properties.entity.accidentNumber': "(<class 'str'>) e.g. (3589), (5903), (7531L),
+                        'text_representation': '(<class 'str'>) Can be assumed to have all other details'
+                    }
             Question: How many cities did Cessna aircrafts have incidents in?
             Answer:
             [
@@ -129,9 +145,9 @@ class LlmPlanner:
                     "id": 0
                 },
                 {
-                    "operatorName": "LlmFilter",
+                    "operatorName": "Filter",
                     "description": "Filter to only include Cessna aircraft incidents",
-                    "question": "Did this incident occur in a Cessna aircraft?",
+                    "question": "Cessna",
                     "field": "properties.entity.aircraft",
                     "input": [0],
                     "id": 1
@@ -157,6 +173,12 @@ class LlmPlanner:
 
             EXAMPLE 3:
             Data description: Database of financial documents for different law firms
+            Schema: {
+                        'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
+                        'properties.entity.revenue': "(<class 'int'>) e.g. (12304), (7978234), (2938903),
+                        'properties.entity.firmName': "(<class 'str'>) e.g. (East West), (Brody), (Hunter & Hunter),
+                        'text_representation': '(<class 'str'>) Can be assumed to have all other details'
+                    }
             Question: Which 2 law firms had the highest revenue in 2022?
             Answer:
             [
@@ -207,6 +229,13 @@ class LlmPlanner:
 
             EXAMPLE 4:
             Data description: Database of shipwreck records and their respective properties
+            Schema: {
+                        'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
+                        'properties.entity.captain': "(<class 'str'>) e.g. (John D. Moore), (Terry Roberts), 
+                            (Alex Clark),
+                        'properties.entity.shipwreck_id': "(<class 'str'>) e.g. (ABFUHEU), (FUIHWHD), (FGHIOWB),
+                        'text_representation': '(<class 'str'>) Can be assumed to have all other details'
+                    }
             Question: Which 5 countries were responsible for the most shipwrecks?
             Answer:
             [
@@ -252,6 +281,11 @@ class LlmPlanner:
 
             EXAMPLE 5:
             Data description: Database of shipwreck records and their respective properties
+            Schema: {
+                        'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
+                        'properties.entity.shipwreck_id': "(<class 'str'>) e.g. (ABFUHEU), (FUIHWHD), (FGHIOWB),
+                        'text_representation': '(<class 'str'>) Can be assumed to have all other details'
+                    }
             Question: What percent of shipwrecks occurred in 2023?
             Answer:
             [
@@ -304,6 +338,39 @@ class LlmPlanner:
                     "question": "What percent of shipwrecks occurred in 2023?",
                     "input": [4],
                     "id": 5
+                }
+            ]
+
+            EXAMPLE 5:
+            Data description: Database of hospital patients
+            Schema: {
+                        'text_representation': '(<class 'str'>) Can be assumed to have all other details'
+                    }
+            Question: How many total patients?
+            Answer:
+            [
+                {
+                    "operatorName": "LoadData",
+                    "description": "Get all the patient records",
+                    "index": "patients",
+                    "query": "patient records",
+                    "id": 0
+                },
+                {
+                    "operatorName": "Count",
+                    "description": "Count the number of total patients",
+                    "field": null,
+                    "primaryField": null,
+                    "input": [0],
+                    "id": 1
+                },
+                {
+                    "operatorName": "LlmGenerate",
+                    "description": "Generate an English response to the question. Input 1 is a
+                        number of patients.",
+                    "question": "How many total patients?",
+                    "input": [1],
+                    "id": 2
                 }
             ]
             """

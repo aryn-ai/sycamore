@@ -31,6 +31,6 @@ class OpenSearchSchema:
                     if i != 9:
                         result[key] += ", "
 
-        result["text_representation"] = "(string) Can be assumed to have all other details"
+        result["text_representation"] = "(<class 'str'>) Can be assumed to have all other details"
 
         return result

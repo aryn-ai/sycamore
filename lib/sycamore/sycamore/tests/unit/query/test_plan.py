@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Optional
 
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.operators.count import Count
@@ -6,48 +6,36 @@ from sycamore.query.operators.logical_operator import LogicalOperator
 
 
 class DummyOperator(LogicalOperator):
-    def __init__(self, node_id: str):
-        super().__init__(node_id, {"description": "Dummy operator for testing"})
-
-    @staticmethod
-    def description() -> str:
-        return "Dummy operator for testing"
-
-    @staticmethod
-    def input_schema() -> Dict[str, Any]:
-        schema = {
-            "operatorName": '"DummyOperator"',
-            "description": "string",
-        }
-        return schema
+    dummy: Optional[str] = None
+    """A dummy field for testing purposes."""
 
 
 def test_plan():
-    root_node = DummyOperator("root")
-    node_2 = DummyOperator("node_2")
-    node_3 = DummyOperator("node_3")
-    node_4 = DummyOperator("final")
+    node_1 = DummyOperator(node_id=1, description="node_1")
+    node_2 = DummyOperator(node_id=1, description="node_2")
+    node_3 = DummyOperator(node_id=2, description="node_3")
+    node_4 = DummyOperator(node_id=3, description="final")
 
-    root_node._downstream_nodes = [node_2, node_3]
+    node_1._downstream_nodes = [node_2, node_3]
 
-    node_2._dependencies = [root_node]
+    node_2._dependencies = [node_1]
     node_2._downstream_nodes = [node_4]
 
-    node_3._dependencies = [root_node]
+    node_3._dependencies = [node_1]
     node_3._downstream_nodes = [node_4]
 
     node_4._dependencies = [node_2, node_3]
 
     nodes = {
-        "root": root_node,
-        "node_2": node_2,
-        "node_3": node_3,
-        "final": node_4,
+        1: node_1,
+        2: node_2,
+        3: node_3,
+        4: node_4,
     }
 
     plan = LogicalPlan(result_node=node_4, nodes=nodes, query="Test query plan")
-    assert plan.result_node() == node_4
-    assert plan.nodes() == nodes
+    assert plan.result_node == node_4
+    assert plan.nodes == nodes
 
 
 def test_count_operator():
@@ -60,8 +48,16 @@ def test_count_operator():
 
     assert "description" in schema
     assert schema["description"].field_name == "description"
-    assert schema["description"].description == "A detailed description of why this operator was chosen for this query plan."
+    assert (
+        schema["description"].description
+        == "A detailed description of why this operator was chosen for this query plan."
+    )
     assert schema["description"].type_hint == "typing.Optional[str]"
+
+    assert "input" in schema
+    assert schema["input"].field_name == "input"
+    assert schema["input"].description == "A list of node IDs that this operation depends on."
+    assert schema["input"].type_hint == "typing.Optional[typing.List[int]]"
 
     assert "node_id" in schema
     assert schema["node_id"].field_name == "node_id"
@@ -75,11 +71,13 @@ def test_count_operator():
 
     assert "primaryField" in schema
     assert schema["primaryField"].field_name == "primaryField"
-    assert schema["primaryField"].description == "Primary field that represents what a unique entry is considered for the data provided."
+    assert (
+        schema["primaryField"].description
+        == "Primary field that represents what a unique entry is considered for the data provided."
+    )
     assert schema["primaryField"].type_hint == "typing.Optional[str]"
 
     assert "_dependencies" not in schema
     assert "_downstream_nodes" not in schema
     assert "dependencies" not in schema
     assert "downstream_nodes" not in schema
-

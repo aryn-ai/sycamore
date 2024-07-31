@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import List, Mapping, Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -51,5 +51,5 @@ class LogicalPlan(BaseModel):
 
     result_node: Node
     query: str
-    nodes: Dict[str, Node]
+    nodes: Mapping[int, Node]
     openai_plan: Optional[str] = None

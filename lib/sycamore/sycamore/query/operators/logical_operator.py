@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, get_type_hints
+from typing import Dict, List, Optional
 
 from sycamore.query.logical_plan import Node
 
@@ -18,6 +18,9 @@ class LogicalOperator(Node):
 
     description: Optional[str] = None
     """A detailed description of why this operator was chosen for this query plan."""
+
+    input: Optional[List[int]] = None
+    """A list of node IDs that this operation depends on."""
 
     @classmethod
     def usage(cls) -> str:

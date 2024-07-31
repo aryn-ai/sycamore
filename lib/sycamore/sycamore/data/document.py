@@ -217,18 +217,20 @@ class Document(UserDict):
         Extracts the value for a particular document field.
 
         Args:
-            doc: The document
-            field: The field in dotted notation to indicate nesting, e.g. doc.properties.schema.
+            field: The field in dotted notation to indicate nesting, e.g. properties.schema
 
         Returns:
             The value associated with the document field.
+            Returns None if field does not exist in document.
         """
         fields = field.split(".")
-        value = getattr(self, fields[0])
+        value = self.get(fields[0], None)
         if len(fields) > 1:
-            assert fields[0] == "properties"
             for f in fields[1:]:
-                value = value[f]
+                if isinstance(value, dict):
+                    value = value.get(f, None)
+                else:
+                    return None
         return value
 
 

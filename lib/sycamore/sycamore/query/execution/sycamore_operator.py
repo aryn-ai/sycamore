@@ -176,12 +176,18 @@ class SycamoreLlmGenerate(SycamoreOperator):
         cache_string = ""
         if self.s3_cache_path:
             cache_string = f", cache=S3Cache('{self.s3_cache_path}')"
+        logical_deps_str = ""
+        for i, inp in enumerate(self.logical_node.dependencies):
+            logical_deps_str += input_var or get_var_name(inp)
+            if i != len(self.logical_node.dependencies) - 1:
+                logical_deps_str += ", "
+
         result = f"""
 {output_var or get_var_name(self.logical_node)} = llm_generate_operation(
     client=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
     question='{question}',
     result_description='{description}',
-    result_data={[input_var or get_var_name(inp) for inp in self.logical_node.dependencies]}
+    result_data=[{logical_deps_str}]
 )
 print({output_var or get_var_name(self.logical_node)})
 """

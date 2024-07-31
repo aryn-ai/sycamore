@@ -34,13 +34,12 @@ class Sort(Transform):
         def ray_callable(input_dict: dict[str, Any]) -> dict[str, Any]:
             doc = Document.from_row(input_dict)
 
-            try:
-                val = doc.field_to_value(self._field)
+            val = doc.field_to_value(self._field)
 
-            except Exception as e:
+            if val is None:
                 if self._default_val is None:
                     exception_string = f'Field "{self._field}" not present in Document and default value not provided.'
-                    raise Exception(exception_string) from e
+                    raise Exception(exception_string)
                 else:
                     val = self._default_val
 

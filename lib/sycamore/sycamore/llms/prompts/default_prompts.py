@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import logging
-from typing import Dict, List, Optional, Type
+from typing import Optional, Type
 
 from guidance.models import Chat, Instruct, Model as GuidanceModel
 from guidance import gen, user, system, assistant, instruction
@@ -114,7 +114,7 @@ class OpenAIMessage:
         self.role = role
         self.content = content
 
-    def to_dict(self) -> Dict[str, str]:
+    def to_dict(self) -> dict[str, str]:
         return {"role": self.role, "content": self.content}
 
 
@@ -126,7 +126,7 @@ class OpenAIMessagesPromptBase:
         message = OpenAIMessage(role, content)
         self.messages.append(message)
 
-    def get_messages_dict(self) -> List[Dict[str, str]]:
+    def get_messages_dict(self) -> list[dict[str, str]]:
         return [message.to_dict() for message in self.messages]
 
 

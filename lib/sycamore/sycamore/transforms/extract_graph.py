@@ -213,7 +213,7 @@ class EntityExtractor(GraphExtractor):
         res = []
         labels = [e.label + ": " + e.description for e in self.entities]
         for child in doc.children:
-            res += self._extract_from_section(labels, child.data["summary"])
+            res += [self._extract_from_section(labels, child.data["summary"])]
 
         nodes = {}
         for i, section in enumerate(doc.children):

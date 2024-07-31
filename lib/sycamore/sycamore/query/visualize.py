@@ -1,12 +1,17 @@
 from sycamore.query.logical_plan import LogicalPlan
+from sycamore.query.operators.logical_operator import LogicalOperator
 
 
 def build_graph(plan: LogicalPlan):
     import networkx as nx
 
     graph = nx.DiGraph()
-    for node in plan.nodes().values():
-        graph.add_node(node.node_id, description=f"{type(node).__name__}\n{node.description}")
+    for node in plan.nodes.values():
+        if isinstance(node, LogicalOperator):
+            description = node.description
+        else:
+            description = None
+        graph.add_node(node.node_id, description=f"{type(node).__name__}\n{description}")
         if node.dependencies:
             for dep in node.dependencies:
                 graph.add_edge(dep.node_id, node.node_id)

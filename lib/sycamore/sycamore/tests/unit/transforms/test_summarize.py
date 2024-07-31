@@ -22,7 +22,7 @@ class TestSummarize:
     def test_summarize_text_calls_llm(self, mocker):
         llm = mocker.Mock(spec=LLM)
         generate = mocker.patch.object(llm, "generate")
-        generate.return_value = {"summary": "summary"}
+        generate.return_value = "this is the summary"
         doc = Document()
         element1 = Element()
         element1.text_representation = "".join(random.choices(string.ascii_letters, k=10))
@@ -34,7 +34,7 @@ class TestSummarize:
         doc = text_summarizer.summarize(doc)
 
         assert doc.elements[0].properties == {}
-        assert doc.elements[1].properties == {"summary": "summary"}
+        assert doc.elements[1].properties == {"summary": "this is the summary"}
 
 
 def filter_elements_on_length(element: Element) -> bool:

@@ -16,6 +16,8 @@ class MockLLM(LLM):
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
         if prompt_kwargs == {"messages": [{"role": "user", "content": "s3://path"}]} and llm_kwargs == {}:
             return "alt_title"
+        elif prompt_kwargs == {"prompt": "s3://path"} and llm_kwargs == {}:
+            return "alt_title"
         return "title"
 
     def is_chat_mode(self):
@@ -68,13 +70,28 @@ class TestEntityExtraction:
         output_dataset = extract_entity.execute()
         assert Document.from_row(output_dataset.take(1)[0]).properties.get("title") == "title"
 
-    def test_extract_entity_document_field(self, mocker):
+    def test_extract_entity_document_field_messages(self, mocker):
         node = mocker.Mock(spec=Node)
         llm = MockLLM()
         extract_entity = ExtractEntity(
             node,
             entity_extractor=OpenAIEntityExtractor(
                 "title", llm=llm, use_elements=False, messages=[], field="properties.path"
+            ),
+        )
+        input_dataset = ray.data.from_items([{"doc": self.doc.serialize()}])
+        execute = mocker.patch.object(node, "execute")
+        execute.return_value = input_dataset
+        output_dataset = extract_entity.execute()
+        assert Document.from_row(output_dataset.take(1)[0]).properties.get("title") == "alt_title"
+
+    def test_extract_entity_document_field_string(self, mocker):
+        node = mocker.Mock(spec=Node)
+        llm = MockLLM()
+        extract_entity = ExtractEntity(
+            node,
+            entity_extractor=OpenAIEntityExtractor(
+                "title", llm=llm, use_elements=False, messages="", field="properties.path"
             ),
         )
         input_dataset = ray.data.from_items([{"doc": self.doc.serialize()}])

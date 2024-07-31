@@ -226,7 +226,7 @@ class SycamoreLlmFilter(SycamoreOperator):
         messages = LLMFilterMessagesPrompt(filter_question=question).get_messages_dict()
 
         result = self.inputs[0].llm_filter(
-            client=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(s3_cache_path) if s3_cache_path else None),
+            llm=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(s3_cache_path) if s3_cache_path else None),
             new_field="_autogen_LLMFilterOutput",
             messages=messages,
             field=field,

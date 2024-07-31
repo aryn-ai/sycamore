@@ -2,7 +2,7 @@ from collections.abc import Mapping
 import logging
 import pprint
 import sys
-from typing import Callable, List, Optional, Any, Iterable, Type
+from typing import Callable, Optional, Any, Iterable, Type, Union
 
 from sycamore.context import Context
 from sycamore.data import Document, Element, MetadataDocument
@@ -776,7 +776,7 @@ class DocSet:
         self,
         llm: LLM,
         new_field: str,
-        messages: List[dict],
+        messages: Union[list[dict], str],
         field: Optional[str] = "text_representation",
         threshold: int = 3,
         **resource_args,

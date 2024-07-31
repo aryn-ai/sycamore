@@ -1,15 +1,14 @@
+import logging
 from typing import Any, Callable, Optional, TYPE_CHECKING
 
 from pyarrow.fs import FileSystem
+from ray.data import ActorPoolStrategy
 
 from sycamore import Context
-from sycamore.config import Config
-from sycamore.plan_nodes import Node
-from sycamore.data import Document
 from sycamore.connectors.common import HostAndPort
 from sycamore.connectors.file.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
-from ray.data import ActorPoolStrategy
-import logging
+from sycamore.data import Document
+from sycamore.plan_nodes import Node
 
 if TYPE_CHECKING:
     # Shenanigans to avoid circular import

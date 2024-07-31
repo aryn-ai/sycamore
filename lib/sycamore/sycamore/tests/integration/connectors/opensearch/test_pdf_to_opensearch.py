@@ -116,12 +116,10 @@ def test_pdf_to_opensearch_with_llm_caching():
     try:
         context = sycamore.init(
             config=Config(
-                {
-                    Config.OPENSEARCH_CLIENT_CONFIG: os_client_args,
-                    Config.OPENSEARCH_INDEX_NAME: "toyindex",
-                    Config.OPENSEARCH_INDEX_SETTINGS: index_settings,
-                    Config.LLM: openai_llm,
-                }
+                opensearch_client_config=os_client_args,
+                opensearch_index_name="toyindex",
+                opensearch_index_settings=index_settings,
+                llm=openai_llm,
             )
         )
         ds = (

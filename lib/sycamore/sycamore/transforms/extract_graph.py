@@ -207,15 +207,13 @@ class EntityExtractor(GraphExtractor):
         return docset
 
     def _extract(self, doc: HierarchicalDocument) -> HierarchicalDocument:
-        from multiprocessing import Pool
-
         if "EXTRACTED_NODES" in doc.data or not isinstance(doc, HierarchicalDocument):
             return doc
 
-        pool = Pool(processes=16)
-        res = pool.map(self._extract_from_section, [child.data["summary"] for child in doc.children])
-        pool.close()
-        pool.join()
+        res = []
+        labels = [e.label + ": " + e.description for e in self.entities]
+        for child in doc.children:
+            res += self._extract_from_section(labels, child.data["summary"])
 
         nodes = {}
         for i, section in enumerate(doc.children):
@@ -245,8 +243,7 @@ class EntityExtractor(GraphExtractor):
 
         return doc
 
-    def _extract_from_section(self, summary: str) -> dict:
-        labels = [e.label + ": " + e.description for e in self.entities]
+    def _extract_from_section(self, labels, summary: str) -> dict:
         res = self.llm.generate(
             prompt_kwargs={"prompt": str(GraphEntityExtractorPrompt(labels, summary))},
             llm_kwargs={"response_format": {"type": "json_object"}},

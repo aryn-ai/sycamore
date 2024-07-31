@@ -14,6 +14,7 @@ from streamlit_agraph import agraph, Node, Edge, Config
 
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
+from sycamore.query.operators.logical_operator import LogicalOperator
 
 
 DEFAULT_S3_CACHE_PATH = "s3://aryn-temp/llm_cache/luna/ntsb"
@@ -62,7 +63,8 @@ def generate_code(client, plan):
 def show_dag(plan: LogicalPlan):
     nodes = []
     edges = []
-    for node in plan.nodes().values():
+    for node in plan.nodes.values():
+        assert isinstance(node, LogicalOperator)
         nodes.append(
             Node(
                 id=node.node_id,
@@ -77,7 +79,7 @@ def show_dag(plan: LogicalPlan):
                 margin=30,
             )
         )
-    for node in plan.nodes().values():
+    for node in plan.nodes.values():
         if node.dependencies:
             for dep in node.dependencies:
                 edges.append(Edge(source=dep.node_id, target=node.node_id, color="#ffffff"))

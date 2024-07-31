@@ -80,9 +80,7 @@ def test_llm_generate():
 def test_llm_filter():
     with (
         patch("sycamore.query.execution.sycamore_operator.OpenAI"),  # disable OpenAI client initialization
-        patch(
-            "sycamore.query.execution.sycamore_operator.LLMFilterMessagesPrompt"
-        ) as MockLLMFilterMessagesPrompt,
+        patch("sycamore.query.execution.sycamore_operator.LLMFilterMessagesPrompt") as MockLLMFilterMessagesPrompt,
     ):
         context = sycamore.init()
         doc_set = Mock(spec=DocSet)
@@ -92,7 +90,7 @@ def test_llm_filter():
         sycamore_operator = SycamoreLlmFilter(context, logical_node, query_id="test", inputs=[doc_set])
 
         result = sycamore_operator.execute()
-        
+
         # assert LLMFilterMessagesPrompt called with expected arguments
         MockLLMFilterMessagesPrompt.assert_called_once_with(
             filter_question=logical_node.data.get("question"),
@@ -176,6 +174,7 @@ def test_join():
             field1=logical_node.data.get("fieldOne"),
             field2=logical_node.data.get("fieldTwo"),
         )
+
 
 def test_llm_extract():
     with (

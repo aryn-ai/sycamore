@@ -771,7 +771,7 @@ class DocSet:
             return doc
 
         return self.map(process_doc, **resource_args)
-    
+
     def llm_filter(
         self,
         client: OpenAI,
@@ -796,6 +796,7 @@ class DocSet:
         Returns:
             A filtered DocSet.
         """
+
         def threshold_filter(doc: Document, threshold) -> bool:
             try:
                 return_value = int(doc.properties[new_field]) >= threshold

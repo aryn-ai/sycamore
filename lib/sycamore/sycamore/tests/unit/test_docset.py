@@ -31,6 +31,7 @@ from sycamore.transforms import Filter
 from sycamore.transforms.summarize import LLMElementTextSummarizer
 from sycamore.transforms.query import QueryExecutor
 
+
 class MockLLM(LLM):
     def __init__(self):
         super().__init__(model_name="mock_model")
@@ -40,10 +41,11 @@ class MockLLM(LLM):
             return 4
         elif prompt_kwargs == {"messages": [{"role": "user", "content": "test2"}]} and llm_kwargs == {}:
             return 2
-        
+
     def is_chat_mode(self):
         return True
-            
+
+
 class TestDocSet:
     def test_partition_pdf(self, mocker):
         context = mocker.Mock(spec=Context)
@@ -268,11 +270,7 @@ class TestDocSet:
         new_field = "_autogen_LLMFilterOutput"
 
         filtered_docset = docset.llm_filter(
-            client=MockLLM(), 
-            new_field=new_field,
-            messages=[],
-            field="text_representation",
-            threshold=3
+            client=MockLLM(), new_field=new_field, messages=[], field="text_representation", threshold=3
         )
 
         assert filtered_docset.count() == 1
@@ -281,11 +279,7 @@ class TestDocSet:
             assert int(doc.properties[new_field]) == 4
 
         filtered_docset = docset.llm_filter(
-            client=MockLLM(), 
-            new_field=new_field,
-            messages=[],
-            field="text_representation",
-            threshold=2
+            client=MockLLM(), new_field=new_field, messages=[], field="text_representation", threshold=2
         )
 
         assert filtered_docset.count() == 2

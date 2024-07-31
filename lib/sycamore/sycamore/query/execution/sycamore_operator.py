@@ -227,9 +227,7 @@ class SycamoreLlmFilter(SycamoreOperator):
         # load into local vars for Ray serialization magic
         s3_cache_path = self.s3_cache_path
 
-        messages = LLMFilterMessagesPrompt(
-            filter_question=question
-            ).get_messages_dict()
+        messages = LLMFilterMessagesPrompt(filter_question=question).get_messages_dict()
 
         result = self.inputs[0].llm_filter(
             client=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(s3_cache_path) if s3_cache_path else None),
@@ -237,7 +235,7 @@ class SycamoreLlmFilter(SycamoreOperator):
             messages=messages,
             field=field,
             threshold=3,
-            **self.get_node_args()
+            **self.get_node_args(),
         )
         return result
 

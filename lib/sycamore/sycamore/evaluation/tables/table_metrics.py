@@ -24,6 +24,14 @@ def apply_metric(metric: "TableComparisonMetric") -> Callable[[Document], Docume
     return f
 
 
+class LocalAggFn:
+    def __init__(self, init, name, merge, accumulate_row, finalize):
+        self.init = init
+        self.name = name
+        self.merge = merge
+        self.accumulate_row = accumulate_row
+        self.finalize = finalize
+
 class TableComparisonMetric(ABC):
 
     @abstractmethod
@@ -34,12 +42,15 @@ class TableComparisonMetric(ABC):
     def get_name(self) -> str:
         pass
 
-    def to_aggregate_fn(self) -> AggregateFn:
+    def to_aggregate_fn(self, in_ray=True) -> AggregateFn:
         def init(k):
             return 0, 0
 
-        def acc_row(agg, row):
-            ed = Document.deserialize(row["doc"])
+        def acc_row(agg, row, in_ray=True):
+            if in_ray:
+                ed = Document.deserialize(row["doc"])
+            else:
+                ed = row
             if isinstance(ed, MetadataDocument):
                 return agg
             ed = TableEvalDoc(ed)
@@ -52,7 +63,10 @@ class TableComparisonMetric(ABC):
         def finalize(agg):
             return agg[0] / agg[1]
 
-        return AggregateFn(init=init, name=self.get_name(), merge=merge, accumulate_row=acc_row, finalize=finalize)
+        if in_ray:
+            return AggregateFn(init=init, name=self.get_name(), merge=merge, accumulate_row=acc_row, finalize=finalize)
+        else:
+            return LocalAggFn(init=init, name=self.get_name(), merge=merge, accumulate_row=acc_row, finalize=finalize)
 
 
 class TEDSMetric(TableComparisonMetric):

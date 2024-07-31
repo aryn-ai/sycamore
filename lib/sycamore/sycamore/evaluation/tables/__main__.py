@@ -2,6 +2,7 @@ from argparse import ArgumentParser
 
 from ray.data import ActorPoolStrategy
 import sycamore
+from sycamore.context import ExecMode
 from sycamore.evaluation.tables.extractors import ExtractTableFromImage
 from sycamore.evaluation.tables.table_metrics import TEDSMetric, apply_metric
 from sycamore.transforms.table_structure.extract import TableTransformerStructureExtractor
@@ -10,7 +11,15 @@ from .benchmark_scans import PubTabNetScan, TableEvalDoc
 
 SCANS = {"pubtabnet": PubTabNetScan}
 
-EXTRACTORS = {"tabletransformer": (TableTransformerStructureExtractor, ActorPoolStrategy(size=2), {"device": "mps"})}
+EXTRACTORS = {"tabletransformer": (TableTransformerStructureExtractor, ActorPoolStrategy(size=1), {"device": "cuda:0"})}
+
+
+def local_aggregate(docs, *agg_fns):
+    aggcumulations = {af.name: af.init(af.name) for af in agg_fns}
+    for doc in docs:
+        for af in agg_fns:
+            aggcumulations[af.name] = af.accumulate_row(aggcumulations[af.name], doc, in_ray=False)
+    return {af.name: af.finalize(aggcumulations[af.name]) for af in agg_fns}
 
 parser = ArgumentParser()
 parser.add_argument("dataset", choices=list(SCANS.keys()), help="dataset to evaluate")
@@ -24,13 +33,24 @@ metrics = [
     TEDSMetric(structure_only=False),
 ]
 
-ctx = sycamore.init()
+local_ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
+# ray_ctx = sycamore.init()
 
-sc = SCANS[args.dataset]().to_docset(ctx)
+# sc = SCANS[args.dataset]().to_docset(ray_ctx)
+# if args.debug:
+#     sc = sc.limit(10)
+
+docs = []
+docgenerator = iter(SCANS[args.dataset]().local_process())
 if args.debug:
-    sc = sc.limit(10)
+    for _ in range(10):
+        docs.append(next(docgenerator))
+else:
+    for doc in docgenerator:
+        docs.append(doc)
+
 extractor, actorpool, kwargs = EXTRACTORS[args.extractor]
-extracted = sc.map_batch(ExtractTableFromImage(extractor(**kwargs)), compute=actorpool)
+extracted = local_ctx.read.document(docs).map_batch(ExtractTableFromImage(extractor(**kwargs)))
 measured = extracted
 for m in metrics:
     measured = measured.map(apply_metric(m))
@@ -42,6 +62,7 @@ if args.debug:
     del ed.properties["tokens"]
     print(ed.data)
 
-aggs = measured.plan.execute().aggregate(*[m.to_aggregate_fn() for m in metrics])
+# aggs = measured.plan.execute().aggregate(*[m.to_aggregate_fn() for m in metrics])
+aggs = local_aggregate(measured.take_all(), *[m.to_aggregate_fn(in_ray=False) for m in metrics])
 print("=" * 80)
 print(aggs)

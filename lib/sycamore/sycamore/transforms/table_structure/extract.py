@@ -72,7 +72,7 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
 
     DEFAULT_TTAR_MODEL = "microsoft/table-structure-recognition-v1.1-all"
 
-    def __init__(self, model: str = DEFAULT_TTAR_MODEL, device=None):
+    def __init__(self, model: str = DEFAULT_TTAR_MODEL, device=None, eager_load=False):
         """
         Creates a TableTransformerStructureExtractor
 
@@ -83,6 +83,10 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         self.model = model
         self.device = device
         self.structure_model = None
+        if eager_load:
+            from transformers import TableTransformerForObjectDetection
+
+            self.structure_model = TableTransformerForObjectDetection.from_pretrained(self.model).to(self._get_device())
 
     def _get_device(self) -> str:
         return choose_device(self.device)

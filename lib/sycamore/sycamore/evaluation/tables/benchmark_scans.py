@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Iterable, Optional
 import io
 import re
 import json
@@ -79,7 +79,10 @@ class PubTabNetScan(TableEvalScan):
 
     @staticmethod
     def _ray_row_to_document(row) -> dict[str, bytes]:
-        img = Image.open(io.BytesIO(row["image"]["bytes"])).convert("RGB")
+        if isinstance(row['image'], Image.Image):
+            img = row['image']
+        else:
+            img = Image.open(io.BytesIO(row["image"]["bytes"])).convert("RGB")
         table_pattern = r"<table[^>]*>.*?</table>"
         cleaning_pattern = r"<(?!/?(table|tr|td|thead|tbody)\b)[^>]+>"
         whitespace_removal = r"\s+"
@@ -125,6 +128,7 @@ class PubTabNetScan(TableEvalScan):
         ray_ds = from_huggingface(hf_ds)
         return ray_ds.map(PubTabNetScan._ray_row_to_document)
 
+<<<<<<< Updated upstream
 
 class FinTabNetScan(TableEvalScan):
 
@@ -133,3 +137,8 @@ class FinTabNetScan(TableEvalScan):
         assert isinstance(hf_ds, IterableDataset)
         ray_ds = from_huggingface(hf_ds)
         return ray_ds.map(PubTabNetScan._ray_row_to_document)
+=======
+    def local_process(self, **kwargs) -> Iterable[Document]:
+        hf_ds = load_dataset("apoidea/pubtabnet-html", split="validation", streaming=True)
+        yield from (Document.deserialize(PubTabNetScan._ray_row_to_document(row)['doc']) for row in hf_ds)
+>>>>>>> Stashed changes

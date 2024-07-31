@@ -97,7 +97,7 @@ def test_llm_filter():
         )
 
         doc_set.llm_filter.assert_called_once_with(
-            client=ANY,
+            llm=ANY,
             new_field="_autogen_LLMFilterOutput",
             messages=ANY,
             field=logical_node.field,

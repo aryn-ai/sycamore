@@ -8,7 +8,7 @@ from sycamore.context import Context
 from sycamore.data import Document, Element, MetadataDocument
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.lineage import Materialize, MaterializeMode
-from sycamore.llms.openai import OpenAI
+from sycamore.llms.llms import LLM
 from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.augment_text import TextAugmentor
 from sycamore.transforms.embed import Embedder
@@ -774,7 +774,7 @@ class DocSet:
 
     def llm_filter(
         self,
-        client: OpenAI,
+        llm: LLM,
         new_field: str,
         messages: List[dict],
         field: Optional[str] = "text_representation",
@@ -809,7 +809,7 @@ class DocSet:
         docset = self.filter(lambda doc: doc.field_to_value(field) is not None and doc.field_to_value(field) != "None")
 
         entity_extractor = OpenAIEntityExtractor(
-            entity_name=new_field, llm=client, use_elements=False, messages=messages, field=field
+            entity_name=new_field, llm=llm, use_elements=False, messages=messages, field=field
         )
         docset = docset.extract_entity(entity_extractor=entity_extractor)
         docset = docset.filter(lambda doc: threshold_filter(doc, threshold), **resource_args)

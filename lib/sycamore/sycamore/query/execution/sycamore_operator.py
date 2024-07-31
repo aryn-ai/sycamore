@@ -245,7 +245,7 @@ class SycamoreLlmFilter(SycamoreOperator):
             f"messages = LLMFilterMessagesPrompt(filter_question='{self.logical_node.question}').get_messages_dict()\n"
             f"{output_var or get_var_name(self.logical_node)} = "
             f"{input_var or get_var_name(self.logical_node.dependencies[0])}.llm_filter(\n"
-            f"client=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),\n"
+            f"llm=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),\n"
             "new_field='_autogen_LLMFilterOutput',\n"
             "messages=messages,\n"
             f"field='{self.logical_node.field}',\n"

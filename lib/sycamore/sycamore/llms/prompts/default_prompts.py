@@ -175,7 +175,7 @@ class LLMFilterMessagesPrompt(OpenAIMessagesPromptBase):
 
         self.add_message(
             "system",
-            ("You are a helpful classifier that generously filters database " "entries based on questions."),
+            ("You are a helpful classifier that generously filters database entries based on questions."),
         )
 
         self.add_message(

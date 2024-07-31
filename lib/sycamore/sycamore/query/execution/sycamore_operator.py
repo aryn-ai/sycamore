@@ -251,17 +251,17 @@ class SycamoreLlmFilter(SycamoreOperator):
         if self.s3_cache_path:
             cache_string = f", cache=S3Cache('{self.s3_cache_path}')"
         result = (
-f"messages = LLMFilterMessagesPrompt(filter_question='{question}').get_messages_dict()\n"
-f"{output_var or get_var_name(self.logical_node)} = "
-    f"{input_var or get_var_name(self.logical_node.dependencies[0])}.llm_filter(\n"
-        f"client=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),\n"
-        "new_field='_autogen_LLMFilterOutput',\n"
-        "messages=messages,\n"
-        f"field='{field}',\n"
-        "threshold=3,\n"
-        f"**{self.get_node_args()},\n"
-        ")"
-    )
+            f"messages = LLMFilterMessagesPrompt(filter_question='{question}').get_messages_dict()\n"
+            f"{output_var or get_var_name(self.logical_node)} = "
+            f"{input_var or get_var_name(self.logical_node.dependencies[0])}.llm_filter(\n"
+            f"client=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),\n"
+            "new_field='_autogen_LLMFilterOutput',\n"
+            "messages=messages,\n"
+            f"field='{field}',\n"
+            "threshold=3,\n"
+            f"**{self.get_node_args()},\n"
+            ")"
+        )
         return result, [
             "from sycamore.llms import OpenAI, OpenAIModels",
             "from sycamore.llms.prompts.default_prompts import LLMFilterMessagesPrompt",

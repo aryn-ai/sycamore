@@ -58,16 +58,6 @@ def convert_string_to_date(date_string: str) -> datetime:
     return parser.parse(date_string).replace(tzinfo=None)
 
 
-def threshold_filter(doc: Document, threshold) -> bool:
-    try:
-        return_value = int(doc.properties["_autogen_LlmFilterOutput"]) >= threshold
-    except Exception:
-        # accounts for llm output errors
-        return_value = False
-
-    return return_value
-
-
 def match_filter_operation(doc: Document, query: Any, field: str, ignore_case: bool = True) -> bool:
     """
     Only keep documents that match the query on the specified field.

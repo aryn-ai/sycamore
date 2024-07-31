@@ -111,7 +111,7 @@ class LlmPlanner:
         prompt += """
         OPERATORS:
         """
-        for operator in self.operators:
+        for operator in self._operators:
             prompt += self.make_operator_prompt(operator)
 
         # examples

@@ -178,10 +178,14 @@ class LlmPlanner:
                 {
                     "operatorName": "Filter",
                     "description": "Filter to only include Cessna aircraft incidents",
-                    "question": "Cessna",
+                    "rangeFilter": false,
+                    "query": "Cessna",
+                    "start": null,
+                    "end": null,
                     "field": "properties.entity.aircraft",
+                    "date": false,
                     "input": [0],
-                    "node_id": 1
+                    "node_id": 1,
                 },
                 {
                     "operatorName": "Count",
@@ -232,6 +236,7 @@ class LlmPlanner:
                     "input": [0],
                     "node_id": 1,
                 },
+                {
                     "operatorName": "Sort",
                     "description": "Sort in descending order by revenue",
                     "descending": true,

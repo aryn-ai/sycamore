@@ -382,9 +382,7 @@ class SycamoreCount(SycamoreOperator):
         else:
             field_name = field or primary_field
             assert isinstance(field_name, str)
-            result = self.inputs[0].count_distinct(
-                field=field_name, **self.get_execute_args()
-            )
+            result = self.inputs[0].count_distinct(field=field_name, **self.get_execute_args())
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:

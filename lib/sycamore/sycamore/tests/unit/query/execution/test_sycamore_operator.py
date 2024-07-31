@@ -183,31 +183,33 @@ def test_llm_extract():
         return_doc_set = Mock(spec=DocSet)
         doc_set.extract_entity.return_value = return_doc_set
 
-        logical_node = LlmExtract(node_id=0, question="who?", field="properties.counter", new_field="new", discrete=True)
+        logical_node = LlmExtract(
+            node_id=0, question="who?", field="properties.counter", new_field="new", new_field_type="str", discrete=True
+        )
         sycamore_operator = SycamoreLlmExtract(context, logical_node, query_id="test", inputs=[doc_set])
         result = sycamore_operator.execute()
 
         # assert EntityExtractorMessagesPrompt called with expected arguments
         MockEntityExtractorMessagesPrompt.assert_called_once_with(
-            question=logical_node.data.get("question"),
-            field=logical_node.data.get("field"),
-            format=logical_node.data.get("format"),
-            discrete=logical_node.data.get("discrete"),
+            question=logical_node.question,
+            field=logical_node.field,
+            format=logical_node.new_field_type,
+            discrete=logical_node.discrete,
         )
 
         # assert OpenAIEntityExtractor called with expected arguments
         MockOpenAIEntityExtractor.assert_called_once_with(
-            entity_name=logical_node.data.get("newField"),
+            entity_name=logical_node.new_field,
             llm=ANY,
             use_elements=False,
             messages=ANY,
-            field=logical_node.data.get("field"),
+            field=logical_node.field,
         )
 
         # assert extract_entity called with expected arguments
         doc_set.extract_entity.assert_called_once_with(
             entity_extractor=MockOpenAIEntityExtractor(),
-            name=logical_node.node_id,
+            name=str(logical_node.node_id),
         )
         assert result == return_doc_set
 

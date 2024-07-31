@@ -14,9 +14,7 @@ from sycamore.query.operators.loaddata import LoadData
 def test_count_docs_query_plan() -> LogicalPlan:
     """A simple query plan which only counts the number of documents."""
     load_node = LoadData(node_id=0, description="Load data", index="test_index")
-    count_node = Count(
-        node_id=1, description="Count number of documents", input=[load_node.node_id]
-    )
+    count_node = Count(node_id=1, description="Count number of documents", input=[load_node.node_id])
 
     # pylint: disable=protected-access
     load_node._downstream_nodes = [count_node]

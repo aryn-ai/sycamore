@@ -31,7 +31,7 @@ class TestSycamoreQuery:
         client = SycamoreQueryClient()
         schema = client.get_opensearch_schema(query_integration_test_index)
         plan = client.generate_plan(
-            "What percentage of all incidents happened in california", query_integration_test_index, schema
+            "What fraction of all incidents happened in california?", query_integration_test_index, schema
         )
         query_id, result = client.run_plan(plan, dry_run=codegen)
         assert isinstance(result, str)
@@ -42,4 +42,4 @@ class TestSycamoreQuery:
             with contextlib.redirect_stdout(output):
                 exec(result)
             result = output.getvalue()
-        assert "%" or "percent" in result
+        assert "0" in result

@@ -210,7 +210,7 @@ class EntityExtractor(GraphExtractor):
         if "EXTRACTED_NODES" in doc.data or not isinstance(doc, HierarchicalDocument):
             return doc
 
-        res = []
+        res: list[dict] = []
         labels = [e.label + ": " + e.description for e in self.entities]
         for child in doc.children:
             res += [self._extract_from_section(labels, child.data["summary"])]

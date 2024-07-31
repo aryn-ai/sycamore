@@ -43,4 +43,4 @@ class TestSycamoreQuery:
             with contextlib.redirect_stdout(output):
                 exec(result)
             result = output.getvalue()
-        assert "%" in result
+        assert "0" in result

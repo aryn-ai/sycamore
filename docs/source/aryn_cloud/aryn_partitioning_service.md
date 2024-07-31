@@ -109,8 +109,8 @@ The available options are listed below:
 * ```use_ocr```: If ```true```, the partitioner uses OCR to extract text from the PDF. It defaults to ```false```, where the partitioner attempts to directly extract the text from the underlying PDF in the bounding box. It currently uses Tesseract for extraction.
 * `extract_table_structure`: If `true`, the partitioner runs a separate table extraction model to extract cells from regions of the document identified as tables.
 * `extract_images`: If `true`, the partitioner crops each region identified as an image and attaches it to the associated `ImageElement`. This can later be fed into the `SummarizeImages` transform when used within Sycamore.
-* `selected_pages`: You can specify a page (like [11]) or a page range (like [25,30]) of your PDF to process. The first page of the PDF is `1`, not `0`.
-* `pages_per_call`: This is only available when using the Partition function in Sycamore. This option divides the processing of your document into batches of pages, and you specify the size of each batch. This is useful when running OCR on large documents.
+* `selected_pages`: You can specify a page (like [11] ), a page range (like [[25,30]] ), or a combination of both (like [[11, [25,30]] ) of your PDF to process. The first page of the PDF is `1`, not `0`.
+* `pages_per_call`: This is only available when using the Partition function in Sycamore. This option divides the processing of your document into batches of pages, and you specify the size of each batch (number of pages). This is useful when running OCR on large documents. 
 
 You can use multiple options at the same time like in the example below:
 

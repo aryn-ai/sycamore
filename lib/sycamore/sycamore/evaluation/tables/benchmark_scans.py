@@ -81,8 +81,14 @@ class PubTabNetScan(TableEvalScan):
     def _ray_row_to_document(row) -> dict[str, bytes]:
         img = Image.open(io.BytesIO(row["image"]["bytes"])).convert("RGB")
         table_pattern = r"<table[^>]*>.*?</table>"
+        cleaning_pattern = r"<(?!/?(table|tr|td|thead|tbody)\b)[^>]+>"
+        whitespace_removal = r"\s+"
 
         table_str = re.findall(table_pattern, row["html_table"], re.DOTALL)[0]
+        table_str = re.sub(cleaning_pattern, "", table_str)
+        table_str = re.sub(whitespace_removal, " ", table_str)
+        table_str = re.sub(r"> ", ">", table_str)
+        table_str = re.sub(r" <", "<", table_str)
         eval_doc = TableEvalDoc()
         eval_doc.image = img
         eval_doc.gt_table = Table.from_html(table_str)
@@ -100,11 +106,13 @@ class PubTabNetScan(TableEvalScan):
             if "bbox" not in cell or "tokens" not in cell:
                 continue
             text = "".join(cell["tokens"])
+            pattern = r"<[^>]+>"
+            text = re.sub(pattern, "", text)
             bb = BoundingBox(
-                x1=cell["bbox"][0],
-                y1=cell["bbox"][1],
-                x2=cell["bbox"][2],
-                y2=cell["bbox"][3],
+                x1=cell["bbox"][0] / img.width,
+                y1=cell["bbox"][1] / img.height,
+                x2=cell["bbox"][2] / img.width,
+                y2=cell["bbox"][3] / img.height,
             )
             tokens.append({"text": text, "bbox": bb})
         eval_doc.properties["tokens"] = tokens
@@ -113,6 +121,15 @@ class PubTabNetScan(TableEvalScan):
 
     def execute(self, **kwargs) -> Dataset:
         hf_ds = load_dataset("apoidea/pubtabnet-html", split="validation", streaming=True)
+        assert isinstance(hf_ds, IterableDataset)
+        ray_ds = from_huggingface(hf_ds)
+        return ray_ds.map(PubTabNetScan._ray_row_to_document)
+
+
+class FinTabNetScan(TableEvalScan):
+
+    def execute(self, **kwargs) -> Dataset:
+        hf_ds = load_dataset("bsmock/FinTabNet.c", split="train", streaming=True)
         assert isinstance(hf_ds, IterableDataset)
         ray_ds = from_huggingface(hf_ds)
         return ray_ds.map(PubTabNetScan._ray_row_to_document)

@@ -80,7 +80,7 @@ class TEDSConfig(apted.Config):
     def rename(self, node1, node2):  # type: ignore # int is expected but float is more useful, and python exists
         if node1.tag != node2.tag or node1.colspan != node2.colspan or node1.rowspan != node2.rowspan:
             return 1.0
-        if not self._structure_only and node1.tag == "td":
+        if not self._structure_only and node1.tag in ["td", "th"]:
             if node1.text is not None and node2.text is not None:
                 dist = distance.nlevenshtein(node1.text, node2.text, method=1)
                 return dist

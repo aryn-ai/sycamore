@@ -1,15 +1,15 @@
 from abc import ABC, abstractmethod
 from typing import Callable, Any, List, Optional
 
-from sycamore import Context, context
+from sycamore import context
 from sycamore.config import Config
 from sycamore.data import Element, Document
-from sycamore.plan_nodes import Node
 from sycamore.llms import LLM
 from sycamore.llms.prompts import (
     EntityExtractorZeroShotGuidancePrompt,
     EntityExtractorFewShotGuidancePrompt,
 )
+from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
 

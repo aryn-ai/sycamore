@@ -507,7 +507,7 @@ class DocSet:
         """
         docset = self
         for extractor in extractors:
-            docset = extractor.extract(self)
+            docset = extractor.extract(docset)
 
         return docset
 

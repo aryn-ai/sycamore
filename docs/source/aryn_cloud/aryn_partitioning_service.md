@@ -5,8 +5,9 @@ You can use the Aryn Partitioning Service to segment PDF's into labeled bounding
 
 There are three ways to use the Aryn Partitioning Service: through the `ArynPartitioner`, through the `aryn-sdk` client, and directly from the HTTP service.
 
-To follow along below, we will need an Aryn API key, which we can get at [aryn.ai/cloud](https://www.aryn.ai/cloud). You will recieve the API key in your email inbox.
-## Using Aryn Partitioner
+To follow along below, we will need an Aryn API key, which we can get at [aryn.ai/get-started](https://www.aryn.ai/get-started). You will recieve the API key in your email inbox.
+
+## Using with Sycamore's Partition transform
 
 Say you have a set of pdfs located at the path stored in `work_dir`. We partition these documents with the code snippet below:
 
@@ -39,7 +40,7 @@ with open("mydocument.pdf", "rb") as f:
     data = partition_file(f)
 ```
 
-`partition_file` takes the same options as curl, except as keyword arguments.
+`partition_file` takes the same options as curl, except as keyword arguments. You can find a list of these options [here](###Specifying Options).
 
 ### Key management
 

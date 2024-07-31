@@ -74,6 +74,8 @@ pdf_docset = context.read.binary(work_dir, binary_format="pdf")
 partitioned_docset = pdf_docset.partition(ArynPartitioner())
 ```
 
+If you are processing a large PDF with OCR, you might benefit from using the `pages_per_call` option. This is only available when using the Partition function in Sycamore. This option divides the processing of your document into batches of pages, and you specify the size of each batch.
+
 ## Using `curl`
 
 We recommend using the Aryn SDK, but you can also use `curl` to access the Aryn Partitioning Service directly.
@@ -107,7 +109,7 @@ The available options are listed below:
 * ```use_ocr```: If ```true```, the partitioner uses OCR to extract text from the PDF. It defaults to ```false```, where the partitioner attempts to directly extract the text from the underlying PDF in the bounding box. It currently uses Tesseract for extraction.
 * `extract_table_structure`: If `true`, the partitioner runs a separate table extraction model to extract cells from regions of the document identified as tables.
 * `extract_images`: If `true`, the partitioner crops each region identified as an image and attaches it to the associated `ImageElement`. This can later be fed into the `SummarizeImages` transform when used within Sycamore.
-* `selected_pages`: You can specify a page (like [11]) or a page range (like [25,30]) of your PDF to process.
+* `selected_pages`: You can specify a page (like [11]) or a page range (like [25,30]) of your PDF to process. The first page of the PDF is `1`, not `0`.
 * `pages_per_call`: This is only available when using the Partition function in Sycamore. This option divides the processing of your document into batches of pages, and you specify the size of each batch. This is useful when running OCR on large documents.
 
 You can use multiple options at the same time like in the example below:

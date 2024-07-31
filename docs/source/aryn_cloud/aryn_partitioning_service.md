@@ -1,15 +1,15 @@
 # Aryn Partitioning Service
 
 
-You can use the Aryn Partitioning Service to segment PDF's into labeled bounding boxes identifying titles, tables, table rows and columns, images, and regular text. Bounding boxes are returned as JSON with their associated text for easy use.
+You can use the Aryn Partitioning Service to segment PDF's into labeled bounding boxes identifying titles, tables, table rows and columns, images, and regular text. Bounding boxes are returned as JSON with their associated text for easy use. If you'd like to experiment with the service, you can use a UI to visualize how your documents are partitioned in the [Aryn Playground](https://www.play.aryn.ai/partitioning).
 
-There are three ways to use the Aryn Partitioning Service: through the `ArynPartitioner`, through the `aryn-sdk` client, and directly from the HTTP service.
+There are three ways to use the Aryn Partitioning Service: through the `ArynPartitioner` in Sycamore, through the `aryn-sdk` client, and directly from the HTTP service.
 
 To follow along below, we will need an Aryn API key, which we can get at [aryn.ai/get-started](https://www.aryn.ai/get-started). You will recieve the API key in your email inbox.
 
 ## Using with Sycamore's Partition transform
 
-Say you have a set of pdfs located at the path stored in `work_dir`. We partition these documents with the code snippet below:
+The Aryn Partitining Service is the default option when specifying the Aryn Partitioner in a Sycamore script. Say you have a set of pdfs located at the path stored in `work_dir`. We partition these documents with the code snippet below:
 
 ```python
 aryn_api_key = "PUT API KEY HERE"
@@ -40,7 +40,7 @@ with open("mydocument.pdf", "rb") as f:
     data = partition_file(f)
 ```
 
-`partition_file` takes the same options as curl, except as keyword arguments. You can find a list of these options [here](###Specifying Options).
+`partition_file` takes the same options as curl, except as keyword arguments. You can find a list of these options [here](https://sycamore.readthedocs.io/en/stable/aryn_cloud/aryn_partitioning_service.html#specifying-options).
 
 ### Key management
 
@@ -103,6 +103,8 @@ The available options are listed below:
 * ```use_ocr```: If ```true```, the partitioner uses OCR to extract text from the PDF. It defaults to ```false```, where the partitioner attempts to directly extract the text from the underlying PDF in the bounding box. It currently uses Tesseract for extraction.
 * `extract_table_structure`: If `true`, the partitioner runs a separate table extraction model to extract cells from regions of the document identified as tables.
 * `extract_images`: If `true`, the partitioner crops each region identified as an image and attaches it to the associated `ImageElement`. This can later be fed into the `SummarizeImages` transform when used within Sycamore.
+* `selected_pages`: You can specify a page (like [11]) or a page range (like [25,30]) of your PDF to process.
+* `pages_per_call`: This is only available when using the Partition function in Sycamore. This option divides the processing of your document into batches of pages, and you specify the size of each batch. This is useful when running OCR on large documents.
 
 You can use multiple options at the same time like in the example below:
 

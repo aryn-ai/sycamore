@@ -15,7 +15,7 @@ def test_count_docs_query_plan() -> LogicalPlan:
     """A simple query plan which only counts the number of documents."""
     load_node = LoadData(node_id=0, description="Load data", index="test_index")
     count_node = Count(
-        node_id=1, description="Count number of documents", field="test_field", input=[load_node.node_id]
+        node_id=1, description="Count number of documents", input=[load_node.node_id]
     )
 
     # pylint: disable=protected-access

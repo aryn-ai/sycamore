@@ -359,12 +359,9 @@ class SycamoreCount(SycamoreOperator):
     def execute(self) -> Any:
         assert self.inputs and len(self.inputs) == 1, "Count requires 1 input node"
         assert isinstance(self.inputs[0], DocSet), "Count requires a DocSet input"
-
         # load into local vars for Ray serialization magic
         logical_node = self.logical_node
         assert isinstance(logical_node, Count)
-        assert logical_node.field or logical_node.primary_field
-
         result = count_operation(
             docset=self.inputs[0],
             field=logical_node.field,

@@ -188,6 +188,7 @@ class SycamoreExecutor:
             operation = MathOperator(logical_node=logical_node, query_id=query_id, inputs=inputs)
         else:
             raise Exception(f"Unsupported node type: {str(logical_node)}")
+
         if result is None:
             if self.dry_run:
                 code, imports = operation.script()

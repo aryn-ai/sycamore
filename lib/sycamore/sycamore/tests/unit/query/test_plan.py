@@ -69,13 +69,13 @@ def test_count_operator():
     assert schema["field"].description == "Non-primary database field to return a count based on."
     assert schema["field"].type_hint == "typing.Optional[str]"
 
-    assert "primaryField" in schema
-    assert schema["primaryField"].field_name == "primaryField"
+    assert "primary_field" in schema
+    assert schema["primary_field"].field_name == "primary_field"
     assert (
-        schema["primaryField"].description
+        schema["primary_field"].description
         == "Primary field that represents what a unique entry is considered for the data provided."
     )
-    assert schema["primaryField"].type_hint == "typing.Optional[str]"
+    assert schema["primary_field"].type_hint == "typing.Optional[str]"
 
     assert "_dependencies" not in schema
     assert "_downstream_nodes" not in schema

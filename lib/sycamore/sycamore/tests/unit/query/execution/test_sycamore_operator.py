@@ -183,10 +183,7 @@ def test_llm_extract():
         return_doc_set = Mock(spec=DocSet)
         doc_set.extract_entity.return_value = return_doc_set
 
-        logical_node = LlmExtract(
-            "node_id",
-            {"question": "", "newField": "new", "field": "properties.counter", "format": "", "discrete": True, "id": 0},
-        )
+        logical_node = LlmExtract(node_id=0, question="who?", field="properties.counter", new_field="new", discrete=True)
         sycamore_operator = SycamoreLlmExtract(context, logical_node, query_id="test", inputs=[doc_set])
         result = sycamore_operator.execute()
 

@@ -27,11 +27,7 @@ class MockLLM(LLM):
         super().__init__(model_name="mock_model")
 
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
-        if prompt_kwargs == {"messages": [{"role": "user", "content": "test1"}]} and llm_kwargs == {}:
-            return 4
-        elif prompt_kwargs == {"messages": [{"role": "user", "content": "test2"}]} and llm_kwargs == {}:
-            return 2
-        elif prompt_kwargs["messages"][0]["content"] == SC_FORM_GROUPS_PROMPT.format(
+        if prompt_kwargs["messages"][0]["content"] == SC_FORM_GROUPS_PROMPT.format(
             field="text_representation", description="", text="1, 2, one, two, 1, 3"
         ):
             return '{"groups": ["group1", "group2", "group3"]}'
@@ -81,10 +77,6 @@ class TestOperations:
             "doc_id": [1, 3, 5, 9, 3, 2, 4, 6, 7],
         }
         return generate_docset(texts)
-
-    @pytest.fixture
-    def test_docset(self, generate_docset) -> DocSet:
-        return generate_docset({"text_representation": ["test1", "test2"]})
 
     @pytest.fixture
     def number_docset(self, generate_docset) -> DocSet:

@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from typing import Any, Optional, List, Dict, Tuple
 
-from sycamore.llms.prompts.default_prompts import EntityExtractorMessagesPrompt
+from sycamore.llms.prompts.default_prompts import EntityExtractorMessagesPrompt, LLMFilterMessagesPrompt
 from sycamore.query.execution.metrics import SycamoreQueryLogger
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.filter import Filter
@@ -15,7 +15,6 @@ from sycamore.query.operators.join import Join
 
 from sycamore.query.execution.operations import (
     llm_generate_operation,
-    llm_filter_operation,
     range_filter_operation,
     match_filter_operation,
     count_operation,
@@ -228,14 +227,17 @@ class SycamoreLlmFilter(SycamoreOperator):
         # load into local vars for Ray serialization magic
         s3_cache_path = self.s3_cache_path
 
-        result = llm_filter_operation(
+        messages = LLMFilterMessagesPrompt(
+            filter_question=question
+            ).get_messages_dict()
+
+        result = self.inputs[0].llm_filter(
             client=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(s3_cache_path) if s3_cache_path else None),
-            docset=self.inputs[0],
-            filter_question=question,
+            new_field="_autogen_LLMFilterOutput",
+            messages=messages,
             field=field,
-            messages=None,
             threshold=3,
-            **self.get_node_args(),
+            **self.get_node_args()
         )
         return result
 
@@ -251,17 +253,18 @@ class SycamoreLlmFilter(SycamoreOperator):
         if self.s3_cache_path:
             cache_string = f", cache=S3Cache('{self.s3_cache_path}')"
         result = f"""
-{output_var or get_var_name(self.logical_node)} = llm_filter_operation(
-    client=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
-    docset={input_var or get_var_name(self.logical_node.dependencies[0])},
-    filter_question='{question}',
-    field='{field}',
-    threshold=3,
-    **{self.get_node_args()},
-)
+messages = LLMFilterMessagesPrompt(filter_question='{question}').get_messages_dict()
+{output_var or get_var_name(self.logical_node)} = 
+    {input_var or get_var_name(self.logical_node.dependencies[0])}.llm_filter(
+        client=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
+        new_field='_autogen_LLMFilterOutput',
+        messages=messages,
+        field='{field}',
+        threshold=3,
+        **{self.get_node_args()},
+    )
 """
         return result, [
-            "from sycamore.query.execution.operations import llm_filter_operation",
             "from sycamore.llms import OpenAI, OpenAIModels",
         ]
 

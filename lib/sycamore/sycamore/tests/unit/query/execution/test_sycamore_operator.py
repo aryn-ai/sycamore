@@ -79,28 +79,35 @@ def test_llm_generate():
 
 def test_llm_filter():
     with (
-        patch("sycamore.query.execution.sycamore_operator.llm_filter_operation") as mock_impl,
         patch("sycamore.query.execution.sycamore_operator.OpenAI"),  # disable OpenAI client initialization
+        patch(
+            "sycamore.query.execution.sycamore_operator.LLMFilterMessagesPrompt"
+        ) as MockLLMFilterMessagesPrompt,
     ):
-        # Define the mock return value
-        mock_impl.return_value = "success"
-
-        doc_set = Mock(spec=DocSet)
         context = sycamore.init()
+        doc_set = Mock(spec=DocSet)
+        return_doc_set = Mock(spec=DocSet)
+        doc_set.llm_filter.return_value = return_doc_set
         logical_node = LlmFilter("node_id", {"question": "who?", "field": "name", "id": 0})
         sycamore_operator = SycamoreLlmFilter(context, logical_node, query_id="test", inputs=[doc_set])
-        result = sycamore_operator.execute()
 
-        assert result == "success"
-        mock_impl.assert_called_once_with(
-            client=ANY,
-            docset=doc_set,
+        result = sycamore_operator.execute()
+        
+        # assert LLMFilterMessagesPrompt called with expected arguments
+        MockLLMFilterMessagesPrompt.assert_called_once_with(
             filter_question=logical_node.data.get("question"),
+        )
+
+        doc_set.llm_filter.assert_called_once_with(
+            client=ANY,
+            new_field="_autogen_LLMFilterOutput",
+            messages=ANY,
             field=logical_node.data.get("field"),
-            messages=None,
             threshold=3,
             name=logical_node.node_id,
         )
+
+        assert result == return_doc_set
 
 
 def test_filter_range(mock_docs):
@@ -169,7 +176,6 @@ def test_join():
             field1=logical_node.data.get("fieldOne"),
             field2=logical_node.data.get("fieldTwo"),
         )
-
 
 def test_llm_extract():
     with (

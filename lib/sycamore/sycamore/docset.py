@@ -2,16 +2,17 @@ from collections.abc import Mapping
 import logging
 import pprint
 import sys
-from typing import Callable, Optional, Any, Iterable, Type
+from typing import Callable, List, Optional, Any, Iterable, Type
 
 from sycamore.context import Context
 from sycamore.data import Document, Element, MetadataDocument
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.lineage import Materialize, MaterializeMode
+from sycamore.llms.openai import OpenAI
 from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.augment_text import TextAugmentor
 from sycamore.transforms.embed import Embedder
-from sycamore.transforms.extract_entity import EntityExtractor
+from sycamore.transforms.extract_entity import EntityExtractor, OpenAIEntityExtractor
 from sycamore.transforms.extract_graph import GraphExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
 from sycamore.transforms.partition import Partitioner
@@ -770,6 +771,49 @@ class DocSet:
             return doc
 
         return self.map(process_doc, **resource_args)
+    
+    def llm_filter(
+        self,
+        client: OpenAI,
+        new_field: str,
+        messages: List[dict],
+        field: Optional[str] = "text_representation",
+        threshold: int = 3,
+        **resource_args,
+    ) -> "DocSet":
+        """
+        Filters DocSet to only keep documents that score (determined by LLM) greater
+        than or equal to the inputted threshold value.
+
+        Args:
+            client: LLM client to use.
+            new_field: The field that will be added to the DocSet with the outputs.
+            messages: LLM prompt.
+            field: Document field to filter based on.
+            threshold: Cutoff that determines whether or not to keep document.
+            **resource_args
+
+        Returns:
+            A filtered DocSet.
+        """
+        def threshold_filter(doc: Document, threshold) -> bool:
+            try:
+                return_value = int(doc.properties[new_field]) >= threshold
+            except Exception:
+                # accounts for llm output errors
+                return_value = False
+
+            return return_value
+
+        docset = self.filter(lambda doc: doc.field_to_value(field) is not None and doc.field_to_value(field) != "None")
+
+        entity_extractor = OpenAIEntityExtractor(
+            entity_name=new_field, llm=client, use_elements=False, messages=messages, field=field
+        )
+        docset = docset.extract_entity(entity_extractor=entity_extractor)
+        docset = docset.filter(lambda doc: threshold_filter(doc, threshold), **resource_args)
+
+        return docset
 
     def map_batch(
         self,

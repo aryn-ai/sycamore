@@ -168,6 +168,28 @@ class EntityExtractorMessagesPrompt(OpenAIMessagesPromptBase):
                 ),
             )
 
+class LLMFilterMessagesPrompt(OpenAIMessagesPromptBase):
+    def __init__(self, filter_question: Optional[str]):
+        super().__init__()
+
+        self.add_message(
+            "system",
+            (
+                "You are a helpful classifier that generously filters database "
+                "entries based on questions."
+            ),
+        )
+
+        self.add_message(
+            "user",
+            (
+                "Given an entry and a question, you will answer the question relating "
+                "to the entry. You only respond with 0, 1, 2, 3, 4, or 5 based on your " 
+                "confidence level. 0 is the most negative answer and 5 is the most positive "
+                f"answer. Question: {filter_question}; Entry: "
+            ),
+        )
+
 
 _deprecated_prompts: dict[str, Type[GuidancePrompt]] = {
     "ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT": EntityExtractorZeroShotGuidancePrompt,

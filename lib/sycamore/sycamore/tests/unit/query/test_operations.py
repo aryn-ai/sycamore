@@ -10,7 +10,6 @@ from sycamore.llms import LLM
 from sycamore.query.execution.operations import (
     convert_string_to_date,
     join_operation,
-    llm_filter_operation,
     llm_generate_operation,
     match_filter_operation,
     math_operation,
@@ -92,29 +91,6 @@ class TestOperations:
         return generate_docset(
             {"text_representation": ["1", "2", "one", "two", "1", "3"], "parent_id": [8, 1, 11, 17, 13, 5]},
         )
-
-    # Filters
-    def test_llm_filter(self, test_docset):
-        filtered_docset = llm_filter_operation(
-            client=MockLLM(), docset=test_docset, field="text_representation", messages=[]
-        )
-
-        assert filtered_docset.count() == 1
-        for doc in filtered_docset.take():
-            assert doc.text_representation == "test1"
-            assert int(doc.properties["_autogen_LlmFilterOutput"]) == 4
-
-        filtered_docset = llm_filter_operation(
-            client=MockLLM(), docset=test_docset, field="text_representation", messages=[], threshold=2
-        )
-
-        assert filtered_docset.count() == 2
-
-        for doc in filtered_docset.take():
-            if doc.text_representation == "test1":
-                assert int(doc.properties["_autogen_LlmFilterOutput"]) == 4
-            elif doc.text_representation == "test2":
-                assert int(doc.properties["_autogen_LlmFilterOutput"]) == 2
 
     def test_match_filter_number(self, words_and_ids_docset):
         query = 3

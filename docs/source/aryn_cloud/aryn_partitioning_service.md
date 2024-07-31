@@ -1,37 +1,18 @@
 # Aryn Partitioning Service
 
+You can use the Aryn Partitioning Service to segment PDF's into labeled bounding boxes identifying titles, tables, table rows and columns, images, and regular text. Bounding boxes are returned as JSON with their associated text for easy use. It leverages [Aryn's purpose-built AI model for document segmentation and labelling](https://huggingface.co/Aryn/deformable-detr) that was trained using DocLayNet – an open source, human-annotated document layout segmentation dataset containing tens of thousands of pages from a broad variety of document sources.
 
-You can use the Aryn Partitioning Service to segment PDF's into labeled bounding boxes identifying titles, tables, table rows and columns, images, and regular text. Bounding boxes are returned as JSON with their associated text for easy use. If you'd like to experiment with the service, you can use a UI to visualize how your documents are partitioned in the [Aryn Playground](https://www.play.aryn.ai/partitioning).
+If you'd like to experiment with the service, you can use a UI to visualize how your documents are partitioned in the [Aryn Playground](https://www.play.aryn.ai/partitioning).
 
 There are three ways to use the Aryn Partitioning Service: through the `ArynPartitioner` in Sycamore, through the `aryn-sdk` client, and directly from the HTTP service.
 
 To follow along below, we will need an Aryn API key, which we can get at [aryn.ai/get-started](https://www.aryn.ai/get-started). You will recieve the API key in your email inbox.
 
-## Using with Sycamore's Partition transform
-
-The Aryn Partitining Service is the default option when specifying the Aryn Partitioner in a Sycamore script. Say you have a set of pdfs located at the path stored in `work_dir`. We partition these documents with the code snippet below:
-
-```python
-aryn_api_key = "PUT API KEY HERE"
-
-ctx = sycamore.init()
-pdf_docset = context.read.binary(work_dir, binary_format="pdf")
-partitioned_docset = pdf_docset.partition(ArynPartitioner(aryn_api_key=aryn_api_key))
-```
-Alternatively, we can store our Aryn API key at `~/.aryn/config.yaml` like so:
-```yaml
-aryn_token: "PUT API KEY HERE"
-```
-Which makes our Sycamore script the following:
-```python
-ctx = sycamore.init()
-pdf_docset = context.read.binary(work_dir, binary_format="pdf")
-partitioned_docset = pdf_docset.partition(ArynPartitioner())
-```
-
 ## Using `aryn-sdk`
 
-The `aryn-sdk` client is a thin python library that calls the Aryn Partitioning Service and provides a few utility methods around it. Install the `aryn-sdk` client with `pip install aryn-sdk`.
+The `aryn-sdk` client is a thin python library that calls the Aryn Partitioning Service and provides a few utility methods around it. It is the easiest way to add the Aryn Partitioning Service to your applications or custom data processing pipelines.
+
+Install the `aryn-sdk` client with `pip install aryn-sdk`.
 Partition a document like so:
 
 ```python
@@ -71,8 +52,31 @@ dataframe = table_elem_to_dataframe(table_elements[0])
 images = draw_with_boxes("mydocument.pdf", data)
 ```
 
+## Using with Sycamore's Partition transform
+
+The Aryn Partitining Service is the default option when specifying the Aryn Partitioner in a Sycamore script. Say you have a set of pdfs located at the path stored in `work_dir`. We partition these documents with the code snippet below:
+
+```python
+aryn_api_key = "PUT API KEY HERE"
+
+ctx = sycamore.init()
+pdf_docset = context.read.binary(work_dir, binary_format="pdf")
+partitioned_docset = pdf_docset.partition(ArynPartitioner(aryn_api_key=aryn_api_key))
+```
+Alternatively, we can store our Aryn API key at `~/.aryn/config.yaml` like so:
+```yaml
+aryn_token: "PUT API KEY HERE"
+```
+Which makes our Sycamore script the following:
+```python
+ctx = sycamore.init()
+pdf_docset = context.read.binary(work_dir, binary_format="pdf")
+partitioned_docset = pdf_docset.partition(ArynPartitioner())
+```
 
 ## Using `curl`
+
+We recommend using the Aryn SDK, but you can also use `curl` to access the Aryn Partitioning Service directly.
 
 `curl` an example document to use with the partitioning service if you do not have one already.
 ```bash

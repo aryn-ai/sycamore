@@ -2,7 +2,7 @@
 
 You can use the Aryn Partitioning Service to segment PDF's into labeled bounding boxes identifying titles, tables, table rows and columns, images, and regular text. Bounding boxes are returned as JSON with their associated text for easy use. It leverages [Aryn's purpose-built AI model for document segmentation and labelling](https://huggingface.co/Aryn/deformable-detr) that was trained using DocLayNet – an open source, human-annotated document layout segmentation dataset containing tens of thousands of pages from a broad variety of document sources.
 
-If you'd like to experiment with the service, you can use a UI to visualize how your documents are partitioned in the [Aryn Playground](https://www.play.aryn.ai/partitioning). Also, you can view [a notebook with examples on using the service](https://github.com/aryn-ai/sycamore/blob/main/notebooks/ArynPartitionerPython.ipynb) and [a notebook showing how to use the service with Langchain](https://github.com/aryn-ai/sycamore/blob/main/notebooks/ArynPartitionerWithLangchain.ipynb).
+If you'd like to experiment with the service, you can use a UI to visualize how your documents are partitioned in the [Aryn Playground](https://www.play.aryn.ai/partitioning). Also, you can view [a notebook with examples](https://github.com/aryn-ai/sycamore/blob/main/notebooks/ArynPartitionerPython.ipynb) and [a notebook using the service with Langchain](https://github.com/aryn-ai/sycamore/blob/main/notebooks/ArynPartitionerWithLangchain.ipynb).
 
 There are three ways to use the Aryn Partitioning Service: through the `aryn-sdk` client, through the `ArynPartitioner` in Sycamore, and directly from the HTTP service.
 
@@ -10,7 +10,7 @@ To follow along below, we will need an Aryn Cloud API key, which we can get for 
 
 ## Using `aryn-sdk`
 
-The `aryn-sdk` client is a thin python library that calls the Aryn Partitioning Service and provides a few utility methods around it. It is the easiest way to add the Aryn Partitioning Service to your applications or custom data processing pipelines.
+The `aryn-sdk` client is a thin python library that calls the Aryn Partitioning Service and provides a few utility methods around it. It is the easiest way to add the Aryn Partitioning Service to your applications or custom data processing pipelines. You can view an example in [this notebook](https://github.com/aryn-ai/sycamore/blob/main/notebooks/ArynPartitionerPython.ipynb).
 
 Install the `aryn-sdk` client with `pip install aryn-sdk`.
 Partition a document like so:

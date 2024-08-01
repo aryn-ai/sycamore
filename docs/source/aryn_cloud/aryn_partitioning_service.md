@@ -147,12 +147,12 @@ Takes the format `[x1, y1, x2, y2]` where it is a proportion of how far down the
 ```
 
 ```text
-"text_representation": text representation of this element,
+"text_representation": text associated with this element,
 ```
 
 Text elements contain ‘\n’ when the text includes a line return
 
-When `extract_images` is set to True, Pictures include a binary_representation tag which contains a base64 encoded ppm image file of the pdf cropped to the bounds of the detected image.," When `extract_images` is false, the bounding box of the Picture is still returned.
+When `extract_images` is set to True, Pictures include a binary_representation tag which contains a base64 encoded ppm image file of the pdf cropped to the bounds of the detected image. When `extract_images` is false, the bounding box of the Picture is still returned.
 
 ```text
 "binary_representaion": base64 encoded ppm image file of the pdf cropped to the image,

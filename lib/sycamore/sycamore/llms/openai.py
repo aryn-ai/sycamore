@@ -125,7 +125,7 @@ class OpenAIClientWrapper:
 
             self.api_key = os.environ.get("AZURE_OPENAI_API_KEY")
 
-    def get_client(self, asynchronous: bool = False) -> Union[OpenAIClient, AsyncOpenAIClient]:
+    def get_client(self) -> OpenAIClient:
         if self.client_type == OpenAIClientType.OPENAI:
             # We currently only support Helicone with OpenAI.
             base_url = self.base_url
@@ -144,49 +144,66 @@ class OpenAIClientWrapper:
                     extra_kwargs["default_headers"].update(
                         {"Helicone-Property-Tag": os.environ["SYCAMORE_HELICONE_TAG"]}
                     )
-
-            if asynchronous:
-                return AsyncOpenAIClient(
-                    api_key=self.api_key,
-                    organization=self.organization,
-                    base_url=base_url,
-                    max_retries=self.max_retries,
-                    **extra_kwargs,
-                )
-            else:
-                return OpenAIClient(
-                    api_key=self.api_key,
-                    organization=self.organization,
-                    base_url=base_url,
-                    max_retries=self.max_retries,
-                    **extra_kwargs,
-                )
+            return OpenAIClient(
+                api_key=self.api_key,
+                organization=self.organization,
+                base_url=base_url,
+                max_retries=self.max_retries,
+                **extra_kwargs,
+            )
         elif self.client_type == OpenAIClientType.AZURE:
-            if asynchronous:
-                return AsyncAzureOpenAIClient(
-                    azure_endpoint=str(self.azure_endpoint),
-                    azure_deployment=self.azure_deployment,
-                    api_version=self.api_version,
-                    api_key=self.api_key,
-                    azure_ad_token=self.azure_ad_token,
-                    azure_ad_token_provider=self.azure_ad_token_provider,
-                    organization=self.organization,
-                    max_retries=self.max_retries,
-                    **self.extra_kwargs,
-                )
-            else:
-                return AzureOpenAIClient(
-                    azure_endpoint=str(self.azure_endpoint),
-                    azure_deployment=self.azure_deployment,
-                    api_version=self.api_version,
-                    api_key=self.api_key,
-                    azure_ad_token=self.azure_ad_token,
-                    azure_ad_token_provider=self.azure_ad_token_provider,
-                    organization=self.organization,
-                    max_retries=self.max_retries,
-                    **self.extra_kwargs,
-                )
+            return AzureOpenAIClient(
+                azure_endpoint=str(self.azure_endpoint),
+                azure_deployment=self.azure_deployment,
+                api_version=self.api_version,
+                api_key=self.api_key,
+                azure_ad_token=self.azure_ad_token,
+                azure_ad_token_provider=self.azure_ad_token_provider,
+                organization=self.organization,
+                max_retries=self.max_retries,
+                **self.extra_kwargs,
+            )
+        else:
+            raise ValueError(f"Invalid client_type {self.client_type}")
 
+    def get_async_client(self) -> AsyncOpenAIClient:
+        if self.client_type == OpenAIClientType.OPENAI:
+            # We currently only support Helicone with OpenAI.
+            base_url = self.base_url
+            extra_kwargs = self.extra_kwargs
+            if "SYCAMORE_HELICONE_API_KEY" in os.environ and self.disable_helicone is not True:
+                if self.base_url is not None:
+                    logging.warning("SYCAMORE_HELICONE_API_KEY found in environment. Ignoring base_url.")
+                base_url = HELICONE_BASE_URL
+                if "default_headers" not in extra_kwargs:
+                    extra_kwargs["default_headers"] = {}
+                extra_kwargs["default_headers"].update(
+                    {"Helicone-Auth": f"Bearer {os.environ['SYCAMORE_HELICONE_API_KEY']}"}
+                )
+                # Add SYCAMORE_HELICONE_TAG value to the Helicone-Property-Tag header if it is set.
+                if "SYCAMORE_HELICONE_TAG" in os.environ:
+                    extra_kwargs["default_headers"].update(
+                        {"Helicone-Property-Tag": os.environ["SYCAMORE_HELICONE_TAG"]}
+                    )
+            return AsyncOpenAIClient(
+                api_key=self.api_key,
+                organization=self.organization,
+                base_url=base_url,
+                max_retries=self.max_retries,
+                **extra_kwargs,
+            )
+        elif self.client_type == OpenAIClientType.AZURE:
+            return AsyncAzureOpenAIClient(
+                azure_endpoint=str(self.azure_endpoint),
+                azure_deployment=self.azure_deployment,
+                api_version=self.api_version,
+                api_key=self.api_key,
+                azure_ad_token=self.azure_ad_token,
+                azure_ad_token_provider=self.azure_ad_token_provider,
+                organization=self.organization,
+                max_retries=self.max_retries,
+                **self.extra_kwargs,
+            )
         else:
             raise ValueError(f"Invalid client_type {self.client_type}")
 
@@ -301,8 +318,8 @@ class OpenAI(LLM):
                 client_wrapper.api_key = api_key
 
         self.client_wrapper = client_wrapper
-        self._client = self.client_wrapper.get_client()
-        self._async_client = self.client_wrapper.get_client(asynchronous=True)
+        self._client: OpenAIClient = self.client_wrapper.get_client()
+        self._async_client: AsyncOpenAIClient = self.client_wrapper.get_async_client()
 
     # The actual openai client is not pickleable, This just says to pickle the wrapper, which can be used to
     # recreate the client on the other end.

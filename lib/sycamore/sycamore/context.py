@@ -3,6 +3,7 @@ import logging
 import threading
 from typing import Any, Optional, TYPE_CHECKING
 
+from sycamore.config import Config
 from sycamore.rules import Rule
 
 if TYPE_CHECKING:
@@ -48,7 +49,9 @@ class Context:
     to read data into a DocSet
     """
 
-    def __init__(self, exec_mode=ExecMode.RAY, ray_args: Optional[dict[str, Any]] = None):
+    def __init__(
+        self, exec_mode=ExecMode.RAY, ray_args: Optional[dict[str, Any]] = None, config: Optional[Config] = None
+    ):
         self.exec_mode = exec_mode
         if self.exec_mode == ExecMode.RAY:
             import ray
@@ -73,6 +76,7 @@ class Context:
             assert False, f"unsupported mode {self.exec_mode}"
 
         self.extension_rules: list[Rule] = []
+        self._config = config or Config()
         self._internal_lock = threading.Lock()
 
     @property
@@ -80,6 +84,10 @@ class Context:
         from sycamore.reader import DocSetReader
 
         return DocSetReader(self)
+
+    @property
+    def config(self) -> Config:
+        return self._config
 
     def register_rule(self, rule: Rule) -> None:
         """
@@ -104,12 +112,24 @@ class Context:
         with self._internal_lock:
             self.extension_rules.remove(rule)
 
+    @staticmethod
+    def current(
+        exec_mode=ExecMode.RAY, ray_args: Optional[dict[str, Any]] = None, config: Optional[Config] = None
+    ) -> "Context":
+        if _global_context:
+            return _global_context
+        return init(exec_mode=exec_mode, ray_args=ray_args, config=config)
+
 
 _context_lock = threading.Lock()
 _global_context: Optional[Context] = None
 
 
-def init(exec_mode=ExecMode.RAY, ray_args: Optional[dict[str, Any]] = None) -> Context:
+def init(exec_mode=ExecMode.RAY, ray_args: Optional[dict[str, Any]] = None, config: Optional[Config] = None) -> Context:
+    """
+    Initialize a new Context. If there is already an initialized Context, we reuse the Ray session but allow you to
+    override any Config variables.
+    """
     global _global_context
     with _context_lock:
         if _global_context is None:
@@ -122,7 +142,9 @@ def init(exec_mode=ExecMode.RAY, ray_args: Optional[dict[str, Any]] = None) -> C
 
             sycamore_logger.setup_logger()
 
-            _global_context = Context(exec_mode, ray_args)
+            _global_context = Context(exec_mode, ray_args, config)
+        if config:
+            _global_context._config = config
 
         return _global_context
 

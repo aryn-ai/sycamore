@@ -8,9 +8,9 @@ from sycamore import DocSet, Execution
 from sycamore.data import Document, MetadataDocument
 from sycamore.llms.openai import OpenAI
 from sycamore.llms.prompts.default_prompts import (
-    LLMGenerateMessagesPrompt,
-    SemanticClusterAssignGroupsMessagesPrompt,
-    SemanticClusterFormGroupsMessagesPrompt,
+    LlmGenerateMessagesPrompt,
+    LlmClusterEntityAssignGroupsMessagesPrompt,
+    LlmClusterEntityFormGroupsMessagesPrompt,
 )
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.utils.extract_json import extract_json
@@ -206,7 +206,7 @@ def llm_generate_operation(
         else:
             text += str(result_data) + "\n"
 
-    messages = LLMGenerateMessagesPrompt(question=question, text=text).get_messages_dict()
+    messages = LlmGenerateMessagesPrompt(question=question, text=text).get_messages_dict()
     prompt_kwargs = {"messages": messages}
 
     # call to LLM
@@ -307,10 +307,10 @@ def top_k_operation(
     """
 
     if use_llm:
-        docset = semantic_cluster(client, docset, description, field)
+        docset = llm_cluster_entity(client, docset, description, field)
         field = "properties._autogen_ClusterAssignment"
 
-    docset = docset.count_aggregate(field, unique_field, **kwargs)
+    docset = docset.groupby_count(field, unique_field, **kwargs)
 
     # uses 0 as default value -> end of docset
     docset = docset.sort(descending, "properties.count", 0)
@@ -319,7 +319,7 @@ def top_k_operation(
     return docset
 
 
-def semantic_cluster(client: OpenAI, docset: DocSet, description: str, field: str) -> DocSet:
+def llm_cluster_entity(client: OpenAI, docset: DocSet, description: str, field: str) -> DocSet:
     """
     Normalizes a particular field of a DocSet. Identifies and assigns each document to a "group".
 
@@ -339,7 +339,7 @@ def semantic_cluster(client: OpenAI, docset: DocSet, description: str, field: st
         text += str(doc.field_to_value(field))
 
     # sets message
-    messages = SemanticClusterFormGroupsMessagesPrompt(
+    messages = LlmClusterEntityFormGroupsMessagesPrompt(
         field=field, description=description, text=text
     ).get_messages_dict()
 
@@ -353,7 +353,7 @@ def semantic_cluster(client: OpenAI, docset: DocSet, description: str, field: st
     assert isinstance(groups, dict)
 
     # sets message
-    messagesForExtract = SemanticClusterAssignGroupsMessagesPrompt(
+    messagesForExtract = LlmClusterEntityAssignGroupsMessagesPrompt(
         field=field, groups=groups["groups"]
     ).get_messages_dict()
 

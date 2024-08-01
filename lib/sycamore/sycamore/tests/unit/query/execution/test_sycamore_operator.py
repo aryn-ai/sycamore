@@ -2,14 +2,14 @@ import unittest
 from unittest.mock import patch, ANY, Mock
 
 import sycamore
-from sycamore.query.operators.join import Join
+from sycamore.query.operators.innerjoin import InnerJoin
 from sycamore.query.operators.llmextract import LlmExtract
 from sycamore import DocSet
 
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.limit import Limit
 from sycamore.query.execution.sycamore_operator import (
-    SycamoreJoin,
+    SycamoreInnerJoin,
     SycamoreLoadData,
     SycamoreLlmGenerate,
     SycamoreLlmFilter,
@@ -80,7 +80,7 @@ def test_llm_generate():
 def test_llm_filter():
     with (
         patch("sycamore.query.execution.sycamore_operator.OpenAI"),  # disable OpenAI client initialization
-        patch("sycamore.query.execution.sycamore_operator.LLMFilterMessagesPrompt") as MockLLMFilterMessagesPrompt,
+        patch("sycamore.query.execution.sycamore_operator.LlmFilterMessagesPrompt") as MockLlmFilterMessagesPrompt,
     ):
         context = sycamore.init()
         doc_set = Mock(spec=DocSet)
@@ -91,8 +91,8 @@ def test_llm_filter():
 
         result = sycamore_operator.execute()
 
-        # assert LLMFilterMessagesPrompt called with expected arguments
-        MockLLMFilterMessagesPrompt.assert_called_once_with(
+        # assert LlmFilterMessagesPrompt called with expected arguments
+        MockLlmFilterMessagesPrompt.assert_called_once_with(
             filter_question=logical_node.question,
         )
 
@@ -191,8 +191,8 @@ def test_join():
         doc_set1 = Mock(spec=DocSet)
         doc_set2 = Mock(spec=DocSet)
         context = sycamore.init()
-        logical_node = Join(node_id=0, field_one="field1", field_two="field2")
-        sycamore_operator = SycamoreJoin(context, logical_node, query_id="test", inputs=[doc_set1, doc_set2])
+        logical_node = InnerJoin(node_id=0, field_one="field1", field_two="field2")
+        sycamore_operator = SycamoreInnerJoin(context, logical_node, query_id="test", inputs=[doc_set1, doc_set2])
         result = sycamore_operator.execute()
 
         assert result == "success"

@@ -169,7 +169,7 @@ class EntityExtractorMessagesPrompt(OpenAIMessagesPromptBase):
             )
 
 
-class LLMFilterMessagesPrompt(OpenAIMessagesPromptBase):
+class LlmFilterMessagesPrompt(OpenAIMessagesPromptBase):
     def __init__(self, filter_question: str):
         super().__init__()
 
@@ -189,7 +189,7 @@ class LLMFilterMessagesPrompt(OpenAIMessagesPromptBase):
         )
 
 
-class LLMGenerateMessagesPrompt(OpenAIMessagesPromptBase):
+class LlmGenerateMessagesPrompt(OpenAIMessagesPromptBase):
     def __init__(self, question: str, text: str):
         super().__init__()
 
@@ -208,7 +208,7 @@ class LLMGenerateMessagesPrompt(OpenAIMessagesPromptBase):
         )
 
 
-class SemanticClusterFormGroupsMessagesPrompt(OpenAIMessagesPromptBase):
+class LlmClusterEntityFormGroupsMessagesPrompt(OpenAIMessagesPromptBase):
     def __init__(self, field: str, description: str, text: str):
         super().__init__()
 
@@ -229,7 +229,7 @@ class SemanticClusterFormGroupsMessagesPrompt(OpenAIMessagesPromptBase):
         )
 
 
-class SemanticClusterAssignGroupsMessagesPrompt(OpenAIMessagesPromptBase):
+class LlmClusterEntityAssignGroupsMessagesPrompt(OpenAIMessagesPromptBase):
     def __init__(self, field: str, groups: list[str]):
         super().__init__()
 

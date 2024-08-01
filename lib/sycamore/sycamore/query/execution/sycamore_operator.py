@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from typing import Any, Optional, List, Dict, Tuple
 
-from sycamore.llms.prompts.default_prompts import EntityExtractorMessagesPrompt, LLMFilterMessagesPrompt
+from sycamore.llms.prompts.default_prompts import EntityExtractorMessagesPrompt, LlmFilterMessagesPrompt
 from sycamore.query.execution.metrics import SycamoreQueryLogger
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.filter import Filter
@@ -11,7 +11,7 @@ from sycamore.query.operators.llmfilter import LlmFilter
 from sycamore.query.operators.llmgenerate import LlmGenerate
 from sycamore.query.operators.loaddata import LoadData
 from sycamore.query.operators.topk import TopK
-from sycamore.query.operators.join import Join
+from sycamore.query.operators.innerjoin import InnerJoin
 from sycamore.query.operators.sort import Sort
 
 from sycamore.query.execution.operations import (
@@ -222,7 +222,7 @@ class SycamoreLlmFilter(SycamoreOperator):
         # load into local vars for Ray serialization magic
         s3_cache_path = self.s3_cache_path
 
-        prompt = LLMFilterMessagesPrompt(filter_question=question).get_messages_dict()
+        prompt = LlmFilterMessagesPrompt(filter_question=question).get_messages_dict()
 
         result = self.inputs[0].llm_filter(
             llm=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(s3_cache_path) if s3_cache_path else None),
@@ -593,7 +593,7 @@ class SycamoreTopK(SycamoreOperator):
         ]
 
 
-class SycamoreJoin(SycamoreOperator):
+class SycamoreInnerJoin(SycamoreOperator):
     """
     Return 2 DocSets joined
     """
@@ -601,7 +601,7 @@ class SycamoreJoin(SycamoreOperator):
     def __init__(
         self,
         context: Context,
-        logical_node: Join,
+        logical_node: InnerJoin,
         query_id: str,
         inputs: Optional[List[Any]] = None,
         trace_dir: Optional[str] = None,
@@ -617,7 +617,7 @@ class SycamoreJoin(SycamoreOperator):
         ), "Join requires 2 DocSet inputs"
 
         logical_node = self.logical_node
-        assert isinstance(logical_node, Join)
+        assert isinstance(logical_node, InnerJoin)
         field1 = logical_node.field_one
         field2 = logical_node.field_two
 
@@ -631,7 +631,7 @@ class SycamoreJoin(SycamoreOperator):
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         logical_node = self.logical_node
-        assert isinstance(logical_node, Join)
+        assert isinstance(logical_node, InnerJoin)
         field1 = logical_node.field_one
         field2 = logical_node.field_two
         assert logical_node.dependencies is not None and len(logical_node.dependencies) == 2

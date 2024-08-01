@@ -8,8 +8,8 @@ from sycamore.data import Document
 from sycamore.docset import DocSet
 from sycamore.llms import LLM
 from sycamore.llms.prompts.default_prompts import (
-    SemanticClusterAssignGroupsMessagesPrompt,
-    SemanticClusterFormGroupsMessagesPrompt,
+    LlmClusterEntityAssignGroupsMessagesPrompt,
+    LlmClusterEntityFormGroupsMessagesPrompt,
 )
 from sycamore.query.execution.operations import (
     convert_string_to_date,
@@ -18,7 +18,7 @@ from sycamore.query.execution.operations import (
     match_filter_operation,
     math_operation,
     range_filter_operation,
-    semantic_cluster,
+    llm_cluster_entity,
     top_k_operation,
 )
 
@@ -30,14 +30,14 @@ class MockLLM(LLM):
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
         if (
             prompt_kwargs["messages"]
-            == SemanticClusterFormGroupsMessagesPrompt(
+            == LlmClusterEntityFormGroupsMessagesPrompt(
                 field="text_representation", description="", text="1, 2, one, two, 1, 3"
             ).get_messages_dict()
         ):
             return '{"groups": ["group1", "group2", "group3"]}'
         elif (
             prompt_kwargs["messages"][0]
-            == SemanticClusterAssignGroupsMessagesPrompt(
+            == LlmClusterEntityAssignGroupsMessagesPrompt(
                 field="text_representation", groups=["group1", "group2", "group3"]
             ).get_messages_dict()[0]
         ):
@@ -300,8 +300,8 @@ class TestOperations:
         assert top_k_list[1].properties["key"] == "group2"
         assert top_k_list[1].properties["count"] == 2
 
-    def test_semantic_cluster(self, number_docset):
-        cluster_docset = semantic_cluster(
+    def test_llm_cluster_entity(self, number_docset):
+        cluster_docset = llm_cluster_entity(
             client=MockLLM(), docset=number_docset, description="", field="text_representation"
         )
         for doc in cluster_docset.take():

@@ -4,7 +4,7 @@ from sycamore.data.document import Document
 from sycamore.plan_nodes import Node, Transform
 
 
-class CountAggregate(Transform):
+class GroupByCount(Transform):
     """
     Count aggregation that allows you to aggregate by document field(s).
     """

@@ -967,7 +967,7 @@ class DocSet:
 
         return DocSet(self.context, Sort(self.plan, descending, field, default_val))
 
-    def count_aggregate(self, field: str, unique_field: Optional[str] = None, **kwargs) -> "DocSet":
+    def groupby_count(self, field: str, unique_field: Optional[str] = None, **kwargs) -> "DocSet":
         """
         Performs a count aggregation on a DocSet.
 
@@ -980,10 +980,10 @@ class DocSet:
             A DocSet with "properties.key" (unique values of document field)
             and "properties.count" (frequency counts for unique values).
         """
-        from sycamore.transforms import CountAggregate
+        from sycamore.transforms import GroupByCount
         from sycamore.transforms import DatasetScan
 
-        dataset = CountAggregate(self.plan, field, unique_field).execute(**kwargs)
+        dataset = GroupByCount(self.plan, field, unique_field).execute(**kwargs)
         return DocSet(self.context, DatasetScan(dataset))
 
     def llm_query(self, query_agent: LLMTextQueryAgent, **kwargs) -> "DocSet":

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Callable, Any, Optional, Union
 
-from sycamore import context
+from sycamore.context import Context
 from sycamore.data import Element, Document
 from sycamore.llms import LLM
 from sycamore.llms.prompts import (
@@ -73,7 +73,7 @@ class OpenAIEntityExtractor(EntityExtractor):
     ):
         super().__init__(entity_name)
         if llm is None:
-            llm = context.current().config.llm
+            llm = Context.current().config.llm
             assert llm is not None
         self._llm = llm
         self._num_of_elements = num_of_elements

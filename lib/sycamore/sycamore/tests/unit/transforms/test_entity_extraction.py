@@ -16,6 +16,8 @@ class MockLLM(LLM):
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
         if prompt_kwargs == {"messages": [{"role": "user", "content": "s3://path"}]} and llm_kwargs == {}:
             return "alt_title"
+        if prompt_kwargs == {"prompt": "s3://path"} and llm_kwargs == {}:
+            return "alt_title"
         return "title"
 
     def is_chat_mode(self):

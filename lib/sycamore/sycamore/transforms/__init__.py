@@ -15,6 +15,8 @@ from sycamore.transforms.bbox_merge import (
     MarkDropHeaderFooter,
     MarkBreakByColumn,
 )
+
+from sycamore.transforms.standardizer import LocationStandardizer, Standardizer, Standardize_property
 from sycamore.transforms.mark_misc import (
     MarkDropTiny,
     MarkBreakPage,
@@ -75,4 +77,7 @@ __all__ = [
     "Sort",
     "LLMQuery",
     "AssignDocProperties",
+    "LocationStandardizer",
+    "Standardizer",
+    "Standardize_property",
 ]

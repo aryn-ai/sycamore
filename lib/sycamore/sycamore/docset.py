@@ -22,6 +22,7 @@ from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.merge_elements import ElementMerger
 from sycamore.writer import DocSetWriter
 from sycamore.transforms.query import QueryExecutor, Query
+from sycamore.transforms.standardizer import Standardizer
 
 logger = logging.getLogger(__name__)
 
@@ -434,6 +435,15 @@ class DocSet:
 
         embeddings = Embed(self.plan, embedder=embedder, **kwargs)
         return DocSet(self.context, embeddings)
+    
+    def standardise(self, standarizer: Standardizer):
+        """
+        """
+        from sycamore.transforms import Standardize_property
+        standard_docset = Standardize_property(self.plan,standardizer=standarizer )
+        return DocSet(self.context, standard_docset)
+
+
 
     def extract_entity(self, entity_extractor: EntityExtractor, **kwargs) -> "DocSet":
         """

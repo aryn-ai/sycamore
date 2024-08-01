@@ -68,8 +68,8 @@ tokenizer = HuggingFaceTokenizer("thenlper/gte-small")
 
 
 
-pickled_docset = ctx.read.binary(str('/home/ec2-user/GIT31Jul/sycamore/notebooks/tmp2/e5b72d9e-4f88-11ef-966d-0eae5337fe69.pickle'), binary_format="pickle")
-ds = pickled_docset.flat_map(unpickle_doc)
+# pickled_docset = ctx.read.binary(str('/home/ec2-user/GIT31Jul/sycamore/notebooks/tmp2/e5b72d9e-4f88-11ef-966d-0eae5337fe69.pickle'), binary_format="pickle")
+# ds = pickled_docset.flat_map(unpickle_doc)
 
 # def customFunc(d):
 #     if 'table' in d and isinstance(d['table'], Table):
@@ -121,7 +121,7 @@ pickled_docset = ctx.read.binary(str('/home/ec2-user/GIT31Jul/sycamore/notebooks
 ds = pickled_docset.flat_map(unpickle_doc)
 
 
-ds.filter_elements(lambda d:d.type=='table').show()
+# ds.filter_elements(lambda d:d.type=='table').show()
 
 # element_type = 'table'
 # element_idx = 0
@@ -146,10 +146,15 @@ ds.filter_elements(lambda d:d.type=='table').show()
 
 from sycamore.transforms import assign_doc_properties
 ds = ds.assign_doc_properties('table','llm_response')
-ds.show(limit=1, show_elements = False)
+# ds.show(limit=1, show_elements = False)
 
 # ds1 = ds.filter_elements(lambda d:d.properties['page_number']==1)
 # ds1.show()
 
+from sycamore.transforms import LocationStandardizer
+
+loc_standardizer = LocationStandardizer()
+ds = ds.standardise(loc_standardizer)
 
 
+ds.show(limit=1, show_elements = False)

@@ -52,8 +52,9 @@ class Cache:
         return hash_ctx
 
     @staticmethod
-    def get_hash_context_file(file_path: Union[str, BinaryIO, SpooledTemporaryFile], hash_ctx: Optional[HashContext] = None) -> (
-            HashContext):
+    def get_hash_context_file(
+        file_path: Union[str, BinaryIO, SpooledTemporaryFile], hash_ctx: Optional[HashContext] = None
+    ) -> HashContext:
         if not hash_ctx:
             hash_ctx = HashContext()
 

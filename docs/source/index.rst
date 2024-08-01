@@ -24,7 +24,38 @@ Sycamore uses LLM-powered transforms, and you can choose the model to leverage. 
 Getting Started
 --------------------
 
-You can easily deploy Sycamore locally or on a virtual machine using Docker.
+**Aryn Partitioning Service**
+
+`Sign-up here for free<https://www.aryn.ai/get-started>`_ to get an API Key.
+
+we will need an Aryn Cloud API key, which we can get for free at aryn.ai/get-started. You will recieve the API key in your email inbox.
+
+Next, you can:
+
+* **Use the Aryn Playground:** Visit `the Playground<https://play.aryn.cloud/partitioning>` and use the UI to see how the service segments, lables, and extracts data from your documents.
+
+* **Use the Aryn SDK:** 
+
+1. Install the Aryn SDK using pip:
+
+``pip install aryn-sdk``
+
+2. Then, partition your document:
+
+``
+from aryn_sdk.partition import partition_file
+with open("mydocument.pdf", "rb") as f:
+    data = partition_file(f)
+``
+
+You can specify additional options (e.g. table extraction), and a list of these options is :doc:`here </aryn_cloud/aryn_partitioning_service.html#specifying-options>`
+
+
+**Sycamore**
+
+1. Install Sycamore with pip:
+
+``pip install sycamore-ai``
 
 With Docker installed:
 

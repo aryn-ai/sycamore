@@ -118,6 +118,10 @@ _global_context: Optional[Context] = None
 
 
 def init(exec_mode=ExecMode.RAY, ray_args: Optional[dict[str, Any]] = None, config: Optional[Config] = None) -> Context:
+    """
+    Initialized a new Context. If there is already an initialized Context, we reuse the Ray session but allow you to
+    override any Config variables.
+    """
     global _global_context
     with _context_lock:
         if _global_context is None:
@@ -131,6 +135,8 @@ def init(exec_mode=ExecMode.RAY, ray_args: Optional[dict[str, Any]] = None, conf
             sycamore_logger.setup_logger()
 
             _global_context = Context(exec_mode, ray_args, config)
+        if config:
+            _global_context._config = config
 
         return _global_context
 

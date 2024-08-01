@@ -854,7 +854,7 @@ class DocSet:
         docset = docset.filter(lambda doc: threshold_filter(doc, threshold), **resource_args)
 
         return docset
-    
+
     def match_filter(self, query: Any, field: str, ignore_case: bool = True, **resource_args) -> "DocSet":
         """
         Only keep documents that match the query on the specified field.
@@ -886,9 +886,15 @@ class DocSet:
             return query == value
 
         return self.filter(process_doc, **resource_args)
-    
-    def range_filter(self, field: str, start: Optional[Any] = None, end: Optional[Any] = None, 
-                     date: Optional[bool] = False, **resource_args) -> "DocSet":
+
+    def range_filter(
+        self,
+        field: str,
+        start: Optional[Any] = None,
+        end: Optional[Any] = None,
+        date: Optional[bool] = False,
+        **resource_args,
+    ) -> "DocSet":
         """
         Only keep documents for which the value of the
         specified field is within the start:end range.

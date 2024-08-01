@@ -1,8 +1,6 @@
 import json
 from typing import Any, Callable, List, Optional, Union
 
-from datetime import datetime
-from dateutil import parser
 from ray.data import Dataset
 
 from sycamore import DocSet, Execution
@@ -43,6 +41,7 @@ the same meaning. Here is the list values corresponding to "{field}": "{text}"."
 SC_ASSIGN_GROUPS_PROMPT = """Categorize the database entry you are given corresponding to "{field}"
 into one of the following groups: "{groups}". Perform your best work to assign the group. Return
 ONLY the string corresponding to the selected group. Here is the database entry you will use: """
+
 
 def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
     """

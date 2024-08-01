@@ -81,7 +81,7 @@ class TestDocSet:
         return generate_docset(
             {"text_representation": ["1", "2", "one", "two", "1", "3"], "parent_id": [8, 1, 11, 17, 13, 5]},
         )
-    
+
     def test_partition_pdf(self, mocker):
         context = mocker.Mock(spec=Context)
         partitioner = mocker.Mock(spec=Partitioner, device="cpu")
@@ -352,7 +352,6 @@ class TestDocSet:
     def test_match_filter_number(self, words_and_ids_docset):
         query = 3
         filtered_docset = words_and_ids_docset.match_filter(query=query, field="doc_id")
-        
 
         assert filtered_docset.count() == 2
         for doc in filtered_docset.take():
@@ -362,7 +361,6 @@ class TestDocSet:
 
         query = "sub"
         filtered_docset = words_and_ids_docset.match_filter(query=query, field="text_representation")
-    
 
         assert filtered_docset.count() == 3
 
@@ -375,7 +373,7 @@ class TestDocSet:
 
         query = "sub"
         filtered_docset = words_and_ids_docset.match_filter(query=query, field="text_representation", ignore_case=False)
-    
+
         assert filtered_docset.count() == 1
 
         filtered_texts = []

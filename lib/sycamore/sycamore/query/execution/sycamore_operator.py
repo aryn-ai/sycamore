@@ -285,23 +285,24 @@ class SycamoreFilter(SycamoreOperator):
             end = logical_node.end
             date = logical_node.date
 
-            result = self.inputs[0].range_filter(field=str(field), start=start, end=end, date=date,
+            result = self.inputs[0].range_filter(
+                field=str(field),
+                start=start,
+                end=end,
+                date=date,
                 **self.get_node_args(),
             )
         else:
             query = logical_node.query
             assert query is not None
             field = logical_node.field
-            result = self.inputs[0].match_filter(query=query, field=field,
-                **self.get_node_args()
-            )
+            result = self.inputs[0].match_filter(query=query, field=field, **self.get_node_args())
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         assert isinstance(self.logical_node, Filter)
         assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) == 1
-        script = ""
-        imports = []
+        imports: list[str] = []
         if self.logical_node.range_filter:
             field = self.logical_node.field
             start = self.logical_node.start
@@ -310,24 +311,24 @@ class SycamoreFilter(SycamoreOperator):
             assert end is None or isinstance(end, str)
             date = self.logical_node.date
 
-            script = f"""
-{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(self.logical_node.dependencies[0])}.range_filter(
-        field='{field}',
-        start='{start}',
-        end='{end}',
-        date='{date}',
-        **{self.get_node_args()}
-    )
-            """
+            script = (
+            f"{output_var or get_var_name(self.logical_node)} = "
+            f"{input_var or get_var_name(self.logical_node.dependencies[0])}.range_filter(\n"
+            f"field='{field}',\n"
+            f"start='{start}',\n"
+            f"end='{end}',\n"
+            f"date='{date}'\n"
+            f"**{self.get_node_args()})"
+            )
             imports = []
         else:
-            script = f"""
-{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(self.logical_node.dependencies[0])}.match_filter(
-        query='{self.logical_node.query}',
-        field='{self.logical_node.field}',
-        **{self.get_node_args()},
-    )
-"""
+            script = (
+            f"{output_var or get_var_name(self.logical_node)} = "
+            f"{input_var or get_var_name(self.logical_node.dependencies[0])}.match_filter(\n"
+            f"query='{self.logical_node.query}',\n"
+            f"field='{self.logical_node.field}',"
+            f"**{self.get_node_args()})"
+            )
             imports = []
         return script, imports
 

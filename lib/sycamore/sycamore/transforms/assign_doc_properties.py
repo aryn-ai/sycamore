@@ -37,10 +37,10 @@ class AssignDocProperties(SingleThreadUser, NonGPUUser, Map):
     @timetrace("AssignProps")
     def assign_doc_properties(parent: Document, element_type, property_name  , element_count= 0 ) -> Document:
         # element count is zero indexed 
-        elementPro = property_name
+        assert property_name is not None
         for e in parent.elements:
             if e.type == element_type:
-                e.properties.update(AssignDocProperties._parse_json(e.properties.get(elementPro)))
+                e.properties.update(AssignDocProperties._parse_json(e.properties.get(property_name)))
                 parent.properties["entity"] = e.properties.copy()
                 break
 

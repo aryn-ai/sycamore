@@ -42,11 +42,11 @@ Next, you can:
 
 2. Then, partition your document:
 
-``
+```
 from aryn_sdk.partition import partition_file
 with open("mydocument.pdf", "rb") as f:
     data = partition_file(f)
-``
+```
 
 You can specify additional options (e.g. table extraction), and a list of these options is :doc:`here </aryn_cloud/aryn_partitioning_service.html#specifying-options>`
 

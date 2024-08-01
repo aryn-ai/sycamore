@@ -60,7 +60,7 @@ class SycamoreExecutor:
         self.s3_cache_path = s3_cache_path
         self.os_client_args = os_client_args
         self.trace_dir = trace_dir
-        self.processed: Dict[int, Any] = dict()
+        self.processed: Dict[str, Any] = dict()
         self.dry_run = dry_run
 
         if self.s3_cache_path:
@@ -69,8 +69,8 @@ class SycamoreExecutor:
             log.info("Using tracer: %s", trace_dir)
         if self.dry_run:
             log.info("Executing in dry-mode")
-            self.node_id_to_node: Dict[int, LogicalOperator] = {}
-            self.node_id_to_code: Dict[int, str] = {}
+            self.node_id_to_node: Dict[str, LogicalOperator] = {}
+            self.node_id_to_code: Dict[str, str] = {}
             self.imports: List[str] = []
 
     @staticmethod
@@ -78,7 +78,7 @@ class SycamoreExecutor:
         return {"name": str(logical_node.node_id)}
 
     def process_node(self, logical_node: LogicalOperator, query_id: str) -> Any:
-        bind_contextvars(logical_node=logical_node)
+        bind_contextvars(logical_node_data=logical_node.data)
         # This is lifted up here to avoid serialization issues with Ray.
         s3_cache_path = self.s3_cache_path
 
@@ -91,11 +91,10 @@ class SycamoreExecutor:
         # Process dependencies
         if logical_node.dependencies:
             for dependency in logical_node.dependencies:
-                assert isinstance(dependency, LogicalOperator)
                 inputs += [self.process_node(dependency, query_id)]
 
         # refresh context as nested execution overrides it
-        bind_contextvars(logical_node=logical_node)
+        bind_contextvars(logical_node_data=logical_node.data)
         log.info("Executing node")
         # Process node
         result = None
@@ -188,7 +187,6 @@ class SycamoreExecutor:
             operation = MathOperator(logical_node=logical_node, query_id=query_id, inputs=inputs)
         else:
             raise Exception(f"Unsupported node type: {str(logical_node)}")
-
         if result is None:
             if self.dry_run:
                 code, imports = operation.script()
@@ -214,7 +212,7 @@ class SycamoreExecutor:
         result += "import sycamore\n\n"
         result += "context = sycamore.init()\n"
         for node_id in sorted(self.node_id_to_node):
-            result += f"# {self.node_id_to_node[node_id].description}" + "\n"
+            result += f"# {self.node_id_to_node[node_id].data['description']}" + "\n"
             result += self.node_id_to_code[node_id] + "\n"
         return result
 
@@ -225,8 +223,8 @@ class SycamoreExecutor:
                 query_id = str(uuid.uuid4())
             bind_contextvars(query_id=query_id)
             log.info("Executing query")
-            assert isinstance(plan.result_node, LogicalOperator)
-            result = self.process_node(plan.result_node, query_id)
+            start = plan.result_node()
+            result = self.process_node(start, query_id)
         finally:
             clear_contextvars()
         if self.dry_run:

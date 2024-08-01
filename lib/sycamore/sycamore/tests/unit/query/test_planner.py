@@ -37,7 +37,7 @@ def test_llm_planner(mock_os_config, mock_os_client, mock_openai_client, monkeyp
                     "description": "Get all the airplane incidents",
                     "index": "ntsb",
                     "query": "airplane incidents",
-                    "node_id": 0,
+                    "id": 0,
                 },
                 {
                     "operatorName": "LlmFilter",
@@ -45,7 +45,7 @@ def test_llm_planner(mock_os_config, mock_os_client, mock_openai_client, monkeyp
                     "question": "Did this incident occur in a Piper aircraft?",
                     "field": "properties.entity.aircraft",
                     "input": [0],
-                    "node_id": 1,
+                    "id": 1,
                 },
                 {
                     "operatorName": "Count",
@@ -53,14 +53,14 @@ def test_llm_planner(mock_os_config, mock_os_client, mock_openai_client, monkeyp
                     "countUnique": False,
                     "field": None,
                     "input": [1],
-                    "node_id": 2,
+                    "id": 2,
                 },
                 {
                     "operatorName": "LlmGenerate",
                     "description": "Generate an English response to the question",
                     "question": "How many Piper aircrafts were involved in accidents?",
                     "input": [2],
-                    "node_id": 3,
+                    "id": 3,
                 },
             ]
         )
@@ -76,19 +76,23 @@ def test_llm_planner(mock_os_config, mock_os_client, mock_openai_client, monkeyp
     )
 
     plan = planner.plan("Dummy query")
-    assert plan.result_node.node_id == 3
-    assert plan.result_node.description == "Generate an English response to the question"
-    assert len(plan.result_node.dependencies) == 1
-    assert plan.result_node.dependencies[0].node_id == 2
-    assert plan.result_node.dependencies[0].description == "Determine how many incidents occurred in Piper aircrafts"
-    assert len(plan.result_node.dependencies[0].dependencies) == 1
-    assert plan.result_node.dependencies[0].dependencies[0].node_id == 1
+    assert plan.result_node().node_id == 3
+    assert plan.result_node().data.get("description") == "Generate an English response to the question"
+    assert len(plan.result_node().dependencies) == 1
+    assert plan.result_node().dependencies[0].node_id == 2
     assert (
-        plan.result_node.dependencies[0].dependencies[0].description
+        plan.result_node().dependencies[0].data.get("description")
+        == "Determine how many incidents occurred in Piper aircrafts"
+    )
+    assert len(plan.result_node().dependencies[0].dependencies) == 1
+    assert plan.result_node().dependencies[0].dependencies[0].node_id == 1
+    assert (
+        plan.result_node().dependencies[0].dependencies[0].data.get("description")
         == "Filter to only include Piper aircraft incidents"
     )
-    assert len(plan.result_node.dependencies[0].dependencies[0].dependencies) == 1
-    assert plan.result_node.dependencies[0].dependencies[0].dependencies[0].node_id == 0
+    assert len(plan.result_node().dependencies[0].dependencies[0].dependencies) == 1
+    assert plan.result_node().dependencies[0].dependencies[0].dependencies[0].node_id == 0
     assert (
-        plan.result_node.dependencies[0].dependencies[0].dependencies[0].description == "Get all the airplane incidents"
+        plan.result_node().dependencies[0].dependencies[0].dependencies[0].data.get("description")
+        == "Get all the airplane incidents"
     )

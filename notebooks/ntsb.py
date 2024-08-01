@@ -71,20 +71,20 @@ tokenizer = HuggingFaceTokenizer("thenlper/gte-small")
 pickled_docset = ctx.read.binary(str('/home/ec2-user/GIT31Jul/sycamore/notebooks/tmp2/e5b72d9e-4f88-11ef-966d-0eae5337fe69.pickle'), binary_format="pickle")
 ds = pickled_docset.flat_map(unpickle_doc)
 
-def customFunc(d):
-    if 'table' in d and isinstance(d['table'], Table):
-        d.text_representation = d['table'].to_csv()
-    return d
+# def customFunc(d):
+#     if 'table' in d and isinstance(d['table'], Table):
+#         d.text_representation = d['table'].to_csv()
+#     return d
 
-# filter page
-# ds.filter_elements(lambda el: isinstance(el, TableElement))
+# # filter page
+# # ds.filter_elements(lambda el: isinstance(el, TableElement))
 
-ds_table = ds.map(customFunc)
-doc = ds_table.take_all()
-for i in doc[0].elements:
-    # print(i)
-    if i.type == "table":
-        print(i.text_representation)
+# ds_table = ds.map(customFunc)
+# doc = ds_table.take_all()
+# for i in doc[0].elements:
+#     # print(i)
+#     if i.type == "table":
+#         print(i.text_representation)
 
 from sycamore.transforms.llm_query import LLMTextQueryAgent,LLMQuery
 from sycamore.functions.elements import filter_elements
@@ -100,17 +100,56 @@ prompt  = """
     3. If you find multiple fields defined in a row, feel free to split them into separate properties.
     4. Use camelCase for the key names
     5. For fields where the values are in standard measurement units like miles, nautical miles, knots, celsius
+    6. return only the json object
        - include the unit in the key name and only set the numeric value as the value.
        - e.g. "Wind Speed: 9 knots" should become windSpeedInKnots: 9, "Temperature: 3°C" should become temperatureInC: 3
     """
-# llm_query_agent = LLMTextQueryAgent(prompt=prompt, llm = llm,per_element=True, element_type = 'table', number_of_elements=1)
-# ds_llm = ds_table.filter_elements(lambda d:d.type=='table').filter_elements(lambda d:d.properties['page_number']==1).llm_query(query_agent=llm_query_agent)
+# llm_query_agent = LLMTextQueryAgent(prompt=prompt, llm = llm,per_element=True, element_type = 'table', number_of_elements=10)
+# # ds_llm = ds_table.filter_elements(lambda d:d.type=='table').filter_elements(lambda d:d.properties['page_number']==1).llm_query(query_agent=llm_query_agent)
 
-llm_query_agent = LLMTextQueryAgent(prompt=prompt, llm = llm,per_element=True, element_type = 'table', number_of_elements=2)
-ds_llm = ds_table.llm_query(query_agent=llm_query_agent)
+# # llm_query_agent = LLMTextQueryAgent(prompt=prompt, llm = llm,per_element=True, element_type = 'table', number_of_elements=10)
+# ds_llm = ds.llm_query(query_agent=llm_query_agent)
 
-docs = ds_llm.filter_elements(lambda d:d.type=='table').take_all()
+# docs = ds_llm.filter_elements(lambda d:d.type=='table')
 
-for d in docs[0].elements:
-    print(d)
+
+# # docs.show()
+# ds_llm.write.files('/home/ec2-user/GIT31Jul/sycamore/notebooks/llmwrite', doc_to_bytes_fn=pickle_doc, filename_fn=pickle_name)
+
+# ds_llm.filter_elements(lambda d:d.type=='table').show()
+pickled_docset = ctx.read.binary(str('/home/ec2-user/GIT31Jul/sycamore/notebooks/llmwrite'), binary_format="pickle")
+ds = pickled_docset.flat_map(unpickle_doc)
+
+
+ds.filter_elements(lambda d:d.type=='table').show()
+
+# element_type = 'table'
+# element_idx = 0
+# elementPro = "llm_response"
+# def parse_json_garbage(s):
+#     s = s[next(idx for idx, c in enumerate(s) if c in "{["):]
+#     try:
+#         return json.loads(s)
+#     except json.JSONDecodeError as e:
+#         return json.loads(s[:e.pos])
+    
+# for doc in ds.take_all():
+#     element_count = 0
+#     for e in doc.elements:
+#         if e.type == element_type:
+#             if element_count==element_idx:
+#                 # print(e)
+#                 e.properties.update(parse_json_garbage(e.properties.get(elementPro)))
+#                 doc.properties["entity"] = e.properties.copy()
+#             element_count +=1
+
+
+from sycamore.transforms import assign_doc_properties
+ds = ds.assign_doc_properties('table')
+ds.show(limit=2, show_elements = False)
+
+ds1 = ds.filter_elements(lambda d:d.properties['page_number']==1)
+ds1.show()
+
+
 

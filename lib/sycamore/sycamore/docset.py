@@ -332,6 +332,22 @@ class DocSet:
         plan = SpreadProperties(self.plan, props, **resource_args)
         return DocSet(self.context, plan)
 
+    def assign_doc_properties(self, elementName: str, **resource_args) -> "DocSet":
+        """
+        Copies listed properties from parent document to child elements.
+
+        Example:
+            .. code-block:: python
+
+               pdf_docset = context.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=ArynPartitioner())
+                    .AssignDocProperties('table')
+                    .explode()
+        """
+        from sycamore.transforms.assign_doc_properties import AssignDocProperties
+        plan = AssignDocProperties(self.plan, elementName, **resource_args)
+        return DocSet(self.context, plan)
+
     def augment_text(self, augmentor: TextAugmentor, **resource_args) -> "DocSet":
         """
         Augments text_representation with external information.

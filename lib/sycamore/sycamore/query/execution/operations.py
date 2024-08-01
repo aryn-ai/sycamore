@@ -7,7 +7,10 @@ from dateutil import parser
 from sycamore import DocSet, Execution
 from sycamore.data import Document, MetadataDocument
 from sycamore.llms.openai import OpenAI
-from sycamore.llms.prompts.default_prompts import SemanticClusterAssignGroupsMessagesPrompt, SemanticClusterFormGroupsMessagesPrompt
+from sycamore.llms.prompts.default_prompts import (
+    SemanticClusterAssignGroupsMessagesPrompt,
+    SemanticClusterFormGroupsMessagesPrompt,
+)
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.utils.extract_json import extract_json
 
@@ -26,6 +29,7 @@ BASE_PROPS = [
 
 NUM_DOCS_GENERATE = 60
 NUM_TEXT_CHARS_GENERATE = 2500
+
 
 def convert_string_to_date(date_string: str) -> datetime:
     """
@@ -342,7 +346,9 @@ def semantic_cluster(client: OpenAI, docset: DocSet, description: str, field: st
         text += str(doc.field_to_value(field))
 
     # sets message
-    messages = SemanticClusterFormGroupsMessagesPrompt(field=field, description=description, text=text).get_messages_dict()
+    messages = SemanticClusterFormGroupsMessagesPrompt(
+        field=field, description=description, text=text
+    ).get_messages_dict()
 
     prompt_kwargs = {"messages": messages}
 
@@ -354,7 +360,9 @@ def semantic_cluster(client: OpenAI, docset: DocSet, description: str, field: st
     assert isinstance(groups, dict)
 
     # sets message
-    messagesForExtract = SemanticClusterAssignGroupsMessagesPrompt(field=field, groups=groups["groups"]).get_messages_dict()
+    messagesForExtract = SemanticClusterAssignGroupsMessagesPrompt(
+        field=field, groups=groups["groups"]
+    ).get_messages_dict()
 
     entity_extractor = OpenAIEntityExtractor(
         entity_name="_autogen_ClusterAssignment",

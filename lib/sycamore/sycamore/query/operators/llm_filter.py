@@ -4,7 +4,7 @@ from sycamore.query.operators.logical_operator import LogicalOperator
 class LlmFilter(LogicalOperator):
     """Uses an LLM to filter a database based on the value of a field. Used in
     cases where a basic match cannot be performed with an existing field (when a
-    range or match filter — exact or substring) will not suffice.
+    range or match filter — exact or substring will not suffice).
 
     Returns a database.
     """

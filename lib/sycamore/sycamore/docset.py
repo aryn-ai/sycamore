@@ -3,7 +3,6 @@ import logging
 import pprint
 import sys
 from typing import Callable, Optional, Any, Iterable, Type, Union
-from dateutil import parser
 
 from sycamore.context import Context
 from sycamore.data import Document, Element, MetadataDocument
@@ -908,6 +907,7 @@ class DocSet:
         Returns:
             A filtered DocSet.
         """
+        from dateutil import parser
 
         def process_doc(doc: Document) -> bool:
             value = doc.field_to_value(field)

@@ -58,73 +58,6 @@ def convert_string_to_date(date_string: str) -> datetime:
     return parser.parse(date_string).replace(tzinfo=None)
 
 
-def threshold_filter(doc: Document, threshold) -> bool:
-    try:
-        return_value = int(doc.properties["_autogen_LlmFilterOutput"]) >= threshold
-    except Exception:
-        # accounts for llm output errors
-        return_value = False
-
-    return return_value
-
-
-def llm_filter_operation(
-    client: OpenAI,
-    docset: DocSet,
-    filter_question: Optional[str] = None,
-    field: Optional[str] = None,
-    messages: Optional[List[dict]] = None,
-    threshold: int = 3,
-    **resource_args,
-) -> DocSet:
-    """
-    Filters DocSet to only keep documents that score (determined by LLM) greater
-    than or equal to the inputted threshold value.
-
-    Args:
-        client: LLM client to use.
-        docset: DocSet to filter.
-        filter_question: Question used for filtering during LLM call
-        field: Document field to filter based on.
-        messages: Custom LLM prompt.
-        threshold: Cutoff that determines whether or not to keep document.
-        **resource_args
-
-    Returns:
-        A filtered DocSet.
-    """
-    if filter_question is None and messages is None:
-        raise Exception("Filter question must be specified for default value of messages.")
-
-    if messages is None:
-        # sets prompt
-        messages = [
-            {
-                "role": "system",
-                "content": "You are a helpful classifier that generously filters database entries based on questions.",
-            },
-            {
-                "role": "user",
-                "content": f"""Given an entry and a question, you will answer the question relating to the entry. 
-                    You only respond with 0, 1, 2, 3, 4, or 5 based on your confidence level. 0 is the most negative 
-                    answer and 5 is the most positive answer. Question: {filter_question}; Entry: """,
-            },
-        ]
-
-    if field is None:
-        field = "text_representation"
-
-    docset = docset.filter(lambda doc: doc.field_to_value(field) is not None and doc.field_to_value(field) != "None")
-
-    entity_extractor = OpenAIEntityExtractor(
-        entity_name="_autogen_LlmFilterOutput", llm=client, use_elements=False, messages=messages, field=field
-    )
-    docset = docset.extract_entity(entity_extractor=entity_extractor)
-    docset = docset.filter(lambda doc: threshold_filter(doc, threshold), **resource_args)
-
-    return docset
-
-
 def match_filter_operation(doc: Document, query: Any, field: str, ignore_case: bool = True) -> bool:
     """
     Only keep documents that match the query on the specified field.
@@ -469,7 +402,7 @@ def semantic_cluster(client: OpenAI, docset: DocSet, description: str, field: st
         entity_name="_autogen_ClusterAssignment",
         llm=client,
         use_elements=False,
-        messages=messagesForExtract,
+        prompt=messagesForExtract,
         field=field,
     )
     docset = docset.extract_entity(entity_extractor=entity_extractor)

@@ -13,27 +13,20 @@ from sycamore.query.operators.loaddata import LoadData
 @pytest.fixture
 def test_count_docs_query_plan() -> LogicalPlan:
     """A simple query plan which only counts the number of documents."""
-    load_node = LoadData("load", {"description": "Load data", "index": "test_index", "id": 0})
-    count_node = Count(
-        "count",
-        {
-            "description": "Count number of documents",
-            "countUnique": False,
-            "field": None,
-            "input": [load_node.node_id],
-            "id": 1,
-        },
-    )
+    load_node = LoadData(node_id=0, description="Load data", index="test_index")
+    count_node = Count(node_id=1, description="Count number of documents", input=[load_node.node_id])
 
-    load_node.downstream_nodes = [count_node]
-    count_node.dependencies = [load_node]
-    nodes: Dict[str, Node] = {
-        "load": load_node,
-        "count": count_node,
+    # pylint: disable=protected-access
+    load_node._downstream_nodes = [count_node]
+    # pylint: disable=protected-access
+    count_node._dependencies = [load_node]
+    nodes: Dict[int, Node] = {
+        load_node.node_id: load_node,
+        count_node.node_id: count_node,
     }
     plan = LogicalPlan(result_node=count_node, nodes=nodes, query="Test query plan")
-    assert plan.result_node() == count_node
-    assert plan.nodes() == nodes
+    assert plan.result_node == count_node
+    assert plan.nodes == nodes
     return plan
 
 

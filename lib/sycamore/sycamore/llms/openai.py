@@ -3,13 +3,15 @@ import os
 import pickle
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, TypedDict, Union, cast
+from typing import Awaitable, Optional, TypedDict, Union, cast
 
 from guidance.models import AzureOpenAIChat, AzureOpenAICompletion
 from guidance.models import Model
 from guidance.models import OpenAI as GuidanceOpenAI
 from openai import AzureOpenAI as AzureOpenAIClient
+from openai import AsyncAzureOpenAI as AsyncAzureOpenAIClient
 from openai import OpenAI as OpenAIClient
+from openai import AsyncOpenAI as AsyncOpenAIClient
 from openai import max_retries as DEFAULT_MAX_RETRIES
 from openai.lib.azure import AzureADTokenProvider
 from openai.types.chat import ChatCompletionMessageParam
@@ -17,6 +19,7 @@ from openai.types.chat import ChatCompletionMessageParam
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts import GuidancePrompt
 from sycamore.utils.cache import Cache
+
 
 logger = logging.getLogger(__name__)
 
@@ -122,7 +125,7 @@ class OpenAIClientWrapper:
 
             self.api_key = os.environ.get("AZURE_OPENAI_API_KEY")
 
-    def get_client(self) -> OpenAIClient:
+    def get_client(self, asynchronous: bool = False) -> OpenAIClient:
         if self.client_type == OpenAIClientType.OPENAI:
             # We currently only support Helicone with OpenAI.
             base_url = self.base_url
@@ -142,25 +145,47 @@ class OpenAIClientWrapper:
                         {"Helicone-Property-Tag": os.environ["SYCAMORE_HELICONE_TAG"]}
                     )
 
-            return OpenAIClient(
-                api_key=self.api_key,
-                organization=self.organization,
-                base_url=base_url,
-                max_retries=self.max_retries,
-                **extra_kwargs,
-            )
+            if asynchronous:
+                return AsyncOpenAIClient(
+                    api_key=self.api_key,
+                    organization=self.organization,
+                    base_url=base_url,
+                    max_retries=self.max_retries,
+                    **extra_kwargs,
+                )
+            else:
+                return OpenAIClient(
+                    api_key=self.api_key,
+                    organization=self.organization,
+                    base_url=base_url,
+                    max_retries=self.max_retries,
+                    **extra_kwargs,
+                )
         elif self.client_type == OpenAIClientType.AZURE:
-            return AzureOpenAIClient(
-                azure_endpoint=str(self.azure_endpoint),
-                azure_deployment=self.azure_deployment,
-                api_version=self.api_version,
-                api_key=self.api_key,
-                azure_ad_token=self.azure_ad_token,
-                azure_ad_token_provider=self.azure_ad_token_provider,
-                organization=self.organization,
-                max_retries=self.max_retries,
-                **self.extra_kwargs,
-            )
+            if asynchronous:
+                return AsyncAzureOpenAIClient(
+                    azure_endpoint=str(self.azure_endpoint),
+                    azure_deployment=self.azure_deployment,
+                    api_version=self.api_version,
+                    api_key=self.api_key,
+                    azure_ad_token=self.azure_ad_token,
+                    azure_ad_token_provider=self.azure_ad_token_provider,
+                    organization=self.organization,
+                    max_retries=self.max_retries,
+                    **self.extra_kwargs,
+                )
+            else:
+                return AzureOpenAIClient(
+                    azure_endpoint=str(self.azure_endpoint),
+                    azure_deployment=self.azure_deployment,
+                    api_version=self.api_version,
+                    api_key=self.api_key,
+                    azure_ad_token=self.azure_ad_token,
+                    azure_ad_token_provider=self.azure_ad_token_provider,
+                    organization=self.organization,
+                    max_retries=self.max_retries,
+                    **self.extra_kwargs,
+                )
 
         else:
             raise ValueError(f"Invalid client_type {self.client_type}")
@@ -277,6 +302,7 @@ class OpenAI(LLM):
 
         self.client_wrapper = client_wrapper
         self._client = self.client_wrapper.get_client()
+        self._async_client = self.client_wrapper.get_client(asynchronous=True)
 
     # The actual openai client is not pickleable, This just says to pickle the wrapper, which can be used to
     # recreate the client on the other end.
@@ -350,6 +376,63 @@ class OpenAI(LLM):
             raise ValueError("Either prompt or messages must be present in prompt_kwargs.")
 
         completion = self._client.chat.completions.create(model=self._model_name, messages=messages, **kwargs)
+        return completion.choices[0].message.content
+
+    async def generate_future(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Awaitable[str]:
+        cache_key = None
+        if self._cache:
+            cache_key = self._get_cache_key(prompt_kwargs, llm_kwargs)
+            hit = self._cache.get(cache_key)
+            if hit:
+                if (
+                    hit.get("prompt_kwargs") == prompt_kwargs
+                    and hit.get("llm_kwargs") == llm_kwargs
+                    and hit.get("model_name") == self.model.name
+                ):
+                    return hit.get("result")
+                else:
+                    logger.warning(
+                        "Found cache content mismatch, key=%s prompt_kwargs=%s llm_kwargs=%s model_name=%s",
+                        cache_key,
+                        prompt_kwargs,
+                        llm_kwargs,
+                        self.model.name,
+                    )
+        if llm_kwargs is not None:
+            result = await self._generate_future_using_openai(prompt_kwargs, llm_kwargs)
+        else:
+            raise ValueError("Must include llm_kwargs to generate future call")
+        if self._cache:
+            assert cache_key
+            item = {
+                "result": result,
+                "prompt_kwargs": prompt_kwargs,
+                "llm_kwargs": llm_kwargs,
+                "model_name": self.model.name,
+            }
+            self._cache.set(cache_key, item)
+        return result
+
+    async def _generate_future_using_openai(self, prompt_kwargs, llm_kwargs) -> Awaitable[str]:
+        kwargs = {
+            "temperature": 0,
+            **llm_kwargs,
+        }
+
+        if "SYCAMORE_OPENAI_USER" in os.environ:
+            kwargs.update({"user": os.environ.get("SYCAMORE_OPENAI_USER")})
+
+        if "prompt" in prompt_kwargs:
+            prompt = prompt_kwargs.get("prompt")
+            messages: list[ChatCompletionMessageParam] = [{"role": "user", "content": f"{prompt}"}]
+        elif "messages" in prompt_kwargs:
+            messages = prompt_kwargs["messages"]
+        else:
+            raise ValueError("Either prompt or messages must be present in prompt_kwargs.")
+
+        completion = await self._async_client.chat.completions.create(
+            model=self._model_name, messages=messages, **kwargs
+        )
         return completion.choices[0].message.content
 
     def _generate_using_guidance(self, prompt_kwargs) -> str:

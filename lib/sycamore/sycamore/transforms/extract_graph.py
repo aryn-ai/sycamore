@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Dict, Any
+from typing import TYPE_CHECKING, Awaitable, Dict, Any
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.data import Document, MetadataDocument, HierarchicalDocument
+from sycamore.llms import LLM
 import json
 import uuid
 import logging
@@ -194,7 +195,7 @@ class EntityExtractor(GraphExtractor):
         llm: The LLM that is used to extract the entities
     """
 
-    def __init__(self, entities: list[GraphEntity], llm):
+    def __init__(self, entities: list[GraphEntity], llm: LLM):
         self.entities = entities
         self.llm = llm
 
@@ -207,16 +208,29 @@ class EntityExtractor(GraphExtractor):
         return docset
 
     def _extract(self, doc: HierarchicalDocument) -> HierarchicalDocument:
+        import asyncio
+
         if "EXTRACTED_NODES" in doc.data or not isinstance(doc, HierarchicalDocument):
             return doc
 
-        res: list[dict] = []
-        labels = [e.label + ": " + e.description for e in self.entities]
-        for child in doc.children:
-            res += [self._extract_from_section(labels, child.data["summary"])]
+        async def gather_api_calls():
+            labels = [e.label + ": " + e.description for e in self.entities]
+            tasks = [self._extract_from_section(labels, child.data["summary"]) for child in doc.children]
+            res = await asyncio.gather(*tasks)
+            return res
+
+        res = asyncio.run(gather_api_calls())
 
         nodes = {}
         for i, section in enumerate(doc.children):
+            try:
+                res[i] = json.loads(res[i])
+            except json.JSONDecodeError:
+                logger.warn("LLM Output failed to be decoded to JSON")
+                logger.warn("Input: " + section.data["summary"])
+                logger.warn("Output: " + res[i])
+                res[i] = {"entities": []}
+
             for node in res[i]["entities"]:
                 node = {
                     "type": "extracted",
@@ -243,18 +257,11 @@ class EntityExtractor(GraphExtractor):
 
         return doc
 
-    def _extract_from_section(self, labels, summary: str) -> dict:
-        res = self.llm.generate(
+    async def _extract_from_section(self, labels, summary: str) -> Awaitable[str]:
+        return await self.llm.generate_future(
             prompt_kwargs={"prompt": str(GraphEntityExtractorPrompt(labels, summary))},
             llm_kwargs={"response_format": {"type": "json_object"}},
         )
-        try:
-            return json.loads(res)
-        except json.JSONDecodeError:
-            logger.warn("LLM Output failed to be decoded to JSON")
-            logger.warn("Input: " + summary)
-            logger.warn("Output: " + res)
-            return {"entities": []}
 
 
 def GraphEntityExtractorPrompt(entities, query):

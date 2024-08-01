@@ -145,11 +145,11 @@ ds.filter_elements(lambda d:d.type=='table').show()
 
 
 from sycamore.transforms import assign_doc_properties
-ds = ds.assign_doc_properties('table')
-ds.show(limit=2, show_elements = False)
+ds = ds.assign_doc_properties('table','llm_response')
+ds.show(limit=1, show_elements = False)
 
-ds1 = ds.filter_elements(lambda d:d.properties['page_number']==1)
-ds1.show()
+# ds1 = ds.filter_elements(lambda d:d.properties['page_number']==1)
+# ds1.show()
 
 
 

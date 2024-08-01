@@ -22,16 +22,17 @@ class LLMTextQueryAgent:
         llm_kwargs: (Optional) LLM keyword argument for the underlying execution engine
         per_element: (Optional) Whether to execute the call per each element or on the Document itself. Defaults to
         True.
+        element_type: (Optional) Element type based filter to make call for only specific element type. Defaults to Any
 
     Example:
          .. code-block:: python
 
             prompt="Tell me the important numbers from this element"
-            llm_query_agent = LLMElementTextSummarizer(prompt=prompt)
+            llm_query_agent = LLMTextQueryAgent(prompt=prompt)
 
             context = sycamore.init()
             pdf_docset = context.read.binary(paths, binary_format="pdf")
-                .partition(partitioner=UnstructuredPdfPartitioner())
+                .partition(partitioner=ArynPartitioner())
                 .llm_query(query_agent=llm_query_agent)
     """
 
@@ -44,6 +45,7 @@ class LLMTextQueryAgent:
         number_of_elements: Optional[int] = None,
         llm_kwargs: dict = {},
         per_element: bool = True,
+        element_type: str = "",
     ):
         self._llm = llm
         self._prompt = prompt
@@ -52,21 +54,36 @@ class LLMTextQueryAgent:
         self._per_element = per_element
         self._format_kwargs = format_kwargs
         self._number_of_elements = number_of_elements
+        self._element_type = element_type
 
     def execute_query(self, document: Document) -> Document:
         if self._per_element:
             elements = document.elements
+            element_type_count = 0
             for idx, element in enumerate(document.elements):
-                elements[idx] = self._query_text_object(element)
-                if self._number_of_elements and idx >= self._number_of_elements:
-                    break
+                if self._element_type: 
+                    if element.type == self._element_type:    
+                        elements[idx] = self._query_text_object(element)
+                        if self._number_of_elements and element_type_count >= self._number_of_elements:
+                            break
+                        element_type_count +=1
+                else:
+                    elements[idx] = self._query_text_object(element)
+                    if self._number_of_elements and idx >= self._number_of_elements:
+                        break
             document.elements = elements
         elif self._number_of_elements:  # limit to a number of elements
             text_representation = self._prompt
             for idx, element in enumerate(document.elements):
-                text_representation += "\n" + element["text_representation"]
-                if idx >= self._number_of_elements:
-                    break
+                if self._element_type and element.type == self._element_type:    
+                    text_representation += "\n" + element["text_representation"]
+                    if self._number_of_elements and element_type_count >= self._number_of_elements:
+                        break
+                    element_type_count +=1
+                else:
+                    text_representation += "\n" + element["text_representation"]
+                    if idx >= self._number_of_elements:
+                        break
             prompt_kwargs = {"prompt": text_representation}
             llm_resp = self._llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs=self._llm_kwargs)
             document["properties"][self._output_property] = llm_resp
@@ -85,7 +102,7 @@ class LLMTextQueryAgent:
                     .render(doc=object)
                 )
             else:
-                prompt = self._prompt + "\n" + object["text_representation"]
+                prompt = self._prompt + "\n" + object.type +' ' + object.text_representation
             prompt_kwargs = {"prompt": prompt}
             llm_resp = self._llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs=self._llm_kwargs)
             object["properties"][self._output_property] = llm_resp

@@ -1,14 +1,14 @@
 from abc import ABC, abstractmethod
 from typing import Callable, Any, List, Optional
 
-
+from sycamore.context import Context
 from sycamore.data import Element, Document
-from sycamore.plan_nodes import Node
 from sycamore.llms import LLM
 from sycamore.llms.prompts import (
     EntityExtractorZeroShotGuidancePrompt,
     EntityExtractorFewShotGuidancePrompt,
 )
+from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
 
@@ -63,7 +63,7 @@ class OpenAIEntityExtractor(EntityExtractor):
     def __init__(
         self,
         entity_name: str,
-        llm: LLM,
+        llm: Optional[LLM] = None,
         prompt_template: Optional[str] = None,
         num_of_elements: int = 10,
         prompt_formatter: Callable[[list[Element]], str] = element_list_formatter,
@@ -72,6 +72,9 @@ class OpenAIEntityExtractor(EntityExtractor):
         field: Optional[str] = None,
     ):
         super().__init__(entity_name)
+        if llm is None:
+            llm = Context.current().config.llm
+            assert llm is not None, "OpenAIEntityExtractor requires an LLM"
         self._llm = llm
         self._num_of_elements = num_of_elements
         self._prompt_template = prompt_template

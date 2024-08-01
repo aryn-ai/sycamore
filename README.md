@@ -6,9 +6,11 @@
 [![Docs](https://readthedocs.org/projects/sycamore/badge/?version=stable)](https://sycamore.readthedocs.io/en/stable/?badge=stable)
 ![License](https://img.shields.io/github/license/aryn-ai/sycamore)
 
-Sycamore is an AI-powered document processing engine for ETL, RAG, LLM-based applications, and analytics on unstructured data. Sycamore can partition and enrich a wide range of document types including reports, presentations, transcripts, manuals, and more. It can analyze and chunk complex documents such as PDFs and images with embedded tables, figures, graphs, and other infographics.
+Sycamore is an open source, AI-powered document processing engine for ETL, RAG, LLM-based applications, and analytics on unstructured data. Sycamore can partition and enrich a wide range of document types including reports, presentations, transcripts, manuals, and more. It can analyze and chunk complex documents such as PDFs and images with embedded tables, figures, graphs, and other infographics.
 
-For processing PDFs, Sycamore leverages the [Aryn Partitioning Service](https://www.aryn.ai/?name=ArynPartitioningService_Intro), a serverless, GPU-powered API for segmenting and labeleing documents, doing OCR, extracting tables and images, and more. It levereages Aryn's state-of-the-art, [open source deep learning DETR AI model](https://huggingface.co/Aryn/deformable-detr-DocLayNet) trained on 80k+ enterprise documents, and it can lead to 6x more accurate data chunking and 2x improved recall on hybrid search or RAG when compared to alternate systems. The Aryn Partitioning Service takes PDFs and returns the partitioned output in JSON, and you can use Sycamore for additional data extraction, enrichment, transforms, cleaning, and loading into downstream databases. You can choose the LLMs to use with these transforms.
+For processing PDFs, Sycamore leverages the [Aryn Partitioning Service](https://www.aryn.ai/post/announcing-the-aryn-partitioning-service), a serverless, GPU-powered API for segmenting and labeleing documents, doing OCR, extracting tables and images, and more. It levereages Aryn's state-of-the-art, [open source deep learning DETR AI model](https://huggingface.co/Aryn/deformable-detr-DocLayNet) trained on 80k+ enterprise documents, and it can lead to 6x more accurate data chunking and 2x improved recall on hybrid search or RAG when compared to alternate systems. You can [sign-up for free here](http://www.aryn.ai/get-started), or choose to run the Aryn Partitioner locally.
+
+The Aryn Partitioning Service takes PDFs and returns the partitioned output in JSON, and you can use Sycamore for additional data extraction, enrichment, transforms, cleaning, and loading into downstream databases. You can choose the LLMs to use with these transforms.
 
 Sycamore reliably loads your vector databases and hybrid search engines, including as OpenSearch, ElasticSearch, Pinecone, DuckDB and Weaviate, with higher quality data. 
 
@@ -18,7 +20,7 @@ The Sycamore framework is built around a scalable and robust abstraction for doc
 
 ## Features
 
-- State-of-the art vision AI model for segmentation and preserving the semantic structure of documents
+- Integrated with the Aryn Partitioning Service, using a state-of-the art vision AI model for segmentation and preserving the semantic structure of documents
 - DocSet abstraction to scalably and reliably transform and manipulate unstructured documents
 - High-quality table extraction, OCR, visual summarization, LLM-powered UDFs, and other performant Python data transforms
 - Quickly create vector embeddings using your choice of AI model
@@ -27,7 +29,7 @@ The Sycamore framework is built around a scalable and robust abstraction for doc
 
 ## Demo
 
-[Hosted on Loom](https://www.loom.com/share/53e68b0eb5ab49948111a3fcf6286b7f?sid=8627ff2a-db36-46ef-9762-a01b37e20ced)
+[Introduction to the Aryn Partitioning Service](https://www.aryn.ai/?name=ArynPartitioningService_Intro)
 
 ## Get Started
 

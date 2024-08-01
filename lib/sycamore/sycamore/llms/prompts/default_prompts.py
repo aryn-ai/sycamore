@@ -211,7 +211,7 @@ class SemanticClusterFormGroupsMessagesPrompt(OpenAIMessagesPromptBase):
 
 
 class SemanticClusterAssignGroupsMessagesPrompt(OpenAIMessagesPromptBase):
-    def __init__(self, field: str, groups: str):
+    def __init__(self, field: str, groups: list[str]):
         super().__init__()
 
         self.add_message(

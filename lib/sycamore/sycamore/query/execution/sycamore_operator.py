@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from typing import Any, Optional, List, Dict, Tuple
 
+from sycamore.functions.basic_filters import MatchFilter, RangeFilter
 from sycamore.llms.prompts.default_prompts import EntityExtractorMessagesPrompt, LLMFilterMessagesPrompt
 from sycamore.query.execution.metrics import SycamoreQueryLogger
 from sycamore.query.operators.count import Count
@@ -285,18 +286,14 @@ class SycamoreFilter(SycamoreOperator):
             end = logical_node.end
             date = logical_node.date
 
-            result = self.inputs[0].range_filter(
-                field=str(field),
-                start=start,
-                end=end,
-                date=date,
-                **self.get_node_args(),
+            result = self.inputs[0].filter(
+                f=RangeFilter(field=str(field), start=start, end=end, date=date), **self.get_node_args()
             )
         else:
             query = logical_node.query
             assert query is not None
             field = logical_node.field
-            result = self.inputs[0].match_filter(query=query, field=field, **self.get_node_args())
+            result = self.inputs[0].filter(f=MatchFilter(query=query, field=field), **self.get_node_args())
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
@@ -313,23 +310,25 @@ class SycamoreFilter(SycamoreOperator):
 
             script = (
                 f"{output_var or get_var_name(self.logical_node)} = "
-                f"{input_var or get_var_name(self.logical_node.dependencies[0])}.range_filter(\n"
+                f"{input_var or get_var_name(self.logical_node.dependencies[0])}.filter(\n"
+                "f=RangeFilter("
                 f"field='{field}',\n"
                 f"start='{start}',\n"
                 f"end='{end}',\n"
-                f"date='{date}'\n"
+                f"date='{date}),'\n"
                 f"**{self.get_node_args()})"
             )
-            imports = []
+            imports = ["from sycamore.functions.basic_filters import RangeFilter"]
         else:
             script = (
                 f"{output_var or get_var_name(self.logical_node)} = "
-                f"{input_var or get_var_name(self.logical_node.dependencies[0])}.match_filter(\n"
+                f"{input_var or get_var_name(self.logical_node.dependencies[0])}.filter(\n"
+                "f=MatchFilter("
                 f"query='{self.logical_node.query}',\n"
                 f"field='{self.logical_node.field}',"
                 f"**{self.get_node_args()})"
             )
-            imports = []
+            imports = ["from sycamore.functions.basic_filters import MatchFilter"]
         return script, imports
 
 

@@ -241,7 +241,7 @@ class SycamoreLlmFilter(SycamoreOperator):
         if self.s3_cache_path:
             cache_string = f", cache=S3Cache('{self.s3_cache_path}')"
         result = (
-            f"prompt = LLMFilterMessagesPrompt(filter_question='{self.logical_node.question}').get_messages_dict()\n"
+            f"prompt = LlmFilterMessagesPrompt(filter_question='{self.logical_node.question}').get_messages_dict()\n"
             f"{output_var or get_var_name(self.logical_node)} = "
             f"{input_var or get_var_name(self.logical_node.dependencies[0])}.llm_filter(\n"
             f"llm=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),\n"
@@ -254,7 +254,7 @@ class SycamoreLlmFilter(SycamoreOperator):
         )
         return result, [
             "from sycamore.llms import OpenAI, OpenAIModels",
-            "from sycamore.llms.prompts.default_prompts import LLMFilterMessagesPrompt",
+            "from sycamore.llms.prompts.default_prompts import LlmFilterMessagesPrompt",
         ]
 
 

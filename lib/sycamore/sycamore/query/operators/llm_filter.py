@@ -3,7 +3,8 @@ from sycamore.query.operators.logical_operator import LogicalOperator
 
 class LlmFilter(LogicalOperator):
     """Uses an LLM to filter a database based on the value of a field. Used in
-    cases where there may not be an exact match with an existing field.
+    cases where a basic match cannot be performed with an existing field (when a
+    range or match filter — exact or substring) will not suffice.
 
     Returns a database.
     """

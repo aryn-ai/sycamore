@@ -16,8 +16,6 @@ from sycamore.query.operators.sort import Sort
 
 from sycamore.query.execution.operations import (
     llm_generate_operation,
-    range_filter_operation,
-    match_filter_operation,
     top_k_operation,
     join_operation,
 )
@@ -287,17 +285,15 @@ class SycamoreFilter(SycamoreOperator):
             end = logical_node.end
             date = logical_node.date
 
-            result = self.inputs[0].filter(
-                lambda doc: range_filter_operation(doc=doc, field=str(field), start=start, end=end, date=date),
+            result = self.inputs[0].range_filter(field=str(field), start=start, end=end, date=date,
                 **self.get_node_args(),
             )
         else:
             query = logical_node.query
             assert query is not None
             field = logical_node.field
-            result = self.inputs[0].filter(
-                lambda doc: match_filter_operation(doc=doc, query=query, field=field),
-                **self.get_node_args(),
+            result = self.inputs[0].match_filter(query=query, field=field,
+                **self.get_node_args()
             )
         return result
 
@@ -315,30 +311,24 @@ class SycamoreFilter(SycamoreOperator):
             date = self.logical_node.date
 
             script = f"""
-{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(self.logical_node.dependencies[0])}.filter(
-    lambda doc: range_filter_operation(
-        doc=doc,
+{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(self.logical_node.dependencies[0])}.range_filter(
         field='{field}',
         start='{start}',
         end='{end}',
         date='{date}',
-    ),
-    **{self.get_node_args()},
-)
+        **{self.get_node_args()}
+    )
             """
-            imports = ["from sycamore.query.execution.operations import range_filter_operation"]
+            imports = []
         else:
             script = f"""
-{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(self.logical_node.dependencies[0])}.filter(
-    lambda doc: match_filter_operation(
-        doc=doc,
+{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(self.logical_node.dependencies[0])}.match_filter(
         query='{self.logical_node.query}',
         field='{self.logical_node.field}',
-    ),
-    **{self.get_node_args()},
-)
+        **{self.get_node_args()},
+    )
 """
-            imports = ["from sycamore.query.execution.operations import match_filter_operation"]
+            imports = []
         return script, imports
 
 

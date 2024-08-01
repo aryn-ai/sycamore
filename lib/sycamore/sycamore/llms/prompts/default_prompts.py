@@ -131,7 +131,7 @@ class OpenAIMessagesPromptBase:
 
 
 class EntityExtractorMessagesPrompt(OpenAIMessagesPromptBase):
-    def __init__(self, question: Optional[str], field: Optional[str], format: Optional[str], discrete: bool = False):
+    def __init__(self, question: str, field: str, format: Optional[str], discrete: bool = False):
         super().__init__()
 
         self.add_message(
@@ -170,7 +170,7 @@ class EntityExtractorMessagesPrompt(OpenAIMessagesPromptBase):
 
 
 class LLMFilterMessagesPrompt(OpenAIMessagesPromptBase):
-    def __init__(self, filter_question: Optional[str]):
+    def __init__(self, filter_question: str):
         super().__init__()
 
         self.add_message(
@@ -188,6 +188,38 @@ class LLMFilterMessagesPrompt(OpenAIMessagesPromptBase):
             ),
         )
 
+class SemanticClusterFormGroupsMessagesPrompt(OpenAIMessagesPromptBase):
+    def __init__(self, field: str, description: str, text: str):
+        super().__init__()
+
+        self.add_message(
+            "user",
+            (
+                f"You are given a list of values corresponding to the database field '{field}'. "
+                f"Categorize the occurrences of '{field}' and create relevant non-overlapping groups. "
+                f"Return ONLY JSON with the various categorized groups of '{field}' that can be used to determine "
+                f"the answer to the following question '{description}', so form groups accordingly. Return your "
+                "answer in the following JSON format and check your work: {{\"groups\": [string]}}. For example, "
+                "if the question is \"What are the most common types of food in this dataset?\" and the values are "
+                "\"banana, milk, yogurt, chocolate, oranges\", you would return something like "
+                "{{\"groups\": ['fruit', 'dairy', 'dessert', 'other]}}. Form groups to encompass as many entries "
+                "as possible and don't create multiple groups with the same meaning. Here is the list values "
+                f"values corresponding to \"{field}\": \"{text}\"."
+            )
+        )
+
+class SemanticClusterAssignGroupsMessagesPrompt(OpenAIMessagesPromptBase):
+    def __init__(self, field: str, groups: str):
+        super().__init__()
+
+        self.add_message(
+            "user",
+            (
+                f"Categorize the database entry you are given corresponding to '{field}' into one of the "
+                f"following groups: \"{groups}\". Perform your best work to assign the group. Return "
+                f"ONLY the string corresponding to the selected group. Here is the database entry you will use: "
+            ),
+        )
 
 _deprecated_prompts: dict[str, Type[GuidancePrompt]] = {
     "ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT": EntityExtractorZeroShotGuidancePrompt,

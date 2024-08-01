@@ -7,6 +7,7 @@ import sycamore
 from sycamore.data import Document
 from sycamore.docset import DocSet
 from sycamore.llms import LLM
+from sycamore.llms.prompts.default_prompts import SemanticClusterAssignGroupsMessagesPrompt, SemanticClusterFormGroupsMessagesPrompt
 from sycamore.query.execution.operations import (
     convert_string_to_date,
     join_operation,
@@ -16,8 +17,6 @@ from sycamore.query.execution.operations import (
     range_filter_operation,
     semantic_cluster,
     top_k_operation,
-    SC_FORM_GROUPS_PROMPT,
-    SC_ASSIGN_GROUPS_PROMPT,
 )
 
 
@@ -26,13 +25,15 @@ class MockLLM(LLM):
         super().__init__(model_name="mock_model")
 
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
-        if prompt_kwargs["messages"][0]["content"] == SC_FORM_GROUPS_PROMPT.format(
-            field="text_representation", description="", text="1, 2, one, two, 1, 3"
-        ):
+        if prompt_kwargs["messages"] == SemanticClusterFormGroupsMessagesPrompt(
+            field="text_representation",
+            description="", 
+            text="1, 2, one, two, 1, 3"
+        ).get_messages_dict():
             return '{"groups": ["group1", "group2", "group3"]}'
-        elif prompt_kwargs["messages"][0]["content"] == SC_ASSIGN_GROUPS_PROMPT.format(
+        elif prompt_kwargs["messages"][0] == SemanticClusterAssignGroupsMessagesPrompt(
             field="text_representation", groups=["group1", "group2", "group3"]
-        ):
+        ).get_messages_dict()[0]:
             value = prompt_kwargs["messages"][1]["content"]
             if value == "1" or value == "one":
                 return "group1"

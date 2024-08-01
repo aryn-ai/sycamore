@@ -7,6 +7,7 @@ from dateutil import parser
 from sycamore import DocSet, Execution
 from sycamore.data import Document, MetadataDocument
 from sycamore.llms.openai import OpenAI
+from sycamore.llms.prompts.default_prompts import SemanticClusterAssignGroupsMessagesPrompt, SemanticClusterFormGroupsMessagesPrompt
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.utils.extract_json import extract_json
 
@@ -25,22 +26,6 @@ BASE_PROPS = [
 
 NUM_DOCS_GENERATE = 60
 NUM_TEXT_CHARS_GENERATE = 2500
-
-# prompts
-SC_FORM_GROUPS_PROMPT = """You are given a list of values corresponding to the database field
-"{field}". Categorize the occurrences of "{field}" and create relevant non-overlapping group.
-Return ONLY JSON with the various categorized groups of "{field}" that can be used to determine
-the answer to the following question "{description}", so form groups accordingly. Return your
-answer in the following JSON format and check your work: {{"groups": ["string"]}}. For example,
-if the question is "What are the most common types of food in this dataset?" and the values are
-"banana, milk, yogurt, chocolate, oranges", you would return something like
-    {{"groups": ['fruit', 'dairy', 'dessert', 'other]}}.
-Form groups to encompass as many entries as possible and don't create multiple groups with
-the same meaning. Here is the list values corresponding to "{field}": "{text}"."""
-SC_ASSIGN_GROUPS_PROMPT = """Categorize the database entry you are given corresponding to "{field}"
-into one of the following groups: "{groups}". Perform your best work to assign the group. Return
-ONLY the string corresponding to the selected group. Here is the database entry you will use: """
-
 
 def convert_string_to_date(date_string: str) -> datetime:
     """
@@ -357,12 +342,7 @@ def semantic_cluster(client: OpenAI, docset: DocSet, description: str, field: st
         text += str(doc.field_to_value(field))
 
     # sets message
-    messages = [
-        {
-            "role": "user",
-            "content": SC_FORM_GROUPS_PROMPT.format(field=field, description=description, text=text),
-        }
-    ]
+    messages = SemanticClusterFormGroupsMessagesPrompt(field=field, description=description, text=text).get_messages_dict()
 
     prompt_kwargs = {"messages": messages}
 
@@ -373,9 +353,8 @@ def semantic_cluster(client: OpenAI, docset: DocSet, description: str, field: st
 
     assert isinstance(groups, dict)
 
-    messagesForExtract = [
-        {"role": "user", "content": SC_ASSIGN_GROUPS_PROMPT.format(field=field, groups=groups["groups"])}
-    ]
+    # sets message
+    messagesForExtract = SemanticClusterAssignGroupsMessagesPrompt(field=field, groups=groups["groups"]).get_messages_dict()
 
     entity_extractor = OpenAIEntityExtractor(
         entity_name="_autogen_ClusterAssignment",

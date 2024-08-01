@@ -362,6 +362,7 @@ class SycamoreCount(SycamoreOperator):
         assert isinstance(self.inputs[0], DocSet), "Count requires a DocSet input"
         # load into local vars for Ray serialization magic
         logical_node = self.logical_node
+        assert isinstance(logical_node, Count)
         field = logical_node.field
         primary_field = logical_node.primary_field
 
@@ -374,6 +375,7 @@ class SycamoreCount(SycamoreOperator):
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
+        assert isinstance(self.logical_node, Count)
         assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) == 1
         field = self.logical_node.field
         primary_field = self.logical_node.primary_field
@@ -384,9 +386,9 @@ class SycamoreCount(SycamoreOperator):
             script += f"""{input_var or get_var_name(self.logical_node.dependencies[0])}.count("""
         else:
             script += f"""{input_var or get_var_name(self.logical_node.dependencies[0])}.count_distinct("""
-            if self.logical_node.data.get("field"):
+            if field:
                 script += f"""field='{field}', """
-            elif self.logical_node.data.get("primaryField"):
+            elif primary_field:
                 script += f"""field='{primary_field}', """
         script += f"""**{get_str_for_dict(self.get_execute_args())})"""
         return script, imports

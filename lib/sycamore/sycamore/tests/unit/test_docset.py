@@ -285,6 +285,7 @@ class TestDocSet:
         context = sycamore.init()
         docset = context.read.document(docs)
         assert docset.count_distinct("doc_id") == 9
+
     def test_llm_filter(self):
 
         doc_list = [Document(text_representation="test1"), Document(text_representation="test2")]

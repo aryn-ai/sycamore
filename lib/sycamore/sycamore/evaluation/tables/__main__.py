@@ -7,11 +7,11 @@ from sycamore.evaluation.tables.extractors import ExtractTableFromImage
 from sycamore.evaluation.tables.table_metrics import TEDSMetric, apply_metric
 from sycamore.transforms.table_structure.extract import TableTransformerStructureExtractor
 
-from .benchmark_scans import PubTabNetScan, TableEvalDoc
+from .benchmark_scans import FinTabNetS3Scan, PubTabNetScan, TableEvalDoc
 
-SCANS = {"pubtabnet": PubTabNetScan}
+SCANS = {"pubtabnet": PubTabNetScan, "fintabnet": FinTabNetS3Scan}
 
-EXTRACTORS = {"tabletransformer": (TableTransformerStructureExtractor, ActorPoolStrategy(size=1), {"device": "cuda:0"})}
+EXTRACTORS = {"tabletransformer": (TableTransformerStructureExtractor, ActorPoolStrategy(size=1), {"device": "mps"})}
 
 
 def local_aggregate(docs, *agg_fns):
@@ -20,6 +20,7 @@ def local_aggregate(docs, *agg_fns):
         for af in agg_fns:
             aggcumulations[af.name] = af.accumulate_row(aggcumulations[af.name], doc, in_ray=False)
     return {af.name: af.finalize(aggcumulations[af.name]) for af in agg_fns}
+
 
 parser = ArgumentParser()
 parser.add_argument("dataset", choices=list(SCANS.keys()), help="dataset to evaluate")
@@ -60,6 +61,8 @@ if args.debug:
     ed = TableEvalDoc(doc.data)
     del ed["image"]
     del ed.properties["tokens"]
+    print(ed.gt_table.to_html())
+    print(ed.pred_table.to_html())
     print(ed.data)
 
 # aggs = measured.plan.execute().aggregate(*[m.to_aggregate_fn() for m in metrics])

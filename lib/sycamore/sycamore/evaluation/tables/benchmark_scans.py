@@ -80,8 +80,8 @@ class PubTabNetScan(TableEvalScan):
 
     @staticmethod
     def _ray_row_to_document(row) -> dict[str, bytes]:
-        if isinstance(row['image'], Image.Image):
-            img = row['image']
+        if isinstance(row["image"], Image.Image):
+            img = row["image"]
         else:
             img = Image.open(io.BytesIO(row["image"]["bytes"])).convert("RGB")
         table_pattern = r"<table[^>]*>.*?</table>"
@@ -131,7 +131,7 @@ class PubTabNetScan(TableEvalScan):
 
     def local_process(self, **kwargs) -> Iterable[Document]:
         hf_ds = load_dataset("apoidea/pubtabnet-html", split="validation", streaming=True)
-        yield from (Document.deserialize(PubTabNetScan._ray_row_to_document(row)['doc']) for row in hf_ds)
+        yield from (Document.deserialize(PubTabNetScan._ray_row_to_document(row)["doc"]) for row in hf_ds)
 
 
 class FinTabNetS3Scan(TableEvalScan):
@@ -144,39 +144,41 @@ class FinTabNetS3Scan(TableEvalScan):
     def _json_object_to_document(obj):
         cells = []
         tokens = []
-        for c in obj['cells']:
+        for c in obj["cells"]:
             bb = BoundingBox(
-                x1 = c['pdf_bbox'][0],
-                y1 = c['pdf_bbox'][1],
-                x2 = c['pdf_bbox'][2],
-                y2 = c['pdf_bbox'][3],
+                x1=c["pdf_bbox"][0],
+                y1=c["pdf_bbox"][1],
+                x2=c["pdf_bbox"][2],
+                y2=c["pdf_bbox"][3],
             )
             tc = TableCell(
-                content = c['pdf_text_content'],
-                rows = c['row_nums'],
-                cols = c['column_nums'],
-                is_header = c['is_column_header'],
-                bbox = bb
+                content=c["pdf_text_content"],
+                rows=c["row_nums"],
+                cols=c["column_nums"],
+                is_header=c["is_column_header"],
+                bbox=bb,
             )
             cells.append(tc)
-            tokens.append({"text": c['pdf_text_content'], "bbox": bb})
-        table = Table(cells = cells)
-        file = obj['pdf_folder'] + obj['pdf_file_name']
-        bbox = BoundingBox(*obj['pdf_table_bbox'])
+            tokens.append({"text": c["pdf_text_content"], "bbox": bb})
+        table = Table(cells=cells)
+        file = obj["pdf_folder"] + obj["pdf_file_name"]
+        bbox = BoundingBox(*obj["pdf_table_bbox"])
         ed = TableEvalDoc()
         ed.gt_table = table
         ed.bbox = bbox
-        ed.properties['path'] = file
-        ed.properties['tokens'] = tokens
+        ed.properties["path"] = file
+        ed.properties["tokens"] = tokens
+        page_bbox = BoundingBox(*obj["pdf_full_page_bbox"])
+        ed.properties["desired_page_dimensions"] = int(page_bbox.width), int(page_bbox.height)
         return ed
 
     @staticmethod
     def _load_images(s3):
 
         def inner_load_image(doc):
-            pdf_key = FinTabNetS3Scan.FINTABNET_PDF_PREFIX + doc.properties['path']
+            pdf_key = FinTabNetS3Scan.FINTABNET_PDF_PREFIX + doc.properties["path"]
             object = s3.get_object(Bucket=FinTabNetS3Scan.FINTABNET_S3_BUCKET, Key=pdf_key)
-            byteses = object['Body'].read()
+            byteses = object["Body"].read()
             images = pdf2image.convert_from_bytes(byteses)
             ed = TableEvalDoc(doc)
             ed.image = images[0]
@@ -189,11 +191,11 @@ class FinTabNetS3Scan(TableEvalScan):
         ed = TableEvalDoc(doc)
         left, top = ed.bbox.x1, ed.bbox.y1
         im = ed.image
-        full_width, full_height = im.width, im.height
-        ed.image = ed.image.crop(box=ed.bbox.coordinates)
+        im = im.resize(ed.properties["desired_page_dimensions"])
+        ed.image = im.crop(box=ed.bbox.coordinates)
         # ed.bbox = ed.bbox.to_relative(full_width, full_height)
-        for tk in ed.properties['tokens']:
-            tk['bbox'] = tk['bbox'].translate_self(-left, -top).to_relative_self(ed.bbox.width, ed.bbox.height)
+        for tk in ed.properties["tokens"]:
+            tk["bbox"] = tk["bbox"].translate_self(-left, -top).to_relative_self(ed.bbox.width, ed.bbox.height)
         return ed
 
     def execute(self, **kwargs) -> Dataset:
@@ -203,8 +205,10 @@ class FinTabNetS3Scan(TableEvalScan):
         import boto3
 
         s3 = boto3.client("s3")
-        annotations_response = s3.get_object(Bucket=FinTabNetS3Scan.FINTABNET_S3_BUCKET, Key=FinTabNetS3Scan.FINTABNET_ANNOTATIONS_KEY)
-        json_stream = map(json.loads, annotations_response['Body'].iter_lines())
+        annotations_response = s3.get_object(
+            Bucket=FinTabNetS3Scan.FINTABNET_S3_BUCKET, Key=FinTabNetS3Scan.FINTABNET_ANNOTATIONS_KEY
+        )
+        json_stream = map(json.loads, annotations_response["Body"].iter_lines())
         json_object_stream = map(lambda o: o[0], json_stream)
         document_stream = map(FinTabNetS3Scan._json_object_to_document, json_object_stream)
         imaged_stream = map(FinTabNetS3Scan._load_images(s3), document_stream)

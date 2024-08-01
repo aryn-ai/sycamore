@@ -312,22 +312,22 @@ class SycamoreFilter(SycamoreOperator):
             date = self.logical_node.date
 
             script = (
-            f"{output_var or get_var_name(self.logical_node)} = "
-            f"{input_var or get_var_name(self.logical_node.dependencies[0])}.range_filter(\n"
-            f"field='{field}',\n"
-            f"start='{start}',\n"
-            f"end='{end}',\n"
-            f"date='{date}'\n"
-            f"**{self.get_node_args()})"
+                f"{output_var or get_var_name(self.logical_node)} = "
+                f"{input_var or get_var_name(self.logical_node.dependencies[0])}.range_filter(\n"
+                f"field='{field}',\n"
+                f"start='{start}',\n"
+                f"end='{end}',\n"
+                f"date='{date}'\n"
+                f"**{self.get_node_args()})"
             )
             imports = []
         else:
             script = (
-            f"{output_var or get_var_name(self.logical_node)} = "
-            f"{input_var or get_var_name(self.logical_node.dependencies[0])}.match_filter(\n"
-            f"query='{self.logical_node.query}',\n"
-            f"field='{self.logical_node.field}',"
-            f"**{self.get_node_args()})"
+                f"{output_var or get_var_name(self.logical_node)} = "
+                f"{input_var or get_var_name(self.logical_node.dependencies[0])}.match_filter(\n"
+                f"query='{self.logical_node.query}',\n"
+                f"field='{self.logical_node.field}',"
+                f"**{self.get_node_args()})"
             )
             imports = []
         return script, imports

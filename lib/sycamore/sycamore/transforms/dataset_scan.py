@@ -1,6 +1,7 @@
 from ray.data import Dataset
 from sycamore.plan_nodes import Scan
 
+
 class DatasetScan(Scan):
     """
     Scans a dataset.

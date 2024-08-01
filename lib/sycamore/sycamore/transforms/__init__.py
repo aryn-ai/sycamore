@@ -77,5 +77,5 @@ __all__ = [
     "Sort",
     "LLMQuery",
     "CountAggregate",
-    "DatasetScan"
+    "DatasetScan",
 ]

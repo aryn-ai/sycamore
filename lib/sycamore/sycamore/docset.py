@@ -966,7 +966,7 @@ class DocSet:
         from sycamore.transforms import Sort
 
         return DocSet(self.context, Sort(self.plan, descending, field, default_val))
-    
+
     def count_aggregate(self, field: str, unique_field: Optional[str] = None, **kwargs) -> "DocSet":
         """
         Performs a count aggregation on a DocSet.

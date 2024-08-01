@@ -3,15 +3,12 @@ from typing import Any, Callable, List, Optional, Union
 
 from datetime import datetime
 from dateutil import parser
-from ray.data import Dataset
 
 from sycamore import DocSet, Execution
 from sycamore.data import Document, MetadataDocument
 from sycamore.llms.openai import OpenAI
-from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.utils.extract_json import extract_json
-from sycamore.plan_nodes import Scan
 
 BASE_PROPS = [
     "filename",
@@ -295,24 +292,6 @@ def join_operation(docset1: DocSet, docset2: DocSet, field1: str, field2: str) -
     return joined_docset
 
 
-def count_aggregate_operation(docset: DocSet, field, unique_field, **kwargs) -> DocSet:
-    """
-    Performs a count aggregation on a DocSet.
-
-    Args:
-        docset: DocSet to aggregate.
-        field: Field to aggregate based on.
-        unique_field: Determines what makes a unique document.
-        **kwargs
-
-    Returns:
-        A DocSet with "properties.key" (unique values of document field)
-        and "properties.count" (frequency counts for unique values).
-    """
-    dataset = CountAggregate(docset.plan, field, unique_field).execute(**kwargs)
-    return DocSet(docset.context, DatasetScan(dataset))
-
-
 def top_k_operation(
     client: OpenAI,
     docset: DocSet,
@@ -348,7 +327,7 @@ def top_k_operation(
         docset = semantic_cluster(client, docset, description, field)
         field = "properties._autogen_ClusterAssignment"
 
-    docset = count_aggregate_operation(docset, field, unique_field, **kwargs)
+    docset = docset.count_aggregate(field, unique_field, **kwargs)
 
     # the names of the fields being "key" and "count" could cause problems down the line?
     # uses 0 as default value -> end of docset
@@ -409,119 +388,3 @@ def semantic_cluster(client: OpenAI, docset: DocSet, description: str, field: st
 
     # LLM response
     return docset
-
-
-def make_map_fn_count(field: str, unique_field: Optional[str] = None) -> Callable[[dict[str, Any]], dict[str, Any]]:
-    """
-    Creates a map function that can be called on a Ray Dataset
-    based on a DocSet. Adds a column to the Dataset based on
-    field and unique_field in DocSet documents.
-
-    Args:
-        field: Document field to add as a column.
-        unique_field: Unique document field to as a column.
-
-    Returns:
-        Function that can be called inside of DocSet.filter
-    """
-
-    def ray_callable(input_dict: dict[str, Any]) -> dict[str, Any]:
-        doc = Document.from_row(input_dict)
-        key_val = doc.field_to_value(field)
-
-        if key_val is None:
-            return (
-                {"doc": None, "key": None, "unique": None} if unique_field is not None else {"doc": None, "key": None}
-            )
-
-        new_doc = doc.to_row()
-        new_doc["key"] = key_val
-
-        if unique_field is not None:
-            unique_val = doc.field_to_value(unique_field)
-            if unique_val is None:
-                return {"doc": None, "key": None, "unique": None}
-            new_doc["unique"] = unique_val
-
-        return new_doc
-
-    return ray_callable
-
-
-def filterOutNone(row: dict[str, Any]) -> bool:
-    """
-    Filters out Dataset rows where all values are None.
-
-    Args:
-        row: Input Dataset row.
-
-    Returns:
-        Boolean that indicates whether or not to keep row.
-    """
-    return_value = row["doc"] is not None and row["key"] is not None
-
-    if "unique" in row:
-        return_value = return_value and row["unique"] is not None
-
-    return return_value
-
-
-def add_doc_column(row: dict[str, Any]) -> dict[str, Any]:
-    """
-    Adds a doc column with serialized document to Ray Dataset.
-
-    Args:
-        row: Input Dataset row.
-
-    Returns:
-        Row with added doc column.
-    """
-    row["doc"] = Document(text_representation="", properties={"key": row["key"], "count": row["count()"]}).serialize()
-    return row
-
-
-class CountAggregate(Transform):
-    """
-    Count aggregation that allows you to aggregate by document field(s).
-    """
-
-    def __init__(self, child: Node, field: str, unique_field: Optional[str] = None):
-        super().__init__(child)
-        self._field = field
-        self._unique_field = unique_field
-
-    def execute(self, **kwargs) -> "Dataset":
-        # creates dataset
-        ds = self.child().execute(**kwargs)
-
-        # adds a "key" column containing desired field
-        map_fn = make_map_fn_count(self._field, self._unique_field)
-        ds = ds.map(map_fn)
-        ds = ds.filter(lambda row: filterOutNone(row))
-        # lazy grouping + count aggregation
-
-        if self._unique_field is not None:
-            ds = ds.groupby(["key", "unique"]).count()
-
-        ds = ds.groupby("key").count()
-
-        # Add the new column to the dataset
-        ds = ds.map(add_doc_column)
-
-        return ds
-
-
-class DatasetScan(Scan):
-    """
-    Scans a dataset.
-    """
-
-    def __init__(self, dataset: Dataset, **resource_args):
-        super().__init__(**resource_args)
-        self._dataset = dataset
-
-    def execute(self, **kwargs) -> Dataset:
-        return self._dataset
-
-    def format(self):
-        return "dataset"

@@ -33,8 +33,10 @@ class CountAggregate(Transform):
         ds = ds.map(self.add_doc_column)
 
         return ds
-    
-    def make_map_fn_count(field: str, unique_field: Optional[str] = None) -> Callable[[dict[str, Any]], dict[str, Any]]:
+
+    def make_map_fn_count(
+        self, field: str, unique_field: Optional[str] = None
+    ) -> Callable[[dict[str, Any]], dict[str, Any]]:
         """
         Creates a map function that can be called on a Ray Dataset
         based on a DocSet. Adds a column to the Dataset based on
@@ -54,7 +56,9 @@ class CountAggregate(Transform):
 
             if key_val is None:
                 return (
-                    {"doc": None, "key": None, "unique": None} if unique_field is not None else {"doc": None, "key": None}
+                    {"doc": None, "key": None, "unique": None}
+                    if unique_field is not None
+                    else {"doc": None, "key": None}
                 )
 
             new_doc = doc.to_row()
@@ -69,8 +73,8 @@ class CountAggregate(Transform):
             return new_doc
 
         return ray_callable
-    
-    def add_doc_column(row: dict[str, Any]) -> dict[str, Any]:
+
+    def add_doc_column(self, row: dict[str, Any]) -> dict[str, Any]:
         """
         Adds a doc column with serialized document to Ray Dataset.
 
@@ -80,10 +84,12 @@ class CountAggregate(Transform):
         Returns:
             Row with added doc column.
         """
-        row["doc"] = Document(text_representation="", properties={"key": row["key"], "count": row["count()"]}).serialize()
+        row["doc"] = Document(
+            text_representation="", properties={"key": row["key"], "count": row["count()"]}
+        ).serialize()
         return row
-    
-    def filterOutNone(row: dict[str, Any]) -> bool:
+
+    def filterOutNone(self, row: dict[str, Any]) -> bool:
         """
         Filters out Dataset rows where all values are None.
 
@@ -99,4 +105,3 @@ class CountAggregate(Transform):
             return_value = return_value and row["unique"] is not None
 
         return return_value
-

@@ -1,7 +1,3 @@
-.. image:: images/sycamore_logo.svg
-   :alt: Sycamore
-====================================
-
 Welcome to Aryn!
 --------------------
 Aryn is an LLM-powered data preparation, processing, and analytics system for complex, unstructured documents like PDFs, HTML, presentations, and more. With Aryn, you can prepare data for GenAI and RAG applications, power high-quality document processing workflows, and run analytics on large document collections with natural language. It includes two components: The Aryn Partitioning Service and Sycamore.

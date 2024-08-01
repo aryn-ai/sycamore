@@ -99,11 +99,11 @@ class DocSetWriter:
 
         if os_client_args is None:
             os_client_args = self.context.config.opensearch_client_config
-        assert os_client_args is not None
+        assert os_client_args is not None, "OpenSearch client args required"
 
         if not index_name:
             index_name = self.context.config.opensearch_index_name
-        assert index_name is not None
+        assert index_name is not None, "OpenSearch index name required"
 
         # We mutate os_client_args, so mutate a copy
         os_client_args = copy.deepcopy(os_client_args)

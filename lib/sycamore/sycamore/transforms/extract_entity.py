@@ -74,7 +74,7 @@ class OpenAIEntityExtractor(EntityExtractor):
         super().__init__(entity_name)
         if llm is None:
             llm = Context.current().config.llm
-            assert llm is not None
+            assert llm is not None, "OpenAIEntityExtractor requires an LLM"
         self._llm = llm
         self._num_of_elements = num_of_elements
         self._prompt_template = prompt_template

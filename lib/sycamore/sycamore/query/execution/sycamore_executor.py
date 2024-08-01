@@ -214,7 +214,7 @@ class SycamoreExecutor:
         result += "import sycamore\n\n"
         result += "context = sycamore.init()\n"
         for node_id in sorted(self.node_id_to_node):
-            result += f"# {self.node_id_to_node[node_id].data['description']}" + "\n"
+            result += f"# {self.node_id_to_node[node_id].description}" + "\n"
             result += self.node_id_to_code[node_id] + "\n"
         return result
 

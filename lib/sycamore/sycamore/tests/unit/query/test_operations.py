@@ -177,36 +177,3 @@ class TestOperations:
                 assert doc.properties["_autogen_ClusterAssignment"] == "group2"
             elif doc.text_representation == "3" or doc.text_representation == "three":
                 assert doc.properties["_autogen_ClusterAssignment"] == "group3"
-
-    # def test_convert_string_to_date(self):
-    #     date_string = "2024-07-21"
-    #     expected_date = datetime(2024, 7, 21)
-    #     assert convert_string_to_date(date_string) == expected_date
-
-    #     date_string = "2024-07-21 14:30:00"
-    #     expected_date = datetime(2024, 7, 21, 14, 30, 0)
-    #     assert convert_string_to_date(date_string) == expected_date
-
-    #     date_string = "2024-07-21T14:30:00+00:00"
-    #     expected_date = datetime(2024, 7, 21, 14, 30, 0)
-    #     assert convert_string_to_date(date_string) == expected_date
-
-    #     date_string = "21st July 2024"
-    #     expected_date = datetime(2024, 7, 21)
-    #     assert convert_string_to_date(date_string) == expected_date
-
-    #     date_string = "Not a date"
-    #     with pytest.raises(ValueError):
-    #         convert_string_to_date(date_string)
-
-    #     date_string = "2020-02-29"
-    #     expected_date = datetime(2020, 2, 29)
-    #     assert convert_string_to_date(date_string) == expected_date
-
-    #     date_string = "2023-12-31 23:59:59"
-    #     expected_date = datetime(2023, 12, 31, 23, 59, 59)
-    #     assert convert_string_to_date(date_string) == expected_date
-
-    #     date_string = "2024-07-21T14:30:00.123456"
-    #     expected_date = datetime(2024, 7, 21, 14, 30, 0, 123456)
-    #     assert convert_string_to_date(date_string) == expected_date

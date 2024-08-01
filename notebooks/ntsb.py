@@ -29,6 +29,7 @@ import os
 import sys 
 
 import PIL.Image
+
 from io import BytesIO
 
 import pprint

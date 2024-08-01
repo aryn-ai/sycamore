@@ -237,9 +237,15 @@ def make_filter_fn_join(field: str, join_set: set) -> Callable[[Document], bool]
     return filter_fn_join
 
 
-def join_operation(docset1: DocSet, docset2: DocSet, field1: str, field2: str) -> DocSet:
+def inner_join_operation(docset1: DocSet, docset2: DocSet, field1: str, field2: str) -> DocSet:
     """
-    Joins two docsets based on specified fields; docset2 filtered based on values of docset1.
+    Joins two docsets based on specified fields; docset1 filtered based on values of docset2.
+
+    SQL Equivalent:
+    SELECT docset1.*
+    FROM docset1
+    INNER JOIN docset2
+    ON docset1.field1 = docset2.field2
 
     Args:
         docset1: DocSet to filter based on.
@@ -250,8 +256,8 @@ def join_operation(docset1: DocSet, docset2: DocSet, field1: str, field2: str) -
     Returns:
         A joined DocSet.
     """
-    execution = Execution(docset1.context, docset1.plan)
-    dataset = execution.execute(docset1.plan)
+    execution = Execution(docset2.context, docset2.plan)
+    dataset = execution.execute(docset2.plan)
 
     # identifies unique values of field1 in docset1
     unique_vals = set()
@@ -259,12 +265,12 @@ def join_operation(docset1: DocSet, docset2: DocSet, field1: str, field2: str) -
         doc = Document.from_row(row)
         if isinstance(doc, MetadataDocument):
             continue
-        value = doc.field_to_value(field1)
+        value = doc.field_to_value(field2)
         unique_vals.add(value)
 
     # filters docset2 based on matches of field2 with unique values
-    filter_fn_join = make_filter_fn_join(field2, unique_vals)
-    joined_docset = docset2.filter(lambda doc: filter_fn_join(doc))
+    filter_fn_join = make_filter_fn_join(field1, unique_vals)
+    joined_docset = docset1.filter(lambda doc: filter_fn_join(doc))
 
     return joined_docset
 

@@ -184,7 +184,7 @@ def test_count_distinct_primary_field():
 
 
 def test_join():
-    with patch("sycamore.query.execution.sycamore_operator.join_operation") as mock_impl:
+    with patch("sycamore.query.execution.sycamore_operator.inner_join_operation") as mock_impl:
         # Define the mock return value
         mock_impl.return_value = "success"
 

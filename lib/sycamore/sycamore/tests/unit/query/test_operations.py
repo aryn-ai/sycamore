@@ -13,7 +13,7 @@ from sycamore.llms.prompts.default_prompts import (
 )
 from sycamore.query.execution.operations import (
     convert_string_to_date,
-    join_operation,
+    inner_join_operation,
     llm_generate_operation,
     match_filter_operation,
     math_operation,
@@ -224,9 +224,9 @@ class TestOperations:
         assert response == ""
 
     # Join
-    def test_join(self, words_and_ids_docset, number_docset):
-        joined_docset = join_operation(
-            docset1=number_docset, docset2=words_and_ids_docset, field1="parent_id", field2="doc_id"
+    def test_inner_join(self, words_and_ids_docset, number_docset):
+        joined_docset = inner_join_operation(
+            docset1=words_and_ids_docset, docset2=number_docset, field1="doc_id", field2="parent_id"
         )
         assert joined_docset.count() == 2
 
@@ -239,8 +239,8 @@ class TestOperations:
             elif doc.doc_id == 1:
                 assert doc.text_representation == "submarine"
 
-        joined_docset_reverse = join_operation(
-            docset1=words_and_ids_docset, docset2=number_docset, field1="doc_id", field2="parent_id"
+        joined_docset_reverse = inner_join_operation(
+            docset1=number_docset, docset2=words_and_ids_docset, field1="parent_id", field2="doc_id"
         )
 
         assert joined_docset_reverse.count() == 2

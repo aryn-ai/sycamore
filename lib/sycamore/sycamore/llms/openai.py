@@ -125,7 +125,7 @@ class OpenAIClientWrapper:
 
             self.api_key = os.environ.get("AZURE_OPENAI_API_KEY")
 
-    def get_client(self, asynchronous: bool = False) -> OpenAIClient:
+    def get_client(self, asynchronous: bool = False) -> Union[OpenAIClient, AsyncOpenAIClient]:
         if self.client_type == OpenAIClientType.OPENAI:
             # We currently only support Helicone with OpenAI.
             base_url = self.base_url

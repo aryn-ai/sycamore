@@ -99,7 +99,7 @@ def test_llm_filter():
         doc_set.llm_filter.assert_called_once_with(
             llm=ANY,
             new_field="_autogen_LLMFilterOutput",
-            messages=ANY,
+            prompt=ANY,
             field=logical_node.field,
             threshold=3,
             name=str(logical_node.node_id),
@@ -207,7 +207,7 @@ def test_llm_extract():
             entity_name=logical_node.new_field,
             llm=ANY,
             use_elements=False,
-            messages=ANY,
+            prompt=ANY,
             field=logical_node.field,
         )
 

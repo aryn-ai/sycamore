@@ -270,7 +270,7 @@ class TestDocSet:
         new_field = "_autogen_LLMFilterOutput"
 
         filtered_docset = docset.llm_filter(
-            llm=MockLLM(), new_field=new_field, messages=[], field="text_representation", threshold=3
+            llm=MockLLM(), new_field=new_field, prompt=[], field="text_representation", threshold=3
         )
 
         assert filtered_docset.count() == 1
@@ -279,7 +279,7 @@ class TestDocSet:
             assert int(doc.properties[new_field]) == 4
 
         filtered_docset = docset.llm_filter(
-            llm=MockLLM(), new_field=new_field, messages=[], field="text_representation", threshold=2
+            llm=MockLLM(), new_field=new_field, prompt=[], field="text_representation", threshold=2
         )
 
         assert filtered_docset.count() == 2

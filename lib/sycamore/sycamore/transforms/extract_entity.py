@@ -68,7 +68,7 @@ class OpenAIEntityExtractor(EntityExtractor):
         num_of_elements: int = 10,
         prompt_formatter: Callable[[list[Element]], str] = element_list_formatter,
         use_elements: Optional[bool] = True,
-        messages: Optional[Union[list[dict], str]] = [],
+        prompt: Optional[Union[list[dict], str]] = [],
         field: Optional[str] = None,
     ):
         super().__init__(entity_name)
@@ -77,7 +77,7 @@ class OpenAIEntityExtractor(EntityExtractor):
         self._prompt_template = prompt_template
         self._prompt_formatter = prompt_formatter
         self._use_elements = use_elements
-        self._messages = messages
+        self._prompt = prompt
         self._field = field
 
     @timetrace("OaExtract")
@@ -88,8 +88,8 @@ class OpenAIEntityExtractor(EntityExtractor):
             else:
                 entities = self._handle_zero_shot_prompting(document)
         else:
-            if self._messages is None:
-                raise Exception("messages must be specified if use_elements is False")
+            if self._prompt is None:
+                raise Exception("prompt must be specified if use_elements is False")
             entities = self._handle_document_field_prompting(document)
 
         document.properties.update({f"{self._entity_name}": entities})
@@ -128,14 +128,14 @@ class OpenAIEntityExtractor(EntityExtractor):
 
         value = str(document.field_to_value(self._field))
 
-        if isinstance(self._messages, str):
-            self._messages += value
-            response = self._llm.generate(prompt_kwargs={"prompt": self._messages}, llm_kwargs={})
+        if isinstance(self._prompt, str):
+            self._prompt += value
+            response = self._llm.generate(prompt_kwargs={"prompt": self._prompt}, llm_kwargs={})
         else:
-            if self._messages is None:
-                self._messages = []
-            self._messages.append({"role": "user", "content": value})
-            response = self._llm.generate(prompt_kwargs={"messages": self._messages}, llm_kwargs={})
+            if self._prompt is None:
+                self._prompt = []
+            self._prompt.append({"role": "user", "content": value})
+            response = self._llm.generate(prompt_kwargs={"messages": self._prompt}, llm_kwargs={})
 
         return response
 

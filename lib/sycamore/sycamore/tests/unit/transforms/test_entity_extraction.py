@@ -74,7 +74,7 @@ class TestEntityExtraction:
         extract_entity = ExtractEntity(
             node,
             entity_extractor=OpenAIEntityExtractor(
-                "title", llm=llm, use_elements=False, messages=[], field="properties.path"
+                "title", llm=llm, use_elements=False, prompt=[], field="properties.path"
             ),
         )
         input_dataset = ray.data.from_items([{"doc": self.doc.serialize()}])
@@ -89,7 +89,7 @@ class TestEntityExtraction:
         extract_entity = ExtractEntity(
             node,
             entity_extractor=OpenAIEntityExtractor(
-                "title", llm=llm, use_elements=False, messages="", field="properties.path"
+                "title", llm=llm, use_elements=False, prompt="", field="properties.path"
             ),
         )
         input_dataset = ray.data.from_items([{"doc": self.doc.serialize()}])

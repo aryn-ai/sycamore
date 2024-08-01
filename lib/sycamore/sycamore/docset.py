@@ -776,7 +776,7 @@ class DocSet:
         self,
         llm: LLM,
         new_field: str,
-        messages: Union[list[dict], str],
+        prompt: Union[list[dict], str],
         field: Optional[str] = "text_representation",
         threshold: int = 3,
         **resource_args,
@@ -788,7 +788,7 @@ class DocSet:
         Args:
             client: LLM client to use.
             new_field: The field that will be added to the DocSet with the outputs.
-            messages: LLM prompt.
+            prompt: LLM prompt.
             field: Document field to filter based on.
             threshold: Cutoff that determines whether or not to keep document.
             **resource_args
@@ -809,7 +809,7 @@ class DocSet:
         docset = self.filter(lambda doc: doc.field_to_value(field) is not None and doc.field_to_value(field) != "None")
 
         entity_extractor = OpenAIEntityExtractor(
-            entity_name=new_field, llm=llm, use_elements=False, messages=messages, field=field
+            entity_name=new_field, llm=llm, use_elements=False, prompt=prompt, field=field
         )
         docset = docset.extract_entity(entity_extractor=entity_extractor)
         docset = docset.filter(lambda doc: threshold_filter(doc, threshold), **resource_args)

@@ -439,7 +439,7 @@ def semantic_cluster(client: OpenAI, docset: DocSet, description: str, field: st
         entity_name="_autogen_ClusterAssignment",
         llm=client,
         use_elements=False,
-        messages=messagesForExtract,
+        prompt=messagesForExtract,
         field=field,
     )
     docset = docset.extract_entity(entity_extractor=entity_extractor)

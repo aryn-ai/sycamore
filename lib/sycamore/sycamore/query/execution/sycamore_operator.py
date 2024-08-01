@@ -223,12 +223,12 @@ class SycamoreLlmFilter(SycamoreOperator):
         # load into local vars for Ray serialization magic
         s3_cache_path = self.s3_cache_path
 
-        messages = LLMFilterMessagesPrompt(filter_question=question).get_messages_dict()
+        prompt = LLMFilterMessagesPrompt(filter_question=question).get_messages_dict()
 
         result = self.inputs[0].llm_filter(
             llm=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(s3_cache_path) if s3_cache_path else None),
             new_field="_autogen_LLMFilterOutput",
-            messages=messages,
+            prompt=prompt,
             field=field,
             threshold=3,
             **self.get_node_args(),
@@ -242,12 +242,12 @@ class SycamoreLlmFilter(SycamoreOperator):
         if self.s3_cache_path:
             cache_string = f", cache=S3Cache('{self.s3_cache_path}')"
         result = (
-            f"messages = LLMFilterMessagesPrompt(filter_question='{self.logical_node.question}').get_messages_dict()\n"
+            f"prompt = LLMFilterMessagesPrompt(filter_question='{self.logical_node.question}').get_messages_dict()\n"
             f"{output_var or get_var_name(self.logical_node)} = "
             f"{input_var or get_var_name(self.logical_node.dependencies[0])}.llm_filter(\n"
             f"llm=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),\n"
             "new_field='_autogen_LLMFilterOutput',\n"
-            "messages=messages,\n"
+            "prompt=prompt,\n"
             f"field='{self.logical_node.field}',\n"
             "threshold=3,\n"
             f"**{self.get_node_args()},\n"
@@ -424,7 +424,7 @@ class SycamoreLlmExtract(SycamoreOperator):
         fmt = logical_node.new_field_type
         discrete = logical_node.discrete
 
-        messages = EntityExtractorMessagesPrompt(
+        prompt = EntityExtractorMessagesPrompt(
             question=question, field=field, format=fmt, discrete=discrete
         ).get_messages_dict()
 
@@ -432,7 +432,7 @@ class SycamoreLlmExtract(SycamoreOperator):
             entity_name=new_field,
             llm=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(s3_cache_path) if s3_cache_path else None),
             use_elements=False,
-            messages=messages,
+            prompt=prompt,
             field=field,
         )
         result = self.inputs[0].extract_entity(entity_extractor=entity_extractor, **self.get_node_args())
@@ -452,7 +452,7 @@ class SycamoreLlmExtract(SycamoreOperator):
         if self.s3_cache_path:
             cache_string = f", cache=S3Cache('{self.s3_cache_path}')"
         result = f"""
-        messages = EntityExtractorMessagesPrompt(
+        prompt = EntityExtractorMessagesPrompt(
                 question='{question}', field='{field}', format='{fmt}, discrete={discrete}
             ).get_messages_dict()
 
@@ -460,7 +460,7 @@ class SycamoreLlmExtract(SycamoreOperator):
             entity_name='{new_field}',
             llm=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
             use_elements=False,
-            messages=messages,
+            prompt=prompt,
             field='{field}',
         )
     {output_var or get_var_name(logical_node)} = 

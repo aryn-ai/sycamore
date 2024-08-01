@@ -190,7 +190,7 @@ class LLMFilterMessagesPrompt(OpenAIMessagesPromptBase):
 
 
 class LLMGenerateMessagesPrompt(OpenAIMessagesPromptBase):
-    def __init__(self, question: str, text: list[str]):
+    def __init__(self, question: str, text: str):
         super().__init__()
 
         self.add_message(

@@ -347,7 +347,9 @@ class ValidationTests(unittest.TestCase):
         # assert 1 input
         sycamore_operator = SycamoreBasicFilter(context, logical_node, query_id="test", inputs=[])
         self.assertRaises(AssertionError, sycamore_operator.execute)
-        sycamore_operator = SycamoreBasicFilter(context, logical_node, query_id="test", inputs=[Mock(DocSet), Mock(DocSet)])
+        sycamore_operator = SycamoreBasicFilter(
+            context, logical_node, query_id="test", inputs=[Mock(DocSet), Mock(DocSet)]
+        )
         self.assertRaises(AssertionError, sycamore_operator.execute)
 
         # non-DocSet input

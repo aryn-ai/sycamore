@@ -121,6 +121,8 @@ curl "https://api.aryn.cloud/v1/document/partition" -o "document.json" -H "Autho
 
 ## Output Format
 
+The output of the Aryn Partitioning Service is json.
+
 ```text
 { "status": in-progress updates,
   "error": any errors encountered,

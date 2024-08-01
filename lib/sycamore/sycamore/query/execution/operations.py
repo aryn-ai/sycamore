@@ -8,6 +8,7 @@ from sycamore import DocSet, Execution
 from sycamore.data import Document, MetadataDocument
 from sycamore.llms.openai import OpenAI
 from sycamore.llms.prompts.default_prompts import (
+    LLMGenerateMessagesPrompt,
     SemanticClusterAssignGroupsMessagesPrompt,
     SemanticClusterFormGroupsMessagesPrompt,
 )
@@ -205,20 +206,7 @@ def llm_generate_operation(
         else:
             text += str(result_data) + "\n"
 
-    # sets message
-    messages = [
-        {
-            "role": "system",
-            "content": """You are a helpful conversational English response generator for queries 
-                regarding database entries.""",
-        },
-        {
-            "role": "user",
-            "content": f"""The following question and answer are in regards to database entries. 
-                Respond ONLY with a conversational English response WITH JUSTIFICATION to the question
-                 \"{question}\" given the answer \"{text}\". Include as much detail/evidence as possible""",
-        },
-    ]
+    messages = LLMGenerateMessagesPrompt(question=question, text=text).get_messages_dict()
     prompt_kwargs = {"messages": messages}
 
     # call to LLM
@@ -318,7 +306,6 @@ def top_k_operation(
 
     docset = docset.count_aggregate(field, unique_field, **kwargs)
 
-    # the names of the fields being "key" and "count" could cause problems down the line?
     # uses 0 as default value -> end of docset
     docset = docset.sort(descending, "properties.count", 0)
     if k is not None:

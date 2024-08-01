@@ -189,6 +189,25 @@ class LLMFilterMessagesPrompt(OpenAIMessagesPromptBase):
         )
 
 
+class LLMGenerateMessagesPrompt(OpenAIMessagesPromptBase):
+    def __init__(self, question: str, text: list[str]):
+        super().__init__()
+
+        self.add_message(
+            "system",
+            ("You are a helpful conversational English response generator for queries " "regarding database entries."),
+        )
+
+        self.add_message(
+            "user",
+            (
+                "The following question and answer are in regards to database entries. "
+                "Respond ONLY with a conversational English response WITH JUSTIFICATION to the question "
+                f'"{question}" given the answer "{text}". Include as much detail/evidence as possible.'
+            ),
+        )
+
+
 class SemanticClusterFormGroupsMessagesPrompt(OpenAIMessagesPromptBase):
     def __init__(self, field: str, description: str, text: str):
         super().__init__()

@@ -16,9 +16,9 @@ def test_simple_openai_planner(query_integration_test_index: str):
     plan = planner.plan("How many locations did incidents happen in?")
 
     assert len(plan.nodes) == 3
-    assert type(plan.nodes[0]).__name__ == "LoadData"
+    assert type(plan.nodes[0]).__name__ == "QueryDatabase"
     assert type(plan.nodes[1]).__name__ == "Count"
-    assert type(plan.nodes[2]).__name__ == "LlmGenerate"
+    assert type(plan.nodes[2]).__name__ == "SummarizeData"
 
     assert [plan.nodes[1]] == plan.nodes[0]._downstream_nodes
     assert [plan.nodes[2]] == plan.nodes[1]._downstream_nodes

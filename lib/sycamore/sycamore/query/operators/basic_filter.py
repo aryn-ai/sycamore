@@ -3,7 +3,7 @@ from typing import Any, Optional
 from sycamore.query.operators.logical_operator import LogicalOperator
 
 
-class Filter(LogicalOperator):
+class BasicFilter(LogicalOperator):
     """Basic filters for data when field already exists. Used in cases where LLM filter is not
     necessary.
 

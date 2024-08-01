@@ -189,7 +189,7 @@ class LlmFilterMessagesPrompt(OpenAIMessagesPromptBase):
         )
 
 
-class LlmGenerateMessagesPrompt(OpenAIMessagesPromptBase):
+class SummarizeDataMessagesPrompt(OpenAIMessagesPromptBase):
     def __init__(self, question: str, text: str):
         super().__init__()
 

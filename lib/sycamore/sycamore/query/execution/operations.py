@@ -8,7 +8,7 @@ from sycamore import DocSet, Execution
 from sycamore.data import Document, MetadataDocument
 from sycamore.llms.openai import OpenAI
 from sycamore.llms.prompts.default_prompts import (
-    LlmGenerateMessagesPrompt,
+    SummarizeDataMessagesPrompt,
     LlmClusterEntityAssignGroupsMessagesPrompt,
     LlmClusterEntityFormGroupsMessagesPrompt,
 )
@@ -206,7 +206,7 @@ def llm_generate_operation(
         else:
             text += str(result_data) + "\n"
 
-    messages = LlmGenerateMessagesPrompt(question=question, text=text).get_messages_dict()
+    messages = SummarizeDataMessagesPrompt(question=question, text=text).get_messages_dict()
     prompt_kwargs = {"messages": messages}
 
     # call to LLM

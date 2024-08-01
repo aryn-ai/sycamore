@@ -3,29 +3,29 @@ from typing import Any, Dict, List, Optional
 
 import structlog
 from sycamore.query.operators.count import Count
-from sycamore.query.operators.filter import Filter
+from sycamore.query.operators.basic_filter import BasicFilter
 from sycamore.query.operators.limit import Limit
-from sycamore.query.operators.llmextract import LlmExtract
-from sycamore.query.operators.llmfilter import LlmFilter
-from sycamore.query.operators.llmgenerate import LlmGenerate
-from sycamore.query.operators.loaddata import LoadData
+from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
+from sycamore.query.operators.llm_filter import LlmFilter
+from sycamore.query.operators.summarize_data import SummarizeData
+from sycamore.query.operators.query_database import QueryDatabase
 from sycamore.query.operators.logical_operator import LogicalOperator
 from sycamore.query.execution.physical_operator import PhysicalOperator
 from sycamore.query.operators.math import Math
 from sycamore.query.operators.sort import Sort
-from sycamore.query.operators.topk import TopK
-from sycamore.query.operators.innerjoin import InnerJoin
+from sycamore.query.operators.top_k import TopK
+from sycamore.query.operators.inner_join import InnerJoin
 from structlog.contextvars import clear_contextvars, bind_contextvars
 from sycamore import Context
 
 from sycamore.query.execution.physical_operator import MathOperator
 from sycamore.query.execution.sycamore_operator import (
-    SycamoreLoadData,
-    SycamoreLlmGenerate,
+    SycamoreQueryDatabase,
+    SycamoreSummarizeData,
     SycamoreLlmFilter,
-    SycamoreFilter,
+    SycamoreBasicFilter,
     SycamoreCount,
-    SycamoreLlmExtract,
+    SycamoreLlmExtractEntity,
     SycamoreTopK,
     SycamoreSort,
     SycamoreLimit,
@@ -100,8 +100,8 @@ class SycamoreExecutor:
         # Process node
         result = None
         operation: Optional[PhysicalOperator] = None
-        if isinstance(logical_node, LoadData):
-            operation = SycamoreLoadData(
+        if isinstance(logical_node, QueryDatabase):
+            operation = SycamoreQueryDatabase(
                 context=self.context,
                 logical_node=logical_node,
                 query_id=query_id,
@@ -117,16 +117,16 @@ class SycamoreExecutor:
                 trace_dir=self.trace_dir,
                 s3_cache_path=s3_cache_path,
             )
-        elif isinstance(logical_node, Filter):
-            operation = SycamoreFilter(
+        elif isinstance(logical_node, BasicFilter):
+            operation = SycamoreBasicFilter(
                 context=self.context,
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
                 trace_dir=self.trace_dir,
             )
-        elif isinstance(logical_node, LlmExtract):
-            operation = SycamoreLlmExtract(
+        elif isinstance(logical_node, LlmExtractEntity):
+            operation = SycamoreLlmExtractEntity(
                 context=self.context,
                 logical_node=logical_node,
                 query_id=query_id,
@@ -175,8 +175,8 @@ class SycamoreExecutor:
                 trace_dir=self.trace_dir,
             )
         # Non-DocSet operations
-        elif isinstance(logical_node, LlmGenerate):
-            operation = SycamoreLlmGenerate(
+        elif isinstance(logical_node, SummarizeData):
+            operation = SycamoreSummarizeData(
                 context=self.context,
                 logical_node=logical_node,
                 query_id=query_id,

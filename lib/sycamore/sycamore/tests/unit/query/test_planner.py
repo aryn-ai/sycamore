@@ -33,7 +33,7 @@ def test_llm_planner(mock_os_config, mock_os_client, mock_openai_client, monkeyp
         return json.dumps(
             [
                 {
-                    "operatorName": "LoadData",
+                    "operatorName": "QueryDatabase",
                     "description": "Get all the airplane incidents",
                     "index": "ntsb",
                     "query": "airplane incidents",
@@ -56,7 +56,7 @@ def test_llm_planner(mock_os_config, mock_os_client, mock_openai_client, monkeyp
                     "node_id": 2,
                 },
                 {
-                    "operatorName": "LlmGenerate",
+                    "operatorName": "SummarizeData",
                     "description": "Generate an English response to the question",
                     "question": "How many Piper aircrafts were involved in accidents?",
                     "input": [2],

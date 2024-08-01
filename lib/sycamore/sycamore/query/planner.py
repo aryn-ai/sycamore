@@ -5,14 +5,14 @@ from opensearchpy import OpenSearch
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.operators.count import Count
-from sycamore.query.operators.llmfilter import LlmFilter
-from sycamore.query.operators.filter import Filter
-from sycamore.query.operators.llmgenerate import LlmGenerate
-from sycamore.query.operators.loaddata import LoadData
-from sycamore.query.operators.llmextract import LlmExtract
+from sycamore.query.operators.llm_filter import LlmFilter
+from sycamore.query.operators.basic_filter import BasicFilter
+from sycamore.query.operators.summarize_data import SummarizeData
+from sycamore.query.operators.query_database import QueryDatabase
+from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
 from sycamore.query.operators.math import Math
 from sycamore.query.operators.sort import Sort
-from sycamore.query.operators.topk import TopK
+from sycamore.query.operators.top_k import TopK
 from sycamore.query.operators.limit import Limit
 from sycamore.query.operators.logical_operator import LogicalOperator
 from sycamore.utils.extract_json import extract_json
@@ -21,12 +21,12 @@ from sycamore.utils.extract_json import extract_json
 # All operators that are allowed for construction of a query plan.
 # If a class is not in this list, it will not be used.
 OPERATORS: List[Type[LogicalOperator]] = [
-    LoadData,
-    Filter,
+    QueryDatabase,
+    BasicFilter,
     LlmFilter,
-    LlmExtract,
+    LlmExtractEntity,
     Count,
-    LlmGenerate,
+    SummarizeData,
     Math,
     Sort,
     TopK,
@@ -86,15 +86,15 @@ class LlmPlanner:
         2. Do not return any information except the standard JSON objects.
         3. Only use operators described below.
         4. Only use EXACT field names from the DATA_SCHEMA described below and fields created
-            from *LlmExtract*. Any new fields created by *LlmExtract* will be nested in properties.
+            from *LlmExtractEntity*. Any new fields created by *LlmExtractEntity* will be nested in properties.
             e.g. if a new field called "state" is added, when referencing it in another operation,
             you should use "properties.state". A database returned from *TopK* operation only has
             "properties.key" or "properties.count"; you can only reference one of those fields.
             Other than those, DO NOT USE ANY OTHER FIELD NAMES.
         5. If an optional field does not have a value in the query plan, return null in its place.
         6. If you cannot generate a plan to answer a question, return an empty list.
-        7. The first step of each plan MUST be a **LoadData** operation that returns a database.
-        8. The last step of each plan MUST be a **LlmGenerate** operation to generate an English
+        7. The first step of each plan MUST be a **QueryDatabase** operation that returns a database.
+        8. The last step of each plan MUST be a **SummarizeData** operation to generate an English
             answer.
         """
 
@@ -132,7 +132,7 @@ class LlmPlanner:
             Answer:
             [
                 {
-                    "operatorName": "LoadData",
+                    "operatorName": "QueryDatabase",
                     "description": "Get all the incident reports",
                     "index": "ntsb",
                     "query": "aircraft incident reports"
@@ -147,7 +147,7 @@ class LlmPlanner:
                     "node_id": 1
                 },
                 {
-                    "operatorName": "LlmGenerate",
+                    "operatorName": "SummarizeData",
                     "description": "Generate an English response to the original question.
                         Input 1 is a database that contains incidents in Georgia.",
                     "question": "Were there any incidents in Georgia?",
@@ -169,14 +169,14 @@ class LlmPlanner:
             Answer:
             [
                 {
-                    "operatorName": "LoadData",
+                    "operatorName": "QueryDatabase",
                     "description": "Get all the incident reports",
                     "index": "ntsb",
                     "query": "aircraft incident reports",
                     "node_id": 0
                 },
                 {
-                    "operatorName": "Filter",
+                    "operatorName": "BasicFilter",
                     "description": "Filter to only include Cessna aircraft incidents",
                     "rangeFilter": false,
                     "query": "Cessna",
@@ -196,7 +196,7 @@ class LlmPlanner:
                     "node_id": 2
                 },
                 {
-                    "operatorName": "LlmGenerate",
+                    "operatorName": "SummarizeData",
                     "description": "description": "Generate an English response to the
                         question. Input 1 is a number that corresponds to the number of
                         cities that accidents occurred in.",
@@ -218,14 +218,14 @@ class LlmPlanner:
             Answer:
             [
                 {
-                    "operatorName": "LoadData",
+                    "operatorName": "QueryDatabase",
                     "description": "Get all the financial documents",
                     "index": "finance",
                     "query": "law firm financial documents",
                     "node_id": 0
                 },
                 {
-                    "operatorName": "Filter",
+                    "operatorName": "BasicFilter",
                     "description": "Filter to only include documents in 2022",
                     "rangeFilter": true,
                     "query": null,
@@ -253,7 +253,7 @@ class LlmPlanner:
                     "node_id": 3,
                 }
                 {
-                    "operatorName": "LlmGenerate",
+                    "operatorName": "SummarizeData",
                     "description": "description": "Generate an English response to
                         the question. Input 1 is a database that contains information
                         about the 2 law firms with the highest revenue.",
@@ -276,14 +276,14 @@ class LlmPlanner:
             Answer:
             [
                 {
-                    "operatorName": "LoadData",
+                    "operatorName": "QueryDatabase",
                     "description": "Get all the shipwreck records",
                     "index": "shipwrecks",
                     "query": "shipwreck records",
                     "node_id": 0
                 },
                 {
-                    "operatorName": "LlmExtract",
+                    "operatorName": "LlmExtractEntity",
                     "description": "Extract the country",
                     "question": "What country was responsible for this ship?",
                     "field": "text_representation",
@@ -305,7 +305,7 @@ class LlmPlanner:
                     "node_id": 2,
                 },
                 {
-                    "operatorName": "LlmGenerate",
+                    "operatorName": "SummarizeData",
                     "description": "description": "Generate an English response to the
                         question. Input 1 is a database that the top 5 water bodies shipwrecks
                         occurred in and their corresponding frequency counts.",
@@ -326,7 +326,7 @@ class LlmPlanner:
             Answer:
             [
                 {
-                    "operatorName": "LoadData",
+                    "operatorName": "QueryDatabase",
                     "description": "Get all the shipwreck records",
                     "index": "shipwrecks",
                     "query": "shipwreck records",
@@ -341,7 +341,7 @@ class LlmPlanner:
                     "node_id": 1
                 },
                 {
-                    "operatorName": "Filter",
+                    "operatorName": "BasicFilter",
                     "description": "Filter to only include documents in 2023",
                     "rangeFilter": true,
                     "query": null,
@@ -368,7 +368,7 @@ class LlmPlanner:
                     "node_id": 4
                 }
                 {
-                    "operatorName": "LlmGenerate",
+                    "operatorName": "SummarizeData",
                     "description": "Generate an English response to the question. Input 1 is a
                         number that is the fraction of shipwrecks that occurred in 2023.",
                     "question": "What percent of shipwrecks occurred in 2023?",
@@ -386,7 +386,7 @@ class LlmPlanner:
             Answer:
             [
                 {
-                    "operatorName": "LoadData",
+                    "operatorName": "QueryDatabase",
                     "description": "Get all the patient records",
                     "index": "patients",
                     "query": "patient records",
@@ -401,7 +401,7 @@ class LlmPlanner:
                     "id": 1
                 },
                 {
-                    "operatorName": "LlmGenerate",
+                    "operatorName": "SummarizeData",
                     "description": "Generate an English response to the question. Input 1 is a
                         number of patients.",
                     "question": "How many total patients?",

@@ -1,7 +1,7 @@
 from sycamore.query.operators.logical_operator import LogicalOperator
 
 
-class LlmExtract(LogicalOperator):
+class LlmExtractEntity(LogicalOperator):
     """Adds a new field to the input database based on extracting information from an
     existing field.
 

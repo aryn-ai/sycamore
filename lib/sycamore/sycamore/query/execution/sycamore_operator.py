@@ -4,14 +4,14 @@ from typing import Any, Optional, List, Dict, Tuple
 from sycamore.llms.prompts.default_prompts import EntityExtractorMessagesPrompt, LlmFilterMessagesPrompt
 from sycamore.query.execution.metrics import SycamoreQueryLogger
 from sycamore.query.operators.count import Count
-from sycamore.query.operators.filter import Filter
+from sycamore.query.operators.basic_filter import BasicFilter
 from sycamore.query.operators.limit import Limit
-from sycamore.query.operators.llmextract import LlmExtract
-from sycamore.query.operators.llmfilter import LlmFilter
-from sycamore.query.operators.llmgenerate import LlmGenerate
-from sycamore.query.operators.loaddata import LoadData
-from sycamore.query.operators.topk import TopK
-from sycamore.query.operators.innerjoin import InnerJoin
+from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
+from sycamore.query.operators.llm_filter import LlmFilter
+from sycamore.query.operators.summarize_data import SummarizeData
+from sycamore.query.operators.query_database import QueryDatabase
+from sycamore.query.operators.top_k import TopK
+from sycamore.query.operators.inner_join import InnerJoin
 from sycamore.query.operators.sort import Sort
 
 from sycamore.query.execution.operations import (
@@ -90,7 +90,7 @@ class SycamoreOperator(PhysicalOperator):
         return args
 
 
-class SycamoreLoadData(SycamoreOperator):
+class SycamoreQueryDatabase(SycamoreOperator):
     """
     Currently only supports an OpenSearch scan load implementation.
     Args:
@@ -100,7 +100,7 @@ class SycamoreLoadData(SycamoreOperator):
     def __init__(
         self,
         context: Context,
-        logical_node: LoadData,
+        logical_node: QueryDatabase,
         query_id: str,
         os_client_args: Dict,
         trace_dir: Optional[str] = None,
@@ -109,12 +109,12 @@ class SycamoreLoadData(SycamoreOperator):
         self.os_client_args = os_client_args
 
     def execute(self) -> Any:
-        assert isinstance(self.logical_node, LoadData)
+        assert isinstance(self.logical_node, QueryDatabase)
         result = self.context.read.opensearch(os_client_args=self.os_client_args, index_name=self.logical_node.index)
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
-        assert isinstance(self.logical_node, LoadData)
+        assert isinstance(self.logical_node, QueryDatabase)
         return (
             f"""
 os_client_args = {self.os_client_args}
@@ -127,7 +127,7 @@ os_client_args = {self.os_client_args}
         )
 
 
-class SycamoreLlmGenerate(SycamoreOperator):
+class SycamoreSummarizeData(SycamoreOperator):
     """
     Use an LLM to generate a response based on the user input question and provided result set.
     Args:
@@ -137,7 +137,7 @@ class SycamoreLlmGenerate(SycamoreOperator):
     def __init__(
         self,
         context: Context,
-        logical_node: LlmGenerate,
+        logical_node: SummarizeData,
         query_id: str,
         inputs: Optional[List[Any]] = None,
         trace_dir: Optional[str] = None,
@@ -145,11 +145,11 @@ class SycamoreLlmGenerate(SycamoreOperator):
     ) -> None:
         super().__init__(context, logical_node, query_id, inputs, trace_dir=trace_dir)
         self.s3_cache_path = s3_cache_path
-        assert isinstance(self.logical_node, LlmGenerate)
+        assert isinstance(self.logical_node, SummarizeData)
 
     def execute(self) -> Any:
-        assert self.inputs and len(self.inputs) >= 1, "LlmGenerate requires at least 1 input node"
-        assert isinstance(self.logical_node, LlmGenerate)
+        assert self.inputs and len(self.inputs) >= 1, "SummarizeData requires at least 1 input node"
+        assert isinstance(self.logical_node, SummarizeData)
         question = self.logical_node.question
         assert question is not None and isinstance(question, str)
         description = self.logical_node.description
@@ -164,7 +164,7 @@ class SycamoreLlmGenerate(SycamoreOperator):
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
-        assert isinstance(self.logical_node, LlmGenerate)
+        assert isinstance(self.logical_node, SummarizeData)
         question = self.logical_node.question
         description = self.logical_node.description
         assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) >= 1
@@ -258,7 +258,7 @@ class SycamoreLlmFilter(SycamoreOperator):
         ]
 
 
-class SycamoreFilter(SycamoreOperator):
+class SycamoreBasicFilter(SycamoreOperator):
     """
     Filter a DocSet
     """
@@ -266,7 +266,7 @@ class SycamoreFilter(SycamoreOperator):
     def __init__(
         self,
         context: Context,
-        logical_node: Filter,
+        logical_node: BasicFilter,
         query_id: str,
         inputs: Optional[List[Any]] = None,
         trace_dir: Optional[str] = None,
@@ -279,7 +279,7 @@ class SycamoreFilter(SycamoreOperator):
 
         # Load into local vars for Ray serialization magic.
         logical_node = self.logical_node
-        assert isinstance(logical_node, Filter)
+        assert isinstance(logical_node, BasicFilter)
 
         if logical_node.range_filter:
             field = logical_node.field
@@ -302,7 +302,7 @@ class SycamoreFilter(SycamoreOperator):
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
-        assert isinstance(self.logical_node, Filter)
+        assert isinstance(self.logical_node, BasicFilter)
         assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) == 1
         script = ""
         imports = []
@@ -394,7 +394,7 @@ class SycamoreCount(SycamoreOperator):
         return script, imports
 
 
-class SycamoreLlmExtract(SycamoreOperator):
+class SycamoreLlmExtractEntity(SycamoreOperator):
     """
     Use an LLM to extract information from your data. The data is available for downstream tasks to consume.
     Args:
@@ -404,7 +404,7 @@ class SycamoreLlmExtract(SycamoreOperator):
     def __init__(
         self,
         context: Context,
-        logical_node: LlmExtract,
+        logical_node: LlmExtractEntity,
         query_id: str,
         inputs: Optional[List[Any]] = None,
         trace_dir: Optional[str] = None,
@@ -414,12 +414,12 @@ class SycamoreLlmExtract(SycamoreOperator):
         self.s3_cache_path = s3_cache_path
 
     def execute(self) -> Any:
-        assert self.inputs and len(self.inputs) == 1, "LlmExtract requires 1 input node"
-        assert isinstance(self.inputs[0], DocSet), "LlmExtract requires a DocSet input"
+        assert self.inputs and len(self.inputs) == 1, "LlmExtractEntity requires 1 input node"
+        assert isinstance(self.inputs[0], DocSet), "LlmExtractEntity requires a DocSet input"
         # load into local vars for Ray serialization magic
         s3_cache_path = self.s3_cache_path
         logical_node = self.logical_node
-        assert isinstance(logical_node, LlmExtract)
+        assert isinstance(logical_node, LlmExtractEntity)
         question = logical_node.question
         new_field = logical_node.new_field
         field = logical_node.field
@@ -442,7 +442,7 @@ class SycamoreLlmExtract(SycamoreOperator):
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         logical_node = self.logical_node
-        assert isinstance(logical_node, LlmExtract)
+        assert isinstance(logical_node, LlmExtractEntity)
         question = logical_node.question
         new_field = logical_node.new_field
         field = logical_node.field

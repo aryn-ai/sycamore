@@ -14,7 +14,6 @@ from sycamore.query.execution.operations import (
     match_filter_operation,
     math_operation,
     range_filter_operation,
-    count_operation,
     semantic_cluster,
     top_k_operation,
     SC_FORM_GROUPS_PROMPT,
@@ -246,17 +245,6 @@ class TestOperations:
 
             elif doc.parent_id == 1:
                 assert doc.text_representation == "2"
-
-    # Count
-    def test_count_normal(self, words_and_ids_docset):
-        assert count_operation(words_and_ids_docset) == 9
-
-    def test_count_primary_or_field(self, words_and_ids_docset):
-        assert count_operation(words_and_ids_docset, field="doc_id", primary_field=None) == 8
-        assert count_operation(words_and_ids_docset, field=None, primary_field="doc_id") == 8
-
-    def test_count_unique_primary_and_field(self, words_and_ids_docset):
-        assert count_operation(words_and_ids_docset, field="doc_id", primary_field="text_representation") == 8
 
     # Math
     def test_math(self):

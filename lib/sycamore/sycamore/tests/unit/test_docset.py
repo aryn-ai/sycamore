@@ -105,7 +105,7 @@ class TestDocSet:
         assert isinstance(docset.lineage(), FlatMap)
         assert docset.lineage()._name == get_name_from_callable(f)
 
-    def test_flat_map_customt_name(self, mocker):
+    def test_flat_map_custom_name(self, mocker):
         test_name = "test_flat_map_1"
         context = mocker.Mock(spec=Context)
         docset = DocSet(context, None)
@@ -261,6 +261,30 @@ class TestDocSet:
         for doc in all_docs:
             for elem in doc.elements:
                 assert elem.properties["element_val"] % 2 == 0
+
+    def test_count(self):
+
+        docs = []
+        for i in range(10):
+            docs.append(Document(text_representation=""))
+
+        context = sycamore.init()
+        docset = context.read.document(docs)
+        assert docset.count() == 10
+
+    def test_count_distinct(self):
+
+        docs = []
+        for i in range(10):
+            if i == 8 or i == 9:
+                num = 20
+            else:
+                num = i
+            docs.append(Document(text_representation="", doc_id=num))
+
+        context = sycamore.init()
+        docset = context.read.document(docs)
+        assert docset.count_distinct("doc_id") == 9
 
     def test_llm_filter(self):
 

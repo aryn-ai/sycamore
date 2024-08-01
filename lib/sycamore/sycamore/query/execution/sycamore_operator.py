@@ -18,7 +18,6 @@ from sycamore.query.execution.operations import (
     llm_generate_operation,
     range_filter_operation,
     match_filter_operation,
-    count_operation,
     top_k_operation,
     join_operation,
 )
@@ -364,31 +363,34 @@ class SycamoreCount(SycamoreOperator):
         # load into local vars for Ray serialization magic
         logical_node = self.logical_node
         assert isinstance(logical_node, Count)
-        result = count_operation(
-            docset=self.inputs[0],
-            field=logical_node.field,
-            primary_field=logical_node.primary_field,
-            **self.get_execute_args(),
-        )
+        field = logical_node.field
+        primary_field = logical_node.primary_field
+
+        if field is None and primary_field is None:
+            result = self.inputs[0].count(**self.get_execute_args())
+        else:
+            field_name = field or primary_field
+            assert isinstance(field_name, str)
+            result = self.inputs[0].count_distinct(field=field_name, **self.get_execute_args())
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
-        assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) == 1
         assert isinstance(self.logical_node, Count)
-        imports = ["from sycamore.query.execution.operations import count_operation"]
-        script = f"""
-{output_var or get_var_name(self.logical_node)} = count_operation(
-    docset={input_var or get_var_name(self.logical_node.dependencies[0])},
-    """
-        if self.logical_node.field:
-            script += f"""field='{self.logical_node.field}',
-    """
-        if self.logical_node.primary_field:
-            script += f"""primary_field='{self.logical_node.primary_field}',
-    """
-        script += f"""**{get_str_for_dict(self.get_execute_args())},
-)
-"""
+        assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) == 1
+        field = self.logical_node.field
+        primary_field = self.logical_node.primary_field
+
+        imports: list[str] = []
+        script = f"""{output_var or get_var_name(self.logical_node)} ="""
+        if field is None and primary_field is None:
+            script += f"""{input_var or get_var_name(self.logical_node.dependencies[0])}.count("""
+        else:
+            script += f"""{input_var or get_var_name(self.logical_node.dependencies[0])}.count_distinct("""
+            if field:
+                script += f"""field='{field}', """
+            elif primary_field:
+                script += f"""field='{primary_field}', """
+        script += f"""**{get_str_for_dict(self.get_execute_args())})"""
         return script, imports
 
 

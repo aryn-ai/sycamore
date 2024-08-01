@@ -158,43 +158,6 @@ def range_filter_operation(
     return value_comp >= start_comp and value_comp <= end_comp
 
 
-def count_operation(docset: DocSet, field: Optional[str] = None, primary_field: Optional[str] = None, **kwargs) -> int:
-    """
-    Counts the number of document in a DocSet. Counts by field or primary_field if specified.
-
-    Args:
-        docset: DocSet to count.
-        field: Field to count based on. Takes precedence over primary_field if both are specified.
-        primary_field: Primary field for a document to be considered different.
-        **kwargs
-
-    Returns:
-        An integer.
-    """
-    # normal count
-    if field is None and primary_field is None:
-        return docset.count(**kwargs)
-
-    else:
-        if field is not None:
-            unique_field = field
-        else:
-            if primary_field is None:
-                raise ValueError("Must specify either 'field' or 'primary_field'")
-            unique_field = primary_field
-        unique_docs = set()
-        execution = Execution(docset.context, docset.plan)
-        dataset = execution.execute(docset.plan, **kwargs)
-        for row in dataset.iter_rows():
-            doc = Document.from_row(row)
-            if isinstance(doc, MetadataDocument):
-                continue
-            value = doc.field_to_value(unique_field)
-            if value is not None and value != "None":
-                unique_docs.add(value)
-        return len(unique_docs)
-
-
 def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
     """
     Basic arithmetic operations on integers.

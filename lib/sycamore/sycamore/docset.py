@@ -156,7 +156,7 @@ class DocSet:
         value for field.
 
         Args:
-        field: Field to perform a unique count based on.
+        field: Field (in dotted notation) to perform a unique count based on.
         **kwargs
 
         Returns:
@@ -168,7 +168,7 @@ class DocSet:
                 context = sycamore.init()
                 pdf_docset = context.read.binary(paths, binary_format="pdf")
                     .partition(partitioner=ArynPartitioner())
-                    .count()
+                    .count("doc_id")
         """
         from sycamore import Execution
 

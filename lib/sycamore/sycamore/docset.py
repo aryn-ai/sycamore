@@ -1103,6 +1103,65 @@ class DocSet:
 
         # LLM response
         return docset
+    
+    def inner_join(self, docset2: "DocSet", field1: str, field2: str) -> "DocSet":
+        """
+        Joins two docsets based on specified fields; docset1 filtered based on values of docset2.
+
+        SQL Equivalent:
+        SELECT docset1.*
+        FROM docset1
+        INNER JOIN docset2
+        ON docset1.field1 = docset2.field2
+
+        Args:
+            docset1: DocSet to filter based on.
+            docset2: DocSet to filter.
+            field1: Field in docset1 to filter based on.
+            field2: Field in docset2 to filter.
+
+        Returns:
+            A joined DocSet.
+        """
+        def make_filter_fn_join(field: str, join_set: set) -> Callable[[Document], bool]:
+            """
+            Creates a filter function that can be called on a DocSet. Document
+            will be kept if the value corresponding to document field is contained
+            in join_set.
+
+            Args:
+                field: Document field to filter based on
+                join_set: Set that contains valid field values.
+
+            Returns:
+                Function that can be called inside of DocSet.filter
+            """
+
+            def filter_fn_join(doc: Document) -> bool:
+                value = doc.field_to_value(field)
+                return value in join_set
+
+            return filter_fn_join
+        
+        from sycamore import Execution
+
+        execution = Execution(docset2.context, docset2.plan)
+        dataset = execution.execute(docset2.plan)
+
+        # identifies unique values of field1 in docset1
+        unique_vals = set()
+        for row in dataset.iter_rows():
+            doc = Document.from_row(row)
+            if isinstance(doc, MetadataDocument):
+                continue
+            value = doc.field_to_value(field2)
+            unique_vals.add(value)
+
+        # filters docset2 based on matches of field2 with unique values
+        filter_fn_join = make_filter_fn_join(field1, unique_vals)
+        joined_docset = self.filter(lambda doc: filter_fn_join(doc))
+
+        return joined_docset
 
     @property
     def write(self) -> DocSetWriter:

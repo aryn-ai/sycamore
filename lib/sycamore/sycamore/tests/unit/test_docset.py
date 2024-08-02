@@ -480,7 +480,7 @@ class TestDocSet:
         assert top_k_list[1].properties["count"] == 2
 
 
-    def test_llm_cluster_entity(self, ):
+    def test_llm_cluster_entity(self):
 
         doc_list = [
             Document(text_representation="1", parent_id=8), 
@@ -502,3 +502,56 @@ class TestDocSet:
                 assert doc.properties["_autogen_ClusterAssignment"] == "group2"
             elif doc.text_representation == "3" or doc.text_representation == "three":
                 assert doc.properties["_autogen_ClusterAssignment"] == "group3"
+
+    def test_inner_join(self):
+        doc_list = [
+            Document(text_representation="1", parent_id=8), 
+            Document(text_representation="2", parent_id=1),
+            Document(text_representation="one", parent_id=11),
+            Document(text_representation="two", parent_id=17),
+            Document(text_representation="1", parent_id=13),
+            Document(text_representation="3", parent_id=5),
+            ]
+        context = sycamore.init()
+        number_docset = context.read.document(doc_list)
+
+        doc_list = [
+            Document(text_representation="submarine", doc_id=1), 
+            Document(text_representation=None, doc_id=3),
+            Document(text_representation="awesome", doc_id=5),
+            Document(text_representation=True, doc_id=9),
+            Document(text_representation="unSubtle", doc_id=3),
+            Document(text_representation="Sub", doc_id=2),
+            Document(text_representation="sunny", doc_id=4),
+            Document(text_representation="", doc_id=6),
+            Document(text_representation=4, doc_id=7),
+            ]
+        context = sycamore.init()
+        words_and_ids_docset = context.read.document(doc_list)
+
+        joined_docset = words_and_ids_docset.inner_join(docset2=number_docset, field1="doc_id", field2="parent_id"
+        )
+        assert joined_docset.count() == 2
+
+        for doc in joined_docset.take():
+            assert doc.doc_id == 5 or doc.doc_id == 1
+
+            if doc.doc_id == 5:
+                assert doc.text_representation == "awesome"
+
+            elif doc.doc_id == 1:
+                assert doc.text_representation == "submarine"
+
+        joined_docset_reverse = number_docset.inner_join(docset2=words_and_ids_docset, field1="parent_id", field2="doc_id"
+        )
+
+        assert joined_docset_reverse.count() == 2
+
+        for doc in joined_docset_reverse.take():
+            assert doc.parent_id == 5 or doc.parent_id == 1
+
+            if doc.parent_id == 5:
+                assert doc.text_representation == "3"
+
+            elif doc.parent_id == 1:
+                assert doc.text_representation == "2"

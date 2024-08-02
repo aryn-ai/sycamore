@@ -96,37 +96,6 @@ class TestOperations:
         )
         assert response == ""
 
-    # Join
-    def test_inner_join(self, words_and_ids_docset, number_docset):
-        joined_docset = inner_join_operation(
-            docset1=words_and_ids_docset, docset2=number_docset, field1="doc_id", field2="parent_id"
-        )
-        assert joined_docset.count() == 2
-
-        for doc in joined_docset.take():
-            assert doc.doc_id == 5 or doc.doc_id == 1
-
-            if doc.doc_id == 5:
-                assert doc.text_representation == "awesome"
-
-            elif doc.doc_id == 1:
-                assert doc.text_representation == "submarine"
-
-        joined_docset_reverse = inner_join_operation(
-            docset1=number_docset, docset2=words_and_ids_docset, field1="parent_id", field2="doc_id"
-        )
-
-        assert joined_docset_reverse.count() == 2
-
-        for doc in joined_docset_reverse.take():
-            assert doc.parent_id == 5 or doc.parent_id == 1
-
-            if doc.parent_id == 5:
-                assert doc.text_representation == "3"
-
-            elif doc.parent_id == 1:
-                assert doc.text_representation == "2"
-
     # Math
     def test_math(self):
         assert math_operation(val1=1, val2=2, operator="add") == 3

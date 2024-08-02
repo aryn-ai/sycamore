@@ -24,12 +24,14 @@ class Materialize(UnaryNode):
             self._doc_to_name = self.doc_to_name
             self._clean_root = True
         elif isinstance(path, dict):
+            assert "root" in path, "Need to specify root in materialize(path={})"
             self._root = Path(path["root"])
             if "fs" in path:
                 self._fs = path["fs"]
             else:
                 (self._fs, self._root) = self.infer_fs(str(self._root))
-            self._doc_to_name = path.get("name", None) or self.doc_to_name
+            self._doc_to_name = path.get("name", self.doc_to_name)
+            assert callable(self._doc_to_name)
             self._clean_root = path.get("clean", True)
         else:
             assert False, f"unsupported type ({type(path)}) for path argument, expected str, Path, or dict"
@@ -37,8 +39,8 @@ class Materialize(UnaryNode):
         super().__init__(child, **kwargs)
 
     def execute(self, **kwargs) -> "Dataset":
-        # right now, the only thing we can do is save data, so do it in parallel.
-        # once we support validation we won't be able to run the validation in parallel.
+        # right now, the only thing we can do is save data, so do it in parallel.  once we support
+        # validation to support retries we won't be able to run the validation in parallel.
         # non-shared filesystems will also eventually be a problem but we can put it off for now.
         input_dataset = self.child().execute(**kwargs)
         if self._root is not None:

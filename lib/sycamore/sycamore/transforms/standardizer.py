@@ -7,6 +7,7 @@ import os
 from sycamore.data import Element, Document
 from sycamore import Context
 from sycamore.transforms.map import Map
+from dateutil import parser
 
 
 class Standardizer(ABC):
@@ -50,6 +51,24 @@ class LocationStandardizer(Standardizer):
         city, state = raw_location.split(',')
         std_loc = f'{city},  {self._standardize_state(state)}'
         doc.properties['entity']['location'] = std_loc 
+        return doc 
+        
+class DateTimeStandardizer(Standardizer):
+    """
+    This Class standardizes the format of dateTime.
+    Attributes:
+        
+    """
+ 
+    def standardize(self, doc:Document) -> Document:
+        if "dateTime" not in doc.properties['entity']:
+            return doc
+        raw_dateTime = doc.properties['entity']['dateTime']
+        raw_dateTime = raw_dateTime.replace("Local", "")
+        raw_dateTime = raw_dateTime.replace(".", ":")
+        parsed_date = parser.parse(raw_dateTime)
+        extracted_date = parsed_date.date()
+        doc.properties['entity']['day'] = extracted_date
         return doc 
         
 

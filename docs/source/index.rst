@@ -40,7 +40,7 @@ Next, you can:
 
 .. code-block:: python
 
-pip install aryn-sdk
+    pip install aryn-sdk
 
 ..
 
@@ -63,7 +63,7 @@ You can specify additional options (e.g. table extraction), and a list of these 
 
 .. code-block:: python
 
-pip install sycamore-ai
+    pip install sycamore-ai
 
 ..
 

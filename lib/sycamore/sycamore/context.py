@@ -15,6 +15,11 @@ class ExecMode(Enum):
     LOCAL = 2
 
 
+OS_CLIENT_ARGS = "client_args"
+OS_INDEX_NAME = "index_name"
+OS_INDEX_SETTINGS = "index_settings"
+
+
 @dataclass
 class Context:
     """
@@ -24,12 +29,21 @@ class Context:
 
     exec_mode: ExecMode = ExecMode.RAY
     ray_args: Optional[dict[str, Any]] = None
+
+    """
+    Allows for the registration of Rules in the Sycamore Context that allow for communication with the
+    underlying Ray context and can specify additional performance optimizations
+    """
     extension_rules: list[Rule] = field(default_factory=list)
 
-    opensearch_client_config: Optional[dict[str, Any]] = None
-    opensearch_index_name: Optional[str] = None
-    opensearch_index_settings: Optional[dict[str, Any]] = None
+    """
+    Default OpenSearch configuration for a Context
+    """
+    opensearch_config: dict[str, Any] = field(default_factory=dict)
 
+    """
+    Default LLM for a Context
+    """
     llm: Optional[LLM] = None
 
     @property
@@ -37,25 +51,6 @@ class Context:
         from sycamore.reader import DocSetReader
 
         return DocSetReader(self)
-
-    def register_rule(self, rule: Rule) -> None:
-        """
-        Allows for the registration of Rules in the Sycamore Context that allow for communication with the
-        underlying Ray context and can specify additional performance optimizations
-        """
-        self.extension_rules.append(rule)
-
-    def get_extension_rule(self) -> list[Rule]:
-        """
-        Returns all Rules currently registered in the Context
-        """
-        return self.extension_rules
-
-    def deregister_rule(self, rule: Rule) -> None:
-        """
-        Removes a currently registered Rule from the context
-        """
-        self.extension_rules.remove(rule)
 
 
 def init(exec_mode=ExecMode.RAY, ray_args: Optional[dict[str, Any]] = None, **kwargs) -> Context:

@@ -43,7 +43,7 @@ class Execution:
         self._exec_mode = context.exec_mode
         from sycamore.rewriter import Rewriter
 
-        extension_rules = context.get_extension_rule()
+        extension_rules = context.extension_rules
         self.rewriter = Rewriter(extension_rules)
 
     def execute(self, plan: Node, **kwargs) -> "Dataset":

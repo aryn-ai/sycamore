@@ -41,7 +41,7 @@ class AssignDocProperties(SingleThreadUser, NonGPUUser, Map):
         for e in parent.elements:
             if e.type == element_type:
                 e.properties.update(AssignDocProperties._parse_json(e.properties.get(property_name)))
-                parent.properties["entity"] = e.properties.copy()
+                parent.properties["entity"] = AssignDocProperties._parse_json(e.properties.get(property_name))
                 break
 
         return parent

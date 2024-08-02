@@ -35,4 +35,4 @@ class TestAssignDocProperties(unittest.TestCase):
         output = AssignDocProperties(None, ["title", "property1"]).run(self.input)
         assert 'entity' in output.get('properties').keys()
         assert output.get('properties').get('entity') is not None
-        assert output.get('properties').get('entity')["property1"] == self.input.elements[0].properties["property1"]
+        assert output.get('properties').get('entity')["test1"] == 'from element1'

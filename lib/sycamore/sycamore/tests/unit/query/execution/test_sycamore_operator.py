@@ -28,7 +28,7 @@ from sycamore.query.operators.query_database import QueryDatabase
 from sycamore.query.operators.top_k import TopK
 
 
-def test_load_data(mock_sycamore_docsetreader, mock_opensearch_num_docs):
+def test_query_database(mock_sycamore_docsetreader, mock_opensearch_num_docs):
     with patch("sycamore.reader.DocSetReader", new=mock_sycamore_docsetreader):
         context = sycamore.init()
 
@@ -54,9 +54,9 @@ def test_load_data(mock_sycamore_docsetreader, mock_opensearch_num_docs):
         assert result.count() == mock_opensearch_num_docs
 
 
-def test_llm_generate():
+def test_summarize_data():
     with (
-        patch("sycamore.query.execution.sycamore_operator.llm_generate_operation") as mock_impl,
+        patch("sycamore.query.execution.sycamore_operator.summarize_data") as mock_impl,
         patch("sycamore.query.execution.sycamore_operator.OpenAI"),  # disable OpenAI client initialization
     ):
         # Define the mock return value
@@ -69,7 +69,7 @@ def test_llm_generate():
 
         assert result == "success"
         mock_impl.assert_called_once_with(
-            client=ANY,
+            llm=ANY,
             question=logical_node.question,
             result_description=logical_node.description,
             result_data=[load_node],
@@ -184,27 +184,23 @@ def test_count_distinct_primary_field():
 
 
 def test_join():
-    with patch("sycamore.query.execution.sycamore_operator.inner_join_operation") as mock_impl:
-        # Define the mock return value
-        mock_impl.return_value = "success"
+    context = sycamore.init()
+    doc_set1 = Mock(spec=DocSet)
+    doc_set2 = Mock(spec=DocSet)
+    return_value = Mock(spec=DocSet)
+    doc_set1.inner_join.return_value = return_value
+    logical_node = InnerJoin(node_id=0, field_one="field1", field_two="field2")
+    sycamore_operator = SycamoreInnerJoin(context, logical_node, query_id="test", inputs=[doc_set1, doc_set2])
+    result = sycamore_operator.execute()
 
-        doc_set1 = Mock(spec=DocSet)
-        doc_set2 = Mock(spec=DocSet)
-        context = sycamore.init()
-        logical_node = InnerJoin(node_id=0, field_one="field1", field_two="field2")
-        sycamore_operator = SycamoreInnerJoin(context, logical_node, query_id="test", inputs=[doc_set1, doc_set2])
-        result = sycamore_operator.execute()
+    doc_set1.inner_join.assert_called_once_with(
+        docset2=doc_set2, field1=logical_node.field_one, field2=logical_node.field_two
+    )
 
-        assert result == "success"
-        mock_impl.assert_called_once_with(
-            docset1=doc_set1,
-            docset2=doc_set2,
-            field1=logical_node.field_one,
-            field2=logical_node.field_two,
-        )
+    assert result == return_value
 
 
-def test_llm_extract():
+def test_llm_extract_entity():
     with (
         patch("sycamore.query.execution.sycamore_operator.OpenAI"),
         patch(
@@ -340,7 +336,7 @@ def test_limit(mock_docs):
 
 
 class ValidationTests(unittest.TestCase):
-    def test_load_data_validation(self):
+    def test_query_database_validation(self):
         context = sycamore.init()
         logical_node = QueryDatabase(node_id=0, description="Load data", index="test_index")
         sycamore_operator = SycamoreQueryDatabase(
@@ -348,7 +344,7 @@ class ValidationTests(unittest.TestCase):
         )
         _ = sycamore_operator.execute()
 
-    def test_llm_generate_validation(self):
+    def test_summarize_data_validation(self):
         context = sycamore.init()
         logical_node = SummarizeData(node_id=0, question="generate")
         sycamore_operator = SycamoreSummarizeData(context, logical_node, query_id="test", inputs=[])
@@ -404,7 +400,7 @@ class ValidationTests(unittest.TestCase):
         sycamore_operator = SycamoreSort(context, logical_node, query_id="test", inputs=[1])
         self.assertRaises(AssertionError, sycamore_operator.execute)
 
-    def test_llm_extract(self):
+    def test_llm_extract_entity(self):
         context = sycamore.init()
         logical_node = LlmExtractEntity(
             node_id=0, field="input_field", question="question", new_field="output_field", new_field_type="str"

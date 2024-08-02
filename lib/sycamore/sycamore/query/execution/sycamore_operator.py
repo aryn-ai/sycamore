@@ -16,7 +16,7 @@ from sycamore.query.operators.inner_join import InnerJoin
 from sycamore.query.operators.sort import Sort
 
 from sycamore.query.execution.operations import (
-    llm_generate_operation,
+    summarize_data,
 )
 from sycamore.llms import OpenAI, OpenAIModels
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
@@ -151,8 +151,8 @@ class SycamoreSummarizeData(SycamoreOperator):
         assert question is not None and isinstance(question, str)
         description = self.logical_node.description
         assert description is not None and isinstance(description, str)
-        result = llm_generate_operation(
-            client=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(self.s3_cache_path) if self.s3_cache_path else None),
+        result = summarize_data(
+            llm=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(self.s3_cache_path) if self.s3_cache_path else None),
             question=question,
             result_description=description,
             result_data=self.inputs,
@@ -176,8 +176,8 @@ class SycamoreSummarizeData(SycamoreOperator):
                 logical_deps_str += ", "
 
         result = f"""
-{output_var or get_var_name(self.logical_node)} = llm_generate_operation(
-    client=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
+{output_var or get_var_name(self.logical_node)} = summarize_data(
+    llm=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
     question='{question}',
     result_description='{description}',
     result_data=[{logical_deps_str}]
@@ -185,7 +185,7 @@ class SycamoreSummarizeData(SycamoreOperator):
 print({output_var or get_var_name(self.logical_node)})
 """
         return result, [
-            "from sycamore.query.execution.operations import llm_generate_operation",
+            "from sycamore.query.execution.operations import summarize_data",
             "from sycamore.llms import OpenAI, OpenAIModels",
         ]
 

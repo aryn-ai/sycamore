@@ -12,7 +12,7 @@ from sycamore.llms.prompts.default_prompts import (
     LlmClusterEntityFormGroupsMessagesPrompt,
 )
 from sycamore.query.execution.operations import (
-    llm_generate_operation,
+    summarize_data,
     math_operation,
 )
 
@@ -86,13 +86,11 @@ class TestOperations:
         )
 
     # LLM Generate
-    def test_llm_generate(words_and_ids_docset):
-        response = llm_generate_operation(client=MockLLM(), question="", result_description="", result_data=[""])
+    def test_summarize_data(words_and_ids_docset):
+        response = summarize_data(llm=MockLLM(), question="", result_description="", result_data=[""])
         assert response == ""
 
-        response = llm_generate_operation(
-            client=MockLLM(), question="", result_description="", result_data=[words_and_ids_docset]
-        )
+        response = summarize_data(llm=MockLLM(), question="", result_description="", result_data=[words_and_ids_docset])
         assert response == ""
 
     # Math

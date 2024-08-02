@@ -3,6 +3,7 @@ from typing import Any, List, Union
 
 from sycamore import DocSet
 from sycamore.data import MetadataDocument
+from sycamore.llms.llms import LLM
 from sycamore.llms.openai import OpenAI
 from sycamore.llms.prompts.default_prompts import (
     SummarizeDataMessagesPrompt,
@@ -49,9 +50,7 @@ def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
         raise ValueError("Invalid math operator " + operator)
 
 
-def llm_generate_operation(
-    client: OpenAI, question: str, result_description: str, result_data: List[Any], **kwargs
-) -> str:
+def summarize_data(llm: LLM, question: str, result_description: str, result_data: List[Any], **kwargs) -> str:
     """
     Provides an English response to a question given relevant information.
 
@@ -90,7 +89,7 @@ def llm_generate_operation(
     prompt_kwargs = {"messages": messages}
 
     # call to LLM
-    completion = client.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0})
+    completion = llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0})
 
     # LLM response
     return completion

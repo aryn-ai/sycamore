@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from typing import Any, Optional, List, Dict, Tuple
 
+from sycamore.functions.basic_filters import MatchFilter, RangeFilter
 from sycamore.llms.prompts.default_prompts import EntityExtractorMessagesPrompt, LlmFilterMessagesPrompt
 from sycamore.query.execution.metrics import SycamoreQueryLogger
 from sycamore.query.operators.count import Count

@@ -84,26 +84,26 @@ class OpenAIEntityExtractor(EntityExtractor):
     def extract_entity(self, document: Document, context: Context) -> Document:
         if self._llm is None and context:
             self._llm = context.llm
-            assert self._llm is not None, "OpenAIEntityExtractor requires an LLM"
+        assert self._llm is not None, "OpenAIEntityExtractor requires an LLM"
 
         if self._use_elements:
             if self._prompt_template:
-                entities = self._handle_few_shot_prompting(document)
+                entities = self._handle_few_shot_prompting(document, self._llm)
             else:
-                entities = self._handle_zero_shot_prompting(document)
+                entities = self._handle_zero_shot_prompting(document, self._llm)
         else:
-            entities = self._handle_document_field_prompting(document)
+            entities = self._handle_document_field_prompting(document, self._llm)
 
         document.properties.update({f"{self._entity_name}": entities})
 
         return document
 
-    def _handle_few_shot_prompting(self, document: Document) -> Any:
+    def _handle_few_shot_prompting(self, document: Document, llm: LLM) -> Any:
         sub_elements = [document.elements[i] for i in range((min(self._num_of_elements, len(document.elements))))]
 
         prompt = EntityExtractorFewShotGuidancePrompt()
 
-        entities = self._llm.generate(
+        entities = llm.generate(
             prompt_kwargs={
                 "prompt": prompt,
                 "entity": self._entity_name,
@@ -113,25 +113,25 @@ class OpenAIEntityExtractor(EntityExtractor):
         )
         return entities
 
-    def _handle_zero_shot_prompting(self, document: Document) -> Any:
+    def _handle_zero_shot_prompting(self, document: Document, llm: LLM) -> Any:
         sub_elements = [document.elements[i] for i in range((min(self._num_of_elements, len(document.elements))))]
 
         prompt = EntityExtractorZeroShotGuidancePrompt()
 
-        entities = self._llm.generate(
+        entities = llm.generate(
             prompt_kwargs={"prompt": prompt, "entity": self._entity_name, "query": self._prompt_formatter(sub_elements)}
         )
 
         return entities
 
-    def _handle_document_field_prompting(self, document: Document) -> Any:
+    def _handle_document_field_prompting(self, document: Document, llm: LLM) -> Any:
         if self._field is None:
             self._field = "text_representation"
 
         value = str(document.field_to_value(self._field))
         self._messages.append({"role": "user", "content": value})
 
-        response = self._llm.generate(prompt_kwargs={"messages": self._messages}, llm_kwargs={})
+        response = llm.generate(prompt_kwargs={"messages": self._messages}, llm_kwargs={})
         return response
 
 

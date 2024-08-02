@@ -33,7 +33,13 @@ jobs:
         python-version: ["3.9", "3.10", "3.11"]
 
     steps:
-      - name: DF-1
+      - name: DF-1a
+        run: df
+      - name: du-runner-initial
+        run: du -kx /home/runner | sort -rn | head -20
+      - name: Free up disk space
+        run: sudo rm -rf /usr/local/lib/android
+      - name: DF-1b
         run: df
       - name: Checkout
         uses: actions/checkout@v4

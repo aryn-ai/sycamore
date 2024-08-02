@@ -2,7 +2,7 @@ Welcome to Aryn!
 ================
 Aryn is an LLM-powered data preparation, processing, and analytics system for complex, unstructured documents like PDFs, HTML, presentations, and more. With Aryn, you can prepare data for GenAI and RAG applications, power high-quality document processing workflows, and run analytics on large document collections with natural language. It includes two components: The Aryn Partitioning Service and Sycamore.
 
-The Aryn Partitioning Service (APS) is a serverless, GPU-powered API for segmenting and labeling PDF documents, doing OCR, and extracting tables and images. It returns the output in JSON. APS runs the Aryn Partitioner and it’s `state-of-the-art, open source deep learning DETR AI model<https://huggingface.co/Aryn/deformable-detr-DocLayNet>`_ trained on 80k+ enterprise documents. You can use it to partition documents and extract information directly in your code, or use with Sycamore for additional processing. `Sign-up here for free<https://www.aryn.ai/get-started>`_ to get an API Key and use the `Aryn Playground<https://play.aryn.cloud/partitioning>`_ to visually see how it segments and processes your own documents. Or, watch the Aryn Partitioning Service in action in `this video<https://www.aryn.ai/?name=ArynPartitioningService_Intro>`_. 
+The Aryn Partitioning Service (APS) is a serverless, GPU-powered API for segmenting and labeling PDF documents, doing OCR, and extracting tables and images. It returns the output in JSON. APS runs the Aryn Partitioner and it’s `state-of-the-art, open source deep learning DETR AI model <https://huggingface.co/Aryn/deformable-detr-DocLayNet>`_ trained on 80k+ enterprise documents. You can use it to partition documents and extract information directly in your code, or use with Sycamore for additional processing. `Sign-up here for free <https://www.aryn.ai/get-started>`_ to get an API Key and use the `Aryn Playground <https://play.aryn.cloud/partitioning>`_ to visually see how it segments and processes your own documents. Or, watch the Aryn Partitioning Service in action in `this video <https://www.aryn.ai/?name=ArynPartitioningService_Intro>`_. 
 
 Sycamore is a document processing engine licensed covered under the Apache v2.0 license. It's built for complex unstructured data, such as documents, presentations, transcripts, embedded tables, and internal knowledge repositories. Sycamore provides a declarative dataflow abstraction called DocSets to make manipulating unstructured documents easy and scalable. It’s similar in style to Apache Spark and Pandas, but for collections of unstructured documents. DocSets can be used not only for extracting, enriching, summarizing, and cleaning unstructured data, but also for running powerful analytics on these datasets. 
 
@@ -18,7 +18,7 @@ Sycamore uses LLM-powered transforms, and you can choose the model to leverage. 
 
 * **Scalable, fault-tolerant, and reliable loading of vector DBs and search indexes.** Generate vector embeddings using your choice of model, easily build knowledge graphs, and other output formats from your unstructured data. Targets include leading engines like Elasticsearch, OpenSearch, Weaviate, Pinecone, DuckDB, and more. Aryn can seamlessly handle millions of documents. 
 
-* **Plug-and-Play LLMs.** Use different LLMs for entity extraction, vector embedding, and post-processing steps.**
+* **Plug-and-Play LLMs.** Use different LLMs for entity extraction, vector embedding, and post-processing steps.
 
 
 Getting Started
@@ -27,13 +27,13 @@ Getting Started
 Aryn Partitioning Service
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`Sign-up here for free<https://www.aryn.ai/get-started>`_ to get an API Key.
+`Sign-up here for free <https://www.aryn.ai/get-started>`_ to get an API Key.
 
-we will need an Aryn Cloud API key, which we can get for free at aryn.ai/get-started. You will recieve the API key in your email inbox.
+You will need an Aryn Cloud API key, which you can get for free `here <aryn.ai/get-started>`_. You will recieve the API key in your email inbox.
 
 Next, you can:
 
-**Use the Aryn Playground:** Visit `the Playground<https://play.aryn.cloud/partitioning>`_ and use the UI to see how the service segments, lables, and extracts data from your documents.
+**Use the Aryn Playground:** Visit `the Playground <https://play.aryn.cloud/partitioning>`_ and use the UI to see how the service segments, lables, and extracts data from your documents.
 
 |
 
@@ -72,9 +72,9 @@ Sycamore
 
 ..
 
-2. You can next Sycamore scripts to process your docuemnts and unstructured data. `This notebook<https://github.com/aryn-ai/sycamore/blob/main/notebooks/metadata-extraction.ipynb>`_ demonstrates a variety of Sycamore data transforms and loads an OpenSearch hybrid search index.
+2. You can next Sycamore scripts to process your docuemnts and unstructured data. `This notebook <https://github.com/aryn-ai/sycamore/blob/main/notebooks/metadata-extraction.ipynb>`_ demonstrates a variety of Sycamore data transforms and loads an OpenSearch hybrid search index.
 
-We recommend using the Aryn Partitioning Service with Sycamore to process PDFs, and you can `sign-up here for free<https://www.aryn.ai/get-started>`_ to get an API Key. 
+We recommend using the Aryn Partitioning Service with Sycamore to process PDFs, and you can `sign-up here for free <https://www.aryn.ai/get-started>`_ to get an API Key. 
 
 
 More Resources

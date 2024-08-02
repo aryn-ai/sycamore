@@ -1109,7 +1109,7 @@ class DocSet:
 
     def field_in(self, docset2: "DocSet", field1: str, field2: str) -> "DocSet":
         """
-        Joins two docsets based on specified fields; docset1 filtered based on values of docset2.
+        Joins two docsets based on specified fields; docset (self) filtered based on values of docset2.
 
         SQL Equivalent: SELECT * FROM docset1 WHERE field1 IN (SELECT field2 FROM docset2);
 
@@ -1119,7 +1119,7 @@ class DocSet:
             field2: Field in docset2 to filter.
 
         Returns:
-            A joined DocSet.
+            A left semi-join between docset (self) and docset2.
         """
 
         def make_filter_fn_join(field: str, join_set: set) -> Callable[[Document], bool]:

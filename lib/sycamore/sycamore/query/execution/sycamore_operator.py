@@ -17,7 +17,6 @@ from sycamore.query.operators.sort import Sort
 
 from sycamore.query.execution.operations import (
     llm_generate_operation,
-    top_k_operation,
     inner_join_operation,
 )
 from sycamore.llms import OpenAI, OpenAIModels
@@ -543,8 +542,7 @@ class SycamoreTopK(SycamoreOperator):
         logical_node = self.logical_node
         assert isinstance(logical_node, TopK)
 
-        result = top_k_operation(
-            docset=self.inputs[0],
+        result = self.inputs[0].top_k(
             llm=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(s3_cache_path) if s3_cache_path else None),
             field=logical_node.field,
             k=logical_node.K,
@@ -565,8 +563,7 @@ class SycamoreTopK(SycamoreOperator):
         if self.s3_cache_path:
             cache_string = f", cache=S3Cache('{self.s3_cache_path}')"
         result = f"""
-{output_var or get_var_name(self.logical_node)} = top_k_operation(
-    docset={input_var or get_var_name(logical_node.dependencies[0])},
+{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(logical_node.dependencies[0])}.top_k(
     llm=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
     field='{logical_node.field}',
     k={logical_node.K},
@@ -578,7 +575,6 @@ class SycamoreTopK(SycamoreOperator):
 )
 """
         return result, [
-            "from sycamore.query.execution.operations import top_k_operation",
             "from sycamore.llms import OpenAI, OpenAIModels",
         ]
 

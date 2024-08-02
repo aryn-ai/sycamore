@@ -9,6 +9,7 @@ from sycamore.data import Document, Element, MetadataDocument
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.lineage import Materialize, MaterializeMode
 from sycamore.llms.llms import LLM
+from sycamore.llms.prompts.default_prompts import LlmClusterEntityAssignGroupsMessagesPrompt, LlmClusterEntityFormGroupsMessagesPrompt
 from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.augment_text import TextAugmentor
 from sycamore.transforms.embed import Embedder
@@ -20,6 +21,7 @@ from sycamore.transforms.summarize import Summarizer
 from sycamore.transforms.llm_query import LLMTextQueryAgent
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.merge_elements import ElementMerger
+from sycamore.utils.extract_json import extract_json
 from sycamore.writer import DocSetWriter
 from sycamore.transforms.query import QueryExecutor, Query
 
@@ -1005,6 +1007,102 @@ class DocSet:
 
         queries = LLMQuery(self.plan, query_agent=query_agent, **kwargs)
         return DocSet(self.context, queries)
+    
+    def top_k(
+        self,
+        llm: LLM,
+        field: str,
+        k: Optional[int],
+        description: str,
+        descending: bool = True,
+        llm_cluster: bool = False,
+        unique_field: Optional[str] = None,
+        **kwargs,
+    ) -> "DocSet":
+        """
+        Determines the top k occurrences for a document field.
+
+        Args:
+            llm: LLM client.
+            field: Field to determine top k occurrences of.
+            k: Number of top occurrences.
+            description: Description of operation purpose.
+            descending: Indicates whether to return most or least frequent occurrences.
+            llm_cluster: Indicates whether an LLM should be used to normalize values of document field.
+            unique_field: Determines what makes a unique document.
+            **kwargs
+
+        Returns:
+            A DocSet with "properties.key" (unique values of document field)
+            and "properties.count" (frequency counts for unique values) which is
+            sorted based on descending and contains k records.
+        """
+
+        docset = self
+
+        if llm_cluster:
+            docset = docset.llm_cluster_entity(llm, description, field)
+            field = "properties._autogen_ClusterAssignment"
+
+        docset = docset.groupby_count(field, unique_field, **kwargs)
+
+        # uses 0 as default value -> end of docset
+        docset = docset.sort(descending, "properties.count", 0)
+        if k is not None:
+            docset = docset.limit(k)
+        return docset
+    
+    def llm_cluster_entity(self, llm: LLM, description: str, field: str) -> "DocSet":
+        """
+        Normalizes a particular field of a DocSet. Identifies and assigns each document to a "group".
+
+        Args:
+            llm: LLM client.
+            description: Description of purpose of this operation.
+            field: Field to make/assign groups based on.
+
+        Returns:
+            A DocSet with an additional field "properties._autogen_ClusterAssignment" that contains
+            the assigned group.
+        """
+
+        docset = self
+        text = ""
+        for i, doc in enumerate(docset.take_all()):
+            if i != 0:
+                text += ", "
+            text += str(doc.field_to_value(field))
+
+        # sets message
+        messages = LlmClusterEntityFormGroupsMessagesPrompt(
+            field=field, description=description, text=text
+        ).get_messages_dict()
+
+        prompt_kwargs = {"messages": messages}
+
+        # call to LLM
+        completion = llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0})
+
+        groups = extract_json(completion)
+
+        assert isinstance(groups, dict)
+
+        # sets message
+        messagesForExtract = LlmClusterEntityAssignGroupsMessagesPrompt(
+            field=field, groups=groups["groups"]
+        ).get_messages_dict()
+
+        entity_extractor = OpenAIEntityExtractor(
+            entity_name="_autogen_ClusterAssignment",
+            llm=llm,
+            use_elements=False,
+            prompt=messagesForExtract,
+            field=field,
+        )
+        docset = docset.extract_entity(entity_extractor=entity_extractor)
+
+        # LLM response
+        return docset
 
     @property
     def write(self) -> DocSetWriter:

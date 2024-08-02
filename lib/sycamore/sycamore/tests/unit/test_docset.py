@@ -7,6 +7,7 @@ import pytest
 import sycamore
 from sycamore import DocSet, Context
 from sycamore.data import Document, Element
+from sycamore.llms.prompts.default_prompts import LlmClusterEntityAssignGroupsMessagesPrompt, LlmClusterEntityFormGroupsMessagesPrompt
 from sycamore.transforms import (
     Embedder,
     Embed,
@@ -41,6 +42,29 @@ class MockLLM(LLM):
             return 4
         elif prompt_kwargs == {"messages": [{"role": "user", "content": "test2"}]} and llm_kwargs == {}:
             return 2
+        
+        elif (
+            prompt_kwargs["messages"]
+            == LlmClusterEntityFormGroupsMessagesPrompt(
+                field="text_representation", description="", text="1, 2, one, two, 1, 3"
+            ).get_messages_dict()
+        ):
+            return '{"groups": ["group1", "group2", "group3"]}'
+        elif (
+            prompt_kwargs["messages"][0]
+            == LlmClusterEntityAssignGroupsMessagesPrompt(
+                field="text_representation", groups=["group1", "group2", "group3"]
+            ).get_messages_dict()[0]
+        ):
+            value = prompt_kwargs["messages"][1]["content"]
+            if value == "1" or value == "one":
+                return "group1"
+            elif value == "2" or value == "two":
+                return "group2"
+            elif value == "3" or value == "three":
+                return "group3"
+        else:
+            return ""
 
     def is_chat_mode(self):
         return True
@@ -313,3 +337,88 @@ class TestDocSet:
                 assert int(doc.properties[new_field]) == 4
             elif doc.text_representation == "test2":
                 assert int(doc.properties[new_field]) == 2
+
+    # Top K
+    def test_top_k_discrete(self):
+        # docset = generate_docset({"text_representation": ["apple", "banana", "apple", "banana", "cherry", "apple"]})
+
+        doc_list = [
+            Document(text_representation="apple"), 
+            Document(text_representation="banana"),
+            Document(text_representation="apple"),
+            Document(text_representation="banana"),
+            Document(text_representation="cherry"),
+            Document(text_representation="apple"),
+            ]
+        context = sycamore.init()
+        docset = context.read.document(doc_list)
+
+
+        top_k_docset = docset.top_k(
+            llm=None,
+            field="text_representation",
+            k=2,
+            description="Find 2 most frequent fruits",
+            descending=True,
+            llm_cluster=False,
+        )
+        assert top_k_docset.count() == 2
+
+        top_k_list = top_k_docset.take()
+        assert top_k_list[0].properties["key"] == "apple"
+        assert top_k_list[0].properties["count"] == 3
+        assert top_k_list[1].properties["key"] == "banana"
+        assert top_k_list[1].properties["count"] == 2
+
+    def test_top_k_llm_cluster(self):
+        doc_list = [
+            Document(text_representation="1", parent_id=8), 
+            Document(text_representation="2", parent_id=1),
+            Document(text_representation="one", parent_id=11),
+            Document(text_representation="two", parent_id=17),
+            Document(text_representation="1", parent_id=13),
+            Document(text_representation="3", parent_id=5),
+            ]
+        
+        context = sycamore.init()
+        docset = context.read.document(doc_list)
+        
+        top_k_docset = docset.top_k(
+            llm=MockLLM(),
+            field="text_representation",
+            k=2,
+            description="",
+            descending=True,
+            llm_cluster=True,
+        )
+        assert top_k_docset.count() == 2
+
+        top_k_list = top_k_docset.take()
+        assert top_k_list[0].properties["key"] == "group1"
+        assert top_k_list[0].properties["count"] == 3
+        assert top_k_list[1].properties["key"] == "group2"
+        assert top_k_list[1].properties["count"] == 2
+
+
+    def test_llm_cluster_entity(self, ):
+
+        doc_list = [
+            Document(text_representation="1", parent_id=8), 
+            Document(text_representation="2", parent_id=1),
+            Document(text_representation="one", parent_id=11),
+            Document(text_representation="two", parent_id=17),
+            Document(text_representation="1", parent_id=13),
+            Document(text_representation="3", parent_id=5),
+            ]
+        
+        context = sycamore.init()
+        docset = context.read.document(doc_list)
+        cluster_docset = docset.llm_cluster_entity(llm=MockLLM(), description="", field="text_representation"
+        )
+        for doc in cluster_docset.take():
+            if doc.text_representation == "1" or doc.text_representation == "one":
+                assert doc.properties["_autogen_ClusterAssignment"] == "group1"
+            elif doc.text_representation == "2" or doc.text_representation == "two":
+                assert doc.properties["_autogen_ClusterAssignment"] == "group2"
+            elif doc.text_representation == "3" or doc.text_representation == "three":
+                assert doc.properties["_autogen_ClusterAssignment"] == "group3"

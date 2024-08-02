@@ -15,8 +15,6 @@ from sycamore.query.execution.operations import (
     inner_join_operation,
     llm_generate_operation,
     math_operation,
-    llm_cluster_entity,
-    top_k_operation,
 )
 
 
@@ -136,56 +134,6 @@ class TestOperations:
         assert math_operation(val1=4, val2=2, operator="divide") == 2
         assert math_operation(val1=3, val2=3, operator="multiply") == 9
 
-    # Top K
-    def test_top_k_discrete(self, generate_docset):
-        docset = generate_docset({"text_representation": ["apple", "banana", "apple", "banana", "cherry", "apple"]})
-
-        top_k_docset = top_k_operation(
-            docset=docset,
-            llm=None,
-            field="text_representation",
-            k=2,
-            description="Find 2 most frequent fruits",
-            descending=True,
-            llm_cluster=False,
-        )
-        assert top_k_docset.count() == 2
-
-        top_k_list = top_k_docset.take()
-        assert top_k_list[0].properties["key"] == "apple"
-        assert top_k_list[0].properties["count"] == 3
-        assert top_k_list[1].properties["key"] == "banana"
-        assert top_k_list[1].properties["count"] == 2
-
-    def test_top_k_llm_cluster(self, number_docset):
-        top_k_docset = top_k_operation(
-            docset=number_docset,
-            llm=MockLLM(),
-            field="text_representation",
-            k=2,
-            description="",
-            descending=True,
-            llm_cluster=True,
-        )
-        assert top_k_docset.count() == 2
-
-        top_k_list = top_k_docset.take()
-        assert top_k_list[0].properties["key"] == "group1"
-        assert top_k_list[0].properties["count"] == 3
-        assert top_k_list[1].properties["key"] == "group2"
-        assert top_k_list[1].properties["count"] == 2
-
-    def test_llm_cluster_entity(self, number_docset):
-        cluster_docset = llm_cluster_entity(
-            docset=number_docset, llm=MockLLM(), description="", field="text_representation"
-        )
-        for doc in cluster_docset.take():
-            if doc.text_representation == "1" or doc.text_representation == "one":
-                assert doc.properties["_autogen_ClusterAssignment"] == "group1"
-            elif doc.text_representation == "2" or doc.text_representation == "two":
-                assert doc.properties["_autogen_ClusterAssignment"] == "group2"
-            elif doc.text_representation == "3" or doc.text_representation == "three":
-                assert doc.properties["_autogen_ClusterAssignment"] == "group3"
 
     def test_match_filter_number(self, words_and_ids_docset):
         query = 3

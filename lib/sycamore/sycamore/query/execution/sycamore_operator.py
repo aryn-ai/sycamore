@@ -17,7 +17,6 @@ from sycamore.query.operators.sort import Sort
 
 from sycamore.query.execution.operations import (
     llm_generate_operation,
-    inner_join_operation,
 )
 from sycamore.llms import OpenAI, OpenAIModels
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
@@ -607,8 +606,7 @@ class SycamoreInnerJoin(SycamoreOperator):
         field1 = logical_node.field_one
         field2 = logical_node.field_two
 
-        result = inner_join_operation(
-            docset1=self.inputs[0],
+        result = self.inputs[0].inner_join(
             docset2=self.inputs[1],
             field1=field1,
             field2=field2,
@@ -623,8 +621,7 @@ class SycamoreInnerJoin(SycamoreOperator):
         assert logical_node.dependencies is not None and len(logical_node.dependencies) == 2
 
         result = f"""
-{output_var or get_var_name(self.logical_node)} = inner_join_operation(
-    docset1={input_var or get_var_name(logical_node.dependencies[0])},
+{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(logical_node.dependencies[0])}.inner_join(
     docset2={input_var or get_var_name(logical_node.dependencies[2])},
     field1='{field1}',
     field2='{field2}'

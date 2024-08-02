@@ -1,15 +1,12 @@
 import json
-from typing import Any, Callable, List, Optional, Union
+from typing import Any, List, Union
 
-from sycamore import DocSet, Execution
-from sycamore.data import Document, MetadataDocument
-from sycamore.llms.llms import LLM
+from sycamore import DocSet
+from sycamore.data import MetadataDocument
 from sycamore.llms.openai import OpenAI
 from sycamore.llms.prompts.default_prompts import (
     SummarizeDataMessagesPrompt,
 )
-from sycamore.transforms.extract_entity import OpenAIEntityExtractor
-from sycamore.utils.extract_json import extract_json
 
 BASE_PROPS = [
     "filename",

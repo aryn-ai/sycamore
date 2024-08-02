@@ -9,7 +9,10 @@ from sycamore.data import Document, Element, MetadataDocument
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.lineage import Materialize, MaterializeMode
 from sycamore.llms.llms import LLM
-from sycamore.llms.prompts.default_prompts import LlmClusterEntityAssignGroupsMessagesPrompt, LlmClusterEntityFormGroupsMessagesPrompt
+from sycamore.llms.prompts.default_prompts import (
+    LlmClusterEntityAssignGroupsMessagesPrompt,
+    LlmClusterEntityFormGroupsMessagesPrompt,
+)
 from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.augment_text import TextAugmentor
 from sycamore.transforms.embed import Embedder
@@ -1007,7 +1010,7 @@ class DocSet:
 
         queries = LLMQuery(self.plan, query_agent=query_agent, **kwargs)
         return DocSet(self.context, queries)
-    
+
     def top_k(
         self,
         llm: LLM,
@@ -1051,7 +1054,7 @@ class DocSet:
         if k is not None:
             docset = docset.limit(k)
         return docset
-    
+
     def llm_cluster_entity(self, llm: LLM, description: str, field: str) -> "DocSet":
         """
         Normalizes a particular field of a DocSet. Identifies and assigns each document to a "group".
@@ -1103,7 +1106,7 @@ class DocSet:
 
         # LLM response
         return docset
-    
+
     def inner_join(self, docset2: "DocSet", field1: str, field2: str) -> "DocSet":
         """
         Joins two docsets based on specified fields; docset1 filtered based on values of docset2.
@@ -1122,6 +1125,7 @@ class DocSet:
         Returns:
             A joined DocSet.
         """
+
         def make_filter_fn_join(field: str, join_set: set) -> Callable[[Document], bool]:
             """
             Creates a filter function that can be called on a DocSet. Document
@@ -1141,7 +1145,7 @@ class DocSet:
                 return value in join_set
 
             return filter_fn_join
-        
+
         from sycamore import Execution
 
         execution = Execution(docset2.context, docset2.plan)

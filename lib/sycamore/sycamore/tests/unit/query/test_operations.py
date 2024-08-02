@@ -12,7 +12,6 @@ from sycamore.llms.prompts.default_prompts import (
     LlmClusterEntityFormGroupsMessagesPrompt,
 )
 from sycamore.query.execution.operations import (
-    inner_join_operation,
     llm_generate_operation,
     math_operation,
 )
@@ -102,7 +101,6 @@ class TestOperations:
         assert math_operation(val1=5, val2=3, operator="subtract") == 2
         assert math_operation(val1=4, val2=2, operator="divide") == 2
         assert math_operation(val1=3, val2=3, operator="multiply") == 9
-
 
     def test_match_filter_number(self, words_and_ids_docset):
         query = 3

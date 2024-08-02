@@ -7,7 +7,10 @@ import pytest
 import sycamore
 from sycamore import DocSet, Context
 from sycamore.data import Document, Element
-from sycamore.llms.prompts.default_prompts import LlmClusterEntityAssignGroupsMessagesPrompt, LlmClusterEntityFormGroupsMessagesPrompt
+from sycamore.llms.prompts.default_prompts import (
+    LlmClusterEntityAssignGroupsMessagesPrompt,
+    LlmClusterEntityFormGroupsMessagesPrompt,
+)
 from sycamore.transforms import (
     Embedder,
     Embed,
@@ -43,7 +46,7 @@ class MockLLM(LLM):
             return 4
         elif prompt_kwargs == {"messages": [{"role": "user", "content": "test2"}]} and llm_kwargs == {}:
             return 2
-        
+
         elif (
             prompt_kwargs["messages"]
             == LlmClusterEntityFormGroupsMessagesPrompt(
@@ -75,20 +78,20 @@ class TestDocSet:
     @pytest.fixture
     def number_docset(self) -> DocSet:
         doc_list = [
-            Document(text_representation="1", parent_id=8), 
+            Document(text_representation="1", parent_id=8),
             Document(text_representation="2", parent_id=1),
             Document(text_representation="one", parent_id=11),
             Document(text_representation="two", parent_id=17),
             Document(text_representation="1", parent_id=13),
             Document(text_representation="3", parent_id=5),
-            ]
+        ]
         context = sycamore.init()
         return context.read.document(doc_list)
-    
+
     @pytest.fixture
     def words_and_ids_docset(self) -> DocSet:
         doc_list = [
-            Document(text_representation="submarine", doc_id=1), 
+            Document(text_representation="submarine", doc_id=1),
             Document(text_representation=None, doc_id=3),
             Document(text_representation="awesome", doc_id=5),
             Document(text_representation=True, doc_id=9),
@@ -97,23 +100,23 @@ class TestDocSet:
             Document(text_representation="sunny", doc_id=4),
             Document(text_representation="", doc_id=6),
             Document(text_representation=4, doc_id=7),
-            ]
+        ]
         context = sycamore.init()
         return context.read.document(doc_list)
-    
+
     @pytest.fixture
     def fruits_docset(self) -> DocSet:
         doc_list = [
-            Document(text_representation="apple", parent_id=8), 
+            Document(text_representation="apple", parent_id=8),
             Document(text_representation="banana", parent_id=7),
             Document(text_representation="apple", parent_id=8),
             Document(text_representation="banana", parent_id=7),
-            Document(text_representation="cherry",  parent_id=6),
+            Document(text_representation="cherry", parent_id=6),
             Document(text_representation="apple", parent_id=9),
-            ]
+        ]
         context = sycamore.init()
         return context.read.document(doc_list)
-    
+
     def test_partition_pdf(self, mocker):
         context = mocker.Mock(spec=Context)
         partitioner = mocker.Mock(spec=Partitioner, device="cpu")
@@ -387,7 +390,6 @@ class TestDocSet:
             elif doc.text_representation == "test2":
                 assert int(doc.properties[new_field]) == 2
 
-    
     def test_groupby_count(self, fruits_docset):
 
         grouped_docset = fruits_docset.groupby_count(field="text_representation")
@@ -411,7 +413,6 @@ class TestDocSet:
                 assert doc.properties["count"] == 2
             if doc.properties["key"] == "cherry":
                 assert doc.properties["count"] == 1
-
 
     def test_top_k_discrete(self, fruits_docset):
 
@@ -440,7 +441,7 @@ class TestDocSet:
             description="Find 2 most frequent fruits",
             descending=True,
             llm_cluster=False,
-            unique_field="parent_id"
+            unique_field="parent_id",
         )
         assert top_k_docset.count() == 1
 
@@ -465,10 +466,8 @@ class TestDocSet:
         assert top_k_list[1].properties["key"] == "group2"
         assert top_k_list[1].properties["count"] == 2
 
-
     def test_llm_cluster_entity(self, number_docset):
-        cluster_docset = number_docset.llm_cluster_entity(llm=MockLLM(), description="", field="text_representation"
-        )
+        cluster_docset = number_docset.llm_cluster_entity(llm=MockLLM(), description="", field="text_representation")
         for doc in cluster_docset.take():
             if doc.text_representation == "1" or doc.text_representation == "one":
                 assert doc.properties["_autogen_ClusterAssignment"] == "group1"
@@ -479,8 +478,7 @@ class TestDocSet:
 
     def test_inner_join(self, number_docset, words_and_ids_docset):
 
-        joined_docset = words_and_ids_docset.inner_join(docset2=number_docset, field1="doc_id", field2="parent_id"
-        )
+        joined_docset = words_and_ids_docset.inner_join(docset2=number_docset, field1="doc_id", field2="parent_id")
         assert joined_docset.count() == 2
 
         for doc in joined_docset.take():
@@ -492,7 +490,8 @@ class TestDocSet:
             elif doc.doc_id == 1:
                 assert doc.text_representation == "submarine"
 
-        joined_docset_reverse = number_docset.inner_join(docset2=words_and_ids_docset, field1="parent_id", field2="doc_id"
+        joined_docset_reverse = number_docset.inner_join(
+            docset2=words_and_ids_docset, field1="parent_id", field2="doc_id"
         )
 
         assert joined_docset_reverse.count() == 2

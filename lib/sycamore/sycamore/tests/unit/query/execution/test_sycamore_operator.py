@@ -267,9 +267,7 @@ def test_sort():
 
 
 def test_top_k():
-    with (
-        patch("sycamore.query.execution.sycamore_operator.OpenAI"),  # disable OpenAI client initialization
-    ):
+    with (patch("sycamore.query.execution.sycamore_operator.OpenAI"),):  # disable OpenAI client initialization
         context = sycamore.init()
         doc_set = Mock(spec=DocSet)
         return_doc_set = Mock(spec=DocSet)

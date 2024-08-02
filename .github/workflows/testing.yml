@@ -43,7 +43,6 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "poetry"
       - name: disk usage
         run: df -h
       - name: Install sycamore

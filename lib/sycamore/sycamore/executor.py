@@ -61,7 +61,8 @@ class Execution:
                     ray_args["runtime_env"] = {}
 
                 if "worker_process_setup_hook" not in ray_args["runtime_env"]:
-                    # logging.error("Spurious log 0: If you do not see spurious log 1 & 2, log messages are being dropped")
+                    # logging.error("Spurious log 0: If you do not see spurious log 1 & 2,
+                    # log messages are being dropped")
                     ray_args["runtime_env"]["worker_process_setup_hook"] = _ray_logging_setup
 
                 ray.init(**ray_args)

@@ -1,5 +1,5 @@
 Welcome to Aryn!
---------------------
+================
 Aryn is an LLM-powered data preparation, processing, and analytics system for complex, unstructured documents like PDFs, HTML, presentations, and more. With Aryn, you can prepare data for GenAI and RAG applications, power high-quality document processing workflows, and run analytics on large document collections with natural language. It includes two components: The Aryn Partitioning Service and Sycamore.
 
 The Aryn Partitioning Service (APS) is a serverless, GPU-powered API for segmenting and labeling PDF documents, doing OCR, and extracting tables and images. It returns the output in JSON. APS runs the Aryn Partitioner and it’s `state-of-the-art, open source deep learning DETR AI model<https://huggingface.co/Aryn/deformable-detr-DocLayNet>`_ trained on 80k+ enterprise documents. You can use it to partition documents and extract information directly in your code, or use with Sycamore for additional processing. `Sign-up here for free<https://www.aryn.ai/get-started>`_ to get an API Key and use the `Aryn Playground<https://play.aryn.cloud/partitioning>`_ to visually see how it segments and processes your own documents. Or, watch the Aryn Partitioning Service in action in `this video<https://www.aryn.ai/?name=ArynPartitioningService_Intro>`_. 
@@ -24,7 +24,8 @@ Sycamore uses LLM-powered transforms, and you can choose the model to leverage. 
 Getting Started
 --------------------
 
-**Aryn Partitioning Service**
+Aryn Partitioning Service
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 `Sign-up here for free<https://www.aryn.ai/get-started>`_ to get an API Key.
 
@@ -32,9 +33,10 @@ we will need an Aryn Cloud API key, which we can get for free at aryn.ai/get-sta
 
 Next, you can:
 
-* **Use the Aryn Playground:** Visit `the Playground<https://play.aryn.cloud/partitioning>`_ and use the UI to see how the service segments, lables, and extracts data from your documents.
+**Use the Aryn Playground:** Visit `the Playground<https://play.aryn.cloud/partitioning>`_ and use the UI to see how the service segments, lables, and extracts data from your documents.
 
-* **Use the Aryn SDK:** 
+
+**Use the Aryn SDK:** 
 
 1. Install the Aryn SDK using ``pip``:
 
@@ -57,7 +59,8 @@ Next, you can:
 You can specify additional options (e.g. table extraction), and a list of these options is :doc:`here </aryn_cloud/aryn_partitioning_service.html#specifying-options>`_
 
 
-**Sycamore**
+Sycamore
+^^^^^^^^
 
 1. Install Sycamore with ``pip``:
 

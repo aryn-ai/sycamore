@@ -24,7 +24,7 @@ class TopK(LogicalOperator):
     """If True, will return the top K most common occurrences. If False, will return the top K
     least common occurrences."""
 
-    use_llm: bool = False
+    llm_cluster: bool = False
     """If True (SHOULD BE TRUE if *field* is a is a string field in the database with an unbound
     number of possible values), an LLM will be used to identify top K occurrences. If False
     (SHOULD BE FALSE if *field* is a string field with a bounded number of possible values, or

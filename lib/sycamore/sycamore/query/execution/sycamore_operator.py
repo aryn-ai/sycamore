@@ -544,13 +544,13 @@ class SycamoreTopK(SycamoreOperator):
         assert isinstance(logical_node, TopK)
 
         result = top_k_operation(
-            client=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(s3_cache_path) if s3_cache_path else None),
             docset=self.inputs[0],
+            llm=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(s3_cache_path) if s3_cache_path else None),
             field=logical_node.field,
             k=logical_node.K,
             description=logical_node.description or "",
             descending=logical_node.descending,
-            use_llm=logical_node.use_llm,
+            llm_cluster=logical_node.llm_cluster,
             unique_field=logical_node.primary_field,
             **self.get_execute_args(),
         )
@@ -566,13 +566,13 @@ class SycamoreTopK(SycamoreOperator):
             cache_string = f", cache=S3Cache('{self.s3_cache_path}')"
         result = f"""
 {output_var or get_var_name(self.logical_node)} = top_k_operation(
-    client=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
     docset={input_var or get_var_name(logical_node.dependencies[0])},
+    llm=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
     field='{logical_node.field}',
     k={logical_node.K},
     description='{logical_node.description}',
     descending={logical_node.descending}',
-    use_llm={logical_node.use_llm},
+    llm_cluster={logical_node.llm_cluster},
     unique_field='{logical_node.primary_field}',
     **{self.get_execute_args()},
 )

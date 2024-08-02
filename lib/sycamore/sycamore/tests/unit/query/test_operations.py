@@ -141,13 +141,13 @@ class TestOperations:
         docset = generate_docset({"text_representation": ["apple", "banana", "apple", "banana", "cherry", "apple"]})
 
         top_k_docset = top_k_operation(
-            client=None,
             docset=docset,
+            llm=None,
             field="text_representation",
             k=2,
             description="Find 2 most frequent fruits",
             descending=True,
-            use_llm=False,
+            llm_cluster=False,
         )
         assert top_k_docset.count() == 2
 
@@ -157,15 +157,15 @@ class TestOperations:
         assert top_k_list[1].properties["key"] == "banana"
         assert top_k_list[1].properties["count"] == 2
 
-    def test_top_k_use_llm(self, number_docset):
+    def test_top_k_llm_cluster(self, number_docset):
         top_k_docset = top_k_operation(
-            client=MockLLM(),
             docset=number_docset,
+            llm=MockLLM(),
             field="text_representation",
             k=2,
             description="",
             descending=True,
-            use_llm=True,
+            llm_cluster=True,
         )
         assert top_k_docset.count() == 2
 
@@ -177,7 +177,7 @@ class TestOperations:
 
     def test_llm_cluster_entity(self, number_docset):
         cluster_docset = llm_cluster_entity(
-            client=MockLLM(), docset=number_docset, description="", field="text_representation"
+            docset=number_docset, llm=MockLLM(), description="", field="text_representation"
         )
         for doc in cluster_docset.take():
             if doc.text_representation == "1" or doc.text_representation == "one":

@@ -3,6 +3,7 @@ from typing import Any, Callable, List, Optional, Union
 
 from sycamore import DocSet, Execution
 from sycamore.data import Document, MetadataDocument
+from sycamore.llms.llms import LLM
 from sycamore.llms.openai import OpenAI
 from sycamore.llms.prompts.default_prompts import (
     SummarizeDataMessagesPrompt,
@@ -160,13 +161,13 @@ def inner_join_operation(docset1: DocSet, docset2: DocSet, field1: str, field2: 
 
 
 def top_k_operation(
-    client: OpenAI,
     docset: DocSet,
+    llm: LLM,
     field: str,
     k: Optional[int],
     description: str,
     descending: bool = True,
-    use_llm: bool = False,
+    llm_cluster: bool = False,
     unique_field: Optional[str] = None,
     **kwargs,
 ) -> DocSet:
@@ -180,7 +181,7 @@ def top_k_operation(
         k: Number of top occurrences.
         description: Description of operation purpose.
         descending: Indicates whether to return most or least frequent occurrences.
-        use_llm: Indicates whether an LLM should be used to normalize values of document field.
+        llm_cluster: Indicates whether an LLM should be used to normalize values of document field.
         unique_field: Determines what makes a unique document.
         **kwargs
 
@@ -190,8 +191,8 @@ def top_k_operation(
         sorted based on descending and contains k records.
     """
 
-    if use_llm:
-        docset = llm_cluster_entity(client, docset, description, field)
+    if llm_cluster:
+        docset = llm_cluster_entity(docset, llm, description, field)
         field = "properties._autogen_ClusterAssignment"
 
     docset = docset.groupby_count(field, unique_field, **kwargs)
@@ -203,7 +204,7 @@ def top_k_operation(
     return docset
 
 
-def llm_cluster_entity(client: OpenAI, docset: DocSet, description: str, field: str) -> DocSet:
+def llm_cluster_entity(docset: DocSet, llm: LLM, description: str, field: str) -> DocSet:
     """
     Normalizes a particular field of a DocSet. Identifies and assigns each document to a "group".
 
@@ -230,7 +231,7 @@ def llm_cluster_entity(client: OpenAI, docset: DocSet, description: str, field: 
     prompt_kwargs = {"messages": messages}
 
     # call to LLM
-    completion = client.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0})
+    completion = llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0})
 
     groups = extract_json(completion)
 
@@ -243,7 +244,7 @@ def llm_cluster_entity(client: OpenAI, docset: DocSet, description: str, field: 
 
     entity_extractor = OpenAIEntityExtractor(
         entity_name="_autogen_ClusterAssignment",
-        llm=client,
+        llm=llm,
         use_elements=False,
         prompt=messagesForExtract,
         field=field,

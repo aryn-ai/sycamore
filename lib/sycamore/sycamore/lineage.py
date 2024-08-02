@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, Union, TYPE_CHECKING
 import uuid
 
 from sycamore.context import Context
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 class Materialize(UnaryNode):
-    def __init__(self, child: Node, context: Context, path: Optional[Path | str | dict], **kwargs):
+    def __init__(self, child: Node, context: Context, path: Optional[Union[Path, str, dict]], **kwargs):
         assert isinstance(child, Node)
 
         self._root = None

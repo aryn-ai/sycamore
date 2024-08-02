@@ -1115,7 +1115,6 @@ class DocSet:
         ON docset1.field1 = docset2.field2
 
         Args:
-            docset1: DocSet to filter based on.
             docset2: DocSet to filter.
             field1: Field in docset1 to filter based on.
             field2: Field in docset2 to filter.

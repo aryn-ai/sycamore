@@ -36,8 +36,8 @@ remote-processors = { path = "lib/remote-processors", develop = true }
 integration = { path = "apps/integration", develop = true }
 sycamore-poetry-lock = { path = "lib/poetry-lock", develop = true }
 aryn-sdk = { path = "lib/aryn-sdk", develop = true }
-ruff = "^0.0.287"
 black = "^24.4"
+ruff = "^0.0.287"
 pre-commit = "^3.4.0"
 mypy = "^1.5.1"
 nbmake = "^1.4.5"

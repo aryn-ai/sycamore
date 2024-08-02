@@ -22,9 +22,6 @@ class MatchFilter(BasicFilter):
         query: Query to match for.
         field: Document field that is used for filtering.
         ignore_case: Determines case sensitivity for strings.
-
-    Returns:
-        A filtered DocSet.
     """
 
     def __init__(self, field: str, query: Any, ignore_case: bool = True):
@@ -59,9 +56,6 @@ class RangeFilter(BasicFilter):
         start: Value for start of range.
         end: Value for end of range.
         date: Indicates whether start:end is a date range.
-
-    Returns:
-        A filtered DocSet.
     """
 
     def __init__(

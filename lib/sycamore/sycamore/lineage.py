@@ -1,38 +1,100 @@
-from enum import Enum
-import logging
-import pprint
-from typing import TYPE_CHECKING
+from pathlib import Path
+from typing import Optional, TYPE_CHECKING
+import uuid
 
-from sycamore.plan_nodes import Node, UnaryNode
+from sycamore.context import Context
 from sycamore.data import Document, MetadataDocument
+from sycamore.plan_nodes import Node, UnaryNode
+from sycamore.transforms.base import rename
 
 if TYPE_CHECKING:
     from ray import Dataset
-
-
-class MaterializeMode(Enum):
-    UNKNOWN = 0
-    INMEM_VERIFY_ONLY = 1
-    # todo: more modes
+    import pyarrow
 
 
 class Materialize(UnaryNode):
-    def __init__(self, child: Node, **kwargs):
+    def __init__(self, child: Node, context: Context, path: Optional[Path | str | dict], **kwargs):
         assert isinstance(child, Node)
+
+        self._root = None
+        if path is None:
+            pass
+        elif isinstance(path, str) or isinstance(path, Path):
+            (self._fs, self._root) = self.infer_fs(str(path))
+            self._doc_to_name = self.doc_to_name
+            self._clean_root = True
+        elif isinstance(path, dict):
+            self._root = Path(path["root"])
+            if "fs" in path:
+                self._fs = path["fs"]
+            else:
+                (self._fs, self._root) = self.infer_fs(str(self._root))
+            self._doc_to_name = path.get("name", None) or self.doc_to_name
+            self._clean_root = path.get("clean", True)
+        else:
+            assert False, f"unsupported type ({type(path)}) for path argument, expected str, Path, or dict"
+
         super().__init__(child, **kwargs)
 
     def execute(self, **kwargs) -> "Dataset":
+        # right now, the only thing we can do is save data, so do it in parallel.
+        # once we support validation we won't be able to run the validation in parallel.
+        # non-shared filesystems will also eventually be a problem but we can put it off for now.
         input_dataset = self.child().execute(**kwargs)
-        md = []
-        for row in input_dataset.iter_rows():
-            doc = Document.from_row(row)
-            if not isinstance(doc, MetadataDocument):
-                continue
-            md.append(doc)
+        if self._root is not None:
+            import numpy
+
+            self.cleanup()
+
+            @rename("lineage-materialize")
+            def ray_callable(ray_input: dict[str, numpy.ndarray]) -> dict[str, numpy.ndarray]:
+                for s in ray_input.get("doc", []):
+                    self.save(Document.deserialize(s))
+                return ray_input
+
+            return input_dataset.map_batches(ray_callable)
+
         return input_dataset
 
     def local_execute(self, docs: list[Document]) -> list[Document]:
-        md = [d for d in docs if isinstance(d, MetadataDocument)]
-        logging.info(f"Found {len(md)} md documents")
-        logging.info(f"\n{pprint.pformat(md)}")
+        if self._root is not None:
+            self.cleanup()
+            for d in docs:
+                self.save(d)
+        [d for d in docs if isinstance(d, MetadataDocument)]
+        # logging.info(f"Found {len(md)} md documents")
+        # logging.info(f"\n{pprint.pformat(md)}")
         return docs
+
+    @staticmethod
+    def infer_fs(path: str) -> "pyarrow.FileSystem":
+        from pyarrow import fs
+
+        (fs, root) = fs.FileSystem.from_uri(path)
+        return (fs, Path(root))
+
+    def save(self, doc: Document) -> None:
+        assert self._root is not None
+        name = self._doc_to_name(doc)
+        path = self._root / name
+        with self._fs.open_output_stream(str(path)) as out:
+            out.write(doc.serialize())
+
+    def cleanup(self) -> None:
+        if not self._clean_root:
+            return
+
+        import shutil
+
+        if self._root is None:
+            return
+        shutil.rmtree(self._root, ignore_errors=True)
+        self._root.mkdir(parents=True, exist_ok=True)
+
+    @staticmethod
+    def doc_to_name(doc: Document) -> str:
+        if isinstance(doc, MetadataDocument):
+            return "md-" + str(uuid.uuid4())
+
+        assert isinstance(doc, Document)
+        return doc.doc_id or str(uuid.uuid4())

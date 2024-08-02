@@ -29,6 +29,7 @@ from sycamore.transforms.base import get_name_from_callable
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor
 from sycamore.transforms import Filter
+from sycamore.transforms.sort import Sort
 from sycamore.transforms.summarize import LLMElementTextSummarizer
 from sycamore.transforms.query import QueryExecutor
 
@@ -156,6 +157,12 @@ class TestDocSet:
         docset = DocSet(context, None)
         docset = docset.filter(func)
         assert isinstance(docset.lineage(), Filter)
+
+    def test_sort(self, mocker):
+        context = mocker.Mock(spec=Context)
+        docset = DocSet(context, None)
+        docset = docset.sort(None, None)
+        assert isinstance(docset.lineage(), Sort)
 
     def test_extract_schema(self, mocker):
         context = mocker.Mock(spec=Context)
@@ -338,9 +345,53 @@ class TestDocSet:
             elif doc.text_representation == "test2":
                 assert int(doc.properties[new_field]) == 2
 
-    # Top K
+    
+    def test_groupby_count(self):
+        doc_list = [
+            Document(text_representation="apple"), 
+            Document(text_representation="banana"),
+            Document(text_representation="apple"),
+            Document(text_representation="banana"),
+            Document(text_representation="cherry"),
+            Document(text_representation="apple"),
+            ]
+        context = sycamore.init()
+        docset = context.read.document(doc_list)
+
+        docset = docset.groupby_count(field="text_representation")
+        assert docset.count() == 3
+        for doc in docset.take():
+            if doc.properties["key"] == "banana":
+                assert doc.properties["count"] == 2
+            if doc.properties["key"] == "apple":
+                assert doc.properties["count"] == 3
+            if doc.properties["key"] == "cherry":
+                assert doc.properties["count"] == 1
+
+    def test_groupby_count_unique_field(self):
+        doc_list = [
+            Document(text_representation="apple", parent_id=8), 
+            Document(text_representation="banana", parent_id=7),
+            Document(text_representation="apple", parent_id=8),
+            Document(text_representation="banana", parent_id=7),
+            Document(text_representation="cherry",  parent_id=6),
+            Document(text_representation="apple", parent_id=9),
+            ]
+        context = sycamore.init()
+        docset = context.read.document(doc_list)
+
+        docset = docset.groupby_count(field="text_representation", unique_field="parent_id")
+        assert docset.count() == 3
+        for doc in docset.take():
+            if doc.properties["key"] == "banana":
+                assert doc.properties["count"] == 1
+            if doc.properties["key"] == "apple":
+                assert doc.properties["count"] == 2
+            if doc.properties["key"] == "cherry":
+                assert doc.properties["count"] == 1
+
+
     def test_top_k_discrete(self):
-        # docset = generate_docset({"text_representation": ["apple", "banana", "apple", "banana", "cherry", "apple"]})
 
         doc_list = [
             Document(text_representation="apple"), 
@@ -369,6 +420,35 @@ class TestDocSet:
         assert top_k_list[0].properties["count"] == 3
         assert top_k_list[1].properties["key"] == "banana"
         assert top_k_list[1].properties["count"] == 2
+
+    def test_top_k_unique_field(self):
+
+        doc_list = [
+            Document(text_representation="apple", parent_id=8), 
+            Document(text_representation="banana", parent_id=7),
+            Document(text_representation="apple", parent_id=8),
+            Document(text_representation="banana", parent_id=7),
+            Document(text_representation="cherry",  parent_id=6),
+            Document(text_representation="apple", parent_id=9),
+            ]
+        context = sycamore.init()
+        docset = context.read.document(doc_list)
+
+
+        top_k_docset = docset.top_k(
+            llm=None,
+            field="text_representation",
+            k=1,
+            description="Find 2 most frequent fruits",
+            descending=True,
+            llm_cluster=False,
+            unique_field="parent_id"
+        )
+        assert top_k_docset.count() == 1
+
+        top_k_list = top_k_docset.take()
+        assert top_k_list[0].properties["key"] == "apple"
+        assert top_k_list[0].properties["count"] == 2
 
     def test_top_k_llm_cluster(self):
         doc_list = [

@@ -21,11 +21,11 @@ class Map(BaseMapTransform):
             transformed_dataset = map_transformer.execute()
     """
 
-    def __init__(self, child: Optional[Node], *, f: Any, **kwargs):
-        super().__init__(child, f=Map.wrap(f), **{"name": get_name_from_callable(f), **kwargs})
+    def __init__(self, child: Optional[Node], *, f: Any, f_args: dict = {}, **kwargs):
+        super().__init__(child, f=Map.wrap(f, f_args), **{"name": get_name_from_callable(f), **kwargs})
 
     @staticmethod
-    def wrap(f: Any) -> Callable[[list[Document]], list[Document]]:
+    def wrap(f: Any, f_args: dict = {}) -> Callable[[list[Document]], list[Document]]:
         if isinstance(f, type):
             # mypy doesn't understand the dynamic class inheritence.
             class _Wrap(f):  # type: ignore[valid-type,misc]
@@ -37,7 +37,7 @@ class Map(BaseMapTransform):
                     for d in docs:
                         assert isinstance(d, Document)
                     s = super()
-                    return [s.__call__(d, *args, **kwargs) for d in docs]
+                    return [s.__call__(d, *args, **f_args, **kwargs) for d in docs]
 
             return _Wrap
         else:
@@ -46,7 +46,7 @@ class Map(BaseMapTransform):
                 assert isinstance(docs, list)
                 for d in docs:
                     assert isinstance(d, Document)
-                return [f(d, *args, **kwargs) for d in docs]
+                return [f(d, *args, **f_args, **kwargs) for d in docs]
 
             return _wrap
 

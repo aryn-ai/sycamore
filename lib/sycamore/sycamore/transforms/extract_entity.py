@@ -25,7 +25,7 @@ class EntityExtractor(ABC):
         self._entity_name = entity_name
 
     @abstractmethod
-    def extract_entity(self, document: Document) -> Document:
+    def extract_entity(self, document: Document, context: Context) -> Document:
         pass
 
 
@@ -72,9 +72,6 @@ class OpenAIEntityExtractor(EntityExtractor):
         field: Optional[str] = None,
     ):
         super().__init__(entity_name)
-        if llm is None:
-            llm = Context.current().config.llm
-            assert llm is not None, "OpenAIEntityExtractor requires an LLM"
         self._llm = llm
         self._num_of_elements = num_of_elements
         self._prompt_template = prompt_template
@@ -84,7 +81,11 @@ class OpenAIEntityExtractor(EntityExtractor):
         self._field = field
 
     @timetrace("OaExtract")
-    def extract_entity(self, document: Document) -> Document:
+    def extract_entity(self, document: Document, context: Context) -> Document:
+        if self._llm is None and context:
+            self._llm = context.llm
+            assert self._llm is not None, "OpenAIEntityExtractor requires an LLM"
+
         if self._use_elements:
             if self._prompt_template:
                 entities = self._handle_few_shot_prompting(document)
@@ -160,7 +161,8 @@ class ExtractEntity(Map):
     def __init__(
         self,
         child: Node,
+        context: Context,
         entity_extractor: EntityExtractor,
         **resource_args,
     ):
-        super().__init__(child, f=entity_extractor.extract_entity, **resource_args)
+        super().__init__(child, f=entity_extractor.extract_entity, f_args={"context": context}, **resource_args)

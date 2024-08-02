@@ -32,85 +32,45 @@ we will need an Aryn Cloud API key, which we can get for free at aryn.ai/get-sta
 
 Next, you can:
 
-* **Use the Aryn Playground:** Visit `the Playground<https://play.aryn.cloud/partitioning>` and use the UI to see how the service segments, lables, and extracts data from your documents.
+* **Use the Aryn Playground:** Visit `the Playground<https://play.aryn.cloud/partitioning>`_ and use the UI to see how the service segments, lables, and extracts data from your documents.
 
 * **Use the Aryn SDK:** 
 
-1. Install the Aryn SDK using pip:
+1. Install the Aryn SDK using ``pip``:
 
 ``pip install aryn-sdk``
 
 2. Then, partition your document:
 
-```
-from aryn_sdk.partition import partition_file
-with open("mydocument.pdf", "rb") as f:
-    data = partition_file(f)
-```
+.. code-block:: python
 
-You can specify additional options (e.g. table extraction), and a list of these options is :doc:`here </aryn_cloud/aryn_partitioning_service.html#specifying-options>`
+    from aryn_sdk.partition import partition_file
+    with open("mydocument.pdf", "rb") as f:
+    data = partition_file(f)
+
+..
+
+You can specify additional options (e.g. table extraction), and a list of these options is :doc:`here </aryn_cloud/aryn_partitioning_service.html#specifying-options>`_
 
 
 **Sycamore**
 
-1. Install Sycamore with pip:
+1. Install Sycamore with ``pip``:
 
 ``pip install sycamore-ai``
 
-With Docker installed:
+2. You can next Sycamore scripts to process your docuemnts and unstructured data. `This notebook<https://github.com/aryn-ai/sycamore/blob/main/notebooks/metadata-extraction.ipynb>`_ demonstrates a variety of Sycamore data transforms and loads an OpenSearch hybrid search index.
 
-1.	Clone the Sycamore repo:
+We recommend using the Aryn Partitioning Service with Sycamore to process PDFs, and you can `sign-up here for free<https://www.aryn.ai/get-started>`_ to get an API Key. 
 
-``git clone https://github.com/aryn-ai/sycamore``
-
-2.	Set OpenAI Key:
-
-``export OPENAI_API_KEY=YOUR-KEY``
-
-3.	Go to:
-
-``/sycamore``
-
-4.	Launch Sycamore. Containers will be pulled from DockerHub:
-
-``docker compose up --pull=always``
-
-5.	The Sycamore demo query UI is located at:
-
-``http://localhost:3000/``
-
-You can next choose to run a demo that :doc:`prepares and ingests data from the Sort Benchmark website </welcome_to_sycamore/get_started.md#demo-ingest-and-query-sort-benchmark-dataset>`, :doc:`crawl data from a public website <welcome_to_sycamore/get_started.md#demo-ingest-and-query-data-from-an-arbitrary-website>`, or :doc: `write your own data preparation script </data_ingestion_and_preparation/using_jupyter>`.
-
-For more info about Sycamore’s data ingestion and preparation feature set, visit the :doc:`Sycamore documentation </data_ingestion_and_preparation/data_preparation_concepts>`.
-
-
-Run a demo
---------------------
-
-a. Load demo dataset using the HTTP crawler :doc:`as shown in this tutorial </welcome_to_sycamore/get_started.md#demo-ingest-and-query-sort-benchmark-dataset>`:
-
-``docker compose run crawl_sort_benchmark``
-
-b. Load website data via HTTP crawler :doc:`as shown in this tutorial </welcome_to_sycamore/get_started.md#demo-ingest-and-query-data-from-an-arbitrary-website>`:
-
-``docker compose run crawl_http http://my.website.example.com``
-
-c. Write :doc:`custom data ingestion and preparation code using the Jupyter container </data_ingestion_and_preparation/using_jupyter>`. Access it via the URL from:
-
-``docker compose logs jupyter | grep Visit``
-
-Once you've loaded data, you can run conversational search on your data with the Sycamore demo query UI at localhost:3000
-
-For more details about getting started, visit the :doc:`Sycamore Getting Started page </welcome_to_sycamore/get_started>`.
 
 More Resources
 --------------------
-- Join the Sycamore Slack workspace: https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg
+- Join the Aryn / Sycamore Slack workspace: https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg
+- Watch the intro video to the Aryn Partitioning Service: https://www.aryn.ai/?name=ArynPartitioningService_Intro
+- Sign up for the Aryn Partitioning Service: https://aryn.ai/get-started
+- Use the Aryn Playground to experiment with the Partitioning Service: https://play.aryn.cloud/partitioning
 - View the Sycamore GitHub: https://github.com/aryn-ai/sycamore
-- :doc:`Learn more about Sycamore’s architecture </welcome_to_sycamore/architecture>`
-- :doc:`Learn more about data preparation in Sycamore <data_ingestion_and_preparation/data_preparation_concepts>`
-- :doc:`Integrate your query app with Sycamore </querying_data/integrate_your_application>`
-
 
 .. toctree::
    :caption: Welcome to Sycamore

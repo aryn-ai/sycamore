@@ -49,7 +49,7 @@ class LocationStandardizer(Standardizer):
             return doc
         raw_location = doc.properties['entity']['location']
         city, state = raw_location.split(',')
-        std_loc = f'{city},  {self._standardize_state(state)}'
+        std_loc = f'{city}, {self._standardize_state(state)}'
         doc.properties['entity']['location'] = std_loc 
         return doc 
         

@@ -8,7 +8,7 @@ from typing import List
 
 class AssignDocProperties(SingleThreadUser, NonGPUUser, Map):
     """
-    The assign_docset_properties transform copies properties from specific element to 
+    The assign_docset_properties transform copies properties from specific element property in json to 
     parent document.
 
     Args:

@@ -59,44 +59,44 @@ jobs:
         run: poetry run pytest sycamore/tests/unit/
         working-directory: lib/sycamore
 
-  ### Temporarily disabling rps unit tests because rps is
-  ### not being actively worked on.
-  rps-unit-test:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.9", "3.10", "3.11"]
+  # ### Temporarily disabling rps unit tests because rps is
+  # ### not being actively worked on.
+  # rps-unit-test:
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       python-version: ["3.9", "3.10", "3.11"]
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - name: Install Poetry
-        run: pipx install poetry
-      - name: disk usage
-        run: df -h
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: "poetry"
-      - name: disk usage
-        run: df -h
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v3
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: disk usage
-        run: df -h
-      - name: Install RPS
-        run: make install_rps
-        working-directory: lib/remote-processors
-      - name: disk usage
-        run: df -h
-      - name: Run Tests
-        run: poetry run pytest remote_processors/test/unit/
-        working-directory: lib/remote-processors
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         submodules: recursive
+  #     - name: Install Poetry
+  #       run: pipx install poetry
+  #     - name: disk usage
+  #       run: df -h
+  #     - name: Set up Python ${{ matrix.python-version }}
+  #       uses: actions/setup-python@v4
+  #       with:
+  #         python-version: ${{ matrix.python-version }}
+  #         cache: "poetry"
+  #     - name: disk usage
+  #       run: df -h
+  #     - name: Install Protoc
+  #       uses: arduino/setup-protoc@v3
+  #       with:
+  #         repo-token: ${{ secrets.GITHUB_TOKEN }}
+  #     - name: disk usage
+  #       run: df -h
+  #     - name: Install RPS
+  #       run: make install_rps
+  #       working-directory: lib/remote-processors
+  #     - name: disk usage
+  #       run: df -h
+  #     - name: Run Tests
+  #       run: poetry run pytest remote_processors/test/unit/
+  #       working-directory: lib/remote-processors
 
   # ### Temporarily disable integ tests bc just debugging disk usage atm
   # integ-tests:

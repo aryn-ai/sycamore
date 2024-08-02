@@ -42,8 +42,10 @@ class OpenSearchSchemaFetcher:
                 continue
             try:
                 samples = {
-                    random_sample[i]["_source"]["properties"]["entity"][key[18:]] for i in range(len(random_sample))
+                    random_sample[i]["_source"]["properties"]["entity"].get(key[18:], None)
+                    for i in range(len(random_sample))
                 }
+                samples -= {None}
                 sample_type = type(samples.copy().pop())
                 result[key] = (str(sample_type), {str(example) for example in samples})
             except KeyError:

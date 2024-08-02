@@ -21,6 +21,12 @@ def test_opensearch_schema():
                         "location": {"type": "text", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}}
                     },
                 },
+                "properties.entity.weather": {
+                    "full_name": "properties.entity.weather",
+                    "mapping": {
+                        "weather": {"type": "text", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}}
+                    },
+                },
             }
         }
     }
@@ -44,10 +50,7 @@ def test_opensearch_schema():
                     {
                         "_source": {
                             "properties": {
-                                "entity": {
-                                    "day": "2021-01-02",
-                                    "aircraft": "Airbus A380",
-                                }
+                                "entity": {"day": "2021-01-02", "aircraft": "Airbus A380", "weather": "Sunny"}
                             }
                         }
                     },
@@ -64,4 +67,6 @@ def test_opensearch_schema():
     assert got["properties.entity.day"] == ("<class 'str'>", {"2021-01-01", "2021-01-02"})
     assert "properties.entity.aircraft" in got
     assert got["properties.entity.aircraft"] == ("<class 'str'>", {"Boeing 747", "Airbus A380"})
+    assert "properties.entity.weather" in got
+    assert got["properties.entity.weather"] == ("<class 'str'>", {"Sunny"})
     assert "properties.entity.location" not in got

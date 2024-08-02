@@ -33,6 +33,8 @@ jobs:
         python-version: ["3.9", "3.10", "3.11"]
 
     steps:
+      - name: DF-1
+        run: df
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install poetry
@@ -42,9 +44,13 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: "poetry"
+      - name: DF-2
+        run: df
       - name: Install sycamore
         run: poetry install
         working-directory: lib/sycamore
+      - name: DF-3
+        run: df
       - name: Du
         run: du -kx  / | sort -rn | head -50
       - name: Update Apt

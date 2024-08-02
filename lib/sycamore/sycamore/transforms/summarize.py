@@ -62,7 +62,7 @@ class LLMElementTextSummarizer(Summarizer):
 
         if element.text_representation:
             response = self._llm.generate(prompt_kwargs={"prompt": prompt, "query": element.text_representation})
-            element.properties["summary"] = response
+            element.properties["summary"] = response["summary"]
         return element
 
 

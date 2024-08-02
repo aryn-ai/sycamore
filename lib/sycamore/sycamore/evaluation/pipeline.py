@@ -114,9 +114,6 @@ class EvaluationPipeline:
         summary.metrics = {}
         metric_data: dict[str, Any] = {}
 
-        if not self._metrics:
-            return summary
-
         for metric in self._metrics:
             metric_data[metric.metric_name()] = {}
             summary.metrics[metric.metric_name()] = {}

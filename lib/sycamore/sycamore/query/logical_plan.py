@@ -1,55 +1,51 @@
-from typing import List, Mapping, Optional
-
-from pydantic import BaseModel, ConfigDict, SerializeAsAny
+from typing import Any, Dict, List, Optional
 
 
-class Node(BaseModel):
-    """Represents a node in a logical query plan.
+class Node:
 
-    Args:
-        node_id: The ID of the node.
-        _dependencies: The nodes that this node depends on.
-        _downstream_nodes: The nodes that depend on this node.
-    """
+    def __init__(
+        self, node_id: str, dependencies: Optional[List[Any]] = None, downstream_nodes: Optional[List[Any]] = None
+    ) -> None:
+        super().__init__()
+        self.node_id = node_id
+        self.dependencies = dependencies
+        self.downstream_nodes = downstream_nodes
 
-    # This allows pydantic to pick up field descriptions from
-    # docstrings.
-    model_config = ConfigDict(use_attribute_docstrings=True)
+    def show(self, indent=0, verbose=False):
+        pass
 
-    node_id: int
-    """A unique integer ID representing this node."""
-
-    # These are underscored here to prevent them from leaking out to the
-    # input_schema used by the planner.
-
-    _dependencies: Optional[List["Node"]] = None
-    _downstream_nodes: Optional[List["Node"]] = None
-
-    @property
-    def dependencies(self) -> Optional[List["Node"]]:
-        """The nodes that this node depends on."""
-        return self._dependencies
-
-    @property
-    def downstream_nodes(self) -> Optional[List["Node"]]:
-        """The nodes that depend on this node."""
-        return self._downstream_nodes
-
-    def __str__(self) -> str:
-        return f"Id: {self.node_id} Op: {type(self).__name__}"
+    def type(self) -> str:
+        raise NotImplementedError
 
 
-class LogicalPlan(BaseModel):
-    """Represents a logical query plan.
+def print_dag(node: Node, indent: int = 0, verbose=False) -> None:
+    node.show(indent=indent, verbose=verbose)
+    if node.dependencies:
 
-    Args:
-        result_node: The node that is the result of the query.
-        query: The query that the plan is for.
-        nodes: A mapping of node IDs to nodes.
-        openai_plan: The OpenAI plan that was used to generate this plan.
-    """
+        for dep_node in node.dependencies:
+            print(" " * indent + " | --->")
+            print_dag(dep_node, indent + 4, verbose=verbose)
 
-    result_node: SerializeAsAny[Node]
-    query: str
-    nodes: Mapping[int, SerializeAsAny[Node]]
-    openai_plan: Optional[str] = None
+
+class LogicalPlan:
+    def __init__(
+        self, result_node: Node, nodes: Dict[str, Node], query: str, openai_plan: Optional[str] = None
+    ) -> None:
+        super().__init__()
+        self._result_node = result_node
+        self._query = query
+        self._nodes = nodes
+        self._openai_plan = openai_plan
+
+    def nodes(self):
+        return self._nodes
+
+    def result_node(self):
+        return self._result_node
+
+    def show(self, verbose=False):
+        print(f"Query: {self._query}")
+        print_dag(self._result_node, verbose=verbose)
+
+    def openai_plan(self):
+        print(self._openai_plan)

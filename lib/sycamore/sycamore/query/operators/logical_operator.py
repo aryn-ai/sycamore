@@ -1,14 +1,8 @@
-from dataclasses import dataclass
-from typing import Dict, List, Optional
+import json
+from overrides import override
+from typing import Any, Dict, Optional
 
 from sycamore.query.logical_plan import Node
-
-
-@dataclass
-class LogicalOperatorSchemaField:
-    field_name: str
-    description: Optional[str]
-    type_hint: str
 
 
 class LogicalOperator(Node):
@@ -16,18 +10,27 @@ class LogicalOperator(Node):
     Logical operator class for LLM prompting.
     """
 
-    description: Optional[str] = None
-    """A detailed description of why this operator was chosen for this query plan."""
+    def __init__(self, node_id: str, data: Optional[Dict[Any, Any]] = None):
+        super().__init__(node_id)
+        self.data = data
 
-    input: Optional[List[int]] = None
-    """A list of node IDs that this operation depends on."""
+    @override
+    def show(self, indent=0, verbose=False):
+        print(
+            " " * indent + f"Id: {self.node_id} Operator type: {type(self).__name__} "
+            f"Data description: {self.data.get('description', 'none')}"
+        )
+        if verbose:
+            print(" " * indent + f"  {json.dumps(self.data, indent=indent)}")
 
-    @classmethod
-    def usage(cls) -> str:
-        """Return a detailed description of the usage of this operator. Used by the planner."""
-        return f"""**{cls.__name__}**: {cls.__doc__}"""
+    @staticmethod
+    def description() -> str:
+        raise NotImplementedError
 
-    @classmethod
-    def input_schema(cls) -> Dict[str, LogicalOperatorSchemaField]:
-        """Return a dict mapping field name to type hint for each input field."""
-        return {k: LogicalOperatorSchemaField(k, v.description, str(v.annotation)) for k, v in cls.model_fields.items()}
+    @staticmethod
+    def input_schema() -> Dict[str, Any]:
+        raise NotImplementedError
+
+    @staticmethod
+    def output_schema() -> Dict[str, Any]:
+        raise NotImplementedError

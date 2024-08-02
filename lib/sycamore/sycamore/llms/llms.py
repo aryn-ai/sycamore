@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Any, Optional
 
 from sycamore.utils.cache import Cache
 
@@ -10,11 +10,11 @@ class LLM(ABC):
         self._cache = cache
 
     @abstractmethod
-    def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
+    def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Any:
         pass
 
     @abstractmethod
-    def is_chat_mode(self) -> bool:
+    def is_chat_mode(self):
         pass
 
 
@@ -25,8 +25,8 @@ class FakeLLM(LLM):
         super().__init__("trivial")
         self._return_value = return_value
 
-    def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
+    def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Any:
         return self._return_value
 
-    def is_chat_mode(self) -> bool:
+    def is_chat_mode(self):
         return False

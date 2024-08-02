@@ -25,7 +25,7 @@ class EntityExtractor(ABC):
         self._entity_name = entity_name
 
     @abstractmethod
-    def extract_entity(self, document: Document, context: Context) -> Document:
+    def extract_entity(self, document: Document, context: Optional[Context] = None) -> Document:
         pass
 
 
@@ -81,7 +81,7 @@ class OpenAIEntityExtractor(EntityExtractor):
         self._field = field
 
     @timetrace("OaExtract")
-    def extract_entity(self, document: Document, context: Context) -> Document:
+    def extract_entity(self, document: Document, context: Optional[Context] = None) -> Document:
         if self._llm is None and context:
             self._llm = context.llm
         assert self._llm is not None, "OpenAIEntityExtractor requires an LLM"
@@ -170,8 +170,8 @@ class ExtractEntity(Map):
     def __init__(
         self,
         child: Node,
-        context: Context,
         entity_extractor: EntityExtractor,
+        context: Optional[Context] = None,
         **resource_args,
     ):
         super().__init__(child, f=entity_extractor.extract_entity, f_args={"context": context}, **resource_args)

@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Tuple, Type
 
 from opensearchpy import OpenSearch
 
@@ -17,10 +17,36 @@ from sycamore.query.operators.limit import Limit
 from sycamore.query.operators.logical_operator import LogicalOperator
 from sycamore.utils.extract_json import extract_json
 
-OPERATORS = [LoadData, Filter, LlmFilter, LlmExtract, Count, LlmGenerate, Math, Sort, TopK, Limit]
+
+# All operators that are allowed for construction of a query plan.
+# If a class is not in this list, it will not be used.
+OPERATORS: List[Type[LogicalOperator]] = [
+    LoadData,
+    Filter,
+    LlmFilter,
+    LlmExtract,
+    Count,
+    LlmGenerate,
+    Math,
+    Sort,
+    TopK,
+    Limit,
+]
 
 
 class LlmPlanner:
+    """The top-level query planner for SycamoreQuery. This class is responsible for generating
+    a logical query plan from a user query using the OpenAI LLM.
+
+    Args:
+        index: The name of the index to query.
+        data_schema: A dictionary mapping field names to their types.
+        os_config: The OpenSearch configuration.
+        os_client: The OpenSearch client.
+        operators: A list of operators to use in the query plan.
+        openai_client: The OpenAI client.
+        use_examples: Whether to include examples in the prompt.
+    """
 
     def __init__(
         self,
@@ -28,7 +54,7 @@ class LlmPlanner:
         data_schema: dict[str, Any],
         os_config: dict[str, str],
         os_client: OpenSearch,
-        operators: Optional[List[LogicalOperator]] = None,
+        operators: Optional[List[Type[LogicalOperator]]] = None,
         openai_client: Optional[OpenAI] = None,
         use_examples: bool = True,
     ) -> None:
@@ -41,7 +67,19 @@ class LlmPlanner:
         self._openai_client = openai_client or OpenAI(OpenAIModels.GPT_4O.value)
         self._use_examples = use_examples
 
+    def make_operator_prompt(self, operator: LogicalOperator) -> str:
+        """Generate the prompt fragment for the given LogicalOperator."""
+
+        prompt = operator.usage() + "\n\nInput schema:\n"
+        schema = operator.input_schema()
+        for field_name, value in schema.items():
+            prompt += f"- {field_name} ({value.type_hint}): {value.description}\n"
+        prompt += "\n------------\n"
+        return prompt
+
     def generate_prompt(self, query):
+        """Generate the LLM prompt for the given query."""
+
         prompt = """
         1. Return your answer as a standard JSON list of operators. Make sure to include each
             operation as a separate step.
@@ -73,15 +111,8 @@ class LlmPlanner:
         prompt += """
         OPERATORS:
         """
-        for operator in OPERATORS:
-            prompt += f"""
-            {operator.description()}
-
-            Definition:
-            {operator.input_schema()}
-            ------------------
-
-            """
+        for operator in self._operators:
+            prompt += self.make_operator_prompt(operator)
 
         # examples
         if self._use_examples:
@@ -105,7 +136,7 @@ class LlmPlanner:
                     "description": "Get all the incident reports",
                     "index": "ntsb",
                     "query": "aircraft incident reports"
-                    "id": 0
+                    "node_id": 0
                 },
                 {
                     "operatorName": "LlmFilter",
@@ -113,7 +144,7 @@ class LlmPlanner:
                     "question": "Did this incident occur in Georgia?",
                     "field": "properties.entity.location",
                     "input": [0],
-                    "id": 1
+                    "node_id": 1
                 },
                 {
                     "operatorName": "LlmGenerate",
@@ -121,7 +152,7 @@ class LlmPlanner:
                         Input 1 is a database that contains incidents in Georgia.",
                     "question": "Were there any incidents in Georgia?",
                     "input": [1],
-                    "id": 2
+                    "node_id": 2
                 }
             ]
 
@@ -142,23 +173,27 @@ class LlmPlanner:
                     "description": "Get all the incident reports",
                     "index": "ntsb",
                     "query": "aircraft incident reports",
-                    "id": 0
+                    "node_id": 0
                 },
                 {
                     "operatorName": "Filter",
                     "description": "Filter to only include Cessna aircraft incidents",
-                    "question": "Cessna",
+                    "rangeFilter": false,
+                    "query": "Cessna",
+                    "start": null,
+                    "end": null,
                     "field": "properties.entity.aircraft",
+                    "date": false,
                     "input": [0],
-                    "id": 1
+                    "node_id": 1,
                 },
                 {
                     "operatorName": "Count",
                     "description": "Count the number of cities that accidents occured in",
                     "field": "properties.entity.city",
-                    "primaryField": "properties.entity.accidentNumber",
+                    "primary_field": "properties.entity.accidentNumber",
                     "input": [1],
-                    "id": 2
+                    "node_id": 2
                 },
                 {
                     "operatorName": "LlmGenerate",
@@ -167,7 +202,7 @@ class LlmPlanner:
                         cities that accidents occurred in.",
                     "question": "How many cities did Cessna aircrafts have incidents in?",
                     "input": [2],
-                    "id": 3
+                    "node_id": 3
                 }
             ]
 
@@ -187,7 +222,7 @@ class LlmPlanner:
                     "description": "Get all the financial documents",
                     "index": "finance",
                     "query": "law firm financial documents",
-                    "id": 0
+                    "node_id": 0
                 },
                 {
                     "operatorName": "Filter",
@@ -199,22 +234,23 @@ class LlmPlanner:
                     "field": "properties.entity.date",
                     "date": true,
                     "input": [0],
-                    "id": 1,
+                    "node_id": 1,
                 },
+                {
                     "operatorName": "Sort",
                     "description": "Sort in descending order by revenue",
                     "descending": true,
                     "field": "properties.entity.revenue",
-                    "defaultValue": 0
+                    "default_value": 0
                     "input": [1],
-                    "id": 2,
+                    "node_id": 2,
                 },
                 {
                     "operatorName": "Limit",
                     "description": "Get the 2 law firms with highest revenue",
                     "K": 2
                     "input": [2],
-                    "id": 3,
+                    "node_id": 3,
                 }
                 {
                     "operatorName": "LlmGenerate",
@@ -223,7 +259,7 @@ class LlmPlanner:
                         about the 2 law firms with the highest revenue.",
                     "question": "Which 2 law firms had the highest revenue in 2022?",
                     "input": [3],
-                    "id": 4
+                    "node_id": 4
                 }
             ]
 
@@ -244,29 +280,29 @@ class LlmPlanner:
                     "description": "Get all the shipwreck records",
                     "index": "shipwrecks",
                     "query": "shipwreck records",
-                    "id": 0
+                    "node_id": 0
                 },
                 {
                     "operatorName": "LlmExtract",
                     "description": "Extract the country",
                     "question": "What country was responsible for this ship?",
                     "field": "text_representation",
-                    "newField": "country",
+                    "new_field": "country",
                     "format": "string",
                     "discrete": true,
                     "input": [0],
-                    "id": 1
+                    "node_id": 1
                 },
                 {
                     "operatorName": '"TopK"',
                     "description": "Gets top 5 water bodies based on shipwrecks",
                     "field": "properties.country",
-                    "primaryField": "properties.entity.shipwreck_id",
+                    "primary_field": "properties.entity.shipwreck_id",
                     "K": 5,
                     "descending": true,
                     "useLLM": false,
                     "input": [1],
-                    "id": 2,
+                    "node_id": 2,
                 },
                 {
                     "operatorName": "LlmGenerate",
@@ -275,7 +311,7 @@ class LlmPlanner:
                         occurred in and their corresponding frequency counts.",
                     "question": "Which 5 countries were responsible for the most shipwrecks?",
                     "input": [2],
-                    "id": 3
+                    "node_id": 3
                 }
             ]
 
@@ -294,15 +330,15 @@ class LlmPlanner:
                     "description": "Get all the shipwreck records",
                     "index": "shipwrecks",
                     "query": "shipwreck records",
-                    "id": 0
+                    "node_id": 0
                 },
                 {
                     "operatorName": "Count",
                     "description": "Count the number of total shipwrecks",
                     "field": null,
-                    "primaryField": "properties.entity.shipwreck_id",
+                    "primary_field": "properties.entity.shipwreck_id",
                     "input": [0],
-                    "id": 1
+                    "node_id": 1
                 },
                 {
                     "operatorName": "Filter",
@@ -314,22 +350,22 @@ class LlmPlanner:
                     "field": "properties.entity.date",
                     "date": true,
                     "input": [0],
-                    "id": 2,
+                    "node_id": 2,
                 },
                 {
                     "operatorName": "Count",
                     "description": "Count the number of shipwrecks in 2023",
                     "field": null,
-                    "primaryField": "properties.entity.shipwreck_id",
+                    "primary_field": "properties.entity.shipwreck_id",
                     "input": [2],
-                    "id": 3
+                    "node_id": 3
                 },
                 {
                     "operatorName": "Math",
                     "description": "Divide the number of shipwrecks in 2023 by the total number",
                     "type": "divide",
                     "input": [3, 1],
-                    "id": 4
+                    "node_id": 4
                 }
                 {
                     "operatorName": "LlmGenerate",
@@ -337,7 +373,7 @@ class LlmPlanner:
                         number that is the fraction of shipwrecks that occurred in 2023.",
                     "question": "What percent of shipwrecks occurred in 2023?",
                     "input": [4],
-                    "id": 5
+                    "node_id": 5
                 }
             ]
 
@@ -381,7 +417,9 @@ class LlmPlanner:
         """
         return prompt
 
-    def generate_from_openai(self, question):
+    def generate_from_openai(self, question: str) -> str:
+        """Use OpenAI LLM to generate a query plan for the given question."""
+
         messages = [
             {
                 "role": "user",
@@ -390,56 +428,58 @@ class LlmPlanner:
         ]
 
         prompt_kwargs = {"messages": messages}
-
-        # call to LLM
         chat_completion = self._openai_client.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
-
-        # for chunk in stream:
-        #     print(chunk.choices[0].delta.content or "", end="")
-
         return chat_completion
 
-    def process_llm_json_plan(self, llm_json_plan: str):
-        # ugly
+    def process_llm_json_plan(self, llm_json_plan: str) -> Tuple[LogicalOperator, Mapping[int, LogicalOperator]]:
+        """Given the query plan provided by the LLM, return a tuple of (result_node, list of nodes)."""
+
         classes = globals()
-
-        # parse string as json
         parsed_plan = extract_json(llm_json_plan)
-        assert isinstance(parsed_plan, list)
+        assert isinstance(parsed_plan, list), f"Expected LLM query plan to contain a list, got f{type(parsed_plan)}"
 
-        nodes: Dict[str, LogicalOperator] = dict()
-        downstream_dependencies: Dict[str, List[int]] = dict()
+        nodes: MutableMapping[int, LogicalOperator] = {}
+        downstream_dependencies: Dict[int, List[int]] = {}
 
         # 1. Build nodes
         for step in parsed_plan:
-            node_id = step["id"]
+            node_id = step["node_id"]
             cls = classes.get(step["operatorName"])
             if cls is None:
                 raise ValueError(f"Operator {step['operatorName']} not found")
-            node = cls(node_id, step)
-            node.description = step.get("description", "")
-            nodes[node_id] = node
+            if cls not in self._operators:
+                raise ValueError(f"Operator {step['operatorName']} is not a valid operator")
+            try:
+                node = cls(**step)
+                nodes[node_id] = node
+            except Exception as e:
+                raise ValueError(f"Error creating node {node_id} of type {step['operatorName']}: {e}") from e
 
         # 2. Set dependencies
         for node_id, node in nodes.items():
-            if "input" not in node.data:
+            if not node.input:
                 continue
             inputs = []
-            for dependency_id in node.data["input"]:
-                downstream_dependencies[dependency_id] = downstream_dependencies.get(dependency_id, list()) + [node]
+            for dependency_id in node.input:
+                downstream_dependencies[dependency_id] = downstream_dependencies.get(dependency_id, []) + [node]
                 inputs += [nodes.get(dependency_id)]
-            node.dependencies = inputs
+            # pylint: disable=protected-access
+            node._dependencies = inputs
 
+        # 3. Set downstream nodes
         for node_id, node in nodes.items():
             if node_id in downstream_dependencies.keys():
-                node.downstream_nodes = downstream_dependencies[node_id]
+                # pylint: disable=protected-access
+                node._downstream_nodes = downstream_dependencies[node_id]
 
-        resultNodes = list(filter(lambda n: n.downstream_nodes is None, nodes.values()))
+        # pylint: disable=protected-access
+        resultNodes = list(filter(lambda n: n._downstream_nodes is None, nodes.values()))
         if len(resultNodes) == 0:
-            raise Exception("Invalid plan: Plan requires at least one LlmGenerate result node")
+            raise Exception("Invalid plan: Plan requires at least one terminal node")
         return resultNodes[0], nodes
 
     def plan(self, question: str) -> LogicalPlan:
+        """Given a question from the user, generate a logical query plan."""
         openai_plan = self.generate_from_openai(question)
         result_node, nodes = self.process_llm_json_plan(openai_plan)
         plan = LogicalPlan(result_node=result_node, nodes=nodes, query=question, openai_plan=openai_plan)

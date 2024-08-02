@@ -21,15 +21,16 @@ class OpenSearchSchema:
 
         for k, v in schema[self._index]["mappings"].items():
             if k.startswith("properties.entity") and ".keyword" not in k:
-                key = k
-                # key = k[18:]
-                result[key] = f"({type(random_sample[0]['_source']['properties']['entity'][k[18:]])}) e.g. "
+                try:
+                    key = k
+                    result[key] = f"({type(random_sample[0]['_source']['properties']['entity'][k[18:]])}) e.g. "
+                    for i in range(len(random_sample)):
+                        result[key] += "(" + str(random_sample[i]["_source"]["properties"]["entity"][k[18:]]) + ")"
+                        if i != 9:
+                            result[key] += ", "
+                except KeyError:
+                    continue
 
-                for i in range(len(random_sample)):
-                    result[key] += "(" + str(random_sample[i]["_source"]["properties"]["entity"][k[18:]]) + ")"
-
-                    if i != 9:
-                        result[key] += ", "
 
         result["text_representation"] = "(<class 'str'>) Can be assumed to have all other details"
 

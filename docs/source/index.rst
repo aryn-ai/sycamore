@@ -35,6 +35,7 @@ Next, you can:
 
 **Use the Aryn Playground:** Visit `the Playground<https://play.aryn.cloud/partitioning>`_ and use the UI to see how the service segments, lables, and extracts data from your documents.
 
+|
 
 **Use the Aryn SDK:** 
 
@@ -58,6 +59,7 @@ Next, you can:
 
 You can specify additional options (e.g. table extraction), and a list of these options is :doc:`here </aryn_cloud/aryn_partitioning_service.html#specifying-options>`_
 
+|
 
 Sycamore
 ^^^^^^^^

@@ -38,7 +38,11 @@ Next, you can:
 
 1. Install the Aryn SDK using ``pip``:
 
-``pip install aryn-sdk``
+.. code-block:: python
+
+pip install aryn-sdk
+
+..
 
 2. Then, partition your document:
 
@@ -57,7 +61,11 @@ You can specify additional options (e.g. table extraction), and a list of these 
 
 1. Install Sycamore with ``pip``:
 
-``pip install sycamore-ai``
+.. code-block:: python
+
+pip install sycamore-ai
+
+..
 
 2. You can next Sycamore scripts to process your docuemnts and unstructured data. `This notebook<https://github.com/aryn-ai/sycamore/blob/main/notebooks/metadata-extraction.ipynb>`_ demonstrates a variety of Sycamore data transforms and loads an OpenSearch hybrid search index.
 

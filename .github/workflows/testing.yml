@@ -45,6 +45,8 @@ jobs:
       - name: Install sycamore
         run: poetry install
         working-directory: lib/sycamore
+      - name: Du
+        run: du -k /
       - name: Update Apt
         run: sudo apt-get update
       - name: Install poppler and tesseract

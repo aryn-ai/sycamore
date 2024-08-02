@@ -1107,15 +1107,11 @@ class DocSet:
         # LLM response
         return docset
 
-    def inner_join(self, docset2: "DocSet", field1: str, field2: str) -> "DocSet":
+    def field_in(self, docset2: "DocSet", field1: str, field2: str) -> "DocSet":
         """
         Joins two docsets based on specified fields; docset1 filtered based on values of docset2.
 
-        SQL Equivalent:
-        SELECT docset1.*
-        FROM docset1
-        INNER JOIN docset2
-        ON docset1.field1 = docset2.field2
+        SQL Equivalent: SELECT * FROM docset1 WHERE field1 IN (SELECT field2 FROM docset2);
 
         Args:
             docset2: DocSet to filter.

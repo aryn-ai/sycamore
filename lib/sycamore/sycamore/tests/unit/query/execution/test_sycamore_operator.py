@@ -2,14 +2,14 @@ import unittest
 from unittest.mock import patch, ANY, Mock
 
 import sycamore
-from sycamore.query.operators.inner_join import InnerJoin
+from sycamore.query.operators.field_in import FieldIn
 from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
 from sycamore import DocSet
 
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.limit import Limit
 from sycamore.query.execution.sycamore_operator import (
-    SycamoreInnerJoin,
+    SycamoreFieldIn,
     SycamoreQueryDatabase,
     SycamoreSummarizeData,
     SycamoreLlmFilter,
@@ -188,12 +188,12 @@ def test_join():
     doc_set1 = Mock(spec=DocSet)
     doc_set2 = Mock(spec=DocSet)
     return_value = Mock(spec=DocSet)
-    doc_set1.inner_join.return_value = return_value
-    logical_node = InnerJoin(node_id=0, field_one="field1", field_two="field2")
-    sycamore_operator = SycamoreInnerJoin(context, logical_node, query_id="test", inputs=[doc_set1, doc_set2])
+    doc_set1.field_in.return_value = return_value
+    logical_node = FieldIn(node_id=0, field_one="field1", field_two="field2")
+    sycamore_operator = SycamoreFieldIn(context, logical_node, query_id="test", inputs=[doc_set1, doc_set2])
     result = sycamore_operator.execute()
 
-    doc_set1.inner_join.assert_called_once_with(
+    doc_set1.field_in.assert_called_once_with(
         docset2=doc_set2, field1=logical_node.field_one, field2=logical_node.field_two
     )
 

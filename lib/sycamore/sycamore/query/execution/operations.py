@@ -4,7 +4,6 @@ from typing import Any, List, Union
 from sycamore import DocSet
 from sycamore.data import MetadataDocument
 from sycamore.llms.llms import LLM
-from sycamore.llms.openai import OpenAI
 from sycamore.llms.prompts.default_prompts import (
     SummarizeDataMessagesPrompt,
 )

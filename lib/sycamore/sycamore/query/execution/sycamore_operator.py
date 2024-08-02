@@ -12,7 +12,7 @@ from sycamore.query.operators.llm_filter import LlmFilter
 from sycamore.query.operators.summarize_data import SummarizeData
 from sycamore.query.operators.query_database import QueryDatabase
 from sycamore.query.operators.top_k import TopK
-from sycamore.query.operators.inner_join import InnerJoin
+from sycamore.query.operators.field_in import FieldIn
 from sycamore.query.operators.sort import Sort
 
 from sycamore.query.execution.operations import (
@@ -578,7 +578,7 @@ class SycamoreTopK(SycamoreOperator):
         ]
 
 
-class SycamoreInnerJoin(SycamoreOperator):
+class SycamoreFieldIn(SycamoreOperator):
     """
     Return 2 DocSets joined
     """
@@ -586,7 +586,7 @@ class SycamoreInnerJoin(SycamoreOperator):
     def __init__(
         self,
         context: Context,
-        logical_node: InnerJoin,
+        logical_node: FieldIn,
         query_id: str,
         inputs: Optional[List[Any]] = None,
         trace_dir: Optional[str] = None,
@@ -602,11 +602,11 @@ class SycamoreInnerJoin(SycamoreOperator):
         ), "Join requires 2 DocSet inputs"
 
         logical_node = self.logical_node
-        assert isinstance(logical_node, InnerJoin)
+        assert isinstance(logical_node, FieldIn)
         field1 = logical_node.field_one
         field2 = logical_node.field_two
 
-        result = self.inputs[0].inner_join(
+        result = self.inputs[0].field_in(
             docset2=self.inputs[1],
             field1=field1,
             field2=field2,
@@ -615,19 +615,19 @@ class SycamoreInnerJoin(SycamoreOperator):
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         logical_node = self.logical_node
-        assert isinstance(logical_node, InnerJoin)
+        assert isinstance(logical_node, FieldIn)
         field1 = logical_node.field_one
         field2 = logical_node.field_two
         assert logical_node.dependencies is not None and len(logical_node.dependencies) == 2
 
         result = f"""
-{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(logical_node.dependencies[0])}.inner_join(
+{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(logical_node.dependencies[0])}.field_in(
     docset2={input_var or get_var_name(logical_node.dependencies[2])},
     field1='{field1}',
     field2='{field2}'
 )
 """
-        return result, ["from sycamore.query.execution.operations import inner_join_operation"]
+        return result, []
 
 
 class SycamoreLimit(SycamoreOperator):

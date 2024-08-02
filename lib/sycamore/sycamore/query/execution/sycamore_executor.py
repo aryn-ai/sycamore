@@ -14,7 +14,7 @@ from sycamore.query.execution.physical_operator import PhysicalOperator
 from sycamore.query.operators.math import Math
 from sycamore.query.operators.sort import Sort
 from sycamore.query.operators.top_k import TopK
-from sycamore.query.operators.inner_join import InnerJoin
+from sycamore.query.operators.field_in import FieldIn
 from structlog.contextvars import clear_contextvars, bind_contextvars
 from sycamore import Context
 
@@ -29,7 +29,7 @@ from sycamore.query.execution.sycamore_operator import (
     SycamoreTopK,
     SycamoreSort,
     SycamoreLimit,
-    SycamoreInnerJoin,
+    SycamoreFieldIn,
 )
 from sycamore.query.logical_plan import LogicalPlan
 
@@ -166,8 +166,8 @@ class SycamoreExecutor:
                 trace_dir=self.trace_dir,
                 s3_cache_path=s3_cache_path,
             )
-        elif isinstance(logical_node, InnerJoin):
-            operation = SycamoreInnerJoin(
+        elif isinstance(logical_node, FieldIn):
+            operation = SycamoreFieldIn(
                 context=self.context,
                 logical_node=logical_node,
                 query_id=query_id,

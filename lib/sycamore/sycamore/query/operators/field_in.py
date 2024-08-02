@@ -1,7 +1,7 @@
 from sycamore.query.operators.logical_operator import LogicalOperator
 
 
-class InnerJoin(LogicalOperator):
+class FieldIn(LogicalOperator):
     """Joins two databases based on a particular field.
 
     Values of *field_one* from

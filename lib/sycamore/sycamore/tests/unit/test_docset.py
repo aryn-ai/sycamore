@@ -476,9 +476,9 @@ class TestDocSet:
             elif doc.text_representation == "3" or doc.text_representation == "three":
                 assert doc.properties["_autogen_ClusterAssignment"] == "group3"
 
-    def test_inner_join(self, number_docset, words_and_ids_docset):
+    def test_field_in(self, number_docset, words_and_ids_docset):
 
-        joined_docset = words_and_ids_docset.inner_join(docset2=number_docset, field1="doc_id", field2="parent_id")
+        joined_docset = words_and_ids_docset.field_in(docset2=number_docset, field1="doc_id", field2="parent_id")
         assert joined_docset.count() == 2
 
         for doc in joined_docset.take():
@@ -490,7 +490,7 @@ class TestDocSet:
             elif doc.doc_id == 1:
                 assert doc.text_representation == "submarine"
 
-        joined_docset_reverse = number_docset.inner_join(
+        joined_docset_reverse = number_docset.field_in(
             docset2=words_and_ids_docset, field1="parent_id", field2="doc_id"
         )
 

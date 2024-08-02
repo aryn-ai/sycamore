@@ -1,4 +1,5 @@
-from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Tuple, Type
+import json
+from typing import Dict, List, Mapping, MutableMapping, Optional, Tuple, Type
 
 from opensearchpy import OpenSearch
 
@@ -15,6 +16,7 @@ from sycamore.query.operators.sort import Sort
 from sycamore.query.operators.topk import TopK
 from sycamore.query.operators.limit import Limit
 from sycamore.query.operators.logical_operator import LogicalOperator
+from sycamore.query.schema import OpenSearchSchema
 from sycamore.utils.extract_json import extract_json
 
 
@@ -51,7 +53,7 @@ class LlmPlanner:
     def __init__(
         self,
         index: str,
-        data_schema: dict[str, Any],
+        data_schema: OpenSearchSchema,
         os_config: dict[str, str],
         os_client: OpenSearch,
         operators: Optional[List[Type[LogicalOperator]]] = None,
@@ -76,6 +78,16 @@ class LlmPlanner:
             prompt += f"- {field_name} ({value.type_hint}): {value.description}\n"
         prompt += "\n------------\n"
         return prompt
+
+    def make_schema_prompt(self) -> str:
+        """Generate the prompt fragment for the data schema."""
+        return json.dumps(
+            {
+                field: f"{field_type} (e.g., {', '.join({str(e) for e in examples})})"
+                for field, (field_type, examples) in self._data_schema.items()
+            },
+            indent=2,
+        )
 
     def generate_prompt(self, query):
         """Generate the LLM prompt for the given query."""
@@ -104,7 +116,7 @@ class LlmPlanner:
         """
         prompt += f"""
         DATA_SCHEMA:
-        {self._data_schema}
+        {self.make_schema_prompt()}
         """
 
         # operator definitions
@@ -415,6 +427,7 @@ class LlmPlanner:
         prompt += f"""
         USER QUESTION: {query}
         """
+        print(prompt)
         return prompt
 
     def generate_from_openai(self, question: str) -> str:
@@ -473,10 +486,10 @@ class LlmPlanner:
                 node._downstream_nodes = downstream_dependencies[node_id]
 
         # pylint: disable=protected-access
-        resultNodes = list(filter(lambda n: n._downstream_nodes is None, nodes.values()))
-        if len(resultNodes) == 0:
-            raise Exception("Invalid plan: Plan requires at least one terminal node")
-        return resultNodes[0], nodes
+        result_nodes = list(filter(lambda n: n._downstream_nodes is None, nodes.values()))
+        if len(result_nodes) == 0:
+            raise RuntimeError("Invalid plan: Plan requires at least one terminal node")
+        return result_nodes[0], nodes
 
     def plan(self, question: str) -> LogicalPlan:
         """Given a question from the user, generate a logical query plan."""

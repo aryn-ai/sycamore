@@ -64,11 +64,8 @@ def show_traces():
                     # print(doc.properties['LlmFilterOutput'])
 
                     for p in doc.properties:
-                        if p not in BASE_PROPS:
-                            try:
-                                doc_list[p] = doc.properties[p]
-                            except:
-                                doc_list[p] = None
+                        if p not in BASE_PROPS and p in doc.properties:
+                            doc_list[p] = doc.properties[p]
 
                     data_list.append(doc_list)
 
@@ -90,6 +87,7 @@ def generate_code(client, plan):
             language="python",
             min_lines=20,
         )
+
 
 def show_dag(plan: LogicalPlan):
     nodes = []
@@ -134,7 +132,7 @@ def run_query(query: str, index: str, plan_only: bool, do_trace: bool, use_cache
             st.session_state.trace_dir = DEFAULT_TRACE_DIR
             st.write(f"Writing execution traces to `{st.session_state.trace_dir}`")
         else:
-            st.warning(f"Tracing currently not supported with plan only")
+            st.warning("Tracing currently not supported with plan only")
     if use_cache:
         st.write(f"Using cache at `{st.session_state.s3_cache_path}`")
     client = SycamoreQueryClient(
@@ -155,21 +153,21 @@ def run_query(query: str, index: str, plan_only: bool, do_trace: bool, use_cache
         if do_trace:
             st.subheader("Traces", divider="blue")
             show_traces()
-        
+
     else:
         generate_code(client, plan)
         if "code" in st.session_state and st.session_state.code:
             execute_button = st.button("Execute Code")
             if execute_button:
-                code_locals = {}
+                code_locals: dict = {}
                 try:
                     with st.spinner("Executing code..."):
                         exec(st.session_state.code, globals(), code_locals)
                 except Exception as e:
                     st.exception(e)
-                if code_locals and 'result' in code_locals:
+                if code_locals and "result" in code_locals:
                     st.subheader("Result", divider="rainbow")
-                    st.success(code_locals['result'])
+                    st.success(code_locals["result"])
 
 
 client = SycamoreQueryClient()

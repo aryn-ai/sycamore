@@ -4,7 +4,6 @@
 
 import os
 import pickle
-# import tempfile
 from typing import Any
 import pandas as pd
 
@@ -132,7 +131,6 @@ def run_query(query: str, index: str, plan_only: bool, do_trace: bool, use_cache
     st.session_state.trace_dir = None
     if do_trace:
         if not plan_only:
-            # trace_dir = tempfile.mkdtemp()
             st.session_state.trace_dir = DEFAULT_TRACE_DIR
             st.write(f"Writing execution traces to `{st.session_state.trace_dir}`")
         else:
@@ -160,6 +158,18 @@ def run_query(query: str, index: str, plan_only: bool, do_trace: bool, use_cache
         
     else:
         generate_code(client, plan)
+        if "code" in st.session_state and st.session_state.code:
+            execute_button = st.button("Execute Code")
+            if execute_button:
+                code_locals = {}
+                try:
+                    with st.spinner("Executing code..."):
+                        exec(st.session_state.code, globals(), code_locals)
+                except Exception as e:
+                    st.exception(e)
+                if code_locals and 'result' in code_locals:
+                    st.subheader("Result", divider="rainbow")
+                    st.success(code_locals['result'])
 
 
 client = SycamoreQueryClient()
@@ -192,16 +202,3 @@ if submitted:
 elif "query_set" in st.session_state and st.session_state.query_set:
     show_schema(schema_container, client.get_opensearch_schema(st.session_state.index))
     run_query(st.session_state.query, st.session_state.index, plan_only, do_trace, use_cache)
-
-if "code" in st.session_state and st.session_state.code:
-    execute_button = st.button("Execute Code")
-    if execute_button:
-        code_locals = {}
-        try:
-            with st.spinner("Executing code..."):
-                exec(st.session_state.code, globals(), code_locals)
-        except Exception as e:
-            st.exception(e)
-        if code_locals and 'result' in code_locals:
-            st.subheader("Result", divider="rainbow")
-            st.success(code_locals['result'])

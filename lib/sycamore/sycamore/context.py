@@ -67,4 +67,5 @@ def init(exec_mode=ExecMode.RAY, ray_args: Optional[dict[str, Any]] = None, **kw
 
 def shutdown() -> None:
     import ray
+
     ray.shutdown()

@@ -64,7 +64,7 @@ def show_traces():
                     for p in doc.properties:
                         if p not in BASE_PROPS and p in doc.properties:
                             doc_list[p] = doc.properties[p]
-
+                    doc_list['text_representation'] = doc.text_representation
                     data_list.append(doc_list)
 
         df = pd.DataFrame(data_list)

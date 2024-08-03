@@ -4,8 +4,9 @@
 
 import os
 import pickle
-import tempfile
+# import tempfile
 from typing import Any
+import pandas as pd
 
 import streamlit as st
 from streamlit_ace import st_ace
@@ -18,14 +19,22 @@ from sycamore.query.operators.logical_operator import LogicalOperator
 
 
 DEFAULT_S3_CACHE_PATH = "s3://aryn-temp/llm_cache/luna/ntsb"
-
-
-# def execute(code: str):
-#     code_locals = {}
-#     try:
-#         exec(code, globals(), code_locals)
-#     except Exception as e:
-#         st.exception(e)
+DEFAULT_TRACE_DIR = "luna_traces"
+DEFAULT_FULL_TRACE_DIR = f"{os.path.dirname(os.getcwd())}/query-ui/luna_traces"
+BASE_PROPS = set(
+    [
+        "filename",
+        "filetype",
+        "page_number",
+        "page_numbers",
+        "links",
+        "element_id",
+        "parent_id",
+        "_schema",
+        "_schema_class",
+        "entity",
+    ]
+)
 
 
 def show_schema(container: Any, schema: dict[str, str]):
@@ -37,14 +46,38 @@ def show_schema(container: Any, schema: dict[str, str]):
         st.dataframe(table_data)
 
 
-def show_traces(trace_dir):
+def show_traces():
     """Show the traces in the given trace_dir."""
-    for root, _, files in os.walk(trace_dir):
-        for file in files:
-            with open(os.path.join(root, file), "rb") as f:
-                unpickled = pickle.load(f)
-                with st.expander(f"Trace: `{file}`"):
-                    st.write(f"```{str(unpickled)}```")
+    base_dir = f"{DEFAULT_FULL_TRACE_DIR}/{st.session_state.query_id}"
+    for id in sorted(os.listdir(f"{base_dir}")):
+
+        # Initialize a list to hold the data
+        data_list = []
+        directory = f"{base_dir}/{id}"
+
+        for filename in os.listdir(directory):
+            f = os.path.join(directory, filename)
+            if os.path.isfile(f):
+                with open(f, "rb") as file:
+                    doc = pickle.load(file)
+                    doc_list = doc.properties["entity"]
+
+                    # print(doc.properties['LlmFilterOutput'])
+
+                    for p in doc.properties:
+                        if p not in BASE_PROPS:
+                            try:
+                                doc_list[p] = doc.properties[p]
+                            except:
+                                doc_list[p] = None
+
+                    data_list.append(doc_list)
+
+        df = pd.DataFrame(data_list)
+
+        st.write(f"Docset after node {id} — {len(df)} documents")
+
+        st.dataframe(df)
 
 
 @st.experimental_fragment
@@ -58,20 +91,6 @@ def generate_code(client, plan):
             language="python",
             min_lines=20,
         )
-        # execute(st.session_state.code)
-        # execute_button = st.button("Execute Code")
-        # if execute_button:
-        #     # execute(st.session_state.code)
-
-        #     code_locals = {}
-        #     try:
-        #         exec(st.session_state.code, globals(), code_locals)
-        #     except Exception as e:
-        #         st.exception(e)
-
-        #     st.subheader("Result", divider="rainbow")
-        #     st.success(code_locals['result'])
-
 
 def show_dag(plan: LogicalPlan):
     nodes = []
@@ -98,7 +117,7 @@ def show_dag(plan: LogicalPlan):
                 edges.append(Edge(source=dep.node_id, target=node.node_id, color="#ffffff"))
 
     config = Config(
-        width=500,
+        width=700,
         height=500,
         directed=True,
         physics=False,
@@ -110,14 +129,18 @@ def show_dag(plan: LogicalPlan):
 
 def run_query(query: str, index: str, plan_only: bool, do_trace: bool, use_cache: bool):
     """Run the given query."""
-    trace_dir = None
+    st.session_state.trace_dir = None
     if do_trace:
-        trace_dir = tempfile.mkdtemp()
-        st.write(f"Writing execution traces to `{trace_dir}`")
+        if not plan_only:
+            # trace_dir = tempfile.mkdtemp()
+            st.session_state.trace_dir = DEFAULT_TRACE_DIR
+            st.write(f"Writing execution traces to `{st.session_state.trace_dir}`")
+        else:
+            st.warning(f"Tracing currently not supported with plan only")
     if use_cache:
         st.write(f"Using cache at `{st.session_state.s3_cache_path}`")
     client = SycamoreQueryClient(
-        trace_dir=trace_dir, s3_cache_path=st.session_state.s3_cache_path if use_cache else None
+        trace_dir=st.session_state.trace_dir, s3_cache_path=st.session_state.s3_cache_path if use_cache else None
     )
     with st.spinner("Getting schema..."):
         schema = client.get_opensearch_schema(index)
@@ -127,14 +150,16 @@ def run_query(query: str, index: str, plan_only: bool, do_trace: bool, use_cache
         show_dag(plan)
     if not plan_only:
         with st.spinner("Running query..."):
-            _, result = client.run_plan(plan)
+            st.session_state.query_id, result = client.run_plan(plan)
+        st.write(f"Query ID `{st.session_state.query_id}`\n")
         st.subheader("Result", divider="rainbow")
         st.success(result)
+        if do_trace:
+            st.subheader("Traces", divider="blue")
+            show_traces()
+        
     else:
         generate_code(client, plan)
-
-    if do_trace:
-        st.button("Show traces", on_click=lambda: show_traces(trace_dir))
 
 
 client = SycamoreQueryClient()
@@ -173,7 +198,8 @@ if "code" in st.session_state and st.session_state.code:
     if execute_button:
         code_locals = {}
         try:
-            exec(st.session_state.code, globals(), code_locals)
+            with st.spinner("Executing code..."):
+                exec(st.session_state.code, globals(), code_locals)
         except Exception as e:
             st.exception(e)
         if code_locals and 'result' in code_locals:

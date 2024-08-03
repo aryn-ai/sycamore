@@ -61,8 +61,6 @@ def show_traces():
                     doc = pickle.load(file)
                     doc_list = doc.properties["entity"]
 
-                    # print(doc.properties['LlmFilterOutput'])
-
                     for p in doc.properties:
                         if p not in BASE_PROPS and p in doc.properties:
                             doc_list[p] = doc.properties[p]

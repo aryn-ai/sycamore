@@ -291,35 +291,6 @@ def test_top_k():
             **sycamore_operator.get_execute_args(),
         )
         assert result == return_doc_set
-        # # Define the mock return value
-        # mock_impl.return_value = "success"
-
-        # doc_set = Mock(spec=DocSet)
-        # context = sycamore.init()
-        # logical_node = TopK(
-        #     node_id=0,
-        #     descending=True,
-        #     K=10,
-        #     field="name",
-        #     description="some description",
-        #     llm_cluster=True,
-        #     primary_field="id",
-        # )
-        # sycamore_operator = SycamoreTopK(context, logical_node, query_id="test", inputs=[doc_set])
-        # result = sycamore_operator.execute()
-
-        # assert result == "success"
-        # mock_impl.assert_called_once_with(
-        #     docset=doc_set,
-        #     llm=ANY,
-        #     field=logical_node.field,
-        #     k=logical_node.K,
-        #     description=logical_node.description,
-        #     descending=logical_node.descending,
-        #     llm_cluster=logical_node.llm_cluster,
-        #     unique_field=logical_node.primary_field,
-        #     **sycamore_operator.get_execute_args(),
-        # )
 
 
 def test_limit(mock_docs):

@@ -40,7 +40,7 @@ jobs:
       - name: Free up disk space
         run: sudo rm -rf /usr/local/lib/android
       - name: Move cache to /mnt
-        run: mkdir -p /mnt/cache /home/runner/.cache && sudo mount -o bind /mnt/cache /home/runner/.cache
+        run: sudo mkdir /mnt/cache && sudo chown $(whoami) /mnt/cache && mkdir -p /home/runner/.cache && sudo mount -o bind /mnt/cache /home/runner/.cache
       - name: DF-1b
         run: df
       - name: Checkout

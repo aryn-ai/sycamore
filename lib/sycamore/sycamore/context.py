@@ -1,13 +1,10 @@
 from enum import Enum
 import logging
 import threading
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, Optional
 
 from sycamore.config import Config
 from sycamore.rules import Rule
-
-if TYPE_CHECKING:
-    import ray
 
 
 def _ray_logging_setup():
@@ -152,5 +149,7 @@ def init(exec_mode=ExecMode.RAY, ray_args: Optional[dict[str, Any]] = None, conf
 def shutdown() -> None:
     global _global_context
     with _context_lock:
+        import ray
+
         ray.shutdown()
         _global_context = None

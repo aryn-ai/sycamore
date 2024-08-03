@@ -8,7 +8,7 @@ Sycamore is a document processing engine licensed covered under the Apache v2.0 
 
 Sycamore uses LLM-powered transforms, and you can choose the model to leverage. It can handle complex documents with embedded tables, figures, graphs, and other infographics. For ETL use cases, Sycamore reliably generates vector embeddings with the model of your choice, and loads vector databases and search engines like Pinecone, OpenSearch, Weaviate, Elasticsearch, and more.  
 
-.. image:: images/ArynArchitecture_APS%2BSycamore.png
+.. image:: images/ArynArchitecture_APS%2BSycamorev2.png
 
 **Key Features**
 

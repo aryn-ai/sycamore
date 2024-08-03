@@ -85,18 +85,7 @@ More Resources
 
 
 .. toctree::
-   :caption: Welcome to Sycamore
-   :maxdepth: 2
-   :hidden:
-
-   /welcome_to_sycamore/get_started.md
-   /welcome_to_sycamore/architecture.md
-   /welcome_to_sycamore/hardware.md
-   /welcome_to_sycamore/encryption.md
-
-
-.. toctree::
-   :caption: Aryn Cloud
+   :caption: Aryn Partitioning Service
    :maxdepth: 2
    :hidden:
 
@@ -104,10 +93,15 @@ More Resources
 
 
 .. toctree::
-   :caption: Data Ingestion and Preparation
+   :caption: Sycamore
    :maxdepth: 2
    :hidden:
 
+
+   /welcome_to_sycamore/get_started.md
+   /welcome_to_sycamore/architecture.md
+   /welcome_to_sycamore/hardware.md
+   /welcome_to_sycamore/encryption.md
    /data_ingestion_and_preparation/data_preparation_concepts.md
    /data_ingestion_and_preparation/load_data.md
    /data_ingestion_and_preparation/using_jupyter.md

@@ -1122,32 +1122,19 @@ class DocSet:
             A left semi-join between docset (self) and docset2.
         """
 
+        from sycamore import Execution
+
         def make_filter_fn_join(field: str, join_set: set) -> Callable[[Document], bool]:
-            """
-            Creates a filter function that can be called on a DocSet. Document
-            will be kept if the value corresponding to document field is contained
-            in join_set.
-
-            Args:
-                field: Document field to filter based on
-                join_set: Set that contains valid field values.
-
-            Returns:
-                Function that can be called inside of DocSet.filter
-            """
-
             def filter_fn_join(doc: Document) -> bool:
                 value = doc.field_to_value(field)
                 return value in join_set
 
             return filter_fn_join
 
-        from sycamore import Execution
-
         execution = Execution(docset2.context, docset2.plan)
         dataset = execution.execute(docset2.plan)
 
-        # identifies unique values of field1 in docset1
+        # identifies unique values of field1 in docset (self)
         unique_vals = set()
         for row in dataset.iter_rows():
             doc = Document.from_row(row)

@@ -455,7 +455,7 @@ class DocSet:
                     .standardise(loc_standardizer)
         """
         from sycamore.transforms import Standardize_property
-        standardize_docset = Standardize_property(self.plan,standardizer=standarizer )
+        standardize_docset = Standardize_property(self.plan, standardizer=standarizer)
         return DocSet(self.context, standardize_docset)
 
 

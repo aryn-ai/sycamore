@@ -1,12 +1,8 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional, TYPE_CHECKING
-
+from typing import Any, Optional
 from sycamore.llms import LLM
 from sycamore.rules import Rule
-
-if TYPE_CHECKING:
-    import ray
 
 
 class ExecMode(Enum):
@@ -70,4 +66,5 @@ def init(exec_mode=ExecMode.RAY, ray_args: Optional[dict[str, Any]] = None, **kw
 
 
 def shutdown() -> None:
+    import ray
     ray.shutdown()

@@ -333,20 +333,22 @@ class DocSet:
         plan = SpreadProperties(self.plan, props, **resource_args)
         return DocSet(self.context, plan)
 
-    def assign_doc_properties(self, elementName:str, propertry_name:str, **resource_args) -> "DocSet":
+    def assign_doc_properties(self, element_type:str, property_name:str, **resource_args) -> "DocSet":
         """
-        Copies listed properties from parent document to child elements.
+        Copies properties from a specific element to parent element.
 
+        Args: 
+            element_type: Element type from which property is to be copied 
+            property_name: Property name which stores the Property
         Example:
             .. code-block:: python
 
                pdf_docset = context.read.binary(paths, binary_format="pdf")
                     .partition(partitioner=ArynPartitioner())
                     .AssignDocProperties('table', 'llm_response')
-                    .explode()
         """
         from sycamore.transforms import AssignDocProperties
-        plan = AssignDocProperties(self.plan, [elementName, propertry_name], **resource_args)
+        plan = AssignDocProperties(self.plan, [element_type, property_name], **resource_args)
         return DocSet(self.context, plan)
 
     def augment_text(self, augmentor: TextAugmentor, **resource_args) -> "DocSet":
@@ -438,10 +440,23 @@ class DocSet:
     
     def standardise(self, standarizer: Standardizer):
         """
+        Standardizes the datetime or location property of the DocSet.
+        Args:
+             standardizer (callable): A function or method to use for standardizing the date or location.
+
+        Example:     
+            .. code-block:: python
+
+                loc_standardizer = LocationStandardizer()
+
+                context = sycamore.init()
+                pdf_docset = context.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=ArynPartitioner())
+                    .standardise(loc_standardizer)
         """
         from sycamore.transforms import Standardize_property
-        standard_docset = Standardize_property(self.plan,standardizer=standarizer )
-        return DocSet(self.context, standard_docset)
+        standardize_docset = Standardize_property(self.plan,standardizer=standarizer )
+        return DocSet(self.context, standardizer = standardize_docset)
 
 
 

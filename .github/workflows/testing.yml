@@ -33,15 +33,17 @@ jobs:
         python-version: ["3.9", "3.10", "3.11"]
 
     steps:
-      - name: DF-1a
+      - name: DF-1
         run: df
       - name: du-runner-initial
         run: du -kx /home/runner | sort -rn | head -20
-      - name: Free up disk space
-        run: sudo rm -rf /usr/local/lib/android
       - name: Move cache to /mnt
         run: sudo mkdir /mnt/cache && sudo chown $(whoami) /mnt/cache && mkdir -p /home/runner/.cache && sudo mount -o bind /mnt/cache /home/runner/.cache
-      - name: DF-1b
+      # Could free up other stuff as in:
+      # https://github.com/easimon/maximize-build-space/blob/master/action.yml
+      - name: Free up disk space
+        run: sudo rm -rf /usr/local/lib/android
+      - name: DF-2
         run: df
       - name: Checkout
         uses: actions/checkout@v4
@@ -52,17 +54,15 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: "poetry"
-      - name: DF-2
+      - name: DF-3
         run: df
       - name: Install sycamore
         run: poetry install
         working-directory: lib/sycamore
-      - name: DF-3
+      - name: DF-4
         run: df
       - name: Update Apt
         run: sudo apt-get update
-      - name: DF-4
-        run: df
       - name: Install poppler and tesseract
         run: sudo apt-get install -y poppler-utils tesseract-ocr
       - name: DF-5
@@ -70,6 +70,8 @@ jobs:
       - name: Run tests
         run: poetry run pytest sycamore/tests/unit/
         working-directory: lib/sycamore
+      - name: DF-6
+        run: df
 
   rps-unit-test:
     runs-on: ubuntu-latest

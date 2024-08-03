@@ -1032,7 +1032,7 @@ class DocSet:
         """
         return DocSetWriter(self.context, self.plan)
 
-    def materialize(self, path: Optional[Path | str | dict] = None) -> "DocSet":
+    def materialize(self, path: Optional[Union[Path, str, dict]] = None) -> "DocSet":
         """
         Guarantees reliable execution up to this point, allows for
         follow on execution based on the checkpoint if the checkpoint is named.

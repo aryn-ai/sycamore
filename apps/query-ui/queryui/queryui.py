@@ -20,11 +20,12 @@ from sycamore.query.operators.logical_operator import LogicalOperator
 DEFAULT_S3_CACHE_PATH = "s3://aryn-temp/llm_cache/luna/ntsb"
 
 
-def execute(code: str):
-    try:
-        exec(code, globals(), globals())
-    except Exception as e:
-        st.exception(e)
+# def execute(code: str):
+#     code_locals = {}
+#     try:
+#         exec(code, globals(), code_locals)
+#     except Exception as e:
+#         st.exception(e)
 
 
 def show_schema(container: Any, schema: dict[str, str]):
@@ -57,7 +58,19 @@ def generate_code(client, plan):
             language="python",
             min_lines=20,
         )
-        execute(st.session_state.code)
+        # execute(st.session_state.code)
+        # execute_button = st.button("Execute Code")
+        # if execute_button:
+        #     # execute(st.session_state.code)
+
+        #     code_locals = {}
+        #     try:
+        #         exec(st.session_state.code, globals(), code_locals)
+        #     except Exception as e:
+        #         st.exception(e)
+
+        #     st.subheader("Result", divider="rainbow")
+        #     st.success(code_locals['result'])
 
 
 def show_dag(plan: LogicalPlan):
@@ -154,3 +167,15 @@ if submitted:
 elif "query_set" in st.session_state and st.session_state.query_set:
     show_schema(schema_container, client.get_opensearch_schema(st.session_state.index))
     run_query(st.session_state.query, st.session_state.index, plan_only, do_trace, use_cache)
+
+if "code" in st.session_state and st.session_state.code:
+    execute_button = st.button("Execute Code")
+    if execute_button:
+        code_locals = {}
+        try:
+            exec(st.session_state.code, globals(), code_locals)
+        except Exception as e:
+            st.exception(e)
+        if code_locals and 'result' in code_locals:
+            st.subheader("Result", divider="rainbow")
+            st.success(code_locals['result'])

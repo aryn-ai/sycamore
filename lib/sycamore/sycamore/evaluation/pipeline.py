@@ -45,10 +45,20 @@ class EvaluationPipeline:
         self._embedder = embedder
 
     def _add_filter(self, query_body: dict, filters: dict[str, str]):
-        hybrid_query_match = query_body["query"]["knn"]["embedding"]["filter"]["bool"]["must"]
-        for key, val in filters.items():
-            hybrid_query_match.append({"match_phrase": {key: val}})
-        query_body["query"]["knn"]["embedding"]["filter"]["bool"]["must"] = hybrid_query_match
+        hybrid_query_match = query_body["query"]["hybrid"]["queries"][0]
+        hybrid_query_match = {
+            "bool": {
+                "must": [hybrid_query_match],
+                "filter": [{"match_phrase": {k: filters[k]}} for k in filters],
+            }
+        }
+        query_body["query"]["hybrid"]["queries"][0] = hybrid_query_match
+
+        hybrid_query_knn = query_body["query"]["hybrid"]["queries"][1]
+        hybrid_query_knn["knn"]["embedding"]["filter"] = {
+            "bool": {"must": [{"match_phrase": {k: filters[k]}} for k in filters]}
+        }
+        query_body["query"]["hybrid"]["queries"][1] = hybrid_query_knn
         return query_body
 
     def _build_opensearch_query(self, doc: Document) -> Document:
@@ -57,9 +67,7 @@ class EvaluationPipeline:
         query["index"] = self._index
 
         if self._subtask_docs and doc.properties["subtasks_reqd"]:
-            filtered_docs = [
-                st_doc for st_doc in self._subtask_docs if st_doc.parent_id == doc["raw"]["financebench_id"]
-            ]
+            filtered_docs = [st_doc for st_doc in self._subtask_docs if st_doc.parent_id == doc.doc_id]
             subtask_str = ""
             instructions = filtered_docs[0].properties["instructions"]
             for document in filtered_docs:
@@ -79,22 +87,22 @@ class EvaluationPipeline:
 
         query["query"] = {
             "_source": {"excludes": ["embedding"]},
-            "size": self._os_config.get("size", 20),
             "query": {
-                "knn": {
-                    "embedding": {
-                        "vector": qn_embedding,
-                        "k": self._os_config.get("neural_search_k", 100),
-                        "filter": {
-                            "bool": {
-                                "must": [
-                                    {"match": {"text_representation": doc["question"]}},
-                                ],
-                            },
+                "hybrid": {
+                    "queries": [
+                        {"match": {"text_representation": doc["question"]}},
+                        {
+                            "knn": {
+                                "embedding": {
+                                    "vector": qn_embedding,
+                                    "k": self._os_config.get("neural_search_k", 100),
+                                }
+                            }
                         },
-                    }
+                    ]
                 }
             },
+            "size": self._os_config.get("size", 20),
         }
 
         if "llm" in self._os_config:

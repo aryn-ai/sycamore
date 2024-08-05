@@ -6,9 +6,9 @@ import io
 import os
 import pickle
 import tempfile
-from typing import Any
 import zipfile
 import pandas as pd
+from typing import Any, Dict, Set, Tuple
 
 import streamlit as st
 from streamlit_ace import st_ace
@@ -37,10 +37,10 @@ BASE_PROPS = set(
 )
 
 
-def show_schema(container: Any, schema: dict[str, str]):
+def show_schema(container: Any, schema: Dict[str, Tuple[str, Set[str]]]):
     # Make a table.
     table_data = []
-    for key, value in schema.items():
+    for key, (value, _) in schema.items():
         table_data.append([key, value])
     with container.expander("Schema"):
         st.dataframe(table_data)

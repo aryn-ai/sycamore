@@ -412,7 +412,7 @@ class OpenAI(LLM):
 
         if llm_kwargs is None:
             raise ValueError("Must include llm_kwargs to generate future call")
-        ret = await self._generate_future_using_openai(prompt_kwargs, llm_kwargs)
+        ret = await self._generate_awaitable_using_openai(prompt_kwargs, llm_kwargs)
 
         value = {
             "result": ret,
@@ -423,7 +423,7 @@ class OpenAI(LLM):
         self._cache_set(key, value)
         return ret
 
-    async def _generate_future_using_openai(self, prompt_kwargs, llm_kwargs) -> Awaitable[str]:
+    async def _generate_awaitable_using_openai(self, prompt_kwargs, llm_kwargs) -> Awaitable[str]:
         kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
 
         completion = await self.client_wrapper.get_async_client().chat.completions.create(

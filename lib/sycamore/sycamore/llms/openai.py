@@ -339,7 +339,7 @@ class OpenAI(LLM):
         return self._cache.get_hash_context(data).hexdigest()
 
     def _cache_get(self, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
-        if llm_kwargs.get("temperature", 0) != 0 or not self._cache:
+        if (llm_kwargs or {}).get("temperature", 0) != 0 or not self._cache:
             return (None, None)
 
         key = self._get_cache_key(prompt_kwargs, llm_kwargs)
@@ -363,10 +363,10 @@ class OpenAI(LLM):
             return
         self._cache.set(key, result)
 
-    def _get_generate_kwargs(self, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
+    def _get_generate_kwargs(self, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> dict:
         kwargs = {
             "temperature": 0,
-            **llm_kwargs,
+            **(llm_kwargs or {}),
         }
         if "SYCAMORE_OPENAI_USER" in os.environ:
             kwargs.update({"user": os.environ.get("SYCAMORE_OPENAI_USER")})

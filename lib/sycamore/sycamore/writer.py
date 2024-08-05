@@ -1,5 +1,7 @@
-from typing import Any, Callable, Optional, TYPE_CHECKING
+from typing import Any, Callable, Optional, TYPE_CHECKING, Union
 
+from neo4j import Auth
+from neo4j.auth_management import AuthManager
 from pyarrow.fs import FileSystem
 
 from sycamore import Context
@@ -549,6 +551,87 @@ class DocSetWriter:
             from sycamore.docset import DocSet
 
             return DocSet(self.context, es_docs)
+
+    def neo4j(
+        self,
+        uri: str,
+        auth: Union[tuple[Any, Any], Auth, AuthManager, None],
+        import_dir: str,
+        database: str = "neo4j",
+        execute: bool = True,
+        **kwargs,
+    ) -> Optional["DocSet"]:
+        """Writes the content of the DocSet into the specified Neo4j database.
+
+        Args:
+            uri: Connection endpoint for the neo4j instance. Note that this must be paired with the
+                necessary client arguments below
+            auth: Authentication arguments to be specified. See more information at
+                https://neo4j.com/docs/api/python-driver/current/api.html#auth-ref
+            database: database to write to in Neo4j. By default in the neo4j community addition, new databases 
+                cannot be instantiated so you must use "neo4j". If using enterprise edition, ensure the database exists.
+            import_dir: the import directory specified 
+
+            execute: Execute the pipeline and write to weaviate on adding this operator. If False,
+                will return a DocSet with this write in the plan. Default is True
+        Example:
+            The following code shows how to read a pdf dataset into a ``DocSet`` and write it out to a
+            local Elasticsearch index called `test-index`.
+
+            .. code-block:: python
+
+                uri = "neo4j://localhost:7687"
+                auth = ("neo4j", "xxxx")
+                import_dir = "/home/admin/neo4j/import"
+                database = "neo4j"
+
+                llm = OpenAI(OpenAIModels.GPT_4O_MINI.value)
+
+                ctx = sycamore.init()
+
+                ds = (
+                    ctx.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=UnstructuredPdfPartitioner())
+                    .regex_replace(COALESCE_WHITESPACE)
+                    .mark_bbox_preset(tokenizer=tokenizer)
+                    .merge(merger=MarkedMerger())
+                    .spread_properties(["path"])
+                    .split_elements(tokenizer=tokenizer, max_tokens=512)
+                    .explode()
+                    .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
+                    .sketch(window=17)
+                )
+                ds.write.elasticsearch(url=url, index_name=index_name)
+        """
+        """
+        Writes all nodes in a docset into neo4j. Must use HierarchicalDocument
+
+        """
+        import os
+        from sycamore.connectors.neo4j import (
+            Neo4jWriterClientParams,
+            Neo4jWriterTargetParams,
+            Neo4jValidateParams,
+        )
+        from sycamore.connectors.neo4j import Neo4jPrepareCSV, Neo4jWriteCSV, Neo4jLoadCSV
+
+        class Node:
+            def __init__(self, dataset):
+                self._ds = dataset
+
+            def execute(self, **kwargs):
+                return self._ds
+
+        client_params = Neo4jWriterClientParams(uri=uri, auth=auth, import_dir=import_dir)
+        target_params = Neo4jWriterTargetParams(database=database)
+        Neo4jValidateParams(client_params=client_params, target_params=target_params)
+
+        self.plan = Node(self.plan.execute().materialize())
+        Neo4jPrepareCSV(plan=self.plan, client_params=client_params)
+        Neo4jWriteCSV(plan=self.plan, client_params=client_params).execute().materialize()
+        Neo4jLoadCSV(client_params=client_params, target_params=target_params)
+
+        return None
 
     def files(
         self,

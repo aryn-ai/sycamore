@@ -1,5 +1,6 @@
 from collections.abc import Mapping
 import logging
+from pathlib import Path
 import pprint
 import sys
 from typing import Callable, Optional, Any, Iterable, Type, Union
@@ -7,7 +8,6 @@ from typing import Callable, Optional, Any, Iterable, Type, Union
 from sycamore.context import Context
 from sycamore.data import Document, Element, MetadataDocument
 from sycamore.functions.tokenizer import Tokenizer
-from sycamore.lineage import Materialize, MaterializeMode
 from sycamore.llms.llms import LLM
 from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.augment_text import TextAugmentor
@@ -1073,14 +1073,27 @@ class DocSet:
         """
         return DocSetWriter(self.context, self.plan)
 
-    def materialize(self, path=None, mode=MaterializeMode.INMEM_VERIFY_ONLY, max_retries=1, keep=0) -> "DocSet":
+    def materialize(self, path: Optional[Union[Path, str, dict]] = None) -> "DocSet":
         """
         Guarantees reliable execution up to this point, allows for
         follow on execution based on the checkpoint if the checkpoint is named.
+
+        path: a Path or string represents the "directory" for the materialized elements. The filesystem
+              and naming convention will be inferred.  The dictionary allowes finer control, and supports
+              { root=Path|str, fs=pyarrow.fs, name=lambda Document -> str, clean=True } where the root is required
         """
 
-        assert path is None, "unimplemented"
-        assert mode == MaterializeMode.INMEM_VERIFY_ONLY, "unimplemented"
-        assert max_retries == 1, "unimplemented"
-        assert keep == 0, "unimplemented"
-        return DocSet(self.context, Materialize(self.plan))
+        from sycamore.lineage import Materialize
+
+        return DocSet(self.context, Materialize(self.plan, self.context, path=path))
+
+    def execute(self, **kwargs) -> None:
+        """
+        Execute the pipeline, discard the results. Useful for side effects.
+        """
+
+        from sycamore.executor import Execution
+
+        execution = Execution(self.context, self.plan)
+        for doc in execution.execute_iter(self.plan, **kwargs):
+            pass

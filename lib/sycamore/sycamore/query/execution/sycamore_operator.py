@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from typing import Any, Optional, List, Dict, Tuple
 
+from sycamore.functions.basic_filters import MatchFilter, RangeFilter
 from sycamore.llms.prompts.default_prompts import EntityExtractorMessagesPrompt, LLMFilterMessagesPrompt
 from sycamore.query.execution.metrics import SycamoreQueryLogger
 from sycamore.query.operators.count import Count
@@ -16,8 +17,6 @@ from sycamore.query.operators.sort import Sort
 
 from sycamore.query.execution.operations import (
     llm_generate_operation,
-    range_filter_operation,
-    match_filter_operation,
     top_k_operation,
     join_operation,
 )
@@ -288,24 +287,19 @@ class SycamoreFilter(SycamoreOperator):
             date = logical_node.date
 
             result = self.inputs[0].filter(
-                lambda doc: range_filter_operation(doc=doc, field=str(field), start=start, end=end, date=date),
-                **self.get_node_args(),
+                f=RangeFilter(field=str(field), start=start, end=end, date=date), **self.get_node_args()
             )
         else:
             query = logical_node.query
             assert query is not None
             field = logical_node.field
-            result = self.inputs[0].filter(
-                lambda doc: match_filter_operation(doc=doc, query=query, field=field),
-                **self.get_node_args(),
-            )
+            result = self.inputs[0].filter(f=MatchFilter(query=query, field=field), **self.get_node_args())
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         assert isinstance(self.logical_node, Filter)
         assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) == 1
-        script = ""
-        imports = []
+        imports: list[str] = []
         if self.logical_node.range_filter:
             field = self.logical_node.field
             start = self.logical_node.start
@@ -314,31 +308,27 @@ class SycamoreFilter(SycamoreOperator):
             assert end is None or isinstance(end, str)
             date = self.logical_node.date
 
-            script = f"""
-{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(self.logical_node.dependencies[0])}.filter(
-    lambda doc: range_filter_operation(
-        doc=doc,
-        field='{field}',
-        start='{start}',
-        end='{end}',
-        date='{date}',
-    ),
-    **{self.get_node_args()},
-)
-            """
-            imports = ["from sycamore.query.execution.operations import range_filter_operation"]
+            script = (
+                f"{output_var or get_var_name(self.logical_node)} = "
+                f"{input_var or get_var_name(self.logical_node.dependencies[0])}.filter(\n"
+                "f=RangeFilter("
+                f"field='{field}',\n"
+                f"start='{start}',\n"
+                f"end='{end}',\n"
+                f"date='{date}),'\n"
+                f"**{self.get_node_args()})"
+            )
+            imports = ["from sycamore.functions.basic_filters import RangeFilter"]
         else:
-            script = f"""
-{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(self.logical_node.dependencies[0])}.filter(
-    lambda doc: match_filter_operation(
-        doc=doc,
-        query='{self.logical_node.query}',
-        field='{self.logical_node.field}',
-    ),
-    **{self.get_node_args()},
-)
-"""
-            imports = ["from sycamore.query.execution.operations import match_filter_operation"]
+            script = (
+                f"{output_var or get_var_name(self.logical_node)} = "
+                f"{input_var or get_var_name(self.logical_node.dependencies[0])}.filter(\n"
+                "f=MatchFilter("
+                f"query='{self.logical_node.query}',\n"
+                f"field='{self.logical_node.field}',"
+                f"**{self.get_node_args()})"
+            )
+            imports = ["from sycamore.functions.basic_filters import MatchFilter"]
         return script, imports
 
 

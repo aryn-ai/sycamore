@@ -29,7 +29,7 @@ from sycamore.utils.cache import S3Cache
 from sycamore.query.execution.sycamore_executor import SycamoreExecutor
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.planner import LlmPlanner
-from sycamore.query.schema import OpenSearchSchema
+from sycamore.query.schema import OpenSearchSchema, OpenSearchSchemaFetcher
 from sycamore.query.visualize import visualize_plan
 
 from rich.console import Console
@@ -121,13 +121,12 @@ class SycamoreQueryClient:
         indices = self._os_client.indices.get_alias().keys()
         return indices
 
-    def get_opensearch_schema(self, index: str) -> dict:
+    def get_opensearch_schema(self, index: str) -> OpenSearchSchema:
         """Get the schema for the provided OpenSearch index."""
-        schema_provider = OpenSearchSchema(IndicesClient(self._os_client), index, self._os_query_executor)
-        schema = schema_provider.get_schema()
-        return schema
+        schema_provider = OpenSearchSchemaFetcher(IndicesClient(self._os_client), index, self._os_query_executor)
+        return schema_provider.get_schema()
 
-    def generate_plan(self, query: str, index: str, schema: dict) -> LogicalPlan:
+    def generate_plan(self, query: str, index: str, schema: OpenSearchSchema) -> LogicalPlan:
         """Generate a logical query plan for the given query, index, and schema."""
         openai_client = OpenAI(
             OpenAIModels.GPT_4O.value, cache=S3Cache(self.s3_cache_path) if self.s3_cache_path else None

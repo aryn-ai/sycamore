@@ -1,14 +1,13 @@
 import json
 from typing import Any, Callable, List, Optional, Union
 
-from datetime import datetime
-from dateutil import parser
 from ray.data import Dataset
 
 from sycamore import DocSet, Execution
 from sycamore.data import Document, MetadataDocument
 from sycamore.llms.openai import OpenAI
 from sycamore.plan_nodes import Node, Transform
+from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.utils.extract_json import extract_json
 from sycamore.plan_nodes import Scan
 
@@ -42,354 +41,6 @@ the same meaning. Here is the list values corresponding to "{field}": "{text}"."
 SC_ASSIGN_GROUPS_PROMPT = """Categorize the database entry you are given corresponding to "{field}"
 into one of the following groups: "{groups}". Perform your best work to assign the group. Return
 ONLY the string corresponding to the selected group. Here is the database entry you will use: """
-
-
-def field_to_value(doc: Document, field: str) -> Any:
-    """
-    Extracts the value for a particular document field.
-
-    Args:
-        doc: The document
-        field: The field in dotted notation to indicate nesting, e.g. doc.properties.schema.
-
-    Returns:
-        The value associated with the document field.
-    """
-    fields = field.split(".")
-    value = getattr(doc, fields[0])
-    if len(fields) > 1:
-        assert fields[0] == "properties"
-        for f in fields[1:]:
-            value = value[f]
-    return value
-
-
-def convert_string_to_date(date_string: str) -> datetime:
-    """
-    Creates datetime object given a date string.
-
-    Args:
-        date_string: The string that contains the date in any format.
-
-    Returns:
-        A datetime object (without timezone info).
-    """
-    return parser.parse(date_string).replace(tzinfo=None)
-
-
-def threshold_filter(doc: Document, threshold) -> bool:
-    try:
-        return_value = int(doc.properties["LlmFilterOutput"]) >= threshold
-    except Exception:
-        # accounts for llm output errors
-        return_value = False
-
-    return return_value
-
-
-def llm_filter_operation(
-    client: OpenAI,
-    docset: DocSet,
-    filter_question: Optional[str] = None,
-    field: Optional[str] = None,
-    messages: Optional[List[dict]] = None,
-    threshold: int = 3,
-    **resource_args,
-) -> DocSet:
-    """
-    Filters DocSet to only keep documents that score (determined by LLM) greater
-    than or equal to the inputted threshold value.
-
-    Args:
-        client: LLM client to use.
-        docset: DocSet to filter.
-        filter_question: Question used for filtering during LLM call
-        field: Document field to filter based on.
-        messages: Custom LLM prompt.
-        threshold: Cutoff that determines whether or not to keep document.
-        **resource_args
-
-    Returns:
-        A filtered DocSet.
-    """
-    if filter_question is None and messages is None:
-        raise Exception("Filter question must be specified for default value of messages.")
-
-    if messages is None:
-        # sets prompt
-        messages = [
-            {
-                "role": "system",
-                "content": "You are a helpful classifier that generously filters database entries based on questions.",
-            },
-            {
-                "role": "user",
-                "content": f"""Given an entry and a question, you will answer the question relating to the entry. 
-                    You only respond with 0, 1, 2, 3, 4, or 5 based on your confidence level. 0 is the most negative 
-                    answer and 5 is the most positive answer. Question: {filter_question}; Entry: """,
-            },
-        ]
-
-    if field is None:
-        field = "text_representation"
-
-    docset = docset.map(
-        lambda doc: llm_extract_operation(
-            client=client, doc=doc, new_field="LlmFilterOutput", field=field, messages=messages
-        )
-    )
-    docset = docset.filter(lambda doc: threshold_filter(doc, threshold), **resource_args)
-
-    return docset
-
-
-def match_filter_operation(doc: Document, query: Any, field: str, ignore_case: bool = True) -> bool:
-    """
-    Only keep documents that match the query on the specified field.
-    Performs substring matching for strings.
-
-    Args:
-        doc: Document to filter.
-        query: Query to match for.
-        field: Document field that is used for filtering.
-        ignore_case: Determines case sensitivity for strings.
-
-    Returns:
-        A filtered document.
-
-    Example:
-        .. code-block:: python
-
-        def wrapper(doc: Document) -> bool:
-            query = "Cessna"
-            field = "properties.entity.aircraft"
-            return match_filter_operation(doc, query, field)
-
-        docset = docset.filter(wrapper)
-    """
-    value = field_to_value(doc, field)
-
-    # substring matching
-    if isinstance(query, str) or isinstance(value, str):
-        query = str(query)
-        value = str(value)
-        if ignore_case:
-            value = value.lower()
-            query = query.lower()
-
-        return query in value
-
-    # if not string, exact match
-    return query == value
-
-
-def range_filter_operation(
-    doc: Document,
-    field: str,
-    start: Optional[Any] = None,
-    end: Optional[Any] = None,
-    date: Optional[bool] = False,
-) -> bool:
-    """
-    Only keep documents for which the value of the
-    specified field is within the start:end range.
-
-    Args:
-        doc: Document to filter.
-        field: Document field to filter based on.
-        start: Value for start of range.
-        end: Value for end of range.
-        date: Indicates whether start:end is a date range.
-
-    Returns:
-        A filtered document.
-
-    Example:
-        .. code-block:: python
-
-        def wrapper(doc: Document) -> bool:
-            field = "properties.date"
-            start = "July 1, 2020"
-            end = "July 30, 2020"
-            return range_filter_operation(doc, field, start, end, True)
-
-        docset = docset.filter(wrapper)
-    """
-    value = field_to_value(doc, field)
-    if value is None:
-        raise ValueError(f"field {field} must be present in the document")
-
-    if date:
-        if not isinstance(value, str):
-            raise ValueError("value must be a string for date filtering")
-        value_comp = convert_string_to_date(value)
-        if start and not isinstance(start, str):
-            raise ValueError("start must be a string for date filtering")
-        start_comp = convert_string_to_date(start) if start else None
-        if end and not isinstance(end, str):
-            raise ValueError("end must be a string for date filtering")
-        end_comp = convert_string_to_date(end) if end else None
-    else:
-        value_comp = value
-        start_comp = start
-        end_comp = end
-
-    if start_comp is None:
-        if end_comp is None:
-            raise ValueError("At least one of start or end must be specified")
-        return value_comp <= end_comp
-    if end_comp is None:
-        if start_comp is None:
-            raise ValueError("At least one of start or end must be specified")
-        return value_comp >= start_comp
-    return value_comp >= start_comp and value_comp <= end_comp
-
-
-def llm_extract_operation(
-    client: OpenAI,
-    doc: Document,
-    new_field: str,
-    field: Optional[str] = None,
-    question: Optional[str] = None,
-    format: Optional[str] = None,
-    discrete: Optional[bool] = None,
-    messages: Optional[List[dict]] = None,
-) -> Document:
-    """
-    Adds a new property to document based LLM call.
-
-    Args:
-        client: LLM client.
-        doc: Document to add property to.
-        new_field: Name of new field.
-        field: Field to filter based on.
-        question: Question to ask LLM.
-        format: Indicates the format of the answer (e.g. "string").
-        discrete: Indicates if the answer is a discrete value.
-        messages: Custom prompt.
-
-    Returns:
-        A document with an added field under doc.properties.
-
-    Example:
-        .. code-block:: python
-
-        def wrapper(doc: Document) -> Document:
-            client = LLM()
-            new_field = "cause"
-            field = "properties.description"
-            question = "Why did this incident occur?"
-            format = "string"
-            discrete = False
-            return llm_extract_operation(client, doc, new_field, field, question, format, discrete)
-
-        docset = docset.map(wrapper)
-    """
-
-    if messages is None and (question is None or format is None or discrete is None):
-        raise ValueError('"question", "format", and "discrete" must be specified for default messages')
-
-    if field is None:
-        field = "text_representation"
-
-    value = field_to_value(doc, field)
-
-    if messages is None:
-
-        format_string = f"""The format of your resopnse should be {format}. Use standard convention
-        to determine the style of your response. Do not include any abbreviations."""
-
-        # sets message
-        messages = [
-            {
-                "role": "system",
-                "content": """You are a helpful entity extractor that creates a new field in a
-                database from your reponse to a question on an existing field.""",
-            }
-        ]
-
-        if discrete:
-            messages.append(
-                {
-                    "role": "user",
-                    "content": f"""Question: {question} Use this existing related database field
-                    "{field}" to answer the question: {value}. {format_string}""",
-                }
-            )
-            messages.append(
-                {
-                    "role": "user",
-                    "content": """The following sentence should be valid: The answer to the
-                    question based on the existing field is {answer}. Your response should ONLY
-                    contain the answer. If you are not able to extract the new field given the
-                    information, respond ONLY with None""",
-                }
-            )
-
-        else:
-            messages.append(
-                {
-                    "role": "user",
-                    "content": f"""Question: {question} Use this existing related database field
-                    "{field}" to answer the question: {value}. Include as much relevant detail as
-                    possible that is related to/could help answer this question. Respond in
-                    sentences, not just a single word or phrase.""",
-                }
-            )
-
-    else:
-        messages.append(
-            {
-                "role": "user",
-                "content": f"{value}",
-            }
-        )
-
-    prompt_kwargs = {"messages": messages}
-
-    # call to LLM
-    completion = client.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
-
-    # adds new property
-    doc.properties.update({new_field: completion})
-
-    return doc
-
-
-def count_operation(docset: DocSet, field: Optional[str] = None, primary_field: Optional[str] = None, **kwargs) -> int:
-    """
-    Counts the number of document in a DocSet. Counts by field or primary_field if specified.
-
-    Args:
-        docset: DocSet to count.
-        field: Field to count based on. Takes precedence over primary_field if both are specified.
-        primary_field: Primary field for a document to be considered different.
-        **kwargs
-
-    Returns:
-        An integer.
-    """
-    # normal count
-    if field is None and primary_field is None:
-        return docset.count(**kwargs)
-
-    else:
-        if field is not None:
-            unique_field = field
-        else:
-            if primary_field is None:
-                raise ValueError("Must specify either 'field' or 'primary_field'")
-            unique_field = primary_field
-        unique_docs = set()
-        execution = Execution(docset.context, docset.plan)
-        dataset = execution.execute(docset.plan, **kwargs)
-        for row in dataset.iter_rows():
-            doc = Document.from_row(row)
-            if isinstance(doc, MetadataDocument):
-                continue
-            value = field_to_value(doc, unique_field)
-            unique_docs.add(value)
-        return len(unique_docs)
 
 
 def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
@@ -491,7 +142,7 @@ def make_filter_fn_join(field: str, join_set: set) -> Callable[[Document], bool]
     """
 
     def filter_fn_join(doc: Document) -> bool:
-        value = field_to_value(doc, field)
+        value = doc.field_to_value(field)
         return value in join_set
 
     return filter_fn_join
@@ -519,7 +170,7 @@ def join_operation(docset1: DocSet, docset2: DocSet, field1: str, field2: str) -
         doc = Document.from_row(row)
         if isinstance(doc, MetadataDocument):
             continue
-        value = field_to_value(doc, field1)
+        value = doc.field_to_value(field1)
         unique_vals.add(value)
 
     # filters docset2 based on matches of field2 with unique values
@@ -580,7 +231,7 @@ def top_k_operation(
 
     if use_llm:
         docset = semantic_cluster(client, docset, description, field)
-        field = "properties.ClusterAssignment"
+        field = "properties._autogen_ClusterAssignment"
 
     docset = count_aggregate_operation(docset, field, unique_field, **kwargs)
 
@@ -603,13 +254,13 @@ def semantic_cluster(client: OpenAI, docset: DocSet, description: str, field: st
         field: Field to make/assign groups based on.
 
     Returns:
-        A DocSet with an additional field "properties.ClusterAssignment".
+        A DocSet with an additional field "properties._autogen_ClusterAssignment".
     """
     text = ""
     for i, doc in enumerate(docset.take_all()):
         if i != 0:
             text += ", "
-        text += field_to_value(doc, field)
+        text += str(doc.field_to_value(field))
 
     # sets message
     messages = [
@@ -632,11 +283,14 @@ def semantic_cluster(client: OpenAI, docset: DocSet, description: str, field: st
         {"role": "user", "content": SC_ASSIGN_GROUPS_PROMPT.format(field=field, groups=groups["groups"])}
     ]
 
-    docset = docset.map(
-        lambda doc: llm_extract_operation(
-            client=client, doc=doc, new_field="ClusterAssignment", field=field, messages=messagesForExtract
-        )
+    entity_extractor = OpenAIEntityExtractor(
+        entity_name="_autogen_ClusterAssignment",
+        llm=client,
+        use_elements=False,
+        prompt=messagesForExtract,
+        field=field,
     )
+    docset = docset.extract_entity(entity_extractor=entity_extractor)
 
     # LLM response
     return docset
@@ -658,24 +312,23 @@ def make_map_fn_count(field: str, unique_field: Optional[str] = None) -> Callabl
 
     def ray_callable(input_dict: dict[str, Any]) -> dict[str, Any]:
         doc = Document.from_row(input_dict)
+        key_val = doc.field_to_value(field)
 
-        try:
-            val = field_to_value(doc, field)
-            # updates row to include new col
-            new_doc = doc.to_row()
-            new_doc["key"] = val
+        if key_val is None:
+            return (
+                {"doc": None, "key": None, "unique": None} if unique_field is not None else {"doc": None, "key": None}
+            )
 
-            if unique_field is not None:
-                val = field_to_value(doc, unique_field)
-                # updates row to include new col
-                new_doc["unique"] = val
-            return new_doc
+        new_doc = doc.to_row()
+        new_doc["key"] = key_val
 
-        except Exception:
-            if unique_field is not None:
+        if unique_field is not None:
+            unique_val = doc.field_to_value(unique_field)
+            if unique_val is None:
                 return {"doc": None, "key": None, "unique": None}
-            else:
-                return {"doc": None, "key": None}
+            new_doc["unique"] = unique_val
+
+        return new_doc
 
     return ray_callable
 

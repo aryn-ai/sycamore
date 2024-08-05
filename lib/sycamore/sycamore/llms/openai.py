@@ -3,7 +3,7 @@ import os
 import pickle
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional, TypedDict, Union, cast
+from typing import Optional, TypedDict, Union, cast
 
 from guidance.models import AzureOpenAIChat, AzureOpenAICompletion
 from guidance.models import Model
@@ -136,6 +136,11 @@ class OpenAIClientWrapper:
                 extra_kwargs["default_headers"].update(
                     {"Helicone-Auth": f"Bearer {os.environ['SYCAMORE_HELICONE_API_KEY']}"}
                 )
+                # Add SYCAMORE_HELICONE_TAG value to the Helicone-Property-Tag header if it is set.
+                if "SYCAMORE_HELICONE_TAG" in os.environ:
+                    extra_kwargs["default_headers"].update(
+                        {"Helicone-Property-Tag": os.environ["SYCAMORE_HELICONE_TAG"]}
+                    )
 
             return OpenAIClient(
                 api_key=self.api_key,
@@ -290,7 +295,7 @@ class OpenAI(LLM):
         data = pickle.dumps(combined)
         return self._cache.get_hash_context(data).hexdigest()
 
-    def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Any:
+    def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
         cache_key = None
         if self._cache:
             cache_key = self._get_cache_key(prompt_kwargs, llm_kwargs)

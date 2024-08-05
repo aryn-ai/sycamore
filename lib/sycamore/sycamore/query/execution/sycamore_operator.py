@@ -545,10 +545,10 @@ class SycamoreTopK(SycamoreOperator):
             llm=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(s3_cache_path) if s3_cache_path else None),
             field=logical_node.field,
             k=logical_node.K,
-            description=logical_node.description or "",
             descending=logical_node.descending,
             llm_cluster=logical_node.llm_cluster,
             unique_field=logical_node.primary_field,
+            llm_cluster_description=logical_node.llm_cluster_description,
             **self.get_execute_args(),
         )
         return result
@@ -566,10 +566,10 @@ class SycamoreTopK(SycamoreOperator):
     llm=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
     field='{logical_node.field}',
     k={logical_node.K},
-    description='{logical_node.description}',
     descending={logical_node.descending}',
     llm_cluster={logical_node.llm_cluster},
     unique_field='{logical_node.primary_field}',
+    llm_cluster_description='{logical_node.description}',
     **{self.get_execute_args()},
 )
 """

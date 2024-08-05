@@ -1016,10 +1016,10 @@ class DocSet:
         llm: LLM,
         field: str,
         k: Optional[int],
-        description: str,
         descending: bool = True,
         llm_cluster: bool = False,
         unique_field: Optional[str] = None,
+        llm_cluster_description: Optional[str] = None,
         **kwargs,
     ) -> "DocSet":
         """
@@ -1028,8 +1028,8 @@ class DocSet:
         Args:
             llm: LLM client.
             field: Field to determine top k occurrences of.
-            k: Number of top occurrences.
-            description: Description of operation purpose.
+            k: Number of top occurrences. If k is not specified, all occurences are returned.
+            llm_cluster_description: Description of operation purpose.  E.g. Find most common cities
             descending: Indicates whether to return most or least frequent occurrences.
             llm_cluster: Indicates whether an LLM should be used to normalize values of document field.
             unique_field: Determines what makes a unique document.
@@ -1044,12 +1044,13 @@ class DocSet:
         docset = self
 
         if llm_cluster:
-            docset = docset.llm_cluster_entity(llm, description, field)
+            if llm_cluster_description is None:
+                raise Exception("Description of groups must be provided to form clusters.")
+            docset = docset.llm_cluster_entity(llm, llm_cluster_description, field)
             field = "properties._autogen_ClusterAssignment"
 
         docset = docset.groupby_count(field, unique_field, **kwargs)
 
-        # uses 0 as default value -> end of docset
         docset = docset.sort(descending, "properties.count", 0)
         if k is not None:
             docset = docset.limit(k)
@@ -1070,11 +1071,7 @@ class DocSet:
         """
 
         docset = self
-        text = ""
-        for i, doc in enumerate(docset.take_all()):
-            if i != 0:
-                text += ", "
-            text += str(doc.field_to_value(field))
+        text = ", ".join([doc.field_to_value(field) for doc in docset.take_all()])
 
         # sets message
         messages = LlmClusterEntityFormGroupsMessagesPrompt(

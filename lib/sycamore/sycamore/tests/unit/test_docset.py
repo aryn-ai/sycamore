@@ -420,7 +420,6 @@ class TestDocSet:
             llm=None,
             field="text_representation",
             k=2,
-            description="Find 2 most frequent fruits",
             descending=True,
             llm_cluster=False,
         )
@@ -438,10 +437,10 @@ class TestDocSet:
             llm=None,
             field="text_representation",
             k=1,
-            description="Find 2 most frequent fruits",
             descending=True,
             llm_cluster=False,
             unique_field="parent_id",
+            llm_cluster_description="Find 2 most frequent fruits",
         )
         assert top_k_docset.count() == 1
 
@@ -454,9 +453,9 @@ class TestDocSet:
             llm=MockLLM(),
             field="text_representation",
             k=2,
-            description="",
             descending=True,
             llm_cluster=True,
+            llm_cluster_description="",
         )
         assert top_k_docset.count() == 2
 

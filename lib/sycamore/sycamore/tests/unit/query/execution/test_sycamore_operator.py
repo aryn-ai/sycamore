@@ -273,9 +273,9 @@ def test_top_k():
             descending=True,
             K=10,
             field="name",
-            description="some description",
             llm_cluster=True,
             primary_field="id",
+            llm_cluster_description="some description",
         )
         sycamore_operator = SycamoreTopK(context, logical_node, query_id="test", inputs=[doc_set])
         result = sycamore_operator.execute()
@@ -284,10 +284,10 @@ def test_top_k():
             llm=ANY,
             field=logical_node.field,
             k=logical_node.K,
-            description=logical_node.description,
             descending=logical_node.descending,
             llm_cluster=logical_node.llm_cluster,
             unique_field=logical_node.primary_field,
+            llm_cluster_description=logical_node.llm_cluster_description,
             **sycamore_operator.get_execute_args(),
         )
         assert result == return_doc_set

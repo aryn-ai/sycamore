@@ -258,7 +258,7 @@ class EntityExtractor(GraphExtractor):
         return doc
 
     async def _extract_from_section(self, labels, summary: str) -> Awaitable[str]:
-        return await self.llm.generate_future(
+        return await self.llm.generate_async(
             prompt_kwargs={"prompt": str(GraphEntityExtractorPrompt(labels, summary))},
             llm_kwargs={"response_format": {"type": "json_object"}},
         )

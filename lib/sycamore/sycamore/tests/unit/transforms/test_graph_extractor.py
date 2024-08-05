@@ -86,7 +86,6 @@ class TestGraphExtractor:
             pass
 
         async def generate_future(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
-            await asyncio.sleep(1)
             return """{
                 "entities": [
                     {

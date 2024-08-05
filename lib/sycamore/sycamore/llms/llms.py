@@ -17,7 +17,7 @@ class LLM(ABC):
     def is_chat_mode(self) -> bool:
         pass
 
-    async def generate_future(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Awaitable[str]:
+    async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Awaitable[str]:
         raise ValueError("No implementation for llm futures exists")
 
 

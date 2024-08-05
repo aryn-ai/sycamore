@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from collections import defaultdict
-import functools
-from typing import Any, Callable, TypeGuard, Union
+from typing import Any, Union
 
 from sycamore.connectors.base_writer import BaseDBWriter
 from sycamore.data.document import Document, MetadataDocument
@@ -40,13 +39,12 @@ class Neo4jWriterClient:
         self._import_dir = import_dir
 
     @classmethod
-    def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "Neo4jWriterClient":
-        assert isinstance(params, Neo4jWriterClientParams)
+    def from_client_params(cls, params: Neo4jWriterClientParams) -> "Neo4jWriterClient":
         try:
             driver = GraphDatabase.driver(uri=params.uri, auth=params.auth)
             driver.verify_connectivity()
         except Exception:
-            raise ValueError(f"Invalid Neo4j URI or Authentication was used")
+            raise ValueError("Invalid Neo4j URI or Authentication was used")
         return Neo4jWriterClient(driver, params.import_dir)
 
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
@@ -127,8 +125,9 @@ class Neo4jWriterClient:
         logger.info(f"TIME TAKEN TO LOAD CSV --> NEO4J: {end-start} SECONDS")
         session.close()
 
+
 class Neo4jValidateParams:
-    def __init__(self, client_params: Neo4jWriterClientParams, target_params : Neo4jWriterTargetParams):
+    def __init__(self, client_params: Neo4jWriterClientParams, target_params: Neo4jWriterTargetParams):
         self._client = Neo4jWriterClient.from_client_params(client_params)
         self._client.create_target_idempotent(target_params=target_params)
         self._check_write_permissions(client_params=client_params)
@@ -142,7 +141,6 @@ class Neo4jValidateParams:
         # Check write permissions
         if not os.access(path, os.W_OK):
             raise OSError(f"Write permission denied for directory: {path}")
-        
 
 
 class Neo4jPrepareCSV:
@@ -170,7 +168,7 @@ class Neo4jPrepareCSV:
             if "label" not in data:
                 return headers
             node_key = data["label"]
-            if headers["nodes"].get(node_key, None) == None:
+            if headers["nodes"].get(node_key, None) is None:
                 headers["nodes"][node_key] = dict()
             #### add all required keys ####
             #### ALL DOCS HAVE uuid:ID ####
@@ -185,7 +183,7 @@ class Neo4jPrepareCSV:
 
             for key, value in data["relationships"].items():
                 rel_key = value["START_LABEL"] + "_" + value["END_LABEL"]
-                if headers["relationships"].get(rel_key, None) == None:
+                if headers["relationships"].get(rel_key, None) is None:
                     headers["relationships"][rel_key] = dict()
                 #### add all required keys ####
                 for key in ["uuid:ID", ":START_ID", ":END_ID", ":TYPE"]:
@@ -198,14 +196,14 @@ class Neo4jPrepareCSV:
         def merge(headers1, headers2):
             #### merge nodes together ####
             for key, values in headers2["nodes"].items():
-                if headers1["nodes"].get(key, None) == None:
+                if headers1["nodes"].get(key, None) is None:
                     headers1["nodes"][key] = values
                 else:
                     for value in values:
                         headers1["nodes"][key][value] = True
             #### merge relationships together ####
             for key, values in headers2["relationships"].items():
-                if headers1["relationships"].get(key, None) == None:
+                if headers1["relationships"].get(key, None) is None:
                     headers1["relationships"][key] = values
                 else:
                     for value in values:

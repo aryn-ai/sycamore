@@ -568,9 +568,9 @@ class DocSetWriter:
                 necessary client arguments below
             auth: Authentication arguments to be specified. See more information at
                 https://neo4j.com/docs/api/python-driver/current/api.html#auth-ref
-            database: database to write to in Neo4j. By default in the neo4j community addition, new databases 
+            database: database to write to in Neo4j. By default in the neo4j community addition, new databases
                 cannot be instantiated so you must use "neo4j". If using enterprise edition, ensure the database exists.
-            import_dir: the import directory specified 
+            import_dir: the import directory specified
 
             execute: Execute the pipeline and write to weaviate on adding this operator. If False,
                 will return a DocSet with this write in the plan. Default is True
@@ -613,20 +613,22 @@ class DocSetWriter:
             Neo4jWriterTargetParams,
             Neo4jValidateParams,
         )
+        from sycamore.plan_nodes import Node
         from sycamore.connectors.neo4j import Neo4jPrepareCSV, Neo4jWriteCSV, Neo4jLoadCSV
 
-        class Node:
+        class Wrapper(Node):
             def __init__(self, dataset):
                 self._ds = dataset
 
             def execute(self, **kwargs):
                 return self._ds
 
+        import_dir = os.path.expanduser(import_dir)
         client_params = Neo4jWriterClientParams(uri=uri, auth=auth, import_dir=import_dir)
         target_params = Neo4jWriterTargetParams(database=database)
         Neo4jValidateParams(client_params=client_params, target_params=target_params)
 
-        self.plan = Node(self.plan.execute().materialize())
+        self.plan = Wrapper(self.plan.execute().materialize())
         Neo4jPrepareCSV(plan=self.plan, client_params=client_params)
         Neo4jWriteCSV(plan=self.plan, client_params=client_params).execute().materialize()
         Neo4jLoadCSV(client_params=client_params, target_params=target_params)

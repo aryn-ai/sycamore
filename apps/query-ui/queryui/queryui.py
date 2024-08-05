@@ -2,9 +2,12 @@
 #
 # To run: poetry run python -m streamlit run queryui/queryui.py
 
+import io
 import os
 import pickle
+import tempfile
 from typing import Any
+import zipfile
 import pandas as pd
 
 import streamlit as st
@@ -18,8 +21,6 @@ from sycamore.query.operators.logical_operator import LogicalOperator
 
 
 DEFAULT_S3_CACHE_PATH = "s3://aryn-temp/llm_cache/luna/ntsb"
-DEFAULT_TRACE_DIR = "luna_traces"
-DEFAULT_FULL_TRACE_DIR = f"{os.path.dirname(os.getcwd())}/query-ui/luna_traces"
 BASE_PROPS = set(
     [
         "filename",
@@ -47,12 +48,12 @@ def show_schema(container: Any, schema: dict[str, str]):
 
 def show_traces():
     """Show the traces in the given trace_dir."""
-    base_dir = f"{DEFAULT_FULL_TRACE_DIR}/{st.session_state.query_id}"
-    for id in sorted(os.listdir(f"{base_dir}")):
+    st.query_trace_dir = f"{st.session_state.trace_dir}/{st.session_state.query_id}"
+    for id in sorted(os.listdir(f"{st.query_trace_dir}")):
 
         # Initialize a list to hold the data
         data_list = []
-        directory = f"{base_dir}/{id}"
+        directory = f"{st.query_trace_dir}/{id}"
 
         for filename in os.listdir(directory):
             f = os.path.join(directory, filename)
@@ -127,7 +128,7 @@ def run_query(query: str, index: str, plan_only: bool, do_trace: bool, use_cache
     st.session_state.trace_dir = None
     if do_trace:
         if not plan_only:
-            st.session_state.trace_dir = DEFAULT_TRACE_DIR
+            st.session_state.trace_dir = tempfile.mkdtemp()
             st.write(f"Writing execution traces to `{st.session_state.trace_dir}`")
         else:
             st.warning("Tracing currently not supported with plan only")
@@ -151,6 +152,19 @@ def run_query(query: str, index: str, plan_only: bool, do_trace: bool, use_cache
         if do_trace:
             st.subheader("Traces", divider="blue")
             show_traces()
+            # Create a zip file
+            zip_buffer = io.BytesIO()
+            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+                for root, dirs, files in os.walk(st.query_trace_dir):
+                    for file in files:
+                        zf.write(os.path.join(root, file),
+                                 os.path.relpath(os.path.join(root, file), st.query_trace_dir))
+            st.download_button(
+                label="Download Traces as ZIP",
+                data=zip_buffer.getvalue(),
+                file_name=f"traces_{st.session_state.query_id}.zip",
+                mime="application/zip"
+            )
 
     else:
         generate_code(client, plan)

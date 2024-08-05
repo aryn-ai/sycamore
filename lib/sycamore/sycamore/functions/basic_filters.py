@@ -102,4 +102,4 @@ class RangeFilter(BasicFilter):
         return value_comp >= start_comp and value_comp <= end_comp
 
     def to_date(self, date_string: str):
-        return parser.parse(date_string).replace(tzinfo=None)
+        return parser.parse(date_string, fuzzy=True).replace(tzinfo=None)

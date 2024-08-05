@@ -108,6 +108,7 @@ class PropertiesZeroShotGuidancePrompt(SimpleGuidancePrompt):
     {query}
     """
 
+
 class TaskIdentifierZeroShotGuidancePrompt(SimpleGuidancePrompt):
     system = "You are a helpful task identifier. You return a string containing no whitespace."
     user = """You are given a dictionary where the keys are task IDs and the values are descriptions of tasks.
@@ -116,6 +117,7 @@ class TaskIdentifierZeroShotGuidancePrompt(SimpleGuidancePrompt):
     {task_descriptions}
     Question: {question}
     """
+
 
 class OpenAIMessage:
     def __init__(self, role: str, content: str):

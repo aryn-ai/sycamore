@@ -26,7 +26,7 @@ class SubtaskExecutor:
         ),
     ):
         if subtask_data:
-           self._subtask_data = subtask_data
+            self._subtask_data = subtask_data
         elif filepath:
             with open(filepath) as json_file:
                 self._subtask_data = json.load(json_file)

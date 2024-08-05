@@ -7,7 +7,7 @@ from typing import Dict, Any
 
 DEFAULT_PATH = os.path.join(pathlib.Path.home(), ".aryn", "config.yaml")
 _DEFAULT_PATH = DEFAULT_PATH
-## ToDO: remove after 31/08/2024
+## ToDO: remove after 2024-08-31
 
 
 class ArynConfig:

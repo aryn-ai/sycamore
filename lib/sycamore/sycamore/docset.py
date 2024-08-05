@@ -1067,7 +1067,7 @@ class DocSet:
 
         Returns:
             A DocSet with an additional field "properties._autogen_ClusterAssignment" that contains
-            the assigned group. For example, if "properties.entity.food" has values 'banana', 'milk', 
+            the assigned group. For example, if "properties.entity.food" has values 'banana', 'milk',
             'yogurt', 'chocolate', 'orange', "properties._autogen_ClusterAssignment" would contain
             values like 'fruit', 'dairy', and 'dessert'.
         """

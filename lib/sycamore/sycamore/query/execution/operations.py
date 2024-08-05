@@ -1,6 +1,6 @@
 import json
 import math
-from typing import Any, Callable, List, Optional, Union
+from typing import Any, List, Union
 
 from sycamore import DocSet
 from sycamore.data import MetadataDocument

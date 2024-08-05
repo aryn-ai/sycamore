@@ -115,14 +115,14 @@ class SentenceTransformerEmbedder(Embedder):
         return doc_batch
 
     def generate_text_embedding(self, text: str) -> list[float]:
-        return self.get_model().encode(text).tolist()
-
-    def get_model(self):
         if not self._transformer:
             from sentence_transformers import SentenceTransformer
-            return SentenceTransformer(self.model_name)
-        else:
-            return self._transformer
+
+            self._transformer = SentenceTransformer(self.model_name)  # type: ignore[assignment]
+
+        assert self._transformer is not None
+
+        return self._transformer.encode(text).tolist()
 
 
 class OpenAIEmbeddingModels(Enum):
@@ -207,11 +207,10 @@ class OpenAIEmbedder(Embedder):
         if isinstance(self._client, AzureOpenAIClient) and self.model_batch_size > 16:
             logger.warn("The maximum batch size for emeddings on Azure Open AI is 16.")
             self.model_batch_size = 16
-        
+
         embedding = self._client.embeddings.create(model=self.model_name, input=text).data[0].embedding
 
         return embedding
-        
 
 
 class BedrockEmbeddingModels(Enum):
@@ -275,7 +274,7 @@ class BedrockEmbedder(Embedder):
             if doc.text_representation is not None:
                 doc.embedding = self._generate_embedding(client, self.pre_process_document(doc))
         return doc_batch
-    
+
     def generate_text_embedding(self, text: str) -> list[float]:
         import boto3
 

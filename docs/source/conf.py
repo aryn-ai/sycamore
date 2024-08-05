@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.abspath("./"))
 sys.path.insert(1, os.path.abspath("../../lib/sycamore/sycamore/"))
 
 project = "Sycamore"
-copyright = "2023, Aryn Inc."
+copyright = "2024, Aryn Inc."
 author = "The Aryn Team"
 
 # -- General configuration ---------------------------------------------------
@@ -30,6 +30,7 @@ extensions = [
 
 templates_path = ["_templates"]
 exclude_patterns = []
+smartquotes = False
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output

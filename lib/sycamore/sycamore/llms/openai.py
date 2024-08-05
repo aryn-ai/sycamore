@@ -3,7 +3,7 @@ import os
 import pickle
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional, TypedDict, Union, cast
+from typing import Optional, TypedDict, Union, cast
 
 from guidance.models import AzureOpenAIChat, AzureOpenAICompletion
 from guidance.models import Model
@@ -19,6 +19,10 @@ from sycamore.llms.prompts import GuidancePrompt
 from sycamore.utils.cache import Cache
 
 logger = logging.getLogger(__name__)
+
+
+# Base URL for Helicone API, if configured using the SYCAMORE_HELICONE_API_KEY environment variable.
+HELICONE_BASE_URL = "https://oai.helicone.ai/v1"
 
 
 class OpenAIClientType(Enum):
@@ -37,6 +41,7 @@ class OpenAIModels(Enum):
     GPT_3_5_TURBO = OpenAIModel(name="gpt-3.5-turbo", is_chat=True)
     GPT_4_TURBO = OpenAIModel(name="gpt-4-turbo", is_chat=True)
     GPT_4O = OpenAIModel(name="gpt-4o", is_chat=True)
+    GPT_4O_MINI = OpenAIModel(name="gpt-4o-mini", is_chat=True)
     GPT_3_5_TURBO_INSTRUCT = OpenAIModel(name="gpt-3.5-turbo-instruct", is_chat=False)
 
     @classmethod
@@ -60,6 +65,7 @@ class OpenAIClientWrapper:
         api_version: Optional[str] = None,
         azure_ad_token: Optional[str] = None,
         azure_ad_token_provider: Optional[AzureADTokenProvider] = None,
+        disable_helicone: Optional[bool] = None,
         # Deprecated names that we support for backwards compatibility.
         api_type: Optional[str] = None,
         api_base: Optional[str] = None,
@@ -67,14 +73,16 @@ class OpenAIClientWrapper:
         **kwargs,
     ):
         if api_type is not None:
-            logger.warn("WARNING: The api_type parameter is deprecated. Please use client_type instead.")
+            logger.warning("WARNING: The api_type parameter is deprecated. Please use client_type instead.")
             if api_type in {"azure", "azure_ad", "azuread"}:
                 client_type = OpenAIClientType.AZURE
             else:
                 client_type = OpenAIClientType.OPENAI
 
         if api_base is not None:
-            logger.warn("WARNING: The api_base parameter is deprecated. Please use base_url or azure_endpoint instead.")
+            logger.warning(
+                "WARNING: The api_base parameter is deprecated. Please use base_url or azure_endpoint instead."
+            )
 
             if azure_endpoint is None:
                 azure_endpoint = api_base
@@ -101,6 +109,7 @@ class OpenAIClientWrapper:
         self.api_version = api_version
         self.azure_ad_token = azure_ad_token
         self.azure_ad_token_provider = azure_ad_token_provider
+        self.disable_helicone = disable_helicone
         self.extra_kwargs = kwargs
 
         # The OpenAI Python library is happy to pull Azure creds from the AZURE_OPENAI_API_KEY environment variable,
@@ -115,12 +124,30 @@ class OpenAIClientWrapper:
 
     def get_client(self) -> OpenAIClient:
         if self.client_type == OpenAIClientType.OPENAI:
+            # We currently only support Helicone with OpenAI.
+            base_url = self.base_url
+            extra_kwargs = self.extra_kwargs
+            if "SYCAMORE_HELICONE_API_KEY" in os.environ and self.disable_helicone is not True:
+                if self.base_url is not None:
+                    logging.warning("SYCAMORE_HELICONE_API_KEY found in environment. Ignoring base_url.")
+                base_url = HELICONE_BASE_URL
+                if "default_headers" not in extra_kwargs:
+                    extra_kwargs["default_headers"] = {}
+                extra_kwargs["default_headers"].update(
+                    {"Helicone-Auth": f"Bearer {os.environ['SYCAMORE_HELICONE_API_KEY']}"}
+                )
+                # Add SYCAMORE_HELICONE_TAG value to the Helicone-Property-Tag header if it is set.
+                if "SYCAMORE_HELICONE_TAG" in os.environ:
+                    extra_kwargs["default_headers"].update(
+                        {"Helicone-Property-Tag": os.environ["SYCAMORE_HELICONE_TAG"]}
+                    )
+
             return OpenAIClient(
                 api_key=self.api_key,
                 organization=self.organization,
-                base_url=self.base_url,
+                base_url=base_url,
                 max_retries=self.max_retries,
-                **self.extra_kwargs,
+                **extra_kwargs,
             )
         elif self.client_type == OpenAIClientType.AZURE:
             return AzureOpenAIClient(
@@ -264,24 +291,29 @@ class OpenAI(LLM):
 
     def _get_cache_key(self, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
         assert self._cache
-        combined = {"prompt_kwargs": prompt_kwargs, "llm_kwargs": llm_kwargs}
+        combined = {"prompt_kwargs": prompt_kwargs, "llm_kwargs": llm_kwargs, "model_name": self.model.name}
         data = pickle.dumps(combined)
-        return self._cache.get_hash_key(data)
+        return self._cache.get_hash_context(data).hexdigest()
 
-    def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Any:
+    def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
         cache_key = None
         if self._cache:
             cache_key = self._get_cache_key(prompt_kwargs, llm_kwargs)
             hit = self._cache.get(cache_key)
             if hit:
-                if hit.get("prompt_kwargs") == prompt_kwargs and hit.get("llm_kwargs") == llm_kwargs:
+                if (
+                    hit.get("prompt_kwargs") == prompt_kwargs
+                    and hit.get("llm_kwargs") == llm_kwargs
+                    and hit.get("model_name") == self.model.name
+                ):
                     return hit.get("result")
                 else:
                     logger.warning(
-                        "Found cache content mismatch, key=%s prompt_kwargs=%s llm_kwargs=%s",
+                        "Found cache content mismatch, key=%s prompt_kwargs=%s llm_kwargs=%s model_name=%s",
                         cache_key,
                         prompt_kwargs,
                         llm_kwargs,
+                        self.model.name,
                     )
 
         if llm_kwargs is not None:
@@ -291,7 +323,12 @@ class OpenAI(LLM):
 
         if self._cache:
             assert cache_key
-            item = {"result": result, "prompt_kwargs": prompt_kwargs, "llm_kwargs": llm_kwargs}
+            item = {
+                "result": result,
+                "prompt_kwargs": prompt_kwargs,
+                "llm_kwargs": llm_kwargs,
+                "model_name": self.model.name,
+            }
             self._cache.set(cache_key, item)
         return result
 
@@ -300,6 +337,9 @@ class OpenAI(LLM):
             "temperature": 0,
             **llm_kwargs,
         }
+
+        if "SYCAMORE_OPENAI_USER" in os.environ:
+            kwargs.update({"user": os.environ.get("SYCAMORE_OPENAI_USER")})
 
         if "prompt" in prompt_kwargs:
             prompt = prompt_kwargs.get("prompt")

@@ -96,6 +96,14 @@ More Resources
 
 
 .. toctree::
+   :caption: Aryn Cloud
+   :maxdepth: 2
+   :hidden:
+
+   /aryn_cloud/aryn_partitioning_service.md
+
+
+.. toctree::
    :caption: Data Ingestion and Preparation
    :maxdepth: 2
    :hidden:
@@ -107,6 +115,7 @@ More Resources
    /data_ingestion_and_preparation/running_a_data_preparation_job.md
    /data_ingestion_and_preparation/generative_ai_configuration.md
    /data_ingestion_and_preparation/transforms.rst
+   /data_ingestion_and_preparation/connectors.rst
 
 
 .. toctree::
@@ -154,3 +163,4 @@ More Resources
    /APIs/data_preparation.rst
    /APIs/conversation_memory.rst
    /APIs/transforms.rst
+   /APIs/aryn-sdk.rst

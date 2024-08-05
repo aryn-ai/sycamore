@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sycamore-ai"
-version = "0.1.17"
+version = "0.1.18"
 description = "Sycamore is an LLM-powered semantic data preparation system for building search applications."
 authors = ["aryn.ai <opensource@aryn.ai>"]
 readme = "README.md"
@@ -32,6 +32,8 @@ pillow = "10.2.0" # See poetry-lock/pyproject.toml
 setuptools = "69.5.1" # See poetry-lock/pyproject.toml
 tenacity = "^8.4.1"
 diskcache = "^5.6.3"
+overrides = "^7.7.0"
+structlog = "^24.2.0"
 
 torch = "^2.3.0"
 pdfminer-six = "20221105"
@@ -43,6 +45,8 @@ fsspec = "2024.2.0" # See poetry-lock/pyproject.toml
 timm = "^0.9.12"
 cryptography = "^42.0.3"
 aiohttp = "^3.9.2"
+apted = "^1.0.3"
+fasteners = "^0.19"
 
 # Dependencies for building docs. Defined as an extra
 # so they can be installed using pip on RTD.
@@ -50,7 +54,7 @@ furo = { version = "^2023.9.10", optional = true }
 myst-parser = { version = "^2.0.0", optional = true }
 sphinx = { version = "^7.2.5", optional = true }
 rouge = "^1.0.1"
-pypdf2 = "^3.0.1"
+pypdf = "^4.3.0"
 pytesseract = "^0.3.10"
 easyocr = "^1.7.1"
 
@@ -60,6 +64,7 @@ pinecone-client = { version = "^4.1.0", extras = ["grpc"] }
 pinecone-text = "^0.9.0"
 duckdb = "1.0.0"
 elasticsearch = "8.14.0"
+pydantic = "^2.8.2"
 
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"
@@ -78,6 +83,8 @@ nbmake = "^1.4.5"
 jupyterlab = "^4.0.11"
 jupyter-lsp = "^2.2.2"
 ipywidgets = "^8.1.0"
+matplotlib = "^3.9.1"
+rich = "^13.7.1"
 
 [tool.poetry.group.docker.dependencies]
 requests = "^2"

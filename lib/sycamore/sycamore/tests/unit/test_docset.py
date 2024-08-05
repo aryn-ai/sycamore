@@ -1,6 +1,6 @@
 import random
 import string
-from typing import Callable
+from typing import Callable, Optional
 
 import pytest
 
@@ -30,6 +30,20 @@ from sycamore.transforms.extract_schema import SchemaExtractor
 from sycamore.transforms import Filter
 from sycamore.transforms.summarize import LLMElementTextSummarizer
 from sycamore.transforms.query import QueryExecutor
+
+
+class MockLLM(LLM):
+    def __init__(self):
+        super().__init__(model_name="mock_model")
+
+    def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
+        if prompt_kwargs == {"messages": [{"role": "user", "content": "test1"}]} and llm_kwargs == {}:
+            return 4
+        elif prompt_kwargs == {"messages": [{"role": "user", "content": "test2"}]} and llm_kwargs == {}:
+            return 2
+
+    def is_chat_mode(self):
+        return True
 
 
 class TestDocSet:
@@ -91,7 +105,7 @@ class TestDocSet:
         assert isinstance(docset.lineage(), FlatMap)
         assert docset.lineage()._name == get_name_from_callable(f)
 
-    def test_flat_map_customt_name(self, mocker):
+    def test_flat_map_custom_name(self, mocker):
         test_name = "test_flat_map_1"
         context = mocker.Mock(spec=Context)
         docset = DocSet(context, None)
@@ -247,3 +261,55 @@ class TestDocSet:
         for doc in all_docs:
             for elem in doc.elements:
                 assert elem.properties["element_val"] % 2 == 0
+
+    def test_count(self):
+
+        docs = []
+        for i in range(10):
+            docs.append(Document(text_representation=""))
+
+        context = sycamore.init()
+        docset = context.read.document(docs)
+        assert docset.count() == 10
+
+    def test_count_distinct(self):
+
+        docs = []
+        for i in range(10):
+            if i == 8 or i == 9:
+                num = 20
+            else:
+                num = i
+            docs.append(Document(text_representation="", doc_id=num))
+
+        context = sycamore.init()
+        docset = context.read.document(docs)
+        assert docset.count_distinct("doc_id") == 9
+
+    def test_llm_filter(self):
+
+        doc_list = [Document(text_representation="test1"), Document(text_representation="test2")]
+        context = sycamore.init()
+        docset = context.read.document(doc_list)
+        new_field = "_autogen_LLMFilterOutput"
+
+        filtered_docset = docset.llm_filter(
+            llm=MockLLM(), new_field=new_field, prompt=[], field="text_representation", threshold=3
+        )
+
+        assert filtered_docset.count() == 1
+        for doc in filtered_docset.take():
+            assert doc.text_representation == "test1"
+            assert int(doc.properties[new_field]) == 4
+
+        filtered_docset = docset.llm_filter(
+            llm=MockLLM(), new_field=new_field, prompt=[], field="text_representation", threshold=2
+        )
+
+        assert filtered_docset.count() == 2
+
+        for doc in filtered_docset.take():
+            if doc.text_representation == "test1":
+                assert int(doc.properties[new_field]) == 4
+            elif doc.text_representation == "test2":
+                assert int(doc.properties[new_field]) == 2

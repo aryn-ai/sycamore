@@ -7,7 +7,9 @@ from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from concurrent.futures import ProcessPoolExecutor
 from io import BytesIO, IOBase
-from typing import cast, Any, BinaryIO, List, Tuple, Union
+from typing import cast, Any, BinaryIO, List, Tuple, Union, Optional
+from pathlib import Path
+import pwd
 
 import requests
 import json
@@ -17,11 +19,14 @@ import pdf2image
 import pytesseract
 import torch
 from PIL import Image
+import fasteners
 from pdfminer.converter import PDFPageAggregator
 from pdfminer.layout import LAParams
-from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
+from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager, resolve1
 from pdfminer.pdfpage import PDFPage
 from pdfminer.utils import open_filename
+from pdfminer.pdfparser import PDFParser
+from pdfminer.pdfdocument import PDFDocument
 
 from sycamore.data import Element, BoundingBox, ImageElement, TableElement
 from sycamore.data.element import create_element
@@ -32,6 +37,11 @@ from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
 from sycamore.utils.pdf import convert_from_path_streamed_batched
 from sycamore.utils.time_trace import LogTime, timetrace
+from sycamore.utils.pytorch_dir import get_pytorch_build_directory
+
+logger = logging.getLogger(__name__)
+_DETR_LOCK_FILE = f"{pwd.getpwuid(os.getuid()).pw_dir}/.cache/Aryn-Detr.lock"
+_VERSION = "0.2024.07.24"
 
 
 def _batchify(iterable, n=1):
@@ -58,7 +68,7 @@ def _can_retry(e: BaseException) -> bool:
         return False
 
 
-pdf_miner_cache = DiskCache(os.path.join(tempfile.gettempdir(), "SycamoreCache/PDFMinerCache"))
+pdf_miner_cache = DiskCache(str(Path.home() / ".sycamore/PDFMinerCache"))
 
 
 class ArynPDFPartitioner:
@@ -69,7 +79,7 @@ class ArynPDFPartitioner:
     ArynPartitioner class.
     """
 
-    def __init__(self, model_name_or_path=ARYN_DETR_MODEL, device=None):
+    def __init__(self, model_name_or_path=ARYN_DETR_MODEL, device=None, cache: Optional[Cache] = None):
         """
         Initializes the ArynPDFPartitioner and underlying DETR model.
 
@@ -78,7 +88,10 @@ class ArynPDFPartitioner:
             device: The device on which to run the model.
         """
         self.device = device
-        self.model = DeformableDetr(model_name_or_path, device)
+        if model_name_or_path is None:
+            self.model = None
+        else:
+            self.model = DeformableDetr(model_name_or_path, device, cache)
         self.ocr_table_reader = None
 
     @staticmethod
@@ -123,12 +136,14 @@ class ArynPDFPartitioner:
         extract_images=False,
         batch_size: int = 1,
         batch_at_a_time=True,
-        local=False,
+        use_partitioning_service=True,
         aryn_api_key: str = "",
         aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
         use_cache=False,
+        pages_per_call: int = -1,
     ) -> List[Element]:
-        if not local:
+        if use_partitioning_service:
+            assert aryn_api_key != ""
             return self._partition_remote(
                 file=file,
                 aryn_api_key=aryn_api_key,
@@ -139,8 +154,10 @@ class ArynPDFPartitioner:
                 ocr_tables=ocr_tables,
                 extract_table_structure=extract_table_structure,
                 extract_images=extract_images,
+                pages_per_call=pages_per_call,
             )
         else:
+            assert self.model is not None
             if batch_at_a_time:
                 temp = self._partition_pdf_batched(
                     file=file,
@@ -180,6 +197,115 @@ class ArynPDFPartitioner:
         wait=wait_exponential(multiplier=1, min=1),
         stop=stop_after_delay(_TEN_MINUTES),
     )
+    def _call_remote_partitioner(
+        file: BinaryIO,
+        aryn_api_key: str,
+        aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
+        threshold: float = 0.4,
+        use_ocr: bool = False,
+        ocr_images: bool = False,
+        ocr_tables: bool = False,
+        extract_table_structure: bool = False,
+        extract_images: bool = False,
+        selected_pages: list = [],
+    ) -> List[Element]:
+        file.seek(0)
+        options = {
+            "threshold": threshold,
+            "use_ocr": use_ocr,
+            "ocr_images": ocr_images,
+            "ocr_tables": ocr_tables,
+            "extract_table_structure": extract_table_structure,
+            "extract_images": extract_images,
+            "selected_pages": selected_pages,
+            "source": "sycamore",
+        }
+
+        files: Mapping = {"pdf": file, "options": json.dumps(options).encode("utf-8")}
+        header = {"Authorization": f"Bearer {aryn_api_key}"}
+
+        logger.debug(f"ArynPartitioner POSTing to {aryn_partitioner_address} with files={files}")
+        response = requests.post(aryn_partitioner_address, files=files, headers=header, stream=True)
+        content = []
+        in_status = False
+        in_bulk = False
+        partial_line = b""
+        for part in response.iter_content(None):
+            if not part:
+                continue
+
+            content.append(part)
+            if in_bulk:
+                continue
+            partial_line = partial_line + part
+            if b"\n" not in part:
+                # Make sure we don't go O(n^2) from constantly appending to our partial_line.
+                if len(partial_line) > 100000:
+                    logger.warning("Too many bytes without newline. Skipping incremental status")
+                    in_bulk = True
+
+                continue
+
+            lines = partial_line.split(b"\n")
+            if part.endswith(b"\n"):
+                partial_line = b""
+            else:
+                partial_line = lines.pop()
+
+            for line in lines:
+                if line.startswith(b'  "status"'):
+                    in_status = True
+                if not in_status:
+                    continue
+                if line.startswith(b"  ],"):
+                    in_status = False
+                    in_bulk = True
+                    continue
+                if line.startswith(b'    "T+'):
+                    t = json.loads(line.decode("utf-8").removesuffix(","))
+                    logger.info(f"ArynPartitioner: {t}")
+
+        body = b"".join(content).decode("utf-8")
+        logger.debug("ArynPartitioner Recieved data")
+
+        if response.status_code != 200:
+            if response.status_code == 500 or response.status_code == 502:
+                logger.debug(
+                    "ArynPartitioner recieved a retry-able error {} x-aryn-call-id: {}".format(
+                        response, response.headers.get("x-aryn-call-id")
+                    )
+                )
+                raise ArynPDFPartitionerException(
+                    "Error: status_code: {}, reason: {} (x-aryn-call-id: {})".format(
+                        response.status_code, body, response.headers.get("x-aryn-call-id")
+                    ),
+                    can_retry=True,
+                )
+            raise ArynPDFPartitionerException(
+                "Error: status_code: {}, reason: {} (x-aryn-call-id: {})".format(
+                    response.status_code, body, response.headers.get("x-aryn-call-id")
+                )
+            )
+
+        response_json = json.loads(body)
+        if isinstance(response_json, dict):
+            status = response_json.get("status", [])
+            if "error" in response_json:
+                raise ArynPDFPartitionerException(
+                    f"Error partway through processing: {response_json['error']}\nPartial Status:\n{status}"
+                )
+            response_json = response_json.get("elements")
+
+        elements = []
+        for element_json in response_json:
+            element = create_element(**element_json)
+            if element.binary_representation:
+                element.binary_representation = base64.b64decode(element.binary_representation)
+            elements.append(element)
+
+        return elements
+
+    @staticmethod
     def _partition_remote(
         file: BinaryIO,
         aryn_api_key: str,
@@ -190,53 +316,38 @@ class ArynPDFPartitioner:
         ocr_tables: bool = False,
         extract_table_structure: bool = False,
         extract_images: bool = False,
+        pages_per_call: int = -1,
     ) -> List[Element]:
-        options = {
-            "threshold": threshold,
-            "use_ocr": use_ocr,
-            "ocr_images": ocr_images,
-            "ocr_tables": ocr_tables,
-            "extract_table_structure": extract_table_structure,
-            "extract_images": extract_images,
-        }
+        file.seek(0)
+        parser = PDFParser(file)
+        document = PDFDocument(parser)
+        page_count = resolve1(document.catalog["Pages"])["Count"]
+        file.seek(0)
 
-        files: Mapping = {"pdf": file, "options": json.dumps(options).encode("utf-8")}
-        header = {"Authorization": f"Bearer {aryn_api_key}"}
-
-        logging.debug(f"ArynPartitioner POSTing to {aryn_partitioner_address} with files={files}")
-        response = requests.post(aryn_partitioner_address, files=files, headers=header)
-        logging.debug("ArynPartitioner Recieved data")
-
-        if response.status_code != 200:
-            if response.status_code == 500:
-                logging.debug(
-                    "ArynPartitioner recieved a retry-able error {} x-aryn-call-id: {}".format(
-                        response, response.headers.get("x-aryn-call-id")
-                    )
-                )
-                raise ArynPDFPartitionerException(
-                    "Error: status_code: {}, reason: {} (x-aryn-call-id: {})".format(
-                        response.status_code, response.text, response.headers.get("x-aryn-call-id")
-                    ),
-                    can_retry=True,
-                )
-            raise ArynPDFPartitionerException(
-                "Error: status_code: {}, reason: {} (x-aryn-call-id: {})".format(
-                    response.status_code, response.text, response.headers.get("x-aryn-call-id")
+        result = []
+        low = 1
+        high = pages_per_call
+        if pages_per_call == -1:
+            high = page_count
+        while low <= page_count:
+            result.extend(
+                ArynPDFPartitioner._call_remote_partitioner(
+                    file=file,
+                    aryn_api_key=aryn_api_key,
+                    aryn_partitioner_address=aryn_partitioner_address,
+                    threshold=threshold,
+                    use_ocr=use_ocr,
+                    ocr_images=ocr_images,
+                    ocr_tables=ocr_tables,
+                    extract_table_structure=extract_table_structure,
+                    extract_images=extract_images,
+                    selected_pages=[[low, min(high, page_count)]],
                 )
             )
+            low = high + 1
+            high += pages_per_call
 
-        response_json = response.json()
-        if isinstance(response_json, dict):
-            response_json = response_json.get("elements")
-        elements = []
-        for element_json in response_json:
-            element = create_element(**element_json)
-            if element.binary_representation:
-                element.binary_representation = base64.b64decode(element.binary_representation)
-            elements.append(element)
-
-        return elements
+        return result
 
     def _partition_pdf_sequenced(
         self,
@@ -286,7 +397,8 @@ class ArynPDFPartitioner:
         with LogTime("all_batches"):
             for i, batch in enumerate(batches):
                 with LogTime(f"infer_one_batch {i}/{len(images) / batch_size}"):
-                    deformable_layout += self.model.infer(batch, threshold)
+                    assert self.model is not None
+                    deformable_layout += self.model.infer(batch, threshold, use_cache)
 
         if use_ocr:
             with LogTime("ocr"):
@@ -307,7 +419,7 @@ class ArynPDFPartitioner:
                 # but typing.BinaryIO doesn't extend from it. BytesIO
                 # (the concrete class) implements both.
                 file_name = cast(IOBase, file)
-                hash_key = Cache.get_hash_key(file_name.read())
+                hash_key = Cache.get_hash_context(file_name.read()).hexdigest()
                 with LogTime("pdfminer_extract", log_start=True):
                     pdfminer_layout = pdfminer.extract(file_name, hash_key, use_cache)
                 # page count should be the same
@@ -354,18 +466,18 @@ class ArynPDFPartitioner:
         LogTime("partition_start", point=True)
         with tempfile.NamedTemporaryFile(prefix="detr-pdf-input-") as pdffile:
             with LogTime("write_pdf"):
+                file_hash = Cache.get_hash_context_file(pdffile.name)
                 data = file.read()
-                hash_key = Cache.get_hash_key(data)
                 data_len = len(data)
                 pdffile.write(data)
                 del data
                 pdffile.flush()
-                logging.info(f"Wrote {pdffile.name}")
+                logger.info(f"Wrote {pdffile.name}")
             stat = os.stat(pdffile.name)
             assert stat.st_size == data_len
             return self._partition_pdf_batched_named(
                 pdffile.name,
-                hash_key,
+                file_hash.hexdigest(),
                 threshold,
                 use_ocr,
                 ocr_images,
@@ -413,6 +525,7 @@ class ArynPDFPartitioner:
                 extract_table_structure=extract_table_structure,
                 table_structure_extractor=table_structure_extractor,
                 extract_images=extract_images,
+                use_cache=use_cache,
             )
             assert len(parts) == len(i)
             deformable_layout.extend(parts)
@@ -437,7 +550,7 @@ class ArynPDFPartitioner:
 
         if tracemalloc.is_tracing():
             (current, peak) = tracemalloc.get_traced_memory()
-            logging.info(f"Memory Usage current={current} peak={peak}")
+            logger.info(f"Memory Usage current={current} peak={peak}")
             top = tracemalloc.take_snapshot()
             display_top(top)
         return deformable_layout
@@ -460,11 +573,13 @@ class ArynPDFPartitioner:
         extract_table_structure,
         table_structure_extractor,
         extract_images,
+        use_cache,
     ) -> Any:
         import easyocr
 
         with LogTime("infer"):
-            deformable_layout = self.model.infer(batch, threshold)
+            assert self.model is not None
+            deformable_layout = self.model.infer(batch, threshold, use_cache)
 
         gc_tensor_dump()
         assert len(deformable_layout) == len(batch)
@@ -524,7 +639,7 @@ class SycamoreObjectDetection(ABC):
 
 
 class DeformableDetr(SycamoreObjectDetection):
-    def __init__(self, model_name_or_path, device=None):
+    def __init__(self, model_name_or_path, device=None, cache: Optional[Cache] = None):
         super().__init__()
 
         self.labels = [
@@ -544,13 +659,18 @@ class DeformableDetr(SycamoreObjectDetection):
 
         self.device = device
         self._model_name_or_path = model_name_or_path
+        self.cache = cache
 
-        from transformers import AutoImageProcessor, DeformableDetrForObjectDetection
+        with fasteners.InterProcessLock(_DETR_LOCK_FILE):
+            lockfile = Path(get_pytorch_build_directory("MultiScaleDeformableAttention", False)) / "lock"
+            lockfile.unlink(missing_ok=True)
 
-        LogTime("loading_model", point=True)
-        with LogTime("load_model", log_start=True):
-            self.processor = AutoImageProcessor.from_pretrained(model_name_or_path)
-            self.model = DeformableDetrForObjectDetection.from_pretrained(model_name_or_path).to(self._get_device())
+            from transformers import AutoImageProcessor, DeformableDetrForObjectDetection
+
+            LogTime("loading_model", point=True)
+            with LogTime("load_model", log_start=True):
+                self.processor = AutoImageProcessor.from_pretrained(model_name_or_path)
+                self.model = DeformableDetrForObjectDetection.from_pretrained(model_name_or_path).to(self._get_device())
 
     # Note: We wrap this in a function so that we can execute on both the leader and the workers
     # to account for heterogeneous systems. Currently if you pass in an explicit device parameter
@@ -558,19 +678,11 @@ class DeformableDetr(SycamoreObjectDetection):
     def _get_device(self) -> str:
         return choose_device(self.device, detr=True)
 
-    def infer(self, images: List[Image.Image], threshold: float) -> List[List[Element]]:
-        results = []
-        inputs = self.processor(images=images, return_tensors="pt").to(self._get_device())
-        outputs = self.model(**inputs)
-        target_sizes = torch.tensor([image.size[::-1] for image in images])
-        results.extend(
-            self.processor.post_process_object_detection(outputs, target_sizes=target_sizes, threshold=threshold)
-        )
-
-        for result in results:
-            result["scores"] = result["scores"].tolist()
-            result["labels"] = result["labels"].tolist()
-            result["boxes"] = result["boxes"].tolist()
+    def infer(self, images: List[Image.Image], threshold: float, use_cache: bool = False) -> List[List[Element]]:
+        if use_cache and self.cache:
+            results = self._get_cached_inference(images, threshold)
+        else:
+            results = self._get_uncached_inference(images, threshold)
 
         batched_results = []
         for result, image in zip(results, images):
@@ -584,7 +696,57 @@ class DeformableDetr(SycamoreObjectDetection):
                 )
                 elements.append(element)
             batched_results.append(elements)
+            if self.cache:
+                hash_key = self._get_hash_key(image, threshold)
+                self.cache.set(hash_key, result)
+
         return batched_results
+
+    def _get_cached_inference(self, images: List[Image.Image], threshold: float) -> list:
+        results = []
+        uncached_images = []
+        uncached_indices = []
+
+        # First, check the cache for each image
+        for index, image in enumerate(images):
+            key = self._get_hash_key(image, threshold)
+            assert self.cache is not None
+            cached_layout = self.cache.get(key)
+            if cached_layout:
+                logger.info(f"Cache Hit for ImageToJson. Cache hit-rate is {self.cache.get_hit_rate()}")
+                results.append(cached_layout)
+            else:
+                uncached_images.append(image)
+                uncached_indices.append(index)
+                results.append(None)  # Placeholder for uncached image
+
+        # Process the uncached images in a batch
+        if uncached_images:
+            processed_images = self._get_uncached_inference(uncached_images, threshold)
+            # Store processed images in the cache and update the result list
+            for index, processed_img in zip(uncached_indices, processed_images):
+                results[index] = processed_img
+        return results
+
+    def _get_uncached_inference(self, images: List[Image.Image], threshold: float) -> list:
+        results = []
+        inputs = self.processor(images=images, return_tensors="pt").to(self._get_device())
+        outputs = self.model(**inputs)
+        target_sizes = torch.tensor([image.size[::-1] for image in images])
+        results.extend(
+            self.processor.post_process_object_detection(outputs, target_sizes=target_sizes, threshold=threshold)
+        )
+        for result in results:
+            result["scores"] = result["scores"].tolist()
+            result["labels"] = result["labels"].tolist()
+            result["boxes"] = result["boxes"].tolist()
+        return results
+
+    def _get_hash_key(self, image: Image.Image, threshold: float) -> str:
+        hash_ctx = Cache.get_hash_context(image.tobytes())
+        hash_ctx.update(f"{threshold:.6f}".encode())
+        hash_ctx.update(_VERSION.encode())
+        return hash_ctx.hexdigest()
 
 
 class PDFMinerExtractor:
@@ -622,7 +784,7 @@ class PDFMinerExtractor:
 
         cached_result = pdf_miner_cache.get(hash_key) if use_cache else None
         if cached_result:
-            logging.info("Cache Hit for PDFMiner. Getting the result from cache.")
+            logger.info(f"Cache Hit for PDFMiner. Cache hit-rate is {pdf_miner_cache.get_hit_rate()}")
             return cached_result
         else:
             with open_filename(filename, "rb") as fp:
@@ -645,7 +807,7 @@ class PDFMinerExtractor:
 
                     pages.append(texts)
                 if use_cache:
-                    logging.info("Cache Miss for PDFMiner. Storing the result to the cache.")
+                    logger.info("Cache Miss for PDFMiner. Storing the result to the cache.")
                     pdf_miner_cache.set(hash_key, pages)
                 return pages
 

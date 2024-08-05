@@ -9,7 +9,7 @@ from sycamore.evaluation.datasets import EvaluationDataSetReader
 
 
 def _hf_to_qa_datapoint(data: dict[str, Any]) -> dict[str, Any]:
-    mapping = {"question": "question", "ground_truth_answer": "answer", "ground_truth_document_url": "doc_link"}
+    mapping = {"question": "question", "ground_truth_answer": "best_answer", "ground_truth_document_url": "source"}
     document = EvaluationDataPoint()
     for k, v in mapping.items():
         if "ground_truth_document_url" == k:
@@ -25,7 +25,7 @@ class TestEvaluationDataSetReader:
 
         context = sycamore.init()
         reader = EvaluationDataSetReader(context)
-        hf_dataset = datasets.load_dataset("PatronusAI/financebench", split=datasets.Split.TRAIN)
+        hf_dataset = datasets.load_dataset("truthfulqa/truthful_qa", "generation", split=datasets.Split.VALIDATION)
         docset = reader.huggingface(hf_dataset, doc_extractor=_hf_to_qa_datapoint)
         sample = docset.take(1)[0]
 

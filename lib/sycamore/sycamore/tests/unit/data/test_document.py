@@ -1,6 +1,8 @@
 import pytest
 
 from sycamore.data import BoundingBox, Document, Element, MetadataDocument
+from sycamore.data.element import TableElement
+from sycamore.data.table import Table, TableCell
 
 
 class TestElement:
@@ -26,6 +28,23 @@ class TestElement:
         del element.properties
         assert element.properties == {}
         assert element.data["bbox"] == (1, 2, 3, 4)
+
+    def test_table_element_text(self):
+        element = TableElement({"text_representation": "base text"})
+        assert element.type == "table"
+        assert element.text_representation == "base text"
+        table = Table(
+            [
+                TableCell(content="1", rows=[0], cols=[0]),
+                TableCell(content="2", rows=[0], cols=[1]),
+                TableCell(content="3", rows=[1], cols=[0]),
+                TableCell(content="4", rows=[1], cols=[1]),
+            ]
+        )
+        element.table = table
+        assert element.text_representation == table.to_csv()
+        element.text_representation = "new text"
+        assert element.text_representation == "new text"
 
 
 class TestDocument:

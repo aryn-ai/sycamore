@@ -1,11 +1,12 @@
 import sycamore
 from sycamore import DocSet, Context
+from sycamore.config import Config
 from sycamore.data import Document, Element
 from sycamore.plan_nodes import Node
 from sycamore.connectors.opensearch import OpenSearchWriter
 from sycamore.connectors.weaviate import WeaviateDocumentWriter
 from sycamore.connectors.duckdb import DuckDBWriter
-from sycamore.connectors.elasticsearch import ElasticDocumentWriter
+from sycamore.connectors.elasticsearch import ElasticsearchDocumentWriter
 
 import json
 from pathlib import Path
@@ -119,6 +120,7 @@ def noop_map(doc: Document) -> Document:
 class TestDocSetWriter:
     def test_opensearch(self, mocker):
         context = mocker.Mock(spec=Context)
+        context.config = Config()
         docset = DocSet(context, mocker.Mock(spec=Node))
         execute = mocker.patch.object(OpenSearchWriter, "execute")
         docset.write.opensearch(os_client_args={}, index_name="index")
@@ -134,8 +136,8 @@ class TestDocSetWriter:
     def test_elasticsearch(self, mocker):
         context = mocker.Mock(spec=Context)
         docset = DocSet(context, mocker.Mock(spec=Node))
-        execute = mocker.patch.object(ElasticDocumentWriter, "execute")
-        docset.write.elasticsearch(index_name="index")
+        execute = mocker.patch.object(ElasticsearchDocumentWriter, "execute")
+        docset.write.elasticsearch(url="", index_name="index")
         execute.assert_called_once()
 
     def test_duckdb(self, mocker):

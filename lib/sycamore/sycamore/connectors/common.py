@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Callable, Iterator, Union, Iterable, Tuple, Any
+from typing import Callable, Iterator, Union, Iterable, Tuple, Any, Dict
 import json
 import string
 import random
@@ -33,8 +33,10 @@ def filter_doc(obj, include):
     return {k: v for k, v in obj.__dict__.items() if k in include}
 
 
-def check_dictionary_compatibility(dict1: dict[Any, Any], dict2: dict[Any, Any]):
+def check_dictionary_compatibility(dict1: dict[Any, Any], dict2: dict[Any, Any], ignore: list[str] = []):
     for k in dict1:
+        if ignore and any(val in k for val in ignore):
+            continue
         if k not in dict2:
             return False
         if dict1[k] != dict2[k]:
@@ -145,6 +147,31 @@ def convert_to_str_dict(data: dict[str, Any]) -> dict[str, str]:
             result[key] = json.dumps(value, separators=(",", ":"))
         else:
             result[key] = repr(value)
+    return result
+
+
+def convert_from_str_dict(data: dict[str, str]) -> dict[str, Any]:
+    result: Dict[str, Any] = {}
+    for key, value in data.items():
+        if value == "":
+            result[key] = None
+        elif value.lower() == "true":
+            result[key] = True
+        elif value.lower() == "false":
+            result[key] = False
+        else:
+            try:
+                result[key] = int(value)
+            except ValueError:
+                try:
+                    result[key] = float(value)
+                except ValueError:
+                    try:
+                        # Try to parse as JSON (for lists and dicts)
+                        result[key] = json.loads(value)
+                    except json.JSONDecodeError:
+                        # If all else fails, keep it as a string
+                        result[key] = value
     return result
 
 

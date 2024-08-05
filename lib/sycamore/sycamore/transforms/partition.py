@@ -9,12 +9,13 @@ from ray.data import ActorPoolStrategy
 from sycamore.functions import TextOverlapChunker, Chunker
 from sycamore.functions import CharacterTokenizer, Tokenizer
 from sycamore.functions import reorder_elements
-from sycamore.data import BoundingBox, Document, Element, TableElement
+from sycamore.data import BoundingBox, Document, Element, TableElement, Table
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base import CompositeTransform
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.table_structure.extract import TableStructureExtractor
 from sycamore.transforms.map import Map
+from sycamore.utils.cache import Cache
 from sycamore.utils.time_trace import timetrace
 from sycamore.utils import choose_device
 from sycamore.utils.aryn_config import ArynConfig
@@ -22,17 +23,27 @@ from sycamore.utils.aryn_config import ArynConfig
 from sycamore.transforms.detr_partitioner import ARYN_DETR_MODEL, DEFAULT_ARYN_PARTITIONER_ADDRESS
 
 
-# This comparator helps sort the elements per page specifically when a page
-# has two columns
-def _elements_reorder_comparator(element1: Element, element2: Element) -> int:
-    # In PixelSpace (default coordinate system), the coordinates of each
-    # element starts in the top left corner and proceeds counter-clockwise. The
-    # following function checks if the x0 point of the element is in the
+def _pageless_reorder_comparator(element1: Element, element2: Element) -> int:
+    # The following function checks if the x0 point of the element is in the
     # left column
     def element_in_left_col(e: Element) -> bool:
         if e.bbox is None:
             raise RuntimeError("Element BBox is None")
         return e.bbox.x1 <= 0.5
+
+    if element_in_left_col(element1) and not element_in_left_col(element2):
+        return -1
+    elif not element_in_left_col(element1) and element_in_left_col(element2):
+        return 1
+    else:
+        return 0
+
+
+# This comparator helps sort the elements per page specifically when a page
+# has two columns
+def _elements_reorder_comparator(element1: Element, element2: Element) -> int:
+    # In PixelSpace (default coordinate system), the coordinates of each
+    # element starts in the top left corner and proceeds counter-clockwise.
 
     page1 = element1.properties["page_number"]
     page2 = element2.properties["page_number"]
@@ -42,12 +53,7 @@ def _elements_reorder_comparator(element1: Element, element2: Element) -> int:
     elif page1 > page2:
         return 1
     else:
-        if element_in_left_col(element1) and not element_in_left_col(element2):
-            return -1
-        elif not element_in_left_col(element1) and element_in_left_col(element2):
-            return 1
-        else:
-            return 0
+        return _pageless_reorder_comparator(element1, element2)
 
 
 class Partitioner(ABC):
@@ -332,27 +338,45 @@ class HtmlPartitioner(Partitioner):
                 if len(table.find_all("table")) > 0:
                     continue
 
-                table_element = TableElement()
-
-                # find headers if they exist
-                headers = table.findAll("th")
-                if len(headers) > 0:
-                    table_element.columns = [tag.text for tag in headers]
-
-                table_element.text_representation = table.text
+                table_object = Table.from_html(html_tag=table)
+                table_element = TableElement(table=table_object)
                 table_element.properties.update(document.properties)
-
-                # parse all rows, use all text as content
-                rows = table.findAll("tr")
-                table_element.rows = []
-                for row in rows:
-                    cols = row.findAll("td")
-                    if len(cols) > 0:
-                        row_vals = [tag.text for tag in cols]
-                        table_element.rows += [row_vals]
                 elements.append(table_element)
         document.elements = document.elements + elements
 
+        return document
+
+    def transform_transcript_elements(self, document: Document) -> Document:
+        if not document.binary_representation:
+            return document
+        parts = document.binary_representation.decode().split("\n")
+        if not parts:
+            return document
+        elements = []
+        start_time = ""
+        speaker = ""
+        end_time = ""
+        text = ""
+        for i in parts:
+            if i == "":
+                continue
+            assert i.startswith("[")
+            time_ix = i.find(" ")
+            assert time_ix > 0
+            spk_ix = i.find(" ", time_ix + 1)
+            assert spk_ix > 0
+            if start_time != "":
+                end_time = i[0:time_ix]
+                elements.append(
+                    Element({"start_time": start_time, "end_time": end_time, "speaker": speaker, "text": text})
+                )
+            start_time = i[0:time_ix]
+            speaker = i[time_ix:spk_ix]
+            text = i[spk_ix:]
+        if start_time != "":
+            end_time = i[0:time_ix]
+            elements.append(Element({"start_time": start_time, "end_time": "N/A", "speaker": speaker, "text": text}))
+        document.elements = elements
         return document
 
 
@@ -380,9 +404,19 @@ class ArynPartitioner(Partitioner):
              Ignored when local mode is false.
         extract_images: If true, crops each region identified as an image and attaches it to the associated
              ImageElement. This can later be fed into the SummarizeImages transform.
+        device: Device on which to run the partitioning model locally. One of 'cpu', 'cuda', and 'mps'. If
+             not set, Sycamore will choose based on what's available. If running remotely, this doesn't
+             matter.
+        batch_size: How many pages to partition at once, when running locally. Default is 1. Ignored when
+             running remotely.
+        batch_at_a_time: When running locally, run inference on the pages in batches in order to not load
+             all pages into memory at the same time. Default is False
         local: If false, runs the partitioner remotely. Defaults to false
-        aryn_token: The account token used to authenticate with Aryn's servers.
+        aryn_api_key: The account token used to authenticate with Aryn's servers.
         aryn_partitioner_address: The address of the server to use to partition the document
+        use_cache: Cache results from the partitioner for faster inferences on the same documents in future runs.
+        pages_per_call: Number of pages to send in a single call to the remote service. Default is -1,
+             which means send all pages in one call.
 
     Example:
          The following shows an example of using the ArynPartitioner to partition a PDF and extract
@@ -409,15 +443,17 @@ class ArynPartitioner(Partitioner):
         device=None,
         batch_size: int = 1,
         batch_at_a_time: bool = False,
-        local: bool = False,
+        use_partitioning_service: bool = True,
         aryn_api_key: str = "",
         aryn_partitioner_address: str = DEFAULT_ARYN_PARTITIONER_ADDRESS,
         use_cache=False,
+        pages_per_call: int = -1,
+        cache: Optional[Cache] = None,
     ):
-        if local:
-            device = choose_device(device)
-        else:
+        if use_partitioning_service:
             device = "cpu"
+        else:
+            device = choose_device(device)
         super().__init__(device=device, batch_size=batch_size)
         if not aryn_api_key:
             self._aryn_api_key = ArynConfig.get_aryn_api_key()
@@ -434,9 +470,11 @@ class ArynPartitioner(Partitioner):
         self._extract_images = extract_images
         self._batch_size = batch_size
         self._batch_at_a_time = batch_at_a_time
-        self._local = local
+        self._use_partitioning_service = use_partitioning_service
         self._aryn_partitioner_address = aryn_partitioner_address
         self._use_cache = use_cache
+        self._cache = cache
+        self._pages_per_call = pages_per_call
 
     # For now, we reorder elements based on page, left/right column, y axle position then finally x axle position
     @staticmethod
@@ -477,7 +515,7 @@ class ArynPartitioner(Partitioner):
         binary = io.BytesIO(document.data["binary_representation"])
         from sycamore.transforms.detr_partitioner import ArynPDFPartitioner
 
-        partitioner = ArynPDFPartitioner(self._model_name_or_path, device=self._device)
+        partitioner = ArynPDFPartitioner(self._model_name_or_path, device=self._device, cache=self._cache)
 
         try:
             elements = partitioner.partition_pdf(
@@ -491,10 +529,11 @@ class ArynPartitioner(Partitioner):
                 extract_images=self._extract_images,
                 batch_size=self._batch_size,
                 batch_at_a_time=self._batch_at_a_time,
-                local=self._local,
+                use_partitioning_service=self._use_partitioning_service,
                 aryn_api_key=self._aryn_api_key,
                 aryn_partitioner_address=self._aryn_partitioner_address,
                 use_cache=self._use_cache,
+                pages_per_call=self._pages_per_call,
             )
         except Exception as e:
             path = document.properties["path"]
@@ -538,7 +577,7 @@ class SycamorePartitioner(ArynPartitioner):
             device=device,
             batch_size=batch_size,
             batch_at_a_time=batch_at_a_time,
-            local=True,
+            use_partitioning_service=False,
         )
 
 
@@ -567,7 +606,8 @@ class Partition(CompositeTransform):
         self, child: Node, partitioner: Partitioner, table_extractor: Optional[TableExtractor] = None, **resource_args
     ):
         ops = []
-
+        if isinstance(partitioner, ArynPartitioner) and partitioner._use_partitioning_service:
+            resource_args["compute"] = ActorPoolStrategy(size=1)
         if partitioner.device == "cuda":
             if "num_gpus" not in resource_args:
                 resource_args["num_gpus"] = 1.0

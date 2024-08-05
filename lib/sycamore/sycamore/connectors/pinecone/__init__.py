@@ -1,15 +1,23 @@
 from sycamore.connectors.pinecone.pinecone_writer import (
     PineconeWriter,
-    PineconeClientParams,
-    PineconeTargetParams,
-    PineconeClient,
+    PineconeWriterClientParams,
+    PineconeWriterTargetParams,
+    PineconeWriterClient,
 )
-from sycamore.connectors.pinecone.pinecone_scan import PineconeScan
+from sycamore.connectors.pinecone.pinecone_reader import (
+    PineconeReader,
+    PineconeReaderClientParams,
+    PineconeReaderQueryParams,
+    PineconeReaderQueryResponse,
+)
 
 __all__ = [
     "PineconeWriter",
-    "PineconeClientParams",
-    "PineconeTargetParams",
-    "PineconeClient",
-    "PineconeScan",
+    "PineconeWriterClientParams",
+    "PineconeWriterTargetParams",
+    "PineconeWriterClient",
+    "PineconeReader",
+    "PineconeReaderClientParams",
+    "PineconeReaderQueryParams",
+    "PineconeReaderQueryResponse",
 ]

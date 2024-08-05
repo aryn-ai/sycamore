@@ -211,6 +211,7 @@ class SycamoreExecutor:
             result += import_str + "\n"
         # Default imports
         result += "from sycamore.query.execution.metrics import SycamoreQueryLogger\n"
+        result += "from sycamore.utils.cache import S3Cache\n"
         result += "import sycamore\n\n"
         result += "context = sycamore.init()\n"
         for node_id in sorted(self.node_id_to_node):

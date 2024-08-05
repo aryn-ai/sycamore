@@ -82,6 +82,9 @@ class TestGraphExtractor:
             super().__init__(model_name="mock_model")
 
         def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
+            pass
+
+        async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
             return """{
                 "entities": [
                     {

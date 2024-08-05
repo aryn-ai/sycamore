@@ -2,10 +2,13 @@
 #
 # To run: poetry run python -m streamlit run queryui/queryui.py
 
+import io
 import os
 import pickle
 import tempfile
-from typing import Any
+import zipfile
+import pandas as pd
+from typing import Any, Dict, Set, Tuple
 
 import streamlit as st
 from streamlit_ace import st_ace
@@ -18,32 +21,58 @@ from sycamore.query.operators.logical_operator import LogicalOperator
 
 
 DEFAULT_S3_CACHE_PATH = "s3://aryn-temp/llm_cache/luna/ntsb"
+BASE_PROPS = set(
+    [
+        "filename",
+        "filetype",
+        "page_number",
+        "page_numbers",
+        "links",
+        "element_id",
+        "parent_id",
+        "_schema",
+        "_schema_class",
+        "entity",
+    ]
+)
 
 
-def execute(code: str):
-    try:
-        exec(code, globals(), globals())
-    except Exception as e:
-        st.exception(e)
-
-
-def show_schema(container: Any, schema: dict[str, str]):
+def show_schema(container: Any, schema: Dict[str, Tuple[str, Set[str]]]):
     # Make a table.
     table_data = []
-    for key, value in schema.items():
+    for key, (value, _) in schema.items():
         table_data.append([key, value])
     with container.expander("Schema"):
         st.dataframe(table_data)
 
 
-def show_traces(trace_dir):
+def show_traces():
     """Show the traces in the given trace_dir."""
-    for root, _, files in os.walk(trace_dir):
-        for file in files:
-            with open(os.path.join(root, file), "rb") as f:
-                unpickled = pickle.load(f)
-                with st.expander(f"Trace: `{file}`"):
-                    st.write(f"```{str(unpickled)}```")
+    st.session_state.query_trace_dir = f"{st.session_state.trace_dir}/{st.session_state.query_id}"
+    for id in sorted(os.listdir(f"{st.session_state.query_trace_dir}")):
+
+        # Initialize a list to hold the data
+        data_list = []
+        directory = f"{st.session_state.query_trace_dir}/{id}"
+
+        for filename in os.listdir(directory):
+            f = os.path.join(directory, filename)
+            if os.path.isfile(f):
+                with open(f, "rb") as file:
+                    doc = pickle.load(file)
+                    doc_list = doc.properties["entity"]
+
+                    for p in doc.properties:
+                        if p not in BASE_PROPS and p in doc.properties:
+                            doc_list[p] = doc.properties[p]
+                    doc_list["text_representation"] = doc.text_representation
+                    data_list.append(doc_list)
+
+        df = pd.DataFrame(data_list)
+
+        st.write(f"Docset after node {id} — {len(df)} documents")
+
+        st.dataframe(df)
 
 
 @st.experimental_fragment
@@ -57,7 +86,6 @@ def generate_code(client, plan):
             language="python",
             min_lines=20,
         )
-        execute(st.session_state.code)
 
 
 def show_dag(plan: LogicalPlan):
@@ -85,7 +113,7 @@ def show_dag(plan: LogicalPlan):
                 edges.append(Edge(source=dep.node_id, target=node.node_id, color="#ffffff"))
 
     config = Config(
-        width=500,
+        width=700,
         height=500,
         directed=True,
         physics=False,
@@ -97,14 +125,17 @@ def show_dag(plan: LogicalPlan):
 
 def run_query(query: str, index: str, plan_only: bool, do_trace: bool, use_cache: bool):
     """Run the given query."""
-    trace_dir = None
+    st.session_state.trace_dir = None
     if do_trace:
-        trace_dir = tempfile.mkdtemp()
-        st.write(f"Writing execution traces to `{trace_dir}`")
+        if not plan_only:
+            st.session_state.trace_dir = tempfile.mkdtemp()
+            st.write(f"Writing execution traces to `{st.session_state.trace_dir}`")
+        else:
+            st.warning("Tracing currently not supported with plan only")
     if use_cache:
         st.write(f"Using cache at `{st.session_state.s3_cache_path}`")
     client = SycamoreQueryClient(
-        trace_dir=trace_dir, s3_cache_path=st.session_state.s3_cache_path if use_cache else None
+        trace_dir=st.session_state.trace_dir, s3_cache_path=st.session_state.s3_cache_path if use_cache else None
     )
     with st.spinner("Getting schema..."):
         schema = client.get_opensearch_schema(index)
@@ -114,14 +145,43 @@ def run_query(query: str, index: str, plan_only: bool, do_trace: bool, use_cache
         show_dag(plan)
     if not plan_only:
         with st.spinner("Running query..."):
-            _, result = client.run_plan(plan)
+            st.session_state.query_id, result = client.run_plan(plan)
+        st.write(f"Query ID `{st.session_state.query_id}`\n")
         st.subheader("Result", divider="rainbow")
         st.success(result)
+        if do_trace:
+            st.subheader("Traces", divider="blue")
+            show_traces()
+            # Create a zip file
+            zip_buffer = io.BytesIO()
+            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+                for root, dirs, files in os.walk(st.session_state.query_trace_dir):
+                    for file in files:
+                        zf.write(
+                            os.path.join(root, file),
+                            os.path.relpath(os.path.join(root, file), st.session_state.query_trace_dir),
+                        )
+            st.download_button(
+                label="Download Traces as ZIP",
+                data=zip_buffer.getvalue(),
+                file_name=f"traces_{st.session_state.query_id}.zip",
+                mime="application/zip",
+            )
+
     else:
         generate_code(client, plan)
-
-    if do_trace:
-        st.button("Show traces", on_click=lambda: show_traces(trace_dir))
+        if "code" in st.session_state and st.session_state.code:
+            execute_button = st.button("Execute Code")
+            if execute_button:
+                code_locals: dict = {}
+                try:
+                    with st.spinner("Executing code..."):
+                        exec(st.session_state.code, globals(), code_locals)
+                except Exception as e:
+                    st.exception(e)
+                if code_locals and "result" in code_locals:
+                    st.subheader("Result", divider="rainbow")
+                    st.success(code_locals["result"])
 
 
 client = SycamoreQueryClient()

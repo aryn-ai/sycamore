@@ -1,16 +1,16 @@
+import logging
 from typing import Any, Callable, Optional, TYPE_CHECKING, Union
 
 from neo4j import Auth
 from neo4j.auth_management import AuthManager
 from pyarrow.fs import FileSystem
+from ray.data import ActorPoolStrategy
 
 from sycamore import Context
-from sycamore.plan_nodes import Node
-from sycamore.data import Document
 from sycamore.connectors.common import HostAndPort
 from sycamore.connectors.file.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
-from ray.data import ActorPoolStrategy
-import logging
+from sycamore.data import Document
+from sycamore.plan_nodes import Node
 
 if TYPE_CHECKING:
     # Shenanigans to avoid circular import
@@ -34,8 +34,8 @@ class DocSetWriter:
     def opensearch(
         self,
         *,
-        os_client_args: dict,
-        index_name: str,
+        os_client_args: Optional[dict] = None,
+        index_name: Optional[str] = None,
         index_settings: Optional[dict] = None,
         execute: bool = True,
         **kwargs,
@@ -99,6 +99,14 @@ class DocSetWriter:
         from typing import Any
         import copy
 
+        if os_client_args is None:
+            os_client_args = self.context.config.opensearch_client_config
+        assert os_client_args is not None, "OpenSearch client args required"
+
+        if not index_name:
+            index_name = self.context.config.opensearch_index_name
+        assert index_name is not None, "OpenSearch index name required"
+
         # We mutate os_client_args, so mutate a copy
         os_client_args = copy.deepcopy(os_client_args)
 
@@ -127,6 +135,10 @@ class DocSetWriter:
         client_params = OpenSearchWriterClientParams(**os_client_args)
 
         target_params: OpenSearchWriterTargetParams
+
+        if index_settings is None:
+            index_settings = self.context.config.opensearch_index_settings
+
         if index_settings is not None:
             idx_settings = index_settings.get("body", {}).get("settings", {})
             idx_mappings = index_settings.get("body", {}).get("mappings", {})

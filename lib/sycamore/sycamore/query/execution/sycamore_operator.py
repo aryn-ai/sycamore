@@ -182,7 +182,8 @@ class SycamoreSummarizeData(SycamoreOperator):
     result_description='{description}',
     result_data=[{logical_deps_str}]
 )
-print({output_var or get_var_name(self.logical_node)})
+result = {output_var or get_var_name(self.logical_node)}
+print(result)
 """
         return result, [
             "from sycamore.query.execution.operations import summarize_data",

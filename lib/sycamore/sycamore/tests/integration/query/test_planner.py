@@ -11,7 +11,10 @@ def test_simple_llm_planner(query_integration_test_index: str):
     """
     os_client = OpenSearch(OS_CLIENT_ARGS)
 
-    schema = {"location": "string", "airplaneType": "string"}
+    schema = {
+        "location": ("string", {"New York", "Seattle"}),
+        "airplaneType": ("string", {"Boeing 747", "Airbus A380"}),
+    }
     planner = LlmPlanner(query_integration_test_index, data_schema=schema, os_config=OS_CONFIG, os_client=os_client)
     plan = planner.plan("How many locations did incidents happen in?")
 

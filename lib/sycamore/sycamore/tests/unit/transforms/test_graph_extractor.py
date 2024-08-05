@@ -5,7 +5,6 @@ from sycamore.reader import DocSetReader
 from sycamore.transforms.extract_graph import GraphMetadata, MetadataExtractor, GraphEntity, EntityExtractor
 from sycamore.data import HierarchicalDocument
 from collections import defaultdict
-import asyncio
 
 
 class TestGraphExtractor:

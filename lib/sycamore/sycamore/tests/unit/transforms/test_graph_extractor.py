@@ -84,7 +84,7 @@ class TestGraphExtractor:
         def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
             pass
 
-        async def generate_future(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
+        async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
             return """{
                 "entities": [
                     {

@@ -15,7 +15,6 @@ from openai import OpenAI as OpenAIClient
 from openai import AsyncOpenAI as AsyncOpenAIClient
 from openai import max_retries as DEFAULT_MAX_RETRIES
 from openai.lib.azure import AzureADTokenProvider
-from openai.types.chat import ChatCompletionMessageParam
 
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts import GuidancePrompt
@@ -167,7 +166,7 @@ class OpenAIClientWrapper:
             )
         else:
             raise ValueError(f"Invalid client_type {self.client_type}")
-        
+
     @functools.cache
     def get_async_client(self) -> AsyncOpenAIClient:
         if self.client_type == OpenAIClientType.OPENAI:
@@ -338,7 +337,7 @@ class OpenAI(LLM):
         combined = {"prompt_kwargs": prompt_kwargs, "llm_kwargs": llm_kwargs, "model_name": self.model.name}
         data = pickle.dumps(combined)
         return self._cache.get_hash_context(data).hexdigest()
-    
+
     def _cache_get(self, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
         if llm_kwargs.get("temperature", 0) != 0 or not self._cache:
             return (None, None)
@@ -346,8 +345,16 @@ class OpenAI(LLM):
         key = self._get_cache_key(prompt_kwargs, llm_kwargs)
         hit = self._cache.get(key)
         if hit:
-            assert hit.get("prompt_kwargs") == prompt_kwargs and hit.get("llm_kwargs") == llm_kwargs and hit.get("model_name") == self.model.name, f"""
-            Found cache content mismatch, key={key} prompt_kwargs={prompt_kwargs} llm_kwargs={llm_kwargs} model_name={self.model.name}"""
+            assert (
+                hit.get("prompt_kwargs") == prompt_kwargs
+                and hit.get("llm_kwargs") == llm_kwargs
+                and hit.get("model_name") == self.model.name
+            ), f"""
+            Found cache content mismatch:
+            key={key} 
+            prompt_kwargs={prompt_kwargs} 
+            llm_kwargs={llm_kwargs} 
+            model_name={self.model.name}"""
             return (key, hit.get("result"))
         return (key, None)
 
@@ -373,7 +380,6 @@ class OpenAI(LLM):
             raise ValueError("Either prompt or messages must be present in prompt_kwargs.")
         return kwargs
 
-
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
         key, ret = self._cache_get(prompt_kwargs, llm_kwargs)
         if ret is not None:
@@ -396,8 +402,7 @@ class OpenAI(LLM):
     def _generate_using_openai(self, prompt_kwargs, llm_kwargs) -> str:
         kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
 
-        completion = self.client_wrapper.get_client().chat.completions.create(
-            model=self._model_name, **kwargs)
+        completion = self.client_wrapper.get_client().chat.completions.create(model=self._model_name, **kwargs)
         return completion.choices[0].message.content
 
     async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Awaitable[str]:
@@ -422,9 +427,9 @@ class OpenAI(LLM):
         kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
 
         completion = await self.client_wrapper.get_async_client().chat.completions.create(
-            model=self._model_name, **kwargs)
+            model=self._model_name, **kwargs
+        )
         return completion.choices[0].message.content
-
 
     def _generate_using_guidance(self, prompt_kwargs) -> str:
         guidance_model = self.client_wrapper.get_guidance_model(self.model)

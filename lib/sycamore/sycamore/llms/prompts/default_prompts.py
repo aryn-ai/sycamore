@@ -209,7 +209,7 @@ class SummarizeDataMessagesPrompt(OpenAIMessagesPromptBase):
 
 
 class LlmClusterEntityFormGroupsMessagesPrompt(OpenAIMessagesPromptBase):
-    def __init__(self, field: str, description: str, text: str):
+    def __init__(self, field: str, instruction: str, text: str):
         super().__init__()
 
         self.add_message(
@@ -217,7 +217,7 @@ class LlmClusterEntityFormGroupsMessagesPrompt(OpenAIMessagesPromptBase):
             (
                 f"You are given a list of values corresponding to the database field '{field}'. Categorize the "
                 f"occurrences of '{field}' and create relevant non-overlapping groups. Return ONLY JSON with "
-                f"the various categorized groups of '{field}' based on the following instructions '{description}'. "
+                f"the various categorized groups of '{field}' based on the following instructions '{instruction}'. "
                 'Return your answer in the following JSON format and check your work: {{"groups": [string]}}. '
                 'For example, if the instruction is "Form groups of different types of food" '
                 'and the values are "banana, milk, yogurt, chocolate, oranges", you would return something like '

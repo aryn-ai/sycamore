@@ -50,7 +50,7 @@ class MockLLM(LLM):
         elif (
             prompt_kwargs["messages"]
             == LlmClusterEntityFormGroupsMessagesPrompt(
-                field="text_representation", description="", text="1, 2, one, two, 1, 3"
+                field="text_representation", instruction="", text="1, 2, one, two, 1, 3"
             ).get_messages_dict()
         ):
             return '{"groups": ["group1", "group2", "group3"]}'

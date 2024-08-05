@@ -1062,7 +1062,7 @@ class DocSet:
 
         Args:
             llm: LLM client.
-            description: Description of groups, e.g. 'Form groups for different types of food'
+            instruction: Instruction about groups to form, e.g. 'Form groups for different types of food'
             field: Field to make/assign groups based on, e.g. 'properties.entity.food'
 
         Returns:

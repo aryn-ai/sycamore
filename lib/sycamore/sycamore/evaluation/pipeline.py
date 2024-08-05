@@ -24,8 +24,8 @@ class EvaluationPipeline:
         metrics: Optional[list[EvaluationMetric]] = None,
         query_executor: Optional[OpenSearchQueryExecutor] = None,
         os_client_args: Optional[dict] = None,
-        subtask_docs: Optional[DocSet] = None,
-        embedder: Optional[Embedder] = SentenceTransformerEmbedder(
+        subtask_docs: Optional[list[Document]] = None,
+        embedder: Embedder = SentenceTransformerEmbedder(
             model_name="sentence-transformers/all-MiniLM-L6-v2", batch_size=100
         ),
     ) -> None:
@@ -67,7 +67,7 @@ class EvaluationPipeline:
                 if formula:
                     subtask_str += " Formula: " + formula + "; Values: "
                     for elem in document.elements:
-                        subtask_str += elem["generated_answer"]
+                        subtask_str += elem.properties["generated_answer"]
             subtask_str += " Instructions: " + instructions + " Use this information to answer the following question. "
 
             doc["question"] = subtask_str.format(**doc.properties["subtask_filters"]) + doc["question"]

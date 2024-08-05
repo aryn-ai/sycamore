@@ -19,9 +19,9 @@ class SubtaskExecutor:
         filepath: Optional[str],
         subtask_data: dict[str, Any],
         index: str,
-        os_config: str,
+        os_config: dict[str, Any],
         query_executor: QueryExecutor,
-        embedder: Optional[Embedder] = SentenceTransformerEmbedder(
+        embedder: Embedder = SentenceTransformerEmbedder(
             model_name="sentence-transformers/all-MiniLM-L6-v2", batch_size=100
         ),
     ):
@@ -84,53 +84,70 @@ class SubtaskExecutor:
 
         for term in terms:
             subtask = self._subtask_data["subtask_instructions"][term].format(**document.properties["subtask_filters"])
-            sub_doc = OpenSearchQuery()
-            sub_doc.index = self._index
+            elem = Element()
+            elem.text_representation = (
+                subtask + "Return only the code " + term + " alongside the amount found and no additional information."
+            )
 
-            subtask += "Return only the code " + term + " alongside the amount found and no additional information."
-            qn_embedding = self._embedder.generate_text_embedding(subtask)
-
-            sub_doc.query = {
-                "_source": {"excludes": ["embedding"]},
-                "size": self._os_config.get("size", 20),
-                "query": {
-                    "knn": {
-                        "embedding": {
-                            "vector": qn_embedding,
-                            "k": self._os_config.get("neural_search_k", 100),
-                            "filter": {
-                                "bool": {
-                                    "must": [
-                                        {"match": {"text_representation": subtask}},
-                                    ],
-                                },
-                            },
-                        }
-                    }
-                },
-            }
-
-            if "llm" in self._os_config:
-                sub_doc.params = {"search_pipeline": self._os_config["search_pipeline"]}
-                sub_doc["query"]["ext"] = {
-                    "generative_qa_parameters": {
-                        "llm_question": subtask,
-                        "context_size": self._os_config.get("context_window", 10),
-                        "llm_model": self._os_config.get("llm", "gpt-3.5-turbo"),
-                    }
-                }
-                if self._os_config.get("rerank", False):
-                    sub_doc["query"]["ext"]["rerank"] = {"query_context": {"query_text": subtask}}
             if "filters" in document.properties:
-                sub_doc["query"] = self._add_filter(sub_doc["query"], document.properties["filters"])
+                elem.properties = {"filters": document.properties["filters"]}
 
-            document.elements.append(sub_doc)
+            document.elements.append(elem)
         return document
 
     def _get_results(self, element: Element) -> Element:
-        return self._query_executor.query(element)
+        subtask = element.text_representation
+        query = OpenSearchQuery()
+        query["index"] = self._index
 
-    def execute(self, ds: DocSet) -> DocSet:
+        qn_embedding = self._embedder.generate_text_embedding(subtask)
+
+        query["query"] = {
+            "_source": {"excludes": ["embedding"]},
+            "size": self._os_config.get("size", 20),
+            "query": {
+                "knn": {
+                    "embedding": {
+                        "vector": qn_embedding,
+                        "k": self._os_config.get("neural_search_k", 100),
+                        "filter": {
+                            "bool": {
+                                "must": [
+                                    {"match": {"text_representation": subtask}},
+                                ],
+                            },
+                        },
+                    }
+                }
+            },
+        }
+
+        if "llm" in self._os_config:
+            query.params = {"search_pipeline": self._os_config["search_pipeline"]}
+            query["query"]["ext"] = {
+                "generative_qa_parameters": {
+                    "llm_question": subtask,
+                    "context_size": self._os_config.get("context_window", 10),
+                    "llm_model": self._os_config.get("llm", "gpt-3.5-turbo"),
+                }
+            }
+            if self._os_config.get("rerank", False):
+                query["query"]["ext"]["rerank"] = {"query_context": {"query_text": subtask}}
+        if "filters" in element.properties:
+            query["query"] = self._add_filter(query["query"], element.properties["filters"])
+
+        result = self._query_executor.query(query)
+        result_elem = Element()
+        result_elem.type = "QueryResult"
+        result_elem.properties = {
+            "query": result["query"],
+            "hits": result["hits"],
+            "generated_answer": result.generated_answer,
+            "result": result["result"],
+        }
+        return result_elem
+
+    def execute(self, ds: DocSet) -> list[Document]:
         # Convert docset of all questions to a docset of formulas
         formula_ds = ds.flat_map(self._get_formulas)
         subtasks_ds = formula_ds.map(self._get_subtasks)

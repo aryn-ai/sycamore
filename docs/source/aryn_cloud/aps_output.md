@@ -15,7 +15,23 @@ The output of the Aryn Partitioning Service is JSON.
 "type": one of the element types below,
 ```
 
-Element Types: "N/A","Caption","Footnote","Formula","List-item","Page-footer","Page-header","Image","Section-header","Table","Text","Title"
+### Element Types
+
+|  Type   | Description  |
+| ------: | :----------- |
+| Title   |  Large Text  |
+| Text    | Regular Text | 
+| Caption | Description of an image or table |
+| Footnote | Small text found near the bottom of the page |
+| Formula | LaTeX or similar mathematical expression |
+| List-item | Part of a list |
+| Page-footer | Small text at bottom of page |
+| Page-header | Small text at top of page |
+| Image | A Picture or diagram |
+| Section-header | Medium-sized text marking a section. |
+| Table | A grid of text. See the `extract_table_structure` option to extract information from the table rather than just detecting its presence. |
+
+ "N/A","Caption","Footnote","Formula","List-item","Page-footer","Page-header","Image","Section-header","Table","Text","Title"
 
 ```text
 "bbox": coordinates of the bounding box around the element contents,

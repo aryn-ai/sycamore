@@ -84,7 +84,7 @@ class RangeFilter(BasicFilter):
                 raise ValueError(f"start must be a string for date filtering, got {type(self._start)}")
             start_comp = parser.parse(self._start).replace(tzinfo=None) if self._start else None
             if self._end and not isinstance(self._end, str):
-                raise ValueError(f"end must be a string for date filtering, got {type(self.end)}")
+                raise ValueError(f"end must be a string for date filtering, got {type(self._end)}")
             end_comp = parser.parse(self._end).replace(tzinfo=None) if self._end else None
         else:
             value_comp = value

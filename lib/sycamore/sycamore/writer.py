@@ -570,7 +570,6 @@ class DocSetWriter:
         auth: Union[tuple[Any, Any], Auth, AuthManager, None],
         import_dir: str,
         database: str = "neo4j",
-        execute: bool = True,
         **kwargs,
     ) -> Optional["DocSet"]:
         """Writes the content of the DocSet into the specified Neo4j database.
@@ -583,41 +582,32 @@ class DocSetWriter:
             database: database to write to in Neo4j. By default in the neo4j community addition, new databases
                 cannot be instantiated so you must use "neo4j". If using enterprise edition, ensure the database exists.
             import_dir: the import directory specified
-
-            execute: Execute the pipeline and write to weaviate on adding this operator. If False,
-                will return a DocSet with this write in the plan. Default is True
         Example:
-            The following code shows how to read a pdf dataset into a ``DocSet`` and write it out to a
-            local Elasticsearch index called `test-index`.
+            The following code shows how to write to a neo4j database
 
+            ..code-block::python
+            URI = "neo4j://localhost:7687"
+            AUTH = ("neo4j", "koala-stereo-comedy-spray-figure-6974")
+
+            metadata = [GraphMetadata(nodeKey='company',nodeLabel='Company',relLabel='FILED_BY'),
+                        GraphMetadata(nodeKey='gics_sector',nodeLabel='Sector',relLabel='IN_SECTOR'),
+                        GraphMetadata(nodeKey='doc_type',nodeLabel='Document Type',relLabel='IS_TYPE'),
+                        GraphMetadata(nodeKey='doc_period',nodeLabel='Year',relLabel='FILED_DURING'),
+                        ]
+
+            ds = (
+                ctx.read.manifest(metadata_provider=JsonManifestMetadataProvider(manifest), binary_format="pdf", filesystem=fsys)
+                .partition(partitioner=SycamorePartitioner(extract_table_structure=True, use_ocr=True, extract_images=True), num_gpus=0.2)
+                ds.map(restructure_doc)
+                .map(children_to_section)
+                .map(summarize_sections)
+                .extract_graph_structure([MetadataExtractor(metadata=metadata),
+                                        EntityExtractor(entities=entities,llm=llm)])
+                .explode()
+            )
+
+            ds.write.neo4j(uri=URI,auth=AUTH,database="neo4j",import_dir="/home/admin/neo4j/import")
             .. code-block:: python
-
-                uri = "neo4j://localhost:7687"
-                auth = ("neo4j", "xxxx")
-                import_dir = "/home/admin/neo4j/import"
-                database = "neo4j"
-
-                llm = OpenAI(OpenAIModels.GPT_4O_MINI.value)
-
-                ctx = sycamore.init()
-
-                ds = (
-                    ctx.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=UnstructuredPdfPartitioner())
-                    .regex_replace(COALESCE_WHITESPACE)
-                    .mark_bbox_preset(tokenizer=tokenizer)
-                    .merge(merger=MarkedMerger())
-                    .spread_properties(["path"])
-                    .split_elements(tokenizer=tokenizer, max_tokens=512)
-                    .explode()
-                    .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
-                    .sketch(window=17)
-                )
-                ds.write.elasticsearch(url=url, index_name=index_name)
-        """
-        """
-        Writes all nodes in a docset into neo4j. Must use HierarchicalDocument
-
         """
         import os
         from sycamore.connectors.neo4j import (

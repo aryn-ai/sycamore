@@ -427,7 +427,6 @@ class LlmPlanner:
         prompt += f"""
         USER QUESTION: {query}
         """
-        print(prompt)
         return prompt
 
     def generate_from_openai(self, question: str) -> str:

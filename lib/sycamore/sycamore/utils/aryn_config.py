@@ -5,7 +5,9 @@ import logging
 
 from typing import Dict, Any
 
-_DEFAULT_PATH = os.path.join(pathlib.Path.home(), ".aryn", "config.yaml")
+DEFAULT_PATH = os.path.join(pathlib.Path.home(), ".aryn", "config.yaml")
+_DEFAULT_PATH = DEFAULT_PATH
+## ToDO: remove after 31/08/2024
 
 
 class ArynConfig:

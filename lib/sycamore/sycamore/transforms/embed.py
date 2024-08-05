@@ -53,6 +53,7 @@ class Embedder(ABC):
     def generate_text_embedding(self, text: str) -> list[float]:
         pass
 
+
 class SentenceTransformerEmbedder(Embedder):
     """
     SentenceTransformerEmbedder is an Embedder class for generating sentence embeddings using the
@@ -116,9 +117,11 @@ class SentenceTransformerEmbedder(Embedder):
     def generate_text_embedding(self, text: str) -> list[float]:
         if not self._transformer:
             from sentence_transformers import SentenceTransformer
+
             self._transformer = SentenceTransformer(self.model_name)
 
         return self._transformer.encode(text).tolist()
+
 
 class OpenAIEmbeddingModels(Enum):
     TEXT_EMBEDDING_ADA_002 = "text-embedding-ada-002"
@@ -206,6 +209,7 @@ class OpenAIEmbedder(Embedder):
         embedding = self._client.embeddings.create(model=self.model_name, input=text).data[0].embedding
 
         return embedding
+
 
 class BedrockEmbeddingModels(Enum):
     TITAN_EMBED_TEXT_V1 = "amazon.titan-embed-text-v1"

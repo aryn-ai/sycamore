@@ -25,7 +25,9 @@ class EvaluationPipeline:
         query_executor: Optional[OpenSearchQueryExecutor] = None,
         os_client_args: Optional[dict] = None,
         subtask_docs: Optional[DocSet] = None,
-        embedder: Optional[Embedder] = SentenceTransformerEmbedder(model_name="sentence-transformers/all-MiniLM-L6-v2", batch_size=100)
+        embedder: Optional[Embedder] = SentenceTransformerEmbedder(
+            model_name="sentence-transformers/all-MiniLM-L6-v2", batch_size=100
+        ),
     ) -> None:
         super().__init__()
         if metrics is None:
@@ -45,13 +47,7 @@ class EvaluationPipeline:
     def _add_filter(self, query_body: dict, filters: dict[str, str]):
         hybrid_query_match = query_body["query"]["knn"]["embedding"]["filter"]["bool"]["must"]
         for key, val in filters.items():
-            hybrid_query_match.append(
-                {
-                    "match_phrase": {
-                        key: val
-                    }
-                }
-            )
+            hybrid_query_match.append({"match_phrase": {key: val}})
         query_body["query"]["knn"]["embedding"]["filter"]["bool"]["must"] = hybrid_query_match
         return query_body
 
@@ -61,7 +57,9 @@ class EvaluationPipeline:
         query["index"] = self._index
 
         if self._subtask_docs and doc.properties["subtasks_reqd"]:
-            filtered_docs = [st_doc for st_doc in self._subtask_docs if st_doc.parent_id == doc["raw"]["financebench_id"]]
+            filtered_docs = [
+                st_doc for st_doc in self._subtask_docs if st_doc.parent_id == doc["raw"]["financebench_id"]
+            ]
             subtask_str = ""
             instructions = filtered_docs[0].properties["instructions"]
             for document in filtered_docs:
@@ -72,13 +70,13 @@ class EvaluationPipeline:
                         subtask_str += elem["generated_answer"]
             subtask_str += " Instructions: " + instructions + " Use this information to answer the following question. "
 
-            doc["question"] = subtask_str.format(**doc["filters"]) + doc["question"]
+            doc["question"] = subtask_str.format(**doc.properties["subtask_filters"]) + doc["question"]
 
         qn_embedding = self._embedder.generate_text_embedding(doc["question"])
 
         query = OpenSearchQuery(doc)
         query["index"] = self._index
-        
+
         query["query"] = {
             "_source": {"excludes": ["embedding"]},
             "size": self._os_config.get("size", 20),
@@ -90,17 +88,13 @@ class EvaluationPipeline:
                         "filter": {
                             "bool": {
                                 "must": [
-                                    {
-                                        "match": {
-                                            "text_representation": doc["question"]
-                                        }
-                                    },
+                                    {"match": {"text_representation": doc["question"]}},
                                 ],
                             },
-                        }
+                        },
                     }
                 }
-            }
+            },
         }
 
         if "llm" in self._os_config:

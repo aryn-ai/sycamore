@@ -1,5 +1,5 @@
 import json
-from typing import Optional
+from typing import Any, Optional
 from sycamore.data.document import Document, OpenSearchQuery
 from sycamore.data.element import Element
 from sycamore.docset import DocSet
@@ -13,16 +13,25 @@ openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
 prompt = TaskIdentifierZeroShotGuidancePrompt()
 
 
-class SubtaskExecutor():
-    def __init__(self,
-                 filepath: str,
-                 index: str,
-                 os_config: str,
-                 query_executor: QueryExecutor,
-                 embedder: Optional[Embedder] = SentenceTransformerEmbedder(model_name="sentence-transformers/all-MiniLM-L6-v2", batch_size=100)
-                 ):
-        with open(filepath) as json_file:
-            self._subtask_data = json.load(json_file)
+class SubtaskExecutor:
+    def __init__(
+        self,
+        filepath: Optional[str],
+        subtask_data: dict[str, Any],
+        index: str,
+        os_config: str,
+        query_executor: QueryExecutor,
+        embedder: Optional[Embedder] = SentenceTransformerEmbedder(
+            model_name="sentence-transformers/all-MiniLM-L6-v2", batch_size=100
+        ),
+    ):
+        if subtask_data:
+           self._subtask_data = subtask_data
+        elif filepath:
+            with open(filepath) as json_file:
+                self._subtask_data = json.load(json_file)
+        else:
+            raise RuntimeError("Need to provide a subtask data file or dictionary")
 
         self._index = index
         self._os_config = os_config
@@ -46,15 +55,16 @@ class SubtaskExecutor():
             for formula in formulas:
                 doc = Document()
                 doc.text_representation = formula
-                doc.parent_id = document["raw"]["financebench_id"]
+                doc.parent_id = document.doc_id
                 doc.properties["instructions"] = instructions
                 doc.properties["filters"] = document["filters"]
+                doc.properties["subtask_filters"] = document.properties["subtask_filters"]
                 f_list.append(doc)
-            
+
             if not formulas:
                 doc = Document()
                 doc.text_representation = ""
-                doc.parent_id = document["raw"]["financebench_id"]
+                doc.parent_id = document.doc_id
                 doc.properties["instructions"] = instructions
                 f_list.append(doc)
 
@@ -63,26 +73,22 @@ class SubtaskExecutor():
     def _add_filter(self, query_body: dict, filters: dict[str, str]):
         hybrid_query_match = query_body["query"]["knn"]["embedding"]["filter"]["bool"]["must"]
         for key, val in filters.items():
-            hybrid_query_match.append(
-                {
-                    "match_phrase": {
-                        key: val
-                    }
-                }
-            )
+            hybrid_query_match.append({"match_phrase": {key: val}})
         query_body["query"]["knn"]["embedding"]["filter"]["bool"]["must"] = hybrid_query_match
         return query_body
 
     def _get_subtasks(self, document: Document) -> Document:
-        terms = [term for term in self._subtask_data["subtask_instructions"].keys() if term in document.text_representation]
+        terms = [
+            term for term in self._subtask_data["subtask_instructions"].keys() if term in document.text_representation
+        ]
 
         for term in terms:
-            subtask = self._subtask_data["subtask_instructions"][term].format(**document.properties["filters"])
+            subtask = self._subtask_data["subtask_instructions"][term].format(**document.properties["subtask_filters"])
             sub_doc = OpenSearchQuery()
             sub_doc.index = self._index
-            
+
             subtask += "Return only the code " + term + " alongside the amount found and no additional information."
-            qn_embedding = self._embedder.generate_text_embeddings(subtask)
+            qn_embedding = self._embedder.generate_text_embedding(subtask)
 
             sub_doc.query = {
                 "_source": {"excludes": ["embedding"]},
@@ -95,17 +101,13 @@ class SubtaskExecutor():
                             "filter": {
                                 "bool": {
                                     "must": [
-                                        {
-                                            "match": {
-                                                "text_representation": subtask
-                                            }
-                                        },
+                                        {"match": {"text_representation": subtask}},
                                     ],
                                 },
-                            }
+                            },
                         }
                     }
-                }
+                },
             }
 
             if "llm" in self._os_config:
@@ -113,7 +115,7 @@ class SubtaskExecutor():
                 sub_doc["query"]["ext"] = {
                     "generative_qa_parameters": {
                         "llm_question": subtask,
-                        "context_size":self. _os_config.get("context_window", 10),
+                        "context_size": self._os_config.get("context_window", 10),
                         "llm_model": self._os_config.get("llm", "gpt-3.5-turbo"),
                     }
                 }

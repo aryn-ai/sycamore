@@ -4,7 +4,7 @@ from sycamore.tests.integration.query.conftest import OS_CLIENT_ARGS, OS_CONFIG
 from sycamore.query.planner import LlmPlanner
 
 
-def test_simple_openai_planner(query_integration_test_index: str):
+def test_simple_llm_planner(query_integration_test_index: str):
     """
     Simple test ensuring nodes are being creating and dependencies are being set.
     Using a simple query here for consistent query plans.

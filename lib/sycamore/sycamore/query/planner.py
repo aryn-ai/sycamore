@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Tuple, Ty
 
 from opensearchpy import OpenSearch
 
+from sycamore.llms.llms import LLM
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.operators.count import Count
@@ -44,7 +45,7 @@ class LlmPlanner:
         os_config: The OpenSearch configuration.
         os_client: The OpenSearch client.
         operators: A list of operators to use in the query plan.
-        openai_client: The OpenAI client.
+        llm_client: The LLM client.
         use_examples: Whether to include examples in the prompt.
     """
 
@@ -55,7 +56,7 @@ class LlmPlanner:
         os_config: dict[str, str],
         os_client: OpenSearch,
         operators: Optional[List[Type[LogicalOperator]]] = None,
-        openai_client: Optional[OpenAI] = None,
+        llm_client: Optional[LLM] = None,
         use_examples: bool = True,
     ) -> None:
         super().__init__()
@@ -64,7 +65,7 @@ class LlmPlanner:
         self._operators = operators if operators else OPERATORS
         self._os_config = os_config
         self._os_client = os_client
-        self._openai_client = openai_client or OpenAI(OpenAIModels.GPT_4O.value)
+        self._llm_client = llm_client or OpenAI(OpenAIModels.GPT_4O.value)
         self._use_examples = use_examples
 
     def make_operator_prompt(self, operator: LogicalOperator) -> str:
@@ -418,8 +419,8 @@ class LlmPlanner:
         """
         return prompt
 
-    def generate_from_openai(self, question: str) -> str:
-        """Use OpenAI LLM to generate a query plan for the given question."""
+    def generate_from_llm(self, question: str) -> str:
+        """Use LLM to generate a query plan for the given question."""
 
         messages = [
             {
@@ -429,7 +430,7 @@ class LlmPlanner:
         ]
 
         prompt_kwargs = {"messages": messages}
-        chat_completion = self._openai_client.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
+        chat_completion = self._llm_client.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
         return chat_completion
 
     def process_llm_json_plan(self, llm_json_plan: str) -> Tuple[LogicalOperator, Mapping[int, LogicalOperator]]:
@@ -481,7 +482,7 @@ class LlmPlanner:
 
     def plan(self, question: str) -> LogicalPlan:
         """Given a question from the user, generate a logical query plan."""
-        openai_plan = self.generate_from_openai(question)
-        result_node, nodes = self.process_llm_json_plan(openai_plan)
-        plan = LogicalPlan(result_node=result_node, nodes=nodes, query=question, openai_plan=openai_plan)
+        llm_plan = self.generate_from_llm(question)
+        result_node, nodes = self.process_llm_json_plan(llm_plan)
+        plan = LogicalPlan(result_node=result_node, nodes=nodes, query=question, llm_plan=llm_plan)
         return plan

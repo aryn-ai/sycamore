@@ -48,12 +48,12 @@ def show_schema(container: Any, schema: Dict[str, Tuple[str, Set[str]]]):
 
 def show_traces():
     """Show the traces in the given trace_dir."""
-    st.query_trace_dir = f"{st.session_state.trace_dir}/{st.session_state.query_id}"
-    for id in sorted(os.listdir(f"{st.query_trace_dir}")):
+    st.session_state.query_trace_dir = f"{st.session_state.trace_dir}/{st.session_state.query_id}"
+    for id in sorted(os.listdir(f"{st.session_state.query_trace_dir}")):
 
         # Initialize a list to hold the data
         data_list = []
-        directory = f"{st.query_trace_dir}/{id}"
+        directory = f"{st.session_state.query_trace_dir}/{id}"
 
         for filename in os.listdir(directory):
             f = os.path.join(directory, filename)
@@ -65,7 +65,7 @@ def show_traces():
                     for p in doc.properties:
                         if p not in BASE_PROPS and p in doc.properties:
                             doc_list[p] = doc.properties[p]
-                    doc_list['text_representation'] = doc.text_representation
+                    doc_list["text_representation"] = doc.text_representation
                     data_list.append(doc_list)
 
         df = pd.DataFrame(data_list)
@@ -155,15 +155,17 @@ def run_query(query: str, index: str, plan_only: bool, do_trace: bool, use_cache
             # Create a zip file
             zip_buffer = io.BytesIO()
             with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-                for root, dirs, files in os.walk(st.query_trace_dir):
+                for root, dirs, files in os.walk(st.session_state.query_trace_dir):
                     for file in files:
-                        zf.write(os.path.join(root, file),
-                                 os.path.relpath(os.path.join(root, file), st.query_trace_dir))
+                        zf.write(
+                            os.path.join(root, file),
+                            os.path.relpath(os.path.join(root, file), st.session_state.query_trace_dir),
+                        )
             st.download_button(
                 label="Download Traces as ZIP",
                 data=zip_buffer.getvalue(),
                 file_name=f"traces_{st.session_state.query_id}.zip",
-                mime="application/zip"
+                mime="application/zip",
             )
 
     else:

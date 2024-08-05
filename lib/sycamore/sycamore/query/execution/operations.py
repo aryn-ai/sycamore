@@ -1,4 +1,5 @@
 import json
+import math
 from typing import Any, Callable, List, Optional, Union
 
 from ray.data import Dataset
@@ -60,7 +61,10 @@ def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
     elif operator == "subtract":
         return val1 - val2
     elif operator == "divide":
-        return val1 / val2
+        try:
+            return val1 / val2
+        except ZeroDivisionError:
+            return math.nan
     elif operator == "multiply":
         return val1 * val2
     else:

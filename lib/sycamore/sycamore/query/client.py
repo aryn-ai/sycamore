@@ -229,7 +229,7 @@ def main():
 
     if args.show_plan or args.plan_only:
         console.rule("Generated query plan")
-        plan.openai_plan()
+        print(plan.openai_plan)
         console.rule()
 
     if args.plan_only:

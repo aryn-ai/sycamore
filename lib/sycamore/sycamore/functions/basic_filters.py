@@ -72,16 +72,19 @@ class RangeFilter(BasicFilter):
 
     def __call__(self, doc: Document) -> bool:
         value = doc.field_to_value(self._field)
+        # Skip missing values.
+        if not value:
+            return False
 
         if self._date:
             if not isinstance(value, str):
-                raise ValueError("value must be a string for date filtering")
+                raise ValueError(f"value must be a string for date filtering, got {type(value)}")
             value_comp = self.to_date(value)
             if self._start and not isinstance(self._start, str):
-                raise ValueError("start must be a string for date filtering")
+                raise ValueError(f"start must be a string for date filtering, got {type(self._start)}")
             start_comp = parser.parse(self._start).replace(tzinfo=None) if self._start else None
             if self._end and not isinstance(self._end, str):
-                raise ValueError("end must be a string for date filtering")
+                raise ValueError(f"end must be a string for date filtering, got {type(self._end)}")
             end_comp = parser.parse(self._end).replace(tzinfo=None) if self._end else None
         else:
             value_comp = value
@@ -99,4 +102,4 @@ class RangeFilter(BasicFilter):
         return value_comp >= start_comp and value_comp <= end_comp
 
     def to_date(self, date_string: str):
-        return parser.parse(date_string).replace(tzinfo=None)
+        return parser.parse(date_string, fuzzy=True).replace(tzinfo=None)

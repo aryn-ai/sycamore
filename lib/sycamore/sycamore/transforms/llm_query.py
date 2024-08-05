@@ -61,12 +61,12 @@ class LLMTextQueryAgent:
             elements = document.elements
             element_type_count = 0
             for idx, element in enumerate(document.elements):
-                if self._element_type: 
-                    if element.type == self._element_type:    
+                if self._element_type:
+                    if element.type == self._element_type:
                         elements[idx] = self._query_text_object(element)
                         if self._number_of_elements and element_type_count >= self._number_of_elements:
                             break
-                        element_type_count +=1
+                        element_type_count += 1
                 else:
                     elements[idx] = self._query_text_object(element)
                     if self._number_of_elements and idx >= self._number_of_elements:
@@ -75,11 +75,11 @@ class LLMTextQueryAgent:
         elif self._number_of_elements:  # limit to a number of elements
             text_representation = self._prompt
             for idx, element in enumerate(document.elements):
-                if self._element_type and element.type == self._element_type:    
+                if self._element_type and element.type == self._element_type:
                     text_representation += "\n" + element["text_representation"]
                     if self._number_of_elements and element_type_count >= self._number_of_elements:
                         break
-                    element_type_count +=1
+                    element_type_count += 1
                 else:
                     text_representation += "\n" + element["text_representation"]
                     if idx >= self._number_of_elements:
@@ -102,7 +102,7 @@ class LLMTextQueryAgent:
                     .render(doc=object)
                 )
             else:
-                prompt = self._prompt + "\n" + object.type +' ' + object.text_representation
+                prompt = self._prompt + "\n" + object.text_representation
             prompt_kwargs = {"prompt": prompt}
             llm_resp = self._llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs=self._llm_kwargs)
             object["properties"][self._output_property] = llm_resp

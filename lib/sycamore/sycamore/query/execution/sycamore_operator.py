@@ -549,7 +549,7 @@ class SycamoreTopK(SycamoreOperator):
             descending=logical_node.descending,
             llm_cluster=logical_node.llm_cluster,
             unique_field=logical_node.primary_field,
-            llm_cluster_description=logical_node.llm_cluster_description,
+            llm_cluster_instruction=logical_node.llm_cluster_instruction,
             **self.get_execute_args(),
         )
         return result
@@ -570,7 +570,7 @@ class SycamoreTopK(SycamoreOperator):
     descending={logical_node.descending}',
     llm_cluster={logical_node.llm_cluster},
     unique_field='{logical_node.primary_field}',
-    llm_cluster_description='{logical_node.description}',
+    llm_cluster_instruction='{logical_node.llm_cluster_instruction}',
     **{self.get_execute_args()},
 )
 """

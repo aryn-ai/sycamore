@@ -30,7 +30,7 @@ class TopK(LogicalOperator):
     (SHOULD BE FALSE if *field* is a string field with a bounded number of possible values, or
     is not a string), simple database operations will be used."""
 
-    llm_cluster_description: Optional[str] = None
-    """A description of what the groups should be about if llm_cluster is True. E.g. if the
-    purpose of this operation is to find the top 2 most frequent cities, llm_cluster_description
-    could be 'Form groups of different cities'"""
+    llm_cluster_instruction: Optional[str] = None
+    """An instruction of what the groups should be about if llm_cluster is True. E.g. if the
+    purpose of this operation is to find the top 2 most frequent cities, llm_cluster_instruction
+    could be 'Form groups of different food'"""

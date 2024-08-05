@@ -314,7 +314,7 @@ class LlmPlanner:
                     "K": 5,
                     "descending": true,
                     "llm_cluster": false,
-                    "llm_cluster_description": "Form groups of different water bodies",
+                    "llm_cluster_instruction": "Form groups of different water bodies",
                     "input": [1],
                     "node_id": 2,
                 },

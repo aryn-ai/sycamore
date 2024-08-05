@@ -440,7 +440,7 @@ class TestDocSet:
             descending=True,
             llm_cluster=False,
             unique_field="parent_id",
-            llm_cluster_description="Find 2 most frequent fruits",
+            llm_cluster_instruction="Find 2 most frequent fruits",
         )
         assert top_k_docset.count() == 1
 
@@ -455,7 +455,7 @@ class TestDocSet:
             k=2,
             descending=True,
             llm_cluster=True,
-            llm_cluster_description="",
+            llm_cluster_instruction="",
         )
         assert top_k_docset.count() == 2
 
@@ -466,7 +466,7 @@ class TestDocSet:
         assert top_k_list[1].properties["count"] == 2
 
     def test_llm_cluster_entity(self, number_docset):
-        cluster_docset = number_docset.llm_cluster_entity(llm=MockLLM(), description="", field="text_representation")
+        cluster_docset = number_docset.llm_cluster_entity(llm=MockLLM(), instruction="", field="text_representation")
         for doc in cluster_docset.take():
             if doc.text_representation == "1" or doc.text_representation == "one":
                 assert doc.properties["_autogen_ClusterAssignment"] == "group1"

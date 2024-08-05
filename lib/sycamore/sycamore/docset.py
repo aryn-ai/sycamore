@@ -1019,7 +1019,7 @@ class DocSet:
         descending: bool = True,
         llm_cluster: bool = False,
         unique_field: Optional[str] = None,
-        llm_cluster_description: Optional[str] = None,
+        llm_cluster_instruction: Optional[str] = None,
         **kwargs,
     ) -> "DocSet":
         """
@@ -1029,7 +1029,7 @@ class DocSet:
             llm: LLM client.
             field: Field to determine top k occurrences of.
             k: Number of top occurrences. If k is not specified, all occurences are returned.
-            llm_cluster_description: Description of operation purpose.  E.g. Find most common cities
+            llm_cluster_instruction: Instruction of operation purpose.  E.g. Find most common cities
             descending: Indicates whether to return most or least frequent occurrences.
             llm_cluster: Indicates whether an LLM should be used to normalize values of document field.
             unique_field: Determines what makes a unique document.
@@ -1044,9 +1044,9 @@ class DocSet:
         docset = self
 
         if llm_cluster:
-            if llm_cluster_description is None:
+            if llm_cluster_instruction is None:
                 raise Exception("Description of groups must be provided to form clusters.")
-            docset = docset.llm_cluster_entity(llm, llm_cluster_description, field)
+            docset = docset.llm_cluster_entity(llm, llm_cluster_instruction, field)
             field = "properties._autogen_ClusterAssignment"
 
         docset = docset.groupby_count(field, unique_field, **kwargs)
@@ -1056,18 +1056,20 @@ class DocSet:
             docset = docset.limit(k)
         return docset
 
-    def llm_cluster_entity(self, llm: LLM, description: str, field: str) -> "DocSet":
+    def llm_cluster_entity(self, llm: LLM, instruction: str, field: str) -> "DocSet":
         """
         Normalizes a particular field of a DocSet. Identifies and assigns each document to a "group".
 
         Args:
             llm: LLM client.
-            description: Description of purpose of this operation.
-            field: Field to make/assign groups based on.
+            description: Description of groups, e.g. 'Form groups for different types of food'
+            field: Field to make/assign groups based on, e.g. 'properties.entity.food'
 
         Returns:
             A DocSet with an additional field "properties._autogen_ClusterAssignment" that contains
-            the assigned group.
+            the assigned group. For example, if "properties.entity.food" has values 'banana', 'milk', 
+            'yogurt', 'chocolate', 'orange', "properties._autogen_ClusterAssignment" would contain
+            values like 'fruit', 'dairy', and 'dessert'.
         """
 
         docset = self
@@ -1075,7 +1077,7 @@ class DocSet:
 
         # sets message
         messages = LlmClusterEntityFormGroupsMessagesPrompt(
-            field=field, description=description, text=text
+            field=field, instruction=instruction, text=text
         ).get_messages_dict()
 
         prompt_kwargs = {"messages": messages}

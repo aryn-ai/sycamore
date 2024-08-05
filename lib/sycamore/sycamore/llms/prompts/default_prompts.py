@@ -219,9 +219,9 @@ class LlmClusterEntityFormGroupsMessagesPrompt(OpenAIMessagesPromptBase):
                 f"occurrences of '{field}' and create relevant non-overlapping groups. Return ONLY JSON with "
                 f"the various categorized groups of '{field}' based on the following instructions '{description}'. "
                 'Return your answer in the following JSON format and check your work: {{"groups": [string]}}. '
-                'For example, if the question is "What are the most common types of food in this dataset?" '
+                'For example, if the instruction is "Form groups of different types of food" '
                 'and the values are "banana, milk, yogurt, chocolate, oranges", you would return something like '
-                "{{\"groups\": ['fruit', 'dairy', 'dessert', 'other]}}. Form groups to encompass as many entries "
+                "{{\"groups\": ['fruit', 'dairy', 'dessert', 'other']}}. Form groups to encompass as many entries "
                 "as possible and don't create multiple groups with the same meaning. Here is the list values "
                 f'values corresponding to "{field}": "{text}".'
             ),

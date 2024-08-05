@@ -17,17 +17,17 @@ def _ray_logging_setup():
 
     ## WARNING: There can be weird interactions in jupyter/ray with auto-reload. Without the
     ## Spurious log [0-2]: messages below to verify that log messages are being properly
-    ## propogated.  Spurious log 1 seems to somehow be required.  Without it, the remote map
+    ## propagated.  Spurious log 1 seems to somehow be required.  Without it, the remote map
     ## worker messages are less likely to come back.
 
     ## Some documentation for ray implies things should use the ray logger
     ray_logger = logging.getLogger("ray")
     ray_logger.setLevel(logging.INFO)
-    # ray_logger.info("Spurious log 2: Verifying that log messages are propogated")
+    # ray_logger.info("Spurious log 2: Verifying that log messages are propagated")
 
     ## Make the default logging show info messages
     logging.getLogger().setLevel(logging.INFO)
-    logging.info("Spurious log 1: Verifying that log messages are propogated")
+    logging.info("Spurious log 1: Verifying that log messages are propagated")
     # logging.error("RayLoggingSetup-After-2Error")
 
     ## Verify that another logger would also log properly

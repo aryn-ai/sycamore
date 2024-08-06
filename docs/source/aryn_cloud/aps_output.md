@@ -10,6 +10,38 @@ The output of the Aryn Partitioning Service is JSON.
 
 ## Element Format
 
+It is often useful to process different parts of a document separately. For example, you might want to process tables differently than text paragraphs, and typically small chunks of text are embedded separately for vector search. In the Aryn Partitioning Service, these chunks are called elements.
+
+Elements follow the following format:
+
+```text
+{"type": type of element,
+"bbox": Coordinates of bounding box around element,
+"properties": { "score" confidence score,
+                "page_number": page number element occurs on},
+"text_representation: for elements with associated text,
+"binary_representation: for Image elements when extract_table_structure is enabled }
+```
+
+An example element is given below:
+
+```json
+{
+    "type": "Text",
+    "bbox": [
+      0.10383546717026654,
+      0.31373721036044033,
+      0.8960905187270221,
+      0.39873851429332385
+    ],
+    "properties": {
+      "score": 0.9369918704032898,
+      "page_number": 1
+    },
+    "text_representation": "It is often useful to process different parts of a document separately. For example you\nmight want to process tables differently than text paragraphs, and typically small chunks\nof text are embedded separately for vector search. In the Aryn Partitioning Service, these\nchunks are called elements.\n"
+}
+```
+
 ### Element Type
 
 ```text

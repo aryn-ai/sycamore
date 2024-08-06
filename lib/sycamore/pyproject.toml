@@ -57,6 +57,8 @@ rouge = "^1.0.1"
 pypdf = "^4.3.0"
 pytesseract = "^0.3.10"
 easyocr = "^1.7.1"
+paddleocr = "^2.8.1"
+jiwer = "^3.0.4"
 
 # Dependencies for DB connectors
 weaviate-client = "^4.6.1"

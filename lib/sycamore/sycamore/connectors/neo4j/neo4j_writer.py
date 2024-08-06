@@ -3,13 +3,13 @@ from collections import defaultdict
 from typing import Any, Union
 
 from sycamore.connectors.base_writer import BaseDBWriter
+from sycamore.connectors.common import flatten_data
 from sycamore.data.document import Document, MetadataDocument
 from neo4j import Auth, Driver, GraphDatabase, Session
 from neo4j.auth_management import AuthManager
 
 import time
 import os
-import pandas as pd
 import csv
 import logging
 import urllib
@@ -17,6 +17,7 @@ import urllib
 from sycamore.plan_nodes import Node, Write
 from sycamore.transforms.map import MapBatch
 from sycamore.utils.time_trace import TimeTrace
+import fcntl
 
 logger = logging.getLogger(__name__)
 
@@ -40,21 +41,14 @@ class Neo4jWriterClient:
 
     @classmethod
     def from_client_params(cls, params: Neo4jWriterClientParams) -> "Neo4jWriterClient":
-        try:
-            driver = GraphDatabase.driver(uri=params.uri, auth=params.auth)
-            driver.verify_connectivity()
-        except Exception:
-            raise ValueError("Invalid Neo4j URI or Authentication was used")
+        driver = GraphDatabase.driver(uri=params.uri, auth=params.auth)
+        driver.verify_connectivity()
         return Neo4jWriterClient(driver, params.import_dir)
 
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
         assert isinstance(target_params, Neo4jWriterTargetParams)
-        try:
-            session = self._driver.session(database=target_params.database)
-            session.close()
-            return
-        except Exception as e:
-            raise e
+        session = self._driver.session(database=target_params.database)
+        session.close()
 
     def _write_nodes_neo4j(self, nodes: list[str], session: Session):
         for node_type in nodes:
@@ -168,9 +162,7 @@ class Neo4jPrepareCSV:
             if "label" not in data:
                 return headers
             node_key = data["label"]
-            if headers["nodes"].get(node_key, None) is None:
-                headers["nodes"][node_key] = dict()
-            #### add all required keys ####
+            headers["nodes"].setdefault(node_key, dict())
             #### ALL DOCS HAVE uuid:ID ####
             headers["nodes"][node_key]["uuid:ID"] = True
             #### IF KEYS EXIST IN DATA ####
@@ -178,7 +170,7 @@ class Neo4jPrepareCSV:
                 if key in data:
                     headers["nodes"][node_key][key] = True
             #### add all keys from properties ####
-            for key in data["properties"].keys():
+            for key in set(pair[0] for pair in flatten_data(data["properties"])):
                 headers["nodes"][node_key][key] = True
 
             for key, value in data["relationships"].items():
@@ -196,18 +188,12 @@ class Neo4jPrepareCSV:
         def merge(headers1, headers2):
             #### merge nodes together ####
             for key, values in headers2["nodes"].items():
-                if headers1["nodes"].get(key, None) is None:
-                    headers1["nodes"][key] = values
-                else:
-                    for value in values:
-                        headers1["nodes"][key][value] = True
+                headers1["nodes"].setdefault(key, dict())
+                headers1["nodes"][key] |= values
             #### merge relationships together ####
             for key, values in headers2["relationships"].items():
-                if headers1["relationships"].get(key, None) is None:
-                    headers1["relationships"][key] = values
-                else:
-                    for value in values:
-                        headers1["relationships"][key][value] = True
+                headers1["relationships"].setdefault(key, dict())
+                headers1["relationships"][key] |= values
             return headers1
 
         def finalize(nodes):
@@ -226,7 +212,7 @@ class Neo4jPrepareCSV:
     def _write_nodes_csv_headers(self, nodes):
         for node_label, node_columns in nodes.items():
             csv_path = os.path.expanduser(f"{self._import_dir}/sycamore/nodes/{node_label}.csv")
-            headers = sorted(set(column for column in node_columns.keys()))
+            headers = [column for column in node_columns.keys()]
             os.makedirs(os.path.dirname(csv_path), exist_ok=True)
             with open(csv_path, "w", newline="") as file:
                 writer = csv.writer(file)
@@ -235,7 +221,7 @@ class Neo4jPrepareCSV:
     def _write_relationships_csv_headers(self, relationships):
         for relationship_label, relationship_columns in relationships.items():
             csv_path = os.path.expanduser(f"{self._import_dir}/sycamore/relationships/{relationship_label}.csv")
-            headers = sorted(set(column for column in relationship_columns.keys()))
+            headers = [column for column in relationship_columns.keys()]
             os.makedirs(os.path.dirname(csv_path), exist_ok=True)
             with open(csv_path, "w", newline="") as file:
                 writer = csv.writer(file)
@@ -249,7 +235,10 @@ class Neo4jWriteCSV(MapBatch, Write):
         super().__init__(plan, f=self._write_docs_tt, **kwargs)
 
     def _parse_docs(self, docs):
-        include = ["type", "bbox", "text_representation"]
+        from sycamore.connectors.common import flatten_data
+
+        include_nodes = ["type", "bbox", "text_representation"]
+        include_relationships = ["uuid:ID", ":START_ID", ":END_ID", ":TYPE"]
         nodes = defaultdict(list)
         relationships = defaultdict(lambda: defaultdict(list))
         for doc in docs:
@@ -258,18 +247,16 @@ class Neo4jWriteCSV(MapBatch, Write):
             node = {
                 "uuid:ID": doc.doc_id,
             }
-            if doc["type"] == "table":
-                doc["text_representation"] = doc["table"].to_csv()
             for key, value in doc.data.items():
                 # add flatten properties to node
                 if key == "properties":
                     if isinstance(value, dict) and value:
-                        properties_flat = pd.json_normalize(value, sep="_").to_dict(orient="records")[0]
-                        for property_key, property_value in properties_flat.items():
-                            if property_key not in include:
+                        properties_flat = flatten_data(value)
+                        for property_key, property_value in properties_flat:
+                            if property_key not in include_nodes:
                                 node[property_key] = property_value
                 # add included fields to node
-                if key in include:
+                if key in include_nodes:
                     node[key] = value
             nodes[doc.data["label"]].append(node)
 
@@ -281,7 +268,7 @@ class Neo4jWriteCSV(MapBatch, Write):
                     ":TYPE": value["TYPE"],
                 }
                 for key, value in value["properties"].items():
-                    if key not in ["uuid:ID", ":START_ID", ":END_ID", ":TYPE"]:
+                    if key not in include_relationships:
                         rel[key] = value
 
                 relationships[value["START_LABEL"]][value["END_LABEL"]].append(rel)
@@ -293,13 +280,19 @@ class Neo4jWriteCSV(MapBatch, Write):
             headers = None
             with open(csv_path, mode="r", newline="") as file:
                 csv_reader = csv.reader(file)
-                headers = sorted(set(next(csv_reader)))
+                headers = list(next(csv_reader))
 
             with open(csv_path, "a", newline="") as file:
-                writer = csv.writer(file)
-                for entry in rels:
-                    row = [entry.get(header, "") for header in headers]
-                    writer.writerow(row)
+                # get exclusive lock on csv file
+                fcntl.flock(file, fcntl.LOCK_EX)
+                try:
+                    writer = csv.writer(file)
+                    for entry in rels:
+                        row = [entry.get(header, "") for header in headers]
+                        writer.writerow(row)
+                finally:
+                    # release exclusive lock on csv file
+                    fcntl.flock(file, fcntl.LOCK_UN)
 
     def _write_relationships_csv(self, relationships):
         for start_label, end_labels in relationships.items():
@@ -310,13 +303,19 @@ class Neo4jWriteCSV(MapBatch, Write):
                 headers = None
                 with open(csv_path, mode="r", newline="") as file:
                     csv_reader = csv.reader(file)
-                    headers = sorted(set(next(csv_reader)))
+                    headers = list(next(csv_reader))
 
                 with open(csv_path, "a", newline="") as file:
-                    writer = csv.writer(file)
-                    for entry in rels:
-                        row = [entry.get(header, "") for header in headers]
-                        writer.writerow(row)
+                    # get exclusive lock on csv file
+                    fcntl.flock(file, fcntl.LOCK_EX)
+                    try:
+                        writer = csv.writer(file)
+                        for entry in rels:
+                            row = [entry.get(header, "") for header in headers]
+                            writer.writerow(row)
+                    finally:
+                        # release exclusive lock on csv file
+                        fcntl.flock(file, fcntl.LOCK_UN)
 
     def write_docs(self, docs: list[Document]) -> list[Document]:
 
@@ -339,5 +338,5 @@ class Neo4jLoadCSV:
         self._client = Neo4jWriterClient.from_client_params(client_params)
         self._nodes = [f for f in os.listdir(client_params.import_dir + "/sycamore/nodes")]
         self._relationships = [f for f in os.listdir(client_params.import_dir + "/sycamore/relationships")]
-        self._labels = [f[:-4] for f in self._nodes]
+        self._labels = [f[:-4] for f in self._nodes]  # f[:-4] used to drop '.csv'
         self._client.write_to_neo4j(self._nodes, self._relationships, self._labels, target_params)

@@ -614,6 +614,10 @@ class DocSetWriter:
         )
         from sycamore.plan_nodes import Node
         from sycamore.connectors.neo4j import Neo4jPrepareCSV, Neo4jWriteCSV, Neo4jLoadCSV
+        import time
+
+        if kwargs.get("execute") is False:
+            raise NotImplementedError
 
         class Wrapper(Node):
             def __init__(self, dataset):
@@ -628,8 +632,11 @@ class DocSetWriter:
         Neo4jValidateParams(client_params=client_params, target_params=target_params)
 
         self.plan = Wrapper(self.plan.execute().materialize())
+        start = time.time()
         Neo4jPrepareCSV(plan=self.plan, client_params=client_params)
         Neo4jWriteCSV(plan=self.plan, client_params=client_params).execute().materialize()
+        end = time.time()
+        logger.info(f"TIME TAKEN TO WRITE CSV: {end-start} SECONDS")
         Neo4jLoadCSV(client_params=client_params, target_params=target_params)
 
         return None

@@ -65,9 +65,13 @@ class BaseMapTransform(UnaryNode):
     """
     BaseMapTransform abstracts away MetadataDocuments from all other transforms.
 
-    If f is a class type, the class will be instantiated and run as an actor in ray.
+    If f is a class type, the class will be instantiated and run as an actor in ray. constructor_args and
+    constructor_kwargs can be used to provide arguments when initializing the class
+
     If f is an object type and resource_args["compute"] is set to ActorPoolStrategy, it will run as an actor
     Otherwise f will be run as a function.
+
+    Use args, kwargs to pass additional args to the function call.
     """
 
     def __init__(

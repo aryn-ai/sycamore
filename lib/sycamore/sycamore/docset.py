@@ -450,7 +450,7 @@ class DocSet:
         """
         from sycamore.transforms import ExtractEntity
 
-        entities = ExtractEntity(self.plan, entity_extractor=entity_extractor, **kwargs)
+        entities = ExtractEntity(self.plan, context=self.context, entity_extractor=entity_extractor, **kwargs)
         return DocSet(self.context, entities)
 
     def extract_schema(self, schema_extractor: SchemaExtractor, **kwargs) -> "DocSet":

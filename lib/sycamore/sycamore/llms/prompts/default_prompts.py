@@ -131,7 +131,7 @@ class OpenAIMessagesPromptBase:
 
 
 class EntityExtractorMessagesPrompt(OpenAIMessagesPromptBase):
-    def __init__(self, question: Optional[str], field: Optional[str], format: Optional[str], discrete: bool = False):
+    def __init__(self, question: str, field: str, format: Optional[str], discrete: bool = False):
         super().__init__()
 
         self.add_message(
@@ -169,8 +169,8 @@ class EntityExtractorMessagesPrompt(OpenAIMessagesPromptBase):
             )
 
 
-class LLMFilterMessagesPrompt(OpenAIMessagesPromptBase):
-    def __init__(self, filter_question: Optional[str]):
+class LlmFilterMessagesPrompt(OpenAIMessagesPromptBase):
+    def __init__(self, filter_question: str):
         super().__init__()
 
         self.add_message(
@@ -185,6 +185,59 @@ class LLMFilterMessagesPrompt(OpenAIMessagesPromptBase):
                 "to the entry. You only respond with 0, 1, 2, 3, 4, or 5 based on your "
                 "confidence level. 0 is the most negative answer and 5 is the most positive "
                 f"answer. Question: {filter_question}; Entry: "
+            ),
+        )
+
+
+class SummarizeDataMessagesPrompt(OpenAIMessagesPromptBase):
+    def __init__(self, question: str, text: str):
+        super().__init__()
+
+        self.add_message(
+            "system",
+            ("You are a helpful conversational English response generator for queries " "regarding database entries."),
+        )
+
+        self.add_message(
+            "user",
+            (
+                "The following question and answer are in regards to database entries. "
+                "Respond ONLY with a conversational English response WITH JUSTIFICATION to the question "
+                f'"{question}" given the answer "{text}". Include as much detail/evidence as possible.'
+            ),
+        )
+
+
+class LlmClusterEntityFormGroupsMessagesPrompt(OpenAIMessagesPromptBase):
+    def __init__(self, field: str, instruction: str, text: str):
+        super().__init__()
+
+        self.add_message(
+            "user",
+            (
+                f"You are given a list of values corresponding to the database field '{field}'. Categorize the "
+                f"occurrences of '{field}' and create relevant non-overlapping groups. Return ONLY JSON with "
+                f"the various categorized groups of '{field}' based on the following instructions '{instruction}'. "
+                'Return your answer in the following JSON format and check your work: {{"groups": [string]}}. '
+                'For example, if the instruction is "Form groups of different types of food" '
+                'and the values are "banana, milk, yogurt, chocolate, oranges", you would return something like '
+                "{{\"groups\": ['fruit', 'dairy', 'dessert', 'other']}}. Form groups to encompass as many entries "
+                "as possible and don't create multiple groups with the same meaning. Here is the list values "
+                f'values corresponding to "{field}": "{text}".'
+            ),
+        )
+
+
+class LlmClusterEntityAssignGroupsMessagesPrompt(OpenAIMessagesPromptBase):
+    def __init__(self, field: str, groups: list[str]):
+        super().__init__()
+
+        self.add_message(
+            "user",
+            (
+                f"Categorize the database entry you are given corresponding to '{field}' into one of the "
+                f'following groups: "{groups}". Perform your best work to assign the group. Return '
+                f"ONLY the string corresponding to the selected group. Here is the database entry you will use: "
             ),
         )
 

@@ -128,7 +128,7 @@ class SycamoreQueryClient:
 
     def generate_plan(self, query: str, index: str, schema: OpenSearchSchema) -> LogicalPlan:
         """Generate a logical query plan for the given query, index, and schema."""
-        openai_client = OpenAI(
+        llm_client = OpenAI(
             OpenAIModels.GPT_4O.value, cache=S3Cache(self.s3_cache_path) if self.s3_cache_path else None
         )
         planner = LlmPlanner(
@@ -136,7 +136,7 @@ class SycamoreQueryClient:
             data_schema=schema,
             os_config=self.os_config,
             os_client=self._os_client,
-            openai_client=openai_client,
+            llm_client=llm_client,
         )
         plan = planner.plan(query)
         return plan
@@ -229,7 +229,7 @@ def main():
 
     if args.show_plan or args.plan_only:
         console.rule("Generated query plan")
-        print(plan.openai_plan)
+        print(plan.llm_plan)
         console.rule()
 
     if args.plan_only:

@@ -25,7 +25,7 @@ class EntityExtractor(ABC):
         self._entity_name = entity_name
 
     @abstractmethod
-    def extract_entity(self, document: Document) -> Document:
+    def extract_entity(self, document: Document, context: Optional[Context] = None) -> Document:
         pass
 
 
@@ -72,9 +72,6 @@ class OpenAIEntityExtractor(EntityExtractor):
         field: Optional[str] = None,
     ):
         super().__init__(entity_name)
-        if llm is None:
-            llm = Context.current().config.llm
-            assert llm is not None, "OpenAIEntityExtractor requires an LLM"
         self._llm = llm
         self._num_of_elements = num_of_elements
         self._prompt_template = prompt_template
@@ -84,7 +81,11 @@ class OpenAIEntityExtractor(EntityExtractor):
         self._field = field
 
     @timetrace("OaExtract")
-    def extract_entity(self, document: Document) -> Document:
+    def extract_entity(self, document: Document, context: Optional[Context] = None) -> Document:
+        if self._llm is None and context:
+            self._llm = context.llm
+        assert self._llm is not None, "OpenAIEntityExtractor requires an LLM"
+
         if self._use_elements:
             if self._prompt_template:
                 entities = self._handle_few_shot_prompting(document)
@@ -100,6 +101,7 @@ class OpenAIEntityExtractor(EntityExtractor):
         return document
 
     def _handle_few_shot_prompting(self, document: Document) -> Any:
+        assert self._llm is not None
         sub_elements = [document.elements[i] for i in range((min(self._num_of_elements, len(document.elements))))]
 
         prompt = EntityExtractorFewShotGuidancePrompt()
@@ -115,6 +117,7 @@ class OpenAIEntityExtractor(EntityExtractor):
         return entities
 
     def _handle_zero_shot_prompting(self, document: Document) -> Any:
+        assert self._llm is not None
         sub_elements = [document.elements[i] for i in range((min(self._num_of_elements, len(document.elements))))]
 
         prompt = EntityExtractorZeroShotGuidancePrompt()
@@ -126,6 +129,7 @@ class OpenAIEntityExtractor(EntityExtractor):
         return entities
 
     def _handle_document_field_prompting(self, document: Document) -> Any:
+        assert self._llm is not None
         if self._field is None:
             self._field = "text_representation"
 
@@ -170,6 +174,7 @@ class ExtractEntity(Map):
         self,
         child: Node,
         entity_extractor: EntityExtractor,
+        context: Optional[Context] = None,
         **resource_args,
     ):
-        super().__init__(child, f=entity_extractor.extract_entity, **resource_args)
+        super().__init__(child, f=entity_extractor.extract_entity, kwargs={"context": context}, **resource_args)

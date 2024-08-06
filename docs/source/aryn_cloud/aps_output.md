@@ -90,7 +90,7 @@ Text elements contain ‘\n’ when the text includes a line return.
 
 ### Binary Representation
 
-When `extract_images` is set to True, Images include a binary_representation tag which contains a base64 encoded ppm image file of the pdf cropped to the bounds of the detected image. When `extract_images` is false, the bounding box of the Image is still returned.
+When `extract_images` is set to True, Images include a `binary_representation` tag which contains a base64 encoded ppm image file of the pdf cropped to the bounds of the detected image. When `extract_images` is false, the bounding box of the Image is still returned.
 
 ```text
 "binary_representaion": base64 encoded ppm image file of the pdf cropped to the image

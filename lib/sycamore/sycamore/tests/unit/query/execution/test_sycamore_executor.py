@@ -7,13 +7,13 @@ import sycamore
 from sycamore.query.execution.sycamore_executor import SycamoreExecutor
 from sycamore.query.logical_plan import LogicalPlan, Node
 from sycamore.query.operators.count import Count
-from sycamore.query.operators.loaddata import LoadData
+from sycamore.query.operators.query_database import QueryDatabase
 
 
 @pytest.fixture
 def test_count_docs_query_plan() -> LogicalPlan:
     """A simple query plan which only counts the number of documents."""
-    load_node = LoadData(node_id=0, description="Load data", index="test_index")
+    load_node = QueryDatabase(node_id=0, description="Load data", index="test_index")
     count_node = Count(node_id=1, description="Count number of documents", input=[load_node.node_id])
 
     # pylint: disable=protected-access

@@ -67,7 +67,7 @@ class Execution:
 
                 ray.init(**ray_args)
             return plan.execute(**kwargs)
-        elif self._exec_mode == ExecMode.LOCAL:
+        if self._exec_mode == ExecMode.LOCAL:
             from ray.data import from_items
 
             return from_items(items=[{"doc": doc.serialize()} for doc in self.recursive_execute(self._plan)])

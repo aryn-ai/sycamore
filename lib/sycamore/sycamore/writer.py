@@ -7,7 +7,6 @@ from ray.data import ActorPoolStrategy
 from sycamore import Context
 from sycamore.connectors.common import HostAndPort
 from sycamore.connectors.file.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
-from sycamore.context import OS_INDEX_SETTINGS, OS_CLIENT_ARGS, OS_INDEX_NAME
 from sycamore.data import Document
 from sycamore.plan_nodes import Node
 
@@ -99,11 +98,11 @@ class DocSetWriter:
         import copy
 
         if os_client_args is None:
-            os_client_args = self.context.opensearch_config.get(OS_CLIENT_ARGS)
+            index_name = self.context.opensearch_args and self.context.opensearch_args.client_args
         assert os_client_args is not None, "OpenSearch client args required"
 
         if not index_name:
-            index_name = self.context.opensearch_config.get(OS_INDEX_NAME)
+            index_name = self.context.opensearch_args and self.context.opensearch_args.index_name
         assert index_name is not None, "OpenSearch index name required"
 
         # We mutate os_client_args, so mutate a copy
@@ -136,7 +135,7 @@ class DocSetWriter:
         target_params: OpenSearchWriterTargetParams
 
         if index_settings is None:
-            index_settings = self.context.opensearch_config.get(OS_INDEX_SETTINGS)
+            index_name = self.context.opensearch_args and self.context.opensearch_args.index_settings
 
         if index_settings is not None:
             idx_settings = index_settings.get("body", {}).get("settings", {})

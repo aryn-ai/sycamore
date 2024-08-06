@@ -11,9 +11,11 @@ class ExecMode(Enum):
     LOCAL = 2
 
 
-OS_CLIENT_ARGS = "client_args"
-OS_INDEX_NAME = "index_name"
-OS_INDEX_SETTINGS = "index_settings"
+@dataclass
+class OpenSearchArgs:
+    client_args: Optional[dict[str, Any]] = None
+    index_name: Optional[str] = None
+    index_settings: Optional[dict[str, Any]] = None
 
 
 @dataclass
@@ -33,9 +35,9 @@ class Context:
     extension_rules: list[Rule] = field(default_factory=list)
 
     """
-    Default OpenSearch configuration for a Context
+    Default OpenSearch args for a Context
     """
-    opensearch_config: dict[str, Any] = field(default_factory=dict)
+    opensearch_args: Optional[OpenSearchArgs] = None
 
     """
     Default LLM for a Context

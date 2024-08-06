@@ -1,3 +1,4 @@
+import os
 import uuid
 from typing import Any, Dict, List, Optional
 
@@ -66,7 +67,7 @@ class SycamoreExecutor:
         if self.s3_cache_path:
             log.info("Using S3 cache path: %s", s3_cache_path)
         if self.trace_dir:
-            log.info("Using tracer: %s", trace_dir)
+            log.info("Using trace directory: %s", trace_dir)
         if self.dry_run:
             log.info("Executing in dry-mode")
             self.node_id_to_node: Dict[int, LogicalOperator] = {}
@@ -88,6 +89,12 @@ class SycamoreExecutor:
         log.info("Executing dependencies")
         inputs = []
 
+        if self.trace_dir:
+            trace_dir = os.path.join(self.trace_dir, query_id, str(logical_node.node_id))
+            os.makedirs(trace_dir, exist_ok=True)
+        else:
+            trace_dir = None
+
         # Process dependencies
         if logical_node.dependencies:
             for dependency in logical_node.dependencies:
@@ -97,15 +104,13 @@ class SycamoreExecutor:
         # refresh context as nested execution overrides it
         bind_contextvars(logical_node=logical_node)
         log.info("Executing node")
-        # Process node
-        result = None
         operation: Optional[PhysicalOperator] = None
         if isinstance(logical_node, QueryDatabase):
             operation = SycamoreQueryDatabase(
                 context=self.context,
                 logical_node=logical_node,
                 query_id=query_id,
-                trace_dir=self.trace_dir,
+                #trace_dir=self.trace_dir,
                 os_client_args=self.os_client_args,
             )
         elif isinstance(logical_node, LlmFilter):
@@ -114,7 +119,7 @@ class SycamoreExecutor:
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                trace_dir=self.trace_dir,
+                #trace_dir=self.trace_dir,
                 s3_cache_path=s3_cache_path,
             )
         elif isinstance(logical_node, BasicFilter):
@@ -123,7 +128,7 @@ class SycamoreExecutor:
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                trace_dir=self.trace_dir,
+                #trace_dir=self.trace_dir,
             )
         elif isinstance(logical_node, LlmExtractEntity):
             operation = SycamoreLlmExtractEntity(
@@ -131,7 +136,7 @@ class SycamoreExecutor:
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                trace_dir=self.trace_dir,
+                #trace_dir=self.trace_dir,
                 s3_cache_path=s3_cache_path,
             )
         elif isinstance(logical_node, Count):
@@ -140,7 +145,7 @@ class SycamoreExecutor:
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                trace_dir=self.trace_dir,
+                #trace_dir=self.trace_dir,
             )
         elif isinstance(logical_node, Sort):
             operation = SycamoreSort(
@@ -148,7 +153,7 @@ class SycamoreExecutor:
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                trace_dir=self.trace_dir,
+                #trace_dir=self.trace_dir,
             )
         elif isinstance(logical_node, Limit):
             operation = SycamoreLimit(
@@ -163,7 +168,7 @@ class SycamoreExecutor:
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                trace_dir=self.trace_dir,
+                #trace_dir=self.trace_dir,
                 s3_cache_path=s3_cache_path,
             )
         elif isinstance(logical_node, FieldIn):
@@ -172,7 +177,7 @@ class SycamoreExecutor:
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                trace_dir=self.trace_dir,
+                #trace_dir=self.trace_dir,
             )
         # Non-DocSet operations
         elif isinstance(logical_node, SummarizeData):
@@ -181,7 +186,7 @@ class SycamoreExecutor:
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                trace_dir=self.trace_dir,
+                #trace_dir=self.trace_dir,
                 s3_cache_path=s3_cache_path,
             )
         elif isinstance(logical_node, Math):
@@ -189,14 +194,17 @@ class SycamoreExecutor:
         else:
             raise Exception(f"Unsupported node type: {str(logical_node)}")
 
-        if result is None:
-            if self.dry_run:
-                code, imports = operation.script()
-                self.imports += imports
-                self.node_id_to_code[logical_node.node_id] = code
-                self.node_id_to_node[logical_node.node_id] = logical_node
-            else:
-                result = operation.execute()
+        if self.dry_run:
+            code, imports = operation.script()
+            self.imports += imports
+            self.node_id_to_code[logical_node.node_id] = code
+            self.node_id_to_node[logical_node.node_id] = logical_node
+            result = None
+        else:
+            result = operation.execute()
+            if trace_dir and hasattr(result, "materialize"):
+                log.info("Materializing result", trace_dir=trace_dir)
+                result = result.materialize(trace_dir)
 
         self.processed[logical_node.node_id] = result
         log.info("Executed node", result=str(result))

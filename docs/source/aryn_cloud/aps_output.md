@@ -17,7 +17,7 @@ Elements follow the following format:
 ```text
 {"type": type of element,
 "bbox": Coordinates of bounding box around element,
-"properties": { "score" confidence score,
+"properties": { "score": confidence score,
                 "page_number": page number element occurs on},
 "text_representation: for elements with associated text,
 "binary_representation: for Image elements when extract_table_structure is enabled }

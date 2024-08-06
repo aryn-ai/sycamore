@@ -124,6 +124,21 @@ jobs:
           ES_JAVA_OPTS: "-Xms2g -Xmx2g"
         ports:
           - 9201:9200
+      neo4j:
+        image: neo4j:5.21.0
+        ports:
+          - "7474:7474"
+          - "7687:7687"
+        environment:
+          NEO4J_AUTH: neo4j/neo4j  # Set the default credentials for Neo4j
+          NEO4J_dbms_memory_pagecache_size: 512M  # Set memory page cache size if needed
+          NEO4J_dbms_memory_heap_initial__size: 2G  # Set initial heap size
+          NEO4J_dbms_memory_heap_max__size: 2G  # Set maximum heap size
+        volumes:
+          - neo4j/data:/data
+          - neo4j/logs:/logs
+          - neo4j/import:/var/lib/neo4j/import
+          - neo4j/plugins:/plugins
 
     steps:
       - name: Checkout

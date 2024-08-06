@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 from opensearchpy import OpenSearch
 
 import sycamore
-from sycamore.context import OS_CLIENT_ARGS, OS_INDEX_NAME, OS_INDEX_SETTINGS, OpenSearchArgs
+from sycamore.context import OpenSearchArgs
 from sycamore.functions import HuggingFaceTokenizer
 from sycamore.llms import OpenAIModels, OpenAI
 from sycamore.tests.config import TEST_DIR

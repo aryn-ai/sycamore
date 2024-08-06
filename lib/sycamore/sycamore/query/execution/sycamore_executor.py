@@ -110,7 +110,6 @@ class SycamoreExecutor:
                 context=self.context,
                 logical_node=logical_node,
                 query_id=query_id,
-                # trace_dir=self.trace_dir,
                 os_client_args=self.os_client_args,
             )
         elif isinstance(logical_node, LlmFilter):
@@ -119,7 +118,6 @@ class SycamoreExecutor:
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                # trace_dir=self.trace_dir,
                 s3_cache_path=s3_cache_path,
             )
         elif isinstance(logical_node, BasicFilter):
@@ -128,7 +126,6 @@ class SycamoreExecutor:
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                # trace_dir=self.trace_dir,
             )
         elif isinstance(logical_node, LlmExtractEntity):
             operation = SycamoreLlmExtractEntity(
@@ -136,7 +133,6 @@ class SycamoreExecutor:
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                # trace_dir=self.trace_dir,
                 s3_cache_path=s3_cache_path,
             )
         elif isinstance(logical_node, Count):
@@ -145,7 +141,6 @@ class SycamoreExecutor:
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                # trace_dir=self.trace_dir,
             )
         elif isinstance(logical_node, Sort):
             operation = SycamoreSort(
@@ -153,7 +148,6 @@ class SycamoreExecutor:
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                # trace_dir=self.trace_dir,
             )
         elif isinstance(logical_node, Limit):
             operation = SycamoreLimit(
@@ -168,7 +162,6 @@ class SycamoreExecutor:
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                # trace_dir=self.trace_dir,
                 s3_cache_path=s3_cache_path,
             )
         elif isinstance(logical_node, FieldIn):
@@ -177,7 +170,6 @@ class SycamoreExecutor:
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                # trace_dir=self.trace_dir,
             )
         # Non-DocSet operations
         elif isinstance(logical_node, SummarizeData):
@@ -186,13 +178,12 @@ class SycamoreExecutor:
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                # trace_dir=self.trace_dir,
                 s3_cache_path=s3_cache_path,
             )
         elif isinstance(logical_node, Math):
             operation = MathOperator(logical_node=logical_node, query_id=query_id, inputs=inputs)
         else:
-            raise Exception(f"Unsupported node type: {str(logical_node)}")
+            raise ValueError(f"Unsupported node type: {str(logical_node)}")
 
         if self.dry_run:
             code, imports = operation.script()

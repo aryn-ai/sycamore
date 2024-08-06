@@ -16,7 +16,9 @@ from sycamore.transforms.bbox_merge import (
     MarkBreakByColumn,
 )
 
-from sycamore.transforms.standardizer import LocationStandardizer, Standardizer, Standardize_property, DateTimeStandardizer
+from sycamore.transforms.extract_key_value_pair import ExtractKeyValuePair
+
+from sycamore.transforms.standardizer import LocationStandardizer, Standardizer, StandardizeProperty, DateTimeStandardizer
 from sycamore.transforms.mark_misc import (
     MarkDropTiny,
     MarkBreakPage,
@@ -80,5 +82,6 @@ __all__ = [
     "LocationStandardizer",
     "Standardizer",
     "DateTimeStandardizer",
-    "Standardize_property",
+    "StandardizeProperty",
+    "ExtractKeyValuePair",
 ]

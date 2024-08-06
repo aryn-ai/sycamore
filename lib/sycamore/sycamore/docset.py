@@ -333,6 +333,13 @@ class DocSet:
         plan = SpreadProperties(self.plan, props, **resource_args)
         return DocSet(self.context, plan)
 
+    def extract_key_value_pair(self, element_type, property_name,  **resource_args) -> list[Document]:
+        from sycamore.transforms.extract_key_value_pair import ExtractKeyValuePair
+        element_type = 'table'
+        property_name = 'llm_response'
+        plan = ExtractKeyValuePair(self.plan, [element_type, property_name], **resource_args)
+        return DocSet(self.context, plan)
+
     def assign_doc_properties(self, element_type:str, property_name:str, **resource_args) -> "DocSet":
         """
         Copies properties from a specific element to parent element.
@@ -438,7 +445,7 @@ class DocSet:
         embeddings = Embed(self.plan, embedder=embedder, **kwargs)
         return DocSet(self.context, embeddings)
     
-    def standardise(self, standarizer: Standardizer):
+    def standardize(self, standarizer: Standardizer, path: list[str]):
         """
         Standardizes the datetime or location property of the DocSet.
         Args:
@@ -454,8 +461,8 @@ class DocSet:
                     .partition(partitioner=ArynPartitioner())
                     .standardise(loc_standardizer)
         """
-        from sycamore.transforms import Standardize_property
-        standardize_docset = Standardize_property(self.plan, standardizer=standarizer)
+        from sycamore.transforms import StandardizeProperty
+        standardize_docset = StandardizeProperty(self.plan, standardizer=standarizer, path=[path])
         return DocSet(self.context, standardize_docset)
 
 

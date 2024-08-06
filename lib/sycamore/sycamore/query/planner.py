@@ -191,7 +191,7 @@ class LlmPlanner:
                 {
                     "operatorName": "BasicFilter",
                     "description": "Filter to only include Cessna aircraft incidents",
-                    "rangeFilter": false,
+                    "range_filter": false,
                     "query": "Cessna",
                     "start": null,
                     "end": null,
@@ -240,7 +240,7 @@ class LlmPlanner:
                 {
                     "operatorName": "BasicFilter",
                     "description": "Filter to only include documents in 2022",
-                    "rangeFilter": true,
+                    "range_filter": true,
                     "query": null,
                     "start": "01-01-2022",
                     "end": "12-31-2022",
@@ -357,7 +357,7 @@ class LlmPlanner:
                 {
                     "operatorName": "BasicFilter",
                     "description": "Filter to only include documents in 2023",
-                    "rangeFilter": true,
+                    "range_filter": true,
                     "query": null,
                     "start": "01-01-2023",
                     "end": "12-31-2023",
@@ -410,7 +410,7 @@ class LlmPlanner:
                     "operatorName": "Count",
                     "description": "Count the number of total patients",
                     "field": null,
-                    "primaryField": null,
+                    "primary_field": null,
                     "input": [0],
                     "id": 1
                 },

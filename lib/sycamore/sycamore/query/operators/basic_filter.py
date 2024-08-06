@@ -14,9 +14,9 @@ class BasicFilter(LogicalOperator):
     """If true, it will use an inclusive range filter (in which case you need to specify *start*
     and/or *end*). The range filter requires a specific field value to fall within a range of values.
     This is mainly used for date ranges, e.g. *start*=2022/10/01, *end*=2022/10/20, *field*=date
-    requires the Date to be between October 1 and October 20 (inclusive) in 2022. For range filters,
-    you are not required to specify both *start* and *end* if unnecessary. If false, it will use a
-    match filter for matches (in which case you need to specify *query*). The match filter requires a
+    requires the date to be between October 1 and October 20 (inclusive) in 2022. For range filters,
+    you are not required to specify both *start* and *end* if unnecessary. If range_filter is false, a
+    match filter will be used (in which case you need to specify *query*). The match filter requires a
     specific field to match a fixed value (the *query*), e.g. match 2 in "passenger_count". For strings,
     a match filter performs substring matching. For example, e.g. query="sub" would match with the value
     "submarine".

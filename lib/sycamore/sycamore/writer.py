@@ -581,13 +581,14 @@ class DocSetWriter:
                 https://neo4j.com/docs/api/python-driver/current/api.html#auth-ref
             database: database to write to in Neo4j. By default in the neo4j community addition, new databases
                 cannot be instantiated so you must use "neo4j". If using enterprise edition, ensure the database exists.
-            import_dir: the import directory specified
+            import_dir: the import directory that neo4j uses. You can specify where to mount this volume when you launch
+                your neo4j docker container.
         Example:
             The following code shows how to write to a neo4j database
 
             ..code-block::python
             URI = "neo4j://localhost:7687"
-            AUTH = ("neo4j", "koala-stereo-comedy-spray-figure-6974")
+            AUTH = ("neo4j", "xxxxx")
 
             metadata = [GraphMetadata(nodeKey='company',nodeLabel='Company',relLabel='FILED_BY'),
                         GraphMetadata(nodeKey='gics_sector',nodeLabel='Sector',relLabel='IN_SECTOR'),
@@ -596,13 +597,9 @@ class DocSetWriter:
                         ]
 
             ds = (
-                ctx.read.manifest(metadata_provider=JsonManifestMetadataProvider(manifest), binary_format="pdf", filesystem=fsys)
-                .partition(partitioner=SycamorePartitioner(extract_table_structure=True, use_ocr=True, extract_images=True), num_gpus=0.2)
-                ds.map(restructure_doc)
-                .map(children_to_section)
-                .map(summarize_sections)
-                .extract_graph_structure([MetadataExtractor(metadata=metadata),
-                                        EntityExtractor(entities=entities,llm=llm)])
+                ctx.read.manifest(...)
+                .partition(...)
+                .extract_graph_structure([MetadataExtractor(metadata=metadata)])
                 .explode()
             )
 

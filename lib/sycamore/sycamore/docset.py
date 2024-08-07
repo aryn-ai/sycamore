@@ -334,22 +334,38 @@ class DocSet:
         return DocSet(self.context, plan)
 
     def extract_key_value_pair(self, property_name: str, llm: LLM, **resource_args) -> list[Document]:
+        """
+        Parses table to create property populated with its key value pair.
+
+        Args: 
+            element_type: Element type from which property is to be copied.
+            property_name: Property name which stores the Property.
+            llm: llm to be used for query and parsing.
+        Example:
+            .. code-block:: python
+
+               pdf_docset = context.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=ArynPartitioner())
+                    .extract_key_value_pair('llm_response', llm)
+        """
+
         from sycamore.transforms.extract_key_value_pair import ExtractKeyValuePair
         plan = ExtractKeyValuePair(self.plan, [property_name, llm], **resource_args)
         return DocSet(self.context, plan)
 
     def assign_doc_properties(self, element_type:str, property_name:str, **resource_args) -> "DocSet":
         """
-        Copies properties from a specific element to parent element.
+        Copies properties from the first element to parent element.
 
         Args: 
-            element_type: Element type from which property is to be copied 
-            property_name: Property name which stores the Property
+            element_type: Element type from which property is to be copied. 
+            property_name: Property name which stores the Property.
         Example:
             .. code-block:: python
 
                pdf_docset = context.read.binary(paths, binary_format="pdf")
                     .partition(partitioner=ArynPartitioner())
+                    .extract_key_value_pair('llm_response', llm)
                     .AssignDocProperties('table', 'llm_response')
         """
         from sycamore.transforms import AssignDocProperties

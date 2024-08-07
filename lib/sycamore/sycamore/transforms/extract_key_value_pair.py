@@ -22,8 +22,9 @@ class ExtractKeyValuePair(SingleThreadUser, NonGPUUser, Map):
         .. code-block:: python
 
             source_node = ...  # Define a source node or component that provides hierarchical documents.
-            property_transform = AssignDocProperties(child=source_node, list=["table"])
-            property_dataset = property_transform.execute()
+            llm = openAI('gpt-4o-mini')
+            property_extract = ExtractKeyValuePair(child=source_node, list=["property_name",llm])
+            property_dataset = property_extract.execute()
     """
 
     def __init__(self, child: Node, parameters:list[Union[str, LLM]], **resource_args):
@@ -32,7 +33,7 @@ class ExtractKeyValuePair(SingleThreadUser, NonGPUUser, Map):
     @staticmethod
     def extract_parent_json(input_string: str) -> str:
         '''
-        Extracts the top level jsonstring from the string passed.
+        Extracts the top level JSONstring from input String.
         '''
         stack: list[str] = []
         json_start = None

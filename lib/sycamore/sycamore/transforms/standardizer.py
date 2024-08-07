@@ -6,99 +6,20 @@ from sycamore.data import Document
 from sycamore.transforms.map import Map
 from dateutil import parser
 import re
-from typing import List
+from typing import List, Tuple, Union
+from datetime import date
 
 
 class Standardizer(ABC):
     """
-    An Abstrant class for implementing Standarizers.
+    An abstract class for implementing standardizers.
     """
 
     @abstractmethod
-    def standardize(self, doc: Document, key_path: List[str]) -> Document:
+    def fixer(self, text: str) -> Union[str, Tuple[str, date]]:
         pass
 
-
-class LocationStandardizer(Standardizer):
-    """
-    This Class standardizes the format of US State abbreviations.
-    """
-
-    def __init__(self):
-        self._state_abbreviations = {
-            "AK": "Alaska",
-            "AL": "Alabama",
-            "AR": "Arkansas",
-            "AZ": "Arizona",
-            "CA": "California",
-            "CO": "Colorado",
-            "CT": "Connecticut",
-            "DC": "District of Columbia",
-            "DE": "Delaware",
-            "FL": "Florida",
-            "GA": "Georgia",
-            "HI": "Hawaii",
-            "IA": "Iowa",
-            "ID": "Idaho",
-            "IL": "Illinois",
-            "IN": "Indiana",
-            "KS": "Kansas",
-            "KY": "Kentucky",
-            "LA": "Louisiana",
-            "MA": "Massachusetts",
-            "MD": "Maryland",
-            "ME": "Maine",
-            "MI": "Michigan",
-            "MN": "Minnesota",
-            "MO": "Missouri",
-            "MS": "Mississippi",
-            "MT": "Montana",
-            "NC": "North Carolina",
-            "ND": "North Dakota",
-            "NE": "Nebraska",
-            "NH": "New Hampshire",
-            "NJ": "New Jersey",
-            "NM": "New Mexico",
-            "NV": "Nevada",
-            "NY": "New York",
-            "OH": "Ohio",
-            "OK": "Oklahoma",
-            "OR": "Oregon",
-            "PA": "Pennsylvania",
-            "RI": "Rhode Island",
-            "SC": "South Carolina",
-            "SD": "South Dakota",
-            "TN": "Tennessee",
-            "TX": "Texas",
-            "UT": "Utah",
-            "VA": "Virginia",
-            "VT": "Vermont",
-            "WA": "Washington",
-            "WI": "Wisconsin",
-            "WV": "West Virginia",
-            "WY": "Wyoming",
-        }
-
-    def replace_abbreviations(self, input_string):
-        """
-        This method replaces the US State abbreviations with full names.
-        """
-        state_abbreviations = {key: value for key, value in self._state_abbreviations.items()}
-        abbreviations = {**state_abbreviations}
-
-        pattern = re.compile(r"\b(" + "|".join(re.escape(key) for key in abbreviations.keys()) + r")\b")
-
-        def replace_match(match):
-            return abbreviations[match.group(0)]
-
-        result_string = pattern.sub(replace_match, input_string)
-        return result_string
-
     def standardize(self, doc: Document, key_path: List[str]) -> Document:
-        """
-        This Methods creates a new element standardises the location property of the Element
-        by replcaing all instance of US State abbreviation with correct name.
-        """
         current = doc
         for key in key_path[:-1]:
             if key in current.keys():
@@ -107,10 +28,81 @@ class LocationStandardizer(Standardizer):
                 raise KeyError(f"Key {key} not found in the dictionary among {current.keys()}")
         target_key = key_path[-1]
         if target_key in current.keys():
-            current[target_key] = self.replace_abbreviations(current[target_key])
+            current[target_key] = self.fixer(current[target_key])
         else:
             raise KeyError(f"Key {target_key} not found in the dictionary among {current.keys()}")
         return doc
+
+
+class LocationStandardizer(Standardizer):
+    """
+    This Class standardizes the format of US State abbreviations.
+    """
+
+    state_abbreviations = {
+        "AK": "Alaska",
+        "AL": "Alabama",
+        "AR": "Arkansas",
+        "AZ": "Arizona",
+        "CA": "California",
+        "CO": "Colorado",
+        "CT": "Connecticut",
+        "DC": "District of Columbia",
+        "DE": "Delaware",
+        "FL": "Florida",
+        "GA": "Georgia",
+        "HI": "Hawaii",
+        "IA": "Iowa",
+        "ID": "Idaho",
+        "IL": "Illinois",
+        "IN": "Indiana",
+        "KS": "Kansas",
+        "KY": "Kentucky",
+        "LA": "Louisiana",
+        "MA": "Massachusetts",
+        "MD": "Maryland",
+        "ME": "Maine",
+        "MI": "Michigan",
+        "MN": "Minnesota",
+        "MO": "Missouri",
+        "MS": "Mississippi",
+        "MT": "Montana",
+        "NC": "North Carolina",
+        "ND": "North Dakota",
+        "NE": "Nebraska",
+        "NH": "New Hampshire",
+        "NJ": "New Jersey",
+        "NM": "New Mexico",
+        "NV": "Nevada",
+        "NY": "New York",
+        "OH": "Ohio",
+        "OK": "Oklahoma",
+        "OR": "Oregon",
+        "PA": "Pennsylvania",
+        "RI": "Rhode Island",
+        "SC": "South Carolina",
+        "SD": "South Dakota",
+        "TN": "Tennessee",
+        "TX": "Texas",
+        "UT": "Utah",
+        "VA": "Virginia",
+        "VT": "Vermont",
+        "WA": "Washington",
+        "WI": "Wisconsin",
+        "WV": "West Virginia",
+        "WY": "Wyoming",
+    }
+
+    def fixer(self, text: str) -> str:
+        """
+        This method replaces the US State abbreviations with full names.
+        """
+
+        def replacer(match):
+            abbreviation = match.group(0)
+            return LocationStandardizer.state_abbreviations.get(abbreviation, abbreviation)
+
+        return re.sub(r"\b[A-Z]{2}\b", replacer, text)
 
 
 class DateTimeStandardizer(Standardizer):
@@ -118,9 +110,10 @@ class DateTimeStandardizer(Standardizer):
     This Class standardizes the format of dateTime.
     """
 
-    def fix_date(self, raw_dateTime):
+    def fixer(self, raw_dateTime: str) -> Tuple[str, date]:
         """
-        This Method standardizes the datetime property of Elements by replcaing . with : and parsing date as Date
+        This method standardizes the datetime property of elements by replacing
+        periods with colons and parsing the date as a Date object.
         """
 
         raw_dateTime = raw_dateTime.replace("Local", "")
@@ -129,11 +122,7 @@ class DateTimeStandardizer(Standardizer):
         extracted_date = parsed_date.date()
         return raw_dateTime, extracted_date
 
-    def standardize(self, doc: Document, key_path) -> Document:
-        """
-        This Methods creates a new element with Date and standardises the dateTime property of the Element
-        """
-
+    def standardize(self, doc: Document, key_path: List[str]) -> Document:
         current = doc
         for key in key_path[:-1]:
             if key in current.keys():
@@ -142,7 +131,7 @@ class DateTimeStandardizer(Standardizer):
                 raise KeyError(f"Key {key} not found in the dictionary among {current.keys()}")
         target_key = key_path[-1]
         if target_key in current.keys():
-            current[target_key], current["day"] = self.fix_date(current[target_key])
+            current[target_key], current["day"] = self.fixer(current[target_key])
         else:
             raise KeyError(f"Key {target_key} not found in the dictionary among {current.keys()}")
         return doc
@@ -150,7 +139,9 @@ class DateTimeStandardizer(Standardizer):
 
 class StandardizeProperty(Map):
     """
-    The Class runs the standarizer iether for location or datetime on DocSet.
+    A Class for implementing Standardizers. This class runs the
+    standardizer for location or datetime on a DocSet.
+
     """
 
     def __init__(

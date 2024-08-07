@@ -67,22 +67,26 @@ class TestLocationStandardizer(unittest.TestCase):
         # Test with single abbreviation
         input_string = "I live in CA."
         expected_output = "I live in California."
-        self.assertEqual(self.standardizer.replace_abbreviations(input_string), expected_output)
+        self.assertEqual(self.standardizer.fixer(input_string), expected_output)
+
+        input_string = "I am a big can of CALCIUM and TXT files."
+        expected_output = "I am a big can of CALCIUM and TXT files."
+        self.assertEqual(self.standardizer.fixer(input_string), expected_output)
 
         # Test with multiple abbreviations
         input_string = "I have been to NY, CA, and TX."
         expected_output = "I have been to New York, California, and Texas."
-        self.assertEqual(self.standardizer.replace_abbreviations(input_string), expected_output)
+        self.assertEqual(self.standardizer.fixer(input_string), expected_output)
 
         # Test with mixed case abbreviations
         input_string = "We went to FL and GA last summer."
         expected_output = "We went to Florida and Georgia last summer."
-        self.assertEqual(self.standardizer.replace_abbreviations(input_string), expected_output)
+        self.assertEqual(self.standardizer.fixer(input_string), expected_output)
 
         # Test with no abbreviations
         input_string = "No abbreviations here."
         expected_output = "No abbreviations here."
-        self.assertEqual(self.standardizer.replace_abbreviations(input_string), expected_output)
+        self.assertEqual(self.standardizer.fixer(input_string), expected_output)
 
     def test_standardize(self):
 
@@ -119,19 +123,24 @@ class TestDateTimeStandardizer(unittest.TestCase):
 
     def test_fix_date(self):
         # Test with typical datetime format
+
+        # raw_datetime = "wrongdate"
+        # (print(self.standardizer.fix_date(raw_datetime))
+
+
         raw_dateTime = "2023-07-15 10.30.00 Local"
         expected_output = ("2023-07-15 10:30:00 ", date(2023, 7, 15))
-        self.assertEqual(self.standardizer.fix_date(raw_dateTime), expected_output)
+        self.assertEqual(self.standardizer.fixer(raw_dateTime), expected_output)
 
         # Test with datetime without 'Local'
         raw_dateTime = "2023-07-15 10.30.00"
         expected_output = ("2023-07-15 10:30:00", date(2023, 7, 15))
-        self.assertEqual(self.standardizer.fix_date(raw_dateTime), expected_output)
+        self.assertEqual(self.standardizer.fixer(raw_dateTime), expected_output)
 
         # Test with different datetime format
         raw_dateTime = "15/07/2023 10.30.00"
         expected_output = ("15/07/2023 10:30:00", date(2023, 7, 15))
-        self.assertEqual(self.standardizer.fix_date(raw_dateTime), expected_output)
+        self.assertEqual(self.standardizer.fixer(raw_dateTime), expected_output)
 
     def test_standardize(self):
         # Test with a simple document

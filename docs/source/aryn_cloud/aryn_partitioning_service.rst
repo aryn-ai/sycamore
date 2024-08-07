@@ -80,7 +80,7 @@ The Aryn Partitining Service is the default option when specifying the Aryn Part
     pdf_docset = context.read.binary(work_dir, binary_format="pdf")
     partitioned_docset = pdf_docset.partition(ArynPartitioner(aryn_api_key=aryn_api_key))
 
-Alternatively, we can store our Aryn API key at ``~/.aryn/config.yaml`` like so:
+Alternatively, we can store our Aryn API key in ``~/.aryn/config.yaml`` like so:
 
 .. code:: yaml
 

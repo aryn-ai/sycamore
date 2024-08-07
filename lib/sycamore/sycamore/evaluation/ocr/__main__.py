@@ -18,8 +18,8 @@ model_actorpool = ActorPoolStrategy(size=2)
 model_kwargs = {"device": "mps"}
 
 parser = ArgumentParser()
-parser.add_argument("dataset", required=False, choices=list(DATASETS.keys()), help="dataset to evaluate")
-parser.add_argument("model", required=False, choices=list(MODELS.keys()), help="OCR Model to use")
+parser.add_argument("dataset", nargs="?", choices=list(DATASETS.keys()), help="dataset to evaluate")
+parser.add_argument("model", nargs="?", choices=list(MODELS.keys()), help="OCR Model to use")
 parser.add_argument("--debug", required=False, action="store_true")
 parser.add_argument("--limit", type=int, default=10000, help="A limit on the number of values to run")
 args = parser.parse_args()

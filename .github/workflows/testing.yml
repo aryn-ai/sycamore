@@ -140,8 +140,8 @@ jobs:
         options: >-
            --volume /neo4j/import:/var/lib/neo4j/import
         ports:
-          - "7474:7474"
-          - "7687:7687"
+          - 7474:7474
+          - 7687:7687
 
     steps:
       - name: Checkout

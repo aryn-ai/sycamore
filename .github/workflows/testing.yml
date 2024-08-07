@@ -147,7 +147,7 @@ jobs:
 
     steps:
       - name: docker neo4j call
-        run: curl http://localhost:7687
+        run: curl -vvv http://localhost:7474
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install poetry

@@ -60,7 +60,7 @@ An example element is given below:
 | Page-header | Small text at top of page |
 | Image | A Picture or diagram. When `extract_images` is set to `true`, this element includes a `binary_representation` tag which contains a base64 encoded ppm image file. When `extract_images` is false, the bounding box of the Image is still returned. |
 | Section-header | Medium-sized text marking a section. |
-| Table | A grid of text. See the `extract_table_structure` option to extract information from the table rather than just detecting its presence. |
+| table | A grid of text. See the `extract_table_structure` option to extract information from the table rather than just detecting its presence. |
 
 ### Bounding Box
 

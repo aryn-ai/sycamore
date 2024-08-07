@@ -48,6 +48,7 @@ def show_schema(container: Any, schema: Dict[str, Tuple[str, Set[str]]]):
 
 def show_traces():
     """Show the traces in the given trace_dir."""
+    st.subheader("Traces", divider="blue")
     st.session_state.query_trace_dir = f"{st.session_state.trace_dir}/{st.session_state.query_id}"
     for id in sorted(os.listdir(f"{st.session_state.query_trace_dir}")):
 
@@ -74,11 +75,27 @@ def show_traces():
 
         st.dataframe(df)
 
+    # Create a zip file
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for root, dirs, files in os.walk(st.session_state.query_trace_dir):
+            for file in files:
+                zf.write(
+                    os.path.join(root, file),
+                    os.path.relpath(os.path.join(root, file), st.session_state.query_trace_dir),
+                )
+    st.download_button(
+        label="Download Traces as ZIP",
+        data=zip_buffer.getvalue(),
+        file_name=f"traces_{st.session_state.query_id}.zip",
+        mime="application/zip",
+    )
+
 
 @st.experimental_fragment
 def generate_code(client, plan):
     with st.spinner("Generating code..."):
-        _, st.session_state.code = client.run_plan(plan, dry_run=True)
+        st.session_state.query_id, st.session_state.code = client.run_plan(plan, dry_run=True)
     with st.expander("View code"):
         st.session_state.code = st_ace(
             value=st.session_state.code,
@@ -127,15 +144,12 @@ def run_query(query: str, index: str, plan_only: bool, do_trace: bool, use_cache
     """Run the given query."""
     st.session_state.trace_dir = None
     if do_trace:
-        if not plan_only:
-            st.session_state.trace_dir = tempfile.mkdtemp()
-            st.write(f"Writing execution traces to `{st.session_state.trace_dir}`")
-        else:
-            st.warning("Tracing currently not supported with plan only")
+        st.session_state.trace_dir = tempfile.mkdtemp()
+        st.write(f"Writing execution traces to `{st.session_state.trace_dir}`")
     if use_cache:
         st.write(f"Using cache at `{st.session_state.s3_cache_path}`")
     client = SycamoreQueryClient(
-        trace_dir=st.session_state.trace_dir, s3_cache_path=st.session_state.s3_cache_path if use_cache else None
+        trace_dir=st.session_state.trace_dir if do_trace else None, s3_cache_path=st.session_state.s3_cache_path if use_cache else None
     )
     with st.spinner("Getting schema..."):
         schema = client.get_opensearch_schema(index)
@@ -150,24 +164,7 @@ def run_query(query: str, index: str, plan_only: bool, do_trace: bool, use_cache
         st.subheader("Result", divider="rainbow")
         st.success(result)
         if do_trace:
-            st.subheader("Traces", divider="blue")
             show_traces()
-            # Create a zip file
-            zip_buffer = io.BytesIO()
-            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-                for root, dirs, files in os.walk(st.session_state.query_trace_dir):
-                    for file in files:
-                        zf.write(
-                            os.path.join(root, file),
-                            os.path.relpath(os.path.join(root, file), st.session_state.query_trace_dir),
-                        )
-            st.download_button(
-                label="Download Traces as ZIP",
-                data=zip_buffer.getvalue(),
-                file_name=f"traces_{st.session_state.query_id}.zip",
-                mime="application/zip",
-            )
-
     else:
         generate_code(client, plan)
         if "code" in st.session_state and st.session_state.code:
@@ -182,6 +179,8 @@ def run_query(query: str, index: str, plan_only: bool, do_trace: bool, use_cache
                 if code_locals and "result" in code_locals:
                     st.subheader("Result", divider="rainbow")
                     st.success(code_locals["result"])
+                if do_trace:
+                    show_traces()
 
 
 client = SycamoreQueryClient()

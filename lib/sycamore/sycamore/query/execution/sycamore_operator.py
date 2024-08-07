@@ -180,7 +180,8 @@ class SycamoreSummarizeData(SycamoreOperator):
     llm=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
     question='{question}',
     result_description='{description}',
-    result_data=[{logical_deps_str}]
+    result_data=[{logical_deps_str}],
+    **{get_str_for_dict(self.get_execute_args())},
 )
 result = {output_var or get_var_name(self.logical_node)}
 print(result)

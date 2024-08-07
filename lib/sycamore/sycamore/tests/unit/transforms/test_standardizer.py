@@ -124,9 +124,13 @@ class TestDateTimeStandardizer(unittest.TestCase):
     def test_fix_date(self):
         # Test with typical datetime format
 
-        # raw_datetime = "wrongdate"
-        # (print(self.standardizer.fix_date(raw_datetime))
+        raw_datetime = "wrongdate"
+        with self.assertRaises(ValueError):
+            self.standardizer.fixer(raw_datetime)
 
+        raw_dateTime = "2023123-07-15 10.30.00 Local"
+        with self.assertRaises(ValueError):
+            self.standardizer.fixer(raw_datetime)
 
         raw_dateTime = "2023-07-15 10.30.00 Local"
         expected_output = ("2023-07-15 10:30:00 ", date(2023, 7, 15))

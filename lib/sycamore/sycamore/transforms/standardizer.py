@@ -115,13 +115,25 @@ class DateTimeStandardizer(Standardizer):
         This method standardizes the datetime property of elements by replacing
         periods with colons and parsing the date as a Date object.
         """
+        try:
+            # Clean up the raw_dateTime string
+            raw_dateTime = raw_dateTime.replace("Local", "")
+            raw_dateTime = raw_dateTime.replace(".", ":")
 
-        raw_dateTime = raw_dateTime.replace("Local", "")
-        raw_dateTime = raw_dateTime.replace(".", ":")
-        parsed_date = parser.parse(raw_dateTime)
-        extracted_date = parsed_date.date()
-        return raw_dateTime, extracted_date
+            # Parse the cleaned dateTime string
 
+            parsed_date = parser.parse(raw_dateTime)
+            extracted_date = parsed_date.date()
+            return raw_dateTime, extracted_date
+        
+        except ValueError as e:
+            # Handle errors related to value parsing
+            raise ValueError(f"Invalid date format: {raw_dateTime}") from e
+
+        except Exception as e:
+            # Handle any other exceptions
+            raise RuntimeError(f"Unexpected error occurred while processing: {raw_dateTime}") from e
+        
     def standardize(self, doc: Document, key_path: List[str]) -> Document:
         current = doc
         for key in key_path[:-1]:

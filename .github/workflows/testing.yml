@@ -128,13 +128,16 @@ jobs:
         image: neo4j:5.21.0
         env:
           NEO4J_AUTH: neo4j/neo4j  # Set the default credentials for Neo4j
-          NEO4J_dbms_memory_heap_initial__size: 2G  # Set initial heap size
-          NEO4J_dbms_memory_heap_max__size: 2G  # Set maximum heap size
-          NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
-          NEO4J_apoc_export_file_enabled: true
-          NEO4J_apoc_import_file_enabled: true
-          NEO4J_apoc_import_file_use__neo4j__config: true
-          NEO4JLABS_PLUGINS: '["apoc"]'
+          # NEO4J_dbms_memory_heap_initial__size: 2G  # Set initial heap size
+          # NEO4J_dbms_memory_heap_max__size: 2G  # Set maximum heap size
+          # NEO4J_dbms_ssl_policy_bolt_enabled: false
+          # NEO4J_dbms_ssl_policy_https_enabled: false
+          # NEO4J_server_default__listen__address: "0.0.0.0"
+          # NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
+          # NEO4J_apoc_export_file_enabled: true
+          # NEO4J_apoc_import_file_enabled: true
+          # NEO4J_apoc_import_file_use__neo4j__config: true
+          # NEO4JLABS_PLUGINS: '["apoc"]'
         options: >-
            --volume /neo4j/import:/var/lib/neo4j/import
         ports:

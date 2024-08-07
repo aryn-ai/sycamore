@@ -145,6 +145,8 @@ jobs:
           - 7687:7687
 
     steps:
+      - name: docker neo4j call
+        run: curl http://localhost:7687
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install poetry
@@ -154,15 +156,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: "poetry"
-
-      - name: docker neo4j call
-        run: docker logs neo4j
       - name: Install sycamore
         run: poetry install
-
       - name: Download nltk packages
         run: poetry run python -m nltk.downloader punkt averaged_perceptron_tagger
-
       - name: Update Apt
         run: sudo apt-get update
       - name: Install poppler and tesseract

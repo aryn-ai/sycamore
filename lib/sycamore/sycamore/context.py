@@ -1,59 +1,48 @@
-import logging
-import threading
+from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any, Optional
-
-import ray
-
+from sycamore.llms import LLM
 from sycamore.rules import Rule
 
 
-def _ray_logging_setup():
-    # The commented out lines allow for easier testing that logging is working correctly since
-    # they will emit information at the start.
-
-    # logging.error("RayLoggingSetup-Before (expect -After; if missing there is a bug)")
-
-    ## WARNING: There can be weird interactions in jupyter/ray with auto-reload. Without the
-    ## Spurious log [0-2]: messages below to verify that log messages are being properly
-    ## propogated.  Spurious log 1 seems to somehow be required.  Without it, the remote map
-    ## worker messages are less likely to come back.
-
-    ## Some documentation for ray implies things should use the ray logger
-    ray_logger = logging.getLogger("ray")
-    ray_logger.setLevel(logging.INFO)
-    # ray_logger.info("Spurious log 2: Verifying that log messages are propogated")
-
-    ## Make the default logging show info messages
-    logging.getLogger().setLevel(logging.INFO)
-    logging.info("Spurious log 1: Verifying that log messages are propogated")
-    # logging.error("RayLoggingSetup-After-2Error")
-
-    ## Verify that another logger would also log properly
-    other_logger = logging.getLogger("other_logger")
-    other_logger.setLevel(logging.INFO)
-    # other_logger.info("RayLoggingSetup-After-3")
+class ExecMode(Enum):
+    UNKNOWN = 0
+    RAY = 1
+    LOCAL = 2
 
 
+@dataclass
+class OpenSearchArgs:
+    client_args: Optional[dict[str, Any]] = None
+    index_name: Optional[str] = None
+    index_settings: Optional[dict[str, Any]] = None
+
+
+@dataclass
 class Context:
-    def __init__(self, ray_args: Optional[dict[str, Any]] = None):
-        if ray_args is None:
-            ray_args = {}
+    """
+    A class to implement a Sycamore Context, which initializes a Ray Worker and provides the ability
+    to read data into a DocSet
+    """
 
-        if "logging_level" not in ray_args:
-            ray_args.update({"logging_level": logging.INFO})
+    exec_mode: ExecMode = ExecMode.RAY
+    ray_args: Optional[dict[str, Any]] = None
 
-        if "runtime_env" not in ray_args:
-            ray_args["runtime_env"] = {}
+    """
+    Allows for the registration of Rules in the Sycamore Context that allow for communication with the
+    underlying Ray context and can specify additional performance optimizations
+    """
+    extension_rules: list[Rule] = field(default_factory=list)
 
-        if "worker_process_setup_hook" not in ray_args["runtime_env"]:
-            # logging.error("Spurious log 0: If you do not see spurious log 1 & 2, log messages are being dropped")
-            ray_args["runtime_env"]["worker_process_setup_hook"] = _ray_logging_setup
+    """
+    Default OpenSearch args for a Context
+    """
+    opensearch_args: Optional[OpenSearchArgs] = None
 
-        if not ray.is_initialized():
-            ray.init(**ray_args)
-
-        self.extension_rules: list[Rule] = []
-        self._internal_lock = threading.Lock()
+    """
+    Default LLM for a Context
+    """
+    llm: Optional[LLM] = None
 
     @property
     def read(self):
@@ -61,44 +50,24 @@ class Context:
 
         return DocSetReader(self)
 
-    def register_rule(self, rule: Rule) -> None:
-        with self._internal_lock:
-            self.extension_rules.append(rule)
 
-    def get_extension_rule(self) -> list[Rule]:
-        with self._internal_lock:
-            copied = self.extension_rules.copy()
-        return copied
+def init(exec_mode=ExecMode.RAY, ray_args: Optional[dict[str, Any]] = None, **kwargs) -> Context:
+    """
+    Initialize a new Context.
+    """
+    if ray_args is None:
+        ray_args = {}
 
-    def deregister_rule(self, rule: Rule) -> None:
-        with self._internal_lock:
-            self.extension_rules.remove(rule)
+    # Set Logger for driver only, we consider worker_process_setup_hook
+    # or runtime_env/config file for worker application log
+    from sycamore.utils import sycamore_logger
 
+    sycamore_logger.setup_logger()
 
-_context_lock = threading.Lock()
-_global_context: Optional[Context] = None
-
-
-def init(ray_args: Optional[dict[str, Any]] = None) -> Context:
-    global _global_context
-    with _context_lock:
-        if _global_context is None:
-            if ray_args is None:
-                ray_args = {}
-
-            # Set Logger for driver only, we consider worker_process_setup_hook
-            # or runtime_env/config file for worker application log
-            from sycamore.utils import sycamore_logger
-
-            sycamore_logger.setup_logger()
-
-            _global_context = Context(ray_args)
-
-        return _global_context
+    return Context(exec_mode=exec_mode, ray_args=ray_args, **kwargs)
 
 
 def shutdown() -> None:
-    global _global_context
-    with _context_lock:
-        ray.shutdown()
-        _global_context = None
+    import ray
+
+    ray.shutdown()

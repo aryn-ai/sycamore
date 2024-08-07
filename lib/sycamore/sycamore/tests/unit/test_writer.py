@@ -121,7 +121,7 @@ class TestDocSetWriter:
         context = mocker.Mock(spec=Context)
         docset = DocSet(context, mocker.Mock(spec=Node))
         execute = mocker.patch.object(OpenSearchWriter, "execute")
-        docset.write.opensearch(os_client_args={}, index_name="index")
+        docset.write.opensearch(os_client_args={}, index_name="index", index_settings={})
         execute.assert_called_once()
 
     def test_weaviate(self, mocker):

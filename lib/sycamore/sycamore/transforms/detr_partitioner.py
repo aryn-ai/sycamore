@@ -68,7 +68,7 @@ def _can_retry(e: BaseException) -> bool:
         return False
 
 
-pdf_miner_cache = DiskCache(os.path.join(tempfile.gettempdir(), "SycamoreCache/PDFMinerCache"))
+pdf_miner_cache = DiskCache(str(Path.home() / ".sycamore/PDFMinerCache"))
 
 
 class ArynPDFPartitioner:

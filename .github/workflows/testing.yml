@@ -18,6 +18,7 @@ env:
   ARYN_API_KEY: ${{ secrets.MODEL_SERVER_KEY }}
   SYCAMORE_HELICONE_API_KEY: ${{ secrets.HELICONE_API_KEY }}
   SYCAMORE_OPENAI_USER: 'sycamore-github-ci'
+  SYCAMORE_HELICONE_TAG: ${{ github.ref }}
 
 # Permissions for AWS access
 permissions:
@@ -32,6 +33,18 @@ jobs:
         python-version: ["3.9", "3.10", "3.11"]
 
     steps:
+      - name: DF-1
+        run: df
+      - name: du-runner-initial
+        run: du -kx /home/runner | sort -rn | head -20
+      - name: Move cache to /mnt
+        run: sudo mkdir /mnt/cache && sudo chown $(whoami) /mnt/cache && mkdir -p /home/runner/.cache && sudo mount -o bind /mnt/cache /home/runner/.cache
+      # Could free up other stuff as in:
+      # https://github.com/easimon/maximize-build-space/blob/master/action.yml
+      - name: Free up disk space
+        run: sudo rm -rf /usr/local/lib/android
+      - name: DF-2
+        run: df
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install poetry
@@ -41,16 +54,24 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: "poetry"
+      - name: DF-3
+        run: df
       - name: Install sycamore
         run: poetry install
         working-directory: lib/sycamore
+      - name: DF-4
+        run: df
       - name: Update Apt
         run: sudo apt-get update
       - name: Install poppler and tesseract
         run: sudo apt-get install -y poppler-utils tesseract-ocr
+      - name: DF-5
+        run: df
       - name: Run tests
         run: poetry run pytest sycamore/tests/unit/
         working-directory: lib/sycamore
+      - name: DF-6
+        run: df
 
   rps-unit-test:
     runs-on: ubuntu-latest

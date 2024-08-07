@@ -1,14 +1,14 @@
+import logging
 from typing import Any, Callable, Optional, TYPE_CHECKING
 
 from pyarrow.fs import FileSystem
+from ray.data import ActorPoolStrategy
 
 from sycamore import Context
-from sycamore.plan_nodes import Node
-from sycamore.data import Document
 from sycamore.connectors.common import HostAndPort
 from sycamore.connectors.file.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
-from ray.data import ActorPoolStrategy
-import logging
+from sycamore.data import Document
+from sycamore.plan_nodes import Node
 
 if TYPE_CHECKING:
     # Shenanigans to avoid circular import
@@ -32,8 +32,8 @@ class DocSetWriter:
     def opensearch(
         self,
         *,
-        os_client_args: dict,
-        index_name: str,
+        os_client_args: Optional[dict] = None,
+        index_name: Optional[str] = None,
         index_settings: Optional[dict] = None,
         execute: bool = True,
         **kwargs,
@@ -97,6 +97,14 @@ class DocSetWriter:
         from typing import Any
         import copy
 
+        if os_client_args is None:
+            os_client_args = self.context.opensearch_args.client_args if self.context.opensearch_args else None
+        assert os_client_args is not None, "OpenSearch client args required"
+
+        if not index_name:
+            index_name = self.context.opensearch_args.index_name if self.context.opensearch_args else None
+        assert index_name is not None, "OpenSearch index name required"
+
         # We mutate os_client_args, so mutate a copy
         os_client_args = copy.deepcopy(os_client_args)
 
@@ -125,6 +133,10 @@ class DocSetWriter:
         client_params = OpenSearchWriterClientParams(**os_client_args)
 
         target_params: OpenSearchWriterTargetParams
+
+        if index_settings is None:
+            index_settings = self.context.opensearch_args.index_settings if self.context.opensearch_args else None
+
         if index_settings is not None:
             idx_settings = index_settings.get("body", {}).get("settings", {})
             idx_mappings = index_settings.get("body", {}).get("mappings", {})
@@ -329,7 +341,7 @@ class DocSetWriter:
                 ctx = sycamore.init()
                 ds = (
                     ctx.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=SycamorePartitioner(extract_table_structure=True, extract_images=True))
+                    .partition(partitioner=ArynPartitioner(extract_table_structure=True, extract_images=True))
                     .explode()
                     .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
                     .term_frequency(tokenizer=tokenizer, with_token_ids=True)
@@ -484,7 +496,7 @@ class DocSetWriter:
             es_client_args: Authentication arguments to be specified (if needed). See more information at
                 https://elasticsearch-py.readthedocs.io/en/v8.14.0/api/elasticsearch.html
             wait_for_completion: Whether to wait for completion of the write before proceeding with next steps.
-            See more information at https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-refresh.html
+                See more information at https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-refresh.html
             mappings: Mapping of the Elasticsearch index, can be optionally specified
             settings: Settings of the Elasticsearch index, can be optionally specified
             execute: Execute the pipeline and write to weaviate on adding this operator. If False,
@@ -493,29 +505,31 @@ class DocSetWriter:
             The following code shows how to read a pdf dataset into a ``DocSet`` and write it out to a
             local Elasticsearch index called `test-index`.
 
-            url = "http://localhost:9201"
-            index_name = "test-index"
-            model_name = "sentence-transformers/all-MiniLM-L6-v2"
-            paths = str(TEST_DIR / "resources/data/pdfs/")
+            .. code-block:: python
 
-            OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
-            tokenizer = HuggingFaceTokenizer(model_name)
+                url = "http://localhost:9201"
+                index_name = "test-index"
+                model_name = "sentence-transformers/all-MiniLM-L6-v2"
+                paths = str(TEST_DIR / "resources/data/pdfs/")
 
-            ctx = sycamore.init()
+                OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
+                tokenizer = HuggingFaceTokenizer(model_name)
 
-            ds = (
-                ctx.read.binary(paths, binary_format="pdf")
-                .partition(partitioner=UnstructuredPdfPartitioner())
-                .regex_replace(COALESCE_WHITESPACE)
-                .mark_bbox_preset(tokenizer=tokenizer)
-                .merge(merger=MarkedMerger())
-                .spread_properties(["path"])
-                .split_elements(tokenizer=tokenizer, max_tokens=512)
-                .explode()
-                .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
-                .sketch(window=17)
-            )
-            ds.write.elasticsearch(url=url, index_name=index_name)
+                ctx = sycamore.init()
+
+                ds = (
+                    ctx.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=UnstructuredPdfPartitioner())
+                    .regex_replace(COALESCE_WHITESPACE)
+                    .mark_bbox_preset(tokenizer=tokenizer)
+                    .merge(merger=MarkedMerger())
+                    .spread_properties(["path"])
+                    .split_elements(tokenizer=tokenizer, max_tokens=512)
+                    .explode()
+                    .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
+                    .sketch(window=17)
+                )
+                ds.write.elasticsearch(url=url, index_name=index_name)
         """
         from sycamore.connectors.elasticsearch import (
             ElasticsearchDocumentWriter,

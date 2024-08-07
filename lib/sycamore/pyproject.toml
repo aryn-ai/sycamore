@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sycamore-ai"
-version = "0.1.17"
+version = "0.1.18"
 description = "Sycamore is an LLM-powered semantic data preparation system for building search applications."
 authors = ["aryn.ai <opensource@aryn.ai>"]
 readme = "README.md"
@@ -59,11 +59,12 @@ pytesseract = "^0.3.10"
 easyocr = "^1.7.1"
 
 # Dependencies for DB connectors
-weaviate-client = "^4.6.1"
+weaviate-client = ">=4.6.1,<4.7" # typechecking fails with 4.7
 pinecone-client = { version = "^4.1.0", extras = ["grpc"] }
 pinecone-text = "^0.9.0"
 duckdb = "1.0.0"
 elasticsearch = "8.14.0"
+pydantic = "^2.8.2"
 
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"
@@ -82,7 +83,7 @@ nbmake = "^1.4.5"
 jupyterlab = "^4.0.11"
 jupyter-lsp = "^2.2.2"
 ipywidgets = "^8.1.0"
-matplotlib = "^3.9.1"
+matplotlib = "^3.9.0"
 rich = "^13.7.1"
 
 [tool.poetry.group.docker.dependencies]

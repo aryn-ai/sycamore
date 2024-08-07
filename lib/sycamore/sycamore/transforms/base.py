@@ -65,9 +65,13 @@ class BaseMapTransform(UnaryNode):
     """
     BaseMapTransform abstracts away MetadataDocuments from all other transforms.
 
-    If f is a class type, the class will be instantiated and run as an actor in ray.
+    If f is a class type, the class will be instantiated and run as an actor in ray. constructor_args and
+    constructor_kwargs can be used to provide arguments when initializing the class
+
     If f is an object type and resource_args["compute"] is set to ActorPoolStrategy, it will run as an actor
     Otherwise f will be run as a function.
+
+    Use args, kwargs to pass additional args to the function call.
     """
 
     def __init__(
@@ -144,6 +148,16 @@ class BaseMapTransform(UnaryNode):
                 intermediate_datasink = intermediate_datasink
             result.write_datasink(intermediate_datasink)
         return result
+
+    def local_execute(self, all_docs: list[Document]) -> list[Document]:
+        docs = [d for d in all_docs if not isinstance(d, MetadataDocument)]
+        metadata = [d for d in all_docs if isinstance(d, MetadataDocument)]
+        outputs = self._local_process(docs)
+        to_docs = [d for d in outputs if not isinstance(d, MetadataDocument)]
+        if self._enable_auto_metadata and (len(docs) > 0 or len(to_docs) > 0):
+            outputs.extend(BaseMapTransform._update_lineage(docs, to_docs))
+        outputs.extend(metadata)
+        return outputs
 
     def _local_process(self, in_docs: list[Document]) -> list[Document]:
         """Internal function for faster testing during the conversion to running on BaseMap.
@@ -240,7 +254,7 @@ class BaseMapTransform(UnaryNode):
             )
 
         to_docs = [d for d in outputs if not isinstance(d, MetadataDocument)]
-        if enable_auto_metadata:
+        if enable_auto_metadata and (len(docs) > 0 or len(to_docs) > 0):
             outputs.extend(BaseMapTransform._update_lineage(docs, to_docs))
         outputs.extend(metadata)
         return {"doc": [d.serialize() for d in outputs]}

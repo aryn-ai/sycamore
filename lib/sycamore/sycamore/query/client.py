@@ -29,7 +29,7 @@ from sycamore.utils.cache import S3Cache
 from sycamore.query.execution.sycamore_executor import SycamoreExecutor
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.planner import LlmPlanner
-from sycamore.query.schema import OpenSearchSchema
+from sycamore.query.schema import OpenSearchSchema, OpenSearchSchemaFetcher
 from sycamore.query.visualize import visualize_plan
 
 from rich.console import Console
@@ -121,15 +121,14 @@ class SycamoreQueryClient:
         indices = self._os_client.indices.get_alias().keys()
         return indices
 
-    def get_opensearch_schema(self, index: str) -> dict:
+    def get_opensearch_schema(self, index: str) -> OpenSearchSchema:
         """Get the schema for the provided OpenSearch index."""
-        schema_provider = OpenSearchSchema(IndicesClient(self._os_client), index, self._os_query_executor)
-        schema = schema_provider.get_schema()
-        return schema
+        schema_provider = OpenSearchSchemaFetcher(IndicesClient(self._os_client), index, self._os_query_executor)
+        return schema_provider.get_schema()
 
-    def generate_plan(self, query: str, index: str, schema: dict) -> LogicalPlan:
+    def generate_plan(self, query: str, index: str, schema: OpenSearchSchema) -> LogicalPlan:
         """Generate a logical query plan for the given query, index, and schema."""
-        openai_client = OpenAI(
+        llm_client = OpenAI(
             OpenAIModels.GPT_4O.value, cache=S3Cache(self.s3_cache_path) if self.s3_cache_path else None
         )
         planner = LlmPlanner(
@@ -137,12 +136,12 @@ class SycamoreQueryClient:
             data_schema=schema,
             os_config=self.os_config,
             os_client=self._os_client,
-            openai_client=openai_client,
+            llm_client=llm_client,
         )
         plan = planner.plan(query)
         return plan
 
-    def run_plan(self, plan: LogicalPlan, dry_run=False) -> Tuple[str, str]:
+    def run_plan(self, plan: LogicalPlan, dry_run=False, codegen_mode=False) -> Tuple[str, str]:
         """Run the given logical query plan and return a tuple of the query ID and result."""
         context = sycamore.init()
         executor = SycamoreExecutor(
@@ -151,16 +150,17 @@ class SycamoreQueryClient:
             s3_cache_path=self.s3_cache_path,
             trace_dir=self.trace_dir,
             dry_run=dry_run,
+            codegen_mode=codegen_mode,
         )
         query_id = str(uuid.uuid4())
         result = executor.execute(plan, query_id)
         return (query_id, result)
 
-    def query(self, query: str, index: str, dry_run: bool = False) -> str:
+    def query(self, query: str, index: str, dry_run: bool = False, codegen_mode: bool = False) -> str:
         """Run a query against the given index."""
         schema = self.get_opensearch_schema(index)
         plan = self.generate_plan(query, index, schema)
-        _, result = self.run_plan(plan, dry_run=dry_run)
+        _, result = self.run_plan(plan, dry_run=dry_run, codegen_mode=codegen_mode)
         return result
 
     def dump_traces(self, logfile: str, query_id: Optional[str] = None):
@@ -191,6 +191,7 @@ def main():
     parser.add_argument("--show-plan", action="store_true", help="Show generated query plan.")
     parser.add_argument("--plan-only", action="store_true", help="Only generate and show query plan.")
     parser.add_argument("--dry-run", action="store_true", help="Generate and show query plan and execution code")
+    parser.add_argument("--codegen-mode", action="store_true", help="Execute through codegen")
     parser.add_argument("--trace-dir", help="Directory to write query execution trace.")
     parser.add_argument("--dump-traces", action="store_true", help="Dump traces from the execution.")
     parser.add_argument("--log-level", type=str, help="Log level", default="WARN")
@@ -230,13 +231,13 @@ def main():
 
     if args.show_plan or args.plan_only:
         console.rule("Generated query plan")
-        plan.openai_plan()
+        print(plan.llm_plan)
         console.rule()
 
     if args.plan_only:
         return
 
-    query_id, result = client.run_plan(plan, args.dry_run)
+    query_id, result = client.run_plan(plan, args.dry_run, args.codegen_mode)
 
     console.rule(f"Query result [{query_id}]")
     console.print(result)

@@ -333,11 +333,9 @@ class DocSet:
         plan = SpreadProperties(self.plan, props, **resource_args)
         return DocSet(self.context, plan)
 
-    def extract_key_value_pair(self, element_type, property_name,  **resource_args) -> list[Document]:
+    def extract_key_value_pair(self, property_name: str, llm: LLM, **resource_args) -> list[Document]:
         from sycamore.transforms.extract_key_value_pair import ExtractKeyValuePair
-        element_type = 'table'
-        property_name = 'llm_response'
-        plan = ExtractKeyValuePair(self.plan, [element_type, property_name], **resource_args)
+        plan = ExtractKeyValuePair(self.plan, [property_name, llm], **resource_args)
         return DocSet(self.context, plan)
 
     def assign_doc_properties(self, element_type:str, property_name:str, **resource_args) -> "DocSet":

@@ -3,13 +3,11 @@ from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
 import json
-from typing import List, Dict
-import sycamore
+from typing import List, Union
 import logging
 from sycamore.transforms.llm_query import LLMTextQueryAgent
 from sycamore.llms import OpenAI
-import pickle
-
+from sycamore.llms import LLM
 
 class ExtractKeyValuePair(SingleThreadUser, NonGPUUser, Map):
     """
@@ -28,11 +26,14 @@ class ExtractKeyValuePair(SingleThreadUser, NonGPUUser, Map):
             property_dataset = property_transform.execute()
     """
 
-    def __init__(self, child: Node, parameters: List[str], **resource_args):
+    def __init__(self, child: Node, parameters:list[Union[str, LLM]], **resource_args):
         super().__init__(child, f=ExtractKeyValuePair.extract_table_properties, args=parameters, **resource_args)
 
     @staticmethod
     def extract_parent_json(input_string: str) -> str:
+        '''
+        Extracts the top level jsonstring from the string passed.
+        '''
         stack: list[str] = []
         json_start = None
 
@@ -50,7 +51,10 @@ class ExtractKeyValuePair(SingleThreadUser, NonGPUUser, Map):
 
     @timetrace("ExtrKeyVal")
     @staticmethod
-    def extract_table_properties(parent: Document, element_type: str, property_name: str) -> Document:
+    def extract_table_properties(parent: Document, property_name: str, llm: LLM) -> Document:
+        '''
+        This Method is used to extract key value pair from table using LLM and populate it as property of that element.
+        '''
         prompt = """
         You are given a text string where columns are separated by comma representing either a single column, 
         or multi-column table each new line is a new row.
@@ -68,22 +72,21 @@ class ExtractKeyValuePair(SingleThreadUser, NonGPUUser, Map):
         - e.g. "Wind Speed: 9 knots" should become windSpeedInKnots: 9, 
         "Temperature: 3°C" should become temperatureInC: 3
         """
-
-        llm = OpenAI("gpt-4o-mini")
         query_agent = LLMTextQueryAgent(
-            prompt=prompt, llm=llm, output_property=property_name, element_type=element_type, number_of_elements=1
+            prompt=prompt, llm=llm, output_property=property_name, element_type='table', number_of_elements=1
         )
         doc = query_agent.execute_query(parent)
 
         for ele in doc.elements:
-            if ele.type == element_type and property_name in ele.properties.keys():
+            if ele.type == 'table' and property_name in ele.properties.keys():
                 try:
                     jsonstring_llm = ele.properties.get(property_name)
                     assert isinstance(jsonstring_llm, str)
                     json_string = ExtractKeyValuePair.extract_parent_json(jsonstring_llm)
                     assert isinstance(json_string, str)
-                    keyValue = json.loads(json_string)
+                    keyValue = json.loads(json_string) 
                     ele.properties[property_name] = keyValue
+                    print(keyValue)
                 except Exception as e:
                     logging.error(str(e))
         return doc

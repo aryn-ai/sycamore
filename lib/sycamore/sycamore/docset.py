@@ -9,6 +9,10 @@ from sycamore.context import Context
 from sycamore.data import Document, Element, MetadataDocument
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.llms.llms import LLM
+from sycamore.llms.prompts.default_prompts import (
+    LlmClusterEntityAssignGroupsMessagesPrompt,
+    LlmClusterEntityFormGroupsMessagesPrompt,
+)
 from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.augment_text import TextAugmentor
 from sycamore.transforms.embed import Embedder
@@ -20,6 +24,7 @@ from sycamore.transforms.summarize import Summarizer
 from sycamore.transforms.llm_query import LLMTextQueryAgent
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.merge_elements import ElementMerger
+from sycamore.utils.extract_json import extract_json
 from sycamore.writer import DocSetWriter
 from sycamore.transforms.query import QueryExecutor, Query
 from sycamore.transforms.standardizer import Standardizer
@@ -507,7 +512,7 @@ class DocSet:
         """
         from sycamore.transforms import ExtractEntity
 
-        entities = ExtractEntity(self.plan, entity_extractor=entity_extractor, **kwargs)
+        entities = ExtractEntity(self.plan, context=self.context, entity_extractor=entity_extractor, **kwargs)
         return DocSet(self.context, entities)
 
     def extract_schema(self, schema_extractor: SchemaExtractor, **kwargs) -> "DocSet":
@@ -1029,6 +1034,25 @@ class DocSet:
 
         return DocSet(self.context, Sort(self.plan, descending, field, default_val))
 
+    def groupby_count(self, field: str, unique_field: Optional[str] = None, **kwargs) -> "DocSet":
+        """
+        Performs a count aggregation on a DocSet.
+
+        Args:
+            field: Field to aggregate based on.
+            unique_field: Determines what makes a unique document.
+            **kwargs
+
+        Returns:
+            A DocSet with "properties.key" (unique values of document field)
+            and "properties.count" (frequency counts for unique values).
+        """
+        from sycamore.transforms import GroupByCount
+        from sycamore.transforms import DatasetScan
+
+        dataset = GroupByCount(self.plan, field, unique_field).execute(**kwargs)
+        return DocSet(self.context, DatasetScan(dataset))
+
     def llm_query(self, query_agent: LLMTextQueryAgent, **kwargs) -> "DocSet":
         """
         Executes an LLM Query on a specified field (element or document), and returns the response
@@ -1048,6 +1072,143 @@ class DocSet:
 
         queries = LLMQuery(self.plan, query_agent=query_agent, **kwargs)
         return DocSet(self.context, queries)
+
+    def top_k(
+        self,
+        llm: LLM,
+        field: str,
+        k: Optional[int],
+        descending: bool = True,
+        llm_cluster: bool = False,
+        unique_field: Optional[str] = None,
+        llm_cluster_instruction: Optional[str] = None,
+        **kwargs,
+    ) -> "DocSet":
+        """
+        Determines the top k occurrences for a document field.
+
+        Args:
+            llm: LLM client.
+            field: Field to determine top k occurrences of.
+            k: Number of top occurrences. If k is not specified, all occurences are returned.
+            llm_cluster_instruction: Instruction of operation purpose.  E.g. Find most common cities
+            descending: Indicates whether to return most or least frequent occurrences.
+            llm_cluster: Indicates whether an LLM should be used to normalize values of document field.
+            unique_field: Determines what makes a unique document.
+            **kwargs
+
+        Returns:
+            A DocSet with "properties.key" (unique values of document field)
+            and "properties.count" (frequency counts for unique values) which is
+            sorted based on descending and contains k records.
+        """
+
+        docset = self
+
+        if llm_cluster:
+            if llm_cluster_instruction is None:
+                raise Exception("Description of groups must be provided to form clusters.")
+            docset = docset.llm_cluster_entity(llm, llm_cluster_instruction, field)
+            field = "properties._autogen_ClusterAssignment"
+
+        docset = docset.groupby_count(field, unique_field, **kwargs)
+
+        docset = docset.sort(descending, "properties.count", 0)
+        if k is not None:
+            docset = docset.limit(k)
+        return docset
+
+    def llm_cluster_entity(self, llm: LLM, instruction: str, field: str) -> "DocSet":
+        """
+        Normalizes a particular field of a DocSet. Identifies and assigns each document to a "group".
+
+        Args:
+            llm: LLM client.
+            instruction: Instruction about groups to form, e.g. 'Form groups for different types of food'
+            field: Field to make/assign groups based on, e.g. 'properties.entity.food'
+
+        Returns:
+            A DocSet with an additional field "properties._autogen_ClusterAssignment" that contains
+            the assigned group. For example, if "properties.entity.food" has values 'banana', 'milk',
+            'yogurt', 'chocolate', 'orange', "properties._autogen_ClusterAssignment" would contain
+            values like 'fruit', 'dairy', and 'dessert'.
+        """
+
+        docset = self
+        text = ", ".join([doc.field_to_value(field) for doc in docset.take_all()])
+
+        # sets message
+        messages = LlmClusterEntityFormGroupsMessagesPrompt(
+            field=field, instruction=instruction, text=text
+        ).get_messages_dict()
+
+        prompt_kwargs = {"messages": messages}
+
+        # call to LLM
+        completion = llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0})
+
+        groups = extract_json(completion)
+
+        assert isinstance(groups, dict)
+
+        # sets message
+        messagesForExtract = LlmClusterEntityAssignGroupsMessagesPrompt(
+            field=field, groups=groups["groups"]
+        ).get_messages_dict()
+
+        entity_extractor = OpenAIEntityExtractor(
+            entity_name="_autogen_ClusterAssignment",
+            llm=llm,
+            use_elements=False,
+            prompt=messagesForExtract,
+            field=field,
+        )
+        docset = docset.extract_entity(entity_extractor=entity_extractor)
+
+        # LLM response
+        return docset
+
+    def field_in(self, docset2: "DocSet", field1: str, field2: str) -> "DocSet":
+        """
+        Joins two docsets based on specified fields; docset (self) filtered based on values of docset2.
+
+        SQL Equivalent: SELECT * FROM docset1 WHERE field1 IN (SELECT field2 FROM docset2);
+
+        Args:
+            docset2: DocSet to filter.
+            field1: Field in docset1 to filter based on.
+            field2: Field in docset2 to filter.
+
+        Returns:
+            A left semi-join between docset (self) and docset2.
+        """
+
+        from sycamore import Execution
+
+        def make_filter_fn_join(field: str, join_set: set) -> Callable[[Document], bool]:
+            def filter_fn_join(doc: Document) -> bool:
+                value = doc.field_to_value(field)
+                return value in join_set
+
+            return filter_fn_join
+
+        execution = Execution(docset2.context, docset2.plan)
+        dataset = execution.execute(docset2.plan)
+
+        # identifies unique values of field1 in docset (self)
+        unique_vals = set()
+        for row in dataset.iter_rows():
+            doc = Document.from_row(row)
+            if isinstance(doc, MetadataDocument):
+                continue
+            value = doc.field_to_value(field2)
+            unique_vals.add(value)
+
+        # filters docset2 based on matches of field2 with unique values
+        filter_fn_join = make_filter_fn_join(field1, unique_vals)
+        joined_docset = self.filter(lambda doc: filter_fn_join(doc))
+
+        return joined_docset
 
     @property
     def write(self) -> DocSetWriter:

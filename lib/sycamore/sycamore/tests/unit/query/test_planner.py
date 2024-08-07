@@ -16,11 +16,11 @@ def mock_os_client():
 
 
 @pytest.fixture
-def mock_openai_client():
+def mock_llm_client():
     return MagicMock()
 
 
-def test_llm_planner(mock_os_config, mock_os_client, mock_openai_client, monkeypatch):
+def test_llm_planner(mock_os_config, mock_os_client, mock_llm_client, monkeypatch):
     index = "test_index"
     schema = {
         "description": "Database of airplane incidents",
@@ -28,12 +28,12 @@ def test_llm_planner(mock_os_config, mock_os_client, mock_openai_client, monkeyp
         "date": "(string: YYYY-MM-DD) e.g. 2022-01-01, 2024-02-10",
     }
 
-    # Mock the generate_from_openai method to return a static JSON object
-    def mock_generate_from_openai(self, query):
+    # Mock the generate_from_llm method to return a static JSON object
+    def mock_generate_from_llm(self, query):
         return json.dumps(
             [
                 {
-                    "operatorName": "LoadData",
+                    "operatorName": "QueryDatabase",
                     "description": "Get all the airplane incidents",
                     "index": "ntsb",
                     "query": "airplane incidents",
@@ -56,7 +56,7 @@ def test_llm_planner(mock_os_config, mock_os_client, mock_openai_client, monkeyp
                     "node_id": 2,
                 },
                 {
-                    "operatorName": "LlmGenerate",
+                    "operatorName": "SummarizeData",
                     "description": "Generate an English response to the question",
                     "question": "How many Piper aircrafts were involved in accidents?",
                     "input": [2],
@@ -65,14 +65,14 @@ def test_llm_planner(mock_os_config, mock_os_client, mock_openai_client, monkeyp
             ]
         )
 
-    monkeypatch.setattr(LlmPlanner, "generate_from_openai", mock_generate_from_openai)
+    monkeypatch.setattr(LlmPlanner, "generate_from_llm", mock_generate_from_llm)
 
     planner = LlmPlanner(
         index,
         data_schema=schema,
         os_config=mock_os_config,
         os_client=mock_os_client,
-        openai_client=mock_openai_client,
+        llm_client=mock_llm_client,
     )
 
     plan = planner.plan("Dummy query")

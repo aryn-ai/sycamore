@@ -15,6 +15,12 @@ pyyaml = "^6.0.1"
 pdf2image = "^1.16.3"
 pillow = ">=10.0.0"
 
+# To make sure this dir has consistent lock entries to the sycamore dir,
+# add ",<3.12" to the above python dependency and uncomment the following
+#
+# [tool.poetry.group.dev.dependencies]
+# sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

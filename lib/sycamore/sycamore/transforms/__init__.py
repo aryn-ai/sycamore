@@ -43,6 +43,9 @@ from sycamore.transforms.query import Query
 from sycamore.transforms.term_frequency import TermFrequency
 from sycamore.transforms.sort import Sort
 from sycamore.transforms.llm_query import LLMQuery
+from sycamore.transforms.groupby_count import GroupByCount
+from sycamore.transforms.dataset_scan import DatasetScan
+
 
 __all__ = [
     "COALESCE_WHITESPACE",
@@ -89,4 +92,6 @@ __all__ = [
     "DateTimeStandardizer",
     "StandardizeProperty",
     "ExtractKeyValuePair",
+    "GroupByCount",
+    "DatasetScan",
 ]

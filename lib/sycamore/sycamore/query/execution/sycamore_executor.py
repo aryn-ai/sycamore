@@ -1,35 +1,36 @@
+import os
 import uuid
 from typing import Any, Dict, List, Optional
 
 import structlog
 from sycamore.query.operators.count import Count
-from sycamore.query.operators.filter import Filter
+from sycamore.query.operators.basic_filter import BasicFilter
 from sycamore.query.operators.limit import Limit
-from sycamore.query.operators.llmextract import LlmExtract
-from sycamore.query.operators.llmfilter import LlmFilter
-from sycamore.query.operators.llmgenerate import LlmGenerate
-from sycamore.query.operators.loaddata import LoadData
+from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
+from sycamore.query.operators.llm_filter import LlmFilter
+from sycamore.query.operators.summarize_data import SummarizeData
+from sycamore.query.operators.query_database import QueryDatabase
 from sycamore.query.operators.logical_operator import LogicalOperator
 from sycamore.query.execution.physical_operator import PhysicalOperator
 from sycamore.query.operators.math import Math
 from sycamore.query.operators.sort import Sort
-from sycamore.query.operators.topk import TopK
-from sycamore.query.operators.join import Join
+from sycamore.query.operators.top_k import TopK
+from sycamore.query.operators.field_in import FieldIn
 from structlog.contextvars import clear_contextvars, bind_contextvars
 from sycamore import Context
 
 from sycamore.query.execution.physical_operator import MathOperator
 from sycamore.query.execution.sycamore_operator import (
-    SycamoreLoadData,
-    SycamoreLlmGenerate,
+    SycamoreQueryDatabase,
+    SycamoreSummarizeData,
     SycamoreLlmFilter,
-    SycamoreFilter,
+    SycamoreBasicFilter,
     SycamoreCount,
-    SycamoreLlmExtract,
+    SycamoreLlmExtractEntity,
     SycamoreTopK,
     SycamoreSort,
     SycamoreLimit,
-    SycamoreJoin,
+    SycamoreFieldIn,
 )
 from sycamore.query.logical_plan import LogicalPlan
 
@@ -37,6 +38,9 @@ log = structlog.get_logger(__name__)
 
 
 class SycamoreExecutor:
+
+    OUTPUT_VAR_NAME = "result"
+
     """The Sycamore Query executor that processes a logical plan and executes it using Sycamore.
 
     Args:
@@ -52,6 +56,7 @@ class SycamoreExecutor:
         os_client_args: Any,
         s3_cache_path: Optional[str] = None,
         trace_dir: Optional[str] = None,
+        codegen_mode: bool = False,
         dry_run: bool = False,
     ) -> None:
         super().__init__()
@@ -62,16 +67,15 @@ class SycamoreExecutor:
         self.trace_dir = trace_dir
         self.processed: Dict[int, Any] = dict()
         self.dry_run = dry_run
+        self.codegen_mode = codegen_mode
 
         if self.s3_cache_path:
             log.info("Using S3 cache path: %s", s3_cache_path)
         if self.trace_dir:
-            log.info("Using tracer: %s", trace_dir)
-        if self.dry_run:
-            log.info("Executing in dry-mode")
-            self.node_id_to_node: Dict[int, LogicalOperator] = {}
-            self.node_id_to_code: Dict[int, str] = {}
-            self.imports: List[str] = []
+            log.info("Using trace directory: %s", trace_dir)
+        self.node_id_to_node: Dict[int, LogicalOperator] = {}
+        self.node_id_to_code: Dict[int, str] = {}
+        self.imports: List[str] = []
 
     @staticmethod
     def get_node_args(query_id: str, logical_node: LogicalOperator) -> Dict:
@@ -88,6 +92,12 @@ class SycamoreExecutor:
         log.info("Executing dependencies")
         inputs = []
 
+        if self.trace_dir:
+            trace_dir = os.path.join(self.trace_dir, query_id, str(logical_node.node_id))
+            os.makedirs(trace_dir, exist_ok=True)
+        else:
+            trace_dir = None
+
         # Process dependencies
         if logical_node.dependencies:
             for dependency in logical_node.dependencies:
@@ -97,15 +107,12 @@ class SycamoreExecutor:
         # refresh context as nested execution overrides it
         bind_contextvars(logical_node=logical_node)
         log.info("Executing node")
-        # Process node
-        result = None
         operation: Optional[PhysicalOperator] = None
-        if isinstance(logical_node, LoadData):
-            operation = SycamoreLoadData(
+        if isinstance(logical_node, QueryDatabase):
+            operation = SycamoreQueryDatabase(
                 context=self.context,
                 logical_node=logical_node,
                 query_id=query_id,
-                trace_dir=self.trace_dir,
                 os_client_args=self.os_client_args,
             )
         elif isinstance(logical_node, LlmFilter):
@@ -114,24 +121,21 @@ class SycamoreExecutor:
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                trace_dir=self.trace_dir,
                 s3_cache_path=s3_cache_path,
             )
-        elif isinstance(logical_node, Filter):
-            operation = SycamoreFilter(
+        elif isinstance(logical_node, BasicFilter):
+            operation = SycamoreBasicFilter(
                 context=self.context,
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                trace_dir=self.trace_dir,
             )
-        elif isinstance(logical_node, LlmExtract):
-            operation = SycamoreLlmExtract(
+        elif isinstance(logical_node, LlmExtractEntity):
+            operation = SycamoreLlmExtractEntity(
                 context=self.context,
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                trace_dir=self.trace_dir,
                 s3_cache_path=s3_cache_path,
             )
         elif isinstance(logical_node, Count):
@@ -140,7 +144,6 @@ class SycamoreExecutor:
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                trace_dir=self.trace_dir,
             )
         elif isinstance(logical_node, Sort):
             operation = SycamoreSort(
@@ -148,7 +151,6 @@ class SycamoreExecutor:
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                trace_dir=self.trace_dir,
             )
         elif isinstance(logical_node, Limit):
             operation = SycamoreLimit(
@@ -163,40 +165,41 @@ class SycamoreExecutor:
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                trace_dir=self.trace_dir,
                 s3_cache_path=s3_cache_path,
             )
-        elif isinstance(logical_node, Join):
-            operation = SycamoreJoin(
+        elif isinstance(logical_node, FieldIn):
+            operation = SycamoreFieldIn(
                 context=self.context,
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                trace_dir=self.trace_dir,
             )
         # Non-DocSet operations
-        elif isinstance(logical_node, LlmGenerate):
-            operation = SycamoreLlmGenerate(
+        elif isinstance(logical_node, SummarizeData):
+            operation = SycamoreSummarizeData(
                 context=self.context,
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                trace_dir=self.trace_dir,
                 s3_cache_path=s3_cache_path,
             )
         elif isinstance(logical_node, Math):
             operation = MathOperator(logical_node=logical_node, query_id=query_id, inputs=inputs)
         else:
-            raise Exception(f"Unsupported node type: {str(logical_node)}")
+            raise ValueError(f"Unsupported node type: {str(logical_node)}")
 
-        if result is None:
-            if self.dry_run:
-                code, imports = operation.script()
-                self.imports += imports
-                self.node_id_to_code[logical_node.node_id] = code
-                self.node_id_to_node[logical_node.node_id] = logical_node
-            else:
-                result = operation.execute()
+        code, imports = operation.script(
+            output_var=(self.OUTPUT_VAR_NAME if not logical_node.downstream_nodes else None)
+        )
+        self.imports += imports
+        self.node_id_to_code[logical_node.node_id] = code
+        self.node_id_to_node[logical_node.node_id] = logical_node
+
+        if not self.codegen_mode:
+            result = operation.execute()
+            if trace_dir and hasattr(result, "materialize"):
+                log.info("Materializing result", trace_dir=trace_dir)
+                result = result.materialize(trace_dir)
 
         self.processed[logical_node.node_id] = result
         log.info("Executed node", result=str(result))
@@ -211,6 +214,7 @@ class SycamoreExecutor:
             result += import_str + "\n"
         # Default imports
         result += "from sycamore.query.execution.metrics import SycamoreQueryLogger\n"
+        result += "from sycamore.utils.cache import S3Cache\n"
         result += "import sycamore\n\n"
         result += "context = sycamore.init()\n"
         for node_id in sorted(self.node_id_to_node):
@@ -227,8 +231,17 @@ class SycamoreExecutor:
             log.info("Executing query")
             assert isinstance(plan.result_node, LogicalOperator)
             result = self.process_node(plan.result_node, query_id)
+
+            if self.dry_run:
+                code = self.get_code_string()
+                return code
+
+            if self.codegen_mode:
+                code = self.get_code_string()
+                global_context: dict[str, Any] = {}
+                exec(code, global_context)
+                return global_context.get(self.OUTPUT_VAR_NAME)
+
+            return result
         finally:
             clear_contextvars()
-        if self.dry_run:
-            return self.get_code_string()
-        return result

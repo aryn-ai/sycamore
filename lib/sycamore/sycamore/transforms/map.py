@@ -10,6 +10,17 @@ class Map(BaseMapTransform):
     """
     Map is a transformation class for applying a callable function to each document in a dataset.
 
+    If f is a class type, constructor_args and constructor_kwargs can be used to provide arguments when
+    initializing the class
+
+    Use args, kwargs to pass additional args to the function call. The following 2 are equivalent:
+
+    # option 1:
+    docset.map(lambda f_wrapped: f(*my_args, **my_kwargs))
+
+    # option 2:
+    docset.map(f, args=my_args, kwargs=my_kwargs)
+
     Example:
          .. code-block:: python
 

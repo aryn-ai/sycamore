@@ -3,7 +3,7 @@ import os
 
 import streamlit as st
 
-from queryui.util import show_query_traces
+from util import show_query_traces
 
 
 def show_traces(trace_dir: str):

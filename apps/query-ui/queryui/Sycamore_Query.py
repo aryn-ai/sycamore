@@ -5,7 +5,7 @@ import streamlit as st
 from streamlit_ace import st_ace
 from streamlit_agraph import agraph, Node, Edge, Config
 
-from queryui.util import show_query_traces
+from util import show_query_traces
 
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan

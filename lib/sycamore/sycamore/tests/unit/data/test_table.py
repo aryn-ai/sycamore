@@ -537,8 +537,6 @@ def test_table_from_dict_missing():
 def test_from_html(test_case):
     actual = Table.from_html(html_str=test_case.canonical_html())
     expected = test_case.table()
-    print(actual.cells)
-    print(expected.cells)
     assert actual == expected
 
     if hasattr(test_case, "other_html"):

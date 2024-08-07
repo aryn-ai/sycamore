@@ -1,4 +1,5 @@
 from typing import Optional
+import pytest
 import sycamore
 from sycamore.llms.llms import LLM
 from sycamore.reader import DocSetReader
@@ -9,11 +10,13 @@ from sycamore.data import HierarchicalDocument, Document
 from sycamore.transforms.partition import ArynPartitioner
 
 
-######### THESE FUNCTIONS NEED A HOME
+########## THESE FUNCTIONS NEED A HOME
+@pytest.mark.skip
 def restructure_doc(doc: Document) -> HierarchicalDocument:
     doc = HierarchicalDocument(doc.data)     
     return doc
 
+@pytest.mark.skip
 def children_to_section(doc: HierarchicalDocument) -> HierarchicalDocument:
     import uuid
     
@@ -80,63 +83,23 @@ def children_to_section(doc: HierarchicalDocument) -> HierarchicalDocument:
 
     doc.children = sections
     return doc
+##########
 
 
-
-
-class TestNeo4jWriter:
-    metadata_docs = [
-        HierarchicalDocument(
-            {
-                "doc_id": "1",
-                "label": "Document",
-                "type": "pdf",
-                "relationships": {
-                    "100" : {"TYPE": "REFERENCES", "properties": {}, "START_ID": "1", 
-                             "START_LABEL": "Document", "END_ID": "2", "END_LABEL": "Document"},
-                    "101" : {"TYPE": "REFERENCES", "properties": {}, "START_ID": "1", 
-                             "START_LABEL": "Document", "END_ID": "3", "END_LABEL": "Document"},
-                },
-                "properties": {"company": "3M", "sector": "Industrial", "doctype": "10K"},
-                "children": [],
-            }
-        ),
-        HierarchicalDocument(
-            {
-                "doc_id": "2",
-                "label": "Document",
-                "type": "pdf",
-                "relationships": {},
-                "properties": {"company": "FedEx", "sector": "Industrial", "doctype": "10K"},
-                "children": [],
-            }
-        ),
-        HierarchicalDocument(
-            {
-                "doc_id": "3",
-                "label": "Document",
-                "type": "pdf",
-                "relationships": {},
-                "properties": {"company": "Apple", "sector": "Technology", "doctype": "10K"},
-                "children": [],
-            }
-        ),
-    ]
-###################
     
-    def test_pdf_to_neo4j(self):
-        path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
-        context = sycamore.init()
-        URI = "neo4j://localhost:7687"
-        AUTH = ("neo4j", "neo4j")
+def test_docset_to_neo4j():
+    path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
+    context = sycamore.init()
+    URI = "neo4j://localhost:7687"
+    AUTH = ("neo4j", "neo4j")
 
-        ds = (
-            context.read.binary(path, binary_format="pdf")
-            .partition(partitioner=ArynPartitioner(extract_table_structure=True, use_ocr=True, extract_images=True))
-            .map(restructure_doc)
-            .map(children_to_section)
-            .explode()
-        )
+    ds = (
+        context.read.binary(path, binary_format="pdf")
+        .partition(partitioner=ArynPartitioner(extract_table_structure=True, use_ocr=True, extract_images=True))
+        .map(restructure_doc)
+        .map(children_to_section)
+        .explode()
+    )
 
-        ds.write.neo4j(uri=URI,auth=AUTH,database="neo4j",import_dir="/neo4j/import")
+    ds.write.neo4j(uri=URI,auth=AUTH,database="neo4j",import_dir="/neo4j/import")
 

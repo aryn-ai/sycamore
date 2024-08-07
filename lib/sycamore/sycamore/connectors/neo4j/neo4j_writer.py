@@ -47,8 +47,8 @@ class Neo4jWriterClient:
 
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
         assert isinstance(target_params, Neo4jWriterTargetParams)
-        session = self._driver.session(database=target_params.database)
-        session.close()
+        with self._driver.session(database=target_params.database):
+            pass
 
     def _write_nodes_neo4j(self, nodes: list[str], session: Session):
         for node_type in nodes:
@@ -110,15 +110,13 @@ class Neo4jWriterClient:
         self, nodes: list[str], relationships: list[str], labels: list[str], target_params: BaseDBWriter.TargetParams
     ):
         assert isinstance(target_params, Neo4jWriterTargetParams)
-        session = self._driver.session(database=target_params.database)
-        start = time.time()
-        self._write_constraints_neo4j(labels, session)
-        self._write_nodes_neo4j(nodes, session)
-        self._write_relationships_neo4j(relationships, session)
-        end = time.time()
-        logger.info(f"TIME TAKEN TO LOAD CSV --> NEO4J: {end-start} SECONDS")
-        session.close()
-
+        with self._driver.session(database=target_params.database) as session:
+            start = time.time()
+            self._write_constraints_neo4j(labels, session)
+            self._write_nodes_neo4j(nodes, session)
+            self._write_relationships_neo4j(relationships, session)
+            end = time.time()
+            logger.info(f"TIME TAKEN TO LOAD CSV --> NEO4J: {end-start} SECONDS")
 
 class Neo4jValidateParams:
     def __init__(self, client_params: Neo4jWriterClientParams, target_params: Neo4jWriterTargetParams):
@@ -342,3 +340,4 @@ class Neo4jLoadCSV:
         self._relationships = [f for f in os.listdir(client_params.import_dir + "/sycamore/relationships")]
         self._labels = [f[:-4] for f in self._nodes]  # f[:-4] used to drop '.csv'
         self._client.write_to_neo4j(self._nodes, self._relationships, self._labels, target_params)
+        self._client._driver.close()

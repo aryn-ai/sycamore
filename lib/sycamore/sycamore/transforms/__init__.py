@@ -18,7 +18,12 @@ from sycamore.transforms.bbox_merge import (
 
 from sycamore.transforms.extract_key_value_pair import ExtractKeyValuePair
 
-from sycamore.transforms.standardizer import LocationStandardizer, Standardizer, StandardizeProperty, DateTimeStandardizer
+from sycamore.transforms.standardizer import (
+    LocationStandardizer,
+    Standardizer,
+    StandardizeProperty,
+    DateTimeStandardizer,
+)
 from sycamore.transforms.mark_misc import (
     MarkDropTiny,
     MarkBreakPage,

@@ -6,6 +6,8 @@ from sycamore.data import Document
 from sycamore.transforms.map import Map
 from dateutil import parser
 import re
+from typing import List
+
 
 class Standardizer(ABC):
     """
@@ -13,7 +15,7 @@ class Standardizer(ABC):
     """
 
     @abstractmethod
-    def standardize(self, key_path, document: Document) -> Document:
+    def standardize(self, doc: Document, key_path: List[str]) -> Document:
         pass
 
 
@@ -76,27 +78,26 @@ class LocationStandardizer(Standardizer):
             "WV": "West Virginia",
             "WY": "Wyoming",
         }
-    
+
     def replace_abbreviations(self, input_string):
         """
-        This method replaces the US State abbreviations with full names. 
+        This method replaces the US State abbreviations with full names.
         """
-        state_abbreviations = {key.lower(): value for key, value in self._state_abbreviations.items()}
+        state_abbreviations = {key: value for key, value in self._state_abbreviations.items()}
         abbreviations = {**state_abbreviations}
 
-        # Regular expression to match abbreviations (case-insensitive)
-        pattern = re.compile(r'\b(' + '|'.join(re.escape(key) for key in abbreviations.keys()) + r')\b', re.IGNORECASE)
+        pattern = re.compile(r"\b(" + "|".join(re.escape(key) for key in abbreviations.keys()) + r")\b")
 
         def replace_match(match):
-            return abbreviations[match.group(0).lower()]
-        
+            return abbreviations[match.group(0)]
+
         result_string = pattern.sub(replace_match, input_string)
         return result_string
 
-    def standardize(self, doc: Document, key_path) -> Document:
+    def standardize(self, doc: Document, key_path: List[str]) -> Document:
         """
-        This Methods creates a new element standardises the location property of the Element by replcaing all instance 
-        of US State abbreviation with correct name.
+        This Methods creates a new element standardises the location property of the Element
+        by replcaing all instance of US State abbreviation with correct name.
         """
         current = doc
         for key in key_path[:-1]:
@@ -104,10 +105,9 @@ class LocationStandardizer(Standardizer):
                 current = current[key]
             else:
                 raise KeyError(f"Key {key} not found in the dictionary among {current.keys()}")
-            target_key = key_path[-1]
-
+        target_key = key_path[-1]
         if target_key in current.keys():
-            current[target_key] =  self.replace_abbreviations(current[target_key]) 
+            current[target_key] = self.replace_abbreviations(current[target_key])
         else:
             raise KeyError(f"Key {target_key} not found in the dictionary among {current.keys()}")
         return doc
@@ -117,18 +117,19 @@ class DateTimeStandardizer(Standardizer):
     """
     This Class standardizes the format of dateTime.
     """
+
     def fix_date(self, raw_dateTime):
         """
         This Method standardizes the datetime property of Elements by replcaing . with : and parsing date as Date
         """
-        
+
         raw_dateTime = raw_dateTime.replace("Local", "")
         raw_dateTime = raw_dateTime.replace(".", ":")
         parsed_date = parser.parse(raw_dateTime)
         extracted_date = parsed_date.date()
         return raw_dateTime, extracted_date
 
-    def standardize(self,  doc: Document, key_path) -> Document:
+    def standardize(self, doc: Document, key_path) -> Document:
         """
         This Methods creates a new element with Date and standardises the dateTime property of the Element
         """
@@ -141,10 +142,11 @@ class DateTimeStandardizer(Standardizer):
                 raise KeyError(f"Key {key} not found in the dictionary among {current.keys()}")
         target_key = key_path[-1]
         if target_key in current.keys():
-            current[target_key],current['date'] =  self.fix_date(current[target_key]) 
+            current[target_key], current["day"] = self.fix_date(current[target_key])
         else:
             raise KeyError(f"Key {target_key} not found in the dictionary among {current.keys()}")
         return doc
+
 
 class StandardizeProperty(Map):
     """
@@ -156,5 +158,5 @@ class StandardizeProperty(Map):
         child: Node,
         standardizer: Standardizer,
         path: list[str],
-    ):  
-        super().__init__(child, f=standardizer.standardize,args=path)
+    ):
+        super().__init__(child, f=standardizer.standardize, args=path)

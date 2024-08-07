@@ -2,7 +2,6 @@ from sycamore.data import Document
 from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
-import json
 from typing import List, Dict
 
 
@@ -14,13 +13,13 @@ class AssignDocProperties(SingleThreadUser, NonGPUUser, Map):
 
     Args:
         child: The source node or component that provides the dataset for assigning properties from element.
-        resource_args: Additional resource-related arguments that can be passed to the operation for property assignment.
+        resource_args: Additional resource-related arguments passed to the operation for property assignment.
 
     Example:
         .. code-block:: python
 
             source_node = ...  # Define a source node or component that provides hierarchical documents.
-            property_transform = AssignDocProperties(child=source_node, list=["table"])
+            property_transform = AssignDocProperties(child=source_node, list=["table", "llm_response"])
             property_dataset = property_transform.execute()
     """
 
@@ -33,7 +32,7 @@ class AssignDocProperties(SingleThreadUser, NonGPUUser, Map):
         # element count is zero indexed
         assert property_name is not None
         for e in parent.elements:
-            if e.type == element_type and property_name in e.properties.keys() :
+            if e.type == element_type and property_name in e.properties.keys():
                 property = e.properties.get(property_name)
                 assert isinstance(property, Dict), f"Expected Dict, got {type(property).__name__}"
                 parent.properties["entity"] = property

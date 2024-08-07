@@ -38,6 +38,9 @@ log = structlog.get_logger(__name__)
 
 
 class SycamoreExecutor:
+
+    OUTPUT_VAR_NAME = "result"
+
     """The Sycamore Query executor that processes a logical plan and executes it using Sycamore.
 
     Args:
@@ -53,6 +56,7 @@ class SycamoreExecutor:
         os_client_args: Any,
         s3_cache_path: Optional[str] = None,
         trace_dir: Optional[str] = None,
+        codegen_mode: bool = False,
         dry_run: bool = False,
     ) -> None:
         super().__init__()
@@ -63,16 +67,15 @@ class SycamoreExecutor:
         self.trace_dir = trace_dir
         self.processed: Dict[int, Any] = dict()
         self.dry_run = dry_run
+        self.codegen_mode = codegen_mode
 
         if self.s3_cache_path:
             log.info("Using S3 cache path: %s", s3_cache_path)
         if self.trace_dir:
             log.info("Using trace directory: %s", trace_dir)
-        if self.dry_run:
-            log.info("Executing in dry-mode")
-            self.node_id_to_node: Dict[int, LogicalOperator] = {}
-            self.node_id_to_code: Dict[int, str] = {}
-            self.imports: List[str] = []
+        self.node_id_to_node: Dict[int, LogicalOperator] = {}
+        self.node_id_to_code: Dict[int, str] = {}
+        self.imports: List[str] = []
 
     @staticmethod
     def get_node_args(query_id: str, logical_node: LogicalOperator) -> Dict:
@@ -185,13 +188,14 @@ class SycamoreExecutor:
         else:
             raise ValueError(f"Unsupported node type: {str(logical_node)}")
 
-        if self.dry_run:
-            code, imports = operation.script()
-            self.imports += imports
-            self.node_id_to_code[logical_node.node_id] = code
-            self.node_id_to_node[logical_node.node_id] = logical_node
-            result = None
-        else:
+        code, imports = operation.script(
+            output_var=(self.OUTPUT_VAR_NAME if not logical_node.downstream_nodes else None)
+        )
+        self.imports += imports
+        self.node_id_to_code[logical_node.node_id] = code
+        self.node_id_to_node[logical_node.node_id] = logical_node
+
+        if not self.codegen_mode:
             result = operation.execute()
             if trace_dir and hasattr(result, "materialize"):
                 log.info("Materializing result", trace_dir=trace_dir)
@@ -227,8 +231,17 @@ class SycamoreExecutor:
             log.info("Executing query")
             assert isinstance(plan.result_node, LogicalOperator)
             result = self.process_node(plan.result_node, query_id)
+
+            if self.dry_run:
+                code = self.get_code_string()
+                return code
+
+            if self.codegen_mode:
+                code = self.get_code_string()
+                global_context: dict[str, Any] = {}
+                exec(code, global_context)
+                return global_context.get(self.OUTPUT_VAR_NAME)
+
+            return result
         finally:
             clear_contextvars()
-        if self.dry_run:
-            return self.get_code_string()
-        return result

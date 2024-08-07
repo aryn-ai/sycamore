@@ -351,10 +351,10 @@ class OpenAI(LLM):
                 and hit.get("model_name") == self.model.name
             ), f"""
             Found cache content mismatch:
-            key={key} 
-            prompt_kwargs={prompt_kwargs} 
-            llm_kwargs={llm_kwargs} 
-            model_name={self.model.name}"""
+            key={key}
+            prompt_kwargs={prompt_kwargs}, cached={hit.get("prompt_kwargs")}
+            llm_kwargs={llm_kwargs}, cached={hit.get("llm_kwargs")}
+            model_name={self.model.name}, cached={hit.get("model_name")}"""
             return (key, hit.get("result"))
         return (key, None)
 

@@ -182,8 +182,6 @@ class SycamoreSummarizeData(SycamoreOperator):
     result_description='{description}',
     result_data=[{logical_deps_str}]
 )
-result = {output_var or get_var_name(self.logical_node)}
-print(result)
 """
         return result, [
             "from sycamore.query.execution.operations import summarize_data",
@@ -238,18 +236,19 @@ class SycamoreLlmFilter(SycamoreOperator):
         cache_string = ""
         if self.s3_cache_path:
             cache_string = f", cache=S3Cache('{self.s3_cache_path}')"
-        result = (
-            f"prompt = LlmFilterMessagesPrompt(filter_question='{self.logical_node.question}').get_messages_dict()\n"
-            f"{output_var or get_var_name(self.logical_node)} = "
-            f"{input_var or get_var_name(self.logical_node.dependencies[0])}.llm_filter(\n"
-            f"llm=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),\n"
-            "new_field='_autogen_LLMFilterOutput',\n"
-            "prompt=prompt,\n"
-            f"field='{self.logical_node.field}',\n"
-            "threshold=3,\n"
-            f"**{self.get_node_args()},\n"
-            ")"
-        )
+        input_str = input_var or get_var_name(self.logical_node.dependencies[0])
+        output_str = output_var or get_var_name(self.logical_node)
+        result = f"""
+prompt = LlmFilterMessagesPrompt(filter_question='{self.logical_node.question}').get_messages_dict()
+{output_str} = {input_str}.llm_filter(
+    llm=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
+    new_field='_autogen_LLMFilterOutput',
+    prompt=prompt,
+    field='{self.logical_node.field}',
+    threshold=3,
+    **{self.get_node_args()},
+)
+"""
         return result, [
             "from sycamore.llms import OpenAI, OpenAIModels",
             "from sycamore.llms.prompts.default_prompts import LlmFilterMessagesPrompt",
@@ -299,6 +298,9 @@ class SycamoreBasicFilter(SycamoreOperator):
         assert isinstance(self.logical_node, BasicFilter)
         assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) == 1
         imports: list[str] = []
+
+        input_str = input_var or get_var_name(self.logical_node.dependencies[0])
+        output_str = output_var or get_var_name(self.logical_node)
         if self.logical_node.range_filter:
             field = self.logical_node.field
             start = self.logical_node.start
@@ -306,27 +308,28 @@ class SycamoreBasicFilter(SycamoreOperator):
             end = self.logical_node.end
             assert end is None or isinstance(end, str)
             date = self.logical_node.date
-
-            script = (
-                f"{output_var or get_var_name(self.logical_node)} = "
-                f"{input_var or get_var_name(self.logical_node.dependencies[0])}.filter(\n"
-                "f=RangeFilter("
-                f"field='{field}',\n"
-                f"start='{start}',\n"
-                f"end='{end}',\n"
-                f"date='{date}),'\n"
-                f"**{self.get_node_args()})"
-            )
+            script = f"""
+{output_str} = {input_str}.filter(
+    f=RangeFilter(
+        field='{field}',
+        start='{start}',
+        end='{end}',
+        date={date}
+        ),
+    **{self.get_node_args()}
+)
+"""
             imports = ["from sycamore.functions.basic_filters import RangeFilter"]
         else:
-            script = (
-                f"{output_var or get_var_name(self.logical_node)} = "
-                f"{input_var or get_var_name(self.logical_node.dependencies[0])}.filter(\n"
-                "f=MatchFilter("
-                f"query='{self.logical_node.query}',\n"
-                f"field='{self.logical_node.field}',"
-                f"**{self.get_node_args()})"
-            )
+            script = f"""
+{output_str} = {input_str}.filter(
+    f=MatchFilter(
+        query='{self.logical_node.query}',
+        field='{self.logical_node.field}'
+    ),
+    **{self.get_node_args()}
+)
+"""
             imports = ["from sycamore.functions.basic_filters import MatchFilter"]
         return script, imports
 
@@ -439,27 +442,29 @@ class SycamoreLlmExtractEntity(SycamoreOperator):
         discrete = logical_node.discrete
         assert logical_node.dependencies is not None and len(logical_node.dependencies) == 1
 
+        input_str = input_var or get_var_name(logical_node.dependencies[0])
+        output_str = output_var or get_var_name(logical_node)
+
         cache_string = ""
         if self.s3_cache_path:
             cache_string = f", cache=S3Cache('{self.s3_cache_path}')"
         result = f"""
-        prompt = EntityExtractorMessagesPrompt(
-                question='{question}', field='{field}', format='{fmt}, discrete={discrete}
-            ).get_messages_dict()
+prompt = EntityExtractorMessagesPrompt(
+    question='{question}', field='{field}', format='{fmt}', discrete={discrete}
+).get_messages_dict()
 
-        entity_extractor = OpenAIEntityExtractor(
-            entity_name='{new_field}',
-            llm=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
-            use_elements=False,
-            prompt=prompt,
-            field='{field}',
-        )
-    {output_var or get_var_name(logical_node)} = 
-        {input_var or get_var_name(logical_node.dependencies[0])}.extract_entity(
-                entity_extractor=entity_extractor,
-                **{self.get_node_args()}
-            )
-    """
+entity_extractor = OpenAIEntityExtractor(
+    entity_name='{new_field}',
+    llm=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
+    use_elements=False,
+    prompt=prompt,
+    field='{field}',
+)
+{output_str} = {input_str}.extract_entity(
+    entity_extractor=entity_extractor,
+    **{self.get_node_args()}
+)
+"""
         return result, [
             "from sycamore.llms.prompts.default_prompts import EntityExtractorMessagesPrompt",
             "from sycamore.transforms.extract_entity import OpenAIEntityExtractor",
@@ -567,11 +572,11 @@ class SycamoreTopK(SycamoreOperator):
     llm=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
     field='{logical_node.field}',
     k={logical_node.K},
-    descending={logical_node.descending}',
+    descending={logical_node.descending},
     llm_cluster={logical_node.llm_cluster},
     unique_field='{logical_node.primary_field}',
     llm_cluster_instruction='{logical_node.llm_cluster_instruction}',
-    **{self.get_execute_args()},
+    **{get_str_for_dict(self.get_execute_args())},
 )
 """
         return result, [
@@ -664,7 +669,7 @@ class SycamoreLimit(SycamoreOperator):
         result = f"""
 {output_var or get_var_name(logical_node)} = {input_var or get_var_name(logical_node.dependencies[0])}.limit(
     {logical_node.num_records},
-    **{self.get_execute_args()},
+    **{get_str_for_dict(self.get_execute_args())},
 )
 """
         return result, []

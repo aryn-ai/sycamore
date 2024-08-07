@@ -216,19 +216,22 @@ class Table:
                 caption = tag.get_text()
 
         # Fix columns where rowspans should be inserted
+        candidate_bumpers: dict[int, list[tuple[int, int]]] = {}  # dict{row->list[(after, by)]}
         for c in cells:
-            if len(c.rows) == 1:
-                continue
-            rows_to_increment = c.rows[1:]
-            increment_by = len(c.cols)
-            increment_after = c.cols[0]
-            # Yes this is quadratic. I'm assuming tables are smaller than LLMs.
-            for c2 in cells:
-                if c2 is c:
-                    continue
-                if c2.cols[0] >= increment_after and c2.rows[0] in rows_to_increment:
-                    for i in range(len(c2.cols)):
-                        c2.cols[i] += increment_by
+            # If there are candidates for bumping this cell, check 'em
+            if c.rows[0] in candidate_bumpers:
+                bumpers = candidate_bumpers[c.rows[0]]
+                for after, by in bumpers:
+                    if c.cols[0] >= after:
+                        for i in range(len(c.cols)):
+                            c.cols[i] += by
+            # If this cell is in multiple rows, add it as a candidate to the next few
+            if len(c.rows) > 1:
+                for row in c.rows[1:]:
+                    if row not in candidate_bumpers:
+                        candidate_bumpers[row] = []
+                    candidate_bumpers[row].append((c.cols[0], len(c.cols)))
+                    candidate_bumpers[row].sort()
 
         return Table(cells, caption=caption)
 

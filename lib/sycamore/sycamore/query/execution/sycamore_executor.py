@@ -240,7 +240,7 @@ class SycamoreExecutor:
 
             if self.codegen_mode:
                 code = self.get_code_string()
-                global_context = {}
+                global_context: dict[str, Any] = {}
                 exec(code, global_context)
                 return global_context.get(self.OUTPUT_VAR_NAME)
 

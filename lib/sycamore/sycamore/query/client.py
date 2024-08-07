@@ -12,7 +12,7 @@
 import argparse
 import json
 import logging
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 import os
 import uuid
 
@@ -116,9 +116,9 @@ class SycamoreQueryClient:
         self._os_client = OpenSearch(**self.os_client_args)
         self._os_query_executor = OpenSearchQueryExecutor(self.os_client_args)
 
-    def get_opensearch_incides(self) -> list:
+    def get_opensearch_incides(self) -> List[str]:
         """Get the schema for the provided OpenSearch index."""
-        indices = self._os_client.indices.get_alias().keys()
+        indices = list([str(k) for k in self._os_client.indices.get_alias().keys()])
         return indices
 
     def get_opensearch_schema(self, index: str) -> OpenSearchSchema:

@@ -3,10 +3,9 @@ from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
 import json
-from typing import List, Union
+from typing import Union
 import logging
 from sycamore.transforms.llm_query import LLMTextQueryAgent
-from sycamore.llms import OpenAI
 from sycamore.llms import LLM
 
 class ExtractKeyValuePair(SingleThreadUser, NonGPUUser, Map):
@@ -54,7 +53,8 @@ class ExtractKeyValuePair(SingleThreadUser, NonGPUUser, Map):
     @staticmethod
     def extract_table_properties(parent: Document, property_name: str, llm: LLM) -> Document:
         '''
-        This Method is used to extract key value pair from table using LLM and populate it as property of that element.
+        This Method is used to extract key value pair from table using LLM and 
+        populate it as property of that element.
         '''
         prompt = """
         You are given a text string where columns are separated by comma representing either a single column, 

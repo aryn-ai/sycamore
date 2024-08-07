@@ -1,8 +1,6 @@
-from sycamore.data import Document, Element
+from sycamore.data import Document
 from sycamore.llms import OpenAI
 from sycamore.transforms.extract_key_value_pair import ExtractKeyValuePair
-
-from sycamore.llms import OpenAI
 from sycamore.data.table import Table, TableCell
 
     

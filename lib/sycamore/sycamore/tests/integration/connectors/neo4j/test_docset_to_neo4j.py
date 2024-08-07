@@ -90,7 +90,7 @@ def children_to_section(doc: HierarchicalDocument) -> HierarchicalDocument:
 def test_docset_to_neo4j():
     path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
     context = sycamore.init()
-    URI = "neo4j://localhost:7687"
+    URI = "neo4j+ssc://localhost:7687"
     AUTH = ("neo4j", "neo4j")
 
     ds = (

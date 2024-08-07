@@ -86,7 +86,6 @@ class ExtractKeyValuePair(SingleThreadUser, NonGPUUser, Map):
                     assert isinstance(json_string, str)
                     keyValue = json.loads(json_string) 
                     ele.properties[property_name] = keyValue
-                    print(keyValue)
                 except Exception as e:
                     logging.error(str(e))
         return doc

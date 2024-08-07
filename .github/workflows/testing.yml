@@ -146,6 +146,8 @@ jobs:
 
     steps:
       - name: docker neo4j call
+        run: docker logs neo4j
+      - name: docker neo4j call
         run: |
           i=0
           while [ $i -lt 30 ]; do

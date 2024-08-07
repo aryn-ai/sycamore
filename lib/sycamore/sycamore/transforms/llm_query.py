@@ -57,40 +57,60 @@ class LLMTextQueryAgent:
         self._element_type = element_type
 
     def execute_query(self, document: Document) -> Document:
-        if self._per_element:
-            elements = document.elements
-            element_type_count = 0
+        final_prompt = self._prompt
+        element_count = 0
+        if self._per_element or self._number_of_elements: 
             for idx, element in enumerate(document.elements):
-                if self._element_type:
-                    if element.type == self._element_type:
-                        elements[idx] = self._query_text_object(element)
-                        if self._number_of_elements and element_type_count >= self._number_of_elements:
-                            break
-                        element_type_count += 1
+                if self._element_type and element.type != self._element_type:
+                    continue
+                if self._per_element:
+                    document.elements[idx] = self._query_text_object(element)
                 else:
-                    elements[idx] = self._query_text_object(element)
-                    if self._number_of_elements and idx >= self._number_of_elements:
-                        break
-            document.elements = elements
-        elif self._number_of_elements:  # limit to a number of elements
-            text_representation = self._prompt
-            for idx, element in enumerate(document.elements):
-                if self._element_type and element.type == self._element_type:
-                    text_representation += "\n" + element["text_representation"]
-                    if self._number_of_elements and element_type_count >= self._number_of_elements:
-                        break
-                    element_type_count += 1
-                else:
-                    text_representation += "\n" + element["text_representation"]
-                    if idx >= self._number_of_elements:
-                        break
-            prompt_kwargs = {"prompt": text_representation}
-            llm_resp = self._llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs=self._llm_kwargs)
-            document["properties"][self._output_property] = llm_resp
+                    final_prompt += "\n" + element["text_representation"]
+                if self._number_of_elements:
+                    element_count += 1
+                    if element_count >= self._number_of_elements:
+                        break  
+            if not self._per_element : 
+                prompt_kwargs = {"prompt": final_prompt}
+                llm_resp = self._llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs=self._llm_kwargs)
+                document["properties"][self._output_property] = llm_resp
         else:
             if document.text_representation:
                 document = self._query_text_object(document)
         return document
+            
+
+
+
+        # for idx, element in enumerate(document.elements):
+        #     if self._per_element:
+        #         if self._element_type and element.type != self._element_type:
+        #             continue
+        #         document.elements[idx] = self._query_text_object(element)
+        #         if self._number_of_elements:
+        #             element_count += 1
+        #             if element_count >= self._number_of_elements:
+        #                 break                
+        #     elif self._number_of_elements:  # limit to a number of elements
+        #         text_representation = self._prompt
+        #         for idx, element in enumerate(document.elements):
+        #             if self._element_type and element.type != self._element_type:
+        #                 continue
+        #             text_representation += "\n" + element["text_representation"]
+        #             if self._number_of_elements:
+        #                 element_type_count += 1
+        #         else:
+        #             text_representation += "\n" + element["text_representation"]
+        #             if idx >= self._number_of_elements:
+        #                 break
+        #         prompt_kwargs = {"prompt": text_representation}
+        #         llm_resp = self._llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs=self._llm_kwargs)
+        #         document["properties"][self._output_property] = llm_resp
+        # else:
+        #     if document.text_representation:
+        #         document = self._query_text_object(document)
+        # return document
 
     @timetrace("LLMQueryText")
     def _query_text_object(self, object: Union[Document, Element]) -> Union[Document, Element]:

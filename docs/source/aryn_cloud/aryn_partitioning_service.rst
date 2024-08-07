@@ -135,7 +135,7 @@ The available options are listed below:
 
 * ``threshold``: The threshold to use for accepting the model's predicted bounding boxes. A lower value will include more objects, but may have overlaps, a higher value will reduce the number of overlaps, but may miss legitimate objects. It defaults to ``0.4``.
 * ``use_ocr``: If ``true``, the partitioner uses OCR to extract text from the PDF. It defaults to ``false``, where the partitioner attempts to directly extract the text from the underlying PDF in the bounding box. It currently uses Tesseract for extraction.
-* ``extract_table_structure``: If ``true``, the partitioner runs a separate table extraction model to extract cells from regions of the document identified as tables.
+* ``extract_table_structure``: If ``true``, the partitioner runs a table extraction model separate from the segmentation model in order to extract cells from regions of the document identified as tables.
 * ``extract_images``: If ``true``, the partitioner crops each region identified as an image and attaches it to the associated ``ImageElement``. This can later be fed into the ``SummarizeImages`` transform when used within Sycamore.
 * ``selected_pages``: You can specify a page (like ``[11]`` ), a page range (like ``[[25,30]]`` ), or a combination of both (like ``[[11, [25,30]]`` ) of your PDF to process. The first page of the PDF is ``1``, not ``0``.
 * ``pages_per_call``: This is only available when using the Partition function in Sycamore. This option divides the processing of your document into batches of pages, and you specify the size of each batch (number of pages). This is useful when running OCR on large documents. 

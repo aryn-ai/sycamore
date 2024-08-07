@@ -67,7 +67,7 @@ An example element is given below:
 ```text
 "bbox": coordinates of the bounding box around the element contents
 ```
-Takes the format `[x1, y1, x2, y2]` where each coordinate is a proportion of how far down or across the screen the element is.
+Takes the format `[x1, y1, x2, y2]` where each coordinate is given as the proportion of how far down or across the screen the element is. For instance, an element that is 100 pixels from the left border of a document 400 pixels wide would have an x1 coordinate of 0.25.
 
 ### Properties
 

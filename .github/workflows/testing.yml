@@ -169,14 +169,6 @@ jobs:
         with:
           aws-region: us-east-1
           role-to-assume: arn:aws:iam::237550789389:role/aryn-github-integ
-      - name: Wait for Neo4j to be up
-        run: |
-          echo "Waiting for Neo4j to launch on 7474..."
-          while ! curl -s http://localhost:7474 >/dev/null; do
-            sleep 1
-          done
-          echo "Neo4j is up!"
-
       - name: Run Integ tests
         run: poetry run pytest lib/sycamore/sycamore/tests/integration/connectors/neo4j
 

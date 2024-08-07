@@ -113,7 +113,7 @@ class SubtaskExecutor:
                 "bool": {"must": [{"match_phrase": {k: filters[k]}} for k in filters]}
             }
             query_body["query"]["hybrid"]["queries"][1] = hybrid_query_knn
-        
+
         return query_body
 
     def _get_results(self, element: Element) -> Element:
@@ -186,7 +186,7 @@ class SubtaskExecutor:
         result_elem.properties = {
             "query": result["query"],
             "hits": result["hits"],
-            "generated_answer": result.generated_answer.replace('{', '').replace('}', ''),
+            "generated_answer": result.generated_answer.replace("{", "").replace("}", ""),
             "result": result["result"],
         }
         return result_elem

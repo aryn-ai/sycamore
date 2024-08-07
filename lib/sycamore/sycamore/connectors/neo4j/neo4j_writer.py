@@ -158,6 +158,8 @@ class Neo4jPrepareCSV:
             return doc.data
 
         def accumulate_row(headers, row):
+            include_nodes = ["type", "bbox", "text_representation"]
+            include_relationships = ["uuid:ID", ":START_ID", ":END_ID", ":TYPE"]
             data = extract_nodes(row)
             if "label" not in data:
                 return headers
@@ -166,7 +168,7 @@ class Neo4jPrepareCSV:
             #### ALL DOCS HAVE uuid:ID ####
             headers["nodes"][node_key]["uuid:ID"] = True
             #### IF KEYS EXIST IN DATA ####
-            for key in ["type", "bbox", "text_representation"]:
+            for key in include_nodes:
                 if key in data:
                     headers["nodes"][node_key][key] = True
             #### add all keys from properties ####
@@ -178,7 +180,7 @@ class Neo4jPrepareCSV:
                 if headers["relationships"].get(rel_key, None) is None:
                     headers["relationships"][rel_key] = dict()
                 #### add all required keys ####
-                for key in ["uuid:ID", ":START_ID", ":END_ID", ":TYPE"]:
+                for key in include_relationships:
                     headers["relationships"][rel_key][key] = True
                 #### add all keys from properties ####
                 for key in value["properties"].keys():

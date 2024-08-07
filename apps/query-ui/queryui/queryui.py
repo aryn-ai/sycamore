@@ -46,33 +46,39 @@ def show_schema(container: Any, schema: Dict[str, Tuple[str, Set[str]]]):
         st.dataframe(table_data)
 
 
-def show_traces():
-    """Show the traces in the given trace_dir."""
-    st.session_state.query_trace_dir = f"{st.session_state.trace_dir}/{st.session_state.query_id}"
-    for id in sorted(os.listdir(f"{st.session_state.query_trace_dir}")):
-
-        # Initialize a list to hold the data
+def show_traces(trace_dir):
+    """Show the traces in the trace_dir."""
+    for node_id in sorted(os.listdir(trace_dir)):
         data_list = []
-        directory = f"{st.session_state.query_trace_dir}/{id}"
-
+        directory = os.path.join(trace_dir, node_id)
         for filename in os.listdir(directory):
             f = os.path.join(directory, filename)
             if os.path.isfile(f):
                 with open(f, "rb") as file:
                     doc = pickle.load(file)
-                    doc_list = doc.properties["entity"]
-
-                    for p in doc.properties:
-                        if p not in BASE_PROPS and p in doc.properties:
-                            doc_list[p] = doc.properties[p]
-                    doc_list["text_representation"] = doc.text_representation
-                    data_list.append(doc_list)
+                    # For now, skip over MetadataDocuments.
+                    if "doc_id" not in doc:
+                        continue
+                    data_list.append(doc)
 
         df = pd.DataFrame(data_list)
-
-        st.write(f"Docset after node {id} — {len(df)} documents")
-
+        st.write(f"Docset after node {node_id} — {len(df)} documents")
         st.dataframe(df)
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for root, _, files in os.walk(trace_dir):
+            for file in files:
+                zf.write(
+                    os.path.join(root, file),
+                    os.path.relpath(os.path.join(root, file), trace_dir),
+                )
+    st.download_button(
+        label="Download Traces as ZIP",
+        data=zip_buffer.getvalue(),
+        file_name=f"traces_{st.session_state.query_id}.zip",
+        mime="application/zip",
+    )
 
 
 @st.experimental_fragment
@@ -96,11 +102,11 @@ def show_dag(plan: LogicalPlan):
         nodes.append(
             Node(
                 id=node.node_id,
-                label=f"{type(node).__name__}\n\n{node.description}",
+                label=f"[Node {node.node_id}] {type(node).__name__}\n\n{node.description}",
                 shape="box",
                 color={
                     "background": "#404040",
-                    "border": "#ff0000",
+                    "border": "#5050f0",
                 },
                 font="14px arial white",
                 chosen=False,
@@ -150,23 +156,10 @@ def run_query(query: str, index: str, plan_only: bool, do_trace: bool, use_cache
         st.subheader("Result", divider="rainbow")
         st.success(result)
         if do_trace:
+            assert st.session_state.trace_dir
+            query_trace_dir = os.path.join(st.session_state.trace_dir, st.session_state.query_id)
             st.subheader("Traces", divider="blue")
-            show_traces()
-            # Create a zip file
-            zip_buffer = io.BytesIO()
-            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-                for root, dirs, files in os.walk(st.session_state.query_trace_dir):
-                    for file in files:
-                        zf.write(
-                            os.path.join(root, file),
-                            os.path.relpath(os.path.join(root, file), st.session_state.query_trace_dir),
-                        )
-            st.download_button(
-                label="Download Traces as ZIP",
-                data=zip_buffer.getvalue(),
-                file_name=f"traces_{st.session_state.query_id}.zip",
-                mime="application/zip",
-            )
+            show_traces(query_trace_dir)
 
     else:
         generate_code(client, plan)

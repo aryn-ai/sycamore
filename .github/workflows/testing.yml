@@ -147,7 +147,13 @@ jobs:
 
     steps:
       - name: docker neo4j call
-        run: curl -vvv http://neo4j:7474
+        run: |
+          i=0
+          while [ $i -lt 30 ]; do
+              echo "$(curl -vvv http://localhost:7474 2>&1)"
+              sleep 1
+              i=$((i + 1))
+          done
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install poetry

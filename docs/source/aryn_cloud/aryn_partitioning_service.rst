@@ -67,7 +67,7 @@ Helper Functions
     images = draw_with_boxes("mydocument.pdf", data)
 
 +++++++++++++++++++++++++++++++++++++++++
-Using with Sycamore's Partition transform
+Using Sycamore's Partition transform
 +++++++++++++++++++++++++++++++++++++++++
 
 The Aryn Partitining Service is the default option when specifying the Aryn Partitioner in a Sycamore script. Say you have a set of pdfs located at the path stored in ``work_dir``. We partition these documents with the code snippet below:

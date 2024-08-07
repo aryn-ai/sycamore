@@ -90,8 +90,8 @@ def children_to_section(doc: HierarchicalDocument) -> HierarchicalDocument:
 def test_docset_to_neo4j():
     path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
     context = sycamore.init()
-    URI = "bolt://localhost:7687"
-    AUTH = ("neo4j", "neo4j")
+    URI = "neo4j://localhost:7687"
+    AUTH = ("neo4j", "koala-stereo-comedy-spray-figure-6974")
 
     ds = (
         context.read.binary(path, binary_format="pdf")

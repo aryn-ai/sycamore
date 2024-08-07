@@ -444,8 +444,8 @@ class SycamoreLlmExtractEntity(SycamoreOperator):
         discrete = logical_node.discrete
         assert logical_node.dependencies is not None and len(logical_node.dependencies) == 1
 
-        input_str = input_var or get_var_name(self.logical_node.dependencies[0])
-        output_str = output_var or get_var_name(self.logical_node)
+        input_str = input_var or get_var_name(logical_node.dependencies[0])
+        output_str = output_var or get_var_name(logical_node)
 
         cache_string = ""
         if self.s3_cache_path:

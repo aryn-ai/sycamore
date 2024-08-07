@@ -146,7 +146,9 @@ jobs:
 
     steps:
       - name: docker neo4j call
-        run: docker logs neo4j
+        run: |
+          sleep 10
+          docker logs neo4j
       - name: docker neo4j call
         run: |
           i=0

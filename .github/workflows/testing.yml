@@ -131,7 +131,7 @@ jobs:
           NEO4J_dbms_memory_heap_initial__size: 2G  # Set initial heap size
           NEO4J_dbms_memory_heap_max__size: 2G  # Set maximum heap size
         options: >-
-           --volume neo4j/import:var/lib/neo4j/import \
+           --volume ${HOME}/neo4j/import:var/lib/neo4j/import \
         ports:
           - "7474:7474"
           - "7687:7687"

@@ -126,7 +126,6 @@ jobs:
           - 9201:9200
       neo4j:
         image: neo4j:5.21.0
-        options: --name neo4j
         env:
           NEO4J_AUTH: neo4j/neo4j  # Set the default credentials for Neo4j
           # NEO4J_dbms_memory_heap_initial__size: 2G  # Set initial heap size
@@ -140,6 +139,7 @@ jobs:
           # NEO4J_apoc_import_file_use__neo4j__config: true
           # NEO4JLABS_PLUGINS: '["apoc"]'
         options: >-
+           --name neo4j
            --volume /neo4j/import:/var/lib/neo4j/import
         ports:
           - 7474:7474

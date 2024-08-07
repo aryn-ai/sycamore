@@ -23,6 +23,7 @@ class SubtaskExecutor:
         ),
         llm: LLM = OpenAI(OpenAIModels.GPT_3_5_TURBO.value),
         prompt: SimpleGuidancePrompt = TaskIdentifierZeroShotGuidancePrompt(),
+        knn_query: bool = False,
     ):
         if subtask_data:
             self._subtask_data = subtask_data
@@ -38,6 +39,7 @@ class SubtaskExecutor:
         self._embedder = embedder
         self._llm = llm
         self._prompt = prompt
+        self._knn_query = knn_query
 
     def _get_formulas(self, document: Document) -> list[Document]:
         f_list = []
@@ -91,20 +93,27 @@ class SubtaskExecutor:
         return document
 
     def _add_filter(self, query_body: dict, filters: dict[str, str]):
-        hybrid_query_match = query_body["query"]["hybrid"]["queries"][0]
-        hybrid_query_match = {
-            "bool": {
-                "must": [hybrid_query_match],
-                "filter": [{"match_phrase": {k: filters[k]}} for k in filters],
+        if self._knn_query:
+            knn_query_match = query_body["query"]["knn"]["embedding"]["filter"]["bool"]["must"]
+            for key, val in filters.items():
+                knn_query_match.append({"match_phrase": {key: val}})
+            query_body["query"]["knn"]["embedding"]["filter"]["bool"]["must"] = knn_query_match
+        else:
+            hybrid_query_match = query_body["query"]["hybrid"]["queries"][0]
+            hybrid_query_match = {
+                "bool": {
+                    "must": [hybrid_query_match],
+                    "filter": [{"match_phrase": {k: filters[k]}} for k in filters],
+                }
             }
-        }
-        query_body["query"]["hybrid"]["queries"][0] = hybrid_query_match
+            query_body["query"]["hybrid"]["queries"][0] = hybrid_query_match
 
-        hybrid_query_knn = query_body["query"]["hybrid"]["queries"][1]
-        hybrid_query_knn["knn"]["embedding"]["filter"] = {
-            "bool": {"must": [{"match_phrase": {k: filters[k]}} for k in filters]}
-        }
-        query_body["query"]["hybrid"]["queries"][1] = hybrid_query_knn
+            hybrid_query_knn = query_body["query"]["hybrid"]["queries"][1]
+            hybrid_query_knn["knn"]["embedding"]["filter"] = {
+                "bool": {"must": [{"match_phrase": {k: filters[k]}} for k in filters]}
+            }
+            query_body["query"]["hybrid"]["queries"][1] = hybrid_query_knn
+        
         return query_body
 
     def _get_results(self, element: Element) -> Element:
@@ -116,25 +125,46 @@ class SubtaskExecutor:
 
         qn_embedding = self._embedder.generate_text_embedding(subtask)
 
-        query["query"] = {
-            "_source": {"excludes": ["embedding"]},
-            "query": {
-                "hybrid": {
-                    "queries": [
-                        {"match": {"text_representation": subtask}},
-                        {
-                            "knn": {
-                                "embedding": {
-                                    "vector": qn_embedding,
-                                    "k": self._os_config.get("neural_search_k", 100),
+        if self._knn_query:
+            query["query"] = {
+                "_source": {"excludes": ["embedding"]},
+                "size": self._os_config.get("size", 20),
+                "query": {
+                    "knn": {
+                        "embedding": {
+                            "vector": qn_embedding,
+                            "k": self._os_config.get("neural_search_k", 100),
+                            "filter": {
+                                "bool": {
+                                    "must": [
+                                        {"match": {"text_representation": subtask}},
+                                    ],
+                                },
+                            },
+                        }
+                    }
+                },
+            }
+        else:
+            query["query"] = {
+                "_source": {"excludes": ["embedding"]},
+                "query": {
+                    "hybrid": {
+                        "queries": [
+                            {"match": {"text_representation": subtask}},
+                            {
+                                "knn": {
+                                    "embedding": {
+                                        "vector": qn_embedding,
+                                        "k": self._os_config.get("neural_search_k", 100),
+                                    }
                                 }
-                            }
-                        },
-                    ]
-                }
-            },
-            "size": self._os_config.get("size", 20),
-        }
+                            },
+                        ]
+                    }
+                },
+                "size": self._os_config.get("size", 20),
+            }
 
         if "llm" in self._os_config:
             query.params = {"search_pipeline": self._os_config["search_pipeline"]}
@@ -156,7 +186,7 @@ class SubtaskExecutor:
         result_elem.properties = {
             "query": result["query"],
             "hits": result["hits"],
-            "generated_answer": result.generated_answer,
+            "generated_answer": result.generated_answer.replace('{', '').replace('}', ''),
             "result": result["result"],
         }
         return result_elem

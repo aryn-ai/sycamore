@@ -101,5 +101,7 @@ def test_docset_to_neo4j():
         .explode()
     )
 
+    ds.take_all()
+
     #ds.write.neo4j(uri=URI,auth=AUTH,database="neo4j",import_dir="/neo4j/import")
 

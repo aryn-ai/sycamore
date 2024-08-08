@@ -7,7 +7,7 @@ from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.extract_graph import GraphMetadata, MetadataExtractor, GraphEntity, EntityExtractor
 from sycamore.data import HierarchicalDocument, Document
 
-from sycamore.transforms.partition import ArynPartitioner
+from sycamore.transforms.partition import ArynPartitioner, SycamorePartitioner
 
 
 ########## THESE FUNCTIONS NEED A HOME

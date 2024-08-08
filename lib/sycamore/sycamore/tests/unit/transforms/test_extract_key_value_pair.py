@@ -42,5 +42,5 @@ class TestExtractKeyValuePair:
         llm = mocker.Mock(sepc=OpenAI)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = {"llm_response": '{"key1":"val1"}'}
-        doc1 = ExtractKeyValuePair(None, parameters = ["llm_response", llm]).run(self.doc)
+        doc1 = ExtractKeyValuePair.extract_table_properties(self.doc, "llm_response", llm)
         assert (doc1.elements[0].properties.get('llm_response'))=={'llm_response': '{"key1":"val1"}'}

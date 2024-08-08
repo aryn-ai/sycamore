@@ -6,7 +6,7 @@ from sycamore.reader import DocSetReader
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.extract_graph import GraphMetadata, MetadataExtractor, GraphEntity, EntityExtractor
 from sycamore.data import HierarchicalDocument, Document
-
+import os
 from sycamore.transforms.partition import ArynPartitioner, SycamorePartitioner
 
 
@@ -92,10 +92,11 @@ def test_docset_to_neo4j():
     context = sycamore.init()
     #URI = "neo4j://localhost:7687"
     #AUTH = ("neo4j", "koala-stereo-comedy-spray-figure-6974")
+    api_key = os.environ.get("ARYN_API_KEY")
 
     ds = (
         context.read.binary(path, binary_format="pdf")
-        .partition(partitioner=ArynPartitioner(extract_table_structure=True, use_ocr=True, extract_images=True))
+        .partition(partitioner=ArynPartitioner(extract_table_structure=True, use_ocr=True, extract_images=True, aryn_api_key=api_key))
         #.map(restructure_doc)
         #.map(children_to_section)
         .explode()

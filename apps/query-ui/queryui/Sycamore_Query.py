@@ -125,11 +125,11 @@ def run_query():
         plan = generate_plan(client, st.session_state.query, st.session_state.index)
     with st.expander("View query plan"):
         show_dag(plan)
-        
-    st.write(f"Query ID `{st.session_state.query_id}`\n")
 
     code = generate_code(client, plan)
     show_code(code)
+
+    st.write(f"Query ID `{st.session_state.query_id}`\n")
     
     if not st.session_state.plan_only:
         with st.spinner("Running query..."):

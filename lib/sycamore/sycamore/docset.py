@@ -27,6 +27,7 @@ from sycamore.transforms.merge_elements import ElementMerger
 from sycamore.utils.extract_json import extract_json
 from sycamore.writer import DocSetWriter
 from sycamore.transforms.query import QueryExecutor, Query
+from sycamore.transforms.standardizer import Standardizer
 
 logger = logging.getLogger(__name__)
 
@@ -337,6 +338,45 @@ class DocSet:
         plan = SpreadProperties(self.plan, props, **resource_args)
         return DocSet(self.context, plan)
 
+    def extract_key_value_pair(self, property_name: str, llm: LLM, **resource_args) -> list[Document]:
+        """
+        Parses tables to create properties populated with their key-value pairs.
+
+        Args: 
+            element_type: Element type from which property is to be copied.
+            property_name: Property name which stores the Property.
+            llm: llm to be used for query and parsing.
+        Example:
+            .. code-block:: python
+
+               pdf_docset = context.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=ArynPartitioner())
+                    .extract_key_value_pair('llm_response', llm)
+        """
+
+        from sycamore.transforms.extract_key_value_pair import ExtractKeyValuePair
+        plan = ExtractKeyValuePair(self.plan, [property_name, llm], **resource_args)
+        return DocSet(self.context, plan)
+
+    def assign_doc_properties(self, element_type:str, property_name:str, **resource_args) -> "DocSet":
+        """
+        Copies properties from the first element to parent element.
+
+        Args: 
+            element_type: Element type from which property is to be copied. 
+            property_name: Property name which stores the Property.
+        Example:
+            .. code-block:: python
+
+               pdf_docset = context.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=ArynPartitioner())
+                    .extract_key_value_pair('llm_response', llm)
+                    .AssignDocProperties('table', 'llm_response')
+        """
+        from sycamore.transforms import AssignDocProperties
+        plan = AssignDocProperties(self.plan, [element_type, property_name], **resource_args)
+        return DocSet(self.context, plan)
+
     def augment_text(self, augmentor: TextAugmentor, **resource_args) -> "DocSet":
         """
         Augments text_representation with external information.
@@ -423,6 +463,28 @@ class DocSet:
 
         embeddings = Embed(self.plan, embedder=embedder, **kwargs)
         return DocSet(self.context, embeddings)
+    
+    def standardize(self, standarizer: Standardizer, path: list[str]):
+        """
+        Standardizes the datetime or location property of the DocSet.
+        Args:
+             standardizer (callable): A function or method to use for standardizing the date or location.
+
+        Example:     
+            .. code-block:: python
+
+                loc_standardizer = LocationStandardizer()
+
+                context = sycamore.init()
+                pdf_docset = context.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=ArynPartitioner())
+                    .standardise(loc_standardizer)
+        """
+        from sycamore.transforms import StandardizeProperty
+        standardize_docset = StandardizeProperty(self.plan, standardizer=standarizer, path=[path])
+        return DocSet(self.context, standardize_docset)
+
+
 
     def extract_entity(self, entity_extractor: EntityExtractor, **kwargs) -> "DocSet":
         """

@@ -183,8 +183,6 @@ class SycamoreSummarizeData(SycamoreOperator):
     result_data=[{logical_deps_str}],
     **{get_str_for_dict(self.get_execute_args())},
 )
-result = {output_var or get_var_name(self.logical_node)}
-print(result)
 """
         return result, [
             "from sycamore.query.execution.operations import summarize_data",
@@ -250,7 +248,7 @@ prompt = LlmFilterMessagesPrompt(filter_question='{self.logical_node.question}')
     field='{self.logical_node.field}',
     threshold=3,
     **{self.get_node_args()},
-) 
+)
 """
         return result, [
             "from sycamore.llms import OpenAI, OpenAIModels",

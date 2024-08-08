@@ -12,7 +12,7 @@
 import argparse
 import json
 import logging
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 import os
 import uuid
 
@@ -116,9 +116,9 @@ class SycamoreQueryClient:
         self._os_client = OpenSearch(**self.os_client_args)
         self._os_query_executor = OpenSearchQueryExecutor(self.os_client_args)
 
-    def get_opensearch_incides(self) -> list:
+    def get_opensearch_incides(self) -> List[str]:
         """Get the schema for the provided OpenSearch index."""
-        indices = self._os_client.indices.get_alias().keys()
+        indices = list([str(k) for k in self._os_client.indices.get_alias().keys()])
         return indices
 
     def get_opensearch_schema(self, index: str) -> OpenSearchSchema:
@@ -141,7 +141,7 @@ class SycamoreQueryClient:
         plan = planner.plan(query)
         return plan
 
-    def run_plan(self, plan: LogicalPlan, dry_run=False) -> Tuple[str, str]:
+    def run_plan(self, plan: LogicalPlan, dry_run=False, codegen_mode=False) -> Tuple[str, str]:
         """Run the given logical query plan and return a tuple of the query ID and result."""
         context = sycamore.init()
         executor = SycamoreExecutor(
@@ -150,16 +150,17 @@ class SycamoreQueryClient:
             s3_cache_path=self.s3_cache_path,
             trace_dir=self.trace_dir,
             dry_run=dry_run,
+            codegen_mode=codegen_mode,
         )
         query_id = str(uuid.uuid4())
         result = executor.execute(plan, query_id)
         return (query_id, result)
 
-    def query(self, query: str, index: str, dry_run: bool = False) -> str:
+    def query(self, query: str, index: str, dry_run: bool = False, codegen_mode: bool = False) -> str:
         """Run a query against the given index."""
         schema = self.get_opensearch_schema(index)
         plan = self.generate_plan(query, index, schema)
-        _, result = self.run_plan(plan, dry_run=dry_run)
+        _, result = self.run_plan(plan, dry_run=dry_run, codegen_mode=codegen_mode)
         return result
 
     def dump_traces(self, logfile: str, query_id: Optional[str] = None):
@@ -190,6 +191,7 @@ def main():
     parser.add_argument("--show-plan", action="store_true", help="Show generated query plan.")
     parser.add_argument("--plan-only", action="store_true", help="Only generate and show query plan.")
     parser.add_argument("--dry-run", action="store_true", help="Generate and show query plan and execution code")
+    parser.add_argument("--codegen-mode", action="store_true", help="Execute through codegen")
     parser.add_argument("--trace-dir", help="Directory to write query execution trace.")
     parser.add_argument("--dump-traces", action="store_true", help="Dump traces from the execution.")
     parser.add_argument("--log-level", type=str, help="Log level", default="WARN")
@@ -235,7 +237,7 @@ def main():
     if args.plan_only:
         return
 
-    query_id, result = client.run_plan(plan, args.dry_run)
+    query_id, result = client.run_plan(plan, args.dry_run, args.codegen_mode)
 
     console.rule(f"Query result [{query_id}]")
     console.print(result)

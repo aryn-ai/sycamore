@@ -5,7 +5,6 @@ import zipfile
 import pandas as pd
 
 import streamlit as st
-from sycamore.data.document import MetadataDocument
 
 BASE_PROPS = set(
     [
@@ -39,7 +38,7 @@ def show_query_traces(trace_dir: str, query_id: str):
                         doc = []
                     
                     # For now, skip over MetadataDocuments.
-                    if isinstance(doc, MetadataDocument):
+                    if "doc_id" not in doc:
                         continue
                     
                     if "properties" in doc:

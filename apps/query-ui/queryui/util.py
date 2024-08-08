@@ -6,21 +6,6 @@ import pandas as pd
 
 import streamlit as st
 
-BASE_PROPS = set(
-    [
-        "filename",
-        "filetype",
-        "page_number",
-        "page_numbers",
-        "links",
-        "element_id",
-        "parent_id",
-        "_schema",
-        "_schema_class",
-        "entity",
-    ]
-)
-
 
 @st.experimental_fragment
 def show_query_traces(trace_dir: str, query_id: str):

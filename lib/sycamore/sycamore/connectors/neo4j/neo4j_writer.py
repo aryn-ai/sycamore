@@ -118,6 +118,7 @@ class Neo4jWriterClient:
             end = time.time()
             logger.info(f"TIME TAKEN TO LOAD CSV --> NEO4J: {end-start} SECONDS")
 
+
 class Neo4jValidateParams:
     def __init__(self, client_params: Neo4jWriterClientParams, target_params: Neo4jWriterTargetParams):
         self._client = Neo4jWriterClient.from_client_params(client_params)

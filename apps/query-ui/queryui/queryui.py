@@ -21,21 +21,6 @@ from sycamore.query.operators.logical_operator import LogicalOperator
 
 
 DEFAULT_S3_CACHE_PATH = "s3://aryn-temp/llm_cache/luna/ntsb"
-BASE_PROPS = set(
-    [
-        "filename",
-        "filetype",
-        "page_number",
-        "page_numbers",
-        "links",
-        "element_id",
-        "parent_id",
-        "_schema",
-        "_schema_class",
-        "entity",
-    ]
-)
-
 
 def show_schema(container: Any, schema: Dict[str, Tuple[str, Set[str]]]):
     # Make a table.

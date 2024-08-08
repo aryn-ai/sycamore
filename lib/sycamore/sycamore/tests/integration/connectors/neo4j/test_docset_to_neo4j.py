@@ -101,7 +101,7 @@ def test_to_neo4j():
         .explode()
     )
 
-    ds.write.neo4j(uri=URI,auth=AUTH,database=DATABASE,import_dir="/home/admin/neo4j/import")
+    ds.write.neo4j(uri=URI,auth=AUTH,database=DATABASE,import_dir="/neo4j/import")
 
     from neo4j import GraphDatabase
     driver = GraphDatabase.driver(URI, auth=AUTH)

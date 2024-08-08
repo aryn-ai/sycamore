@@ -18,7 +18,10 @@ def show_query_traces(trace_dir: str, query_id: str):
             f = os.path.join(directory, filename)
             if os.path.isfile(f):
                 with open(f, "rb") as file:
-                    doc = pickle.load(file)
+                    try:
+                        doc = pickle.load(file)
+                    except EOFError:
+                        doc = []
                     # For now, skip over MetadataDocuments.
                     if "doc_id" not in doc:
                         continue

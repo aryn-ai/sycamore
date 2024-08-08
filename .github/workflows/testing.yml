@@ -167,6 +167,6 @@ jobs:
       - name: Allow Read/Write permissions to Neo4j Import Directory
         run: sudo chmod -R 777 /neo4j/import
       - name: Run Integ tests
-        run: poetry run pytest lib/sycamore/sycamore/tests/integration/connectors/neo4j
+        run: poetry run pytest lib/sycamore/sycamore/tests
       - name: Run Notebook tests
         run: poetry run pytest --nbmake --nbmake-timeout=600 notebooks/default-prep-script.ipynb notebooks/jupyter_dev_example.ipynb notebooks/metadata-extraction.ipynb notebooks/sycamore_demo.ipynb notebooks/tutorial.ipynb

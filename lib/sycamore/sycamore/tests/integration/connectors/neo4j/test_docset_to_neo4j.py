@@ -97,7 +97,7 @@ def test_docset_to_neo4j():
     ds = (
         context.read.binary(path, binary_format="pdf")
         .partition(partitioner=ArynPartitioner(extract_table_structure=True, use_ocr=True, extract_images=True, aryn_api_key=api_key))
-        #.map(restructure_doc)
+        .map(restructure_doc)
         #.map(children_to_section)
         .explode()
     )

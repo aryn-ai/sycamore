@@ -19,10 +19,8 @@ import pandas as pd
 from io import BytesIO
 
 ## Make a call to the Aryn Partitioning Service (APS) 
-## param file: File object we're passing to APS
 ## param extract_table_structure (boolean): extract tables and their structural content. default: False
 ## param use_ocr (boolean): extract text using an OCR model instead of extracting embedded text in PDF. default: False
-## param extract_images (boolean):  extract image contents. default: False
 ## returns: JSON object with elements representing information inside the PDF
 partitioned_file = partition_file(curr_file, aryn_api_key, extract_table_structure=True, use_ocr=True)
 ```
@@ -125,8 +123,6 @@ import pandas as pd
 from io import BytesIO
 
 ## Make a call to the Aryn Partitioning Service (APS) 
-## param file: File object we're passing to APS
-## param extract_table_structure (boolean): extract tables and their structural content. default: False
 ## param use_ocr (boolean): extract text using an OCR model instead of extracting embedded text in PDF. default: False
 ## param extract_images (boolean):  extract image contents. default: False
 ## returns: JSON object with elements representing information inside the PDF

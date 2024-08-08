@@ -181,7 +181,7 @@ jobs:
           aws-region: us-east-1
           role-to-assume: arn:aws:iam::237550789389:role/aryn-github-integ
       - name: allow read permissions neo4j
-        run: sudo chmod -R 755 /neo4j/import
+        run: sudo chmod -R 777 /neo4j/import
       - name: Run Integ tests
         run: poetry run pytest lib/sycamore/sycamore/tests/integration/connectors/neo4j
       - name: Run Notebook tests

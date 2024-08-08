@@ -88,7 +88,7 @@ def children_to_section(doc: HierarchicalDocument) -> HierarchicalDocument:
 
     
 def test_docset_to_neo4j():
-    path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
+    path = str(TEST_DIR / "resources/data/pdfs/Ray_page11.pdf")
     context = sycamore.init()
     #URI = "neo4j://localhost:7687"
     #AUTH = ("neo4j", "koala-stereo-comedy-spray-figure-6974")
@@ -96,8 +96,8 @@ def test_docset_to_neo4j():
     ds = (
         context.read.binary(path, binary_format="pdf")
         .partition(partitioner=ArynPartitioner(extract_table_structure=True, use_ocr=True, extract_images=True))
-        .map(restructure_doc)
-        .map(children_to_section)
+        #.map(restructure_doc)
+        #.map(children_to_section)
         .explode()
     )
 

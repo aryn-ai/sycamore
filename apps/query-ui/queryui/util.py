@@ -5,7 +5,22 @@ import zipfile
 import pandas as pd
 
 import streamlit as st
+from sycamore.data.document import MetadataDocument
 
+BASE_PROPS = set(
+    [
+        "filename",
+        "filetype",
+        "page_number",
+        "page_numbers",
+        "links",
+        "element_id",
+        "parent_id",
+        "_schema",
+        "_schema_class",
+        "entity",
+    ]
+)
 
 @st.experimental_fragment
 def show_query_traces(trace_dir: str, query_id: str):
@@ -22,9 +37,19 @@ def show_query_traces(trace_dir: str, query_id: str):
                         doc = pickle.load(file)
                     except EOFError:
                         doc = []
+                    
                     # For now, skip over MetadataDocuments.
-                    if "doc_id" not in doc:
+                    if isinstance(doc, MetadataDocument):
                         continue
+                    
+                    if "properties" in doc:
+                        for property in doc["properties"]:
+                            if isinstance(doc["properties"][property], dict):
+                                for nested_property in doc["properties"][property]:
+                                    doc[".".join(["properties", property, nested_property])] = doc["properties"][property][nested_property]
+                            else:
+                                doc[".".join(["properties", property])] = doc["properties"][property]
+                        doc.pop("properties")
                     data_list.append(doc)
 
         df = pd.DataFrame(data_list)

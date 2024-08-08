@@ -3,10 +3,9 @@ from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
 import json
-from typing import List, Union
+from typing import Union
 import logging
 from sycamore.transforms.llm_query import LLMTextQueryAgent
-from sycamore.llms import OpenAI
 from sycamore.llms import LLM
 
 class ExtractKeyValuePair(SingleThreadUser, NonGPUUser, Map):
@@ -32,9 +31,9 @@ class ExtractKeyValuePair(SingleThreadUser, NonGPUUser, Map):
 
     @staticmethod
     def extract_parent_json(input_string: str) -> str:
-        '''
+        """
         Extracts the top level JSONstring from input String.
-        '''
+        """
         stack: list[str] = []
         json_start = None
 

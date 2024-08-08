@@ -1,8 +1,6 @@
-from sycamore.data import Document, Element
+from sycamore.data import Document
 from sycamore.llms import OpenAI
 from sycamore.transforms.extract_key_value_pair import ExtractKeyValuePair
-
-from sycamore.llms import OpenAI
 from sycamore.data.table import Table, TableCell
 
     
@@ -38,7 +36,6 @@ class TestExtractKeyValuePair:
             ],
             "properties": {"int": 0, "float": 3.14, "list": [1, 2, 3, 4], "tuple": (1, "tuple")},
         })
-        # print(self.doc)
         llm = mocker.Mock(sepc=OpenAI)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = {"llm_response": '{"key1":"val1"}'}

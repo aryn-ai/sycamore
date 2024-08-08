@@ -12,14 +12,38 @@ from datetime import date
 
 class Standardizer(ABC):
     """
-    An abstract class for implementing standardizers.
+    An abstract base class for implementing standardizers, which are responsible for
+    transforming specific fields within a document according to certain rules.
     """
 
     @abstractmethod
     def fixer(self, text: str) -> Union[str, Tuple[str, date]]:
+        """
+        Abstract method to be implemented by subclasses to define how the relevant values
+        should be standardized.
+
+        Args:
+            text (str): The text or date string to be standardized.
+
+        Returns:
+            Union[str, Tuple[str, date]]: The standardized text or a tuple containing the standardized date string and date.
+        """
         pass
 
     def standardize(self, doc: Document, key_path: List[str]) -> Document:
+        """
+        Applies the fixer method to a specific field in the document as defined by the key_path.
+
+        Args:
+            doc (Document): The document to be standardized.
+            key_path (List[str]): The path to the field within the document that should be standardized.
+
+        Returns:
+            Document: The document with the standardized field.
+
+        Raises:
+            KeyError: If any of the keys in key_path are not found in the document.
+        """
         current = doc
         for key in key_path[:-1]:
             if current.get(key,None):
@@ -36,7 +60,7 @@ class Standardizer(ABC):
 
 class LocationStandardizer(Standardizer):
     """
-    This Class standardizes the format of US State abbreviations.
+    A standardizer for transforming US state abbreviations in text to their full state names.
     """
 
     state_abbreviations = {
@@ -95,7 +119,13 @@ class LocationStandardizer(Standardizer):
 
     def fixer(self, text: str) -> str:
         """
-        This method replaces the US State abbreviations with full names.
+        Replaces any US state abbreviations in the text with their full state names.
+
+        Args:
+            text (str): The text containing US state abbreviations.
+
+        Returns:
+            str: The text with state abbreviations replaced by full state names.
         """
 
         def replacer(match):
@@ -107,13 +137,22 @@ class LocationStandardizer(Standardizer):
 
 class DateTimeStandardizer(Standardizer):
     """
-    This Class standardizes the format of dateTime.
+    A standardizer for transforming date and time strings into a consistent format.
     """
 
     def fixer(self, raw_dateTime: str) -> Tuple[str, date]:
         """
-        This method standardizes the datetime property of elements by replacing
-        periods with colons and parsing the date as a Date object.
+        Converts a date-time string by replacing periods with colons and parsing it into a date object.
+
+        Args:
+            raw_dateTime (str): The raw date-time string to be standardized.
+
+        Returns:
+            Tuple[str, date]: A tuple containing the standardized date-time string and the corresponding date object.
+
+        Raises:
+            ValueError: If the input string cannot be parsed into a valid date-time.
+            RuntimeError: For any other unexpected errors during the processing.
         """
         try:
             # Clean up the raw_dateTime string
@@ -135,6 +174,20 @@ class DateTimeStandardizer(Standardizer):
             raise RuntimeError(f"Unexpected error occurred while processing: {raw_dateTime}") from e
         
     def standardize(self, doc: Document, key_path: List[str]) -> Document:
+        """
+        Applies the fixer method to a specific date-time field in the document as defined by the key_path,
+        and adds an additional "day" field with the extracted date.
+
+        Args:
+            doc (Document): The document to be standardized.
+            key_path (List[str]): The path to the date-time field within the document that should be standardized.
+
+        Returns:
+            Document: The document with the standardized date-time field and an additional "day" field.
+
+        Raises:
+            KeyError: If any of the keys in key_path are not found in the document.
+        """
         current = doc
         for key in key_path[:-1]:
             if key in current.keys():
@@ -151,9 +204,10 @@ class DateTimeStandardizer(Standardizer):
 
 class StandardizeProperty(Map):
     """
-    A Class for implementing Standardizers. This class runs the
-    standardizer for location or datetime on a DocSet.
+    A class for applying a standardizer to a specific property of documents in a dataset.
 
+    This class allows for the execution of standardization logic, either for location or date-time
+    properties, across a set of documents by utilizing a specified standardizer and path.
     """
 
     def __init__(

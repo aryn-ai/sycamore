@@ -22,12 +22,12 @@ class Standardizer(ABC):
     def standardize(self, doc: Document, key_path: List[str]) -> Document:
         current = doc
         for key in key_path[:-1]:
-            if key in current.keys():
+            if current.get(key,None):
                 current = current[key]
             else:
                 raise KeyError(f"Key {key} not found in the dictionary among {current.keys()}")
         target_key = key_path[-1]
-        if target_key in current.keys():
+        if current.get(target_key,None):
             current[target_key] = self.fixer(current[target_key])
         else:
             raise KeyError(f"Key {target_key} not found in the dictionary among {current.keys()}")

@@ -15,6 +15,14 @@ jobs:
     steps:
       - name: DF-1
         run: df -h
+      - name: du-runner-initial
+        run: du -kx /home/runner | sort -rn | head -20
+      - name: Move cache to /mnt
+        run: sudo mkdir /mnt/cache && sudo chown $(whoami) /mnt/cache && mkdir -p /home/runner/.cache && sudo mount -o bind /mnt/cache /home/runner/.cache
+      # Could free up other stuff as in:
+      # https://github.com/easimon/maximize-build-space/blob/master/action.yml
+      - name: Free up disk space
+        run: sudo rm -rf /usr/local/lib/android
       - name: Checkout
         uses: actions/checkout@v4
       - name: DF-2

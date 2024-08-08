@@ -11,7 +11,6 @@ from sycamore.transforms.partition import ArynPartitioner, SycamorePartitioner
 
 
 ########## THESE FUNCTIONS NEED A HOME
-@pytest.mark.skip
 def restructure_doc(doc: Document) -> HierarchicalDocument:
     doc = HierarchicalDocument(doc.data)     
     return doc
@@ -85,7 +84,7 @@ def children_to_section(doc: HierarchicalDocument) -> HierarchicalDocument:
     return doc
 ##########
 
-
+from . import restructure_doc
     
 def test_docset_to_neo4j():
     path = str(TEST_DIR / "resources/data/pdfs/Ray_page11.pdf")
@@ -98,7 +97,7 @@ def test_docset_to_neo4j():
         context.read.binary(path, binary_format="pdf")
         .partition(partitioner=ArynPartitioner(extract_table_structure=True, use_ocr=True, extract_images=True, aryn_api_key=api_key))
         .map(restructure_doc)
-        .map(children_to_section)
+        #.map(children_to_section)
         .explode()
     )
 

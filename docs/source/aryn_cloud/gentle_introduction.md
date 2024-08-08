@@ -18,6 +18,9 @@ from aryn_sdk.partition import partition_file, tables_to_pandas
 import pandas as pd
 from io import BytesIO
 
+file = open('my-document.pdf', 'rb')
+aryn_api_key = 'YOUR-KEY-HERE'
+
 ## Make a call to the Aryn Partitioning Service (APS) 
 ## param extract_table_structure (boolean): extract tables and their structural content. default: False
 ## param use_ocr (boolean): extract text using an OCR model instead of extracting embedded text in PDF. default: False
@@ -122,11 +125,14 @@ from aryn_sdk.partition import partition_file, tables_to_pandas
 import pandas as pd
 from io import BytesIO
 
+file = open('my-document.pdf', 'rb')
+aryn_api_key = 'YOUR-KEY-HERE'
+
 ## Make a call to the Aryn Partitioning Service (APS) 
 ## param use_ocr (boolean): extract text using an OCR model instead of extracting embedded text in PDF. default: False
 ## param extract_images (boolean):  extract image contents. default: False
 ## returns: JSON object with elements representing information inside the PDF
-partitioned_file = partition_file(curr_file, aryn_api_key, extract_images=True, use_ocr=True)
+partitioned_file = partition_file(file, aryn_api_key, extract_images=True, use_ocr=True)
 ```
 
 If you inspect the partitioned_file variable, you’ll notice that it’s a large JSON object with details about all the components in the PDF (checkout [this page](./aps_output.md) to understand the schema of the returned JSON object in detail).  Below, we highlight  the ‘Image’ element that contains the information about some of the images in the page: 

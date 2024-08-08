@@ -1,5 +1,5 @@
 ## A Gentle Introduction to the Aryn Partitioning Service 
-You can use the Aryn Partitioning Service to easily chunk and extract data from complex PDFs. The Partitioning Service can extract paragraphs, tables and  images and returns detailed information about the components it has just identified in a JSON object.  The following two sections will walk you through two examples where we segment  PDF documents and extract a table and an image from those documents using the python aryn-sdk.
+You can use the Aryn Partitioning Service to easily chunk and extract data from complex PDFs. The Partitioning Service can extract paragraphs, tables and images, returning detailed information about the components it has just identified in a JSON object.  The following two sections will walk you through two examples where we segment  PDF documents and extract a table and an image from those documents using the python aryn-sdk.
 
 ### Extracting Tables from a PDF
 
@@ -12,7 +12,7 @@ We’ll go through the important code snippets below  to see what’s going on. 
 
 Let’s focus on the following code that makes a call to the Aryn Partitioning Service: 
 
-```
+```python
 import aryn_sdk
 from aryn_sdk.partition import partition_file, tables_to_pandas
 import pandas as pd
@@ -22,7 +22,7 @@ from io import BytesIO
 ## param extract_table_structure (boolean): extract tables and their structural content. default: False
 ## param use_ocr (boolean): extract text using an OCR model instead of extracting embedded text in PDF. default: False
 ## returns: JSON object with elements representing information inside the PDF
-partitioned_file = partition_file(curr_file, aryn_api_key, extract_table_structure=True, use_ocr=True)
+partitioned_file = partition_file(file, aryn_api_key, extract_table_structure=True, use_ocr=True)
 ```
 
 If you inspect the partitioned_file variable, you’ll notice that it’s a large JSON object with details about all the components in the PDF (checkout [this page](./aps_output.md) to understand the schema of the returned JSON object in detail).  Below, we highlight  the ‘table’ element that contains the information about the table in the page.
@@ -68,7 +68,7 @@ If you inspect the partitioned_file variable, you’ll notice that it’s a larg
      
      ... 
      
-     }}
+     ]}}
 
 ```
 
@@ -83,13 +83,13 @@ In particular let's look at the “cells” field  which is an array of cell obj
        'y1': 0.11341398759321733,
        'x2': 0.40610217823701744,
        'y2': 0.12250489668412642},
-      'properties': {}}
+      'properties': {}} ... }
 
 ```
 
 Here we've detected the first cell, its bounding box (which indicates the coordinates of the cell in the PDF), whether it’s a header cell and its contents. You can then process this JSON however you’d like for further analysis. In [the notebook](https://colab.research.google.com/drive/1ZkJ9clSVVvJsNPRlWXpplfs1U9W4ZSdH?usp=sharing)  we use the tables_to_pandas function to turn the JSON into a pandas dataframe and then perform some analysis on it:
 
-```
+```python
 pandas = tables_to_pandas(partitioned_file)
 
 tables = []
@@ -116,7 +116,7 @@ In [this example](https://colab.research.google.com/drive/1WVxFB8MKUUM16m6BmqxEt
 
 Let’s focus on the following code that makes a call to the Aryn Partitioning Service: 
 
-```
+```python
 import aryn_sdk
 from aryn_sdk.partition import partition_file, tables_to_pandas
 import pandas as pd
@@ -167,7 +167,8 @@ If you inspect the partitioned_file variable, you’ll notice that it’s a larg
     },
     "text_representation": "",
     "binary_representation": "AAAAAA.."
-    },
+    }, ...
+]
 ```
 
 In particular let's look at the element which highlights the Image that has been detected. 
@@ -198,7 +199,7 @@ In particular let's look at the element which highlights the Image that has been
 
 This JSON object represents one of the images in the PDF. You’ll notice that the image’s binary representation, its bounding box (which indicates the coordinates of the image in the PDF), and certain other properties (image_mode, image_size etc.) are returned back. You can then process this JSON however you’d like for further analysis. In the notebook, we use the Pillow Image module from python to display the extracted image on its own. 
 
-```
+```python
 ## extract all the images from the JSON and print out the JSON representation of the first image
 images = [e for e in partitioned_file['elements'] if e['type'] == 'Image']
 first_image = images[0]

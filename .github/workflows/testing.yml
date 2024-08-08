@@ -180,9 +180,9 @@ jobs:
         with:
           aws-region: us-east-1
           role-to-assume: arn:aws:iam::237550789389:role/aryn-github-integ
+      - name: allow read permissions neo4j
+        run: sudo chmod -R 755 /neo4j/import
       - name: Run Integ tests
-        run: |
-        sudo chmod -R 755 /neo4j/import
-        poetry run pytest lib/sycamore/sycamore/tests/integration/connectors/neo4j
+        run: poetry run pytest lib/sycamore/sycamore/tests/integration/connectors/neo4j
       - name: Run Notebook tests
         run: poetry run pytest --nbmake --nbmake-timeout=600 notebooks/default-prep-script.ipynb notebooks/jupyter_dev_example.ipynb notebooks/metadata-extraction.ipynb notebooks/sycamore_demo.ipynb notebooks/tutorial.ipynb

@@ -100,4 +100,6 @@ def test_to_neo4j():
         .explode()
     )
 
-    ds.write.neo4j(uri=URI,auth=AUTH,database="neo4j",import_dir="/neo4j/import")
+    ds.take_all()
+
+    #ds.write.neo4j(uri=URI,auth=AUTH,database="neo4j",import_dir="/home/admin/neo4j/import")

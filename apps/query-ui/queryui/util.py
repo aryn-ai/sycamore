@@ -6,6 +6,19 @@ import pandas as pd
 
 import streamlit as st
 
+BASE_PROPS = set(
+    [
+        "filename",
+        "filetype",
+        "page_number",
+        "page_numbers",
+        "links",
+        "element_id",
+        "parent_id",
+        "_schema",
+        "_schema_class",
+    ]
+)
 
 @st.experimental_fragment
 def show_query_traces(trace_dir: str, query_id: str):
@@ -26,18 +39,21 @@ def show_query_traces(trace_dir: str, query_id: str):
                     # For now, skip over MetadataDocuments.
                     if "doc_id" not in doc:
                         continue
-
+                    
+                    demo_list = {}
                     if "properties" in doc:
                         for property in doc["properties"]:
+                            if property in BASE_PROPS:
+                                continue
                             if isinstance(doc["properties"][property], dict):
                                 for nested_property in doc["properties"][property]:
-                                    doc[".".join(["properties", property, nested_property])] = doc["properties"][
+                                    demo_list[".".join(["properties", property, nested_property])] = doc["properties"][
                                         property
                                     ][nested_property]
                             else:
-                                doc[".".join(["properties", property])] = doc["properties"][property]
-                        doc.pop("properties")
-                    data_list.append(doc)
+                                demo_list[".".join(["properties", property])] = doc["properties"][property]
+                    demo_list["text_representation"] = doc["text_representation"]
+                    data_list.append(demo_list)
 
         df = pd.DataFrame(data_list)
         st.write(f"Docset after node {node_id} — {len(df)} documents")

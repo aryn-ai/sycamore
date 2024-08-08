@@ -235,7 +235,7 @@ class Neo4jWriteCSV(MapBatch, Write):
         self._name = "Neo4jWriter"
         super().__init__(plan, f=self._write_docs_tt, **kwargs)
 
-    def _parse_docs(self, docs):
+    def _parse_docs(docs):
         from sycamore.connectors.common import flatten_data
 
         include_nodes = ["type", "bbox", "text_representation"]

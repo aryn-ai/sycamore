@@ -130,7 +130,7 @@ def run_query():
     show_code(code)
 
     st.write(f"Query ID `{st.session_state.query_id}`\n")
-    
+
     if not st.session_state.plan_only:
         with st.spinner("Running query..."):
             st.session_state.query_id, result = run_plan(client, plan)

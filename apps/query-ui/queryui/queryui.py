@@ -22,6 +22,7 @@ from sycamore.query.operators.logical_operator import LogicalOperator
 
 DEFAULT_S3_CACHE_PATH = "s3://aryn-temp/llm_cache/luna/ntsb"
 
+
 def show_schema(container: Any, schema: Dict[str, Tuple[str, Set[str]]]):
     # Make a table.
     table_data = []
@@ -123,7 +124,8 @@ def run_query(query: str, index: str, plan_only: bool, do_trace: bool, use_cache
     if use_cache:
         st.write(f"Using cache at `{st.session_state.s3_cache_path}`")
     client = SycamoreQueryClient(
-        trace_dir=st.session_state.trace_dir if do_trace else None, s3_cache_path=st.session_state.s3_cache_path if use_cache else None
+        trace_dir=st.session_state.trace_dir if do_trace else None,
+        s3_cache_path=st.session_state.s3_cache_path if use_cache else None,
     )
     with st.spinner("Getting schema..."):
         schema = client.get_opensearch_schema(index)

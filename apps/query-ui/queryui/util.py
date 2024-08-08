@@ -21,6 +21,7 @@ BASE_PROPS = set(
     ]
 )
 
+
 @st.experimental_fragment
 def show_query_traces(trace_dir: str, query_id: str):
     """Show the query traces in the given trace_dir."""
@@ -36,16 +37,18 @@ def show_query_traces(trace_dir: str, query_id: str):
                         doc = pickle.load(file)
                     except EOFError:
                         doc = []
-                    
+
                     # For now, skip over MetadataDocuments.
                     if "doc_id" not in doc:
                         continue
-                    
+
                     if "properties" in doc:
                         for property in doc["properties"]:
                             if isinstance(doc["properties"][property], dict):
                                 for nested_property in doc["properties"][property]:
-                                    doc[".".join(["properties", property, nested_property])] = doc["properties"][property][nested_property]
+                                    doc[".".join(["properties", property, nested_property])] = doc["properties"][
+                                        property
+                                    ][nested_property]
                             else:
                                 doc[".".join(["properties", property])] = doc["properties"][property]
                         doc.pop("properties")

@@ -128,8 +128,8 @@ jobs:
         image: neo4j:5.21.0
         env:
           NEO4J_AUTH: neo4j/koala-stereo-comedy-spray-figure-6974  # Set the default credentials for Neo4j
-          # NEO4J_dbms_memory_heap_initial__size: 3G  # Set initial heap size
-          # NEO4J_dbms_memory_heap_max__size: 4G  # Set maximum heap size
+          NEO4J_dbms_memory_heap_initial__size: 2G  # Set initial heap size
+          NEO4J_dbms_memory_heap_max__size: 2G  # Set maximum heap size
           # NEO4J_dbms_ssl_policy_bolt_enabled: false
           # NEO4J_dbms_ssl_policy_https_enabled: false
           # NEO4J_dbms_security_procedures_unrestricted: "apoc.*"

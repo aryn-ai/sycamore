@@ -7,7 +7,7 @@ from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.extract_graph import GraphMetadata, MetadataExtractor, GraphEntity, EntityExtractor
 from sycamore.data import HierarchicalDocument, Document
 import os
-from sycamore.transforms.partition import ArynPartitioner
+from sycamore.transforms.partition import ArynPartitioner, SycamorePartitioner
 
 
 def test_to_neo4j():
@@ -95,13 +95,13 @@ def test_to_neo4j():
 
     ds = (
         context.read.binary(path, binary_format="pdf")
-        .partition(partitioner=ArynPartitioner(extract_table_structure=True, use_ocr=True, extract_images=True, aryn_api_key=api_key))
+        .partition(partitioner=SycamorePartitioner(extract_table_structure=True, use_ocr=True, extract_images=True), num_gpus=0.2)
         .map(restructure_doc)
         .map(children_to_section)
         .explode()
     )
 
-    ds.write.neo4j(uri=URI,auth=AUTH,database=DATABASE,import_dir="/neo4j/import")
+    ds.write.neo4j(uri=URI,auth=AUTH,database=DATABASE,import_dir="/home/admin/neo4j/import")
 
     from neo4j import GraphDatabase
     driver = GraphDatabase.driver(URI, auth=AUTH)

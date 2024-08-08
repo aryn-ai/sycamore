@@ -340,7 +340,7 @@ class DocSet:
 
     def extract_key_value_pair(self, property_name: str, llm: LLM, **resource_args) -> list[Document]:
         """
-        Parses table to create property populated with its key value pair.
+        Parses tables to create properties populated with their key-value pairs.
 
         Args: 
             element_type: Element type from which property is to be copied.

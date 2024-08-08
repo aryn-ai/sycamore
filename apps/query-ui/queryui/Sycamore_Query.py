@@ -35,7 +35,7 @@ def get_opensearch_indices() -> Set[str]:
 
 
 def generate_code(client: SycamoreQueryClient, plan: LogicalPlan) -> str:
-    _, code = client.run_plan(plan, dry_run=True)
+    st.session_state.query_id, code = client.run_plan(plan, dry_run=True)
     return code
 
 
@@ -68,6 +68,10 @@ def show_code(code: str):
             if code_locals and "result" in code_locals:
                 st.subheader("Result", divider="rainbow")
                 st.success(code_locals["result"])
+            if st.session_state.do_trace:
+                assert st.session_state.trace_dir
+                st.subheader("Traces", divider="blue")
+                show_query_traces(st.session_state.trace_dir, st.session_state.query_id)
 
 
 def show_dag(plan: LogicalPlan):
@@ -108,11 +112,8 @@ def show_dag(plan: LogicalPlan):
 def run_query():
     """Run the given query."""
     if st.session_state.do_trace:
-        if not st.session_state.plan_only:
-            assert st.session_state.trace_dir
-            st.write(f"Writing execution traces to `{st.session_state.trace_dir}`")
-        else:
-            st.warning("Tracing currently not supported with plan only")
+        assert st.session_state.trace_dir
+        st.write(f"Writing execution traces to `{st.session_state.trace_dir}`")
     if st.session_state.s3_cache_path:
         st.write(f"Using S3 cache at `{st.session_state.s3_cache_path}`")
 
@@ -128,16 +129,17 @@ def run_query():
     code = generate_code(client, plan)
     show_code(code)
 
+    st.write(f"Query ID `{st.session_state.query_id}`\n")
+
     if not st.session_state.plan_only:
         with st.spinner("Running query..."):
-            query_id, result = run_plan(client, plan)
-        st.write(f"Query ID `{query_id}`\n")
+            st.session_state.query_id, result = run_plan(client, plan)
         st.subheader("Result", divider="rainbow")
         st.success(result)
         if st.session_state.do_trace:
             assert st.session_state.trace_dir
             st.subheader("Traces", divider="blue")
-            show_query_traces(st.session_state.trace_dir, query_id)
+            show_query_traces(st.session_state.trace_dir, st.session_state.query_id)
 
 
 st.title("Sycamore Query")

@@ -24,7 +24,7 @@ def get_str_for_dict(value: Dict):
 
 class PhysicalOperator:
     """
-    This interface represents a physical operator that execute a logical plan operator.
+    This interface represents a physical operator that executes a logical plan operator.
 
     Args:
         logical_node (LogicalOperator): The logical query plan node to execute. Contains runtime params based on type.

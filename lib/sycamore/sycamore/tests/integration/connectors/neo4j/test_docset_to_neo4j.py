@@ -90,6 +90,7 @@ def test_to_neo4j():
     context = sycamore.init()
     URI = "neo4j://localhost:7687"
     AUTH = ("neo4j", "koala-stereo-comedy-spray-figure-6974")
+    DATABASE = "neo4j"
     api_key = os.environ.get("ARYN_API_KEY")
 
     ds = (
@@ -100,9 +101,28 @@ def test_to_neo4j():
         .explode()
     )
 
-    #ds.execute.materialize()
+    ds.write.neo4j(uri=URI,auth=AUTH,database=DATABASE,import_dir="/home/admin/neo4j/import")
 
-    #ds.plan.execute().materialize()
-    #ds.take_all()
+    from neo4j import GraphDatabase
+    driver = GraphDatabase.driver(URI, auth=AUTH)
+    session = driver.session(database=DATABASE)
 
-    ds.write.neo4j(uri=URI,auth=AUTH,database="neo4j",import_dir="/neo4j/import")
+    
+    query1 = """
+    MATCH (n:ELEMENT {type: 'table'})
+    RETURN COUNT(n) AS numTables
+    """
+    query2 = """
+    MATCH (n:DOCUMENT)
+    RETURN COUNT(n) AS numDocuments
+    """
+    query3 = """
+    MATCH (n:SECTION)
+    RETURN COUNT(n) AS numSections
+    """
+    assert session.run(query1).single()["numTables"] == 2
+    assert session.run(query2).single()["numDocuments"] == 1
+    assert session.run(query3).single()["numSections"] == 4
+
+    session.close()
+    driver.close()

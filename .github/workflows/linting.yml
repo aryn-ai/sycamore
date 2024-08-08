@@ -13,16 +13,24 @@ jobs:
   mypy:
     runs-on: ubuntu-latest
     steps:
+      - name: DF-1
+        run: df -h
       - name: Checkout
         uses: actions/checkout@v4
+      - name: DF-2
+        run: df -h
       - name: Install poetry
         run: pipx install poetry
       - uses: actions/setup-python@v4
         with:
           python-version: '3.9'
           cache: 'poetry'
+      - name: DF-3
+        run: df -h
       - name: Install sycamore
         run: poetry install
+      - name: DF-4
+        run: df -h
       - name: Run mypy
         run: |
           mkdir .mypy_cache/

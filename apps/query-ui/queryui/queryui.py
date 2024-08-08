@@ -160,7 +160,7 @@ def run_query(query: str, index: str, plan_only: bool, do_trace: bool, use_cache
                     st.subheader("Result", divider="rainbow")
                     st.success(code_locals["result"])
                 if do_trace:
-                    show_traces()
+                    show_traces(st.session_state.trace_dir)
 
 
 client = SycamoreQueryClient()

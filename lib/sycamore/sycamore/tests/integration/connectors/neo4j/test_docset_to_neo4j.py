@@ -100,6 +100,10 @@ def test_to_neo4j():
         .explode()
     )
 
-    ds.take_all()
+    #ds.execute.materialize()
+
+    ds.plan.execute().materialize()
+
+    #ds.take_all()
 
     #ds.write.neo4j(uri=URI,auth=AUTH,database="neo4j",import_dir="/home/admin/neo4j/import")

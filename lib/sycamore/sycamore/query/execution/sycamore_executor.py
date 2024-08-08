@@ -195,7 +195,8 @@ class SycamoreExecutor:
         self.node_id_to_code[logical_node.node_id] = code
         self.node_id_to_node[logical_node.node_id] = logical_node
 
-        if not self.codegen_mode:
+        result = "visited"
+        if not self.codegen_mode and not self.dry_run:
             result = operation.execute()
             if trace_dir and hasattr(result, "materialize"):
                 log.info("Materializing result", trace_dir=trace_dir)

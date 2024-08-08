@@ -7,16 +7,14 @@ from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.extract_graph import GraphMetadata, MetadataExtractor, GraphEntity, EntityExtractor
 from sycamore.data import HierarchicalDocument, Document
 import os
-from sycamore.transforms.partition import ArynPartitioner, SycamorePartitioner
+from sycamore.transforms.partition import ArynPartitioner
 
 
 ########## THESE FUNCTIONS NEED A HOME
-@pytest.mark.skip
 def restructure_doc(doc: Document) -> HierarchicalDocument:
     doc = HierarchicalDocument(doc.data)     
     return doc
 
-@pytest.mark.skip
 def children_to_section(doc: HierarchicalDocument) -> HierarchicalDocument:
     import uuid
     
@@ -84,10 +82,8 @@ def children_to_section(doc: HierarchicalDocument) -> HierarchicalDocument:
     doc.children = sections
     return doc
 ##########
-
-from . import restructure_doc, children_to_section
     
-def test_docset_to_neo4j():
+def pdf_to_neo4j():
     path = str(TEST_DIR / "resources/data/pdfs/Ray_page11.pdf")
     context = sycamore.init()
     #URI = "neo4j://localhost:7687"

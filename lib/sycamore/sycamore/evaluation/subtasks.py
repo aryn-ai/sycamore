@@ -50,7 +50,7 @@ class SubtaskExecutor:
                     "question": document["question"],
                     "task_descriptions": self._subtask_data["task_descriptions"],
                 }
-            )
+            ).replace("\n", "")
 
             formulas = self._subtask_data["task_formulas"][task_id].get("formulas", [])
             instructions = self._subtask_data["task_formulas"][task_id].get("instructions", "")
@@ -60,7 +60,7 @@ class SubtaskExecutor:
                 doc.text_representation = formula
                 doc.parent_id = document.doc_id
                 doc.properties["instructions"] = instructions
-                doc.properties["filters"] = document["filters"]
+                doc.properties["filters"] = document["filters"] if "filters" in document else {}
                 doc.properties["subtask_filters"] = document.properties["subtask_filters"]
                 f_list.append(doc)
 
@@ -86,7 +86,7 @@ class SubtaskExecutor:
                 subtask + "Return only the code " + term + " alongside the amount found and no additional information."
             )
 
-            if "filters" in document.properties:
+            if "filters" in document.properties and document.properties["filters"]:
                 elem.properties = {"filters": document.properties["filters"]}
 
             document.elements.append(elem)

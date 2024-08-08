@@ -83,7 +83,7 @@ class EvaluationPipeline:
                 if formula:
                     subtask_str += " Formula: " + formula + "; Values: "
                     for elem in document.elements:
-                        subtask_str += elem.properties["generated_answer"]
+                        subtask_str += elem.properties["generated_answer"] + ", "
             subtask_str += " Instructions: " + instructions + " Use this information to answer the following question. "
 
             doc["question"] = subtask_str.format(**doc.properties["subtask_filters"]) + doc["question"]

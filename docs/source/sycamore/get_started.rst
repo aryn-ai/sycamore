@@ -31,5 +31,5 @@ Here are a few good notebooks to start with:
 
    ./concepts.md
    ./hardware.md
-   ./configuration.md
+   ./ai_configuration.md
    

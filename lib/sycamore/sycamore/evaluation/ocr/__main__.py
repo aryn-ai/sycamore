@@ -4,15 +4,21 @@ from ray.data import ActorPoolStrategy
 import sycamore
 from sycamore.context import ExecMode
 from sycamore.evaluation.ocr.models import PaddleOCR, EasyOCR, Tesseract, LegacyOCR, ExtractOCRFromImage
-from sycamore.evaluation.ocr.metrics import CharacterErrorRate, WordErrorRate, MatchErrorRate, apply_metric
-
+from sycamore.evaluation.ocr.metrics import (
+    CharacterErrorRate,
+    WordErrorRate,
+    MatchErrorRate,
+    WordInformationLost,
+    apply_metric,
+)
+import time
 from sycamore.evaluation.ocr.data import BaseOCREvalScan, HandwritingOCREvalScan, InvoiceOCREvalScan
 
 DATASETS = {"base": BaseOCREvalScan, "handwriting": HandwritingOCREvalScan, "invoice": InvoiceOCREvalScan}
 
 MODELS = {"paddle": PaddleOCR, "easy": EasyOCR, "tesseract": Tesseract, "legacy": LegacyOCR}
 
-METRICS = [CharacterErrorRate(), MatchErrorRate(), WordErrorRate()]
+METRICS = [CharacterErrorRate(), MatchErrorRate(), WordErrorRate(), WordInformationLost()]
 
 model_actorpool = ActorPoolStrategy(size=2)
 model_kwargs = {"device": "mps"}
@@ -29,20 +35,14 @@ model = MODELS.get(args.model, EasyOCR) if args.model else EasyOCR
 limit = args.limit if not args.debug else args.debug
 
 # ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
+curr_time = time.time()
 ctx = sycamore.init()
-sc = dataset().to_docset(ctx)  # type: ignore
-sc = sc.limit(limit)
-measured = sc.map_batch(ExtractOCRFromImage(model()), compute=model_actorpool)
+pipeline = dataset().to_docset(ctx)  # type: ignore
+pipeline = pipeline.limit(limit)
+pipeline = pipeline.map_batch(ExtractOCRFromImage(model()), compute=model_actorpool)
 for m in METRICS:
-    measured = measured.map(apply_metric(m))
-
-# if debug:
-#     doc = measured.take(1)[0]
-#     ed = OCREvalDocument(doc.data)
-#     del ed["image"]
-#     # del ed.gt_text if "gt_text" in ed
-#     print(ed.data)
-
-aggs = measured.plan.execute().aggregate(*[m.to_aggregate_fn() for m in METRICS])
+    pipeline = pipeline.map(apply_metric(m))
+aggs = pipeline.plan.execute().aggregate(*[m.to_aggregate_fn() for m in METRICS])
+aggs["latency"] = time.time() - curr_time
 print("=" * 80)
 print(aggs)

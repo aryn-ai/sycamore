@@ -99,19 +99,25 @@ class LegacyOCR(OCRModel):
 
 class PaddleOCR(OCRModel):
     def __init__(self):
-        from paddleocr import PaddleOCR
-
-        self.reader = PaddleOCR(lang="en", use_gpu=False)
+        pass
 
     def get_text(
         self,
         image: Image.Image,
     ) -> str:
+        from paddleocr import PaddleOCR
+
+        self.reader = PaddleOCR(lang="en", use_gpu=False)
         bytearray = BytesIO()
         image.save(bytearray, format="PNG")
-        return self.reader.ocr(bytearray.getvalue(), rec=False)
+        result = self.reader.ocr(bytearray.getvalue(), rec=True, det=True, cls=False)
+        return " ".join(value[1][0] for value in result[0])
 
     def get_boxes(self, image: Image.Image) -> list[Union[dict[str, Any], list]]:
+        from paddleocr import PaddleOCR
+
+        self.reader = PaddleOCR(lang="en", use_gpu=False)
         bytearray = BytesIO()
         image.save(bytearray, format="PNG")
-        return self.reader.ocr(bytearray.getvalue(), det=False)
+        result = self.reader.ocr(bytearray.getvalue(), rec=False, det=True, cls=False)
+        return result[0]

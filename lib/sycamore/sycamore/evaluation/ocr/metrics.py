@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from ray.data.aggregate import AggregateFn
-from jiwer import mer, wer, cer
+from jiwer import mer, wer, cer, wil
 from sycamore.data import Document, MetadataDocument
 from typing import Optional, Union, Callable
 from sycamore.evaluation.ocr.data import OCREvalDocument
@@ -67,7 +67,7 @@ class CharacterErrorRate(OCRMetric):
 
 
 class WordErrorRate(OCRMetric):
-    def score(self, source_string, predicted_string) -> float:
+    def score(self, source_string: str, predicted_string: str) -> float:
         return wer(source_string, predicted_string)
 
     def get_name(self) -> str:
@@ -75,8 +75,16 @@ class WordErrorRate(OCRMetric):
 
 
 class MatchErrorRate(OCRMetric):
-    def score(self, source_string, predicted_string) -> float:
+    def score(self, source_string: str, predicted_string: str) -> float:
         return mer(source_string, predicted_string)
 
     def get_name(self) -> str:
         return "Match Error Rate"
+
+
+class WordInformationLost(OCRMetric):
+    def score(self, source_string: str, predicted_string: str) -> float:
+        return wil(source_string, predicted_string)
+
+    def get_name(self) -> str:
+        return "Word Information Lost"

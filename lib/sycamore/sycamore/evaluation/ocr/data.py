@@ -8,6 +8,8 @@ import io
 from sycamore.docset import DocSet
 from sycamore.context import Context
 from sycamore.plan_nodes import Scan
+import json
+import ast
 
 
 class OCREvalDocument(Document):
@@ -79,11 +81,11 @@ class OCREvalScan(Scan):
 class InvoiceOCREvalScan(OCREvalScan):
 
     @staticmethod
-    def _ray_row_to_document(self, row) -> dict[str, bytes]:
-        img = Image.open(io.BytesIO(row["image"])).convert("RGB")
+    def _ray_row_to_document(row) -> dict[str, bytes]:
+        img = Image.open(io.BytesIO(row["image"]["bytes"])).convert("RGB")
         eval_doc = OCREvalDocument()
         eval_doc.image = img
-        eval_doc.gt_text = " ".join(row["raw_data"]["ocr_words"])
+        eval_doc.gt_text = " ".join(ast.literal_eval(json.loads(row["raw_data"])["ocr_words"]))
         return {"doc": eval_doc.serialize()}
 
     def execute(self, **kwargs) -> Dataset:
@@ -96,11 +98,11 @@ class InvoiceOCREvalScan(OCREvalScan):
 class HandwritingOCREvalScan(OCREvalScan):
 
     @staticmethod
-    def _ray_row_to_document(self, row) -> dict[str, bytes]:
-        img = Image.open(io.BytesIO(row["image"])).convert("RGB")
+    def _ray_row_to_document(row) -> dict[str, bytes]:
+        img = Image.open(io.BytesIO(row["image"]["bytes"])).convert("RGB")
         eval_doc = OCREvalDocument()
         eval_doc.image = img
-        eval_doc.gt_text = " ".join(row["raw_data"]["ocr_words"])
+        eval_doc.gt_text = row["text"]
         return {"doc": eval_doc.serialize()}
 
     def execute(self, **kwargs) -> Dataset:
@@ -117,7 +119,7 @@ class BaseOCREvalScan(OCREvalScan):
         img = Image.open(io.BytesIO(row["cropped_image"]["bytes"])).convert("RGB")
         eval_doc = OCREvalDocument()
         eval_doc.image = img
-        eval_doc.gt_text = "".join(row["answer"])
+        eval_doc.gt_text = "".join(row["answer"]) if isinstance(row["answer"], list) else row["answer"]
         return {"doc": eval_doc.serialize()}
 
     def execute(self, **kwargs) -> Dataset:

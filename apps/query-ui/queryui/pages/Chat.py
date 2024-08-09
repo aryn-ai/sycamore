@@ -4,7 +4,7 @@ from typing import List
 
 import streamlit as st
 from openai import OpenAI
-from openai.types.chat import ChatCompletionToolParam, ChatCompletionUserMessageParam, ChatCompletionToolMessageParam
+from openai.types.chat import ChatCompletionToolParam
 from sycamore.query.client import SycamoreQueryClient
 
 from util import get_opensearch_indices, generate_plan, run_plan, show_dag
@@ -83,7 +83,6 @@ def do_query():
             tool_call_id = tool_calls[0].id
             tool_function_name = tool_calls[0].function.name
             tool_args = json.loads(tool_calls[0].function.arguments)
-            # st.write(f"Calling tool `{tool_function_name}` with args `{tool_args}`")
             if tool_function_name == "queryDataSource":
                 query = tool_args["query"]
                 index = tool_args["index"]
@@ -92,8 +91,6 @@ def do_query():
                 tool_response = get_data_source_indices()
             else:
                 tool_response = f"Unknown tool: {tool_function_name}"
-
-            # st.write(f"Got tool response: `{tool_response}`")
 
             st.session_state.messages.append(
                 {
@@ -128,8 +125,6 @@ if "use_cache" not in st.session_state:
     st.session_state.use_cache = True
 
 # Display chat messages from history on app rerun
-# st.write(st.session_state.messages)
-
 for message in st.session_state.messages:
     if message.get("role") not in ["user", "assistant"]:
         continue
@@ -138,9 +133,7 @@ for message in st.session_state.messages:
 
 # Accept user input
 if prompt := st.chat_input("What is up?"):
-    # Add user message to chat history
     st.session_state.messages.append({"role": "user", "content": prompt})
-    # Display user message in chat message container
     with st.chat_message("user"):
         st.markdown(prompt)
 

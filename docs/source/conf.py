@@ -36,7 +36,7 @@ smartquotes = False
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "furo"
-html_title = "Sycamore"
+html_title = "Aryn"
 html_static_path = ["_static"]
 html_favicon = "images/favicon.ico"
 html_theme_options = {

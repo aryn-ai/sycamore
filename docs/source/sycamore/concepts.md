@@ -67,6 +67,4 @@ You can also read data from these target sources into DocSets. This could be use
 
 ## Lazy Execution
 
-In Sycamore, DocSet evaluation is lazy, which means that transforms on DocSets aren’t executed until needed by an operation like ```show()``` or ```write()```. This lazy execution framework provides opportunities to sanitize and optimize the execution plan before it runs. For instance, we could convert the above example DocSet transformations into the following execution plan:
-
-![Untitled](imgs/query_execution.svg)
+In Sycamore, DocSet evaluation is lazy, which means that transforms on DocSets aren’t executed until needed by an operation like ```show()``` or ```write()```. This lazy execution framework provides opportunities to sanitize and optimize the execution plan before it runs.

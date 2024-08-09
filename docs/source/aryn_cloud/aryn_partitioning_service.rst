@@ -9,7 +9,7 @@ If you'd like to experiment with the service, you can use the UI in the `Aryn Pl
 .. toctree::
    :maxdepth: 1
 
-   ./gentle_introduction.md
+   ./get_started.md
    ./accessing_the_partitioning_service.rst
    ./specifying_options.rst
    ./aps_output.md

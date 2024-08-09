@@ -12,6 +12,7 @@ from sycamore.evaluation.ocr.metrics import (
     apply_metric,
 )
 import time
+import json
 from sycamore.evaluation.ocr.data import BaseOCREvalScan, HandwritingOCREvalScan, InvoiceOCREvalScan
 
 DATASETS = {"base": BaseOCREvalScan, "handwriting": HandwritingOCREvalScan, "invoice": InvoiceOCREvalScan}
@@ -35,14 +36,39 @@ model = MODELS.get(args.model, EasyOCR) if args.model else EasyOCR
 limit = args.limit if not args.debug else args.debug
 
 # ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
-curr_time = time.time()
-ctx = sycamore.init()
-pipeline = dataset().to_docset(ctx)  # type: ignore
-pipeline = pipeline.limit(limit)
-pipeline = pipeline.map_batch(ExtractOCRFromImage(model()), compute=model_actorpool)
-for m in METRICS:
-    pipeline = pipeline.map(apply_metric(m))
-aggs = pipeline.plan.execute().aggregate(*[m.to_aggregate_fn() for m in METRICS])
-aggs["latency"] = time.time() - curr_time
-print("=" * 80)
-print(aggs)
+# curr_time = time.time()
+# ctx = sycamore.init()
+# pipeline = dataset().to_docset(ctx)  # type: ignore
+# pipeline = pipeline.limit(limit)
+# pipeline = pipeline.map_batch(ExtractOCRFromImage(model()), compute=model_actorpool)
+# for m in METRICS:
+#     pipeline = pipeline.map(apply_metric(m))
+# aggs = pipeline.plan.execute().aggregate(*[m.to_aggregate_fn() for m in METRICS])
+# aggs["latency"] = time.time() - curr_time
+# print("=" * 80)
+# print(aggs)
+
+all_results = {}
+
+for dataset_name, dataset_class in DATASETS.items():
+    all_results[dataset_name] = {}
+    for model_name, model_class in MODELS.items():
+        print(f"Running evaluation for dataset '{dataset_name}' and model '{model_name}'")
+
+        curr_time = time.time()
+        ctx = sycamore.init()
+        pipeline = dataset_class().to_docset(ctx)  # type: ignore
+        pipeline = pipeline.limit(limit)
+        pipeline = pipeline.map_batch(ExtractOCRFromImage(model_class()), compute=model_actorpool)
+        for m in METRICS:
+            pipeline = pipeline.map(apply_metric(m))
+        aggs = pipeline.plan.execute().aggregate(*[m.to_aggregate_fn() for m in METRICS])
+        aggs["latency"] = time.time() - curr_time
+
+        print("=" * 80)
+        print(aggs)
+        all_results[dataset_name][model_name] = aggs
+
+# Write the results to a JSON file
+with open("ocr_evaluation_results.json", "w") as f:
+    json.dump(all_results, f, indent=4)

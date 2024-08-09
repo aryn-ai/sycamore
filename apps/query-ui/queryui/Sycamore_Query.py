@@ -3,35 +3,15 @@ from typing import Any, Dict, Set, Tuple
 
 import streamlit as st
 from streamlit_ace import st_ace
-from streamlit_agraph import agraph, Node, Edge, Config
 
-from util import show_query_traces
 
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
-from sycamore.query.operators.logical_operator import LogicalOperator
+
+
+from util import show_query_traces, get_schema, generate_plan, run_plan, get_opensearch_indices, show_dag
 
 DEFAULT_S3_CACHE_PATH = "s3://aryn-temp/llm_cache/luna/ntsb"
-
-
-@st.cache_data(show_spinner=False)
-def get_schema(_client: SycamoreQueryClient, index: str) -> Dict[str, Tuple[str, Set[str]]]:
-    return _client.get_opensearch_schema(index)
-
-
-@st.cache_data(show_spinner=False)
-def generate_plan(_client: SycamoreQueryClient, query: str, index: str) -> LogicalPlan:
-    return _client.generate_plan(query, index, get_schema(client, index))
-
-
-@st.cache_data(show_spinner=False, hash_funcs={LogicalPlan: lambda x: hash(x.model_dump_json())})
-def run_plan(_client: SycamoreQueryClient, plan: LogicalPlan) -> Tuple[str, Any]:
-    return _client.run_plan(plan)
-
-
-@st.cache_data(show_spinner=False)
-def get_opensearch_indices() -> Set[str]:
-    return {x for x in SycamoreQueryClient().get_opensearch_incides() if not x.startswith(".")}
 
 
 def generate_code(client: SycamoreQueryClient, plan: LogicalPlan) -> str:
@@ -72,41 +52,6 @@ def show_code(code: str):
                 assert st.session_state.trace_dir
                 st.subheader("Traces", divider="blue")
                 show_query_traces(st.session_state.trace_dir, st.session_state.query_id)
-
-
-def show_dag(plan: LogicalPlan):
-    nodes = []
-    edges = []
-    for node in plan.nodes.values():
-        assert isinstance(node, LogicalOperator)
-        nodes.append(
-            Node(
-                id=node.node_id,
-                label=f"[Node {node.node_id}] {type(node).__name__}\n\n{node.description}",
-                shape="box",
-                color={
-                    "background": "#404040",
-                    "border": "#5050f0",
-                },
-                font="14px arial white",
-                chosen=False,
-                margin=30,
-            )
-        )
-    for node in plan.nodes.values():
-        if node.dependencies:
-            for dep in node.dependencies:
-                edges.append(Edge(source=dep.node_id, target=node.node_id, color="#ffffff"))
-
-    config = Config(
-        width=700,
-        height=500,
-        directed=True,
-        physics=False,
-        hierarchical=True,
-        direction="UD",
-    )
-    agraph(nodes=nodes, edges=edges, config=config)
 
 
 def run_query():

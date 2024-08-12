@@ -30,25 +30,8 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
     def __init__(self, child: Node, parameters: list[Union[str, LLM]], **resource_args):
         super().__init__(child, f=ExtractTableProperties.extract_table_properties, args=parameters, **resource_args)
 
-    @staticmethod
-    def extract_parent_json(input_string: str) -> str:
-        """
-        Extracts the top level JSONstring from input String.
-        """
-        stack: list[str] = []
-        json_start = None
 
-        for i, char in enumerate(input_string):
-            if char == "{":
-                if not stack:
-                    json_start = i
-                stack.append(char)
-            elif char == "}":
-                stack.pop()
-                if not stack:
-                    json_end = i + 1
-                    json_str = input_string[json_start:json_end]
-        return json_str
+    
 
     @timetrace("ExtrKeyVal")
     @staticmethod
@@ -57,6 +40,25 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
         This Method is used to extract key value pair from table using LLM and
         populate it as property of that element.
         """
+
+        def extract_parent_json(input_string: str) -> str:
+            """
+            Extracts the top level JSONstring from input String.
+            """
+            stack: list[str] = []
+            json_start = None
+
+            for i, char in enumerate(input_string):
+                if char == "{":
+                    if not stack:
+                        json_start = i
+                    stack.append(char)
+                elif char == "}":
+                    stack.pop()
+                    if not stack:
+                        json_end = i + 1
+                        json_str = input_string[json_start:json_end]
+            return json_str
 
         prompt = """
         You are given a text string where columns are separated by comma representing either a single column, 
@@ -101,7 +103,7 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
                 try:
                     jsonstring_llm = ele.properties.get(property_name)
                     assert isinstance(jsonstring_llm, str)
-                    json_string = ExtractTableProperties.extract_parent_json(jsonstring_llm)
+                    json_string = extract_parent_json(jsonstring_llm)
                     assert isinstance(json_string, str)
                     keyValue = json.loads(json_string)
                     ele.properties[property_name] = keyValue

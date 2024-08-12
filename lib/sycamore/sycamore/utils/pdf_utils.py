@@ -5,8 +5,9 @@ from sycamore import DocSet
 from sycamore.functions.document import DrawBoxes, split_and_convert_to_image
 from sycamore.utils.image_utils import show_images
 from sycamore.data import Document
-import json 
+import json
 from IPython.display import display, HTML
+
 
 def show_pages(docset: DocSet, limit: int = 2):
     documents = (
@@ -26,10 +27,10 @@ def enumerate_images_and_tables(m_pages: list[Document]):
     num_pages = len(m_pages)
     for i in range(0, num_pages):
         m_page = m_pages[i]
-        print("Path: ", m_page.properties['path'])
+        print("Path: ", m_page.properties["path"])
         for e in m_page.elements:
             if e.type == "Image":
-                print("Image summary: ", e.properties['summary'], "\n")
+                print("Image summary: ", e.properties["summary"], "\n")
                 print()
             if e.type == "table":
                 table_text_html = e.get("table")
@@ -37,13 +38,14 @@ def enumerate_images_and_tables(m_pages: list[Document]):
                     display(HTML(table_text_html.to_html()))
                 print()
 
+
 def display_page_and_table_properties(some_pages: list[Document]):
     for m_page in some_pages:
         print("Page props: ")
-        display(m_page.properties['entity'])
+        display(m_page.properties["entity"])
         print()
         for e in m_page.elements:
-            if e and  e.type=="table":
+            if e and e.type == "table":
                 print("Element Type: ", e.type)
                 print("Element Properties: ", json.dumps(e.properties, indent=2, default=str))
                 display(HTML(e.text_representation))

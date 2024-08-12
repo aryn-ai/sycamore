@@ -26,7 +26,7 @@ class Standardizer(ABC):
             text (str): The text or date string to be standardized.
 
         Returns:
-            Union[str, Tuple[str, date]]: The standardized text or a tuple containing the 
+            Union[str, Tuple[str, date]]: The standardized text or a tuple containing the
             standardized date string and date.
         """
         pass
@@ -47,12 +47,12 @@ class Standardizer(ABC):
         """
         current = doc
         for key in key_path[:-1]:
-            if current.get(key,None):
+            if current.get(key, None):
                 current = current[key]
             else:
                 raise KeyError(f"Key {key} not found in the dictionary among {current.keys()}")
         target_key = key_path[-1]
-        if current.get(target_key,None):
+        if current.get(target_key, None):
             current[target_key] = self.fixer(current[target_key])
         else:
             raise KeyError(f"Key {target_key} not found in the dictionary among {current.keys()}")
@@ -149,7 +149,7 @@ class DateTimeStandardizer(Standardizer):
             raw_dateTime (str): The raw date-time string to be standardized.
 
         Returns:
-            Tuple[str, date]: A tuple containing the standardized date-time string and the corresponding 
+            Tuple[str, date]: A tuple containing the standardized date-time string and the corresponding
             date object.
 
         Raises:
@@ -182,7 +182,7 @@ class DateTimeStandardizer(Standardizer):
 
         Args:
             doc (Document): The document to be standardized.
-            key_path (List[str]): The path to the date-time field within the document that should be 
+            key_path (List[str]): The path to the date-time field within the document that should be
             standardized.
 
         Returns:

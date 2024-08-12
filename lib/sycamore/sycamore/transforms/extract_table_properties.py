@@ -32,23 +32,23 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
 
     @staticmethod
     def extract_parent_json(input_string: str) -> str:
-            """
-            Extracts the top level JSONstring from input String.
-            """
-            stack: list[str] = []
-            json_start = None
+        """
+        Extracts the top level JSONstring from input String.
+        """
+        stack: list[str] = []
+        json_start = None
 
-            for i, char in enumerate(input_string):
-                if char == "{":
-                    if not stack:
-                        json_start = i
-                    stack.append(char)
-                elif char == "}":
-                    stack.pop()
-                    if not stack:
-                        json_end = i + 1
-                        json_str = input_string[json_start:json_end]
-            return json_str
+        for i, char in enumerate(input_string):
+            if char == "{":
+                if not stack:
+                    json_start = i
+                stack.append(char)
+            elif char == "}":
+                stack.pop()
+                if not stack:
+                    json_end = i + 1
+                    json_str = input_string[json_start:json_end]
+        return json_str
 
     @staticmethod
     @timetrace("ExtrKeyVal")
@@ -69,7 +69,6 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
         """
         query_agent = LLMTextQueryAgent(prompt=prompt, llm=llm, output_property="keyValueTable", element_type="table")
         doc = query_agent.execute_query(parent)
-
 
         prompt = """
         You are given a text string where columns are separated by comma representing either a single column, 

@@ -27,7 +27,6 @@ class TestAssignDocProperties(unittest.TestCase):
             }
         )
 
-
     def test_assign_doc_propoerties(self):
         output = AssignDocProperties.assign_doc_properties(self.input, "title", "property1")
         assert "entity" in output.get("properties").keys()

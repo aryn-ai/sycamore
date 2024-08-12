@@ -336,6 +336,7 @@ class DocSet:
 
         plan = SpreadProperties(self.plan, props, **resource_args)
         return DocSet(self.context, plan)
+
     def augment_text(self, augmentor: TextAugmentor, **resource_args) -> "DocSet":
         """
         Augments text_representation with external information.
@@ -422,7 +423,7 @@ class DocSet:
 
         embeddings = Embed(self.plan, embedder=embedder, **kwargs)
         return DocSet(self.context, embeddings)
-    
+
     def extract_entity(self, entity_extractor: EntityExtractor, **kwargs) -> "DocSet":
         """
         Applies the ExtractEntity transform on the Docset.

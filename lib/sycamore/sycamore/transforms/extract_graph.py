@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Awaitable, Dict, Any
+from typing import TYPE_CHECKING, Awaitable, Dict, Any, Optional
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.data import Document, MetadataDocument, HierarchicalDocument
@@ -334,8 +334,8 @@ class ExtractDocumentStructure(Map):
 
         sections = []
 
-        section: HierarchicalDocument = None
-        element: HierarchicalDocument = None
+        section: Optional[HierarchicalDocument] = None
+        element: Optional[HierarchicalDocument] = None
         for child in doc.children:
             if "relationships" not in child.data:
                 child.data["relationships"] = {}
@@ -368,6 +368,7 @@ class ExtractDocumentStructure(Map):
                 section = child
                 sections.append(section)
             else:
+                assert section is not None
                 if element is not None:
                     next = {
                         "TYPE": "NEXT",
@@ -408,10 +409,13 @@ class ExtractSummaries(Map):
         if "EXTRACTED_NODES" in doc.data or not isinstance(doc, HierarchicalDocument):
             return doc
         for section in doc.children:
+            assert section.text_representation is not None
             summary = f"-----SECTION TITLE: {section.text_representation.strip()}-----\n"
             for element in section.children:
                 if element.type == "table":
                     element.text_representation = element.data["table"].to_csv()
+                assert element.type is not None
+                assert element.text_representation is not None
                 summary += f"""---Element Type: {element.type.strip()}---\n{element.text_representation.strip()}\n"""
             section.data["summary"] = summary
         return doc

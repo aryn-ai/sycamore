@@ -86,17 +86,6 @@ More Resources
 - View the Sycamore GitHub: https://github.com/aryn-ai/sycamore
 
 .. toctree::
-   :caption: Welcome to Sycamore
-   :maxdepth: 2
-   :hidden:
-
-   /welcome_to_sycamore/get_started.md
-   /welcome_to_sycamore/architecture.md
-   /welcome_to_sycamore/hardware.md
-   /welcome_to_sycamore/encryption.md
-
-
-.. toctree::
    :caption: Aryn Cloud
    :maxdepth: 2
    :hidden:
@@ -105,55 +94,16 @@ More Resources
 
 
 .. toctree::
-   :caption: Data Ingestion and Preparation
-   :maxdepth: 2
-   :hidden:
-
-   /data_ingestion_and_preparation/data_preparation_concepts.md
-   /data_ingestion_and_preparation/load_data.md
-   /data_ingestion_and_preparation/using_jupyter.md
-   /data_ingestion_and_preparation/installing_sycamore_libraries_locally.md
-   /data_ingestion_and_preparation/running_a_data_preparation_job.md
-   /data_ingestion_and_preparation/generative_ai_configuration.md
-   /data_ingestion_and_preparation/transforms.rst
-   /data_ingestion_and_preparation/connectors.rst
-
-
-.. toctree::
-   :caption: Querying Data
-   :maxdepth: 2
-   :hidden:
-
-   /querying_data/demo_query_ui.md
-   /querying_data/using_rag_pipelines.md
-   /querying_data/hybrid_search.md
-   /querying_data/reranking.md
-   /querying_data/remote_processors.md
-   /querying_data/dedup.md
-   /querying_data/integrate_your_application.md
-   /querying_data/generative_ai_configurations.md
-
-
-
-.. toctree::
-   :caption: Conversation Memory
+   :caption: Sycamore
    :maxdepth: 2
    :hidden:
 
 
-   /conversation_memory/overview.md
-   /conversation_memory/storage_for_genai_agents.md
-   /conversation_memory/using_with_conversational_search.md
-
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Tutorials
-   :hidden:
-
-   /tutorials/sycamore-jupyter-dev-example.md
-   /tutorials/sycamore_data_prep_local.md
-   /tutorials/conversational_memory_with_langchain.md
+   /sycamore/get_started.rst
+   /sycamore/using_jupyter.md
+   /sycamore/transforms.rst
+   /sycamore/connectors.rst
+   /sycamore/tutorials.rst
 
 
 .. toctree::

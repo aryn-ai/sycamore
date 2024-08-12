@@ -29,7 +29,7 @@ Here are a few good notebooks to start with:
 .. toctree::
    :maxdepth: 1
 
-   ./concepts.md
-   ./hardware.md
-   ./ai_configuration.md
+   ./get_started/concepts.md
+   ./get_started/hardware.md
+   ./get_started/ai_configuration.md
    

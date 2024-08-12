@@ -549,6 +549,9 @@ class DocSet:
                     .explode()
                 )
         """
+        from sycamore.transforms.extract_graph import ExtractDocumentStructure
+
+        self.plan = ExtractDocumentStructure(self.plan)
         docset = self
         for extractor in extractors:
             docset = extractor.extract(docset)

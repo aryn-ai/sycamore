@@ -337,7 +337,7 @@ class ExtractDocumentStructure(Map):
         element: Optional[HierarchicalDocument] = None
         for child in doc.children:
             child.data["relationships"] = child.get("relationships", {})
-            if (child.type == "Section-header" and child.data.get("text_representation")):
+            if child.type == "Section-header" and child.data.get("text_representation"):
                 if section is not None:
                     next = {
                         "TYPE": "NEXT",

@@ -68,6 +68,20 @@ class TestGraphExtractor:
                             "properties": {},
                         }
                     ),
+                    Element(
+                        {
+                            "type": "Section-header",
+                            "text_representation": "header-2",
+                            "properties": {},
+                        }
+                    ),
+                    Element(
+                        {
+                            "type": "text",
+                            "text_representation": "i'm text",
+                            "properties": {},
+                        }
+                    ),
                 ],
             }
         )
@@ -165,6 +179,6 @@ class TestGraphExtractor:
                 for rel in relations.values():
                     nested_dict[label][value].append(rel)
 
-        assert len(nested_dict["Company"]["Microsoft"]) == 1
-        assert len(nested_dict["Company"]["Google"]) == 1
-        assert len(nested_dict["Company"]["3M"]) == 1
+        assert len(nested_dict["Company"]["Microsoft"]) == 2
+        assert len(nested_dict["Company"]["Google"]) == 2
+        assert len(nested_dict["Company"]["3M"]) == 2

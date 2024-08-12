@@ -336,7 +336,6 @@ class DocSet:
 
         plan = SpreadProperties(self.plan, props, **resource_args)
         return DocSet(self.context, plan)
-
     def augment_text(self, augmentor: TextAugmentor, **resource_args) -> "DocSet":
         """
         Augments text_representation with external information.

@@ -71,6 +71,7 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
         query_agent = LLMTextQueryAgent(prompt=prompt, llm=llm, output_property="keyValueTable", element_type="table")
         doc = query_agent.execute_query(parent)
 
+
         prompt = """
         You are given a text string where columns are separated by comma representing either a single column, 
         or multi-column table each new line is a new row.

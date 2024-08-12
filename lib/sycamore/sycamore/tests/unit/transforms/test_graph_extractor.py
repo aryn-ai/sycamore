@@ -1,10 +1,15 @@
 from typing import Optional
 import sycamore
+from sycamore.data.document import Document
+from sycamore.data.element import Element
 from sycamore.llms.llms import LLM
 from sycamore.reader import DocSetReader
 from sycamore.transforms.extract_graph import GraphMetadata, MetadataExtractor, GraphEntity, EntityExtractor
 from sycamore.data import HierarchicalDocument
 from collections import defaultdict
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 class TestGraphExtractor:
@@ -42,34 +47,24 @@ class TestGraphExtractor:
     ]
 
     entity_docs = [
-        HierarchicalDocument(
+        Document(
             {
                 "doc_id": "1",
-                "label": "Document",
                 "type": "pdf",
-                "relationships": {},
                 "properties": {"company": "3M", "sector": "Industrial", "doctype": "10K"},
-                "children": [
-                    HierarchicalDocument(
+                "elements": [
+                    Element(
                         {
-                            "doc_id": "2",
-                            "label": "Document",
-                            "type": "pdf",
-                            "relationships": {},
-                            "summary": "...",
+                            "type": "Section-header",
+                            "text_representation": "header",
                             "properties": {},
-                            "children": [],
                         }
                     ),
-                    HierarchicalDocument(
+                    Element(
                         {
-                            "doc_id": "3",
-                            "label": "Document",
-                            "type": "pdf",
-                            "relationships": {},
-                            "summary": "...",
+                            "type": "text",
+                            "text_representation": "i'm text",
                             "properties": {},
-                            "children": [],
                         }
                     ),
                 ],
@@ -169,6 +164,7 @@ class TestGraphExtractor:
                 for rel in relations.values():
                     nested_dict[label][value].append(rel)
 
-        assert len(nested_dict["Company"]["Microsoft"]) == 2
-        assert len(nested_dict["Company"]["Google"]) == 2
-        assert len(nested_dict["Company"]["3M"]) == 2
+
+        assert len(nested_dict["Company"]["Microsoft"]) == 1
+        assert len(nested_dict["Company"]["Google"]) == 1
+        assert len(nested_dict["Company"]["3M"]) == 1

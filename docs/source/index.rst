@@ -85,14 +85,12 @@ More Resources
 - Use the Aryn Playground to experiment with the Partitioning Service: https://play.aryn.cloud/partitioning
 - View the Sycamore GitHub: https://github.com/aryn-ai/sycamore
 
-
 .. toctree::
    :caption: Aryn Cloud
    :maxdepth: 2
    :hidden:
 
    /aryn_cloud/aryn_partitioning_service.rst
-
 
 .. toctree::
    :caption: Sycamore

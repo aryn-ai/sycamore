@@ -25,8 +25,8 @@ class AssignDocProperties(SingleThreadUser, NonGPUUser, Map):
     def __init__(self, child: Node, parameters: List[str], **resource_args):
         super().__init__(child, f=AssignDocProperties.assign_doc_properties, args=parameters, **resource_args)
 
-    @timetrace("AssignProps")
     @staticmethod
+    @timetrace("AssignProps")
     def assign_doc_properties(parent: Document, element_type: str, property_name: str) -> Document:
         # element count is zero indexed
         assert property_name is not None

@@ -1,10 +1,17 @@
 from typing import Optional
 import sycamore
+from sycamore.data.document import Document
+from sycamore.data.element import Element
 from sycamore.llms.llms import LLM
 from sycamore.reader import DocSetReader
 from sycamore.transforms.extract_graph import GraphMetadata, MetadataExtractor, GraphEntity, EntityExtractor
+from sycamore.transforms.extract_graph import ExtractSummaries, ExtractDocumentStructure
 from sycamore.data import HierarchicalDocument
 from collections import defaultdict
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class TestGraphExtractor:
@@ -42,34 +49,38 @@ class TestGraphExtractor:
     ]
 
     entity_docs = [
-        HierarchicalDocument(
+        Document(
             {
                 "doc_id": "1",
-                "label": "Document",
                 "type": "pdf",
-                "relationships": {},
                 "properties": {"company": "3M", "sector": "Industrial", "doctype": "10K"},
-                "children": [
-                    HierarchicalDocument(
+                "elements": [
+                    Element(
                         {
-                            "doc_id": "2",
-                            "label": "Document",
-                            "type": "pdf",
-                            "relationships": {},
-                            "summary": "...",
+                            "type": "Section-header",
+                            "text_representation": "header-1",
                             "properties": {},
-                            "children": [],
                         }
                     ),
-                    HierarchicalDocument(
+                    Element(
                         {
-                            "doc_id": "3",
-                            "label": "Document",
-                            "type": "pdf",
-                            "relationships": {},
-                            "summary": "...",
+                            "type": "text",
+                            "text_representation": "i'm text-1",
                             "properties": {},
-                            "children": [],
+                        }
+                    ),
+                    Element(
+                        {
+                            "type": "Section-header",
+                            "text_representation": "header-2",
+                            "properties": {},
+                        }
+                    ),
+                    Element(
+                        {
+                            "type": "text",
+                            "text_representation": "i'm text-2",
+                            "properties": {},
                         }
                     ),
                 ],
@@ -172,3 +183,37 @@ class TestGraphExtractor:
         assert len(nested_dict["Company"]["Microsoft"]) == 2
         assert len(nested_dict["Company"]["Google"]) == 2
         assert len(nested_dict["Company"]["3M"]) == 2
+
+    def test_extract_document_structure(self):
+        context = sycamore.init()
+        reader = DocSetReader(context)
+        ds = reader.document(self.entity_docs)
+
+        ds.plan = ExtractDocumentStructure(ds.plan)
+        docs = ds.take_all()
+
+        for document in docs:
+            assert document.data["label"] == "DOCUMENT"
+            for section in document.children:
+                assert section.data["label"] == "SECTION"
+                for element in section.children:
+                    assert element.data["label"] == "ELEMENT"
+
+    def test_summarize_sections(self):
+        context = sycamore.init()
+        reader = DocSetReader(context)
+        ds = reader.document(self.entity_docs)
+
+        ds.plan = ExtractDocumentStructure(ds.plan)
+        ds.plan = ExtractSummaries(ds.plan)
+        docs = ds.take_all()
+
+        summaries = [
+            "-----SECTION TITLE: header-1-----\n---Element Type: text---\ni'm text-1\n",
+            "-----SECTION TITLE: header-2-----\n---Element Type: text---\ni'm text-2\n",
+        ]
+
+        for document in docs:
+            for index, section in enumerate(document.children):
+                logger.warning(section.data["summary"])
+                assert section.data["summary"] == summaries[index]

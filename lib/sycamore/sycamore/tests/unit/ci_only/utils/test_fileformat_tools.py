@@ -3,7 +3,7 @@ from io import BytesIO
 from pypdf import PdfReader
 
 import sycamore
-from sycamore.functions.fileformat_tools import convert_file_to_pdf
+from sycamore.utils.fileformat_tools import convert_file_to_pdf
 from sycamore.tests.config import TEST_DIR
 
 

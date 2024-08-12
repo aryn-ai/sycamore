@@ -114,3 +114,4 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+addopts = "--ignore=tests/unit/ci_only"

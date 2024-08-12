@@ -1,3 +1,5 @@
+import logging
+import os
 from io import BytesIO
 
 from pypdf import PdfReader
@@ -8,6 +10,11 @@ from sycamore.tests.config import TEST_DIR
 
 
 def test_pdf_to_pdf():
+    # Run this test locally only if libreoffice is installed
+    if not os.path.exists("/usr/bin/libreofffice"):
+        assert "GITHUB_ACTIONS" not in os.environ
+        logging.warning("Skipping test ...; /usr/bin/libreoffice is not installed")
+        return
     paths = str(TEST_DIR / "resources/data/docx/aryn_website_sample.docx")
 
     context = sycamore.init()

@@ -26,7 +26,8 @@ class Standardizer(ABC):
             text (str): The text or date string to be standardized.
 
         Returns:
-            Union[str, Tuple[str, date]]: The standardized text or a tuple containing the standardized date string and date.
+            Union[str, Tuple[str, date]]: The standardized text or a tuple containing the 
+            standardized date string and date.
         """
         pass
 
@@ -148,7 +149,8 @@ class DateTimeStandardizer(Standardizer):
             raw_dateTime (str): The raw date-time string to be standardized.
 
         Returns:
-            Tuple[str, date]: A tuple containing the standardized date-time string and the corresponding date object.
+            Tuple[str, date]: A tuple containing the standardized date-time string and the corresponding 
+            date object.
 
         Raises:
             ValueError: If the input string cannot be parsed into a valid date-time.
@@ -180,7 +182,8 @@ class DateTimeStandardizer(Standardizer):
 
         Args:
             doc (Document): The document to be standardized.
-            key_path (List[str]): The path to the date-time field within the document that should be standardized.
+            key_path (List[str]): The path to the date-time field within the document that should be 
+            standardized.
 
         Returns:
             Document: The document with the standardized date-time field and an additional "day" field.

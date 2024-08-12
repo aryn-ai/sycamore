@@ -9,7 +9,7 @@ def test_to_neo4j():
     path = str(TEST_DIR / "resources/data/pdfs/Ray_page11.pdf")
     context = sycamore.init()
     URI = "neo4j://localhost:7687"
-    AUTH = ("neo4j", "neo4j")
+    AUTH = None
     DATABASE = "neo4j"
 
     ds = (

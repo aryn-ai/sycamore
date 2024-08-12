@@ -129,6 +129,7 @@ jobs:
         env:
           NEO4J_dbms_memory_heap_initial__size: 2G
           NEO4J_dbms_memory_heap_max__size: 2G
+          NEO4J_dbms_security_auth__enabled: false
           NEO4J_apoc_export_file_enabled: true
           NEO4J_apoc_import_file_enabled: true
           NEO4J_apoc_import_file_use__neo4j__config: true

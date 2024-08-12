@@ -31,15 +31,15 @@ def convert_file_to_pdf(doc: Document) -> Document:
     assert current_filetype is not None, "Document requires properties.filetype"
 
     with NamedTemporaryFile(suffix=f".{current_filetype.split('/')[-1]}") as temp_file:
-        filename = ".".join(
-            temp_file.name.split("/")[-1].split(".")[:-1]
-        )  # standard libs act weird with non-standard formats so we need this
         temp_file.write(doc.binary_representation)
         temp_file.flush()
-        processed_path = temp_file.name.split(".")[0] + "_processed"
-        run_libreoffice(temp_file.name, processed_path)
 
-        with open(f"{processed_path}/{filename}.pdf", "rb") as processed_file:
+        output_dir = temp_file.name.rsplit("/", 1)[0]
+        output_file_base = temp_file.name.rsplit(".", 1)[0]
+        run_libreoffice(temp_file.name, output_dir)
+
+        output_pdf_path = f"{output_file_base}.pdf"
+        with open(output_pdf_path, "rb") as processed_file:
             doc.binary_representation = processed_file.read()
 
     return doc

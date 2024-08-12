@@ -1,7 +1,7 @@
 Tutorials
 =============
 
-Learn how to write Sycamore scrips
+Learn how to write Sycamore scripts
 --------------------------------------
 
 Now that you've learned about Sycamore concepts, transforms, and connectors, let's put it all together with some tutorials showing how to write Sycamore processing jobs.

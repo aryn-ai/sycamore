@@ -1,5 +1,6 @@
 import logging
 import os
+import shutil
 from io import BytesIO
 
 from pypdf import PdfReader
@@ -11,7 +12,7 @@ from sycamore.tests.config import TEST_DIR
 
 def test_pdf_to_pdf():
     # Run this test locally only if libreoffice is installed
-    if not os.path.exists("/usr/bin/libreofffice"):
+    if shutil.which("libreoffice") is None:
         assert "GITHUB_ACTIONS" not in os.environ
         logging.warning("Skipping test ...; /usr/bin/libreoffice is not installed")
         return

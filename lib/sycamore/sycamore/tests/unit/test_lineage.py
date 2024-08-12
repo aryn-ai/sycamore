@@ -109,3 +109,40 @@ class TestLineage(unittest.TestCase):
 
             files = glob.glob(tmpdir + "/*")
             assert len(files) == 10
+
+    def test_to_binary(self):
+        docs = self.make_docs(3)
+        ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
+        ds = ctx.read.document(docs).map(self.noop_fn)
+
+        def tobin(d):
+            if isinstance(d, MetadataDocument):
+                return b"md"
+            else:
+                return d.doc_id.encode("utf-8")
+
+        def onlydoc(d):
+            if isinstance(d, MetadataDocument):
+                return None
+            else:
+                return d.doc_id.encode("utf-8")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            ds.materialize(path={"root": tmpdir, "tobin": tobin}).execute()
+            self.check_files(tmpdir)
+            for d in docs:
+                if isinstance(d, MetadataDocument):
+                    continue
+                with open(tmpdir + "/" + d.doc_id, "r") as f:
+                    bits = f.read()
+                    assert bits == d.doc_id
+
+            with self.assertRaises(AssertionError):
+                ds.materialize(path={"root": tmpdir, "tobin": lambda d: "abc"}).execute()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            ds.materialize(path={"root": tmpdir, "tobin": onlydoc}).execute()
+            docs = glob.glob(tmpdir + "/doc_*")  # doc_id  is doc_#
+            assert len(docs) == 3
+            mds = glob.glob(tmpdir + "/md-*")
+            assert len(mds) == 0

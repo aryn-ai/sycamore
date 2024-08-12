@@ -22,6 +22,7 @@ class Materialize(UnaryNode):
         elif isinstance(path, str) or isinstance(path, Path):
             (self._fs, self._root) = self.infer_fs(str(path))
             self._doc_to_name = self.doc_to_name
+            self._doc_to_binary = Document.serialize
             self._clean_root = True
         elif isinstance(path, dict):
             assert "root" in path, "Need to specify root in materialize(path={})"
@@ -31,6 +32,7 @@ class Materialize(UnaryNode):
             else:
                 (self._fs, self._root) = self.infer_fs(str(self._root))
             self._doc_to_name = path.get("name", self.doc_to_name)
+            self._doc_to_binary = path.get("tobin", Document.serialize)
             assert callable(self._doc_to_name)
             self._clean_root = path.get("clean", True)
         else:
@@ -76,11 +78,15 @@ class Materialize(UnaryNode):
         return (fs, Path(root))
 
     def save(self, doc: Document) -> None:
+        bin = self._doc_to_binary(doc)
+        if bin is None:
+            return
+        assert isinstance(bin, bytes), f"tobin function returned {type(bin)} not bytes"
         assert self._root is not None
         name = self._doc_to_name(doc)
         path = self._root / name
         with self._fs.open_output_stream(str(path)) as out:
-            out.write(doc.serialize())
+            out.write(bin)
 
     def cleanup(self) -> None:
         if not self._clean_root:

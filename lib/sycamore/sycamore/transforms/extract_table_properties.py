@@ -30,18 +30,8 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
     def __init__(self, child: Node, parameters: list[Union[str, LLM]], **resource_args):
         super().__init__(child, f=ExtractTableProperties.extract_table_properties, args=parameters, **resource_args)
 
-
-    
-
-    @timetrace("ExtrKeyVal")
     @staticmethod
-    def extract_table_properties(parent: Document, property_name: str, llm: LLM) -> Document:
-        """
-        This Method is used to extract key value pair from table using LLM and
-        populate it as property of that element.
-        """
-
-        def extract_parent_json(input_string: str) -> str:
+    def extract_parent_json(input_string: str) -> str:
             """
             Extracts the top level JSONstring from input String.
             """
@@ -60,6 +50,13 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
                         json_str = input_string[json_start:json_end]
             return json_str
 
+    @staticmethod
+    @timetrace("ExtrKeyVal")
+    def extract_table_properties(parent: Document, property_name: str, llm: LLM) -> Document:
+        """
+        This Method is used to extract key value pair from table using LLM and
+        populate it as property of that element.
+        """
         prompt = """
         You are given a text string where columns are separated by comma representing either a single column, 
         or multi-column table each new line is a new row.

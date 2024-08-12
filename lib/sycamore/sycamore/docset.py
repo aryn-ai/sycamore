@@ -1201,7 +1201,7 @@ class DocSet:
         path: a Path or string represents the "directory" for the materialized elements. The filesystem
               and naming convention will be inferred.  The dictionary allowes finer control, and supports
               { root=Path|str, fs=pyarrow.fs, name=lambda Document -> str, clean=True,
-                tobin=Document.erialize()}
+                tobin=Document.serialize()}
               root is required
         """
 

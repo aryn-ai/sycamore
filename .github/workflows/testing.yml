@@ -124,6 +124,22 @@ jobs:
           ES_JAVA_OPTS: "-Xms2g -Xmx2g"
         ports:
           - 9201:9200
+      neo4j:
+        image: neo4j:5.21.0
+        env:
+          NEO4J_dbms_memory_heap_initial__size: 2G
+          NEO4J_dbms_memory_heap_max__size: 2G
+          NEO4J_dbms_security_auth__enabled: false
+          NEO4J_apoc_export_file_enabled: true
+          NEO4J_apoc_import_file_enabled: true
+          NEO4J_apoc_import_file_use__neo4j__config: true
+          NEO4JLABS_PLUGINS: '["apoc"]'
+        options: >-
+           --name neo4j
+           --volume /neo4j/import:/var/lib/neo4j/import
+        ports:
+          - 7474:7474
+          - 7687:7687
 
     steps:
       - name: Checkout
@@ -137,23 +153,20 @@ jobs:
           cache: "poetry"
       - name: Install sycamore
         run: poetry install
-
       - name: Download nltk packages
         run: poetry run python -m nltk.downloader punkt averaged_perceptron_tagger
-
       - name: Update Apt
         run: sudo apt-get update
       - name: Install poppler and tesseract
         run: sudo apt-get install -y poppler-utils tesseract-ocr
-
       - name: Configure AWS Credentials via OIDC provider.
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: us-east-1
           role-to-assume: arn:aws:iam::237550789389:role/aryn-github-integ
-
+      - name: Allow Read/Write permissions to Neo4j Import Directory
+        run: sudo chmod -R 777 /neo4j/import
       - name: Run Integ tests
         run: poetry run pytest lib/sycamore/sycamore/tests/integration
-
       - name: Run Notebook tests
         run: poetry run pytest --nbmake --nbmake-timeout=600 notebooks/default-prep-script.ipynb notebooks/jupyter_dev_example.ipynb notebooks/metadata-extraction.ipynb notebooks/sycamore_demo.ipynb notebooks/tutorial.ipynb

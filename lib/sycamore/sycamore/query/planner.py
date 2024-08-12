@@ -391,7 +391,7 @@ class LlmPlanner:
                 }
             ]
 
-            EXAMPLE 5:
+            EXAMPLE 6:
             Data description: Database of hospital patients
             Schema: {
                         'text_representation': '(<class 'str'>) Can be assumed to have all other details'

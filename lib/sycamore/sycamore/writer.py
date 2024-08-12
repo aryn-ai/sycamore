@@ -1,6 +1,8 @@
 import logging
-from typing import Any, Callable, Optional, TYPE_CHECKING
+from typing import Any, Callable, Optional, TYPE_CHECKING, Union
 
+from neo4j import Auth
+from neo4j.auth_management import AuthManager
 from pyarrow.fs import FileSystem
 from ray.data import ActorPoolStrategy
 
@@ -561,6 +563,83 @@ class DocSetWriter:
             from sycamore.docset import DocSet
 
             return DocSet(self.context, es_docs)
+
+    def neo4j(
+        self,
+        uri: str,
+        auth: Union[tuple[Any, Any], Auth, AuthManager, None],
+        import_dir: str,
+        database: str = "neo4j",
+        **kwargs,
+    ) -> Optional["DocSet"]:
+        """Writes the content of the DocSet into the specified Neo4j database.
+
+        Args:
+            uri: Connection endpoint for the neo4j instance. Note that this must be paired with the
+                necessary client arguments below
+            auth: Authentication arguments to be specified. See more information at
+                https://neo4j.com/docs/api/python-driver/current/api.html#auth-ref
+            database: database to write to in Neo4j. By default in the neo4j community addition, new databases
+                cannot be instantiated so you must use "neo4j". If using enterprise edition, ensure the database exists.
+            import_dir: the import directory that neo4j uses. You can specify where to mount this volume when you launch
+                your neo4j docker container.
+        Example:
+            The following code shows how to write to a neo4j database
+
+            ..code-block::python
+            URI = "neo4j://localhost:7687"
+            AUTH = ("neo4j", "xxxxx")
+
+            metadata = [GraphMetadata(nodeKey='company',nodeLabel='Company',relLabel='FILED_BY'),
+                        GraphMetadata(nodeKey='gics_sector',nodeLabel='Sector',relLabel='IN_SECTOR'),
+                        GraphMetadata(nodeKey='doc_type',nodeLabel='Document Type',relLabel='IS_TYPE'),
+                        GraphMetadata(nodeKey='doc_period',nodeLabel='Year',relLabel='FILED_DURING'),
+                        ]
+
+            ds = (
+                ctx.read.manifest(...)
+                .partition(...)
+                .extract_graph_structure([MetadataExtractor(metadata=metadata)])
+                .explode()
+            )
+
+            ds.write.neo4j(uri=URI,auth=AUTH,database="neo4j",import_dir="/home/admin/neo4j/import")
+            .. code-block:: python
+        """
+        import os
+        from sycamore.connectors.neo4j import (
+            Neo4jWriterClientParams,
+            Neo4jWriterTargetParams,
+            Neo4jValidateParams,
+        )
+        from sycamore.plan_nodes import Node
+        from sycamore.connectors.neo4j import Neo4jPrepareCSV, Neo4jWriteCSV, Neo4jLoadCSV
+        import time
+
+        if kwargs.get("execute") is False:
+            raise NotImplementedError
+
+        class Wrapper(Node):
+            def __init__(self, dataset):
+                self._ds = dataset
+
+            def execute(self, **kwargs):
+                return self._ds
+
+        import_dir = os.path.expanduser(import_dir)
+        client_params = Neo4jWriterClientParams(uri=uri, auth=auth, import_dir=import_dir)
+        target_params = Neo4jWriterTargetParams(database=database)
+        Neo4jValidateParams(client_params=client_params, target_params=target_params)
+
+        self.plan = Wrapper(self.plan.execute().materialize())
+        start = time.time()
+        Neo4jPrepareCSV(plan=self.plan, client_params=client_params)
+        Neo4jWriteCSV(plan=self.plan, client_params=client_params).execute().materialize()
+        end = time.time()
+        logger.info(f"TIME TAKEN TO WRITE CSV: {end-start} SECONDS")
+        Neo4jLoadCSV(client_params=client_params, target_params=target_params)
+
+        return None
 
     def files(
         self,

@@ -21,20 +21,6 @@ from sycamore.query.operators.logical_operator import LogicalOperator
 
 
 DEFAULT_S3_CACHE_PATH = "s3://aryn-temp/llm_cache/luna/ntsb"
-BASE_PROPS = set(
-    [
-        "filename",
-        "filetype",
-        "page_number",
-        "page_numbers",
-        "links",
-        "element_id",
-        "parent_id",
-        "_schema",
-        "_schema_class",
-        "entity",
-    ]
-)
 
 
 def show_schema(container: Any, schema: Dict[str, Tuple[str, Set[str]]]):
@@ -84,7 +70,7 @@ def show_traces(trace_dir):
 @st.experimental_fragment
 def generate_code(client, plan):
     with st.spinner("Generating code..."):
-        _, st.session_state.code = client.run_plan(plan, dry_run=True)
+        st.session_state.query_id, st.session_state.code = client.run_plan(plan, dry_run=True)
     with st.expander("View code"):
         st.session_state.code = st_ace(
             value=st.session_state.code,
@@ -133,15 +119,13 @@ def run_query(query: str, index: str, plan_only: bool, do_trace: bool, use_cache
     """Run the given query."""
     st.session_state.trace_dir = None
     if do_trace:
-        if not plan_only:
-            st.session_state.trace_dir = tempfile.mkdtemp()
-            st.write(f"Writing execution traces to `{st.session_state.trace_dir}`")
-        else:
-            st.warning("Tracing currently not supported with plan only")
+        st.session_state.trace_dir = tempfile.mkdtemp()
+        st.write(f"Writing execution traces to `{st.session_state.trace_dir}`")
     if use_cache:
         st.write(f"Using cache at `{st.session_state.s3_cache_path}`")
     client = SycamoreQueryClient(
-        trace_dir=st.session_state.trace_dir, s3_cache_path=st.session_state.s3_cache_path if use_cache else None
+        trace_dir=st.session_state.trace_dir if do_trace else None,
+        s3_cache_path=st.session_state.s3_cache_path if use_cache else None,
     )
     with st.spinner("Getting schema..."):
         schema = client.get_opensearch_schema(index)
@@ -175,6 +159,8 @@ def run_query(query: str, index: str, plan_only: bool, do_trace: bool, use_cache
                 if code_locals and "result" in code_locals:
                     st.subheader("Result", divider="rainbow")
                     st.success(code_locals["result"])
+                if do_trace:
+                    show_traces(st.session_state.trace_dir)
 
 
 client = SycamoreQueryClient()

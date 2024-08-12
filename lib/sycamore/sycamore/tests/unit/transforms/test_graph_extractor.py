@@ -9,6 +9,7 @@ from sycamore.data import HierarchicalDocument
 from collections import defaultdict
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -163,7 +164,6 @@ class TestGraphExtractor:
             for value in properties.values():
                 for rel in relations.values():
                     nested_dict[label][value].append(rel)
-
 
         assert len(nested_dict["Company"]["Microsoft"]) == 1
         assert len(nested_dict["Company"]["Google"]) == 1

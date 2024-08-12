@@ -1,6 +1,5 @@
 import sycamore
 from sycamore.tests.config import TEST_DIR
-from sycamore.data import HierarchicalDocument, Document
 from sycamore.transforms.partition import SycamorePartitioner
 
 

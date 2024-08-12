@@ -16,7 +16,7 @@ from sycamore.transforms.bbox_merge import (
     MarkBreakByColumn,
 )
 
-from sycamore.transforms.extract_key_value_pair import ExtractKeyValuePair
+from sycamore.transforms.extract_table_properties import ExtractTableProperties
 
 from sycamore.transforms.standardizer import (
     LocationStandardizer,
@@ -43,6 +43,9 @@ from sycamore.transforms.query import Query
 from sycamore.transforms.term_frequency import TermFrequency
 from sycamore.transforms.sort import Sort
 from sycamore.transforms.llm_query import LLMQuery
+from sycamore.transforms.groupby_count import GroupByCount
+from sycamore.transforms.dataset_scan import DatasetScan
+
 
 __all__ = [
     "COALESCE_WHITESPACE",
@@ -88,5 +91,7 @@ __all__ = [
     "Standardizer",
     "DateTimeStandardizer",
     "StandardizeProperty",
-    "ExtractKeyValuePair",
+    "ExtractTableProperties",
+    "GroupByCount",
+    "DatasetScan",
 ]

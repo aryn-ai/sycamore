@@ -3,17 +3,18 @@ from typing import Dict, List, Mapping, MutableMapping, Optional, Tuple, Type
 
 from opensearchpy import OpenSearch
 
+from sycamore.llms.llms import LLM
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.operators.count import Count
-from sycamore.query.operators.llmfilter import LlmFilter
-from sycamore.query.operators.filter import Filter
-from sycamore.query.operators.llmgenerate import LlmGenerate
-from sycamore.query.operators.loaddata import LoadData
-from sycamore.query.operators.llmextract import LlmExtract
+from sycamore.query.operators.llm_filter import LlmFilter
+from sycamore.query.operators.basic_filter import BasicFilter
+from sycamore.query.operators.summarize_data import SummarizeData
+from sycamore.query.operators.query_database import QueryDatabase
+from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
 from sycamore.query.operators.math import Math
 from sycamore.query.operators.sort import Sort
-from sycamore.query.operators.topk import TopK
+from sycamore.query.operators.top_k import TopK
 from sycamore.query.operators.limit import Limit
 from sycamore.query.operators.logical_operator import LogicalOperator
 from sycamore.query.schema import OpenSearchSchema
@@ -23,12 +24,12 @@ from sycamore.utils.extract_json import extract_json
 # All operators that are allowed for construction of a query plan.
 # If a class is not in this list, it will not be used.
 OPERATORS: List[Type[LogicalOperator]] = [
-    LoadData,
-    Filter,
+    QueryDatabase,
+    BasicFilter,
     LlmFilter,
-    LlmExtract,
+    LlmExtractEntity,
     Count,
-    LlmGenerate,
+    SummarizeData,
     Math,
     Sort,
     TopK,
@@ -46,7 +47,7 @@ class LlmPlanner:
         os_config: The OpenSearch configuration.
         os_client: The OpenSearch client.
         operators: A list of operators to use in the query plan.
-        openai_client: The OpenAI client.
+        llm_client: The LLM client.
         use_examples: Whether to include examples in the prompt.
     """
 
@@ -57,7 +58,7 @@ class LlmPlanner:
         os_config: dict[str, str],
         os_client: OpenSearch,
         operators: Optional[List[Type[LogicalOperator]]] = None,
-        openai_client: Optional[OpenAI] = None,
+        llm_client: Optional[LLM] = None,
         use_examples: bool = True,
     ) -> None:
         super().__init__()
@@ -66,7 +67,7 @@ class LlmPlanner:
         self._operators = operators if operators else OPERATORS
         self._os_config = os_config
         self._os_client = os_client
-        self._openai_client = openai_client or OpenAI(OpenAIModels.GPT_4O.value)
+        self._llm_client = llm_client or OpenAI(OpenAIModels.GPT_4O.value)
         self._use_examples = use_examples
 
     def make_operator_prompt(self, operator: LogicalOperator) -> str:
@@ -98,15 +99,15 @@ class LlmPlanner:
         2. Do not return any information except the standard JSON objects.
         3. Only use operators described below.
         4. Only use EXACT field names from the DATA_SCHEMA described below and fields created
-            from *LlmExtract*. Any new fields created by *LlmExtract* will be nested in properties.
+            from *LlmExtractEntity*. Any new fields created by *LlmExtractEntity* will be nested in properties.
             e.g. if a new field called "state" is added, when referencing it in another operation,
             you should use "properties.state". A database returned from *TopK* operation only has
             "properties.key" or "properties.count"; you can only reference one of those fields.
             Other than those, DO NOT USE ANY OTHER FIELD NAMES.
         5. If an optional field does not have a value in the query plan, return null in its place.
         6. If you cannot generate a plan to answer a question, return an empty list.
-        7. The first step of each plan MUST be a **LoadData** operation that returns a database.
-        8. The last step of each plan MUST be a **LlmGenerate** operation to generate an English
+        7. The first step of each plan MUST be a **QueryDatabase** operation that returns a database.
+        8. The last step of each plan MUST be a **SummarizeData** operation to generate an English
             answer.
         """
 
@@ -144,7 +145,7 @@ class LlmPlanner:
             Answer:
             [
                 {
-                    "operatorName": "LoadData",
+                    "operatorName": "QueryDatabase",
                     "description": "Get all the incident reports",
                     "index": "ntsb",
                     "query": "aircraft incident reports"
@@ -159,7 +160,7 @@ class LlmPlanner:
                     "node_id": 1
                 },
                 {
-                    "operatorName": "LlmGenerate",
+                    "operatorName": "SummarizeData",
                     "description": "Generate an English response to the original question.
                         Input 1 is a database that contains incidents in Georgia.",
                     "question": "Were there any incidents in Georgia?",
@@ -181,16 +182,16 @@ class LlmPlanner:
             Answer:
             [
                 {
-                    "operatorName": "LoadData",
+                    "operatorName": "QueryDatabase",
                     "description": "Get all the incident reports",
                     "index": "ntsb",
                     "query": "aircraft incident reports",
                     "node_id": 0
                 },
                 {
-                    "operatorName": "Filter",
+                    "operatorName": "BasicFilter",
                     "description": "Filter to only include Cessna aircraft incidents",
-                    "rangeFilter": false,
+                    "range_filter": false,
                     "query": "Cessna",
                     "start": null,
                     "end": null,
@@ -208,7 +209,7 @@ class LlmPlanner:
                     "node_id": 2
                 },
                 {
-                    "operatorName": "LlmGenerate",
+                    "operatorName": "SummarizeData",
                     "description": "description": "Generate an English response to the
                         question. Input 1 is a number that corresponds to the number of
                         cities that accidents occurred in.",
@@ -230,16 +231,16 @@ class LlmPlanner:
             Answer:
             [
                 {
-                    "operatorName": "LoadData",
+                    "operatorName": "QueryDatabase",
                     "description": "Get all the financial documents",
                     "index": "finance",
                     "query": "law firm financial documents",
                     "node_id": 0
                 },
                 {
-                    "operatorName": "Filter",
+                    "operatorName": "BasicFilter",
                     "description": "Filter to only include documents in 2022",
-                    "rangeFilter": true,
+                    "range_filter": true,
                     "query": null,
                     "start": "01-01-2022",
                     "end": "12-31-2022",
@@ -265,7 +266,7 @@ class LlmPlanner:
                     "node_id": 3,
                 }
                 {
-                    "operatorName": "LlmGenerate",
+                    "operatorName": "SummarizeData",
                     "description": "description": "Generate an English response to
                         the question. Input 1 is a database that contains information
                         about the 2 law firms with the highest revenue.",
@@ -288,14 +289,14 @@ class LlmPlanner:
             Answer:
             [
                 {
-                    "operatorName": "LoadData",
+                    "operatorName": "QueryDatabase",
                     "description": "Get all the shipwreck records",
                     "index": "shipwrecks",
                     "query": "shipwreck records",
                     "node_id": 0
                 },
                 {
-                    "operatorName": "LlmExtract",
+                    "operatorName": "LlmExtractEntity",
                     "description": "Extract the country",
                     "question": "What country was responsible for this ship?",
                     "field": "text_representation",
@@ -312,12 +313,13 @@ class LlmPlanner:
                     "primary_field": "properties.entity.shipwreck_id",
                     "K": 5,
                     "descending": true,
-                    "useLLM": false,
+                    "llm_cluster": false,
+                    "llm_cluster_instruction": "Form groups of different water bodies",
                     "input": [1],
                     "node_id": 2,
                 },
                 {
-                    "operatorName": "LlmGenerate",
+                    "operatorName": "SummarizeData",
                     "description": "description": "Generate an English response to the
                         question. Input 1 is a database that the top 5 water bodies shipwrecks
                         occurred in and their corresponding frequency counts.",
@@ -338,7 +340,7 @@ class LlmPlanner:
             Answer:
             [
                 {
-                    "operatorName": "LoadData",
+                    "operatorName": "QueryDatabase",
                     "description": "Get all the shipwreck records",
                     "index": "shipwrecks",
                     "query": "shipwreck records",
@@ -353,9 +355,9 @@ class LlmPlanner:
                     "node_id": 1
                 },
                 {
-                    "operatorName": "Filter",
+                    "operatorName": "BasicFilter",
                     "description": "Filter to only include documents in 2023",
-                    "rangeFilter": true,
+                    "range_filter": true,
                     "query": null,
                     "start": "01-01-2023",
                     "end": "12-31-2023",
@@ -380,7 +382,7 @@ class LlmPlanner:
                     "node_id": 4
                 }
                 {
-                    "operatorName": "LlmGenerate",
+                    "operatorName": "SummarizeData",
                     "description": "Generate an English response to the question. Input 1 is a
                         number that is the fraction of shipwrecks that occurred in 2023.",
                     "question": "What percent of shipwrecks occurred in 2023?",
@@ -398,7 +400,7 @@ class LlmPlanner:
             Answer:
             [
                 {
-                    "operatorName": "LoadData",
+                    "operatorName": "QueryDatabase",
                     "description": "Get all the patient records",
                     "index": "patients",
                     "query": "patient records",
@@ -408,12 +410,12 @@ class LlmPlanner:
                     "operatorName": "Count",
                     "description": "Count the number of total patients",
                     "field": null,
-                    "primaryField": null,
+                    "primary_field": null,
                     "input": [0],
                     "id": 1
                 },
                 {
-                    "operatorName": "LlmGenerate",
+                    "operatorName": "SummarizeData",
                     "description": "Generate an English response to the question. Input 1 is a
                         number of patients.",
                     "question": "How many total patients?",
@@ -429,8 +431,8 @@ class LlmPlanner:
         """
         return prompt
 
-    def generate_from_openai(self, question: str) -> str:
-        """Use OpenAI LLM to generate a query plan for the given question."""
+    def generate_from_llm(self, question: str) -> str:
+        """Use LLM to generate a query plan for the given question."""
 
         messages = [
             {
@@ -440,7 +442,7 @@ class LlmPlanner:
         ]
 
         prompt_kwargs = {"messages": messages}
-        chat_completion = self._openai_client.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
+        chat_completion = self._llm_client.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
         return chat_completion
 
     def process_llm_json_plan(self, llm_json_plan: str) -> Tuple[LogicalOperator, Mapping[int, LogicalOperator]]:
@@ -492,7 +494,7 @@ class LlmPlanner:
 
     def plan(self, question: str) -> LogicalPlan:
         """Given a question from the user, generate a logical query plan."""
-        openai_plan = self.generate_from_openai(question)
-        result_node, nodes = self.process_llm_json_plan(openai_plan)
-        plan = LogicalPlan(result_node=result_node, nodes=nodes, query=question, openai_plan=openai_plan)
+        llm_plan = self.generate_from_llm(question)
+        result_node, nodes = self.process_llm_json_plan(llm_plan)
+        plan = LogicalPlan(result_node=result_node, nodes=nodes, query=question, llm_plan=llm_plan)
         return plan

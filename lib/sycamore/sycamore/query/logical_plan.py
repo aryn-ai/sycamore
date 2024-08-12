@@ -46,10 +46,10 @@ class LogicalPlan(BaseModel):
         result_node: The node that is the result of the query.
         query: The query that the plan is for.
         nodes: A mapping of node IDs to nodes.
-        openai_plan: The OpenAI plan that was used to generate this plan.
+        llm_plan: The LLM plan that was used to generate this query plan.
     """
 
     result_node: SerializeAsAny[Node]
     query: str
     nodes: Mapping[int, SerializeAsAny[Node]]
-    openai_plan: Optional[str] = None
+    llm_plan: Optional[str] = None

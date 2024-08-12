@@ -91,23 +91,29 @@ def test_cached_guidance(tmp_path: Path):
     assert llm.generate(prompt_kwargs={"prompt": TestGuidancePrompt()}, llm_kwargs=None) == custom_output["result"]
 
 
-def test_cached_openai_mismatch(tmp_path: Path):
+def test_cached_openai_different_prompts(tmp_path: Path):
     cache = DiskCache(str(tmp_path))
     llm = OpenAI(OpenAIModels.GPT_3_5_TURBO, cache=cache)
-    prompt_kwargs = {"prompt": "Write a limerick about large language models."}
+    prompt_kwargs_1 = {"prompt": "Write a limerick about large language models."}
+    prompt_kwargs_2 = {"prompt": "Write a short limerick about large language models."}
+    prompt_kwargs_3 = {"prompt": "Write a poem about large language models."}
+    prompt_kwargs_4 = {"prompt": "Write a short poem about large language models."}
 
-    key = llm._get_cache_key(prompt_kwargs, {})
+    key_1 = llm._get_cache_key(prompt_kwargs_1, {})
+    key_2 = llm._get_cache_key(prompt_kwargs_2, {})
+    key_3 = llm._get_cache_key(prompt_kwargs_3, {})
+    key_4 = llm._get_cache_key(prompt_kwargs_4, {})
+    keys = [key_1, key_2, key_3, key_4]
 
-    # store a modified result in the cache (changed prompt_kwargs), ensure there is a cache miss
-    custom_output = {
-        "result": "This is a custom response",
-        "prompt_kwargs": {},
-        "llm_kwargs": {},
-        "model_name": "gpt-3.5-turbo",
-    }
-    cache.set(key, custom_output)
-
-    assert llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={}) != custom_output["result"]
+    assert len(keys) == len(
+        set(keys)
+    ), f"""
+    Cached query keys are not unique:
+    key_1: {key_1}
+    key_2: {key_2}
+    key_3: {key_3}
+    key_4: {key_4}
+    """
 
 
 def test_cached_openai_different_models(tmp_path: Path):

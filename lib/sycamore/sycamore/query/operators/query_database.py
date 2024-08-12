@@ -3,7 +3,7 @@ from typing import Optional
 from sycamore.query.operators.logical_operator import LogicalOperator
 
 
-class LoadData(LogicalOperator):
+class QueryDatabase(LogicalOperator):
     """Loads data from a specified index."""
 
     index: str

@@ -125,7 +125,7 @@ class DateTimeStandardizer(Standardizer):
             parsed_date = parser.parse(raw_dateTime)
             extracted_date = parsed_date.date()
             return raw_dateTime, extracted_date
-        
+
         except ValueError as e:
             # Handle errors related to value parsing
             raise ValueError(f"Invalid date format: {raw_dateTime}") from e
@@ -133,7 +133,7 @@ class DateTimeStandardizer(Standardizer):
         except Exception as e:
             # Handle any other exceptions
             raise RuntimeError(f"Unexpected error occurred while processing: {raw_dateTime}") from e
-        
+
     def standardize(self, doc: Document, key_path: List[str]) -> Document:
         current = doc
         for key in key_path[:-1]:

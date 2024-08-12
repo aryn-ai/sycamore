@@ -303,7 +303,8 @@ def GraphEntityExtractorPrompt(entities, query):
 
 class ExtractDocumentStructure(Map):
     """
-    Extracts the structure of the document, organized by structure
+    Extracts the structure of the document organizing document elements by their
+    respective section headers.
     """
 
     def __init__(self, child: Node, **resource_args):
@@ -327,23 +328,16 @@ class ExtractDocumentStructure(Map):
             )
             doc.children.insert(0, initial_page)  # O(n) insert :( we should use deque for everything
 
-        if "relationships" not in doc.data:
-            doc.data["relationships"] = {}
-        if "label" not in doc.data:
-            doc.data["label"] = "DOCUMENT"
+        doc.data["relationships"] = doc.get("relationships", {})
+        doc.data["label"] = doc.get("label", "DOCUMENT")
 
         sections = []
 
         section: Optional[HierarchicalDocument] = None
         element: Optional[HierarchicalDocument] = None
         for child in doc.children:
-            if "relationships" not in child.data:
-                child.data["relationships"] = {}
-            if (
-                child.type == "Section-header"
-                and "text_representation" in child.data
-                and len(child.data["text_representation"]) > 0
-            ):
+            child.data["relationships"] = child.get("relationships", {})
+            if (child.type == "Section-header" and child.data.get("text_representation")):
                 if section is not None:
                     next = {
                         "TYPE": "NEXT",
@@ -398,7 +392,8 @@ class ExtractDocumentStructure(Map):
 
 class ExtractSummaries(Map):
     """
-    Extracts summaries from child documents
+    Extracts summaries from child documents to be used for entity extraction. This function
+    generates summaries for sections within documents which are used during entity extraction.
     """
 
     def __init__(self, child: Node, **resource_args):
@@ -406,7 +401,7 @@ class ExtractSummaries(Map):
 
     @staticmethod
     def summarize_sections(doc: HierarchicalDocument) -> HierarchicalDocument:
-        if "EXTRACTED_NODES" in doc.data or not isinstance(doc, HierarchicalDocument):
+        if "EXTRACTED_NODES" in doc.data:
             return doc
         for section in doc.children:
             assert section.text_representation is not None

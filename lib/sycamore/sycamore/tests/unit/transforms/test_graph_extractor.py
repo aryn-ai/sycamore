@@ -188,7 +188,7 @@ class TestGraphExtractor:
         context = sycamore.init()
         reader = DocSetReader(context)
         ds = reader.document(self.entity_docs)
-        
+
         ds.plan = ExtractDocumentStructure(ds.plan)
         docs = ds.take_all()
 
@@ -217,4 +217,3 @@ class TestGraphExtractor:
             for index, section in enumerate(document.children):
                 logger.warning(section.data["summary"])
                 assert section.data["summary"] == summaries[index]
-

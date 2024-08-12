@@ -4,7 +4,7 @@ from tempfile import NamedTemporaryFile
 from sycamore.data import Document
 
 
-def convert_file_to_pdf(doc: Document) -> Document:
+def binary_representation_to_pdf(doc: Document) -> Document:
     """
     Utility to convert binary_representations into different file formats. Uses LibreOffice as the conversion engine.
 
@@ -40,5 +40,6 @@ def convert_file_to_pdf(doc: Document) -> Document:
         output_pdf_path = f"{output_file_base}.pdf"
         with open(output_pdf_path, "rb") as processed_file:
             doc.binary_representation = processed_file.read()
+            doc.properties["filetype"] = "pdf"
 
     return doc

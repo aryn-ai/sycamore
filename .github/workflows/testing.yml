@@ -63,10 +63,8 @@ jobs:
         run: df
       - name: Update Apt
         run: sudo apt-get update
-      - name: Install poppler and tesseract
-        run: sudo apt-get install -y poppler-utils tesseract-ocr
-      - name: Install libreoffice
-        run: sudo apt-get install -y libreoffice
+      - name: Install apt dependencies
+        run: sudo apt-get install -y poppler-utils tesseract-ocr libreoffice
       - name: DF-5
         run: df
       - name: Run tests

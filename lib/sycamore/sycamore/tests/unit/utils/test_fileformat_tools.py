@@ -6,8 +6,8 @@ from io import BytesIO
 from pypdf import PdfReader
 
 import sycamore
-from sycamore.utils.fileformat_tools import binary_representation_to_pdf
 from sycamore.tests.config import TEST_DIR
+from sycamore.utils.fileformat_tools import binary_representation_to_pdf
 
 
 def test_binary_representation_to_pdf():

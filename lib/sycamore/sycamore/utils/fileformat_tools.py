@@ -1,4 +1,5 @@
 import subprocess
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 from sycamore.data import Document
@@ -26,20 +27,18 @@ def binary_representation_to_pdf(doc: Document) -> Document:
 
     assert doc.binary_representation is not None
 
-    current_filetype = doc.properties.get("filetype")
-    assert current_filetype is not None, "Document requires properties.filetype"
+    extension = Path(doc.properties.get("path", "unknown")).suffix
 
-    with NamedTemporaryFile(suffix=f".{current_filetype.split('/')[-1]}") as temp_file:
+    with NamedTemporaryFile(suffix=f"{extension}") as temp_file:
         temp_file.write(doc.binary_representation)
         temp_file.flush()
 
-        output_dir = temp_file.name.rsplit("/", 1)[0]
-        output_file_base = temp_file.name.rsplit(".", 1)[0]
-        run_libreoffice(temp_file.name, output_dir)
+        temp_path = Path(temp_file.name)
 
-        output_pdf_path = f"{output_file_base}.pdf"
-        with open(output_pdf_path, "rb") as processed_file:
+        run_libreoffice(temp_path, temp_path.parent)
+
+        with open(f"{temp_path.parent}/{temp_path.stem}.pdf", "rb") as processed_file:
             doc.binary_representation = processed_file.read()
-            doc.properties["filetype"] = "pdf"
+            doc.properties["filetype"] = "application/pdf"
 
     return doc

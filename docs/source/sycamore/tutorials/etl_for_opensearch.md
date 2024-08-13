@@ -1,10 +1,12 @@
-# Using Sycamore's data prep libraries locally
+# Process and load data into an OpenSearch hybrid search index
 
-This tutorial provides a walkthrough of how to use Sycamore's data preparation libraries locally to prepare, enhance, and embed a PDF dataset from S3 and load it into a local Sycamore stack. We encourage to go over [Sycamore's architecture](../welcome_to_sycamore/architecture.md) before you work through this tutorial. We will be using unstructured PDFs from the [Sort Benchmark](http://sortbenchmark.org/) website. This data is publicly available in S3 here, so you do not need AWS credentials to access it: `s3://aryn-public/sort-benchmark/pdf/`
+This tutorial provides a walkthrough of how to use Sycamore to extract, enrich, transform, and create vector embeddings from a PDF dataset in S3 and load it into OpenSearch. The way in which you run ETL on these document is critical for the end quality of your application, and you can easily use Sycamore to facilitate this. The example below shows a few transforms Sycamore can do.
+
+We will be using PDF documents from the [Sort Benchmark](http://sortbenchmark.org/) website. This data is publicly available in S3 here, so you do not need AWS credentials to access it: `s3://aryn-public/sort-benchmark/pdf/`
 
 ## Steps
 
-1. Install Sycamore using pip using [these instructions](../data_ingestion_and_preparation/installing_sycamore_libraries_locally.md)
+1. Install Sycamore using pip using [these instructions](../sycamore/get_started.rst)
 
 2. Create a Python script and import Sycamore. In the following code snippet, we are initializing Sycamore and creating a DocSet by reading all the files from a local path.
 
@@ -28,14 +30,15 @@ At any point if you want to inspect the docset, you can use docset.show() method
 3. Next, we want to partition all the PDFs and generate elements so that we can extract relevant entities later on. We will use the partition transform to achieve this.
 
 ```python
-from sycamore.transforms.partition import UnstructuredPdfPartitioner
+from sycamore.transforms.partition import ArynPartitioner
 
-# We are using UnstructuredPdfPartitioner to partion the documents.
-# Sycamore supports pluggable partitioners for different formats.
-docset = docset.partition(partitioner=UnstructuredPdfPartitioner())
+# We are using Aryn Partitioner to partion the PDFs. By default, it uses the Aryn Partitioning Serivce. You can sign up for free at https://www.aryn.ai/get-started and set your API key.
+
+ARYN_API_KEY = [MY_KEY]
+docset = docset.partition(partitioner=ArynPartitioner())
 ```
 
-4. Now, since we know that titles and authors are important entities in our dataset, let's extract them using OpenAI with the `extract_entity` transform. In this case, we are going to use few shot entity extraction, where we provide some examples to the model of what to extract:
+4. Now, since we know that titles and authors are important entities in our dataset, let's extract them using OpenAI with the `extract_entity` transform. In this case, we are going to use few shot entity extraction, where we provide some examples to the model of what to extract in our prompt:
 
 ```python
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
@@ -105,7 +108,7 @@ docset = docset.extract_entity(
 )
 ```
 
-5. Next, we want to convert each element of a document into a top/parent level document. Additionally, we also want to generate sketches and embeddings for these documents. We will use the explode, sketch and embed transforms respectively to achieve this.
+5. Next, we want to convert each element of a document into a top/parent level document. Additionally, we want to create embeddings for these documents. We will use the explode and embed transforms respectively to achieve this.
 
 ```python
 from sycamore.transforms.embed import SentenceTransformerEmbedder
@@ -113,11 +116,12 @@ from sycamore.transforms.embed import SentenceTransformerEmbedder
 # We are using SentenceTransformerEmbedder to embed the content of each document; which
 # uses the SentenceTransformer model. You can write your own Embedder as well.
 docset = docset.explode()
-.sketch()
 .embed(embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
 ```
 
-6. Lastly, we want to write these documents into the local Sycamore stack. Make sure that you have it [running locally](../welcome_to_sycamore/get_started.md).
+6. Lastly, we want to write the data to a hybrid search index (vector and keyword) in OpenSearch using the OpenSearch writer. Make sure the host location and port is correct for your OpenSearch engine. You will need to configure and run OpenSearch separately. 
+
+You can also [write to other target data stores](../sycamore/connectors.html).
 
 ```python
 openSearch_client_args = {
@@ -158,4 +162,4 @@ docset.write.opensearch(
     )
 ```
 
-Congrats - you have now processed and loaded your dataset from S3 into your Sycamore stack!
+Congrats - you have now processed and loaded your PDFs from S3 into an OpenSearch hybrid search index!

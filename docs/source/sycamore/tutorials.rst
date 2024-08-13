@@ -11,6 +11,4 @@ Some tutorials are located below, and visit the `Aryn blog <https://www.aryn.ai/
 .. toctree::
     :maxdepth: 1
 
-    ./tutorials/sycamore_data_prep_local.md
-    ./tutorials/sycamore_jupyter_dev_example.md
-
+    ./tutorials/etl_for_opensearch.md

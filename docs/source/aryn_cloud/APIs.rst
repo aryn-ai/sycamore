@@ -1,4 +1,4 @@
-Sycamore APIs
+Aryn Partitioning Service APIs
 =============
 
 This is the API reference for the Aryn-SDK, which is used to interact with the Aryn Partitioning Service.

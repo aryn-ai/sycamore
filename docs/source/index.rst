@@ -57,7 +57,7 @@ Next, you can:
 
 ..
 
-You can specify additional options (e.g. table extraction), and a list of these options is :doc:`here </aryn_cloud/aryn_partitioning_service.html#specifying-options>`_
+You can specify additional options (e.g. table extraction), and a list of these options is :doc: `here </aryn_cloud/aryn_partitioning_service.html#specifying-options>`
 
 |
 

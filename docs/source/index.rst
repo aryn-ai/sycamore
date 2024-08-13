@@ -91,6 +91,7 @@ More Resources
    :hidden:
 
    /aryn_cloud/aryn_partitioning_service.rst
+   /aryn_cloud/APIs.rst
 
 .. toctree::
    :caption: Sycamore
@@ -103,14 +104,4 @@ More Resources
    /sycamore/transforms.rst
    /sycamore/connectors.rst
    /sycamore/tutorials.rst
-
-
-.. toctree::
-   :caption: APIs
-   :maxdepth: 2
-   :hidden:
-
-   /APIs/data_preparation.rst
-   /APIs/conversation_memory.rst
-   /APIs/transforms.rst
-   /APIs/aryn-sdk.rst
+   /sycamore/APIs.rst

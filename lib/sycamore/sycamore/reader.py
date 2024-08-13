@@ -39,9 +39,9 @@ class DocSetReader:
             paths: Paths to the Binary file
             binary_format:  Binary file format to read from
             parallelism: (Optional) Override the number of output blocks from all read tasks. Defaults to
-            -1 if not specified
+                -1 if not specified
             filesystem: (Optional) The PyArrow filesystem to read from. By default is selected based on the
-            scheme of the paths passed in
+                scheme of the paths passed in
             kwargs: (Optional) Arguments to passed into the underlying execution engine
 
         Example:
@@ -81,9 +81,9 @@ class DocSetReader:
             metadata_provider: Metadata provider for each file, with the manifest being used as the paths to read from
             binary_format:  Binary file format to read from
             parallelism: (Optional) Override the number of output blocks from all read tasks. Defaults to
-            -1 if not specified
+                -1 if not specified
             filesystem: (Optional) The PyArrow filesystem to read from. By default is selected based on the scheme
-            of the paths passed in
+                of the paths passed in
             kwargs: (Optional) Arguments to passed into the underlying execution engine
 
         Example:
@@ -131,9 +131,9 @@ class DocSetReader:
              paths: Paths to JSON documents to read into a DocSet
              properties: (Optional) Properties to be extracted into the DocSet
              metadata_provider: (Optional) Metadata provider for each file
-             (will be added to the Document's metadata)
+                (will be added to the Document's metadata)
              document_body_field: (Optional) Document Body Field specification.
-             Will use the entire json output otherwise.
+                Will use the entire json output otherwise.
              doc_extractor: (Optional) Custom function to convert the JSON document to a Sycamore Document
              kwargs: (Optional) Arguments to passed into the underlying execution engine
 
@@ -203,8 +203,8 @@ class DocSetReader:
                 See more information at https://opensearch.org/docs/latest/clients/python-low-level/
             index_name: Index name to write to in the OpenSearch instance
             query: (Optional) Query to perform on the index. Note that this must be specified in the OpenSearch
-            Query DSL as a dictionary. Otherwise, it defaults to a full scan of the table. See more information at
-            https://opensearch.org/docs/latest/query-dsl/
+                Query DSL as a dictionary. Otherwise, it defaults to a full scan of the table. See more information at
+                https://opensearch.org/docs/latest/query-dsl/
         Example:
             The following shows how to write to data into a OpenSearch Index, and read it back into a DocSet.
 
@@ -268,9 +268,9 @@ class DocSetReader:
             db_url: The URL of the DuckDB database.
             table_name: The table name to read the data from
             create_hnsw_table: (Optional) SQL query to add an HNSW index to the DuckDB before conducting a read.
-            More information is available at https://duckdb.org/docs/extensions/vss
+                More information is available at https://duckdb.org/docs/extensions/vss
             query: (Optional) SQL query to read from the table. If not specified, the read will perform
-            a full scan of the table
+                a full scan of the table
 
         Example:
             The following shows how to write to data into a DuckDB database and get it back as a DocSet.
@@ -320,11 +320,11 @@ class DocSetReader:
             api_key: Pinecone service API Key. Defaults to None (will use the environment
                     variable PINECONE_API_KEY).
             namespace: Namespace withing the pinecone index to ingest into. See
-            https://docs.pinecone.io/guides/indexes/use-namespaces for more information.
-            Defaults to "", which is the default namespace
+                https://docs.pinecone.io/guides/indexes/use-namespaces for more information.
+                Defaults to "", which is the default namespace
             query: (Optional) Dictionary of parameters to pass into the pinecone `index.query()` method.
-            If not specified, will default to a full scan of the index.
-            See more information at https://docs.pinecone.io/guides/data/query-data
+                If not specified, will default to a full scan of the index.
+                See more information at https://docs.pinecone.io/guides/data/query-data
 
         Example:
             The following shows how to write to data into a Pinecone index and read it back as a DocSet.
@@ -392,12 +392,12 @@ class DocSetReader:
             es_client_args: Authentication arguments to be specified (if needed). See more information at
                 https://elasticsearch-py.readthedocs.io/en/v8.14.0/api/elasticsearch.html
             query: (Optional) Query to perform on the index. Note that this must be specified in the Elasticsearch
-            Query DSL as a dictionary. Otherwise, it defaults to a full scan of the table.
-            See more information at
-            https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
+                Query DSL as a dictionary. Otherwise, it defaults to a full scan of the table.
+                See more information at
+                https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
             kwargs: (Optional) Parameters to pass in to the underlying Elasticsearch search query.
-            See more information at
-            https://elasticsearch-py.readthedocs.io/en/v8.14.0/api/elasticsearch.html#elasticsearch.Elasticsearch.search
+                See more information at
+                https://elasticsearch-py.readthedocs.io/en/v8.14.0/api/elasticsearch.html#elasticsearch.Elasticsearch.search
         Example:
             The following shows how to write to data into a Elasticsearch Index, and read it back into a DocSet.
 
@@ -456,12 +456,12 @@ class DocSetReader:
 
         Args:
             wv_client_args: Keyword parameters that are passed to the weaviate client constructor. See more information
-            at
-            https://weaviate.io/developers/weaviate/client-libraries/python#python-client-v4-explicit-connection
+                at
+                https://weaviate.io/developers/weaviate/client-libraries/python#python-client-v4-explicit-connection
             collection_name: The name of the Weaviate collection into which to load this DocSet.
             kwargs: (Optional) Search queries to pass into Weaviate. Note each keyword method argument
-            must have its parameters specified as a dictionary. Will default to a full scan if not specified.
-            See more information below  and at https://weaviate.io/developers/weaviate/search
+                must have its parameters specified as a dictionary. Will default to a full scan if not specified.
+                See more information below  and at https://weaviate.io/developers/weaviate/search
         Example:
             The following shows how to write to data into a Weaviate collection, and read it back into a DocSet.
 

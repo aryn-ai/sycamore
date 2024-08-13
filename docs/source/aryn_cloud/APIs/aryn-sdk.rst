@@ -6,4 +6,4 @@ Aryn SDK
 .. toctree::
    :maxdepth: 2
 
-   /APIs/aryn-sdk/partition.rst
+   ./aryn-sdk/partition.rst

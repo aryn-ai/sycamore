@@ -8,7 +8,7 @@ Sycamore is a document processing engine covered under the Apache v2.0 license. 
 
 Sycamore uses LLM-powered transforms, and you can choose the model to leverage. It can handle complex documents with embedded tables, figures, graphs, and other infographics. For ETL use cases, Sycamore reliably generates vector embeddings with the model of your choice, and loads vector databases and search engines like Pinecone, OpenSearch, Weaviate, Elasticsearch, and more.  
 
-.. image:: images/ArynArchitecture_APS%2BSycamorev2.png
+.. image:: images/ArynArchitecture_APS+Sycamorev2.png
 
 **Key Features**
 
@@ -57,7 +57,7 @@ Next, you can:
 
 ..
 
-You can specify additional options (e.g. table extraction), and a list of these options is :doc:`here </aryn_cloud/aryn_partitioning_service.html#specifying-options>`_
+You can specify additional options (e.g. table extraction), and a list of these options is :doc: `here </aryn_cloud/aryn_partitioning_service.html#specifying-options>`
 
 |
 
@@ -91,6 +91,7 @@ More Resources
    :hidden:
 
    /aryn_cloud/aryn_partitioning_service.rst
+   /aryn_cloud/APIs.rst
 
 .. toctree::
    :caption: Sycamore
@@ -103,14 +104,4 @@ More Resources
    /sycamore/transforms.rst
    /sycamore/connectors.rst
    /sycamore/tutorials.rst
-
-
-.. toctree::
-   :caption: APIs
-   :maxdepth: 2
-   :hidden:
-
-   /APIs/data_preparation.rst
-   /APIs/conversation_memory.rst
-   /APIs/transforms.rst
-   /APIs/aryn-sdk.rst
+   /sycamore/APIs.rst

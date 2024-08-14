@@ -32,7 +32,7 @@ At any point if you want to inspect the docset, you can use docset.show() method
 ```python
 from sycamore.transforms.partition import ArynPartitioner
 
-# We are using Aryn Partitioner to partion the PDFs. By default, it uses the Aryn Partitioning Serivce. You can sign up for free at https://www.aryn.ai/get-started and set your API key.
+# We are using Aryn Partitioner to partion the PDFs. By default, it uses the Aryn Partitioning Service. You can sign up for free at https://www.aryn.ai/get-started and set your API key.
 
 ARYN_API_KEY = [MY_KEY]
 docset = docset.partition(partitioner=ArynPartitioner())

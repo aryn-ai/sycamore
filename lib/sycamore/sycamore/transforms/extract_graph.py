@@ -115,7 +115,7 @@ class EntityExtractor(GraphExtractor):
         self.entities = self._serialize_entities(entities)
         self.schema = json_schema
         self.llm = llm
-        if json_schema is None and len(entities) == 0:
+        if json_schema is None and entities is []:
             raise ValueError("Must input JSON schema or list of pydantic entities")
 
     def extract(self, docset: "DocSet") -> "DocSet":

@@ -7,7 +7,7 @@ In [this example](https://colab.research.google.com/drive/1ZkJ9clSVVvJsNPRlWXppl
 
 ![alt text](3m_supplemental_income.png)
 
-We’ll go through the important code snippets below  to see what’s going on.  (Try out it out in  [colab](https://colab.research.google.com/drive/1ZkJ9clSVVvJsNPRlWXpplfs1U9W4ZSdH?usp=sharing)  yourself! )
+We’ll go through the important code snippets below  to see what’s going on.  (Try it out in  [colab](https://colab.research.google.com/drive/1ZkJ9clSVVvJsNPRlWXpplfs1U9W4ZSdH?usp=sharing)  yourself! )
 
 
 Let’s focus on the following code that makes a call to the Aryn Partitioning Service: 

@@ -140,7 +140,7 @@ class EntityExtractor(GraphExtractor):
         res = asyncio.run(gather_api_calls())
 
         for i, section in enumerate(doc.children):
-            nodes = defaultdict(dict)
+            nodes: defaultdict[dict, Any] = defaultdict(dict)
             try:
                 res[i] = json.loads(res[i])
             except json.JSONDecodeError:
@@ -232,7 +232,7 @@ class ResolveEntities:
         def GroupDocumentNodes(doc: HierarchicalDocument) -> HierarchicalDocument:
             if "EXTRACTED_NODES" in doc.data:
                 return doc
-            nodes = defaultdict(dict)
+            nodes: defaultdict[dict, Any] = defaultdict(dict)
             nodes |= doc["properties"].get("nodes", {})
             for section in doc.children:
                 if "nodes" not in section["properties"]:

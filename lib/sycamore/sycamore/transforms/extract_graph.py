@@ -233,8 +233,10 @@ class ResolveEntities:
             if "EXTRACTED_NODES" in doc.data:
                 return doc
             nodes = defaultdict(dict)
-            nodes |= doc["properties"]["nodes"]
+            nodes |= doc["properties"].get("nodes", {})
             for section in doc.children:
+                if "nodes" not in section["properties"]:
+                    continue
                 for label, hashes in section["properties"]["nodes"].items():
                     for hash, node in hashes.items():
                         if nodes[label].get(hash, None) is None:

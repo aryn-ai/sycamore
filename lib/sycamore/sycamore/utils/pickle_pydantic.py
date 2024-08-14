@@ -1,5 +1,5 @@
 import io
-from typing import Any, Dict, Type
+from typing import Any, Dict, Optional, Type
 from ray import cloudpickle
 from pydantic import BaseModel
 
@@ -23,7 +23,7 @@ def safe_cloudpickle(obj: Any) -> bytes:
 
 
 def safe_cloudunpickle(pickled_obj: bytes) -> Any:
-    model_namespaces: Dict[Type[BaseModel], str] = {}
+    model_namespaces: Dict[Type[BaseModel], Optional[Dict[str, Any]]] = {}
 
     # Collect the current parent namespaces before unpickling
     for ModelClass in BaseModel.__subclasses__():

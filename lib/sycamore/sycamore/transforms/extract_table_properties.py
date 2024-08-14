@@ -91,13 +91,10 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
         doc = query_agent.execute_query(parent)
 
         for ele in doc.elements:
-            if (
-                ele.type == "table"
-                and property_name in ele.properties.keys()
-            ):
+            if ele.type == "table" and property_name in ele.properties.keys():
                 try:
                     if ele.properties.get("keyValueTable", False) != "True":
-                        del  ele.properties[property_name]
+                        del ele.properties[property_name]
                         continue
                     jsonstring_llm = ele.properties.get(property_name)
                     assert isinstance(jsonstring_llm, str)

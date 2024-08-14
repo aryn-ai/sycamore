@@ -94,9 +94,11 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
             if (
                 ele.type == "table"
                 and property_name in ele.properties.keys()
-                and ele.properties.get("keyValueTable", False) == "True"
             ):
                 try:
+                    if ele.properties.get("keyValueTable", False) != "True":
+                        del  ele.properties[property_name]
+                        continue
                     jsonstring_llm = ele.properties.get(property_name)
                     assert isinstance(jsonstring_llm, str)
                     json_string = ExtractTableProperties.extract_parent_json(jsonstring_llm)

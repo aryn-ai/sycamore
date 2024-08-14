@@ -102,10 +102,10 @@ class MetadataExtractor(GraphExtractor):
 
 class EntityExtractor(GraphExtractor):
     """
-    Extracts entity schemas
+    Extracts entity schemas specified by a user from unstructured text from documents
 
     Args:
-        entities: A list of GraphEntity that determines what entities are extracted
+        entities: A list of pydantic models that determines what entity schemas are extracted
         llm: The LLM that is used to extract the entities
     """
 
@@ -218,6 +218,11 @@ def GraphEntityExtractorPrompt(query):
 
 
 class ResolveEntities:
+    """
+    Aggregates entities across all documents and resolves duplicate nodes created
+    during extraction.
+    """
+
     @staticmethod
     def resolve(docset: "DocSet") -> "DocSet":
         docset.plan = ResolveEntities.GroupEntities(docset.plan)
@@ -250,9 +255,6 @@ class ResolveEntities:
 
     @staticmethod
     def _resolve(docset: "DocSet") -> "DocSet":
-        """
-        Aggregates 'nodes' from every document and resolves duplicate nodes
-        """
         from sycamore import Execution
         from sycamore.reader import DocSetReader
         from ray.data.aggregate import AggregateFn
@@ -300,8 +302,8 @@ class ResolveEntities:
             return nodes1
 
         def finalize(nodes):
-            for key, hashes in nodes.items():
-                for hash, node in hashes.items():
+            for hashes in nodes.values():
+                for node in hashes.values():
                     node["doc_id"] = str(uuid.uuid4())
                     for rel in node["relationships"].values():
                         rel["END_ID"] = node["doc_id"]

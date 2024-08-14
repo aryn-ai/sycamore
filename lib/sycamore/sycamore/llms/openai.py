@@ -389,7 +389,7 @@ class OpenAI(LLM):
         else:
             return False
 
-    def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
+    def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Optional[str]:
         key, ret = self._cache_get(prompt_kwargs, llm_kwargs)
         if ret is not None:
             return ret
@@ -408,7 +408,7 @@ class OpenAI(LLM):
         self._cache_set(key, value)
         return ret
 
-    def _generate_using_openai(self, prompt_kwargs, llm_kwargs) -> str:
+    def _generate_using_openai(self, prompt_kwargs, llm_kwargs) -> Optional[str]:
         kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
         if self._determine_using_beta(llm_kwargs.get("response_format", None)):
             completion = self.client_wrapper.get_client().beta.chat.completions.parse(model=self._model_name, **kwargs)

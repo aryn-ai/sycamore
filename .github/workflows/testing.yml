@@ -143,79 +143,31 @@ jobs:
           - 7687:7687
 
     steps:
-      - name: DF-1
-        run: df -h
-      - name: free-1
-        run: free -h
       - name: Checkout
         uses: actions/checkout@v4
-      - name: DF-2
-        run: df -h
-      - name: free-2
-        run: free -h
       - name: Install poetry
         run: pipx install poetry
-      - name: DF-3
-        run: df -h
-      - name: free-3
-        run: free -h
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
           cache: "poetry"
-      - name: DF-4
-        run: df -h
-      - name: free-4
-        run: free -h
       - name: Install sycamore
         run: poetry install
-      - name: DF-5
-        run: df -h
-      - name: free-5
-        run: free -h
       - name: Download nltk packages
         run: poetry run python -m nltk.downloader punkt averaged_perceptron_tagger
-      - name: DF-6
-        run: df -h
-      - name: free-6
-        run: free -h
       - name: Update Apt
         run: sudo apt-get update
-      - name: DF-7
-        run: df -h
-      - name: free-7
-        run: free -h
       - name: Install poppler and tesseract
         run: sudo apt-get install -y poppler-utils tesseract-ocr
-      - name: DF-8
-        run: df -h
-      - name: free-8
-        run: free -h
       - name: Configure AWS Credentials via OIDC provider.
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: us-east-1
           role-to-assume: arn:aws:iam::237550789389:role/aryn-github-integ
-      - name: DF-9
-        run: df -h
-      - name: free-9
-        run: free -h
       - name: Allow Read/Write permissions to Neo4j Import Directory
         run: sudo chmod -R 777 /neo4j/import
-      - name: DF-10
-        run: df -h
-      - name: free-10
-        run: free -h
       - name: Run Integ tests
         run: poetry run pytest lib/sycamore/sycamore/tests/integration
-      - name: DF-11
-        run: df -h
-      - name: free-11
-        run: free -h
       - name: Run Notebook tests
         run: poetry run pytest --nbmake --nbmake-timeout=600 notebooks/default-prep-script.ipynb notebooks/jupyter_dev_example.ipynb notebooks/metadata-extraction.ipynb notebooks/sycamore_demo.ipynb notebooks/tutorial.ipynb
-      - name: DF-12
-        run: df -h
-      - name: free-12
-        run: free -h

@@ -437,7 +437,7 @@ class OpenAI(LLM):
         self._cache_set(key, value)
         return ret
 
-    async def _generate_awaitable_using_openai(self, prompt_kwargs, llm_kwargs) -> Awaitable[str]:
+    async def _generate_awaitable_using_openai(self, prompt_kwargs, llm_kwargs) -> Union[Awaitable[str], str]:
         kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
         if self._determine_using_beta(llm_kwargs.get("response_format", None)):
             completion = await self.client_wrapper.get_async_client().beta.chat.completions.parse(

@@ -1,4 +1,5 @@
 import functools
+import inspect
 import logging
 import os
 import pickle
@@ -384,7 +385,7 @@ class OpenAI(LLM):
     def _determine_using_beta(self, response_format: Any) -> bool:
         if isinstance(response_format, dict) and response_format.get("type") == "json_schema":
             return True
-        elif issubclass(response_format, pydantic.BaseModel):
+        elif inspect.isclass(response_format) and issubclass(response_format, pydantic.BaseModel):
             return True
         else:
             return False

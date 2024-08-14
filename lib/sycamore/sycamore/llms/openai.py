@@ -414,9 +414,10 @@ class OpenAI(LLM):
             completion = self.client_wrapper.get_client().beta.chat.completions.parse(model=self._model_name, **kwargs)
             if completion.choices[0].message.content is None:
                 raise ValueError("OpenAI declined to respond to query")
+            return completion.choices[0].message.content
         else:
             completion = self.client_wrapper.get_client().chat.completions.create(model=self._model_name, **kwargs)
-        return completion.choices[0].message.content
+            return completion.choices[0].message.content
 
     async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Awaitable[str]:
         key, ret = self._cache_get(prompt_kwargs, llm_kwargs)
@@ -444,11 +445,12 @@ class OpenAI(LLM):
             )
             if completion.choices[0].message.content is None:
                 raise ValueError("OpenAI declined to respond to query")
+            return completion.choices[0].message.content
         else:
             completion = await self.client_wrapper.get_async_client().chat.completions.create(
                 model=self._model_name, **kwargs
             )
-        return completion.choices[0].message.content
+            return completion.choices[0].message.content
 
     def _generate_using_guidance(self, prompt_kwargs) -> str:
         guidance_model = self.client_wrapper.get_guidance_model(self.model)

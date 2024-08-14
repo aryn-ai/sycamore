@@ -41,13 +41,9 @@ class Execution:
         self._context = context
         self._plan = plan
         self._exec_mode = context.exec_mode
-        from sycamore.rewriter import Rewriter
-
-        extension_rules = context.extension_rules
-        self.rewriter = Rewriter(extension_rules)
 
     def execute(self, plan: Node, **kwargs) -> "Dataset":
-        self.rewriter.rewrite(plan)
+        plan = self._apply_rules(plan)
         if self._exec_mode == ExecMode.RAY:
             import ray
 
@@ -70,18 +66,30 @@ class Execution:
         if self._exec_mode == ExecMode.LOCAL:
             from ray.data import from_items
 
-            return from_items(items=[{"doc": doc.serialize()} for doc in self.recursive_execute(self._plan)])
+            return from_items(items=[{"doc": doc.serialize()} for doc in self.recursive_execute(plan)])
         assert False, f"unsupported mode {self._exec_mode}"
 
+    def _apply_rules(self, plan: Node) -> Node:
+        from sycamore.plan_nodes import NodeTraverse
+
+        for r in self._context.rewrite_rules:
+            if isinstance(r, NodeTraverse):
+                plan = r.once(self._context, plan)
+                plan = plan.traverse(r)
+            else:
+                plan = plan.traverse(before=r)
+
+        return plan
+
     def execute_iter(self, plan: Node, **kwargs) -> Iterable[Document]:
-        self.rewriter.rewrite(plan)
+        plan = self._apply_rules(plan)
         if self._exec_mode == ExecMode.RAY:
             ds = plan.execute(**kwargs)
             for row in ds.iter_rows():
                 yield Document.from_row(row)
             return
         if self._exec_mode == ExecMode.LOCAL:
-            for d in self.recursive_execute(self._plan):
+            for d in self.recursive_execute(plan):
                 yield d
             return
         assert False

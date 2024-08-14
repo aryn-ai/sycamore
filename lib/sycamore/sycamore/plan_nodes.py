@@ -3,20 +3,37 @@ from typing import Callable, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ray import Dataset
+    from sycamore.context import Context
 
 
 class NodeTraverse:
     def __init__(
-        self, before: Optional[Callable[["Node"], "Node"]] = None, after: Optional[Callable[["Node"], "Node"]] = None
+        self,
+        before: Optional[Callable[["Node"], "Node"]] = None,
+        visit: Optional[Callable[["Node"], None]] = None,
+        after: Optional[Callable[["Node"], "Node"]] = None,
     ):
         self.before_fn = before
+        self.visit_fn = visit
         self.after_fn = after
 
+    def once(self, context: "Context", node: "Node") -> "Node":
+        # Called one time at the start of rewriting on the root of the tree.
+        # Enables multi-pass traversals
+        return node
+
+    # Called before traversing children
     def before(self, node: "Node") -> "Node":
         if self.before_fn is None:
             return node
         return self.before_fn(node)
 
+    # Called before traversing children, convenience function for single node mutating operations
+    def visit(self, node: "Node") -> None:
+        if self.visit_fn is not None:
+            self.visit_fn(node)
+
+    # Called after traversing children
     def after(self, node: "Node") -> "Node":
         if self.after_fn is None:
             return node
@@ -30,9 +47,12 @@ class Node(ABC):
     and then implemented
     """
 
-    def __init__(self, children: list[Optional["Node"]], **resource_args):
+    def __init__(self, children: list[Optional["Node"]], materialize: dict = {}, **resource_args):
         self.children = children
         self.resource_args = resource_args
+        self.properties = {}
+        # copy because of https://stackoverflow.com/questions/1132941/least-astonishment-and-the-mutable-default-argument
+        self.properties["materialize"] = materialize.copy()
 
     def __str__(self):
         return "node"
@@ -61,6 +81,7 @@ class Node(ABC):
         self,
         obj: Optional[NodeTraverse] = None,
         before: Optional[Callable[["Node"], "Node"]] = None,
+        visit: Optional[Callable[["Node"], None]] = None,
         after: Optional[Callable[["Node"], "Node"]] = None,
     ) -> "Node":
         """
@@ -68,15 +89,16 @@ class Node(ABC):
         Before is called before traversing down the tree, after is called after traversing the tree.
         """
         if obj is None:
-            assert before is not None or after is not None
-            obj = NodeTraverse(before=before, after=after)
+            assert before is not None or visit is not None or after is not None
+            obj = NodeTraverse(before=before, visit=visit, after=after)
         else:
-            assert before is None and after is None
+            assert before is None and visit is None and after is None
 
         return self._traverse(obj)
 
     def _traverse(self, obj: NodeTraverse) -> "Node":
         n = obj.before(self)
+        obj.visit(self)
         n.children = [c._traverse(obj) for c in n.children if c is not None]
         return obj.after(n)
 

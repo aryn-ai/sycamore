@@ -174,14 +174,14 @@ class DocSetReader:
         scan = ArrowScan(tables)
         return DocSet(self._context, scan)
 
-    def document(self, docs: list[Document]) -> DocSet:
+    def document(self, docs: list[Document], **kwargs) -> DocSet:
         """
         Reads the contents of Sycamore Documents into a DocSet
 
         Args:
             docs: Sycamore Documents to read into a DocSet
         """
-        scan = DocScan(docs)
+        scan = DocScan(docs, **kwargs)
         return DocSet(self._context, scan)
 
     def pandas(self, dfs: Union[DataFrame, list[DataFrame]]) -> DocSet:

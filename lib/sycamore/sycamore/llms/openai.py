@@ -5,7 +5,7 @@ import os
 import pickle
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Awaitable, Optional, TypedDict, Union, cast
+from typing import Any, Optional, TypedDict, Union, cast
 
 from guidance.models import AzureOpenAIChat, AzureOpenAICompletion
 from guidance.models import Model

@@ -1,8 +1,8 @@
 # Process and load data into an OpenSearch hybrid search index
 
-This tutorial provides a walkthrough of how to use Sycamore to extract, enrich, transform, and create vector embeddings from a PDF dataset in S3 and load it into OpenSearch. The way in which you run ETL on these document is critical for the end quality of your application, and you can easily use Sycamore to facilitate this. The example below shows a few transforms Sycamore can do.
+This tutorial provides a walkthrough of how to use Sycamore to extract, enrich, transform, and create vector embeddings from a PDF dataset in S3 and load it into OpenSearch. The way in which you run ETL on these document is critical for the end quality of your application, and you can easily use Sycamore to facilitate this. The example below shows a few transforms Sycamore can do in a pipeline, and how to use LLMs to extract information.
 
-We will be using PDF documents from the [Sort Benchmark](http://sortbenchmark.org/) website. This data is publicly available in S3 here, so you do not need AWS credentials to access it: `s3://aryn-public/sort-benchmark/pdf/`
+In this example, we will be using PDF documents from the [Sort Benchmark](http://sortbenchmark.org/) website stored in a public S3 bucket. These documents are research papers that contain images, tables, text, and complex formatting.
 
 ## Steps
 
@@ -32,9 +32,9 @@ At any point if you want to inspect the docset, you can use docset.show() method
 ```python
 from sycamore.transforms.partition import ArynPartitioner
 
-# We are using Aryn Partitioner to partion the PDFs. By default, it uses the Aryn Partitioning Service. You can sign up for free at https://www.aryn.ai/get-started and set your API key.
+# We are using Aryn Partitioner to partion the PDFs. By default, it uses the Aryn Partitioning Service. You can sign up for free at https://www.aryn.ai/get-started and set your API key. Set your ARYN_API_KEY variable in your environment variables or in your code for use with the Partition transform.
 
-ARYN_API_KEY = [MY_KEY]
+```
 docset = docset.partition(partitioner=ArynPartitioner())
 ```
 

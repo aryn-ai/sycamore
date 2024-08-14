@@ -389,7 +389,7 @@ class OpenAI(LLM):
         else:
             return False
 
-    def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
+    def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Any:
         key, ret = self._cache_get(prompt_kwargs, llm_kwargs)
         if ret is not None:
             return ret
@@ -408,7 +408,7 @@ class OpenAI(LLM):
         self._cache_set(key, value)
         return ret
 
-    def _generate_using_openai(self, prompt_kwargs, llm_kwargs) -> str:
+    def _generate_using_openai(self, prompt_kwargs, llm_kwargs) -> Any:
         kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
         if self._determine_using_beta(llm_kwargs.get("response_format", None)):
             completion = self.client_wrapper.get_client().beta.chat.completions.parse(model=self._model_name, **kwargs)
@@ -419,7 +419,7 @@ class OpenAI(LLM):
             completion = self.client_wrapper.get_client().chat.completions.create(model=self._model_name, **kwargs)
             return completion.choices[0].message.content
 
-    async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Awaitable[str]:
+    async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Awaitable[Any]:
         key, ret = self._cache_get(prompt_kwargs, llm_kwargs)
         if ret is not None:
             return ret
@@ -437,14 +437,12 @@ class OpenAI(LLM):
         self._cache_set(key, value)
         return ret
 
-    async def _generate_awaitable_using_openai(self, prompt_kwargs, llm_kwargs) -> Union[Awaitable[str], str]:
+    async def _generate_awaitable_using_openai(self, prompt_kwargs, llm_kwargs) -> Awaitable[Any]:
         kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
         if self._determine_using_beta(llm_kwargs.get("response_format", None)):
             completion = await self.client_wrapper.get_async_client().beta.chat.completions.parse(
                 model=self._model_name, **kwargs
             )
-            if completion.choices[0].message.content is None:
-                raise ValueError("OpenAI declined to respond to query")
             return completion.choices[0].message.content
         else:
             completion = await self.client_wrapper.get_async_client().chat.completions.create(

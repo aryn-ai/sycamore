@@ -1,5 +1,8 @@
 import glob
+import logging
 from pathlib import Path
+import re
+import shutil
 import tempfile
 import unittest
 import uuid
@@ -9,6 +12,14 @@ from pyarrow import fs
 import sycamore
 from sycamore.context import ExecMode
 from sycamore.data import Document, MetadataDocument
+from sycamore.lineage import AutoMaterialize, Materialize
+
+
+def tobin(d):
+    if isinstance(d, MetadataDocument):
+        return b"md"
+    else:
+        return d.doc_id.encode("utf-8")
 
 
 class LocalRenameFilesystem(fs.LocalFileSystem):
@@ -20,6 +31,25 @@ class LocalRenameFilesystem(fs.LocalFileSystem):
         return super().open_output_stream(path + self.extension)
 
 
+def make_docs(num):
+    docs = []
+    for i in range(num):
+        doc = Document({"doc_id": f"doc_{i}"})
+        docs.append(doc)
+
+    docs.append(
+        MetadataDocument(
+            lineage_links={"from_ids": ["root:" + str(uuid.uuid4())], "to_ids": [d.lineage_id for d in docs]}
+        )
+    )
+
+    return docs
+
+
+def noop_fn(d):
+    return d
+
+
 class TestLineage(unittest.TestCase):
     # Needed until we don't have a global context
     def setUp(self):
@@ -28,32 +58,14 @@ class TestLineage(unittest.TestCase):
     def tearDown(self):
         sycamore.shutdown()
 
-    def make_docs(self, num):
-        docs = []
-        for i in range(num):
-            doc = Document({"doc_id": f"doc_{i}"})
-            docs.append(doc)
-
-        docs.append(
-            MetadataDocument(
-                lineage_links={"from_ids": ["root:" + str(uuid.uuid4())], "to_ids": [d.lineage_id for d in docs]}
-            )
-        )
-
-        return docs
-
-    @staticmethod
-    def noop_fn(d):
-        return d
-
     def test_noop(self):
         ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
         assert ctx.exec_mode == ExecMode.LOCAL
-        ctx.read.document(self.make_docs(3)).map(self.noop_fn).materialize().execute()
+        ctx.read.document(make_docs(3)).map(noop_fn).materialize().execute()
 
     def test_write_str(self):
         ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
-        ds = ctx.read.document(self.make_docs(3)).map(self.noop_fn)
+        ds = ctx.read.document(make_docs(3)).map(noop_fn)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             ds.materialize(path=str(tmpdir)).execute()
@@ -70,17 +82,24 @@ class TestLineage(unittest.TestCase):
 
     def test_write_path(self):
         ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
-        ds = ctx.read.document(self.make_docs(3)).map(self.noop_fn)
+        ds = ctx.read.document(make_docs(3)).map(noop_fn)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             ds.materialize(path=Path(tmpdir)).execute()
             self.check_files(tmpdir)
 
-    def test_write_dict(self):
-        from sycamore.lineage import Materialize
-
+    def test_cleanup(self):
         ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
-        ds = ctx.read.document(self.make_docs(3)).map(self.noop_fn)
+        ds = ctx.read.document(make_docs(3)).map(noop_fn)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            (Path(tmpdir) / "doc_x").touch()
+            ds.materialize(path=Path(tmpdir)).execute()
+            self.check_files(tmpdir)
+
+    def test_write_dict(self):
+        ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
+        ds = ctx.read.document(make_docs(3)).map(noop_fn)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             ds.materialize(path={"root": tmpdir}).execute()
@@ -111,15 +130,9 @@ class TestLineage(unittest.TestCase):
             assert len(files) == 10
 
     def test_to_binary(self):
-        docs = self.make_docs(3)
+        docs = make_docs(3)
         ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
-        ds = ctx.read.document(docs).map(self.noop_fn)
-
-        def tobin(d):
-            if isinstance(d, MetadataDocument):
-                return b"md"
-            else:
-                return d.doc_id.encode("utf-8")
+        ds = ctx.read.document(docs).map(noop_fn)
 
         def onlydoc(d):
             if isinstance(d, MetadataDocument):
@@ -146,3 +159,108 @@ class TestLineage(unittest.TestCase):
             assert len(docs) == 3
             mds = glob.glob(tmpdir + "/md-*")
             assert len(mds) == 0
+
+
+class TestAutoMaterialize(unittest.TestCase):
+    # Needed until we don't have a global context
+    def setUp(self):
+        sycamore.shutdown()
+
+    def tearDown(self):
+        sycamore.shutdown()
+
+    def test_setdirname(self):
+        docs = make_docs(3)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            ctx = sycamore.init(exec_mode=ExecMode.LOCAL, rewrite_rules=[AutoMaterialize(tmpdir)])
+            ctx.read.document(docs).map(noop_fn).execute()
+
+            files = [f for f in Path(tmpdir).rglob("*")]
+            logging.info(f"Found {files}")
+            assert len([f for f in files if "DocScan.0/doc" in str(f)]) == 3
+            assert len([f for f in files if "DocScan.0/md-" in str(f)]) == 1
+            assert len([f for f in files if "Map.0/doc" in str(f)]) == 3
+            assert len([f for f in files if "Map.0/md-" in str(f)]) == 2
+
+    def test_autodirname(self):
+        docs = make_docs(3)
+        a = AutoMaterialize()
+        try:
+            ctx = sycamore.init(exec_mode=ExecMode.LOCAL, rewrite_rules=[a])
+            ctx.read.document(docs).map(noop_fn).execute()
+
+            files = [f for f in Path(a.directory).rglob("*")]
+            logging.info(f"Found {files}")
+            assert len([f for f in files if "DocScan.0/doc" in str(f)]) == 3
+            assert len([f for f in files if "DocScan.0/md-" in str(f)]) == 1
+            assert len([f for f in files if "Map.0/doc" in str(f)]) == 3
+            assert len([f for f in files if "Map.0/md-" in str(f)]) == 2
+            assert re.match(".*materialize\\.[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}", str(a.directory))
+        finally:
+            if a.directory is not None:
+                shutil.rmtree(a.directory)
+
+    def test_dupnodename(self):
+        docs = make_docs(3)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            ctx = sycamore.init(exec_mode=ExecMode.LOCAL, rewrite_rules=[AutoMaterialize(tmpdir)])
+            ctx.read.document(docs).map(noop_fn).execute()
+
+            files = [f for f in Path(tmpdir).rglob("*")]
+            logging.info(f"DupNode Found-1 {files}")
+            assert len([f for f in files if "DocScan.0/" in str(f)]) == 3 + 1
+            assert len([f for f in files if "Map.0/" in str(f)]) == 3 + 2
+
+            # This is a new pipeline so should get new names
+            ctx.read.document(docs).map(noop_fn).execute()
+            files = [f for f in Path(tmpdir).rglob("*")]
+            logging.info(f"DupNode Found-2 {files}")
+            assert len([f for f in files if "DocScan.0/" in str(f)]) == 3 + 1
+            assert len([f for f in files if "Map.0/" in str(f)]) == 3 + 2
+            assert len([f for f in files if "DocScan.1/" in str(f)]) == 3 + 1
+            assert len([f for f in files if "Map.1/" in str(f)]) == 3 + 2
+
+    def test_forcenodename(self):
+        docs = make_docs(3)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            ctx = sycamore.init(exec_mode=ExecMode.LOCAL, rewrite_rules=[AutoMaterialize(tmpdir)])
+            ds = ctx.read.document(docs, materialize={"name": "reader"}).map(noop_fn, materialize={"name": "noop"})
+
+            ds.execute()
+
+            files = [f for f in Path(tmpdir).rglob("*")]
+            logging.info(f"DupNode Found-1 {files}")
+            assert len([f for f in files if "reader/" in str(f)]) == 3 + 1
+            assert len([f for f in files if "noop/" in str(f)]) == 3 + 2
+
+    def test_overrides(self):
+        def doc_to_name4(doc):
+            return Materialize.doc_to_name(doc) + ".test4"
+
+        docs = make_docs(3)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            a = AutoMaterialize(path={"root": tmpdir, "name": doc_to_name4, "clean": False, "tobin": tobin})
+            ctx = sycamore.init(exec_mode=ExecMode.LOCAL, rewrite_rules=[a])
+
+            ds = ctx.read.document(docs).map(noop_fn)
+            ds.execute()
+
+            files = [f for f in Path(tmpdir).rglob("*")]
+            logging.info(f"TO Found-1 {files}")
+            assert len([f for f in files if ".test4" in str(f)]) == 3 + 1 + 3 + 2
+
+            for d in docs:
+                if not isinstance(d, MetadataDocument):
+                    d.doc_id = d.doc_id + "-dup"
+
+            ds.execute()
+            files = [f for f in Path(tmpdir).rglob("*")]
+            logging.info(f"TO Found-2 {files}")
+            assert len([f for f in files if "-dup" in str(f)]) == 3 + 3
+            assert len([f for f in files if ".test4" in str(f)]) == 2 * (3 + 1 + 3 + 2)
+
+            a._path["clean"] = True
+            ds.execute()
+            files = [f for f in Path(tmpdir).rglob("*")]
+            logging.info(f"TO Found-3 {files}")
+            assert len([f for f in files if ".test4" in str(f)]) == 3 + 1 + 3 + 2

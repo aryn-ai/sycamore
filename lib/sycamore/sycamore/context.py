@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Callable, Optional, Union
 from sycamore.llms import LLM
-from sycamore.rules import Rule
+from sycamore.plan_nodes import Node, NodeTraverse
 
 
 class ExecMode(Enum):
@@ -18,6 +18,12 @@ class OpenSearchArgs:
     index_settings: Optional[dict[str, Any]] = None
 
 
+def _default_rewrite_rules():
+    import sycamore.rules.optimize_resource_args as o
+
+    return [o.EnforceResourceUsage(), o.OptimizeResourceArgs()]
+
+
 @dataclass
 class Context:
     """
@@ -29,10 +35,10 @@ class Context:
     ray_args: Optional[dict[str, Any]] = None
 
     """
-    Allows for the registration of Rules in the Sycamore Context that allow for communication with the
-    underlying Ray context and can specify additional performance optimizations
+    Allows for the registration of Rules in the Sycamore Context that allow for transforming the
+    nodes before execution.  These rules can optimize ray execution or perform other manipulations.
     """
-    extension_rules: list[Rule] = field(default_factory=list)
+    rewrite_rules: list[Union[Callable[[Node], Node], NodeTraverse]] = field(default_factory=_default_rewrite_rules)
 
     """
     Default OpenSearch args for a Context

@@ -9,6 +9,7 @@ from sycamore.docset import DocSet
 from sycamore.context import Context
 from sycamore.plan_nodes import Scan
 import json
+import math
 import ast
 
 
@@ -113,13 +114,14 @@ class HandwritingOCREvalScan(OCREvalScan):
 
 
 class BaseOCREvalScan(OCREvalScan):
-
     @staticmethod
     def _ray_row_to_document(row) -> dict[str, bytes]:
         img = Image.open(io.BytesIO(row["cropped_image"]["bytes"])).convert("RGB")
         eval_doc = OCREvalDocument()
         eval_doc.image = img
         eval_doc.gt_text = "".join(row["answer"]) if isinstance(row["answer"], list) else row["answer"]
+        if row["__index_level_0__"] and not math.isnan(row["__index_level_0__"]):
+            eval_doc.data["index"] = row["__index_level_0__"]
         return {"doc": eval_doc.serialize()}
 
     def execute(self, **kwargs) -> Dataset:

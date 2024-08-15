@@ -7,6 +7,17 @@ if TYPE_CHECKING:
 
 
 class NodeTraverse:
+    """NodeTraverse allows for complicated traversals
+
+    For simple use cases, call node.traverse({before,visit,after}=fn)
+
+    - before is called before traversing children.
+    - after is called after traversing children.
+    - visit is called over each node in an unspecified order, and is easier to use since the
+      function returns nothing.
+    - once is called one time at the very start, and enables multi-pass transforms.
+    """
+
     def __init__(
         self,
         before: Optional[Callable[["Node"], "Node"]] = None,
@@ -85,8 +96,8 @@ class Node(ABC):
         after: Optional[Callable[["Node"], "Node"]] = None,
     ) -> "Node":
         """
-        Traverse the node tree, calling either the methods on obj, or the before and after functions.
-        Before is called before traversing down the tree, after is called after traversing the tree.
+        Traverse the node tree, functions will be converted to an object.
+        See NodeTraverse for the semantics.
         """
         if obj is None:
             assert before is not None or visit is not None or after is not None

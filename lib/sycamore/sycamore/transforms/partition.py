@@ -433,7 +433,7 @@ class ArynPartitioner(Partitioner):
     def __init__(
         self,
         model_name_or_path=ARYN_DETR_MODEL,
-        threshold: float = 0.4,
+        threshold: float = 0.35,
         use_ocr: bool = False,
         ocr_images: bool = False,
         ocr_tables: bool = False,

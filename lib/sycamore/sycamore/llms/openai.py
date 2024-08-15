@@ -441,7 +441,7 @@ class OpenAI(LLM):
         self._cache_set(key, value)
         return ret
 
-    async def _generate_awaitable_using_openai(self, prompt_kwargs, llm_kwargs) -> Awaitable[str]:
+    async def _generate_awaitable_using_openai(self, prompt_kwargs, llm_kwargs) -> str:
         kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
         # if self._determine_using_beta(llm_kwargs.get("response_format", None)):
         #     completion = await self.client_wrapper.get_async_client().beta.chat.completions.parse(
@@ -455,11 +455,12 @@ class OpenAI(LLM):
         )
         return completion.choices[0].message.content
     
-    async def _generate_awaitable_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> Awaitable[str]:
+    async def _generate_awaitable_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:
         kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
         completion = await self.client_wrapper.get_async_client().beta.chat.completions.parse(
             model=self._model_name, **kwargs
         )
+        assert completion.choices[0].message.content is not None
         return completion.choices[0].message.content
 
 

@@ -1,7 +1,7 @@
 from sycamore.data import Document, MetadataDocument
 from sycamore.plan_nodes import Node, Write
 
-from pyarrow.fs import FileSystem
+from pyarrow.fs import FileSystem, FileType
 from pyarrow import NativeFile
 
 from ray.data import Dataset
@@ -16,6 +16,7 @@ import json
 import logging
 from pathlib import Path
 import posixpath
+from urllib.parse import urlparse
 import uuid
 from typing import Any, Callable, Optional, Iterable
 from sycamore.utils.time_trace import TimeTrace
@@ -227,15 +228,25 @@ class _FileDataSink(Datasink):
         filesystem: Optional[FileSystem] = None,
         filename_fn: Callable[[Document], str] = default_filename,
         doc_to_bytes_fn: Callable[[Document], bytes] = default_doc_to_bytes,
-        makedirs: bool = False,
+        makedirs: bool = True,
     ):
         (paths, self._filesystem) = _resolve_paths_and_filesystem(path, filesystem)
         self._root = paths[0]
         self._filename_fn = filename_fn
         self._doc_to_bytes_fn = doc_to_bytes_fn
+        self._makedirs = makedirs
 
-        if makedirs:
-            self._filesystem.create_dir(path)
+    def on_write_start(self) -> None:
+        if not self._makedirs:
+            return
+
+        # This follows Ray logic to skip attempting to
+        # create "directories" for s3 filesystems.
+        parsed_uri = urlparse(self._root)
+        is_s3_uri = parsed_uri.scheme == "s3"
+
+        if not is_s3_uri and self._filesystem.get_file_info(self._root).type is FileType.NotFound:
+            self._filesystem.create_dir(self._root, recursive=True)
 
     def write(self, blocks: Iterable[Block], ctx: TaskContext) -> Any:
         for block in blocks:

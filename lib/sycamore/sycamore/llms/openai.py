@@ -416,15 +416,12 @@ class OpenAI(LLM):
         kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
         completion = self.client_wrapper.get_client().chat.completions.create(model=self._model_name, **kwargs)
         return completion.choices[0].message.content
-        
+
     def _generate_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:
         kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
-        completion = self.client_wrapper.get_client().beta.chat.completions.parse(
-            model=self._model_name, **kwargs
-        )
-        assert completion.choices[0].message.content is not None
+        completion = self.client_wrapper.get_client().beta.chat.completions.parse(model=self._model_name, **kwargs)
+        assert completion.choices[0].message.content is not None, "OpenAI refused to respond to the query"
         return completion.choices[0].message.content
-
 
     async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Awaitable[str]:
         key, ret = self._cache_get(prompt_kwargs, llm_kwargs)
@@ -453,15 +450,14 @@ class OpenAI(LLM):
             model=self._model_name, **kwargs
         )
         return completion.choices[0].message.content
-    
+
     async def _generate_awaitable_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:
         kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
         completion = await self.client_wrapper.get_async_client().beta.chat.completions.parse(
             model=self._model_name, **kwargs
         )
-        assert completion.choices[0].message.content is not None
+        assert completion.choices[0].message.content is not None, "OpenAI refused to respond to the query"
         return completion.choices[0].message.content
-
 
     def _generate_using_guidance(self, prompt_kwargs) -> str:
         guidance_model = self.client_wrapper.get_guidance_model(self.model)

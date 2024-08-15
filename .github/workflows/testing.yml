@@ -103,7 +103,7 @@ jobs:
         working-directory: lib/remote-processors
 
   integ-tests:
-    runs-on: integ-test-runner
+    runs-on: integ-test-runner2
     strategy:
       matrix:
         python-version: ["3.9"]

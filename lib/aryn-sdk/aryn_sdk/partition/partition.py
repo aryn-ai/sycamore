@@ -29,6 +29,7 @@ def partition_file(
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
     aps_url: str = APS_URL,
+    ssl_verify: bool = True,
 ) -> dict:
     """
     Sends file to the Aryn Partitioning Service and returns a dict of its document structure and text
@@ -53,6 +54,7 @@ def partition_file(
             default: None
         aps_url: url of the Aryn Partitioning Service endpoint.
             default: "https://api.aryn.cloud/v1/document/partition"
+        ssl_verify: verify ssl certificates. In databricks, set this to False to fix ssl imcompatibilities.
 
     Returns:
         A dictionary containing "status" and "elements"
@@ -91,7 +93,7 @@ def partition_file(
 
     files: Mapping = {"options": options_str.encode("utf-8"), "pdf": file}
     http_header = {"Authorization": "Bearer {}".format(aryn_config.api_key())}
-    resp = requests.post(aps_url, files=files, headers=http_header, stream=True)
+    resp = requests.post(aps_url, files=files, headers=http_header, stream=True, verify=ssl_verify)
 
     if resp.status_code != 200:
         raise requests.exceptions.HTTPError(

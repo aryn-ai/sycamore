@@ -448,7 +448,7 @@ class OpenAI(LLM):
         )
         return completion.choices[0].message.content
     
-    async def _generate_awaitable_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> Awaitable[str]:
+    async def _generate_awaitable_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:
         kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
         completion = await self.client_wrapper.get_async_client().beta.chat.completions.parse(
             model=self._model_name, **kwargs

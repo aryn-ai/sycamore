@@ -6,7 +6,6 @@ from typing import Any, Optional, Callable, Union
 
 from openai import OpenAI as OpenAIClient
 from openai import AzureOpenAI as AzureOpenAIClient
-from ray.data import ActorPoolStrategy
 
 from sycamore.data import Document
 from sycamore.llms import OpenAIClientParameters
@@ -325,6 +324,8 @@ class Embed(MapBatch):
             if self.resource_args["num_gpus"] <= 0:
                 raise RuntimeError("Invalid GPU Nums!")
             if "compute" not in self.resource_args:
+                from ray.data import ActorPoolStrategy
+
                 self.resource_args["compute"] = ActorPoolStrategy(size=1)
         elif embedder.device == "cpu":
             self.resource_args.pop("num_gpus", None)

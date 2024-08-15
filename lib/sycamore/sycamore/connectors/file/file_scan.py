@@ -2,17 +2,18 @@ import json
 from abc import ABC, abstractmethod
 import boto3
 import mimetypes
-from typing import Any, Optional, Union, Tuple, Callable
+from typing import Any, Optional, Union, Tuple, Callable, TYPE_CHECKING
 import uuid
 import logging
 
 from pyarrow.filesystem import FileSystem
-from ray.data import Dataset, read_binary_files, read_json
 
 from sycamore.data import Document
 from sycamore.plan_nodes import Scan
 from sycamore.utils.time_trace import timetrace
 
+if TYPE_CHECKING:
+    from ray.data import Dataset
 
 logger = logging.getLogger(__name__)
 
@@ -149,8 +150,10 @@ class BinaryScan(FileScan):
         logger.warning(f"Unrecognized extenstion {self._binary_format}; using {ret}")
         return ret
 
-    def execute(self, **kwargs) -> Dataset:
+    def execute(self, **kwargs) -> "Dataset":
         file_extensions = [self.format()] if self._filter_paths_by_extension else None
+
+        from ray.data import read_binary_files
 
         files = read_binary_files(
             self._paths,
@@ -228,7 +231,9 @@ class JsonScan(FileScan):
 
         return properties
 
-    def execute(self, **kwargs) -> Dataset:
+    def execute(self, **kwargs) -> "Dataset":
+        from ray.data import read_json
+
         json_dataset = read_json(
             self._paths,
             include_paths=True,
@@ -262,7 +267,9 @@ class JsonDocumentScan(FileScan):
         doc.data = json
         return [{"doc": doc.serialize()}]  # Make Ray row
 
-    def execute(self, **kwargs) -> Dataset:
+    def execute(self, **kwargs) -> "Dataset":
+        from ray.data import read_json
+
         ds = read_json(
             self._paths,
             include_paths=True,

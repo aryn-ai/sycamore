@@ -1,16 +1,18 @@
 import logging
-from typing import Any, Callable, Iterable, Optional, Union
+from typing import Any, Callable, Iterable, Optional, Union, TYPE_CHECKING
 
 import numpy as np
-from ray.data import ActorPoolStrategy, Dataset, Datasink
 
 from sycamore.data import Document, MetadataDocument
 from sycamore.data.document import split_data_metadata
 from sycamore.plan_nodes import Node, UnaryNode
 from sycamore.utils.ray_utils import check_serializable
 
+if TYPE_CHECKING:
+    from ray.data import Dataset, Datasink
 
-def take_separate(dataset: Dataset, limit: Optional[int] = None) -> tuple[list[Document], list[MetadataDocument]]:
+
+def take_separate(dataset: "Dataset", limit: Optional[int] = None) -> tuple[list[Document], list[MetadataDocument]]:
     """
     Returns the list of documents from a dataset separating out data and metadata docs.
     """
@@ -98,6 +100,8 @@ class BaseMapTransform(UnaryNode):
             check_serializable(f, name, args, kwargs, constructor_args, constructor_kwargs)
 
         if isinstance(f, type) and "compute" not in resource_args:
+            from ray.data import ActorPoolStrategy
+
             # classes require actor strategy for now
             resource_args["compute"] = ActorPoolStrategy(size=1)
 
@@ -116,10 +120,12 @@ class BaseMapTransform(UnaryNode):
     def execute(
         self,
         write_intermediate_data: bool = False,
-        intermediate_datasink: Optional[Union[type[Datasink], Datasink]] = None,
+        intermediate_datasink: Optional[Union[type["Datasink"], "Datasink"]] = None,
         intermediate_datasink_kwargs: Optional[dict[str, Any]] = None,
         **kwargs,
     ) -> "Dataset":
+        from ray.data import ActorPoolStrategy
+
         if "num_gpus" in self.resource_args:
             assert self.resource_args["num_gpus"] > 0
 
@@ -291,5 +297,5 @@ class CompositeTransform(UnaryNode):
 
         return docs
 
-    def execute(self, **kwargs) -> Dataset:
+    def execute(self, **kwargs) -> "Dataset":
         return self.nodes[-1].execute()

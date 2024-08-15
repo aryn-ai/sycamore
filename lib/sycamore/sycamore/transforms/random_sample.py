@@ -1,8 +1,9 @@
-from typing import Optional
-
-from ray.data import Dataset
+from typing import Optional, TYPE_CHECKING
 
 from sycamore.plan_nodes import Node, Transform
+
+if TYPE_CHECKING:
+    from ray.data import Dataset
 
 
 class RandomSample(Transform):
@@ -21,6 +22,6 @@ class RandomSample(Transform):
         self.fraction = fraction
         self.seed = seed
 
-    def execute(self, **kwargs) -> Dataset:
+    def execute(self, **kwargs) -> "Dataset":
         dataset = self.child().execute()
         return dataset.random_sample(self.fraction, seed=self.seed)

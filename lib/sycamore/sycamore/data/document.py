@@ -181,6 +181,8 @@ class Document(UserDict):
         data = loads(raw)
         if "metadata" in data:
             return MetadataDocument(data)
+        elif "children" in data:
+            return HierarchicalDocument(data)
         else:
             return Document(data)
 
@@ -326,6 +328,67 @@ def split_data_metadata(all: list[Document]) -> tuple[list[Document], list[Metad
         [d for d in all if not isinstance(d, MetadataDocument)],
         [d for d in all if isinstance(d, MetadataDocument)],
     )
+
+
+############### EXPERIMENTAL
+class HierarchicalDocument(Document):
+    def __init__(self, document=None, **kwargs):
+        super().__init__(document)
+
+        self.doc_id = self.data.get("doc_id", str(uuid.uuid4()))
+        self.children = self.data.get("children", [])
+        if self.data.get("type", "") == "table" and self.data.get("table", None) is not None:
+            self.text_representation = self.data["table"].to_csv()
+
+        for element in self.data.get("elements", []):
+            self.children.append(HierarchicalDocument(Document(element.data)))
+
+        del self.data["elements"]
+
+    @property
+    def children(self) -> list["HierarchicalDocument"]:
+        """Returns this documents children"""
+        return self.data["children"]
+
+    @children.setter
+    def children(self, children: list["HierarchicalDocument"]):
+        """Sets the children of this document"""
+        self.data["children"] = children
+
+    @children.deleter
+    def children(self) -> None:
+        """Deletes all children that belong to this document"""
+        self.data["children"] = []
+
+    @property
+    def elements(self) -> list[Element]:
+        raise ValueError("HierarchicalDocument does not have elements")
+
+    @elements.setter
+    def elements(self, elements: list[Element]):
+        raise ValueError("HierarchicalDocument does not have elements")
+
+    def __str__(self) -> str:
+        """Return a pretty-printed string representing this document."""
+        d = {
+            "doc_id": self.doc_id,
+            "lineage_id": self.lineage_id,
+            "type": self.type,
+            "text_representation": self.text_representation[0:40] + "..." if self.text_representation else None,
+            "binary_representation": (
+                f"<{len(self.binary_representation)} bytes>" if self.binary_representation else None
+            ),
+            "children": [str(c) for c in self.children],
+            "embedding": (str(self.embedding[0:4]) + f"... <{len(self.embedding)} total>") if self.embedding else None,
+            "shingles": (str(self.shingles[0:4]) + f"... <{len(self.shingles)} total>") if self.shingles else None,
+            "parent_id": self.parent_id,
+            "bbox": str(self.bbox),
+            "properties": self.properties,
+        }
+        return json.dumps(d, indent=2)
+
+
+###############
 
 
 class OpenSearchQuery(Document):

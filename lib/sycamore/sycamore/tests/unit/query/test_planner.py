@@ -16,11 +16,11 @@ def mock_os_client():
 
 
 @pytest.fixture
-def mock_openai_client():
+def mock_llm_client():
     return MagicMock()
 
 
-def test_llm_planner(mock_os_config, mock_os_client, mock_openai_client, monkeypatch):
+def test_llm_planner(mock_os_config, mock_os_client, mock_llm_client, monkeypatch):
     index = "test_index"
     schema = {
         "description": "Database of airplane incidents",
@@ -28,16 +28,16 @@ def test_llm_planner(mock_os_config, mock_os_client, mock_openai_client, monkeyp
         "date": "(string: YYYY-MM-DD) e.g. 2022-01-01, 2024-02-10",
     }
 
-    # Mock the generate_from_openai method to return a static JSON object
-    def mock_generate_from_openai(self, query):
+    # Mock the generate_from_llm method to return a static JSON object
+    def mock_generate_from_llm(self, query):
         return json.dumps(
             [
                 {
-                    "operatorName": "LoadData",
+                    "operatorName": "QueryDatabase",
                     "description": "Get all the airplane incidents",
                     "index": "ntsb",
                     "query": "airplane incidents",
-                    "id": 0,
+                    "node_id": 0,
                 },
                 {
                     "operatorName": "LlmFilter",
@@ -45,7 +45,7 @@ def test_llm_planner(mock_os_config, mock_os_client, mock_openai_client, monkeyp
                     "question": "Did this incident occur in a Piper aircraft?",
                     "field": "properties.entity.aircraft",
                     "input": [0],
-                    "id": 1,
+                    "node_id": 1,
                 },
                 {
                     "operatorName": "Count",
@@ -53,46 +53,42 @@ def test_llm_planner(mock_os_config, mock_os_client, mock_openai_client, monkeyp
                     "countUnique": False,
                     "field": None,
                     "input": [1],
-                    "id": 2,
+                    "node_id": 2,
                 },
                 {
-                    "operatorName": "LlmGenerate",
+                    "operatorName": "SummarizeData",
                     "description": "Generate an English response to the question",
                     "question": "How many Piper aircrafts were involved in accidents?",
                     "input": [2],
-                    "id": 3,
+                    "node_id": 3,
                 },
             ]
         )
 
-    monkeypatch.setattr(LlmPlanner, "generate_from_openai", mock_generate_from_openai)
+    monkeypatch.setattr(LlmPlanner, "generate_from_llm", mock_generate_from_llm)
 
     planner = LlmPlanner(
         index,
         data_schema=schema,
         os_config=mock_os_config,
         os_client=mock_os_client,
-        openai_client=mock_openai_client,
+        llm_client=mock_llm_client,
     )
 
     plan = planner.plan("Dummy query")
-    assert plan.result_node().node_id == 3
-    assert plan.result_node().data.get("description") == "Generate an English response to the question"
-    assert len(plan.result_node().dependencies) == 1
-    assert plan.result_node().dependencies[0].node_id == 2
+    assert plan.result_node.node_id == 3
+    assert plan.result_node.description == "Generate an English response to the question"
+    assert len(plan.result_node.dependencies) == 1
+    assert plan.result_node.dependencies[0].node_id == 2
+    assert plan.result_node.dependencies[0].description == "Determine how many incidents occurred in Piper aircrafts"
+    assert len(plan.result_node.dependencies[0].dependencies) == 1
+    assert plan.result_node.dependencies[0].dependencies[0].node_id == 1
     assert (
-        plan.result_node().dependencies[0].data.get("description")
-        == "Determine how many incidents occurred in Piper aircrafts"
-    )
-    assert len(plan.result_node().dependencies[0].dependencies) == 1
-    assert plan.result_node().dependencies[0].dependencies[0].node_id == 1
-    assert (
-        plan.result_node().dependencies[0].dependencies[0].data.get("description")
+        plan.result_node.dependencies[0].dependencies[0].description
         == "Filter to only include Piper aircraft incidents"
     )
-    assert len(plan.result_node().dependencies[0].dependencies[0].dependencies) == 1
-    assert plan.result_node().dependencies[0].dependencies[0].dependencies[0].node_id == 0
+    assert len(plan.result_node.dependencies[0].dependencies[0].dependencies) == 1
+    assert plan.result_node.dependencies[0].dependencies[0].dependencies[0].node_id == 0
     assert (
-        plan.result_node().dependencies[0].dependencies[0].dependencies[0].data.get("description")
-        == "Get all the airplane incidents"
+        plan.result_node.dependencies[0].dependencies[0].dependencies[0].description == "Get all the airplane incidents"
     )

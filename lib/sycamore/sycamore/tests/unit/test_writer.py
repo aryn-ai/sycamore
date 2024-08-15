@@ -121,7 +121,7 @@ class TestDocSetWriter:
         context = mocker.Mock(spec=Context)
         docset = DocSet(context, mocker.Mock(spec=Node))
         execute = mocker.patch.object(OpenSearchWriter, "execute")
-        docset.write.opensearch(os_client_args={}, index_name="index")
+        docset.write.opensearch(os_client_args={}, index_name="index", index_settings={})
         execute.assert_called_once()
 
     def test_weaviate(self, mocker):
@@ -186,3 +186,11 @@ class TestDocSetWriter:
         doc_set = context.read.document(docs).map(noop_map)
         doc_set.write.json(str(tmp_path))
         _check_doc_blocks(docs, tmp_path)
+
+    def test_file_writer_create_path(self, tmp_path: Path):
+        docs = generate_docs(5)
+        context = sycamore.init()
+        doc_set = context.read.document(docs).map(noop_map)
+        out_path = tmp_path / "new_subdir"
+        doc_set.write.files(str(out_path))
+        _check_doc_path(docs, out_path)

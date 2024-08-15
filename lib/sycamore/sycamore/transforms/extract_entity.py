@@ -1,14 +1,14 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Any, List, Optional
+from typing import Callable, Any, Optional, Union
 
-
+from sycamore.context import Context
 from sycamore.data import Element, Document
-from sycamore.plan_nodes import Node
 from sycamore.llms import LLM
 from sycamore.llms.prompts import (
     EntityExtractorZeroShotGuidancePrompt,
     EntityExtractorFewShotGuidancePrompt,
 )
+from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
 
@@ -25,7 +25,7 @@ class EntityExtractor(ABC):
         self._entity_name = entity_name
 
     @abstractmethod
-    def extract_entity(self, document: Document) -> Document:
+    def extract_entity(self, document: Document, context: Optional[Context] = None) -> Document:
         pass
 
 
@@ -63,12 +63,12 @@ class OpenAIEntityExtractor(EntityExtractor):
     def __init__(
         self,
         entity_name: str,
-        llm: LLM,
+        llm: Optional[LLM] = None,
         prompt_template: Optional[str] = None,
         num_of_elements: int = 10,
         prompt_formatter: Callable[[list[Element]], str] = element_list_formatter,
         use_elements: Optional[bool] = True,
-        messages: List[dict] = [],
+        prompt: Optional[Union[list[dict], str]] = [],
         field: Optional[str] = None,
     ):
         super().__init__(entity_name)
@@ -77,17 +77,23 @@ class OpenAIEntityExtractor(EntityExtractor):
         self._prompt_template = prompt_template
         self._prompt_formatter = prompt_formatter
         self._use_elements = use_elements
-        self._messages = messages
+        self._prompt = prompt
         self._field = field
 
     @timetrace("OaExtract")
-    def extract_entity(self, document: Document) -> Document:
+    def extract_entity(self, document: Document, context: Optional[Context] = None) -> Document:
+        if self._llm is None and context:
+            self._llm = context.llm
+        assert self._llm is not None, "OpenAIEntityExtractor requires an LLM"
+
         if self._use_elements:
             if self._prompt_template:
                 entities = self._handle_few_shot_prompting(document)
             else:
                 entities = self._handle_zero_shot_prompting(document)
         else:
+            if self._prompt is None:
+                raise Exception("prompt must be specified if use_elements is False")
             entities = self._handle_document_field_prompting(document)
 
         document.properties.update({f"{self._entity_name}": entities})
@@ -95,6 +101,7 @@ class OpenAIEntityExtractor(EntityExtractor):
         return document
 
     def _handle_few_shot_prompting(self, document: Document) -> Any:
+        assert self._llm is not None
         sub_elements = [document.elements[i] for i in range((min(self._num_of_elements, len(document.elements))))]
 
         prompt = EntityExtractorFewShotGuidancePrompt()
@@ -110,6 +117,7 @@ class OpenAIEntityExtractor(EntityExtractor):
         return entities
 
     def _handle_zero_shot_prompting(self, document: Document) -> Any:
+        assert self._llm is not None
         sub_elements = [document.elements[i] for i in range((min(self._num_of_elements, len(document.elements))))]
 
         prompt = EntityExtractorZeroShotGuidancePrompt()
@@ -121,13 +129,21 @@ class OpenAIEntityExtractor(EntityExtractor):
         return entities
 
     def _handle_document_field_prompting(self, document: Document) -> Any:
+        assert self._llm is not None
         if self._field is None:
             self._field = "text_representation"
 
         value = str(document.field_to_value(self._field))
-        self._messages.append({"role": "user", "content": value})
 
-        response = self._llm.generate(prompt_kwargs={"messages": self._messages}, llm_kwargs={})
+        if isinstance(self._prompt, str):
+            self._prompt += value
+            response = self._llm.generate(prompt_kwargs={"prompt": self._prompt}, llm_kwargs={})
+        else:
+            if self._prompt is None:
+                self._prompt = []
+            self._prompt.append({"role": "user", "content": value})
+            response = self._llm.generate(prompt_kwargs={"messages": self._prompt}, llm_kwargs={})
+
         return response
 
 
@@ -158,6 +174,7 @@ class ExtractEntity(Map):
         self,
         child: Node,
         entity_extractor: EntityExtractor,
+        context: Optional[Context] = None,
         **resource_args,
     ):
-        super().__init__(child, f=entity_extractor.extract_entity, **resource_args)
+        super().__init__(child, f=entity_extractor.extract_entity, kwargs={"context": context}, **resource_args)

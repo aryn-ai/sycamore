@@ -1,26 +1,22 @@
 from abc import abstractmethod
 from typing import Any, Optional, List, Dict, Tuple
 
-from sycamore.llms.prompts.default_prompts import EntityExtractorMessagesPrompt
+from sycamore.functions.basic_filters import MatchFilter, RangeFilter
+from sycamore.llms.prompts.default_prompts import EntityExtractorMessagesPrompt, LlmFilterMessagesPrompt
 from sycamore.query.execution.metrics import SycamoreQueryLogger
 from sycamore.query.operators.count import Count
-from sycamore.query.operators.filter import Filter
+from sycamore.query.operators.basic_filter import BasicFilter
 from sycamore.query.operators.limit import Limit
-from sycamore.query.operators.llmextract import LlmExtract
-from sycamore.query.operators.llmfilter import LlmFilter
-from sycamore.query.operators.llmgenerate import LlmGenerate
-from sycamore.query.operators.loaddata import LoadData
-from sycamore.query.operators.topk import TopK
-from sycamore.query.operators.join import Join
+from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
+from sycamore.query.operators.llm_filter import LlmFilter
+from sycamore.query.operators.summarize_data import SummarizeData
+from sycamore.query.operators.query_database import QueryDatabase
+from sycamore.query.operators.top_k import TopK
+from sycamore.query.operators.field_in import FieldIn
+from sycamore.query.operators.sort import Sort
 
 from sycamore.query.execution.operations import (
-    llm_generate_operation,
-    llm_filter_operation,
-    range_filter_operation,
-    match_filter_operation,
-    count_operation,
-    top_k_operation,
-    join_operation,
+    summarize_data,
 )
 from sycamore.llms import OpenAI, OpenAIModels
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
@@ -91,7 +87,7 @@ class SycamoreOperator(PhysicalOperator):
         return args
 
 
-class SycamoreLoadData(SycamoreOperator):
+class SycamoreQueryDatabase(SycamoreOperator):
     """
     Currently only supports an OpenSearch scan load implementation.
     Args:
@@ -101,7 +97,7 @@ class SycamoreLoadData(SycamoreOperator):
     def __init__(
         self,
         context: Context,
-        logical_node: LoadData,
+        logical_node: QueryDatabase,
         query_id: str,
         os_client_args: Dict,
         trace_dir: Optional[str] = None,
@@ -110,27 +106,25 @@ class SycamoreLoadData(SycamoreOperator):
         self.os_client_args = os_client_args
 
     def execute(self) -> Any:
-        assert self.logical_node.data and "index" in self.logical_node.data
-        result = self.context.read.opensearch(
-            os_client_args=self.os_client_args, index_name=self.logical_node.data["index"]
-        )
+        assert isinstance(self.logical_node, QueryDatabase)
+        result = self.context.read.opensearch(os_client_args=self.os_client_args, index_name=self.logical_node.index)
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
-        assert self.logical_node.data is not None and "index" in self.logical_node.data
+        assert isinstance(self.logical_node, QueryDatabase)
         return (
             f"""
 os_client_args = {self.os_client_args}
 {output_var or get_var_name(self.logical_node)} = context.read.opensearch(
     os_client_args=os_client_args,
-    index_name='{self.logical_node.data["index"]}'
+    index_name='{self.logical_node.index}'
 )
 """,
             [],
         )
 
 
-class SycamoreLlmGenerate(SycamoreOperator):
+class SycamoreSummarizeData(SycamoreOperator):
     """
     Use an LLM to generate a response based on the user input question and provided result set.
     Args:
@@ -140,7 +134,7 @@ class SycamoreLlmGenerate(SycamoreOperator):
     def __init__(
         self,
         context: Context,
-        logical_node: LlmGenerate,
+        logical_node: SummarizeData,
         query_id: str,
         inputs: Optional[List[Any]] = None,
         trace_dir: Optional[str] = None,
@@ -148,16 +142,17 @@ class SycamoreLlmGenerate(SycamoreOperator):
     ) -> None:
         super().__init__(context, logical_node, query_id, inputs, trace_dir=trace_dir)
         self.s3_cache_path = s3_cache_path
+        assert isinstance(self.logical_node, SummarizeData)
 
     def execute(self) -> Any:
-        assert self.inputs and len(self.inputs) >= 1, "LlmGenerate requires at least 1 input node"
-        assert self.logical_node.data is not None
-        question = self.logical_node.data.get("question")
+        assert self.inputs and len(self.inputs) >= 1, "SummarizeData requires at least 1 input node"
+        assert isinstance(self.logical_node, SummarizeData)
+        question = self.logical_node.question
         assert question is not None and isinstance(question, str)
-        description = self.logical_node.data.get("description")
+        description = self.logical_node.description
         assert description is not None and isinstance(description, str)
-        result = llm_generate_operation(
-            client=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(self.s3_cache_path) if self.s3_cache_path else None),
+        result = summarize_data(
+            llm=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(self.s3_cache_path) if self.s3_cache_path else None),
             question=question,
             result_description=description,
             result_data=self.inputs,
@@ -166,11 +161,9 @@ class SycamoreLlmGenerate(SycamoreOperator):
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
-        assert self.logical_node.data is not None
-        question = self.logical_node.data.get("question")
-        assert question is not None and isinstance(question, str)
-        description = self.logical_node.data.get("description")
-        assert description is not None and isinstance(description, str)
+        assert isinstance(self.logical_node, SummarizeData)
+        question = self.logical_node.question
+        description = self.logical_node.description
         assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) >= 1
 
         cache_string = ""
@@ -183,16 +176,16 @@ class SycamoreLlmGenerate(SycamoreOperator):
                 logical_deps_str += ", "
 
         result = f"""
-{output_var or get_var_name(self.logical_node)} = llm_generate_operation(
-    client=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
+{output_var or get_var_name(self.logical_node)} = summarize_data(
+    llm=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
     question='{question}',
     result_description='{description}',
-    result_data=[{logical_deps_str}]
+    result_data=[{logical_deps_str}],
+    **{get_str_for_dict(self.get_execute_args())},
 )
-print({output_var or get_var_name(self.logical_node)})
 """
         return result, [
-            "from sycamore.query.execution.operations import llm_generate_operation",
+            "from sycamore.query.execution.operations import summarize_data",
             "from sycamore.llms import OpenAI, OpenAIModels",
         ]
 
@@ -219,21 +212,20 @@ class SycamoreLlmFilter(SycamoreOperator):
     def execute(self) -> Any:
         assert self.inputs and len(self.inputs) == 1, "LlmFilter requires 1 input node"
         assert isinstance(self.inputs[0], DocSet), "LlmFilter requires a DocSet input"
-        assert self.logical_node.data is not None
-        question = self.logical_node.data.get("question")
-        assert question is not None and isinstance(question, str)
-        field = self.logical_node.data.get("field")
-        assert field is not None and isinstance(field, str)
+        assert isinstance(self.logical_node, LlmFilter)
+        question = self.logical_node.question
+        field = self.logical_node.field
 
         # load into local vars for Ray serialization magic
         s3_cache_path = self.s3_cache_path
 
-        result = llm_filter_operation(
-            client=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(s3_cache_path) if s3_cache_path else None),
-            docset=self.inputs[0],
-            filter_question=question,
+        prompt = LlmFilterMessagesPrompt(filter_question=question).get_messages_dict()
+
+        result = self.inputs[0].llm_filter(
+            llm=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(s3_cache_path) if s3_cache_path else None),
+            new_field="_autogen_LLMFilterOutput",
+            prompt=prompt,
             field=field,
-            messages=None,
             threshold=3,
             **self.get_node_args(),
         )
@@ -241,32 +233,30 @@ class SycamoreLlmFilter(SycamoreOperator):
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) == 1
-        assert self.logical_node.data is not None
-        question = self.logical_node.data.get("question")
-        assert question is not None and isinstance(question, str)
-        field = self.logical_node.data.get("field")
-        assert field is not None and isinstance(field, str)
-
+        assert isinstance(self.logical_node, LlmFilter)
         cache_string = ""
         if self.s3_cache_path:
             cache_string = f", cache=S3Cache('{self.s3_cache_path}')"
+        input_str = input_var or get_var_name(self.logical_node.dependencies[0])
+        output_str = output_var or get_var_name(self.logical_node)
         result = f"""
-{output_var or get_var_name(self.logical_node)} = llm_filter_operation(
-    client=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
-    docset={input_var or get_var_name(self.logical_node.dependencies[0])},
-    filter_question='{question}',
-    field='{field}',
+prompt = LlmFilterMessagesPrompt(filter_question='{self.logical_node.question}').get_messages_dict()
+{output_str} = {input_str}.llm_filter(
+    llm=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
+    new_field='_autogen_LLMFilterOutput',
+    prompt=prompt,
+    field='{self.logical_node.field}',
     threshold=3,
     **{self.get_node_args()},
 )
 """
         return result, [
-            "from sycamore.query.execution.operations import llm_filter_operation",
             "from sycamore.llms import OpenAI, OpenAIModels",
+            "from sycamore.llms.prompts.default_prompts import LlmFilterMessagesPrompt",
         ]
 
 
-class SycamoreFilter(SycamoreOperator):
+class SycamoreBasicFilter(SycamoreOperator):
     """
     Filter a DocSet
     """
@@ -274,7 +264,7 @@ class SycamoreFilter(SycamoreOperator):
     def __init__(
         self,
         context: Context,
-        logical_node: Filter,
+        logical_node: BasicFilter,
         query_id: str,
         inputs: Optional[List[Any]] = None,
         trace_dir: Optional[str] = None,
@@ -287,69 +277,61 @@ class SycamoreFilter(SycamoreOperator):
 
         # Load into local vars for Ray serialization magic.
         logical_node = self.logical_node
-        assert logical_node.data is not None
+        assert isinstance(logical_node, BasicFilter)
 
-        if logical_node.data.get("rangeFilter"):
-            field = logical_node.data.get("field")
-            assert field is not None and isinstance(field, str)
-            start = logical_node.data.get("start")
-            end = logical_node.data.get("end")
-            date = logical_node.data.get("date") or False
+        if logical_node.range_filter:
+            field = logical_node.field
+            start = logical_node.start
+            end = logical_node.end
+            date = logical_node.date
 
             result = self.inputs[0].filter(
-                lambda doc: range_filter_operation(doc=doc, field=str(field), start=start, end=end, date=date),
-                **self.get_node_args(),
+                f=RangeFilter(field=str(field), start=start, end=end, date=date), **self.get_node_args()
             )
         else:
-            query = logical_node.data.get("query")
+            query = logical_node.query
             assert query is not None
-            field = logical_node.data.get("field")
-            assert field is not None and isinstance(field, str)
-            result = self.inputs[0].filter(
-                lambda doc: match_filter_operation(doc=doc, query=query, field=field),
-                **self.get_node_args(),
-            )
+            field = logical_node.field
+            result = self.inputs[0].filter(f=MatchFilter(query=query, field=field), **self.get_node_args())
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
-        assert self.logical_node.data is not None
+        assert isinstance(self.logical_node, BasicFilter)
         assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) == 1
-        script = ""
-        imports = []
-        if self.logical_node.data.get("rangeFilter"):
-            field = self.logical_node.data.get("field")
-            assert field is not None and isinstance(field, str)
-            start = self.logical_node.data.get("start")
-            assert start is None or isinstance(start, str)
-            end = self.logical_node.data.get("end")
-            assert end is None or isinstance(end, str)
-            date = self.logical_node.data.get("date") or False
+        imports: list[str] = []
 
+        input_str = input_var or get_var_name(self.logical_node.dependencies[0])
+        output_str = output_var or get_var_name(self.logical_node)
+        if self.logical_node.range_filter:
+            field = self.logical_node.field
+            start = self.logical_node.start
+            assert start is None or isinstance(start, str)
+            end = self.logical_node.end
+            assert end is None or isinstance(end, str)
+            date = self.logical_node.date
             script = f"""
-{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(self.logical_node.dependencies[0])}.filter(
-    lambda doc: range_filter_operation(
-        doc=doc,
+{output_str} = {input_str}.filter(
+    f=RangeFilter(
         field='{field}',
         start='{start}',
         end='{end}',
-        date='{date}',
-    ),
-    **{self.get_node_args()},
-)
-            """
-            imports = ["from sycamore.query.execution.operations import range_filter_operation"]
-        else:
-            script = f"""
-{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(self.logical_node.dependencies[0])}.filter(
-    lambda doc: match_filter_operation(
-        doc=doc,
-        query='{self.logical_node.data.get("query")}',
-        field='{self.logical_node.data.get("field")}',
-    ),
-    **{self.get_node_args()},
+        date={date}
+        ),
+    **{self.get_node_args()}
 )
 """
-            imports = ["from sycamore.query.execution.operations import match_filter_operation"]
+            imports = ["from sycamore.functions.basic_filters import RangeFilter"]
+        else:
+            script = f"""
+{output_str} = {input_str}.filter(
+    f=MatchFilter(
+        query='{self.logical_node.query}',
+        field='{self.logical_node.field}'
+    ),
+    **{self.get_node_args()}
+)
+"""
+            imports = ["from sycamore.functions.basic_filters import MatchFilter"]
         return script, imports
 
 
@@ -371,42 +353,41 @@ class SycamoreCount(SycamoreOperator):
     def execute(self) -> Any:
         assert self.inputs and len(self.inputs) == 1, "Count requires 1 input node"
         assert isinstance(self.inputs[0], DocSet), "Count requires a DocSet input"
-
         # load into local vars for Ray serialization magic
         logical_node = self.logical_node
-        assert logical_node.data is not None
-        assert "field" in logical_node.data or "primaryField" in logical_node.data
+        assert isinstance(logical_node, Count)
+        field = logical_node.field
+        primary_field = logical_node.primary_field
 
-        result = count_operation(
-            docset=self.inputs[0],
-            field=logical_node.data.get("field"),
-            primary_field=logical_node.data.get("primaryField"),
-            **self.get_execute_args(),
-        )
+        if field is None and primary_field is None:
+            result = self.inputs[0].count(**self.get_execute_args())
+        else:
+            field_name = field or primary_field
+            assert isinstance(field_name, str)
+            result = self.inputs[0].count_distinct(field=field_name, **self.get_execute_args())
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
+        assert isinstance(self.logical_node, Count)
         assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) == 1
-        assert self.logical_node.data is not None
-        assert "field" in self.logical_node.data or "primaryField" in self.logical_node.data
-        imports = ["from sycamore.query.execution.operations import count_operation"]
-        script = f"""
-{output_var or get_var_name(self.logical_node)} = count_operation(
-    docset={input_var or get_var_name(self.logical_node.dependencies[0])},
-    """
-        if self.logical_node.data.get("field"):
-            script += f"""field='{self.logical_node.data.get("field")}',
-    """
-        if self.logical_node.data.get("primaryField"):
-            script += f"""primaryField='{self.logical_node.data.get("primaryField")}',
-    """
-        script += f"""**{get_str_for_dict(self.get_execute_args())},
-)
-"""
+        field = self.logical_node.field
+        primary_field = self.logical_node.primary_field
+
+        imports: list[str] = []
+        script = f"""{output_var or get_var_name(self.logical_node)} ="""
+        if field is None and primary_field is None:
+            script += f"""{input_var or get_var_name(self.logical_node.dependencies[0])}.count("""
+        else:
+            script += f"""{input_var or get_var_name(self.logical_node.dependencies[0])}.count_distinct("""
+            if field:
+                script += f"""field='{field}', """
+            elif primary_field:
+                script += f"""field='{primary_field}', """
+        script += f"""**{get_str_for_dict(self.get_execute_args())})"""
         return script, imports
 
 
-class SycamoreLlmExtract(SycamoreOperator):
+class SycamoreLlmExtractEntity(SycamoreOperator):
     """
     Use an LLM to extract information from your data. The data is available for downstream tasks to consume.
     Args:
@@ -416,7 +397,7 @@ class SycamoreLlmExtract(SycamoreOperator):
     def __init__(
         self,
         context: Context,
-        logical_node: LlmExtract,
+        logical_node: LlmExtractEntity,
         query_id: str,
         inputs: Optional[List[Any]] = None,
         trace_dir: Optional[str] = None,
@@ -426,23 +407,19 @@ class SycamoreLlmExtract(SycamoreOperator):
         self.s3_cache_path = s3_cache_path
 
     def execute(self) -> Any:
-        assert self.inputs and len(self.inputs) == 1, "LlmExtract requires 1 input node"
-        assert isinstance(self.inputs[0], DocSet), "LlmExtract requires a DocSet input"
+        assert self.inputs and len(self.inputs) == 1, "LlmExtractEntity requires 1 input node"
+        assert isinstance(self.inputs[0], DocSet), "LlmExtractEntity requires a DocSet input"
         # load into local vars for Ray serialization magic
         s3_cache_path = self.s3_cache_path
         logical_node = self.logical_node
-        assert logical_node.data is not None
-        question = logical_node.data.get("question")
-        assert question is None or isinstance(question, str)
-        new_field = logical_node.data.get("newField")
-        assert new_field is not None and isinstance(new_field, str)
-        field = logical_node.data.get("field")
-        assert field is None or isinstance(field, str)
-        fmt = logical_node.data.get("format")
-        assert fmt is None or isinstance(fmt, str)
-        discrete = logical_node.data.get("discrete") or False
+        assert isinstance(logical_node, LlmExtractEntity)
+        question = logical_node.question
+        new_field = logical_node.new_field
+        field = logical_node.field
+        fmt = logical_node.new_field_type
+        discrete = logical_node.discrete
 
-        messages = EntityExtractorMessagesPrompt(
+        prompt = EntityExtractorMessagesPrompt(
             question=question, field=field, format=fmt, discrete=discrete
         ).get_messages_dict()
 
@@ -450,7 +427,7 @@ class SycamoreLlmExtract(SycamoreOperator):
             entity_name=new_field,
             llm=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(s3_cache_path) if s3_cache_path else None),
             use_elements=False,
-            messages=messages,
+            prompt=prompt,
             field=field,
         )
         result = self.inputs[0].extract_entity(entity_extractor=entity_extractor, **self.get_node_args())
@@ -458,39 +435,37 @@ class SycamoreLlmExtract(SycamoreOperator):
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         logical_node = self.logical_node
-        assert logical_node.data is not None
-        question = logical_node.data.get("question")
-        assert question is None or isinstance(question, str)
-        new_field = logical_node.data.get("newField")
-        assert new_field is not None and isinstance(new_field, str)
-        field = logical_node.data.get("field")
-        assert field is None or isinstance(field, str)
-        fmt = logical_node.data.get("format")
-        assert fmt is None or isinstance(fmt, str)
-        discrete = logical_node.data.get("discrete") or False
+        assert isinstance(logical_node, LlmExtractEntity)
+        question = logical_node.question
+        new_field = logical_node.new_field
+        field = logical_node.field
+        fmt = logical_node.new_field_type
+        discrete = logical_node.discrete
         assert logical_node.dependencies is not None and len(logical_node.dependencies) == 1
+
+        input_str = input_var or get_var_name(logical_node.dependencies[0])
+        output_str = output_var or get_var_name(logical_node)
 
         cache_string = ""
         if self.s3_cache_path:
             cache_string = f", cache=S3Cache('{self.s3_cache_path}')"
         result = f"""
-        messages = EntityExtractorMessagesPrompt(
-                question='{question}', field='{field}', format='{fmt}, discrete={discrete}
-            ).get_messages_dict()
+prompt = EntityExtractorMessagesPrompt(
+    question='{question}', field='{field}', format='{fmt}', discrete={discrete}
+).get_messages_dict()
 
-        entity_extractor = OpenAIEntityExtractor(
-            entity_name='{new_field}',
-            llm=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
-            use_elements=False,
-            messages=messages,
-            field='{field}',
-        )
-    {output_var or get_var_name(logical_node)} = 
-        {input_var or get_var_name(logical_node.dependencies[0])}.extract_entity(
-                entity_extractor=entity_extractor,
-                **{self.get_node_args()}
-            )
-    """
+entity_extractor = OpenAIEntityExtractor(
+    entity_name='{new_field}',
+    llm=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
+    use_elements=False,
+    prompt=prompt,
+    field='{field}',
+)
+{output_str} = {input_str}.extract_entity(
+    entity_extractor=entity_extractor,
+    **{self.get_node_args()}
+)
+"""
         return result, [
             "from sycamore.llms.prompts.default_prompts import EntityExtractorMessagesPrompt",
             "from sycamore.transforms.extract_entity import OpenAIEntityExtractor",
@@ -506,7 +481,7 @@ class SycamoreSort(SycamoreOperator):
     def __init__(
         self,
         context: Context,
-        logical_node: LogicalOperator,
+        logical_node: Sort,
         query_id: str,
         inputs: Optional[List[Any]] = None,
         trace_dir: Optional[str] = None,
@@ -519,28 +494,28 @@ class SycamoreSort(SycamoreOperator):
 
         # load into local vars for Ray serialization magic
         logical_node = self.logical_node
-        assert logical_node.data is not None
-        descending = logical_node.data.get("descending") or False
-        field = logical_node.data.get("field")
-        default_val = logical_node.data.get("defaultValue")
-        assert field is not None and isinstance(field, str)
+        assert isinstance(logical_node, Sort)
+        descending = logical_node.descending
+        field = logical_node.field
+        default_value = logical_node.default_value
 
-        result = self.inputs[0].sort(descending=descending, field=field, default_val=default_val)
+        result = self.inputs[0].sort(descending=descending, field=field, default_val=default_value)
 
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         logical_node = self.logical_node
-        assert logical_node.data is not None
-        descending = logical_node.data.get("descending") or False
-        field = logical_node.data.get("field")
-        assert field is not None and isinstance(field, str)
+        assert isinstance(logical_node, Sort)
+        descending = logical_node.descending
+        field = logical_node.field
+        default_value = logical_node.default_value
         assert logical_node.dependencies is not None and len(logical_node.dependencies) == 1
 
         result = f"""
 {output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(logical_node.dependencies[0])}.sort(
     descending={descending},
     field='{field}'
+    default_val={default_value}
 )
 """
         return result, []
@@ -571,69 +546,46 @@ class SycamoreTopK(SycamoreOperator):
         # load into local vars for Ray serialization magic
         s3_cache_path = self.s3_cache_path
         logical_node = self.logical_node
-        assert logical_node.data is not None
-        field = logical_node.data.get("field")
-        assert field is not None and isinstance(field, str)
-        k = logical_node.data.get("K")
-        assert k is None or isinstance(k, int), f"K is {k}, expected None or int"
-        description = logical_node.data.get("description")
-        assert description is not None and isinstance(description, str)
-        descending = logical_node.data.get("descending") or False
-        use_llm = logical_node.data.get("useLLM") or False
-        unique_field = logical_node.data.get("primaryField")
-        assert unique_field is None or isinstance(unique_field, str)
+        assert isinstance(logical_node, TopK)
 
-        result = top_k_operation(
-            client=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(s3_cache_path) if s3_cache_path else None),
-            docset=self.inputs[0],
-            field=field,
-            k=k,
-            description=description,
-            descending=descending,
-            use_llm=use_llm,
-            unique_field=unique_field,
+        result = self.inputs[0].top_k(
+            llm=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(s3_cache_path) if s3_cache_path else None),
+            field=logical_node.field,
+            k=logical_node.K,
+            descending=logical_node.descending,
+            llm_cluster=logical_node.llm_cluster,
+            unique_field=logical_node.primary_field,
+            llm_cluster_instruction=logical_node.llm_cluster_instruction,
             **self.get_execute_args(),
         )
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         logical_node = self.logical_node
-        assert logical_node.data is not None
-        field = logical_node.data.get("field")
-        assert field is not None and isinstance(field, str)
-        k = logical_node.data.get("K")
-        assert k is not None and isinstance(k, int)
-        description = logical_node.data.get("description")
-        assert description is not None and isinstance(description, str)
-        descending = logical_node.data.get("descending") or False
-        use_llm = logical_node.data.get("useLLM") or False
-        unique_field = logical_node.data.get("primaryField")
-        assert unique_field is None or isinstance(unique_field, str)
+        assert isinstance(logical_node, TopK)
         assert logical_node.dependencies is not None and len(logical_node.dependencies) == 1
 
         cache_string = ""
         if self.s3_cache_path:
             cache_string = f", cache=S3Cache('{self.s3_cache_path}')"
         result = f"""
-{output_var or get_var_name(self.logical_node)} = top_k_operation(
-    client=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
-    docset={input_var or get_var_name(logical_node.dependencies[0])},
-    field='{field}',
-    k={k},
-    description='{description}',
-    descending={descending}',
-    use_llm={use_llm},
-    unique_field='{unique_field}',
-    **{self.get_execute_args()},
+{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(logical_node.dependencies[0])}.top_k(
+    llm=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
+    field='{logical_node.field}',
+    k={logical_node.K},
+    descending={logical_node.descending},
+    llm_cluster={logical_node.llm_cluster},
+    unique_field='{logical_node.primary_field}',
+    llm_cluster_instruction='{logical_node.llm_cluster_instruction}',
+    **{get_str_for_dict(self.get_execute_args())},
 )
 """
         return result, [
-            "from sycamore.query.execution.operations import top_k_operation",
             "from sycamore.llms import OpenAI, OpenAIModels",
         ]
 
 
-class SycamoreJoin(SycamoreOperator):
+class SycamoreFieldIn(SycamoreOperator):
     """
     Return 2 DocSets joined
     """
@@ -641,7 +593,7 @@ class SycamoreJoin(SycamoreOperator):
     def __init__(
         self,
         context: Context,
-        logical_node: Join,
+        logical_node: FieldIn,
         query_id: str,
         inputs: Optional[List[Any]] = None,
         trace_dir: Optional[str] = None,
@@ -657,14 +609,11 @@ class SycamoreJoin(SycamoreOperator):
         ), "Join requires 2 DocSet inputs"
 
         logical_node = self.logical_node
-        assert logical_node.data is not None
-        field1 = logical_node.data.get("fieldOne")
-        assert field1 is not None and isinstance(field1, str)
-        field2 = logical_node.data.get("fieldTwo")
-        assert field2 is not None and isinstance(field2, str)
+        assert isinstance(logical_node, FieldIn)
+        field1 = logical_node.field_one
+        field2 = logical_node.field_two
 
-        result = join_operation(
-            docset1=self.inputs[0],
+        result = self.inputs[0].field_in(
             docset2=self.inputs[1],
             field1=field1,
             field2=field2,
@@ -673,22 +622,19 @@ class SycamoreJoin(SycamoreOperator):
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         logical_node = self.logical_node
-        assert logical_node.data is not None
-        field1 = logical_node.data.get("fieldOne")
-        assert field1 is not None and isinstance(field1, str)
-        field2 = logical_node.data.get("fieldTwo")
-        assert field2 is not None and isinstance(field2, str)
+        assert isinstance(logical_node, FieldIn)
+        field1 = logical_node.field_one
+        field2 = logical_node.field_two
         assert logical_node.dependencies is not None and len(logical_node.dependencies) == 2
 
         result = f"""
-{output_var or get_var_name(self.logical_node)} = join_operation(
-    docset1={input_var or get_var_name(logical_node.dependencies[0])},
+{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(logical_node.dependencies[0])}.field_in(
     docset2={input_var or get_var_name(logical_node.dependencies[2])},
     field1='{field1}',
     field2='{field2}'
 )
 """
-        return result, ["from sycamore.query.execution.operations import join_operation"]
+        return result, []
 
 
 class SycamoreLimit(SycamoreOperator):
@@ -712,24 +658,19 @@ class SycamoreLimit(SycamoreOperator):
 
         # load into local vars for Ray serialization magic
         logical_node = self.logical_node
-        assert logical_node.data is not None
-        k = logical_node.data.get("K")
-        assert k is not None and isinstance(k, int)
-
-        result = self.inputs[0].limit(k)
+        assert isinstance(logical_node, Limit)
+        result = self.inputs[0].limit(logical_node.num_records)
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         logical_node = self.logical_node
-        assert logical_node.data is not None
-        k = logical_node.data.get("K")
-        assert k is not None and isinstance(k, int)
+        assert isinstance(logical_node, Limit)
         assert logical_node.dependencies is not None and len(logical_node.dependencies) == 1
 
         result = f"""
-{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(logical_node.dependencies[0])}.limit(
-    {k},
-    **{self.get_execute_args()},
+{output_var or get_var_name(logical_node)} = {input_var or get_var_name(logical_node.dependencies[0])}.limit(
+    {logical_node.num_records},
+    **{get_str_for_dict(self.get_execute_args())},
 )
 """
         return result, []

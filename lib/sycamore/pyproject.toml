@@ -21,7 +21,7 @@ ray = { extras = ["default"], version = "^2.20.0" }
 sentence-transformers = "^3.0.1"
 pyarrow = "14.0.1"
 unstructured = "0.10.20"
-openai = "^1.14.1"
+openai = "^1.40.2"
 beautifulsoup4 = "^4.12.2"
 guidance = "0.1.14" # See poetry-lock/pyproject.toml
 amazon-textract-textractor = "^1.3.2"
@@ -61,11 +61,13 @@ paddleocr = "^2.8.1"
 jiwer = "^3.0.4"
 
 # Dependencies for DB connectors
-weaviate-client = "^4.6.1"
+weaviate-client = ">=4.6.1,<4.7" # typechecking fails with 4.7
 pinecone-client = { version = "^4.1.0", extras = ["grpc"] }
 pinecone-text = "^0.9.0"
 duckdb = "1.0.0"
+neo4j = "^5.21.0"
 elasticsearch = "8.14.0"
+pydantic = "^2.8.2"
 
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"
@@ -84,7 +86,7 @@ nbmake = "^1.4.5"
 jupyterlab = "^4.0.11"
 jupyter-lsp = "^2.2.2"
 ipywidgets = "^8.1.0"
-matplotlib = "^3.9.1"
+matplotlib = "^3.9.0"
 rich = "^13.7.1"
 
 [tool.poetry.group.docker.dependencies]

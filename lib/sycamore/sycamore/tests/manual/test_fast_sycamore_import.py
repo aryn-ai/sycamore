@@ -13,8 +13,10 @@ def test_00_sycamore_not_yet_imported():
 
 def test_no_direct_ray():
     assert "ray" not in sys.modules, "Test run with other tests that import ray"
+    import sycamore
 
-    assert "ray" not in sys.modules
+    _ = sycamore  # make sure tools don't remove the import
+    assert "ray" not in sys.modules, "import sycamore should not unconditionally import ray"
 
 
 if __name__ == "__main__":

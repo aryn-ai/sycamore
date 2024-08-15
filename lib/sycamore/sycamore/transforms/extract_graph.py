@@ -221,6 +221,12 @@ class ResolveEntities:
     """
     Aggregates entities across all documents and resolves duplicate nodes created
     during extraction.
+
+    This class currently implements basic entity resolution based of the json schema
+    of specific entities. Entities are stored in the 'nodes' key in properties where
+    each entity is stored in nodes[label][hash] where label is the type of entity, and
+    hash is its json representation hashes. If two nodes have the same label and
+    json representation, they will be merged with their result stored in nodes[label][hash].
     """
 
     @staticmethod

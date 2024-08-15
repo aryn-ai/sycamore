@@ -11,6 +11,7 @@ In Sycamore, a transform is a method that operates on a ``DocSet`` and returns a
    ./transforms/explode.md
    ./transforms/extract_entity.md
    ./transforms/extract_schema.md
+   ./transforms/filter.md
    ./transforms/flatmap.md
    ./transforms/map.md
    ./transforms/map_batch.md

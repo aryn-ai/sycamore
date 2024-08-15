@@ -45,7 +45,7 @@ all_results: dict[str, dict[str, dict[str, float]]] = {}
 for dataset_name, dataset_class in DATASETS.items():
     ctx = sycamore.init()
 
-    pipeline = dataset_class().to_docset(ctx)
+    pipeline = dataset_class().to_docset(ctx)  # type: ignore
     if dataset_name == "base":
         pipeline = pipeline.filter(lambda doc: "index" not in doc.data)  # type: ignore
     all_results[dataset_name] = {}

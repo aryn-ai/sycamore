@@ -1,21 +1,16 @@
 import os
-import glob
 import traceback
 import asyncio
-import json
 import re
-import urllib.request
 import logging
-from concurrent.futures import ThreadPoolExecutor
 import warnings
-from typing import List, Dict, Tuple, Optional
+from typing import List, Tuple, Optional
 from pdf2image import convert_from_path
 import pytesseract
 import tiktoken
 import numpy as np
 from PIL import Image
 import cv2
-from filelock import FileLock, Timeout
 from openai import AsyncOpenAI
 
 try:
@@ -142,7 +137,7 @@ class LLMOCR:
     def split_long_sentence(self, sentence: str, max_tokens: int, model_name: str) -> List[str]:
         words = sentence.split()
         chunks = []
-        current_chunk = []
+        current_chunk: list[str] = []
         current_chunk_tokens = 0
         tokenizer = self.get_tokenizer(model_name)
 
@@ -188,7 +183,7 @@ class LLMOCR:
         if adjusted_max_tokens <= 0:
             logging.warning("Prompt is too long for OpenAI API. Chunking the input.")
             chunks = self.chunk_text(prompt, OPENAI_MAX_TOKENS - TOKEN_CUSHION, OPENAI_COMPLETION_MODEL)
-            results = []
+            results: list[str] = []
             for chunk in chunks:
                 try:
                     response = await openai_client.chat.completions.create(
@@ -198,8 +193,10 @@ class LLMOCR:
                         temperature=0.7,
                     )
                     result = response.choices[0].message.content
-                    results.append(result)
-                    logging.info(f"Chunk processed. Output tokens: {response.usage.completion_tokens:,}")
+                    if result:
+                        results.append(result)
+                    if response.usage:
+                        logging.info(f"Chunk processed. Output tokens: {response.usage.completion_tokens:,}")
                 except Exception as e:
                     logging.error(f"An error occurred while processing a chunk: {e}")
             return " ".join(results)
@@ -212,8 +209,10 @@ class LLMOCR:
                     temperature=0.7,
                 )
                 output_text = response.choices[0].message.content
-                logging.info(f"Total tokens: {response.usage.total_tokens:,}")
-                logging.info(f"Generated output (abbreviated): {output_text[:150]}...")
+                if response.usage:
+                    logging.info(f"Total tokens: {response.usage.total_tokens:,}")
+                if output_text:
+                    logging.info(f"Generated output (abbreviated): {output_text[:150]}...")
                 return output_text
             except Exception as e:
                 logging.error(f"An error occurred while requesting from OpenAI API: {e}")
@@ -238,7 +237,7 @@ class LLMOCR:
             last_page = skip_first_n_pages + max_pages
             logging.info(f"Converting pages {skip_first_n_pages + 1} to {last_page}")
         first_page = skip_first_n_pages + 1  # pdf2image uses 1-based indexing
-        images = convert_from_path(input_pdf_file_path, first_page=first_page, last_page=last_page)
+        images = convert_from_path(input_pdf_file_path, first_page=first_page, last_page=last_page)  # type: ignore
         logging.info(f"Converted {len(images)} pages from PDF file to images.")
         return images
 
@@ -258,7 +257,8 @@ class LLMOCR:
         logging.info(f"Processing chunk {chunk_index + 1}/{total_chunks} (length: {len(chunk):,} characters)")
 
         # Step 1: OCR Correction
-        ocr_correction_prompt = f"""Correct OCR-induced errors in the text, ensuring it flows coherently with the previous context. Follow these guidelines:
+        ocr_correction_prompt = f"""Correct OCR-induced errors in the text, ensuring it flows coherently with the 
+        previous context. Follow these guidelines:
     1. Fix OCR-induced typos and errors:
     - Correct words split across line breaks
     - Fix common OCR errors (e.g., 'rn' misread as 'm', 'i' misread as 'l' or 't', '$' missed, '.' as ',', etc.)
@@ -277,7 +277,8 @@ class LLMOCR:
     4. Maintain coherence:
     - Ensure the content connects smoothly with the previous context
     - Handle text that starts or ends mid-sentence appropriately
-    IMPORTANT: Respond ONLY with the corrected text. Preserve all original formatting, including line breaks. Do not include any introduction, explanation, or metadata.
+    IMPORTANT: Respond ONLY with the corrected text. Preserve all original formatting, 
+    including line breaks. Do not include any introduction, explanation, or metadata.
     If there is no text entered, respond with no output at all (i.e., just a blank line).
     Previous context:
     {prev_context[-500:]}
@@ -287,22 +288,30 @@ class LLMOCR:
     """
 
         ocr_corrected_chunk = await self.generate_completion(ocr_correction_prompt, max_tokens=len(chunk) + 500)
-
+        if not ocr_corrected_chunk:
+            logging.error("OCR correction failed, returning original chunk")
+            return chunk, prev_context
         processed_chunk = ocr_corrected_chunk
 
         # Step 2: Markdown Formatting (if requested)
         if reformat_as_markdown:
-            markdown_prompt = f"""Reformat the following text as markdown, improving readability while preserving the original structure. Follow these guidelines:
-    1. Preserve all original headings, converting them to appropriate markdown heading levels (# for main titles, ## for subtitles, etc.)
+            markdown_prompt = f"""Reformat the following text as markdown, 
+            improving readability while preserving the original structure. Follow these guidelines:
+    1. Preserve all original headings, converting them to appropriate 
+    markdown heading levels (# for main titles, ## for subtitles, etc.)
     - Ensure each heading is on its own line
     - Add a blank line before and after each heading
-    2. Maintain the original paragraph structure. Remove all breaks within a word that should be a single word (for example, "cor- rect" should be "correct")
+    2. Maintain the original paragraph structure. Remove all breaks within a word that 
+    should be a single word (for example, "cor- rect" should be "correct")
     3. Format lists properly (unordered or ordered) if they exist in the original text
-    4. Use emphasis (*italic*) and strong emphasis (**bold**) where appropriate, based on the original formatting
+    4. Use emphasis (*italic*) and strong emphasis (**bold**) where appropriate, based 
+    on the original formatting
     5. Preserve all original content and meaning
     6. Do not add any extra punctuation or modify the existing punctuation
-    7. Remove any spuriously inserted introductory text such as "Here is the corrected text:" that may have been added by the LLM and which is obviously not part of the original text.
-    8. Remove any obviously duplicated content that appears to have been accidentally included twice. Follow these strict guidelines:
+    7. Remove any spuriously inserted introductory text such as "Here is the corrected text:"
+      that may have been added by the LLM and which is obviously not part of the original text.
+    8. Remove any obviously duplicated content that appears to have been accidentally included twice. 
+    Follow these strict guidelines:
     - Remove only exact or near-exact repeated paragraphs or sections within the main chunk.
     - Consider the context (before and after the main chunk) to identify duplicates that span chunk boundaries.
     - Do not remove content that is simply similar but conveys different information.
@@ -310,12 +319,17 @@ class LLMOCR:
     - Ensure the text flows smoothly after removal.
     - Do not add any new content or explanations.
     - If no obvious duplicates are found, return the main chunk unchanged.
-    9. {"Identify but do not remove headers, footers, or page numbers. Instead, format them distinctly, e.g., as blockquotes." if not suppress_headers_and_page_numbers else "Carefully remove headers, footers, and page numbers while preserving all other content."}
+    9. {"Identify but do not remove headers, footers, or page numbers. Instead, format "
+   "them distinctly, e.g., as blockquotes."
+   if not suppress_headers_and_page_numbers else
+   "Carefully remove headers, footers, and page numbers while preserving all other content."}
     Text to reformat:
     {ocr_corrected_chunk}
     Reformatted markdown:
     """
-            processed_chunk = await self.generate_completion(markdown_prompt, max_tokens=len(ocr_corrected_chunk) + 500)
+            processed_chunk = await self.generate_completion(
+                markdown_prompt, max_tokens=len(ocr_corrected_chunk) + 500
+            )  # type: ignore
         new_context = processed_chunk[-1000:]  # Use the last 1000 characters as context for the next chunk
         logging.info(
             f"Chunk {chunk_index + 1}/{total_chunks} processed. Output length: {len(processed_chunk):,} characters"
@@ -400,7 +414,7 @@ class LLMOCR:
         reformat_as_markdown: bool = False,
         suppress_headers_and_page_numbers: bool = True,
     ) -> str:
-        logging.info(f"Starting document processing. Total pages: {len(list_of_extracted_text_strings):,}")
+        # logging.info(f"Starting document processing. Total lengt: {len(extracted_string):,}")
         full_text = extracted_string
         logging.info(f"Size of full text before processing: {len(full_text):,} characters")
         chunk_size, overlap = 8000, 10
@@ -461,7 +475,8 @@ class LLMOCR:
         original_sample = original_text[:available_chars_per_text]
         processed_sample = processed_text[:available_chars_per_text]
 
-        prompt = f"""Compare the following samples of original OCR text with the processed output and assess the quality of the processing. Consider the following factors:
+        prompt = f"""Compare the following samples of original OCR text 
+        with the processed output and assess the quality of the processing. Consider the following factors:
     1. Accuracy of error correction
     2. Improvement in readability
     3. Preservation of original content and meaning
@@ -475,7 +490,8 @@ class LLMOCR:
     ```
     {processed_sample}
     ```
-    Provide a quality score between 0 and 100, where 100 is perfect processing. Also provide a brief explanation of your assessment.
+    Provide a quality score between 0 and 100, where 100 is perfect processing. 
+    Also provide a brief explanation of your assessment.
     Your response should be in the following format:
     SCORE: [Your score]
     EXPLANATION: [Your explanation]
@@ -502,62 +518,21 @@ class LLMOCR:
         try:
             # Suppress HTTP request logs
             logging.getLogger("httpx").setLevel(logging.WARNING)
-            # input_pdf_file_path = "160301289-Warren-Buffett-Katharine-Graham-Letter.pdf"
             reformat_as_markdown = False
             suppress_headers_and_page_numbers = True
 
             logging.info(f"Using API for completions: {API_PROVIDER}")
             logging.info(f"Using OpenAI model for embeddings: {OPENAI_EMBEDDING_MODEL}")
-
-            # base_name = os.path.splitext(input_pdf_file_path)[0]
-            # output_extension = ".md" if reformat_as_markdown else ".txt"
-
-            # raw_ocr_output_file_path = f"{base_name}__raw_ocr_output.txt"
-            # llm_corrected_output_file_path = base_name + "_llm_corrected" + output_extension
-
-            # list_of_scanned_images = self.convert_pdf_to_images(input_pdf_file_path, max_test_pages, skip_first_n_pages)
             logging.info(f"Tesseract version: {pytesseract.get_tesseract_version()}")
             logging.info("Extracting text from image...")
             raw_ocr_output = self.ocr_image(image)
-            logging.info("raw")
-            logging.info(raw_ocr_output)
-            # list_of_extracted_text_strings = list(executor.map(self.ocr_image, list_of_scanned_images))
             logging.info("Done extracting text from image.")
-            # raw_ocr_output = "\n".join(list_of_extracted_text_strings)
-            # with open(raw_ocr_output_file_path, "w") as f:
-            #     f.write(raw_ocr_output)
-            # logging.info(f"Raw OCR output written to: {raw_ocr_output_file_path}")
-
-            logging.info("Processing document...")
+            logging.info("Processing image...")
             final_text = await self.process_document(
                 [raw_ocr_output], reformat_as_markdown, suppress_headers_and_page_numbers
             )
             cleaned_text = self.remove_corrected_text_header(final_text)
-            logging.info("cleaned")
-            logging.info(cleaned_text)
             return cleaned_text
-            # Save the LLM corrected output
-            # with open(llm_corrected_output_file_path, "w") as f:
-            #     f.write(cleaned_text)
-            # logging.info(f"LLM Corrected text written to: {llm_corrected_output_file_path}")
-
-            # if final_text:
-            #     logging.info(f"First 500 characters of LLM corrected processed text:\n{final_text[:500]}...")
-            # else:
-            #     logging.warning("final_text is empty or not defined.")
-
-            # logging.info(f"Done processing {input_pdf_file_path}.")
-            # logging.info("\nSee output files:")
-            # logging.info(f" Raw OCR: {raw_ocr_output_file_path}")
-            # logging.info(f" LLM Corrected: {llm_corrected_output_file_path}")
-
-            # Perform a final quality check
-            # quality_score, explanation = await assess_output_quality(raw_ocr_output, final_text)
-            # if quality_score is not None:
-            #     logging.info(f"Final quality score: {quality_score}/100")
-            #     logging.info(f"Explanation: {explanation}")
-            # else:
-            #     logging.warning("Unable to determine final quality score.")
         except Exception as e:
             logging.error(f"An error occurred in the main function: {e}")
             logging.error(traceback.format_exc())

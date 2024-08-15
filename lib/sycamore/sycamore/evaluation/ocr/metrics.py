@@ -4,7 +4,6 @@ from jiwer import mer, wer, cer, wil
 from sycamore.data import Document, MetadataDocument
 from typing import Optional, Union, Callable
 from sycamore.evaluation.ocr.data import OCREvalDocument
-import logging
 
 
 class OCRMetric(ABC):

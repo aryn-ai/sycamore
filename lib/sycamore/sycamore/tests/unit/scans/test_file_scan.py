@@ -36,7 +36,7 @@ class TestFileScan:
             assert d.properties["filetype"] == f"application/{cross_type}"
 
     def test_json_scan(self):
-        paths = str(TEST_DIR / "resources/data/json/")
+        paths = str(TEST_DIR / "resources/data/json/example.json")
         scan = JsonScan(paths, properties="props")
         ds = scan.execute()
         raw_doc = ds.take(1)[0]

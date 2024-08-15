@@ -55,7 +55,7 @@ class Materialize(UnaryNode):
 
             self.cleanup()
 
-            @rename("lineage-materialize")
+            @rename("materialize")
             def ray_callable(ray_input: dict[str, numpy.ndarray]) -> dict[str, numpy.ndarray]:
                 for s in ray_input.get("doc", []):
                     self.save(Document.deserialize(s))
@@ -117,7 +117,7 @@ class AutoMaterialize(NodeTraverse):
     """Automatically add materialize nodes after every node in an execution.
 
     Usage:
-       from sycamore.lineage import AutoMaterialize
+       from sycamore.materialize import AutoMaterialize
        ctx = sycamore.init()
        ctx.rewrite_rules.append(AutoMaterialize())
 

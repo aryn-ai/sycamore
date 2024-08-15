@@ -440,17 +440,17 @@ class OpenAI(LLM):
 
     async def _generate_awaitable_using_openai(self, prompt_kwargs, llm_kwargs) -> Awaitable[str]:
         kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
-        if self._determine_using_beta(llm_kwargs.get("response_format", None)):
-            completion = await self.client_wrapper.get_async_client().beta.chat.completions.parse(
-                model=self._model_name, **kwargs
-            )
-            assert completion.choices[0].message.content is not None
-            return completion.choices[0].message.content
-        else:
-            completion = await self.client_wrapper.get_async_client().chat.completions.create(
-                model=self._model_name, **kwargs
-            )
-            return completion.choices[0].message.content
+        # if self._determine_using_beta(llm_kwargs.get("response_format", None)):
+        #     completion = await self.client_wrapper.get_async_client().beta.chat.completions.parse(
+        #         model=self._model_name, **kwargs
+        #     )
+        #     assert completion.choices[0].message.content is not None
+        #     return completion.choices[0].message.content
+        # else:
+        completion = await self.client_wrapper.get_async_client().chat.completions.create(
+            model=self._model_name, **kwargs
+        )
+        return completion.choices[0].message.content
 
     def _generate_using_guidance(self, prompt_kwargs) -> str:
         guidance_model = self.client_wrapper.get_guidance_model(self.model)

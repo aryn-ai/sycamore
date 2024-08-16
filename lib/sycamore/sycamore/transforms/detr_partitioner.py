@@ -120,7 +120,7 @@ class ArynPDFPartitioner:
                 if isinstance(i, TableElement):
                     i.tokens = [{"text": elem.text_representation, "bbox": elem.bbox} for elem in matches]
 
-                i.text_representation = " ".join(full_text)
+                i.data["text_representation"] = " ".join(full_text)
 
         return inferred + unmatched
 

@@ -1,11 +1,13 @@
-from typing import Union
+from typing import Union, TYPE_CHECKING
 
 from pandas import DataFrame
 from pyarrow import Table
-from ray.data import Dataset, from_arrow, from_items, from_pandas
 
 from sycamore.plan_nodes import Scan
 from sycamore.data import Document
+
+if TYPE_CHECKING:
+    from ray.data import Dataset
 
 
 class MaterializedScan(Scan):
@@ -23,7 +25,9 @@ class ArrowScan(MaterializedScan):
         super().__init__(**resource_args)
         self._tables = tables
 
-    def execute(self, **kwargs) -> Dataset:
+    def execute(self, **kwargs) -> "Dataset":
+        from ray.data import from_arrow
+
         return from_arrow(tables=self._tables).map(lambda dict: {"doc": Document(dict).serialize()})
 
     def format(self):
@@ -40,7 +44,9 @@ class DocScan(MaterializedScan):
                 raise ValueError("each entry in list should be a document")
         self._docs = docs
 
-    def execute(self, **kwargs) -> Dataset:
+    def execute(self, **kwargs) -> "Dataset":
+        from ray.data import from_items
+
         return from_items(items=[{"doc": doc.serialize()} for doc in self._docs])
 
     def local_source(self) -> list[Document]:
@@ -55,7 +61,9 @@ class PandasScan(MaterializedScan):
         super().__init__(**resource_args)
         self._dfs = dfs
 
-    def execute(self, **kwargs) -> Dataset:
+    def execute(self, **kwargs) -> "Dataset":
+        from ray.data import from_pandas
+
         return from_pandas(dfs=self._dfs).map(lambda dict: {"doc": Document(dict).serialize()})
 
     def format(self):

@@ -4,7 +4,6 @@ from typing import Any, Callable, Optional, TYPE_CHECKING, Union
 from neo4j import Auth
 from neo4j.auth_management import AuthManager
 from pyarrow.fs import FileSystem
-from ray.data import ActorPoolStrategy
 
 from sycamore import Context
 from sycamore.connectors.common import HostAndPort
@@ -461,6 +460,8 @@ class DocSetWriter:
                 if v is not None
             }  # type: ignore
         )
+        from ray.data import ActorPoolStrategy
+
         kwargs["compute"] = ActorPoolStrategy(size=1)
         ddb = DuckDBWriter(
             self.plan,

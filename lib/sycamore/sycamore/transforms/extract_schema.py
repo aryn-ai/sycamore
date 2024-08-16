@@ -2,8 +2,6 @@ from abc import ABC, abstractmethod
 from typing import Callable, Any, Optional
 import json
 
-from ray.data import ActorPoolStrategy
-
 from sycamore.data import Element, Document
 from sycamore.llms import LLM
 from sycamore.llms.prompts import (
@@ -245,6 +243,8 @@ class ExtractBatchSchema(Map):
     """
 
     def __init__(self, child: Node, schema_extractor: SchemaExtractor, **resource_args):
+        from ray.data import ActorPoolStrategy
+
         # Must run on a single instance so that the cached calculation of the schema works
         resource_args["compute"] = ActorPoolStrategy(size=1)
         # super().__init__(child, f=lambda d: d, **resource_args)

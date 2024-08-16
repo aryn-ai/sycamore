@@ -399,7 +399,7 @@ class ArynPDFPartitioner:
             images = [im.convert("RGB") for im in images]
 
         batches = _batchify(images, batch_size)
-        deformable_layout = []
+        deformable_layout: list[list[Element]] = []
         with LogTime("all_batches"):
             for i, batch in enumerate(batches):
                 with LogTime(f"infer_one_batch {i}/{len(images) / batch_size}"):

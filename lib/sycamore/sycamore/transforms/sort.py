@@ -1,9 +1,10 @@
-from typing import Any, Optional
+from typing import Any, Optional, TYPE_CHECKING
 
 from sycamore.plan_nodes import Node, Transform
 from sycamore.data import Document
 
-from ray.data import Dataset
+if TYPE_CHECKING:
+    from ray.data import Dataset
 
 
 class Sort(Transform):

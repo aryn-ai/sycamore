@@ -70,6 +70,9 @@ jobs:
       - name: Run tests
         run: poetry run pytest sycamore/tests/unit/
         working-directory: lib/sycamore
+      - name: Run more tests
+        run: poetry run python sycamore/tests/manual/test_fast_sycamore_import.py
+        working-directory: lib/sycamore
       - name: DF-6
         run: df
 

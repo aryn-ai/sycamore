@@ -1,7 +1,9 @@
-from typing import Any, Callable, Optional
-from ray.data import Dataset
+from typing import Any, Callable, Optional, TYPE_CHECKING
 from sycamore.data.document import Document
 from sycamore.plan_nodes import Node, Transform
+
+if TYPE_CHECKING:
+    from ray.data import Dataset
 
 
 class GroupByCount(Transform):

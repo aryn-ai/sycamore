@@ -87,12 +87,17 @@ class ArynPDFPartitioner:
             model_name_or_path: The HuggingFace coordinates or local path to the DeformableDETR weights to use.
             device: The device on which to run the model.
         """
+        self.model_name_or_path = model_name_or_path
+        self.model = None
         self.device = device
-        if model_name_or_path is None:
-            self.model = None
-        else:
-            self.model = DeformableDetr(model_name_or_path, device, cache)
+        self.cache = cache
         self.ocr_table_reader = None
+
+    def _init_model(self):
+        if self.model is None:
+            assert self.model_name_or_path is not None
+            with LogTime("init_detr_model"):
+                self.model = DeformableDetr(self.model_name_or_path, self.device, self.cache)
 
     @staticmethod
     def _supplement_text(inferred: List[Element], text: List[Element], threshold: float = 0.5) -> List[Element]:
@@ -157,7 +162,6 @@ class ArynPDFPartitioner:
                 pages_per_call=pages_per_call,
             )
         else:
-            assert self.model is not None
             if batch_at_a_time:
                 temp = self._partition_pdf_batched(
                     file=file,
@@ -382,6 +386,8 @@ class ArynPDFPartitioner:
         """
         import easyocr
 
+        self._init_model()
+
         if not table_structure_extractor:
             table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
 
@@ -393,7 +399,7 @@ class ArynPDFPartitioner:
             images = [im.convert("RGB") for im in images]
 
         batches = _batchify(images, batch_size)
-        deformable_layout = []
+        deformable_layout: list[list[Element]] = []
         with LogTime("all_batches"):
             for i, batch in enumerate(batches):
                 with LogTime(f"infer_one_batch {i}/{len(images) / batch_size}"):
@@ -463,6 +469,8 @@ class ArynPDFPartitioner:
         batch_size: int = 1,
         use_cache=False,
     ) -> List[List["Element"]]:
+        self._init_model()
+
         LogTime("partition_start", point=True)
         with tempfile.NamedTemporaryFile(prefix="detr-pdf-input-") as pdffile:
             with LogTime("write_pdf"):
@@ -503,6 +511,8 @@ class ArynPDFPartitioner:
         batch_size: int = 1,
         use_cache=False,
     ) -> List[List["Element"]]:
+        self._init_model()
+
         if extract_table_structure and not table_structure_extractor:
             table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
 
@@ -576,6 +586,8 @@ class ArynPDFPartitioner:
         use_cache,
     ) -> Any:
         import easyocr
+
+        self._init_model()
 
         with LogTime("infer"):
             assert self.model is not None

@@ -12,7 +12,7 @@ from pyarrow import fs
 import sycamore
 from sycamore.context import ExecMode
 from sycamore.data import Document, MetadataDocument
-from sycamore.lineage import AutoMaterialize, Materialize
+from sycamore.materialize import AutoMaterialize, Materialize
 
 
 def tobin(d):
@@ -50,7 +50,7 @@ def noop_fn(d):
     return d
 
 
-class TestLineage(unittest.TestCase):
+class TestMaterialize(unittest.TestCase):
     # Needed until we don't have a global context
     def setUp(self):
         sycamore.shutdown()

@@ -1208,7 +1208,7 @@ class DocSet:
               root is required
         """
 
-        from sycamore.lineage import Materialize
+        from sycamore.materialize import Materialize
 
         return DocSet(self.context, Materialize(self.plan, self.context, path=path))
 

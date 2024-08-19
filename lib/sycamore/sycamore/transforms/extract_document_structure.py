@@ -23,6 +23,7 @@ class StructureBySection(DocumentStructure):
 
     def extract(doc: Document) -> HierarchicalDocument:
         import uuid
+
         doc = HierarchicalDocument(doc.data)
         # if the first element is not a section header, insert generic placeholder
         if len(doc.children) > 0 and doc.children[0]["type"] != "Section-header":
@@ -107,7 +108,7 @@ class ExtractDocumentStructure(Map):
     def __init__(
         self,
         child: Node,
-        document_structure: DocumentStructure,
+        structure: DocumentStructure,
         **resource_args,
     ):
-        super().__init__(child, f=StructureBySection.extract, **resource_args)
+        super().__init__(child, f=structure.extract, **resource_args)

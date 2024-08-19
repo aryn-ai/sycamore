@@ -425,15 +425,14 @@ class DocSet:
         embeddings = Embed(self.plan, embedder=embedder, **kwargs)
         return DocSet(self.context, embeddings)
 
-    def extract_document_structure(self, document_structure: DocumentStructure, **kwargs):
+    def extract_document_structure(self, structure: DocumentStructure, **kwargs):
         """
         Applies document structure
         """
         from sycamore.transforms import ExtractDocumentStructure
 
-        structure = ExtractDocumentStructure(self.plan, document_structure=document_structure, **kwargs)
-        return DocSet(self.context, structure)
-
+        document_structure = ExtractDocumentStructure(self.plan, structure=structure, **kwargs)
+        return DocSet(self.context, document_structure)
 
     def extract_entity(self, entity_extractor: EntityExtractor, **kwargs) -> "DocSet":
         """

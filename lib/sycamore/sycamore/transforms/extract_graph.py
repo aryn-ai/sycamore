@@ -338,6 +338,7 @@ class ResolveEntities:
 
         return reader.document(docs)
 
+
 class ExtractSummaries(Map):
     """
     Extracts summaries from child documents to be used for entity extraction. This function

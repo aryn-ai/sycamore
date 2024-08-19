@@ -400,7 +400,7 @@ class OpenAI(LLM):
                 ret = self._generate_using_openai_structured(prompt_kwargs, llm_kwargs)
             else:
                 ret = self._generate_using_openai(prompt_kwargs, llm_kwargs)
-                
+
         else:
             ret = self._generate_using_guidance(prompt_kwargs)
 

@@ -21,7 +21,7 @@ class StructureBySection(DocumentStructure):
     Extracts the structure of the document organizing document elements by their
     respective section headers.
     """
-    
+
     @staticmethod
     def extract(doc: Document) -> HierarchicalDocument:
         import uuid

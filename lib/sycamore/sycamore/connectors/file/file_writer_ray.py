@@ -25,6 +25,8 @@ class _FileDataSink(Datasink):
     ):
         (paths, self._filesystem) = _resolve_paths_and_filesystem(path, filesystem)
         self._root = paths[0]
+        if self._root == "":
+            self._root = "./"
         self._filename_fn = filename_fn
         self._doc_to_bytes_fn = doc_to_bytes_fn
         self._makedirs = makedirs

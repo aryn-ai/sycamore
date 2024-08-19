@@ -11,7 +11,8 @@ class DocumentStructure(ABC):
         pass
 
     @abstractmethod
-    def extract(self, document: Document) -> Union[Document, HierarchicalDocument]:
+    @staticmethod
+    def extract(document: Document) -> Union[Document, HierarchicalDocument]:
         pass
 
 
@@ -21,6 +22,7 @@ class StructureBySection(DocumentStructure):
     respective section headers.
     """
 
+    @staticmethod
     def extract(doc: Document) -> HierarchicalDocument:
         import uuid
 

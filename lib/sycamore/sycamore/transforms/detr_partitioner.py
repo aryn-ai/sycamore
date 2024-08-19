@@ -298,7 +298,7 @@ class ArynPDFPartitioner:
                 raise ArynPDFPartitionerException(
                     f"Error partway through processing: {response_json['error']}\nPartial Status:\n{status}"
                 )
-            response_json = response_json.get("elements")
+            response_json = response_json.get("elements", [])
 
         elements = []
         for element_json in response_json:

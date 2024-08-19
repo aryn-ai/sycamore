@@ -427,7 +427,13 @@ class DocSet:
 
     def extract_document_structure(self, structure: DocumentStructure, **kwargs):
         """
-        Applies document structure
+        Represents documents as Hierarchical documents organized by their structure.
+        context = sycamore.init()
+        pdf_docset = context.read.binary(paths, binary_format="pdf")
+            .partition(partitioner=ArynPartitioner())
+            .extract_document_structure(structure=StructureBySection)
+            .explode()
+
         """
         from sycamore.transforms import ExtractDocumentStructure
 

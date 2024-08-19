@@ -107,11 +107,18 @@ def objects_to_table(objects, tokens, structure_class_thresholds=DEFAULT_STRUCTU
 
     table_cells = []
     for cell in cells:
+
+        rows = sorted(cell["row_nums"])
+        rows = list(range(rows[0], rows[-1] + 1))
+
+        cols = sorted(cell["column_nums"])
+        cols = list(range(cols[0], cols[-1] + 1))
+
         table_cells.append(
             TableCell(
                 content=cell["cell text"],
-                rows=cell["row_nums"],
-                cols=cell["column_nums"],
+                rows=rows,
+                cols=cols,
                 is_header=cell["column header"],
                 bbox=BoundingBox(*cell["bbox"]),
             )

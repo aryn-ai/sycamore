@@ -397,9 +397,10 @@ class OpenAI(LLM):
 
         if llm_kwargs is not None:
             if self._determine_using_beta(llm_kwargs.get("response_format", None)):
-                ret = self._generate_using_openai(prompt_kwargs, llm_kwargs)
-            else:
                 ret = self._generate_using_openai_structured(prompt_kwargs, llm_kwargs)
+            else:
+                ret = self._generate_using_openai(prompt_kwargs, llm_kwargs)
+
         else:
             ret = self._generate_using_guidance(prompt_kwargs)
 
@@ -431,9 +432,9 @@ class OpenAI(LLM):
         if llm_kwargs is None:
             raise ValueError("Must include llm_kwargs to generate future call")
         if self._determine_using_beta(llm_kwargs.get("response_format", None)):
-            ret = await self._generate_awaitable_using_openai(prompt_kwargs, llm_kwargs)
-        else:
             ret = await self._generate_awaitable_using_openai_structured(prompt_kwargs, llm_kwargs)
+        else:
+            ret = await self._generate_awaitable_using_openai(prompt_kwargs, llm_kwargs)
 
         value = {
             "result": ret,

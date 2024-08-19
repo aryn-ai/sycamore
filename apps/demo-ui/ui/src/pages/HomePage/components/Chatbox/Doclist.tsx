@@ -44,6 +44,7 @@ const DocumentItem = ({ document }: { document: SearchResultDocument }) => {
         <IconFileTypePdf
           size="1rem"
           color={hovered ? theme.colors.blue[8] : theme.colors.blue[6]}
+          data-testid="icon-pdf"
         />
       );
     } else if (document.url.endsWith("htm") || document.url.endsWith("html")) {
@@ -51,10 +52,11 @@ const DocumentItem = ({ document }: { document: SearchResultDocument }) => {
         <IconFileTypeHtml
           size="1rem"
           color={hovered ? theme.colors.gray[8] : theme.colors.gray[6]}
+          data-testid="icon-html"
         />
       );
     }
-    return <IconLink size="1rem" />;
+    return <IconLink size="1rem" data-testid="icon-link" />;
   }
 
   let snippet: string;

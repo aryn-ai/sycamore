@@ -138,10 +138,11 @@ export const NavBarConversationItem = ({
             setNavBarOpened(false);
           }}
           w="100%"
+          data-testid="anchorLink"
         >
           <Group position="apart" align="center" noWrap>
             <Group position="left" noWrap pl="xs">
-              <IconMessage />
+              <IconMessage data-testid="IconMessage" />
               <Text className={classes.conversationName} truncate>
                 {conversation.name}
               </Text>
@@ -160,6 +161,7 @@ export const NavBarConversationItem = ({
                           : theme.colors.gray[4],
                     },
                   })}
+                  data-testid="three-dots-button"
                 >
                   <IconDotsVertical
                     color={
@@ -174,6 +176,7 @@ export const NavBarConversationItem = ({
                 <Menu.Item
                   icon={<IconTrash size={14} />}
                   onClick={handleDelete}
+                  data-testid="delete-button"
                 >
                   Delete
                 </Menu.Item>

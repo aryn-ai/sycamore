@@ -254,7 +254,7 @@ export const SystemChatBox = ({
           variant="transparent"
           onClick={() => editFilter(filter)}
         >
-          <IconEdit size="xs" />
+          <IconEdit size="xs" data-testid="edit-icon-2" />
         </ActionIcon>
         <ActionIcon
           size="0.8rem"
@@ -619,12 +619,18 @@ export const SystemChatBox = ({
                   setEditing(false);
                   setNewQuestion(systemChat.queryUsed);
                 }}
+                data-testid="close-icon"
               />
             </ActionIcon>
           </Group>
         ) : (
           <ActionIcon size="xs" mr="0">
-            <IconEdit onClick={(v) => setEditing(true)} />
+            <IconEdit
+              onClick={(v) => {
+                setEditing(true);
+              }}
+              data-testid="edit-icon"
+            />
           </ActionIcon>
         )}
         {editing ? (
@@ -635,6 +641,7 @@ export const SystemChatBox = ({
             size="md"
             onKeyDown={handleInputKeyPress}
             onChange={handleInputChange}
+            data-testid="edit-input"
           ></TextInput>
         ) : (
           <Text size="xl" fw={450} p="xs" pl="0" pt="0">

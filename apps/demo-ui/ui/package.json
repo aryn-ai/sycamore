@@ -20,6 +20,7 @@
     "axios": "^1.4.0",
     "crypto-js": "^4.2.0",
     "hpagent": "^1.2.0",
+    "jest-fetch-mock": "^3.0.3",
     "jquery": "^3.7.0",
     "mocha": "^10.2.0",
     "openai": "^3.3.0",
@@ -93,6 +94,7 @@
     "postcss-preset-mantine": "^1.15.0",
     "postcss-simple-vars": "^7.0.1",
     "ts-jest": "^29.2.3",
+    "ts-jest-mock-import-meta": "^1.2.0",
     "typescript-eslint": "^7.9.0"
   }
 }

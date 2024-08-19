@@ -1,5 +1,5 @@
 import { Dispatch, SetStateAction } from "react";
-import { FilterValues, SearchResultDocument } from "../Types";
+import { FilterValues, SearchResultDocument, Settings } from "../Types";
 
 export const documentLevelFields = [
   "dateTime",

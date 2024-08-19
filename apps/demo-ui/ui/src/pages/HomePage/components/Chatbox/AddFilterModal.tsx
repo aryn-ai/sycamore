@@ -184,6 +184,7 @@ export const AddFilterModal = ({
             onClick={() => {
               handleRemoveFilter(filterKey);
             }}
+            data-testid={`remove-filter-button-${filterKey}`}
           >
             <IconX size={rem(10)} />
           </ActionIcon>

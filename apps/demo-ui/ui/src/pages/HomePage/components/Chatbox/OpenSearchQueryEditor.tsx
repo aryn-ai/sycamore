@@ -138,6 +138,7 @@ export const OpenSearchQueryEditor = ({
           formatOnBlur
           autosize
           minRows={4}
+          data-testid="json-input"
         />
       </ScrollArea>
     </Modal>

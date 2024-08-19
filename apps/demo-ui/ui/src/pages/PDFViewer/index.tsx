@@ -205,6 +205,7 @@ export default function PdfViewer() {
                       sx={(theme) => ({
                         "&:hover, &:active": { backgroundColor: "transparent" },
                       })}
+                      data-testid="prevButton"
                     >
                       <IconCircleArrowLeft stroke={2} color="white" />
                     </ActionIcon>
@@ -213,6 +214,7 @@ export default function PdfViewer() {
                       sx={(theme) => ({
                         "&:hover, &:active": { backgroundColor: "transparent" },
                       })}
+                      data-testid="nextButton"
                     >
                       <IconCircleArrowRight stroke={2} color="white" />
                     </ActionIcon>
@@ -244,6 +246,7 @@ export default function PdfViewer() {
                       sx={(theme) => ({
                         "&:hover, &:active": { backgroundColor: "transparent" },
                       })}
+                      data-testid="infoButton"
                     >
                       <IconInfoCircle stroke={2} color="white" />
                     </ActionIcon>
@@ -316,6 +319,7 @@ export default function PdfViewer() {
                 backgroundColor: "white",
                 "&:hover, &:active": { backgroundColor: "white" },
               })}
+              data-testid="zoomInButton"
             >
               <IconZoomIn stroke={2} />
             </ActionIcon>
@@ -326,6 +330,7 @@ export default function PdfViewer() {
                 backgroundColor: "white",
                 "&:hover, &:active": { backgroundColor: "white" },
               })}
+              data-testid="zoomOutButton"
             >
               <IconZoomOut stroke={2} />
             </ActionIcon>

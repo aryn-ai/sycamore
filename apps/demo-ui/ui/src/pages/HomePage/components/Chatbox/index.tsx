@@ -98,7 +98,7 @@ const useStyles = createStyles((theme) => ({
   },
 }));
 
-const LoadingChatBox = ({
+export const LoadingChatBox = ({
   loadingMessage,
 }: {
   loadingMessage: string | null;
@@ -183,9 +183,14 @@ export const ChatBox = ({
   }, [settings.openSearchIndex]);
 
   const scrollToBottom = () => {
-    scrollAreaRef.current?.scrollTo({
-      top: scrollAreaRef.current.scrollHeight,
-    });
+    if (
+      scrollAreaRef.current &&
+      typeof scrollAreaRef.current.scrollTo === "function"
+    ) {
+      scrollAreaRef.current.scrollTo({
+        top: scrollAreaRef.current.scrollHeight,
+      });
+    }
   };
 
   useEffect(() => {
@@ -763,6 +768,7 @@ export const ChatBox = ({
               variant="transparent"
               className={classes.settingsIcon}
               onClick={settingsHandler.open}
+              data-testid="settings-button"
             >
               <IconSettings size="1.625rem" />
             </ActionIcon>
@@ -976,6 +982,7 @@ export const ChatBox = ({
                           : theme.colors.gray[2],
                       },
                     })}
+                    data-testid="rewrite-button"
                   >
                     <IconWriting
                       size="1.3rem"
@@ -998,6 +1005,7 @@ export const ChatBox = ({
                         backgroundColor: theme.colors.gray[2],
                       },
                     })}
+                    data-testid="send-button"
                   >
                     <IconChevronRight
                       size="2rem"

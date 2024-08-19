@@ -55,9 +55,14 @@ export const FeedbackButtons = ({
           }}
         >
           {thumbUpState == null || !thumbUpState ? (
-            <IconThumbUp size="1rem" />
+            <IconThumbUp size="1rem" data-testid="thumb-up-icon" />
           ) : (
-            <IconThumbUpFilled size="1rem" color="green" fill="green" />
+            <IconThumbUpFilled
+              size="1rem"
+              color="green"
+              fill="green"
+              data-testid="thumb-up-icon-filled"
+            />
           )}
         </ActionIcon>
         <ActionIcon
@@ -77,9 +82,14 @@ export const FeedbackButtons = ({
           }}
         >
           {thumbUpState == null || thumbUpState ? (
-            <IconThumbDown size="1rem" />
+            <IconThumbDown size="1rem" data-testid="thumb-down-icon" />
           ) : (
-            <IconThumbDownFilled size="1rem" color="red" fill="red" />
+            <IconThumbDownFilled
+              size="1rem"
+              color="red"
+              fill="red"
+              data-testid="thumb-down-icon-filled"
+            />
           )}
         </ActionIcon>
       </Group>

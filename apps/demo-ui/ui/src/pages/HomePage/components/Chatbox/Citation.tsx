@@ -28,11 +28,23 @@ export const Citation = ({
   const theme = useMantineTheme();
   function icon() {
     if (document.isPdf()) {
-      return <IconFileTypePdf size="1.125rem" color={theme.colors.blue[6]} />;
+      return (
+        <IconFileTypePdf
+          size="1.125rem"
+          color={theme.colors.blue[6]}
+          data-testid="icon-pdf"
+        />
+      );
     } else if (document.url.endsWith("htm") || document.url.endsWith("html")) {
-      return <IconFileTypeHtml size="1.125rem" color={theme.colors.blue[6]} />;
+      return (
+        <IconFileTypeHtml
+          size="1.125rem"
+          color={theme.colors.blue[6]}
+          data-testid="icon-html"
+        />
+      );
     }
-    return <IconLink size="1.125rem" />;
+    return <IconLink size="1.125rem" data-testid="icon-link" />;
   }
   return (
     <HoverCard shadow="sm">

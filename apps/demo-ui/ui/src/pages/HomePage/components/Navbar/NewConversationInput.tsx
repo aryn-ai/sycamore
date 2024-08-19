@@ -3,8 +3,8 @@ import { Settings, SystemChat } from "../../../../Types";
 import { ActionIcon, TextInput, useMantineTheme } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import { createConversation } from "../../../../utils/OpenSearch";
-import { setActiveConversation } from ".";
 import { IconMessagePlus } from "@tabler/icons-react";
+import { setActiveConversation } from ".";
 
 export const NewConversationInput = ({
   refreshConversations,
@@ -91,8 +91,13 @@ export const NewConversationInput = ({
         size={mobileScreen ? "md" : "sm"}
         rightSection={
           mobileScreen ? (
-            <ActionIcon size={32} radius="sm" c={error ? "red" : "#5688b0"}>
-              <IconMessagePlus size="1rem" stroke={2} onClick={handleSubmit} />
+            <ActionIcon
+              size={32}
+              radius="sm"
+              c={error ? "red" : "#5688b0"}
+              onClick={handleSubmit}
+            >
+              <IconMessagePlus size="1rem" stroke={2} />
             </ActionIcon>
           ) : (
             ""

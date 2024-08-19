@@ -25,6 +25,8 @@ class _FileDataSink(Datasink):
     ):
         (paths, self._filesystem) = _resolve_paths_and_filesystem(path, filesystem)
         self._root = paths[0]
+        if self._root == "":
+            self._root = "./"
         self._filename_fn = filename_fn
         self._doc_to_bytes_fn = doc_to_bytes_fn
         self._makedirs = makedirs
@@ -39,8 +41,6 @@ class _FileDataSink(Datasink):
         is_s3_uri = parsed_uri.scheme == "s3"
 
         if not is_s3_uri and self._filesystem.get_file_info(self._root).type is FileType.NotFound:
-            if self._root == "":
-                self._root = "./"
             self._filesystem.create_dir(self._root, recursive=True)
 
     def write(self, blocks: Iterable[Block], ctx: TaskContext) -> Any:

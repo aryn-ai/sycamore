@@ -10,8 +10,9 @@ class DocumentStructure(ABC):
     def __init__(self):
         pass
 
+    @staticmethod
     @abstractmethod
-    def extract(self, document: Document) -> Union[Document, HierarchicalDocument]:
+    def extract(document: Document) -> Union[Document, HierarchicalDocument]:
         pass
 
 
@@ -20,8 +21,9 @@ class StructureBySection(DocumentStructure):
     Extracts the structure of the document organizing document elements by their
     respective section headers.
     """
-
-    def extract(self, doc: Document) -> HierarchicalDocument:
+    
+    @staticmethod
+    def extract(doc: Document) -> HierarchicalDocument:
         import uuid
 
         doc = HierarchicalDocument(doc.data)

@@ -549,12 +549,15 @@ class DocSet:
                     .explode()
                 )
         """
-        from sycamore.transforms.extract_graph import ExtractDocumentStructure
+        from sycamore.transforms.extract_graph import ResolveEntities, ExtractDocumentStructure
 
-        self.plan = ExtractDocumentStructure(self.plan)
         docset = self
-        for extractor in extractors:
-            docset = extractor.extract(docset)
+
+        docset.plan = ExtractDocumentStructure(docset.plan)
+        if len(extractors) > 0:
+            for extractor in extractors:
+                docset = extractor.extract(docset)
+            docset = ResolveEntities.resolve(docset=docset)
 
         return docset
 

@@ -1,6 +1,7 @@
 import sycamore
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.partition import SycamorePartitioner
+from sycamore.transforms.extract_document_structure import StructureBySection
 
 
 def test_to_neo4j():
@@ -18,6 +19,7 @@ def test_to_neo4j():
             partitioner=SycamorePartitioner(extract_table_structure=True, use_ocr=True, extract_images=True),
             num_gpus=0.2,
         )
+        .extract_document_structure(structure=StructureBySection)
         .extract_graph_structure(extractors=[])
         .explode()
     )

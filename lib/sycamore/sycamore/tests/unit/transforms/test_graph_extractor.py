@@ -5,8 +5,9 @@ from sycamore.data.document import Document
 from sycamore.data.element import Element
 from sycamore.llms.llms import LLM
 from sycamore.reader import DocSetReader
+from sycamore.transforms.extract_document_structure import StructureBySection
 from sycamore.transforms.extract_graph import GraphMetadata, MetadataExtractor, EntityExtractor
-from sycamore.transforms.extract_graph import ExtractSummaries, ExtractDocumentStructure
+from sycamore.transforms.extract_graph import ExtractSummaries
 from collections import defaultdict
 
 import logging
@@ -86,7 +87,12 @@ class TestGraphExtractor:
             GraphMetadata(nodeKey="doctype", nodeLabel="Document Type", relLabel="IS_TYPE"),
         ]
 
-        ds = ds.extract_graph_structure([MetadataExtractor(metadata=metadata)]).explode()
+        ds = (
+            ds.extract_document_structure(structure=StructureBySection)
+            .extract_graph_structure([MetadataExtractor(metadata=metadata)])
+            .explode()
+        )
+
         docs = ds.take_all()
 
         nested_dict = defaultdict(lambda: defaultdict(list))
@@ -118,7 +124,11 @@ class TestGraphExtractor:
             name: str
 
         llm = self.MockLLM()
-        ds = ds.extract_graph_structure([EntityExtractor(llm=llm, entities=[Company])]).explode()
+        ds = (
+            ds.extract_document_structure(structure=StructureBySection)
+            .extract_graph_structure([EntityExtractor(llm=llm, entities=[Company])])
+            .explode()
+        )
         docs = ds.take_all()
 
         nested_dict = defaultdict(lambda: defaultdict(list))
@@ -138,27 +148,12 @@ class TestGraphExtractor:
         assert len(nested_dict["Company"]["Google"]) == 2
         assert len(nested_dict["Company"]["3M"]) == 2
 
-    def test_extract_document_structure(self):
-        context = sycamore.init()
-        reader = DocSetReader(context)
-        ds = reader.document(self.docs)
-
-        ds.plan = ExtractDocumentStructure(ds.plan)
-        docs = ds.take_all()
-
-        for document in docs:
-            assert document.data["label"] == "DOCUMENT"
-            for section in document.children:
-                assert section.data["label"] == "SECTION"
-                for element in section.children:
-                    assert element.data["label"] == "ELEMENT"
-
     def test_summarize_sections(self):
         context = sycamore.init()
         reader = DocSetReader(context)
         ds = reader.document(self.docs)
 
-        ds.plan = ExtractDocumentStructure(ds.plan)
+        ds = ds.extract_document_structure(structure=StructureBySection)
         ds.plan = ExtractSummaries(ds.plan)
         docs = ds.take_all()
 

@@ -16,6 +16,7 @@ from sycamore.llms.prompts.default_prompts import (
 from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.augment_text import TextAugmentor
 from sycamore.transforms.embed import Embedder
+from sycamore.transforms import DocumentStructure
 from sycamore.transforms.extract_entity import EntityExtractor, OpenAIEntityExtractor
 from sycamore.transforms.extract_graph import GraphExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
@@ -424,6 +425,16 @@ class DocSet:
         embeddings = Embed(self.plan, embedder=embedder, **kwargs)
         return DocSet(self.context, embeddings)
 
+    def extract_document_structure(self, document_structure: DocumentStructure, **kwargs):
+        """
+        Applies document structure
+        """
+        from sycamore.transforms import ExtractDocumentStructure
+
+        structure = ExtractDocumentStructure(self.plan, document_structure=document_structure, **kwargs)
+        return DocSet(self.context, structure)
+
+
     def extract_entity(self, entity_extractor: EntityExtractor, **kwargs) -> "DocSet":
         """
         Applies the ExtractEntity transform on the Docset.
@@ -549,11 +560,9 @@ class DocSet:
                     .explode()
                 )
         """
-        from sycamore.transforms.extract_graph import ResolveEntities, ExtractDocumentStructure
+        from sycamore.transforms.extract_graph import ResolveEntities
 
         docset = self
-
-        docset.plan = ExtractDocumentStructure(docset.plan)
         if len(extractors) > 0:
             for extractor in extractors:
                 docset = extractor.extract(docset)

@@ -11,7 +11,6 @@ class DocumentStructure(ABC):
         pass
 
     @abstractmethod
-    @staticmethod
     def extract(document: Document) -> Union[Document, HierarchicalDocument]:
         pass
 

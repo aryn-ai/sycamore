@@ -579,7 +579,6 @@ class DocSet:
             docset = extractor.extract(docset)
 
         return docset
-    
 
     def resolve_graph_entities(self, resolvers: list[EntityResolver], **kwargs) -> "DocSet":
         """
@@ -591,15 +590,11 @@ class DocSet:
 
         Example:
             .. code-block:: python
-
-                context = sycamore.init()
-                pdf_docset = context.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=ArynPartitioner())
-                    .extract_document_structure(structure=StructureBySection)
-                    .explode()
+            TODO: Write an example once refactor is complete
 
         """
         from sycamore.transforms.resolve_graph_entities import CleanTempNodes
+
         class Wrapper(Node):
             def __init__(self, dataset):
                 self._ds = dataset
@@ -608,8 +603,8 @@ class DocSet:
                 return self._ds
 
         entity_resolver = ResolveEntities(resolvers=resolvers)
-        entities = entity_resolver.resolve(self) # resolve entities
-        entities_clean = CleanTempNodes(Wrapper(entities)) # cleanup temp objects
+        entities = entity_resolver.resolve(self)  # resolve entities
+        entities_clean = CleanTempNodes(Wrapper(entities))  # cleanup temp objects
         return DocSet(self.context, entities_clean)
 
     def extract_properties(self, property_extractor: PropertyExtractor, **kwargs) -> "DocSet":

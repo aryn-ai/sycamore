@@ -4,7 +4,7 @@ import hashlib
 from typing import TYPE_CHECKING, Awaitable, Dict, Any, List, Optional
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
-from sycamore.data import Document, MetadataDocument, HierarchicalDocument
+from sycamore.data import HierarchicalDocument
 from sycamore.llms import LLM
 from pydantic import BaseModel, create_model
 
@@ -215,6 +215,7 @@ def GraphEntityExtractorPrompt(query):
     Text: {query}
     ######################
     Output:"""
+
 
 class ExtractSummaries(Map):
     """

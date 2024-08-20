@@ -22,6 +22,7 @@ class EntityResolver(ABC):
     def resolve(entities: Any) -> Any:
         pass
 
+
 class ResolveEntities:
     def __init__(self, resolvers: list[EntityResolver]):
         self.resolvers = resolvers
@@ -46,9 +47,8 @@ class ResolveEntities:
         nodes_row = ray.data.from_items([{"doc": doc.serialize()}])
         dataset = dataset.union(nodes_row)
 
-        
         return dataset
-    
+
     class AggregateSectionNodes(Map):
         def __init__(self, child: Node, **resource_args):
             super().__init__(child, f=self._aggregate_section_nodes, **resource_args)
@@ -72,7 +72,7 @@ class ResolveEntities:
                 del section["properties"]["nodes"]
             doc["properties"]["nodes"] = nodes
             return doc
-        
+
     @staticmethod
     def _aggregate_document_nodes(dataset: Dataset) -> Dict[str, Any]:
         def extract_nodes(row):
@@ -119,7 +119,7 @@ class ResolveEntities:
 
         result = dataset.aggregate(aggregation)["nodes"]
         return result
-    
+
 
 class CleanTempNodes(Map):
     def __init__(self, child: Node, **resource_args):

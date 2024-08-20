@@ -1,9 +1,6 @@
-from abc import ABC, abstractmethod
 import logging
+from abc import ABC
 from typing import Optional, Type
-
-from guidance.models import Chat, Instruct, Model as GuidanceModel
-from guidance import gen, user, system, assistant, instruction
 
 logger = logging.getLogger(__name__)
 
@@ -22,55 +19,16 @@ class SimplePrompt(ABC):
             messages.append({"role": "user", "content": self.user})
         return messages
 
-
-class GuidancePrompt(SimplePrompt):
-    @abstractmethod
-    def execute(self, model: GuidanceModel, **kwargs) -> str:
-        pass
-
     def __eq__(self, other):
         if type(other) is type(self):
             return self.__dict__ == other.__dict__
         return False
 
-
-class SimpleGuidancePrompt(GuidancePrompt):
-
-    def execute(self, model: GuidanceModel, **kwargs) -> str:
-        if isinstance(model, Chat):
-            return self._execute_chat(model, **kwargs)
-        elif isinstance(model, Instruct):
-            return self._execute_instruct(model, **kwargs)
-        else:
-            return self._execute_completion(model, **kwargs)
-
-    def _execute_chat(self, model, **kwargs) -> str:
-        with system():
-            lm = model + self.system.format(**kwargs)
-
-        with user():
-            lm += self.user.format(**kwargs)
-
-        with assistant():
-            lm += gen(name=self.var_name)
-
-        return lm[self.var_name]
-
-    def _execute_instruct(self, model, **kwargs) -> str:
-        with instruction():
-            lm = model + self.user.format(**kwargs)
-        lm += gen(name=self.var_name)
-        return lm[self.var_name]
-
-    def _execute_completion(self, model, **kwargs) -> str:
-        lm = model + self.user.format(**kwargs) + gen(name=self.var_name)
-        return lm[self.var_name]
-
     def __hash__(self):
         return hash((self.system, self.user, self.var_name))
 
 
-class EntityExtractorZeroShotGuidancePrompt(SimpleGuidancePrompt):
+class EntityExtractorZeroShotGuidancePrompt(SimplePrompt):
     system = "You are a helpful entity extractor"
     # ruff: noqa: E501
     user = """You are given a few text elements of a document. The {entity} of the document is in these few text elements.Using
@@ -80,7 +38,7 @@ class EntityExtractorZeroShotGuidancePrompt(SimpleGuidancePrompt):
     """
 
 
-class EntityExtractorFewShotGuidancePrompt(SimpleGuidancePrompt):
+class EntityExtractorFewShotGuidancePrompt(SimplePrompt):
     system = "You are a helpful entity extractor."
     # ruff: noqa: E501
     user = """You are given a few text elements of a document. The {entity} of the document is in these few text elements. Here are
@@ -92,7 +50,7 @@ class EntityExtractorFewShotGuidancePrompt(SimpleGuidancePrompt):
     """
 
 
-class TextSummarizerGuidancePrompt(SimpleGuidancePrompt):
+class TextSummarizerGuidancePrompt(SimplePrompt):
     system = "You are a helpful text summarizer."
     user = """Write a summary of the following. Use only the information provided.
     Include as many key details as possible. Do not make up answer. Only return the summary as part of your answer.
@@ -101,7 +59,7 @@ class TextSummarizerGuidancePrompt(SimpleGuidancePrompt):
     var_name = "summary"
 
 
-class SchemaZeroShotGuidancePrompt(SimpleGuidancePrompt):
+class SchemaZeroShotGuidancePrompt(SimplePrompt):
     system = "You are a helpful entity extractor. You only return JSON Schema."
     user = """You are given a few text elements of a document. Extract JSON Schema representing one entity of
     class {entity} from the document. Using this context, FIND, FORMAT, and RETURN the JSON-LD Schema.
@@ -111,7 +69,7 @@ class SchemaZeroShotGuidancePrompt(SimpleGuidancePrompt):
     """
 
 
-class PropertiesZeroShotGuidancePrompt(SimpleGuidancePrompt):
+class PropertiesZeroShotGuidancePrompt(SimplePrompt):
     system = "You are a helpful property extractor. You only return JSON."
     user = """You are given a few text elements of a document. Extract JSON representing one entity of
     class {entity} from the document. The class only has properties {properties}. Using
@@ -121,7 +79,7 @@ class PropertiesZeroShotGuidancePrompt(SimpleGuidancePrompt):
     """
 
 
-class TaskIdentifierZeroShotGuidancePrompt(SimpleGuidancePrompt):
+class TaskIdentifierZeroShotGuidancePrompt(SimplePrompt):
     system = "You are a helpful task identifier. You return a string containing no whitespace."
     user = """You are given a dictionary where the keys are task IDs and the values are descriptions of tasks.
     Using this context, FIND and RETURN only the task ID that best matches the given question.
@@ -231,7 +189,7 @@ _deprecated_prompts: dict[str, Type[SimplePrompt]] = {
 }
 
 
-def _deprecated_prompt(name: str) -> GuidancePrompt:
+def _deprecated_prompt(name: str) -> SimplePrompt:
     cls = _deprecated_prompts[name]
     logger.warn(f"The prompt {name} is deprecated. Switch to {cls.__name__}()")
     return cls()

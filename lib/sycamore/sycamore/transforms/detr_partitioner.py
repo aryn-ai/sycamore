@@ -814,61 +814,83 @@ class PDFMinerExtractor:
 
 @timetrace("OCR")
 def extract_ocr(
-    images: list[Image.Image], elements: list[list[Element]], ocr_images=False, ocr_tables=False, table_reader=None
+    images: list[Image.Image],
+    elements: list[list[Element]],
+    ocr_images=False,
+    ocr_tables=False,
+    ocr_model="easy",
 ) -> list[list[Element]]:
+    if ocr_model == "paddle":
+        import paddle
+
+        if "successfully" not in paddle.utils.run_check():
+            raise ImportError("Paddle is not installed correctly")
+        from sycamore.transforms.ocr.ocr_models import PaddleOCR
+
+        ocr_model = PaddleOCR(use_gpu=paddle.device.is_compiled_with_cuda())
+    elif ocr_model == "legacy":
+        from sycamore.transforms.ocr.ocr_models import LegacyOCR
+
+        ocr_model = LegacyOCR()
+    elif ocr_model == "tesseract":
+        from sycamore.transforms.ocr.ocr_models import Tesseract
+
+        ocr_model = Tesseract()
+    else:
+        from sycamore.transforms.ocr.ocr_models import EasyOCR
+
+        ocr_model = EasyOCR()
+
     for i, image in enumerate(images):
-        width, height = image.size
-
         page_elements = elements[i]
-
+        width, height = image.size
         for elem in page_elements:
             if elem.bbox is None:
                 continue
             if elem.type == "Picture" and not ocr_images:
                 continue
-            # elif elem.type == "table" and not ocr_tables:
-            #     continue
-            elif elem.type == "table":
+            cropped_image = crop_to_bbox(image, elem.bbox)
+            if elem.type == "table" and ocr_tables:
+                tokens = []
                 assert isinstance(elem, TableElement)
-                extract_table_ocr(image, elem, reader=table_reader)
-                continue
-
-            crop_box = (elem.bbox.x1 * width, elem.bbox.y1 * height, elem.bbox.x2 * width, elem.bbox.y2 * height)
-            cropped_image = image.crop(crop_box)
-
-            # TODO: Do we want to switch to easyocr here too?
-            text = pytesseract.image_to_string(cropped_image)
-
-            elem.text_representation = text
+                for token in ocr_model.get_boxes(cropped_image):
+                    token["bbox"].translate_self(elem.bbox.x1 * width, elem.bbox.y1 * height).to_relative_self(
+                        width, height
+                    )
+                    tokens.append(token)
+                elem.tokens = tokens
+            else:
+                text = ocr_model.get_text(cropped_image)
+                elem.text_representation = text
 
     return elements
 
 
-def extract_table_ocr(image: Image.Image, elem: TableElement, reader):
-    width, height = image.size
+# def extract_table_ocr(image: Image.Image, elem: TableElement, reader):
+#     width, height = image.size
 
-    assert elem.bbox is not None
-    crop_box = (elem.bbox.x1 * width, elem.bbox.y1 * height, elem.bbox.x2 * width, elem.bbox.y2 * height)
-    cropped_image = image.crop(crop_box)
-    image_bytes = BytesIO()
-    cropped_image.save(image_bytes, format="PNG")
+#     assert elem.bbox is not None
+#     crop_box = (elem.bbox.x1 * width, elem.bbox.y1 * height, elem.bbox.x2 * width, elem.bbox.y2 * height)
+#     cropped_image = image.crop(crop_box)
+#     image_bytes = BytesIO()
+#     cropped_image.save(image_bytes, format="PNG")
 
-    # TODO: support more languages
-    results = reader.readtext(image_bytes.getvalue())
+#     # TODO: support more languages
+#     results = reader.readtext(image_bytes.getvalue())
 
-    tokens = []
+#     tokens = []
 
-    for res in results:
-        raw_bbox = res[0]
-        text = res[1]
+#     for res in results:
+#         raw_bbox = res[0]
+#         text = res[1]
 
-        token = {"bbox": BoundingBox(raw_bbox[0][0], raw_bbox[0][1], raw_bbox[2][0], raw_bbox[2][1]), "text": text}
+#         token = {"bbox": BoundingBox(raw_bbox[0][0], raw_bbox[0][1], raw_bbox[2][0], raw_bbox[2][1]), "text": text}
 
-        # Shift the BoundingBox to be relative to the whole image.
-        # TODO: We can likely reduce the number of bounding box translations/conversion in the pipeline,
-        #  but for the moment I'm prioritizing clarity over (theoretical) performance, and we have the
-        #  desired invariant that whenever we store bounding boxes they are relative to the entire doc.
-        token["bbox"].translate_self(crop_box[0], crop_box[1]).to_relative_self(width, height)
-        tokens.append(token)
+#         # Shift the BoundingBox to be relative to the whole image.
+#         # TODO: We can likely reduce the number of bounding box translations/conversion in the pipeline,
+#         #  but for the moment I'm prioritizing clarity over (theoretical) performance, and we have the
+#         #  desired invariant that whenever we store bounding boxes they are relative to the entire doc.
+#         token["bbox"].translate_self(crop_box[0], crop_box[1]).to_relative_self(width, height)
+#         tokens.append(token)
 
-    elem.tokens = tokens
+#     elem.tokens = tokens

@@ -54,7 +54,6 @@ class ResolveEntities:
 
         @staticmethod
         def _aggregate_section_nodes(doc: HierarchicalDocument) -> HierarchicalDocument:
-            from ray.data.aggregate import AggregateFn
             if "EXTRACTED_NODES" in doc.data:
                 return doc
             nodes: defaultdict[dict, Any] = defaultdict(dict)
@@ -75,6 +74,7 @@ class ResolveEntities:
 
     @staticmethod
     def _aggregate_document_nodes(dataset: Dataset) -> Dict[str, Any]:
+        from ray.data.aggregate import AggregateFn
         def extract_nodes(row):
             doc = Document.deserialize(row["doc"])
             if isinstance(doc, MetadataDocument) or "nodes" not in doc["properties"]:

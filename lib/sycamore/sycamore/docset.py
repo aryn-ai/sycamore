@@ -1098,7 +1098,7 @@ class DocSet:
         # sets message
         messages = LlmClusterEntityFormGroupsMessagesPrompt(
             field=field, instruction=instruction, text=text
-        ).get_messages_dict()
+        ).as_messages()
 
         prompt_kwargs = {"messages": messages}
 
@@ -1112,7 +1112,7 @@ class DocSet:
         # sets message
         messagesForExtract = LlmClusterEntityAssignGroupsMessagesPrompt(
             field=field, groups=groups["groups"]
-        ).get_messages_dict()
+        ).as_messages()
 
         entity_extractor = OpenAIEntityExtractor(
             entity_name="_autogen_ClusterAssignment",

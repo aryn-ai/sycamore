@@ -90,6 +90,7 @@ class TestGraphExtractor:
         ds = (
             ds.extract_document_structure(structure=StructureBySection)
             .extract_graph_structure([MetadataExtractor(metadata=metadata)])
+            .resolve_graph_entities(resolvers=[])
             .explode()
         )
 
@@ -127,6 +128,7 @@ class TestGraphExtractor:
         ds = (
             ds.extract_document_structure(structure=StructureBySection)
             .extract_graph_structure([EntityExtractor(llm=llm, entities=[Company])])
+            .resolve_graph_entities(resolvers=[])
             .explode()
         )
         docs = ds.take_all()

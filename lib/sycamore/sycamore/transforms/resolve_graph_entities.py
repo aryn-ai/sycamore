@@ -9,7 +9,6 @@ from sycamore.transforms.map import Map
 
 if TYPE_CHECKING:
     from sycamore.docset import DocSet
-    from ray.data import Dataset
 
 
 class EntityResolver(ABC):
@@ -25,7 +24,7 @@ class ResolveEntities:
     def __init__(self, resolvers: list[EntityResolver]):
         self.resolvers = resolvers
 
-    def resolve(self, docset: "DocSet") -> Dataset:
+    def resolve(self, docset: "DocSet") -> Any:
         from ray.data import from_items
 
         # Group nodes from document sections together and materialize docset into ray dataset

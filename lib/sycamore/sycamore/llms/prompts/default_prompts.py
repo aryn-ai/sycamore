@@ -6,16 +6,16 @@ logger = logging.getLogger(__name__)
 
 
 class SimplePrompt(ABC):
-    system: str = "You are a helpful assistant."
-    user: str
+    system: str = None
+    user: str = None
     var_name: str = "answer"
 
     def as_messages(self) -> list[dict]:
         messages = []
-        if self.system:
+        if self.system is not None:
             messages.append({"role": "system", "content": self.system})
 
-        if self.user:
+        if self.user is not None:
             messages.append({"role": "user", "content": self.user})
         return messages
 

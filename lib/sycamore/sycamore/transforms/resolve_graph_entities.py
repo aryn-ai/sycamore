@@ -27,7 +27,7 @@ class ResolveEntities:
     def __init__(self, resolvers: list[EntityResolver]):
         self.resolvers = resolvers
 
-    def resolve(self, docset: "DocSet") -> "DocSet":
+    def resolve(self, docset: "DocSet") -> Dataset:
         # Group nodes from document sections together and materialize docset into ray dataset
         docset.plan = self.AggregateSectionNodes(docset.plan)
         dataset = docset.plan.execute().materialize()

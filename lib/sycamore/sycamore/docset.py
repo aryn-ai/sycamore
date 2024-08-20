@@ -429,11 +429,18 @@ class DocSet:
     def extract_document_structure(self, structure: DocumentStructure, **kwargs):
         """
         Represents documents as Hierarchical documents organized by their structure.
-        context = sycamore.init()
-        pdf_docset = context.read.binary(paths, binary_format="pdf")
-            .partition(partitioner=ArynPartitioner())
-            .extract_document_structure(structure=StructureBySection)
-            .explode()
+
+        Args:
+            structure: A instance of DocumentStructure which determines how documents are organized
+
+        Example:
+            .. code-block:: python
+
+                context = sycamore.init()
+                pdf_docset = context.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=ArynPartitioner())
+                    .extract_document_structure(structure=StructureBySection)
+                    .explode()
 
         """
         from sycamore.transforms import ExtractDocumentStructure
@@ -576,7 +583,21 @@ class DocSet:
 
     def resolve_graph_entities(self, resolvers: list[EntityResolver], **kwargs) -> "DocSet":
         """
-        Resolves graph entities
+        Resolves graph entities across documents so that duplicate entities can be resolved
+        to the same entity based off criteria of EntityResolver objects.
+
+        Args:
+            resolvers: A list of EntityResolvers that are used to determine what entities are duplicates
+
+        Example:
+            .. code-block:: python
+
+                context = sycamore.init()
+                pdf_docset = context.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=ArynPartitioner())
+                    .extract_document_structure(structure=StructureBySection)
+                    .explode()
+
         """
         from sycamore.transforms.resolve_graph_entities import CleanTempNodes
         class Wrapper(Node):

@@ -5,7 +5,6 @@ from sycamore.transforms.extract_document_structure import StructureBySection
 
 
 def test_to_neo4j():
-
     ## actual test ##
     path = str(TEST_DIR / "resources/data/pdfs/Ray_page11.pdf")
     context = sycamore.init()
@@ -21,6 +20,7 @@ def test_to_neo4j():
         )
         .extract_document_structure(structure=StructureBySection)
         .extract_graph_structure(extractors=[])
+        .resolve_graph_entities(resolvers=[])
         .explode()
     )
 

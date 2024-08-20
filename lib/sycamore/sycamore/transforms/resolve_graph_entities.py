@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Dict
 import uuid
-from ray.data import Dataset
 
 from sycamore.data.document import Document, HierarchicalDocument, MetadataDocument
 from sycamore.plan_nodes import Node
@@ -10,6 +9,7 @@ from sycamore.transforms.map import Map
 
 if TYPE_CHECKING:
     from sycamore.docset import DocSet
+    from ray.data import Dataset
 
 
 class EntityResolver(ABC):
@@ -25,7 +25,7 @@ class ResolveEntities:
     def __init__(self, resolvers: list[EntityResolver]):
         self.resolvers = resolvers
 
-    def resolve(self, docset: "DocSet") -> Dataset:
+    def resolve(self, docset: "DocSet") -> Any:
         from ray.data import from_items
 
         # Group nodes from document sections together and materialize docset into ray dataset
@@ -74,7 +74,7 @@ class ResolveEntities:
             return doc
 
     @staticmethod
-    def _aggregate_document_nodes(dataset: Dataset) -> Dict[str, Any]:
+    def _aggregate_document_nodes(dataset: Any) -> Dict[str, Any]:
         from ray.data.aggregate import AggregateFn
 
         def extract_nodes(row):

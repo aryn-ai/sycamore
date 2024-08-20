@@ -6,8 +6,8 @@ logger = logging.getLogger(__name__)
 
 
 class SimplePrompt(ABC):
-    system: str = None
-    user: str = None
+    system: Optional[str] = None
+    user: Optional[str] = None
     var_name: str = "answer"
 
     def as_messages(self) -> list[dict]:

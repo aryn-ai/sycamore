@@ -2,13 +2,11 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Dict
 import uuid
-import ray
 from ray.data import Dataset
 
 from sycamore.data.document import Document, HierarchicalDocument, MetadataDocument
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
-from ray.data.aggregate import AggregateFn
 
 if TYPE_CHECKING:
     from sycamore.docset import DocSet
@@ -28,6 +26,7 @@ class ResolveEntities:
         self.resolvers = resolvers
 
     def resolve(self, docset: "DocSet") -> Dataset:
+        from ray.data import from_items
         # Group nodes from document sections together and materialize docset into ray dataset
         docset.plan = self.AggregateSectionNodes(docset.plan)
         dataset = docset.plan.execute().materialize()
@@ -44,7 +43,7 @@ class ResolveEntities:
                 node = HierarchicalDocument(node)
                 doc.children.append(node)
         doc.data["EXTRACTED_NODES"] = True
-        nodes_row = ray.data.from_items([{"doc": doc.serialize()}])
+        nodes_row = from_items([{"doc": doc.serialize()}])
         dataset = dataset.union(nodes_row)
 
         return dataset
@@ -55,6 +54,7 @@ class ResolveEntities:
 
         @staticmethod
         def _aggregate_section_nodes(doc: HierarchicalDocument) -> HierarchicalDocument:
+            from ray.data.aggregate import AggregateFn
             if "EXTRACTED_NODES" in doc.data:
                 return doc
             nodes: defaultdict[dict, Any] = defaultdict(dict)

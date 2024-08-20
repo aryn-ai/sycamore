@@ -130,7 +130,7 @@ class ArynPDFPartitioner:
         threshold: float = 0.4,
         use_ocr=False,
         ocr_images=False,
-        ocr_tables=False,
+        ocr_model="easy",
         extract_table_structure=False,
         table_structure_extractor=None,
         extract_images=False,
@@ -151,7 +151,7 @@ class ArynPDFPartitioner:
                 threshold=threshold,
                 use_ocr=use_ocr,
                 ocr_images=ocr_images,
-                ocr_tables=ocr_tables,
+                ocr_model=ocr_model,
                 extract_table_structure=extract_table_structure,
                 extract_images=extract_images,
                 pages_per_call=pages_per_call,
@@ -164,7 +164,7 @@ class ArynPDFPartitioner:
                     threshold=threshold,
                     use_ocr=use_ocr,
                     ocr_images=ocr_images,
-                    ocr_tables=ocr_tables,
+                    ocr_model=ocr_model,
                     extract_table_structure=extract_table_structure,
                     table_structure_extractor=table_structure_extractor,
                     extract_images=extract_images,
@@ -177,7 +177,7 @@ class ArynPDFPartitioner:
                     threshold=threshold,
                     use_ocr=use_ocr,
                     ocr_images=ocr_images,
-                    ocr_tables=ocr_tables,
+                    ocr_model=ocr_model,
                     extract_table_structure=extract_table_structure,
                     table_structure_extractor=table_structure_extractor,
                     extract_images=extract_images,
@@ -204,7 +204,7 @@ class ArynPDFPartitioner:
         threshold: float = 0.4,
         use_ocr: bool = False,
         ocr_images: bool = False,
-        ocr_tables: bool = False,
+        ocr_model="easy",
         extract_table_structure: bool = False,
         extract_images: bool = False,
         selected_pages: list = [],
@@ -214,7 +214,7 @@ class ArynPDFPartitioner:
             "threshold": threshold,
             "use_ocr": use_ocr,
             "ocr_images": ocr_images,
-            "ocr_tables": ocr_tables,
+            "ocr_model": ocr_model,
             "extract_table_structure": extract_table_structure,
             "extract_images": extract_images,
             "selected_pages": selected_pages,
@@ -313,7 +313,7 @@ class ArynPDFPartitioner:
         threshold: float = 0.4,
         use_ocr: bool = False,
         ocr_images: bool = False,
-        ocr_tables: bool = False,
+        ocr_model: str = "easy",
         extract_table_structure: bool = False,
         extract_images: bool = False,
         pages_per_call: int = -1,
@@ -324,7 +324,7 @@ class ArynPDFPartitioner:
         page_count = resolve1(document.catalog["Pages"])["Count"]
         file.seek(0)
 
-        result = []
+        result: List[Element] = []
         low = 1
         high = pages_per_call
         if pages_per_call == -1:
@@ -338,7 +338,7 @@ class ArynPDFPartitioner:
                     threshold=threshold,
                     use_ocr=use_ocr,
                     ocr_images=ocr_images,
-                    ocr_tables=ocr_tables,
+                    ocr_model=ocr_model,
                     extract_table_structure=extract_table_structure,
                     extract_images=extract_images,
                     selected_pages=[[low, min(high, page_count)]],
@@ -355,7 +355,7 @@ class ArynPDFPartitioner:
         threshold: float = 0.4,
         use_ocr=False,
         ocr_images=False,
-        ocr_tables=False,
+        ocr_model="easy",
         extract_table_structure=False,
         table_structure_extractor=None,
         extract_images=False,
@@ -370,7 +370,8 @@ class ArynPDFPartitioner:
            threshold: The threshold to use for accepting the model's predicted bounding boxes.
            use_ocr: Whether to use OCR to extract text from the PDF
            ocr_images: If set with use_ocr, will attempt to OCR regions of the document identified as images.
-           ocr_tables: If set with use_ocr, will attempt to OCR regions on the document identified as tables.
+           ocr_model: If set with use_ocr, will use the model specified by this argument.
+           Valid options are "easy", "tesseract", "paddle", and "legacy"
            extract_table_structure: If true, runs a separate table extraction model to extract cells from
              regions of the document identified as tables.
            table_structure_extractor: The table extraction implementaion to use when extract_table_structure is True.
@@ -409,7 +410,8 @@ class ArynPDFPartitioner:
                     images,
                     deformable_layout,
                     ocr_images=ocr_images,
-                    ocr_tables=ocr_tables,
+                    ocr_model=ocr_model,
+                    ocr_tables=extract_table_structure,
                     table_reader=self.ocr_table_reader,
                 )
         else:
@@ -454,12 +456,12 @@ class ArynPDFPartitioner:
         self,
         file: BinaryIO,
         threshold: float = 0.4,
-        use_ocr=False,
-        ocr_images=False,
-        ocr_tables=False,
-        extract_table_structure=False,
+        use_ocr: bool = False,
+        ocr_images: bool = False,
+        ocr_model: str = "easy",
+        extract_table_structure: bool = False,
         table_structure_extractor=None,
-        extract_images=False,
+        extract_images: bool = False,
         batch_size: int = 1,
         use_cache=False,
     ) -> List[List["Element"]]:
@@ -481,7 +483,7 @@ class ArynPDFPartitioner:
                 threshold,
                 use_ocr,
                 ocr_images,
-                ocr_tables,
+                ocr_model,
                 extract_table_structure,
                 table_structure_extractor,
                 extract_images,
@@ -494,9 +496,9 @@ class ArynPDFPartitioner:
         filename: str,
         hash_key: str,
         threshold: float = 0.4,
-        use_ocr=False,
-        ocr_images=False,
-        ocr_tables=False,
+        use_ocr: bool = False,
+        ocr_images: bool = False,
+        ocr_model: str = "easy",
         extract_table_structure=False,
         table_structure_extractor=None,
         extract_images=False,
@@ -521,7 +523,7 @@ class ArynPDFPartitioner:
                 threshold=threshold,
                 use_ocr=use_ocr,
                 ocr_images=ocr_images,
-                ocr_tables=ocr_tables,
+                ocr_model=ocr_model,
                 extract_table_structure=extract_table_structure,
                 table_structure_extractor=table_structure_extractor,
                 extract_images=extract_images,
@@ -569,7 +571,7 @@ class ArynPDFPartitioner:
         threshold,
         use_ocr,
         ocr_images,
-        ocr_tables,
+        ocr_model,
         extract_table_structure,
         table_structure_extractor,
         extract_images,
@@ -593,7 +595,8 @@ class ArynPDFPartitioner:
                     batch,
                     deformable_layout,
                     ocr_images=ocr_images,
-                    ocr_tables=ocr_tables,
+                    ocr_model=ocr_model,
+                    ocr_tables=extract_table_structure,
                     table_reader=self.ocr_table_reader,
                 )
         # else pdfminer happens in parent since it is whole document.

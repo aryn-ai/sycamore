@@ -219,7 +219,7 @@ class SycamoreLlmFilter(SycamoreOperator):
         # load into local vars for Ray serialization magic
         s3_cache_path = self.s3_cache_path
 
-        prompt = LlmFilterMessagesPrompt(filter_question=question).get_messages_dict()
+        prompt = LlmFilterMessagesPrompt(filter_question=question).as_messages()
 
         result = self.inputs[0].llm_filter(
             llm=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(s3_cache_path) if s3_cache_path else None),
@@ -240,7 +240,7 @@ class SycamoreLlmFilter(SycamoreOperator):
         input_str = input_var or get_var_name(self.logical_node.dependencies[0])
         output_str = output_var or get_var_name(self.logical_node)
         result = f"""
-prompt = LlmFilterMessagesPrompt(filter_question='{self.logical_node.question}').get_messages_dict()
+prompt = LlmFilterMessagesPrompt(filter_question='{self.logical_node.question}').as_messages()
 {output_str} = {input_str}.llm_filter(
     llm=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
     new_field='_autogen_LLMFilterOutput',
@@ -421,7 +421,7 @@ class SycamoreLlmExtractEntity(SycamoreOperator):
 
         prompt = EntityExtractorMessagesPrompt(
             question=question, field=field, format=fmt, discrete=discrete
-        ).get_messages_dict()
+        ).as_messages()
 
         entity_extractor = OpenAIEntityExtractor(
             entity_name=new_field,
@@ -452,7 +452,7 @@ class SycamoreLlmExtractEntity(SycamoreOperator):
         result = f"""
 prompt = EntityExtractorMessagesPrompt(
     question='{question}', field='{field}', format='{fmt}', discrete={discrete}
-).get_messages_dict()
+).as_messages()
 
 entity_extractor = OpenAIEntityExtractor(
     entity_name='{new_field}',

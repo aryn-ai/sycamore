@@ -10,6 +10,11 @@ class SimplePrompt(ABC):
     user: Optional[str] = None
     var_name: str = "answer"
 
+    """
+    Using this method assumes that the system and user prompts are populated with any placeholder values. Or the 
+    caller is responsible for processing the messages after.
+    """
+
     def as_messages(self) -> list[dict]:
         messages = []
         if self.system is not None:

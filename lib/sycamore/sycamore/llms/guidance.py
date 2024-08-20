@@ -5,9 +5,11 @@ from guidance import gen, user, system, assistant, instruction
 
 def _execute_chat(prompt: SimplePrompt, model: GuidanceModel, **kwargs) -> str:
     with system():
+        assert prompt.system is not None
         lm = model + prompt.system.format(**kwargs)
 
     with user():
+        assert prompt.user is not None
         lm += prompt.user.format(**kwargs)
 
     with assistant():
@@ -18,12 +20,14 @@ def _execute_chat(prompt: SimplePrompt, model: GuidanceModel, **kwargs) -> str:
 
 def _execute_instruct(prompt: SimplePrompt, model: GuidanceModel, **kwargs) -> str:
     with instruction():
+        assert prompt.user is not None
         lm = model + prompt.user.format(**kwargs)
     lm += gen(name=prompt.var_name)
     return lm[prompt.var_name]
 
 
 def _execute_completion(prompt: SimplePrompt, model: GuidanceModel, **kwargs) -> str:
+    assert prompt.user is not None
     lm = model + prompt.user.format(**kwargs) + gen(name=prompt.var_name)
     return lm[prompt.var_name]
 

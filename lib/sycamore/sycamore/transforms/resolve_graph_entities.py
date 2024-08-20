@@ -19,7 +19,7 @@ class EntityResolver(ABC):
         pass
 
     @abstractmethod
-    def resolve(entities: Any) -> Any:
+    def resolve(self, entities: Any) -> Any:
         pass
 
 

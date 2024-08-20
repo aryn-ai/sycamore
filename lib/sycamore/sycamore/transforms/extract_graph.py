@@ -158,6 +158,7 @@ class EntityExtractor(GraphExtractor):
                             "properties": {},
                             "label": label,
                             "relationships": {},
+                            "raw_entity": entity
                         }
                         for key, value in entity.items():
                             node["properties"][key] = value

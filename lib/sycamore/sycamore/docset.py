@@ -19,6 +19,7 @@ from sycamore.transforms.embed import Embedder
 from sycamore.transforms import DocumentStructure
 from sycamore.transforms.extract_entity import EntityExtractor, OpenAIEntityExtractor
 from sycamore.transforms.extract_graph import GraphExtractor
+from sycamore.transforms.extract_graph_relationships import RelationshipExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
 from sycamore.transforms.partition import Partitioner
 from sycamore.transforms.resolve_graph_entities import EntityResolver, ResolveEntities
@@ -579,6 +580,17 @@ class DocSet:
             docset = extractor.extract(docset)
 
         return docset
+    
+
+    def extract_graph_relationships(self, extractors: list[RelationshipExtractor], **kwargs) -> "DocSet":
+        
+        from sycamore.transforms.extract_graph_relationships import ExtractRelationships
+
+        relationships = self.plan
+        for extractor in extractors:
+            relationships = ExtractRelationships(relationships, extractor=extractor)
+
+        return DocSet(self.context, relationships)
 
     def resolve_graph_entities(self, resolvers: list[EntityResolver], **kwargs) -> "DocSet":
         """

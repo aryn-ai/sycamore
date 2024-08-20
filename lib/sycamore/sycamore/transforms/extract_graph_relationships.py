@@ -1,0 +1,171 @@
+from abc import ABC, abstractmethod
+from collections import defaultdict
+from enum import Enum
+import hashlib
+from typing import TYPE_CHECKING, Awaitable, Dict, Any, List, Optional
+from sycamore.plan_nodes import Node
+from sycamore.transforms.map import Map
+from sycamore.data import HierarchicalDocument
+from sycamore.llms import LLM
+from pydantic import BaseModel, create_model
+
+import json
+import uuid
+import logging
+
+logger = logging.getLogger(__name__)
+
+class RelationshipExtractor(ABC):
+    def __init__(self):
+        pass
+
+    @abstractmethod
+    def extract(self, doc: "HierarchicalDocument") -> "HierarchicalDocument":
+        pass
+
+class RelationshipExtractor(RelationshipExtractor):
+    """
+    Extracts relationships between entities
+    """
+
+    def __init__(
+        self, llm: LLM, relationships: Optional[list[BaseModel]] = [], json_schema: Optional[dict[str, Any]] = None
+    ):
+        self.relationships = self._serialize_relationships(relationships)
+        self.schema = json_schema
+        self.llm = llm
+        if json_schema is None and relationships is []:
+            raise ValueError("Must input JSON schema or list of pydantic entities")
+
+    def extract(self, doc: HierarchicalDocument) -> HierarchicalDocument:
+        import asyncio
+
+        async def gather_api_calls():
+            tasks = [self._generate_relationships(child) for child in doc.children]
+            res = await asyncio.gather(*tasks)
+            return res
+
+        res = asyncio.run(gather_api_calls())
+
+        for i, section in enumerate(doc.children):
+            for label, relations in res[i].items():
+                for relation in relations:
+                    start_hash = hashlib.sha256(json.dumps(relation["start"]).encode()).hexdigest()
+                    end_hash = hashlib.sha256(json.dumps(relation["end"]).encode()).hexdigest()
+                    start_exists = section["properties"]["nodes"][relation["start_label"]].get(start_hash, None)
+                    end_exists = section["properties"]["nodes"][relation["end_label"]].get(end_hash, None)
+                    if not 
+                        continue
+                    if not 
+                        continue
+
+                    rel: Dict[str, Any] = {
+                        "TYPE": label,
+                        "properties": {},
+                        "START_HASH": start_hash,
+                        "START_LABEL": relation["start_label"]
+                    }
+
+                    for key, value in relation.items():
+                        if key not in ['start', 'end', 'start_label', 'end_label']:
+                            rel["properties"][key] = value
+                    
+
+                    section["properties"]["nodes"][relation["end_label"]][end_hash]["relationships"][str(uuid.uuid4())] = rel
+        return doc
+
+    def _serialize_relationships(self, entities):
+        from sycamore.utils.pickle_pydantic import safe_cloudpickle
+
+        serialized = []
+        for entity in entities:
+            serialized.append(safe_cloudpickle(entity))
+        return serialized
+
+    def _deserialize_relationships(self):
+        from sycamore.utils.pickle_pydantic import safe_cloudunpickle
+
+        deserialized = []
+        for entity in self.relationships:
+            deserialized.append(safe_cloudunpickle(entity))
+
+        return deserialized
+    
+    async def _generate_relationships(self, section: HierarchicalDocument) -> Awaitable[str]:
+        relations = self._deserialize_relationships()
+        parsed_relations= []
+        parsed_metadata = dict()
+        parsed_nodes = defaultdict(lambda: set())
+        for relation in relations:
+            start_label = relation.__annotations__["start"].__name__
+            end_label = relation.__annotations__["end"].__name__
+
+
+            start_nodes = [json.dumps(node["raw_entity"]) for node in section["properties"]["nodes"].get(start_label, {}).values()]
+            end_nodes = [json.dumps(node["raw_entity"]) for node in section["properties"]["nodes"].get(end_label, {}).values()]
+            
+            relation.__annotations__["start"] = Enum(start_label, {entity: entity for entity in start_nodes})
+            relation.__annotations__["end"] = Enum(end_label, {entity: entity for entity in end_nodes})
+
+            if start_nodes and end_nodes:
+                parsed_relations.append(relation)
+                parsed_metadata[relation.__name__] = {"start_label": start_label, "end_label": end_label}
+                parsed_nodes[start_label] |= set(start_nodes)
+                parsed_nodes[end_label] |= set(end_nodes)
+
+        if not parsed_relations:
+            return "{}"
+        
+        fields = {relation.__name__: (List[relation], ...) for relation in parsed_relations}
+        relationships_model = create_model("relationships", __base__=BaseModel, **fields)
+
+        entities = ""
+        for key, nodes in parsed_nodes.items():
+            entities += f"{key}:\n"
+            for node in nodes:
+                entities += f"{node}\n"
+
+        llm_kwargs = {"response_format": relationships_model}
+        res = await self.llm.generate_async(
+            prompt_kwargs={"prompt": str(GraphRelationshipExtractorPrompt(section.data["summary"], entities))}, llm_kwargs=llm_kwargs
+        )
+
+        try:
+            res = json.loads(res)
+        except json.JSONDecodeError:
+            logger.warn("LLM Output failed to be decoded to JSON")
+            logger.warn("Input: " + section.data["summary"])
+            logger.warn("Output: " + res)
+            return "{}"
+
+        for label, relations in res.items():
+            for relation in relations:
+                relation["start_label"] = parsed_metadata[label]["start_label"]
+                relation["end_label"] = parsed_metadata[label]["end_label"]
+
+        return res
+
+
+
+def GraphRelationshipExtractorPrompt(query, entities):
+    return f"""
+    -Goal-
+    You are a helpful information extraction system.
+
+    You will be given a sequence of data in different formats(text, table, Section-header) in order.
+    Your job is to extract relationships that map between entities that have already been extracted from this text.
+
+    -Real Data-
+    ######################
+    Entities: {entities}
+    Text: {query}
+    ######################
+    Output:"""
+
+class ExtractRelationships(Map):
+    """
+    Extracts features determined by a specific extractor from each document
+    """
+
+    def __init__(self, child: Node, extractor: RelationshipExtractor, **resource_args):
+        super().__init__(child, f=extractor.extract, **resource_args)

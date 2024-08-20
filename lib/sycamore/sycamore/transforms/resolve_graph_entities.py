@@ -112,6 +112,13 @@ class ResolveEntities:
                     for rel in node["relationships"].values():
                         rel["END_ID"] = node["doc_id"]
                         rel["END_LABEL"] = node["label"]
+
+            for hashes in nodes.values():
+                for node in hashes.values():
+                    for rel in node["relationships"].values():
+                        if "START_HASH" in rel:
+                            rel["START_ID"] = nodes[rel["START_LABEL"]][rel["START_HASH"]]["doc_id"]
+                            del rel["START_HASH"]
             return nodes
 
         aggregation = AggregateFn(

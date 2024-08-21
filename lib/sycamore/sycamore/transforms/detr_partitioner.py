@@ -92,7 +92,6 @@ class ArynPDFPartitioner:
             self.model = None
         else:
             self.model = DeformableDetr(model_name_or_path, device, cache)
-        self.ocr_table_reader = None
 
     @staticmethod
     def _supplement_text(inferred: List[Element], text: List[Element], threshold: float = 0.5) -> List[Element]:
@@ -403,16 +402,12 @@ class ArynPDFPartitioner:
 
         if use_ocr:
             with LogTime("ocr"):
-                if self.ocr_table_reader is None:
-                    self.ocr_table_reader = easyocr.Reader(["en"])
-
                 extract_ocr(
                     images,
                     deformable_layout,
                     ocr_images=ocr_images,
                     ocr_model=ocr_model,
                     ocr_tables=extract_table_structure,
-                    table_reader=self.ocr_table_reader,
                 )
         else:
             with LogTime("pdfminer"):
@@ -588,16 +583,12 @@ class ArynPDFPartitioner:
 
         if use_ocr:
             with LogTime("ocr"):
-                if self.ocr_table_reader is None:
-                    self.ocr_table_reader = easyocr.Reader(["en"])
-
                 extract_ocr(
                     batch,
                     deformable_layout,
                     ocr_images=ocr_images,
                     ocr_model=ocr_model,
                     ocr_tables=extract_table_structure,
-                    table_reader=self.ocr_table_reader,
                 )
         # else pdfminer happens in parent since it is whole document.
 

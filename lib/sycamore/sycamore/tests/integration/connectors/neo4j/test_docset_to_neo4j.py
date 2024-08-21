@@ -19,7 +19,8 @@ def test_to_neo4j():
             num_gpus=0.2,
         )
         .extract_document_structure(structure=StructureBySection)
-        .extract_graph_structure(extractors=[])
+        .extract_graph_entities(extractors=[])
+        .extract_graph_relationships(extractors=[])
         .resolve_graph_entities(resolvers=[])
         .explode()
     )

@@ -578,7 +578,6 @@ class DocSet:
             entities = ExtractEntities(entities, extractor)
 
         return DocSet(self.context, entities)
-    
 
     def extract_graph_relationships(self, extractors: list[GraphRelationshipExtractor], **kwargs) -> "DocSet":
         from sycamore.transforms.extract_graph_relationships import ExtractRelationships

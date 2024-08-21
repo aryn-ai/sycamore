@@ -89,12 +89,12 @@ def test_to_neo4j():
     RETURN count(r) AS relationshipCount
     """
 
-    #test nodes
+    # test nodes
     assert session.run(query1).single()["numDoctors"] == 1
     assert session.run(query2).single()["numResponses"] == 2
     assert session.run(query3).single()["numMessages"] == 2
 
-    #test relationships
+    # test relationships
     assert session.run(query4).single()["relationshipCount"] == 0
     assert session.run(query5).single()["relationshipCount"] == 2
     assert session.run(query6).single()["relationshipCount"] == 2

@@ -51,14 +51,14 @@ class MockLLM(LLM):
             prompt_kwargs["messages"]
             == LlmClusterEntityFormGroupsMessagesPrompt(
                 field="text_representation", instruction="", text="1, 2, one, two, 1, 3"
-            ).get_messages_dict()
+            ).as_messages()
         ):
             return '{"groups": ["group1", "group2", "group3"]}'
         elif (
             prompt_kwargs["messages"][0]
             == LlmClusterEntityAssignGroupsMessagesPrompt(
                 field="text_representation", groups=["group1", "group2", "group3"]
-            ).get_messages_dict()[0]
+            ).as_messages()[0]
         ):
             value = prompt_kwargs["messages"][1]["content"]
             if value == "1" or value == "one":

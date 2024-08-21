@@ -2,7 +2,7 @@ import sycamore
 from sycamore.data.document import Document
 from sycamore.data.element import Element
 from sycamore.reader import DocSetReader
-from sycamore.transforms.extract_document_structure import StructureBySection
+from sycamore.transforms.extract_document_structure import ExtractSummaries, StructureBySection
 import logging
 
 logger = logging.getLogger(__name__)
@@ -63,3 +63,22 @@ class TestExtractDocumentStructure:
                 assert section.data["label"] == "SECTION"
                 for element in section.children:
                     assert element.data["label"] == "ELEMENT"
+
+    def test_summarize_sections(self):
+        context = sycamore.init()
+        reader = DocSetReader(context)
+        ds = reader.document(self.docs)
+
+        ds = ds.extract_document_structure(structure=StructureBySection)
+        ds.plan = ExtractSummaries(ds.plan)
+        docs = ds.take_all()
+
+        summaries = [
+            "-----SECTION TITLE: header-1-----\n---Element Type: text---\ni'm text-1\n",
+            "-----SECTION TITLE: header-2-----\n---Element Type: text---\ni'm text-2\n",
+        ]
+
+        for document in docs:
+            for index, section in enumerate(document.children):
+                logger.warning(section.data["summary"])
+                assert section.data["summary"] == summaries[index]

@@ -52,13 +52,6 @@ def noop_fn(d):
 
 
 class TestMaterializeWrite(unittest.TestCase):
-    # # Needed until we don't have a global context
-    # def setUp(self):
-    #     sycamore.shutdown()
-    #
-    # def tearDown(self):
-    #     sycamore.shutdown()
-
     def test_noop(self):
         ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
         assert ctx.exec_mode == ExecMode.LOCAL

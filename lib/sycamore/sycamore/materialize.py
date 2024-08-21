@@ -132,7 +132,7 @@ class Materialize(UnaryNode):
             logging.warning(f"materialize.success not found in {self._root}. Returning partial data")
         ret = []
         for n in self._root.iterdir():
-            if str(n).endswith(".pickle"):
+            if n.suffix == ".pickle":
                 with open(n, "rb") as f:
                     ret.append(Document.deserialize(f.read()))
 

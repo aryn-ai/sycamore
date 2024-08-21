@@ -18,8 +18,8 @@ from sycamore.transforms.augment_text import TextAugmentor
 from sycamore.transforms.embed import Embedder
 from sycamore.transforms import DocumentStructure
 from sycamore.transforms.extract_entity import EntityExtractor, OpenAIEntityExtractor
-from sycamore.transforms.extract_graph import GraphExtractor
-from sycamore.transforms.extract_graph_relationships import RelationshipExtractor
+from sycamore.transforms.extract_graph_entities import GraphEntityExtractor
+from sycamore.transforms.extract_graph_relationships import GraphRelationshipExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
 from sycamore.transforms.partition import Partitioner
 from sycamore.transforms.resolve_graph_entities import EntityResolver, ResolveEntities
@@ -551,7 +551,7 @@ class DocSet:
         schema = ExtractBatchSchema(self.plan, schema_extractor=schema_extractor)
         return DocSet(self.context, schema)
 
-    def extract_graph_structure(self, extractors: list[GraphExtractor], **kwargs) -> "DocSet":
+    def extract_graph_entities(self, extractors: list[GraphEntityExtractor], **kwargs) -> "DocSet":
         """
         Extracts metadata from documents into a format that sets up resulting docset to be loaded into neo4j
 
@@ -561,34 +561,30 @@ class DocSet:
         Example:
             .. code-block:: python
 
-                metadata = [GraphMetadata(nodeKey='company',nodeLabel='Company',relLabel='FILED_BY'),
-                GraphMetadata(nodeKey='gics_sector',nodeLabel='Sector',relLabel='IN_SECTOR'),
-                GraphMetadata(nodeKey='doc_type',nodeLabel='Document Type',relLabel='IS_TYPE'),
-                GraphMetadata(nodeKey='doc_period',nodeLabel='Year',relLabel='FILED_DURING'),
-                ]
+                llm = OpenAI(OpenAIModels.GPT_4O.value)
 
                 ds = (
-                    ctx.read.manifest(metadata_provider=JsonManifestMetadataProvider(manifest),...)
-                    .partition(partitioner=ArynPartitioner(...), num_gpus=0.1)
+                    context.read.binary(paths, binary_format="pdf")
+                    .partition(...)
                     .extract_graph_structure(extractors=[MetadataExtractor(metadata=metadata)])
                     .explode()
                 )
         """
+        from sycamore.transforms.extract_graph_entities import ExtractEntities, ExtractSummaries
 
-        docset = self
+        entities = ExtractSummaries(self.plan)
         for extractor in extractors:
-            docset = extractor.extract(docset)
+            entities = ExtractEntities(entities, extractor)
 
-        return docset
+        return DocSet(self.context, entities)
     
 
-    def extract_graph_relationships(self, extractors: list[RelationshipExtractor], **kwargs) -> "DocSet":
-        
+    def extract_graph_relationships(self, extractors: list[GraphRelationshipExtractor], **kwargs) -> "DocSet":
         from sycamore.transforms.extract_graph_relationships import ExtractRelationships
 
         relationships = self.plan
         for extractor in extractors:
-            relationships = ExtractRelationships(relationships, extractor=extractor)
+            relationships = ExtractRelationships(relationships, extractor)
 
         return DocSet(self.context, relationships)
 

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from enum import Enum
 import hashlib
-from typing import TYPE_CHECKING, Awaitable, Dict, Any, List, Optional
+from typing import Awaitable, Dict, Any, List, Optional
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.data import HierarchicalDocument
@@ -15,7 +15,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-class RelationshipExtractor(ABC):
+
+class GraphRelationshipExtractor(ABC):
     def __init__(self):
         pass
 
@@ -23,7 +24,8 @@ class RelationshipExtractor(ABC):
     def extract(self, doc: "HierarchicalDocument") -> "HierarchicalDocument":
         pass
 
-class RelationshipExtractor(RelationshipExtractor):
+
+class RelationshipExtractor(GraphRelationshipExtractor):
     """
     Extracts relationships between entities
     """
@@ -52,26 +54,33 @@ class RelationshipExtractor(RelationshipExtractor):
                 for relation in relations:
                     start_hash = hashlib.sha256(json.dumps(relation["start"]).encode()).hexdigest()
                     end_hash = hashlib.sha256(json.dumps(relation["end"]).encode()).hexdigest()
+
                     start_exists = section["properties"]["nodes"][relation["start_label"]].get(start_hash, None)
                     end_exists = section["properties"]["nodes"][relation["end_label"]].get(end_hash, None)
-                    if not 
-                        continue
-                    if not 
+                    if not (start_exists and end_exists):
+                        logger.warn(
+                            f"""
+                            Entities referenced by relationship does not exist:
+                            Start: {relation["start"]}
+                            End: {relation["end"]}
+                            """
+                        )
                         continue
 
                     rel: Dict[str, Any] = {
                         "TYPE": label,
                         "properties": {},
                         "START_HASH": start_hash,
-                        "START_LABEL": relation["start_label"]
+                        "START_LABEL": relation["start_label"],
                     }
 
                     for key, value in relation.items():
-                        if key not in ['start', 'end', 'start_label', 'end_label']:
+                        if key not in ["start", "end", "start_label", "end_label"]:
                             rel["properties"][key] = value
-                    
 
-                    section["properties"]["nodes"][relation["end_label"]][end_hash]["relationships"][str(uuid.uuid4())] = rel
+                    section["properties"]["nodes"][relation["end_label"]][end_hash]["relationships"][
+                        str(uuid.uuid4())
+                    ] = rel
         return doc
 
     def _serialize_relationships(self, entities):
@@ -90,20 +99,23 @@ class RelationshipExtractor(RelationshipExtractor):
             deserialized.append(safe_cloudunpickle(entity))
 
         return deserialized
-    
+
     async def _generate_relationships(self, section: HierarchicalDocument) -> Awaitable[str]:
         relations = self._deserialize_relationships()
-        parsed_relations= []
+        parsed_relations = []
         parsed_metadata = dict()
         parsed_nodes = defaultdict(lambda: set())
         for relation in relations:
             start_label = relation.__annotations__["start"].__name__
             end_label = relation.__annotations__["end"].__name__
 
+            start_nodes = [
+                json.dumps(node["raw_entity"]) for node in section["properties"]["nodes"].get(start_label, {}).values()
+            ]
+            end_nodes = [
+                json.dumps(node["raw_entity"]) for node in section["properties"]["nodes"].get(end_label, {}).values()
+            ]
 
-            start_nodes = [json.dumps(node["raw_entity"]) for node in section["properties"]["nodes"].get(start_label, {}).values()]
-            end_nodes = [json.dumps(node["raw_entity"]) for node in section["properties"]["nodes"].get(end_label, {}).values()]
-            
             relation.__annotations__["start"] = Enum(start_label, {entity: entity for entity in start_nodes})
             relation.__annotations__["end"] = Enum(end_label, {entity: entity for entity in end_nodes})
 
@@ -115,7 +127,7 @@ class RelationshipExtractor(RelationshipExtractor):
 
         if not parsed_relations:
             return "{}"
-        
+
         fields = {relation.__name__: (List[relation], ...) for relation in parsed_relations}
         relationships_model = create_model("relationships", __base__=BaseModel, **fields)
 
@@ -127,7 +139,8 @@ class RelationshipExtractor(RelationshipExtractor):
 
         llm_kwargs = {"response_format": relationships_model}
         res = await self.llm.generate_async(
-            prompt_kwargs={"prompt": str(GraphRelationshipExtractorPrompt(section.data["summary"], entities))}, llm_kwargs=llm_kwargs
+            prompt_kwargs={"prompt": str(GraphRelationshipExtractorPrompt(section.data["summary"], entities))},
+            llm_kwargs=llm_kwargs,
         )
 
         try:
@@ -146,7 +159,6 @@ class RelationshipExtractor(RelationshipExtractor):
         return res
 
 
-
 def GraphRelationshipExtractorPrompt(query, entities):
     return f"""
     -Goal-
@@ -161,6 +173,7 @@ def GraphRelationshipExtractorPrompt(query, entities):
     Text: {query}
     ######################
     Output:"""
+
 
 class ExtractRelationships(Map):
     """

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
 import hashlib
-from typing import TYPE_CHECKING, Awaitable, Dict, Any, List, Optional
+from typing import Awaitable, Dict, Any, List, Optional
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.data import HierarchicalDocument
@@ -12,121 +12,33 @@ import json
 import uuid
 import logging
 
-if TYPE_CHECKING:
-    from sycamore.docset import DocSet
-
 logger = logging.getLogger(__name__)
 
 
-class GraphData(ABC):
-    def __init__(self):
-        pass
-
-
-class GraphMetadata(GraphData):
-    """
-    Object which handles what fields to extract metadata from and what fields to represent them as in neo4j
-
-    Args:
-        nodeKey: Key used to access document metadata in the document['properties] dictionary
-        nodeLabel: The label used in neo4j the node of a piece of metadata
-        relLabel: The label used in neo4j for the relationship between the document and a piece of metadata
-    """
-
-    def __init__(self, nodeKey: str, nodeLabel: str, relLabel: str):
-        self.nodeKey = nodeKey
-        self.nodeLabel = nodeLabel
-        self.relLabel = relLabel
-
-
-class GraphExtractor(ABC):
+class GraphEntityExtractor(ABC):
     def __init__(self):
         pass
 
     @abstractmethod
-    def extract(self, docset: "DocSet") -> "DocSet":
-        pass
-
-    @abstractmethod
-    def _extract(self, doc: "HierarchicalDocument") -> "HierarchicalDocument":
+    def extract(self, docset: "HierarchicalDocument") -> "HierarchicalDocument":
         pass
 
 
-class MetadataExtractor(GraphExtractor):
-    """
-    Extracts metadata from documents and represents them as nodes and relationship in neo4j
-
-    Args:
-        metadata: A list of GraphMetadata that is used to determine what metadata is extracted
-    """
-
-    def __init__(self, metadata: list[GraphMetadata]):
-        self.metadata = metadata
-
-    def extract(self, docset: "DocSet") -> "DocSet":
-        """
-        Extracts metadata from documents and creates an additional document in the docset that stores those nodes
-        """
-        docset.plan = ExtractFeatures(docset.plan, self)
-        return docset
-
-    def _extract(self, doc: HierarchicalDocument) -> HierarchicalDocument:
-        nodes: Dict[str, Dict[str, Any]] = {}
-        for m in self.metadata:
-            key = m.nodeKey
-            value = str(doc["properties"].get(key))
-            if value == "None":
-                continue
-
-            node: Dict[str, Any] = {
-                "type": "metadata",
-                "properties": {key: value},
-                "label": m.nodeLabel,
-                "relationships": {},
-            }
-            rel: Dict[str, Any] = {
-                "TYPE": m.relLabel,
-                "properties": {},
-                "START_ID": str(doc.doc_id),
-                "START_LABEL": doc.data["label"],
-            }
-
-            node["relationships"][str(uuid.uuid4())] = rel
-            nodes.setdefault(key, {})
-            nodes[key][value] = node
-            del doc["properties"][m.nodeKey]
-
-        doc["properties"]["nodes"] = nodes
-        return doc
-
-
-class EntityExtractor(GraphExtractor):
+class EntityExtractor(GraphEntityExtractor):
     """
     Extracts entity schemas specified by a user from unstructured text from documents
 
     Args:
-        entities: A list of pydantic models that determines what entity schemas are extracted
         llm: The LLM that is used to extract the entities
+        entities: A list of pydantic models that determines what entity schemas are extracted
+
     """
 
-    def __init__(
-        self, llm: LLM, entities: Optional[list[BaseModel]] = [], json_schema: Optional[dict[str, Any]] = None
-    ):
-        self.entities = self._serialize_entities(entities)
-        self.schema = json_schema
+    def __init__(self, llm: LLM, entities: Optional[list[BaseModel]] = []):
         self.llm = llm
-        if json_schema is None and entities is []:
-            raise ValueError("Must input JSON schema or list of pydantic entities")
+        self.entities = self._serialize_entities(entities)
 
-    def extract(self, docset: "DocSet") -> "DocSet":
-        """
-        Extracts entities from documents then creates a document in the docset where they are stored as nodes
-        """
-        docset.plan = ExtractSummaries(docset.plan)
-        docset.plan = ExtractFeatures(docset.plan, self)
-        return docset
-
-    def _extract(self, doc: HierarchicalDocument) -> HierarchicalDocument:
+    def extract(self, doc: HierarchicalDocument) -> HierarchicalDocument:
         import asyncio
 
         if "EXTRACTED_NODES" in doc.data:
@@ -158,7 +70,7 @@ class EntityExtractor(GraphExtractor):
                             "properties": {},
                             "label": label,
                             "relationships": {},
-                            "raw_entity": entity
+                            "raw_entity": entity,
                         }
                         for key, value in entity.items():
                             node["properties"][key] = value
@@ -192,11 +104,7 @@ class EntityExtractor(GraphExtractor):
         return create_model("entities", __base__=BaseModel, **fields)
 
     async def _extract_from_section(self, summary: str) -> Awaitable[str]:
-        llm_kwargs = None
-        if self.schema is not None:
-            llm_kwargs = {"response_format": {"type": "json_schema", "json_schema": self.schema}}
-        else:
-            llm_kwargs = {"response_format": self._deserialize_entities()}
+        llm_kwargs = {"response_format": self._deserialize_entities()}
 
         return await self.llm.generate_async(
             prompt_kwargs={"prompt": str(GraphEntityExtractorPrompt(summary))}, llm_kwargs=llm_kwargs
@@ -244,10 +152,10 @@ class ExtractSummaries(Map):
         return doc
 
 
-class ExtractFeatures(Map):
+class ExtractEntities(Map):
     """
     Extracts features determined by a specific extractor from each document
     """
 
-    def __init__(self, child: Node, extractor: GraphExtractor, **resource_args):
-        super().__init__(child, f=extractor._extract, **resource_args)
+    def __init__(self, child: Node, extractor: GraphEntityExtractor, **resource_args):
+        super().__init__(child, f=extractor.extract, **resource_args)

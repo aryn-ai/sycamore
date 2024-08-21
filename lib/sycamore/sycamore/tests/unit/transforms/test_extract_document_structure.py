@@ -3,11 +3,9 @@ from sycamore.data.document import Document
 from sycamore.data.element import Element
 from sycamore.reader import DocSetReader
 from sycamore.transforms.extract_document_structure import StructureBySection
-
 import logging
 
 logger = logging.getLogger(__name__)
-
 
 class TestExtractDocumentStructure:
     docs = [
@@ -61,6 +59,7 @@ class TestExtractDocumentStructure:
         for document in docs:
             assert document.data["label"] == "DOCUMENT"
             for section in document.children:
+                assert "summary" in section.data
                 assert section.data["label"] == "SECTION"
                 for element in section.children:
                     assert element.data["label"] == "ELEMENT"

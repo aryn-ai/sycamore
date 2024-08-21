@@ -444,9 +444,10 @@ class DocSet:
                     .explode()
 
         """
-        from sycamore.transforms import ExtractDocumentStructure
+        from sycamore.transforms.extract_document_structure import ExtractDocumentStructure, ExtractSummaries
 
         document_structure = ExtractDocumentStructure(self.plan, structure=structure, **kwargs)
+        document_structure = ExtractSummaries(document_structure)
         return DocSet(self.context, document_structure)
 
     def extract_entity(self, entity_extractor: EntityExtractor, **kwargs) -> "DocSet":
@@ -570,9 +571,9 @@ class DocSet:
                     .explode()
                 )
         """
-        from sycamore.transforms.extract_graph_entities import ExtractEntities, ExtractSummaries
+        from sycamore.transforms.extract_graph_entities import ExtractEntities
 
-        entities = ExtractSummaries(self.plan)
+        entities = self.plan
         for extractor in extractors:
             entities = ExtractEntities(entities, extractor)
 

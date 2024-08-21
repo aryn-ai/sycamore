@@ -395,6 +395,7 @@ class ArynPartitioner(Partitioner):
         ocr_images: If set with use_ocr, will attempt to OCR regions of the document identified as images.
         ocr_tables: If set with use_ocr, will attempt to OCR regions of the document identified as tables.
              Should not be set when `extract_table_structure` is true.
+        ocr_model: If set with use_ocr, will use the specified model to perform OCR. Defaults to ''
         extract_table_structure: If true, runs a separate table extraction model to extract cells from
              regions of the document identified as tables.
         table_structure_extractor: The table extraction implementaion to use when extract_table_structure
@@ -434,7 +435,7 @@ class ArynPartitioner(Partitioner):
         threshold: float = 0.4,
         use_ocr: bool = False,
         ocr_images: bool = False,
-        ocr_tables: bool = False,
+        ocr_model: str = "easy",
         extract_table_structure: bool = False,
         table_structure_extractor: Optional[TableStructureExtractor] = None,
         extract_images: bool = False,
@@ -462,7 +463,7 @@ class ArynPartitioner(Partitioner):
         self._threshold = threshold
         self._use_ocr = use_ocr
         self._ocr_images = ocr_images
-        self._ocr_tables = ocr_tables
+        self._ocr_model = ocr_model
         self._extract_table_structure = extract_table_structure
         self._table_structure_extractor = table_structure_extractor
         self._extract_images = extract_images
@@ -521,7 +522,7 @@ class ArynPartitioner(Partitioner):
                 self._threshold,
                 use_ocr=self._use_ocr,
                 ocr_images=self._ocr_images,
-                ocr_tables=self._ocr_tables,
+                ocr_model=self._ocr_model,
                 extract_table_structure=self._extract_table_structure,
                 table_structure_extractor=self._table_structure_extractor,
                 extract_images=self._extract_images,

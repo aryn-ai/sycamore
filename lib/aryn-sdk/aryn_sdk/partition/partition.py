@@ -25,6 +25,7 @@ def partition_file(
     threshold: Optional[float] = None,
     use_ocr: bool = False,
     ocr_images: bool = False,
+    ocr_model: str = "easy",
     extract_table_structure: bool = False,
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
@@ -84,6 +85,7 @@ def partition_file(
         threshold=threshold,
         use_ocr=use_ocr,
         ocr_images=ocr_images,
+        ocr_model=ocr_model,
         extract_table_structure=extract_table_structure,
         extract_images=extract_images,
         selected_pages=selected_pages,
@@ -145,6 +147,7 @@ def _json_options(
     threshold: Optional[float] = None,
     use_ocr: bool = False,
     ocr_images: bool = False,
+    ocr_model: str = "easy",
     extract_table_structure: bool = False,
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
@@ -157,6 +160,8 @@ def _json_options(
         options["use_ocr"] = use_ocr
     if ocr_images:
         options["ocr_images"] = ocr_images
+    if ocr_model:
+        options["ocr_model"] = ocr_model
     if extract_images:
         options["extract_images"] = extract_images
     if extract_table_structure:

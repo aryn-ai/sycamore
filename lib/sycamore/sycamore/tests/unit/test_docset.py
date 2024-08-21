@@ -242,8 +242,9 @@ class TestDocSet:
 
         assert len(docset.take_all()) == num_docs
 
+        docset.take_all(limit=num_docs)
         with pytest.raises(ValueError):
-            docset.take_all(limit=20)
+            docset.take_all(limit=num_docs - 1)
 
     def random_string(self, min_size: int, max_size: int) -> str:
         k = random.randrange(min_size, max_size)

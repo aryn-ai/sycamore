@@ -67,7 +67,8 @@ class ResolveEntities:
                             nodes[label][hash] = node
                         else:
                             for rel_uuid, rel in node["relationships"].items():
-                                nodes[label][hash]["relationships"][rel_uuid] = rel
+                                if rel not in [node for node in nodes[label][hash]["relationships"].values()]:
+                                    nodes[label][hash]["relationships"][rel_uuid] = rel
                 del section["properties"]["nodes"]
             doc["properties"]["nodes"] = nodes
             return doc
@@ -91,7 +92,8 @@ class ResolveEntities:
                         nodes[key][hash] = extracted[key][hash]
                     else:
                         for rel_uuid, rel in extracted[key][hash]["relationships"].items():
-                            nodes[key][hash]["relationships"][rel_uuid] = rel
+                            if rel not in [node for node in nodes[key][hash]["relationships"].values()]:
+                                nodes[key][hash]["relationships"][rel_uuid] = rel
             return nodes
 
         def merge(nodes1, nodes2):
@@ -102,7 +104,8 @@ class ResolveEntities:
                         nodes1[key][hash] = nodes2[key][hash]
                     else:
                         for rel_uuid, rel in nodes2[key][hash]["relationships"].items():
-                            nodes1[key][hash]["relationships"][rel_uuid] = rel
+                            if rel not in [node for node in nodes1[key][hash]["relationships"].values()]:
+                                nodes1[key][hash]["relationships"][rel_uuid] = rel
             return nodes1
 
         def finalize(nodes):

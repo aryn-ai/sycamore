@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
 import hashlib
-from typing import Awaitable, Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.data import HierarchicalDocument

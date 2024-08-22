@@ -127,7 +127,7 @@ class RelationshipExtractor(GraphRelationshipExtractor):
         if not parsed_relations:
             return asyncio.sleep(0, {})
 
-        # Use mypy ignore type since pydantic has bad interaction with mypy with creating class from a variable type class
+        # Use mypy ignore type since pydantic has bad interaction with mypy with creating class from a variable class
         fields = {relation.__name__: (List[relation], ...) for relation in parsed_relations}  # type: ignore
         relationships_model = create_model("relationships", __base__=BaseModel, **fields)  # type: ignore
 
@@ -160,8 +160,6 @@ class RelationshipExtractor(GraphRelationshipExtractor):
             return parsed_res
 
         return await _process_llm_output(res, parsed_metadata, section.data["summary"])
-    
-
 
 
 def GraphRelationshipExtractorPrompt(query, entities):

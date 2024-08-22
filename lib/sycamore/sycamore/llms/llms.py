@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Awaitable, Optional
+from typing import Optional
 
 from sycamore.utils.cache import Cache
 

@@ -128,7 +128,7 @@ class RelationshipExtractor(GraphRelationshipExtractor):
             return asyncio.sleep(0, "{}")
 
         fields = {relation.__name__: (List[relation], ...) for relation in parsed_relations}  # type: ignore
-        relationships_model = create_model(model_name="relationships", __base__=BaseModel, **fields)  # type: ignore
+        relationships_model = create_model("relationships", __base__=BaseModel, **fields)  # type: ignore
 
         entities = ""
         for key, nodes in parsed_nodes.items():

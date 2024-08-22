@@ -26,7 +26,7 @@ class GraphEntityExtractor(ABC):
 
 class EntityExtractor(GraphEntityExtractor):
     """
-    Extracts entity schemas specified by a user from unstructured text from documents
+    Extracts entity schemas specified by a user from unstructured text from document children.
 
     Args:
         llm: The LLM that is used to extract the entities

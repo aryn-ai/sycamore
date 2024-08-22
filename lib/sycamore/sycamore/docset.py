@@ -835,7 +835,7 @@ class DocSet:
         llm: LLM,
         new_field: str,
         prompt: Union[list[dict], str],
-        field: Optional[str] = "text_representation",
+        field: str = "text_representation",
         threshold: int = 3,
         **resource_args,
     ) -> "DocSet":

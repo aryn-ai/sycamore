@@ -266,7 +266,7 @@ class BaseMapTransform(UnaryNode):
         return {"doc": [d.serialize() for d in outputs]}
 
     @classmethod
-    def _update_lineage(cls, from_docs, to_docs):
+    def _update_lineage(cls, from_docs: list[Document], to_docs: list[Document]) -> list[MetadataDocument]:
         from_ids = [d.lineage_id for d in from_docs]
         for d in to_docs:
             d.update_lineage_id()
@@ -276,9 +276,10 @@ class BaseMapTransform(UnaryNode):
 
 
 class CompositeTransform(UnaryNode):
-    def __init__(self, child: Node, base_args: list[dict], **resource_args):
+    def __init__(self, child: Node, base_args: list[dict], enable_auto_metadata=True, **resource_args):
         super().__init__(child, **resource_args)
         self.nodes = CompositeTransform.combine(child, base_args, **resource_args)
+        self._enable_auto_metadata = enable_auto_metadata
 
     @staticmethod
     def combine(last: Node, base_args: list[dict], **resource_args) -> list[BaseMapTransform]:
@@ -296,6 +297,16 @@ class CompositeTransform(UnaryNode):
             docs = n._local_process(docs)
 
         return docs
+
+    def local_execute(self, all_docs: list[Document]) -> list[Document]:
+        docs = [d for d in all_docs if not isinstance(d, MetadataDocument)]
+        metadata = [d for d in all_docs if isinstance(d, MetadataDocument)]
+        outputs = self._local_process(docs)
+        to_docs = [d for d in outputs if not isinstance(d, MetadataDocument)]
+        if self._enable_auto_metadata and (len(docs) > 0 or len(to_docs) > 0):
+            outputs.extend(BaseMapTransform._update_lineage(docs, to_docs))
+        outputs.extend(metadata)
+        return outputs
 
     def execute(self, **kwargs) -> "Dataset":
         return self.nodes[-1].execute()

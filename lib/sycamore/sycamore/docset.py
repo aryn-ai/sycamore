@@ -668,34 +668,6 @@ class DocSet:
         entities_clean = CleanTempNodes(Wrapper(entities))  # cleanup temp objects
         return DocSet(self.context, entities_clean)
 
-    def resolve_graph_entities(self, resolvers: list[EntityResolver], **kwargs) -> "DocSet":
-        """
-        Resolves graph entities across documents so that duplicate entities can be resolved
-        to the same entity based off criteria of EntityResolver objects.
-
-        Args:
-            resolvers: A list of EntityResolvers that are used to determine what entities are duplicates
-
-        Example:
-            .. code-block:: python
-            TODO: Write an example once refactor is complete
-
-        """
-        from sycamore.transforms.resolve_graph_entities import CleanTempNodes
-
-        class Wrapper(Node):
-            def __init__(self, dataset):
-                self._ds = dataset
-                self.children = []
-
-            def execute(self, **kwargs):
-                return self._ds
-
-        entity_resolver = ResolveEntities(resolvers=resolvers)
-        entities = entity_resolver.resolve(self)  # resolve entities
-        entities_clean = CleanTempNodes(Wrapper(entities))  # cleanup temp objects
-        return DocSet(self.context, entities_clean)
-
     def extract_properties(self, property_extractor: PropertyExtractor, **kwargs) -> "DocSet":
         """
         Extracts properties from each Document in this DocSet based on the `_schema` property.

@@ -17,7 +17,6 @@ from tenacity import retry, retry_if_exception, wait_exponential, stop_after_del
 import base64
 import pdf2image
 import pytesseract
-import torch
 from PIL import Image
 import fasteners
 from pdfminer.converter import PDFPageAggregator
@@ -37,7 +36,6 @@ from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
 from sycamore.utils.pdf import convert_from_path_streamed_batched
 from sycamore.utils.time_trace import LogTime, timetrace
-from sycamore.utils.pytorch_dir import get_pytorch_build_directory
 
 logger = logging.getLogger(__name__)
 _DETR_LOCK_FILE = f"{pwd.getpwuid(os.getuid()).pw_dir}/.cache/Aryn-Detr.lock"
@@ -673,6 +671,8 @@ class DeformableDetr(SycamoreObjectDetection):
         self._model_name_or_path = model_name_or_path
         self.cache = cache
 
+        from sycamore.utils.pytorch_dir import get_pytorch_build_directory
+
         with fasteners.InterProcessLock(_DETR_LOCK_FILE):
             lockfile = Path(get_pytorch_build_directory("MultiScaleDeformableAttention", False)) / "lock"
             lockfile.unlink(missing_ok=True)
@@ -741,6 +741,8 @@ class DeformableDetr(SycamoreObjectDetection):
         return results
 
     def _get_uncached_inference(self, images: List[Image.Image], threshold: float) -> list:
+        import torch
+
         results = []
         inputs = self.processor(images=images, return_tensors="pt").to(self._get_device())
         outputs = self.model(**inputs)

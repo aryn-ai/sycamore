@@ -1,7 +1,7 @@
 from openai import OpenAI
 from pydantic import BaseModel
 import sycamore
-from sycamore.llms.openai import OpenAIModel
+from sycamore.llms.openai import OpenAIModel, OpenAIModels
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.partition import SycamorePartitioner
 from sycamore.transforms.extract_document_structure import StructureBySection
@@ -13,8 +13,7 @@ def test_to_neo4j():
     ## actual test ##
     path = str(TEST_DIR / "resources/data/pdfs/doctor_testimonial.pdf")
     context = sycamore.init()
-    model = OpenAIModel(name="gpt-4o-2024-08-06", is_chat=True)
-    llm = OpenAI(model)
+    llm = OpenAI(OpenAIModels.GPT_4O_MINI)
 
     URI = "neo4j://localhost:7687"
     AUTH = None

@@ -61,7 +61,7 @@ class Execution:
                     # log messages are being dropped")
                     ray_args["runtime_env"]["worker_process_setup_hook"] = _ray_logging_setup
 
-                ray.init(**ray_args)
+                ray.init(include_dashboard=False, **ray_args)
             return plan.execute(**kwargs)
         if self._exec_mode == ExecMode.LOCAL:
             from ray.data import from_items

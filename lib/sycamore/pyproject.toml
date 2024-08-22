@@ -17,8 +17,8 @@ python = ">=3.9,<3.12"
 opensearch-py = "^2.3.1"
 pandas = "2.1.1"
 pdf2image = "^1.16.3"
-ray = { extras = ["default"], version = "^2.20.0" }
-sentence-transformers = "^3.0.1"
+#grpcio = "1.54.2"
+ray = { extras = ["default"], version = "2.20.0" }
 pyarrow = "14.0.1"
 unstructured = "0.10.20"
 openai = "^1.40.2"
@@ -34,38 +34,41 @@ tenacity = "^8.4.1"
 diskcache = "^5.6.3"
 overrides = "^7.7.0"
 structlog = "^24.2.0"
-
-torch = "^2.3.0"
-pdfminer-six = "20221105"
 python-pptx = "^0.6.22"
 
 jinja2 = "^3.1"
 datasets = "^2.16.1"
 fsspec = "2024.2.0" # See poetry-lock/pyproject.toml
-timm = "^0.9.12"
+
 cryptography = "^42.0.3"
 aiohttp = "^3.9.2"
 apted = "^1.0.3"
 fasteners = "^0.19"
 pydantic = "^2.8.2"
+rouge = "^1.0.1"
+pypdf = "^4.3.0"
+
+## Optional dependencies
+torch = {version = "^2.3.0", optional = true}
+pdfminer-six = {version = "20221105", optional = true}
+pytesseract = {version = "^0.3.10", optional = true}
+easyocr = {version = "^1.7.1", optional = true}
+sentence-transformers = {version = "^3.0.1", optional = true}
+timm = {version = "^0.9.12", optional = true}
 
 # Dependencies for building docs. Defined as an extra
 # so they can be installed using pip on RTD.
 furo = { version = "^2023.9.10", optional = true }
 myst-parser = { version = "^2.0.0", optional = true }
 sphinx = { version = "^7.2.5", optional = true }
-rouge = "^1.0.1"
-pypdf = "^4.3.0"
-pytesseract = "^0.3.10"
-easyocr = "^1.7.1"
 
 # Dependencies for DB connectors
-weaviate-client = ">=4.6.1,<4.7" # typechecking fails with 4.7
-pinecone-client = { version = "^4.1.0", extras = ["grpc"] }
-pinecone-text = "^0.9.0"
-duckdb = "1.0.0"
-neo4j = "^5.21.0"
-elasticsearch = "8.14.0"
+weaviate-client = { version = ">=4.6.1,<4.7", optional = true } # typechecking fails with 4.7
+pinecone-client = { version = "^4.1.0", extras = ["grpc"], optional = true }
+pinecone-text = { version = "^0.9.0", optional = true }
+duckdb = { version = "1.0.0", optional = true }
+neo4j = { version = "^5.21.0", optional = true }
+elasticsearch = { version = "8.14.0", optional = true }
 
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"
@@ -93,6 +96,11 @@ redis-om = "^0.3"
 
 [tool.poetry.extras]
 docs = ["furo", "myst-parser", "sphinx"]
+local-inference = ["torch", "pdfminer-six", "pytesseract", "easyocr", "sentence-transformers", "timm"]
+pinecone = ["pinecone-client", "pinecone-text"]
+duckdb = ["duckdb"]
+elastic = ["elasticsearch"]
+weaviate = ["weaviate-client"]
 
 [tool.ruff]
 line-length = 120

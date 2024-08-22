@@ -16,17 +16,32 @@ import json
 from tenacity import retry, retry_if_exception, wait_exponential, stop_after_delay
 import base64
 import pdf2image
-import pytesseract
-import torch
+
+
+try:
+    import pytesseract
+    import torch
+except ImportError as e:
+    pass
+
+    
 from PIL import Image
 import fasteners
-from pdfminer.converter import PDFPageAggregator
-from pdfminer.layout import LAParams
-from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager, resolve1
-from pdfminer.pdfpage import PDFPage
-from pdfminer.utils import open_filename
-from pdfminer.pdfparser import PDFParser
-from pdfminer.pdfdocument import PDFDocument
+
+
+try:
+    from pdfminer.converter import PDFPageAggregator
+    from pdfminer.layout import LAParams
+    from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager, resolve1
+    from pdfminer.pdfpage import PDFPage
+    from pdfminer.utils import open_filename
+    from pdfminer.pdfparser import PDFParser
+    from pdfminer.pdfdocument import PDFDocument
+    from sycamore.utils.pytorch_dir import get_pytorch_build_directory
+except ImportError as e:
+    pass
+
+from pypdf import PdfReader
 
 from sycamore.data import Element, BoundingBox, ImageElement, TableElement
 from sycamore.data.element import create_element
@@ -37,7 +52,6 @@ from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
 from sycamore.utils.pdf import convert_from_path_streamed_batched
 from sycamore.utils.time_trace import LogTime, timetrace
-from sycamore.utils.pytorch_dir import get_pytorch_build_directory
 
 logger = logging.getLogger(__name__)
 _DETR_LOCK_FILE = f"{pwd.getpwuid(os.getuid()).pw_dir}/.cache/Aryn-Detr.lock"
@@ -322,10 +336,10 @@ class ArynPDFPartitioner:
         extract_images: bool = False,
         pages_per_call: int = -1,
     ) -> List[Element]:
+
         file.seek(0)
-        parser = PDFParser(file)
-        document = PDFDocument(parser)
-        page_count = resolve1(document.catalog["Pages"])["Count"]
+        reader = PdfReader(file)
+        page_count = len(reader.pages)
         file.seek(0)
 
         result = []

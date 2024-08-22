@@ -2,12 +2,13 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from enum import Enum
 import hashlib
-from typing import Awaitable, Dict, Any, List, Optional
+from typing import Awaitable, Dict, Any, List, Optional, TypeAlias
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.data import HierarchicalDocument
 from sycamore.llms import LLM
 from pydantic import BaseModel, create_model
+import asyncio
 
 import json
 import uuid
@@ -40,8 +41,6 @@ class RelationshipExtractor(GraphRelationshipExtractor):
             raise ValueError("Must input JSON schema or list of pydantic entities")
 
     def extract(self, doc: HierarchicalDocument) -> HierarchicalDocument:
-        import asyncio
-
         async def gather_api_calls():
             tasks = [self._generate_relationships(child) for child in doc.children]
             res = await asyncio.gather(*tasks)
@@ -104,7 +103,7 @@ class RelationshipExtractor(GraphRelationshipExtractor):
         relations = self._deserialize_relationships()
         parsed_relations = []
         parsed_metadata = dict()
-        parsed_nodes = defaultdict(lambda: set())
+        parsed_nodes: dict[str, set] = defaultdict(lambda: set())
         for relation in relations:
             start_label = relation.__annotations__["start"].__name__
             end_label = relation.__annotations__["end"].__name__
@@ -126,10 +125,12 @@ class RelationshipExtractor(GraphRelationshipExtractor):
                 parsed_nodes[end_label] |= set(end_nodes)
 
         if not parsed_relations:
-            return "{}"
+            return asyncio.sleep(0, "{}")
+        
 
-        fields = {relation.__name__: (List[relation], ...) for relation in parsed_relations}
-        relationships_model = create_model("relationships", __base__=BaseModel, **fields)
+
+        fields = {relation.__name__: (List[relation], ...) for relation in parsed_relations} # type: ignore
+        relationships_model = create_model(model_name="relationships", __base__=BaseModel, **fields) # type: ignore
 
         entities = ""
         for key, nodes in parsed_nodes.items():
@@ -142,16 +143,17 @@ class RelationshipExtractor(GraphRelationshipExtractor):
             prompt_kwargs={"prompt": str(GraphRelationshipExtractorPrompt(section.data["summary"], entities))},
             llm_kwargs=llm_kwargs,
         )
+        #return res
 
         try:
-            res = json.loads(res)
+            parsed_res = json.loads(await res)
         except json.JSONDecodeError:
             logger.warn("LLM Output failed to be decoded to JSON")
             logger.warn("Input: " + section.data["summary"])
-            logger.warn("Output: " + res)
-            return "{}"
-
-        for label, relations in res.items():
+            logger.warn("Output: " + await res)
+            return asyncio.sleep(0, "{}")
+        
+        for label, relations in parsed_res.items():
             for relation in relations:
                 relation["start_label"] = parsed_metadata[label]["start_label"]
                 relation["end_label"] = parsed_metadata[label]["end_label"]

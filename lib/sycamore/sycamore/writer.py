@@ -97,6 +97,7 @@ class DocSetWriter:
         )
         from typing import Any
         import copy
+        from sycamore.docset import DocSet
 
         if os_client_args is None:
             os_client_args = self.context.opensearch_args.client_args if self.context.opensearch_args else None
@@ -153,14 +154,13 @@ class DocSetWriter:
         # doesn't execute automatically, and instead you need to say something
         # like docset.write.opensearch().execute(), allowing sensible writes
         # to multiple locations and post-write operations.
+        osds = DocSet(self.context, os)
         if execute:
             # If execute, force execution
-            os.execute().materialize()
+            osds.execute()
             return None
         else:
-            from sycamore.docset import DocSet
-
-            return DocSet(self.context, os)
+            return osds
 
     def weaviate(
         self,
@@ -268,6 +268,7 @@ class DocSetWriter:
             WeaviateWriterTargetParams,
         )
         from sycamore.connectors.weaviate.weaviate_writer import CollectionConfigCreate
+        from sycamore.docset import DocSet
 
         if collection_config is None:
             collection_config = dict()
@@ -289,14 +290,13 @@ class DocSetWriter:
             wv_docs, client_params, target_params, name="weaviate_write_references", **kwargs
         )
 
+        wvds = DocSet(self.context, wv_refs)
         if execute:
             # If execute, force execution
-            wv_refs.execute().materialize()
+            wvds.execute()
             return None
         else:
-            from sycamore.docset import DocSet
-
-            return DocSet(self.context, wv_refs)
+            return wvds
 
     def pinecone(
         self,
@@ -364,6 +364,7 @@ class DocSetWriter:
             PineconeWriterTargetParams,
         )
         import os
+        from sycamore.docset import DocSet
 
         if log:
             logger.setLevel(20)
@@ -382,14 +383,13 @@ class DocSetWriter:
         )
 
         pc = PineconeWriter(self.plan, client_params=pcp, target_params=ptp, name="pinecone_write", **kwargs)
+        pcds = DocSet(self.context, pc)
         if execute:
             # If execute, force execution
-            pc.execute().materialize()
+            pcds.execute()
             return None
         else:
-            from sycamore.docset import DocSet
-
-            return DocSet(self.context, pc)
+            return pcds
 
     def duckdb(
         self,
@@ -445,6 +445,7 @@ class DocSetWriter:
             DuckDBWriterClientParams,
             DuckDBWriterTargetParams,
         )
+        from sycamore.docset import DocSet
 
         client_params = DuckDBWriterClientParams()
         target_params = DuckDBWriterTargetParams(
@@ -470,13 +471,12 @@ class DocSetWriter:
             name="duckdb_write_documents",
             **kwargs,
         )
+        ddbds = DocSet(self.context, ddb)
         if execute:
-            ddb.execute().materialize()
+            ddbds.execute()
             return None
         else:
-            from sycamore.docset import DocSet
-
-            return DocSet(self.context, ddb)
+            return ddbds
 
     def elasticsearch(
         self,
@@ -539,6 +539,7 @@ class DocSetWriter:
             ElasticsearchWriterClientParams,
             ElasticsearchWriterTargetParams,
         )
+        from sycamore.docset import DocSet
 
         client_params = ElasticsearchWriterClientParams(url=url, es_client_args=es_client_args)
         target_params = ElasticsearchWriterTargetParams(
@@ -556,14 +557,13 @@ class DocSetWriter:
         es_docs = ElasticsearchDocumentWriter(
             self.plan, client_params, target_params, name="elastic_document_writer", **kwargs
         )
+        esds = DocSet(self.context, es_docs)
         if execute:
             # If execute, force execution
-            es_docs.execute().materialize()
+            esds.execute()
             return None
         else:
-            from sycamore.docset import DocSet
-
-            return DocSet(self.context, es_docs)
+            return esds
 
     def neo4j(
         self,
@@ -632,6 +632,7 @@ class DocSetWriter:
         target_params = Neo4jWriterTargetParams(database=database)
         Neo4jValidateParams(client_params=client_params, target_params=target_params)
 
+        og_plan = self.plan
         self.plan = Wrapper(self.plan.execute().materialize())
         start = time.time()
         Neo4jPrepareCSV(plan=self.plan, client_params=client_params)
@@ -639,6 +640,8 @@ class DocSetWriter:
         end = time.time()
         logger.info(f"TIME TAKEN TO WRITE CSV: {end-start} SECONDS")
         Neo4jLoadCSV(client_params=client_params, target_params=target_params)
+
+        og_plan.traverse(visit=lambda n: n.finalize())
 
         return None
 
@@ -673,6 +676,8 @@ class DocSetWriter:
 
         file_writer.execute()
 
+        file_writer.traverse(visit=lambda n: n.finalize())
+
     def json(
         self,
         path: str,
@@ -692,3 +697,4 @@ class DocSetWriter:
 
         node = JsonWriter(self.plan, path, filesystem=filesystem, **resource_args)
         node.execute()
+        node.traverse(visit=lambda n: n.finalize())

@@ -88,7 +88,7 @@ def summarize_data(llm: LLM, question: str, result_description: str, result_data
         else:
             text += str(result_data) + "\n"
 
-    messages = SummarizeDataMessagesPrompt(question=question, text=text).get_messages_dict()
+    messages = SummarizeDataMessagesPrompt(question=question, text=text).as_messages()
     prompt_kwargs = {"messages": messages}
 
     # call to LLM

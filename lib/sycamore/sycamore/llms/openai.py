@@ -18,8 +18,10 @@ from openai import max_retries as DEFAULT_MAX_RETRIES
 from openai.lib.azure import AzureADTokenProvider
 
 import pydantic
+
+from sycamore.llms.guidance import execute_with_guidance
 from sycamore.llms.llms import LLM
-from sycamore.llms.prompts import GuidancePrompt
+from sycamore.llms.prompts import SimplePrompt
 from sycamore.utils.cache import Cache
 
 
@@ -462,6 +464,6 @@ class OpenAI(LLM):
 
     def _generate_using_guidance(self, prompt_kwargs) -> str:
         guidance_model = self.client_wrapper.get_guidance_model(self.model)
-        prompt: GuidancePrompt = prompt_kwargs.pop("prompt")
-        prediction = prompt.execute(guidance_model, **prompt_kwargs)
+        prompt: SimplePrompt = prompt_kwargs.pop("prompt")
+        prediction = execute_with_guidance(prompt, guidance_model, **prompt_kwargs)
         return prediction

@@ -103,6 +103,9 @@ DEFAULT_STRUCTURE_CLASS_THRESHOLDS = {
 def objects_to_table(objects, tokens, structure_class_thresholds=DEFAULT_STRUCTURE_CLASS_THRESHOLDS) -> Optional[Table]:
     structures = objects_to_structures(objects, tokens=tokens, class_thresholds=structure_class_thresholds)
 
+    if len(structures) == 0:
+        return None
+
     cells, _ = structure_to_cells(structures, tokens=tokens)
 
     table_cells = []
@@ -744,7 +747,9 @@ def objects_to_structures(objects, tokens, class_thresholds):
 
     tables = [obj for obj in objects if obj["label"] == "table"]
 
-    assert len(tables) == 1
+    assert len(tables) <= 1
+    if len(tables) == 0:
+        return {}
 
     table = tables[0]
     structure = {}

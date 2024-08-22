@@ -37,37 +37,29 @@ def _ray_logging_setup():
 
 
 class Execution:
-    def __init__(self, context: Context, plan: Node):
+    def __init__(self, context: Context):
         self._context = context
-        self._plan = plan
         self._exec_mode = context.exec_mode
 
-    def execute(self, plan: Node, **kwargs) -> "Dataset":
-        plan = self._apply_rules(plan)
-        if self._exec_mode == ExecMode.RAY:
-            import ray
+    def _execute_ray(self, plan: Node, **kwargs) -> "Dataset":
+        import ray
 
-            if not ray.is_initialized():
-                ray_args = self._context.ray_args or {}
+        if not ray.is_initialized():
+            ray_args = self._context.ray_args or {}
 
-                if "logging_level" not in ray_args:
-                    ray_args.update({"logging_level": logging.INFO})
+            if "logging_level" not in ray_args:
+                ray_args.update({"logging_level": logging.INFO})
 
-                if "runtime_env" not in ray_args:
-                    ray_args["runtime_env"] = {}
+            if "runtime_env" not in ray_args:
+                ray_args["runtime_env"] = {}
 
-                if "worker_process_setup_hook" not in ray_args["runtime_env"]:
-                    # logging.error("Spurious log 0: If you do not see spurious log 1 & 2,
-                    # log messages are being dropped")
-                    ray_args["runtime_env"]["worker_process_setup_hook"] = _ray_logging_setup
+            if "worker_process_setup_hook" not in ray_args["runtime_env"]:
+                # logging.error("Spurious log 0: If you do not see spurious log 1 & 2,
+                # log messages are being dropped")
+                ray_args["runtime_env"]["worker_process_setup_hook"] = _ray_logging_setup
 
-                ray.init(**ray_args)
-            return plan.execute(**kwargs)
-        if self._exec_mode == ExecMode.LOCAL:
-            from ray.data import from_items
-
-            return from_items(items=[{"doc": doc.serialize()} for doc in self.recursive_execute(plan)])
-        assert False, f"unsupported mode {self._exec_mode}"
+            ray.init(**ray_args)
+        return plan.execute(**kwargs)
 
     def _apply_rules(self, plan: Node) -> Node:
         from sycamore.plan_nodes import NodeTraverse
@@ -84,15 +76,16 @@ class Execution:
     def execute_iter(self, plan: Node, **kwargs) -> Iterable[Document]:
         plan = self._apply_rules(plan)
         if self._exec_mode == ExecMode.RAY:
-            ds = plan.execute(**kwargs)
+            ds = self._execute_ray(plan, **kwargs)
             for row in ds.iter_rows():
                 yield Document.from_row(row)
-            return
-        if self._exec_mode == ExecMode.LOCAL:
+        elif self._exec_mode == ExecMode.LOCAL:
             for d in self.recursive_execute(plan):
                 yield d
-            return
-        assert False
+        else:
+            assert False
+
+        plan.traverse(visit=lambda n: n.finalize())
 
     def recursive_execute(self, n: Node) -> list[Document]:
         if len(n.children) == 0:

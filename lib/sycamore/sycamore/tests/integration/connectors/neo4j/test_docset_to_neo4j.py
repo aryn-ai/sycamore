@@ -12,7 +12,7 @@ def test_to_neo4j():
     ## actual test ##
     path = str(TEST_DIR / "resources/data/pdfs/doctor_testimonial.pdf")
     context = sycamore.init()
-    llm = OpenAI(OpenAIModels.GPT_4O_MINI)
+    llm = OpenAI(OpenAIModels.GPT_4O_LATEST)
 
     URI = "neo4j://localhost:7687"
     AUTH = None
@@ -21,8 +21,7 @@ def test_to_neo4j():
     class Doctor(BaseModel):
         name: str
 
-    class Response(BaseModel):
-        response: str
+    class Feedback(BaseModel):
         rating: int
 
     class MarketingMessage(BaseModel):
@@ -30,22 +29,22 @@ def test_to_neo4j():
         message: str
 
     class Rated(BaseModel):
-        start: Response
+        start: Feedback
         end: MarketingMessage
 
-    class Said(BaseModel):
+    class Gave(BaseModel):
         start: Doctor
-        end: Response
+        end: Feedback
 
     ds = (
         context.read.binary(path, binary_format="pdf")
         .partition(
-            partitioner=SycamorePartitioner(extract_table_structure=True, use_ocr=True, extract_images=True),
-            num_gpus=0.2,
+            partitioner=SycamorePartitioner(extract_table_structure=True, use_ocr=True, extract_images=True)
+            #num_gpus=0.2,
         )
         .extract_document_structure(structure=StructureBySection)
-        .extract_graph_entities([])#[EntityExtractor(llm=llm, entities=[Doctor, Response, MarketingMessage])])
-        .extract_graph_relationships([])#[RelationshipExtractor(llm=llm, relationships=[Rated, Said])])
+        .extract_graph_entities([EntityExtractor(llm=llm, entities=[Doctor, Feedback, MarketingMessage])])
+        .extract_graph_relationships([RelationshipExtractor(llm=llm, relationships=[Rated, Gave])])
         .resolve_graph_entities(resolvers=[])
         .explode()
     )
@@ -63,8 +62,8 @@ def test_to_neo4j():
     """
 
     query2 = """
-    MATCH (n:Response)
-    RETURN COUNT(n) AS numResponses
+    MATCH (n:Feedback)
+    RETURN COUNT(n) AS numFeedback
     """
 
     query3 = """
@@ -78,7 +77,7 @@ def test_to_neo4j():
     """
 
     query5 = """
-    MATCH (d:Doctor)-[r]->(mr:Response)
+    MATCH (d:Doctor)-[r]->(mr:Feedback)
     RETURN count(r) AS relationshipCount
     """
 
@@ -89,7 +88,7 @@ def test_to_neo4j():
 
     # test nodes
     assert session.run(query1).single()["numDoctors"] == 1
-    assert session.run(query2).single()["numResponses"] == 2
+    assert session.run(query2).single()["numFeedback"] == 2
     assert session.run(query3).single()["numMessages"] == 2
 
     # test relationships

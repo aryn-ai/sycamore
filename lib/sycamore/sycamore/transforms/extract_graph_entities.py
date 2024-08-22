@@ -41,9 +41,6 @@ class EntityExtractor(GraphEntityExtractor):
     def extract(self, doc: HierarchicalDocument) -> HierarchicalDocument:
         import asyncio
 
-        if "EXTRACTED_NODES" in doc.data:
-            return doc
-
         async def gather_api_calls():
             tasks = [self._extract_from_section(child.data["summary"]) for child in doc.children]
             res = await asyncio.gather(*tasks)

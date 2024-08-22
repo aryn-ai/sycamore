@@ -54,8 +54,6 @@ class ResolveEntities:
 
         @staticmethod
         def _aggregate_section_nodes(doc: HierarchicalDocument) -> HierarchicalDocument:
-            if "EXTRACTED_NODES" in doc.data:
-                return doc
             nodes: defaultdict[dict, Any] = defaultdict(dict)
             nodes |= doc["properties"].get("nodes", {})
             for section in doc.children:

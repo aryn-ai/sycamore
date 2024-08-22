@@ -17,7 +17,7 @@ from sycamore.transforms.extract_graph_relationships import RelationshipExtracto
 logger = logging.getLogger(__name__)
 
 
-class TestGraphExtractor:
+class TestGraphRelationshipExtractor:
     docs = [
         Document(
             {

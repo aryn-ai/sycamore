@@ -7,10 +7,9 @@ from sycamore.llms.llms import LLM
 from sycamore.reader import DocSetReader
 from sycamore.transforms.extract_document_structure import StructureBySection
 from sycamore.transforms.extract_graph_entities import EntityExtractor
+from sycamore.transforms.extract_graph_relationships import RelationshipExtractor
 
 import logging
-
-from sycamore.transforms.extract_graph_relationships import RelationshipExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +93,7 @@ class TestResolveGraphEntities:
             }
             """
 
-    def test_resolve_graph_entities(self):
+    def test_resolve_entities(self):
         context = sycamore.init()
         reader = DocSetReader(context)
         ds = reader.document(self.docs)

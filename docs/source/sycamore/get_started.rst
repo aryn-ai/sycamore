@@ -12,6 +12,7 @@ We recommend installing the Sycmaore library using ``pip``:
 
 ..
 
+If you are using Sycamore in a notebook environment, you can optionally install [Poppler](https://poppler.freedesktop.org/) to visualize PDFs and the bounding boxes and labels Aryn uses to partition it.
 
 Next, you can set the proper API keys for related services, like the Aryn Partitioning Service (APS) for processing PDFs (`sign-up here <https://www.aryn.ai/get-started>`_ for free) or OpenAI to use GPT with Sycamore's LLM-based transforms.
 

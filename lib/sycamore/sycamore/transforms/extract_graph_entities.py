@@ -100,7 +100,7 @@ class EntityExtractor(GraphEntityExtractor):
         fields = {entity.__name__: (List[entity], ...) for entity in deserialized}
         return create_model("entities", __base__=BaseModel, **fields)
 
-    async def _extract_from_section(self, summary: str) -> Awaitable[str]:
+    async def _extract_from_section(self, summary: str) -> str:
         llm_kwargs = {"response_format": self._deserialize_entities()}
 
         return await self.llm.generate_async(

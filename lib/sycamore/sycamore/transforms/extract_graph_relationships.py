@@ -99,7 +99,7 @@ class RelationshipExtractor(GraphRelationshipExtractor):
 
         return deserialized
 
-    async def _generate_relationships(self, section: HierarchicalDocument) -> Awaitable[str]:
+    async def _generate_relationships(self, section: HierarchicalDocument) -> Awaitable[dict]:
         relations = self._deserialize_relationships()
         parsed_relations = []
         parsed_metadata = dict()
@@ -125,8 +125,9 @@ class RelationshipExtractor(GraphRelationshipExtractor):
                 parsed_nodes[end_label] |= set(end_nodes)
 
         if not parsed_relations:
-            return asyncio.sleep(0, "{}")
+            return asyncio.sleep(0, {})
 
+        # Use mypy ignore type since pydantic has bad interaction with mypy with creating class from a variable type class
         fields = {relation.__name__: (List[relation], ...) for relation in parsed_relations}  # type: ignore
         relationships_model = create_model("relationships", __base__=BaseModel, **fields)  # type: ignore
 
@@ -142,20 +143,25 @@ class RelationshipExtractor(GraphRelationshipExtractor):
             llm_kwargs=llm_kwargs,
         )
 
-        try:
-            parsed_res = json.loads(await res)
-        except json.JSONDecodeError:
-            logger.warn("LLM Output failed to be decoded to JSON")
-            logger.warn("Input: " + section.data["summary"])
-            logger.warn("Output: " + await res)
-            return asyncio.sleep(0, "{}")
+        async def _process_llm_output(res: str, parsed_metadata: dict, summary: str):
+            try:
+                parsed_res = json.loads(res)
+            except json.JSONDecodeError:
+                logger.warn("LLM Output failed to be decoded to JSON")
+                logger.warn("Input: " + summary)
+                logger.warn("Output: " + res)
+                return {}
 
-        for label, relations in parsed_res.items():
-            for relation in relations:
-                relation["start_label"] = parsed_metadata[label]["start_label"]
-                relation["end_label"] = parsed_metadata[label]["end_label"]
+            for label, relations in parsed_res.items():
+                for relation in relations:
+                    relation["start_label"] = parsed_metadata[label]["start_label"]
+                    relation["end_label"] = parsed_metadata[label]["end_label"]
 
-        return res
+            return parsed_res
+
+        return await _process_llm_output(res, parsed_metadata, section.data["summary"])
+    
+
 
 
 def GraphRelationshipExtractorPrompt(query, entities):

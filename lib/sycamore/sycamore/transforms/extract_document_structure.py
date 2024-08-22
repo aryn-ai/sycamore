@@ -127,8 +127,6 @@ class ExtractSummaries(Map):
 
     @staticmethod
     def summarize_sections(doc: HierarchicalDocument) -> HierarchicalDocument:
-        if "EXTRACTED_NODES" in doc.data:
-            return doc
         for section in doc.children:
             assert section.text_representation is not None
             summary = f"-----SECTION TITLE: {section.text_representation.strip()}-----\n"

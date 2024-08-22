@@ -12,7 +12,7 @@ def test_to_neo4j():
     ## actual test ##
     path = str(TEST_DIR / "resources/data/pdfs/doctor_testimonial.pdf")
     context = sycamore.init()
-    llm = OpenAI(OpenAIModels.GPT_4O_LATEST)
+    llm = OpenAI(OpenAIModels.GPT_4O_MINI)
 
     URI = "neo4j://localhost:7687"
     AUTH = None
@@ -39,8 +39,8 @@ def test_to_neo4j():
     ds = (
         context.read.binary(path, binary_format="pdf")
         .partition(
-            partitioner=SycamorePartitioner(extract_table_structure=True, use_ocr=True, extract_images=True)
-            #num_gpus=0.2,
+            partitioner=SycamorePartitioner(extract_table_structure=True, use_ocr=True, extract_images=True),
+            num_gpus=0.2,
         )
         .extract_document_structure(structure=StructureBySection)
         .extract_graph_entities([EntityExtractor(llm=llm, entities=[Doctor, Feedback, MarketingMessage])])
@@ -72,17 +72,17 @@ def test_to_neo4j():
     """
 
     query4 = """
-    MATCH (d:Doctor)-[r]->(mr:MarketingResponse)
+    MATCH (d:Doctor)-[r]->(mr:MarketingMessage)
     RETURN count(r) AS relationshipCount
     """
 
     query5 = """
-    MATCH (d:Doctor)-[r]->(mr:Feedback)
+    MATCH (d:Doctor)-[r]->(f:Feedback)
     RETURN count(r) AS relationshipCount
     """
 
     query6 = """
-    MATCH (re:Response)-[r]->(mr:MarketingResponse)
+    MATCH (re:Feedback)-[r]->(mr:MarketingMessage)
     RETURN count(r) AS relationshipCount
     """
 

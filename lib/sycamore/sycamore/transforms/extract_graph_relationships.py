@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from enum import Enum
 import hashlib
-from typing import Awaitable, Dict, Any, List, Optional, TypeAlias
+from typing import Awaitable, Dict, Any, List, Optional
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.data import HierarchicalDocument
@@ -126,11 +126,9 @@ class RelationshipExtractor(GraphRelationshipExtractor):
 
         if not parsed_relations:
             return asyncio.sleep(0, "{}")
-        
 
-
-        fields = {relation.__name__: (List[relation], ...) for relation in parsed_relations} # type: ignore
-        relationships_model = create_model(model_name="relationships", __base__=BaseModel, **fields) # type: ignore
+        fields = {relation.__name__: (List[relation], ...) for relation in parsed_relations}  # type: ignore
+        relationships_model = create_model(model_name="relationships", __base__=BaseModel, **fields)  # type: ignore
 
         entities = ""
         for key, nodes in parsed_nodes.items():
@@ -143,7 +141,6 @@ class RelationshipExtractor(GraphRelationshipExtractor):
             prompt_kwargs={"prompt": str(GraphRelationshipExtractorPrompt(section.data["summary"], entities))},
             llm_kwargs=llm_kwargs,
         )
-        #return res
 
         try:
             parsed_res = json.loads(await res)
@@ -152,7 +149,7 @@ class RelationshipExtractor(GraphRelationshipExtractor):
             logger.warn("Input: " + section.data["summary"])
             logger.warn("Output: " + await res)
             return asyncio.sleep(0, "{}")
-        
+
         for label, relations in parsed_res.items():
             for relation in relations:
                 relation["start_label"] = parsed_metadata[label]["start_label"]

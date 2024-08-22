@@ -1,4 +1,4 @@
-from aryn_sdk.partition.partition import convert_image, tables_to_pandas
+from aryn_sdk.partition.partition import convert_image_element, tables_to_pandas
 import pytest
 import json
 from pathlib import Path
@@ -146,12 +146,12 @@ def test_convert_img():
         data = json.load(f)
     ims = [e for e in data["elements"] if e["type"] == "Image"]
 
-    jpg_bytes = convert_image(ims[0], format="JPEG")
+    jpg_bytes = convert_image_element(ims[0], format="JPEG")
     with open(RESOURCE_DIR / "image" / "jpeg_bytes.jpeg", "rb") as f:
         real_byteses = f.read().strip()
     assert jpg_bytes == real_byteses
 
-    png_str = convert_image(ims[0], format="PNG", b64encode=True)
+    png_str = convert_image_element(ims[0], format="PNG", b64encode=True)
     with open(RESOURCE_DIR / "image" / "pngb64str.txt", "r") as f:
         real_str = f.read().strip()
     assert png_str == real_str

@@ -276,8 +276,8 @@ def tables_to_pandas(data: dict) -> list[tuple[dict, Optional[pd.DataFrame]]]:
     return results
 
 
-def convert_image(
-    elem: dict, format: Optional[str] = None, b64encode: bool = False
+def convert_image_element(
+    elem: dict, format: str = "PIL", b64encode: bool = False
 ) -> Optional[Union[Image.Image, bytes, str]]:
     """
     Convert an image element to a more useable format. If no format is specified,
@@ -287,7 +287,7 @@ def convert_image(
 
     Args:
         elem: an image element from the 'elements' field of a ``partition_file`` response
-        format: an optional format to output bytes of. Default is None (PIL Image)
+        format: an optional format to output bytes of. Default is PIL
         b64encode: base64-encode the output bytes. Format must be set to use this
 
     Example:
@@ -307,8 +307,8 @@ def convert_image(
             png_str = convert_image(image_elts[2], format="PNG", b64encode=True)
 
     """
-    if b64encode and format is None:
-        raise ValueError("b64encode was True but no format was specified")
+    if b64encode and format == "PIL":
+        raise ValueError("b64encode was True but formate was PIL. Cannot b64-encode a PIL Image")
 
     if elem.get("type") != "Image":
         return None
@@ -318,7 +318,7 @@ def convert_image(
     mode = elem["properties"]["image_mode"]
     im = Image.frombytes(mode, (width, height), base64.b64decode(elem["binary_representation"]))
 
-    if format is None:
+    if format == "PIL":
         return im
 
     buf = io.BytesIO()

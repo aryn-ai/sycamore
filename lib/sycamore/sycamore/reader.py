@@ -1,4 +1,5 @@
 from typing import Optional, Union, Callable, Dict
+from pathlib import Path
 
 from pandas import DataFrame
 from pyarrow import Table
@@ -22,6 +23,18 @@ class DocSetReader:
     def __init__(self, context: Context, plan: Optional[Node] = None):
         self._context = context
         self.plan = plan
+
+    def materialize(self, path: Union[Path, str], **kwargs) -> DocSet:
+        """Read a docset via materialization.
+
+        Semantics are a subset of the allowed options for DocSet.materialize.
+        source_mode is always IF_PRESENT.  Complex path specifications are disallowed
+        since reading from materialization requires default options."""
+
+        from sycamore.materialize import Materialize, MaterializeSourceMode
+
+        m = Materialize(child=None, context=self._context, path=path, source_mode=MaterializeSourceMode.IF_PRESENT)
+        return DocSet(self._context, m)
 
     def binary(
         self,

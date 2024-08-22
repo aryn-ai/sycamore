@@ -16,6 +16,7 @@ from sycamore.llms.prompts.default_prompts import (
 from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.augment_text import TextAugmentor
 from sycamore.transforms.embed import Embedder
+from sycamore.transforms import DocumentStructure
 from sycamore.transforms.extract_entity import EntityExtractor, OpenAIEntityExtractor
 from sycamore.transforms.extract_graph import GraphExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
@@ -27,6 +28,7 @@ from sycamore.transforms.merge_elements import ElementMerger
 from sycamore.utils.extract_json import extract_json
 from sycamore.writer import DocSetWriter
 from sycamore.transforms.query import QueryExecutor, Query
+from sycamore.materialize_config import MaterializeSourceMode
 
 logger = logging.getLogger(__name__)
 
@@ -143,12 +145,8 @@ class DocSet:
         """
         from sycamore import Execution
 
-        execution = Execution(self.context, self.plan)
-        dataset = execution.execute(self.plan, **kwargs)
-        # We could parallelize like ray dataset.count() or optimize the metadata case, but it's not worth the complexity
         count = 0
-        for row in dataset.iter_rows():
-            doc = Document.from_row(row)
+        for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
             if not include_metadata and isinstance(doc, MetadataDocument):
                 continue
             count = count + 1
@@ -178,10 +176,7 @@ class DocSet:
         from sycamore import Execution
 
         unique_docs = set()
-        execution = Execution(self.context, self.plan)
-        dataset = execution.execute(self.plan, **kwargs)
-        for row in dataset.iter_rows():
-            doc = Document.from_row(row)
+        for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
             if isinstance(doc, MetadataDocument):
                 continue
             value = doc.field_to_value(field)
@@ -210,9 +205,8 @@ class DocSet:
         """
         from sycamore import Execution
 
-        execution = Execution(self.context, self.plan)
         ret = []
-        for doc in execution.execute_iter(self.plan, **kwargs):
+        for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
             if not include_metadata and isinstance(doc, MetadataDocument):
                 continue
             ret.append(doc)
@@ -226,20 +220,22 @@ class DocSet:
         Returns all of the rows in this DocSet.
 
         If limit is set, this method will raise an error if this Docset
-        has more than `limit` Documents, including metadata.
+        has more than `limit` Documents.
 
         Args:
             limit: The number of Documents above which this method will raise an error.
         """
         from sycamore import Execution
 
-        execution = Execution(self.context, self.plan)
-        dataset = execution.execute(self.plan, **kwargs)
-        docs = [Document.from_row(row) for row in dataset.take_all(limit)]
-        if include_metadata:
-            return docs
-        else:
-            return [d for d in docs if not isinstance(d, MetadataDocument)]
+        docs = []
+        for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
+            if include_metadata or not isinstance(doc, MetadataDocument):
+                docs.append(doc)
+
+            if limit is not None and len(docs) > limit:
+                raise ValueError(f"docset exceeded limit of {limit} docs")
+
+        return docs
 
     def limit(self, limit: int = 20, **kwargs) -> "DocSet":
         """
@@ -424,6 +420,21 @@ class DocSet:
         embeddings = Embed(self.plan, embedder=embedder, **kwargs)
         return DocSet(self.context, embeddings)
 
+    def extract_document_structure(self, structure: DocumentStructure, **kwargs):
+        """
+        Represents documents as Hierarchical documents organized by their structure.
+        context = sycamore.init()
+        pdf_docset = context.read.binary(paths, binary_format="pdf")
+            .partition(partitioner=ArynPartitioner())
+            .extract_document_structure(structure=StructureBySection)
+            .explode()
+
+        """
+        from sycamore.transforms import ExtractDocumentStructure
+
+        document_structure = ExtractDocumentStructure(self.plan, structure=structure, **kwargs)
+        return DocSet(self.context, document_structure)
+
     def extract_entity(self, entity_extractor: EntityExtractor, **kwargs) -> "DocSet":
         """
         Applies the ExtractEntity transform on the Docset.
@@ -549,12 +560,13 @@ class DocSet:
                     .explode()
                 )
         """
-        from sycamore.transforms.extract_graph import ExtractDocumentStructure
+        from sycamore.transforms.extract_graph import ResolveEntities
 
-        self.plan = ExtractDocumentStructure(self.plan)
         docset = self
-        for extractor in extractors:
-            docset = extractor.extract(docset)
+        if len(extractors) > 0:
+            for extractor in extractors:
+                docset = extractor.extract(docset)
+            docset = ResolveEntities.resolve(docset=docset)
 
         return docset
 
@@ -1081,7 +1093,7 @@ class DocSet:
         # sets message
         messages = LlmClusterEntityFormGroupsMessagesPrompt(
             field=field, instruction=instruction, text=text
-        ).get_messages_dict()
+        ).as_messages()
 
         prompt_kwargs = {"messages": messages}
 
@@ -1095,7 +1107,7 @@ class DocSet:
         # sets message
         messagesForExtract = LlmClusterEntityAssignGroupsMessagesPrompt(
             field=field, groups=groups["groups"]
-        ).get_messages_dict()
+        ).as_messages()
 
         entity_extractor = OpenAIEntityExtractor(
             entity_name="_autogen_ClusterAssignment",
@@ -1109,7 +1121,7 @@ class DocSet:
         # LLM response
         return docset
 
-    def field_in(self, docset2: "DocSet", field1: str, field2: str) -> "DocSet":
+    def field_in(self, docset2: "DocSet", field1: str, field2: str, **kwargs) -> "DocSet":
         """
         Joins two docsets based on specified fields; docset (self) filtered based on values of docset2.
 
@@ -1133,13 +1145,9 @@ class DocSet:
 
             return filter_fn_join
 
-        execution = Execution(docset2.context, docset2.plan)
-        dataset = execution.execute(docset2.plan)
-
         # identifies unique values of field1 in docset (self)
         unique_vals = set()
-        for row in dataset.iter_rows():
-            doc = Document.from_row(row)
+        for doc in Execution(docset2.context).execute_iter(docset2.plan, **kwargs):
             if isinstance(doc, MetadataDocument):
                 continue
             value = doc.field_to_value(field2)
@@ -1196,7 +1204,11 @@ class DocSet:
         """
         return DocSetWriter(self.context, self.plan)
 
-    def materialize(self, path: Optional[Union[Path, str, dict]] = None) -> "DocSet":
+    def materialize(
+        self,
+        path: Optional[Union[Path, str, dict]] = None,
+        source_mode: MaterializeSourceMode = MaterializeSourceMode.OFF,
+    ) -> "DocSet":
         """
         Guarantees reliable execution up to this point, allows for
         follow on execution based on the checkpoint if the checkpoint is named.
@@ -1208,9 +1220,9 @@ class DocSet:
               root is required
         """
 
-        from sycamore.lineage import Materialize
+        from sycamore.materialize import Materialize
 
-        return DocSet(self.context, Materialize(self.plan, self.context, path=path))
+        return DocSet(self.context, Materialize(self.plan, self.context, path=path, source_mode=source_mode))
 
     def execute(self, **kwargs) -> None:
         """
@@ -1219,6 +1231,5 @@ class DocSet:
 
         from sycamore.executor import Execution
 
-        execution = Execution(self.context, self.plan)
-        for doc in execution.execute_iter(self.plan, **kwargs):
+        for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
             pass

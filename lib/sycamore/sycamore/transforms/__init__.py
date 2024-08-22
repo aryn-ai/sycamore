@@ -1,5 +1,6 @@
 from sycamore.transforms.embed import Embed, Embedder
 from sycamore.transforms.basics import Limit, Filter
+from sycamore.transforms.extract_document_structure import DocumentStructure, ExtractDocumentStructure
 from sycamore.transforms.extract_entity import ExtractEntity, EntityExtractor
 from sycamore.transforms.explode import Explode
 from sycamore.transforms.map import Map, FlatMap, MapBatch
@@ -58,6 +59,8 @@ __all__ = [
     "Embed",
     "Embedder",
     "Partition",
+    "DocumentStructure",
+    "ExtractDocumentStructure",
     "ExtractEntity",
     "EntityExtractor",
     "TableExtractor",

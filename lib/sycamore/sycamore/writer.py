@@ -5,7 +5,7 @@ from neo4j import Auth
 from neo4j.auth_management import AuthManager
 from pyarrow.fs import FileSystem
 
-from sycamore import Context
+from sycamore.context import Context
 from sycamore.connectors.common import HostAndPort
 from sycamore.connectors.file.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
 from sycamore.data import Document

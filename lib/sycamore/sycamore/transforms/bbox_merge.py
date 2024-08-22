@@ -3,7 +3,7 @@ from typing import Optional
 
 from sycamore.data import Document, Element
 from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
-from sycamore.transforms import Map
+from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import TimeTrace, timetrace
 
 

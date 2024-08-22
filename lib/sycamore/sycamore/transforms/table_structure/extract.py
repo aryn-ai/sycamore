@@ -3,7 +3,6 @@ from typing import Any
 
 from PIL import Image
 import pdf2image
-import torch
 
 from sycamore.data import BoundingBox, Element, Document, TableElement
 from sycamore.plan_nodes import Node
@@ -150,6 +149,8 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
 
         # Run inference using the model and convert the output to raw "objects" containing bounding boxes and types.
         pixel_values = structure_transform(cropped_image).unsqueeze(0).to(self._get_device())
+
+        import torch
 
         with torch.no_grad():
             outputs = self.structure_model(pixel_values)

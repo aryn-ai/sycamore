@@ -1,12 +1,13 @@
 from typing import Optional
+from pydantic import BaseModel
 import sycamore
 from sycamore.data.document import Document
 from sycamore.data.element import Element
 from sycamore.llms.llms import LLM
 from sycamore.reader import DocSetReader
-from sycamore.transforms.extract_graph import GraphMetadata, MetadataExtractor, GraphEntity, EntityExtractor
-from sycamore.transforms.extract_graph import ExtractSummaries, ExtractDocumentStructure
-from sycamore.data import HierarchicalDocument
+from sycamore.transforms.extract_document_structure import StructureBySection
+from sycamore.transforms.extract_graph import GraphMetadata, MetadataExtractor, EntityExtractor
+from sycamore.transforms.extract_graph import ExtractSummaries
 from collections import defaultdict
 
 import logging
@@ -15,40 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class TestGraphExtractor:
-    metadata_docs = [
-        HierarchicalDocument(
-            {
-                "doc_id": "1",
-                "label": "Document",
-                "type": "pdf",
-                "relationships": {},
-                "properties": {"company": "3M", "sector": "Industrial", "doctype": "10K"},
-                "children": [],
-            }
-        ),
-        HierarchicalDocument(
-            {
-                "doc_id": "2",
-                "label": "Document",
-                "type": "pdf",
-                "relationships": {},
-                "properties": {"company": "FedEx", "sector": "Industrial", "doctype": "10K"},
-                "children": [],
-            }
-        ),
-        HierarchicalDocument(
-            {
-                "doc_id": "3",
-                "label": "Document",
-                "type": "pdf",
-                "relationships": {},
-                "properties": {"company": "Apple", "sector": "Technology", "doctype": "10K"},
-                "children": [],
-            }
-        ),
-    ]
-
-    entity_docs = [
+    docs = [
         Document(
             {
                 "doc_id": "1",
@@ -97,19 +65,10 @@ class TestGraphExtractor:
 
         async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
             return """{
-                "entities": [
-                    {
-                        "name": "Microsoft",
-                        "type": "Company"
-                    },
-                    {
-                        "name": "Google",
-                        "type": "Company"
-                    },
-                    {
-                        "name": "3M",
-                        "type": "Company"
-                    }
+                "Company": [
+                    {"name": "Microsoft"},
+                    {"name": "Google"},
+                    {"name": "3M"}
                 ]
             }
             """
@@ -120,7 +79,7 @@ class TestGraphExtractor:
     def test_metadata_extractor(self):
         context = sycamore.init()
         reader = DocSetReader(context)
-        ds = reader.document(self.metadata_docs)
+        ds = reader.document(self.docs)
 
         metadata = [
             GraphMetadata(nodeKey="company", nodeLabel="Company", relLabel="FILED_BY"),
@@ -128,7 +87,12 @@ class TestGraphExtractor:
             GraphMetadata(nodeKey="doctype", nodeLabel="Document Type", relLabel="IS_TYPE"),
         ]
 
-        ds = ds.extract_graph_structure([MetadataExtractor(metadata=metadata)]).explode()
+        ds = (
+            ds.extract_document_structure(structure=StructureBySection)
+            .extract_graph_structure([MetadataExtractor(metadata=metadata)])
+            .explode()
+        )
+
         docs = ds.take_all()
 
         nested_dict = defaultdict(lambda: defaultdict(list))
@@ -148,23 +112,23 @@ class TestGraphExtractor:
 
         assert len(nested_dict["Company"]["3M"]) == 1
         assert nested_dict["Company"]["3M"][0]["START_ID"] == "1"
-        assert len(nested_dict["Company"]["Apple"]) == 1
-        assert nested_dict["Company"]["Apple"][0]["START_ID"] == "3"
-        assert len(nested_dict["Company"]["FedEx"]) == 1
-        assert nested_dict["Company"]["FedEx"][0]["START_ID"] == "2"
-        assert len(nested_dict["Document Type"]["10K"]) == 3
-        assert len(nested_dict["Sector"]["Industrial"]) == 2
-        assert len(nested_dict["Sector"]["Technology"]) == 1
+        assert len(nested_dict["Document Type"]["10K"]) == 1
+        assert len(nested_dict["Sector"]["Industrial"]) == 1
 
     def test_entity_extractor(self):
         context = sycamore.init()
         reader = DocSetReader(context)
-        ds = reader.document(self.entity_docs)
+        ds = reader.document(self.docs)
 
-        entities = [GraphEntity(entityLabel="Company", entityDescription="...")]
+        class Company(BaseModel):
+            name: str
+
         llm = self.MockLLM()
-
-        ds = ds.extract_graph_structure([EntityExtractor(entities=entities, llm=llm)]).explode()
+        ds = (
+            ds.extract_document_structure(structure=StructureBySection)
+            .extract_graph_structure([EntityExtractor(llm=llm, entities=[Company])])
+            .explode()
+        )
         docs = ds.take_all()
 
         nested_dict = defaultdict(lambda: defaultdict(list))
@@ -184,27 +148,12 @@ class TestGraphExtractor:
         assert len(nested_dict["Company"]["Google"]) == 2
         assert len(nested_dict["Company"]["3M"]) == 2
 
-    def test_extract_document_structure(self):
-        context = sycamore.init()
-        reader = DocSetReader(context)
-        ds = reader.document(self.entity_docs)
-
-        ds.plan = ExtractDocumentStructure(ds.plan)
-        docs = ds.take_all()
-
-        for document in docs:
-            assert document.data["label"] == "DOCUMENT"
-            for section in document.children:
-                assert section.data["label"] == "SECTION"
-                for element in section.children:
-                    assert element.data["label"] == "ELEMENT"
-
     def test_summarize_sections(self):
         context = sycamore.init()
         reader = DocSetReader(context)
-        ds = reader.document(self.entity_docs)
+        ds = reader.document(self.docs)
 
-        ds.plan = ExtractDocumentStructure(ds.plan)
+        ds = ds.extract_document_structure(structure=StructureBySection)
         ds.plan = ExtractSummaries(ds.plan)
         docs = ds.take_all()
 

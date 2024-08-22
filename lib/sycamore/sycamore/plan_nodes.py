@@ -72,6 +72,11 @@ class Node(ABC):
     def execute(self, **kwargs) -> "Dataset":
         pass
 
+    def finalize(self) -> None:
+        """Override this to run something at the end of execution after all documents have
+        been returned."""
+        pass
+
     def traverse_down(self, f: Callable[["Node"], "Node"]) -> "Node":
         """
         Allows a function to be applied to a node first and then all of its children

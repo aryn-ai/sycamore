@@ -1,6 +1,7 @@
 import glob
 import logging
 from pathlib import Path
+import pytest
 import re
 import shutil
 import tempfile
@@ -12,7 +13,7 @@ from pyarrow import fs
 import sycamore
 from sycamore.context import ExecMode
 from sycamore.data import Document, MetadataDocument
-from sycamore.lineage import AutoMaterialize, Materialize
+from sycamore.materialize import AutoMaterialize, Materialize, MaterializeSourceMode
 
 
 def tobin(d):
@@ -50,14 +51,7 @@ def noop_fn(d):
     return d
 
 
-class TestLineage(unittest.TestCase):
-    # Needed until we don't have a global context
-    def setUp(self):
-        sycamore.shutdown()
-
-    def tearDown(self):
-        sycamore.shutdown()
-
+class TestMaterializeWrite(unittest.TestCase):
     def test_noop(self):
         ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
         assert ctx.exec_mode == ExecMode.LOCAL
@@ -127,7 +121,7 @@ class TestLineage(unittest.TestCase):
             self.check_files(tmpdir, ext=".test3")
 
             files = glob.glob(tmpdir + "/*")
-            assert len(files) == 10
+            assert len(files) == 11
 
     def test_to_binary(self):
         docs = make_docs(3)
@@ -146,7 +140,7 @@ class TestLineage(unittest.TestCase):
             for d in docs:
                 if isinstance(d, MetadataDocument):
                     continue
-                with open(tmpdir + "/" + d.doc_id, "r") as f:
+                with open(Path(tmpdir) / (d.doc_id + ".pickle"), "r") as f:
                     bits = f.read()
                     assert bits == d.doc_id
 
@@ -208,17 +202,18 @@ class TestAutoMaterialize(unittest.TestCase):
 
             files = [f for f in Path(tmpdir).rglob("*")]
             logging.info(f"DupNode Found-1 {files}")
-            assert len([f for f in files if "DocScan.0/" in str(f)]) == 3 + 1
-            assert len([f for f in files if "Map.0/" in str(f)]) == 3 + 2
+            # counts are docs + md + success file
+            assert len([f for f in files if "DocScan.0/" in str(f)]) == 3 + 1 + 1
+            assert len([f for f in files if "Map.0/" in str(f)]) == 3 + 2 + 1
 
             # This is a new pipeline so should get new names
             ctx.read.document(docs).map(noop_fn).execute()
             files = [f for f in Path(tmpdir).rglob("*")]
             logging.info(f"DupNode Found-2 {files}")
-            assert len([f for f in files if "DocScan.0/" in str(f)]) == 3 + 1
-            assert len([f for f in files if "Map.0/" in str(f)]) == 3 + 2
-            assert len([f for f in files if "DocScan.1/" in str(f)]) == 3 + 1
-            assert len([f for f in files if "Map.1/" in str(f)]) == 3 + 2
+            assert len([f for f in files if "DocScan.0/" in str(f)]) == 3 + 1 + 1
+            assert len([f for f in files if "Map.0/" in str(f)]) == 3 + 2 + 1
+            assert len([f for f in files if "DocScan.1/" in str(f)]) == 3 + 1 + 1
+            assert len([f for f in files if "Map.1/" in str(f)]) == 3 + 2 + 1
 
     def test_forcenodename(self):
         docs = make_docs(3)
@@ -230,8 +225,8 @@ class TestAutoMaterialize(unittest.TestCase):
 
             files = [f for f in Path(tmpdir).rglob("*")]
             logging.info(f"DupNode Found-1 {files}")
-            assert len([f for f in files if "reader/" in str(f)]) == 3 + 1
-            assert len([f for f in files if "noop/" in str(f)]) == 3 + 2
+            assert len([f for f in files if "reader/" in str(f)]) == 3 + 1 + 1
+            assert len([f for f in files if "noop/" in str(f)]) == 3 + 2 + 1
 
     def test_overrides(self):
         def doc_to_name4(doc):
@@ -264,3 +259,75 @@ class TestAutoMaterialize(unittest.TestCase):
             files = [f for f in Path(tmpdir).rglob("*")]
             logging.info(f"TO Found-3 {files}")
             assert len([f for f in files if ".test4" in str(f)]) == 3 + 1 + 3 + 2
+
+
+def ids(docs):
+    ret = []
+    for d in docs:
+        if isinstance(d, MetadataDocument):
+            ret.append(str(d.metadata))
+        else:
+            ret.append(d.doc_id)
+    ret.sort()
+    return ret
+
+
+class TestMaterializeRead(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.exec_mode = ExecMode.LOCAL
+
+    def test_materialize_read(self):
+        ctx = sycamore.init(exec_mode=self.exec_mode)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            docs = make_docs(3)
+            ds = (
+                ctx.read.document(docs)
+                .map(noop_fn)
+                .materialize(path=tmpdir, source_mode=MaterializeSourceMode.IF_PRESENT)
+            )
+            e1 = ds.take_all()
+            assert e1 is not None
+            e2 = ds.take_all()
+            assert e2 is not None
+            assert ids(e1) == ids(e2)
+
+            # Does not recompute despite input changing because we read from cache
+            extra_doc = Document({"doc_id": "doc_3"})
+            docs.append(extra_doc)
+            e3 = ds.take_all()
+            assert ids(e1) == ids(e3)
+
+            # Fake shove another doc into the cache dir.
+            with open(Path(tmpdir) / "doc_3.pickle", "wb") as f:
+                f.write(extra_doc.serialize())
+
+            e4 = ds.take_all()
+            assert ids(e1 + [extra_doc]) == ids(e4)
+
+            # Remove the cache; should reconstruct to the faked cache
+            shutil.rmtree(Path(tmpdir))
+            e5 = ds.take_all()
+            assert ids(e4) == ids(e5)
+            assert (Path(tmpdir) / "materialize.success").exists()
+
+            # Make a new docset based on the existing one
+            ds = ctx.read.materialize(path=tmpdir)
+            e6 = ds.take_all()
+            assert ids(e6) == ids(e5)
+
+            # Should still work when we delete the success file, but it can log
+            (Path(tmpdir) / "materialize.success").unlink()
+            e7 = ds.take_all()
+            assert ids(e7) == ids(e5)
+
+            # If we nuke all the files in the cache dir, it should raise a value error
+            shutil.rmtree(Path(tmpdir))
+            Path(tmpdir).mkdir()
+            with pytest.raises(ValueError):
+                ds.take_all()
+
+            # And should also do so with no directory
+            Path(tmpdir).rmdir()
+            with pytest.raises(ValueError):
+                ds.take_all()

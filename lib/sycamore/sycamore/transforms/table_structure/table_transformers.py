@@ -12,8 +12,6 @@ import xml.etree.ElementTree as ET
 import numpy as np
 import pandas as pd
 
-import torch
-
 from sycamore.data.table import Table, TableCell
 from sycamore.data import BoundingBox
 
@@ -61,12 +59,16 @@ def iob(coords1, coords2) -> float:
 
 # for output bounding box post-processing
 def box_cxcywh_to_xyxy(x):
+    import torch
+
     x_c, y_c, w, h = x.unbind(-1)
     b = [(x_c - 0.5 * w), (y_c - 0.5 * h), (x_c + 0.5 * w), (y_c + 0.5 * h)]
     return torch.stack(b, dim=1)
 
 
 def rescale_bboxes(out_bbox, size):
+    import torch
+
     img_w, img_h = size
     b = box_cxcywh_to_xyxy(out_bbox)
     b = b * torch.tensor([img_w, img_h, img_w, img_h], dtype=torch.float32)
@@ -103,15 +105,25 @@ DEFAULT_STRUCTURE_CLASS_THRESHOLDS = {
 def objects_to_table(objects, tokens, structure_class_thresholds=DEFAULT_STRUCTURE_CLASS_THRESHOLDS) -> Optional[Table]:
     structures = objects_to_structures(objects, tokens=tokens, class_thresholds=structure_class_thresholds)
 
+    if len(structures) == 0:
+        return None
+
     cells, _ = structure_to_cells(structures, tokens=tokens)
 
     table_cells = []
     for cell in cells:
+
+        rows = sorted(cell["row_nums"])
+        rows = list(range(rows[0], rows[-1] + 1))
+
+        cols = sorted(cell["column_nums"])
+        cols = list(range(cols[0], cols[-1] + 1))
+
         table_cells.append(
             TableCell(
                 content=cell["cell text"],
-                rows=cell["row_nums"],
-                cols=cell["column_nums"],
+                rows=rows,
+                cols=cols,
                 is_header=cell["column header"],
                 bbox=BoundingBox(*cell["bbox"]),
             )
@@ -737,7 +749,9 @@ def objects_to_structures(objects, tokens, class_thresholds):
 
     tables = [obj for obj in objects if obj["label"] == "table"]
 
-    assert len(tables) == 1
+    assert len(tables) <= 1
+    if len(tables) == 0:
+        return {}
 
     table = tables[0]
     structure = {}

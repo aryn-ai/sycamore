@@ -5,11 +5,8 @@ import os
 import pickle
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Awaitable, Optional, TypedDict, Union, cast
+from typing import Any, Awaitable, Optional, TypedDict, Union, cast, TYPE_CHECKING
 
-from guidance.models import AzureOpenAIChat, AzureOpenAICompletion
-from guidance.models import Model
-from guidance.models import OpenAI as GuidanceOpenAI
 from openai import AzureOpenAI as AzureOpenAIClient
 from openai import AsyncAzureOpenAI as AsyncAzureOpenAIClient
 from openai import OpenAI as OpenAIClient
@@ -24,6 +21,8 @@ from sycamore.llms.llms import LLM
 from sycamore.llms.prompts import SimplePrompt
 from sycamore.utils.cache import Cache
 
+if TYPE_CHECKING:
+    from guidance.models import Model
 
 logger = logging.getLogger(__name__)
 
@@ -213,8 +212,10 @@ class OpenAIClientWrapper:
         else:
             raise ValueError(f"Invalid client_type {self.client_type}")
 
-    def get_guidance_model(self, model) -> Model:
+    def get_guidance_model(self, model) -> "Model":
         if self.client_type == OpenAIClientType.OPENAI:
+            from guidance.models import OpenAI as GuidanceOpenAI
+
             return GuidanceOpenAI(
                 model=model.name,
                 api_key=self.api_key,
@@ -224,6 +225,8 @@ class OpenAIClientWrapper:
                 **self.extra_kwargs,
             )
         elif self.client_type == OpenAIClientType.AZURE:
+            from guidance.models import AzureOpenAIChat, AzureOpenAICompletion
+
             # Note: Theoretically the Guidance library automatically determines which
             # subclass to use, but this appears to be buggy and relies on a bunch of
             # specific assumptions about how deployed models are named that don't work

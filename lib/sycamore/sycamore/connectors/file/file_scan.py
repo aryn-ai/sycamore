@@ -6,7 +6,6 @@ from typing import Any, Optional, Union, Tuple, Callable, TYPE_CHECKING
 import uuid
 import logging
 
-# from pyarrow.fs import FileSystem, LocalFileSystem
 from pyarrow.fs import FileSystem, LocalFileSystem, FileSelector
 from sycamore.data import Document
 from sycamore.plan_nodes import Scan
@@ -167,7 +166,6 @@ class BinaryScan(FileScan):
         return files.map(self._to_document, **self.resource_args)
 
     def local_source(self, **kwargs) -> list[Document]:
-        import os
 
         if isinstance(self._paths, str):
             paths = [self._paths]

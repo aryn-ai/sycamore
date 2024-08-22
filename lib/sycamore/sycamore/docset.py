@@ -21,6 +21,7 @@ from sycamore.transforms.extract_entity import EntityExtractor, OpenAIEntityExtr
 from sycamore.transforms.extract_graph import GraphExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
 from sycamore.transforms.partition import Partitioner
+from sycamore.transforms.resolve_graph_entities import EntityResolver, ResolveEntities
 from sycamore.transforms.summarize import Summarizer
 from sycamore.transforms.llm_query import LLMTextQueryAgent
 from sycamore.transforms.extract_table import TableExtractor
@@ -423,11 +424,18 @@ class DocSet:
     def extract_document_structure(self, structure: DocumentStructure, **kwargs):
         """
         Represents documents as Hierarchical documents organized by their structure.
-        context = sycamore.init()
-        pdf_docset = context.read.binary(paths, binary_format="pdf")
-            .partition(partitioner=ArynPartitioner())
-            .extract_document_structure(structure=StructureBySection)
-            .explode()
+
+        Args:
+            structure: A instance of DocumentStructure which determines how documents are organized
+
+        Example:
+            .. code-block:: python
+
+                context = sycamore.init()
+                pdf_docset = context.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=ArynPartitioner())
+                    .extract_document_structure(structure=StructureBySection)
+                    .explode()
 
         """
         from sycamore.transforms import ExtractDocumentStructure
@@ -560,15 +568,40 @@ class DocSet:
                     .explode()
                 )
         """
-        from sycamore.transforms.extract_graph import ResolveEntities
 
         docset = self
-        if len(extractors) > 0:
-            for extractor in extractors:
-                docset = extractor.extract(docset)
-            docset = ResolveEntities.resolve(docset=docset)
+        for extractor in extractors:
+            docset = extractor.extract(docset)
 
         return docset
+
+    def resolve_graph_entities(self, resolvers: list[EntityResolver], **kwargs) -> "DocSet":
+        """
+        Resolves graph entities across documents so that duplicate entities can be resolved
+        to the same entity based off criteria of EntityResolver objects.
+
+        Args:
+            resolvers: A list of EntityResolvers that are used to determine what entities are duplicates
+
+        Example:
+            .. code-block:: python
+            TODO: Write an example once refactor is complete
+
+        """
+        from sycamore.transforms.resolve_graph_entities import CleanTempNodes
+
+        class Wrapper(Node):
+            def __init__(self, dataset):
+                self._ds = dataset
+                self.children = []
+
+            def execute(self, **kwargs):
+                return self._ds
+
+        entity_resolver = ResolveEntities(resolvers=resolvers)
+        entities = entity_resolver.resolve(self)  # resolve entities
+        entities_clean = CleanTempNodes(Wrapper(entities))  # cleanup temp objects
+        return DocSet(self.context, entities_clean)
 
     def extract_properties(self, property_extractor: PropertyExtractor, **kwargs) -> "DocSet":
         """

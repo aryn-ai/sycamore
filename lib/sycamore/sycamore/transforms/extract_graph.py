@@ -4,7 +4,7 @@ import hashlib
 from typing import TYPE_CHECKING, Awaitable, Dict, Any, List, Optional
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
-from sycamore.data import Document, MetadataDocument, HierarchicalDocument
+from sycamore.data import HierarchicalDocument
 from sycamore.llms import LLM
 from pydantic import BaseModel, create_model
 
@@ -215,128 +215,6 @@ def GraphEntityExtractorPrompt(query):
     Text: {query}
     ######################
     Output:"""
-
-
-class ResolveEntities:
-    """
-    Aggregates entities across all documents and resolves duplicate nodes created
-    during extraction.
-
-    This class currently implements basic entity resolution based of the json schema
-    of specific entities. Entities are stored in the 'nodes' key in properties where
-    each entity is stored in nodes[label][hash] where label is the type of entity, and
-    hash is its json representation hashes. If two nodes have the same label and
-    json representation, they will be merged with their result stored in nodes[label][hash].
-    """
-
-    @staticmethod
-    def resolve(docset: "DocSet") -> "DocSet":
-        docset.plan = ResolveEntities.GroupEntities(docset.plan)
-        docset = ResolveEntities._resolve(docset)
-        return docset
-
-    class GroupEntities(Map):
-        def __init__(self, child: Node, **resource_args):
-            super().__init__(child, f=self.GroupDocumentNodes, **resource_args)
-
-        @staticmethod
-        def GroupDocumentNodes(doc: HierarchicalDocument) -> HierarchicalDocument:
-            if "EXTRACTED_NODES" in doc.data:
-                return doc
-            nodes: defaultdict[dict, Any] = defaultdict(dict)
-            nodes |= doc["properties"].get("nodes", {})
-            for section in doc.children:
-                if "nodes" not in section["properties"]:
-                    continue
-                for label, hashes in section["properties"]["nodes"].items():
-                    for hash, node in hashes.items():
-                        if nodes[label].get(hash, None) is None:
-                            nodes[label][hash] = node
-                        else:
-                            for rel_uuid, rel in node["relationships"].items():
-                                nodes[label][hash]["relationships"][rel_uuid] = rel
-                del section["properties"]["nodes"]
-            doc["properties"]["nodes"] = nodes
-            return doc
-
-    @staticmethod
-    def _resolve(docset: "DocSet") -> "DocSet":
-        from sycamore import Execution
-        from sycamore.reader import DocSetReader
-        from ray.data.aggregate import AggregateFn
-
-        reader = DocSetReader(docset.context)
-
-        # Get list[Document] representation of docset, trigger execute with take_all()
-        execution = Execution(docset.context)
-        dataset = execution._execute_ray(docset.plan)
-        docs = dataset.take_all()
-        docs = [Document.deserialize(d["doc"]) for d in docs]
-
-        # Update docset and dataset to version after execute
-        docset = reader.document(docs)
-        execution = Execution(docset.context)
-        dataset = execution._execute_ray(docset.plan)
-
-        def extract_nodes(row):
-            doc = Document.deserialize(row["doc"])
-            if isinstance(doc, MetadataDocument) or "nodes" not in doc["properties"]:
-                return {}
-            return doc["properties"]["nodes"]
-
-        def accumulate_row(nodes, row):
-            extracted = extract_nodes(row)
-            for key, hashes in extracted.items():
-                for hash in hashes:
-                    if nodes.get(key, {}).get(hash, {}) == {}:
-                        nodes.setdefault(key, {})
-                        nodes[key][hash] = extracted[key][hash]
-                    else:
-                        for rel_uuid, rel in extracted[key][hash]["relationships"].items():
-                            nodes[key][hash]["relationships"][rel_uuid] = rel
-            return nodes
-
-        def merge(nodes1, nodes2):
-            for key, hashes in nodes2.items():
-                for hash in hashes:
-                    if nodes1.get(key, {}).get(hash, {}) == {}:
-                        nodes1.setdefault(key, {})
-                        nodes1[key][hash] = nodes2[key][hash]
-                    else:
-                        for rel_uuid, rel in nodes2[key][hash]["relationships"].items():
-                            nodes1[key][hash]["relationships"][rel_uuid] = rel
-            return nodes1
-
-        def finalize(nodes):
-            for hashes in nodes.values():
-                for node in hashes.values():
-                    node["doc_id"] = str(uuid.uuid4())
-                    for rel in node["relationships"].values():
-                        rel["END_ID"] = node["doc_id"]
-                        rel["END_LABEL"] = node["label"]
-            return nodes
-
-        aggregation = AggregateFn(
-            init=lambda group_key: {}, accumulate_row=accumulate_row, merge=merge, finalize=finalize, name="nodes"
-        )
-
-        result = dataset.aggregate(aggregation)
-
-        for doc in docs:
-            if "properties" in doc:
-                if "nodes" in doc["properties"]:
-                    del doc["properties"]["nodes"]
-
-        doc = HierarchicalDocument()
-        for key, hashes in result["nodes"].items():
-            for hash, node in hashes.items():
-                node = HierarchicalDocument(node)
-                doc.children.append(node)
-        doc.data["EXTRACTED_NODES"] = True
-
-        docs.append(doc)
-
-        return reader.document(docs)
 
 
 class ExtractSummaries(Map):

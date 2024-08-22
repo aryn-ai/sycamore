@@ -1,7 +1,7 @@
 from openai import OpenAI
 from pydantic import BaseModel
 import sycamore
-from sycamore.llms.openai import OpenAIModel, OpenAIModels
+from sycamore.llms.openai import OpenAIModels
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.partition import SycamorePartitioner
 from sycamore.transforms.extract_document_structure import StructureBySection

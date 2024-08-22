@@ -77,7 +77,7 @@ class TestGraphRelationshipExtractor:
                 ]
             }
             """
-        
+
     class MockRelationshipLLM(LLM):
         def __init__(self):
             super().__init__(model_name="mock_model")
@@ -110,8 +110,8 @@ class TestGraphRelationshipExtractor:
 
         ds = (
             ds.extract_document_structure(structure=StructureBySection)
-            .extract_graph_entities([EntityExtractor(llm=self.MockEntityLLM(), entities=[Company])])
-            .extract_graph_relationships([RelationshipExtractor(llm=self.MockRelationshipLLM(), relationships=[Competes])])
+            .extract_graph_entities([EntityExtractor(self.MockEntityLLM(), [Company])])
+            .extract_graph_relationships([RelationshipExtractor(self.MockRelationshipLLM(), [Competes])])
         )
         docs = ds.take_all()
 

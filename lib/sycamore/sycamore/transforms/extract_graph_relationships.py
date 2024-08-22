@@ -99,7 +99,7 @@ class RelationshipExtractor(GraphRelationshipExtractor):
 
         return deserialized
 
-    async def _generate_relationships(self, section: HierarchicalDocument) -> Awaitable[dict]:
+    async def _generate_relationships(self, section: HierarchicalDocument) -> dict:
         relations = self._deserialize_relationships()
         parsed_relations = []
         parsed_metadata = dict()

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from enum import Enum
 import hashlib
-from typing import Awaitable, Dict, Any, List, Optional
+from typing import Awaitable, Dict, Any, List
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.data import HierarchicalDocument
@@ -28,17 +28,17 @@ class GraphRelationshipExtractor(ABC):
 
 class RelationshipExtractor(GraphRelationshipExtractor):
     """
-    Extracts relationships between entities
+    Extracts relationships between entities found in each child of a document.
+
+    Args:
+        llm: OpenAI model that is compatable with structured outputs(gpt-4o-mini)
+        relationships: list of entities in the form of pydantic schemas to be extracted
+
     """
 
-    def __init__(
-        self, llm: LLM, relationships: Optional[list[BaseModel]] = [], json_schema: Optional[dict[str, Any]] = None
-    ):
+    def __init__(self, llm: LLM, relationships: list[BaseModel] = []):
         self.relationships = self._serialize_relationships(relationships)
-        self.schema = json_schema
         self.llm = llm
-        if json_schema is None and relationships is []:
-            raise ValueError("Must input JSON schema or list of pydantic entities")
 
     def extract(self, doc: HierarchicalDocument) -> HierarchicalDocument:
         async def gather_api_calls():

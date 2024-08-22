@@ -125,7 +125,7 @@ class RelationshipExtractor(GraphRelationshipExtractor):
                 parsed_nodes[end_label] |= set(end_nodes)
 
         if not parsed_relations:
-            return asyncio.sleep(0, {})
+            return {}
 
         # Use mypy ignore type since pydantic has bad interaction with mypy with creating class from a variable class
         fields = {relation.__name__: (List[relation], ...) for relation in parsed_relations}  # type: ignore

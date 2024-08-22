@@ -815,10 +815,12 @@ def extract_ocr(
     ocr_model="easy",
 ) -> list[list[Element]]:
     if ocr_model == "paddle":
-        import paddle
+        try:
+            import paddle
 
-        if "successfully" not in paddle.utils.run_check():
-            raise ImportError("Paddle is not installed correctly")
+            paddle.utils.run_check()
+        except Exception as e:
+            raise ImportError(f"Paddle is not installed correctly: {e}")
         from sycamore.transforms.ocr.ocr_models import PaddleOCR
 
         ocr_model = PaddleOCR(use_gpu=paddle.device.is_compiled_with_cuda())

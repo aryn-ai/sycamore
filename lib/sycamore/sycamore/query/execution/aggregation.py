@@ -66,8 +66,8 @@ def sum_val_agg(doc1: Document, doc2: Document) -> Document:
 def group_docset(docset: DocSet, field: str, default_val: Any) -> GroupedData:
     from sycamore import Execution
 
-    execution = Execution(docset.context, docset.plan)
-    dataset = execution.execute(docset.plan)
+    execution = Execution(docset.context)
+    dataset = execution._execute_ray(docset.plan)
 
     map_fn = make_aggregation_map_fn(field, default_val)
     dataset2 = dataset.map(map_fn)

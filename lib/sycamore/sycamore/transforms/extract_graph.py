@@ -268,15 +268,15 @@ class ResolveEntities:
         reader = DocSetReader(docset.context)
 
         # Get list[Document] representation of docset, trigger execute with take_all()
-        execution = Execution(docset.context, docset.plan)
-        dataset = execution.execute(docset.plan)
+        execution = Execution(docset.context)
+        dataset = execution._execute_ray(docset.plan)
         docs = dataset.take_all()
         docs = [Document.deserialize(d["doc"]) for d in docs]
 
         # Update docset and dataset to version after execute
         docset = reader.document(docs)
-        execution = Execution(docset.context, docset.plan)
-        dataset = execution.execute(docset.plan)
+        execution = Execution(docset.context)
+        dataset = execution._execute_ray(docset.plan)
 
         def extract_nodes(row):
             doc = Document.deserialize(row["doc"])

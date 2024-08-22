@@ -21,6 +21,10 @@ class EntityResolver(ABC):
 
 
 class ResolveEntities:
+    """
+    Groups entity nodes and their respective relationships together into a document
+    where we run through all the Entity Resolution proceedures defined by the user.
+    """
     def __init__(self, resolvers: list[EntityResolver]):
         self.resolvers = resolvers
 

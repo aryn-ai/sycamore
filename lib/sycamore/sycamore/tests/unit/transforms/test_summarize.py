@@ -23,6 +23,7 @@ class TestSummarize:
         llm = mocker.Mock(spec=LLM)
         generate = mocker.patch.object(llm, "generate")
         generate.return_value = {"summary": "summary"}
+        
         doc = Document()
         element1 = Element()
         element1.text_representation = "".join(random.choices(string.ascii_letters, k=10))

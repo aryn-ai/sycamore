@@ -148,6 +148,17 @@ class Materialize(UnaryNode):
 
     @staticmethod
     def infer_fs(path: str) -> "pyarrow.FileSystem":
+        import re
+
+        if not re.match("^[a-z0-9]+://.", path):
+            # pyarrow expects URIs, accepts /dir/path, but rejects ./dir/path
+            # normalize everything to a URI.
+            p = Path(path)
+            if p.is_absolute():
+                path = p.as_uri()
+            else:
+                path = p.absolute().as_uri()
+
         from pyarrow import fs
 
         (fs, root) = fs.FileSystem.from_uri(path)

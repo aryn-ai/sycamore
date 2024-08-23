@@ -148,7 +148,7 @@ class TestGreedySectionMerger:
             "properties": {"path": "/docs/foo.txt", "title": "bar"},
             "elements": [
                 {
-                    "type": "Text", 
+                    "type": "Text",
                     "text_representation": "text1 on page 1",
                     "properties": {"filetype": "text/plain", "page_number": 1},
                 },
@@ -219,26 +219,25 @@ class TestGreedySectionMerger:
         e = new_doc.elements[1]
         assert e.type == "Text"
         assert e.text_representation == ("text4 on page 2")
-        assert e.properties == {
-                "filetype": "text/plain", 
-                "page_number": 2}
+        assert e.properties == {"filetype": "text/plain", "page_number": 2}
 
         e = new_doc.elements[2]
         assert e.type == "Image+Text"
         assert e.text_representation == ("image1 on page 2 before text5\ntext5 on page 2\ntext6 on page 2")
         assert e.properties == {
-                "filetype": "text/plain", 
-                "page_number": 2,
-                "image_format": None,
-                "image_mode": None,
-                "image_size": None,
-                "page_numbers": [2]}
+            "filetype": "text/plain",
+            "page_number": 2,
+            "image_format": None,
+            "image_mode": None,
+            "image_size": None,
+            "page_numbers": [2],
+        }
 
         e = new_doc.elements[3]
         assert e.type == "Section-header+table"
         # TODO: figure out the table representation and enhance the test with the to_html of table1
         assert e.text_representation == ("Section-header1 on page 3")
-        assert e.properties == {'page_number': 3,'columns': None, 'page_numbers': [3], 'rows': None, 'title': None}
+        assert e.properties == {"page_number": 3, "columns": None, "page_numbers": [3], "rows": None, "title": None}
 
     def test_merge_elements_via_execute(self, mocker):
         node = mocker.Mock(spec=Node)

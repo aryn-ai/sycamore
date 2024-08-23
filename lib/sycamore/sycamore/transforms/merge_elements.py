@@ -135,6 +135,7 @@ class GreedyTextElementMerger(ElementMerger):
 
         return new_elt
 
+
 class GreedySectionMerger(ElementMerger):
     def __init__(self, tokenizer: Tokenizer, max_tokens: int, merge_across_pages: bool = True):
         self.tokenizer = tokenizer
@@ -142,8 +143,8 @@ class GreedySectionMerger(ElementMerger):
         self.merge_across_pages = merge_across_pages
 
     def preprocess_element(self, element: Element) -> Element:
-        if element.type == 'Image' and "summary" in element.properties:
-            element.data["token_count"] = len(self.tokenizer.tokenize(element.properties['summary'] or ""))
+        if element.type == "Image" and "summary" in element.properties:
+            element.data["token_count"] = len(self.tokenizer.tokenize(element.properties["summary"] or ""))
         else:
             element.data["token_count"] = len(self.tokenizer.tokenize(element.text_representation or ""))
         return element
@@ -154,7 +155,12 @@ class GreedySectionMerger(ElementMerger):
 
     def should_merge(self, element1: Element, element2: Element) -> bool:
         # deal with empty elements
-        if "page_number" not in element1.properties or "page_number" not in element2.properties or element1.type == None or element2.type == None:
+        if (
+            "page_number" not in element1.properties
+            or "page_number" not in element2.properties
+            or element1.type is None
+            or element2.type is None
+        ):
             return False
 
         # DO NOT MERGE across pages
@@ -163,23 +169,35 @@ class GreedySectionMerger(ElementMerger):
 
         if element1.data["token_count"] + 1 + element2.data["token_count"] > self.max_tokens:
             return False
-        
+
         # MERGE adjacent 'text' elements (but not across pages - see above)
-        if ((element1 != None) and (element1.type == 'Text') and 
-            (element2 != None) and (element2.type == 'Text')):
+        if (
+            (element1 is not None)
+            and (element1.type == "Text")
+            and (element2 is not None)
+            and (element2.type == "Text")
+        ):
             return True
-        
-        # MERGE 'Section-header' + 'table' 
-        if ((element1 != None) and (element1.type == 'Section-header') and 
-            (element2 != None) and (element2.type == 'table')):
+
+        # MERGE 'Section-header' + 'table'
+        if (
+            (element1 is not None)
+            and (element1.type == "Section-header")
+            and (element2 is not None)
+            and (element2.type == "table")
+        ):
             return True
-        
-        # Merge 'image' + 'text'* until next 'image' or 'Section-header' 
-        if ((element1 != None) and (element1.type == 'Image' or element1.type == 'Image+Text') and 
-            (element2 != None) and (element2.type == 'Text')):
+
+        # Merge 'image' + 'text'* until next 'image' or 'Section-header'
+        if (
+            (element1 is not None)
+            and (element1.type == "Image" or element1.type == "Image+Text")
+            and (element2 is not None)
+            and (element2.type == "Text")
+        ):
             return True
         return False
-                
+
     def merge(self, elt1: Element, elt2: Element) -> Element:
         """Merge two elements; the new element's fields will be set as:
             - type: "Section"
@@ -214,7 +232,7 @@ class GreedySectionMerger(ElementMerger):
             new_elt.type = "Section-header+table"
         else:
             new_elt.type = "????"
-         
+
         # Merge binary representations by concatenation
         if elt1.binary_representation is None or elt2.binary_representation is None:
             new_elt.binary_representation = elt1.binary_representation or elt2.binary_representation
@@ -230,21 +248,21 @@ class GreedySectionMerger(ElementMerger):
             if new_elt.type == "Image+Text":
                 # text rep = summary(image) + text
                 if "summary" in elt1.properties:
-                    new_elt.text_representation = elt1.properties['summary'] + "\n" + elt2.text_representation
+                    new_elt.text_representation = elt1.properties["summary"] + "\n" + elt2.text_representation
                 else:
                     new_elt.text_representation = elt1.text_representation + "\n" + elt2.text_representation
-                new_elt.data["token_count"] = tok1 + 1 + tok2    
- 
+                new_elt.data["token_count"] = tok1 + 1 + tok2
+
             elif new_elt.type == "Section-header+table":
                 # text rep = header text + table html
-                if elt2.table:
+                if hasattr(elt2, 'table') and elt2.table:
                     new_elt.text_representation = elt1.text_representation + "\n" + elt2.table.to_html()
                     new_elt.data["token_count"] = tok1 + 1 + tok2
                 else:
                     new_elt.text_representation = elt1.text_representation
                     new_elt.data["token_count"] = tok1
             else:
-                # text + text   
+                # text + text
                 new_elt.text_representation = elt1.text_representation + "\n" + elt2.text_representation
                 new_elt.data["token_count"] = tok1 + 1 + tok2
 
@@ -276,10 +294,11 @@ class GreedySectionMerger(ElementMerger):
                 properties["page_numbers"] = properties.get("page_numbers", list())
                 properties["page_numbers"] = list(set(properties["page_numbers"] + [v]))
 
-        new_elt.properties = properties 
-        
+        new_elt.properties = properties
+
         return new_elt
-    
+
+
 class MarkedMerger(ElementMerger):
     def should_merge(self, element1: Element, element2: Element) -> bool:
         return False

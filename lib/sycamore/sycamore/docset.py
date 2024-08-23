@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 import pprint
 import sys
-from typing import Callable, Optional, Any, Iterable, Type, Union
+from typing import Callable, Optional, Any, Iterable, Type, Union, TYPE_CHECKING
 
 from sycamore.context import Context
 from sycamore.data import Document, Element, MetadataDocument
@@ -27,9 +27,11 @@ from sycamore.transforms.llm_query import LLMTextQueryAgent
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.merge_elements import ElementMerger
 from sycamore.utils.extract_json import extract_json
-from sycamore.writer import DocSetWriter
 from sycamore.transforms.query import QueryExecutor, Query
 from sycamore.materialize_config import MaterializeSourceMode
+
+if TYPE_CHECKING:
+    from sycamore.writer import DocSetWriter
 
 logger = logging.getLogger(__name__)
 
@@ -1193,7 +1195,7 @@ class DocSet:
         return joined_docset
 
     @property
-    def write(self) -> DocSetWriter:
+    def write(self) -> "DocSetWriter":
         """
         Exposes an interface for writing a DocSet to OpenSearch or other external storage.
         See :class:`~writer.DocSetWriter` for more information about writers and their arguments.
@@ -1235,6 +1237,8 @@ class DocSet:
                      index_name="my_index",
                      index_settings=index_settings)
         """
+        from sycamore.writer import DocSetWriter
+
         return DocSetWriter(self.context, self.plan)
 
     def materialize(

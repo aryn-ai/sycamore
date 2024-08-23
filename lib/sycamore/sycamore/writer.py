@@ -1,19 +1,17 @@
 import logging
-from typing import Any, Callable, Optional, TYPE_CHECKING, Union
+from typing import Any, Callable, Optional, Union
 
 from neo4j import Auth
 from neo4j.auth_management import AuthManager
 from pyarrow.fs import FileSystem
 
-from sycamore.context import Context
+from sycamore.context import Context, ExecMode
 from sycamore.connectors.common import HostAndPort
 from sycamore.connectors.file.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
 from sycamore.data import Document
+from sycamore.executor import Execution
 from sycamore.plan_nodes import Node
-
-if TYPE_CHECKING:
-    # Shenanigans to avoid circular import
-    from sycamore.docset import DocSet
+from sycamore.docset import DocSet
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +95,6 @@ class DocSetWriter:
         )
         from typing import Any
         import copy
-        from sycamore.docset import DocSet
 
         if os_client_args is None:
             os_client_args = self.context.opensearch_args.client_args if self.context.opensearch_args else None
@@ -268,7 +265,6 @@ class DocSetWriter:
             WeaviateWriterTargetParams,
         )
         from sycamore.connectors.weaviate.weaviate_writer import CollectionConfigCreate
-        from sycamore.docset import DocSet
 
         if collection_config is None:
             collection_config = dict()
@@ -364,7 +360,6 @@ class DocSetWriter:
             PineconeWriterTargetParams,
         )
         import os
-        from sycamore.docset import DocSet
 
         if log:
             logger.setLevel(20)
@@ -445,7 +440,6 @@ class DocSetWriter:
             DuckDBWriterClientParams,
             DuckDBWriterTargetParams,
         )
-        from sycamore.docset import DocSet
 
         client_params = DuckDBWriterClientParams()
         target_params = DuckDBWriterTargetParams(
@@ -539,7 +533,6 @@ class DocSetWriter:
             ElasticsearchWriterClientParams,
             ElasticsearchWriterTargetParams,
         )
-        from sycamore.docset import DocSet
 
         client_params = ElasticsearchWriterClientParams(url=url, es_client_args=es_client_args)
         target_params = ElasticsearchWriterTargetParams(
@@ -619,6 +612,8 @@ class DocSetWriter:
 
         if kwargs.get("execute") is False:
             raise NotImplementedError
+        if self.context.exec_mode != ExecMode.RAY:
+            raise NotImplementedError
 
         class Wrapper(Node):
             def __init__(self, dataset):
@@ -632,16 +627,19 @@ class DocSetWriter:
         target_params = Neo4jWriterTargetParams(database=database)
         Neo4jValidateParams(client_params=client_params, target_params=target_params)
 
-        og_plan = self.plan
-        self.plan = Wrapper(self.plan.execute().materialize())
+        # Execute the docset up until this point and store it in a node
+        pre_n4j_plan = Execution(self.context)._apply_rules(self.plan)
+        pnjds = Execution(self.context)._execute_ray(pre_n4j_plan)
+        pnjds = pnjds.materialize()
+        self.plan = Wrapper(pnjds)
+        pre_n4j_plan.traverse(visit=lambda n: n.finalize())
+
         start = time.time()
         Neo4jPrepareCSV(plan=self.plan, client_params=client_params)
         Neo4jWriteCSV(plan=self.plan, client_params=client_params).execute().materialize()
         end = time.time()
         logger.info(f"TIME TAKEN TO WRITE CSV: {end-start} SECONDS")
         Neo4jLoadCSV(client_params=client_params, target_params=target_params)
-
-        og_plan.traverse(visit=lambda n: n.finalize())
 
         return None
 
@@ -673,9 +671,8 @@ class DocSetWriter:
             doc_to_bytes_fn=doc_to_bytes_fn,
             **resource_args,
         )
-
+        file_writer = Execution(self.context)._apply_rules(file_writer)
         file_writer.execute()
-
         file_writer.traverse(visit=lambda n: n.finalize())
 
     def json(
@@ -696,5 +693,6 @@ class DocSetWriter:
         """
 
         node = JsonWriter(self.plan, path, filesystem=filesystem, **resource_args)
+        node = Execution(self.context)._apply_rules(node)
         node.execute()
         node.traverse(visit=lambda n: n.finalize())

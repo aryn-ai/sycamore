@@ -138,7 +138,7 @@ class RelationshipExtractor(GraphRelationshipExtractor):
             entities.append(f"{key}:\n")
             for node in nodes:
                 entities.append(f"{node}\n")
-        entities = entities.join(entities)
+        entities = "".join(entities)
 
         llm_kwargs = {"response_format": relationships_model}
         res = await self.llm.generate_async(

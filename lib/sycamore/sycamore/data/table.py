@@ -285,8 +285,8 @@ class Table:
                             table_array[row, col] = ""
 
                 else:
-                    for row in cell.rows[0:]:
-                        for col in cell.cols[0:]:
+                    for row in cell.rows:
+                        for col in cell.cols:
                             if row == cell.rows[0] and col == cell.cols[0]:
                                 table_array[row, col] = cell.content
                             else:
@@ -295,6 +295,7 @@ class Table:
         header = table_array[: max_header_prefix_row + 1, :]
 
         flattened_header = []
+
         for npcol in header.transpose():
             flattened_header.append(" | ".join(OrderedDict.fromkeys((c for c in npcol if c != ""))))
 

@@ -133,12 +133,12 @@ class RelationshipExtractor(GraphRelationshipExtractor):
         fields = {relation.__name__: (List[relation], ...) for relation in parsed_relations}  # type: ignore
         relationships_model = create_model("relationships", __base__=BaseModel, **fields)  # type: ignore
 
-        entities = []
+        entity_list = []
         for key, nodes in parsed_nodes.items():
-            entities.append(f"{key}:\n")
+            entity_list.append(f"{key}:\n")
             for node in nodes:
-                entities.append(f"{node}\n")
-        entities = "".join(entities)
+                entity_list.append(f"{node}\n")
+        entities = "".join(entity_list)
 
         llm_kwargs = {"response_format": relationships_model}
         res = await self.llm.generate_async(

@@ -34,7 +34,7 @@ class TestSummarize:
         doc = text_summarizer.summarize(doc)
 
         assert doc.elements[0].properties == {}
-        assert doc.elements[1].properties == {"summary": "summary"}
+        assert doc.elements[1].properties == {"summary" : {"summary": "summary"}}
 
 
 def filter_elements_on_length(element: Element) -> bool:

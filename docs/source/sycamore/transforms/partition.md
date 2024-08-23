@@ -1,6 +1,6 @@
 (Partition)=
 ## Partition
-To process raw documents and bring them into DocSets, Sycamore must first segment and chunk the document and label each element, such as headings, tables, and figures. This process is called document partitioning, and it is carried out by the Partition transform. Partitioners are format specific, and we reccomend:
+To process raw documents and bring them into DocSets, Sycamore must first segment and chunk the document and label each element, such as headings, tables, and figures. This process is called document partitioning, and it is carried out by the Partition transform. Partitioners are format specific, and we recommend:
 
 * PDF: Aryn Partitioner
 * HTML: Html Partitioner

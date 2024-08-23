@@ -1045,16 +1045,21 @@ class DocSet:
         """
         Executes an LLM Query on a specified field (element or document), and returns the response
 
-        Example:
-            .. code-block:: python
-
-                prompt="Tell me the important numbers from this element"
-                llm_query_agent = LLMElementTextSummarizer(prompt=prompt)
-
-                context = sycamore.init()
-                pdf_docset = context.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=UnstructuredPdfPartitioner())
-                    .llm_query(query_agent=llm_query_agent)
+        Args:
+            prompt: A prompt to be passed into the underlying LLM execution engine
+            llm: The LLM Client to be used here. It is defined as an instance of the LLM class in Sycamore.
+            output_property: (Optional, default="llm_response") The output property of the document or element to add
+                results in.
+            format_kwargs: (Optional, default="None") If passed in, details the formatting details that must be
+                passed into the underlying Jinja Sandbox.
+            number_of_elements: (Optional, default="None") When "per_element" is true, limits the number of
+                elements to add an "output_property". Otherwise, the response is added to the
+                entire document using a limited prefix subset of the elements.
+            llm_kwargs: (Optional) LLM keyword argument for the underlying execution engine
+            per_element: (Optional, default="{}") Keyword arguments to be passed into the underlying LLM execution
+                engine.
+            element_type: (Optional) Parameter to only execute the LLM query on a particular element type. If not
+                specified, the query will be executed on all elements.
         """
         from sycamore.transforms import LLMQuery
 

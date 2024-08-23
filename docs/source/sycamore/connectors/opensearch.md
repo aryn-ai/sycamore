@@ -72,7 +72,7 @@ docset.write.opensearch(
     index_settings=index_settings,
 )
 ```
-More information can be found in the {doc}`API documentation </APIs/data_preparation/docsetwriter>`.
+More information can be found in the {doc}`API documentation </APIs/data_preparation/docsetwriter>`. A demo of the writer can also be found in the {notebook}`https://github.com/aryn-ai/sycamore/blob/main/notebooks/opensearch-writer.ipynb`.
 
 
 ## Reading from OpenSearch

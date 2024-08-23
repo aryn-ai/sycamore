@@ -131,10 +131,10 @@ class ExtractSummaries(Map):
             assert section.text_representation is not None
             summary = f"-----SECTION TITLE: {section.text_representation.strip()}-----\n"
             for element in section.children:
-                if element.type == "table":
-                    element.text_representation = element.data["table"].to_csv()
                 assert element.type is not None
                 assert element.text_representation is not None
-                summary += f"""---Element Type: {element.type.strip()}---\n{element.text_representation.strip()}\n"""
+                summary += f"""
+                -----Element Type: {element.type.strip()}-----\n{element.text_representation.strip()}\n
+                """
             section.data["summary"] = summary
         return doc

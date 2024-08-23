@@ -97,6 +97,8 @@ class EntityExtractor(GraphEntityExtractor):
         for entity in self.entities:
             deserialized.append(safe_cloudunpickle(entity))
 
+        # (List[relation], ...) is weird notation required by pydantic, sorry - Ritam
+        # https://docs.pydantic.dev/latest/concepts/models/#required-fields
         fields = {entity.__name__: (List[entity], ...) for entity in deserialized}
         return create_model("entities", __base__=BaseModel, **fields)
 

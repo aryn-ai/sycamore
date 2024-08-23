@@ -128,14 +128,17 @@ class RelationshipExtractor(GraphRelationshipExtractor):
             return {}
 
         # Use mypy ignore type since pydantic has bad interaction with mypy with creating class from a variable class
+        # (List[relation], ...) is weird notation required by pydantic, sorry - Ritam
+        # https://docs.pydantic.dev/latest/concepts/models/#required-fields
         fields = {relation.__name__: (List[relation], ...) for relation in parsed_relations}  # type: ignore
         relationships_model = create_model("relationships", __base__=BaseModel, **fields)  # type: ignore
 
-        entities = ""
+        entities = []
         for key, nodes in parsed_nodes.items():
-            entities += f"{key}:\n"
+            entities.append(f"{key}:\n")
             for node in nodes:
-                entities += f"{node}\n"
+                entities.append(f"{node}\n")
+        entities = entities.join(entities)
 
         llm_kwargs = {"response_format": relationships_model}
         res = await self.llm.generate_async(

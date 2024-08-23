@@ -174,29 +174,32 @@ class BinaryScan(FileScan):
         documents = []
 
         def process_path(path):
-            if not self._filesystem.get_file_info(path).is_file:
+            if (
+                self._filesystem.get_file_info(path).is_file
+                and not self._filter_paths_by_extension
+                or path.endswith(self.format())
+            ):
+                with self._filesystem.open_input_file(path) as file:
+                    binary_data = file.read()
+
+                document = Document()
+                document.doc_id = str(uuid.uuid1())
+                document.type = self._binary_format
+                document.binary_representation = binary_data
+                document.properties.update({"path": path})
+
+                if "filetype" not in document.properties and self._binary_format is not None:
+                    document.properties["filetype"] = self._file_mime_type()
+                if self._is_s3_scheme():
+                    document.properties["path"] = "s3://" + path
+                if self._metadata_provider:
+                    document.properties.update(self._metadata_provider.get_metadata(path))
+
+                documents.append(document)
+            elif not self._filesystem.get_file_info(path).is_file:
                 file_selector = FileSelector(path)
                 for item in self._filesystem.get_file_info(file_selector):
                     process_path(item.path)
-            else:
-                if not self._filter_paths_by_extension or path.endswith(self.format()):
-                    with self._filesystem.open_input_file(path) as file:
-                        binary_data = file.read()
-
-                    document = Document()
-                    document.doc_id = str(uuid.uuid1())
-                    document.type = self._binary_format
-                    document.binary_representation = binary_data
-                    document.properties.update({"path": path})
-
-                    if "filetype" not in document.properties and self._binary_format is not None:
-                        document.properties["filetype"] = self._file_mime_type()
-                    if self._is_s3_scheme():
-                        document.properties["path"] = "s3://" + path
-                    if self._metadata_provider:
-                        document.properties.update(self._metadata_provider.get_metadata(path))
-
-                    documents.append(document)
 
         for path in paths:
             process_path(path)

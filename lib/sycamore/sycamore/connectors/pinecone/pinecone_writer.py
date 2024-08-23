@@ -43,7 +43,7 @@ class PineconeWriterClientParams(BaseDBWriter.ClientParams):
 
 class PineconeWriterClient(BaseDBWriter.Client):
     def __init__(self, api_key: str, batch_size: int):
-        self._client = PineconeGRPC(api_key=api_key)
+        self._client = PineconeGRPC(api_key=api_key, source_tag="Aryn")
         self._batch_size = batch_size
 
     @classmethod

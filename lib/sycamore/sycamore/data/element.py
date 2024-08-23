@@ -150,6 +150,8 @@ class TableElement(Element):
         self.data["properties"]["rows"] = rows
         self.data["table"] = table
         self.data["tokens"] = tokens
+        if self.data["table"]:
+            self.data["text_representation"] = self.data["table"].to_csv()
 
     @property
     def rows(self) -> Optional[list[Any]]:
@@ -182,18 +184,6 @@ class TableElement(Element):
     @tokens.setter
     def tokens(self, tokens: list[dict[str, Any]]) -> None:
         self.data["tokens"] = tokens
-
-    @property
-    def text_representation(self) -> Optional[str]:
-        if "_override_text" in self.data:
-            return self.data["_override_text"]
-        if self.data["table"]:
-            return self.data["table"].to_csv()
-        return super().text_representation
-
-    @text_representation.setter
-    def text_representation(self, value: str) -> None:
-        self.data["_override_text"] = value
 
 
 def create_element(**kwargs) -> Element:

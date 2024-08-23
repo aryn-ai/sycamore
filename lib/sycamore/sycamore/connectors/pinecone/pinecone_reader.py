@@ -20,7 +20,7 @@ class PineconeReaderQueryParams(BaseDBReader.QueryParams):
 
 class PineconeReaderClient(BaseDBReader.Client):
     def __init__(self, client_params: PineconeReaderClientParams):
-        self._client = PineconeGRPC(api_key=client_params.api_key)
+        self._client = PineconeGRPC(api_key=client_params.api_key, source_tag="Aryn")
 
     @classmethod
     def from_client_params(cls, params: BaseDBReader.ClientParams) -> "PineconeReaderClient":

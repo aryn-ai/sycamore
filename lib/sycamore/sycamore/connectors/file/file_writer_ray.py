@@ -9,7 +9,7 @@ from ray.data.datasource.path_util import _resolve_paths_and_filesystem
 from ray.data._internal.execution.interfaces import TaskContext
 from urllib.parse import urlparse
 
-from sycamore.connectors.file.file_writer import default_filename, default_doc_to_bytes, document_to_bytes
+from sycamore.connectors.file.file_writer import default_filename, default_doc_to_bytes, document_to_json_bytes
 from sycamore.data import Document, MetadataDocument
 from sycamore.utils.time_trace import TimeTrace
 
@@ -75,5 +75,5 @@ class _JsonBlockDataSink(BlockBasedFileDatasink):
                 if isinstance(doc, MetadataDocument):
                     continue
                 del doc.binary_representation  # Doesn't make sense in JSON
-                binary = document_to_bytes(doc)
+                binary = document_to_json_bytes(doc)
                 file.write(binary)

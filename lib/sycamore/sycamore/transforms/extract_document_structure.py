@@ -129,12 +129,13 @@ class ExtractSummaries(Map):
     def summarize_sections(doc: HierarchicalDocument) -> HierarchicalDocument:
         for section in doc.children:
             assert section.text_representation is not None
-            summary = f"-----SECTION TITLE: {section.text_representation.strip()}-----\n"
+            summary_list = []
+            sec_sum = f"-----SECTION TITLE: {section.text_representation.strip()}-----\n"
+            summary_list.append(sec_sum)
             for element in section.children:
                 assert element.type is not None
                 assert element.text_representation is not None
-                summary += f"""
-                -----Element Type: {element.type.strip()}-----\n{element.text_representation.strip()}\n
-                """
-            section.data["summary"] = summary
+                elem_sum = f"---Element Type: {element.type.strip()}---\n{element.text_representation.strip()}\n"
+                summary_list.append(elem_sum)
+            section.data["summary"] = "".join(summary_list)
         return doc

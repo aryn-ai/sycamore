@@ -54,7 +54,7 @@ wait_for_completion = "wait_for"
 ds.write.elasticsearch(url=url, index_name=index_name, wait_for_completion=wait_for_completion)
 ```
 
-More information can be found in the {doc}`API documentation </APIs/data_preparation/docsetwriter>`. A demo of the writer can also be found in the {notebook}`https://github.com/aryn-ai/sycamore/blob/main/notebooks/elasticsearch-writer.ipynb`.
+More information can be found in the {doc}`API documentation <../APIs/docsetwriter>`. A demo of the writer can also be found in the [demo notebook](https://github.com/aryn-ai/sycamore/blob/main/notebooks/elasticsearch-writer.ipynb).
 
 
 ## Reading from Elasticsearch
@@ -75,4 +75,4 @@ query_params = {"term": {"_id": target_doc_id}}
 query_docs = ctx.read.elasticsearch(url=url, index_name=index_name, query=query_params).take_all()
 ```
 
-More information can be found in the {doc}`API documentation </APIs/data_preparation/docsetreader>`.
+More information can be found in the {doc}`API documentation <../APIs/docsetreader>`.

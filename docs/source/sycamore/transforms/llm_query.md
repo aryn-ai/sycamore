@@ -7,7 +7,7 @@ The LLMTextQueryAgent allows users to execute queries on the document and its el
 
 Parameters:
 * ```prompt```: A prompt to be passed into the underlying LLM execution engine
-* ```llm```: The LLM Client to be used here. It is defined as an instance of the {LLM}`API documentation </APIs/data_preparation/docsetwriter>` class in Sycamore.
+* ```llm```: The LLM Client to be used here. It is defined as an instance of the {LLM}`API documentation <../APIs/llm>` class in Sycamore.
 * ```output_property```: (optional, default=`"llm_response"`) The output property of the document or element to add results in.
 * ```format_kwargs```: (optional, default=`None`) If passed in, details the formatting details that must be passed into the underlying Jinja Sandbox.
 * ```per_element```: (optional, default=`True`) Whether to execute the call per each element or on the Document itself.

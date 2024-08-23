@@ -285,10 +285,12 @@ class Table:
                             table_array[row, col] = ""
 
                 else:
-                    table_array[cell.rows[0], cell.cols[0]] = cell.content
-                    for row in cell.rows[1:]:
-                        for col in cell.cols[1:]:
-                            table_array[row, col] = ""
+                    for row in cell.rows:
+                        for col in cell.cols:
+                            if row == cell.rows[0] and col == cell.cols[0]:
+                                table_array[row, col] = cell.content
+                            else:
+                                table_array[row, col] = ""
 
         header = table_array[: max_header_prefix_row + 1, :]
 

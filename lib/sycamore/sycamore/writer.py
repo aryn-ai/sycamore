@@ -663,7 +663,7 @@ class DocSetWriter:
                 if not.
             resource_args: Arguments to pass to the underlying execution environment.
         """
-        file_writer = FileWriter(
+        file_writer: Node = FileWriter(
             self.plan,
             path,
             filesystem=filesystem,
@@ -692,7 +692,7 @@ class DocSetWriter:
             resource_args: Arguments to pass to the underlying execution environment.
         """
 
-        node = JsonWriter(self.plan, path, filesystem=filesystem, **resource_args)
+        node: Node = JsonWriter(self.plan, path, filesystem=filesystem, **resource_args)
         node = Execution(self.context)._apply_rules(node)
         node.execute()
         node.traverse(visit=lambda n: n.finalize())

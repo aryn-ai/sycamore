@@ -38,7 +38,7 @@ namespace = f"{generate_random_string().lower()}"
 ds.write.pinecone(index_name=index_name, namespace=namespace, dimensions=384, index_spec=spec)
 ```
 
-Note that the writer forces execution of all transforms before it, so would normally come at the end of a Sycamore pipeline. More information can be found in the {doc}`API documentation </APIs/data_preparation/docsetwriter>`.
+Note that the writer forces execution of all transforms before it, so would normally come at the end of a Sycamore pipeline. More information can be found in the {doc}`API documentation <../APIs/docsetwriter>`. A demo of the writer can also be found in the [demo notebook](https://github.com/aryn-ai/sycamore/blob/main/notebooks/pinecone-writer.ipynb).
 
 ## Reading from Pinecone
 
@@ -62,4 +62,4 @@ query_docs = ctx.read.pinecone(
                 ).take_all()
 ```
 
-More information can be found in the {doc}`API documentation </APIs/data_preparation/docsetreader>`.
+More information can be found in the {doc}`API documentation <../APIs/docsetreader>`.

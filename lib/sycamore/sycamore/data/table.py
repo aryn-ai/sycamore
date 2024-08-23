@@ -285,15 +285,16 @@ class Table:
                             table_array[row, col] = ""
 
                 else:
-                    table_array[cell.rows[0], cell.cols[0]] = cell.content
-                    for row in cell.rows[1:]:
-                        for col in cell.cols[1:]:
-                            table_array[row, col] = ""
+                    for row in cell.rows[0:]:
+                        for col in cell.cols[0:]:
+                            if row == cell.rows[0] and col == cell.cols[0]:
+                                table_array[row, col] = cell.content
+                            else:
+                                table_array[row, col] = ""
 
         header = table_array[: max_header_prefix_row + 1, :]
 
         flattened_header = []
-
         for npcol in header.transpose():
             flattened_header.append(" | ".join(OrderedDict.fromkeys((c for c in npcol if c != ""))))
 

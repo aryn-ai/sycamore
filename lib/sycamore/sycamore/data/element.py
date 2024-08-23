@@ -176,6 +176,7 @@ class TableElement(Element):
     @table.setter
     def table(self, value: Table) -> None:
         self.data["table"] = value
+        self.data["text_representation"] = self.data["table"].to_csv()
 
     @property
     def tokens(self) -> Optional[list[dict[str, Any]]]:

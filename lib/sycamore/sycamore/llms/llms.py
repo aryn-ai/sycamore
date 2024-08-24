@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Awaitable, Optional
+from typing import Optional
 
 from sycamore.utils.cache import Cache
 
@@ -29,7 +29,7 @@ class LLM(ABC):
     def is_chat_mode(self) -> bool:
         pass
 
-    async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Awaitable[str]:
+    async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
         raise ValueError("No implementation for llm futures exists")
 
 

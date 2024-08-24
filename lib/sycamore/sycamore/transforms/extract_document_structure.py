@@ -114,3 +114,28 @@ class ExtractDocumentStructure(Map):
         **resource_args,
     ):
         super().__init__(child, f=structure.extract, **resource_args)
+
+
+class ExtractSummaries(Map):
+    """
+    Extracts summaries from child documents to be used for entity extraction. This function
+    generates summaries for sections within documents which are used during entity extraction.
+    """
+
+    def __init__(self, child: Node, **resource_args):
+        super().__init__(child, f=ExtractSummaries.summarize_sections, **resource_args)
+
+    @staticmethod
+    def summarize_sections(doc: HierarchicalDocument) -> HierarchicalDocument:
+        for section in doc.children:
+            assert section.text_representation is not None
+            summary_list = []
+            sec_sum = f"-----SECTION TITLE: {section.text_representation.strip()}-----\n"
+            summary_list.append(sec_sum)
+            for element in section.children:
+                assert element.type is not None
+                assert element.text_representation is not None
+                elem_sum = f"---Element Type: {element.type.strip()}---\n{element.text_representation.strip()}\n"
+                summary_list.append(elem_sum)
+            section.data["summary"] = "".join(summary_list)
+        return doc

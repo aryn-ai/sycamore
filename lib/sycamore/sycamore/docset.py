@@ -18,7 +18,8 @@ from sycamore.transforms.augment_text import TextAugmentor
 from sycamore.transforms.embed import Embedder
 from sycamore.transforms import DocumentStructure
 from sycamore.transforms.extract_entity import EntityExtractor, OpenAIEntityExtractor
-from sycamore.transforms.extract_graph import GraphExtractor
+from sycamore.transforms.extract_graph_entities import GraphEntityExtractor
+from sycamore.transforms.extract_graph_relationships import GraphRelationshipExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
 from sycamore.transforms.partition import Partitioner
 from sycamore.transforms.resolve_graph_entities import EntityResolver, ResolveEntities
@@ -440,9 +441,10 @@ class DocSet:
                     .explode()
 
         """
-        from sycamore.transforms import ExtractDocumentStructure
+        from sycamore.transforms.extract_document_structure import ExtractDocumentStructure, ExtractSummaries
 
         document_structure = ExtractDocumentStructure(self.plan, structure=structure, **kwargs)
+        document_structure = ExtractSummaries(document_structure)
         return DocSet(self.context, document_structure)
 
     def extract_entity(self, entity_extractor: EntityExtractor, **kwargs) -> "DocSet":
@@ -547,37 +549,92 @@ class DocSet:
         schema = ExtractBatchSchema(self.plan, schema_extractor=schema_extractor)
         return DocSet(self.context, schema)
 
-    def extract_graph_structure(self, extractors: list[GraphExtractor], **kwargs) -> "DocSet":
+    def extract_graph_entities(self, extractors: list[GraphEntityExtractor] = [], **kwargs) -> "DocSet":
         """
-        Extracts metadata from documents into a format that sets up resulting docset to be loaded into neo4j
+        Extracts entites from document children. Entities are stored as nodes within each child of
+        a document.
 
         Args:
-            extractors: A list of GraphExtractor objects which determine what is extracted from the docset
+            extractors: A list of GraphEntityExtractor objects which determines how entities are extracted
 
         Example:
             .. code-block:: python
+                from sycamore.transforms.extract_graph_entities import EntityExtractor
+                from pydantic import BaseModel
 
-                metadata = [GraphMetadata(nodeKey='company',nodeLabel='Company',relLabel='FILED_BY'),
-                GraphMetadata(nodeKey='gics_sector',nodeLabel='Sector',relLabel='IN_SECTOR'),
-                GraphMetadata(nodeKey='doc_type',nodeLabel='Document Type',relLabel='IS_TYPE'),
-                GraphMetadata(nodeKey='doc_period',nodeLabel='Year',relLabel='FILED_DURING'),
-                ]
+                llm = OpenAI(OpenAIModels.GPT_4O_MINI.value)
+
+                class CEO(BaseModel):
+                    name: str
+
+                class Company(BaseModel):
+                    name: str
 
                 ds = (
-                    ctx.read.manifest(metadata_provider=JsonManifestMetadataProvider(manifest),...)
-                    .partition(partitioner=ArynPartitioner(...), num_gpus=0.1)
-                    .extract_graph_structure(extractors=[MetadataExtractor(metadata=metadata)])
+                    context.read.binary(paths, binary_format="pdf")
+                    .partition(...)
+                    .extract_document_structure(...)
+                    .extract_graph_entities(extractors=[EntityExtractor(llm=llm, entities=[CEO, Company])])
+                    .resolve_graph_entities(...)
                     .explode()
                 )
+
+                ds.write.neo4j(...)
         """
+        from sycamore.transforms.extract_graph_entities import ExtractEntities
 
-        docset = self
+        entities = self.plan
         for extractor in extractors:
-            docset = extractor.extract(docset)
+            entities = ExtractEntities(entities, extractor)
 
-        return docset
+        return DocSet(self.context, entities)
 
-    def resolve_graph_entities(self, resolvers: list[EntityResolver], **kwargs) -> "DocSet":
+    def extract_graph_relationships(self, extractors: list[GraphRelationshipExtractor] = [], **kwargs) -> "DocSet":
+        """
+        Extracts relationships from document children. Relationships are stored within the nodes they reference
+        within each child of a document.
+
+        Args:
+            extractors: A list of GraphEntityExtractor objects which determines how relationships are extracted
+
+        Example:
+            .. code-block:: python
+                from sycamore.transforms.extract_graph_entities import EntityExtractor
+                from sycamore.transforms.extract_graph_relationships import RelationshipExtractor
+                from pydantic import BaseModel
+
+                llm = OpenAI(OpenAIModels.GPT_4O_MINI.value)
+
+                class CEO(BaseModel):
+                    name: str
+
+                class Company(BaseModel):
+                    name: str
+
+                class WORKS_AT(BaseModel):
+                    start: CEO
+                    end: Company
+
+                ds = (
+                    context.read.binary(paths, binary_format="pdf")
+                    .partition(...)
+                    .extract_document_structure(...)
+                    .extract_graph_entities(extractors=[EntityExtractor(llm=llm, entities=[CEO, Company])])
+                    .extract_graph_relationships(extractors=[RelationshipExtractor(llm=llm, relationships=[WORKS_AT])])
+                    .resolve_graph_entities(...)
+                    .explode()
+                )
+                ds.write.neo4j(...)
+        """
+        from sycamore.transforms.extract_graph_relationships import ExtractRelationships
+
+        relationships = self.plan
+        for extractor in extractors:
+            relationships = ExtractRelationships(relationships, extractor)
+
+        return DocSet(self.context, relationships)
+
+    def resolve_graph_entities(self, resolvers: list[EntityResolver] = [], **kwargs) -> "DocSet":
         """
         Resolves graph entities across documents so that duplicate entities can be resolved
         to the same entity based off criteria of EntityResolver objects.
@@ -587,8 +644,16 @@ class DocSet:
 
         Example:
             .. code-block:: python
-            TODO: Write an example once refactor is complete
-
+                ds = (
+                    context.read.binary(paths, binary_format="pdf")
+                    .partition(...)
+                    .extract_document_structure(...)
+                    .extract_graph_entities(...)
+                    .extract_graph_relationships(...)
+                    .resolve_graph_entities(resolvers=[TODO: Implement Resolvers])
+                    .explode()
+                )
+                ds.write.neo4j(...)
         """
         from sycamore.transforms.resolve_graph_entities import CleanTempNodes
 

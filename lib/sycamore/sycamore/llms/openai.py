@@ -5,7 +5,7 @@ import os
 import pickle
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Awaitable, Optional, TypedDict, Union, cast, TYPE_CHECKING
+from typing import Any, Optional, TypedDict, Union, cast, TYPE_CHECKING
 
 from openai import AzureOpenAI as AzureOpenAIClient
 from openai import AsyncAzureOpenAI as AsyncAzureOpenAIClient
@@ -429,7 +429,7 @@ class OpenAI(LLM):
         assert completion.choices[0].message.content is not None, "OpenAI refused to respond to the query"
         return completion.choices[0].message.content
 
-    async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Awaitable[str]:
+    async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
         key, ret = self._cache_get(prompt_kwargs, llm_kwargs)
         if ret is not None:
             return ret

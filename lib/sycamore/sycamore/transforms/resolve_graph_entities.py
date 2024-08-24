@@ -21,6 +21,11 @@ class EntityResolver(ABC):
 
 
 class ResolveEntities:
+    """
+    Groups entity nodes and their respective relationships together into a document
+    where we run through all the Entity Resolution proceedures defined by the user.
+    """
+
     def __init__(self, resolvers: list[EntityResolver]):
         self.resolvers = resolvers
 
@@ -54,8 +59,6 @@ class ResolveEntities:
 
         @staticmethod
         def _aggregate_section_nodes(doc: HierarchicalDocument) -> HierarchicalDocument:
-            if "EXTRACTED_NODES" in doc.data:
-                return doc
             nodes: defaultdict[dict, Any] = defaultdict(dict)
             nodes |= doc["properties"].get("nodes", {})
             for section in doc.children:
@@ -67,7 +70,8 @@ class ResolveEntities:
                             nodes[label][hash] = node
                         else:
                             for rel_uuid, rel in node["relationships"].items():
-                                nodes[label][hash]["relationships"][rel_uuid] = rel
+                                if rel not in [node for node in nodes[label][hash]["relationships"].values()]:
+                                    nodes[label][hash]["relationships"][rel_uuid] = rel
                 del section["properties"]["nodes"]
             doc["properties"]["nodes"] = nodes
             return doc
@@ -91,7 +95,8 @@ class ResolveEntities:
                         nodes[key][hash] = extracted[key][hash]
                     else:
                         for rel_uuid, rel in extracted[key][hash]["relationships"].items():
-                            nodes[key][hash]["relationships"][rel_uuid] = rel
+                            if rel not in [node for node in nodes[key][hash]["relationships"].values()]:
+                                nodes[key][hash]["relationships"][rel_uuid] = rel
             return nodes
 
         def merge(nodes1, nodes2):
@@ -102,7 +107,8 @@ class ResolveEntities:
                         nodes1[key][hash] = nodes2[key][hash]
                     else:
                         for rel_uuid, rel in nodes2[key][hash]["relationships"].items():
-                            nodes1[key][hash]["relationships"][rel_uuid] = rel
+                            if rel not in [node for node in nodes1[key][hash]["relationships"].values()]:
+                                nodes1[key][hash]["relationships"][rel_uuid] = rel
             return nodes1
 
         def finalize(nodes):
@@ -112,6 +118,13 @@ class ResolveEntities:
                     for rel in node["relationships"].values():
                         rel["END_ID"] = node["doc_id"]
                         rel["END_LABEL"] = node["label"]
+
+            for hashes in nodes.values():
+                for node in hashes.values():
+                    for rel in node["relationships"].values():
+                        if "START_HASH" in rel:
+                            rel["START_ID"] = nodes[rel["START_LABEL"]][rel["START_HASH"]]["doc_id"]
+                            del rel["START_HASH"]
             return nodes
 
         aggregation = AggregateFn(

@@ -4,6 +4,7 @@ from typing import Any, Callable, Iterable, Optional, Union, TYPE_CHECKING
 import numpy as np
 
 from sycamore.data import Document, MetadataDocument
+from sycamore.utils.lineage_utils import _update_lineage
 from sycamore.data.document import split_data_metadata
 from sycamore.plan_nodes import Node, UnaryNode
 from sycamore.utils.ray_utils import check_serializable
@@ -161,7 +162,7 @@ class BaseMapTransform(UnaryNode):
         outputs = self._local_process(docs)
         to_docs = [d for d in outputs if not isinstance(d, MetadataDocument)]
         if self._enable_auto_metadata and (len(docs) > 0 or len(to_docs) > 0):
-            outputs.extend(BaseMapTransform._update_lineage(docs, to_docs))
+            outputs.extend(_update_lineage(docs, to_docs))
         outputs.extend(metadata)
         return outputs
 
@@ -261,18 +262,9 @@ class BaseMapTransform(UnaryNode):
 
         to_docs = [d for d in outputs if not isinstance(d, MetadataDocument)]
         if enable_auto_metadata and (len(docs) > 0 or len(to_docs) > 0):
-            outputs.extend(BaseMapTransform._update_lineage(docs, to_docs))
+            outputs.extend(_update_lineage(docs, to_docs))
         outputs.extend(metadata)
         return {"doc": [d.serialize() for d in outputs]}
-
-    @classmethod
-    def _update_lineage(cls, from_docs: list[Document], to_docs: list[Document]) -> list[MetadataDocument]:
-        from_ids = [d.lineage_id for d in from_docs]
-        for d in to_docs:
-            d.update_lineage_id()
-        to_ids = [d.lineage_id for d in to_docs]
-
-        return [MetadataDocument(lineage_links={"from_ids": from_ids, "to_ids": to_ids})]
 
 
 class CompositeTransform(UnaryNode):
@@ -304,7 +296,7 @@ class CompositeTransform(UnaryNode):
         outputs = self._local_process(docs)
         to_docs = [d for d in outputs if not isinstance(d, MetadataDocument)]
         if self._enable_auto_metadata and (len(docs) > 0 or len(to_docs) > 0):
-            outputs.extend(BaseMapTransform._update_lineage(docs, to_docs))
+            outputs.extend(_update_lineage(docs, to_docs))
         outputs.extend(metadata)
         return outputs
 

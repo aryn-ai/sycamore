@@ -173,37 +173,33 @@ class BinaryScan(FileScan):
             self._filesystem = LocalFileSystem()
         documents = []
 
-        def process_path(path):
-            if (
-                self._filesystem.get_file_info(path).is_file
-                and not self._filter_paths_by_extension
-                or path.endswith(self.format())
-            ):
-                with self._filesystem.open_input_file(path) as file:
-                    binary_data = file.read()
+        def process_file(info):
+            if not info.is_file:
+                return
+            if self._filter_paths_by_extension and not info.path.endswith(self.format()):
+                return
 
-                document = Document()
-                document.doc_id = str(uuid.uuid1())
-                document.type = self._binary_format
-                document.binary_representation = binary_data
-                document.properties.update({"path": path})
+            with self._filesystem.open_input_file(info.path) as file:
+                binary_data = file.read()
 
-                if "filetype" not in document.properties and self._binary_format is not None:
-                    document.properties["filetype"] = self._file_mime_type()
-                if self._is_s3_scheme():
-                    document.properties["path"] = "s3://" + path
-                if self._metadata_provider:
-                    document.properties.update(self._metadata_provider.get_metadata(path))
+            document = Document()
+            document.doc_id = str(uuid.uuid1())
+            document.type = self._binary_format
+            document.binary_representation = binary_data
+            document.properties.update({"path": info.path})
 
-                documents.append(document)
-            elif not self._filesystem.get_file_info(path).is_file:
-                file_selector = FileSelector(path)
-                for item in self._filesystem.get_file_info(file_selector):
-                    process_path(item.path)
+            if "filetype" not in document.properties and self._binary_format is not None:
+                document.properties["filetype"] = self._file_mime_type()
+            if self._is_s3_scheme():
+                document.properties["path"] = "s3://" + info.path
+            if self._metadata_provider:
+                document.properties.update(self._metadata_provider.get_metadata(info.path))
+
+            documents.append(document)
 
         for path in paths:
-            process_path(path)
-
+            for info in self._filesystem.get_file_info(FileSelector(path), recursive=True):
+                process_file(info)
         return documents
 
     def format(self):

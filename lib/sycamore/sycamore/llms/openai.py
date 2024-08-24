@@ -75,6 +75,7 @@ class OpenAIClientWrapper:
         # Deprecated names that we support for backwards compatibility.
         api_type: Optional[str] = None,
         api_base: Optional[str] = None,
+        echo: bool = False,
         # Additional OpenAI Client parameters that will be passed in.
         **kwargs,
     ):
@@ -117,6 +118,7 @@ class OpenAIClientWrapper:
         self.azure_ad_token_provider = azure_ad_token_provider
         self.disable_helicone = disable_helicone
         self.extra_kwargs = kwargs
+        self.echo = echo
 
         # The OpenAI Python library is happy to pull Azure creds from the AZURE_OPENAI_API_KEY environment variable,
         # but Guidance will error out if neither api_key nor azure_ad_token_provider are explicitly set.
@@ -222,6 +224,7 @@ class OpenAIClientWrapper:
                 organization=self.organization,
                 base_url=self.base_url,
                 max_retries=self.max_retries,
+                echo=self.echo,
                 **self.extra_kwargs,
             )
         elif self.client_type == OpenAIClientType.AZURE:
@@ -253,6 +256,7 @@ class OpenAIClientWrapper:
                 azure_ad_token: Optional[str]
                 organization: Optional[str]
                 max_retries: int
+                echo: bool
 
             # azure_endpoint and api_key are not None if we're
             # in this branch, so we can safely cast strings to
@@ -265,6 +269,7 @@ class OpenAIClientWrapper:
                 "azure_ad_token": self.azure_ad_token,
                 "organization": self.organization,
                 "max_retries": self.max_retries,
+                "echo": self.echo,
             }
             # Add these guys in if not None. The defaults are
             # None, but only strings are allowed as params.

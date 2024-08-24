@@ -1,10 +1,11 @@
-from typing import Callable
-
-from ray.data import Dataset
+from typing import Callable, TYPE_CHECKING
 
 from sycamore.data import Document
 from sycamore.plan_nodes import Node, NonGPUUser, NonCPUUser, Transform
 from sycamore.transforms.map import MapBatch
+
+if TYPE_CHECKING:
+    from ray.data import Dataset
 
 
 class Limit(NonCPUUser, NonGPUUser, Transform):
@@ -27,7 +28,7 @@ class Limit(NonCPUUser, NonGPUUser, Transform):
         super().__init__(child)
         self._limit = limit
 
-    def execute(self, **kwargs) -> Dataset:
+    def execute(self, **kwargs) -> "Dataset":
         dataset = self.child().execute()
         return dataset.limit(self._limit)
 

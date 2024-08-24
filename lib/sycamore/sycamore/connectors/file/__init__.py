@@ -1,6 +1,6 @@
 from sycamore.connectors.file.file_scan import BinaryScan, FileScan, JsonScan, JsonDocumentScan
 from sycamore.connectors.file.materialized_scan import ArrowScan, DocScan, MaterializedScan, PandasScan
-from sycamore.connectors.file.file_writer import FileWriter, _FileDataSink
+from sycamore.connectors.file.file_writer import FileWriter
 
 __all__ = [
     "ArrowScan",
@@ -12,5 +12,4 @@ __all__ = [
     "MaterializedScan",
     "PandasScan",
     "FileWriter",
-    "_FileDataSink",
 ]

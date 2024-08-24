@@ -56,7 +56,19 @@ class SimpleTable(TableFormatTestCase):
                 </tr>
               </tbody>
             </table>
+            """,
             """
+            <table frame="hsides">
+              <tr>
+                <td>1</td>
+                <td>2</td>
+              </tr>
+              <tr>
+                <td>3</td>
+                <td>4</td>
+              </tr>
+            </table>
+            """,
         ]
 
     def csv(self) -> str:
@@ -183,6 +195,49 @@ class SimpleTableMultiColHeader(TableFormatTestCase):
                 TableCell(content="4", rows=[2], cols=[0], is_header=False),
                 TableCell(content="5", rows=[2], cols=[1], is_header=False),
                 TableCell(content="6", rows=[2], cols=[2], is_header=False),
+            ]
+        )
+
+
+class TableWithRowspanShenanigans(TableFormatTestCase):
+    def canonical_html(self) -> str:
+        return """
+        <table>
+          <tr>
+            <td>A</td>
+            <td rowspan="3">B</td>
+            <td>C</td>
+          </tr>
+          <tr>
+            <td rowspan="2">D</td>
+            <td>E</td>
+          </tr>
+          <tr>
+            <td>F</td>
+          </tr>
+          <tr>
+            <td>G</td>
+            <td>H</td>
+            <td>I</td>
+          </tr>
+        </table>
+        """
+
+    def csv(self) -> str:
+        return "A,B,C\nD,,E\n,,F\nG,H,I"
+
+    def table(self) -> Table:
+        return Table(
+            [
+                TableCell(content="A", rows=[0], cols=[0], is_header=False),
+                TableCell(content="B", rows=[0, 1, 2], cols=[1], is_header=False),
+                TableCell(content="C", rows=[0], cols=[2], is_header=False),
+                TableCell(content="D", rows=[1, 2], cols=[0], is_header=False),
+                TableCell(content="E", rows=[1], cols=[2], is_header=False),
+                TableCell(content="F", rows=[2], cols=[2], is_header=False),
+                TableCell(content="G", rows=[3], cols=[0], is_header=False),
+                TableCell(content="H", rows=[3], cols=[1], is_header=False),
+                TableCell(content="I", rows=[3], cols=[2], is_header=False),
             ]
         )
 
@@ -361,6 +416,7 @@ test_cases = [
     SimpleTableMultiRowHeader(),
     SimpleTableMultiRowColHeader(),
     SmithsonianSampleTable(),
+    TableWithRowspanShenanigans(),
 ]
 
 
@@ -475,3 +531,15 @@ def test_table_from_dict_missing():
 
     actual = Table.from_dict({"cells": json_cells, "caption": caption})
     assert actual == expected
+
+
+@pytest.mark.parametrize("test_case", test_cases)
+def test_from_html(test_case):
+    actual = Table.from_html(html_str=test_case.canonical_html())
+    expected = test_case.table()
+    assert actual == expected
+
+    if hasattr(test_case, "other_html"):
+        for other_html in test_case.other_html():
+            actual = Table.from_html(html_str=other_html)
+            assert actual == expected

@@ -1,18 +1,17 @@
-from typing import Any, Callable, Optional, TYPE_CHECKING
+import logging
+from typing import Any, Callable, Optional, Union
 
+from neo4j import Auth
+from neo4j.auth_management import AuthManager
 from pyarrow.fs import FileSystem
 
-from sycamore import Context
-from sycamore.plan_nodes import Node
-from sycamore.data import Document
+from sycamore.context import Context, ExecMode
 from sycamore.connectors.common import HostAndPort
 from sycamore.connectors.file.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
-from ray.data import ActorPoolStrategy
-import logging
-
-if TYPE_CHECKING:
-    # Shenanigans to avoid circular import
-    from sycamore.docset import DocSet
+from sycamore.data import Document
+from sycamore.executor import Execution
+from sycamore.plan_nodes import Node
+from sycamore.docset import DocSet
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +31,8 @@ class DocSetWriter:
     def opensearch(
         self,
         *,
-        os_client_args: dict,
-        index_name: str,
+        os_client_args: Optional[dict] = None,
+        index_name: Optional[str] = None,
         index_settings: Optional[dict] = None,
         execute: bool = True,
         **kwargs,
@@ -89,9 +88,21 @@ class DocSetWriter:
                      index_settings=index_settings)
         """
 
-        from sycamore.connectors.opensearch import OpenSearchWriter, OpenSearchClientParams, OpenSearchTargetParams
+        from sycamore.connectors.opensearch import (
+            OpenSearchWriter,
+            OpenSearchWriterClientParams,
+            OpenSearchWriterTargetParams,
+        )
         from typing import Any
         import copy
+
+        if os_client_args is None:
+            os_client_args = self.context.opensearch_args.client_args if self.context.opensearch_args else None
+        assert os_client_args is not None, "OpenSearch client args required"
+
+        if not index_name:
+            index_name = self.context.opensearch_args.index_name if self.context.opensearch_args else None
+        assert index_name is not None, "OpenSearch index name required"
 
         # We mutate os_client_args, so mutate a copy
         os_client_args = copy.deepcopy(os_client_args)
@@ -118,15 +129,19 @@ class DocSetWriter:
         hosts = os_client_args.get("hosts", None)
         if hosts is not None:
             os_client_args["hosts"] = _convert_to_host_port_list(hosts)
-        client_params = OpenSearchClientParams(**os_client_args)
+        client_params = OpenSearchWriterClientParams(**os_client_args)
 
-        target_params: OpenSearchTargetParams
+        target_params: OpenSearchWriterTargetParams
+
+        if index_settings is None:
+            index_settings = self.context.opensearch_args.index_settings if self.context.opensearch_args else None
+
         if index_settings is not None:
             idx_settings = index_settings.get("body", {}).get("settings", {})
             idx_mappings = index_settings.get("body", {}).get("mappings", {})
-            target_params = OpenSearchTargetParams(index_name, idx_settings, idx_mappings)
+            target_params = OpenSearchWriterTargetParams(index_name, idx_settings, idx_mappings)
         else:
-            target_params = OpenSearchTargetParams(index_name, {}, {})
+            target_params = OpenSearchWriterTargetParams(index_name, {}, {})
 
         os = OpenSearchWriter(
             self.plan, client_params=client_params, target_params=target_params, name="OsrchWrite", **kwargs
@@ -136,14 +151,13 @@ class DocSetWriter:
         # doesn't execute automatically, and instead you need to say something
         # like docset.write.opensearch().execute(), allowing sensible writes
         # to multiple locations and post-write operations.
+        osds = DocSet(self.context, os)
         if execute:
             # If execute, force execution
-            os.execute().materialize()
+            osds.execute()
             return None
         else:
-            from sycamore.docset import DocSet
-
-            return DocSet(self.context, os)
+            return osds
 
     def weaviate(
         self,
@@ -248,7 +262,7 @@ class DocSetWriter:
             WeaviateDocumentWriter,
             WeaviateCrossReferenceWriter,
             WeaviateClientParams,
-            WeaviateTargetParams,
+            WeaviateWriterTargetParams,
         )
         from sycamore.connectors.weaviate.weaviate_writer import CollectionConfigCreate
 
@@ -261,7 +275,7 @@ class DocSetWriter:
             collection_config_object = CollectionConfigCreate(**collection_config)
         else:
             collection_config_object = CollectionConfigCreate(name=collection_name, **collection_config)
-        target_params = WeaviateTargetParams(
+        target_params = WeaviateWriterTargetParams(
             name=collection_name, collection_config=collection_config_object, flatten_properties=flatten_properties
         )
 
@@ -272,14 +286,13 @@ class DocSetWriter:
             wv_docs, client_params, target_params, name="weaviate_write_references", **kwargs
         )
 
+        wvds = DocSet(self.context, wv_refs)
         if execute:
             # If execute, force execution
-            wv_refs.execute().materialize()
+            wvds.execute()
             return None
         else:
-            from sycamore.docset import DocSet
-
-            return DocSet(self.context, wv_refs)
+            return wvds
 
     def pinecone(
         self,
@@ -325,7 +338,7 @@ class DocSetWriter:
                 ctx = sycamore.init()
                 ds = (
                     ctx.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=SycamorePartitioner(extract_table_structure=True, extract_images=True))
+                    .partition(partitioner=ArynPartitioner(extract_table_structure=True, extract_images=True))
                     .explode()
                     .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
                     .term_frequency(tokenizer=tokenizer, with_token_ids=True)
@@ -365,14 +378,13 @@ class DocSetWriter:
         )
 
         pc = PineconeWriter(self.plan, client_params=pcp, target_params=ptp, name="pinecone_write", **kwargs)
+        pcds = DocSet(self.context, pc)
         if execute:
             # If execute, force execution
-            pc.execute().materialize()
+            pcds.execute()
             return None
         else:
-            from sycamore.docset import DocSet
-
-            return DocSet(self.context, pc)
+            return pcds
 
     def duckdb(
         self,
@@ -389,7 +401,7 @@ class DocSetWriter:
 
         Args:
             dimensions: The dimensions of the embeddings of each vector (required paramater)
-            db_url: The URL of the DuckDB database. If not provided, the database will be in-memory.
+            db_url: The URL of the DuckDB database.
             table_name: The table name to write the data to when possible
             batch_size: The file batch size when loading entries into the DuckDB database table
             schema: Defines the schema of the table to enter entries
@@ -408,7 +420,7 @@ class DocSetWriter:
                 OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
                 tokenizer = HuggingFaceTokenizer(model_name)
 
-                ctx = sycamore.init(ray_args={"runtime_env": {"worker_process_setup_hook": ray_logging_setup}})
+                ctx = sycamore.init()
 
                 ds = (
                     ctx.read.binary(paths, binary_format="pdf")
@@ -422,8 +434,6 @@ class DocSetWriter:
                     .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
                 )
                 ds.write.duckdb(table_name=table_name, db_url=db_url)
-                conn = duckdb.connect(database=db_url)
-                duckdb_read = conn.execute(f"SELECT * FROM {table_name}")
         """
         from sycamore.connectors.duckdb.duckdb_writer import (
             DuckDBWriter,
@@ -445,6 +455,8 @@ class DocSetWriter:
                 if v is not None
             }  # type: ignore
         )
+        from ray.data import ActorPoolStrategy
+
         kwargs["compute"] = ActorPoolStrategy(size=1)
         ddb = DuckDBWriter(
             self.plan,
@@ -453,13 +465,12 @@ class DocSetWriter:
             name="duckdb_write_documents",
             **kwargs,
         )
+        ddbds = DocSet(self.context, ddb)
         if execute:
-            ddb.execute().materialize()
+            ddbds.execute()
             return None
         else:
-            from sycamore.docset import DocSet
-
-            return DocSet(self.context, ddb)
+            return ddbds
 
     def elasticsearch(
         self,
@@ -473,15 +484,16 @@ class DocSetWriter:
         execute: bool = True,
         **kwargs,
     ) -> Optional["DocSet"]:
-        """Writes the content of the DocSet into the specified Elasticsearch Cloud index.
+        """Writes the content of the DocSet into the specified Elasticsearch index.
 
         Args:
             url: Connection endpoint for the Elasticsearch instance. Note that this must be paired with the
                 necessary client arguments below
+            index_name: Index name to write to in the Elasticsearch instance
             es_client_args: Authentication arguments to be specified (if needed). See more information at
                 https://elasticsearch-py.readthedocs.io/en/v8.14.0/api/elasticsearch.html
             wait_for_completion: Whether to wait for completion of the write before proceeding with next steps.
-            See more information at https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-refresh.html
+                See more information at https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-refresh.html
             mappings: Mapping of the Elasticsearch index, can be optionally specified
             settings: Settings of the Elasticsearch index, can be optionally specified
             execute: Execute the pipeline and write to weaviate on adding this operator. If False,
@@ -490,38 +502,40 @@ class DocSetWriter:
             The following code shows how to read a pdf dataset into a ``DocSet`` and write it out to a
             local Elasticsearch index called `test-index`.
 
-            url = "http://localhost:9201"
-            index_name = "test-index"
-            model_name = "sentence-transformers/all-MiniLM-L6-v2"
-            paths = str(TEST_DIR / "resources/data/pdfs/")
+            .. code-block:: python
 
-            OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
-            tokenizer = HuggingFaceTokenizer(model_name)
+                url = "http://localhost:9201"
+                index_name = "test-index"
+                model_name = "sentence-transformers/all-MiniLM-L6-v2"
+                paths = str(TEST_DIR / "resources/data/pdfs/")
 
-            ctx = sycamore.init()
+                OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
+                tokenizer = HuggingFaceTokenizer(model_name)
 
-            ds = (
-                ctx.read.binary(paths, binary_format="pdf")
-                .partition(partitioner=UnstructuredPdfPartitioner())
-                .regex_replace(COALESCE_WHITESPACE)
-                .mark_bbox_preset(tokenizer=tokenizer)
-                .merge(merger=MarkedMerger())
-                .spread_properties(["path"])
-                .split_elements(tokenizer=tokenizer, max_tokens=512)
-                .explode()
-                .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
-                .sketch(window=17)
-            )
-            ds.write.elasticsearch(url=url, index_name=index_name)
+                ctx = sycamore.init()
+
+                ds = (
+                    ctx.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=UnstructuredPdfPartitioner())
+                    .regex_replace(COALESCE_WHITESPACE)
+                    .mark_bbox_preset(tokenizer=tokenizer)
+                    .merge(merger=MarkedMerger())
+                    .spread_properties(["path"])
+                    .split_elements(tokenizer=tokenizer, max_tokens=512)
+                    .explode()
+                    .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
+                    .sketch(window=17)
+                )
+                ds.write.elasticsearch(url=url, index_name=index_name)
         """
         from sycamore.connectors.elasticsearch import (
-            ElasticDocumentWriter,
-            ElasticClientParams,
-            ElasticTargetParams,
+            ElasticsearchDocumentWriter,
+            ElasticsearchWriterClientParams,
+            ElasticsearchWriterTargetParams,
         )
 
-        client_params = ElasticClientParams(url=url, es_client_args=es_client_args)
-        target_params = ElasticTargetParams(
+        client_params = ElasticsearchWriterClientParams(url=url, es_client_args=es_client_args)
+        target_params = ElasticsearchWriterTargetParams(
             index_name=index_name,
             wait_for_completion=wait_for_completion,
             **{
@@ -533,17 +547,101 @@ class DocSetWriter:
                 if v is not None
             },  # type: ignore
         )
-        es_docs = ElasticDocumentWriter(
+        es_docs = ElasticsearchDocumentWriter(
             self.plan, client_params, target_params, name="elastic_document_writer", **kwargs
         )
+        esds = DocSet(self.context, es_docs)
         if execute:
             # If execute, force execution
-            es_docs.execute().materialize()
+            esds.execute()
             return None
         else:
-            from sycamore.docset import DocSet
+            return esds
 
-            return DocSet(self.context, es_docs)
+    def neo4j(
+        self,
+        uri: str,
+        auth: Union[tuple[Any, Any], Auth, AuthManager, None],
+        import_dir: str,
+        database: str = "neo4j",
+        **kwargs,
+    ) -> Optional["DocSet"]:
+        """Writes the content of the DocSet into the specified Neo4j database.
+
+        Args:
+            uri: Connection endpoint for the neo4j instance. Note that this must be paired with the
+                necessary client arguments below
+            auth: Authentication arguments to be specified. See more information at
+                https://neo4j.com/docs/api/python-driver/current/api.html#auth-ref
+            database: database to write to in Neo4j. By default in the neo4j community addition, new databases
+                cannot be instantiated so you must use "neo4j". If using enterprise edition, ensure the database exists.
+            import_dir: the import directory that neo4j uses. You can specify where to mount this volume when you launch
+                your neo4j docker container.
+        Example:
+            The following code shows how to write to a neo4j database
+
+            ..code-block::python
+            URI = "neo4j://localhost:7687"
+            AUTH = ("neo4j", "xxxxx")
+
+            metadata = [GraphMetadata(nodeKey='company',nodeLabel='Company',relLabel='FILED_BY'),
+                        GraphMetadata(nodeKey='gics_sector',nodeLabel='Sector',relLabel='IN_SECTOR'),
+                        GraphMetadata(nodeKey='doc_type',nodeLabel='Document Type',relLabel='IS_TYPE'),
+                        GraphMetadata(nodeKey='doc_period',nodeLabel='Year',relLabel='FILED_DURING'),
+                        ]
+
+            ds = (
+                ctx.read.manifest(...)
+                .partition(...)
+                .extract_graph_structure([MetadataExtractor(metadata=metadata)])
+                .explode()
+            )
+
+            ds.write.neo4j(uri=URI,auth=AUTH,database="neo4j",import_dir="/home/admin/neo4j/import")
+            .. code-block:: python
+        """
+        import os
+        from sycamore.connectors.neo4j import (
+            Neo4jWriterClientParams,
+            Neo4jWriterTargetParams,
+            Neo4jValidateParams,
+        )
+        from sycamore.plan_nodes import Node
+        from sycamore.connectors.neo4j import Neo4jPrepareCSV, Neo4jWriteCSV, Neo4jLoadCSV
+        import time
+
+        if kwargs.get("execute") is False:
+            raise NotImplementedError
+        if self.context.exec_mode != ExecMode.RAY:
+            raise NotImplementedError
+
+        class Wrapper(Node):
+            def __init__(self, dataset):
+                self._ds = dataset
+
+            def execute(self, **kwargs):
+                return self._ds
+
+        import_dir = os.path.expanduser(import_dir)
+        client_params = Neo4jWriterClientParams(uri=uri, auth=auth, import_dir=import_dir)
+        target_params = Neo4jWriterTargetParams(database=database)
+        Neo4jValidateParams(client_params=client_params, target_params=target_params)
+
+        # Execute the docset up until this point and store it in a node
+        pre_n4j_plan = Execution(self.context)._apply_rules(self.plan)
+        pnjds = Execution(self.context)._execute_ray(pre_n4j_plan)
+        pnjds = pnjds.materialize()
+        self.plan = Wrapper(pnjds)
+        pre_n4j_plan.traverse(visit=lambda n: n.finalize())
+
+        start = time.time()
+        Neo4jPrepareCSV(plan=self.plan, client_params=client_params)
+        Neo4jWriteCSV(plan=self.plan, client_params=client_params).execute().materialize()
+        end = time.time()
+        logger.info(f"TIME TAKEN TO WRITE CSV: {end-start} SECONDS")
+        Neo4jLoadCSV(client_params=client_params, target_params=target_params)
+
+        return None
 
     def files(
         self,
@@ -565,7 +663,7 @@ class DocSetWriter:
                 if not.
             resource_args: Arguments to pass to the underlying execution environment.
         """
-        file_writer = FileWriter(
+        file_writer: Node = FileWriter(
             self.plan,
             path,
             filesystem=filesystem,
@@ -573,8 +671,9 @@ class DocSetWriter:
             doc_to_bytes_fn=doc_to_bytes_fn,
             **resource_args,
         )
-
+        file_writer = Execution(self.context)._apply_rules(file_writer)
         file_writer.execute()
+        file_writer.traverse(visit=lambda n: n.finalize())
 
     def json(
         self,
@@ -593,5 +692,7 @@ class DocSetWriter:
             resource_args: Arguments to pass to the underlying execution environment.
         """
 
-        node = JsonWriter(self.plan, path, filesystem=filesystem, **resource_args)
+        node: Node = JsonWriter(self.plan, path, filesystem=filesystem, **resource_args)
+        node = Execution(self.context)._apply_rules(node)
         node.execute()
+        node.traverse(visit=lambda n: n.finalize())

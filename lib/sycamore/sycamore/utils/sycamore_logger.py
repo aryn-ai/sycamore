@@ -2,9 +2,15 @@ import logging
 import sys
 import time
 
+handler_setup = False
+
 
 def setup_logger():
     """Setup application logger"""
+    global handler_setup
+    if handler_setup:
+        return
+    handler_setup = True
     logger = logging.getLogger("sycamore")
     logger.setLevel(logging.INFO)
 

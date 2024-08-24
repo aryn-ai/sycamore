@@ -10,7 +10,7 @@ from ray.data import ActorPoolStrategy
 from sycamore.data import Document, MetadataDocument
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base import BaseMapTransform, CompositeTransform, get_name_from_callable, rename
-from sycamore.connectors.file import _FileDataSink
+from sycamore.connectors.file.file_writer_ray import _FileDataSink
 
 
 class Common:

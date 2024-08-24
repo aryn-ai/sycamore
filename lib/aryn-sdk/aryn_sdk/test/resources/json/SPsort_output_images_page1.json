@@ -1,0 +1,129 @@
+{
+  "status": [
+    "Incremental status will be shown here during execution.",
+    "Until you get a line that matches '  ]\n', you can convert the partial",
+    "output to a json document by appending '\"\"]}' to the partial output.",
+    "",
+    "T+   0.00: Server version 0.2024.06.28",
+    "T+   0.00: Received request with aryn_call_id=6a1d30a9-1f0d-4349-8c00-af329d7fbcc6",
+    "T+   0.00: Waiting for scheduling",
+    "T+   0.00: Preprocessing document",
+    "T+   0.01: Done preprocessing document",
+    "T+   2.61: completed page 1",
+    ""
+  ],
+  "elements": [
+    {
+      "type": "Section-header",
+      "bbox": [
+        0.25801759607651653,
+        0.14799718683416194,
+        0.7434876206341912,
+        0.16699282559481535
+      ],
+      "properties": {
+        "score": 0.4984451234340668,
+        "page_number": 1
+      },
+      "text_representation": "SPsort: How to Sort a Terabyte Quickly\n"
+    },
+    {
+      "type": "Section-header",
+      "bbox": [
+        0.43552116842830885,
+        0.22252555153586648,
+        0.5647090059168198,
+        0.2349723399769176
+      ],
+      "properties": {
+        "score": 0.6633284687995911,
+        "page_number": 1
+      },
+      "text_representation": "February 4, 1999\n"
+    },
+    {
+      "type": "Section-header",
+      "bbox": [
+        0.1457416399787454,
+        0.26848521839488637,
+        0.22136041977826287,
+        0.28215559525923295
+      ],
+      "properties": {
+        "score": 0.8485802412033081,
+        "page_number": 1
+      },
+      "text_representation": "Abstract\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14681899126838235,
+        0.30218597412109377,
+        0.848895263671875,
+        0.41659298983487214
+      ],
+      "properties": {
+        "score": 0.9298610091209412,
+        "page_number": 1
+      },
+      "text_representation": "In December 1998, a 488 node IBM RS/6000 SP* sorted a terabyte of data (10 billion 100 byte records) in\n17 minutes, 37 seconds.  This is more than 2.5 times faster than the previous record for a problem of this\nmagnitude.  The SPsort program itself was custom-designed for this benchmark, but the cluster, its\ninterconnection hardware, disk subsystem, operating system, file system, communication library, and job\nmanagement software are all IBM products.  The system sustained an aggregate data rate of 2.8 GB/s from\nmore than 6 TB of disks managed by the GPFS global shared file system during the sort.  Simultaneous\nwith these transfers, 1.9 GB/s of local disk I/O and 5.6 GB/s of interprocessor communication were also\nsustained.\n"
+    },
+    {
+      "type": "Section-header",
+      "bbox": [
+        0.14619633394129136,
+        0.45649486194957384,
+        0.249862258013557,
+        0.47087474476207386
+      ],
+      "properties": {
+        "score": 0.8512004613876343,
+        "page_number": 1
+      },
+      "text_representation": "Introduction\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14677959666532628,
+        0.4913937655362216,
+        0.8547881002987132,
+        0.64927001953125
+      ],
+      "properties": {
+        "score": 0.9147736430168152,
+        "page_number": 1
+      },
+      "text_representation": "The speed of sorting has long been used as a measure of computer systems I/O and communication\nperformance.  In 1985, an article in Datamation magazine proposed a sort of one million records of 100\nbytes each, with random 10 bytes keys, as a useful measure of computer systems I/O performance [1].  The\nground rules of that benchmark require that all input must start on disk, all output must end on disk, and\nthat the overhead to start the program and create the output files must be included in the benchmark time.\nInput and output must use operating system files, not raw disk partitions.  The first published time for this\nbenchmark was an hour [12].  With constant improvements in computer hardware and sort algorithms, this\ntime diminished to just a few seconds [7].  At that point, variations on the basic theme evolved [6].\n“MinuteSort” [3, 8] measures how much can be sorted in one minute and “PennySort” [5] measures how\nmuch can be sorted for one cent, assuming a particular depreciation period.  Recently, several groups\nreported sorting one terabyte of data [8, 9, 10].  SPsort improves substantially upon the best of these results.\n"
+    },
+    {
+      "type": "Section-header",
+      "bbox": [
+        0.14687787224264706,
+        0.6754059392755681,
+        0.23221774830537684,
+        0.6892924915660511
+      ],
+      "properties": {
+        "score": 0.8540988564491272,
+        "page_number": 1
+      },
+      "text_representation": "Hardware\n"
+    },
+    {
+      "type": "Text",
+      "bbox": [
+        0.14710727467256435,
+        0.7094775945490057,
+        0.8550252757352941,
+        0.8823457475142046
+      ],
+      "properties": {
+        "score": 0.929555356502533,
+        "page_number": 1
+      },
+      "text_representation": "The benchmark machine is a 488 node IBM RS/6000 SP, located in the IBM SP system test lab in\nPoughkeepsie, New York.  Figure 1 shows the organization of this machine.  Each node contains four\n332MHz PowerPC* 604e processors, 1.5 GB of RAM, at least one 32 bit 33 MHz PCI bus, and a 9 GB\nSCSI disk.  The nodes communicate with one another through the high-speed SP switch with a bi-\ndirectional link bandwidth to each node of 150 megabytes/second.  The switch adapter in each node is\nattached directly to the memory bus, so it does not have to share bandwidth with other devices on the PCI\nbus.  Of the 488 nodes, 432 are compute nodes, while the remaining 56 are configured as storage nodes.\nGlobal storage consists of 1680 4.5 GB Serial Storage Architecture (SSA*) disk drives, organized into 336\ntwin-tailed 4+P RAID-5 arrays, for a total of just over 6 TB of user-accessible space attached to the storage\nnodes.  Compute nodes are packaged 16 to a rack, while the storage nodes, which have 3 PCI busses and\nconsequently are larger, are packaged 8 to a rack.  In total, the CPU and switch hardware occupies 34 racks,\nand the global disks require another 18 racks.\n"
+    }
+  ]
+}

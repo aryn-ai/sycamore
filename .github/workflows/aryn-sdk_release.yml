@@ -1,0 +1,39 @@
+name: Release aryn-sdk
+
+on:
+  push:
+    tags:
+      - "sdk-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Upload to PyPI
+    runs-on: ubuntu-latest
+    environment:
+      name: PyPI
+      url: https://pypi.org/project/aryn-sdk/
+    permissions:
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install poetry
+        run: pipx install poetry
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: "poetry"
+      - name: Install
+        run: poetry install
+        working-directory: lib/aryn-sdk
+      - name: build
+        run: poetry build
+        working-directory: lib/aryn-sdk
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          verbose: true
+          packages-dir: lib/aryn-sdk/dist

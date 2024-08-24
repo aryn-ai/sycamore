@@ -15,11 +15,15 @@ env:
   SYCAMORE_S3_TEMP_PATH: s3://aryn-sycamore-integ-temp/
   MODEL_SERVER_KEY: ${{ secrets.MODEL_SERVER_KEY }}
   PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
+  ARYN_API_KEY: ${{ secrets.MODEL_SERVER_KEY }}
+  SYCAMORE_HELICONE_API_KEY: ${{ secrets.HELICONE_API_KEY }}
+  SYCAMORE_OPENAI_USER: 'sycamore-github-ci'
+  SYCAMORE_HELICONE_TAG: ${{ github.ref }}
 
 # Permissions for AWS access
 permissions:
-  id-token: write   # This is required for requesting the JWT
-  contents: read    # This is required for actions/checkout
+  id-token: write # This is required for requesting the JWT
+  contents: read # This is required for actions/checkout
 
 jobs:
   sycamore-unit-tests:
@@ -29,6 +33,18 @@ jobs:
         python-version: ["3.9", "3.10", "3.11"]
 
     steps:
+      - name: DF-1
+        run: df
+      - name: du-runner-initial
+        run: du -kx /home/runner | sort -rn | head -20
+      - name: Move cache to /mnt
+        run: sudo mkdir /mnt/cache && sudo chown $(whoami) /mnt/cache && mkdir -p /home/runner/.cache && sudo mount -o bind /mnt/cache /home/runner/.cache
+      # Could free up other stuff as in:
+      # https://github.com/easimon/maximize-build-space/blob/master/action.yml
+      - name: Free up disk space
+        run: sudo rm -rf /usr/local/lib/android
+      - name: DF-2
+        run: df
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install poetry
@@ -37,21 +53,34 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'poetry'
+          cache: "poetry"
+      - name: DF-3
+        run: df
       - name: Install sycamore
         run: poetry install
         working-directory: lib/sycamore
-      - name: Install poppler and tesseract
-        run: sudo apt-get install -y poppler-utils tesseract-ocr
+      - name: DF-4
+        run: df
+      - name: Update Apt
+        run: sudo apt-get update
+      - name: Install apt dependencies
+        run: sudo apt-get install -y poppler-utils tesseract-ocr libreoffice
+      - name: DF-5
+        run: df
       - name: Run tests
         run: poetry run pytest sycamore/tests/unit/
         working-directory: lib/sycamore
+      - name: Run more tests
+        run: poetry run python sycamore/tests/manual/test_fast_sycamore_import.py
+        working-directory: lib/sycamore
+      - name: DF-6
+        run: df
 
   rps-unit-test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [ "3.9", "3.10", "3.11" ]
+        python-version: ["3.9", "3.10", "3.11"]
 
     steps:
       - name: Checkout
@@ -64,7 +93,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'poetry'
+          cache: "poetry"
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
@@ -77,10 +106,10 @@ jobs:
         working-directory: lib/remote-processors
 
   integ-tests:
-    runs-on: integ-test-runner
+    runs-on: integ-test-runner2
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11"]
+        python-version: ["3.9"]
     services:
       opensearch:
         image: opensearchproject/opensearch:2.10.0
@@ -95,9 +124,25 @@ jobs:
           xpack.security.http.ssl.enabled: "false"
           xpack.security.enabled: "false"
           bootstrap.memory_lock: "true"
-          ES_JAVA_OPTS: "-Xms2g -Xmx2g" 
+          ES_JAVA_OPTS: "-Xms2g -Xmx2g"
         ports:
           - 9201:9200
+      neo4j:
+        image: neo4j:5.21.0
+        env:
+          NEO4J_dbms_memory_heap_initial__size: 2G
+          NEO4J_dbms_memory_heap_max__size: 2G
+          NEO4J_dbms_security_auth__enabled: false
+          NEO4J_apoc_export_file_enabled: true
+          NEO4J_apoc_import_file_enabled: true
+          NEO4J_apoc_import_file_use__neo4j__config: true
+          NEO4JLABS_PLUGINS: '["apoc"]'
+        options: >-
+           --name neo4j
+           --volume /neo4j/import:/var/lib/neo4j/import
+        ports:
+          - 7474:7474
+          - 7687:7687
 
     steps:
       - name: Checkout
@@ -108,24 +153,23 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'poetry'
+          cache: "poetry"
       - name: Install sycamore
         run: poetry install
-
       - name: Download nltk packages
         run: poetry run python -m nltk.downloader punkt averaged_perceptron_tagger
-
+      - name: Update Apt
+        run: sudo apt-get update
       - name: Install poppler and tesseract
         run: sudo apt-get install -y poppler-utils tesseract-ocr
-
       - name: Configure AWS Credentials via OIDC provider.
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: us-east-1
           role-to-assume: arn:aws:iam::237550789389:role/aryn-github-integ
-
+      - name: Allow Read/Write permissions to Neo4j Import Directory
+        run: sudo chmod -R 777 /neo4j/import
       - name: Run Integ tests
         run: poetry run pytest lib/sycamore/sycamore/tests/integration
-
       - name: Run Notebook tests
         run: poetry run pytest --nbmake --nbmake-timeout=600 notebooks/default-prep-script.ipynb notebooks/jupyter_dev_example.ipynb notebooks/metadata-extraction.ipynb notebooks/sycamore_demo.ipynb notebooks/tutorial.ipynb

@@ -3,19 +3,18 @@
 from sycamore.llms.prompts import default_prompts
 
 from sycamore.llms.prompts.default_prompts import (
-    GuidancePrompt,
-    SimpleGuidancePrompt,
+    SimplePrompt,
     EntityExtractorZeroShotGuidancePrompt,
     EntityExtractorFewShotGuidancePrompt,
     TextSummarizerGuidancePrompt,
     SchemaZeroShotGuidancePrompt,
     PropertiesZeroShotGuidancePrompt,
+    TaskIdentifierZeroShotGuidancePrompt,
 )
 from sycamore.llms.prompts.default_prompts import _deprecated_prompts
 
 prompts = [
-    "GuidancePrompt",
-    "SimpleGuidancePrompt",
+    "SimplePrompt",
     "EntityExtractorZeroShotGuidancePrompt",
     "EntityExtractorFewShotGuidancePrompt",
     "TextSummarizerGuidancePrompt",

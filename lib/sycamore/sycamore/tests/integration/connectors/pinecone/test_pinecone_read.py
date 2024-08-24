@@ -15,7 +15,7 @@ from pinecone import PineconeException
 import time
 
 
-def test_pinecone_scan():
+def test_pinecone_read():
 
     spec = ServerlessSpec(cloud="aws", region="us-east-1")
     index_name = "test-index-read"
@@ -27,7 +27,7 @@ def test_pinecone_scan():
         api_key is not None
     ), "Missing api key: either provide it as an argument or set the PINECONE_API_KEY env variable."
 
-    pc = PineconeGRPC(api_key=api_key)
+    pc = PineconeGRPC(api_key=api_key, source_tag="Aryn")
 
     tokenizer = HuggingFaceTokenizer(model_name)
 

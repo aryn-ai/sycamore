@@ -1,24 +1,54 @@
-import logging
-import threading
-from typing import Any, Optional
-
-import ray
-
-from sycamore.rules import Rule
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Callable, Optional, Union
+from sycamore.llms import LLM
+from sycamore.plan_nodes import Node, NodeTraverse
 
 
+class ExecMode(Enum):
+    UNKNOWN = 0
+    RAY = 1
+    LOCAL = 2
+
+
+@dataclass
+class OpenSearchArgs:
+    client_args: Optional[dict[str, Any]] = None
+    index_name: Optional[str] = None
+    index_settings: Optional[dict[str, Any]] = None
+
+
+def _default_rewrite_rules():
+    import sycamore.rules.optimize_resource_args as o
+
+    return [o.EnforceResourceUsage(), o.OptimizeResourceArgs()]
+
+
+@dataclass
 class Context:
-    def __init__(self, ray_args: Optional[dict[str, Any]] = None):
-        if ray_args is None:
-            ray_args = {}
+    """
+    A class to implement a Sycamore Context, which initializes a Ray Worker and provides the ability
+    to read data into a DocSet
+    """
 
-        if "logging_level" not in ray_args:
-            ray_args.update({"logging_level": logging.WARNING})
+    exec_mode: ExecMode = ExecMode.RAY
+    ray_args: Optional[dict[str, Any]] = None
 
-        ray.init(**ray_args)
+    """
+    Allows for the registration of Rules in the Sycamore Context that allow for transforming the
+    nodes before execution.  These rules can optimize ray execution or perform other manipulations.
+    """
+    rewrite_rules: list[Union[Callable[[Node], Node], NodeTraverse]] = field(default_factory=_default_rewrite_rules)
 
-        self.extension_rules: list[Rule] = []
-        self._internal_lock = threading.Lock()
+    """
+    Default OpenSearch args for a Context
+    """
+    opensearch_args: Optional[OpenSearchArgs] = None
+
+    """
+    Default LLM for a Context
+    """
+    llm: Optional[LLM] = None
 
     @property
     def read(self):
@@ -26,37 +56,24 @@ class Context:
 
         return DocSetReader(self)
 
-    def register_rule(self, rule: Rule) -> None:
-        with self._internal_lock:
-            self.extension_rules.append(rule)
 
-    def get_extension_rule(self) -> list[Rule]:
-        with self._internal_lock:
-            copied = self.extension_rules.copy()
-        return copied
+def init(exec_mode=ExecMode.RAY, ray_args: Optional[dict[str, Any]] = None, **kwargs) -> Context:
+    """
+    Initialize a new Context.
+    """
+    if ray_args is None:
+        ray_args = {}
 
-    def deregister_rule(self, rule: Rule) -> None:
-        with self._internal_lock:
-            self.extension_rules.remove(rule)
+    # Set Logger for driver only, we consider worker_process_setup_hook
+    # or runtime_env/config file for worker application log
+    from sycamore.utils import sycamore_logger
+
+    sycamore_logger.setup_logger()
+
+    return Context(exec_mode=exec_mode, ray_args=ray_args, **kwargs)
 
 
-_context_lock = threading.Lock()
-_global_context: Optional[Context] = None
+def shutdown() -> None:
+    import ray
 
-
-def init(ray_args: Optional[dict[str, Any]] = None) -> Context:
-    global _global_context
-    with _context_lock:
-        if _global_context is None:
-            if ray_args is None:
-                ray_args = {}
-
-            # Set Logger for driver only, we consider worker_process_setup_hook
-            # or runtime_env/config file for worker application log
-            from sycamore.utils import sycamore_logger
-
-            sycamore_logger.setup_logger()
-
-            _global_context = Context(ray_args)
-
-        return _global_context
+    ray.shutdown()

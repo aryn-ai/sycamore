@@ -27,7 +27,7 @@ def test_detr_ocr():
         .partition(SycamorePartitioner(ARYN_DETR_MODEL, use_ocr=True))
         .explode()
         .filter(lambda doc: "page_number" in doc.properties and doc.properties["page_number"] == 1)
-        .filter(lambda doc: doc.type == "Section-header")
+        .filter(lambda doc: doc.type in {"Section-header", "Title"})
         .take_all()
     )
 
@@ -67,9 +67,7 @@ def check_table_extraction(**kwargs):
         ]
     )
 
-    from sycamore.utils.time_trace import ray_logging_setup
-
-    context = sycamore.init(ray_args={"runtime_env": {"worker_process_setup_hook": ray_logging_setup}})
+    context = sycamore.init()
 
     # TODO: The title on the paper is recognized as a section header rather than a page header at the moment.
     # The test will need to be updated if and when that changes.
@@ -127,7 +125,7 @@ def test_aryn_partitioner():
         .partition(ArynPartitioner(aryn_api_key=MODEL_SERVER_KEY))
         .explode()
         .filter(lambda doc: "page_number" in doc.properties and doc.properties["page_number"] == 1)
-        .filter(lambda doc: doc.type == "Section-header")
+        .filter(lambda doc: doc.type in {"Section-header", "Title"})
         .take_all()
     )
 

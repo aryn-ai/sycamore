@@ -198,8 +198,12 @@ class BinaryScan(FileScan):
             documents.append(document)
 
         for path in paths:
-            for info in self._filesystem.get_file_info(FileSelector(path), recursive=True):
-                process_file(info)
+            path_info = self._filesystem.get_file_info(path)
+            if path_info.is_file:
+                process_file(path_info)
+            else:
+                for info in self._filesystem.get_file_info(FileSelector(path, recursive=True)):
+                    process_file(info)
         return documents
 
     def format(self):

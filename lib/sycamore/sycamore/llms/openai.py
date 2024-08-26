@@ -72,10 +72,10 @@ class OpenAIClientWrapper:
         azure_ad_token: Optional[str] = None,
         azure_ad_token_provider: Optional[AzureADTokenProvider] = None,
         disable_helicone: Optional[bool] = None,
+        echo: bool = False,
         # Deprecated names that we support for backwards compatibility.
         api_type: Optional[str] = None,
         api_base: Optional[str] = None,
-        echo: bool = False,
         # Additional OpenAI Client parameters that will be passed in.
         **kwargs,
     ):

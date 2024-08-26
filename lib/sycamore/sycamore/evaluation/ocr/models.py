@@ -108,9 +108,9 @@ class PaddleOCR(OCRModel):
         self,
         image: Image.Image,
     ) -> str:
-        from paddleocr import PaddleOCR
+        from paddleocr import PaddleOCR as OriginalPaddleOCR
 
-        self.reader = PaddleOCR(lang="en", use_gpu=False)
+        self.reader = OriginalPaddleOCR(lang="en", use_gpu=False)
         bytearray = BytesIO()
         image.save(bytearray, format="PNG")
         result = self.reader.ocr(bytearray.getvalue(), rec=True, det=True, cls=False)
@@ -191,4 +191,31 @@ class DocTR(OCRModel):
         return ans_str
 
     def get_boxes(self, image: Image.Image) -> list[Union[dict[str, Any], list]]:
+        return []
+
+
+class RapidOCR(OCRModel):
+    def __init__(self):
+        pass
+
+    def get_text(
+        self,
+        image: Image.Image,
+    ) -> str:
+        from rapidocr_onnxruntime import RapidOCR as OriginalRapidOCR
+
+        self.reader = OriginalRapidOCR()
+        bytearray = BytesIO()
+        image.save(bytearray, format="PNG")
+        result = self.reader(bytearray.getvalue())
+        return ans if result and result[0] and (ans := " ".join(value[1] for value in result[0])) else ""
+
+    def get_boxes(self, image: Image.Image) -> list[Union[dict[str, Any], list]]:
+        # from rapidocr_onnxruntime import RapidOCR as OriginalRapidOCR
+
+        # self.reader = OriginalRapidOCR()
+        # bytearray = BytesIO()
+        # image.save(bytearray, format="PNG")
+        # result = self.reader(bytearray.getvalue())
+        # return [value[0] for value in result[0]] if result and result[0] else ""
         return []

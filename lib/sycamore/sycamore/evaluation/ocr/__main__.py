@@ -2,7 +2,16 @@ from argparse import ArgumentParser
 
 from ray.data import ActorPoolStrategy
 import sycamore
-from sycamore.evaluation.ocr.models import PaddleOCR, EasyOCR, Tesseract, Textract, LLMOCR, DocTR, ExtractOCRFromImage
+from sycamore.evaluation.ocr.models import (
+    PaddleOCR,
+    EasyOCR,
+    Tesseract,
+    Textract,
+    LLMOCR,
+    DocTR,
+    RapidOCR,
+    ExtractOCRFromImage,
+)
 from sycamore.evaluation.ocr.metrics import (
     CharacterErrorRate,
     WordErrorRate,
@@ -23,6 +32,7 @@ MODELS = {
     "paddle": PaddleOCR,
     "llm": LLMOCR,
     "doctr": DocTR,
+    "rapid": RapidOCR,
 }
 
 METRICS = [CharacterErrorRate(), MatchErrorRate(), WordErrorRate(), WordInformationLost()]

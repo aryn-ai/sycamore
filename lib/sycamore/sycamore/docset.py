@@ -1325,6 +1325,13 @@ class DocSet:
               { root=Path|str, fs=pyarrow.fs, name=lambda Document -> str, clean=True,
                 tobin=Document.serialize()}
               root is required
+
+        source_mode: how this materialize step should be used as an input:
+           OFF: (default) does not act as a source
+           IF_PRESENT: If the materialize has successfully run to completion, or if the
+             materialize step is the first step, use the contents of the directory as the
+             inputs.  WARNING: If you change the input files or any of the steps before the
+             materialize step, you need to delete the materialize directory to force re-execution.
         """
 
         from sycamore.materialize import Materialize

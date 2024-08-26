@@ -16,6 +16,7 @@ In Sycamore, a transform is a method that operates on a ``DocSet`` and returns a
    ./transforms/llm_query.md
    ./transforms/map.md
    ./transforms/map_batch.md
+   ./transforms/merge.md
    ./transforms/partition.md
    ./transforms/sketch.md
    ./transforms/summarize.md

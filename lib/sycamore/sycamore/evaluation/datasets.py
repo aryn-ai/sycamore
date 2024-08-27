@@ -1,17 +1,20 @@
+import typing
 from typing import Union, Callable, Any
 
-from datasets import IterableDataset
 from ray.data import Dataset, from_huggingface
 
 from sycamore.evaluation import EvaluationDataPoint
 from sycamore import DocSet, Context
 from sycamore.connectors.file import MaterializedScan
 
+if typing.TYPE_CHECKING:
+    from datasets import IterableDataset
+
 
 class HuggingFaceScan(MaterializedScan):
     def __init__(
         self,
-        dataset: Union[Dataset, IterableDataset],
+        dataset: Union[Dataset, "IterableDataset"],
         doc_extractor: Callable[[dict[str, Any]], dict[str, EvaluationDataPoint]],
         **resource_args
     ):
@@ -35,7 +38,7 @@ class EvaluationDataSetReader:
 
     def huggingface(
         self,
-        dataset: Union[Dataset, IterableDataset],
+        dataset: Union[Dataset, "IterableDataset"],
         doc_extractor: Callable[[dict[str, Any]], dict[str, EvaluationDataPoint]],
         **resource_args
     ) -> DocSet:

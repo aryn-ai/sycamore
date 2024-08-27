@@ -1317,10 +1317,11 @@ class DocSet:
         source_mode: MaterializeSourceMode = MaterializeSourceMode.OFF,
     ) -> "DocSet":
         """
-        ***EXPERIMENTAL***
-
-        Guarantees reliable execution up to this point, allows for
-        follow on execution based on the checkpoint if the checkpoint is named.
+        The `materialize` transform writes out documents up to that point, marks the
+        materialized path as successful if execution is successful, and allows for reading from the
+        materialized data as a source. This transform is helpful if you are using show and take()
+        as part of a notebook to incrementally inspect output. You can use `materialize` to avoid
+        re-computation.
 
         path: a Path or string represents the "directory" for the materialized elements. The filesystem
               and naming convention will be inferred.  The dictionary allowes finer control, and supports
@@ -1334,6 +1335,7 @@ class DocSet:
              materialize step is the first step, use the contents of the directory as the
              inputs.  WARNING: If you change the input files or any of the steps before the
              materialize step, you need to delete the materialize directory to force re-execution.
+
         """
 
         from sycamore.materialize import Materialize

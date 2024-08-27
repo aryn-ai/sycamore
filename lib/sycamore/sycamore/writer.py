@@ -566,7 +566,10 @@ class DocSetWriter:
         database: str = "neo4j",
         **kwargs,
     ) -> Optional["DocSet"]:
-        """Writes the content of the DocSet into the specified Neo4j database.
+        """
+        ***EXPERIMENTAL***
+
+        Writes the content of the DocSet into the specified Neo4j database.
 
         Args:
             uri: Connection endpoint for the neo4j instance. Note that this must be paired with the

@@ -145,10 +145,12 @@ class GreedyTextElementMerger(ElementMerger):
 
 class GreedySectionMerger(ElementMerger):
     """
-    The ``GreedySectionMerger`` behaves similarly to the ``GreedyTextElementMerger`` in that is takes a tokenizer
-    and token limit, and merges elements greedily, stopping before the token limit. The ``GreedySectionMerger``
-    adds to this by also starting new elements at section headers, and handling images and tables more
-    gracefully.
+    The ``GreedySectionMerger`` groups together different elements in a Document according to three rules. All rules
+    are subject to the max_tokens limit and merge_across_pages flag.
+
+    - It merges adjacent text elements.
+    - It merges an adjacent Section-header and an image. The new element type is called Section-header+image.
+    - It merges an Image and subsequent adjacent text elements.
     """
 
     def __init__(self, tokenizer: Tokenizer, max_tokens: int, merge_across_pages: bool = True):

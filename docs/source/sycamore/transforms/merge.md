@@ -23,7 +23,10 @@ merged_docset = docset.merge(merger=merger)
 
 ### Greedy Section Merger
 
-I'm a little confused by this explanation. I might say: Like the `GreedyTextElementMerger`, the `GreedySectionMerger` takes a tokenizer and token limit, and merges elements greedily, stopping before the token limit. However, the `GreedySectionMerger` also has additional heuristic rules.
+The `GreedySectionMerger` groups together different elements in a Document according to three rules. All rules are subject to the max_tokens limit and merge_across_pages flag.
+- It merges adjacent text elements.
+- It merges an adjacent Section-header and an image. The new element type is called Section-header+image.
+- It merges an Image and subsequent adjacent text elements.
 
 Use it in much the same way as the text element merger:
 

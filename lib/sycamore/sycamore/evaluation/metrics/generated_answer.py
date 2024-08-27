@@ -1,14 +1,16 @@
-from rouge import rouge
-
 from sycamore.evaluation import EvaluationDataPoint, EvaluationMetric
+from sycamore.utils.import_utils import requires_modules
 
 
 class RougeMetrics(EvaluationMetric):
+    @requires_modules("rouge", extra="eval")
     def __init__(self, rouge_metrics_types=None) -> None:
+        from rouge import Rouge
+
         super().__init__()
         if rouge_metrics_types is None:
             rouge_metrics_types = ["rouge-1", "rouge-2", "rouge-l"]
-        self._rouge_evaluator = rouge.Rouge(metrics=rouge_metrics_types)
+        self._rouge_evaluator = Rouge(metrics=rouge_metrics_types)
 
     def metric_name(self) -> str:
         return "GeneratedAnswerMetrics"

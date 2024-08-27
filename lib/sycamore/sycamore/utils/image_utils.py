@@ -1,7 +1,9 @@
 import base64
 from io import BytesIO
+from packaging.version import InvalidVersion, Version
 from pathlib import Path
 from typing import Any, Callable, Optional, TypeVar, Union
+import PIL
 from PIL import Image, ImageDraw, ImageFont
 from sycamore.data import Document
 from sycamore.data.bbox import BoundingBox
@@ -134,6 +136,13 @@ def _default_color_fn(box) -> str:
 U = TypeVar("U", bound=Union[Image.Image, ImageDraw.ImageDraw])
 
 
+def _supports_font_size() -> bool:
+    try:
+        return Version(PIL.__version__) >= Version("10.1.0")
+    except InvalidVersion:
+        return False
+
+
 def try_draw_boxes(
     target: U,
     boxes: Any,
@@ -174,8 +183,10 @@ def try_draw_boxes(
 
     if font_path is not None:
         font = ImageFont.truetype(font_path, 20)
-    else:
+    elif _supports_font_size():
         font = ImageFont.load_default(size=20)
+    else:
+        font = ImageFont.load_default()
 
     for i, box in enumerate(boxes):
         raw_coords = coord_fn(box)

@@ -57,7 +57,7 @@ jobs:
       - name: DF-3
         run: df
       - name: Install sycamore
-        run: poetry install
+        run: poetry install --all-extras
         working-directory: lib/sycamore
       - name: DF-4
         run: df
@@ -155,7 +155,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: "poetry"
       - name: Install sycamore
-        run: poetry install
+        run: poetry install --all-extras
       - name: Download nltk packages
         run: poetry run python -m nltk.downloader punkt averaged_perceptron_tagger
       - name: Update Apt

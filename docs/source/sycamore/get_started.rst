@@ -4,7 +4,7 @@ Get Started With Sycamore
 Install Library
 ---------------
 
-We recommend installing the Sycmaore library using ``pip``:
+We recommend installing the Sycamore library using ``pip``:
 
 .. code-block:: python
 

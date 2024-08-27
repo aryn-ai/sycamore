@@ -9,4 +9,4 @@ docset = (context.read.binary(...)
 	  .embed(...))
 ```
 
-Query-time de-duplication is explained [here](../../querying_data/dedup.md).  For more information, see the documentation for [Sketcher](../../APIs/transforms/sketcher.html#sycamore.transforms.sketcher.Sketcher).
+Query-time de-duplication is explained [here](../querying_data/dedup.md).  For more information, see the documentation for [Sketcher](../../APIs/transforms/sketcher.html#sycamore.transforms.sketcher.Sketcher).

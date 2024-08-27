@@ -297,7 +297,7 @@ class Table:
         flattened_header = []
 
         for npcol in header.transpose():
-            flattened_header.append(" | ".join(OrderedDict.fromkeys((c for c in npcol if c != ""))))
+            flattened_header.append(" | ".join(OrderedDict.fromkeys((c for c in npcol if c not in [None, ""]))))
 
         df = DataFrame(
             table_array[max_header_prefix_row + 1 :, :],

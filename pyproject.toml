@@ -30,7 +30,7 @@ pytest = "^7.4"
 pytest-mock = "^3.11"
 
 [tool.poetry.group.dev.dependencies]
-sycamore-ai = { path = "lib/sycamore", develop = true, extras=["all"] }
+sycamore-ai = { path = "lib/sycamore", develop = true, extras=["eval"] }
 sycamore-crawler = { path = "apps/crawler", develop = true }
 remote-processors = { path = "lib/remote-processors", develop = true }
 integration = { path = "apps/integration", develop = true }

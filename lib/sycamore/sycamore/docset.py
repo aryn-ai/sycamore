@@ -1317,8 +1317,6 @@ class DocSet:
         source_mode: MaterializeSourceMode = MaterializeSourceMode.OFF,
     ) -> "DocSet":
         """
-        ***EXPERIMENTAL***
-
         Guarantees reliable execution up to this point, allows for
         follow on execution based on the checkpoint if the checkpoint is named.
 

@@ -28,7 +28,7 @@ class ElementMerger(ABC):
 
     @timetrace("mergeElem")
     def merge_elements(self, document: Document) -> Document:
-        """Use self._should_merge and self._merge to greedily merge consecutive elements.
+        """Use self.should_merge and self.merge to greedily merge consecutive elements.
         If the next element should be merged into the last 'accumulation' element, merge it.
 
         Args:
@@ -51,6 +51,13 @@ class ElementMerger(ABC):
 
 
 class GreedyTextElementMerger(ElementMerger):
+    """
+    The ``GreedyTextElementMerger`` takes a tokenizer and a token limit, and merges elements together,
+    greedily, until the combined element will overflow the token limit, at which point the merger
+    starts work on a new merged element. If an element is already too big, the `GreedyTextElementMerger`
+    will leave it alone.
+    """
+
     def __init__(self, tokenizer: Tokenizer, max_tokens: int, merge_across_pages: bool = True):
         self.tokenizer = tokenizer
         self.max_tokens = max_tokens
@@ -137,6 +144,15 @@ class GreedyTextElementMerger(ElementMerger):
 
 
 class GreedySectionMerger(ElementMerger):
+    """
+    The ``GreedySectionMerger`` groups together different elements in a Document according to three rules. All rules
+    are subject to the max_tokens limit and merge_across_pages flag.
+
+    - It merges adjacent text elements.
+    - It merges an adjacent Section-header and an image. The new element type is called Section-header+image.
+    - It merges an Image and subsequent adjacent text elements.
+    """
+
     def __init__(self, tokenizer: Tokenizer, max_tokens: int, merge_across_pages: bool = True):
         self.tokenizer = tokenizer
         self.max_tokens = max_tokens
@@ -300,6 +316,13 @@ class GreedySectionMerger(ElementMerger):
 
 
 class MarkedMerger(ElementMerger):
+    """
+    The ``MarkedMerger`` merges elements by referencing "marks" placed on the elements by the transforms
+    in ``sycamore.transforms.bbox_merge`` and ``sycamore.transforms.mark_misc``. The marks are "_break"
+    and "_drop". The `MarkedMerger` will merge elements until it hits a "_break" mark, whereupon it will
+    start a new element. It handles elements marked with "_drop" by, well, dropping them entirely.
+    """
+
     def should_merge(self, element1: Element, element2: Element) -> bool:
         return False
 

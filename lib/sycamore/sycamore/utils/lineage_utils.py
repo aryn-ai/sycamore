@@ -1,7 +1,7 @@
 from sycamore.data import Document, MetadataDocument
 
 
-def _update_lineage(from_docs: list[Document], to_docs: list[Document]) -> list[MetadataDocument]:
+def update_lineage(from_docs: list[Document], to_docs: list[Document]) -> list[MetadataDocument]:
     from_ids = [d.lineage_id for d in from_docs]
     for d in to_docs:
         d.update_lineage_id()

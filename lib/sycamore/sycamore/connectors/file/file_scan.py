@@ -186,8 +186,7 @@ class BinaryScan(FileScan):
             document.doc_id = str(uuid.uuid1())
             document.type = self._binary_format
             document.binary_representation = binary_data
-            document.properties.update({"path": info.path})
-
+            document.properties["path"] = info.path
             if "filetype" not in document.properties and self._binary_format is not None:
                 document.properties["filetype"] = self._file_mime_type()
             if self._is_s3_scheme():

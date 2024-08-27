@@ -4,7 +4,7 @@ from typing import Any, Callable, Iterable, Optional, Union, TYPE_CHECKING
 import numpy as np
 
 from sycamore.data import Document, MetadataDocument
-from sycamore.utils.lineage_utils import _update_lineage
+from sycamore.utils.lineage_utils import update_lineage
 from sycamore.data.document import split_data_metadata
 from sycamore.plan_nodes import Node, UnaryNode
 from sycamore.utils.ray_utils import check_serializable
@@ -162,7 +162,7 @@ class BaseMapTransform(UnaryNode):
         outputs = self._local_process(docs)
         to_docs = [d for d in outputs if not isinstance(d, MetadataDocument)]
         if self._enable_auto_metadata and (len(docs) > 0 or len(to_docs) > 0):
-            outputs.extend(_update_lineage(docs, to_docs))
+            outputs.extend(update_lineage(docs, to_docs))
         outputs.extend(metadata)
         return outputs
 
@@ -262,7 +262,7 @@ class BaseMapTransform(UnaryNode):
 
         to_docs = [d for d in outputs if not isinstance(d, MetadataDocument)]
         if enable_auto_metadata and (len(docs) > 0 or len(to_docs) > 0):
-            outputs.extend(_update_lineage(docs, to_docs))
+            outputs.extend(update_lineage(docs, to_docs))
         outputs.extend(metadata)
         return {"doc": [d.serialize() for d in outputs]}
 
@@ -296,7 +296,7 @@ class CompositeTransform(UnaryNode):
         outputs = self._local_process(docs)
         to_docs = [d for d in outputs if not isinstance(d, MetadataDocument)]
         if self._enable_auto_metadata and (len(docs) > 0 or len(to_docs) > 0):
-            outputs.extend(_update_lineage(docs, to_docs))
+            outputs.extend(update_lineage(docs, to_docs))
         outputs.extend(metadata)
         return outputs
 

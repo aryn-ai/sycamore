@@ -472,7 +472,7 @@ def ted_score(table1: Table, table2: Table) -> float:
         table2:
     """
     from apted import APTED
-    
+
     tt1 = table1.to_tree()
     tt2 = table2.to_tree()
 

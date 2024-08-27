@@ -7080,7 +7080,7 @@ typing = ["mypy (>=1.4)", "rich", "twisted"]
 
 [[package]]
 name = "sycamore-ai"
-version = "0.1.18"
+version = "0.1.19"
 description = "Sycamore is an LLM-powered semantic data preparation system for building search applications."
 optional = false
 python-versions = ">=3.9,<3.12"

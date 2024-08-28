@@ -48,6 +48,7 @@ class TestElement:
 
         element.table = None
         assert element.table is None
+        assert element.text_representation is None
         element.table = table
         assert element.text_representation == table.to_csv()
 

@@ -176,8 +176,10 @@ class TableElement(Element):
     @table.setter
     def table(self, value: Optional[Table]) -> None:
         self.data["table"] = value
-        if value:
+        if value is not None:
             self.data["text_representation"] = self.data["table"].to_csv()
+        else:
+            self.data["text_representation"] = None
 
     @property
     def tokens(self) -> Optional[list[dict[str, Any]]]:

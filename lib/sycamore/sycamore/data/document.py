@@ -337,8 +337,11 @@ class HierarchicalDocument(Document):
 
         self.doc_id = self.data.get("doc_id", str(uuid.uuid4()))
         self.children = self.data.get("children", [])
-        if self.data.get("type", "") == "table" and self.data.get("table", None) is not None:
-            self.text_representation = self.data["table"].to_csv()
+        if self.data.get("type", None) == "table":
+            table_csv = ""
+            if self.data.get("table", None):
+                table_csv = self.data["table"].to_csv()
+            self.text_representation = self.data.get("override_text", table_csv)
 
         for element in self.data.get("elements", []):
             self.children.append(HierarchicalDocument(Document(element.data)))

@@ -356,3 +356,40 @@ class TestAllViaPyarrowFS(unittest.TestCase):
         ctx.read.document(docs).materialize(path=path).execute()
         docs_out = ctx.read.materialize(path).take_all()
         assert docs.sort(key=any_id) == docs_out.sort(key=any_id)
+
+    def test_automaterialize(self):
+        fs = InMemPyArrowFileSystem()
+        path = {"root": "/fake/inmem/no/such/path", "fs": fs}
+        ctx = sycamore.init(exec_mode=ExecMode.LOCAL, rewrite_rules=[AutoMaterialize(path)])
+        docs = make_docs(3)
+        docs_out = ctx.read.document(docs).materialize(path=path).take_all()
+        assert docs.sort(key=any_id) == docs_out.sort(key=any_id)
+
+    def test_fail_if_hierarchy(self):
+        fs = InMemPyArrowFileSystem()
+        ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
+        docs = make_docs(3)
+        path = {"root": "/fake/inmem/no/such/path", "fs": fs}
+        fs.open_output_stream(path["root"] + "/subdir/fake.pickle").close()
+        from sycamore.materialize import _PyArrowFsHelper
+
+        fsh = _PyArrowFsHelper(fs)
+
+        # Fail with explicit materialize
+        with pytest.raises(AssertionError):
+            ctx.read.document(docs).materialize(path=path).execute()
+
+        ctx = sycamore.init(exec_mode=ExecMode.LOCAL, rewrite_rules=[AutoMaterialize(path)])
+        pipeline = ctx.read.document(docs).materialize(path=path)
+        # Fail with auto-materialize
+        with pytest.raises(AssertionError):
+            pipeline.take_all()
+
+        assert fsh.file_exists(path["root"] + "/subdir/fake.pickle")
+
+        fs.open_output_stream(path["root"] + "/DocScan.0/subdir/fake.pickle").close()
+        # Fail with auto-materialize and file in one of the real subdirs
+        with pytest.raises(AssertionError):
+            pipeline.take_all()
+
+        assert fsh.file_exists(path["root"] + "/DocScan.0/subdir/fake.pickle")

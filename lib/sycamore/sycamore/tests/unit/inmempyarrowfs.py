@@ -48,14 +48,12 @@ class InMemPyArrowFileSystem(FileSystem):
 
         assert isinstance(p, FileSelector)
         assert p.allow_not_found, "unimplemented"
-        assert not p.recursive, "unimplemented"
+        assert p.recursive, "unimplemented"
         dir = p.base_dir + "/"
-        dlen = len(dir)
+        len(dir)
         ret = []
         for k, v in self._fs.items():
             if not k.startswith(dir):
-                continue
-            if "/" in k[dlen:]:
                 continue
             ret.append(FileInfo(str(k), type=FileType.File))
 

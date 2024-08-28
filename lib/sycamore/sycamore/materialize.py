@@ -60,6 +60,7 @@ class Materialize(UnaryNode):
             pass
         elif isinstance(path, str) or isinstance(path, Path):
             (self._fs, self._root) = self.infer_fs(str(path))
+            self._fshelper = _PyArrowFsHelper(self._fs)
             self._doc_to_name = self.doc_to_name
             self._doc_to_binary = Document.serialize
             self._clean_root = True
@@ -70,14 +71,13 @@ class Materialize(UnaryNode):
                 self._fs = path["fs"]
             else:
                 (self._fs, self._root) = self.infer_fs(str(self._root))
+            self._fshelper = _PyArrowFsHelper(self._fs)
             self._doc_to_name = path.get("name", self.doc_to_name)
             self._doc_to_binary = path.get("tobin", Document.serialize)
             assert callable(self._doc_to_name)
             self._clean_root = path.get("clean", True)
         else:
             assert False, f"unsupported type ({type(path)}) for path argument, expected str, Path, or dict"
-
-        self._fshelper = _PyArrowFsHelper(self._fs)
 
         if source_mode != MaterializeSourceMode.OFF:
             assert path is not None
@@ -222,10 +222,11 @@ class Materialize(UnaryNode):
             out.write(bin)
 
     def cleanup(self) -> None:
-        if not self._clean_root:
+        if self._root is None:
             return
 
-        if self._root is None:
+        if not self._clean_root:
+            self._fs.create_dir(str(self._root))
             return
 
         self._fshelper.safe_cleanup(self._root)

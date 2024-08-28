@@ -186,16 +186,16 @@ class TestAutoMaterialize(unittest.TestCase):
             ctx = sycamore.init(exec_mode=ExecMode.LOCAL, rewrite_rules=[a])
             ctx.read.document(docs).map(noop_fn).execute()
 
-            files = [f for f in Path(a.directory).rglob("*")]
+            files = [f for f in Path(a._directory).rglob("*")]
             logging.info(f"Found {files}")
             assert len([f for f in files if "DocScan.0/doc" in str(f)]) == 3
             assert len([f for f in files if "DocScan.0/md-" in str(f)]) == 1
             assert len([f for f in files if "Map.0/doc" in str(f)]) == 3
             assert len([f for f in files if "Map.0/md-" in str(f)]) == 2
-            assert re.match(".*materialize\\.[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}", str(a.directory))
+            assert re.match(".*materialize\\.[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}", str(a._directory))
         finally:
-            if a.directory is not None:
-                shutil.rmtree(a.directory)
+            if a._directory is not None:
+                shutil.rmtree(a._directory)
 
     def test_dupnodename(self):
         docs = make_docs(3)

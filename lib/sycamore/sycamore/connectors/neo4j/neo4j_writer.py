@@ -88,8 +88,7 @@ class Neo4jWriterClient:
             CALL apoc.create.relationship(
               s,
               row[":TYPE"],
-              apoc.map.merge(properties,
-              {{uuid: row["uuid:ID"]}}),
+              apoc.map.merge(properties, {{uuid: row["uuid:ID"]}}),
               e
             ) YIELD rel
             RETURN rel

@@ -58,17 +58,19 @@ class Materialize(UnaryNode):
             assert self._clean_root, "Using materialize in source mode requires cleaning the root"
 
         self._source_mode = source_mode
+        self._executed_child = False
 
         super().__init__(child, **kwargs)
 
     def execute(self, **kwargs) -> "Dataset":
         logger.debug("Materialize execute")
         if self._source_mode == MaterializeSourceMode.IF_PRESENT:
-            success = self._success_path().exists()
+            success = self._file_exists(self._success_path())
             if success or len(self.children) == 0:
                 logger.info(f"Using {self._root} as cached source of data")
-                self._verify_has_files()
+                self._executed_child = False
                 if not success:
+                    self._verify_has_files()
                     logging.warning(f"materialize.success not found in {self._root}. Returning partial data")
 
                 from ray.data import read_binary_files
@@ -77,6 +79,7 @@ class Materialize(UnaryNode):
 
                 return files.map(self._ray_to_document)
 
+        self._executed_child = True
         # right now, no validation happens, so save data in parallel. Once we support validation
         # to support retries we won't be able to run the validation in parallel.  non-shared
         # filesystems will also eventually be a problem but we can put it off for now.
@@ -96,13 +99,21 @@ class Materialize(UnaryNode):
 
         return input_dataset
 
-    def _verify_has_files(self) -> None:
-        assert self._root is not None
-        if not self._root.is_dir():
-            raise ValueError(f"Materialize root {self._root} is not a directory")
+    def _file_exists(self, path: Path) -> bool:
+        from pyarrow.fs import FileType
 
-        for n in self._root.iterdir():
-            if str(n).endswith(".pickle"):
+        info = self._fs.get_file_info(str(path))
+        return info.type == FileType.File
+
+    def _verify_has_files(self) -> None:
+        from pyarrow.fs import FileSelector
+
+        assert self._root is not None
+        assert self._fs is not None
+
+        files = self._fs.get_file_info(FileSelector(str(self._root), allow_not_found=True))
+        for n in files:
+            if n.path.endswith(".pickle"):
                 return
 
         raise ValueError(f"Materialize root {self._root} has no .pickle files")
@@ -110,9 +121,13 @@ class Materialize(UnaryNode):
     def _ray_to_document(self, dict: dict[str, Any]) -> dict[str, bytes]:
         return {"doc": dict["bytes"]}
 
+    def _will_be_source(self) -> bool:
+        return self._source_mode == MaterializeSourceMode.IF_PRESENT and self._file_exists(self._success_path())
+
     def local_execute(self, docs: list[Document]) -> list[Document]:
         if self._source_mode == MaterializeSourceMode.IF_PRESENT:
-            if self._success_path().exists():
+            if self._file_exists(self._success_path()):
+                self._executed_child = False
                 logger.info(f"Using {self._root} as cached source of data")
 
                 return self.local_source()
@@ -121,20 +136,25 @@ class Materialize(UnaryNode):
             self.cleanup()
             for d in docs:
                 self.save(d)
+            self._executed_child = True
 
         return docs
 
     def local_source(self) -> list[Document]:
+        from pyarrow.fs import FileSelector
+
         assert self._root is not None
         self._verify_has_files()
         logger.info(f"Using {self._root} as cached source of data")
-        if not self._success_path().exists():
+        if not self._file_exists(self._success_path()):
             logging.warning(f"materialize.success not found in {self._root}. Returning partial data")
         ret = []
-        for n in self._root.iterdir():
+        for fi in self._fs.get_file_info(FileSelector(str(self._root), allow_not_found=True)):
+            n = Path(fi.path)
             if n.suffix == ".pickle":
-                with open(n, "rb") as f:
-                    ret.append(Document.deserialize(f.read()))
+                f = self._fs.open_input_stream(str(n))
+                ret.append(Document.deserialize(f.read()))
+                f.close()
 
         return ret
 
@@ -142,9 +162,11 @@ class Materialize(UnaryNode):
         return self._root / "materialize.success"
 
     def finalize(self):
+        if not self._executed_child:
+            return
         if self._root is not None:
-            self._success_path().touch()
-            assert self._success_path().exists()
+            self._fs.open_output_stream(str(self._success_path())).close()
+            assert self._file_exists(self._success_path())
 
     @staticmethod
     def infer_fs(path: str) -> "pyarrow.FileSystem":
@@ -181,12 +203,12 @@ class Materialize(UnaryNode):
         if not self._clean_root:
             return
 
-        import shutil
-
         if self._root is None:
             return
-        shutil.rmtree(self._root, ignore_errors=True)
-        self._root.mkdir(parents=True, exist_ok=True)
+
+        logging.info(f"Cleaning up any materialized files in {self._root}")
+        self._fs.delete_dir_contents(str(self._root), missing_dir_ok=True)
+        self._fs.create_dir(str(self._root))
 
     @staticmethod
     def doc_to_name(doc: Document) -> str:

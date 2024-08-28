@@ -14,6 +14,7 @@ import sycamore
 from sycamore.context import ExecMode
 from sycamore.data import Document, MetadataDocument
 from sycamore.materialize import AutoMaterialize, Materialize, MaterializeSourceMode
+from sycamore.tests.unit.inmempyarrowfs import InMemPyArrowFileSystem
 
 
 def tobin(d):
@@ -29,6 +30,8 @@ class LocalRenameFilesystem(fs.LocalFileSystem):
         self.extension = ext
 
     def open_output_stream(self, path):
+        if path.endswith("/materialize.success"):
+            return super().open_output_stream(path)
         return super().open_output_stream(path + self.extension)
 
 
@@ -121,6 +124,7 @@ class TestMaterializeWrite(unittest.TestCase):
             self.check_files(tmpdir, ext=".test3")
 
             files = glob.glob(tmpdir + "/*")
+            logging.error(f"ERIC {files}")
             assert len(files) == 11
 
     def test_to_binary(self):
@@ -241,7 +245,6 @@ class TestAutoMaterialize(unittest.TestCase):
             ds.execute()
 
             files = [f for f in Path(tmpdir).rglob("*")]
-            logging.info(f"TO Found-1 {files}")
             assert len([f for f in files if ".test4" in str(f)]) == 3 + 1 + 3 + 2
 
             for d in docs:
@@ -250,24 +253,26 @@ class TestAutoMaterialize(unittest.TestCase):
 
             ds.execute()
             files = [f for f in Path(tmpdir).rglob("*")]
-            logging.info(f"TO Found-2 {files}")
             assert len([f for f in files if "-dup" in str(f)]) == 3 + 3
             assert len([f for f in files if ".test4" in str(f)]) == 2 * (3 + 1 + 3 + 2)
 
             a._path["clean"] = True
             ds.execute()
             files = [f for f in Path(tmpdir).rglob("*")]
-            logging.info(f"TO Found-3 {files}")
             assert len([f for f in files if ".test4" in str(f)]) == 3 + 1 + 3 + 2
+
+
+def any_id(d):
+    if isinstance(d, MetadataDocument):
+        return str(d.metadata)
+    else:
+        return d.doc_id
 
 
 def ids(docs):
     ret = []
     for d in docs:
-        if isinstance(d, MetadataDocument):
-            ret.append(str(d.metadata))
-        else:
-            ret.append(d.doc_id)
+        ret.append(any_id(d))
     ret.sort()
     return ret
 
@@ -331,3 +336,24 @@ class TestMaterializeRead(unittest.TestCase):
             Path(tmpdir).rmdir()
             with pytest.raises(ValueError):
                 ds.take_all()
+
+
+class TestAllViaPyarrowFS(unittest.TestCase):
+    def test_simple(self):
+        fs = InMemPyArrowFileSystem()
+        ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
+        docs = make_docs(3)
+        path = {"root": "/no/such/path", "fs": fs}
+        ctx.read.document(docs).materialize(path=path).execute()
+        docs_out = ctx.read.materialize(path).take_all()
+        assert docs.sort(key=any_id) == docs_out.sort(key=any_id)
+
+    def test_clean(self):
+        fs = InMemPyArrowFileSystem()
+        ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
+        docs = make_docs(3)
+        path = {"root": "/fake/inmem/no/such/path", "fs": fs}
+        fs.open_output_stream(path["root"] + "/fake.pickle").close()
+        ctx.read.document(docs).materialize(path=path).execute()
+        docs_out = ctx.read.materialize(path).take_all()
+        assert docs.sort(key=any_id) == docs_out.sort(key=any_id)

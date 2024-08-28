@@ -124,7 +124,6 @@ class TestMaterializeWrite(unittest.TestCase):
             self.check_files(tmpdir, ext=".test3")
 
             files = glob.glob(tmpdir + "/*")
-            logging.error(f"ERIC {files}")
             assert len(files) == 11
 
     def test_to_binary(self):

@@ -8,7 +8,7 @@ class InMemPyArrowFileSystem(FileSystem):
         self._fs = {}
 
     def copy_file(self, src, dest):
-        assert False, "unimplemented"
+        raise NotImplementedError()
 
     def create_dir(self, path, *, recursive=True):
         assert isinstance(path, str)
@@ -16,7 +16,7 @@ class InMemPyArrowFileSystem(FileSystem):
         pass
 
     def delete_dir(self, path):
-        assert False, "unimplemented"
+        raise NotImplementedError()
 
     def delete_dir_contents(self, path, missing_dir_ok=False):
         assert isinstance(path, str)
@@ -36,7 +36,7 @@ class InMemPyArrowFileSystem(FileSystem):
         del self._fs[path]
 
     def equals(self, other):
-        assert False, "unimplemented"
+        raise NotImplementedError()
 
     def get_file_info(self, p):
         if isinstance(p, str):
@@ -62,16 +62,16 @@ class InMemPyArrowFileSystem(FileSystem):
         return ret
 
     def move(self, src, dest):
-        assert False, "unimplemented"
+        raise NotImplementedError()
 
     def normalize_path(self, path):
-        assert False, "unimplemented"
+        raise NotImplementedError()
 
     def open_append_stream(self, path):
-        assert False, "unimplemented"
+        raise NotImplementedError()
 
     def open_input_file(self, path):
-        assert False, "unimplemented"
+        raise NotImplementedError()
 
     def open_input_stream(self, path):
         assert isinstance(path, str)

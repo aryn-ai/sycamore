@@ -17,9 +17,22 @@ def test_disallow_unconditional_dependencies():
     import sycamore
 
     _ = sycamore  # make sure tools don't remove the import
-    assert "torch" not in sys.modules, "import sycamore should not unconditionally import torch"
-    assert "ray" not in sys.modules, "import sycamore should not unconditionally import ray"
-    assert "guidance" not in sys.modules, "import sycamore should not unconditionally import guidance"
+    for m in ["guidance", "neo4j", "ray", "torch"]:
+        assert m not in sys.modules, f"import sycamore should not unconditionally import {m}"
+
+
+def test_disallow_submodule_dependencies():
+    import sycamore.reader
+
+    _ = sycamore.reader
+    for m in ["guidance", "neo4j", "ray", "torch"]:
+        assert m not in sys.modules, f"import sycamore.reader should not unconditionally import {m}"
+
+    import sycamore.writer
+
+    _ = sycamore.writer
+    for m in ["guidance", "neo4j", "ray", "torch"]:
+        assert m not in sys.modules, f"import sycamore.writer should not unconditionally import {m}"
 
 
 if __name__ == "__main__":

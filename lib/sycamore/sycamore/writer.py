@@ -1,8 +1,6 @@
 import logging
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Optional, Union, TYPE_CHECKING
 
-from neo4j import Auth
-from neo4j.auth_management import AuthManager
 from pyarrow.fs import FileSystem
 
 from sycamore.context import Context, ExecMode
@@ -12,6 +10,10 @@ from sycamore.data import Document
 from sycamore.executor import Execution
 from sycamore.plan_nodes import Node
 from sycamore.docset import DocSet
+
+if TYPE_CHECKING:
+    from neo4j import Auth
+    from neo4j.auth_management import AuthManager
 
 logger = logging.getLogger(__name__)
 
@@ -561,7 +563,7 @@ class DocSetWriter:
     def neo4j(
         self,
         uri: str,
-        auth: Union[tuple[Any, Any], Auth, AuthManager, None],
+        auth: Union[tuple[Any, Any], "Auth", "AuthManager", None],
         import_dir: str,
         database: str = "neo4j",
         **kwargs,

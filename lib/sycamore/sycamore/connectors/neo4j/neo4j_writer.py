@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from collections import defaultdict
+import json
 from typing import Any, Union
 
 from sycamore.connectors.base_writer import BaseDBWriter
-from sycamore.connectors.common import flatten_data
 from sycamore.data.document import Document, MetadataDocument
 from neo4j import Auth, Driver, GraphDatabase, Session
 from neo4j.auth_management import AuthManager
@@ -84,8 +84,14 @@ class Neo4jWriterClient:
             '
             MATCH (s:`{start_label}` {{uuid: row[":START_ID"]}})
             MATCH (e:`{end_label}` {{uuid: row[":END_ID"]}})
-            WITH s, e, row
-            CALL apoc.create.relationship(s, row[":TYPE"], {{uuid: row["uuid:ID"]}}, e) YIELD rel
+            WITH s, e, row, apoc.map.removeKeys(row, [":START_ID", ":END_ID", ":TYPE", "uuid:ID"]) AS properties
+            CALL apoc.create.relationship(
+              s,
+              row[":TYPE"],
+              apoc.map.merge(properties,
+              {{uuid: row["uuid:ID"]}}),
+              e
+            ) YIELD rel
             RETURN rel
             ',
             {{batchSize: 2500, parallel: true}})
@@ -171,9 +177,8 @@ class Neo4jPrepareCSV:
                 if key in data:
                     headers["nodes"][node_key][key] = True
             #### add all keys from properties ####
-            for key in set(pair[0] for pair in flatten_data(data["properties"])):
+            for key in data["properties"].keys():
                 headers["nodes"][node_key][key] = True
-
             for key, value in data["relationships"].items():
                 rel_key = value["START_LABEL"] + "_" + value["END_LABEL"]
                 if headers["relationships"].get(rel_key, None) is None:
@@ -237,8 +242,6 @@ class Neo4jWriteCSV(MapBatch, Write):
 
     @staticmethod
     def _parse_docs(docs):
-        from sycamore.connectors.common import flatten_data
-
         include_nodes = ["type", "bbox", "text_representation"]
         include_relationships = ["uuid:ID", ":START_ID", ":END_ID", ":TYPE"]
         nodes = defaultdict(list)
@@ -250,12 +253,13 @@ class Neo4jWriteCSV(MapBatch, Write):
                 "uuid:ID": doc.doc_id,
             }
             for key, value in doc.data.items():
-                # add flatten properties to node
+                # add properties to node
                 if key == "properties":
-                    if isinstance(value, dict) and value:
-                        properties_flat = flatten_data(value)
-                        for property_key, property_value in properties_flat:
-                            if property_key not in include_nodes:
+                    for property_key, property_value in value.items():
+                        if property_key not in include_nodes:
+                            if isinstance(property_value, list) or isinstance(property_value, dict):
+                                node[property_key] = json.dumps(property_value)
+                            else:
                                 node[property_key] = property_value
                 # add included fields to node
                 if key in include_nodes:
@@ -269,10 +273,9 @@ class Neo4jWriteCSV(MapBatch, Write):
                     ":END_ID": value["END_ID"],
                     ":TYPE": value["TYPE"],
                 }
-                for key, value in value["properties"].items():
-                    if key not in include_relationships:
-                        rel[key] = value
-
+                for property_key, property_value in value["properties"].items():
+                    if property_key not in include_relationships:
+                        rel[property_key] = property_value
                 relationships[value["START_LABEL"]][value["END_LABEL"]].append(rel)
         return nodes, relationships
 

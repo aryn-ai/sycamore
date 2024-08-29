@@ -9,7 +9,6 @@ import sycamore
 from sycamore.data import Document
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 from sycamore.functions import HuggingFaceTokenizer
-from sycamore.materialize import MaterializeSourceMode
 from sycamore.transforms.merge_elements import GreedyTextElementMerger
 from sycamore.transforms.extract_schema import (
     OpenAIPropertyExtractor,
@@ -21,8 +20,8 @@ from dateutil import parser
 from opensearchpy import OpenSearch
 
 
-argparser = argparse.ArgumentParser(prog='ntsb_loader')
-argparser.add_argument('--delete', action='store_true')
+argparser = argparse.ArgumentParser(prog="ntsb_loader")
+argparser.add_argument("--delete", action="store_true")
 args = argparser.parse_args()
 
 # The S3 location of the raw NTSB data.
@@ -73,7 +72,6 @@ else:
     opensearch_host = "localhost"
     print("Assuming we are running outside of a container, using localhost for OpenSearch host")
 
-
 os_client_args = {
     "hosts": [{"host": opensearch_host, "port": 9200}],
     "http_compress": True,
@@ -85,11 +83,11 @@ os_client_args = {
     "timeout": 120,
 }
 
-client = OpenSearch(**os_client_args)
-if client.indices.exists(index=INDEX):
+os_client = OpenSearch(**os_client_args)  # type: ignore
+if os_client.indices.exists(index=INDEX):
     if args.delete:
         print(f"Index {INDEX} already exists, deleting as requested")
-        client.indices.delete(index=INDEX)
+        os_client.indices.delete(index=INDEX)
     else:
         raise Exception(f"Index {INDEX} already exists. Run with --delete to delete it.")
 
@@ -118,7 +116,6 @@ context = sycamore.init()
 docset = context.read.binary(SOURCE_DATA_PATH, binary_format="pdf")
 tokenizer = HuggingFaceTokenizer("thenlper/gte-small")
 llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
-client = OpenAI(OpenAIModels.GPT_4O.value)
 
 # partitioning docset
 partitioned_docset = (
@@ -135,8 +132,13 @@ partitioned_docset = (
     .explode()
     .sketch()
     .embed(embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2"))
-    .materialize(path="s3://aryn-public/materialize/examples/luna/ntsb_loader", source_mode=MaterializeSourceMode.IF_PRESENT)
-    # materialize locally after reading from S3, it's a fair bit faster if you're running rmeotely
+    # comment out, to force re-evaluation of the pipeline, otherwise since this always exists it
+    # will be used.
+    .materialize(
+        path="s3://aryn-public/materialize/examples/luna/ntsb_loader",
+        source_mode=sycamore.MaterializeSourceMode.IF_PRESENT,
+    )
+    # materialize locally after reading from S3, it's a bit faster if you're running rmeotely
     .materialize(path="/tmp/after_embed", source_mode=sycamore.MaterializeSourceMode.IF_PRESENT)
     .write.opensearch(
         os_client_args=os_client_args,

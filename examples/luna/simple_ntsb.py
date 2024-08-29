@@ -1,5 +1,4 @@
 from sycamore.query.client import SycamoreQueryClient
-from sycamore.query.visualize import visualize_plan
 from rich.console import Console
 
 console = Console()

@@ -358,6 +358,7 @@ class OpenAI(LLM):
 
         response_format = (llm_kwargs or {}).get("response_format")
         if inspect.isclass(response_format) and issubclass(response_format, pydantic.BaseModel):
+            assert llm_kwargs
             llm_kwargs["response_format"] = type_to_response_format_param(response_format)
 
         key = self._get_cache_key(prompt_kwargs, llm_kwargs)

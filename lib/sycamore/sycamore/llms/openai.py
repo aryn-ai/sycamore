@@ -442,8 +442,11 @@ class OpenAI(LLM):
             assert completion.choices[0].message.content is not None, "OpenAI refused to respond to the query"
             return completion.choices[0].message.content
         except Exception as e:
+            # OpenAI will not respond in two scenarios:
+            # 1.) The LLM ran out of output context length(usually do to hallucination of repeating the same phrase)
+            # 2.) The LLM refused to respond to the request because it did not meet guidelines
             logger.warn(f"OpenAI Request failed: {e}")
-            return "{}"
+            raise e
 
     async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
         key, ret = self._cache_get(prompt_kwargs, llm_kwargs)
@@ -482,8 +485,11 @@ class OpenAI(LLM):
             assert completion.choices[0].message.content is not None, "OpenAI refused to respond to the query"
             return completion.choices[0].message.content
         except Exception as e:
+            # OpenAI will not respond in two scenarios:
+            # 1.) The LLM ran out of output context length(usually do to hallucination of repeating the same phrase)
+            # 2.) The LLM refused to respond to the request because it did not meet guidelines
             logger.warn(f"OpenAI Request failed: {e}")
-            return "{}"
+            raise e
 
     def _generate_using_guidance(self, prompt_kwargs) -> str:
         guidance_model = self.client_wrapper.get_guidance_model(self.model)

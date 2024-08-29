@@ -5,6 +5,9 @@ from sycamore.llms.openai import OpenAIModel, OpenAIClientType
 from sycamore.llms.prompts.default_prompts import SimplePrompt
 from sycamore.utils.cache import DiskCache
 
+from pydantic import BaseModel
+from openai.lib._parsing import type_to_response_format_param
+
 
 # Note: These tests expect you to have OPENAI_API_KEY set in your environment.
 
@@ -142,6 +145,27 @@ def test_cached_openai_different_models(tmp_path: Path):
     # check for difference with model change
     assert key_GPT_3_5_TURBO != key_GPT_4O_MINI
     assert res_GPT_3_5_TURBO != res_GPT_4O_MINI
+
+
+def test_cached_openai_pydantic_model(tmp_path: Path):
+    cache = DiskCache(str(tmp_path))
+    llm_GPT_4O_MINI = OpenAI(OpenAIModels.GPT_4O_MINI, cache=cache)
+
+    class Statement(BaseModel):
+        is_true: bool
+
+    prompt_kwargs = {"prompt": "2+2 = 4, is this statement true?"}
+    llm_kwargs = {"response_format": Statement}
+    llm_kwargs_cached = {"response_format": type_to_response_format_param(Statement)}
+
+    # populate cache
+    key_GPT_4O_MINI, _res = llm_GPT_4O_MINI._cache_get(prompt_kwargs, llm_kwargs)
+    res_GPT_4O_MINI = llm_GPT_4O_MINI.generate(prompt_kwargs=prompt_kwargs, llm_kwargs=llm_kwargs)
+    # check cache
+    assert cache.get(key_GPT_4O_MINI).get("result") == res_GPT_4O_MINI
+    assert cache.get(key_GPT_4O_MINI).get("prompt_kwargs") == prompt_kwargs
+    assert cache.get(key_GPT_4O_MINI).get("llm_kwargs") == llm_kwargs_cached
+    assert cache.get(key_GPT_4O_MINI).get("model_name") == "gpt-4o-mini"
 
 
 class TestPrompt(SimplePrompt):

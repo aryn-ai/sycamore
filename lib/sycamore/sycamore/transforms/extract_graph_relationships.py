@@ -7,6 +7,7 @@ from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.data import HierarchicalDocument
 from sycamore.llms import LLM
+from openai.lib._parsing import type_to_response_format_param
 from pydantic import BaseModel, create_model
 import asyncio
 
@@ -140,7 +141,7 @@ class RelationshipExtractor(GraphRelationshipExtractor):
                 entity_list.append(f"{node}\n")
         entities = "".join(entity_list)
 
-        llm_kwargs = {"response_format": relationships_model}
+        llm_kwargs = {"response_format": type_to_response_format_param(relationships_model)}
         res = await self.llm.generate_async(
             prompt_kwargs={"prompt": str(GraphRelationshipExtractorPrompt(section.data["summary"], entities))},
             llm_kwargs=llm_kwargs,

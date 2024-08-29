@@ -107,7 +107,6 @@ context = sycamore.init()
 docset = context.read.binary(SOURCE_DATA_PATH, binary_format="pdf")
 tokenizer = HuggingFaceTokenizer("thenlper/gte-small")
 llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
-client = OpenAI(OpenAIModels.GPT_4O.value)
 
 # partitioning docset
 partitioned_docset = (

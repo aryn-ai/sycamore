@@ -78,7 +78,7 @@ os_client_args = {
     "timeout": 120,
 }
 
-client = OpenSearch(**os_client_args)
+client = OpenSearch(**os_client_args)  # type: ignore
 if client.indices.exists(index=INDEX):
     raise Exception(f"Index {INDEX} already exists. Run delete_index.py before retrying.")
 

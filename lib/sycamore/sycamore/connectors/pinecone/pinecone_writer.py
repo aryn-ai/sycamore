@@ -45,7 +45,7 @@ class PineconeWriterClientParams(BaseDBWriter.ClientParams):
 
 
 class PineconeWriterClient(BaseDBWriter.Client):
-    @requires_modules("pinecone-client", extra="pinecone")
+    @requires_modules("pinecone.grpc", extra="pinecone")
     def __init__(self, api_key: str, batch_size: int):
         from pinecone.grpc import PineconeGRPC
 

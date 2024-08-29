@@ -1,6 +1,7 @@
 import subprocess
 from pathlib import Path
-from tempfile import NamedTemporaryFile
+from urllib.parse import urlparse
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 
 from sycamore.data import Document
 
@@ -13,21 +14,22 @@ def binary_representation_to_pdf(doc: Document) -> Document:
     """
 
     def run_libreoffice(source_path, output_path):
-        subprocess.run(
-            [
-                "libreoffice",
-                "--headless",
-                "--convert-to",
-                "pdf",
-                source_path,
-                "--outdir",
-                output_path,
-            ]
-        )
+        with TemporaryDirectory() as temp_dir:
+            subprocess.run(
+                [
+                    "libreoffice",
+                    "--headless",
+                    "--convert-to",
+                    "pdf",
+                    source_path,
+                    "--outdir",
+                    output_path,
+                    f"-env:UserInstallation=file://{temp_dir}",
+                ]
+            )
 
     assert doc.binary_representation is not None
-
-    extension = Path(doc.properties.get("path", "unknown")).suffix
+    extension = get_file_extension(doc.properties.get("path", "unknown"))
 
     with NamedTemporaryFile(suffix=f"{extension}") as temp_file:
         temp_file.write(doc.binary_representation)
@@ -42,3 +44,11 @@ def binary_representation_to_pdf(doc: Document) -> Document:
             doc.properties["filetype"] = "application/pdf"
 
     return doc
+
+
+def get_file_extension(path: str) -> str:
+    parsed_url = urlparse(path)
+    if parsed_url.scheme in ("s3", "http", "https"):
+        path = parsed_url.path
+    extension = Path(path).suffix
+    return extension

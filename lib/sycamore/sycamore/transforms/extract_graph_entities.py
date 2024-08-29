@@ -6,7 +6,6 @@ from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.data import HierarchicalDocument
 from sycamore.llms import LLM
-from openai.lib._parsing import type_to_response_format_param
 from pydantic import BaseModel, create_model
 
 import json
@@ -104,7 +103,7 @@ class EntityExtractor(GraphEntityExtractor):
         return create_model("entities", __base__=BaseModel, **fields)
 
     async def _extract_from_section(self, summary: str) -> str:
-        llm_kwargs = {"response_format": type_to_response_format_param(self._deserialize_entities())}
+        llm_kwargs = {"response_format": self._deserialize_entities()}
 
         return await self.llm.generate_async(
             prompt_kwargs={"prompt": str(GraphEntityExtractorPrompt(summary))}, llm_kwargs=llm_kwargs

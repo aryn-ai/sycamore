@@ -13,6 +13,8 @@ from openai import OpenAI as OpenAIClient
 from openai import AsyncOpenAI as AsyncOpenAIClient
 from openai import max_retries as DEFAULT_MAX_RETRIES
 from openai.lib.azure import AzureADTokenProvider
+from openai.lib._parsing import type_to_response_format_param
+
 
 import pydantic
 
@@ -46,7 +48,7 @@ class OpenAIModels(Enum):
     TEXT_DAVINCI = OpenAIModel(name="text-davinci-003", is_chat=True)
     GPT_3_5_TURBO = OpenAIModel(name="gpt-3.5-turbo", is_chat=True)
     GPT_4_TURBO = OpenAIModel(name="gpt-4-turbo", is_chat=True)
-    GPT_4O = OpenAIModel(name="gpt-4o", is_chat=True)
+    GPT_4O = OpenAIModel(name="gpt-4o-2024-08-06", is_chat=True)
     GPT_4O_MINI = OpenAIModel(name="gpt-4o-mini", is_chat=True)
     GPT_3_5_TURBO_INSTRUCT = OpenAIModel(name="gpt-3.5-turbo-instruct", is_chat=False)
 
@@ -354,6 +356,9 @@ class OpenAI(LLM):
         if (llm_kwargs or {}).get("temperature", 0) != 0 or not self._cache:
             return (None, None)
 
+        if issubclass(llm_kwargs.get("response_format", None), pydantic.BaseModel):
+            llm_kwargs["response_format"] = type_to_response_format_param(llm_kwargs.get("response_format"))
+
         key = self._get_cache_key(prompt_kwargs, llm_kwargs)
         hit = self._cache.get(key)
         if hit:
@@ -429,10 +434,14 @@ class OpenAI(LLM):
         return completion.choices[0].message.content
 
     def _generate_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:
-        kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
-        completion = self.client_wrapper.get_client().beta.chat.completions.parse(model=self._model_name, **kwargs)
-        assert completion.choices[0].message.content is not None, "OpenAI refused to respond to the query"
-        return completion.choices[0].message.content
+        try:
+            kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
+            completion = self.client_wrapper.get_client().beta.chat.completions.parse(model=self._model_name, **kwargs)
+            assert completion.choices[0].message.content is not None, "OpenAI refused to respond to the query"
+            return completion.choices[0].message.content
+        except Exception as e:
+            logger.warn(f"OpenAI Request failed: {e}")
+            return "{}"
 
     async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
         key, ret = self._cache_get(prompt_kwargs, llm_kwargs)
@@ -463,12 +472,16 @@ class OpenAI(LLM):
         return completion.choices[0].message.content
 
     async def _generate_awaitable_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:
-        kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
-        completion = await self.client_wrapper.get_async_client().beta.chat.completions.parse(
-            model=self._model_name, **kwargs
-        )
-        assert completion.choices[0].message.content is not None, "OpenAI refused to respond to the query"
-        return completion.choices[0].message.content
+        try:
+            kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
+            completion = await self.client_wrapper.get_async_client().beta.chat.completions.parse(
+                model=self._model_name, **kwargs
+            )
+            assert completion.choices[0].message.content is not None, "OpenAI refused to respond to the query"
+            return completion.choices[0].message.content
+        except Exception as e:
+            logger.warn(f"OpenAI Request failed: {e}")
+            return "{}"
 
     def _generate_using_guidance(self, prompt_kwargs) -> str:
         guidance_model = self.client_wrapper.get_guidance_model(self.model)

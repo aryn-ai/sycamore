@@ -1178,7 +1178,7 @@ files = [
 name = "duckdb"
 version = "1.0.0"
 description = "DuckDB in-process database"
-optional = false
+optional = true
 python-versions = ">=3.7.0"
 files = [
     {file = "duckdb-1.0.0-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:4a8ce2d1f9e1c23b9bab3ae4ca7997e9822e21563ff8f646992663f66d050211"},
@@ -1337,7 +1337,7 @@ files = [
 name = "elastic-transport"
 version = "8.13.1"
 description = "Transport classes and utilities shared among Python Elastic client libraries"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "elastic_transport-8.13.1-py3-none-any.whl", hash = "sha256:5d4bb6b8e9d74a9c16de274e91a5caf65a3a8d12876f1e99152975e15b2746fe"},
@@ -1355,7 +1355,7 @@ develop = ["aiohttp", "furo", "httpx", "mock", "opentelemetry-api", "opentelemet
 name = "elasticsearch"
 version = "8.14.0"
 description = "Python client for Elasticsearch"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "elasticsearch-8.14.0-py3-none-any.whl", hash = "sha256:cef8ef70a81af027f3da74a4f7d9296b390c636903088439087b8262a468c130"},
@@ -1392,7 +1392,7 @@ dev = ["coverage", "pytest (>=7.4.4)"]
 name = "events"
 version = "0.5"
 description = "Bringing the elegance of C# EventHandler to Python"
-optional = false
+optional = true
 python-versions = "*"
 files = [
     {file = "Events-0.5-py3-none-any.whl", hash = "sha256:a7286af378ba3e46640ac9825156c93bdba7502174dd696090fdfcd4d80a1abd"},
@@ -3218,7 +3218,7 @@ source = ["Cython (>=3.0.10)"]
 name = "lz4"
 version = "4.3.3"
 description = "LZ4 Bindings for Python"
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "lz4-4.3.3-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:b891880c187e96339474af2a3b2bfb11a8e4732ff5034be919aa9029484cd201"},
@@ -3577,7 +3577,7 @@ tbb = "==2021.*"
 name = "mmh3"
 version = "4.1.0"
 description = "Python extension for MurmurHash (MurmurHash3), a set of fast and robust hash functions."
-optional = false
+optional = true
 python-versions = "*"
 files = [
     {file = "mmh3-4.1.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:be5ac76a8b0cd8095784e51e4c1c9c318c19edcd1709a06eb14979c8d850c31a"},
@@ -4068,7 +4068,7 @@ pytest = ">=6.1.0"
 name = "neo4j"
 version = "5.23.1"
 description = "Neo4j Bolt driver for Python"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "neo4j-5.23.1-py3-none-any.whl", hash = "sha256:97996fbf39421e0677fdcb8afe50b6810cbe8027e055a9dcf81da6070a82a009"},
@@ -4459,7 +4459,7 @@ numpy = [
 name = "opensearch-py"
 version = "2.6.0"
 description = "Python client for OpenSearch"
-optional = false
+optional = true
 python-versions = "<4,>=3.8"
 files = [
     {file = "opensearch_py-2.6.0-py2.py3-none-any.whl", hash = "sha256:b6e78b685dd4e9c016d7a4299cf1de69e299c88322e3f81c716e6e23fe5683c1"},
@@ -4778,7 +4778,7 @@ xmp = ["defusedxml"]
 name = "pinecone-client"
 version = "4.1.2"
 description = "Pinecone client and SDK"
-optional = false
+optional = true
 python-versions = "<4.0,>=3.8"
 files = [
     {file = "pinecone_client-4.1.2-py3-none-any.whl", hash = "sha256:3d69cbbca2d9d4f77c90bad59a1194e3d20d535b29f277eee32b439fd526546b"},
@@ -4807,7 +4807,7 @@ grpc = ["googleapis-common-protos (>=1.53.0)", "grpcio (>=1.44.0)", "grpcio (>=1
 name = "pinecone-plugin-interface"
 version = "0.0.7"
 description = "Plugin interface for the Pinecone python client"
-optional = false
+optional = true
 python-versions = "<4.0,>=3.8"
 files = [
     {file = "pinecone_plugin_interface-0.0.7-py3-none-any.whl", hash = "sha256:875857ad9c9fc8bbc074dbe780d187a2afd21f5bfe0f3b08601924a61ef1bba8"},
@@ -4818,7 +4818,7 @@ files = [
 name = "pinecone-text"
 version = "0.9.0"
 description = "Text utilities library by Pinecone.io"
-optional = false
+optional = true
 python-versions = "<4.0,>=3.8"
 files = [
     {file = "pinecone_text-0.9.0-py3-none-any.whl", hash = "sha256:7a1ad2e282d10b59f0288a2a4f4b8c583a77378172232fae573cf398a3c44240"},
@@ -4969,7 +4969,7 @@ files = [
 name = "protoc-gen-openapiv2"
 version = "0.0.1"
 description = "Provides the missing pieces for gRPC Gateway."
-optional = false
+optional = true
 python-versions = ">=3.6"
 files = [
     {file = "protoc-gen-openapiv2-0.0.1.tar.gz", hash = "sha256:6f79188d842c13177c9c0558845442c340b43011bf67dfef1dfc3bc067506409"},
@@ -5665,7 +5665,7 @@ six = ">=1.5"
 name = "python-dotenv"
 version = "1.0.1"
 description = "Read key-value pairs from a .env file and set them as environment variables"
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "python-dotenv-1.0.1.tar.gz", hash = "sha256:e324ee90a023d808f1959c46bcbc04446a10ced277783dc6ee09987c37ec10ca"},
@@ -7952,7 +7952,7 @@ types-pyOpenSSL = "*"
 name = "types-requests"
 version = "2.31.0.6"
 description = "Typing stubs for requests"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "types-requests-2.31.0.6.tar.gz", hash = "sha256:cd74ce3b53c461f1228a9b783929ac73a666658f223e28ed29753771477b3bd0"},
@@ -7966,7 +7966,7 @@ types-urllib3 = "*"
 name = "types-urllib3"
 version = "1.26.25.14"
 description = "Typing stubs for urllib3"
-optional = false
+optional = true
 python-versions = "*"
 files = [
     {file = "types-urllib3-1.26.25.14.tar.gz", hash = "sha256:229b7f577c951b8c1b92c1bc2b2fdb0b49847bd2af6d1cc2a2e3dd340f3bda8f"},
@@ -8249,7 +8249,7 @@ test = ["websockets"]
 name = "wget"
 version = "3.2"
 description = "pure python download utility"
-optional = false
+optional = true
 python-versions = "*"
 files = [
     {file = "wget-3.2.zip", hash = "sha256:35e630eca2aa50ce998b9b1a127bb26b30dfee573702782aa982f875e3f16061"},
@@ -8661,9 +8661,15 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 
 [extras]
 docs = ["furo", "myst-parser", "sphinx"]
+duckdb = ["duckdb"]
+elasticsearch = ["elasticsearch"]
 eval = ["apted", "datasets", "rouge"]
+neo4j = ["neo4j"]
+opensearch = ["opensearch-py"]
+pinecone = ["pinecone-client", "pinecone-text"]
+weaviate = ["weaviate-client"]
 
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.12"
-content-hash = "14c2e35bc725c7f7b5a47dd2fab8902df501d0b738f2371695ea172211c7c38f"
+content-hash = "e21f0304b9c2cfa0458571086ede841ad9e08629830947a54939e3a7be885328"

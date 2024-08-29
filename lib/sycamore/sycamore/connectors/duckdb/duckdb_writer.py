@@ -5,8 +5,9 @@ from typing_extensions import TypeGuard
 from sycamore.data.document import Document
 from sycamore.connectors.base_writer import BaseDBWriter
 from sycamore.connectors.common import convert_to_str_dict
+from sycamore.utils.import_utils import requires_modules
+
 import pyarrow as pa
-import duckdb
 import os
 
 
@@ -84,7 +85,10 @@ class DuckDBClient(BaseDBWriter.Client):
             ]
         )
 
+        @requires_modules("duckdb", extra="duckdb")
         def write_batch(batch_data: dict):
+            import duckdb
+
             pa_table = pa.Table.from_pydict(batch_data, schema=schema)  # noqa
             client = duckdb.connect(str(dict_params.get("db_url")))
             client.sql(f"INSERT INTO {dict_params.get('table_name')} SELECT * FROM pa_table")
@@ -110,7 +114,10 @@ class DuckDBClient(BaseDBWriter.Client):
         if len(batch_data["doc_id"]) > 0:
             write_batch(batch_data)
 
+    @requires_modules("duckdb", extra="duckdb")
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
+        import duckdb
+
         assert isinstance(target_params, DuckDBWriterTargetParams)
         dict_params = asdict(target_params)
         schema = dict_params.get("schema")
@@ -134,7 +141,10 @@ class DuckDBClient(BaseDBWriter.Client):
                 return
             raise e
 
+    @requires_modules("duckdb", extra="duckdb")
     def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> "DuckDBWriterTargetParams":
+        import duckdb
+
         assert isinstance(target_params, DuckDBWriterTargetParams)
         dict_params = asdict(target_params)
         schema = target_params.schema

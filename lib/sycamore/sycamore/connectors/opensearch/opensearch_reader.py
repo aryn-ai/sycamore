@@ -1,9 +1,12 @@
 from sycamore.data import Document
 from sycamore.connectors.base_reader import BaseDBReader
+from sycamore.utils.import_utils import requires_modules
 from dataclasses import dataclass, field
+import typing
 from typing import Dict
 
-from opensearchpy import OpenSearch
+if typing.TYPE_CHECKING:
+    from opensearchpy import OpenSearch
 
 
 @dataclass
@@ -19,11 +22,14 @@ class OpenSearchReaderQueryParams(BaseDBReader.QueryParams):
 
 
 class OpenSearchReaderClient(BaseDBReader.Client):
-    def __init__(self, client: OpenSearch):
+    def __init__(self, client: "OpenSearch"):
         self._client = client
 
     @classmethod
+    @requires_modules("opensearchpy", extra="opensearch")
     def from_client_params(cls, params: BaseDBReader.ClientParams) -> "OpenSearchReaderClient":
+        from opensearchpy import OpenSearch
+
         assert isinstance(params, OpenSearchReaderClientParams)
         client = OpenSearch(**params.os_client_args)
         return OpenSearchReaderClient(client)

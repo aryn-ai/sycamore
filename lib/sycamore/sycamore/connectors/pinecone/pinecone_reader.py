@@ -1,7 +1,8 @@
 from sycamore.data import Document
-from pinecone.grpc import PineconeGRPC
+
 from sycamore.connectors.common import unflatten_data
 from sycamore.connectors.base_reader import BaseDBReader
+from sycamore.utils.import_utils import requires_modules
 from dataclasses import dataclass
 from typing import Optional, Dict
 
@@ -19,7 +20,10 @@ class PineconeReaderQueryParams(BaseDBReader.QueryParams):
 
 
 class PineconeReaderClient(BaseDBReader.Client):
+    @requires_modules("pinecone", extra="pinecone")
     def __init__(self, client_params: PineconeReaderClientParams):
+        from pinecone.grpc import PineconeGRPC
+
         self._client = PineconeGRPC(api_key=client_params.api_key, source_tag="Aryn")
 
     @classmethod

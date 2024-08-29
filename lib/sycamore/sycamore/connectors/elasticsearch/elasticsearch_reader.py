@@ -1,9 +1,12 @@
 from sycamore.data import Document
 from sycamore.connectors.base_reader import BaseDBReader
+from sycamore.utils.import_utils import requires_modules
 from dataclasses import dataclass, field
+import typing
 from typing import Dict
 
-from elasticsearch import Elasticsearch
+if typing.TYPE_CHECKING:
+    from elasticsearch import Elasticsearch
 
 
 @dataclass
@@ -21,11 +24,14 @@ class ElasticsearchReaderQueryParams(BaseDBReader.QueryParams):
 
 
 class ElasticsearchReaderClient(BaseDBReader.Client):
-    def __init__(self, client: Elasticsearch):
+    def __init__(self, client: "Elasticsearch"):
         self._client = client
 
     @classmethod
+    @requires_modules("elasticsearch", extra="elasticsearch")
     def from_client_params(cls, params: BaseDBReader.ClientParams) -> "ElasticsearchReaderClient":
+        from elasticsearch import Elasticsearch
+
         assert isinstance(params, ElasticsearchReaderClientParams)
         client = Elasticsearch(params.url, **params.es_client_args)
         return ElasticsearchReaderClient(client)

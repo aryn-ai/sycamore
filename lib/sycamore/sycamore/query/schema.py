@@ -1,9 +1,11 @@
+import typing
 from typing import Dict, Set, Tuple
 
-from opensearchpy.client.indices import IndicesClient
 from sycamore.transforms.query import OpenSearchQueryExecutor
 from sycamore.data import OpenSearchQuery
 
+if typing.TYPE_CHECKING:
+    from opensearchpy.client.indices import IndicesClient
 
 OpenSearchSchema = Dict[str, Tuple[str, Set[str]]]
 """Represents a mapping from field name to field type and a set of example values."""
@@ -15,7 +17,7 @@ class OpenSearchSchemaFetcher:
     # Size of random samples for each field.
     NUM_EXAMPLES = 10
 
-    def __init__(self, client: IndicesClient, index: str, query_executor: OpenSearchQueryExecutor) -> None:
+    def __init__(self, client: "IndicesClient", index: str, query_executor: OpenSearchQueryExecutor) -> None:
         super().__init__()
         self._client = client
         self._index = index

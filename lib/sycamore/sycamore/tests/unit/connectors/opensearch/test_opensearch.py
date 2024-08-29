@@ -148,7 +148,7 @@ class TestOpenSearchClient:
 
     def test_write_many_documents(self, mocker):
         client = mocker.Mock(spec=OpenSearch)
-        parallel_blk = mocker.patch("sycamore.connectors.opensearch.opensearch_writer.parallel_bulk")
+        parallel_blk = mocker.patch("opensearchpy.helpers.parallel_bulk")
         parallel_blk.return_value = []
         records = [
             OpenSearchWriterRecord(_source={"field": 1}, _index="test", _id="1"),

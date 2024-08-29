@@ -14,7 +14,7 @@ packages = [{ include = "sycamore" }]
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.12"
-opensearch-py = "^2.3.1"
+
 pandas = "2.1.1"
 pdf2image = "^1.16.3"
 ray = { extras = ["default"], version = "^2.20.0" }
@@ -61,13 +61,14 @@ pypdf = "^4.3.0"
 pytesseract = "^0.3.10"
 easyocr = "^1.7.1"
 
-# Dependencies for DB connectors
-weaviate-client = ">=4.6.1,<4.7" # typechecking fails with 4.7
-pinecone-client = { version = "^4.1.0", extras = ["grpc"] }
-pinecone-text = "^0.9.0"
-duckdb = "1.0.0"
-neo4j = "^5.21.0"
-elasticsearch = "8.14.0"
+# Connector dependencies
+elasticsearch = { version = "8.14.0", optional = true}
+duckdb = { version = "1.0.0", optional = true }
+neo4j = { version = "^5.21.0", optional = true }
+opensearch-py = { version = "^2.3.1", optional = true }
+pinecone-client = { version = "^4.1.0", extras = ["grpc"], optional = true }
+pinecone-text = { version = "^0.9.0", optional = true }
+weaviate-client = { version = ">=4.6.1,<4.7", optional = true } # typechecking fails with 4.7
 
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"
@@ -96,6 +97,15 @@ redis-om = "^0.3"
 [tool.poetry.extras]
 docs = ["furo", "myst-parser", "sphinx"]
 eval = ["apted", "datasets", "rouge"]
+
+# Connector extras
+duckdb = ["duckdb"]
+elasticsearch = ["elasticsearch"]
+neo4j = ["neo4j"]
+opensearch = ["opensearch-py"]
+pinecone = ["pinecone-client", "pinecone-text"]
+weaviate = ["weaviate-client"]
+
 
 [tool.ruff]
 line-length = 120

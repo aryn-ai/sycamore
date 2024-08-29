@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from io import BytesIO
 from PIL import Image
-from typing import Any, Union
+from typing import Any, Union, List
 from sycamore.data import BoundingBox
 
 
@@ -12,7 +12,7 @@ class OCRModel:
         pass
 
     @abstractmethod
-    def get_boxes(self, image: Image.Image) -> list[Union[dict[str, Any], list]]:
+    def get_boxes_and_text(self, image: Image.Image) -> List[Union[dict[str, Any], List]]:
         pass
 
 
@@ -33,12 +33,12 @@ class EasyOCR(OCRModel):
         val = " ".join(out_list)
         return val
 
-    def get_boxes(self, image: Image.Image) -> list[Union[dict[str, Any], list]]:
+    def get_boxes_and_text(self, image: Image.Image) -> List[Union[dict[str, Any], List]]:
         image_bytes = BytesIO()
         image.save(image_bytes, format="PNG")
         raw_results = self.reader.readtext(image_bytes.getvalue())
 
-        out: list[Union[dict[str, Any], list]] = []
+        out: List[Union[dict[str, Any], List]] = []
         for res in raw_results:
             raw_bbox = res[0]
             text = res[1]
@@ -59,7 +59,7 @@ class Tesseract(OCRModel):
         val = self.pytesseract.image_to_string(image)
         return val
 
-    def get_boxes(self, image: Image.Image) -> list[Union[dict[str, Any], list]]:
+    def get_boxes_and_text(self, image: Image.Image) -> List[Union[dict[str, Any], List]]:
         return [self.pytesseract.image_to_data(image, output_type=self.pytesseract.Output.DICT)]
 
 
@@ -73,32 +73,36 @@ class LegacyOCR(OCRModel):
     def get_text(self, image: Image.Image) -> str:
         return self.tesseract.get_text(image)
 
-    def get_boxes(self, image: Image.Image) -> list[Union[dict[str, Any], list]]:
-        return self.easy_ocr.get_boxes(image)
+    def get_boxes_and_text(self, image: Image.Image) -> List[Union[dict[str, Any], List]]:
+        return self.easy_ocr.get_boxes_and_text(image)
 
 
 class PaddleOCR(OCRModel):
     def __init__(self, use_gpu=True, language="en"):
+        from paddleocr import PaddleOCR
+
         self.use_gpu = use_gpu
         self.language = language
+        self.reader = PaddleOCR(lang=self.language, use_gpu=self.use_gpu)
 
     def get_text(
         self,
         image: Image.Image,
     ) -> str:
-        from paddleocr import PaddleOCR
-
-        self.reader = PaddleOCR(lang=self.language, use_gpu=self.use_gpu)
         bytearray = BytesIO()
         image.save(bytearray, format="PNG")
         result = self.reader.ocr(bytearray.getvalue(), rec=True, det=True, cls=False)
         return ans if result and result[0] and (ans := " ".join(value[1][0] for value in result[0])) else ""
 
-    def get_boxes(self, image: Image.Image) -> list[Union[dict[str, Any], list]]:
-        from paddleocr import PaddleOCR
-
-        self.reader = PaddleOCR(lang="en", use_gpu=False)
+    def get_boxes_and_text(self, image: Image.Image) -> List[Union[dict[str, Any], List]]:
         bytearray = BytesIO()
         image.save(bytearray, format="PNG")
-        result = self.reader.ocr(bytearray.getvalue(), rec=False, det=True, cls=False)
-        return result[0]
+        result = self.reader.ocr(bytearray.getvalue(), rec=True, det=True, cls=False)
+        out = []
+        for res in result[0]:
+            raw_bbox = res[0]
+            text = res[1][0]
+            out.append(
+                {"bbox": BoundingBox(raw_bbox[0][0], raw_bbox[0][1], raw_bbox[2][0], raw_bbox[2][1]), "text": text}
+            )
+        return out  # type: ignore

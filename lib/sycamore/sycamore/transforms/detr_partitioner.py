@@ -829,14 +829,11 @@ def extract_ocr(
     ocr_model="easy",
 ) -> list[list[Element]]:
     if ocr_model == "paddle":
-        try:
-            import paddle
-
-            paddle.utils.run_check()
-        except Exception as e:
-            raise ImportError(f"Paddle is not installed correctly: {e}")
+        import paddle.device
         from sycamore.transforms.ocr.ocr_models import PaddleOCR
 
+        # Needed in case of multiple OpenBLAS threads
+        os.environ["OMP_NUM_THREADS"] = "1"
         ocr_model = PaddleOCR(use_gpu=paddle.device.is_compiled_with_cuda())
     elif ocr_model == "legacy":
         from sycamore.transforms.ocr.ocr_models import LegacyOCR
@@ -863,44 +860,17 @@ def extract_ocr(
             if elem.type == "table" and ocr_tables:
                 tokens = []
                 assert isinstance(elem, TableElement)
-                for token in ocr_model.get_boxes(cropped_image):
+                for token in ocr_model.get_boxes_and_text(cropped_image):
+                    # Shift the BoundingBox to be relative to the whole image.
+                    # TODO: We can likely reduce the number of bounding box translations/conversion in the pipeline,
+                    #  but for the moment I'm prioritizing clarity over (theoretical) performance, and we have the
+                    #  desired invariant that whenever we store bounding boxes they are relative to the entire doc.
                     token["bbox"].translate_self(elem.bbox.x1 * width, elem.bbox.y1 * height).to_relative_self(
                         width, height
                     )
                     tokens.append(token)
                 elem.tokens = tokens
             else:
-                text = ocr_model.get_text(cropped_image)
-                elem.text_representation = text
+                elem.text_representation = ocr_model.get_text(cropped_image)
 
     return elements
-
-
-# def extract_table_ocr(image: Image.Image, elem: TableElement, reader):
-#     width, height = image.size
-
-#     assert elem.bbox is not None
-#     crop_box = (elem.bbox.x1 * width, elem.bbox.y1 * height, elem.bbox.x2 * width, elem.bbox.y2 * height)
-#     cropped_image = image.crop(crop_box)
-#     image_bytes = BytesIO()
-#     cropped_image.save(image_bytes, format="PNG")
-
-#     # TODO: support more languages
-#     results = reader.readtext(image_bytes.getvalue())
-
-#     tokens = []
-
-#     for res in results:
-#         raw_bbox = res[0]
-#         text = res[1]
-
-#         token = {"bbox": BoundingBox(raw_bbox[0][0], raw_bbox[0][1], raw_bbox[2][0], raw_bbox[2][1]), "text": text}
-
-#         # Shift the BoundingBox to be relative to the whole image.
-#         # TODO: We can likely reduce the number of bounding box translations/conversion in the pipeline,
-#         #  but for the moment I'm prioritizing clarity over (theoretical) performance, and we have the
-#         #  desired invariant that whenever we store bounding boxes they are relative to the entire doc.
-#         token["bbox"].translate_self(crop_box[0], crop_box[1]).to_relative_self(width, height)
-#         tokens.append(token)
-
-#     elem.tokens = tokens

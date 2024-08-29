@@ -41,13 +41,16 @@ class OpenSearchSchemaFetcher:
             if not key.startswith("properties.entity") or ".keyword" in key:
                 continue
             try:
-                samples = {
-                    random_sample[i]["_source"]["properties"]["entity"].get(key[18:], None)
-                    for i in range(len(random_sample))
-                }
-                samples -= {None}
-                sample_type = type(samples.copy().pop())
-                result[key] = (str(sample_type), {str(example) for example in samples})
+                samples = set()
+                sample_type = None
+                for sample in random_sample:
+                    sample_value = sample["_source"]["properties"]["entity"].get(key[18:], None)
+                    if sample_value is not None:
+                        if not sample_type:
+                            sample_type = type(sample_value)
+                        samples.add(str(sample_value))
+                if len(samples) > 0:
+                    result[key] = (str(sample_type), {str(example) for example in samples})
             except KeyError:
                 # This can happen if there are mappings that have no corresponding values.
                 # Skip them.

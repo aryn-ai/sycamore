@@ -356,7 +356,7 @@ class OpenAI(LLM):
         if (llm_kwargs or {}).get("temperature", 0) != 0 or not self._cache:
             return (None, None)
 
-        if issubclass(llm_kwargs.get("response_format", None), pydantic.BaseModel):
+        if issubclass((llm_kwargs or {}).get("response_format", None), pydantic.BaseModel):
             llm_kwargs["response_format"] = type_to_response_format_param(llm_kwargs.get("response_format"))
 
         key = self._get_cache_key(prompt_kwargs, llm_kwargs)

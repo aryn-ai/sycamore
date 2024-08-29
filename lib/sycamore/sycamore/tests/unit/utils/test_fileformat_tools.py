@@ -7,7 +7,7 @@ from pypdf import PdfReader
 
 import sycamore
 from sycamore.tests.config import TEST_DIR
-from sycamore.utils.fileformat_tools import binary_representation_to_pdf
+from sycamore.utils.fileformat_tools import binary_representation_to_pdf, get_file_extension
 
 
 def test_binary_representation_to_pdf():
@@ -25,3 +25,17 @@ def test_binary_representation_to_pdf():
     pdf_bytes = BytesIO(result.binary_representation)
     reader = PdfReader(pdf_bytes)
     assert len(reader.pages) == 2
+
+
+def test_get_file_extension():
+    data = {
+        "file:///tmp/filename.txt": ".txt",
+        "filename.docx": ".docx",
+        "local/dir/filename.doc": ".doc",
+        "s3://bucket/prefix/filename.xml": ".xml",
+        "/home/ec2-user/random_file.some_extension": ".some_extension",
+        "/home/ec2-user/random_file": "",
+        "unknown": "",
+    }
+    for k, v in data.items():
+        assert get_file_extension(k) == v

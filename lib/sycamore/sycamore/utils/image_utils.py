@@ -228,8 +228,6 @@ def show_images(images: Union[Image.Image, list[Image.Image]], width: int = 600)
         images: A PIL image or list of images.
         width: An optional width for the image. This only applies in Jupyter notebooks.
     """
-    from IPython.display import display, Image as JImage
-
     if isinstance(images, Image.Image):
         images = [images]
 
@@ -249,6 +247,8 @@ def show_images(images: Union[Image.Image, list[Image.Image]], width: int = 600)
         in_jupyter = False
 
     if in_jupyter:
+        from IPython.display import display, Image as JImage
+
         for image in images:
             data = BytesIO()
             image.save(data, format="png")

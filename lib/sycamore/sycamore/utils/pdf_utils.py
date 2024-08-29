@@ -6,7 +6,6 @@ from sycamore.functions.document import DrawBoxes, split_and_convert_to_image
 from sycamore.utils.image_utils import show_images
 from sycamore.data import Document
 import json
-from IPython.display import display, HTML
 
 
 def show_pages(docset: DocSet, limit: int = 2):
@@ -24,6 +23,8 @@ def show_pages(docset: DocSet, limit: int = 2):
 
 
 def enumerate_images_and_tables(m_pages: list[Document]):
+    from IPython.display import display, HTML
+
     num_pages = len(m_pages)
     for i in range(0, num_pages):
         m_page = m_pages[i]
@@ -40,6 +41,8 @@ def enumerate_images_and_tables(m_pages: list[Document]):
 
 
 def display_page_and_table_properties(some_pages: list[Document]):
+    from IPython.display import display, HTML
+
     for m_page in some_pages:
         print("Page props: ")
         display(m_page.properties["entity"])

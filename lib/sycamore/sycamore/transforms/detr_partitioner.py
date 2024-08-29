@@ -16,16 +16,9 @@ import json
 from tenacity import retry, retry_if_exception, wait_exponential, stop_after_delay
 import base64
 import pdf2image
-import pytesseract
 from PIL import Image
 import fasteners
-from pdfminer.converter import PDFPageAggregator
-from pdfminer.layout import LAParams
-from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager, resolve1
-from pdfminer.pdfpage import PDFPage
-from pdfminer.utils import open_filename
-from pdfminer.pdfparser import PDFParser
-from pdfminer.pdfdocument import PDFDocument
+from pypdf import PdfReader
 
 from sycamore.data import Element, BoundingBox, ImageElement, TableElement
 from sycamore.data.element import create_element
@@ -33,6 +26,7 @@ from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_
 from sycamore.utils import choose_device
 from sycamore.utils.cache import Cache, DiskCache
 from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
+from sycamore.utils.import_utils import requires_modules
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
 from sycamore.utils.pdf import convert_from_path_streamed_batched
 from sycamore.utils.time_trace import LogTime, timetrace
@@ -67,6 +61,14 @@ def _can_retry(e: BaseException) -> bool:
 
 
 pdf_miner_cache = DiskCache(str(Path.home() / ".sycamore/PDFMinerCache"))
+
+
+def get_page_count(fp: BinaryIO):
+    fp.seek(0)
+    reader = PdfReader(fp)
+    num_pages = len(reader.pages)
+    fp.seek(0)
+    return num_pages
 
 
 class ArynPDFPartitioner:
@@ -320,11 +322,7 @@ class ArynPDFPartitioner:
         extract_images: bool = False,
         pages_per_call: int = -1,
     ) -> List[Element]:
-        file.seek(0)
-        parser = PDFParser(file)
-        document = PDFDocument(parser)
-        page_count = resolve1(document.catalog["Pages"])["Count"]
-        file.seek(0)
+        page_count = get_page_count(file)
 
         result = []
         low = 1
@@ -351,6 +349,7 @@ class ArynPDFPartitioner:
 
         return result
 
+    @requires_modules("easyocr", extra="local-inference")
     def _partition_pdf_sequenced(
         self,
         file: BinaryIO,
@@ -571,6 +570,7 @@ class ArynPDFPartitioner:
 
         return pdfminer_layout
 
+    @requires_modules("easyocr", extra="local-inference")
     def process_batch(
         self,
         batch: list[Image.Image],
@@ -649,6 +649,8 @@ class SycamoreObjectDetection(ABC):
 
 
 class DeformableDetr(SycamoreObjectDetection):
+
+    @requires_modules("transformers", extra="local-inference")
     def __init__(self, model_name_or_path, device=None, cache: Optional[Cache] = None):
         super().__init__()
 
@@ -764,13 +766,20 @@ class DeformableDetr(SycamoreObjectDetection):
 
 
 class PDFMinerExtractor:
+    @requires_modules(["pdfminer", "pdfminer.utils"], extra="local-inference")
     def __init__(self):
+        from pdfminer.layout import LAParams
+        from pdfminer.converter import PDFPageAggregator
+        from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
+
         rm = PDFResourceManager()
         param = LAParams()
         self.device = PDFPageAggregator(rm, laparams=param)
         self.interpreter = PDFPageInterpreter(rm, self.device)
 
     def _open_pdfminer_pages_generator(self, fp: BinaryIO):
+        from pdfminer.pdfpage import PDFPage
+
         pages = PDFPage.get_pages(fp)
         for page in pages:
             self.interpreter.process_page(page)
@@ -795,6 +804,7 @@ class PDFMinerExtractor:
     def extract(self, filename: Union[str, IOBase], hash_key: str, use_cache=False) -> List[List[Element]]:
         # The naming is slightly confusing, but `open_filename` accepts either
         # a filename (str) or a file-like object (IOBase)
+        from pdfminer.utils import open_filename
 
         cached_result = pdf_miner_cache.get(hash_key) if use_cache else None
         if cached_result:
@@ -827,9 +837,12 @@ class PDFMinerExtractor:
 
 
 @timetrace("OCR")
+@requires_modules("pytesseract", extra="local-inference")
 def extract_ocr(
     images: list[Image.Image], elements: list[list[Element]], ocr_images=False, ocr_tables=False, table_reader=None
 ) -> list[list[Element]]:
+    import pytesseract
+
     for i, image in enumerate(images):
         width, height = image.size
 

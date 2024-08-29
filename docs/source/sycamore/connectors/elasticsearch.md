@@ -6,7 +6,7 @@
 
 *Please see Elasticsearch's [installation](https://www.elastic.co/guide/en/elasticsearch/reference/current/install-elasticsearch.html) page for more in-depth information on installing, configuring, and running Elasticsearch. We specify the setup required to run a simple demo app.*
 
-For local development and testing, we recommend running Elasticsearch through docker compose. The provided `compose.yml` file runs Elasticsearch, which has an associated low-level Python library that makes querying easier.
+For local development and testing, we recommend running Elasticsearch through docker compose. The provided `compose.yml` file runs Elasticsearch, which has an associated low-level Python library that makes querying easier. 
 
 <details>
   <summary><i>compose.yml</i></summary>
@@ -54,7 +54,8 @@ wait_for_completion = "wait_for"
 ds.write.elasticsearch(url=url, index_name=index_name, wait_for_completion=wait_for_completion)
 ```
 
-More information can be found in the {doc}`API documentation </APIs/data_preparation/docsetwriter>`.
+More information can be found in the {doc}`API documentation <../APIs/docsetwriter>`. A demo of the writer can also be found in the [demo notebook](https://github.com/aryn-ai/sycamore/blob/main/notebooks/elasticsearch-writer.ipynb).
+
 
 ## Reading from Elasticsearch
 
@@ -74,4 +75,4 @@ query_params = {"term": {"_id": target_doc_id}}
 query_docs = ctx.read.elasticsearch(url=url, index_name=index_name, query=query_params).take_all()
 ```
 
-More information can be found in the {doc}`API documentation </APIs/data_preparation/docsetreader>`.
+More information can be found in the {doc}`API documentation <../APIs/docsetreader>`.

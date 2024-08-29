@@ -3,12 +3,13 @@ from dataclasses import dataclass, field
 from typing import Any, Optional, TypeVar, Union
 import xml.etree.ElementTree as ET
 
-import apted
 from bs4 import BeautifulSoup, Tag
-from sycamore.data.bbox import BoundingBox
 from PIL import Image, ImageDraw
 import numpy as np
 from pandas import DataFrame
+
+from sycamore.data.bbox import BoundingBox
+from sycamore.utils.import_utils import requires_modules
 
 
 # This is part of itertools in 3.10+.
@@ -285,17 +286,19 @@ class Table:
                             table_array[row, col] = ""
 
                 else:
-                    table_array[cell.rows[0], cell.cols[0]] = cell.content
-                    for row in cell.rows[1:]:
-                        for col in cell.cols[1:]:
-                            table_array[row, col] = ""
+                    for row in cell.rows:
+                        for col in cell.cols:
+                            if row == cell.rows[0] and col == cell.cols[0]:
+                                table_array[row, col] = cell.content
+                            else:
+                                table_array[row, col] = ""
 
         header = table_array[: max_header_prefix_row + 1, :]
 
         flattened_header = []
 
         for npcol in header.transpose():
-            flattened_header.append(" | ".join(OrderedDict.fromkeys((c for c in npcol if c != ""))))
+            flattened_header.append(" | ".join(OrderedDict.fromkeys((c for c in npcol if c not in [None, ""]))))
 
         df = DataFrame(
             table_array[max_header_prefix_row + 1 :, :],
@@ -419,7 +422,7 @@ class Table:
         return try_draw_boxes(target, self.cells, color_fn=lambda _: "red", text_fn=lambda _, i: None)
 
 
-class TableTree(apted.helpers.Tree):
+class TableTree:
     def __init__(
         self,
         tag: str,
@@ -458,6 +461,7 @@ class TableTree(apted.helpers.Tree):
             return f'<{self.tag}>{"".join(c.to_html() for c in self.children)}</{self.tag}>'
 
 
+@requires_modules("apted", extra="eval")
 def ted_score(table1: Table, table2: Table) -> float:
     """Computes the tree edit distance (TED) score between two Tables
 
@@ -467,8 +471,10 @@ def ted_score(table1: Table, table2: Table) -> float:
         table1:
         table2:
     """
+    from apted import APTED
+
     tt1 = table1.to_tree()
     tt2 = table2.to_tree()
 
-    distance = apted.APTED(tt1, tt2).compute_edit_distance()
+    distance = APTED(tt1, tt2).compute_edit_distance()
     return 1.0 - float(distance) / max(tt1.get_size(), tt2.get_size(), 1)

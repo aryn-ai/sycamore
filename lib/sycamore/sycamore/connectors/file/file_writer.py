@@ -20,10 +20,16 @@ logger = logging.getLogger(__name__)
 
 class JSONEncodeWithUserDict(json.JSONEncoder):
     def default(self, obj):
+        from sycamore.data.bbox import BoundingBox
+
         if isinstance(obj, UserDict):
             return obj.data
+        elif isinstance(obj, BoundingBox):
+            return {"x1": obj.x1, "y1": obj.y1, "x2": obj.x2, "y2": obj.y2}
         elif isinstance(obj, bytes):
-            return obj.decode("utf-8")
+            import base64
+
+            return base64.b64encode(obj).decode("utf-8")
         else:
             return json.JSONEncoder.default(self, obj)
 
@@ -100,7 +106,7 @@ def elements_to_bytes(doc: Document) -> bytes:
     return out.getvalue().encode("utf-8")
 
 
-def document_to_bytes(doc: Document) -> bytes:
+def document_to_json_bytes(doc: Document) -> bytes:
     """
     Returns a UTF-8 encoded json string of the document.  Adds newline.
     Beware this will try to interpret binary_representation as UTF-8.
@@ -173,6 +179,9 @@ class JsonWriter(Write):
     files.  Supports output to any Ray-supported filesystem.  Typically
     each source document (such as a PDF) ends up as a block.  After an
     explode(), there will be multiple documents in the block.
+
+    Warning: JSON writing is not reversable with JSON reading. You will get
+    a slightly different document back.
     """
 
     def __init__(

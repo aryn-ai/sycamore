@@ -8,7 +8,9 @@ import logging
 import pandas as pd
 import numpy as np
 from collections import OrderedDict
-
+from PIL import Image
+import base64
+import io
 
 # URL for Aryn Partitioning Service (APS)
 APS_URL = "https://api.aryn.cloud/v1/document/partition"
@@ -277,3 +279,57 @@ def tables_to_pandas(data: dict) -> list[tuple[dict, Optional[pd.DataFrame]]]:
         results.append((e, table_elem_to_dataframe(e)))
 
     return results
+
+
+def convert_image_element(
+    elem: dict, format: str = "PIL", b64encode: bool = False
+) -> Optional[Union[Image.Image, bytes, str]]:
+    """
+    Convert an image element to a more useable format. If no format is specified,
+    create a PIL Image object. If a format is specified, output the bytes of the image
+    in that format. If b64encode is set to True, base64-encode the bytes and return them
+    as a string.
+
+    Args:
+        elem: an image element from the 'elements' field of a ``partition_file`` response
+        format: an optional format to output bytes of. Default is PIL
+        b64encode: base64-encode the output bytes. Format must be set to use this
+
+    Example:
+         .. code-block:: python
+
+            from aryn_sdk.partition import partition_file, convert_image
+
+            with open("my-favorite-pdf.pdf", "rb") as f:
+                data = partition_file(
+                    f,
+                    extract_images=True
+                )
+            image_elts = [e for e in data['elements'] if e['type'] == 'Image']
+
+            pil_img = convert_image(image_elts[0])
+            jpg_bytes = convert_image(image_elts[1], format='JPEG')
+            png_str = convert_image(image_elts[2], format="PNG", b64encode=True)
+
+    """
+    if b64encode and format == "PIL":
+        raise ValueError("b64encode was True but formate was PIL. Cannot b64-encode a PIL Image")
+
+    if elem.get("type") != "Image":
+        return None
+
+    width = elem["properties"]["image_size"][0]
+    height = elem["properties"]["image_size"][1]
+    mode = elem["properties"]["image_mode"]
+    im = Image.frombytes(mode, (width, height), base64.b64decode(elem["binary_representation"]))
+
+    if format == "PIL":
+        return im
+
+    buf = io.BytesIO()
+    im.save(buf, format)
+
+    if not b64encode:
+        return buf.getvalue()
+    else:
+        return base64.b64encode(buf.getvalue()).decode("utf-8")

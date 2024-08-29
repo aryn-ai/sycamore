@@ -17,6 +17,33 @@ if TYPE_CHECKING:
 logger = logging.getLogger("__name__")
 
 
+class _PyArrowFsHelper:
+    def __init__(self, fs: "pyarrow.FileSystem"):
+        self._fs = fs
+
+    def list_files(self, path):
+        from pyarrow.fs import FileSelector
+
+        return self._fs.get_file_info(FileSelector(str(path), allow_not_found=True, recursive=True))
+
+    def file_exists(self, path: Path) -> bool:
+        from pyarrow.fs import FileType
+
+        info = self._fs.get_file_info(str(path))
+        return info.type == FileType.File
+
+    def safe_cleanup(self, path) -> None:
+        # materialize dirs should be non-hierarchical, minimize the chance that
+        # mis-use will delete unexpected files.
+        plen = len(str(path)) + 1
+        for fi in self.list_files(path):
+            assert "/" not in fi.path[plen:], f"Refusing to clean {path}. Found unexpected hierarchical file {fi.path}"
+
+        logging.info(f"Cleaning up any materialized files in {path}")
+        self._fs.delete_dir_contents(str(path), missing_dir_ok=True)
+        self._fs.create_dir(str(path))
+
+
 class Materialize(UnaryNode):
     def __init__(
         self,
@@ -33,6 +60,7 @@ class Materialize(UnaryNode):
             pass
         elif isinstance(path, str) or isinstance(path, Path):
             (self._fs, self._root) = self.infer_fs(str(path))
+            self._fshelper = _PyArrowFsHelper(self._fs)
             self._doc_to_name = self.doc_to_name
             self._doc_to_binary = Document.serialize
             self._clean_root = True
@@ -43,6 +71,7 @@ class Materialize(UnaryNode):
                 self._fs = path["fs"]
             else:
                 (self._fs, self._root) = self.infer_fs(str(self._root))
+            self._fshelper = _PyArrowFsHelper(self._fs)
             self._doc_to_name = path.get("name", self.doc_to_name)
             self._doc_to_binary = path.get("tobin", Document.serialize)
             assert callable(self._doc_to_name)
@@ -58,17 +87,19 @@ class Materialize(UnaryNode):
             assert self._clean_root, "Using materialize in source mode requires cleaning the root"
 
         self._source_mode = source_mode
+        self._executed_child = False
 
         super().__init__(child, **kwargs)
 
     def execute(self, **kwargs) -> "Dataset":
         logger.debug("Materialize execute")
         if self._source_mode == MaterializeSourceMode.IF_PRESENT:
-            success = self._success_path().exists()
+            success = self._fshelper.file_exists(self._success_path())
             if success or len(self.children) == 0:
                 logger.info(f"Using {self._root} as cached source of data")
-                self._verify_has_files()
+                self._executed_child = False
                 if not success:
+                    self._verify_has_files()
                     logging.warning(f"materialize.success not found in {self._root}. Returning partial data")
 
                 from ray.data import read_binary_files
@@ -77,6 +108,7 @@ class Materialize(UnaryNode):
 
                 return files.map(self._ray_to_document)
 
+        self._executed_child = True
         # right now, no validation happens, so save data in parallel. Once we support validation
         # to support retries we won't be able to run the validation in parallel.  non-shared
         # filesystems will also eventually be a problem but we can put it off for now.
@@ -97,12 +129,13 @@ class Materialize(UnaryNode):
         return input_dataset
 
     def _verify_has_files(self) -> None:
-        assert self._root is not None
-        if not self._root.is_dir():
-            raise ValueError(f"Materialize root {self._root} is not a directory")
 
-        for n in self._root.iterdir():
-            if str(n).endswith(".pickle"):
+        assert self._root is not None
+        assert self._fs is not None
+
+        files = self._fshelper.list_files(self._root)
+        for n in files:
+            if n.path.endswith(".pickle"):
                 return
 
         raise ValueError(f"Materialize root {self._root} has no .pickle files")
@@ -110,9 +143,15 @@ class Materialize(UnaryNode):
     def _ray_to_document(self, dict: dict[str, Any]) -> dict[str, bytes]:
         return {"doc": dict["bytes"]}
 
+    def _will_be_source(self) -> bool:
+        return self._source_mode == MaterializeSourceMode.IF_PRESENT and self._fshelper.file_exists(
+            self._success_path()
+        )
+
     def local_execute(self, docs: list[Document]) -> list[Document]:
         if self._source_mode == MaterializeSourceMode.IF_PRESENT:
-            if self._success_path().exists():
+            if self._fshelper.file_exists(self._success_path()):
+                self._executed_child = False
                 logger.info(f"Using {self._root} as cached source of data")
 
                 return self.local_source()
@@ -121,6 +160,7 @@ class Materialize(UnaryNode):
             self.cleanup()
             for d in docs:
                 self.save(d)
+            self._executed_child = True
 
         return docs
 
@@ -128,13 +168,15 @@ class Materialize(UnaryNode):
         assert self._root is not None
         self._verify_has_files()
         logger.info(f"Using {self._root} as cached source of data")
-        if not self._success_path().exists():
+        if not self._fshelper.file_exists(self._success_path()):
             logging.warning(f"materialize.success not found in {self._root}. Returning partial data")
         ret = []
-        for n in self._root.iterdir():
+        for fi in self._fshelper.list_files(self._root):
+            n = Path(fi.path)
             if n.suffix == ".pickle":
-                with open(n, "rb") as f:
-                    ret.append(Document.deserialize(f.read()))
+                f = self._fs.open_input_stream(str(n))
+                ret.append(Document.deserialize(f.read()))
+                f.close()
 
         return ret
 
@@ -142,12 +184,25 @@ class Materialize(UnaryNode):
         return self._root / "materialize.success"
 
     def finalize(self):
+        if not self._executed_child:
+            return
         if self._root is not None:
-            self._success_path().touch()
-            assert self._success_path().exists()
+            self._fs.open_output_stream(str(self._success_path())).close()
+            assert self._fshelper.file_exists(self._success_path())
 
     @staticmethod
     def infer_fs(path: str) -> "pyarrow.FileSystem":
+        import re
+
+        if not re.match("^[a-z0-9]+://.", path):
+            # pyarrow expects URIs, accepts /dir/path, but rejects ./dir/path
+            # normalize everything to a URI.
+            p = Path(path)
+            if p.is_absolute():
+                path = p.as_uri()
+            else:
+                path = p.absolute().as_uri()
+
         from pyarrow import fs
 
         (fs, root) = fs.FileSystem.from_uri(path)
@@ -161,21 +216,20 @@ class Materialize(UnaryNode):
         assert self._root is not None
         name = self._doc_to_name(doc)
         path = self._root / name
-        if self._clean_root:
-            assert not path.exists(), f"Duplicate name {path} generated for clean root"
+        if self._clean_root and self._fshelper.file_exists(path):
+            raise ValueError(f"Duplicate name {path} generated for clean root")
         with self._fs.open_output_stream(str(path)) as out:
             out.write(bin)
 
     def cleanup(self) -> None:
-        if not self._clean_root:
-            return
-
-        import shutil
-
         if self._root is None:
             return
-        shutil.rmtree(self._root, ignore_errors=True)
-        self._root.mkdir(parents=True, exist_ok=True)
+
+        if not self._clean_root:
+            self._fs.create_dir(str(self._root))
+            return
+
+        self._fshelper.safe_cleanup(self._root)
 
     @staticmethod
     def doc_to_name(doc: Document) -> str:
@@ -213,19 +267,17 @@ class AutoMaterialize(NodeTraverse):
         super().__init__()
         if isinstance(path, str) or isinstance(path, Path):
             path = {"root": path}
+        else:
+            path = path.copy()
         if "clean" not in path:
             path["clean"] = True
 
-        self._path = path
-        self.directory = path.pop("root", None)
+        self._choose_directory(path)
         self._basename_to_count: dict[str, int] = {}
 
     def once(self, context, node):
         self._name_unique = set()
         node = node.traverse(after=self._naming_pass())
-
-        self._setup_directory()
-
         node = node.traverse(visit=self._cleanup_pass())
         node = node.traverse(before=self._wrap_pass(context))
 
@@ -262,20 +314,12 @@ class AutoMaterialize(NodeTraverse):
             materialize = node.properties["materialize"]
             materialize.pop("mark", None)
 
-            path = self.directory / materialize["name"]
+            path = self._directory / materialize["name"]
 
-            if path.exists():
-                if not self._path["clean"]:
-                    return
-                # auto-materialize dirs should be non-hierarchical, minimize the chance that
-                # mis-use will delete unexpected files.
-                for p in path.iterdir():
-                    assert not p.is_dir()
+            if not self._path["clean"]:
+                return
 
-                for p in path.iterdir():
-                    p.unlink()
-            else:
-                path.mkdir(parents=True)
+            self._fshelper.safe_cleanup(path)
 
         return visit
 
@@ -295,24 +339,29 @@ class AutoMaterialize(NodeTraverse):
                 return node
 
             path = self._path.copy()
-            path["root"] = self.directory / materialize["name"]
+            path["root"] = self._directory / materialize["name"]
             materialize["mark"] = True
             materialize["count"] = materialize.get("count", 0) + 1
             return Materialize(node, context, path=path)
 
         return before
 
-    def _setup_directory(self):
+    def _choose_directory(self, path):
         from pathlib import Path
 
-        if self.directory is None:
+        directory = path.pop("root", None)
+        self._path = path
+
+        if directory is None:
             from datetime import datetime
             import tempfile
 
             now = datetime.now().replace(microsecond=0)
             dir = Path(tempfile.gettempdir()) / f"materialize.{now.isoformat()}"
-            self.directory = dir
+            directory = str(dir)
             logger.info(f"Materialize directory was not specified. Used {dir}")
 
-        if not isinstance(self.directory, Path):
-            self.directory = Path(self.directory)
+        (self._fs, self._directory) = Materialize.infer_fs(directory)
+        if "fs" in self._path:
+            self._fs = self._path["fs"]
+        self._fshelper = _PyArrowFsHelper(self._fs)

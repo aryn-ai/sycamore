@@ -14,6 +14,7 @@ import sycamore
 from sycamore.context import ExecMode
 from sycamore.data import Document, MetadataDocument
 from sycamore.materialize import AutoMaterialize, Materialize, MaterializeSourceMode
+from sycamore.tests.unit.inmempyarrowfs import InMemPyArrowFileSystem
 
 
 def tobin(d):
@@ -29,6 +30,8 @@ class LocalRenameFilesystem(fs.LocalFileSystem):
         self.extension = ext
 
     def open_output_stream(self, path):
+        if path.endswith("/materialize.success"):
+            return super().open_output_stream(path)
         return super().open_output_stream(path + self.extension)
 
 
@@ -183,16 +186,16 @@ class TestAutoMaterialize(unittest.TestCase):
             ctx = sycamore.init(exec_mode=ExecMode.LOCAL, rewrite_rules=[a])
             ctx.read.document(docs).map(noop_fn).execute()
 
-            files = [f for f in Path(a.directory).rglob("*")]
+            files = [f for f in Path(a._directory).rglob("*")]
             logging.info(f"Found {files}")
             assert len([f for f in files if "DocScan.0/doc" in str(f)]) == 3
             assert len([f for f in files if "DocScan.0/md-" in str(f)]) == 1
             assert len([f for f in files if "Map.0/doc" in str(f)]) == 3
             assert len([f for f in files if "Map.0/md-" in str(f)]) == 2
-            assert re.match(".*materialize\\.[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}", str(a.directory))
+            assert re.match(".*materialize\\.[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}", str(a._directory))
         finally:
-            if a.directory is not None:
-                shutil.rmtree(a.directory)
+            if a._directory is not None:
+                shutil.rmtree(a._directory)
 
     def test_dupnodename(self):
         docs = make_docs(3)
@@ -241,7 +244,6 @@ class TestAutoMaterialize(unittest.TestCase):
             ds.execute()
 
             files = [f for f in Path(tmpdir).rglob("*")]
-            logging.info(f"TO Found-1 {files}")
             assert len([f for f in files if ".test4" in str(f)]) == 3 + 1 + 3 + 2
 
             for d in docs:
@@ -250,24 +252,26 @@ class TestAutoMaterialize(unittest.TestCase):
 
             ds.execute()
             files = [f for f in Path(tmpdir).rglob("*")]
-            logging.info(f"TO Found-2 {files}")
             assert len([f for f in files if "-dup" in str(f)]) == 3 + 3
             assert len([f for f in files if ".test4" in str(f)]) == 2 * (3 + 1 + 3 + 2)
 
             a._path["clean"] = True
             ds.execute()
             files = [f for f in Path(tmpdir).rglob("*")]
-            logging.info(f"TO Found-3 {files}")
             assert len([f for f in files if ".test4" in str(f)]) == 3 + 1 + 3 + 2
+
+
+def any_id(d):
+    if isinstance(d, MetadataDocument):
+        return str(d.metadata)
+    else:
+        return d.doc_id
 
 
 def ids(docs):
     ret = []
     for d in docs:
-        if isinstance(d, MetadataDocument):
-            ret.append(str(d.metadata))
-        else:
-            ret.append(d.doc_id)
+        ret.append(any_id(d))
     ret.sort()
     return ret
 
@@ -331,3 +335,61 @@ class TestMaterializeRead(unittest.TestCase):
             Path(tmpdir).rmdir()
             with pytest.raises(ValueError):
                 ds.take_all()
+
+
+class TestAllViaPyarrowFS(unittest.TestCase):
+    def test_simple(self):
+        fs = InMemPyArrowFileSystem()
+        ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
+        docs = make_docs(3)
+        path = {"root": "/no/such/path", "fs": fs}
+        ctx.read.document(docs).materialize(path=path).execute()
+        docs_out = ctx.read.materialize(path).take_all()
+        assert docs.sort(key=any_id) == docs_out.sort(key=any_id)
+
+    def test_clean(self):
+        fs = InMemPyArrowFileSystem()
+        ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
+        docs = make_docs(3)
+        path = {"root": "/fake/inmem/no/such/path", "fs": fs}
+        fs.open_output_stream(path["root"] + "/fake.pickle").close()
+        ctx.read.document(docs).materialize(path=path).execute()
+        docs_out = ctx.read.materialize(path).take_all()
+        assert docs.sort(key=any_id) == docs_out.sort(key=any_id)
+
+    def test_automaterialize(self):
+        fs = InMemPyArrowFileSystem()
+        path = {"root": "/fake/inmem/no/such/path", "fs": fs}
+        ctx = sycamore.init(exec_mode=ExecMode.LOCAL, rewrite_rules=[AutoMaterialize(path)])
+        docs = make_docs(3)
+        docs_out = ctx.read.document(docs).materialize(path=path).take_all()
+        assert docs.sort(key=any_id) == docs_out.sort(key=any_id)
+
+    def test_fail_if_hierarchy(self):
+        fs = InMemPyArrowFileSystem()
+        ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
+        docs = make_docs(3)
+        path = {"root": "/fake/inmem/no/such/path", "fs": fs}
+        fs.open_output_stream(path["root"] + "/subdir/fake.pickle").close()
+        from sycamore.materialize import _PyArrowFsHelper
+
+        fsh = _PyArrowFsHelper(fs)
+
+        # Fail with explicit materialize
+        with pytest.raises(AssertionError):
+            ctx.read.document(docs).materialize(path=path).execute()
+
+        ctx = sycamore.init(exec_mode=ExecMode.LOCAL, rewrite_rules=[AutoMaterialize(path)])
+        pipeline = ctx.read.document(docs).materialize(path=path)
+        # Fail with auto-materialize
+        with pytest.raises(AssertionError):
+            pipeline.take_all()
+
+        assert fsh.file_exists(path["root"] + "/subdir/fake.pickle")
+
+        fs.open_output_stream(path["root"] + "/DocScan.0/subdir/fake.pickle").close()
+        # Fail with auto-materialize and file in one of the real subdirs
+        with pytest.raises(AssertionError):
+            pipeline.take_all()
+
+        assert fsh.file_exists(path["root"] + "/DocScan.0/subdir/fake.pickle")

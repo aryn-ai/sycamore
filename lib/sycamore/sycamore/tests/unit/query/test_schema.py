@@ -27,6 +27,12 @@ def test_opensearch_schema():
                         "weather": {"type": "text", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}}
                     },
                 },
+                "properties.entity.colors": {
+                    "full_name": "properties.entity.colors",
+                    "mapping": {
+                        "colors": {"type": "array", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}}
+                    },
+                },
             }
         }
     }
@@ -40,17 +46,19 @@ def test_opensearch_schema():
                     {
                         "_source": {
                             "properties": {
-                                "entity": {
-                                    "day": "2021-01-01",
-                                    "aircraft": "Boeing 747",
-                                }
+                                "entity": {"day": "2021-01-01", "aircraft": "Boeing 747", "colors": ["red", "blue"]}
                             }
                         }
                     },
                     {
                         "_source": {
                             "properties": {
-                                "entity": {"day": "2021-01-02", "aircraft": "Airbus A380", "weather": "Sunny"}
+                                "entity": {
+                                    "day": "2021-01-02",
+                                    "aircraft": "Airbus A380",
+                                    "weather": "Sunny",
+                                    "colors": [],
+                                }
                             }
                         }
                     },
@@ -69,4 +77,7 @@ def test_opensearch_schema():
     assert got["properties.entity.aircraft"] == ("<class 'str'>", {"Boeing 747", "Airbus A380"})
     assert "properties.entity.weather" in got
     assert got["properties.entity.weather"] == ("<class 'str'>", {"Sunny"})
+    assert "properties.entity.colors" in got
+    assert got["properties.entity.colors"] == ("<class 'list'>", {str(["red", "blue"]), str([])})
+
     assert "properties.entity.location" not in got

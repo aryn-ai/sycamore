@@ -88,8 +88,12 @@ class Execution:
         plan.traverse(visit=lambda n: n.finalize())
 
     def recursive_execute(self, n: Node) -> list[Document]:
+        from sycamore.materialize import Materialize
+
         if len(n.children) == 0:
             assert hasattr(n, "local_source"), f"Source {n} needs a local_source method"
+            return n.local_source()
+        if isinstance(n, Materialize) and n._will_be_source():
             return n.local_source()
         if len(n.children) == 1:
             assert hasattr(n, "local_execute"), f"Transform {n.__class__.__name__} needs a local_execute method"

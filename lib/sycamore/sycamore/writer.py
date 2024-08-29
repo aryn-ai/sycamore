@@ -1,19 +1,19 @@
 import logging
-from typing import Any, Callable, Optional, TYPE_CHECKING, Union
+from typing import Any, Callable, Optional, Union, TYPE_CHECKING
 
-from neo4j import Auth
-from neo4j.auth_management import AuthManager
 from pyarrow.fs import FileSystem
 
-from sycamore.context import Context
+from sycamore.context import Context, ExecMode
 from sycamore.connectors.common import HostAndPort
 from sycamore.connectors.file.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
 from sycamore.data import Document
+from sycamore.executor import Execution
 from sycamore.plan_nodes import Node
+from sycamore.docset import DocSet
 
 if TYPE_CHECKING:
-    # Shenanigans to avoid circular import
-    from sycamore.docset import DocSet
+    from neo4j import Auth
+    from neo4j.auth_management import AuthManager
 
 logger = logging.getLogger(__name__)
 
@@ -153,14 +153,13 @@ class DocSetWriter:
         # doesn't execute automatically, and instead you need to say something
         # like docset.write.opensearch().execute(), allowing sensible writes
         # to multiple locations and post-write operations.
+        osds = DocSet(self.context, os)
         if execute:
             # If execute, force execution
-            os.execute().materialize()
+            osds.execute()
             return None
         else:
-            from sycamore.docset import DocSet
-
-            return DocSet(self.context, os)
+            return osds
 
     def weaviate(
         self,
@@ -289,14 +288,13 @@ class DocSetWriter:
             wv_docs, client_params, target_params, name="weaviate_write_references", **kwargs
         )
 
+        wvds = DocSet(self.context, wv_refs)
         if execute:
             # If execute, force execution
-            wv_refs.execute().materialize()
+            wvds.execute()
             return None
         else:
-            from sycamore.docset import DocSet
-
-            return DocSet(self.context, wv_refs)
+            return wvds
 
     def pinecone(
         self,
@@ -382,14 +380,13 @@ class DocSetWriter:
         )
 
         pc = PineconeWriter(self.plan, client_params=pcp, target_params=ptp, name="pinecone_write", **kwargs)
+        pcds = DocSet(self.context, pc)
         if execute:
             # If execute, force execution
-            pc.execute().materialize()
+            pcds.execute()
             return None
         else:
-            from sycamore.docset import DocSet
-
-            return DocSet(self.context, pc)
+            return pcds
 
     def duckdb(
         self,
@@ -470,13 +467,12 @@ class DocSetWriter:
             name="duckdb_write_documents",
             **kwargs,
         )
+        ddbds = DocSet(self.context, ddb)
         if execute:
-            ddb.execute().materialize()
+            ddbds.execute()
             return None
         else:
-            from sycamore.docset import DocSet
-
-            return DocSet(self.context, ddb)
+            return ddbds
 
     def elasticsearch(
         self,
@@ -556,24 +552,26 @@ class DocSetWriter:
         es_docs = ElasticsearchDocumentWriter(
             self.plan, client_params, target_params, name="elastic_document_writer", **kwargs
         )
+        esds = DocSet(self.context, es_docs)
         if execute:
             # If execute, force execution
-            es_docs.execute().materialize()
+            esds.execute()
             return None
         else:
-            from sycamore.docset import DocSet
-
-            return DocSet(self.context, es_docs)
+            return esds
 
     def neo4j(
         self,
         uri: str,
-        auth: Union[tuple[Any, Any], Auth, AuthManager, None],
+        auth: Union[tuple[Any, Any], "Auth", "AuthManager", None],
         import_dir: str,
         database: str = "neo4j",
         **kwargs,
     ) -> Optional["DocSet"]:
-        """Writes the content of the DocSet into the specified Neo4j database.
+        """
+        ***EXPERIMENTAL***
+
+        Writes the content of the DocSet into the specified Neo4j database.
 
         Args:
             uri: Connection endpoint for the neo4j instance. Note that this must be paired with the
@@ -619,6 +617,8 @@ class DocSetWriter:
 
         if kwargs.get("execute") is False:
             raise NotImplementedError
+        if self.context.exec_mode != ExecMode.RAY:
+            raise NotImplementedError
 
         class Wrapper(Node):
             def __init__(self, dataset):
@@ -632,7 +632,13 @@ class DocSetWriter:
         target_params = Neo4jWriterTargetParams(database=database)
         Neo4jValidateParams(client_params=client_params, target_params=target_params)
 
-        self.plan = Wrapper(self.plan.execute().materialize())
+        # Execute the docset up until this point and store it in a node
+        pre_n4j_plan = Execution(self.context)._apply_rules(self.plan)
+        pnjds = Execution(self.context)._execute_ray(pre_n4j_plan)
+        pnjds = pnjds.materialize()
+        self.plan = Wrapper(pnjds)
+        pre_n4j_plan.traverse(visit=lambda n: n.finalize())
+
         start = time.time()
         Neo4jPrepareCSV(plan=self.plan, client_params=client_params)
         Neo4jWriteCSV(plan=self.plan, client_params=client_params).execute().materialize()
@@ -662,7 +668,7 @@ class DocSetWriter:
                 if not.
             resource_args: Arguments to pass to the underlying execution environment.
         """
-        file_writer = FileWriter(
+        file_writer: Node = FileWriter(
             self.plan,
             path,
             filesystem=filesystem,
@@ -670,8 +676,9 @@ class DocSetWriter:
             doc_to_bytes_fn=doc_to_bytes_fn,
             **resource_args,
         )
-
+        file_writer = Execution(self.context)._apply_rules(file_writer)
         file_writer.execute()
+        file_writer.traverse(visit=lambda n: n.finalize())
 
     def json(
         self,
@@ -690,5 +697,7 @@ class DocSetWriter:
             resource_args: Arguments to pass to the underlying execution environment.
         """
 
-        node = JsonWriter(self.plan, path, filesystem=filesystem, **resource_args)
+        node: Node = JsonWriter(self.plan, path, filesystem=filesystem, **resource_args)
+        node = Execution(self.context)._apply_rules(node)
         node.execute()
+        node.traverse(visit=lambda n: n.finalize())

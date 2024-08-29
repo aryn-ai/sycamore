@@ -44,7 +44,8 @@ To use the writer, call write at the end of a Sycamore pipeline as done below:
 ds.write.duckdb(table_name=table_name, db_url=db_url)
 ```
 
-Note that the writer forces execution of all transforms before it, so would normally come at the end of a Sycamore pipeline. More information can be found in the {doc}`API documentation </APIs/data_preparation/docsetwriter>`.
+Note that the writer forces execution of all transforms before it, so would normally come at the end of a Sycamore pipeline. More information can be found in the {doc}`API documentation <../APIs/docsetwriter>`. A demo of the writer can also be found in the [demo notebook](https://github.com/aryn-ai/sycamore/blob/main/notebooks/duckdb-writer.ipynb).
+
 
 ## Reading from DuckDB
 
@@ -65,4 +66,4 @@ query = f"SELECT * from {table_name} WHERE doc_id == '{target_doc_id}'"
 query_docs = ctx.read.duckdb(db_url=db_url, table_name=table_name, query=query).take_all()
 ```
 
-More information can be found in the {doc}`API documentation </APIs/data_preparation/docsetreader>`.
+More information can be found in the {doc}`API documentation <../APIs/docsetreader>`.

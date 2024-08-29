@@ -11,6 +11,7 @@ This is the API reference for Sycamore, and it contains the functions you can us
     ./APIs/docset.rst
     ./APIs/docsetreader.rst
     ./APIs/docsetwriter.rst
+    ./APIs/llm.rst
     ./APIs/document.rst
     ./APIs/functions.rst
     ./APIs/node.rst

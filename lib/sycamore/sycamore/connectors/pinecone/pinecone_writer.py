@@ -1,6 +1,5 @@
 from dataclasses import dataclass, asdict
 from typing import Optional, TypedDict, Union
-import json
 from sycamore.utils import batched
 from typing_extensions import TypeGuard
 
@@ -76,7 +75,7 @@ class PineconeWriterClient(BaseDBWriter.Client):
                     spec=target_params.index_spec,
                     metric=target_params.distance_metric,
                 )
-            except PineconeApiException as e:
+            except PineconeApiException:
                 return
 
     def get_existing_target_params(self, target_params: "BaseDBWriter.TargetParams") -> PineconeWriterTargetParams:

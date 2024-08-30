@@ -2,7 +2,7 @@ import sycamore
 from sycamore.data.document import Document
 from sycamore.data.element import Element
 from sycamore.reader import DocSetReader
-from sycamore.transforms.extract_document_structure import ExtractSummaries, StructureBySection
+from sycamore.transforms.extract_document_structure import ExtractSummaries, StructureBySection, StructureByDocument
 import logging
 
 logger = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ class TestExtractDocumentStructure:
         )
     ]
 
-    def test_extract_document_structure(self):
+    def test_structure_by_section(self):
         context = sycamore.init()
         reader = DocSetReader(context)
         ds = reader.document(self.docs)
@@ -62,6 +62,24 @@ class TestExtractDocumentStructure:
             for section in document.children:
                 assert "summary" in section.data
                 assert section.data["label"] == "SECTION"
+                for element in section.children:
+                    assert element.data["label"] == "ELEMENT"
+
+    def test_structure_by_document(self):
+        context = sycamore.init()
+        reader = DocSetReader(context)
+        ds = reader.document(self.docs)
+
+        ds = ds.extract_document_structure(structure=StructureByDocument)
+        docs = ds.take_all()
+
+        for document in docs:
+            assert document.data["label"] == "DOCUMENT"
+            assert len(document.children) == 1
+            for section in document.children:
+                assert "summary" in section.data
+                assert section.data["label"] == "SECTION"
+                assert len(section.children) == 4
                 for element in section.children:
                     assert element.data["label"] == "ELEMENT"
 

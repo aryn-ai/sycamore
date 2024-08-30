@@ -18,8 +18,9 @@ class DocumentStructure(ABC):
 
 class StructureBySection(DocumentStructure):
     """
-    Extracts the structure of the document organizing document elements by their
-    respective section headers.
+    Organizes documents by their section headers which encompass all of the elements
+    between them and the next section header. Useful for long documents which have 
+    many elements that can't fit in an LLM's context window.
     """
 
     @staticmethod
@@ -102,9 +103,80 @@ class StructureBySection(DocumentStructure):
         return doc
 
 
+class StructureByDocument(DocumentStructure):
+    """
+    Organizes documents by using a single section to encompass all of a documents
+    elements. Useful for short documents whose elements can be fit into an LLM's input 
+    context in a single shot.
+    """
+
+    @staticmethod
+    def extract(doc: Document) -> HierarchicalDocument:
+        import uuid
+
+        doc = HierarchicalDocument(doc.data)
+        doc.data["relationships"] = doc.get("relationships", {})
+        doc.data["label"] = doc.get("label", "DOCUMENT")
+
+        initial_page = HierarchicalDocument(
+            {
+                "type": "Section-header",
+                "bbox": (0, 0, 0, 0),
+                "properties": {"score": 1, "page_number": 1},
+                "text_representation": "Document",
+                "binary_representation": b"Front Page",
+                "relationships": {},
+                "label": "SECTION",
+            }
+        )
+
+        rel = {
+            "TYPE": "SECTION_OF",
+            "properties": {},
+            "START_ID": initial_page.doc_id,
+            "START_LABEL": "SECTION",
+            "END_ID": doc.doc_id,
+            "END_LABEL": "DOCUMENT",
+        }
+        initial_page.data["relationships"][str(uuid.uuid4())] = rel
+
+        section: Optional[HierarchicalDocument] = initial_page
+        element: Optional[HierarchicalDocument] = None
+        for child in doc.children:
+            child.data["relationships"] = child.get("relationships", {})
+            if element is not None:
+                next = {
+                    "TYPE": "NEXT",
+                    "properties": {},
+                    "START_ID": element.doc_id,
+                    "START_LABEL": "ELEMENT",
+                    "END_ID": child.doc_id,
+                    "END_LABEL": "ELEMENT",
+                }
+                child.data["relationships"][str(uuid.uuid4())] = next
+            rel = {
+                "TYPE": "PART_OF",
+                "properties": {},
+                "START_ID": child.doc_id,
+                "START_LABEL": "ELEMENT",
+                "END_ID": section.doc_id,
+                "END_LABEL": "SECTION",
+            }
+            child.data["relationships"][str(uuid.uuid4())] = rel
+            child.data["label"] = "ELEMENT"
+            element = child
+            section.data["children"].append(element)
+
+        doc.children = [section]
+        return doc
+
+
 class ExtractDocumentStructure(Map):
     """
-    extracting structure
+    Transforms a document into a Hierarchical document defining its hierarchy from
+    rules defined by the passed in DocumentStructure class. Additionally, adds
+    uuid's and relationships between hierarchical nodes so that the document can
+    be loaded into neo4j.
     """
 
     def __init__(

@@ -140,7 +140,7 @@ class StructureByDocument(DocumentStructure):
         }
         initial_page.data["relationships"][str(uuid.uuid4())] = rel
 
-        section: Optional[HierarchicalDocument] = initial_page
+        section: HierarchicalDocument = initial_page
         element: Optional[HierarchicalDocument] = None
         for child in doc.children:
             child.data["relationships"] = child.get("relationships", {})

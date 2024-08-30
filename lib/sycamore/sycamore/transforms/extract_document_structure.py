@@ -19,7 +19,7 @@ class DocumentStructure(ABC):
 class StructureBySection(DocumentStructure):
     """
     Organizes documents by their section headers which encompass all of the elements
-    between them and the next section header. Useful for long documents which have 
+    between them and the next section header. Useful for long documents which have
     many elements that can't fit in an LLM's context window.
     """
 
@@ -106,7 +106,7 @@ class StructureBySection(DocumentStructure):
 class StructureByDocument(DocumentStructure):
     """
     Organizes documents by using a single section to encompass all of a documents
-    elements. Useful for short documents whose elements can be fit into an LLM's input 
+    elements. Useful for short documents whose elements can be fit into an LLM's input
     context in a single shot.
     """
 

@@ -8,8 +8,9 @@ def test_init():
     from sycamore.rules.optimize_resource_args import EnforceResourceUsage, OptimizeResourceArgs
 
     context = sycamore.init()
-    assert context is not None
 
+    assert context is not None
+    assert len(context.rewrite_rules) == 2
     assert isinstance(context.rewrite_rules[0], EnforceResourceUsage)
     assert isinstance(context.rewrite_rules[1], OptimizeResourceArgs)
 

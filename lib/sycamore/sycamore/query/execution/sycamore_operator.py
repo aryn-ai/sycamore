@@ -69,22 +69,7 @@ class SycamoreOperator(PhysicalOperator):
         return {"name": str(self.logical_node.node_id)}
 
     def get_execute_args(self) -> Dict:
-        intermediate_datasink_kwargs: Dict[str, Any] = {
-            "query_id": self.query_id,
-            "node_id": self.logical_node.node_id,
-            "path": "none",
-        }
-        if self.trace_dir:
-            intermediate_datasink_kwargs.update(
-                {"makedirs": True, "verbose": True, "path": f"{self.trace_dir}/{self.query_id}/"}
-            )
-        args = {
-            "write_intermediate_data": True,
-            "intermediate_datasink": SycamoreQueryLogger,
-            "intermediate_datasink_kwargs": intermediate_datasink_kwargs,
-        }
-        args.update(self.get_node_args())
-        return args
+        return self.get_node_args()
 
 
 class SycamoreQueryDatabase(SycamoreOperator):

@@ -3,7 +3,6 @@ from typing import Any, Optional, List, Dict, Tuple
 
 from sycamore.functions.basic_filters import MatchFilter, RangeFilter
 from sycamore.llms.prompts.default_prompts import EntityExtractorMessagesPrompt, LlmFilterMessagesPrompt
-from sycamore.query.execution.metrics import SycamoreQueryLogger
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.basic_filter import BasicFilter
 from sycamore.query.operators.limit import Limit

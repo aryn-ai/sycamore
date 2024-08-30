@@ -77,9 +77,7 @@ class PineconeWriterClient(BaseDBWriter.Client):
                     metric=target_params.distance_metric,
                 )
             except PineconeApiException as e:
-                if e.status == 409 and json.loads(str(e.body)).get("error", {}).get("code", {}) == "ALREADY_EXISTS":
-                    return
-                raise e
+                return
 
     def get_existing_target_params(self, target_params: "BaseDBWriter.TargetParams") -> PineconeWriterTargetParams:
         assert isinstance(target_params, PineconeWriterTargetParams)

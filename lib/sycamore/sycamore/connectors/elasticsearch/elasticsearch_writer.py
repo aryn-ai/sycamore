@@ -99,10 +99,8 @@ class ElasticsearchWriterClient(BaseDBWriter.Client):
                 settings=target_params.settings,
                 timeout="30s",
             )
-        except ApiError as e:
-            if e.status_code == 400 and "resource_already_exists_exception" in e.message:
-                return
-            raise e
+        except ApiError:
+            return
 
     def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> "ElasticsearchWriterTargetParams":
         assert isinstance(target_params, ElasticsearchWriterTargetParams)

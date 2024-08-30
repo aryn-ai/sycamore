@@ -129,10 +129,8 @@ class DuckDBClient(BaseDBWriter.Client):
                     f"""Error creating table {dict_params.get('table_name')}
                     in database {dict_params.get('db_url')}: no schema provided"""
                 )
-        except Exception as e:
-            if isinstance(e, duckdb.CatalogException) and "Catalog Error" and "already exists" in str(e):
-                return
-            raise e
+        except Exception:
+            return
 
     def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> "DuckDBWriterTargetParams":
         assert isinstance(target_params, DuckDBWriterTargetParams)

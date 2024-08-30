@@ -129,10 +129,8 @@ class WeaviateWriterClient(BaseDBWriter.Client):
                         vector_index_config=cfg_crt.vectorIndexConfig,
                         vectorizer_config=cfg_crt.vectorizerConfig,
                     )
-        except UnexpectedStatusCodeError as e:
-            if e.status_code == 422 and "already exists" in e.message:
-                return
-            raise e
+        except UnexpectedStatusCodeError:
+            return
 
     def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> "WeaviateWriterTargetParams":
         assert isinstance(target_params, WeaviateWriterTargetParams)

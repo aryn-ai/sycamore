@@ -852,7 +852,7 @@ def structure_to_cells(table_structure, tokens):
             # at most one spanning cell
             cell["subcell"] = False
             cell["supercell"] = None
-            for i,spanning_cell in enumerate(spanning_cells):
+            for i, spanning_cell in enumerate(spanning_cells):
                 spanning_cell_rect = BoundingBox(*spanning_cell["bbox"])
                 overlap = spanning_cell_rect.intersect(cell_rect).area / cell_rect.area
                 if overlap > 0.5:
@@ -879,7 +879,7 @@ def structure_to_cells(table_structure, tokens):
                 "column_nums": subcell["column_nums"],
                 "row_nums": subcell["row_nums"],
                 "column header": subcell.get("column header", False),
-                "projected row header": spanning_cells[idx]["projected row header"]
+                "projected row header": spanning_cells[idx]["projected row header"],
             }
         else:
             m = merged_spanning_cells[idx]

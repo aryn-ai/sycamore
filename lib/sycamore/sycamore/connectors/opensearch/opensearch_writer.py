@@ -83,7 +83,7 @@ class OpenSearchWriterClient(BaseDBWriter.Client):
         self._client = os_client
 
     @classmethod
-    @requires_modules("opensearchpy", extra="opensearch")
+    @requires_modules(["opensearchpy", "opensearchpy.helpers"], extra="opensearch")
     def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "OpenSearchWriterClient":
         from opensearchpy import OpenSearch
 
@@ -95,7 +95,6 @@ class OpenSearchWriterClient(BaseDBWriter.Client):
         os_client.ping()
         return OpenSearchWriterClient(os_client)
 
-    @requires_modules("opensearchpy.helpers", extra="opensearch")
     def write_many_records(self, records: list[BaseDBWriter.Record], target_params: BaseDBWriter.TargetParams):
         from opensearchpy.helpers import parallel_bulk
 
@@ -108,7 +107,6 @@ class OpenSearchWriterClient(BaseDBWriter.Client):
             if not success:
                 log.error("A Document failed to upload", info)
 
-    @requires_modules("opensearchpy.exceptions", extra="opensearch")
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
         from opensearchpy.exceptions import RequestError
 

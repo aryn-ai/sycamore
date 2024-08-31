@@ -72,7 +72,6 @@ class PineconeWriterClient(BaseDBWriter.Client):
             # Force async completion. Errors are here
             res.result()
 
-    @requires_modules("pinecone", extra="pinecone")
     def create_target_idempotent(self, target_params: "BaseDBWriter.TargetParams"):
         from pinecone import PineconeApiException
 

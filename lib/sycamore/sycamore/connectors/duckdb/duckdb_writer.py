@@ -57,6 +57,7 @@ class DuckDBWriterTargetParams(BaseDBWriter.TargetParams):
 
 
 class DuckDBClient(BaseDBWriter.Client):
+    @requires_modules("duckdb", extra="duckdb")
     def __init__(self, client_params: DuckDBWriterClientParams):
         pass
 
@@ -85,7 +86,6 @@ class DuckDBClient(BaseDBWriter.Client):
             ]
         )
 
-        @requires_modules("duckdb", extra="duckdb")
         def write_batch(batch_data: dict):
             import duckdb
 
@@ -114,7 +114,6 @@ class DuckDBClient(BaseDBWriter.Client):
         if len(batch_data["doc_id"]) > 0:
             write_batch(batch_data)
 
-    @requires_modules("duckdb", extra="duckdb")
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
         import duckdb
 
@@ -141,7 +140,6 @@ class DuckDBClient(BaseDBWriter.Client):
                 return
             raise e
 
-    @requires_modules("duckdb", extra="duckdb")
     def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> "DuckDBWriterTargetParams":
         import duckdb
 

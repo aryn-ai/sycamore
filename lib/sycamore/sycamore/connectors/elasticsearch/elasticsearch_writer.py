@@ -67,7 +67,7 @@ class ElasticsearchWriterClient(BaseDBWriter.Client):
         self._client = client
 
     @classmethod
-    @requires_modules("elasticsearch", extra="elasticsearch")
+    @requires_modules(["elasticsearch", "elasticsearch.helpers"], extra="elasticsearch")
     def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "ElasticsearchWriterClient":
         from elasticsearch import Elasticsearch
 
@@ -75,7 +75,6 @@ class ElasticsearchWriterClient(BaseDBWriter.Client):
         client = Elasticsearch(params.url, **params.es_client_args)
         return ElasticsearchWriterClient(client)
 
-    @requires_modules("elasticsearch.helpers", extra="elasticsearch")
     def write_many_records(self, records: list[BaseDBWriter.Record], target_params: BaseDBWriter.TargetParams):
         from elasticsearch.helpers import parallel_bulk
 
@@ -98,7 +97,6 @@ class ElasticsearchWriterClient(BaseDBWriter.Client):
                 if not success:
                     print(f"Insert Operation Unsuccessful: {info}")
 
-    @requires_modules("elasticsearch", extra="elasticsearch")
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
         from elasticsearch import ApiError
 

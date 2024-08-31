@@ -106,7 +106,7 @@ class WeaviateWriterClient(BaseDBWriter.Client):
         self._client = client
 
     @classmethod
-    @requires_modules("weaviate", extra="weaviate")
+    @requires_modules(["weaviate", "weaviate.client", "weaviate.collections.classes.config"], extra="weaviate")
     def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "WeaviateWriterClient":
         from weaviate import WeaviateClient
 
@@ -125,7 +125,6 @@ class WeaviateWriterClient(BaseDBWriter.Client):
                     else:
                         batch.add_object(properties=r.properties, uuid=r.uuid)
 
-    @requires_modules(["weaviate.client", "weaviate.collections.classes.config"], extra="weaviate")
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
         from weaviate.client import UnexpectedStatusCodeError
         from weaviate.collections.classes.config import CollectionConfig
@@ -169,7 +168,7 @@ class WeaviateWriterClient(BaseDBWriter.Client):
 class WeaviateCrossReferenceClient(WeaviateWriterClient):
 
     @classmethod
-    @requires_modules("weaviate", extra="weaviate")
+    @requires_modules(["weaviate", "weaviate.classes.config", "weaviate.util"], extra="weaviate")
     def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "WeaviateCrossReferenceClient":
         from weaviate import WeaviateClient
 
@@ -177,7 +176,6 @@ class WeaviateCrossReferenceClient(WeaviateWriterClient):
         client = WeaviateClient(**asdict(params))
         return WeaviateCrossReferenceClient(client)
 
-    @requires_modules(["weaviate.classes.config", "weaviate.util"], extra="weaviate")
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
         from weaviate.classes.config import ReferenceProperty
         from weaviate.util import WeaviateInvalidInputError

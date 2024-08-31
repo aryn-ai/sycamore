@@ -268,6 +268,8 @@ class DocSetWriter:
             WeaviateClientParams,
             WeaviateWriterTargetParams,
         )
+
+        # Importing _ prefixed stuff is fairly common for users of the weaviate codebase
         from weaviate.collections.classes.config import _CollectionConfigCreate
 
         if collection_config is None:

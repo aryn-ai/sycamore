@@ -3,7 +3,7 @@ from typing import Any, Callable, Optional, Union, TYPE_CHECKING
 
 from pyarrow.fs import FileSystem
 
-from sycamore.context import Context, ExecMode
+from sycamore.context import Context, ExecMode, context_params
 from sycamore.connectors.common import HostAndPort
 from sycamore.connectors.file.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
 from sycamore.data import Document
@@ -30,12 +30,13 @@ class DocSetWriter:
         self.context = context
         self.plan = plan
 
+    @context_params
     def opensearch(
         self,
         *,
-        os_client_args: Optional[dict] = None,
-        index_name: Optional[str] = None,
-        index_settings: Optional[dict] = None,
+        os_client_args: dict,
+        index_name: str,
+        index_settings: dict,
         execute: bool = True,
         **kwargs,
     ) -> Optional["DocSet"]:
@@ -98,14 +99,6 @@ class DocSetWriter:
         from typing import Any
         import copy
 
-        if os_client_args is None:
-            os_client_args = self.context.opensearch_args.client_args if self.context.opensearch_args else None
-        assert os_client_args is not None, "OpenSearch client args required"
-
-        if not index_name:
-            index_name = self.context.opensearch_args.index_name if self.context.opensearch_args else None
-        assert index_name is not None, "OpenSearch index name required"
-
         # We mutate os_client_args, so mutate a copy
         os_client_args = copy.deepcopy(os_client_args)
 
@@ -134,9 +127,6 @@ class DocSetWriter:
         client_params = OpenSearchWriterClientParams(**os_client_args)
 
         target_params: OpenSearchWriterTargetParams
-
-        if index_settings is None:
-            index_settings = self.context.opensearch_args.index_settings if self.context.opensearch_args else None
 
         if index_settings is not None:
             idx_settings = index_settings.get("body", {}).get("settings", {})

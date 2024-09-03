@@ -1,7 +1,7 @@
 import functools
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Optional, Union, List
 
 from sycamore.plan_nodes import Node, NodeTraverse
 
@@ -52,6 +52,33 @@ class Context:
         return DocSetReader(self)
 
 
+def get_val_from_context(
+    context: "Context", val_key: str, param_names: List[str], ignore_default: bool = False
+) -> Optional[Any]:
+    """
+    GIven a Context object, return the possible value for a given val.
+    This assumes context.params is not a nested dict.
+    @param context: Context to use
+    @param val_key: Key for the value to be returned
+    @param param_names: List of parameter namespaces to look for.
+        Always uses OperationTypes.DEFAULT unless configured otherwise.
+    @param ignore_default: disable usage for OperationTypes.DEFAULT parameter namespace
+    @return: Optional value given configs.
+    """
+    if not context.params:
+        return None
+
+    for param_name in param_names:
+        cand = context.params.get(param_name, {}).get(val_key)
+        if cand is not None:
+            return cand
+
+    if not ignore_default:
+        return context.params.get(OperationTypes.DEFAULT.value, {}).get(val_key)
+
+    return None
+
+
 def context_params(*names):
     """
     Applies kwargs from the context to a function call. Requires 'context': Context, to be an argument to the method.
@@ -61,7 +88,7 @@ def context_params(*names):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             self = args[0] if len(args) > 0 else {}
-            ctx = kwargs.get("context", getattr(self, "context", None))
+            ctx = kwargs.get("context", getattr(self, "context", getattr(self, "_context", None)))
             if ctx and ctx.params:
                 new_kwargs = {}
                 new_kwargs.update(ctx.params.get("default", {}))

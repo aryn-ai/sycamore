@@ -5,6 +5,7 @@ from pandas import DataFrame
 from pyarrow import Table
 from pyarrow.filesystem import FileSystem
 
+from sycamore.context import context_params
 from sycamore.plan_nodes import Node
 from sycamore import Context, DocSet
 from sycamore.data import Document
@@ -209,7 +210,8 @@ class DocSetReader:
         return DocSet(self._context, scan)
 
     @requires_modules("opensearchpy", extra="opensearch")
-    def opensearch(self, os_client_args: dict, index_name: str, query: Optional[Dict] = None) -> DocSet:
+    @context_params
+    def opensearch(self, os_client_args: dict, index_name: str, query: Optional[Dict] = None, **kwargs) -> DocSet:
         """
         Reads the content of an OpenSearch index into a DocSet.
 

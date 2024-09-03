@@ -1,7 +1,9 @@
 from abc import abstractmethod
 from typing import Any, Optional, List, Dict, Tuple
 
+from sycamore.context import get_val_from_context, OperationTypes
 from sycamore.functions.basic_filters import MatchFilter, RangeFilter
+from sycamore.llms import LLM
 from sycamore.llms.prompts.default_prompts import EntityExtractorMessagesPrompt, LlmFilterMessagesPrompt
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.basic_filter import BasicFilter
@@ -17,9 +19,7 @@ from sycamore.query.operators.sort import Sort
 from sycamore.query.execution.operations import (
     summarize_data,
 )
-from sycamore.llms import OpenAI, OpenAIModels
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
-from sycamore.utils.cache import S3Cache
 
 from sycamore import DocSet, Context
 from sycamore.query.operators.logical_operator import LogicalOperator
@@ -73,9 +73,7 @@ class SycamoreOperator(PhysicalOperator):
 
 class SycamoreQueryDatabase(SycamoreOperator):
     """
-    Currently only supports an OpenSearch scan load implementation.
-    Args:
-        os_client_args (dict): OpenSearch client args passed to OpenSearchScan to initialize the client.
+    Note: Currently only supports an OpenSearch scan load implementation.
     """
 
     def __init__(
@@ -83,24 +81,25 @@ class SycamoreQueryDatabase(SycamoreOperator):
         context: Context,
         logical_node: QueryDatabase,
         query_id: str,
-        os_client_args: Dict,
         trace_dir: Optional[str] = None,
     ) -> None:
         super().__init__(context=context, logical_node=logical_node, query_id=query_id, trace_dir=trace_dir)
-        self.os_client_args = os_client_args
 
     def execute(self) -> Any:
         assert isinstance(self.logical_node, QueryDatabase)
-        result = self.context.read.opensearch(os_client_args=self.os_client_args, index_name=self.logical_node.index)
+
+        assert (
+            get_val_from_context(context=self.context, val_key="os_client_args", param_names=["opensearch"]) is not None
+        ), "QueryDatabase:OpenSearch requires os_client_args"
+
+        result = self.context.read.opensearch(index_name=self.logical_node.index)
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         assert isinstance(self.logical_node, QueryDatabase)
         return (
             f"""
-os_client_args = {self.os_client_args}
 {output_var or get_var_name(self.logical_node)} = context.read.opensearch(
-    os_client_args=os_client_args,
     index_name='{self.logical_node.index}'
 )
 """,
@@ -136,10 +135,10 @@ class SycamoreSummarizeData(SycamoreOperator):
         description = self.logical_node.description
         assert description is not None and isinstance(description, str)
         result = summarize_data(
-            llm=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(self.s3_cache_path) if self.s3_cache_path else None),
             question=question,
             result_description=description,
             result_data=self.inputs,
+            context=self.context,
             **self.get_execute_args(),
         )
         return result
@@ -150,9 +149,8 @@ class SycamoreSummarizeData(SycamoreOperator):
         description = self.logical_node.description
         assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) >= 1
 
-        cache_string = ""
         if self.s3_cache_path:
-            cache_string = f", cache=S3Cache('{self.s3_cache_path}')"
+            pass
         logical_deps_str = ""
         for i, inp in enumerate(self.logical_node.dependencies):
             logical_deps_str += input_var or get_var_name(inp)
@@ -161,16 +159,15 @@ class SycamoreSummarizeData(SycamoreOperator):
 
         result = f"""
 {output_var or get_var_name(self.logical_node)} = summarize_data(
-    llm=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
     question='{question}',
     result_description='{description}',
     result_data=[{logical_deps_str}],
+    context=context,
     **{get_str_for_dict(self.get_execute_args())},
 )
 """
         return result, [
             "from sycamore.query.execution.operations import summarize_data",
-            "from sycamore.llms import OpenAI, OpenAIModels",
         ]
 
 
@@ -197,20 +194,23 @@ class SycamoreLlmFilter(SycamoreOperator):
         assert self.inputs and len(self.inputs) == 1, "LlmFilter requires 1 input node"
         assert isinstance(self.inputs[0], DocSet), "LlmFilter requires a DocSet input"
         assert isinstance(self.logical_node, LlmFilter)
+        assert isinstance(
+            get_val_from_context(
+                context=self.context, val_key="llm", param_names=[OperationTypes.BINARY_CLASSIFIER.value]
+            ),
+            LLM,
+        ), "LLMFilter requies an 'llm' configured on the Context"
         question = self.logical_node.question
         field = self.logical_node.field
 
         # load into local vars for Ray serialization magic
-        s3_cache_path = self.s3_cache_path
 
         prompt = LlmFilterMessagesPrompt(filter_question=question).as_messages()
 
         result = self.inputs[0].llm_filter(
-            llm=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(s3_cache_path) if s3_cache_path else None),
             new_field="_autogen_LLMFilterOutput",
             prompt=prompt,
             field=field,
-            threshold=3,
             **self.get_node_args(),
         )
         return result
@@ -218,24 +218,18 @@ class SycamoreLlmFilter(SycamoreOperator):
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) == 1
         assert isinstance(self.logical_node, LlmFilter)
-        cache_string = ""
-        if self.s3_cache_path:
-            cache_string = f", cache=S3Cache('{self.s3_cache_path}')"
         input_str = input_var or get_var_name(self.logical_node.dependencies[0])
         output_str = output_var or get_var_name(self.logical_node)
         result = f"""
 prompt = LlmFilterMessagesPrompt(filter_question='{self.logical_node.question}').as_messages()
 {output_str} = {input_str}.llm_filter(
-    llm=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
     new_field='_autogen_LLMFilterOutput',
     prompt=prompt,
     field='{self.logical_node.field}',
-    threshold=3,
     **{self.get_node_args()},
 )
 """
         return result, [
-            "from sycamore.llms import OpenAI, OpenAIModels",
             "from sycamore.llms.prompts.default_prompts import LlmFilterMessagesPrompt",
         ]
 
@@ -394,9 +388,16 @@ class SycamoreLlmExtractEntity(SycamoreOperator):
         assert self.inputs and len(self.inputs) == 1, "LlmExtractEntity requires 1 input node"
         assert isinstance(self.inputs[0], DocSet), "LlmExtractEntity requires a DocSet input"
         # load into local vars for Ray serialization magic
-        s3_cache_path = self.s3_cache_path
         logical_node = self.logical_node
         assert isinstance(logical_node, LlmExtractEntity)
+
+        assert isinstance(
+            get_val_from_context(
+                context=self.context, val_key="llm", param_names=[OperationTypes.INFORMATION_EXTRACTOR.value]
+            ),
+            LLM,
+        ), "LLMExtractEntity requies an 'llm' configured on the Context"
+
         question = logical_node.question
         new_field = logical_node.new_field
         field = logical_node.field
@@ -409,7 +410,6 @@ class SycamoreLlmExtractEntity(SycamoreOperator):
 
         entity_extractor = OpenAIEntityExtractor(
             entity_name=new_field,
-            llm=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(s3_cache_path) if s3_cache_path else None),
             use_elements=False,
             prompt=prompt,
             field=field,
@@ -430,9 +430,8 @@ class SycamoreLlmExtractEntity(SycamoreOperator):
         input_str = input_var or get_var_name(logical_node.dependencies[0])
         output_str = output_var or get_var_name(logical_node)
 
-        cache_string = ""
         if self.s3_cache_path:
-            cache_string = f", cache=S3Cache('{self.s3_cache_path}')"
+            pass
         result = f"""
 prompt = EntityExtractorMessagesPrompt(
     question='{question}', field='{field}', format='{fmt}', discrete={discrete}
@@ -440,7 +439,6 @@ prompt = EntityExtractorMessagesPrompt(
 
 entity_extractor = OpenAIEntityExtractor(
     entity_name='{new_field}',
-    llm=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
     use_elements=False,
     prompt=prompt,
     field='{field}',
@@ -453,7 +451,6 @@ entity_extractor = OpenAIEntityExtractor(
         return result, [
             "from sycamore.llms.prompts.default_prompts import EntityExtractorMessagesPrompt",
             "from sycamore.transforms.extract_entity import OpenAIEntityExtractor",
-            "from sycamore.llms import OpenAI, OpenAIModels",
         ]
 
 
@@ -528,12 +525,18 @@ class SycamoreTopK(SycamoreOperator):
         assert self.inputs and len(self.inputs) == 1, "TopK requires 1 input node"
         assert isinstance(self.inputs[0], DocSet), "TopK requires a DocSet input"
         # load into local vars for Ray serialization magic
-        s3_cache_path = self.s3_cache_path
         logical_node = self.logical_node
         assert isinstance(logical_node, TopK)
 
+        if logical_node.llm_cluster:
+            assert isinstance(
+                get_val_from_context(
+                    context=self.context, val_key="llm", param_names=[OperationTypes.BINARY_CLASSIFIER.value]
+                ),
+                LLM,
+            ), "TokK with llm clustering requies an 'llm' configured on the Context"
+
         result = self.inputs[0].top_k(
-            llm=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(s3_cache_path) if s3_cache_path else None),
             field=logical_node.field,
             k=logical_node.K,
             descending=logical_node.descending,
@@ -549,12 +552,10 @@ class SycamoreTopK(SycamoreOperator):
         assert isinstance(logical_node, TopK)
         assert logical_node.dependencies is not None and len(logical_node.dependencies) == 1
 
-        cache_string = ""
         if self.s3_cache_path:
-            cache_string = f", cache=S3Cache('{self.s3_cache_path}')"
+            pass
         result = f"""
 {output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(logical_node.dependencies[0])}.top_k(
-    llm=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
     field='{logical_node.field}',
     k={logical_node.K},
     descending={logical_node.descending},
@@ -564,9 +565,7 @@ class SycamoreTopK(SycamoreOperator):
     **{get_str_for_dict(self.get_execute_args())},
 )
 """
-        return result, [
-            "from sycamore.llms import OpenAI, OpenAIModels",
-        ]
+        return result, []
 
 
 class SycamoreFieldIn(SycamoreOperator):

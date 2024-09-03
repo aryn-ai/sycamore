@@ -32,19 +32,23 @@ def test_count_docs_query_plan() -> LogicalPlan:
 
 def test_count_docs(test_count_docs_query_plan, mock_sycamore_docsetreader, mock_opensearch_num_docs):
     with patch("sycamore.reader.DocSetReader", new=mock_sycamore_docsetreader):
-        context = sycamore.init()
+        context = sycamore.init(
+            params={
+                "opensearch": {
+                    "os_client_args": {
+                        "hosts": [{"host": "localhost", "port": 9200}],
+                        "http_compress": True,
+                        "http_auth": ("admin", "admin"),
+                        "use_ssl": True,
+                        "verify_certs": False,
+                        "ssl_assert_hostname": False,
+                        "ssl_show_warn": False,
+                        "timeout": 120,
+                    }
+                }
+            }
+        )
 
-        os_client_args = {
-            "hosts": [{"host": "localhost", "port": 9200}],
-            "http_compress": True,
-            "http_auth": ("admin", "admin"),
-            "use_ssl": True,
-            "verify_certs": False,
-            "ssl_assert_hostname": False,
-            "ssl_show_warn": False,
-            "timeout": 120,
-        }
-
-        executor = SycamoreExecutor(context, os_client_args=os_client_args, s3_cache_path="s3://sycamore-cache")
+        executor = SycamoreExecutor(context, s3_cache_path="s3://sycamore-cache")
         result = executor.execute(test_count_docs_query_plan)
         assert result == mock_opensearch_num_docs

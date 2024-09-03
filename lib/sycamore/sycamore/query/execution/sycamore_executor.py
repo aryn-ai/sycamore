@@ -1,4 +1,5 @@
 import os
+import traceback
 import uuid
 from typing import Any, Dict, List, Optional
 
@@ -53,7 +54,6 @@ class SycamoreExecutor:
     def __init__(
         self,
         context: Context,
-        os_client_args: Any,
         s3_cache_path: Optional[str] = None,
         trace_dir: Optional[str] = None,
         codegen_mode: bool = False,
@@ -63,7 +63,6 @@ class SycamoreExecutor:
 
         self.context = context
         self.s3_cache_path = s3_cache_path
-        self.os_client_args = os_client_args
         self.trace_dir = trace_dir
         self.processed: Dict[int, Any] = dict()
         self.dry_run = dry_run
@@ -113,7 +112,6 @@ class SycamoreExecutor:
                 context=self.context,
                 logical_node=logical_node,
                 query_id=query_id,
-                os_client_args=self.os_client_args,
                 trace_dir=self.trace_dir,
             )
         elif isinstance(logical_node, LlmFilter):
@@ -217,6 +215,7 @@ class SycamoreExecutor:
         return result
 
     def get_code_string(self):
+
         result = ""
         unique_import_str = set()
         for import_str in self.imports:
@@ -227,10 +226,19 @@ class SycamoreExecutor:
         result += "from sycamore.query.execution.metrics import SycamoreQueryLogger\n"
         result += "from sycamore.utils.cache import S3Cache\n"
         result += "import sycamore\n\n"
-        result += "context = sycamore.init()\n"
+        # if self.context.params is not None:
+        #     result += f"context_params = {get_str_for_dict(self.context.params)}\n"
+        #     result += f"context = sycamore.init(params=context_params)\n"
+        # else:
+        #     result += "context = sycamore.init()\n\n"
+
         for node_id in sorted(self.node_id_to_node):
-            result += f"# {self.node_id_to_node[node_id].description}" + "\n"
-            result += self.node_id_to_code[node_id] + "\n"
+            description = self.node_id_to_node[node_id].description.strip("n")
+            code = self.node_id_to_code[node_id].strip("\n")
+            result += f"""
+# {description}
+{code}
+"""
         return result
 
     def execute(self, plan: LogicalPlan, query_id: Optional[str] = None) -> Any:
@@ -249,8 +257,14 @@ class SycamoreExecutor:
 
             if self.codegen_mode:
                 code = self.get_code_string()
-                global_context: dict[str, Any] = {}
-                exec(code, global_context)
+                global_context: dict[str, Any] = {"context": self.context}
+                try:
+                    # Execute the generated code with the global context
+                    exec(code, global_context)
+                except Exception:
+                    # Print the full stack trace if an exception occurs
+                    print("Exception occurred:")
+                    traceback.print_exc()
                 return global_context.get(self.OUTPUT_VAR_NAME)
 
             return result

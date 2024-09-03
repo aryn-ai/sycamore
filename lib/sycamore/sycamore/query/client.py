@@ -19,6 +19,7 @@ import uuid
 import structlog
 
 import sycamore
+from sycamore import Context
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.transforms.query import OpenSearchQueryExecutor
 from sycamore.utils.cache import S3Cache
@@ -145,13 +146,14 @@ class SycamoreQueryClient:
         plan = planner.plan(query)
         return plan
 
-    def run_plan(self, plan: LogicalPlan, dry_run=False, codegen_mode=False) -> Tuple[str, str]:
+    def run_plan(
+        self, plan: LogicalPlan, context: Optional[Context] = None, dry_run=False, codegen_mode=False
+    ) -> Tuple[str, str]:
         """Run the given logical query plan and return a tuple of the query ID and result."""
-        context = sycamore.init()
+        if not context:
+            context = self._get_default_context()
         executor = SycamoreExecutor(
             context=context,
-            os_client_args=self.os_client_args,
-            s3_cache_path=self.s3_cache_path,
             trace_dir=self.trace_dir,
             dry_run=dry_run,
             codegen_mode=codegen_mode,
@@ -177,6 +179,19 @@ class SycamoreQueryClient:
                         console.print(entry)
                 except json.JSONDecodeError:
                     console.print(line)
+
+    def _get_default_context(self):
+        context_params = {
+            "default": {
+                "llm": OpenAI(
+                    OpenAIModels.GPT_4O.value, cache=S3Cache(self.s3_cache_path) if self.s3_cache_path else None
+                ),
+            },
+            "opensearch": {
+                "os_client_args": self.os_client_args,
+            },
+        }
+        return sycamore.init(params=context_params)
 
 
 def main():

@@ -3,7 +3,6 @@ from typing import Any, Optional, List, Dict, Tuple
 
 from sycamore.functions.basic_filters import MatchFilter, RangeFilter
 from sycamore.llms.prompts.default_prompts import EntityExtractorMessagesPrompt, LlmFilterMessagesPrompt
-from sycamore.query.execution.metrics import SycamoreQueryLogger
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.basic_filter import BasicFilter
 from sycamore.query.operators.limit import Limit
@@ -69,22 +68,7 @@ class SycamoreOperator(PhysicalOperator):
         return {"name": str(self.logical_node.node_id)}
 
     def get_execute_args(self) -> Dict:
-        intermediate_datasink_kwargs: Dict[str, Any] = {
-            "query_id": self.query_id,
-            "node_id": self.logical_node.node_id,
-            "path": "none",
-        }
-        if self.trace_dir:
-            intermediate_datasink_kwargs.update(
-                {"makedirs": True, "verbose": True, "path": f"{self.trace_dir}/{self.query_id}/"}
-            )
-        args = {
-            "write_intermediate_data": True,
-            "intermediate_datasink": SycamoreQueryLogger,
-            "intermediate_datasink_kwargs": intermediate_datasink_kwargs,
-        }
-        args.update(self.get_node_args())
-        return args
+        return self.get_node_args()
 
 
 class SycamoreQueryDatabase(SycamoreOperator):

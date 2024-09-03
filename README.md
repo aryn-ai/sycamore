@@ -33,9 +33,15 @@ The Sycamore framework is built around a scalable and robust abstraction for doc
 
 ## Get Started
 
-Sycamore currently runs on Linux and Mac OS. To install, run:
+Sycamore currently runs on Linux and Mac OS. To install , run:
 
 ```pip install sycamore-ai```
+
+Sycamore provides connectors to vector databases via Python extras. To install a connector, include it as an extra with your pip install. For example, 
+
+```pip install sycamore-ai[duckdb]```
+
+Supported connectors include `duckdb`, `elasticsearch`, `opensearch`, `pinecone`, and `weaviate`.
 
 To use the Aryn Partitioning Service, [sign-up for free here](https://www.aryn.ai/get-started) and use the API key.
 

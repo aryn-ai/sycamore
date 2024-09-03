@@ -1,7 +1,6 @@
 from abc import abstractmethod, ABC
 from typing import Any
-
-from opensearchpy import OpenSearch
+from sycamore.utils.import_utils import requires_modules
 
 from sycamore.data import OpenSearchQueryResult, Element, OpenSearchQuery
 from sycamore.plan_nodes import Node, NonCPUUser, NonGPUUser
@@ -25,7 +24,10 @@ class OpenSearchQueryExecutor(QueryExecutor):
         super().__init__()
         self._os_client_args = os_client_args
 
+    @requires_modules("opensearchpy", extra="opensearch")
     def query(self, query: OpenSearchQuery) -> OpenSearchQueryResult:
+        from opensearchpy import OpenSearch
+
         logger.debug("Executing OS query: " + str(query))
         client = OpenSearch(**self._os_client_args)
 

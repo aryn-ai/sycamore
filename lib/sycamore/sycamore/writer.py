@@ -3,13 +3,14 @@ from typing import Any, Callable, Optional, Union, TYPE_CHECKING
 
 from pyarrow.fs import FileSystem
 
-from sycamore.context import Context, ExecMode
+from sycamore.context import Context, ExecMode, context_params
 from sycamore.connectors.common import HostAndPort
 from sycamore.connectors.file.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
 from sycamore.data import Document
 from sycamore.executor import Execution
 from sycamore.plan_nodes import Node
 from sycamore.docset import DocSet
+from sycamore.utils.import_utils import requires_modules
 
 if TYPE_CHECKING:
     from neo4j import Auth
@@ -30,12 +31,13 @@ class DocSetWriter:
         self.context = context
         self.plan = plan
 
+    @context_params
     def opensearch(
         self,
         *,
-        os_client_args: Optional[dict] = None,
-        index_name: Optional[str] = None,
-        index_settings: Optional[dict] = None,
+        os_client_args: dict,
+        index_name: str,
+        index_settings: dict,
         execute: bool = True,
         **kwargs,
     ) -> Optional["DocSet"]:
@@ -98,14 +100,6 @@ class DocSetWriter:
         from typing import Any
         import copy
 
-        if os_client_args is None:
-            os_client_args = self.context.opensearch_args.client_args if self.context.opensearch_args else None
-        assert os_client_args is not None, "OpenSearch client args required"
-
-        if not index_name:
-            index_name = self.context.opensearch_args.index_name if self.context.opensearch_args else None
-        assert index_name is not None, "OpenSearch index name required"
-
         # We mutate os_client_args, so mutate a copy
         os_client_args = copy.deepcopy(os_client_args)
 
@@ -135,9 +129,6 @@ class DocSetWriter:
 
         target_params: OpenSearchWriterTargetParams
 
-        if index_settings is None:
-            index_settings = self.context.opensearch_args.index_settings if self.context.opensearch_args else None
-
         if index_settings is not None:
             idx_settings = index_settings.get("body", {}).get("settings", {})
             idx_mappings = index_settings.get("body", {}).get("mappings", {})
@@ -161,6 +152,7 @@ class DocSetWriter:
         else:
             return osds
 
+    @requires_modules(["weaviate", "weaviate.collections.classes.config"], extra="weaviate")
     def weaviate(
         self,
         *,
@@ -266,17 +258,19 @@ class DocSetWriter:
             WeaviateClientParams,
             WeaviateWriterTargetParams,
         )
-        from sycamore.connectors.weaviate.weaviate_writer import CollectionConfigCreate
+
+        # Importing _ prefixed stuff is fairly common for users of the weaviate codebase
+        from weaviate.collections.classes.config import _CollectionConfigCreate
 
         if collection_config is None:
             collection_config = dict()
         client_params = WeaviateClientParams(**wv_client_args)
-        collection_config_object: CollectionConfigCreate
+        collection_config_object: _CollectionConfigCreate
         if "name" in collection_config:
             assert collection_config["name"] == collection_name
-            collection_config_object = CollectionConfigCreate(**collection_config)
+            collection_config_object = _CollectionConfigCreate(**collection_config)
         else:
-            collection_config_object = CollectionConfigCreate(name=collection_name, **collection_config)
+            collection_config_object = _CollectionConfigCreate(name=collection_name, **collection_config)
         target_params = WeaviateWriterTargetParams(
             name=collection_name, collection_config=collection_config_object, flatten_properties=flatten_properties
         )
@@ -296,6 +290,7 @@ class DocSetWriter:
         else:
             return wvds
 
+    @requires_modules("pinecone", extra="pinecone")
     def pinecone(
         self,
         *,
@@ -388,6 +383,7 @@ class DocSetWriter:
         else:
             return pcds
 
+    @requires_modules("duckdb", extra="duckdb")
     def duckdb(
         self,
         dimensions: int,
@@ -474,6 +470,7 @@ class DocSetWriter:
         else:
             return ddbds
 
+    @requires_modules("elasticsearch", extra="elasticsearch")
     def elasticsearch(
         self,
         *,
@@ -560,6 +557,7 @@ class DocSetWriter:
         else:
             return esds
 
+    @requires_modules("neo4j", extra="neo4j")
     def neo4j(
         self,
         uri: str,

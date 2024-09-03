@@ -1,12 +1,11 @@
 from dataclasses import dataclass
 from collections import defaultdict
 import json
+import typing
 from typing import Any, Union
 
 from sycamore.connectors.base_writer import BaseDBWriter
 from sycamore.data.document import Document, MetadataDocument
-from neo4j import Auth, Driver, GraphDatabase, Session
-from neo4j.auth_management import AuthManager
 
 import time
 import os
@@ -17,7 +16,13 @@ import urllib
 from sycamore.plan_nodes import Node, Write
 from sycamore.transforms.map import MapBatch
 from sycamore.utils.time_trace import TimeTrace
+from sycamore.utils.import_utils import requires_modules
+
 import fcntl
+
+if typing.TYPE_CHECKING:
+    from neo4j import Auth, Driver, Session
+    from neo4j.auth_management import AuthManager
 
 logger = logging.getLogger(__name__)
 
@@ -30,17 +35,20 @@ class Neo4jWriterTargetParams(BaseDBWriter.TargetParams):
 @dataclass
 class Neo4jWriterClientParams(BaseDBWriter.TargetParams):
     uri: str
-    auth: Union[tuple[Any, Any], Auth, AuthManager, None]
+    auth: Union[tuple[Any, Any], "Auth", "AuthManager", None]
     import_dir: str
 
 
 class Neo4jWriterClient:
-    def __init__(self, driver: Driver, import_dir: str):
+    def __init__(self, driver: "Driver", import_dir: str):
         self._driver = driver
         self._import_dir = import_dir
 
     @classmethod
+    @requires_modules("neo4j", extra="neo4j")
     def from_client_params(cls, params: Neo4jWriterClientParams) -> "Neo4jWriterClient":
+        from neo4j import GraphDatabase
+
         driver = GraphDatabase.driver(uri=params.uri, auth=params.auth)
         driver.verify_connectivity()
         return Neo4jWriterClient(driver, params.import_dir)
@@ -50,7 +58,7 @@ class Neo4jWriterClient:
         with self._driver.session(database=target_params.database):
             pass
 
-    def _write_nodes_neo4j(self, nodes: list[str], session: Session):
+    def _write_nodes_neo4j(self, nodes: list[str], session: "Session"):
         for node_type in nodes:
             file_url = f"file:///sycamore/nodes/{urllib.parse.quote(node_type)}"
             node_label = node_type[:-4]
@@ -74,7 +82,7 @@ class Neo4jWriterClient:
             else:
                 logger.warn(f"ERROR: {path} does not exist, cannot delete")
 
-    def _write_relationships_neo4j(self, relationships: list[str], session: Session):
+    def _write_relationships_neo4j(self, relationships: list[str], session: "Session"):
         for relationship_type in relationships:
             file_url = f"file:///sycamore/relationships/{urllib.parse.quote(relationship_type)}"
             start_label, end_label = (relationship_type[:-4]).split("_")
@@ -105,7 +113,7 @@ class Neo4jWriterClient:
             else:
                 logger.warn(f"ERROR: {path} does not exist, cannot delete")
 
-    def _write_constraints_neo4j(self, labels: list[str], session: Session):
+    def _write_constraints_neo4j(self, labels: list[str], session: "Session"):
         for node_label in labels:
             query = f"CREATE CONSTRAINT IF NOT EXISTS FOR (n:`{node_label}`) REQUIRE n.uuid IS UNIQUE;"
             with session.begin_transaction() as tx:

@@ -1,7 +1,6 @@
 from dataclasses import dataclass, asdict
 import typing
 from typing import Optional, TypedDict, Union
-import json
 from sycamore.utils import batched
 from typing_extensions import TypeGuard
 
@@ -84,10 +83,8 @@ class PineconeWriterClient(BaseDBWriter.Client):
                     spec=target_params.index_spec,
                     metric=target_params.distance_metric,
                 )
-            except PineconeApiException as e:
-                if e.status == 409 and json.loads(str(e.body)).get("error", {}).get("code", {}) == "ALREADY_EXISTS":
-                    return
-                raise e
+            except PineconeApiException:
+                return
 
     def get_existing_target_params(self, target_params: "BaseDBWriter.TargetParams") -> PineconeWriterTargetParams:
         assert isinstance(target_params, PineconeWriterTargetParams)

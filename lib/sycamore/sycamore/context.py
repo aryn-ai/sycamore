@@ -56,7 +56,7 @@ def get_val_from_context(
     context: "Context", val_key: str, param_names: List[str], ignore_default: bool = False
 ) -> Optional[Any]:
     """
-    GIven a Context object, return the possible value for a given val.
+    Helper function: Given a Context object, return the possible value for a given val.
     This assumes context.params is not a nested dict.
     @param context: Context to use
     @param val_key: Key for the value to be returned

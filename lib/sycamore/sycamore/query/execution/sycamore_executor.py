@@ -226,11 +226,6 @@ class SycamoreExecutor:
         result += "from sycamore.query.execution.metrics import SycamoreQueryLogger\n"
         result += "from sycamore.utils.cache import S3Cache\n"
         result += "import sycamore\n\n"
-        # if self.context.params is not None:
-        #     result += f"context_params = {get_str_for_dict(self.context.params)}\n"
-        #     result += f"context = sycamore.init(params=context_params)\n"
-        # else:
-        #     result += "context = sycamore.init()\n\n"
 
         for node_id in sorted(self.node_id_to_node):
             description = self.node_id_to_node[node_id].description.strip("n")
@@ -259,12 +254,12 @@ class SycamoreExecutor:
                 code = self.get_code_string()
                 global_context: dict[str, Any] = {"context": self.context}
                 try:
-                    # Execute the generated code with the global context
                     exec(code, global_context)
-                except Exception:
-                    # Print the full stack trace if an exception occurs
+                except Exception as e:
+                    # exec(..) doesn't seem to print error messages completely, need to traceback
                     print("Exception occurred:")
                     traceback.print_exc()
+                    raise e
                 return global_context.get(self.OUTPUT_VAR_NAME)
 
             return result

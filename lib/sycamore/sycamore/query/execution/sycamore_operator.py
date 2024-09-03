@@ -149,8 +149,6 @@ class SycamoreSummarizeData(SycamoreOperator):
         description = self.logical_node.description
         assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) >= 1
 
-        if self.s3_cache_path:
-            pass
         logical_deps_str = ""
         for i, inp in enumerate(self.logical_node.dependencies):
             logical_deps_str += input_var or get_var_name(inp)
@@ -430,8 +428,6 @@ class SycamoreLlmExtractEntity(SycamoreOperator):
         input_str = input_var or get_var_name(logical_node.dependencies[0])
         output_str = output_var or get_var_name(logical_node)
 
-        if self.s3_cache_path:
-            pass
         result = f"""
 prompt = EntityExtractorMessagesPrompt(
     question='{question}', field='{field}', format='{fmt}', discrete={discrete}
@@ -552,8 +548,6 @@ class SycamoreTopK(SycamoreOperator):
         assert isinstance(logical_node, TopK)
         assert logical_node.dependencies is not None and len(logical_node.dependencies) == 1
 
-        if self.s3_cache_path:
-            pass
         result = f"""
 {output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(logical_node.dependencies[0])}.top_k(
     field='{logical_node.field}',

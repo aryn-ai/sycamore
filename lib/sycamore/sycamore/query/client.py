@@ -162,11 +162,18 @@ class SycamoreQueryClient:
         result = executor.execute(plan, query_id)
         return (query_id, result)
 
-    def query(self, query: str, index: str, dry_run: bool = False, codegen_mode: bool = False) -> str:
+    def query(
+        self,
+        query: str,
+        index: str,
+        context: Optional[Context] = None,
+        dry_run: bool = False,
+        codegen_mode: bool = False,
+    ) -> str:
         """Run a query against the given index."""
         schema = self.get_opensearch_schema(index)
         plan = self.generate_plan(query, index, schema)
-        _, result = self.run_plan(plan, dry_run=dry_run, codegen_mode=codegen_mode)
+        _, result = self.run_plan(plan, context=context, dry_run=dry_run, codegen_mode=codegen_mode)
         return result
 
     def dump_traces(self, logfile: str, query_id: Optional[str] = None):

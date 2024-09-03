@@ -19,6 +19,7 @@ Now, that you have installed Sycamore, you see it in action using the example Ju
 
 Here are a few good notebooks to start with:
 
+* An `intermediate ETL tutorial notebook <https://github.com/aryn-ai/sycamore/blob/main/notebooks/sycamore-tutorial-intermediate-etl.ipynb>`_ walking through an ETL flow with chunking (using APS), LLM-based data enrichment, data cleaning, and loading a Pinecone hybrid search index
 * A `notebook <https://github.com/aryn-ai/sycamore/blob/main/notebooks/tutorial.ipynb>`_ showing a simple processing job using APS to chunk PDFs, two LLM-based entity extraction transforms, and loading an OpenSearch hybrid index (vector + keyword)
 * A `notebook <https://github.com/aryn-ai/sycamore/blob/main/notebooks/VisualizePartitioner.ipynb>`_ that visually shows the bounding boxes created by the Aryn Partioning Service
 * A `more advanced Sycamore pipeline <https://github.com/aryn-ai/sycamore/blob/main/notebooks/metadata-extraction.ipynb>`_ that chunks PDFs using APS, does schema extraction and population using LLM transforms, data cleaning using Python, and loads an OpenSearch hybrid index (vector + keyword)

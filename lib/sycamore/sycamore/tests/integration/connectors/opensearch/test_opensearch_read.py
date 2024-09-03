@@ -11,7 +11,20 @@ from sycamore.transforms.partition import UnstructuredPdfPartitioner
 
 @pytest.fixture(scope="class")
 def setup_index():
-    index_settings = {
+    client = OpenSearch(**TestOpenSearchRead.OS_CLIENT_ARGS)
+
+    # Recreate before
+    client.indices.delete(TestOpenSearchRead.INDEX, ignore_unavailable=True)
+    client.indices.create(TestOpenSearchRead.INDEX, **TestOpenSearchRead.INDEX_SETTINGS)
+
+    yield TestOpenSearchRead.INDEX
+
+    # Delete after
+    client.indices.delete(TestOpenSearchRead.INDEX, ignore_unavailable=True)
+
+
+class TestOpenSearchRead:
+    INDEX_SETTINGS = {
         "body": {
             "settings": {"index.knn": True, "number_of_shards": 5, "number_of_replicas": 1},
             "mappings": {
@@ -26,19 +39,6 @@ def setup_index():
             },
         }
     }
-    client = OpenSearch(**TestOpenSearchRead.OS_CLIENT_ARGS)
-
-    # Recreate before
-    client.indices.delete(TestOpenSearchRead.INDEX, ignore_unavailable=True)
-    client.indices.create(TestOpenSearchRead.INDEX, **index_settings)
-
-    yield TestOpenSearchRead.INDEX
-
-    # Delete after
-    client.indices.delete(TestOpenSearchRead.INDEX, ignore_unavailable=True)
-
-
-class TestOpenSearchRead:
 
     INDEX = "test_opensearch_read"
 
@@ -65,7 +65,10 @@ class TestOpenSearchRead:
             .partition(partitioner=UnstructuredPdfPartitioner())
             .explode()
             .write.opensearch(
-                os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS, index_name=TestOpenSearchRead.INDEX, execute=False
+                os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+                index_name=TestOpenSearchRead.INDEX,
+                index_settings=TestOpenSearchRead.INDEX_SETTINGS,
+                execute=False,
             )
             .take_all()
         )

@@ -1,12 +1,15 @@
 from sycamore.data import Document
 
 from dataclasses import dataclass
+import typing
 from typing import Optional
 from sycamore.connectors.common import convert_from_str_dict
 
 from sycamore.connectors.base_reader import BaseDBReader
-import duckdb
-from duckdb import DuckDBPyConnection
+from sycamore.utils.import_utils import requires_modules
+
+if typing.TYPE_CHECKING:
+    from duckdb import DuckDBPyConnection
 
 
 @dataclass
@@ -22,11 +25,14 @@ class DuckDBReaderQueryParams(BaseDBReader.QueryParams):
 
 
 class DuckDBReaderClient(BaseDBReader.Client):
-    def __init__(self, client: DuckDBPyConnection):
+    def __init__(self, client: "DuckDBPyConnection"):
         self._client = client
 
     @classmethod
+    @requires_modules("duckdb", extra="duckdb")
     def from_client_params(cls, params: BaseDBReader.ClientParams) -> "DuckDBReaderClient":
+        import duckdb
+
         assert isinstance(params, DuckDBReaderClientParams)
         client = duckdb.connect(database=params.db_url, read_only=True)
         return DuckDBReaderClient(client)
@@ -54,7 +60,7 @@ class DuckDBReaderClient(BaseDBReader.Client):
 
 @dataclass
 class DuckDBReaderQueryResponse(BaseDBReader.QueryResponse):
-    output: DuckDBPyConnection
+    output: "DuckDBPyConnection"
 
     def to_docs(self, query_params: "BaseDBReader.QueryParams") -> list[Document]:
         assert isinstance(self, DuckDBReaderQueryResponse)

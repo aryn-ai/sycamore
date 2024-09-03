@@ -1,13 +1,15 @@
 from dataclasses import dataclass, field
+import typing
 from typing import Any, Optional
 from typing_extensions import TypeGuard
+from sycamore.utils.import_utils import requires_modules
 
 from sycamore.data.document import Document
 from sycamore.connectors.base_writer import BaseDBWriter
 from sycamore.connectors.common import flatten_data, check_dictionary_compatibility
 
-from elasticsearch import Elasticsearch, ApiError
-from elasticsearch.helpers import parallel_bulk
+if typing.TYPE_CHECKING:
+    from elasticsearch import Elasticsearch
 
 
 @dataclass
@@ -61,16 +63,21 @@ class ElasticsearchWriterTargetParams(BaseDBWriter.TargetParams):
 
 
 class ElasticsearchWriterClient(BaseDBWriter.Client):
-    def __init__(self, client: Elasticsearch):
+    def __init__(self, client: "Elasticsearch"):
         self._client = client
 
     @classmethod
+    @requires_modules(["elasticsearch", "elasticsearch.helpers"], extra="elasticsearch")
     def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "ElasticsearchWriterClient":
+        from elasticsearch import Elasticsearch
+
         assert isinstance(params, ElasticsearchWriterClientParams)
         client = Elasticsearch(params.url, **params.es_client_args)
         return ElasticsearchWriterClient(client)
 
     def write_many_records(self, records: list[BaseDBWriter.Record], target_params: BaseDBWriter.TargetParams):
+        from elasticsearch.helpers import parallel_bulk
+
         assert isinstance(target_params, ElasticsearchWriterTargetParams)
         assert _narrow_list_of_doc_records(records), f"Found a bad record in {records}"
         with self._client:
@@ -91,6 +98,8 @@ class ElasticsearchWriterClient(BaseDBWriter.Client):
                     print(f"Insert Operation Unsuccessful: {info}")
 
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
+        from elasticsearch import ApiError
+
         assert isinstance(target_params, ElasticsearchWriterTargetParams)
         try:
             self._client.indices.create(

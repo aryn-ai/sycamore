@@ -10,6 +10,7 @@ from sycamore.data import Document
 from sycamore.executor import Execution
 from sycamore.plan_nodes import Node
 from sycamore.docset import DocSet
+from sycamore.utils.import_utils import requires_modules
 
 if TYPE_CHECKING:
     from neo4j import Auth
@@ -151,6 +152,7 @@ class DocSetWriter:
         else:
             return osds
 
+    @requires_modules(["weaviate", "weaviate.collections.classes.config"], extra="weaviate")
     def weaviate(
         self,
         *,
@@ -256,17 +258,19 @@ class DocSetWriter:
             WeaviateClientParams,
             WeaviateWriterTargetParams,
         )
-        from sycamore.connectors.weaviate.weaviate_writer import CollectionConfigCreate
+
+        # Importing _ prefixed stuff is fairly common for users of the weaviate codebase
+        from weaviate.collections.classes.config import _CollectionConfigCreate
 
         if collection_config is None:
             collection_config = dict()
         client_params = WeaviateClientParams(**wv_client_args)
-        collection_config_object: CollectionConfigCreate
+        collection_config_object: _CollectionConfigCreate
         if "name" in collection_config:
             assert collection_config["name"] == collection_name
-            collection_config_object = CollectionConfigCreate(**collection_config)
+            collection_config_object = _CollectionConfigCreate(**collection_config)
         else:
-            collection_config_object = CollectionConfigCreate(name=collection_name, **collection_config)
+            collection_config_object = _CollectionConfigCreate(name=collection_name, **collection_config)
         target_params = WeaviateWriterTargetParams(
             name=collection_name, collection_config=collection_config_object, flatten_properties=flatten_properties
         )
@@ -286,6 +290,7 @@ class DocSetWriter:
         else:
             return wvds
 
+    @requires_modules("pinecone", extra="pinecone")
     def pinecone(
         self,
         *,
@@ -378,6 +383,7 @@ class DocSetWriter:
         else:
             return pcds
 
+    @requires_modules("duckdb", extra="duckdb")
     def duckdb(
         self,
         dimensions: int,
@@ -464,6 +470,7 @@ class DocSetWriter:
         else:
             return ddbds
 
+    @requires_modules("elasticsearch", extra="elasticsearch")
     def elasticsearch(
         self,
         *,
@@ -550,6 +557,7 @@ class DocSetWriter:
         else:
             return esds
 
+    @requires_modules("neo4j", extra="neo4j")
     def neo4j(
         self,
         uri: str,

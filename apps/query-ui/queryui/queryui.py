@@ -164,7 +164,7 @@ def run_query(query: str, index: str, plan_only: bool, do_trace: bool, use_cache
 
 
 client = SycamoreQueryClient()
-indices = client.get_opensearch_incides()
+indices: list[str] = client.get_opensearch_incides()
 
 st.title("Sycamore Query Demo")
 

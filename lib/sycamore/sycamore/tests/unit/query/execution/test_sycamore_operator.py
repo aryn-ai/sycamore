@@ -97,7 +97,6 @@ def test_llm_filter():
             new_field="_autogen_LLMFilterOutput",
             prompt=ANY,
             field=logical_node.field,
-            threshold=3,
             name=str(logical_node.node_id),
         )
 

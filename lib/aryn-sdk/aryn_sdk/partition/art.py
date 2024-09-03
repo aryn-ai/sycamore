@@ -1,8 +1,9 @@
 from os import PathLike
 from typing import BinaryIO, Union
 import io
+from packaging.version import InvalidVersion, Version
 from pathlib import Path
-
+import PIL
 from PIL import Image, ImageDraw, ImageFont
 import pdf2image
 import logging
@@ -95,6 +96,13 @@ def draw_with_boxes(
     return images
 
 
+def _supports_font_size() -> bool:
+    try:
+        return Version(PIL.__version__) >= Version("10.1.0")
+    except InvalidVersion:
+        return False
+
+
 def _draw_box_on_image(image: Image.Image, element: dict):
     e_coords = element.get("bbox")
     if e_coords is None:
@@ -110,7 +118,12 @@ def _draw_box_on_image(image: Image.Image, element: dict):
     canvas = ImageDraw.ImageDraw(image)
     canvas.rectangle(coords, outline=color, width=3)
     label_loc = (coords[0] - image.width / 100, coords[1] - image.height / 100)
-    font = ImageFont.load_default(size=20)
+
+    if _supports_font_size():
+        font = ImageFont.load_default(size=20)
+    else:
+        font = ImageFont.load_default()
+
     font_box = canvas.textbbox(label_loc, label, font=font)
     canvas.rectangle(font_box, fill="yellow")
     canvas.text(label_loc, label, fill="black", font=font, align="left")

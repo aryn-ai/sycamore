@@ -150,7 +150,7 @@ class SycamoreQueryClient:
         self, plan: LogicalPlan, context: Optional[Context] = None, dry_run=False, codegen_mode=False
     ) -> Tuple[str, str]:
         """Run the given logical query plan and return a tuple of the query ID and result."""
-        if not context:
+        if context is None:
             context = self._get_default_context()
         executor = SycamoreExecutor(
             context=context,
@@ -187,7 +187,7 @@ class SycamoreQueryClient:
                 except json.JSONDecodeError:
                     console.print(line)
 
-    def _get_default_context(self):
+    def _get_default_context(self) -> Context:
         context_params = {
             "default": {
                 "llm": OpenAI(

@@ -12,7 +12,8 @@ repository = "https://github.com/aryn-ai/sycamore.git"
 "Documentation" = "https://sycamore.readthedocs.io"
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.12"
+# streamlit in query-ui disallows 3.9.7
+python = ">=3.9,<3.9.7 || >3.9.7,<3.12"
 
 sycamore-ai = "^0.1.13"
 
@@ -36,6 +37,7 @@ remote-processors = { path = "lib/remote-processors", develop = true }
 integration = { path = "apps/integration", develop = true }
 sycamore-poetry-lock = { path = "lib/poetry-lock", develop = true }
 aryn-sdk = { path = "lib/aryn-sdk", develop = true }
+queryui = { path = "apps/query-ui", develop = true }
 ruff = "^0.0.287"
 black = "^24.4"
 pre-commit = "^3.4.0"

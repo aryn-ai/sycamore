@@ -36,3 +36,4 @@ lib/remote-processors/remote_processors/*pb2*
 poetry.toml
 lib/aryn-sdk/dist/
 luna_traces/
+traces/

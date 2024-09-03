@@ -2,12 +2,13 @@
 
 # This script will populate a local OpenSearch index, using Sycamore, with data
 # from NTSB incident reports.
+# Run with poetry run python examples/query/ntsb_loader.py [--delete]
 
 import argparse
 
 import sycamore
 from sycamore.data import Document
-from sycamore.transforms.partition import UnstructuredPdfPartitioner
+from sycamore.transforms.partition import ArynPartitioner
 from sycamore.functions import HuggingFaceTokenizer
 from sycamore.transforms.merge_elements import GreedyTextElementMerger
 from sycamore.transforms.extract_schema import (
@@ -18,10 +19,11 @@ from sycamore.transforms.embed import SentenceTransformerEmbedder
 import os
 from dateutil import parser
 from opensearchpy import OpenSearch
-
+import tempfile
 
 argparser = argparse.ArgumentParser(prog="ntsb_loader")
 argparser.add_argument("--delete", action="store_true")
+argparser.add_argument("--tempdir", default=tempfile.gettempdir())
 args = argparser.parse_args()
 
 # The S3 location of the raw NTSB data.
@@ -29,6 +31,9 @@ SOURCE_DATA_PATH = "s3://aryn-public/ntsb/"
 
 # The OpenSearch index name to populate.
 INDEX = "const_ntsb"
+
+# Temporary directory for materialize output
+TMP_DIR = tempfile.gettempdir()
 
 
 def add_property_to_schema(doc: Document) -> Document:
@@ -119,27 +124,28 @@ llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
 
 # partitioning docset
 partitioned_docset = (
-    docset.partition(partitioner=UnstructuredPdfPartitioner())
+    docset.partition(partitioner=ArynPartitioner())
     # these are here mostly as examples; the last materialize will at this point take
     # effect, you can use these during testing.
-    .materialize(path="/tmp/after_partition", source_mode=sycamore.MaterializeSourceMode.IF_PRESENT)
+    .materialize(path=f"{TMP_DIR}/ntsb_loader_after_partition", source_mode=sycamore.MaterializeSourceMode.IF_PRESENT)
     .map(add_property_to_schema)
     .extract_properties(property_extractor=OpenAIPropertyExtractor(llm=llm, num_of_elements=35))
-    .materialize(path="/tmp/after_llm", source_mode=sycamore.MaterializeSourceMode.IF_PRESENT)
+    .materialize(path=f"{TMP_DIR}/ntsb_loader_after_llm", source_mode=sycamore.MaterializeSourceMode.IF_PRESENT)
     .merge(GreedyTextElementMerger(tokenizer, 300))
     .map(convert_timestamp)
     .spread_properties(["entity", "path"])
     .explode()
     .sketch()
     .embed(embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2"))
-    # comment out, to force re-evaluation of the pipeline, otherwise since this always exists it
-    # will be used.
+    # comment out to force re-evaluation of the pipeline, otherwise since this always exists it
+    # will be used. If you've run it commented out you can move this step after the next materialize
+    # to avoid re-computation.
     .materialize(
-        path="s3://aryn-public/materialize/examples/luna/ntsb_loader",
+        path="s3://aryn-public/materialize/examples/luna/ntsb_loader_2024-08-29",
         source_mode=sycamore.MaterializeSourceMode.IF_PRESENT,
     )
-    # materialize locally after reading from S3, it's a bit faster if you're running rmeotely
-    .materialize(path="/tmp/after_embed", source_mode=sycamore.MaterializeSourceMode.IF_PRESENT)
+    .materialize(path=f"{TMP_DIR}/ntsb_loader_after_embed", source_mode=sycamore.MaterializeSourceMode.IF_PRESENT)
+    # materialize locally after reading from S3, it's a bit faster if you're running remotely
     .write.opensearch(
         os_client_args=os_client_args,
         index_name=INDEX,

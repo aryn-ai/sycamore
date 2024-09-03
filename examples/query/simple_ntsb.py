@@ -15,6 +15,9 @@ plan = client.generate_plan(QUERY, OS_INDEX, schema)
 # plan.show(verbose=True)
 # visualize_plan(plan)
 
+# WARNING: As of 2024-09-03, the results are inconsistent; you can get different results
+# because of differences in the generated query plan and as a result of differences in the
+# processing of the pipeline.
 query_id, result = client.run_plan(plan)
 console.rule("Query result")
 console.print(result)

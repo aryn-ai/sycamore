@@ -22,6 +22,10 @@ optional_modules = [
     "opensearchpy",
     "pinecone",
     "weaviate",
+    "easyocr",
+    "pdfminer",
+    "pytesseract",
+    "sentence-transformers",
 ]
 
 

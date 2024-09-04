@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 from opensearchpy import OpenSearch
 
 import sycamore
-from sycamore.context import OpenSearchArgs
+from sycamore.context import OperationTypes
 from sycamore.functions import HuggingFaceTokenizer
 from sycamore.llms import OpenAIModels, OpenAI
 from sycamore.tests.config import TEST_DIR
@@ -115,8 +115,14 @@ def test_pdf_to_opensearch_with_llm_caching():
 
     try:
         context = sycamore.init(
-            opensearch_args=OpenSearchArgs(os_client_args, "toyindex", index_settings),
-            llm=openai_llm,
+            params={
+                OperationTypes.INFORMATION_EXTRACTOR: {"llm": openai_llm},
+                "opensearch": {
+                    "os_client_args": os_client_args,
+                    "index_name": "toyindex",
+                    "index_settings": index_settings,
+                },
+            },
         )
         ds = (
             context.read.binary(paths, binary_format="pdf")

@@ -1,48 +1,60 @@
 from dataclasses import dataclass, asdict
+import typing
 from typing import Optional, Union, Any
+
 from sycamore.connectors.common import drop_types, flatten_data
-from typing_extensions import TypeGuard, TypeAlias
+from typing_extensions import TypeAlias, TypeGuard
 
 from sycamore.data.document import Document
 from sycamore.connectors.base_writer import BaseDBWriter
-from weaviate.classes.config import DataType, ReferenceProperty
-from weaviate.client import (
-    AdditionalConfig,
-    AuthCredentials,
-    ConnectionParams,
-    EmbeddedOptions,
-    UnexpectedStatusCodeError,
-)
-from weaviate.client import WeaviateClient
-from weaviate.collections.classes.config import (
-    _CollectionConfigCreate,
-    CollectionConfig,
-)
-from weaviate.util import WeaviateInvalidInputError
+from sycamore.utils.import_utils import requires_modules
+
+if typing.TYPE_CHECKING:
+    from weaviate import WeaviateClient
+    from weaviate.client import (
+        AdditionalConfig,
+        AuthCredentials,
+        ConnectionParams,
+        EmbeddedOptions,
+    )
+    from weaviate.collections.classes.config import (
+        _CollectionConfigCreate,
+        CollectionConfig,
+    )
+
+
+# This is a convenience so that you can use the alias CollectionConfigCreate
+# when weaviate is available. In Python >= 3.11 we could use a quoted type
+# to get around needing the import, but 3.9/3.10 don't support quoted types
+# for type aliases.
+try:
+    from weaviate.collections.classes.config import _CollectionConfigCreate
+
+    CollectionConfigCreate: TypeAlias = _CollectionConfigCreate
+except ImportError:
+    pass
 
 
 @dataclass
 class WeaviateClientParams(BaseDBWriter.ClientParams):
-    connection_params: Optional[ConnectionParams] = None
-    embedded_options: Optional[EmbeddedOptions] = None
-    auth_client_secret: Optional[AuthCredentials] = None
+    connection_params: Optional["ConnectionParams"] = None
+    embedded_options: Optional["EmbeddedOptions"] = None
+    auth_client_secret: Optional["AuthCredentials"] = None
     additional_headers: Optional[dict] = None
-    additional_config: Optional[AdditionalConfig] = None
+    additional_config: Optional["AdditionalConfig"] = None
     skip_init_checks: bool = False
-
-
-# This is mainsly so people don't feel weird about importing
-# this class. This kinda stuff is all over the wv8 codebase
-CollectionConfigCreate: TypeAlias = _CollectionConfigCreate
 
 
 @dataclass
 class WeaviateWriterTargetParams(BaseDBWriter.TargetParams):
     name: str
-    collection_config: Union[CollectionConfigCreate, CollectionConfig]
+    collection_config: Union["_CollectionConfigCreate", "CollectionConfig"]
     flatten_properties: bool = False
 
+    @requires_modules("weaviate.classes.config", extra="weaviate")
     def compatible_with(self, other: BaseDBWriter.TargetParams) -> bool:
+        from weaviate.classes.config import DataType
+
         if not isinstance(other, WeaviateWriterTargetParams):
             return False
         if self.name != other.name:
@@ -71,7 +83,10 @@ class WeaviateWriterTargetParams(BaseDBWriter.TargetParams):
                 return False
         return True
 
+    @requires_modules("weaviate.collections.classes.config", extra="weaviate")
     def _as_flattened_dict(self) -> dict[str, Any]:
+        from weaviate.collections.classes.config import _CollectionConfigCreate
+
         if isinstance(self.collection_config, _CollectionConfigCreate):
             my_dict = self.collection_config._to_dict()
         else:
@@ -87,11 +102,14 @@ class WeaviateWriterTargetParams(BaseDBWriter.TargetParams):
 
 
 class WeaviateWriterClient(BaseDBWriter.Client):
-    def __init__(self, client: WeaviateClient):
+    def __init__(self, client: "WeaviateClient"):
         self._client = client
 
     @classmethod
+    @requires_modules(["weaviate", "weaviate.client", "weaviate.collections.classes.config"], extra="weaviate")
     def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "WeaviateWriterClient":
+        from weaviate import WeaviateClient
+
         assert isinstance(params, WeaviateClientParams)
         client = WeaviateClient(**asdict(params))
         return WeaviateWriterClient(client)
@@ -108,6 +126,9 @@ class WeaviateWriterClient(BaseDBWriter.Client):
                         batch.add_object(properties=r.properties, uuid=r.uuid)
 
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
+        from weaviate.client import UnexpectedStatusCodeError
+        from weaviate.collections.classes.config import CollectionConfig
+
         assert isinstance(target_params, WeaviateWriterTargetParams)
         try:
             with self._client:
@@ -129,10 +150,8 @@ class WeaviateWriterClient(BaseDBWriter.Client):
                         vector_index_config=cfg_crt.vectorIndexConfig,
                         vectorizer_config=cfg_crt.vectorizerConfig,
                     )
-        except UnexpectedStatusCodeError as e:
-            if e.status_code == 422 and "already exists" in e.message:
-                return
-            raise e
+        except UnexpectedStatusCodeError:
+            return
 
     def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> "WeaviateWriterTargetParams":
         assert isinstance(target_params, WeaviateWriterTargetParams)
@@ -145,13 +164,20 @@ class WeaviateWriterClient(BaseDBWriter.Client):
 
 
 class WeaviateCrossReferenceClient(WeaviateWriterClient):
+
     @classmethod
+    @requires_modules(["weaviate", "weaviate.classes.config", "weaviate.util"], extra="weaviate")
     def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "WeaviateCrossReferenceClient":
+        from weaviate import WeaviateClient
+
         assert isinstance(params, WeaviateClientParams)
         client = WeaviateClient(**asdict(params))
         return WeaviateCrossReferenceClient(client)
 
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
+        from weaviate.classes.config import ReferenceProperty
+        from weaviate.util import WeaviateInvalidInputError
+
         assert isinstance(target_params, WeaviateWriterTargetParams)
         with self._client:
             try:

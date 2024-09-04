@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Callable, Any, Optional, Union
 
-from sycamore.context import Context
+from sycamore.context import Context, context_params, OperationTypes
 from sycamore.data import Element, Document
 from sycamore.llms import LLM
 from sycamore.llms.prompts import (
@@ -25,7 +25,9 @@ class EntityExtractor(ABC):
         self._entity_name = entity_name
 
     @abstractmethod
-    def extract_entity(self, document: Document, context: Optional[Context] = None) -> Document:
+    def extract_entity(
+        self, document: Document, context: Optional[Context] = None, llm: Optional[LLM] = None
+    ) -> Document:
         pass
 
 
@@ -80,12 +82,12 @@ class OpenAIEntityExtractor(EntityExtractor):
         self._prompt = prompt
         self._field = field
 
+    @context_params(OperationTypes.INFORMATION_EXTRACTOR)
     @timetrace("OaExtract")
-    def extract_entity(self, document: Document, context: Optional[Context] = None) -> Document:
-        if self._llm is None and context:
-            self._llm = context.llm
-        assert self._llm is not None, "OpenAIEntityExtractor requires an LLM"
-
+    def extract_entity(
+        self, document: Document, context: Optional[Context] = None, llm: Optional[LLM] = None
+    ) -> Document:
+        self._llm = llm or self._llm
         if self._use_elements:
             if self._prompt_template:
                 entities = self._handle_few_shot_prompting(document)

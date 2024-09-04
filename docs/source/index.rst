@@ -72,6 +72,16 @@ Sycamore
 
 ..
 
+Support for vector databases can be installed using extras. For example,
+
+.. code-block:: python
+
+    pip install sycamore-ai[opensearch]
+
+..
+
+will install Sycamore with OpenSearch support. You can find a list of supported connectors :doc:`here </sycamore/connectors>`.
+
 2. You can now create and run Sycamore scripts to process your documents and unstructured data. `This notebook <https://github.com/aryn-ai/sycamore/blob/main/notebooks/metadata-extraction.ipynb>`_ demonstrates a variety of Sycamore data transforms and loads an OpenSearch hybrid search index.
 
 We recommend using the Aryn Partitioning Service with Sycamore to process PDFs, and you can `sign-up here for free <https://www.aryn.ai/get-started>`_ to get an API Key. 

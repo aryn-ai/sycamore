@@ -1,11 +1,8 @@
 from dataclasses import asdict, dataclass, field
 import logging
+import typing
 from typing import Any, Optional
 from typing_extensions import TypeGuard
-
-from opensearchpy import OpenSearch
-from opensearchpy.exceptions import RequestError
-from opensearchpy.helpers import parallel_bulk
 
 from sycamore.data import Document
 from sycamore.connectors.base_writer import BaseDBWriter
@@ -15,6 +12,10 @@ from sycamore.connectors.common import (
     check_dictionary_compatibility,
     DEFAULT_RECORD_PROPERTIES,
 )
+from sycamore.utils.import_utils import requires_modules
+
+if typing.TYPE_CHECKING:
+    from opensearchpy import OpenSearch
 
 log = logging.getLogger(__name__)
 
@@ -78,11 +79,14 @@ class OpenSearchWriterTargetParams(BaseDBWriter.TargetParams):
 
 
 class OpenSearchWriterClient(BaseDBWriter.Client):
-    def __init__(self, os_client: OpenSearch):
+    def __init__(self, os_client: "OpenSearch"):
         self._client = os_client
 
     @classmethod
+    @requires_modules(["opensearchpy", "opensearchpy.helpers"], extra="opensearch")
     def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "OpenSearchWriterClient":
+        from opensearchpy import OpenSearch
+
         assert isinstance(
             params, OpenSearchWriterClientParams
         ), f"Provided params was not of type OpenSearchWriterClientParams:\n{params}"
@@ -92,6 +96,8 @@ class OpenSearchWriterClient(BaseDBWriter.Client):
         return OpenSearchWriterClient(os_client)
 
     def write_many_records(self, records: list[BaseDBWriter.Record], target_params: BaseDBWriter.TargetParams):
+        from opensearchpy.helpers import parallel_bulk
+
         assert isinstance(
             target_params, OpenSearchWriterTargetParams
         ), f"Provided target_params was not of type OpenSearchWriterTargetParams:\n{target_params}"
@@ -102,6 +108,8 @@ class OpenSearchWriterClient(BaseDBWriter.Client):
                 log.error("A Document failed to upload", info)
 
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
+        from opensearchpy.exceptions import RequestError
+
         assert isinstance(
             target_params, OpenSearchWriterTargetParams
         ), f"Provided target_params was not of type OpenSearchWriterTargetParams:\n{target_params}"
@@ -110,9 +118,8 @@ class OpenSearchWriterClient(BaseDBWriter.Client):
             self._client.indices.create(
                 index_name, body={"mappings": target_params.mappings, "settings": target_params.settings}
             )
-        except RequestError as e:
-            if e.error != "resource_already_exists_exception":
-                raise e
+        except RequestError:
+            return
 
     def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> OpenSearchWriterTargetParams:
         def _string_values_to_python_types(obj: Any):

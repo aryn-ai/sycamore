@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     import pyarrow
 
 
-logger = logging.getLogger("__name__")
+logger = logging.getLogger(__name__)
 
 
 class _PyArrowFsHelper:
@@ -96,7 +96,7 @@ class Materialize(UnaryNode):
         if self._source_mode == MaterializeSourceMode.IF_PRESENT:
             success = self._fshelper.file_exists(self._success_path())
             if success or len(self.children) == 0:
-                logger.info(f"Using {self._root} as cached source of data")
+                logger.info(f"Using {self._root} as the cached source of data")
                 self._executed_child = False
                 if not success:
                     self._verify_has_files()
@@ -216,6 +216,7 @@ class Materialize(UnaryNode):
         assert self._root is not None
         name = self._doc_to_name(doc)
         path = self._root / name
+
         if self._clean_root and self._fshelper.file_exists(path):
             raise ValueError(f"Duplicate name {path} generated for clean root")
         with self._fs.open_output_stream(str(path)) as out:

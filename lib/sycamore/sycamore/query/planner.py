@@ -1,7 +1,7 @@
 import json
+import typing
 from typing import Dict, List, Mapping, MutableMapping, Optional, Tuple, Type
 
-from opensearchpy import OpenSearch
 
 from sycamore.llms.llms import LLM
 from sycamore.llms.openai import OpenAI, OpenAIModels
@@ -19,6 +19,9 @@ from sycamore.query.operators.limit import Limit
 from sycamore.query.operators.logical_operator import LogicalOperator
 from sycamore.query.schema import OpenSearchSchema
 from sycamore.utils.extract_json import extract_json
+
+if typing.TYPE_CHECKING:
+    from opensearchpy import OpenSearch
 
 
 # All operators that are allowed for construction of a query plan.
@@ -56,7 +59,7 @@ class LlmPlanner:
         index: str,
         data_schema: OpenSearchSchema,
         os_config: dict[str, str],
-        os_client: OpenSearch,
+        os_client: "OpenSearch",
         operators: Optional[List[Type[LogicalOperator]]] = None,
         llm_client: Optional[LLM] = None,
         use_examples: bool = True,

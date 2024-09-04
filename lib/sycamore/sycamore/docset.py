@@ -5,7 +5,7 @@ import pprint
 import sys
 from typing import Callable, Optional, Any, Iterable, Type, Union, TYPE_CHECKING
 
-from sycamore.context import Context
+from sycamore.context import Context, context_params, OperationTypes
 from sycamore.data import Document, Element, MetadataDocument
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.llms.llms import LLM
@@ -930,6 +930,7 @@ class DocSet:
 
         return self.map(process_doc, **resource_args)
 
+    @context_params(OperationTypes.BINARY_CLASSIFIER)
     def llm_filter(
         self,
         llm: LLM,
@@ -944,7 +945,7 @@ class DocSet:
         than or equal to the inputted threshold value.
 
         Args:
-            client: LLM client to use.
+            llm: LLM to use.
             new_field: The field that will be added to the DocSet with the outputs.
             prompt: LLM prompt.
             field: Document field to filter based on.
@@ -1131,6 +1132,7 @@ class DocSet:
         queries = LLMQuery(self.plan, query_agent=query_agent, **kwargs)
         return DocSet(self.context, queries)
 
+    @context_params(OperationTypes.INFORMATION_EXTRACTOR)
     def top_k(
         self,
         llm: LLM,
@@ -1176,6 +1178,7 @@ class DocSet:
             docset = docset.limit(k)
         return docset
 
+    @context_params(OperationTypes.INFORMATION_EXTRACTOR)
     def llm_cluster_entity(self, llm: LLM, instruction: str, field: str) -> "DocSet":
         """
         Normalizes a particular field of a DocSet. Identifies and assigns each document to a "group".

@@ -6,6 +6,7 @@ import pytest
 
 import sycamore
 from sycamore import DocSet, Context
+from sycamore.context import OperationTypes
 from sycamore.data import Document, Element
 from sycamore.llms.prompts.default_prompts import (
     LlmClusterEntityAssignGroupsMessagesPrompt,
@@ -366,22 +367,18 @@ class TestDocSet:
     def test_llm_filter(self):
 
         doc_list = [Document(text_representation="test1"), Document(text_representation="test2")]
-        context = sycamore.init()
+        context = sycamore.init(params={OperationTypes.BINARY_CLASSIFIER: {"llm": MockLLM()}})
         docset = context.read.document(doc_list)
         new_field = "_autogen_LLMFilterOutput"
 
-        filtered_docset = docset.llm_filter(
-            llm=MockLLM(), new_field=new_field, prompt=[], field="text_representation", threshold=3
-        )
+        filtered_docset = docset.llm_filter(new_field=new_field, prompt=[], field="text_representation", threshold=3)
 
         assert filtered_docset.count() == 1
         for doc in filtered_docset.take():
             assert doc.text_representation == "test1"
             assert int(doc.properties[new_field]) == 4
 
-        filtered_docset = docset.llm_filter(
-            llm=MockLLM(), new_field=new_field, prompt=[], field="text_representation", threshold=2
-        )
+        filtered_docset = docset.llm_filter(new_field=new_field, prompt=[], field="text_representation", threshold=2)
 
         assert filtered_docset.count() == 2
 

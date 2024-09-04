@@ -114,14 +114,16 @@ class EntityExtractor(GraphEntityExtractor):
                 models.append(create_model("entities", __base__=BaseModel, **{field_name: field_value}))
         else:
             models.append(create_model("entities", __base__=BaseModel, **fields))
-        
+
         outputs = []
         for model in models:
             try:
                 llm_kwargs = {"response_format": model}
-                outputs.append(await self.llm.generate_async(
-                    prompt_kwargs={"prompt": str(GraphEntityExtractorPrompt(summary))}, llm_kwargs=llm_kwargs
-                ))
+                outputs.append(
+                    await self.llm.generate_async(
+                        prompt_kwargs={"prompt": str(GraphEntityExtractorPrompt(summary))}, llm_kwargs=llm_kwargs
+                    )
+                )
             except Exception as e:
                 logger.warn(f"OPENAI CALL FAILED: {e}")
                 outputs.append("{}")

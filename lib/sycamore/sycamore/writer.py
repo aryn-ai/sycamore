@@ -613,7 +613,12 @@ class DocSetWriter:
         )
         from sycamore.plan_nodes import Node
         from sycamore.connectors.neo4j import Neo4jPrepareCSV, Neo4jWriteCSV, Neo4jLoadCSV
-        from sycamore.connectors.neo4j.neo4j_writer import create_temp_bucket, delete_temp_bucket, load_to_s3_bucket, get_neo4j_import_info
+        from sycamore.connectors.neo4j.neo4j_writer import (
+            create_temp_bucket,
+            delete_temp_bucket,
+            load_to_s3_bucket,
+            get_neo4j_import_info,
+        )
         import time
 
         if kwargs.get("execute") is False:
@@ -647,28 +652,24 @@ class DocSetWriter:
         Neo4jWriteCSV(plan=self.plan, client_params=client_params).execute().materialize()
         end = time.time()
         logger.info(f"TIME TAKEN TO WRITE CSV: {end-start} SECONDS")
-        
+
         nodes, relationships, labels = get_neo4j_import_info(import_dir=import_dir)
-        #If using auradb, load to files to s3 
-        
+        # If using auradb, load to files to s3
+
         s3_client = None
         s3_resource = None
         s3_bucket = None
         if use_auradb:
-            s3_client = s3_session.client('s3')
-            s3_resource = s3_session.resource('s3')
+            s3_client = s3_session.client("s3")
+            s3_resource = s3_session.resource("s3")
             s3_bucket = create_temp_bucket(s3_client=s3_client)
             nodes, relationships = load_to_s3_bucket(s3_client=s3_client, bucket_name=s3_bucket, import_dir=import_dir)
 
-        import_paths = {
-        "nodes": nodes,
-        "relationships": relationships,
-        "labels": labels
-        }
+        import_paths = {"nodes": nodes, "relationships": relationships, "labels": labels}
 
         Neo4jLoadCSV(client_params=client_params, target_params=target_params, import_paths=import_paths)
 
-        #cleanup s3 files if using auradb
+        # cleanup s3 files if using auradb
         if use_auradb:
             delete_temp_bucket(s3_client, s3_resource, s3_bucket)
 

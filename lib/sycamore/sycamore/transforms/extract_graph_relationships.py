@@ -124,7 +124,7 @@ class RelationshipExtractor(GraphRelationshipExtractor):
                     "start_label": start_label,
                     "end_label": end_label,
                     "start_nodes": set(start_nodes),
-                    "end_nodes": set(end_nodes)
+                    "end_nodes": set(end_nodes),
                 }
 
         if not parsed_relations:
@@ -141,13 +141,8 @@ class RelationshipExtractor(GraphRelationshipExtractor):
         outputs = []
         for i in range(len(models)):
             llm_kwargs = {"response_format": models[i]}
-            prompt_kwargs = {
-                "prompt": str(GraphRelationshipExtractorPrompt(section.data["summary"], entities_list[i]))
-            }
-            outputs.append(await self.llm.generate_async(
-                prompt_kwargs=prompt_kwargs,
-                llm_kwargs=llm_kwargs
-            ))
+            prompt_kwargs = {"prompt": str(GraphRelationshipExtractorPrompt(section.data["summary"], entities_list[i]))}
+            outputs.append(await self.llm.generate_async(prompt_kwargs=prompt_kwargs, llm_kwargs=llm_kwargs))
 
         async def _process_llm_output(outputs: list[str], parsed_metadata: dict, summary: str):
             parsed_res = {}
@@ -168,7 +163,7 @@ class RelationshipExtractor(GraphRelationshipExtractor):
             return parsed_res
 
         return await _process_llm_output(outputs, parsed_metadata, section.data["summary"])
-    
+
     def _build_llm_call_params(self, fields, parsed_metadata):
         models = []
         entities_list = []

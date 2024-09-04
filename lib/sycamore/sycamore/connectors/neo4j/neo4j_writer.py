@@ -352,38 +352,40 @@ class Neo4jWriteCSV(MapBatch, Write):
         else:
             with TimeTrace("UnknownWriter"):
                 return self.write_docs(docs)
-            
+
 
 def create_temp_bucket(s3_client):
-    bucket_name = 'temp-bucket-' + str(uuid.uuid4())
+    bucket_name = "temp-bucket-" + str(uuid.uuid4())
     try:
         s3_client.create_bucket(Bucket=bucket_name)
-        logger.info(f'Successfully created bucket {bucket_name}')
+        logger.info(f"Successfully created bucket {bucket_name}")
         return bucket_name
     except Exception as e:
         print(f"Could not create bucket: {e}")
         return None
 
+
 def delete_temp_bucket(s3_client, s3_resource, s3_bucket):
     try:
-        #delete all objects
+        # delete all objects
         bucket = s3_resource.Bucket(s3_bucket)
         bucket.objects.all().delete()
-        #delete bucket
+        # delete bucket
         s3_client.delete_bucket(Bucket=s3_bucket)
-        logger.info(f'Successfully deleted bucket {s3_bucket}')
+        logger.info(f"Successfully deleted bucket {s3_bucket}")
     except Exception as e:
         print(f"Could not delete bucket: {e}")
-    
+
+
 def load_to_s3_bucket(s3_client, bucket_name, import_dir):
-    nodes_dir = os.path.join(import_dir,"sycamore/nodes")
-    relationships_dir = os.path.join(import_dir,"sycamore/relationships")
+    nodes_dir = os.path.join(import_dir, "sycamore/nodes")
+    relationships_dir = os.path.join(import_dir, "sycamore/relationships")
 
     nodes_urls = []
     for root, dirs, files in os.walk(nodes_dir):
         for file_name in files:
             file_path = os.path.join(root, file_name)
-            s3_object_name = os.path.join("nodes",file_name)
+            s3_object_name = os.path.join("nodes", file_name)
             try:
                 s3_client.upload_file(file_path, bucket_name, s3_object_name)
                 url = generate_presigned_url(s3_client, bucket_name, s3_object_name)
@@ -395,7 +397,7 @@ def load_to_s3_bucket(s3_client, bucket_name, import_dir):
     for root, dirs, files in os.walk(relationships_dir):
         for file_name in files:
             file_path = os.path.join(root, file_name)
-            s3_object_name = os.path.join("relationships",file_name)
+            s3_object_name = os.path.join("relationships", file_name)
             try:
                 s3_client.upload_file(file_path, bucket_name, s3_object_name)
                 url = generate_presigned_url(s3_client, bucket_name, s3_object_name)
@@ -405,12 +407,12 @@ def load_to_s3_bucket(s3_client, bucket_name, import_dir):
 
     return nodes_urls, relationships_urls
 
+
 def generate_presigned_url(s3_client, bucket_name, object_name, expiration=3600):
     try:
-        response = s3_client.generate_presigned_url('get_object',
-                                                    Params={'Bucket': bucket_name,
-                                                            'Key': object_name},
-                                                    ExpiresIn=expiration)
+        response = s3_client.generate_presigned_url(
+            "get_object", Params={"Bucket": bucket_name, "Key": object_name}, ExpiresIn=expiration
+        )
     except NoCredentialsError:
         print("Credentials not available")
         return None
@@ -419,15 +421,23 @@ def generate_presigned_url(s3_client, bucket_name, object_name, expiration=3600)
         return None
     return response
 
+
 def get_neo4j_import_info(import_dir):
-    nodes = [(f.removesuffix(".csv"),f) for f in os.listdir(import_dir + "/sycamore/nodes")]
+    nodes = [(f.removesuffix(".csv"), f) for f in os.listdir(import_dir + "/sycamore/nodes")]
     relationships = [(f.removesuffix(".csv")) for f in os.listdir(import_dir + "/sycamore/relationships")]
     labels = [f[0] for f in nodes]
 
     return nodes, relationships, labels
 
+
 class Neo4jLoadCSV:
-    def __init__(self, client_params: Neo4jWriterClientParams, target_params: Neo4jWriterTargetParams, import_paths: dict, **kwargs):
+    def __init__(
+        self,
+        client_params: Neo4jWriterClientParams,
+        target_params: Neo4jWriterTargetParams,
+        import_paths: dict,
+        **kwargs,
+    ):
         self._client = Neo4jWriterClient.from_client_params(client_params)
         self._nodes = import_paths["nodes"]
         self._relationships = import_paths["relationships"]

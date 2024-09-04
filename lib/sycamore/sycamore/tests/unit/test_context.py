@@ -1,7 +1,7 @@
 from typing import Optional
 
 import sycamore
-from sycamore.context import context_params, Context
+from sycamore.context import context_params, Context, get_val_from_context
 
 
 def test_init():
@@ -16,6 +16,21 @@ def test_init():
 
     another_context = sycamore.init()
     assert another_context is not context
+
+
+def test_get_val_from_context():
+    params = {"paramKeyA": {"llm": 1}, "paramKeyB": {"llm": ["llm1", "llm2"]}, "default": {"llm": "openai"}}
+    context = Context(params=params)
+
+    assert "openai" == get_val_from_context(context, "llm")
+    assert 1 == get_val_from_context(context, "llm", param_names=["paramKeyA"])
+    assert ["llm1", "llm2"] == get_val_from_context(context, "llm", param_names=["paramKeyB"])
+    assert 1 == get_val_from_context(
+        context, "llm", param_names=["paramKeyA", "paramKeyB"]
+    ), "Unable to assert ordered parameter name retrieval"
+    assert get_val_from_context(context, "missing") is None
+    assert get_val_from_context(Context(), "missing") is None
+    assert get_val_from_context(Context(params={}), "missing") is None
 
 
 @context_params

@@ -60,7 +60,7 @@ class Neo4jWriterClient:
         with self._driver.session(database=target_params.database):
             pass
 
-    def _write_nodes_neo4j(self, nodes: list[str], session: "Session"):
+    def _write_nodes_neo4j(self, nodes: list[tuple[str, str]], session: "Session"):
         for node_type in nodes:
             node_label = node_type[0]
             file_url = node_type[1]
@@ -86,8 +86,9 @@ class Neo4jWriterClient:
             else:
                 logger.warn(f"ERROR: {path} does not exist, cannot delete")
 
-    def _write_relationships_neo4j(self, relationships: list[str], session: "Session"):
+    def _write_relationships_neo4j(self, relationships: list[tuple[str, str]], session: "Session"):
         for relationship_type in relationships:
+            logger.warn(relationship_type)
             start_label, end_label = (relationship_type[0]).split("_")
             file_url = relationship_type[1]
             if "s3.amazonaws.com" not in file_url:
@@ -126,7 +127,11 @@ class Neo4jWriterClient:
                 tx.run(query)
 
     def write_to_neo4j(
-        self, nodes: list[str], relationships: list[str], labels: list[str], target_params: BaseDBWriter.TargetParams
+        self,
+        nodes: list[tuple[str, str]],
+        relationships: list[tuple[str, str]],
+        labels: list[str],
+        target_params: BaseDBWriter.TargetParams,
     ):
         assert isinstance(target_params, Neo4jWriterTargetParams)
         with self._driver.session(database=target_params.database) as session:
@@ -424,7 +429,7 @@ def generate_presigned_url(s3_client, bucket_name, object_name, expiration=3600)
 
 def get_neo4j_import_info(import_dir):
     nodes = [(f.removesuffix(".csv"), f) for f in os.listdir(import_dir + "/sycamore/nodes")]
-    relationships = [(f.removesuffix(".csv")) for f in os.listdir(import_dir + "/sycamore/relationships")]
+    relationships = [(f.removesuffix(".csv"), f) for f in os.listdir(import_dir + "/sycamore/relationships")]
     labels = [f[0] for f in nodes]
 
     return nodes, relationships, labels

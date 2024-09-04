@@ -12,10 +12,13 @@ from sycamore.plan_nodes import Node
 from sycamore.docset import DocSet
 from sycamore.utils.import_utils import requires_modules
 
+from mypy_boto3_s3.client import S3Client
+from mypy_boto3_s3.service_resource import S3ServiceResource
+from boto3.session import Session
+
 if TYPE_CHECKING:
     from neo4j import Auth
     from neo4j.auth_management import AuthManager
-    from boto3.session import Session
 
 
 logger = logging.getLogger(__name__)
@@ -608,8 +611,6 @@ class DocSetWriter:
             .. code-block:: python
         """
         import os
-        from mypy_boto3_s3.client import S3Client
-        from mypy_boto3_s3.service_resource import S3ServiceResource
         from sycamore.connectors.neo4j import (
             Neo4jWriterClientParams,
             Neo4jWriterTargetParams,

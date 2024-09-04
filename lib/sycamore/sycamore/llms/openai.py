@@ -48,7 +48,7 @@ class OpenAIModels(Enum):
     TEXT_DAVINCI = OpenAIModel(name="text-davinci-003", is_chat=True)
     GPT_3_5_TURBO = OpenAIModel(name="gpt-3.5-turbo", is_chat=True)
     GPT_4_TURBO = OpenAIModel(name="gpt-4-turbo", is_chat=True)
-    GPT_4O = OpenAIModel(name="gpt-4o-2024-08-06", is_chat=True)
+    GPT_4O = OpenAIModel(name="gpt-4o", is_chat=True)
     GPT_4O_MINI = OpenAIModel(name="gpt-4o-mini", is_chat=True)
     GPT_3_5_TURBO_INSTRUCT = OpenAIModel(name="gpt-3.5-turbo-instruct", is_chat=False)
 

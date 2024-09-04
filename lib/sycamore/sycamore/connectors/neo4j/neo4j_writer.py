@@ -18,6 +18,7 @@ import uuid
 from sycamore.plan_nodes import Node, Write
 from sycamore.transforms.map import MapBatch
 from sycamore.utils.time_trace import TimeTrace
+from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 import fcntl
 
 logger = logging.getLogger(__name__)
@@ -53,8 +54,10 @@ class Neo4jWriterClient:
 
     def _write_nodes_neo4j(self, nodes: list[str], session: Session):
         for node_type in nodes:
-            file_url = f"file:///sycamore/nodes/{urllib.parse.quote(node_type)}"
-            node_label = node_type[:-4]
+            node_label = node_type[0]
+            file_url = node_type[1]
+            if "s3.amazonaws.com" not in file_url:
+                file_url = f"file:///sycamore/nodes/{urllib.parse.quote(file_url)}"
             build_nodes = f"""
             LOAD CSV WITH HEADERS FROM "{file_url}" AS row
 
@@ -77,8 +80,10 @@ class Neo4jWriterClient:
 
     def _write_relationships_neo4j(self, relationships: list[str], session: Session):
         for relationship_type in relationships:
-            file_url = f"file:///sycamore/relationships/{urllib.parse.quote(relationship_type)}"
-            start_label, end_label = (relationship_type[:-4]).split("_")
+            start_label, end_label = (relationship_type[0]).split("_")
+            file_url = relationship_type[1]
+            if "s3.amazonaws.com" not in file_url:
+                file_url = f"file:///sycamore/relationships/{urllib.parse.quote(file_url)}"
             build_relationships = f"""
             CALL apoc.periodic.iterate(
             'LOAD CSV WITH HEADERS FROM "{file_url}" AS row RETURN row',
@@ -340,55 +345,84 @@ class Neo4jWriteCSV(MapBatch, Write):
             with TimeTrace("UnknownWriter"):
                 return self.write_docs(docs)
             
-class Neo4jUploadCSV:
-    def __init__(self, import_dir: str, s3_client):
-        self.import_dir = import_dir
-        self.s3_client = s3_client
-        self.bucket_name = self._create_temp_bucket()
-        self._load_to_s3_bucket()
-        self.bucket_name = self._delete_temp_bucket()
 
-    def _load_to_s3_bucket(self):
-        for root, dirs, files in os.walk(self.import_dir):
-            for file in files:
-                local_path = os.path.join(root, file)
-                print(local_path)
-                #relative_path = os.path.relpath(local_path, local_directory)
-                #s3_path = os.path.join(s3_prefix, relative_path).replace("\\", "/")  # Handle Windows paths
-                #try:
-                #    s3_client.upload_file(local_path, bucket_name, s3_path)
-                #    print(f'Successfully uploaded {local_path} to s3://{bucket_name}/{s3_path}')
-                #except Exception as e:
-                #    print(f"Failed to upload {local_path}: {e}")
+def create_temp_bucket(s3_client):
+    bucket_name = 'temp-bucket-' + str(uuid.uuid4())
+    try:
+        s3_client.create_bucket(Bucket=bucket_name)
+        logger.info(f'Successfully created bucket {bucket_name}')
+        return bucket_name
+    except Exception as e:
+        print(f"Could not create bucket: {e}")
+        return None
 
+def delete_temp_bucket(s3_client, s3_resource, bucket_name):
+    try:
+        #delete all objects
+        bucket = s3_resource.Bucket(bucket_name)
+        bucket.objects.all().delete()
+        #delete bucket
+        s3_client.delete_bucket(Bucket=bucket_name)
+        logger.info(f'Successfully deleted bucket {bucket_name}')
+    except Exception as e:
+        print(f"Could not delete bucket: {e}")
     
-    def _create_temp_bucket(self):
-        bucket_name = 'temp-bucket-' + str(uuid.uuid4())
-        try:
-            self.s3_client.create_bucket(Bucket=bucket_name)
-            return bucket_name
-        except Exception as e:
-            print(f"Could not create bucket: {e}")
-            return None
-        
-    def _delete_temp_bucket(self):
-        try:
-            bucket = self.s3_client.Bucket(self.bucket_name)
-            bucket.objects.all().delete()
-            bucket.delete()
-            print(f'Successfully deleted bucket {self.bucket_name}')
-        except Exception as e:
-            print(f"Could not delete bucket: {e}")
-        
+def load_to_s3_bucket(s3_client, bucket_name, import_dir):
+    nodes_dir = os.path.join(import_dir,"sycamore/nodes")
+    relationships_dir = os.path.join(import_dir,"sycamore/relationships")
 
-    
+    nodes_urls = []
+    for root, dirs, files in os.walk(nodes_dir):
+        for file_name in files:
+            file_path = os.path.join(root, file_name)
+            s3_object_name = os.path.join("nodes",file_path)
+            try:
+                s3_client.upload_file(file_path, bucket_name, s3_object_name)
+                url = generate_presigned_url(s3_client, bucket_name, s3_object_name)
+                nodes_urls.append((file_name.removesuffix(".csv"), url))
+            except FileNotFoundError:
+                print("The file was not found")
 
+    relationships_urls = []
+    for root, dirs, files in os.walk(relationships_dir):
+        for file_name in files:
+            file_path = os.path.join(root, file_name)
+            s3_object_name = os.path.join("relationships",file_path)
+            try:
+                s3_client.upload_file(file_path, bucket_name, s3_object_name)
+                url = generate_presigned_url(s3_client, bucket_name, s3_object_name)
+                relationships_urls.append((file_name.removesuffix(".csv"), url))
+            except FileNotFoundError:
+                print("The file was not found")
+
+    return nodes_urls, relationships_urls
+
+def generate_presigned_url(s3_client, bucket_name, object_name, expiration=3600):
+    try:
+        response = s3_client.generate_presigned_url('get_object',
+                                                    Params={'Bucket': bucket_name,
+                                                            'Key': object_name},
+                                                    ExpiresIn=expiration)
+    except NoCredentialsError:
+        print("Credentials not available")
+        return None
+    except PartialCredentialsError:
+        print("Incomplete credentials provided")
+        return None
+    return response
+
+def get_neo4j_import_info(import_dir):
+    nodes = [(f.removesuffix(".csv"),f) for f in os.listdir(import_dir + "/sycamore/nodes")]
+    relationships = [(f.removesuffix(".csv")) for f in os.listdir(import_dir + "/sycamore/relationships")]
+    labels = [f[0] for f in nodes]
+
+    return nodes, relationships, labels
 
 class Neo4jLoadCSV:
-    def __init__(self, client_params: Neo4jWriterClientParams, target_params: Neo4jWriterTargetParams, **kwargs):
+    def __init__(self, client_params: Neo4jWriterClientParams, target_params: Neo4jWriterTargetParams, import_paths: dict, **kwargs):
         self._client = Neo4jWriterClient.from_client_params(client_params)
-        self._nodes = [f for f in os.listdir(client_params.import_dir + "/sycamore/nodes")]
-        self._relationships = [f for f in os.listdir(client_params.import_dir + "/sycamore/relationships")]
-        self._labels = [f[:-4] for f in self._nodes]  # f[:-4] used to drop '.csv'
+        self._nodes = import_paths["nodes"]
+        self._relationships = import_paths["relationships"]
+        self._labels = import_paths["labels"]
         self._client.write_to_neo4j(self._nodes, self._relationships, self._labels, target_params)
         self._client._driver.close()

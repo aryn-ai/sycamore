@@ -46,9 +46,9 @@ class SycamoreExecutor:
 
     Args:
         context (Context): The Sycamore context to use.
-        s3_cache_path (str): The S3 path to use for caching queries and results.
-        os_client_args (dict): The OpenSearch client arguments. Defaults to None.
         trace_dir (str, optional): If set, query execution traces will be written to this directory.
+        codegen_mode (bool, optional): If set, query execution traces will be done by generating python code.
+        dry_run (bool, optional): If set, query will not be executed, only generated python code will be returned
     """
 
     def __init__(
@@ -79,7 +79,6 @@ class SycamoreExecutor:
     def process_node(self, logical_node: LogicalOperator, query_id: str) -> Any:
         bind_contextvars(logical_node=logical_node)
         # This is lifted up here to avoid serialization issues with Ray.
-        s3_cache_path = self.s3_cache_path
 
         if logical_node.node_id in self.processed:
             log.info("Already processed")
@@ -116,7 +115,6 @@ class SycamoreExecutor:
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                s3_cache_path=s3_cache_path,
                 trace_dir=self.trace_dir,
             )
         elif isinstance(logical_node, BasicFilter):
@@ -133,7 +131,6 @@ class SycamoreExecutor:
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                s3_cache_path=s3_cache_path,
                 trace_dir=self.trace_dir,
             )
         elif isinstance(logical_node, Count):
@@ -166,7 +163,6 @@ class SycamoreExecutor:
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                s3_cache_path=s3_cache_path,
                 trace_dir=self.trace_dir,
             )
         elif isinstance(logical_node, FieldIn):
@@ -184,7 +180,6 @@ class SycamoreExecutor:
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                s3_cache_path=s3_cache_path,
                 trace_dir=self.trace_dir,
             )
         elif isinstance(logical_node, Math):

@@ -94,6 +94,7 @@ class SycamoreQueryClient:
     """A client for the Sycamore Query engine.
 
     Args:
+        context (optional): a configured Sycamore Context. A fresh one is created if not provided.
         s3_cache_path (optional): S3 path to use for LLM result caching.
         os_config (optional): OpenSearch configuration. Defaults to DEFAULT_OS_CONFIG.
         os_client_args (optional): OpenSearch client arguments. Defaults to DEFAULT_OS_CLIENT_ARGS.
@@ -115,6 +116,11 @@ class SycamoreQueryClient:
         self.os_config = os_config
         self.os_client_args = os_client_args
         self.trace_dir = trace_dir
+
+        if context and os_client_args:
+            raise AssertionError("If using a configured Context object, set os_client_args in context.params")
+        if context and s3_cache_path:
+            raise AssertionError("If using a configured Context object, set a cached llm in context.params")
 
         self.context = context
         if context is None:

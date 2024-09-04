@@ -110,8 +110,6 @@ class SycamoreQueryDatabase(SycamoreOperator):
 class SycamoreSummarizeData(SycamoreOperator):
     """
     Use an LLM to generate a response based on the user input question and provided result set.
-    Args:
-        s3_cache_path (str): Optional S3 path to use for caching
     """
 
     def __init__(
@@ -121,10 +119,8 @@ class SycamoreSummarizeData(SycamoreOperator):
         query_id: str,
         inputs: Optional[List[Any]] = None,
         trace_dir: Optional[str] = None,
-        s3_cache_path: Optional[str] = None,
     ) -> None:
         super().__init__(context, logical_node, query_id, inputs, trace_dir=trace_dir)
-        self.s3_cache_path = s3_cache_path
         assert isinstance(self.logical_node, SummarizeData)
 
     def execute(self) -> Any:
@@ -173,7 +169,6 @@ class SycamoreLlmFilter(SycamoreOperator):
     """
     Use an LLM to filter records on a Docset.
     Args:
-        s3_cache_path (str): Optional S3 path to use for caching
     """
 
     def __init__(
@@ -183,10 +178,8 @@ class SycamoreLlmFilter(SycamoreOperator):
         query_id: str,
         inputs: Optional[List[Any]] = None,
         trace_dir: Optional[str] = None,
-        s3_cache_path: Optional[str] = None,
     ) -> None:
         super().__init__(context, logical_node, query_id, inputs, trace_dir=trace_dir)
-        self.s3_cache_path = s3_cache_path
 
     def execute(self) -> Any:
         assert self.inputs and len(self.inputs) == 1, "LlmFilter requires 1 input node"
@@ -366,8 +359,6 @@ class SycamoreCount(SycamoreOperator):
 class SycamoreLlmExtractEntity(SycamoreOperator):
     """
     Use an LLM to extract information from your data. The data is available for downstream tasks to consume.
-    Args:
-        s3_cache_path (str): Optional S3 path to use for caching
     """
 
     def __init__(
@@ -377,10 +368,8 @@ class SycamoreLlmExtractEntity(SycamoreOperator):
         query_id: str,
         inputs: Optional[List[Any]] = None,
         trace_dir: Optional[str] = None,
-        s3_cache_path: Optional[str] = None,
     ) -> None:
         super().__init__(context, logical_node, query_id, inputs, trace_dir=trace_dir)
-        self.s3_cache_path = s3_cache_path
 
     def execute(self) -> Any:
         assert self.inputs and len(self.inputs) == 1, "LlmExtractEntity requires 1 input node"
@@ -501,8 +490,6 @@ class SycamoreSort(SycamoreOperator):
 class SycamoreTopK(SycamoreOperator):
     """
     Return the Top-K values from a DocSet
-    Args:
-        s3_cache_path (str): Optional S3 path to use for caching when using an LLM
     """
 
     def __init__(
@@ -512,10 +499,8 @@ class SycamoreTopK(SycamoreOperator):
         query_id: str,
         inputs: Optional[List[Any]] = None,
         trace_dir: Optional[str] = None,
-        s3_cache_path: Optional[str] = None,
     ) -> None:
         super().__init__(context, logical_node, query_id, inputs, trace_dir=trace_dir)
-        self.s3_cache_path = s3_cache_path
 
     def execute(self) -> Any:
         assert self.inputs and len(self.inputs) == 1, "TopK requires 1 input node"

@@ -59,7 +59,7 @@ class S3Crawler:
             for s3_object in page["Contents"]:
                 object_key = s3_object["Key"]
                 if not object_key.endswith("/"):
-                    self._download_if_new_object(s3_object)
+                    self._download_if_new_object(s3_object)  # type: ignore
                 else:
                     print("WARNING, ignoring directory-like", object_key)
 

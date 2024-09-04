@@ -54,7 +54,6 @@ class SycamoreExecutor:
     def __init__(
         self,
         context: Context,
-        s3_cache_path: Optional[str] = None,
         trace_dir: Optional[str] = None,
         codegen_mode: bool = False,
         dry_run: bool = False,
@@ -62,14 +61,11 @@ class SycamoreExecutor:
         super().__init__()
 
         self.context = context
-        self.s3_cache_path = s3_cache_path
         self.trace_dir = trace_dir
         self.processed: Dict[int, Any] = dict()
         self.dry_run = dry_run
         self.codegen_mode = codegen_mode
 
-        if self.s3_cache_path:
-            log.info("Using S3 cache path: %s", s3_cache_path)
         if self.trace_dir:
             log.info("Using trace directory: %s", trace_dir)
         self.node_id_to_node: Dict[int, LogicalOperator] = {}

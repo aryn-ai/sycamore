@@ -103,6 +103,7 @@ class SycamoreQueryClient:
     @requires_modules("opensearchpy", extra="opensearch")
     def __init__(
         self,
+        context: Optional[Context] = None,
         s3_cache_path: Optional[str] = None,
         os_config: dict = DEFAULT_OS_CONFIG,
         os_client_args: dict = DEFAULT_OS_CLIENT_ARGS,
@@ -114,6 +115,10 @@ class SycamoreQueryClient:
         self.os_config = os_config
         self.os_client_args = os_client_args
         self.trace_dir = trace_dir
+
+        self.context = context
+        if context is None:
+            self.context = self._get_default_context()
 
         self._os_client = OpenSearch(**self.os_client_args)
         self._os_query_executor = OpenSearchQueryExecutor(self.os_client_args)
@@ -146,14 +151,10 @@ class SycamoreQueryClient:
         plan = planner.plan(query)
         return plan
 
-    def run_plan(
-        self, plan: LogicalPlan, context: Optional[Context] = None, dry_run=False, codegen_mode=False
-    ) -> Tuple[str, str]:
+    def run_plan(self, plan: LogicalPlan, dry_run=False, codegen_mode=False) -> Tuple[str, str]:
         """Run the given logical query plan and return a tuple of the query ID and result."""
-        if context is None:
-            context = self._get_default_context()
         executor = SycamoreExecutor(
-            context=context,
+            context=self.context,
             trace_dir=self.trace_dir,
             dry_run=dry_run,
             codegen_mode=codegen_mode,
@@ -166,14 +167,13 @@ class SycamoreQueryClient:
         self,
         query: str,
         index: str,
-        context: Optional[Context] = None,
         dry_run: bool = False,
         codegen_mode: bool = False,
     ) -> str:
         """Run a query against the given index."""
         schema = self.get_opensearch_schema(index)
         plan = self.generate_plan(query, index, schema)
-        _, result = self.run_plan(plan, context=context, dry_run=dry_run, codegen_mode=codegen_mode)
+        _, result = self.run_plan(plan, dry_run=dry_run, codegen_mode=codegen_mode)
         return result
 
     def dump_traces(self, logfile: str, query_id: Optional[str] = None):

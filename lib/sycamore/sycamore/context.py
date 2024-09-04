@@ -53,7 +53,7 @@ class Context:
 
 
 def get_val_from_context(
-    context: "Context", val_key: str, param_names: List[str], ignore_default: bool = False
+    context: "Context", val_key: str, param_names: Optional[List[str]] = None, ignore_default: bool = False
 ) -> Optional[Any]:
     """
     Helper function: Given a Context object, return the possible value for a given val.
@@ -68,10 +68,11 @@ def get_val_from_context(
     if not context.params:
         return None
 
-    for param_name in param_names:
-        cand = context.params.get(param_name, {}).get(val_key)
-        if cand is not None:
-            return cand
+    if param_names:
+        for param_name in param_names:
+            cand = context.params.get(param_name, {}).get(val_key)
+            if cand is not None:
+                return cand
 
     if not ignore_default:
         return context.params.get(OperationTypes.DEFAULT.value, {}).get(val_key)

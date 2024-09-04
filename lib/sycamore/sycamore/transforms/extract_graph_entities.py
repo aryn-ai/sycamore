@@ -52,7 +52,7 @@ class EntityExtractor(GraphEntityExtractor):
         for i, section in enumerate(doc.children):
             nodes: defaultdict[dict, Any] = defaultdict(dict)
             try:
-                output_dict = {}
+                output_dict: dict[str, Any] = {}
                 for output in res[i]:
                     output_dict |= json.loads(output)
                 res[i] = output_dict
@@ -103,17 +103,18 @@ class EntityExtractor(GraphEntityExtractor):
 
         return deserialized
 
-    async def _extract_from_section(self, summary: str) -> str:
+    async def _extract_from_section(self, summary: str) -> list[str]:
         # (List[relation], ...) is weird notation required by pydantic, sorry - Ritam
+        # Pydantic has weird interaction with mypy, using type ignore!
         # https://docs.pydantic.dev/latest/concepts/models/#required-fields
         deserialized_entities = self._deserialize_entities()
-        fields = {entity.__name__: (List[entity], ...) for entity in deserialized_entities}
+        fields = {entity.__name__: (List[entity], ...) for entity in deserialized_entities}  # type: ignore
         models = []
         if self.split_calls:
             for field_name, field_value in fields.items():
-                models.append(create_model("entities", __base__=BaseModel, **{field_name: field_value}))
+                models.append(create_model("entities", __base__=BaseModel, **{field_name: field_value}))  # type: ignore
         else:
-            models.append(create_model("entities", __base__=BaseModel, **fields))
+            models.append(create_model("entities", __base__=BaseModel, **fields))  # type: ignore
 
         outputs = []
         for model in models:

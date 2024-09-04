@@ -158,6 +158,7 @@ class SycamoreQueryClient:
         return plan
 
     def run_plan(self, plan: LogicalPlan, dry_run=False, codegen_mode=False) -> Tuple[str, str]:
+        assert self.context is not None, "Running a plan requires a configured Context"
         """Run the given logical query plan and return a tuple of the query ID and result."""
         executor = SycamoreExecutor(
             context=self.context,

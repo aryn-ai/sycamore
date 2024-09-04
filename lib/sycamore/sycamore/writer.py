@@ -15,6 +15,8 @@ from sycamore.utils.import_utils import requires_modules
 if TYPE_CHECKING:
     from neo4j import Auth
     from neo4j.auth_management import AuthManager
+    from boto3.session import Session
+
 
 logger = logging.getLogger(__name__)
 
@@ -563,9 +565,9 @@ class DocSetWriter:
         uri: str,
         auth: Union[tuple[Any, Any], "Auth", "AuthManager", None],
         import_dir: str,
-        use_auradb: bool = False,
-        s3_session: Any = None,
         database: str = "neo4j",
+        use_auradb: bool = False,
+        s3_session: Optional[Session] = None,
         **kwargs,
     ) -> Optional["DocSet"]:
         """
@@ -606,6 +608,8 @@ class DocSetWriter:
             .. code-block:: python
         """
         import os
+        from mypy_boto3_s3.client import S3Client
+        from mypy_boto3_s3.service_resource import S3ServiceResource
         from sycamore.connectors.neo4j import (
             Neo4jWriterClientParams,
             Neo4jWriterTargetParams,
@@ -656,10 +660,11 @@ class DocSetWriter:
         nodes, relationships, labels = get_neo4j_import_info(import_dir=import_dir)
         # If using auradb, load to files to s3
 
-        s3_client = None
-        s3_resource = None
-        s3_bucket = None
+        s3_client: S3Client
+        s3_resource: S3ServiceResource
+        s3_bucket: str
         if use_auradb:
+            assert s3_session is not None
             s3_client = s3_session.client("s3")
             s3_resource = s3_session.resource("s3")
             s3_bucket = create_temp_bucket(s3_client=s3_client)

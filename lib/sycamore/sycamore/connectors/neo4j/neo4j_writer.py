@@ -18,6 +18,8 @@ from sycamore.plan_nodes import Node, Write
 from sycamore.transforms.map import MapBatch
 from sycamore.utils.time_trace import TimeTrace
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError
+from mypy_boto3_s3.client import S3Client
+from mypy_boto3_s3.service_resource import S3ServiceResource
 from sycamore.utils.import_utils import requires_modules
 
 import fcntl
@@ -358,7 +360,7 @@ class Neo4jWriteCSV(MapBatch, Write):
                 return self.write_docs(docs)
 
 
-def create_temp_bucket(s3_client):
+def create_temp_bucket(s3_client: S3Client) -> str:
     bucket_name = "temp-bucket-" + str(uuid.uuid4())
     try:
         s3_client.create_bucket(Bucket=bucket_name)
@@ -366,10 +368,10 @@ def create_temp_bucket(s3_client):
         return bucket_name
     except Exception as e:
         print(f"Could not create bucket: {e}")
-        return None
+        raise e
 
 
-def delete_temp_bucket(s3_client, s3_resource, s3_bucket):
+def delete_temp_bucket(s3_client: S3Client, s3_resource: S3ServiceResource, s3_bucket: str) -> None:
     try:
         # delete all objects
         bucket = s3_resource.Bucket(s3_bucket)
@@ -379,9 +381,10 @@ def delete_temp_bucket(s3_client, s3_resource, s3_bucket):
         logger.info(f"Successfully deleted bucket {s3_bucket}")
     except Exception as e:
         print(f"Could not delete bucket: {e}")
+        raise e
 
 
-def load_to_s3_bucket(s3_client, bucket_name, import_dir):
+def load_to_s3_bucket(s3_client: S3Client, bucket_name: str, import_dir: str) -> tuple[list[Any], list[Any]]:
     nodes_dir = os.path.join(import_dir, "sycamore/nodes")
     relationships_dir = os.path.join(import_dir, "sycamore/relationships")
 
@@ -412,17 +415,17 @@ def load_to_s3_bucket(s3_client, bucket_name, import_dir):
     return nodes_urls, relationships_urls
 
 
-def generate_presigned_url(s3_client, bucket_name, object_name, expiration=3600):
+def generate_presigned_url(s3_client: S3Client, bucket_name: str, object_name: str, expiration=3600) -> str:
     try:
         response = s3_client.generate_presigned_url(
             "get_object", Params={"Bucket": bucket_name, "Key": object_name}, ExpiresIn=expiration
         )
-    except NoCredentialsError:
+    except NoCredentialsError as e:
         print("Credentials not available")
-        return None
-    except PartialCredentialsError:
+        raise e
+    except PartialCredentialsError as e:
         print("Incomplete credentials provided")
-        return None
+        raise e
     return response
 
 

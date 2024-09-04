@@ -650,11 +650,13 @@ class DocSetWriter:
         
         nodes, relationships, labels = get_neo4j_import_info(import_dir=import_dir)
         #If using auradb, load to files to s3 
-        s3_bucket = None
+        
         s3_client = None
         s3_resource = None
+        s3_bucket = None
         if use_auradb:
             s3_client = s3_session.client('s3')
+            s3_resource = s3_session.resource('s3')
             s3_bucket = create_temp_bucket(s3_client=s3_client)
             nodes, relationships = load_to_s3_bucket(s3_client=s3_client, bucket_name=s3_bucket, import_dir=import_dir)
 

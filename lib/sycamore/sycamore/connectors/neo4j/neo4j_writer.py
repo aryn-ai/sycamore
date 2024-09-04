@@ -80,7 +80,7 @@ class Neo4jWriterClient:
                 tx.run(build_nodes)
         # clean up delete csv's
         for node_type in nodes:
-            path = self._import_dir + f"/sycamore/nodes/{node_type}"
+            path = self._import_dir + f"""/sycamore/nodes/{node_type[0]+".csv"}"""
             if os.path.exists(path):
                 os.remove(path)
             else:
@@ -113,7 +113,7 @@ class Neo4jWriterClient:
                 tx.run(build_relationships)
         # clean up delete csv's
         for relationship_type in relationships:
-            path = self._import_dir + f"/sycamore/relationships/{relationship_type}"
+            path = self._import_dir + f"""/sycamore/relationships/{relationship_type[0]+".csv"}"""
             if os.path.exists(path):
                 os.remove(path)
             else:
@@ -364,14 +364,14 @@ def create_temp_bucket(s3_client):
         print(f"Could not create bucket: {e}")
         return None
 
-def delete_temp_bucket(s3_client, s3_resource, bucket_name):
+def delete_temp_bucket(s3_client, s3_resource, s3_bucket):
     try:
         #delete all objects
-        bucket = s3_resource.Bucket(bucket_name)
+        bucket = s3_resource.Bucket(s3_bucket)
         bucket.objects.all().delete()
         #delete bucket
-        s3_client.delete_bucket(Bucket=bucket_name)
-        logger.info(f'Successfully deleted bucket {bucket_name}')
+        s3_client.delete_bucket(Bucket=s3_bucket)
+        logger.info(f'Successfully deleted bucket {s3_bucket}')
     except Exception as e:
         print(f"Could not delete bucket: {e}")
     
@@ -383,7 +383,7 @@ def load_to_s3_bucket(s3_client, bucket_name, import_dir):
     for root, dirs, files in os.walk(nodes_dir):
         for file_name in files:
             file_path = os.path.join(root, file_name)
-            s3_object_name = os.path.join("nodes",file_path)
+            s3_object_name = os.path.join("nodes",file_name)
             try:
                 s3_client.upload_file(file_path, bucket_name, s3_object_name)
                 url = generate_presigned_url(s3_client, bucket_name, s3_object_name)
@@ -395,7 +395,7 @@ def load_to_s3_bucket(s3_client, bucket_name, import_dir):
     for root, dirs, files in os.walk(relationships_dir):
         for file_name in files:
             file_path = os.path.join(root, file_name)
-            s3_object_name = os.path.join("relationships",file_path)
+            s3_object_name = os.path.join("relationships",file_name)
             try:
                 s3_client.upload_file(file_path, bucket_name, s3_object_name)
                 url = generate_presigned_url(s3_client, bucket_name, s3_object_name)

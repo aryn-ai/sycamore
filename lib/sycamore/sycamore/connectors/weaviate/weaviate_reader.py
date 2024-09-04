@@ -1,25 +1,30 @@
 from sycamore.data import Document
 from sycamore.connectors.common import unflatten_data
 from sycamore.connectors.base_reader import BaseDBReader
+from sycamore.utils.import_utils import requires_modules
 from dataclasses import dataclass
+import typing
 from typing import Optional, Dict, Any
 from dataclasses import asdict
-from weaviate.client import (
-    AdditionalConfig,
-    AuthCredentials,
-    ConnectionParams,
-    EmbeddedOptions,
-)
-from weaviate import WeaviateClient
+
+
+if typing.TYPE_CHECKING:
+    from weaviate import WeaviateClient
+    from weaviate.client import (
+        AdditionalConfig,
+        AuthCredentials,
+        ConnectionParams,
+        EmbeddedOptions,
+    )
 
 
 @dataclass
 class WeaviateReaderClientParams(BaseDBReader.ClientParams):
-    connection_params: Optional[ConnectionParams] = None
-    embedded_options: Optional[EmbeddedOptions] = None
-    auth_client_secret: Optional[AuthCredentials] = None
+    connection_params: Optional["ConnectionParams"] = None
+    embedded_options: Optional["EmbeddedOptions"] = None
+    auth_client_secret: Optional["AuthCredentials"] = None
     additional_headers: Optional[dict] = None
-    additional_config: Optional[AdditionalConfig] = None
+    additional_config: Optional["AdditionalConfig"] = None
     skip_init_checks: bool = False
 
 
@@ -30,11 +35,14 @@ class WeaviateReaderQueryParams(BaseDBReader.QueryParams):
 
 
 class WeaviateReaderClient(BaseDBReader.Client):
-    def __init__(self, client: WeaviateClient):
+    def __init__(self, client: "WeaviateClient"):
         self._client = client
 
     @classmethod
+    @requires_modules("weaviate", extra="weaviate")
     def from_client_params(cls, params: BaseDBReader.ClientParams) -> "WeaviateReaderClient":
+        from weaviate import WeaviateClient
+
         assert isinstance(params, WeaviateReaderClientParams)
         client = WeaviateClient(**asdict(params))
         return WeaviateReaderClient(client)

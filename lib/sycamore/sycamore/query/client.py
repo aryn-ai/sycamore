@@ -16,15 +16,13 @@ from typing import List, Optional, Tuple
 import os
 import uuid
 
-from opensearchpy import OpenSearch
-from opensearchpy.client.indices import IndicesClient
 import structlog
 
 import sycamore
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.transforms.query import OpenSearchQueryExecutor
 from sycamore.utils.cache import S3Cache
-
+from sycamore.utils.import_utils import requires_modules
 
 from sycamore.query.execution.sycamore_executor import SycamoreExecutor
 from sycamore.query.logical_plan import LogicalPlan
@@ -101,6 +99,7 @@ class SycamoreQueryClient:
         trace_dir (optional): Directory to write query execution trace.
     """
 
+    @requires_modules("opensearchpy", extra="opensearch")
     def __init__(
         self,
         s3_cache_path: Optional[str] = None,
@@ -108,6 +107,8 @@ class SycamoreQueryClient:
         os_client_args: dict = DEFAULT_OS_CLIENT_ARGS,
         trace_dir: Optional[str] = None,
     ):
+        from opensearchpy import OpenSearch
+
         self.s3_cache_path = s3_cache_path
         self.os_config = os_config
         self.os_client_args = os_client_args
@@ -121,8 +122,11 @@ class SycamoreQueryClient:
         indices = list([str(k) for k in self._os_client.indices.get_alias().keys()])
         return indices
 
+    @requires_modules("opensearchpy.client.indices", extra="opensearch")
     def get_opensearch_schema(self, index: str) -> OpenSearchSchema:
         """Get the schema for the provided OpenSearch index."""
+        from opensearchpy.client.indices import IndicesClient
+
         schema_provider = OpenSearchSchemaFetcher(IndicesClient(self._os_client), index, self._os_query_executor)
         return schema_provider.get_schema()
 

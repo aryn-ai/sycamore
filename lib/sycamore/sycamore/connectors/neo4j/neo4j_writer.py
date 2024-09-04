@@ -13,6 +13,7 @@ import os
 import csv
 import logging
 import urllib
+import uuid
 
 from sycamore.plan_nodes import Node, Write
 from sycamore.transforms.map import MapBatch
@@ -338,6 +339,49 @@ class Neo4jWriteCSV(MapBatch, Write):
         else:
             with TimeTrace("UnknownWriter"):
                 return self.write_docs(docs)
+            
+class Neo4jUploadCSV:
+    def __init__(self, import_dir: str, s3_client):
+        self.import_dir = import_dir
+        self.s3_client = s3_client
+        self.bucket_name = self._create_temp_bucket()
+        self._load_to_s3_bucket()
+        self.bucket_name = self._delete_temp_bucket()
+
+    def _load_to_s3_bucket(self):
+        for root, dirs, files in os.walk(self.import_dir):
+            for file in files:
+                local_path = os.path.join(root, file)
+                print(local_path)
+                #relative_path = os.path.relpath(local_path, local_directory)
+                #s3_path = os.path.join(s3_prefix, relative_path).replace("\\", "/")  # Handle Windows paths
+                #try:
+                #    s3_client.upload_file(local_path, bucket_name, s3_path)
+                #    print(f'Successfully uploaded {local_path} to s3://{bucket_name}/{s3_path}')
+                #except Exception as e:
+                #    print(f"Failed to upload {local_path}: {e}")
+
+    
+    def _create_temp_bucket(self):
+        bucket_name = 'temp-bucket-' + str(uuid.uuid4())
+        try:
+            self.s3_client.create_bucket(Bucket=bucket_name)
+            return bucket_name
+        except Exception as e:
+            print(f"Could not create bucket: {e}")
+            return None
+        
+    def _delete_temp_bucket(self):
+        try:
+            bucket = self.s3_client.Bucket(self.bucket_name)
+            bucket.objects.all().delete()
+            bucket.delete()
+            print(f'Successfully deleted bucket {self.bucket_name}')
+        except Exception as e:
+            print(f"Could not delete bucket: {e}")
+        
+
+    
 
 
 class Neo4jLoadCSV:

@@ -565,6 +565,8 @@ class DocSetWriter:
         uri: str,
         auth: Union[tuple[Any, Any], "Auth", "AuthManager", None],
         import_dir: str,
+        use_auradb: bool = False,
+        s3_client: Any = None,
         database: str = "neo4j",
         **kwargs,
     ) -> Optional["DocSet"]:
@@ -612,7 +614,7 @@ class DocSetWriter:
             Neo4jValidateParams,
         )
         from sycamore.plan_nodes import Node
-        from sycamore.connectors.neo4j import Neo4jPrepareCSV, Neo4jWriteCSV, Neo4jLoadCSV
+        from sycamore.connectors.neo4j import Neo4jPrepareCSV, Neo4jWriteCSV, Neo4jLoadCSV, Neo4jUploadCSV
         import time
 
         if kwargs.get("execute") is False:
@@ -644,6 +646,9 @@ class DocSetWriter:
         Neo4jWriteCSV(plan=self.plan, client_params=client_params).execute().materialize()
         end = time.time()
         logger.info(f"TIME TAKEN TO WRITE CSV: {end-start} SECONDS")
+        if use_auradb:
+            Neo4jUploadCSV(import_dir=import_dir, s3_client=s3_client)
+
         Neo4jLoadCSV(client_params=client_params, target_params=target_params)
 
         return None

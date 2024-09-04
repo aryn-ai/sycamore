@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from io import BytesIO
 from PIL import Image
-from typing import Any, Union, List
+from typing import Any, Union
 from sycamore.data import BoundingBox
 
 
@@ -12,7 +12,7 @@ class OCRModel:
         pass
 
     @abstractmethod
-    def get_boxes_and_text(self, image: Image.Image) -> List[Union[dict[str, Any], List]]:
+    def get_boxes_and_text(self, image: Image.Image) -> list[Union[dict[str, Any], list]]:
         pass
 
 
@@ -33,12 +33,12 @@ class EasyOCR(OCRModel):
         val = " ".join(out_list)
         return val
 
-    def get_boxes_and_text(self, image: Image.Image) -> List[Union[dict[str, Any], List]]:
+    def get_boxes_and_text(self, image: Image.Image) -> list[Union[dict[str, Any], list]]:
         image_bytes = BytesIO()
         image.save(image_bytes, format="PNG")
         raw_results = self.reader.readtext(image_bytes.getvalue())
 
-        out: List[Union[dict[str, Any], List]] = []
+        out: list[Union[dict[str, Any], list]] = []
         for res in raw_results:
             raw_bbox = res[0]
             text = res[1]
@@ -59,7 +59,7 @@ class Tesseract(OCRModel):
         val = self.pytesseract.image_to_string(image)
         return val
 
-    def get_boxes_and_text(self, image: Image.Image) -> List[Union[dict[str, Any], List]]:
+    def get_boxes_and_text(self, image: Image.Image) -> list[Union[dict[str, Any], list]]:
         return [self.pytesseract.image_to_data(image, output_type=self.pytesseract.Output.DICT)]
 
 
@@ -73,7 +73,7 @@ class LegacyOCR(OCRModel):
     def get_text(self, image: Image.Image) -> str:
         return self.tesseract.get_text(image)
 
-    def get_boxes_and_text(self, image: Image.Image) -> List[Union[dict[str, Any], List]]:
+    def get_boxes_and_text(self, image: Image.Image) -> list[Union[dict[str, Any], list]]:
         return self.easy_ocr.get_boxes_and_text(image)
 
 
@@ -94,7 +94,7 @@ class PaddleOCR(OCRModel):
         result = self.reader.ocr(bytearray.getvalue(), rec=True, det=True, cls=False)
         return ans if result and result[0] and (ans := " ".join(value[1][0] for value in result[0])) else ""
 
-    def get_boxes_and_text(self, image: Image.Image) -> List[Union[dict[str, Any], List]]:
+    def get_boxes_and_text(self, image: Image.Image) -> list[Union[dict[str, Any], list]]:
         bytearray = BytesIO()
         image.save(bytearray, format="PNG")
         result = self.reader.ocr(bytearray.getvalue(), rec=True, det=True, cls=False)

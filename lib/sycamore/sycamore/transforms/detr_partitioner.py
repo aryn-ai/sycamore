@@ -36,6 +36,7 @@ from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
 from sycamore.utils.pdf import convert_from_path_streamed_batched
 from sycamore.utils.time_trace import LogTime, timetrace
+from sycamore.transforms.ocr.ocr_models import OCRModel
 
 logger = logging.getLogger(__name__)
 _DETR_LOCK_FILE = f"{pwd.getpwuid(os.getuid()).pw_dir}/.cache/Aryn-Detr.lock"
@@ -406,6 +407,23 @@ class ArynPDFPartitioner:
 
         if use_ocr:
             with LogTime("ocr"):
+                if ocr_model == "paddle":
+                    from sycamore.transforms.ocr.ocr_models import PaddleOCR
+                    import paddle
+
+                    ocr_model = PaddleOCR(use_gpu=paddle.device.is_compiled_with_cuda())
+                elif ocr_model == "legacy":
+                    from sycamore.transforms.ocr.ocr_models import LegacyOCR
+
+                    ocr_model = LegacyOCR()
+                elif ocr_model == "tesseract":
+                    from sycamore.transforms.ocr.ocr_models import Tesseract
+
+                    ocr_model = Tesseract()
+                else:
+                    from sycamore.transforms.ocr.ocr_models import EasyOCR
+
+                    ocr_model = EasyOCR()
                 extract_ocr(
                     images,
                     deformable_layout,
@@ -593,6 +611,23 @@ class ArynPDFPartitioner:
 
         if use_ocr:
             with LogTime("ocr"):
+                if ocr_model == "paddle":
+                    from sycamore.transforms.ocr.ocr_models import PaddleOCR
+                    import paddle
+
+                    ocr_model = PaddleOCR(use_gpu=paddle.device.is_compiled_with_cuda())
+                elif ocr_model == "legacy":
+                    from sycamore.transforms.ocr.ocr_models import LegacyOCR
+
+                    ocr_model = LegacyOCR()
+                elif ocr_model == "tesseract":
+                    from sycamore.transforms.ocr.ocr_models import Tesseract
+
+                    ocr_model = Tesseract()
+                else:
+                    from sycamore.transforms.ocr.ocr_models import EasyOCR
+
+                    ocr_model = EasyOCR()
                 extract_ocr(
                     batch,
                     deformable_layout,
@@ -826,28 +861,8 @@ def extract_ocr(
     elements: list[list[Element]],
     ocr_images=False,
     ocr_tables=False,
-    ocr_model="easy",
+    ocr_model=OCRModel,
 ) -> list[list[Element]]:
-    if ocr_model == "paddle":
-        import paddle.device
-        from sycamore.transforms.ocr.ocr_models import PaddleOCR
-
-        # Needed in case of multiple OpenBLAS threads
-        os.environ["OMP_NUM_THREADS"] = "1"
-        ocr_model = PaddleOCR(use_gpu=paddle.device.is_compiled_with_cuda())
-    elif ocr_model == "legacy":
-        from sycamore.transforms.ocr.ocr_models import LegacyOCR
-
-        ocr_model = LegacyOCR()
-    elif ocr_model == "tesseract":
-        from sycamore.transforms.ocr.ocr_models import Tesseract
-
-        ocr_model = Tesseract()
-    else:
-        from sycamore.transforms.ocr.ocr_models import EasyOCR
-
-        ocr_model = EasyOCR()
-
     for i, image in enumerate(images):
         page_elements = elements[i]
         width, height = image.size

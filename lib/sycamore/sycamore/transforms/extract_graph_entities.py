@@ -31,6 +31,7 @@ class EntityExtractor(GraphEntityExtractor):
     Args:
         llm: The LLM that is used to extract the entities
         entities: A list of pydantic models that determines what entity schemas are extracted
+        split_calls: A boolean that if true, calls the LLM for each entity instead of batching them in one call
 
     """
 

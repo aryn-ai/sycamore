@@ -33,6 +33,7 @@ class RelationshipExtractor(GraphRelationshipExtractor):
     Args:
         llm: OpenAI model that is compatable with structured outputs(gpt-4o-mini)
         relationships: list of entities in the form of pydantic schemas to be extracted
+        split_calls: A boolean that if true, calls the LLM for each entity instead of batching them in one call
 
     """
 

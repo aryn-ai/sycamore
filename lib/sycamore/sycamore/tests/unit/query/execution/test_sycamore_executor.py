@@ -49,6 +49,6 @@ def test_count_docs(test_count_docs_query_plan, mock_sycamore_docsetreader, mock
             }
         )
 
-        executor = SycamoreExecutor(context, s3_cache_path="s3://sycamore-cache")
+        executor = SycamoreExecutor(context)
         result = executor.execute(test_count_docs_query_plan)
         assert result == mock_opensearch_num_docs

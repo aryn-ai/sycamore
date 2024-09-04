@@ -121,10 +121,7 @@ class SycamoreQueryClient:
             raise AssertionError("If using a configured Context object, set os_client_args in context.params")
         if context and s3_cache_path:
             raise AssertionError("If using a configured Context object, set a cached llm in context.params")
-
-        self.context = context
-        if context is None:
-            self.context = self._get_default_context()
+        self.context = context or self._get_default_context()
 
         self._os_client = OpenSearch(**self.os_client_args)
         self._os_query_executor = OpenSearchQueryExecutor(self.os_client_args)

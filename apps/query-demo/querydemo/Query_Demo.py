@@ -1,37 +1,21 @@
+import contextlib
 import datetime
 import json
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
 import boto3
+import marko
+from marko.md_renderer import MarkdownRenderer
+
 import streamlit as st
 from openai import OpenAI
 from openai.types.chat import ChatCompletionToolParam
 from streamlit_pdf_viewer import pdf_viewer
 import sycamore
 from sycamore.query.client import SycamoreQueryClient
-
-
+from sycamore.query.logical_plan import LogicalPlan
 from util import get_opensearch_indices, generate_plan, run_plan, show_dag
-
-
-class ChatMessage:
-    def __init__(self, message: Dict[str, Any]):
-        self.timestamp = datetime.datetime.now()
-        self.message = message
-
-    def show(self):
-        # Skip messages that have no content, e.g., tool call messages.
-        if not self.message.get("content"):
-            return
-        # Skip messages that are not from the user or assistant, e.g., tool responses.
-        if not self.message.get("role") in ["user", "assistant"]:
-            return
-        with st.chat_message(self.message["role"]):
-            st.write(self.message['content'])
-
-    def to_dict(self):
-        return self.message
 
 
 OPENSEARCH_INDEX = "const_ntsb"
@@ -47,15 +31,69 @@ OS_CLIENT_ARGS = {
     "timeout": 120,
 }
 
+EXAMPLE_QUERIES = [
+    "How many incidents were there in Washington in 2023?",
+    "Show me incidents involving tail number N4811E",
+    "What was the breakdown of aircraft types for incidents with substantial damage?",
+]
 
-st.title("Sycamore Query Demo")
+
+class MDRenderer(MarkdownRenderer):
+    def __init__(self):
+        super().__init__()
+
+    def render_link(self, element: marko.inline.Link) -> str:
+        if element.dest.startswith("s3://"):
+            # Replace S3 links with a link to the demo instance.
+            # (This is somewhat of a temporary hack until we build out better UI for this.)
+            element.dest = element.dest.replace("s3://", "https://luna-demo.dev.aryn.ai/doc/")
+        return super().render_link(element)
+
+
+def rewrite_markdown(text: str):
+    md = marko.Markdown(renderer=MDRenderer)
+    doc = md.parse(text)
+    return md.render(doc)
+
+
+class ChatMessageExtra:
+    def __init__(self, name: str, content: Any):
+        self.name = name
+        self.content = content
+
+
+class ChatMessage:
+    def __init__(self, message: Optional[Dict[str, Any]] = None, extras: Optional[List[ChatMessageExtra]] = None):
+        self.timestamp = datetime.datetime.now()
+        self.message = message or {}
+        self.extras = extras or []
+
+    def chat_message(self):
+        return st.chat_message(self.message.get("role", "assistant"))
+
+    def show(self):
+        if self.message.get("content"):
+            content = self.message.get("content")
+            st.write(rewrite_markdown(content))
+        for extra in self.extras:
+            with st.expander(extra.name):
+                st.write(extra.content)
+
+    def to_dict(self) -> Optional[Dict[str, Any]]:
+        return self.message
+
+
+st.title("Sycamore NTSB Query Demo")
 
 TOOLS: List[ChatCompletionToolParam] = [
     {
         "type": "function",
         "function": {
             "name": "queryDataSource",
-            "description": "Run a query against a back end data source",
+            "description": """Run a query against the backend data source. The query should be a natural language 
+            query and can represent operations such as filters, aggregations, sorting, formatting,
+            and more. This function should only be called when new data is needed; if the data
+            is already available in the message history, it should be used directly.""",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -122,59 +160,67 @@ def show_document(doc: sycamore.data.Document):
 
 
 @st.cache_data(show_spinner=False)
-def query_data_source(query: str, index: str) -> str:
+def query_data_source(query: str, index: str) -> Tuple[str, LogicalPlan]:
     """Run a query against a back end data source."""
     sqclient = SycamoreQueryClient(
         s3_cache_path=st.session_state.s3_cache_path if st.session_state.use_cache else None,
     )
     with st.spinner("Generating plan..."):
         plan = generate_plan(sqclient, query, index)
-    with st.expander("View query plan"):
-        show_dag(plan)
-
-    with st.spinner("Running query..."):
+    with st.spinner("Running query plan..."):
         st.session_state.query_id, result = run_plan(sqclient, plan)
-    return str(result)
+    return str(result), plan
 
 
-def do_query():
-    while True:
-        with st.spinner("Running query..."):
-            response = openai_client.chat.completions.create(
-                model=st.session_state["openai_model"],
-                messages=[m.to_dict() for m in st.session_state.messages],
-                tools=TOOLS,
-                tool_choice="auto",
-            )
-        response_dict = response.choices[0].message.to_dict()
-        response_message = ChatMessage(response_dict)
-        st.session_state.messages.append(response_message)
-        response_message.show()
+def do_query(prompt: str):
+    user_message = ChatMessage({"role": "user", "content": prompt})
+    st.session_state.messages.append(user_message)
+    with user_message.chat_message():
+        user_message.show()
 
-        tool_calls = response.choices[0].message.tool_calls
-        if tool_calls:
-            tool_call_id = tool_calls[0].id
-            tool_function_name = tool_calls[0].function.name
-            tool_args = json.loads(tool_calls[0].function.arguments)
-            if tool_function_name == "queryDataSource":
-                query = tool_args["query"]
-                tool_response = query_data_source(query, OPENSEARCH_INDEX)
+    assistant_message = ChatMessage()
+    query_plan = None
+    with assistant_message.chat_message():
+        while True:
+            with st.spinner("Running query..."):
+                response = openai_client.chat.completions.create(
+                    model=st.session_state["openai_model"],
+                    messages=[m.to_dict() for m in st.session_state.messages],
+                    tools=TOOLS,
+                    tool_choice="auto",
+                )
+            response_dict = response.choices[0].message.to_dict()
+            assistant_message.message = response_dict
+            st.session_state.messages.append(assistant_message)
+
+            tool_calls = response.choices[0].message.tool_calls
+            if tool_calls:
+                tool_call_id = tool_calls[0].id
+                tool_function_name = tool_calls[0].function.name
+                tool_args = json.loads(tool_calls[0].function.arguments)
+                if tool_function_name == "queryDataSource":
+                    tool_query = tool_args["query"]
+                    tool_response, query_plan = query_data_source(tool_query, OPENSEARCH_INDEX)
+                else:
+                    tool_response = f"Unknown tool: {tool_function_name}"
+
+                tool_response_message = ChatMessage(
+                    {
+                        "role": "tool",
+                        "content": tool_response,
+                        "tool_call_id": tool_call_id,
+                        "name": tool_function_name,
+                    }
+                )
+                st.session_state.messages.append(tool_response_message)
+                assistant_message = ChatMessage()
+
             else:
-                tool_response = f"Unknown tool: {tool_function_name}"
-
-            tool_response_message = ChatMessage(
-                {
-                    "role": "tool",
-                    "content": tool_response,
-                    "tool_call_id": tool_call_id,
-                    "name": tool_function_name,
-                }
-            )
-            tool_response_message.show()
-            st.session_state.messages.append(tool_response_message)
-        else:
-            # No function call was made.
-            break
+                # No function call was made.
+                if query_plan:
+                    assistant_message.extras.append(ChatMessageExtra("Query plan", query_plan))
+                assistant_message.show()
+                break
 
 
 # Set OpenAI API key from Streamlit secrets
@@ -194,20 +240,23 @@ if "s3_cache_path" not in st.session_state:
 if "use_cache" not in st.session_state:
     st.session_state.use_cache = True
 
-get_initial_documents()
+# get_initial_documents()
 
-# Display chat messages from history on app rerun
 for msg in st.session_state.messages:
-    #    if message.get("role") not in ["user", "assistant"]:
-    #        continue
-    msg.show()
-#    with st.chat_message(message.get("role")):
-#        st.write("Role: ", message.get("role"))
-#        st.markdown(message.get("content", "<no content>"))
+    if msg.message.get("role") not in ["user", "assistant"]:
+        continue
+    if msg.message.get("content") is None:
+        continue
+    with msg.chat_message():
+        msg.show()
 
-# Accept user input
+if not st.session_state.messages:
+    run_query = None
+    for query in EXAMPLE_QUERIES:
+        if st.button(query):
+            run_query = query
+    if run_query:
+        do_query(run_query)
+
 if prompt := st.chat_input("Ask me anything"):
-    user_message = ChatMessage({ "role": "user", "content": prompt })
-    user_message.show()
-    st.session_state.messages.append(user_message)
-    do_query()
+    do_query(prompt)

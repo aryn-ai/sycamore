@@ -13,6 +13,7 @@ streamlit-ace = "^0.1.1"
 streamlit-agraph = "^0.0.45"
 streamlit-pdf-viewer = "^0.0.17"
 boto3 = "^1.35.10"
+marko = "^2.1.2"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.4"

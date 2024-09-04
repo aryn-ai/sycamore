@@ -36,9 +36,10 @@ class RelationshipExtractor(GraphRelationshipExtractor):
 
     """
 
-    def __init__(self, llm: LLM, relationships: list[BaseModel] = []):
+    def __init__(self, llm: LLM, relationships: list[BaseModel] = [], split_calls: bool = False):
         self.relationships = self._serialize_relationships(relationships)
         self.llm = llm
+        self.split_calls = split_calls
 
     def extract(self, doc: HierarchicalDocument) -> HierarchicalDocument:
         async def gather_api_calls():
@@ -102,8 +103,7 @@ class RelationshipExtractor(GraphRelationshipExtractor):
     async def _generate_relationships(self, section: HierarchicalDocument) -> dict:
         relations = self._deserialize_relationships()
         parsed_relations = []
-        parsed_metadata = dict()
-        parsed_nodes: dict[str, set] = defaultdict(lambda: set())
+        parsed_metadata = {}
         for relation in relations:
             start_label = relation.__annotations__["start"].__name__
             end_label = relation.__annotations__["end"].__name__
@@ -120,9 +120,12 @@ class RelationshipExtractor(GraphRelationshipExtractor):
 
             if start_nodes and end_nodes:
                 parsed_relations.append(relation)
-                parsed_metadata[relation.__name__] = {"start_label": start_label, "end_label": end_label}
-                parsed_nodes[start_label] |= set(start_nodes)
-                parsed_nodes[end_label] |= set(end_nodes)
+                parsed_metadata[relation.__name__] = {
+                    "start_label": start_label,
+                    "end_label": end_label,
+                    "start_nodes": set(start_nodes),
+                    "end_nodes": set(end_nodes)
+                }
 
         if not parsed_relations:
             return {}
@@ -131,29 +134,31 @@ class RelationshipExtractor(GraphRelationshipExtractor):
         # (List[relation], ...) is weird notation required by pydantic, sorry - Ritam
         # https://docs.pydantic.dev/latest/concepts/models/#required-fields
         fields = {relation.__name__: (List[relation], ...) for relation in parsed_relations}  # type: ignore
-        relationships_model = create_model("relationships", __base__=BaseModel, **fields)  # type: ignore
 
-        entity_list = []
-        for key, nodes in parsed_nodes.items():
-            entity_list.append(f"{key}:\n")
-            for node in nodes:
-                entity_list.append(f"{node}\n")
-        entities = "".join(entity_list)
+        models, entities_list = self._build_llm_call_params(fields, parsed_metadata)
 
-        llm_kwargs = {"response_format": relationships_model}
-        res = await self.llm.generate_async(
-            prompt_kwargs={"prompt": str(GraphRelationshipExtractorPrompt(section.data["summary"], entities))},
-            llm_kwargs=llm_kwargs,
-        )
+        assert len(models) == len(entities_list)
+        outputs = []
+        for i in range(len(models)):
+            llm_kwargs = {"response_format": models[i]}
+            prompt_kwargs = {
+                "prompt": str(GraphRelationshipExtractorPrompt(section.data["summary"], entities_list[i]))
+            }
+            outputs.append(await self.llm.generate_async(
+                prompt_kwargs=prompt_kwargs,
+                llm_kwargs=llm_kwargs
+            ))
 
-        async def _process_llm_output(res: str, parsed_metadata: dict, summary: str):
-            try:
-                parsed_res = json.loads(res)
-            except json.JSONDecodeError:
-                logger.warn("LLM Output failed to be decoded to JSON")
-                logger.warn("Input: " + summary)
-                logger.warn("Output: " + res)
-                return {}
+        async def _process_llm_output(outputs: list[str], parsed_metadata: dict, summary: str):
+            parsed_res = {}
+            for output in outputs:
+                try:
+                    parsed_res |= json.loads(output)
+                except json.JSONDecodeError:
+                    logger.warn("LLM Output failed to be decoded to JSON")
+                    logger.warn("Input: " + summary)
+                    logger.warn("Output: " + output)
+                    return {}
 
             for label, relations in parsed_res.items():
                 for relation in relations:
@@ -162,7 +167,35 @@ class RelationshipExtractor(GraphRelationshipExtractor):
 
             return parsed_res
 
-        return await _process_llm_output(res, parsed_metadata, section.data["summary"])
+        return await _process_llm_output(outputs, parsed_metadata, section.data["summary"])
+    
+    def _build_llm_call_params(self, fields, parsed_metadata):
+        models = []
+        entities_list = []
+        if self.split_calls:
+            for field_name, field_value in fields.items():
+                models.append(create_model("relationships", __base__=BaseModel, **{field_name: field_value}))
+                entities = []
+                entities.append(f"""{parsed_metadata[field_name]["start_label"]}:\n""")
+                entities.extend([f"{node}\n" for node in parsed_metadata[field_name]["start_nodes"]])
+                entities.append(f"""{parsed_metadata[field_name]["end_label"]}:\n""")
+                entities.extend([f"{node}\n" for node in parsed_metadata[field_name]["end_nodes"]])
+                entities_list.append("".join(entities))
+        else:
+            models.append(create_model("relationships", __base__=BaseModel, **fields))
+            parsed_entities = defaultdict(lambda: set())
+            for key, value in parsed_metadata.items():
+                parsed_entities[value["start_label"]] |= value["start_nodes"]
+                parsed_entities[value["end_label"]] |= value["end_nodes"]
+
+            entities = []
+            for key, nodes in parsed_entities.items():
+                entities.append(f"{key}:\n")
+                for node in nodes:
+                    entities.append(f"{node}\n")
+            entities_list.append("".join(entities))
+
+        return models, entities_list
 
 
 def GraphRelationshipExtractorPrompt(query, entities):

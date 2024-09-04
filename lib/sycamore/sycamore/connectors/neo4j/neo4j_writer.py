@@ -88,7 +88,6 @@ class Neo4jWriterClient:
 
     def _write_relationships_neo4j(self, relationships: list[tuple[str, str]], session: "Session"):
         for relationship_type in relationships:
-            logger.warn(relationship_type)
             start_label, end_label = (relationship_type[0]).split("_")
             file_url = relationship_type[1]
             if "s3.amazonaws.com" not in file_url:

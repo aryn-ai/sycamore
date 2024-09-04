@@ -4,7 +4,6 @@ import os.path
 from typing import Any
 
 import boto3
-import botocore.client
 from botocore import UNSIGNED
 from botocore.config import Config
 from botocore.exceptions import NoCredentialsError

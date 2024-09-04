@@ -8,6 +8,7 @@ from typing import Any, Optional, Union, BinaryIO
 import boto3
 import diskcache
 from botocore.exceptions import ClientError
+from mypy_boto3_s3.client import S3Client
 
 BLOCK_SIZE = 1048576  # 1 MiB
 
@@ -99,7 +100,7 @@ class S3Cache(Cache):
         super().__init__()
         self._s3_path = s3_path
         self._freshness_in_seconds = freshness_in_seconds
-        self._s3_client = None
+        self._s3_client: Optional[S3Client] = None
 
     def _get_s3_bucket_and_key(self, key):
         parts = self._s3_path.replace("s3://", "").strip("/").split("/", 1)

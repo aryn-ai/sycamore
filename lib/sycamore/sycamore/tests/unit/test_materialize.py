@@ -393,3 +393,47 @@ class TestAllViaPyarrowFS(unittest.TestCase):
             pipeline.take_all()
 
         assert fsh.file_exists(path["root"] + "/DocScan.0/subdir/fake.pickle")
+
+
+class TestClearMaterialize(unittest.TestCase):
+    def test_noop(self):
+        ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
+        ds = ctx.read.document(make_docs(3)).map(noop_fn)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            docx = Path(tmpdir) / "doc_x"
+            docx.touch()
+            assert docx.exists()
+            ds.materialize(path=tmpdir).clear_materialize()
+            assert not docx.exists()
+
+    def maybe_clear_non_local(self, clear_non_local: bool):
+        from pyarrow.fs import SubTreeFileSystem, LocalFileSystem
+
+        ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
+        ds = ctx.read.document(make_docs(3)).map(noop_fn)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fs = SubTreeFileSystem("/", LocalFileSystem())
+            (Path(tmpdir) / "x").mkdir()
+            (Path(tmpdir) / "y").mkdir()
+            docx = Path(tmpdir) / "x/doc_x"
+            docx.touch()
+            docy = Path(tmpdir) / "y/doc_y"
+            docy.touch()
+            assert docx.exists()
+            assert docy.exists()
+            (
+                ds.materialize(path=f"{tmpdir}/y")
+                .materialize(path={"fs": fs, "root": f"{tmpdir}/x"})
+                .clear_materialize(clear_non_local=clear_non_local)
+            )
+            if clear_non_local:
+                assert not docx.exists()
+            else:
+                assert docx.exists()
+            assert not docy.exists()
+
+    def test_clear_non_local(self):
+        self.maybe_clear_non_local(True)
+
+    def test_no_clear_non_local(self):
+        self.maybe_clear_non_local(False)

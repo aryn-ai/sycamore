@@ -55,6 +55,7 @@ class Materialize(UnaryNode):
     ):
         assert child is None or isinstance(child, Node)
 
+        self._orig_path = path
         self._root = None
         if path is None:
             pass
@@ -96,11 +97,11 @@ class Materialize(UnaryNode):
         if self._source_mode == MaterializeSourceMode.IF_PRESENT:
             success = self._fshelper.file_exists(self._success_path())
             if success or len(self.children) == 0:
-                logger.info(f"Using {self._root} as the cached source of data")
+                logger.info(f"Using {self._orig_path} as the cached source of data")
                 self._executed_child = False
                 if not success:
                     self._verify_has_files()
-                    logging.warning(f"materialize.success not found in {self._root}. Returning partial data")
+                    logging.warning(f"materialize.success not found in {self._orig_path}. Returning partial data")
 
                 from ray.data import read_binary_files
 
@@ -138,7 +139,7 @@ class Materialize(UnaryNode):
             if n.path.endswith(".pickle"):
                 return
 
-        raise ValueError(f"Materialize root {self._root} has no .pickle files")
+        raise ValueError(f"Materialize root {self._orig_path} has no .pickle files")
 
     def _ray_to_document(self, dict: dict[str, Any]) -> dict[str, bytes]:
         return {"doc": dict["bytes"]}
@@ -152,7 +153,7 @@ class Materialize(UnaryNode):
         if self._source_mode == MaterializeSourceMode.IF_PRESENT:
             if self._fshelper.file_exists(self._success_path()):
                 self._executed_child = False
-                logger.info(f"Using {self._root} as cached source of data")
+                logger.info(f"Using {self._orig_path} as cached source of data")
 
                 return self.local_source()
 
@@ -167,9 +168,9 @@ class Materialize(UnaryNode):
     def local_source(self) -> list[Document]:
         assert self._root is not None
         self._verify_has_files()
-        logger.info(f"Using {self._root} as cached source of data")
+        logger.info(f"Using {self._orig_path} as cached source of data")
         if not self._fshelper.file_exists(self._success_path()):
-            logging.warning(f"materialize.success not found in {self._root}. Returning partial data")
+            logging.warning(f"materialize.success not found in {self._orig_path}. Returning partial data")
         ret = []
         for fi in self._fshelper.list_files(self._root):
             n = Path(fi.path)
@@ -366,3 +367,19 @@ class AutoMaterialize(NodeTraverse):
         if "fs" in self._path:
             self._fs = self._path["fs"]
         self._fshelper = _PyArrowFsHelper(self._fs)
+
+
+def clear_materialize(plan: Node, clear_non_local: bool):
+    """See docset.clear_materialize() for documentation"""
+    from pyarrow.fs import LocalFileSystem
+
+    def clean_dir(n: Node):
+        if not isinstance(n, Materialize):
+            return
+        if not (isinstance(n._fs, LocalFileSystem) or clear_non_local):
+            logger.info(f"Skipping clearing non-local {n._orig_path} {clear_non_local}")
+            return
+        # safe_cleanup logs
+        n._fshelper.safe_cleanup(n._root)
+
+    plan.traverse(visit=clean_dir)

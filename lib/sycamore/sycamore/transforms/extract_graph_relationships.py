@@ -145,7 +145,7 @@ class RelationshipExtractor(GraphRelationshipExtractor):
             outputs.append(await self.llm.generate_async(prompt_kwargs=prompt_kwargs, llm_kwargs=llm_kwargs))
 
         async def _process_llm_output(outputs: list[str], parsed_metadata: dict, summary: str):
-            parsed_res = {}
+            parsed_res: dict[str, Any] = {}
             for output in outputs:
                 try:
                     parsed_res |= json.loads(output)

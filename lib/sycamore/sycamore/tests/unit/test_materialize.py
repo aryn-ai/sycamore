@@ -13,7 +13,7 @@ from pyarrow import fs
 import sycamore
 from sycamore.context import ExecMode
 from sycamore.data import Document, MetadataDocument
-from sycamore.materialize import AutoMaterialize, Materialize, MaterializeSourceMode
+from sycamore.materialize import AutoMaterialize, Materialize
 from sycamore.tests.unit.inmempyarrowfs import InMemPyArrowFileSystem
 
 
@@ -69,7 +69,7 @@ class TestMaterializeWrite(unittest.TestCase):
             self.check_files(tmpdir)
 
     def check_files(self, tmpdir, ext=""):
-        docs = glob.glob(tmpdir + "/doc-*" + ext)  # doc_id  is doc_#
+        docs = glob.glob(tmpdir + "/doc-doc_*" + ext)  # doc_id  is doc_#; default naming sticks a doc- prefix on
         assert len(docs) == 3
         mds = glob.glob(tmpdir + "/md-*" + ext)
         # MD#1 = the manual one from make_docs
@@ -154,7 +154,7 @@ class TestMaterializeWrite(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             ds.materialize(path={"root": tmpdir, "tobin": onlydoc}).execute()
-            docs = glob.glob(tmpdir + "/doc-doc_*")  # doc_id  is doc_#
+            docs = glob.glob(tmpdir + "/doc-doc_*")  # doc_id  is doc_#; default naming sticks a doc- prefix on
             assert len(docs) == 3
             mds = glob.glob(tmpdir + "/md-*")
             assert len(mds) == 0
@@ -291,7 +291,7 @@ class TestMaterializeRead(unittest.TestCase):
             ds = (
                 ctx.read.document(docs)
                 .map(noop_fn)
-                .materialize(path=tmpdir, source_mode=MaterializeSourceMode.IF_PRESENT)
+                .materialize(path=tmpdir, source_mode=sycamore.MATERIALIZE_USE_STORED)
             )
             e1 = ds.take_all()
             assert e1 is not None

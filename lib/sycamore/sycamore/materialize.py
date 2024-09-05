@@ -92,6 +92,12 @@ class Materialize(UnaryNode):
         super().__init__(child, **kwargs)
 
     def prepare(self):
+        """
+        Clean up the materialize location if necessary.
+        Validate that cleaning worked, but only once all materializes have finished cleaning.
+        This protects against multiple materializes pointing to the same location.
+        """
+
         if self._will_be_source():
             return
 

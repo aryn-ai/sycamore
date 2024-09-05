@@ -90,6 +90,12 @@ class Execution:
         plan.traverse(visit=lambda n: n.finalize())
 
     def _prepare(self, plan: Node):
+        # Some prepare operations need to execute in phases, running a complete phase over the tree
+        # and then running another phase. We use a queue to generate those semantics. For example,
+        # materialize needs to make a pass to clean all the directories and then a second pass to write
+        # a marker file to make sure that the directories aren't being accidentally re-used.  In a single
+        # pass if we clean then check, the check is pointless. If we check then clean, sequential runs
+        # of the same pipeline will fail incorrectly.
         from queue import Queue
 
         pending: Queue[Callable] = Queue()

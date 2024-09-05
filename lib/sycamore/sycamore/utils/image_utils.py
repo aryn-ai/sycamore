@@ -240,7 +240,7 @@ def show_images(images: Union[Image.Image, list[Image.Image]], width: int = 600)
     in_jupyter = False
 
     try:
-        ipy_class = get_ipython().__class__
+        ipy_class = get_ipython().__class__  # type: ignore
         if ipy_class.__name__ == "ZMQInteractiveShell" or ipy_class.__module__ == "google.colab._shell":  # type: ignore
             in_jupyter = True
     except NameError:

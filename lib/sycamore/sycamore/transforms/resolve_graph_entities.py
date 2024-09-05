@@ -36,7 +36,7 @@ class ResolveEntities:
         docset.plan = self.AggregateSectionNodes(docset.plan)
         dataset = docset.plan.execute().materialize()
         # Perform ray aggregate over dataset
-        nodes: dict[str, Any] = self._aggregate_document_nodes(dataset)
+        nodes = self._aggregate_document_nodes(dataset)
 
         if self.resolve_duplicates:
             remap = {}
@@ -83,7 +83,7 @@ class ResolveEntities:
 
         @staticmethod
         def _aggregate_section_nodes(doc: HierarchicalDocument) -> HierarchicalDocument:
-            nodes = {}
+            nodes: dict[str, Any] = {}
             for label, hashes in doc["properties"].get("nodes", {}).items():
                 for hash, node in hashes.items():
                     nodes.setdefault(label, {})

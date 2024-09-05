@@ -11,4 +11,5 @@ Some tutorials are located below, and visit the `Aryn blog <https://www.aryn.ai/
 .. toctree::
     :maxdepth: 1
 
+    ./tutorials/etl_pinecone_tutorial.md
     ./tutorials/etl_for_opensearch.md

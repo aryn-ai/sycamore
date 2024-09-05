@@ -1,5 +1,5 @@
 import logging
-from typing import Iterable, TYPE_CHECKING
+from typing import Callable, Iterable, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ray.data import Dataset
@@ -59,6 +59,7 @@ class Execution:
                 ray_args["runtime_env"]["worker_process_setup_hook"] = _ray_logging_setup
 
             ray.init(**ray_args)
+
         return plan.execute(**kwargs)
 
     def _apply_rules(self, plan: Node) -> Node:
@@ -75,6 +76,7 @@ class Execution:
 
     def execute_iter(self, plan: Node, **kwargs) -> Iterable[Document]:
         plan = self._apply_rules(plan)
+        self._prepare(plan)
         if self._exec_mode == ExecMode.RAY:
             ds = self._execute_ray(plan, **kwargs)
             for row in ds.iter_rows():
@@ -86,6 +88,23 @@ class Execution:
             assert False
 
         plan.traverse(visit=lambda n: n.finalize())
+
+    def _prepare(self, plan: Node):
+        from queue import Queue
+
+        pending: Queue[Callable] = Queue()
+
+        def visit(n):
+            f = n.prepare()
+            if f is not None:
+                pending.put(f)
+
+        plan.traverse(visit=visit)
+        while not pending.empty():
+            f = pending.get(block=False)
+            g = f()
+            if g is not None:
+                pending.put(g)
 
     def recursive_execute(self, n: Node) -> list[Document]:
         from sycamore.materialize import Materialize

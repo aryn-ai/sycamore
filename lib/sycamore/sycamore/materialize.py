@@ -1,7 +1,6 @@
 import logging
 from pathlib import Path
 from typing import Any, Optional, Union, TYPE_CHECKING
-import uuid
 
 from sycamore.context import Context
 from sycamore.data import Document, MetadataDocument
@@ -50,7 +49,7 @@ class Materialize(UnaryNode):
         child: Optional[Node],
         context: Context,
         path: Optional[Union[Path, str, dict]] = None,
-        source_mode: MaterializeSourceMode = MaterializeSourceMode.OFF,
+        source_mode: MaterializeSourceMode = MaterializeSourceMode.RECOMPUTE,
         **kwargs,
     ):
         assert child is None or isinstance(child, Node)
@@ -80,7 +79,7 @@ class Materialize(UnaryNode):
         else:
             assert False, f"unsupported type ({type(path)}) for path argument, expected str, Path, or dict"
 
-        if source_mode != MaterializeSourceMode.OFF:
+        if source_mode != MaterializeSourceMode.RECOMPUTE:
             assert path is not None
             assert (
                 self._doc_to_binary == Document.serialize
@@ -92,9 +91,36 @@ class Materialize(UnaryNode):
 
         super().__init__(child, **kwargs)
 
+    def prepare(self):
+        if self._will_be_source():
+            return
+
+        if self._root is None:
+            return
+
+        if not self._clean_root:
+            self._fs.create_dir(str(self._root))
+            return
+
+        self._fshelper.safe_cleanup(self._root)
+
+        def check_clean():
+            clean_path = self._root / "materialize.clean"
+            if self._fshelper.file_exists(clean_path):
+                raise ValueError(
+                    f"path {clean_path} already exists despite cleaning the root directory."
+                    + " Most likely there two materialize nodes are using the same path"
+                )
+            self._fs.open_output_stream(str(clean_path)).close()
+            assert self._fshelper.file_exists(
+                clean_path
+            ), f"{clean_path} was just created in {self._fs}, but does not exist?!"
+
+        return check_clean
+
     def execute(self, **kwargs) -> "Dataset":
         logger.debug("Materialize execute")
-        if self._source_mode == MaterializeSourceMode.IF_PRESENT:
+        if self._source_mode == MaterializeSourceMode.USE_STORED:
             success = self._fshelper.file_exists(self._success_path())
             if success or len(self.children) == 0:
                 logger.info(f"Using {self._orig_path} as the cached source of data")
@@ -113,11 +139,10 @@ class Materialize(UnaryNode):
         # right now, no validation happens, so save data in parallel. Once we support validation
         # to support retries we won't be able to run the validation in parallel.  non-shared
         # filesystems will also eventually be a problem but we can put it off for now.
+
         input_dataset = self.child().execute(**kwargs)
         if self._root is not None:
             import numpy
-
-            self.cleanup()
 
             @rename("materialize")
             def ray_callable(ray_input: dict[str, numpy.ndarray]) -> dict[str, numpy.ndarray]:
@@ -145,12 +170,14 @@ class Materialize(UnaryNode):
         return {"doc": dict["bytes"]}
 
     def _will_be_source(self) -> bool:
-        return self._source_mode == MaterializeSourceMode.IF_PRESENT and self._fshelper.file_exists(
+        if len(self.children) == 0:
+            return True
+        return self._source_mode == MaterializeSourceMode.USE_STORED and self._fshelper.file_exists(
             self._success_path()
         )
 
     def local_execute(self, docs: list[Document]) -> list[Document]:
-        if self._source_mode == MaterializeSourceMode.IF_PRESENT:
+        if self._source_mode == MaterializeSourceMode.USE_STORED:
             if self._fshelper.file_exists(self._success_path()):
                 self._executed_child = False
                 logger.info(f"Using {self._orig_path} as cached source of data")
@@ -158,7 +185,6 @@ class Materialize(UnaryNode):
                 return self.local_source()
 
         if self._root is not None:
-            self.cleanup()
             for d in docs:
                 self.save(d)
             self._executed_child = True
@@ -215,31 +241,38 @@ class Materialize(UnaryNode):
             return
         assert isinstance(bin, bytes), f"tobin function returned {type(bin)} not bytes"
         assert self._root is not None
-        name = self._doc_to_name(doc)
+        name = self._doc_to_name(doc, bin)
         path = self._root / name
 
         if self._clean_root and self._fshelper.file_exists(path):
-            raise ValueError(f"Duplicate name {path} generated for clean root")
+            if self._doc_to_name != self.doc_to_name:
+                # default doc_to_name includes a content based hash, so "duplicate" entries
+                # should only be possible if ray executes the save operation multiple times on
+                # the same content.
+                logger.warn(
+                    f"Duplicate name {path} generated for clean root;"
+                    + " this could be ray re-execution or fault tolerance; first written data kept"
+                )
+
+            return
         with self._fs.open_output_stream(str(path)) as out:
             out.write(bin)
 
-    def cleanup(self) -> None:
-        if self._root is None:
-            return
-
-        if not self._clean_root:
-            self._fs.create_dir(str(self._root))
-            return
-
-        self._fshelper.safe_cleanup(self._root)
-
     @staticmethod
-    def doc_to_name(doc: Document) -> str:
+    def doc_to_name(doc: Document, bin: bytes) -> str:
+        from hashlib import sha256
+
+        hash_id = sha256(bin).hexdigest()
+        doc_id = doc.doc_id or doc.data.get("lineage_id", None)
+        if doc_id is None:
+            logger.warn(f"found document with no doc_id or lineage_id, assigned content based id {hash_id}")
+            doc_id = hash_id
+
         if isinstance(doc, MetadataDocument):
-            return "md-" + str(uuid.uuid4()) + ".pickle"
+            return f"md-{doc_id}:{hash_id}.pickle"
 
         assert isinstance(doc, Document)
-        return (doc.doc_id or str(uuid.uuid4())) + ".pickle"
+        return f"doc-{doc_id}:{hash_id}.pickle"
 
 
 class AutoMaterialize(NodeTraverse):

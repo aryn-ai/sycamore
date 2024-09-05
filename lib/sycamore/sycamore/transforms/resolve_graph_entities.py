@@ -36,7 +36,7 @@ class ResolveEntities:
         docset.plan = self.AggregateSectionNodes(docset.plan)
         dataset = docset.plan.execute().materialize()
         # Perform ray aggregate over dataset
-        nodes = self._aggregate_document_nodes(dataset)
+        nodes: dict[str, Any] = self._aggregate_document_nodes(dataset)
 
         if self.resolve_duplicates:
             remap = {}

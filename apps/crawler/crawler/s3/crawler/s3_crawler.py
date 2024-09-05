@@ -4,10 +4,10 @@ import os.path
 from typing import Any
 
 import boto3
-import botocore.client
 from botocore import UNSIGNED
 from botocore.config import Config
 from botocore.exceptions import NoCredentialsError
+from mypy_boto3_s3.client import S3Client
 import sys
 
 
@@ -59,7 +59,7 @@ class S3Crawler:
             for s3_object in page["Contents"]:
                 object_key = s3_object["Key"]
                 if not object_key.endswith("/"):
-                    self._download_if_new_object(s3_object)
+                    self._download_if_new_object(s3_object)  # type: ignore
                 else:
                     print("WARNING, ignoring directory-like", object_key)
 
@@ -105,7 +105,7 @@ class S3Crawler:
             # TODO: parth - if I change this to return False, no test fails
             return True
 
-    def _get_s3_client(self) -> botocore.client.BaseClient:
+    def _get_s3_client(self) -> S3Client:
         if self._anon:
             cfg = Config(signature_version=UNSIGNED)
             return self._session.client("s3", config=cfg)

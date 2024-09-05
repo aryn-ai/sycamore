@@ -12,9 +12,14 @@ from sycamore.plan_nodes import Node
 from sycamore.docset import DocSet
 from sycamore.utils.import_utils import requires_modules
 
+from mypy_boto3_s3.client import S3Client
+from mypy_boto3_s3.service_resource import S3ServiceResource
+from boto3.session import Session
+
 if TYPE_CHECKING:
     from neo4j import Auth
     from neo4j.auth_management import AuthManager
+
 
 logger = logging.getLogger(__name__)
 
@@ -564,6 +569,8 @@ class DocSetWriter:
         auth: Union[tuple[Any, Any], "Auth", "AuthManager", None],
         import_dir: str,
         database: str = "neo4j",
+        use_auradb: bool = False,
+        s3_session: Optional[Session] = None,
         **kwargs,
     ) -> Optional["DocSet"]:
         """
@@ -611,12 +618,20 @@ class DocSetWriter:
         )
         from sycamore.plan_nodes import Node
         from sycamore.connectors.neo4j import Neo4jPrepareCSV, Neo4jWriteCSV, Neo4jLoadCSV
+        from sycamore.connectors.neo4j.neo4j_writer import (
+            create_temp_bucket,
+            delete_temp_bucket,
+            load_to_s3_bucket,
+            get_neo4j_import_info,
+        )
         import time
 
         if kwargs.get("execute") is False:
             raise NotImplementedError
         if self.context.exec_mode != ExecMode.RAY:
             raise NotImplementedError
+        if use_auradb and not s3_session:
+            raise ValueError("If using AuraDB, you must also pass in a s3_session object to temporarily host files.")
 
         class Wrapper(Node):
             def __init__(self, dataset):
@@ -642,7 +657,27 @@ class DocSetWriter:
         Neo4jWriteCSV(plan=self.plan, client_params=client_params).execute().materialize()
         end = time.time()
         logger.info(f"TIME TAKEN TO WRITE CSV: {end-start} SECONDS")
-        Neo4jLoadCSV(client_params=client_params, target_params=target_params)
+
+        nodes, relationships, labels = get_neo4j_import_info(import_dir=import_dir)
+        # If using auradb, load to files to s3
+
+        s3_client: S3Client
+        s3_resource: S3ServiceResource
+        s3_bucket: str
+        if use_auradb:
+            assert s3_session is not None
+            s3_client = s3_session.client("s3")
+            s3_resource = s3_session.resource("s3")
+            s3_bucket = create_temp_bucket(s3_client=s3_client)
+            nodes, relationships = load_to_s3_bucket(s3_client=s3_client, bucket_name=s3_bucket, import_dir=import_dir)
+
+        import_paths = {"nodes": nodes, "relationships": relationships, "labels": labels}
+
+        Neo4jLoadCSV(client_params=client_params, target_params=target_params, import_paths=import_paths)
+
+        # cleanup s3 files if using auradb
+        if use_auradb:
+            delete_temp_bucket(s3_client, s3_resource, s3_bucket)
 
         return None
 

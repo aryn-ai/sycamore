@@ -31,12 +31,14 @@ class EntityExtractor(GraphEntityExtractor):
     Args:
         llm: The LLM that is used to extract the entities
         entities: A list of pydantic models that determines what entity schemas are extracted
+        split_calls: A boolean that if true, calls the LLM for each entity instead of batching them in one call
 
     """
 
-    def __init__(self, llm: LLM, entities: Optional[list[BaseModel]] = []):
+    def __init__(self, llm: LLM, entities: Optional[list[BaseModel]] = [], split_calls: bool = False):
         self.llm = llm
         self.entities = self._serialize_entities(entities)
+        self.split_calls = split_calls
 
     def extract(self, doc: HierarchicalDocument) -> HierarchicalDocument:
         import asyncio
@@ -51,7 +53,10 @@ class EntityExtractor(GraphEntityExtractor):
         for i, section in enumerate(doc.children):
             nodes: defaultdict[dict, Any] = defaultdict(dict)
             try:
-                res[i] = json.loads(res[i])
+                output_dict: dict[str, Any] = {}
+                for output in res[i]:
+                    output_dict |= json.loads(output)
+                res[i] = output_dict
             except json.JSONDecodeError:
                 logger.warn("LLM Output failed to be decoded to JSON")
                 logger.warn("Input: " + section.data["summary"])
@@ -97,26 +102,44 @@ class EntityExtractor(GraphEntityExtractor):
         for entity in self.entities:
             deserialized.append(safe_cloudunpickle(entity))
 
+        return deserialized
+
+    async def _extract_from_section(self, summary: str) -> list[str]:
         # (List[relation], ...) is weird notation required by pydantic, sorry - Ritam
+        # Pydantic has weird interaction with mypy, using type ignore!
         # https://docs.pydantic.dev/latest/concepts/models/#required-fields
-        fields = {entity.__name__: (List[entity], ...) for entity in deserialized}
-        return create_model("entities", __base__=BaseModel, **fields)
+        deserialized_entities = self._deserialize_entities()
+        fields = {entity.__name__: (List[entity], ...) for entity in deserialized_entities}  # type: ignore
+        models = []
+        if self.split_calls:
+            for field_name, field_value in fields.items():
+                models.append(create_model("entities", __base__=BaseModel, **{field_name: field_value}))  # type: ignore
+        else:
+            models.append(create_model("entities", __base__=BaseModel, **fields))  # type: ignore
 
-    async def _extract_from_section(self, summary: str) -> str:
-        llm_kwargs = {"response_format": self._deserialize_entities()}
-
-        return await self.llm.generate_async(
-            prompt_kwargs={"prompt": str(GraphEntityExtractorPrompt(summary))}, llm_kwargs=llm_kwargs
-        )
+        outputs = []
+        for model in models:
+            try:
+                llm_kwargs = {"response_format": model}
+                outputs.append(
+                    await self.llm.generate_async(
+                        prompt_kwargs={"prompt": str(GraphEntityExtractorPrompt(summary))}, llm_kwargs=llm_kwargs
+                    )
+                )
+            except Exception as e:
+                logger.warn(f"OPENAI CALL FAILED: {e}")
+                outputs.append("{}")
+        return outputs
 
 
 def GraphEntityExtractorPrompt(query):
     return f"""
-    -Goal-
-    You are a helpful information extraction system.
+    -Instructions-
+    You are a information extraction system.
 
     You will be given a sequence of data in different formats(text, table, Section-header) in order.
-    Your job is to extract entities that match the entity schemas provided.
+    Your job is to extract entities from the text input that match the entity schemas provided. Each entity
+    and property extracted should directly reference part of the text input provided.
 
     -Real Data-
     ######################

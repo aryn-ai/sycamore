@@ -634,7 +634,7 @@ class DocSet:
 
         return DocSet(self.context, relationships)
 
-    def resolve_graph_entities(self, resolvers: list[EntityResolver] = [], **kwargs) -> "DocSet":
+    def resolve_graph_entities(self, resolvers: list[EntityResolver] = [], resolve_duplicates = True, **kwargs) -> "DocSet":
         """
         Resolves graph entities across documents so that duplicate entities can be resolved
         to the same entity based off criteria of EntityResolver objects.
@@ -665,7 +665,7 @@ class DocSet:
             def execute(self, **kwargs):
                 return self._ds
 
-        entity_resolver = ResolveEntities(resolvers=resolvers)
+        entity_resolver = ResolveEntities(resolvers=resolvers, resolve_duplicates=resolve_duplicates)
         entities = entity_resolver.resolve(self)  # resolve entities
         entities_clean = CleanTempNodes(Wrapper(entities))  # cleanup temp objects
         return DocSet(self.context, entities_clean)

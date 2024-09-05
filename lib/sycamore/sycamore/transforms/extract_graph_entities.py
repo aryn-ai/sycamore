@@ -69,6 +69,7 @@ class EntityExtractor(GraphEntityExtractor):
                     if hash not in nodes[label]:
                         node = {
                             "type": "extracted",
+                            "doc_id": str(uuid.uuid4()),
                             "properties": {},
                             "label": label,
                             "relationships": {},
@@ -82,6 +83,8 @@ class EntityExtractor(GraphEntityExtractor):
                         "properties": {},
                         "START_ID": str(section.doc_id),
                         "START_LABEL": section.data["label"],
+                        "END_ID": nodes[label][hash]["doc_id"],
+                        "END_LABEL": nodes[label][hash]["label"]
                     }
                     nodes[label][hash]["relationships"][str(uuid.uuid4())] = rel
             section["properties"]["nodes"] = nodes

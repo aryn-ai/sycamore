@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
+import json
 from typing import TYPE_CHECKING, Any, Dict
 import uuid
 
@@ -26,8 +27,9 @@ class ResolveEntities:
     where we run through all the Entity Resolution proceedures defined by the user.
     """
 
-    def __init__(self, resolvers: list[EntityResolver]):
+    def __init__(self, resolvers: list[EntityResolver], resolve_duplicates):
         self.resolvers = resolvers
+        self.resolve_duplicates = resolve_duplicates
 
     def resolve(self, docset: "DocSet") -> Any:
         from ray.data import from_items
@@ -35,18 +37,42 @@ class ResolveEntities:
         # Group nodes from document sections together and materialize docset into ray dataset
         docset.plan = self.AggregateSectionNodes(docset.plan)
         dataset = docset.plan.execute().materialize()
-
         # Perform ray aggregate over dataset
         nodes = self._aggregate_document_nodes(dataset)
+
+        if self.resolve_duplicates:
+            remap = {}
+            for key, hashes in nodes.items():
+                for hash, _nodes in hashes.items():
+                    for i in range(1,len(_nodes)):
+                        remap[_nodes[i]["doc_id"]] = _nodes[0]["doc_id"]
+                        for rel_uuid, rel in _nodes[i]["relationships"].items():
+                            assert rel_uuid not in _nodes[0]["relationships"], "UUID Collision"
+                            _nodes[0]["relationships"][rel_uuid] = rel
+                    _nodes = [_nodes[0]]
+
+            for key, hashes in nodes.items():
+                for hash, _nodes in hashes.items():
+                    for node in _nodes:
+                        existing_rels = set()
+                        for rel_uuid, rel in node["relationships"].items():
+                            rel["START_ID"] = remap.get(rel["START_ID"], rel["START_ID"])
+                            rel["END_ID"] = remap.get(rel["END_ID"], rel["END_ID"])
+                            if json.dumps(rel) in existing_rels:
+                                del node["relationships"][rel_uuid]
+                            else:
+                                existing_rels.add(json.dumps(rel))
+
         for resolver in self.resolvers:
             nodes = resolver.resolve(nodes)
 
         # Load entities into a document, and add them to current ray dataset
         doc = HierarchicalDocument()
         for key, hashes in nodes.items():
-            for hash, node in hashes.items():
-                node = HierarchicalDocument(node)
-                doc.children.append(node)
+            for hash, nodes in hashes.items():
+                for node in nodes:
+                    node = HierarchicalDocument(node)
+                    doc.children.append(node)
         doc.data["EXTRACTED_NODES"] = True
         nodes_row = from_items([{"doc": doc.serialize()}])
         dataset = dataset.union(nodes_row)
@@ -59,19 +85,18 @@ class ResolveEntities:
 
         @staticmethod
         def _aggregate_section_nodes(doc: HierarchicalDocument) -> HierarchicalDocument:
-            nodes: defaultdict[dict, Any] = defaultdict(dict)
-            nodes |= doc["properties"].get("nodes", {})
+            nodes = {}
+            for label, hashes in doc["properties"].get("nodes", {}).items():
+                for hash, node in hashes.items():
+                    nodes.setdefault(label, {})
+                    nodes[label].setdefault(hash, [])
+                    nodes[label][hash].append(node)
             for section in doc.children:
-                if "nodes" not in section["properties"]:
-                    continue
-                for label, hashes in section["properties"]["nodes"].items():
+                for label, hashes in section["properties"].get("nodes", {}).items():
                     for hash, node in hashes.items():
-                        if nodes[label].get(hash, None) is None:
-                            nodes[label][hash] = node
-                        else:
-                            for rel_uuid, rel in node["relationships"].items():
-                                if rel not in [node for node in nodes[label][hash]["relationships"].values()]:
-                                    nodes[label][hash]["relationships"][rel_uuid] = rel
+                        nodes.setdefault(label, {})
+                        nodes[label].setdefault(hash, [])
+                        nodes[label][hash].append(node)
                 del section["properties"]["nodes"]
             doc["properties"]["nodes"] = nodes
             return doc
@@ -88,43 +113,22 @@ class ResolveEntities:
 
         def accumulate_row(nodes, row):
             extracted = extract_nodes(row)
-            for key, hashes in extracted.items():
+            for label, hashes in extracted.items():
                 for hash in hashes:
-                    if nodes.get(key, {}).get(hash, {}) == {}:
-                        nodes.setdefault(key, {})
-                        nodes[key][hash] = extracted[key][hash]
-                    else:
-                        for rel_uuid, rel in extracted[key][hash]["relationships"].items():
-                            if rel not in [node for node in nodes[key][hash]["relationships"].values()]:
-                                nodes[key][hash]["relationships"][rel_uuid] = rel
+                    nodes.setdefault(label, {})
+                    nodes[label].setdefault(hash, [])
+                    nodes[label][hash].extend(extracted[label][hash])
             return nodes
 
         def merge(nodes1, nodes2):
-            for key, hashes in nodes2.items():
+            for label, hashes in nodes2.items():
                 for hash in hashes:
-                    if nodes1.get(key, {}).get(hash, {}) == {}:
-                        nodes1.setdefault(key, {})
-                        nodes1[key][hash] = nodes2[key][hash]
-                    else:
-                        for rel_uuid, rel in nodes2[key][hash]["relationships"].items():
-                            if rel not in [node for node in nodes1[key][hash]["relationships"].values()]:
-                                nodes1[key][hash]["relationships"][rel_uuid] = rel
+                    nodes1.setdefault(label, {})
+                    nodes1[label].setdefault(hash, [])
+                    nodes1[label][hash].extend(nodes2[label][hash])
             return nodes1
 
         def finalize(nodes):
-            for hashes in nodes.values():
-                for node in hashes.values():
-                    node["doc_id"] = str(uuid.uuid4())
-                    for rel in node["relationships"].values():
-                        rel["END_ID"] = node["doc_id"]
-                        rel["END_LABEL"] = node["label"]
-
-            for hashes in nodes.values():
-                for node in hashes.values():
-                    for rel in node["relationships"].values():
-                        if "START_HASH" in rel:
-                            rel["START_ID"] = nodes[rel["START_LABEL"]][rel["START_HASH"]]["doc_id"]
-                            del rel["START_HASH"]
             return nodes
 
         aggregation = AggregateFn(

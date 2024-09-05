@@ -67,12 +67,17 @@ class RelationshipExtractor(GraphRelationshipExtractor):
                             """
                         )
                         continue
+                    
+                    start_id = section["properties"]["nodes"][relation["start_label"]][start_hash]["doc_id"]
+                    end_id = section["properties"]["nodes"][relation["end_label"]][end_hash]["doc_id"]
 
                     rel: Dict[str, Any] = {
                         "TYPE": label,
                         "properties": {},
-                        "START_HASH": start_hash,
+                        "START_ID": start_id,
                         "START_LABEL": relation["start_label"],
+                        "END_ID": end_id,
+                        "END_LABEL": relation["end_label"]
                     }
 
                     for key, value in relation.items():

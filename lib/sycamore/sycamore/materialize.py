@@ -93,6 +93,8 @@ class Materialize(UnaryNode):
 
     def execute(self, **kwargs) -> "Dataset":
         logger.debug("Materialize execute")
+        # XXX MDW
+        logger.warning(f"MDW: Materialize execute - root is {self._root}")
         if self._source_mode == MaterializeSourceMode.IF_PRESENT:
             success = self._fshelper.file_exists(self._success_path())
             if success or len(self.children) == 0:
@@ -121,7 +123,9 @@ class Materialize(UnaryNode):
             @rename("materialize")
             def ray_callable(ray_input: dict[str, numpy.ndarray]) -> dict[str, numpy.ndarray]:
                 for s in ray_input.get("doc", []):
-                    self.save(Document.deserialize(s))
+                    # XXX MDW HACKING
+                    doc = Document.deserialize(s)
+                    self.save(doc)
                 return ray_input
 
             return input_dataset.map_batches(ray_callable)
@@ -216,6 +220,12 @@ class Materialize(UnaryNode):
         assert self._root is not None
         name = self._doc_to_name(doc)
         path = self._root / name
+        # XXX MDW HACKING
+        try:
+            lineage_id = getattr(doc, "lineage_id", "<no lineage ID>")
+            logging.warning(f"MDW: SAVING DOC TO {str(path)} - LINEAGE {lineage_id}")
+        except:
+            logging.warning(f"MDW: SAVING DOC TO {str(path)} - NO LINEAGE")
         if self._clean_root and self._fshelper.file_exists(path):
             raise ValueError(f"Duplicate name {path} generated for clean root")
         with self._fs.open_output_stream(str(path)) as out:

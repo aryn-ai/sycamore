@@ -9,9 +9,9 @@ from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.llm_filter import LlmFilter
 from sycamore.query.operators.basic_filter import BasicFilter
-from sycamore.query.operators.summarize_data import SummarizeData
-from sycamore.query.operators.query_database import QueryDatabase
+from sycamore.query.operators.generate import GenerateEnglishResponse, GeneratePreview, GenerateTable
 from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
+from sycamore.query.operators.query_database import QueryDatabase
 from sycamore.query.operators.math import Math
 from sycamore.query.operators.sort import Sort
 from sycamore.query.operators.top_k import TopK
@@ -32,11 +32,13 @@ OPERATORS: List[Type[LogicalOperator]] = [
     LlmFilter,
     LlmExtractEntity,
     Count,
-    SummarizeData,
     Math,
     Sort,
     TopK,
     Limit,
+    GenerateEnglishResponse,
+#    GeneratePreview,
+    GenerateTable,
 ]
 
 
@@ -110,8 +112,8 @@ class LlmPlanner:
         5. If an optional field does not have a value in the query plan, return null in its place.
         6. If you cannot generate a plan to answer a question, return an empty list.
         7. The first step of each plan MUST be a **QueryDatabase** operation that returns a database.
-        8. The last step of each plan MUST be a **SummarizeData** operation to generate an English
-            answer.
+        8. The last step of each plan MUST be a data generation operation to generate a final response.
+            This can be one of **GenerateEnglishResponse** or **GenerateTable**.
         """
 
         # data schema
@@ -163,7 +165,7 @@ class LlmPlanner:
                     "node_id": 1
                 },
                 {
-                    "operatorName": "SummarizeData",
+                    "operatorName": "GenerateEnglishResponse",
                     "description": "Generate an English response to the original question.
                         Input 1 is a database that contains incidents in Georgia.",
                     "question": "Were there any incidents in Georgia?",
@@ -212,7 +214,7 @@ class LlmPlanner:
                     "node_id": 2
                 },
                 {
-                    "operatorName": "SummarizeData",
+                    "operatorName": "GenerateEnglishResponse",
                     "description": "description": "Generate an English response to the
                         question. Input 1 is a number that corresponds to the number of
                         cities that accidents occurred in.",
@@ -269,11 +271,11 @@ class LlmPlanner:
                     "node_id": 3,
                 }
                 {
-                    "operatorName": "SummarizeData",
-                    "description": "description": "Generate an English response to
+                    "operatorName": "GenerateTable",
+                    "description": "A table representing a list of law firms and their associated revenue",
+                    "table_definition": "A table representing a list of law firms and their associated revenue",
                         the question. Input 1 is a database that contains information
                         about the 2 law firms with the highest revenue.",
-                    "question": "Which 2 law firms had the highest revenue in 2022?",
                     "input": [3],
                     "node_id": 4
                 }
@@ -322,11 +324,11 @@ class LlmPlanner:
                     "node_id": 2,
                 },
                 {
-                    "operatorName": "SummarizeData",
-                    "description": "description": "Generate an English response to the
-                        question. Input 1 is a database that the top 5 water bodies shipwrecks
+                    "operatorName": "GenerateTable",
+                    "description": "Generate a table of countries and the associated number of shipwrecks.
+                        Input 1 is a database that the top 5 water bodies shipwrecks
                         occurred in and their corresponding frequency counts.",
-                    "question": "Which 5 countries were responsible for the most shipwrecks?",
+                    "table_definition": "A table representing a list of countries and the associated number of shipwrecks",
                     "input": [2],
                     "node_id": 3
                 }
@@ -385,7 +387,7 @@ class LlmPlanner:
                     "node_id": 4
                 }
                 {
-                    "operatorName": "SummarizeData",
+                    "operatorName": "GenerateEnglishResponse",
                     "description": "Generate an English response to the question. Input 1 is a
                         number that is the fraction of shipwrecks that occurred in 2023.",
                     "question": "What percent of shipwrecks occurred in 2023?",
@@ -418,7 +420,7 @@ class LlmPlanner:
                     "id": 1
                 },
                 {
-                    "operatorName": "SummarizeData",
+                    "operatorName": "GenerateEnglishResponse",
                     "description": "Generate an English response to the question. Input 1 is a
                         number of patients.",
                     "question": "How many total patients?",

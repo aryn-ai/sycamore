@@ -10,11 +10,12 @@ from sycamore.query.logical_plan import LogicalPlan
 
 from util import show_query_traces, get_schema, generate_plan, run_plan, get_opensearch_indices, show_dag
 
+
 DEFAULT_S3_CACHE_PATH = "s3://aryn-temp/llm_cache/luna/ntsb"
 
 
 def generate_code(client: SycamoreQueryClient, plan: LogicalPlan) -> str:
-    st.session_state.query_id, code = client.run_plan(plan, dry_run=True)
+    _, code = client.run_plan(plan, dry_run=True)
     return code
 
 
@@ -73,11 +74,10 @@ def run_query():
     code = generate_code(client, plan)
     show_code(code)
 
-    st.write(f"Query ID `{st.session_state.query_id}`\n")
-
     if not st.session_state.plan_only:
         with st.spinner("Running query..."):
             st.session_state.query_id, result = run_plan(client, plan)
+        st.write(f"Query ID `{st.session_state.query_id}`\n")
         st.subheader("Result", divider="rainbow")
         st.success(result)
         if st.session_state.do_trace:

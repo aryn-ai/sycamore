@@ -5,6 +5,8 @@ from sycamore.data.document import Document, HierarchicalDocument
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 
+import uuid
+
 
 class DocumentStructure(ABC):
     def __init__(self):
@@ -16,6 +18,50 @@ class DocumentStructure(ABC):
         pass
 
 
+class StructureByImages(DocumentStructure):
+    @staticmethod
+    def extract(doc: Document) -> HierarchicalDocument:
+        doc = HierarchicalDocument(doc.data)
+        doc.data["relationships"] = doc.get("relationships", {})
+        doc.data["label"] = doc.get("label", "DOCUMENT")
+
+        images = [child for child in doc.children if child.type == "Image"]
+        doc.children = []
+        for image in images:
+            initial_page = HierarchicalDocument(
+                {
+                    "type": "Section-header",
+                    "bbox": (0, 0, 0, 0),
+                    "properties": {"score": 1, "page_number": 1},
+                    "text_representation": "Document",
+                    "binary_representation": b"Front Page",
+                    "relationships": {},
+                    "label": "SECTION",
+                }
+            )
+            rel_1 = {
+                "TYPE": "SECTION_OF",
+                "properties": {},
+                "START_ID": initial_page.doc_id,
+                "START_LABEL": "SECTION",
+                "END_ID": doc.doc_id,
+                "END_LABEL": "DOCUMENT",
+            }
+            rel_2 = {
+                "TYPE": "PART_OF",
+                "properties": {},
+                "START_ID": image.doc_id,
+                "START_LABEL": "IMAGE",
+                "END_ID": initial_page.doc_id,
+                "END_LABEL": "SECTION",
+            }
+            doc.data["relationships"][str(uuid.uuid4())] = rel_1
+            initial_page.data["relationships"][str(uuid.uuid4())] = rel_2
+            initial_page.children.append(image)
+            doc.children.append(initial_page)
+        return ExtractImageSummaries.summarize(doc)
+
+
 class StructureBySection(DocumentStructure):
     """
     Organizes documents by their section headers which encompass all of the elements
@@ -25,8 +71,6 @@ class StructureBySection(DocumentStructure):
 
     @staticmethod
     def extract(doc: Document) -> HierarchicalDocument:
-        import uuid
-
         doc = HierarchicalDocument(doc.data)
         # if the first element is not a section header, insert generic placeholder
         if len(doc.children) > 0 and doc.children[0]["type"] != "Section-header":
@@ -100,7 +144,7 @@ class StructureBySection(DocumentStructure):
                 section.data["children"].append(element)
 
         doc.children = sections
-        return doc
+        return ExtractTextSummaries.summarize(doc)
 
 
 class StructureByDocument(DocumentStructure):
@@ -112,8 +156,6 @@ class StructureByDocument(DocumentStructure):
 
     @staticmethod
     def extract(doc: Document) -> HierarchicalDocument:
-        import uuid
-
         doc = HierarchicalDocument(doc.data)
         doc.data["relationships"] = doc.get("relationships", {})
         doc.data["label"] = doc.get("label", "DOCUMENT")
@@ -168,7 +210,7 @@ class StructureByDocument(DocumentStructure):
             section.data["children"].append(element)
 
         doc.children = [section]
-        return doc
+        return ExtractTextSummaries.summarize(doc)
 
 
 class ExtractDocumentStructure(Map):
@@ -188,17 +230,19 @@ class ExtractDocumentStructure(Map):
         super().__init__(child, f=structure.extract, **resource_args)
 
 
-class ExtractSummaries(Map):
-    """
-    Extracts summaries from child documents to be used for entity extraction. This function
-    generates summaries for sections within documents which are used during entity extraction.
-    """
-
-    def __init__(self, child: Node, **resource_args):
-        super().__init__(child, f=ExtractSummaries.summarize_sections, **resource_args)
+class ExtractSummary(ABC):
+    def __init__(self):
+        pass
 
     @staticmethod
-    def summarize_sections(doc: HierarchicalDocument) -> HierarchicalDocument:
+    @abstractmethod
+    def summarize(doc: HierarchicalDocument) -> HierarchicalDocument:
+        pass
+
+
+class ExtractTextSummaries(ExtractSummary):
+    @staticmethod
+    def summarize(doc: HierarchicalDocument) -> HierarchicalDocument:
         for section in doc.children:
             assert section.text_representation is not None
             summary_list = []
@@ -210,4 +254,14 @@ class ExtractSummaries(Map):
                 elem_sum = f"---Element Type: {element.type.strip()}---\n{element.text_representation.strip()}\n"
                 summary_list.append(elem_sum)
             section.data["summary"] = "".join(summary_list)
+        return doc
+
+
+class ExtractImageSummaries(ExtractSummary):
+    @staticmethod
+    def summarize(doc: HierarchicalDocument) -> HierarchicalDocument:
+        for section in doc.children:
+            assert len(section.children) == 1 and section.children[0].type == "Image"
+            image = section.children[0]
+            section.data["summary"] = image.data
         return doc

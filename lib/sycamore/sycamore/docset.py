@@ -441,10 +441,9 @@ class DocSet:
                     .explode()
 
         """
-        from sycamore.transforms.extract_document_structure import ExtractDocumentStructure, ExtractSummaries
+        from sycamore.transforms.extract_document_structure import ExtractDocumentStructure
 
         document_structure = ExtractDocumentStructure(self.plan, structure=structure, **kwargs)
-        document_structure = ExtractSummaries(document_structure)
         return DocSet(self.context, document_structure)
 
     def extract_entity(self, entity_extractor: EntityExtractor, **kwargs) -> "DocSet":
@@ -634,7 +633,9 @@ class DocSet:
 
         return DocSet(self.context, relationships)
 
-    def resolve_graph_entities(self, resolvers: list[EntityResolver] = [], resolve_duplicates = True, **kwargs) -> "DocSet":
+    def resolve_graph_entities(
+        self, resolvers: list[EntityResolver] = [], resolve_duplicates=True, **kwargs
+    ) -> "DocSet":
         """
         Resolves graph entities across documents so that duplicate entities can be resolved
         to the same entity based off criteria of EntityResolver objects.

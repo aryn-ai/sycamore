@@ -1,8 +1,6 @@
 from abc import ABC, abstractmethod
-from collections import defaultdict
 import json
 from typing import TYPE_CHECKING, Any, Dict
-import uuid
 
 from sycamore.data.document import Document, HierarchicalDocument, MetadataDocument
 from sycamore.plan_nodes import Node
@@ -44,7 +42,7 @@ class ResolveEntities:
             remap = {}
             for key, hashes in nodes.items():
                 for hash, _nodes in hashes.items():
-                    for i in range(1,len(_nodes)):
+                    for i in range(1, len(_nodes)):
                         remap[_nodes[i]["doc_id"]] = _nodes[0]["doc_id"]
                         for rel_uuid, rel in _nodes[i]["relationships"].items():
                             assert rel_uuid not in _nodes[0]["relationships"], "UUID Collision"

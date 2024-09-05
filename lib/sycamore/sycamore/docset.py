@@ -1317,7 +1317,7 @@ class DocSet:
     def materialize(
         self,
         path: Optional[Union[Path, str, dict]] = None,
-        source_mode: MaterializeSourceMode = MaterializeSourceMode.OFF,
+        source_mode: MaterializeSourceMode = MaterializeSourceMode.RECOMPUTE,
     ) -> "DocSet":
         """
         The `materialize` transform writes out documents up to that point, marks the

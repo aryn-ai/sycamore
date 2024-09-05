@@ -127,10 +127,10 @@ partitioned_docset = (
     docset.partition(partitioner=ArynPartitioner())
     # these are here mostly as examples; the last materialize will at this point take
     # effect, you can use these during testing.
-    .materialize(path=f"{TMP_DIR}/ntsb_loader_after_partition", source_mode=sycamore.MaterializeSourceMode.IF_PRESENT)
+    .materialize(path=f"{TMP_DIR}/ntsb_loader_after_partition", source_mode=sycamore.MATERIALIZE_USE_STORED)
     .map(add_property_to_schema)
     .extract_properties(property_extractor=OpenAIPropertyExtractor(llm=llm, num_of_elements=35))
-    .materialize(path=f"{TMP_DIR}/ntsb_loader_after_llm", source_mode=sycamore.MaterializeSourceMode.IF_PRESENT)
+    .materialize(path=f"{TMP_DIR}/ntsb_loader_after_llm", source_mode=sycamore.MATERIALIZE_USE_STORED)
     .merge(GreedyTextElementMerger(tokenizer, 300))
     .map(convert_timestamp)
     .spread_properties(["entity", "path"])
@@ -142,9 +142,9 @@ partitioned_docset = (
     # to avoid re-computation.
     .materialize(
         path="s3://aryn-public/materialize/examples/luna/ntsb_loader_2024-08-29",
-        source_mode=sycamore.MaterializeSourceMode.IF_PRESENT,
+        source_mode=sycamore.MATERIALIZE_USE_STORED,
     )
-    .materialize(path=f"{TMP_DIR}/ntsb_loader_after_embed", source_mode=sycamore.MaterializeSourceMode.IF_PRESENT)
+    .materialize(path=f"{TMP_DIR}/ntsb_loader_after_embed", source_mode=sycamore.MATERIALIZE_USE_STORED)
     # materialize locally after reading from S3, it's a bit faster if you're running remotely
     .write.opensearch(
         os_client_args=os_client_args,

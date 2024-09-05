@@ -13,7 +13,7 @@ from pyarrow import fs
 import sycamore
 from sycamore.context import ExecMode
 from sycamore.data import Document, MetadataDocument
-from sycamore.materialize import AutoMaterialize, Materialize, MaterializeSourceMode
+from sycamore.materialize import AutoMaterialize, Materialize
 from sycamore.tests.unit.inmempyarrowfs import InMemPyArrowFileSystem
 
 
@@ -30,7 +30,7 @@ class LocalRenameFilesystem(fs.LocalFileSystem):
         self.extension = ext
 
     def open_output_stream(self, path):
-        if path.endswith("/materialize.success"):
+        if "/materialize." in path:  # don't rewrite these, otherwise exists tests fail
             return super().open_output_stream(path)
         return super().open_output_stream(path + self.extension)
 
@@ -55,7 +55,7 @@ def noop_fn(d):
 
 
 class TestMaterializeWrite(unittest.TestCase):
-    def test_noop(self):
+    def test_tonoop(self):
         ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
         assert ctx.exec_mode == ExecMode.LOCAL
         ctx.read.document(make_docs(3)).map(noop_fn).materialize().execute()
@@ -69,7 +69,7 @@ class TestMaterializeWrite(unittest.TestCase):
             self.check_files(tmpdir)
 
     def check_files(self, tmpdir, ext=""):
-        docs = glob.glob(tmpdir + "/doc_*" + ext)  # doc_id  is doc_#
+        docs = glob.glob(tmpdir + "/doc-doc_*" + ext)  # doc_id  is doc_#; default naming sticks a doc- prefix on
         assert len(docs) == 3
         mds = glob.glob(tmpdir + "/md-*" + ext)
         # MD#1 = the manual one from make_docs
@@ -109,14 +109,14 @@ class TestMaterializeWrite(unittest.TestCase):
             ds.materialize(path={"root": tmpdir, "fs": LocalRenameFilesystem(".test")}).execute()
             self.check_files(tmpdir, ext=".test")
 
-            def doc_to_name2(doc):
-                return Materialize.doc_to_name(doc) + ".test2"
+            def doc_to_name2(doc, bin):
+                return Materialize.doc_to_name(doc, bin) + ".test2"
 
             ds.materialize(path={"root": tmpdir, "name": doc_to_name2}).execute()
             self.check_files(tmpdir, ext=".test2")
 
-            def doc_to_name3(doc):
-                return Materialize.doc_to_name(doc) + ".test3"
+            def doc_to_name3(doc, bin):
+                return Materialize.doc_to_name(doc, bin) + ".test3"
 
             ds.materialize(path={"root": tmpdir, "name": doc_to_name3, "clean": False}).execute()
             # did not clean, both of these should pass
@@ -124,7 +124,7 @@ class TestMaterializeWrite(unittest.TestCase):
             self.check_files(tmpdir, ext=".test3")
 
             files = glob.glob(tmpdir + "/*")
-            assert len(files) == 11
+            assert len(files) == 12
 
     def test_to_binary(self):
         docs = make_docs(3)
@@ -143,7 +143,9 @@ class TestMaterializeWrite(unittest.TestCase):
             for d in docs:
                 if isinstance(d, MetadataDocument):
                     continue
-                with open(Path(tmpdir) / (d.doc_id + ".pickle"), "r") as f:
+                files = glob.glob(tmpdir + f"/doc-{d.doc_id}:*.pickle")
+                assert len(files) == 1
+                with open(files[0], "r") as f:
                     bits = f.read()
                     assert bits == d.doc_id
 
@@ -152,7 +154,7 @@ class TestMaterializeWrite(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             ds.materialize(path={"root": tmpdir, "tobin": onlydoc}).execute()
-            docs = glob.glob(tmpdir + "/doc_*")  # doc_id  is doc_#
+            docs = glob.glob(tmpdir + "/doc-doc_*")  # doc_id  is doc_#; default naming sticks a doc- prefix on
             assert len(docs) == 3
             mds = glob.glob(tmpdir + "/md-*")
             assert len(mds) == 0
@@ -205,18 +207,18 @@ class TestAutoMaterialize(unittest.TestCase):
 
             files = [f for f in Path(tmpdir).rglob("*")]
             logging.info(f"DupNode Found-1 {files}")
-            # counts are docs + md + success file
-            assert len([f for f in files if "DocScan.0/" in str(f)]) == 3 + 1 + 1
-            assert len([f for f in files if "Map.0/" in str(f)]) == 3 + 2 + 1
+            # counts are docs + md + success/clean file
+            assert len([f for f in files if "DocScan.0/" in str(f)]) == 3 + 1 + 2
+            assert len([f for f in files if "Map.0/" in str(f)]) == 3 + 2 + 2
 
             # This is a new pipeline so should get new names
             ctx.read.document(docs).map(noop_fn).execute()
             files = [f for f in Path(tmpdir).rglob("*")]
             logging.info(f"DupNode Found-2 {files}")
-            assert len([f for f in files if "DocScan.0/" in str(f)]) == 3 + 1 + 1
-            assert len([f for f in files if "Map.0/" in str(f)]) == 3 + 2 + 1
-            assert len([f for f in files if "DocScan.1/" in str(f)]) == 3 + 1 + 1
-            assert len([f for f in files if "Map.1/" in str(f)]) == 3 + 2 + 1
+            assert len([f for f in files if "DocScan.0/" in str(f)]) == 3 + 1 + 2
+            assert len([f for f in files if "Map.0/" in str(f)]) == 3 + 2 + 2
+            assert len([f for f in files if "DocScan.1/" in str(f)]) == 3 + 1 + 2
+            assert len([f for f in files if "Map.1/" in str(f)]) == 3 + 2 + 2
 
     def test_forcenodename(self):
         docs = make_docs(3)
@@ -228,12 +230,12 @@ class TestAutoMaterialize(unittest.TestCase):
 
             files = [f for f in Path(tmpdir).rglob("*")]
             logging.info(f"DupNode Found-1 {files}")
-            assert len([f for f in files if "reader/" in str(f)]) == 3 + 1 + 1
-            assert len([f for f in files if "noop/" in str(f)]) == 3 + 2 + 1
+            assert len([f for f in files if "reader/" in str(f)]) == 3 + 1 + 2
+            assert len([f for f in files if "noop/" in str(f)]) == 3 + 2 + 2
 
     def test_overrides(self):
-        def doc_to_name4(doc):
-            return Materialize.doc_to_name(doc) + ".test4"
+        def doc_to_name4(doc, bin):
+            return Materialize.doc_to_name(doc, bin) + ".test4"
 
         docs = make_docs(3)
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -247,13 +249,14 @@ class TestAutoMaterialize(unittest.TestCase):
             assert len([f for f in files if ".test4" in str(f)]) == 3 + 1 + 3 + 2
 
             for d in docs:
-                if not isinstance(d, MetadataDocument):
-                    d.doc_id = d.doc_id + "-dup"
+                d.doc_id = d.doc_id + "-dup"
 
             ds.execute()
             files = [f for f in Path(tmpdir).rglob("*")]
-            assert len([f for f in files if "-dup" in str(f)]) == 3 + 3
-            assert len([f for f in files if ".test4" in str(f)]) == 2 * (3 + 1 + 3 + 2)
+            assert len([f for f in files if "-dup" in str(f)]) == 4 + 4
+            test4_files = [f for f in files if ".test4" in str(f)]
+            logging.error(f"ERIC {test4_files}")
+            assert len(test4_files) == 2 * (3 + 1 + 3 + 2)
 
             a._path["clean"] = True
             ds.execute()
@@ -288,7 +291,7 @@ class TestMaterializeRead(unittest.TestCase):
             ds = (
                 ctx.read.document(docs)
                 .map(noop_fn)
-                .materialize(path=tmpdir, source_mode=MaterializeSourceMode.IF_PRESENT)
+                .materialize(path=tmpdir, source_mode=sycamore.MATERIALIZE_USE_STORED)
             )
             e1 = ds.take_all()
             assert e1 is not None
@@ -437,3 +440,12 @@ class TestClearMaterialize(unittest.TestCase):
 
     def test_no_clear_non_local(self):
         self.maybe_clear_non_local(False)
+
+
+class TestErrorChecking(unittest.TestCase):
+    def test_duplicate_root(self):
+        ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
+        ds = ctx.read.document(make_docs(3))
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with pytest.raises(ValueError):
+                ds.materialize(path=tmpdir).materialize(path=tmpdir).execute()

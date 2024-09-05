@@ -255,7 +255,6 @@ class TestAutoMaterialize(unittest.TestCase):
             files = [f for f in Path(tmpdir).rglob("*")]
             assert len([f for f in files if "-dup" in str(f)]) == 4 + 4
             test4_files = [f for f in files if ".test4" in str(f)]
-            logging.error(f"ERIC {test4_files}")
             assert len(test4_files) == 2 * (3 + 1 + 3 + 2)
 
             a._path["clean"] = True
@@ -440,6 +439,46 @@ class TestClearMaterialize(unittest.TestCase):
 
     def test_no_clear_non_local(self):
         self.maybe_clear_non_local(False)
+
+    def test_clear_matching(self):
+        ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            ds = (
+                ctx.read.document(make_docs(3))
+                .map(noop_fn)
+                .materialize(path=tmpdir + "/a")
+                .materialize(path=tmpdir + "/b")
+                .materialize(path=tmpdir + "/b2")
+            )
+            ds.execute()
+            assert Path(f"{tmpdir}/a/materialize.success").exists()
+            assert Path(f"{tmpdir}/b/materialize.success").exists()
+            assert Path(f"{tmpdir}/b2/materialize.success").exists()
+
+            # not matching removes nothing
+            ds.clear_materialize("c*")
+            assert Path(f"{tmpdir}/a/materialize.success").exists()
+            assert Path(f"{tmpdir}/b/materialize.success").exists()
+            assert Path(f"{tmpdir}/b2/materialize.success").exists()
+
+            # match exact
+            ds.clear_materialize("a")
+            assert not Path(f"{tmpdir}/a/materialize.success").exists()
+            assert Path(f"{tmpdir}/b/materialize.success").exists()
+            assert Path(f"{tmpdir}/b2/materialize.success").exists()
+
+            # match exact with path
+            ds.clear_materialize(Path(tmpdir) / "b")
+            assert not Path(f"{tmpdir}/a/materialize.success").exists()
+            assert not Path(f"{tmpdir}/b/materialize.success").exists()
+            assert Path(f"{tmpdir}/b2/materialize.success").exists()
+
+            # match multiple, and as a path
+            ds.execute()
+            ds.clear_materialize(Path(tempfile.gettempdir()) / "*/b*")
+            assert Path(f"{tmpdir}/a/materialize.success").exists()
+            assert not Path(f"{tmpdir}/b/materialize.success").exists()
+            assert not Path(f"{tmpdir}/b2/materialize.success").exists()
 
 
 class TestErrorChecking(unittest.TestCase):

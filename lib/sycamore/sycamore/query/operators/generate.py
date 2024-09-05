@@ -45,6 +45,3 @@ class GeneratePreview(LogicalOperator):
       { "path": "s3://aryn-public/samples/sampledata2.pdf", "title": "Another sample Document", "description": "This is another sample document." },
     ]
     """
-
-    preview_definition: str
-    """An English description of the documents to preview."""

@@ -37,7 +37,7 @@ OPERATORS: List[Type[LogicalOperator]] = [
     TopK,
     Limit,
     GenerateEnglishResponse,
-#    GeneratePreview,
+    GeneratePreview,
     GenerateTable,
 ]
 
@@ -113,7 +113,7 @@ class LlmPlanner:
         6. If you cannot generate a plan to answer a question, return an empty list.
         7. The first step of each plan MUST be a **QueryDatabase** operation that returns a database.
         8. The last step of each plan MUST be a data generation operation to generate a final response.
-            This can be one of **GenerateEnglishResponse** or **GenerateTable**.
+            This can be one of **GenerateEnglishResponse**, **GenerateTable**, or **GeneratePreview**.
         """
 
         # data schema

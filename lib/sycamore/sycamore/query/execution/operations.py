@@ -24,6 +24,7 @@ BASE_PROPS = [
 ]
 
 NUM_DOCS_GENERATE = 60
+NUM_DOCS_PREVIEW = 10
 NUM_TEXT_CHARS_GENERATE = 2500
 
 
@@ -166,3 +167,43 @@ def generate_table(llm: LLM, table_definition: str, result_description: str, res
 
     # LLM response
     return completion
+
+
+def generate_preview(result_description: str, result_data: List[Any], **kwargs) -> str:
+    """
+    Generates a JSON object representing a preview of a set of Documents.
+
+    Args:
+        result_description: Description of each of the inputs in result_data.
+        result_data: List of inputs.
+        **kwargs
+
+    Returns:
+        JSON list of dicts representing a set of previews.
+    """
+    previews = {}
+
+    for result in result_data:
+        if isinstance(result, DocSet):
+            for doc in result.take(NUM_DOCS_PREVIEW, **kwargs):
+                if isinstance(doc, MetadataDocument):
+                    continue
+
+                # Remove duplicate parent docs.
+                doc_id = doc.parent_id or doc.doc_id
+                if doc_id in previews:
+                    continue
+
+                preview = {
+                    "path": doc.properties.get("path"),
+                    "title": doc.properties.get("title"),
+                    "description": doc.properties.get("description"),
+                    "snippet": (
+                        doc.text_representation[:NUM_TEXT_CHARS_GENERATE]
+                        if doc.text_representation is not None
+                        else None
+                    ),
+                }
+                previews[doc_id] = preview
+
+    return json.dumps(list(previews.values()), indent=2)

@@ -16,7 +16,7 @@ from sycamore.query.operators.math import Math
 from sycamore.query.operators.sort import Sort
 from sycamore.query.operators.top_k import TopK
 from sycamore.query.operators.field_in import FieldIn
-from sycamore.query.operators.generate import GenerateTable, GenerateEnglishResponse
+from sycamore.query.operators.generate import GeneratePreview, GenerateTable, GenerateEnglishResponse
 from structlog.contextvars import clear_contextvars, bind_contextvars
 from sycamore import Context
 
@@ -33,6 +33,7 @@ from sycamore.query.execution.sycamore_operator import (
     SycamoreLimit,
     SycamoreFieldIn,
     SycamoreGenerateTable,
+    SycamoreGeneratePreview,
 )
 from sycamore.query.logical_plan import LogicalPlan
 
@@ -97,6 +98,7 @@ class SycamoreExecutor:
         if self.trace_dir and not self.dry_run:
             trace_dir = os.path.join(self.trace_dir, query_id, str(logical_node.node_id))
             import logging
+
             logging.warning(f"MDW: MAKING TRACE DIR {trace_dir} FROM NODE {logical_node}")
             os.makedirs(trace_dir, exist_ok=True)
         else:
@@ -215,15 +217,14 @@ class SycamoreExecutor:
                 s3_cache_path=s3_cache_path,
                 trace_dir=self.trace_dir,
             )
-        # elif isinstance(logical_node, GeneratePreview):
-        #     operation = SycamoreGeneratePreview(
-        #         context=self.context,
-        #         logical_node=logical_node,
-        #         query_id=query_id,
-        #         inputs=inputs,
-        #         s3_cache_path=s3_cache_path,
-        #         trace_dir=self.trace_dir,
-        #     )
+        elif isinstance(logical_node, GeneratePreview):
+            operation = SycamoreGeneratePreview(
+                context=self.context,
+                logical_node=logical_node,
+                query_id=query_id,
+                inputs=inputs,
+                trace_dir=self.trace_dir,
+            )
         elif isinstance(logical_node, Math):
             operation = MathOperator(logical_node=logical_node, query_id=query_id, inputs=inputs)
         else:

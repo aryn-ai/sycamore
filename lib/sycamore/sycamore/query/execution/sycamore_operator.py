@@ -9,15 +9,13 @@ from sycamore.query.operators.limit import Limit
 from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
 from sycamore.query.operators.llm_filter import LlmFilter
 from sycamore.query.operators.summarize_data import SummarizeData
-from sycamore.query.operators.generate import GenerateTable, GenerateEnglishResponse
+from sycamore.query.operators.generate import GenerateTable, GenerateEnglishResponse, GeneratePreview
 from sycamore.query.operators.query_database import QueryDatabase
 from sycamore.query.operators.top_k import TopK
 from sycamore.query.operators.field_in import FieldIn
 from sycamore.query.operators.sort import Sort
 
-from sycamore.query.execution.operations import (
-    summarize_data, generate_table
-)
+from sycamore.query.execution.operations import summarize_data, generate_table, generate_preview
 from sycamore.llms import OpenAI, OpenAIModels
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.utils.cache import S3Cache
@@ -196,7 +194,7 @@ class SycamoreGenerateTable(SycamoreOperator):
         assert isinstance(self.logical_node, GenerateTable)
 
     def execute(self) -> Any:
-        assert self.inputs and len(self.inputs) >= 1, "SummarizeData requires at least 1 input node"
+        assert self.inputs and len(self.inputs) >= 1, "GemerateTable requires at least 1 input node"
         assert isinstance(self.logical_node, GenerateTable)
         table_definition = self.logical_node.table_definition
         assert table_definition is not None and isinstance(table_definition, str)
@@ -239,6 +237,57 @@ class SycamoreGenerateTable(SycamoreOperator):
         return result, [
             "from sycamore.query.execution.operations import generate_table",
             "from sycamore.llms import OpenAI, OpenAIModels",
+        ]
+
+
+class SycamoreGeneratePreview(SycamoreOperator):
+    """
+    Generate a JSON object representing a document preview.
+    """
+
+    def __init__(
+        self,
+        context: Context,
+        logical_node: GeneratePreview,
+        query_id: str,
+        inputs: Optional[List[Any]] = None,
+        trace_dir: Optional[str] = None,
+    ) -> None:
+        super().__init__(context, logical_node, query_id, inputs, trace_dir=trace_dir)
+        assert isinstance(self.logical_node, GeneratePreview)
+
+    def execute(self) -> Any:
+        assert self.inputs and len(self.inputs) >= 1, "GeneratePreview requires at least 1 input node"
+        assert isinstance(self.logical_node, GeneratePreview)
+        description = self.logical_node.description
+        assert description is not None and isinstance(description, str)
+
+        result = generate_preview(
+            result_description=description,
+            result_data=self.inputs,
+            **self.get_execute_args(),
+        )
+        return result
+
+    def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
+        assert isinstance(self.logical_node, GeneratePreview)
+        description = self.logical_node.description
+        assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) >= 1
+        logical_deps_str = ""
+        for i, inp in enumerate(self.logical_node.dependencies):
+            logical_deps_str += input_var or get_var_name(inp)
+            if i != len(self.logical_node.dependencies) - 1:
+                logical_deps_str += ", "
+
+        result = f"""
+{output_var or get_var_name(self.logical_node)} = generate_preview(
+    result_description='{description}',
+    result_data=[{logical_deps_str}],
+    **{get_str_for_dict(self.get_execute_args())},
+)
+"""
+        return result, [
+            "from sycamore.query.execution.operations import generate_preview",
         ]
 
 

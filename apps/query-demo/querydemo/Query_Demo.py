@@ -35,6 +35,7 @@ EXAMPLE_QUERIES = [
     "How many incidents were there in Washington in 2023?",
     "Show me incidents involving tail number N4811E",
     "What was the breakdown of aircraft types for incidents with substantial damage?",
+    "Show me accident ERA23LA153",
 ]
 
 
@@ -240,7 +241,7 @@ if "s3_cache_path" not in st.session_state:
 if "use_cache" not in st.session_state:
     st.session_state.use_cache = True
 
-# get_initial_documents()
+get_initial_documents()
 
 for msg in st.session_state.messages:
     if msg.message.get("role") not in ["user", "assistant"]:

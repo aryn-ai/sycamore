@@ -118,9 +118,8 @@ class OpenSearchWriterClient(BaseDBWriter.Client):
             self._client.indices.create(
                 index_name, body={"mappings": target_params.mappings, "settings": target_params.settings}
             )
-        except RequestError as e:
-            if e.error != "resource_already_exists_exception":
-                raise e
+        except RequestError:
+            return
 
     def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> OpenSearchWriterTargetParams:
         def _string_values_to_python_types(obj: Any):

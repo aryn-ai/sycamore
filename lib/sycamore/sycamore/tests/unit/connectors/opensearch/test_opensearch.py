@@ -1,4 +1,4 @@
-from opensearchpy import OpenSearch, RequestError
+from opensearchpy import OpenSearch, RequestError, ConnectionError
 import pytest
 from sycamore.connectors.opensearch import (
     OpenSearchWriterClient,
@@ -60,11 +60,11 @@ class TestOpenSearchTargetParams:
 
 
 class TestOpenSearchClient:
-    def test_create_target_already_exists(self, mocker):
+    def test_create_target_request_error(self, mocker):
         client = mocker.Mock(spec=OpenSearch)
         client.indices = mocker.Mock()
         client.indices.create = mocker.Mock()
-        client.indices.create.side_effect = RequestError(400, "resource_already_exists_exception", {})
+        client.indices.create.side_effect = RequestError(400, "Some Reason", {})
 
         params = OpenSearchWriterTargetParams(index_name="found")
         osc_testing = OpenSearchWriterClient(client)
@@ -76,14 +76,14 @@ class TestOpenSearchClient:
         client = mocker.Mock(spec=OpenSearch)
         client.indices = mocker.Mock()
         client.indices.create = mocker.Mock()
-        client.indices.create.side_effect = RequestError(400, "could_not_create_index_for_some_other_reason", {})
+        client.indices.create.side_effect = ConnectionError(400, "Not connected", {})
 
         params = OpenSearchWriterTargetParams(index_name="fail")
         osc_testing = OpenSearchWriterClient(client)
 
-        with pytest.raises(RequestError) as einfo:
+        with pytest.raises(ConnectionError) as einfo:
             osc_testing.create_target_idempotent(params)
-        assert einfo.value.error == "could_not_create_index_for_some_other_reason"
+        assert einfo.value.error == "Not connected"
 
     def test_get_target_awkward_field_types_n_stuff(self, mocker):
         client = mocker.Mock(spec=OpenSearch)

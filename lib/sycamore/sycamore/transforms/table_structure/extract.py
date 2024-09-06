@@ -11,6 +11,7 @@ from sycamore.transforms.table_structure import table_transformers
 from sycamore.transforms.table_structure.table_transformers import MaxResize
 from sycamore.utils.time_trace import timetrace
 from sycamore.utils import choose_device
+from sycamore.utils.import_utils import requires_modules
 
 
 class TableStructureExtractor:
@@ -99,6 +100,7 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         return tokens
 
     @timetrace("tblExtr")
+    @requires_modules(["torch", "torchvision"], extra="local-inference")
     def extract(self, element: TableElement, doc_image: Image.Image) -> TableElement:
         """Extracts the table structure from the specified element using a TableTransformer model.
 

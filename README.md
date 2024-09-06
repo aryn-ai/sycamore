@@ -6,7 +6,7 @@
 [![Docs](https://readthedocs.org/projects/sycamore/badge/?version=stable)](https://sycamore.readthedocs.io/en/stable/?badge=stable)
 ![License](https://img.shields.io/github/license/aryn-ai/sycamore)
 
-Sycamore is an open source, AI-powered document processing engine for ETL, RAG, LLM-based applications, and analytics on unstructured data. Sycamore can partition and enrich a wide range of document types including reports, presentations, transcripts, manuals, and more. It can analyze and chunk complex documents such as PDFs and images with embedded tables, figures, graphs, and other infographics. Check out an [example notebook here](https://github.com/aryn-ai/sycamore/blob/main/notebooks/metadata-extraction.ipynb).
+Sycamore is an open source, AI-powered document processing engine for ETL, RAG, LLM-based applications, and analytics on unstructured data. Sycamore can partition and enrich a wide range of document types including reports, presentations, transcripts, manuals, and more. It can analyze and chunk complex documents such as PDFs and images with embedded tables, figures, graphs, and other infographics. Check out an [example notebook](https://github.com/aryn-ai/sycamore/blob/main/notebooks/sycamore-tutorial-intermediate-etl.ipynb).
 
 For processing PDFs, Sycamore leverages the [Aryn Partitioning Service](https://www.aryn.ai/post/announcing-the-aryn-partitioning-service), a serverless, GPU-powered API for segmenting and labeling documents, doing OCR, extracting tables and images, and more. It levereages Aryn's state-of-the-art, [open source deep learning DETR AI model](https://huggingface.co/Aryn/deformable-detr-DocLayNet) trained on 80k+ enterprise documents, and it can lead to 6x more accurate data chunking and 2x improved recall on hybrid search or RAG when compared to alternate systems. You can [sign-up for free here](http://www.aryn.ai/get-started), or choose to run the Aryn Partitioner locally.
 
@@ -48,6 +48,7 @@ To use the Aryn Partitioning Service, [sign-up for free here](https://www.aryn.a
 ## Resources
 
 - Documentation: https://sycamore.readthedocs.io
+- Example notebook: https://github.com/aryn-ai/sycamore/blob/main/notebooks/sycamore-tutorial-intermediate-etl.ipynb
 - Slack: https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg
 - Data preparation libraries (PyPi): https://pypi.org/project/sycamore-ai/
 - Contact us: info@aryn.ai

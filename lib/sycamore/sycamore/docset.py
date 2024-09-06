@@ -1317,7 +1317,7 @@ class DocSet:
     def materialize(
         self,
         path: Optional[Union[Path, str, dict]] = None,
-        source_mode: MaterializeSourceMode = MaterializeSourceMode.OFF,
+        source_mode: MaterializeSourceMode = MaterializeSourceMode.RECOMPUTE,
     ) -> "DocSet":
         """
         The `materialize` transform writes out documents up to that point, marks the
@@ -1327,23 +1327,45 @@ class DocSet:
         re-computation.
 
         path: a Path or string represents the "directory" for the materialized elements. The filesystem
-              and naming convention will be inferred.  The dictionary allowes finer control, and supports
+              and naming convention will be inferred.  The dictionary variant allowes finer control, and supports
               { root=Path|str, fs=pyarrow.fs, name=lambda Document -> str, clean=True,
                 tobin=Document.serialize()}
               root is required
 
         source_mode: how this materialize step should be used as an input:
-           OFF: (default) does not act as a source
-           IF_PRESENT: If the materialize has successfully run to completion, or if the
-             materialize step is the first step, use the contents of the directory as the
-             inputs.  WARNING: If you change the input files or any of the steps before the
-             materialize step, you need to delete the materialize directory to force re-execution.
+           RECOMPUTE: (default) the transform does not act as a source, previous transforms
+             will be recomputed.
+           USE_STORED: If the materialize has successfully run to completion, or if the
+             materialize step has no prior step, use the stored contents of the directory as the
+             inputs.  No previous transform will be computed.
+             WARNING: If you change the input files or any of the steps before the
+             materialize step, you need to use clear_materialize() or change the source_mode
+             to force re-execution.
+
+           Note: you can write the source mode as MaterializeSourceMode.SOMETHING after importing
+           MaterializeSourceMode, or as sycamore.MATERIALIZE_SOMETHING after importing sycamore.
 
         """
 
         from sycamore.materialize import Materialize
 
         return DocSet(self.context, Materialize(self.plan, self.context, path=path, source_mode=source_mode))
+
+    def clear_materialize(self, path: Optional[Union[Path, str]] = None, *, clear_non_local=False) -> None:
+        """
+        Deletes all of the materialized files referenced by the docset.
+
+        path will use PurePath.match to check if the specified path matches against
+        the directory used for each materialize transform. Only matching directories
+        will be cleared.
+
+        Set clear_non_local=True to clear non-local filesystems. Note filesystems like
+        NFS/CIFS will count as local.  pyarrow.fs.SubTreeFileSystem is treated as non_local.
+        """
+
+        from sycamore.materialize import clear_materialize
+
+        clear_materialize(self.plan, path=path, clear_non_local=clear_non_local)
 
     def execute(self, **kwargs) -> None:
         """

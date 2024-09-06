@@ -1,8 +1,9 @@
 import json
 import math
-from typing import Any, List, Union
+from typing import Any, List, Union, Optional
 
 from sycamore import DocSet
+from sycamore.context import context_params, Context
 from sycamore.data import MetadataDocument
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts.default_prompts import (
@@ -55,7 +56,15 @@ def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
         raise ValueError("Invalid math operator " + operator)
 
 
-def summarize_data(llm: LLM, question: str, result_description: str, result_data: List[Any], **kwargs) -> str:
+@context_params
+def summarize_data(
+    llm: LLM,
+    question: str,
+    result_description: str,
+    result_data: List[Any],
+    context: Optional[Context] = None,
+    **kwargs,
+) -> str:
     """
     Provides an English response to a question given relevant information.
 

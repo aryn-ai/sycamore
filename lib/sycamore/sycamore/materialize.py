@@ -408,15 +408,24 @@ class AutoMaterialize(NodeTraverse):
         self._fshelper = _PyArrowFsHelper(self._fs)
 
 
-def clear_materialize(plan: Node, clear_non_local: bool):
+def clear_materialize(plan: Node, *, path: Optional[Union[Path, str]], clear_non_local: bool):
     """See docset.clear_materialize() for documentation"""
     from pyarrow.fs import LocalFileSystem
+
+    if isinstance(path, Path):
+        path = str(path)  # pathlib.PurePath.match requires the match to be a string
+    if path is None:
+        path = "*"
 
     def clean_dir(n: Node):
         if not isinstance(n, Materialize):
             return
+        if n._root is None:
+            return
         if not (isinstance(n._fs, LocalFileSystem) or clear_non_local):
-            logger.info(f"Skipping clearing non-local {n._orig_path} {clear_non_local}")
+            logger.info(f"Skipping clearing non-local path {n._orig_path}")
+            return
+        if not n._root.match(path):
             return
         # safe_cleanup logs
         n._fshelper.safe_cleanup(n._root)

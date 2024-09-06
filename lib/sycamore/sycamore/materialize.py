@@ -126,13 +126,7 @@ class Materialize(UnaryNode):
 
     def execute(self, **kwargs) -> "Dataset":
         logger.debug("Materialize execute")
-<<<<<<< HEAD
-        # XXX MDW
-        logger.warning(f"MDW: Materialize execute - root is {self._root}")
-        if self._source_mode == MaterializeSourceMode.IF_PRESENT:
-=======
         if self._source_mode == MaterializeSourceMode.USE_STORED:
->>>>>>> main
             success = self._fshelper.file_exists(self._success_path())
             if success or len(self.children) == 0:
                 logger.info(f"Using {self._orig_path} as the cached source of data")
@@ -257,16 +251,6 @@ class Materialize(UnaryNode):
         assert self._root is not None
         name = self._doc_to_name(doc, bin)
         path = self._root / name
-<<<<<<< HEAD
-        # XXX MDW HACKING
-        try:
-            lineage_id = getattr(doc, "lineage_id", "<no lineage ID>")
-            logging.warning(f"MDW: SAVING DOC TO {str(path)} - LINEAGE {lineage_id}")
-        except:
-            logging.warning(f"MDW: SAVING DOC TO {str(path)} - NO LINEAGE")
-=======
-
->>>>>>> main
         if self._clean_root and self._fshelper.file_exists(path):
             if self._doc_to_name != self.doc_to_name:
                 # default doc_to_name includes a content based hash, so "duplicate" entries

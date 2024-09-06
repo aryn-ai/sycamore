@@ -229,7 +229,6 @@ class SycamoreExecutor:
         result = "visited"
         if not self.codegen_mode and not self.dry_run:
             result = operation.execute()
-            # XXX MDW HACKING
             if trace_dir and hasattr(result, "materialize"):
                 log.info("Materializing result", trace_dir=trace_dir)
                 result = result.materialize(trace_dir)

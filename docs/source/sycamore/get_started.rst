@@ -12,6 +12,23 @@ We recommend installing the Sycmaore library using ``pip``:
 
 ..
 
+Connectors for vector databases can be installed via extras. For example,
+
+.. code-block:: python
+
+    pip install sycamore-ai[opensearch]
+
+..
+
+will install Sycamore with OpenSearch support. You can find a list of supported connectors :doc:`here </sycamore/connectors>`.
+
+By default, Sycamore works with the Aryn Partitioning Service to process PDFs. To run inference locally, install the `local-inference` extra as follows:
+
+.. code-block:: python
+
+    pip install sycamore-ai[local-inference]
+
+..
 
 Next, you can set the proper API keys for related services, like the Aryn Partitioning Service (APS) for processing PDFs (`sign-up here <https://www.aryn.ai/get-started>`_ for free) or OpenAI to use GPT with Sycamore's LLM-based transforms.
 

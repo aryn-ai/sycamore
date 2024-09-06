@@ -5,7 +5,7 @@ from sycamore.data.element import Element
 from sycamore.docset import DocSet
 from sycamore.llms.llms import LLM
 from sycamore.llms.openai import OpenAI, OpenAIModels
-from sycamore.llms.prompts.default_prompts import SimpleGuidancePrompt, TaskIdentifierZeroShotGuidancePrompt
+from sycamore.llms.prompts.default_prompts import SimplePrompt, TaskIdentifierZeroShotGuidancePrompt
 from sycamore.transforms.embed import Embedder, SentenceTransformerEmbedder
 from sycamore.transforms.query import QueryExecutor
 
@@ -22,7 +22,7 @@ class SubtaskExecutor:
             model_name="sentence-transformers/all-MiniLM-L6-v2", batch_size=100
         ),
         llm: LLM = OpenAI(OpenAIModels.GPT_3_5_TURBO.value),
-        prompt: SimpleGuidancePrompt = TaskIdentifierZeroShotGuidancePrompt(),
+        prompt: SimplePrompt = TaskIdentifierZeroShotGuidancePrompt(),
         knn_query: bool = False,
     ):
         if subtask_data:

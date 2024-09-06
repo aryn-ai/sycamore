@@ -114,7 +114,7 @@ class StructureBySection(DocumentStructure):
                     "END_ID": doc.doc_id,
                     "END_LABEL": "DOCUMENT",
                 }
-                child.data["relationships"][str(uuid.uuid4())] = rel
+                doc.data["relationships"][str(uuid.uuid4())] = rel
                 child.data["label"] = "SECTION"
                 section = child
                 sections.append(section)
@@ -138,7 +138,7 @@ class StructureBySection(DocumentStructure):
                     "END_ID": section.doc_id,
                     "END_LABEL": "SECTION",
                 }
-                child.data["relationships"][str(uuid.uuid4())] = rel
+                section.data["relationships"][str(uuid.uuid4())] = rel
                 child.data["label"] = "ELEMENT"
                 element = child
                 section.data["children"].append(element)

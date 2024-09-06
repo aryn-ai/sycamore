@@ -12,8 +12,6 @@ import xml.etree.ElementTree as ET
 import numpy as np
 import pandas as pd
 
-import torch
-
 from sycamore.data.table import Table, TableCell
 from sycamore.data import BoundingBox
 
@@ -61,12 +59,16 @@ def iob(coords1, coords2) -> float:
 
 # for output bounding box post-processing
 def box_cxcywh_to_xyxy(x):
+    import torch
+
     x_c, y_c, w, h = x.unbind(-1)
     b = [(x_c - 0.5 * w), (y_c - 0.5 * h), (x_c + 0.5 * w), (y_c + 0.5 * h)]
     return torch.stack(b, dim=1)
 
 
 def rescale_bboxes(out_bbox, size):
+    import torch
+
     img_w, img_h = size
     b = box_cxcywh_to_xyxy(out_bbox)
     b = b * torch.tensor([img_w, img_h, img_w, img_h], dtype=torch.float32)
@@ -103,15 +105,25 @@ DEFAULT_STRUCTURE_CLASS_THRESHOLDS = {
 def objects_to_table(objects, tokens, structure_class_thresholds=DEFAULT_STRUCTURE_CLASS_THRESHOLDS) -> Optional[Table]:
     structures = objects_to_structures(objects, tokens=tokens, class_thresholds=structure_class_thresholds)
 
+    if len(structures) == 0:
+        return None
+
     cells, _ = structure_to_cells(structures, tokens=tokens)
 
     table_cells = []
     for cell in cells:
+
+        rows = sorted(cell["row_nums"])
+        rows = list(range(rows[0], rows[-1] + 1))
+
+        cols = sorted(cell["column_nums"])
+        cols = list(range(cols[0], cols[-1] + 1))
+
         table_cells.append(
             TableCell(
                 content=cell["cell text"],
-                rows=cell["row_nums"],
-                cols=cell["column_nums"],
+                rows=rows,
+                cols=cols,
                 is_header=cell["column header"],
                 bbox=BoundingBox(*cell["bbox"]),
             )
@@ -737,7 +749,9 @@ def objects_to_structures(objects, tokens, class_thresholds):
 
     tables = [obj for obj in objects if obj["label"] == "table"]
 
-    assert len(tables) == 1
+    assert len(tables) <= 1
+    if len(tables) == 0:
+        return {}
 
     table = tables[0]
     structure = {}
@@ -831,12 +845,21 @@ def structure_to_cells(table_structure, tokens):
                 "column header": header,
             }
 
+            # Note: We were seeing issues with cells being put in more than one overlapping supercell.
+            # There is some code in nms_supercells that attempts to remove supercell overlap, but only
+            # adjusts the set of rows and cols, it does not update the bounding box. While we could try
+            # adjust the bounding boxes, instead we add code here to place each cell in
+            # at most one spanning cell
             cell["subcell"] = False
-            for spanning_cell in spanning_cells:
+            cell["supercell"] = None
+            for i, spanning_cell in enumerate(spanning_cells):
                 spanning_cell_rect = BoundingBox(*spanning_cell["bbox"])
-                if (spanning_cell_rect.intersect(cell_rect).area / cell_rect.area) > 0.5:
+                overlap = spanning_cell_rect.intersect(cell_rect).area / cell_rect.area
+                if overlap > 0.5:
                     cell["subcell"] = True
-                    break
+
+                    if cell["supercell"] is None or overlap > cell["supercell"][1]:
+                        cell["supercell"] = (i, overlap)
 
             if cell["subcell"]:
                 subcells.append(cell)
@@ -846,34 +869,32 @@ def structure_to_cells(table_structure, tokens):
                 cell["projected row header"] = False
                 cells.append(cell)
 
-    for spanning_cell in spanning_cells:
-        spanning_cell_rect = BoundingBox(*spanning_cell["bbox"])
-        cell_columns = set()
-        cell_rows = set()
-        cell_rect = None
-        header = True
-        for subcell in subcells:
-            subcell_rect = BoundingBox(*subcell["bbox"])
-            subcell_rect_area = subcell_rect.area
-            if (subcell_rect.intersect(spanning_cell_rect).area / subcell_rect_area) > 0.5:
-                if cell_rect is None:
-                    cell_rect = BoundingBox(*subcell["bbox"])
-                else:
-                    cell_rect.union_self(BoundingBox(*subcell["bbox"]))
-                cell_rows = cell_rows.union(set(subcell["row_nums"]))
-                cell_columns = cell_columns.union(set(subcell["column_nums"]))
-                # By convention here, all subcells must be classified
-                # as header cells for a spanning cell to be classified as a header cell;
-                # otherwise, this could lead to a non-rectangular header region
-                header = header and "column header" in subcell and subcell["column header"]
-        if len(cell_rows) > 0 and len(cell_columns) > 0:
-            cell = {
-                "bbox": cell_rect.to_list(),
-                "column_nums": list(cell_columns),
-                "row_nums": list(cell_rows),
-                "column header": header,
-                "projected row header": spanning_cell["projected row header"],
+    merged_spanning_cells = {}
+    for subcell in subcells:
+        idx, overlap = subcell["supercell"]
+
+        if idx not in merged_spanning_cells:
+            merged_spanning_cells[idx] = {
+                "bbox": BoundingBox(*subcell["bbox"]),
+                "column_nums": subcell["column_nums"],
+                "row_nums": subcell["row_nums"],
+                "column header": subcell.get("column header", False),
+                "projected row header": spanning_cells[idx]["projected row header"],
             }
+        else:
+            m = merged_spanning_cells[idx]
+            m["bbox"].union_self(BoundingBox(*subcell["bbox"]))
+            m["column_nums"] = list(set(m["column_nums"]).union(set(subcell["column_nums"])))
+            m["row_nums"] = list(set(m["row_nums"]).union(set(subcell["row_nums"])))
+
+            # By convention here, all subcells must be classified
+            # as header cells for a spanning cell to be classified as a header cell;
+            # otherwise, this could lead to a non-rectangular header region
+            m["column header"] = m["column header"] and subcell.get("column header", False)
+
+    for cell in merged_spanning_cells.values():
+        if len(cell["column_nums"]) > 0 and len(cell["row_nums"]) > 0:
+            cell["bbox"] = cell["bbox"].to_list()
             cells.append(cell)
 
     # Compute a confidence score based on how well the page tokens

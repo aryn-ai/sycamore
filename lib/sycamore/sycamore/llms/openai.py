@@ -1,25 +1,30 @@
 import functools
+import inspect
 import logging
 import os
 import pickle
 from dataclasses import dataclass
 from enum import Enum
-from typing import Awaitable, Optional, TypedDict, Union, cast
+from typing import Any, Optional, TypedDict, Union, cast, TYPE_CHECKING
 
-from guidance.models import AzureOpenAIChat, AzureOpenAICompletion
-from guidance.models import Model
-from guidance.models import OpenAI as GuidanceOpenAI
 from openai import AzureOpenAI as AzureOpenAIClient
 from openai import AsyncAzureOpenAI as AsyncAzureOpenAIClient
 from openai import OpenAI as OpenAIClient
 from openai import AsyncOpenAI as AsyncOpenAIClient
 from openai import max_retries as DEFAULT_MAX_RETRIES
 from openai.lib.azure import AzureADTokenProvider
+from openai.lib._parsing import type_to_response_format_param
 
+
+import pydantic
+
+from sycamore.llms.guidance import execute_with_guidance
 from sycamore.llms.llms import LLM
-from sycamore.llms.prompts import GuidancePrompt
+from sycamore.llms.prompts import SimplePrompt
 from sycamore.utils.cache import Cache
 
+if TYPE_CHECKING:
+    from guidance.models import Model
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +74,7 @@ class OpenAIClientWrapper:
         azure_ad_token: Optional[str] = None,
         azure_ad_token_provider: Optional[AzureADTokenProvider] = None,
         disable_helicone: Optional[bool] = None,
+        echo: bool = False,
         # Deprecated names that we support for backwards compatibility.
         api_type: Optional[str] = None,
         api_base: Optional[str] = None,
@@ -114,6 +120,7 @@ class OpenAIClientWrapper:
         self.azure_ad_token_provider = azure_ad_token_provider
         self.disable_helicone = disable_helicone
         self.extra_kwargs = kwargs
+        self.echo = echo
 
         # The OpenAI Python library is happy to pull Azure creds from the AZURE_OPENAI_API_KEY environment variable,
         # but Guidance will error out if neither api_key nor azure_ad_token_provider are explicitly set.
@@ -209,17 +216,22 @@ class OpenAIClientWrapper:
         else:
             raise ValueError(f"Invalid client_type {self.client_type}")
 
-    def get_guidance_model(self, model) -> Model:
+    def get_guidance_model(self, model) -> "Model":
         if self.client_type == OpenAIClientType.OPENAI:
+            from guidance.models import OpenAI as GuidanceOpenAI
+
             return GuidanceOpenAI(
                 model=model.name,
                 api_key=self.api_key,
                 organization=self.organization,
                 base_url=self.base_url,
                 max_retries=self.max_retries,
+                echo=self.echo,
                 **self.extra_kwargs,
             )
         elif self.client_type == OpenAIClientType.AZURE:
+            from guidance.models import AzureOpenAIChat, AzureOpenAICompletion
+
             # Note: Theoretically the Guidance library automatically determines which
             # subclass to use, but this appears to be buggy and relies on a bunch of
             # specific assumptions about how deployed models are named that don't work
@@ -246,6 +258,7 @@ class OpenAIClientWrapper:
                 azure_ad_token: Optional[str]
                 organization: Optional[str]
                 max_retries: int
+                echo: bool
 
             # azure_endpoint and api_key are not None if we're
             # in this branch, so we can safely cast strings to
@@ -258,6 +271,7 @@ class OpenAIClientWrapper:
                 "azure_ad_token": self.azure_ad_token,
                 "organization": self.organization,
                 "max_retries": self.max_retries,
+                "echo": self.echo,
             }
             # Add these guys in if not None. The defaults are
             # None, but only strings are allowed as params.
@@ -342,6 +356,11 @@ class OpenAI(LLM):
         if (llm_kwargs or {}).get("temperature", 0) != 0 or not self._cache:
             return (None, None)
 
+        response_format = (llm_kwargs or {}).get("response_format")
+        if inspect.isclass(response_format) and issubclass(response_format, pydantic.BaseModel):
+            assert llm_kwargs
+            llm_kwargs["response_format"] = type_to_response_format_param(response_format)
+
         key = self._get_cache_key(prompt_kwargs, llm_kwargs)
         hit = self._cache.get(key)
         if hit:
@@ -380,13 +399,25 @@ class OpenAI(LLM):
             raise ValueError("Either prompt or messages must be present in prompt_kwargs.")
         return kwargs
 
+    def _determine_using_beta(self, response_format: Any) -> bool:
+        if isinstance(response_format, dict) and response_format.get("type") == "json_schema":
+            return True
+        elif inspect.isclass(response_format) and issubclass(response_format, pydantic.BaseModel):
+            return True
+        else:
+            return False
+
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
         key, ret = self._cache_get(prompt_kwargs, llm_kwargs)
         if ret is not None:
             return ret
 
         if llm_kwargs is not None:
-            ret = self._generate_using_openai(prompt_kwargs, llm_kwargs)
+            if self._determine_using_beta(llm_kwargs.get("response_format", None)):
+                ret = self._generate_using_openai_structured(prompt_kwargs, llm_kwargs)
+            else:
+                ret = self._generate_using_openai(prompt_kwargs, llm_kwargs)
+
         else:
             ret = self._generate_using_guidance(prompt_kwargs)
 
@@ -401,18 +432,32 @@ class OpenAI(LLM):
 
     def _generate_using_openai(self, prompt_kwargs, llm_kwargs) -> str:
         kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
-
         completion = self.client_wrapper.get_client().chat.completions.create(model=self._model_name, **kwargs)
         return completion.choices[0].message.content
 
-    async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Awaitable[str]:
+    def _generate_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:
+        try:
+            kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
+            completion = self.client_wrapper.get_client().beta.chat.completions.parse(model=self._model_name, **kwargs)
+            assert completion.choices[0].message.content is not None, "OpenAI refused to respond to the query"
+            return completion.choices[0].message.content
+        except Exception as e:
+            # OpenAI will not respond in two scenarios:
+            # 1.) The LLM ran out of output context length(usually do to hallucination of repeating the same phrase)
+            # 2.) The LLM refused to respond to the request because it did not meet guidelines
+            raise e
+
+    async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
         key, ret = self._cache_get(prompt_kwargs, llm_kwargs)
         if ret is not None:
             return ret
 
         if llm_kwargs is None:
             raise ValueError("Must include llm_kwargs to generate future call")
-        ret = await self._generate_awaitable_using_openai(prompt_kwargs, llm_kwargs)
+        if self._determine_using_beta(llm_kwargs.get("response_format", None)):
+            ret = await self._generate_awaitable_using_openai_structured(prompt_kwargs, llm_kwargs)
+        else:
+            ret = await self._generate_awaitable_using_openai(prompt_kwargs, llm_kwargs)
 
         value = {
             "result": ret,
@@ -423,16 +468,29 @@ class OpenAI(LLM):
         self._cache_set(key, value)
         return ret
 
-    async def _generate_awaitable_using_openai(self, prompt_kwargs, llm_kwargs) -> Awaitable[str]:
+    async def _generate_awaitable_using_openai(self, prompt_kwargs, llm_kwargs) -> str:
         kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
-
         completion = await self.client_wrapper.get_async_client().chat.completions.create(
             model=self._model_name, **kwargs
         )
         return completion.choices[0].message.content
 
+    async def _generate_awaitable_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:
+        try:
+            kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
+            completion = await self.client_wrapper.get_async_client().beta.chat.completions.parse(
+                model=self._model_name, **kwargs
+            )
+            assert completion.choices[0].message.content is not None, "OpenAI refused to respond to the query"
+            return completion.choices[0].message.content
+        except Exception as e:
+            # OpenAI will not respond in two scenarios:
+            # 1.) The LLM ran out of output context length(usually do to hallucination of repeating the same phrase)
+            # 2.) The LLM refused to respond to the request because it did not meet guidelines
+            raise e
+
     def _generate_using_guidance(self, prompt_kwargs) -> str:
         guidance_model = self.client_wrapper.get_guidance_model(self.model)
-        prompt: GuidancePrompt = prompt_kwargs.pop("prompt")
-        prediction = prompt.execute(guidance_model, **prompt_kwargs)
+        prompt: SimplePrompt = prompt_kwargs.pop("prompt")
+        prediction = execute_with_guidance(prompt, guidance_model, **prompt_kwargs)
         return prediction

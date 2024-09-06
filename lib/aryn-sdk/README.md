@@ -79,3 +79,20 @@ display(page_pics[0])
 ```
 
 > Note: visualizing documents requires `poppler`, a pdf processing library, to be installed. Instructions for installing poppler can be found [here](https://pypi.org/project/pdf2image/)
+
+Convert image elements to more useful types, like PIL, or image format typed byte strings
+
+```python
+from aryn_sdk.partition import partition_file, convert_image_element
+
+with open("my-favorite-pdf.pdf", "rb") as f:
+    data = partition_file(
+        f,
+        extract_images=True
+    )
+image_elts = [e for e in data['elements'] if e['type'] == 'Image']
+
+pil_img = convert_image_element(image_elts[0])
+jpg_bytes = convert_image_element(image_elts[1], format='JPEG')
+png_str = convert_image_element(image_elts[2], format="PNG", b64encode=True)
+```

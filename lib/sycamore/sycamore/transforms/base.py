@@ -1,16 +1,19 @@
 import logging
-from typing import Any, Callable, Iterable, Optional, Union
+from typing import Any, Callable, Iterable, Optional, Union, TYPE_CHECKING
 
 import numpy as np
-from ray.data import ActorPoolStrategy, Dataset, Datasink
 
 from sycamore.data import Document, MetadataDocument
+from sycamore.utils.lineage_utils import update_lineage
 from sycamore.data.document import split_data_metadata
 from sycamore.plan_nodes import Node, UnaryNode
 from sycamore.utils.ray_utils import check_serializable
 
+if TYPE_CHECKING:
+    from ray.data import Dataset, Datasink
 
-def take_separate(dataset: Dataset, limit: Optional[int] = None) -> tuple[list[Document], list[MetadataDocument]]:
+
+def take_separate(dataset: "Dataset", limit: Optional[int] = None) -> tuple[list[Document], list[MetadataDocument]]:
     """
     Returns the list of documents from a dataset separating out data and metadata docs.
     """
@@ -98,6 +101,8 @@ class BaseMapTransform(UnaryNode):
             check_serializable(f, name, args, kwargs, constructor_args, constructor_kwargs)
 
         if isinstance(f, type) and "compute" not in resource_args:
+            from ray.data import ActorPoolStrategy
+
             # classes require actor strategy for now
             resource_args["compute"] = ActorPoolStrategy(size=1)
 
@@ -116,10 +121,12 @@ class BaseMapTransform(UnaryNode):
     def execute(
         self,
         write_intermediate_data: bool = False,
-        intermediate_datasink: Optional[Union[type[Datasink], Datasink]] = None,
+        intermediate_datasink: Optional[Union[type["Datasink"], "Datasink"]] = None,
         intermediate_datasink_kwargs: Optional[dict[str, Any]] = None,
         **kwargs,
     ) -> "Dataset":
+        from ray.data import ActorPoolStrategy
+
         if "num_gpus" in self.resource_args:
             assert self.resource_args["num_gpus"] > 0
 
@@ -155,7 +162,7 @@ class BaseMapTransform(UnaryNode):
         outputs = self._local_process(docs)
         to_docs = [d for d in outputs if not isinstance(d, MetadataDocument)]
         if self._enable_auto_metadata and (len(docs) > 0 or len(to_docs) > 0):
-            outputs.extend(BaseMapTransform._update_lineage(docs, to_docs))
+            outputs.extend(update_lineage(docs, to_docs))
         outputs.extend(metadata)
         return outputs
 
@@ -255,24 +262,16 @@ class BaseMapTransform(UnaryNode):
 
         to_docs = [d for d in outputs if not isinstance(d, MetadataDocument)]
         if enable_auto_metadata and (len(docs) > 0 or len(to_docs) > 0):
-            outputs.extend(BaseMapTransform._update_lineage(docs, to_docs))
+            outputs.extend(update_lineage(docs, to_docs))
         outputs.extend(metadata)
         return {"doc": [d.serialize() for d in outputs]}
 
-    @classmethod
-    def _update_lineage(cls, from_docs, to_docs):
-        from_ids = [d.lineage_id for d in from_docs]
-        for d in to_docs:
-            d.update_lineage_id()
-        to_ids = [d.lineage_id for d in to_docs]
-
-        return [MetadataDocument(lineage_links={"from_ids": from_ids, "to_ids": to_ids})]
-
 
 class CompositeTransform(UnaryNode):
-    def __init__(self, child: Node, base_args: list[dict], **resource_args):
+    def __init__(self, child: Node, base_args: list[dict], enable_auto_metadata=True, **resource_args):
         super().__init__(child, **resource_args)
         self.nodes = CompositeTransform.combine(child, base_args, **resource_args)
+        self._enable_auto_metadata = enable_auto_metadata
 
     @staticmethod
     def combine(last: Node, base_args: list[dict], **resource_args) -> list[BaseMapTransform]:
@@ -291,5 +290,15 @@ class CompositeTransform(UnaryNode):
 
         return docs
 
-    def execute(self, **kwargs) -> Dataset:
+    def local_execute(self, all_docs: list[Document]) -> list[Document]:
+        docs = [d for d in all_docs if not isinstance(d, MetadataDocument)]
+        metadata = [d for d in all_docs if isinstance(d, MetadataDocument)]
+        outputs = self._local_process(docs)
+        to_docs = [d for d in outputs if not isinstance(d, MetadataDocument)]
+        if self._enable_auto_metadata and (len(docs) > 0 or len(to_docs) > 0):
+            outputs.extend(update_lineage(docs, to_docs))
+        outputs.extend(metadata)
+        return outputs
+
+    def execute(self, **kwargs) -> "Dataset":
         return self.nodes[-1].execute()

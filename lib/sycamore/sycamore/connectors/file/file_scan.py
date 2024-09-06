@@ -2,17 +2,17 @@ import json
 from abc import ABC, abstractmethod
 import boto3
 import mimetypes
-from typing import Any, Optional, Union, Tuple, Callable
+from typing import Any, Optional, Union, Tuple, Callable, TYPE_CHECKING
 import uuid
 import logging
 
-from pyarrow.filesystem import FileSystem
-from ray.data import Dataset, read_binary_files, read_json
-
+from pyarrow.fs import FileSystem, LocalFileSystem, FileSelector
 from sycamore.data import Document
 from sycamore.plan_nodes import Scan
 from sycamore.utils.time_trace import timetrace
 
+if TYPE_CHECKING:
+    from ray.data import Dataset
 
 logger = logging.getLogger(__name__)
 
@@ -149,8 +149,10 @@ class BinaryScan(FileScan):
         logger.warning(f"Unrecognized extenstion {self._binary_format}; using {ret}")
         return ret
 
-    def execute(self, **kwargs) -> Dataset:
+    def execute(self, **kwargs) -> "Dataset":
         file_extensions = [self.format()] if self._filter_paths_by_extension else None
+
+        from ray.data import read_binary_files
 
         files = read_binary_files(
             self._paths,
@@ -162,6 +164,46 @@ class BinaryScan(FileScan):
         )
 
         return files.map(self._to_document, **self.resource_args)
+
+    def local_source(self, **kwargs) -> list[Document]:
+
+        if isinstance(self._paths, str):
+            paths = [self._paths]
+        if not self._filesystem:
+            self._filesystem = LocalFileSystem()
+        documents = []
+
+        def process_file(info):
+            if not info.is_file:
+                return
+            if self._filter_paths_by_extension and not info.path.endswith(self.format()):
+                return
+
+            with self._filesystem.open_input_file(info.path) as file:
+                binary_data = file.read()
+
+            document = Document()
+            document.doc_id = str(uuid.uuid1())
+            document.type = self._binary_format
+            document.binary_representation = binary_data
+            document.properties["path"] = info.path
+            if "filetype" not in document.properties and self._binary_format is not None:
+                document.properties["filetype"] = self._file_mime_type()
+            if self._is_s3_scheme():
+                document.properties["path"] = "s3://" + info.path
+            if self._metadata_provider:
+                document.properties.update(self._metadata_provider.get_metadata(info.path))
+
+            documents.append(document)
+
+        for path in paths:
+            path_info = self._filesystem.get_file_info(path)
+            if path_info.is_file:
+                process_file(path_info)
+            else:
+                for info in self._filesystem.get_file_info(FileSelector(path, recursive=True)):
+                    process_file(info)
+        return documents
 
     def format(self):
         return self._binary_format
@@ -228,7 +270,9 @@ class JsonScan(FileScan):
 
         return properties
 
-    def execute(self, **kwargs) -> Dataset:
+    def execute(self, **kwargs) -> "Dataset":
+        from ray.data import read_json
+
         json_dataset = read_json(
             self._paths,
             include_paths=True,
@@ -262,7 +306,9 @@ class JsonDocumentScan(FileScan):
         doc.data = json
         return [{"doc": doc.serialize()}]  # Make Ray row
 
-    def execute(self, **kwargs) -> Dataset:
+    def execute(self, **kwargs) -> "Dataset":
+        from ray.data import read_json
+
         ds = read_json(
             self._paths,
             include_paths=True,

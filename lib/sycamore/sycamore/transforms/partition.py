@@ -4,8 +4,6 @@ from typing import Any, Optional
 
 from bs4 import BeautifulSoup
 
-from ray.data import ActorPoolStrategy
-
 from sycamore.functions import TextOverlapChunker, Chunker
 from sycamore.functions import CharacterTokenizer, Tokenizer
 from sycamore.functions import reorder_elements
@@ -537,7 +535,7 @@ class ArynPartitioner(Partitioner):
             )
         except Exception as e:
             path = document.properties["path"]
-            raise RuntimeError(f"SycamorePartitioner Error processing {path}") from e
+            raise RuntimeError(f"ArynPartitioner Error processing {path}") from e
 
         document.elements = elements
         document = reorder_elements(document, self._elements_reorder)
@@ -606,6 +604,8 @@ class Partition(CompositeTransform):
         self, child: Node, partitioner: Partitioner, table_extractor: Optional[TableExtractor] = None, **resource_args
     ):
         ops = []
+        from ray.data import ActorPoolStrategy
+
         if isinstance(partitioner, ArynPartitioner) and partitioner._use_partitioning_service:
             resource_args["compute"] = ActorPoolStrategy(size=1)
         if partitioner.device == "cuda":

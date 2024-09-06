@@ -6,7 +6,6 @@ from typing import Any, Optional, Callable, Union
 
 from openai import OpenAI as OpenAIClient
 from openai import AzureOpenAI as AzureOpenAIClient
-from ray.data import ActorPoolStrategy
 
 from sycamore.data import Document
 from sycamore.llms import OpenAIClientParameters
@@ -17,6 +16,7 @@ from sycamore.llms.openai import OpenAIClientWrapper
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import MapBatch
 from sycamore.utils import batched
+from sycamore.utils.import_utils import requires_modules
 from sycamore.utils.time_trace import timetrace
 
 logger = logging.getLogger(__name__)
@@ -81,6 +81,7 @@ class SentenceTransformerEmbedder(Embedder):
 
     """
 
+    @requires_modules("sentence_transformers", extra="local-inference")
     def __init__(
         self,
         model_name: str,
@@ -325,6 +326,8 @@ class Embed(MapBatch):
             if self.resource_args["num_gpus"] <= 0:
                 raise RuntimeError("Invalid GPU Nums!")
             if "compute" not in self.resource_args:
+                from ray.data import ActorPoolStrategy
+
                 self.resource_args["compute"] = ActorPoolStrategy(size=1)
         elif embedder.device == "cpu":
             self.resource_args.pop("num_gpus", None)

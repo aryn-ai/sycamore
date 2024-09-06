@@ -3,9 +3,9 @@ import logging
 from pathlib import Path
 import pprint
 import sys
-from typing import Callable, Optional, Any, Iterable, Type, Union
+from typing import Callable, Optional, Any, Iterable, Type, Union, TYPE_CHECKING
 
-from sycamore.context import Context
+from sycamore.context import Context, context_params, OperationTypes
 from sycamore.data import Document, Element, MetadataDocument
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.llms.llms import LLM
@@ -16,17 +16,23 @@ from sycamore.llms.prompts.default_prompts import (
 from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.augment_text import TextAugmentor
 from sycamore.transforms.embed import Embedder
+from sycamore.transforms import DocumentStructure
 from sycamore.transforms.extract_entity import EntityExtractor, OpenAIEntityExtractor
-from sycamore.transforms.extract_graph import GraphExtractor
+from sycamore.transforms.extract_graph_entities import GraphEntityExtractor
+from sycamore.transforms.extract_graph_relationships import GraphRelationshipExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
 from sycamore.transforms.partition import Partitioner
+from sycamore.transforms.resolve_graph_entities import EntityResolver, ResolveEntities
 from sycamore.transforms.summarize import Summarizer
 from sycamore.transforms.llm_query import LLMTextQueryAgent
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.merge_elements import ElementMerger
 from sycamore.utils.extract_json import extract_json
-from sycamore.writer import DocSetWriter
 from sycamore.transforms.query import QueryExecutor, Query
+from sycamore.materialize_config import MaterializeSourceMode
+
+if TYPE_CHECKING:
+    from sycamore.writer import DocSetWriter
 
 logger = logging.getLogger(__name__)
 
@@ -143,12 +149,8 @@ class DocSet:
         """
         from sycamore import Execution
 
-        execution = Execution(self.context, self.plan)
-        dataset = execution.execute(self.plan, **kwargs)
-        # We could parallelize like ray dataset.count() or optimize the metadata case, but it's not worth the complexity
         count = 0
-        for row in dataset.iter_rows():
-            doc = Document.from_row(row)
+        for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
             if not include_metadata and isinstance(doc, MetadataDocument):
                 continue
             count = count + 1
@@ -178,10 +180,7 @@ class DocSet:
         from sycamore import Execution
 
         unique_docs = set()
-        execution = Execution(self.context, self.plan)
-        dataset = execution.execute(self.plan, **kwargs)
-        for row in dataset.iter_rows():
-            doc = Document.from_row(row)
+        for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
             if isinstance(doc, MetadataDocument):
                 continue
             value = doc.field_to_value(field)
@@ -210,9 +209,8 @@ class DocSet:
         """
         from sycamore import Execution
 
-        execution = Execution(self.context, self.plan)
         ret = []
-        for doc in execution.execute_iter(self.plan, **kwargs):
+        for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
             if not include_metadata and isinstance(doc, MetadataDocument):
                 continue
             ret.append(doc)
@@ -226,20 +224,22 @@ class DocSet:
         Returns all of the rows in this DocSet.
 
         If limit is set, this method will raise an error if this Docset
-        has more than `limit` Documents, including metadata.
+        has more than `limit` Documents.
 
         Args:
             limit: The number of Documents above which this method will raise an error.
         """
         from sycamore import Execution
 
-        execution = Execution(self.context, self.plan)
-        dataset = execution.execute(self.plan, **kwargs)
-        docs = [Document.from_row(row) for row in dataset.take_all(limit)]
-        if include_metadata:
-            return docs
-        else:
-            return [d for d in docs if not isinstance(d, MetadataDocument)]
+        docs = []
+        for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
+            if include_metadata or not isinstance(doc, MetadataDocument):
+                docs.append(doc)
+
+            if limit is not None and len(docs) > limit:
+                raise ValueError(f"docset exceeded limit of {limit} docs")
+
+        return docs
 
     def limit(self, limit: int = 20, **kwargs) -> "DocSet":
         """
@@ -424,6 +424,29 @@ class DocSet:
         embeddings = Embed(self.plan, embedder=embedder, **kwargs)
         return DocSet(self.context, embeddings)
 
+    def extract_document_structure(self, structure: DocumentStructure, **kwargs):
+        """
+        Represents documents as Hierarchical documents organized by their structure.
+
+        Args:
+            structure: A instance of DocumentStructure which determines how documents are organized
+
+        Example:
+            .. code-block:: python
+
+                context = sycamore.init()
+                pdf_docset = context.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=ArynPartitioner())
+                    .extract_document_structure(structure=StructureBySection)
+                    .explode()
+
+        """
+        from sycamore.transforms.extract_document_structure import ExtractDocumentStructure, ExtractSummaries
+
+        document_structure = ExtractDocumentStructure(self.plan, structure=structure, **kwargs)
+        document_structure = ExtractSummaries(document_structure)
+        return DocSet(self.context, document_structure)
+
     def extract_entity(self, entity_extractor: EntityExtractor, **kwargs) -> "DocSet":
         """
         Applies the ExtractEntity transform on the Docset.
@@ -526,37 +549,126 @@ class DocSet:
         schema = ExtractBatchSchema(self.plan, schema_extractor=schema_extractor)
         return DocSet(self.context, schema)
 
-    def extract_graph_structure(self, extractors: list[GraphExtractor], **kwargs) -> "DocSet":
+    def extract_graph_entities(self, extractors: list[GraphEntityExtractor] = [], **kwargs) -> "DocSet":
         """
-        Extracts metadata from documents into a format that sets up resulting docset to be loaded into neo4j
+        Extracts entites from document children. Entities are stored as nodes within each child of
+        a document.
 
         Args:
-            extractors: A list of GraphExtractor objects which determine what is extracted from the docset
+            extractors: A list of GraphEntityExtractor objects which determines how entities are extracted
 
         Example:
             .. code-block:: python
+                from sycamore.transforms.extract_graph_entities import EntityExtractor
+                from pydantic import BaseModel
 
-                metadata = [GraphMetadata(nodeKey='company',nodeLabel='Company',relLabel='FILED_BY'),
-                GraphMetadata(nodeKey='gics_sector',nodeLabel='Sector',relLabel='IN_SECTOR'),
-                GraphMetadata(nodeKey='doc_type',nodeLabel='Document Type',relLabel='IS_TYPE'),
-                GraphMetadata(nodeKey='doc_period',nodeLabel='Year',relLabel='FILED_DURING'),
-                ]
+                llm = OpenAI(OpenAIModels.GPT_4O_MINI.value)
+
+                class CEO(BaseModel):
+                    name: str
+
+                class Company(BaseModel):
+                    name: str
 
                 ds = (
-                    ctx.read.manifest(metadata_provider=JsonManifestMetadataProvider(manifest),...)
-                    .partition(partitioner=ArynPartitioner(...), num_gpus=0.1)
-                    .extract_graph_structure(extractors=[MetadataExtractor(metadata=metadata)])
+                    context.read.binary(paths, binary_format="pdf")
+                    .partition(...)
+                    .extract_document_structure(...)
+                    .extract_graph_entities(extractors=[EntityExtractor(llm=llm, entities=[CEO, Company])])
+                    .resolve_graph_entities(...)
                     .explode()
                 )
+
+                ds.write.neo4j(...)
         """
-        from sycamore.transforms.extract_graph import ExtractDocumentStructure
+        from sycamore.transforms.extract_graph_entities import ExtractEntities
 
-        self.plan = ExtractDocumentStructure(self.plan)
-        docset = self
+        entities = self.plan
         for extractor in extractors:
-            docset = extractor.extract(docset)
+            entities = ExtractEntities(entities, extractor)
 
-        return docset
+        return DocSet(self.context, entities)
+
+    def extract_graph_relationships(self, extractors: list[GraphRelationshipExtractor] = [], **kwargs) -> "DocSet":
+        """
+        Extracts relationships from document children. Relationships are stored within the nodes they reference
+        within each child of a document.
+
+        Args:
+            extractors: A list of GraphEntityExtractor objects which determines how relationships are extracted
+
+        Example:
+            .. code-block:: python
+                from sycamore.transforms.extract_graph_entities import EntityExtractor
+                from sycamore.transforms.extract_graph_relationships import RelationshipExtractor
+                from pydantic import BaseModel
+
+                llm = OpenAI(OpenAIModels.GPT_4O_MINI.value)
+
+                class CEO(BaseModel):
+                    name: str
+
+                class Company(BaseModel):
+                    name: str
+
+                class WORKS_AT(BaseModel):
+                    start: CEO
+                    end: Company
+
+                ds = (
+                    context.read.binary(paths, binary_format="pdf")
+                    .partition(...)
+                    .extract_document_structure(...)
+                    .extract_graph_entities(extractors=[EntityExtractor(llm=llm, entities=[CEO, Company])])
+                    .extract_graph_relationships(extractors=[RelationshipExtractor(llm=llm, relationships=[WORKS_AT])])
+                    .resolve_graph_entities(...)
+                    .explode()
+                )
+                ds.write.neo4j(...)
+        """
+        from sycamore.transforms.extract_graph_relationships import ExtractRelationships
+
+        relationships = self.plan
+        for extractor in extractors:
+            relationships = ExtractRelationships(relationships, extractor)
+
+        return DocSet(self.context, relationships)
+
+    def resolve_graph_entities(self, resolvers: list[EntityResolver] = [], **kwargs) -> "DocSet":
+        """
+        Resolves graph entities across documents so that duplicate entities can be resolved
+        to the same entity based off criteria of EntityResolver objects.
+
+        Args:
+            resolvers: A list of EntityResolvers that are used to determine what entities are duplicates
+
+        Example:
+            .. code-block:: python
+                ds = (
+                    context.read.binary(paths, binary_format="pdf")
+                    .partition(...)
+                    .extract_document_structure(...)
+                    .extract_graph_entities(...)
+                    .extract_graph_relationships(...)
+                    .resolve_graph_entities(resolvers=[TODO: Implement Resolvers])
+                    .explode()
+                )
+                ds.write.neo4j(...)
+        """
+        from sycamore.transforms.resolve_graph_entities import CleanTempNodes
+
+        class Wrapper(Node):
+            def __init__(self, dataset):
+                self._ds = dataset
+                self.children = []
+
+            def execute(self, **kwargs):
+                return self._ds
+
+        entity_resolver = ResolveEntities(resolvers=resolvers)
+        entities = entity_resolver.resolve(self)  # resolve entities
+        entities_clean = CleanTempNodes(Wrapper(entities))  # cleanup temp objects
+        return DocSet(self.context, entities_clean)
 
     def extract_properties(self, property_extractor: PropertyExtractor, **kwargs) -> "DocSet":
         """
@@ -818,12 +930,13 @@ class DocSet:
 
         return self.map(process_doc, **resource_args)
 
+    @context_params(OperationTypes.BINARY_CLASSIFIER)
     def llm_filter(
         self,
         llm: LLM,
         new_field: str,
         prompt: Union[list[dict], str],
-        field: Optional[str] = "text_representation",
+        field: str = "text_representation",
         threshold: int = 3,
         **resource_args,
     ) -> "DocSet":
@@ -832,7 +945,7 @@ class DocSet:
         than or equal to the inputted threshold value.
 
         Args:
-            client: LLM client to use.
+            llm: LLM to use.
             new_field: The field that will be added to the DocSet with the outputs.
             prompt: LLM prompt.
             field: Document field to filter based on.
@@ -998,22 +1111,28 @@ class DocSet:
         """
         Executes an LLM Query on a specified field (element or document), and returns the response
 
-        Example:
-            .. code-block:: python
-
-                prompt="Tell me the important numbers from this element"
-                llm_query_agent = LLMElementTextSummarizer(prompt=prompt)
-
-                context = sycamore.init()
-                pdf_docset = context.read.binary(paths, binary_format="pdf")
-                    .partition(partitioner=UnstructuredPdfPartitioner())
-                    .llm_query(query_agent=llm_query_agent)
+        Args:
+            prompt: A prompt to be passed into the underlying LLM execution engine
+            llm: The LLM Client to be used here. It is defined as an instance of the LLM class in Sycamore.
+            output_property: (Optional, default="llm_response") The output property of the document or element to add
+                results in.
+            format_kwargs: (Optional, default="None") If passed in, details the formatting details that must be
+                passed into the underlying Jinja Sandbox.
+            number_of_elements: (Optional, default="None") When "per_element" is true, limits the number of
+                elements to add an "output_property". Otherwise, the response is added to the
+                entire document using a limited prefix subset of the elements.
+            llm_kwargs: (Optional) LLM keyword argument for the underlying execution engine
+            per_element: (Optional, default="{}") Keyword arguments to be passed into the underlying LLM execution
+                engine.
+            element_type: (Optional) Parameter to only execute the LLM query on a particular element type. If not
+                specified, the query will be executed on all elements.
         """
         from sycamore.transforms import LLMQuery
 
         queries = LLMQuery(self.plan, query_agent=query_agent, **kwargs)
         return DocSet(self.context, queries)
 
+    @context_params(OperationTypes.INFORMATION_EXTRACTOR)
     def top_k(
         self,
         llm: LLM,
@@ -1059,6 +1178,7 @@ class DocSet:
             docset = docset.limit(k)
         return docset
 
+    @context_params(OperationTypes.INFORMATION_EXTRACTOR)
     def llm_cluster_entity(self, llm: LLM, instruction: str, field: str) -> "DocSet":
         """
         Normalizes a particular field of a DocSet. Identifies and assigns each document to a "group".
@@ -1081,7 +1201,7 @@ class DocSet:
         # sets message
         messages = LlmClusterEntityFormGroupsMessagesPrompt(
             field=field, instruction=instruction, text=text
-        ).get_messages_dict()
+        ).as_messages()
 
         prompt_kwargs = {"messages": messages}
 
@@ -1095,7 +1215,7 @@ class DocSet:
         # sets message
         messagesForExtract = LlmClusterEntityAssignGroupsMessagesPrompt(
             field=field, groups=groups["groups"]
-        ).get_messages_dict()
+        ).as_messages()
 
         entity_extractor = OpenAIEntityExtractor(
             entity_name="_autogen_ClusterAssignment",
@@ -1109,7 +1229,7 @@ class DocSet:
         # LLM response
         return docset
 
-    def field_in(self, docset2: "DocSet", field1: str, field2: str) -> "DocSet":
+    def field_in(self, docset2: "DocSet", field1: str, field2: str, **kwargs) -> "DocSet":
         """
         Joins two docsets based on specified fields; docset (self) filtered based on values of docset2.
 
@@ -1133,13 +1253,9 @@ class DocSet:
 
             return filter_fn_join
 
-        execution = Execution(docset2.context, docset2.plan)
-        dataset = execution.execute(docset2.plan)
-
         # identifies unique values of field1 in docset (self)
         unique_vals = set()
-        for row in dataset.iter_rows():
-            doc = Document.from_row(row)
+        for doc in Execution(docset2.context).execute_iter(docset2.plan, **kwargs):
             if isinstance(doc, MetadataDocument):
                 continue
             value = doc.field_to_value(field2)
@@ -1152,7 +1268,7 @@ class DocSet:
         return joined_docset
 
     @property
-    def write(self) -> DocSetWriter:
+    def write(self) -> "DocSetWriter":
         """
         Exposes an interface for writing a DocSet to OpenSearch or other external storage.
         See :class:`~writer.DocSetWriter` for more information about writers and their arguments.
@@ -1194,23 +1310,58 @@ class DocSet:
                      index_name="my_index",
                      index_settings=index_settings)
         """
+        from sycamore.writer import DocSetWriter
+
         return DocSetWriter(self.context, self.plan)
 
-    def materialize(self, path: Optional[Union[Path, str, dict]] = None) -> "DocSet":
+    def materialize(
+        self,
+        path: Optional[Union[Path, str, dict]] = None,
+        source_mode: MaterializeSourceMode = MaterializeSourceMode.RECOMPUTE,
+    ) -> "DocSet":
         """
-        Guarantees reliable execution up to this point, allows for
-        follow on execution based on the checkpoint if the checkpoint is named.
+        The `materialize` transform writes out documents up to that point, marks the
+        materialized path as successful if execution is successful, and allows for reading from the
+        materialized data as a source. This transform is helpful if you are using show and take()
+        as part of a notebook to incrementally inspect output. You can use `materialize` to avoid
+        re-computation.
 
         path: a Path or string represents the "directory" for the materialized elements. The filesystem
-              and naming convention will be inferred.  The dictionary allowes finer control, and supports
+              and naming convention will be inferred.  The dictionary variant allowes finer control, and supports
               { root=Path|str, fs=pyarrow.fs, name=lambda Document -> str, clean=True,
                 tobin=Document.serialize()}
               root is required
+
+        source_mode: how this materialize step should be used as an input:
+           RECOMPUTE: (default) the transform does not act as a source, previous transforms
+             will be recomputed.
+           USE_STORED: If the materialize has successfully run to completion, or if the
+             materialize step has no prior step, use the stored contents of the directory as the
+             inputs.  No previous transform will be computed.
+             WARNING: If you change the input files or any of the steps before the
+             materialize step, you need to use clear_materialize() or change the source_mode
+             to force re-execution.
+
+           Note: you can write the source mode as MaterializeSourceMode.SOMETHING after importing
+           MaterializeSourceMode, or as sycamore.MATERIALIZE_SOMETHING after importing sycamore.
+
         """
 
-        from sycamore.lineage import Materialize
+        from sycamore.materialize import Materialize
 
-        return DocSet(self.context, Materialize(self.plan, self.context, path=path))
+        return DocSet(self.context, Materialize(self.plan, self.context, path=path, source_mode=source_mode))
+
+    def clear_materialize(self, *, clear_non_local=False) -> None:
+        """
+        Deletes all of the materialized files referenced by the docset.
+
+        Set clear_non_local=True to clear non-local filesystems. Note filesystems like
+        NFS/CIFS will count as local.  pyarrow.fs.SubTreeFileSystem is treated as non_local.
+        """
+
+        from sycamore.materialize import clear_materialize
+
+        clear_materialize(self.plan, clear_non_local)
 
     def execute(self, **kwargs) -> None:
         """
@@ -1219,6 +1370,5 @@ class DocSet:
 
         from sycamore.executor import Execution
 
-        execution = Execution(self.context, self.plan)
-        for doc in execution.execute_iter(self.plan, **kwargs):
+        for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
             pass

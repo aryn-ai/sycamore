@@ -1,20 +1,25 @@
 import logging
-from typing import Any, Callable, Optional, TYPE_CHECKING, Union
+from typing import Any, Callable, Optional, Union, TYPE_CHECKING
 
-from neo4j import Auth
-from neo4j.auth_management import AuthManager
 from pyarrow.fs import FileSystem
-from ray.data import ActorPoolStrategy
 
-from sycamore import Context
+from sycamore.context import Context, ExecMode, context_params
 from sycamore.connectors.common import HostAndPort
 from sycamore.connectors.file.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
 from sycamore.data import Document
+from sycamore.executor import Execution
 from sycamore.plan_nodes import Node
+from sycamore.docset import DocSet
+from sycamore.utils.import_utils import requires_modules
+
+from mypy_boto3_s3.client import S3Client
+from mypy_boto3_s3.service_resource import S3ServiceResource
+from boto3.session import Session
 
 if TYPE_CHECKING:
-    # Shenanigans to avoid circular import
-    from sycamore.docset import DocSet
+    from neo4j import Auth
+    from neo4j.auth_management import AuthManager
+
 
 logger = logging.getLogger(__name__)
 
@@ -31,12 +36,13 @@ class DocSetWriter:
         self.context = context
         self.plan = plan
 
+    @context_params
     def opensearch(
         self,
         *,
-        os_client_args: Optional[dict] = None,
-        index_name: Optional[str] = None,
-        index_settings: Optional[dict] = None,
+        os_client_args: dict,
+        index_name: str,
+        index_settings: dict,
         execute: bool = True,
         **kwargs,
     ) -> Optional["DocSet"]:
@@ -99,14 +105,6 @@ class DocSetWriter:
         from typing import Any
         import copy
 
-        if os_client_args is None:
-            os_client_args = self.context.opensearch_args.client_args if self.context.opensearch_args else None
-        assert os_client_args is not None, "OpenSearch client args required"
-
-        if not index_name:
-            index_name = self.context.opensearch_args.index_name if self.context.opensearch_args else None
-        assert index_name is not None, "OpenSearch index name required"
-
         # We mutate os_client_args, so mutate a copy
         os_client_args = copy.deepcopy(os_client_args)
 
@@ -136,9 +134,6 @@ class DocSetWriter:
 
         target_params: OpenSearchWriterTargetParams
 
-        if index_settings is None:
-            index_settings = self.context.opensearch_args.index_settings if self.context.opensearch_args else None
-
         if index_settings is not None:
             idx_settings = index_settings.get("body", {}).get("settings", {})
             idx_mappings = index_settings.get("body", {}).get("mappings", {})
@@ -154,15 +149,15 @@ class DocSetWriter:
         # doesn't execute automatically, and instead you need to say something
         # like docset.write.opensearch().execute(), allowing sensible writes
         # to multiple locations and post-write operations.
+        osds = DocSet(self.context, os)
         if execute:
             # If execute, force execution
-            os.execute().materialize()
+            osds.execute()
             return None
         else:
-            from sycamore.docset import DocSet
+            return osds
 
-            return DocSet(self.context, os)
-
+    @requires_modules(["weaviate", "weaviate.collections.classes.config"], extra="weaviate")
     def weaviate(
         self,
         *,
@@ -268,17 +263,19 @@ class DocSetWriter:
             WeaviateClientParams,
             WeaviateWriterTargetParams,
         )
-        from sycamore.connectors.weaviate.weaviate_writer import CollectionConfigCreate
+
+        # Importing _ prefixed stuff is fairly common for users of the weaviate codebase
+        from weaviate.collections.classes.config import _CollectionConfigCreate
 
         if collection_config is None:
             collection_config = dict()
         client_params = WeaviateClientParams(**wv_client_args)
-        collection_config_object: CollectionConfigCreate
+        collection_config_object: _CollectionConfigCreate
         if "name" in collection_config:
             assert collection_config["name"] == collection_name
-            collection_config_object = CollectionConfigCreate(**collection_config)
+            collection_config_object = _CollectionConfigCreate(**collection_config)
         else:
-            collection_config_object = CollectionConfigCreate(name=collection_name, **collection_config)
+            collection_config_object = _CollectionConfigCreate(name=collection_name, **collection_config)
         target_params = WeaviateWriterTargetParams(
             name=collection_name, collection_config=collection_config_object, flatten_properties=flatten_properties
         )
@@ -290,15 +287,15 @@ class DocSetWriter:
             wv_docs, client_params, target_params, name="weaviate_write_references", **kwargs
         )
 
+        wvds = DocSet(self.context, wv_refs)
         if execute:
             # If execute, force execution
-            wv_refs.execute().materialize()
+            wvds.execute()
             return None
         else:
-            from sycamore.docset import DocSet
+            return wvds
 
-            return DocSet(self.context, wv_refs)
-
+    @requires_modules("pinecone", extra="pinecone")
     def pinecone(
         self,
         *,
@@ -383,15 +380,15 @@ class DocSetWriter:
         )
 
         pc = PineconeWriter(self.plan, client_params=pcp, target_params=ptp, name="pinecone_write", **kwargs)
+        pcds = DocSet(self.context, pc)
         if execute:
             # If execute, force execution
-            pc.execute().materialize()
+            pcds.execute()
             return None
         else:
-            from sycamore.docset import DocSet
+            return pcds
 
-            return DocSet(self.context, pc)
-
+    @requires_modules("duckdb", extra="duckdb")
     def duckdb(
         self,
         dimensions: int,
@@ -461,6 +458,8 @@ class DocSetWriter:
                 if v is not None
             }  # type: ignore
         )
+        from ray.data import ActorPoolStrategy
+
         kwargs["compute"] = ActorPoolStrategy(size=1)
         ddb = DuckDBWriter(
             self.plan,
@@ -469,14 +468,14 @@ class DocSetWriter:
             name="duckdb_write_documents",
             **kwargs,
         )
+        ddbds = DocSet(self.context, ddb)
         if execute:
-            ddb.execute().materialize()
+            ddbds.execute()
             return None
         else:
-            from sycamore.docset import DocSet
+            return ddbds
 
-            return DocSet(self.context, ddb)
-
+    @requires_modules("elasticsearch", extra="elasticsearch")
     def elasticsearch(
         self,
         *,
@@ -555,24 +554,29 @@ class DocSetWriter:
         es_docs = ElasticsearchDocumentWriter(
             self.plan, client_params, target_params, name="elastic_document_writer", **kwargs
         )
+        esds = DocSet(self.context, es_docs)
         if execute:
             # If execute, force execution
-            es_docs.execute().materialize()
+            esds.execute()
             return None
         else:
-            from sycamore.docset import DocSet
+            return esds
 
-            return DocSet(self.context, es_docs)
-
+    @requires_modules("neo4j", extra="neo4j")
     def neo4j(
         self,
         uri: str,
-        auth: Union[tuple[Any, Any], Auth, AuthManager, None],
+        auth: Union[tuple[Any, Any], "Auth", "AuthManager", None],
         import_dir: str,
         database: str = "neo4j",
+        use_auradb: bool = False,
+        s3_session: Optional[Session] = None,
         **kwargs,
     ) -> Optional["DocSet"]:
-        """Writes the content of the DocSet into the specified Neo4j database.
+        """
+        ***EXPERIMENTAL***
+
+        Writes the content of the DocSet into the specified Neo4j database.
 
         Args:
             uri: Connection endpoint for the neo4j instance. Note that this must be paired with the
@@ -614,10 +618,20 @@ class DocSetWriter:
         )
         from sycamore.plan_nodes import Node
         from sycamore.connectors.neo4j import Neo4jPrepareCSV, Neo4jWriteCSV, Neo4jLoadCSV
+        from sycamore.connectors.neo4j.neo4j_writer import (
+            create_temp_bucket,
+            delete_temp_bucket,
+            load_to_s3_bucket,
+            get_neo4j_import_info,
+        )
         import time
 
         if kwargs.get("execute") is False:
             raise NotImplementedError
+        if self.context.exec_mode != ExecMode.RAY:
+            raise NotImplementedError
+        if use_auradb and not s3_session:
+            raise ValueError("If using AuraDB, you must also pass in a s3_session object to temporarily host files.")
 
         class Wrapper(Node):
             def __init__(self, dataset):
@@ -631,13 +645,39 @@ class DocSetWriter:
         target_params = Neo4jWriterTargetParams(database=database)
         Neo4jValidateParams(client_params=client_params, target_params=target_params)
 
-        self.plan = Wrapper(self.plan.execute().materialize())
+        # Execute the docset up until this point and store it in a node
+        pre_n4j_plan = Execution(self.context)._apply_rules(self.plan)
+        pnjds = Execution(self.context)._execute_ray(pre_n4j_plan)
+        pnjds = pnjds.materialize()
+        self.plan = Wrapper(pnjds)
+        pre_n4j_plan.traverse(visit=lambda n: n.finalize())
+
         start = time.time()
         Neo4jPrepareCSV(plan=self.plan, client_params=client_params)
         Neo4jWriteCSV(plan=self.plan, client_params=client_params).execute().materialize()
         end = time.time()
         logger.info(f"TIME TAKEN TO WRITE CSV: {end-start} SECONDS")
-        Neo4jLoadCSV(client_params=client_params, target_params=target_params)
+
+        nodes, relationships, labels = get_neo4j_import_info(import_dir=import_dir)
+        # If using auradb, load to files to s3
+
+        s3_client: S3Client
+        s3_resource: S3ServiceResource
+        s3_bucket: str
+        if use_auradb:
+            assert s3_session is not None
+            s3_client = s3_session.client("s3")
+            s3_resource = s3_session.resource("s3")
+            s3_bucket = create_temp_bucket(s3_client=s3_client)
+            nodes, relationships = load_to_s3_bucket(s3_client=s3_client, bucket_name=s3_bucket, import_dir=import_dir)
+
+        import_paths = {"nodes": nodes, "relationships": relationships, "labels": labels}
+
+        Neo4jLoadCSV(client_params=client_params, target_params=target_params, import_paths=import_paths)
+
+        # cleanup s3 files if using auradb
+        if use_auradb:
+            delete_temp_bucket(s3_client, s3_resource, s3_bucket)
 
         return None
 
@@ -661,7 +701,7 @@ class DocSetWriter:
                 if not.
             resource_args: Arguments to pass to the underlying execution environment.
         """
-        file_writer = FileWriter(
+        file_writer: Node = FileWriter(
             self.plan,
             path,
             filesystem=filesystem,
@@ -669,8 +709,9 @@ class DocSetWriter:
             doc_to_bytes_fn=doc_to_bytes_fn,
             **resource_args,
         )
-
+        file_writer = Execution(self.context)._apply_rules(file_writer)
         file_writer.execute()
+        file_writer.traverse(visit=lambda n: n.finalize())
 
     def json(
         self,
@@ -689,5 +730,7 @@ class DocSetWriter:
             resource_args: Arguments to pass to the underlying execution environment.
         """
 
-        node = JsonWriter(self.plan, path, filesystem=filesystem, **resource_args)
+        node: Node = JsonWriter(self.plan, path, filesystem=filesystem, **resource_args)
+        node = Execution(self.context)._apply_rules(node)
         node.execute()
+        node.traverse(visit=lambda n: n.finalize())

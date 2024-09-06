@@ -1,23 +1,25 @@
 from dataclasses import dataclass, asdict
+import typing
 from typing import Optional, TypedDict, Union
-import json
 from sycamore.utils import batched
 from typing_extensions import TypeGuard
 
-from pinecone import PineconeException, PineconeApiException, PodSpec, ServerlessSpec
-from pinecone.grpc import PineconeGRPC, Vector
-from pinecone.grpc.vector_factory_grpc import VectorFactoryGRPC
 from sycamore.data.document import Document
 from sycamore.connectors.base_writer import BaseDBWriter
 from sycamore.connectors.common import flatten_data
+from sycamore.utils.import_utils import requires_modules
 import time
+
+if typing.TYPE_CHECKING:
+    from pinecone import PodSpec, ServerlessSpec
+    from pinecone.grpc import PineconeGRPC, Vector
 
 
 @dataclass
 class PineconeWriterTargetParams(BaseDBWriter.TargetParams):
     index_name: str
     namespace: str = ""
-    index_spec: Union[None, dict, ServerlessSpec, PodSpec] = None
+    index_spec: Union[None, dict, "ServerlessSpec", "PodSpec"] = None
     dimensions: Optional[int] = None
     distance_metric: str = "cosine"
 
@@ -42,8 +44,11 @@ class PineconeWriterClientParams(BaseDBWriter.ClientParams):
 
 
 class PineconeWriterClient(BaseDBWriter.Client):
+    @requires_modules("pinecone.grpc", extra="pinecone")
     def __init__(self, api_key: str, batch_size: int):
-        self._client = PineconeGRPC(api_key=api_key)
+        from pinecone.grpc import PineconeGRPC
+
+        self._client = PineconeGRPC(api_key=api_key, source_tag="Aryn")
         self._batch_size = batch_size
 
     @classmethod
@@ -67,6 +72,8 @@ class PineconeWriterClient(BaseDBWriter.Client):
             res.result()
 
     def create_target_idempotent(self, target_params: "BaseDBWriter.TargetParams"):
+        from pinecone import PineconeApiException
+
         assert isinstance(target_params, PineconeWriterTargetParams)
         if target_params.dimensions and target_params.index_spec:
             try:
@@ -76,10 +83,8 @@ class PineconeWriterClient(BaseDBWriter.Client):
                     spec=target_params.index_spec,
                     metric=target_params.distance_metric,
                 )
-            except PineconeApiException as e:
-                if e.status == 409 and json.loads(str(e.body)).get("error", {}).get("code", {}) == "ALREADY_EXISTS":
-                    return
-                raise e
+            except PineconeApiException:
+                return
 
     def get_existing_target_params(self, target_params: "BaseDBWriter.TargetParams") -> PineconeWriterTargetParams:
         assert isinstance(target_params, PineconeWriterTargetParams)
@@ -136,7 +141,10 @@ class PineconeWriterRecord(BaseDBWriter.Record):
         assert PineconeWriterRecord._validate_metadata(metadata)
         return PineconeWriterRecord(id, values, metadata, sparse_vector)
 
-    def to_grpc_vector(self) -> Vector:
+    @requires_modules("pinecone.grpc.vector_factory_grpc", extra="pinecone")
+    def to_grpc_vector(self) -> "Vector":
+        from pinecone.grpc.vector_factory_grpc import VectorFactoryGRPC
+
         if self.sparse_values:
             return VectorFactoryGRPC.build(asdict(self))
         else:
@@ -164,10 +172,13 @@ def _narrow_list_of_pinecone_records(records: list[BaseDBWriter.Record]) -> Type
     return all(isinstance(r, PineconeWriterRecord) for r in records)
 
 
-def wait_on_index(client: PineconeGRPC, index: str):
+@requires_modules("pinecone", extra="pinecone")
+def wait_on_index(client: "PineconeGRPC", index: str):
     """
     Takes the name of the index to wait for and blocks until it's available and ready.
     """
+    from pinecone import PineconeException
+
     ready = False
     timeout = 30
     deadline = time.time() + timeout

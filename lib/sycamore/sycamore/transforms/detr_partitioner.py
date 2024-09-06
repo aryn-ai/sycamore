@@ -16,17 +16,9 @@ import json
 from tenacity import retry, retry_if_exception, wait_exponential, stop_after_delay
 import base64
 import pdf2image
-import pytesseract
-import torch
 from PIL import Image
 import fasteners
-from pdfminer.converter import PDFPageAggregator
-from pdfminer.layout import LAParams
-from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager, resolve1
-from pdfminer.pdfpage import PDFPage
-from pdfminer.utils import open_filename
-from pdfminer.pdfparser import PDFParser
-from pdfminer.pdfdocument import PDFDocument
+from pypdf import PdfReader
 
 from sycamore.data import Element, BoundingBox, ImageElement, TableElement
 from sycamore.data.element import create_element
@@ -34,10 +26,10 @@ from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_
 from sycamore.utils import choose_device
 from sycamore.utils.cache import Cache, DiskCache
 from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
+from sycamore.utils.import_utils import requires_modules
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
 from sycamore.utils.pdf import convert_from_path_streamed_batched
 from sycamore.utils.time_trace import LogTime, timetrace
-from sycamore.utils.pytorch_dir import get_pytorch_build_directory
 
 logger = logging.getLogger(__name__)
 _DETR_LOCK_FILE = f"{pwd.getpwuid(os.getuid()).pw_dir}/.cache/Aryn-Detr.lock"
@@ -71,6 +63,14 @@ def _can_retry(e: BaseException) -> bool:
 pdf_miner_cache = DiskCache(str(Path.home() / ".sycamore/PDFMinerCache"))
 
 
+def get_page_count(fp: BinaryIO):
+    fp.seek(0)
+    reader = PdfReader(fp)
+    num_pages = len(reader.pages)
+    fp.seek(0)
+    return num_pages
+
+
 class ArynPDFPartitioner:
     """
     This class contains the implementation of PDF partitioning using a Deformable DETR model.
@@ -87,12 +87,17 @@ class ArynPDFPartitioner:
             model_name_or_path: The HuggingFace coordinates or local path to the DeformableDETR weights to use.
             device: The device on which to run the model.
         """
+        self.model_name_or_path = model_name_or_path
+        self.model = None
         self.device = device
-        if model_name_or_path is None:
-            self.model = None
-        else:
-            self.model = DeformableDetr(model_name_or_path, device, cache)
+        self.cache = cache
         self.ocr_table_reader = None
+
+    def _init_model(self):
+        if self.model is None:
+            assert self.model_name_or_path is not None
+            with LogTime("init_detr_model"):
+                self.model = DeformableDetr(self.model_name_or_path, self.device, self.cache)
 
     @staticmethod
     def _supplement_text(inferred: List[Element], text: List[Element], threshold: float = 0.5) -> List[Element]:
@@ -120,7 +125,7 @@ class ArynPDFPartitioner:
                 if isinstance(i, TableElement):
                     i.tokens = [{"text": elem.text_representation, "bbox": elem.bbox} for elem in matches]
 
-                i.text_representation = " ".join(full_text)
+                i.data["text_representation"] = " ".join(full_text)
 
         return inferred + unmatched
 
@@ -157,7 +162,6 @@ class ArynPDFPartitioner:
                 pages_per_call=pages_per_call,
             )
         else:
-            assert self.model is not None
             if batch_at_a_time:
                 temp = self._partition_pdf_batched(
                     file=file,
@@ -294,7 +298,7 @@ class ArynPDFPartitioner:
                 raise ArynPDFPartitionerException(
                     f"Error partway through processing: {response_json['error']}\nPartial Status:\n{status}"
                 )
-            response_json = response_json.get("elements")
+            response_json = response_json.get("elements", [])
 
         elements = []
         for element_json in response_json:
@@ -318,11 +322,7 @@ class ArynPDFPartitioner:
         extract_images: bool = False,
         pages_per_call: int = -1,
     ) -> List[Element]:
-        file.seek(0)
-        parser = PDFParser(file)
-        document = PDFDocument(parser)
-        page_count = resolve1(document.catalog["Pages"])["Count"]
-        file.seek(0)
+        page_count = get_page_count(file)
 
         result = []
         low = 1
@@ -349,6 +349,7 @@ class ArynPDFPartitioner:
 
         return result
 
+    @requires_modules("easyocr", extra="local-inference")
     def _partition_pdf_sequenced(
         self,
         file: BinaryIO,
@@ -382,6 +383,8 @@ class ArynPDFPartitioner:
         """
         import easyocr
 
+        self._init_model()
+
         if not table_structure_extractor:
             table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
 
@@ -393,7 +396,7 @@ class ArynPDFPartitioner:
             images = [im.convert("RGB") for im in images]
 
         batches = _batchify(images, batch_size)
-        deformable_layout = []
+        deformable_layout: list[list[Element]] = []
         with LogTime("all_batches"):
             for i, batch in enumerate(batches):
                 with LogTime(f"infer_one_batch {i}/{len(images) / batch_size}"):
@@ -463,6 +466,8 @@ class ArynPDFPartitioner:
         batch_size: int = 1,
         use_cache=False,
     ) -> List[List["Element"]]:
+        self._init_model()
+
         LogTime("partition_start", point=True)
         with tempfile.NamedTemporaryFile(prefix="detr-pdf-input-") as pdffile:
             with LogTime("write_pdf"):
@@ -503,6 +508,8 @@ class ArynPDFPartitioner:
         batch_size: int = 1,
         use_cache=False,
     ) -> List[List["Element"]]:
+        self._init_model()
+
         if extract_table_structure and not table_structure_extractor:
             table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
 
@@ -563,6 +570,7 @@ class ArynPDFPartitioner:
 
         return pdfminer_layout
 
+    @requires_modules("easyocr", extra="local-inference")
     def process_batch(
         self,
         batch: list[Image.Image],
@@ -576,6 +584,8 @@ class ArynPDFPartitioner:
         use_cache,
     ) -> Any:
         import easyocr
+
+        self._init_model()
 
         with LogTime("infer"):
             assert self.model is not None
@@ -639,6 +649,8 @@ class SycamoreObjectDetection(ABC):
 
 
 class DeformableDetr(SycamoreObjectDetection):
+
+    @requires_modules("transformers", extra="local-inference")
     def __init__(self, model_name_or_path, device=None, cache: Optional[Cache] = None):
         super().__init__()
 
@@ -660,6 +672,8 @@ class DeformableDetr(SycamoreObjectDetection):
         self.device = device
         self._model_name_or_path = model_name_or_path
         self.cache = cache
+
+        from sycamore.utils.pytorch_dir import get_pytorch_build_directory
 
         with fasteners.InterProcessLock(_DETR_LOCK_FILE):
             lockfile = Path(get_pytorch_build_directory("MultiScaleDeformableAttention", False)) / "lock"
@@ -729,6 +743,8 @@ class DeformableDetr(SycamoreObjectDetection):
         return results
 
     def _get_uncached_inference(self, images: List[Image.Image], threshold: float) -> list:
+        import torch
+
         results = []
         inputs = self.processor(images=images, return_tensors="pt").to(self._get_device())
         outputs = self.model(**inputs)
@@ -750,13 +766,20 @@ class DeformableDetr(SycamoreObjectDetection):
 
 
 class PDFMinerExtractor:
+    @requires_modules(["pdfminer", "pdfminer.utils"], extra="local-inference")
     def __init__(self):
+        from pdfminer.layout import LAParams
+        from pdfminer.converter import PDFPageAggregator
+        from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
+
         rm = PDFResourceManager()
         param = LAParams()
         self.device = PDFPageAggregator(rm, laparams=param)
         self.interpreter = PDFPageInterpreter(rm, self.device)
 
     def _open_pdfminer_pages_generator(self, fp: BinaryIO):
+        from pdfminer.pdfpage import PDFPage
+
         pages = PDFPage.get_pages(fp)
         for page in pages:
             self.interpreter.process_page(page)
@@ -781,6 +804,7 @@ class PDFMinerExtractor:
     def extract(self, filename: Union[str, IOBase], hash_key: str, use_cache=False) -> List[List[Element]]:
         # The naming is slightly confusing, but `open_filename` accepts either
         # a filename (str) or a file-like object (IOBase)
+        from pdfminer.utils import open_filename
 
         cached_result = pdf_miner_cache.get(hash_key) if use_cache else None
         if cached_result:
@@ -813,9 +837,12 @@ class PDFMinerExtractor:
 
 
 @timetrace("OCR")
+@requires_modules("pytesseract", extra="local-inference")
 def extract_ocr(
     images: list[Image.Image], elements: list[list[Element]], ocr_images=False, ocr_tables=False, table_reader=None
 ) -> list[list[Element]]:
+    import pytesseract
+
     for i, image in enumerate(images):
         width, height = image.size
 

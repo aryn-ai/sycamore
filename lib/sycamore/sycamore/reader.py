@@ -1,14 +1,17 @@
 from typing import Optional, Union, Callable, Dict
+from pathlib import Path
 
 from pandas import DataFrame
 from pyarrow import Table
 from pyarrow.filesystem import FileSystem
 
+from sycamore.context import context_params
 from sycamore.plan_nodes import Node
 from sycamore import Context, DocSet
 from sycamore.data import Document
 from sycamore.connectors.file import ArrowScan, BinaryScan, DocScan, PandasScan, JsonScan, JsonDocumentScan
 from sycamore.connectors.file.file_scan import FileMetadataProvider
+from sycamore.utils.import_utils import requires_modules
 
 
 class DocSetReader:
@@ -22,6 +25,18 @@ class DocSetReader:
     def __init__(self, context: Context, plan: Optional[Node] = None):
         self._context = context
         self.plan = plan
+
+    def materialize(self, path: Union[Path, str], **kwargs) -> DocSet:
+        """Read a docset via materialization.
+
+        Semantics are a subset of the allowed options for DocSet.materialize.
+        source_mode is always IF_PRESENT.  Complex path specifications are disallowed
+        since reading from materialization requires default options."""
+
+        from sycamore.materialize import Materialize, MaterializeSourceMode
+
+        m = Materialize(child=None, context=self._context, path=path, source_mode=MaterializeSourceMode.USE_STORED)
+        return DocSet(self._context, m)
 
     def binary(
         self,
@@ -174,14 +189,14 @@ class DocSetReader:
         scan = ArrowScan(tables)
         return DocSet(self._context, scan)
 
-    def document(self, docs: list[Document]) -> DocSet:
+    def document(self, docs: list[Document], **kwargs) -> DocSet:
         """
         Reads the contents of Sycamore Documents into a DocSet
 
         Args:
             docs: Sycamore Documents to read into a DocSet
         """
-        scan = DocScan(docs)
+        scan = DocScan(docs, **kwargs)
         return DocSet(self._context, scan)
 
     def pandas(self, dfs: Union[DataFrame, list[DataFrame]]) -> DocSet:
@@ -194,7 +209,9 @@ class DocSetReader:
         scan = PandasScan(dfs)
         return DocSet(self._context, scan)
 
-    def opensearch(self, os_client_args: dict, index_name: str, query: Optional[Dict] = None) -> DocSet:
+    @requires_modules("opensearchpy", extra="opensearch")
+    @context_params
+    def opensearch(self, os_client_args: dict, index_name: str, query: Optional[Dict] = None, **kwargs) -> DocSet:
         """
         Reads the content of an OpenSearch index into a DocSet.
 
@@ -258,6 +275,7 @@ class DocSetReader:
         osr = OpenSearchReader(client_params=client_params, query_params=query_params)
         return DocSet(self._context, osr)
 
+    @requires_modules("duckdb", extra="duckdb")
     def duckdb(
         self, db_url: str, table_name: str, create_hnsw_table: Optional[str] = None, query: Optional[str] = None
     ) -> DocSet:
@@ -311,6 +329,7 @@ class DocSetReader:
         ddbr = DuckDBReader(client_params=client_params, query_params=query_params)
         return DocSet(self._context, ddbr)
 
+    @requires_modules("pinecone", extra="pinecone")
     def pinecone(self, index_name: str, api_key: str, namespace: str = "", query: Optional[Dict] = None) -> DocSet:
         """
         Reads the content of a Pinecone database index into a DocSet.
@@ -379,6 +398,7 @@ class DocSetReader:
         pr = PineconeReader(client_params=client_params, query_params=query_params)
         return DocSet(self._context, pr)
 
+    @requires_modules("elasticsearch", extra="elasticsearch")
     def elasticsearch(
         self, url: str, index_name: str, es_client_args: dict = {}, query: Optional[Dict] = None, **kwargs
     ) -> DocSet:
@@ -450,6 +470,7 @@ class DocSetReader:
         esr = ElasticsearchReader(client_params=client_params, query_params=query_params)
         return DocSet(self._context, esr)
 
+    @requires_modules("weaviate", extra="weaviate")
     def weaviate(self, wv_client_args: dict, collection_name: str, **kwargs) -> DocSet:
         """
         Reads the content of a Weaviate collection into a DocSet.

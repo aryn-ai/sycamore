@@ -10,20 +10,22 @@ from jinja2.sandbox import SandboxedEnvironment
 
 class LLMTextQueryAgent:
     """
-    LLMTextQueryAgent uses a specified LLM to execute LLM queries about a document
+    LLMTextQueryAgent uses a specified LLM to execute LLM queries about a document or its child elements.
 
     Args:
         prompt: A prompt to be passed into the underlying LLM execution engine
-        llm: (LLM) An instance of the LLM class to be pass into the user
-        output_property: (Optional) The output property to add results in. Defaults to 'llm_response'
-        format_kwargs: (Optional) Formatting arguments passed in to define the prompt, uses a Jinja Sandbox
-        number_of_elements: (Optional) Parameter to either limit the number of elements or to add an llm response to the
-        entire document using a prefix of elements
+        llm: The LLM Client to be used here. It is defined as an instance of the LLM class in Sycamore.
+        output_property: (Optional, default="llm_response") The output property of the document or element to add
+            results in.
+        format_kwargs: (Optional, default="None") If passed in, details the formatting details that must be
+            passed into the underlying Jinja Sandbox.
+        number_of_elements: (Optional, default="None") When "per_element" is true, limits the number of
+            elements to add an "output_property". Otherwise, the response is added to the
+            entire document using a limited prefix subset of the elements.
         llm_kwargs: (Optional) LLM keyword argument for the underlying execution engine
-        per_element: (Optional) Whether to execute the call per each element or on the Document itself. Defaults to
-        True.
-        element_type: (Optional) The element type-based filter accepts a string to specify a particular element type,
-        allowing the LLM to query only specific elements. By default, it will run query for all the elements"
+        per_element: (Optional, default="{}") Keyword arguments to be passed into the underlying LLM execution engine.
+        element_type: (Optional) Parameter to only execute the LLM query on a particular element type. If not specified,
+            the query will be executed on all elements.
     Example:
          .. code-block:: python
 

@@ -2,6 +2,8 @@
 
 [Pinecone](https://www.pinecone.io/) is a vector database that supports serverless queries. Its optimization and focus on vector embedding and retrieval, and can be a good option to host large amounts of vector data.
 
+Check out [this notebook](https://github.com/aryn-ai/sycamore/blob/main/notebooks/sycamore-tutorial-intermediate-etl.ipynb) for a tutorial on using Sycamore for ETL into a Pinecone database.
+
 ## Configuration for Pinecone
 
 *Please look at the [Pinecone API documentation](https://docs.pinecone.io/home) for in-depth background on the following. We specify the essential portions for creating a new Vector DB outside of Sycamore below.*
@@ -38,7 +40,7 @@ namespace = f"{generate_random_string().lower()}"
 ds.write.pinecone(index_name=index_name, namespace=namespace, dimensions=384, index_spec=spec)
 ```
 
-Note that the writer forces execution of all transforms before it, so would normally come at the end of a Sycamore pipeline. More information can be found in the {doc}`API documentation </APIs/data_preparation/docsetwriter>`.
+Note that the writer forces execution of all transforms before it, so would normally come at the end of a Sycamore pipeline. More information can be found in the {doc}`API documentation <../APIs/docsetwriter>`. Notebooks with examples of using the Pinecone writer are [here](https://github.com/aryn-ai/sycamore/blob/main/notebooks/sycamore-tutorial-intermediate-etl.ipynb) and [here](https://github.com/aryn-ai/sycamore/blob/main/notebooks/pinecone-writer.ipynb).
 
 ## Reading from Pinecone
 
@@ -62,4 +64,4 @@ query_docs = ctx.read.pinecone(
                 ).take_all()
 ```
 
-More information can be found in the {doc}`API documentation </APIs/data_preparation/docsetreader>`.
+More information can be found in the {doc}`API documentation <../APIs/docsetreader>`.

@@ -1,6 +1,12 @@
 Merge Elements
 ==============
 
+.. autoclass:: sycamore.transforms.merge_elements.ElementMerger
+   :members:
+   :show-inheritance:
+.. autoclass:: sycamore.transforms.merge_elements.GreedySectionMerger
+   :members:
+   :show-inheritance:
 .. autoclass:: sycamore.transforms.merge_elements.GreedyTextElementMerger
    :members:
    :show-inheritance:

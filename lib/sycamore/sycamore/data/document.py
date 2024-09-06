@@ -247,6 +247,7 @@ class MetadataDocument(Document):
         if "lineage_links" in self.metadata:
             assert len(self.metadata["lineage_links"]["from_ids"]) > 0
 
+        self.data["doc_id"] = str(uuid.uuid4())
         del self.data["lineage_id"]
         del self.data["elements"]
         del self.data["properties"]
@@ -254,16 +255,6 @@ class MetadataDocument(Document):
     # Override some of the common operations to make it hard to mis-use metadata. If any of these
     # are called it means that something tried to process a MetadataDocument as if it was a
     # Document.
-
-    @property
-    def doc_id(self) -> Optional[str]:
-        """A unique identifier for the document. Defaults to a uuid."""
-        raise ValueError("MetadataDocument does not have doc_id")
-
-    @doc_id.setter
-    def doc_id(self, value: str) -> None:
-        """Set the unique identifier of the document."""
-        raise ValueError("MetadataDocument does not have doc_id")
 
     @property
     def lineage_id(self) -> str:
@@ -337,8 +328,9 @@ class HierarchicalDocument(Document):
 
         self.doc_id = self.data.get("doc_id", str(uuid.uuid4()))
         self.children = self.data.get("children", [])
-        if self.data.get("type", "") == "table" and self.data.get("table", None) is not None:
-            self.text_representation = self.data["table"].to_csv()
+        if self.data.get("type", None) == "table":
+            table_csv = self.data.get("table").to_csv() if self.data.get("table") else ""
+            self.text_representation = self.data.get("text_representation", table_csv)
 
         for element in self.data.get("elements", []):
             self.children.append(HierarchicalDocument(Document(element.data)))

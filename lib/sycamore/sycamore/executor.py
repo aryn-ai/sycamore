@@ -1,5 +1,5 @@
 import logging
-from typing import Iterable, TYPE_CHECKING
+from typing import Callable, Iterable, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ray.data import Dataset
@@ -37,58 +37,88 @@ def _ray_logging_setup():
 
 
 class Execution:
-    def __init__(self, context: Context, plan: Node):
+    def __init__(self, context: Context):
         self._context = context
-        self._plan = plan
         self._exec_mode = context.exec_mode
-        from sycamore.rewriter import Rewriter
 
-        extension_rules = context.extension_rules
-        self.rewriter = Rewriter(extension_rules)
+    def _execute_ray(self, plan: Node, **kwargs) -> "Dataset":
+        import ray
 
-    def execute(self, plan: Node, **kwargs) -> "Dataset":
-        self.rewriter.rewrite(plan)
-        if self._exec_mode == ExecMode.RAY:
-            import ray
+        if not ray.is_initialized():
+            ray_args = self._context.ray_args or {}
 
-            if not ray.is_initialized():
-                ray_args = self._context.ray_args or {}
+            if "logging_level" not in ray_args:
+                ray_args.update({"logging_level": logging.INFO})
 
-                if "logging_level" not in ray_args:
-                    ray_args.update({"logging_level": logging.INFO})
+            if "runtime_env" not in ray_args:
+                ray_args["runtime_env"] = {}
 
-                if "runtime_env" not in ray_args:
-                    ray_args["runtime_env"] = {}
+            if "worker_process_setup_hook" not in ray_args["runtime_env"]:
+                # logging.error("Spurious log 0: If you do not see spurious log 1 & 2,
+                # log messages are being dropped")
+                ray_args["runtime_env"]["worker_process_setup_hook"] = _ray_logging_setup
 
-                if "worker_process_setup_hook" not in ray_args["runtime_env"]:
-                    # logging.error("Spurious log 0: If you do not see spurious log 1 & 2,
-                    # log messages are being dropped")
-                    ray_args["runtime_env"]["worker_process_setup_hook"] = _ray_logging_setup
+            ray.init(**ray_args)
 
-                ray.init(**ray_args)
-            return plan.execute(**kwargs)
-        if self._exec_mode == ExecMode.LOCAL:
-            from ray.data import from_items
+        return plan.execute(**kwargs)
 
-            return from_items(items=[{"doc": doc.serialize()} for doc in self.recursive_execute(self._plan)])
-        assert False, f"unsupported mode {self._exec_mode}"
+    def _apply_rules(self, plan: Node) -> Node:
+        from sycamore.plan_nodes import NodeTraverse
+
+        for r in self._context.rewrite_rules:
+            if isinstance(r, NodeTraverse):
+                plan = r.once(self._context, plan)
+                plan = plan.traverse(r)
+            else:
+                plan = plan.traverse(before=r)
+
+        return plan
 
     def execute_iter(self, plan: Node, **kwargs) -> Iterable[Document]:
-        self.rewriter.rewrite(plan)
+        plan = self._apply_rules(plan)
+        self._prepare(plan)
         if self._exec_mode == ExecMode.RAY:
-            ds = plan.execute(**kwargs)
+            ds = self._execute_ray(plan, **kwargs)
             for row in ds.iter_rows():
                 yield Document.from_row(row)
-            return
-        if self._exec_mode == ExecMode.LOCAL:
-            for d in self.recursive_execute(self._plan):
+        elif self._exec_mode == ExecMode.LOCAL:
+            for d in self.recursive_execute(plan):
                 yield d
-            return
-        assert False
+        else:
+            assert False
+
+        plan.traverse(visit=lambda n: n.finalize())
+
+    def _prepare(self, plan: Node):
+        # Some prepare operations need to execute in phases, running a complete phase over the tree
+        # and then running another phase. We use a queue to generate those semantics. For example,
+        # materialize needs to make a pass to clean all the directories and then a second pass to write
+        # a marker file to make sure that the directories aren't being accidentally re-used.  In a single
+        # pass if we clean then check, the check is pointless. If we check then clean, sequential runs
+        # of the same pipeline will fail incorrectly.
+        from queue import Queue
+
+        pending: Queue[Callable] = Queue()
+
+        def visit(n):
+            f = n.prepare()
+            if f is not None:
+                pending.put(f)
+
+        plan.traverse(visit=visit)
+        while not pending.empty():
+            f = pending.get(block=False)
+            g = f()
+            if g is not None:
+                pending.put(g)
 
     def recursive_execute(self, n: Node) -> list[Document]:
+        from sycamore.materialize import Materialize
+
         if len(n.children) == 0:
             assert hasattr(n, "local_source"), f"Source {n} needs a local_source method"
+            return n.local_source()
+        if isinstance(n, Materialize) and n._will_be_source():
             return n.local_source()
         if len(n.children) == 1:
             assert hasattr(n, "local_execute"), f"Transform {n.__class__.__name__} needs a local_execute method"

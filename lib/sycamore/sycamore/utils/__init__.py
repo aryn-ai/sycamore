@@ -3,6 +3,8 @@ from typing import Optional
 
 from itertools import islice
 
+from sycamore.utils.import_utils import requires_modules
+
 __all__ = [
     "batched",
     "choose_device",
@@ -14,6 +16,7 @@ def batched(iterable, chunk_size):
     return iter(lambda: list(islice(iterator, chunk_size)), list())
 
 
+@requires_modules("torch.cuda", extra="local-inference")
 def choose_device(want: Optional[str], *, detr=False) -> str:
     if os.environ.get("DISABLE_GPU") == "1":
         return "cpu"

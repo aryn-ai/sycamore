@@ -57,7 +57,7 @@ jobs:
       - name: DF-3
         run: df
       - name: Install sycamore
-        run: poetry install
+        run: poetry install --all-extras
         working-directory: lib/sycamore
       - name: DF-4
         run: df
@@ -69,6 +69,9 @@ jobs:
         run: df
       - name: Run tests
         run: poetry run pytest sycamore/tests/unit/
+        working-directory: lib/sycamore
+      - name: Run more tests
+        run: poetry run python sycamore/tests/manual/test_fast_sycamore_import.py
         working-directory: lib/sycamore
       - name: DF-6
         run: df
@@ -103,7 +106,7 @@ jobs:
         working-directory: lib/remote-processors
 
   integ-tests:
-    runs-on: integ-test-runner
+    runs-on: integ-test-runner2
     strategy:
       matrix:
         python-version: ["3.9"]
@@ -152,7 +155,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: "poetry"
       - name: Install sycamore
-        run: poetry install
+        run: poetry install --all-extras
       - name: Download nltk packages
         run: poetry run python -m nltk.downloader punkt averaged_perceptron_tagger
       - name: Update Apt

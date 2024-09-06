@@ -6,6 +6,7 @@ import pytest
 
 import sycamore
 from sycamore import DocSet, Context
+from sycamore.context import OperationTypes
 from sycamore.data import Document, Element
 from sycamore.llms.prompts.default_prompts import (
     LlmClusterEntityAssignGroupsMessagesPrompt,
@@ -51,14 +52,14 @@ class MockLLM(LLM):
             prompt_kwargs["messages"]
             == LlmClusterEntityFormGroupsMessagesPrompt(
                 field="text_representation", instruction="", text="1, 2, one, two, 1, 3"
-            ).get_messages_dict()
+            ).as_messages()
         ):
             return '{"groups": ["group1", "group2", "group3"]}'
         elif (
             prompt_kwargs["messages"][0]
             == LlmClusterEntityAssignGroupsMessagesPrompt(
                 field="text_representation", groups=["group1", "group2", "group3"]
-            ).get_messages_dict()[0]
+            ).as_messages()[0]
         ):
             value = prompt_kwargs["messages"][1]["content"]
             if value == "1" or value == "one":
@@ -242,8 +243,9 @@ class TestDocSet:
 
         assert len(docset.take_all()) == num_docs
 
+        docset.take_all(limit=num_docs)
         with pytest.raises(ValueError):
-            docset.take_all(limit=20)
+            docset.take_all(limit=num_docs - 1)
 
     def random_string(self, min_size: int, max_size: int) -> str:
         k = random.randrange(min_size, max_size)
@@ -365,22 +367,18 @@ class TestDocSet:
     def test_llm_filter(self):
 
         doc_list = [Document(text_representation="test1"), Document(text_representation="test2")]
-        context = sycamore.init()
+        context = sycamore.init(params={OperationTypes.BINARY_CLASSIFIER: {"llm": MockLLM()}})
         docset = context.read.document(doc_list)
         new_field = "_autogen_LLMFilterOutput"
 
-        filtered_docset = docset.llm_filter(
-            llm=MockLLM(), new_field=new_field, prompt=[], field="text_representation", threshold=3
-        )
+        filtered_docset = docset.llm_filter(new_field=new_field, prompt=[], field="text_representation", threshold=3)
 
         assert filtered_docset.count() == 1
         for doc in filtered_docset.take():
             assert doc.text_representation == "test1"
             assert int(doc.properties[new_field]) == 4
 
-        filtered_docset = docset.llm_filter(
-            llm=MockLLM(), new_field=new_field, prompt=[], field="text_representation", threshold=2
-        )
+        filtered_docset = docset.llm_filter(new_field=new_field, prompt=[], field="text_representation", threshold=2)
 
         assert filtered_docset.count() == 2
 

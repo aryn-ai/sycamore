@@ -1,9 +1,11 @@
+import typing
 from typing import Dict, Set, Tuple
 
-from opensearchpy.client.indices import IndicesClient
 from sycamore.transforms.query import OpenSearchQueryExecutor
 from sycamore.data import OpenSearchQuery
 
+if typing.TYPE_CHECKING:
+    from opensearchpy.client.indices import IndicesClient
 
 OpenSearchSchema = Dict[str, Tuple[str, Set[str]]]
 """Represents a mapping from field name to field type and a set of example values."""
@@ -15,7 +17,7 @@ class OpenSearchSchemaFetcher:
     # Size of random samples for each field.
     NUM_EXAMPLES = 10
 
-    def __init__(self, client: IndicesClient, index: str, query_executor: OpenSearchQueryExecutor) -> None:
+    def __init__(self, client: "IndicesClient", index: str, query_executor: OpenSearchQueryExecutor) -> None:
         super().__init__()
         self._client = client
         self._index = index
@@ -41,13 +43,16 @@ class OpenSearchSchemaFetcher:
             if not key.startswith("properties.entity") or ".keyword" in key:
                 continue
             try:
-                samples = {
-                    random_sample[i]["_source"]["properties"]["entity"].get(key[18:], None)
-                    for i in range(len(random_sample))
-                }
-                samples -= {None}
-                sample_type = type(samples.copy().pop())
-                result[key] = (str(sample_type), {str(example) for example in samples})
+                samples = set()
+                sample_type = None
+                for sample in random_sample:
+                    sample_value = sample["_source"]["properties"]["entity"].get(key[18:], None)
+                    if sample_value is not None:
+                        if not sample_type:
+                            sample_type = type(sample_value)
+                        samples.add(str(sample_value))
+                if len(samples) > 0:
+                    result[key] = (str(sample_type), {str(example) for example in samples})
             except KeyError:
                 # This can happen if there are mappings that have no corresponding values.
                 # Skip them.

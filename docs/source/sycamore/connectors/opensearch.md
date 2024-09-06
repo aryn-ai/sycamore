@@ -72,7 +72,7 @@ docset.write.opensearch(
     index_settings=index_settings,
 )
 ```
-More information can be found in the {doc}`API documentation </APIs/data_preparation/docsetwriter>`.
+More information can be found in the {doc}`API documentation <../APIs/docsetwriter>`. A demo of the writer can also be found in the [demo notebook](https://github.com/aryn-ai/sycamore/blob/main/notebooks/opensearch-writer.ipynb).
 
 
 ## Reading from OpenSearch
@@ -86,4 +86,4 @@ ctx = sycamore.init()
 ctx.read.opensearch(os_client_args=os_client_args, index_name=index_name, query={"query": {"term": {"_id": "SAMPLE-DOC-ID"}}})
 ```
 
-More information can be found in the {doc}`API documentation </APIs/data_preparation/docsetreader>`.
+More information can be found in the {doc}`API documentation <../APIs/docsetreader>`.

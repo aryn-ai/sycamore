@@ -1,13 +1,13 @@
 ## An Introduction to the Aryn Partitioning Service 
-You can use the Aryn Partitioning Service to easily chunk and extract data from complex PDFs. The Partitioning Service can extract paragraphs, tables and images, returning detailed information about the components it has just identified in a JSON object.  The following two sections will walk you through two examples where we segment  PDF documents and extract a table and an image from those documents using the python aryn-sdk.
+You can use the Aryn Partitioning Service to easily chunk and extract data from complex PDFs. The Partitioning Service can extract paragraphs, tables and images. It returns detailed information about the components it has just identified in a JSON object.  The following two sections will walk you through two examples where we segment  PDF documents and extract a table and an image from those documents using the python aryn-sdk.
 
 ### Extracting Tables from a PDF
 
-In [this example](https://colab.research.google.com/drive/1ZkJ9clSVVvJsNPRlWXpplfs1U9W4ZSdH?usp=sharing), we’ll use the Partitioning Service to extract the “Supplemental Income” table (shown below) from the 10k financial document  of 3M, and turn it into a pandas dataframe. 
+In [this example](https://colab.research.google.com/drive/1Qpd-llPC-EPzuTwLfnguMnrQk0eclyqJ?usp=sharing), we’ll use the Partitioning Service to extract the “Supplemental Income” table (shown below) from the 10k financial document  of 3M, and turn it into a pandas dataframe. 
 
 ![alt text](3m_supplemental_income.png)
 
-We’ll go through the important code snippets below  to see what’s going on.  (Try it out in  [colab](https://colab.research.google.com/drive/1ZkJ9clSVVvJsNPRlWXpplfs1U9W4ZSdH?usp=sharing)  yourself! )
+We’ll go through the important code snippets below  to see what’s going on.  (Try it out in  [colab](https://colab.research.google.com/drive/1Qpd-llPC-EPzuTwLfnguMnrQk0eclyqJ?usp=sharing)  yourself! )
 
 
 Let’s focus on the following code that makes a call to the Aryn Partitioning Service: 
@@ -90,7 +90,7 @@ In particular let's look at the “cells” field  which is an array of cell obj
 
 ```
 
-Here we've detected the first cell, its bounding box (which indicates the coordinates of the cell in the PDF), whether it’s a header cell and its contents. You can then process this JSON however you’d like for further analysis. In [the notebook](https://colab.research.google.com/drive/1ZkJ9clSVVvJsNPRlWXpplfs1U9W4ZSdH?usp=sharing)  we use the tables_to_pandas function to turn the JSON into a pandas dataframe and then perform some analysis on it:
+Here we've detected the first cell, its bounding box (which indicates the coordinates of the cell in the PDF), whether it’s a header cell and its contents. You can then process this JSON however you’d like for further analysis. In [the notebook](https://colab.research.google.com/drive/1Qpd-llPC-EPzuTwLfnguMnrQk0eclyqJ?usp=sharing)  we use the tables_to_pandas function to turn the JSON into a pandas dataframe and then perform some analysis on it:
 
 ```python
 pandas = tables_to_pandas(partitioned_file)
@@ -115,7 +115,7 @@ display(supplemental_income)
 
 ### Extracting Images from a PDF
 
-In [this example](https://colab.research.google.com/drive/1WVxFB8MKUUM16m6BmqxEt-u-FTPLtxQF?authuser=0#scrollTo=Qi5dbTgqf5Y3), we’ll use the Partitioning Service to extract an image from a battery manual.  We’ll go through the important code snippets below  to see what’s going on (Try it out in  [colab](https://colab.research.google.com/drive/1WVxFB8MKUUM16m6BmqxEt-u-FTPLtxQF?authuser=0#scrollTo=Qi5dbTgqf5Y3)  yourself! )
+In [this example](https://colab.research.google.com/drive/1n5zRm5hfHhxs7dA0FncC44VjlpiPJLWq?usp=sharing), we’ll use the Partitioning Service to extract an image from a battery manual.  We’ll go through the important code snippets below  to see what’s going on (Try it out in  [colab](https://colab.research.google.com/drive/1n5zRm5hfHhxs7dA0FncC44VjlpiPJLWq?usp=sharing)  yourself! )
 
 Let’s focus on the following code that makes a call to the Aryn Partitioning Service: 
 

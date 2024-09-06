@@ -91,7 +91,8 @@ docset.write.weaviate(
 )
 ```
 
-More information can be found in the {doc}`API documentation </APIs/data_preparation/docsetwriter>`.
+More information can be found in the {doc}`API documentation <../APIs/docsetwriter>`.
+
 
 ## Reading from Weaviate
 
@@ -125,4 +126,4 @@ query_docs = ctx.read.weaviate(
     ).take_all()
 ```
 
-More information can be found in the {doc}`API documentation </APIs/data_preparation/docsetreader>`.
+More information can be found in the {doc}`API documentation <../APIs/docsetreader>`.

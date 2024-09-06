@@ -23,6 +23,7 @@ index = "demoindex0"
 
 sess = boto3.session.Session()
 cred = sess.get_credentials()
+assert cred is not None
 fsys = pyarrow.fs.S3FileSystem(
     access_key=cred.access_key,
     secret_key=cred.secret_key,

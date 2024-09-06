@@ -95,6 +95,19 @@ class TestTraverse:
         assert isinstance(n, TestTraverse.Two)
         return n
 
+    def test_visit(self):
+        One = TestTraverse.One
+        n = One()
+        n.children = [One(), One()]
+
+        def visit(n):
+            n.visit = True
+
+        n.traverse(visit=visit)
+        assert n.visit is True
+        assert n.children[0].visit is True
+        assert n.children[1].visit is True
+
     def test_reclass(self):
         One = TestTraverse.One
         n = One()

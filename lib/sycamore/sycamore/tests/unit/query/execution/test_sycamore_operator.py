@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch, ANY, Mock
 
 import sycamore
+from sycamore.llms import LLM
 from sycamore.query.operators.field_in import FieldIn
 from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
 from sycamore import DocSet
@@ -30,22 +31,24 @@ from sycamore.query.operators.top_k import TopK
 
 def test_query_database(mock_sycamore_docsetreader, mock_opensearch_num_docs):
     with patch("sycamore.reader.DocSetReader", new=mock_sycamore_docsetreader):
-        context = sycamore.init()
-
-        os_client_args = {
-            "hosts": [{"host": "localhost", "port": 9200}],
-            "http_compress": True,
-            "http_auth": ("admin", "admin"),
-            "use_ssl": True,
-            "verify_certs": False,
-            "ssl_assert_hostname": False,
-            "ssl_show_warn": False,
-            "timeout": 120,
-        }
-        logical_node = QueryDatabase(node_id=0, description="Load data", index="test_index")
-        sycamore_operator = SycamoreQueryDatabase(
-            context=context, logical_node=logical_node, query_id="test", os_client_args=os_client_args
+        context = sycamore.init(
+            params={
+                "opensearch": {
+                    "os_client_args": {
+                        "hosts": [{"host": "localhost", "port": 9200}],
+                        "http_compress": True,
+                        "http_auth": ("admin", "admin"),
+                        "use_ssl": True,
+                        "verify_certs": False,
+                        "ssl_assert_hostname": False,
+                        "ssl_show_warn": False,
+                        "timeout": 120,
+                    }
+                }
+            }
         )
+        logical_node = QueryDatabase(node_id=0, description="Load data", index="test_index")
+        sycamore_operator = SycamoreQueryDatabase(context=context, logical_node=logical_node, query_id="test")
         result = sycamore_operator.execute()
         # Validate result type
         assert isinstance(result, DocSet)
@@ -55,10 +58,7 @@ def test_query_database(mock_sycamore_docsetreader, mock_opensearch_num_docs):
 
 
 def test_summarize_data():
-    with (
-        patch("sycamore.query.execution.sycamore_operator.summarize_data") as mock_impl,
-        patch("sycamore.query.execution.sycamore_operator.OpenAI"),  # disable OpenAI client initialization
-    ):
+    with (patch("sycamore.query.execution.sycamore_operator.summarize_data") as mock_impl,):
         # Define the mock return value
         mock_impl.return_value = "success"
         context = sycamore.init()
@@ -69,7 +69,7 @@ def test_summarize_data():
 
         assert result == "success"
         mock_impl.assert_called_once_with(
-            llm=ANY,
+            context=context,
             question=logical_node.question,
             result_description=logical_node.description,
             result_data=[load_node],
@@ -78,11 +78,8 @@ def test_summarize_data():
 
 
 def test_llm_filter():
-    with (
-        patch("sycamore.query.execution.sycamore_operator.OpenAI"),  # disable OpenAI client initialization
-        patch("sycamore.query.execution.sycamore_operator.LlmFilterMessagesPrompt") as MockLlmFilterMessagesPrompt,
-    ):
-        context = sycamore.init()
+    with (patch("sycamore.query.execution.sycamore_operator.LlmFilterMessagesPrompt") as MockLlmFilterMessagesPrompt,):
+        context = sycamore.init(params={"default": {"llm": Mock(spec=LLM)}})
         doc_set = Mock(spec=DocSet)
         return_doc_set = Mock(spec=DocSet)
         doc_set.llm_filter.return_value = return_doc_set
@@ -97,11 +94,9 @@ def test_llm_filter():
         )
 
         doc_set.llm_filter.assert_called_once_with(
-            llm=ANY,
             new_field="_autogen_LLMFilterOutput",
             prompt=ANY,
             field=logical_node.field,
-            threshold=3,
             name=str(logical_node.node_id),
         )
 
@@ -202,14 +197,12 @@ def test_join():
 
 def test_llm_extract_entity():
     with (
-        patch("sycamore.query.execution.sycamore_operator.OpenAI"),
         patch(
             "sycamore.query.execution.sycamore_operator.EntityExtractorMessagesPrompt"
         ) as MockEntityExtractorMessagesPrompt,
         patch("sycamore.query.execution.sycamore_operator.OpenAIEntityExtractor") as MockOpenAIEntityExtractor,
     ):
-
-        context = sycamore.init()
+        context = sycamore.init(params={"default": {"llm": Mock(spec=LLM)}})
         doc_set = Mock(spec=DocSet)
         return_doc_set = Mock(spec=DocSet)
         doc_set.extract_entity.return_value = return_doc_set
@@ -231,7 +224,6 @@ def test_llm_extract_entity():
         # assert OpenAIEntityExtractor called with expected arguments
         MockOpenAIEntityExtractor.assert_called_once_with(
             entity_name=logical_node.new_field,
-            llm=ANY,
             use_elements=False,
             prompt=ANY,
             field=logical_node.field,
@@ -263,34 +255,32 @@ def test_sort():
 
 
 def test_top_k():
-    with (patch("sycamore.query.execution.sycamore_operator.OpenAI"),):  # disable OpenAI client initialization
-        context = sycamore.init()
-        doc_set = Mock(spec=DocSet)
-        return_doc_set = Mock(spec=DocSet)
-        doc_set.top_k.return_value = return_doc_set
-        logical_node = TopK(
-            node_id=0,
-            descending=True,
-            K=10,
-            field="name",
-            llm_cluster=True,
-            primary_field="id",
-            llm_cluster_instruction="some description",
-        )
-        sycamore_operator = SycamoreTopK(context, logical_node, query_id="test", inputs=[doc_set])
-        result = sycamore_operator.execute()
+    context = sycamore.init(params={"default": {"llm": Mock(spec=LLM)}})
+    doc_set = Mock(spec=DocSet)
+    return_doc_set = Mock(spec=DocSet)
+    doc_set.top_k.return_value = return_doc_set
+    logical_node = TopK(
+        node_id=0,
+        descending=True,
+        K=10,
+        field="name",
+        llm_cluster=True,
+        primary_field="id",
+        llm_cluster_instruction="some description",
+    )
+    sycamore_operator = SycamoreTopK(context, logical_node, query_id="test", inputs=[doc_set])
+    result = sycamore_operator.execute()
 
-        doc_set.top_k.assert_called_once_with(
-            llm=ANY,
-            field=logical_node.field,
-            k=logical_node.K,
-            descending=logical_node.descending,
-            llm_cluster=logical_node.llm_cluster,
-            unique_field=logical_node.primary_field,
-            llm_cluster_instruction=logical_node.llm_cluster_instruction,
-            **sycamore_operator.get_execute_args(),
-        )
-        assert result == return_doc_set
+    doc_set.top_k.assert_called_once_with(
+        field=logical_node.field,
+        k=logical_node.K,
+        descending=logical_node.descending,
+        llm_cluster=logical_node.llm_cluster,
+        unique_field=logical_node.primary_field,
+        llm_cluster_instruction=logical_node.llm_cluster_instruction,
+        **sycamore_operator.get_execute_args(),
+    )
+    assert result == return_doc_set
 
 
 def test_limit(mock_docs):
@@ -308,11 +298,9 @@ def test_limit(mock_docs):
 
 class ValidationTests(unittest.TestCase):
     def test_query_database_validation(self):
-        context = sycamore.init()
+        context = sycamore.init(params={"opensearch": {"os_client_args": {"test_key": "test_value"}}})
         logical_node = QueryDatabase(node_id=0, description="Load data", index="test_index")
-        sycamore_operator = SycamoreQueryDatabase(
-            context=context, logical_node=logical_node, query_id="test", os_client_args={}
-        )
+        sycamore_operator = SycamoreQueryDatabase(context=context, logical_node=logical_node, query_id="test")
         _ = sycamore_operator.execute()
 
     def test_summarize_data_validation(self):

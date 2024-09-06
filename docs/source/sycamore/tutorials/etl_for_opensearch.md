@@ -6,7 +6,7 @@ In this example, we will be using PDF documents from the [Sort Benchmark](http:/
 
 ## Steps
 
-1. Install Sycamore using pip using [these instructions](../sycamore/get_started.rst)
+1. Install Sycamore using pip using [these instructions](/sycamore/get_started)
 
 2. Create a Python script and import Sycamore. In the following code snippet, we are initializing Sycamore and creating a DocSet by reading all the files from a local path.
 

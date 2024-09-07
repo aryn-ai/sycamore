@@ -52,42 +52,44 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
 
     @staticmethod
     @timetrace("ExtrKeyVal")
-    def extract_table_properties(parent: Document, property_name: str, llm: LLM) -> Document:
+    def extract_table_properties(parent: Document, property_name: str, llm: LLM, prompt_find_table:str=None, prompt_LLM: str=None,  ) -> Document:
         """
         This Method is used to extract key value pair from table using LLM and
         populate it as property of that element.
         """
-        prompt = """
-        You are given a text string where columns are separated by comma representing either a single column, 
-        or multi-column table each new line is a new row.
-        Instructions:
-        1. Parse the table and make decision if key, value pair information can be extracted from it.
-        2. if the table contains multiple cell value corresponding to one key, the key, value pair for such table 
-        cant be extracted.
-        3. return True if table cant be parsed as key value pair.
-        4. return only True or False nothing should be added in the response.
-        """
-        query_agent = LLMTextQueryAgent(prompt=prompt, llm=llm, output_property="keyValueTable", element_type="table")
+        if prompt_find_table is None:
+            prompt_find_table = """
+            You are given a text string where columns are separated by comma representing either a single column, 
+            or multi-column table each new line is a new row.
+            Instructions:
+            1. Parse the table and make decision if key, value pair information can be extracted from it.
+            2. if the table contains multiple cell value corresponding to one key, the key, value pair for such table 
+            cant be extracted.
+            3. return True if table cant be parsed as key value pair.
+            4. return only True or False nothing should be added in the response.
+            """
+        query_agent = LLMTextQueryAgent(prompt=prompt_find_table, llm=llm, output_property="keyValueTable", element_type="table")
         doc = query_agent.execute_query(parent)
-
-        prompt = """
-        You are given a text string where columns are separated by comma representing either a single column, 
-        or multi-column table each new line is a new row.
-        Instructions:
-        1. Parse the table and return a flattened JSON object representing the key-value pairs of properties 
-        defined in the table.
-        2. Do not return nested objects, keep the dictionary only 1 level deep. The only valid value types 
-        are numbers, strings, and lists.
-        3. If you find multiple fields defined in a row, feel free to split them into separate properties.
-        4. Use camelCase for the key names
-        5. For fields where the values are in standard measurement units like miles, 
-        nautical miles, knots, celsius
-        6. return only the json object between ``` 
-        - include the unit in the key name and only set the numeric value as the value.
-        - e.g. "Wind Speed: 9 knots" should become windSpeedInKnots: 9, 
-        "Temperature: 3°C" should become temperatureInC: 3
-        """
-        query_agent = LLMTextQueryAgent(prompt=prompt, llm=llm, output_property=property_name, element_type="table")
+        
+        if prompt_LLM is None:
+            prompt_LLM = """
+            You are given a text string where columns are separated by comma representing either a single column, 
+            or multi-column table each new line is a new row.
+            Instructions:
+            1. Parse the table and return a flattened JSON object representing the key-value pairs of properties 
+            defined in the table.
+            2. Do not return nested objects, keep the dictionary only 1 level deep. The only valid value types 
+            are numbers, strings, and lists.
+            3. If you find multiple fields defined in a row, feel free to split them into separate properties.
+            4. Use camelCase for the key names
+            5. For fields where the values are in standard measurement units like miles, 
+            nautical miles, knots, celsius
+            6. return only the json object between ``` 
+            - include the unit in the key name and only set the numeric value as the value.
+            - e.g. "Wind Speed: 9 knots" should become windSpeedInKnots: 9, 
+            "Temperature: 3°C" should become temperatureInC: 3
+            """
+        query_agent = LLMTextQueryAgent(prompt=prompt_LLM, llm=llm, output_property=property_name, element_type="table")
         doc = query_agent.execute_query(parent)
 
         for ele in doc.elements:

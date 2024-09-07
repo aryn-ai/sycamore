@@ -11,6 +11,7 @@ from util import show_query_traces, get_schema, generate_plan, run_plan, get_ope
 
 DEFAULT_S3_CACHE_PATH = "s3://aryn-temp/llm_cache/luna/ntsb"
 
+
 def generate_code(client: SycamoreQueryClient, plan: LogicalPlan) -> str:
     st.session_state.query_id, code = client.run_plan(plan, dry_run=True)
     return code
@@ -61,7 +62,7 @@ def run_query():
 
     client = get_sycamore_query_client(
         s3_cache_path=st.session_state.s3_cache_path if st.session_state.use_cache else None,
-        trace_dir=st.session_state.trace_dir
+        trace_dir=st.session_state.trace_dir,
     )
     with st.spinner("Generating plan..."):
         plan = generate_plan(client, st.session_state.query, st.session_state.index)

@@ -218,6 +218,9 @@ class SycamoreExecutor:
         result += "from sycamore.utils.cache import S3Cache\n"
         result += "import sycamore\n\n"
 
+        if not self.context.params:
+            result += "context = sycamore.init()\n\n"
+
         for node_id in sorted(self.node_id_to_node):
             description = self.node_id_to_node[node_id].description.strip("n")
             code = self.node_id_to_code[node_id].strip("\n")

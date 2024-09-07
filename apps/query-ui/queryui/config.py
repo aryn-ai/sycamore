@@ -20,7 +20,8 @@ def get_default_sycamore_query_client(
 ) -> Context:
     return SycamoreQueryClient(s3_cache_path=s3_cache_path, os_client_args=os_client_args, trace_dir=trace_dir)
 
-
+# this is for mypy
+get_sycamore_query_client = None
 try:
     from custom_client import get_sycamore_query_client
 

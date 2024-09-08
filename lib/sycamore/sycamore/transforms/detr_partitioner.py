@@ -6,37 +6,32 @@ import tracemalloc
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from concurrent.futures import ProcessPoolExecutor
-from io import BytesIO, IOBase
-from typing import cast, Any, BinaryIO, List, Tuple, Union, Optional
+from io import IOBase
+from typing import cast, Any, BinaryIO, List, Optional
 from pathlib import Path
 import pwd
+from pdfminer.pdfparser import PDFParser
+from pdfminer.pdfdocument import PDFDocument
+from pdfminer.pdfinterp import resolve1
 
 import requests
 import json
 from tenacity import retry, retry_if_exception, wait_exponential, stop_after_delay
 import base64
 import pdf2image
-import pytesseract
 from PIL import Image
 import fasteners
-from pdfminer.converter import PDFPageAggregator
-from pdfminer.layout import LAParams
-from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager, resolve1
-from pdfminer.pdfpage import PDFPage
-from pdfminer.utils import open_filename
-from pdfminer.pdfparser import PDFParser
-from pdfminer.pdfdocument import PDFDocument
 
 from sycamore.data import Element, BoundingBox, ImageElement, TableElement
 from sycamore.data.element import create_element
 from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
 from sycamore.utils import choose_device
-from sycamore.utils.cache import Cache, DiskCache
+from sycamore.utils.cache import Cache
 from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
 from sycamore.utils.pdf import convert_from_path_streamed_batched
 from sycamore.utils.time_trace import LogTime, timetrace
-from sycamore.transforms.ocr.ocr_models import OCRModel
+from sycamore.transforms.text_extraction import TextExtractor
 
 logger = logging.getLogger(__name__)
 _DETR_LOCK_FILE = f"{pwd.getpwuid(os.getuid()).pw_dir}/.cache/Aryn-Detr.lock"
@@ -65,9 +60,6 @@ def _can_retry(e: BaseException) -> bool:
         return e.can_retry
     else:
         return False
-
-
-pdf_miner_cache = DiskCache(str(Path.home() / ".sycamore/PDFMinerCache"))
 
 
 class ArynPDFPartitioner:
@@ -383,8 +375,6 @@ class ArynPDFPartitioner:
         Returns:
            A list of lists of Elements. Each sublist corresponds to a page in the original PDF.
         """
-        import easyocr
-
         self._init_model()
 
         if not table_structure_extractor:
@@ -404,49 +394,20 @@ class ArynPDFPartitioner:
                 with LogTime(f"infer_one_batch {i}/{len(images) / batch_size}"):
                     assert self.model is not None
                     deformable_layout += self.model.infer(batch, threshold, use_cache)
+        # The cast here is to make mypy happy. TextExtractor / PDFMiner expects IOBase,
+        # but typing.BinaryIO doesn't extend from it. BytesIO
+        # (the concrete class) implements both.
+        file_name = cast(IOBase, file)
+        hash_key = Cache.get_hash_context(file_name.read()).hexdigest()
+        text_extractor = TextExtractor(use_ocr=use_ocr, ocr_model=ocr_model)
+        with LogTime("text_extract", log_start=True):
+            extracted_layout = text_extractor.extract(file_name, hash_key, use_cache)
+        # page count should be the same
+        assert len(extracted_layout) == len(deformable_layout)
 
-        if use_ocr:
-            with LogTime("ocr"):
-                if ocr_model == "paddle":
-                    from sycamore.transforms.ocr.ocr_models import PaddleOCR
-                    import paddle
-
-                    ocr_model = PaddleOCR(use_gpu=paddle.device.is_compiled_with_cuda())
-                elif ocr_model == "legacy":
-                    from sycamore.transforms.ocr.ocr_models import LegacyOCR
-
-                    ocr_model = LegacyOCR()
-                elif ocr_model == "tesseract":
-                    from sycamore.transforms.ocr.ocr_models import Tesseract
-
-                    ocr_model = Tesseract()
-                else:
-                    from sycamore.transforms.ocr.ocr_models import EasyOCR
-
-                    ocr_model = EasyOCR()
-                extract_ocr(
-                    images,
-                    deformable_layout,
-                    ocr_images=ocr_images,
-                    ocr_model=ocr_model,
-                    ocr_tables=extract_table_structure,
-                )
-        else:
-            with LogTime("pdfminer"):
-                pdfminer = PDFMinerExtractor()
-                # The cast here is to make mypy happy. PDFMiner expects IOBase,
-                # but typing.BinaryIO doesn't extend from it. BytesIO
-                # (the concrete class) implements both.
-                file_name = cast(IOBase, file)
-                hash_key = Cache.get_hash_context(file_name.read()).hexdigest()
-                with LogTime("pdfminer_extract", log_start=True):
-                    pdfminer_layout = pdfminer.extract(file_name, hash_key, use_cache)
-                # page count should be the same
-                assert len(pdfminer_layout) == len(deformable_layout)
-
-                with LogTime("pdfminer_supplement"):
-                    for d, p in zip(deformable_layout, pdfminer_layout):
-                        self._supplement_text(d, p)
+        with LogTime("text_supplement"):
+            for d, p in zip(deformable_layout, extracted_layout):
+                self._supplement_text(d, p)
 
         if extract_table_structure or extract_images:
             with LogTime("extract_images_or_table"):
@@ -580,6 +541,8 @@ class ArynPDFPartitioner:
 
     @staticmethod
     def _run_pdfminer(pdf_path, hash_key, use_cache):
+        from sycamore.transforms.text_extraction.pdf_miner import PDFMinerExtractor
+
         pdfminer = PDFMinerExtractor()
         with LogTime("pdfminer_extract", log_start=True):
             pdfminer_layout = pdfminer.extract(pdf_path, hash_key, use_cache)
@@ -598,8 +561,6 @@ class ArynPDFPartitioner:
         extract_images,
         use_cache,
     ) -> Any:
-        import easyocr
-
         self._init_model()
 
         with LogTime("infer"):
@@ -608,33 +569,6 @@ class ArynPDFPartitioner:
 
         gc_tensor_dump()
         assert len(deformable_layout) == len(batch)
-
-        if use_ocr:
-            with LogTime("ocr"):
-                if ocr_model == "paddle":
-                    from sycamore.transforms.ocr.ocr_models import PaddleOCR
-                    import paddle
-
-                    ocr_model = PaddleOCR(use_gpu=paddle.device.is_compiled_with_cuda())
-                elif ocr_model == "legacy":
-                    from sycamore.transforms.ocr.ocr_models import LegacyOCR
-
-                    ocr_model = LegacyOCR()
-                elif ocr_model == "tesseract":
-                    from sycamore.transforms.ocr.ocr_models import Tesseract
-
-                    ocr_model = Tesseract()
-                else:
-                    from sycamore.transforms.ocr.ocr_models import EasyOCR
-
-                    ocr_model = EasyOCR()
-                extract_ocr(
-                    batch,
-                    deformable_layout,
-                    ocr_images=ocr_images,
-                    ocr_model=ocr_model,
-                    ocr_tables=extract_table_structure,
-                )
         # else pdfminer happens in parent since it is whole document.
 
         if extract_table_structure:
@@ -790,102 +724,3 @@ class DeformableDetr(SycamoreObjectDetection):
         hash_ctx.update(f"{threshold:.6f}".encode())
         hash_ctx.update(_VERSION.encode())
         return hash_ctx.hexdigest()
-
-
-class PDFMinerExtractor:
-    def __init__(self):
-        rm = PDFResourceManager()
-        param = LAParams()
-        self.device = PDFPageAggregator(rm, laparams=param)
-        self.interpreter = PDFPageInterpreter(rm, self.device)
-
-    def _open_pdfminer_pages_generator(self, fp: BinaryIO):
-        pages = PDFPage.get_pages(fp)
-        for page in pages:
-            self.interpreter.process_page(page)
-            page_layout = self.device.get_result()
-            yield page, page_layout
-
-    @staticmethod
-    def _convert_bbox_coordinates(
-        rect: Tuple[float, float, float, float],
-        height: float,
-    ) -> Tuple[float, float, float, float]:
-        """
-        pdf coordinates are different, bottom left is origin, also two diagonal points defining a rectangle is
-        (bottom left, upper right), for details, refer
-        https://www.leadtools.com/help/leadtools/v19/dh/to/pdf-topics-pdfcoordinatesystem.html
-        """
-        x1, y2, x2, y1 = rect
-        y1 = height - y1
-        y2 = height - y2
-        return x1, y1, x2, y2
-
-    def extract(self, filename: Union[str, IOBase], hash_key: str, use_cache=False) -> List[List[Element]]:
-        # The naming is slightly confusing, but `open_filename` accepts either
-        # a filename (str) or a file-like object (IOBase)
-
-        cached_result = pdf_miner_cache.get(hash_key) if use_cache else None
-        if cached_result:
-            logger.info(f"Cache Hit for PDFMiner. Cache hit-rate is {pdf_miner_cache.get_hit_rate()}")
-            return cached_result
-        else:
-            with open_filename(filename, "rb") as fp:
-                fp = cast(BinaryIO, fp)
-                pages = []
-                for page, page_layout in self._open_pdfminer_pages_generator(fp):
-                    width = page_layout.width
-                    height = page_layout.height
-                    texts: List[Element] = []
-                    for obj in page_layout:
-                        x1, y1, x2, y2 = self._convert_bbox_coordinates(obj.bbox, height)
-
-                        if hasattr(obj, "get_text"):
-                            text = Element()
-                            text.type = "text"
-                            text.bbox = BoundingBox(x1 / width, y1 / height, x2 / width, y2 / height)
-                            text.text_representation = obj.get_text()
-                            if text.text_representation:
-                                texts.append(text)
-
-                    pages.append(texts)
-                if use_cache:
-                    logger.info("Cache Miss for PDFMiner. Storing the result to the cache.")
-                    pdf_miner_cache.set(hash_key, pages)
-                return pages
-
-
-@timetrace("OCR")
-def extract_ocr(
-    images: list[Image.Image],
-    elements: list[list[Element]],
-    ocr_images=False,
-    ocr_tables=False,
-    ocr_model=OCRModel,
-) -> list[list[Element]]:
-    for i, image in enumerate(images):
-        page_elements = elements[i]
-        width, height = image.size
-        for elem in page_elements:
-            if elem.bbox is None:
-                continue
-            if elem.type == "Picture" and not ocr_images:
-                continue
-            cropped_image = crop_to_bbox(image, elem.bbox)
-            if elem.type == "table" and ocr_tables:
-                tokens = []
-                assert isinstance(elem, TableElement)
-                for token in ocr_model.get_boxes_and_text(cropped_image):
-                    # Shift the BoundingBox to be relative to the whole image.
-                    # TODO: We can likely reduce the number of bounding box translations/conversion in the pipeline,
-                    #  but for the moment I'm prioritizing clarity over (theoretical) performance, and we have the
-                    #  desired invariant that whenever we store bounding boxes they are relative to the entire doc.
-                    token["bbox"].translate_self(elem.bbox.x1 * width, elem.bbox.y1 * height).to_relative_self(
-                        width, height
-                    )
-                    tokens.append(token)
-                elem.tokens = tokens
-            else:
-                elem.text_representation = ocr_model.get_text(cropped_image)
-
-    return elements

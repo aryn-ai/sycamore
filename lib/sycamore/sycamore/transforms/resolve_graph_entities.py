@@ -125,14 +125,14 @@ class ResolveEntities:
 
         def accumulate_row(nodes, row):
             extracted = extract_nodes(row)
-            logging.error(f"INPUT ACCUMULATE: {json.dumps(nodes, indent=2)}")
-            logging.error(f"INPUT ACCUMULATE: {json.dumps(extracted, indent=2)}")
+#            logging.error(f"INPUT ACCUMULATE: {json.dumps(nodes, indent=2)}")
+#            logging.error(f"INPUT ACCUMULATE: {json.dumps(extracted, indent=2)}")
             nodes = copy.deepcopy(nodes)
             check_if_bad(nodes)
             check_if_bad(extracted)
             merge_nodes(nodes, extracted)
             check_if_bad(nodes)
-            logging.error(f"OUTPUT ACCUMULATE: {json.dumps(nodes, indent=2)}")
+#            logging.error(f"OUTPUT ACCUMULATE: {json.dumps(nodes, indent=2)}")
 
 
             # for label, hashes in extracted.items():
@@ -145,13 +145,13 @@ class ResolveEntities:
         def merge(nodes1_in, nodes2_in):
             nodes1 = copy.deepcopy(nodes1_in)
             nodes2 = copy.deepcopy(nodes2_in)
-            logging.error(f"INPUT MERGE: {json.dumps(nodes1, indent=2)}")
-            logging.error(f"INPUT MERGE: {json.dumps(nodes2, indent=2)}")
+#            logging.error(f"INPUT MERGE: {json.dumps(nodes1, indent=2)}")
+#            logging.error(f"INPUT MERGE: {json.dumps(nodes2, indent=2)}")
             check_if_bad(nodes1)
             check_if_bad(nodes2)
             merge_nodes(nodes1, nodes2)
             check_if_bad(nodes1)
-            logging.error(f"OUTPUT MERGE: {json.dumps(nodes1, indent=2)}")
+#            logging.error(f"OUTPUT MERGE: {json.dumps(nodes1, indent=2)}")
             # for label, hashes in nodes2.items():
             #     for hash, _nodes in hashes.items():
             #         if label not in nodes1:
@@ -213,6 +213,7 @@ def merge_nodes(nodes_to, nodes_from):
             nodes_to[label][hash].extend(nodes_from[label][hash])
 
 def check_if_bad(nodes):
+    logging.error("ERIC CHECK IF BAD")
     for label, hashes in nodes.items():
         for hash, _nodes in hashes.items():
             for node in _nodes:

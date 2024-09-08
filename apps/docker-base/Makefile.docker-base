@@ -1,0 +1,33 @@
+# -*- makefile -*-
+help:
+	@echo "This should be run as part of the Dockerfile"
+	false
+
+user-setup:
+	groupadd --gid 1000 app
+	useradd -d /app --uid 1000 --gid app app
+	chown -R app:app /app
+
+apt-setup:
+	rm -f /etc/apt/apt.conf.d/docker-clean
+	echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
+
+apt-install:
+	DEBIAN_FRONTEND=noninteractive apt update
+	# gcc and python3-dev needed on arm for guidance
+	DEBIAN_FRONTEND=noninteractive apt -y install --no-install-recommends python3-poetry gcc python3-dev
+
+non-root-files-check:
+	find . -uid 0 -ls
+	test $$(find . -uid 0 -print | wc -w) = 0
+
+record-version:
+	test "$(GIT_COMMIT)" != ""
+	test "$(GIT_COMMIT)" != "unknown"
+	touch .git.commit.$(GIT_COMMIT)
+
+check-version-compatibility:
+	test "$(GIT_COMMIT)" != ""
+	test "$(GIT_COMMIT)" != "unknown"
+	ls .git.commit.*
+	test -f .git.commit.$(GIT_COMMIT)

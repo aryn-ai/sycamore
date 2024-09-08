@@ -22,7 +22,7 @@ import sycamore
 from sycamore import Context
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.transforms.query import OpenSearchQueryExecutor
-from sycamore.utils.cache import S3Cache
+from sycamore.utils.cache import cache_from_path
 from sycamore.utils.import_utils import requires_modules
 
 from sycamore.query.execution.sycamore_executor import SycamoreExecutor
@@ -39,7 +39,7 @@ console = Console()
 
 DEFAULT_OS_CONFIG = {"search_pipeline": "hybrid_pipeline"}
 DEFAULT_OS_CLIENT_ARGS = {
-    "hosts": [{"host": "localhost", "port": 9200}],
+    "hosts": [{"host": os.getenv("OPENSEARCH_HOST", "localhost"), "port": os.getenv("OPENSEARCH_PORT", 9200)}],
     "http_compress": True,
     "http_auth": ("admin", "admin"),
     "use_ssl": True,
@@ -144,9 +144,7 @@ class SycamoreQueryClient:
 
     def generate_plan(self, query: str, index: str, schema: OpenSearchSchema) -> LogicalPlan:
         """Generate a logical query plan for the given query, index, and schema."""
-        llm_client = OpenAI(
-            OpenAIModels.GPT_4O.value, cache=S3Cache(self.s3_cache_path) if self.s3_cache_path else None
-        )
+        llm_client = OpenAI(OpenAIModels.GPT_4O.value, cache=cache_from_path(self.s3_cache_path))
         planner = LlmPlanner(
             index,
             data_schema=schema,
@@ -199,7 +197,7 @@ class SycamoreQueryClient:
     def _get_default_context(s3_cache_path, os_client_args) -> Context:
         context_params = {
             "default": {
-                "llm": OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(s3_cache_path) if s3_cache_path else None),
+                "llm": OpenAI(OpenAIModels.GPT_4O.value, cache=cache_from_path(s3_cache_path)),
             },
             "opensearch": {
                 "os_client_args": os_client_args,

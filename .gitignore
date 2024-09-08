@@ -37,3 +37,4 @@ poetry.toml
 lib/aryn-sdk/dist/
 luna_traces/
 traces/
+apps/jupyter/bind_dir/poetry_cache

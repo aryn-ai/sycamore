@@ -5,7 +5,7 @@ from typing import List
 import streamlit as st
 from openai import OpenAI
 from openai.types.chat import ChatCompletionToolParam
-from config import get_sycamore_query_client
+from configuration import get_sycamore_query_client
 
 from util import get_opensearch_indices, generate_plan, run_plan, show_dag
 

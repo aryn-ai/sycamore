@@ -5,7 +5,7 @@ from streamlit_ace import st_ace
 
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
-from config import get_sycamore_query_client
+from configuration import get_sycamore_query_client
 
 from util import show_query_traces, get_schema, generate_plan, run_plan, get_opensearch_indices, show_dag
 

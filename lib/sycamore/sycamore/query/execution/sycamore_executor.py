@@ -32,8 +32,6 @@ from sycamore.query.execution.sycamore_operator import (
     SycamoreSort,
     SycamoreLimit,
     SycamoreFieldIn,
-    SycamoreGenerateTable,
-    SycamoreGeneratePreview,
 )
 from sycamore.query.logical_plan import LogicalPlan
 

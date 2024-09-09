@@ -16,8 +16,7 @@ from sycamore.query.operators.top_k import TopK
 from sycamore.query.operators.field_in import FieldIn
 from sycamore.query.operators.sort import Sort
 
-from sycamore.query.execution.operations import summarize_data, generate_table, generate_preview
-from sycamore.llms import OpenAI, OpenAIModels
+from sycamore.query.execution.operations import summarize_data
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 
 from sycamore import DocSet, Context

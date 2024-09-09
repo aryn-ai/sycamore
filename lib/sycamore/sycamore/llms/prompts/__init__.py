@@ -11,7 +11,7 @@ from sycamore.llms.prompts.default_prompts import (
     PropertiesZeroShotGuidancePrompt,
     TaskIdentifierZeroShotGuidancePrompt,
     ExtractTablePropertiesTablePrompt,
-    ExtractTablePropertiesPrompt
+    ExtractTablePropertiesPrompt,
 )
 from sycamore.llms.prompts.default_prompts import _deprecated_prompts
 
@@ -23,8 +23,7 @@ prompts = [
     "SchemaZeroShotGuidancePrompt",
     "PropertiesZeroShotGuidancePrompt",
     "ExtractTablePropertiesTablePrompt",
-    "ExtractTablePropertiesPrompt"
-
+    "ExtractTablePropertiesPrompt",
 ] + list(_deprecated_prompts.keys())
 
 __all__ = prompts

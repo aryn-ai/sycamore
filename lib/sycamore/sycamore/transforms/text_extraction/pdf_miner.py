@@ -10,7 +10,7 @@ from typing import BinaryIO, Tuple, List, Union, cast
 from pathlib import Path
 from sycamore.utils.import_utils import requires_modules
 import logging
-from sycamore.transforms.text_extraction import TextExtractor
+from sycamore.transforms.text_extraction.text_extractor import TextExtractor
 
 
 logger = logging.getLogger(__name__)

@@ -9,7 +9,7 @@ from io import IOBase
 from pdfminer.utils import open_filename
 from sycamore.utils.import_utils import requires_modules
 import pdf2image
-from sycamore.transforms.text_extraction import TextExtractor
+from sycamore.transforms.text_extraction.text_extractor import TextExtractor
 import logging
 
 ocr_cache = DiskCache(str(Path.home() / ".sycamore/OCRCache"))

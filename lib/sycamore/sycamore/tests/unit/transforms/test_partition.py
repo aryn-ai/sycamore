@@ -187,8 +187,6 @@ class TestPartition:
         images = pdf2image.convert_from_path(path, dpi=800)
         assert len(images) == 1
 
-        elem = Element({"bbox": (0.0, 0.0, 1.0, 1.0), "properties": {"page_number": 1}})
-
         new_elems = [LegacyOCR.get_boxes_and_text(image) for image in images]
 
         assert len(new_elems) == 1

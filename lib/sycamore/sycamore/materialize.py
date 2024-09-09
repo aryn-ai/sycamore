@@ -153,9 +153,7 @@ class Materialize(UnaryNode):
             @rename("materialize")
             def ray_callable(ray_input: dict[str, numpy.ndarray]) -> dict[str, numpy.ndarray]:
                 for s in ray_input.get("doc", []):
-                    # XXX MDW HACKING
-                    doc = Document.deserialize(s)
-                    self.save(doc)
+                    self.save(Document.deserialize(s))
                 return ray_input
 
             return input_dataset.map_batches(ray_callable)
@@ -251,6 +249,7 @@ class Materialize(UnaryNode):
         assert self._root is not None
         name = self._doc_to_name(doc, bin)
         path = self._root / name
+
         if self._clean_root and self._fshelper.file_exists(path):
             if self._doc_to_name != self.doc_to_name:
                 # default doc_to_name includes a content based hash, so "duplicate" entries

@@ -11,7 +11,6 @@ from sycamore.query.operators.limit import Limit
 from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
 from sycamore.query.operators.llm_filter import LlmFilter
 from sycamore.query.operators.summarize_data import SummarizeData
-from sycamore.query.operators.generate import GenerateTable, GenerateEnglishResponse, GeneratePreview
 from sycamore.query.operators.query_database import QueryDatabase
 from sycamore.query.operators.top_k import TopK
 from sycamore.query.operators.field_in import FieldIn
@@ -121,11 +120,11 @@ class SycamoreSummarizeData(SycamoreOperator):
         trace_dir: Optional[str] = None,
     ) -> None:
         super().__init__(context, logical_node, query_id, inputs, trace_dir=trace_dir)
-        assert isinstance(self.logical_node, SummarizeData) or isinstance(self.logical_node, GenerateEnglishResponse)
+        assert isinstance(self.logical_node, SummarizeData)
 
     def execute(self) -> Any:
         assert self.inputs and len(self.inputs) >= 1, "SummarizeData requires at least 1 input node"
-        assert isinstance(self.logical_node, SummarizeData) or isinstance(self.logical_node, GenerateEnglishResponse)
+        assert isinstance(self.logical_node, SummarizeData)
         question = self.logical_node.question
         assert question is not None and isinstance(question, str)
         description = self.logical_node.description
@@ -140,7 +139,7 @@ class SycamoreSummarizeData(SycamoreOperator):
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
-        assert isinstance(self.logical_node, SummarizeData) or isinstance(self.logical_node, GenerateEnglishResponse)
+        assert isinstance(self.logical_node, SummarizeData)
         question = self.logical_node.question
         description = self.logical_node.description
         assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) >= 1
@@ -162,116 +161,6 @@ class SycamoreSummarizeData(SycamoreOperator):
 """
         return result, [
             "from sycamore.query.execution.operations import summarize_data",
-        ]
-
-
-class SycamoreGenerateTable(SycamoreOperator):
-    """
-    Use an LLM to generate a JSON table.
-    Args:
-        s3_cache_path (str): Optional S3 path to use for caching
-    """
-
-    def __init__(
-        self,
-        context: Context,
-        logical_node: GenerateTable,
-        query_id: str,
-        inputs: Optional[List[Any]] = None,
-        trace_dir: Optional[str] = None,
-    ) -> None:
-        super().__init__(context, logical_node, query_id, inputs, trace_dir=trace_dir)
-        assert isinstance(self.logical_node, GenerateTable)
-
-    def execute(self) -> Any:
-        assert self.inputs and len(self.inputs) >= 1, "GemerateTable requires at least 1 input node"
-        assert isinstance(self.logical_node, GenerateTable)
-        table_definition = self.logical_node.table_definition
-        assert table_definition is not None and isinstance(table_definition, str)
-        description = self.logical_node.description
-        assert description is not None and isinstance(description, str)
-
-        result = generate_table(
-            table_definition=table_definition,
-            result_description=description,
-            result_data=self.inputs,
-            **self.get_execute_args(),
-        )
-        return result
-
-    def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
-        assert isinstance(self.logical_node, GenerateTable)
-        table_definition = self.logical_node.table_definition
-        description = self.logical_node.description
-        assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) >= 1
-
-        logical_deps_str = ""
-        for i, inp in enumerate(self.logical_node.dependencies):
-            logical_deps_str += input_var or get_var_name(inp)
-            if i != len(self.logical_node.dependencies) - 1:
-                logical_deps_str += ", "
-
-        result = f"""
-{output_var or get_var_name(self.logical_node)} = generate_table(
-    table_definition='{table_definition}',
-    result_description='{description}',
-    result_data=[{logical_deps_str}],
-    **{get_str_for_dict(self.get_execute_args())},
-)
-"""
-        return result, [
-            "from sycamore.query.execution.operations import generate_table",
-        ]
-
-
-class SycamoreGeneratePreview(SycamoreOperator):
-    """
-    Generate a JSON object representing a document preview.
-    """
-
-    def __init__(
-        self,
-        context: Context,
-        logical_node: GeneratePreview,
-        query_id: str,
-        inputs: Optional[List[Any]] = None,
-        trace_dir: Optional[str] = None,
-    ) -> None:
-        super().__init__(context, logical_node, query_id, inputs, trace_dir=trace_dir)
-        assert isinstance(self.logical_node, GeneratePreview)
-
-    def execute(self) -> Any:
-        assert self.inputs and len(self.inputs) >= 1, "GeneratePreview requires at least 1 input node"
-        assert isinstance(self.logical_node, GeneratePreview)
-        description = self.logical_node.description
-        assert description is not None and isinstance(description, str)
-
-        result = generate_preview(
-            result_description=description,
-            result_data=self.inputs,
-            **self.get_execute_args(),
-        )
-        return result
-
-    def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
-        assert isinstance(self.logical_node, GeneratePreview)
-        description = self.logical_node.description
-        assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) >= 1
-        logical_deps_str = ""
-        for i, inp in enumerate(self.logical_node.dependencies):
-            logical_deps_str += input_var or get_var_name(inp)
-            if i != len(self.logical_node.dependencies) - 1:
-                logical_deps_str += ", "
-
-        result = f"""
-{output_var or get_var_name(self.logical_node)} = generate_preview(
-    result_description='{description}',
-    result_data=[{logical_deps_str}],
-    **{get_str_for_dict(self.get_execute_args())},
-)
-"""
-        return result, [
-            "from sycamore.query.execution.operations import generate_preview",
         ]
 
 

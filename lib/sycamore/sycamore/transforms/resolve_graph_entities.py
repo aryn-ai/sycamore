@@ -191,17 +191,17 @@ def extract_nodes(row):
     doc = Document.deserialize(row["doc"])
     if isinstance(doc, MetadataDocument) or "nodes" not in doc["properties"]:
         return dict()
-    ret = {}
-    if "Aircraft" not in doc["properties"]["nodes"]:
-        return {}
-    if "a55bd63b5d420fb34140005d40f0c5df0b2acb7a92ea93995793da8012880d00" not in doc["properties"]["nodes"]["Aircraft"]:
-        return {}
-    #docs_aircraft = [d for d in doc["properties"]["nodes"]["Aircraft"]["a55bd63b5d420fb34140005d40f0c5df0b2acb7a92ea93995793da8012880d00"] if d["doc_id"] == "7da8bbe9-1d43-49bd-9fe9-9ed3cc5e1a6e"]
-    #if len(docs_aircraft) == 0:
-    #    return {}
+    # ret = {}
+    # if "Aircraft" not in doc["properties"]["nodes"]:
+    #     return {}
+    # if "a55bd63b5d420fb34140005d40f0c5df0b2acb7a92ea93995793da8012880d00" not in doc["properties"]["nodes"]["Aircraft"]:
+    #     return {}
+    # #docs_aircraft = [d for d in doc["properties"]["nodes"]["Aircraft"]["a55bd63b5d420fb34140005d40f0c5df0b2acb7a92ea93995793da8012880d00"] if d["doc_id"] == "7da8bbe9-1d43-49bd-9fe9-9ed3cc5e1a6e"]
+    # #if len(docs_aircraft) == 0:
+    # #    return {}
     
-    #return {"Aircraft": {"a55bd63b5d420fb34140005d40f0c5df0b2acb7a92ea93995793da8012880d00": {"7da8bbe9-1d43-49bd-9fe9-9ed3cc5e1a6e": docs_aircraft}}}
-    return {"Aircraft": {"a55bd63b5d420fb34140005d40f0c5df0b2acb7a92ea93995793da8012880d00": doc["properties"]["nodes"]["Aircraft"]["a55bd63b5d420fb34140005d40f0c5df0b2acb7a92ea93995793da8012880d00"] }}
+    # #return {"Aircraft": {"a55bd63b5d420fb34140005d40f0c5df0b2acb7a92ea93995793da8012880d00": {"7da8bbe9-1d43-49bd-9fe9-9ed3cc5e1a6e": docs_aircraft}}}
+    # return {"Aircraft": {"a55bd63b5d420fb34140005d40f0c5df0b2acb7a92ea93995793da8012880d00": doc["properties"]["nodes"]["Aircraft"]["a55bd63b5d420fb34140005d40f0c5df0b2acb7a92ea93995793da8012880d00"] }}
 
     return doc["properties"]["nodes"]
 

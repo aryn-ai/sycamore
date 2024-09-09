@@ -522,16 +522,14 @@ class ArynPDFPartitioner:
         deformable_layout = []
         if tracemalloc.is_tracing():
             before = tracemalloc.take_snapshot()
-        for i in convert_from_path_streamed_batched(filename, batch_size):
-            parts = self.process_batch(
+        batches = convert_from_path_streamed_batched(filename, batch_size)
+        for i in batches:
+            parts = self.process_batch_inference(
                 i,
                 threshold=threshold,
                 use_ocr=use_ocr,
                 ocr_images=ocr_images,
                 ocr_tables=ocr_tables,
-                extract_table_structure=extract_table_structure,
-                table_structure_extractor=table_structure_extractor,
-                extract_images=extract_images,
                 use_cache=use_cache,
             )
             assert len(parts) == len(i)
@@ -554,7 +552,25 @@ class ArynPDFPartitioner:
             with LogTime("pdfminer_supplement"):
                 for d, p in zip(deformable_layout, pdfminer_layout):
                     self._supplement_text(d, p)
+        for i in batches:
+            self.process_batch_extraction(
+                i,
+                deformable_layout,
+                extract_table_structure=extract_table_structure,
+                table_structure_extractor=table_structure_extractor,
+                extract_images=extract_images,
+            )
+            assert len(parts) == len(i)
+            if tracemalloc.is_tracing():
+                gc.collect()
+                after = tracemalloc.take_snapshot()
+                top_stats = after.compare_to(before, "lineno")
 
+                print("[ Top 10 differences ]")
+                for stat in top_stats[:10]:
+                    print(stat)
+                before = after
+                display_top(after)
         if tracemalloc.is_tracing():
             (current, peak) = tracemalloc.get_traced_memory()
             logger.info(f"Memory Usage current={current} peak={peak}")
@@ -571,16 +587,13 @@ class ArynPDFPartitioner:
         return pdfminer_layout
 
     @requires_modules("easyocr", extra="local-inference")
-    def process_batch(
+    def process_batch_inference(
         self,
         batch: list[Image.Image],
         threshold,
         use_ocr,
         ocr_images,
         ocr_tables,
-        extract_table_structure,
-        table_structure_extractor,
-        extract_images,
         use_cache,
     ) -> Any:
         import easyocr
@@ -593,7 +606,6 @@ class ArynPDFPartitioner:
 
         gc_tensor_dump()
         assert len(deformable_layout) == len(batch)
-
         if use_ocr:
             with LogTime("ocr"):
                 if self.ocr_table_reader is None:
@@ -607,6 +619,16 @@ class ArynPDFPartitioner:
                     table_reader=self.ocr_table_reader,
                 )
         # else pdfminer happens in parent since it is whole document.
+        return deformable_layout
+
+    def process_batch_extraction(
+        self,
+        batch: list[Image.Image],
+        deformable_layout: Any,
+        extract_table_structure,
+        table_structure_extractor,
+        extract_images,
+    ) -> Any:
 
         if extract_table_structure:
             with LogTime("extract_table_structure_batch"):

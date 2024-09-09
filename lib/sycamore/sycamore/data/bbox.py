@@ -161,7 +161,7 @@ class BoundingBox(ABC):
         return self
 
     def is_empty(self):
-        return self.x1 >= self.x2 and self.y1 >= self.y2
+        return self.x1 >= self.x2 or self.y1 >= self.y2
 
     def __repr__(self):
         return f"BoundingBox({self.x1}, {self.y1}, {self.x2}, {self.y2})"

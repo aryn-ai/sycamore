@@ -12,7 +12,7 @@
 import argparse
 import json
 import logging
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 import os
 import uuid
 
@@ -157,7 +157,7 @@ class SycamoreQueryClient:
         plan = planner.plan(query)
         return plan
 
-    def run_plan(self, plan: LogicalPlan, dry_run=False, codegen_mode=False) -> Tuple[str, str]:
+    def run_plan(self, plan: LogicalPlan, dry_run=False, codegen_mode=False) -> Tuple[str, Any]:
         assert self.context is not None, "Running a plan requires a configured Context"
         """Run the given logical query plan and return a tuple of the query ID and result."""
         executor = SycamoreExecutor(
@@ -176,7 +176,7 @@ class SycamoreQueryClient:
         index: str,
         dry_run: bool = False,
         codegen_mode: bool = False,
-    ) -> str:
+    ) -> Any:
         """Run a query against the given index."""
         schema = self.get_opensearch_schema(index)
         plan = self.generate_plan(query, index, schema)

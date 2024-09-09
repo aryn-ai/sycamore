@@ -7,7 +7,7 @@ from openai import OpenAI
 from openai.types.chat import ChatCompletionToolParam
 from configuration import get_sycamore_query_client
 
-from util import get_opensearch_indices, generate_plan, run_plan, show_dag
+from util import get_opensearch_indices, generate_plan, run_plan, result_to_string
 
 client = get_sycamore_query_client()
 
@@ -64,7 +64,7 @@ def query_data_source(query: str, index: str) -> str:
     with st.spinner("Generating plan..."):
         plan = generate_plan(client, query, index)
     with st.expander("View query plan"):
-        show_dag(plan)
+        st.write(plan)
 
     with st.spinner("Running query..."):
         st.session_state.query_id, result = run_plan(client, plan)
@@ -96,7 +96,7 @@ def do_query():
             st.session_state.messages.append(
                 {
                     "role": "tool",
-                    "content": tool_response,
+                    "content": result_to_string(tool_response),
                     "tool_call_id": tool_call_id,
                     "name": tool_function_name,
                 }

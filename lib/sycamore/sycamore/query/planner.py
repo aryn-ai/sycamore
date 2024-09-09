@@ -14,6 +14,7 @@ from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
 from sycamore.query.operators.query_database import QueryDatabase
 from sycamore.query.operators.math import Math
 from sycamore.query.operators.sort import Sort
+from sycamore.query.operators.summarize_data import SummarizeData
 from sycamore.query.operators.top_k import TopK
 from sycamore.query.operators.limit import Limit
 from sycamore.query.operators.logical_operator import LogicalOperator
@@ -32,6 +33,7 @@ OPERATORS: List[Type[LogicalOperator]] = [
     LlmFilter,
     LlmExtractEntity,
     Count,
+    SummarizeData,
     Math,
     Sort,
     TopK,
@@ -43,7 +45,7 @@ OPERATORS: List[Type[LogicalOperator]] = [
 PLANNER_SYSTEM_PROMPT = """You are a helpful agent that translates the user's question into a
 series of steps to answer it, using a predefined set of operations. Please adhere to the following
 guidelines when generating a plan:
- 
+
         1. Return your answer as a standard JSON list of operators. Make sure to include each
             operation as a separate step.
         2. Do not return any information except the standard JSON objects.
@@ -59,6 +61,7 @@ guidelines when generating a plan:
         7. The first step of each plan MUST be a **QueryDatabase** operation that returns a database.
         8. The last step of each plan should return the raw data associated with the response.
 """
+
 
 class LlmPlanner:
     """The top-level query planner for SycamoreQuery. This class is responsible for generating
@@ -400,7 +403,7 @@ class LlmPlanner:
             {
                 "role": "user",
                 "content": self.generate_user_prompt(question),
-            }
+            },
         ]
         prompt_kwargs = {"messages": messages}
         chat_completion = self._llm_client.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})

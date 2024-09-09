@@ -33,7 +33,6 @@ from sycamore.utils.import_utils import requires_modules
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
 from sycamore.utils.pdf import convert_from_path_streamed_batched
 from sycamore.utils.time_trace import LogTime, timetrace
-from sycamore.transforms.text_extraction import TextExtractor
 
 logger = logging.getLogger(__name__)
 _DETR_LOCK_FILE = f"{pwd.getpwuid(os.getuid()).pw_dir}/.cache/Aryn-Detr.lock"
@@ -62,6 +61,14 @@ def _can_retry(e: BaseException) -> bool:
         return e.can_retry
     else:
         return False
+
+
+def get_page_count(fp: BinaryIO):
+    fp.seek(0)
+    reader = PdfReader(fp)
+    num_pages = len(reader.pages)
+    fp.seek(0)
+    return num_pages
 
 
 class ArynPDFPartitioner:

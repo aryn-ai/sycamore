@@ -10,6 +10,7 @@ from typing import List, Union
 from pathlib import Path
 from io import IOBase
 from pdfminer.utils import open_filename
+from sycamore.utils.import_utils import requires_modules
 import pdf2image
 from sycamore.transforms.text_extraction import TextExtractor
 import logging
@@ -29,7 +30,7 @@ class OCRModel(TextExtractor):
     def get_boxes_and_text(self, image: Image.Image) -> List[Dict[str, Any]]:
         pass
 
-    def extract(self, filename: Union[str, IOBase], hash_key: str, use_cache=False) -> List[List[Element]]:
+    def extract(self, filename: Union[str, IOBase], hash_key: str, use_cache=False, **kwargs) -> List[List[Element]]:
         # The naming is slightly confusing, but `open_filename` accepts either
         # a filename (str) or a file-like object (IOBase)
 
@@ -58,42 +59,6 @@ class OCRModel(TextExtractor):
                     logger.info("Cache Miss for OCR. Storing the result to the cache.")
                     ocr_cache.set(hash_key, pages)
                 return pages
-
-
-# @timetrace("OCR")
-# def extract_ocr(
-#     images: list[Image.Image],
-#     elements: list[list[Element]],
-#     ocr_images=False,
-#     ocr_tables=False,
-#     ocr_model=OCRModel,
-# ) -> list[list[Element]]:
-#     for i, image in enumerate(images):
-#         page_elements = elements[i]
-#         width, height = image.size
-#         for elem in page_elements:
-#             if elem.bbox is None:
-#                 continue
-#             if elem.type == "Picture" and not ocr_images:
-#                 continue
-#             cropped_image = crop_to_bbox(image, elem.bbox)
-#             if elem.type == "table" and ocr_tables:
-#                 tokens = []
-#                 assert isinstance(elem, TableElement)
-#                 for token in ocr_model.get_boxes_and_text(cropped_image):
-#                     # Shift the BoundingBox to be relative to the whole image.
-#                     # TODO: We can likely reduce the number of bounding box translations/conversion in the pipeline,
-#                     #  but for the moment I'm prioritizing clarity over (theoretical) performance, and we have the
-#                     #  desired invariant that whenever we store bounding boxes they are relative to the entire doc.
-#                     token["bbox"].translate_self(elem.bbox.x1 * width, elem.bbox.y1 * height).to_relative_self(
-#                         width, height
-#                     )
-#                     tokens.append(token)
-#                 elem.tokens = tokens
-#             else:
-#                 elem.text_representation = ocr_model.get_text(cropped_image)
-
-#     return elements
 
 
 class EasyOCR(OCRModel):

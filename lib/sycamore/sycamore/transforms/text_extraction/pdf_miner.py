@@ -8,6 +8,7 @@ from sycamore.utils.cache import DiskCache
 from io import IOBase
 from typing import BinaryIO, Tuple, List, Union, cast
 from pathlib import Path
+from sycamore.utils.import_utils import requires_modules
 import logging
 from sycamore.transforms.text_extraction import TextExtractor
 
@@ -47,7 +48,7 @@ class PDFMinerExtractor(TextExtractor):
         y2 = height - y2
         return x1, y1, x2, y2
 
-    def extract(self, filename: Union[str, IOBase], hash_key: str, use_cache=False) -> List[List[Element]]:
+    def extract(self, filename: Union[str, IOBase], hash_key: str, use_cache=False, **kwargs) -> List[List[Element]]:
         # The naming is slightly confusing, but `open_filename` accepts either
         # a filename (str) or a file-like object (IOBase)
 

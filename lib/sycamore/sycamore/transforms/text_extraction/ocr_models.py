@@ -17,6 +17,7 @@ ocr_cache = DiskCache(str(Path.home() / ".sycamore/OCRCache"))
 
 logger = logging.getLogger(__name__)
 
+
 class OCRModel(TextExtractor):
 
     @abstractmethod
@@ -24,51 +25,16 @@ class OCRModel(TextExtractor):
         pass
 
     @abstractmethod
-    def get_boxes_and_text(self, image: Image.Image) -> list[Dict[str, Any]]:
+    def get_boxes_and_text(self, image: Image.Image) -> List[Dict[str, Any]]:
         pass
 
-    def extract(self, filename: Union[str, IOBase], hash_key: str, use_cache=False) -> List[List[Element]]:
-
-
-class EasyOCR(OCRModel):
-    def __init__(self, lang_list=["en"]):
-        import easyocr
-
-        self.reader = easyocr.Reader(lang_list=lang_list)
-
-    def get_text(self, image: Image.Image) -> str:
-        image_bytes = BytesIO()
-        image.save(image_bytes, format="PNG")
-        raw_results = self.reader.readtext(image_bytes.getvalue())
-        out_list = []
-        for res in raw_results:
-            text = res[1]
-            out_list.append(text)
-        val = " ".join(out_list)
-        return val
-
-    def get_boxes_and_text(self, image: Image.Image) -> list[Dict[str, Any]]:
-        image_bytes = BytesIO()
-        image.save(image_bytes, format="PNG")
-        raw_results = self.reader.readtext(image_bytes.getvalue())
-
-        out: list[Union[dict[str, Any], list]] = []
-        for res in raw_results:
-            raw_bbox = res[0]
-            text = res[1]
-            out.append(
-                {"bbox": BoundingBox(raw_bbox[0][0], raw_bbox[0][1], raw_bbox[2][0], raw_bbox[2][1]), "text": text}
-            )
-
-        return out
-    
     def extract(self, filename: Union[str, IOBase], hash_key: str, use_cache=False) -> List[List[Element]]:
         # The naming is slightly confusing, but `open_filename` accepts either
         # a filename (str) or a file-like object (IOBase)
 
         cached_result = ocr_cache.get(hash_key) if use_cache else None
         if cached_result:
-            logger.info(f"Cache Hit for EasyOCR. Cache hit-rate is {ocr_cache.get_hit_rate()}")
+            logger.info(f"Cache Hit for OCR. Cache hit-rate is {ocr_cache.get_hit_rate()}")
             return cached_result
         else:
             with open_filename(filename, "rb") as fp:
@@ -131,6 +97,40 @@ def extract_ocr(
 
     return elements
 
+
+class EasyOCR(OCRModel):
+    def __init__(self, lang_list=["en"]):
+        import easyocr
+
+        self.reader = easyocr.Reader(lang_list=lang_list)
+
+    def get_text(self, image: Image.Image) -> str:
+        image_bytes = BytesIO()
+        image.save(image_bytes, format="PNG")
+        raw_results = self.reader.readtext(image_bytes.getvalue())
+        out_list = []
+        for res in raw_results:
+            text = res[1]
+            out_list.append(text)
+        val = " ".join(out_list)
+        return val
+
+    def get_boxes_and_text(self, image: Image.Image) -> List[Dict[str, Any]]:
+        image_bytes = BytesIO()
+        image.save(image_bytes, format="PNG")
+        raw_results = self.reader.readtext(image_bytes.getvalue())
+
+        out: list[Union[dict[str, Any], list]] = []
+        for res in raw_results:
+            raw_bbox = res[0]
+            text = res[1]
+            out.append(
+                {"bbox": BoundingBox(raw_bbox[0][0], raw_bbox[0][1], raw_bbox[2][0], raw_bbox[2][1]), "text": text}
+            )
+
+        return out
+
+
 class Tesseract(OCRModel):
     def __init__(self):
         import pytesseract
@@ -141,7 +141,7 @@ class Tesseract(OCRModel):
         val = self.pytesseract.image_to_string(image)
         return val
 
-    def get_boxes_and_text(self, image: Image.Image) -> list[Dict[str, Any]]:
+    def get_boxes_and_text(self, image: Image.Image) -> List[Dict[str, Any]]:
         return [self.pytesseract.image_to_data(image, output_type=self.pytesseract.Output.DICT)]
 
 
@@ -155,7 +155,7 @@ class LegacyOCR(OCRModel):
     def get_text(self, image: Image.Image) -> str:
         return self.tesseract.get_text(image)
 
-    def get_boxes_and_text(self, image: Image.Image) -> list[Dict[str, Any]]:
+    def get_boxes_and_text(self, image: Image.Image) -> List[Dict[str, Any]]:
         return self.easy_ocr.get_boxes_and_text(image)
 
 
@@ -176,7 +176,7 @@ class PaddleOCR(OCRModel):
         result = self.reader.ocr(bytearray.getvalue(), rec=True, det=True, cls=False)
         return ans if result and result[0] and (ans := " ".join(value[1][0] for value in result[0])) else ""
 
-    def get_boxes_and_text(self, image: Image.Image) -> list[Union[dict[str, Any], list]]:
+    def get_boxes_and_text(self, image: Image.Image) -> List[Dict[str, Any]]:
         bytearray = BytesIO()
         image.save(bytearray, format="PNG")
         result = self.reader.ocr(bytearray.getvalue(), rec=True, det=True, cls=False)

@@ -10,9 +10,6 @@ from io import IOBase
 from typing import cast, Any, BinaryIO, List, Optional, Union
 from pathlib import Path
 import pwd
-from pdfminer.pdfparser import PDFParser
-from pdfminer.pdfdocument import PDFDocument
-from pdfminer.pdfinterp import resolve1
 
 import requests
 import json
@@ -32,7 +29,7 @@ from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
 from sycamore.utils.import_utils import requires_modules
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
 from sycamore.utils.pdf import convert_from_path_streamed_batched
-from sycamore.utils.time_trace import LogTime, timetrace
+from sycamore.utils.time_trace import LogTime
 
 logger = logging.getLogger(__name__)
 _DETR_LOCK_FILE = f"{pwd.getpwuid(os.getuid()).pw_dir}/.cache/Aryn-Detr.lock"

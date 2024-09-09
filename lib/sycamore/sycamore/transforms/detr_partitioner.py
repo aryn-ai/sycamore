@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from concurrent.futures import ProcessPoolExecutor
 from io import IOBase
-from typing import cast, Any, BinaryIO, List, Optional
+from typing import cast, Any, BinaryIO, List, Optional, Union
 from pathlib import Path
 import pwd
 from pdfminer.pdfparser import PDFParser
@@ -399,9 +399,15 @@ class ArynPDFPartitioner:
         # (the concrete class) implements both.
         file_name = cast(IOBase, file)
         hash_key = Cache.get_hash_context(file_name.read()).hexdigest()
-        text_extractor = TextExtractor(use_ocr=use_ocr, ocr_model=ocr_model)
         with LogTime("text_extract", log_start=True):
-            extracted_layout = text_extractor.extract(file_name, hash_key, use_cache)
+            extracted_layout = self._run_text_extractor(
+                use_ocr=use_ocr,
+                ocr_model=ocr_model,
+                ocr_images=ocr_images,
+                file_name=file_name,
+                hash_key=hash_key,
+                use_cache=use_cache,
+            )
         # page count should be the same
         assert len(extracted_layout) == len(deformable_layout)
 
@@ -490,25 +496,28 @@ class ArynPDFPartitioner:
         if extract_table_structure and not table_structure_extractor:
             table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
 
-        pdfminer = None
+        text_extractor = None
         exec = ProcessPoolExecutor(max_workers=1)
         if not use_ocr:
-            with LogTime("start_pdfminer", log_start=True):
-                pdfminer = exec.submit(self._run_pdfminer, filename, hash_key, use_cache)
+            with LogTime("start_text_extractor", log_start=True):
+                text_extractor = exec.submit(
+                    self._run_text_extractor,
+                    use_ocr=use_ocr,
+                    ocr_model=ocr_model,
+                    ocr_images=ocr_images,
+                    file_name=filename,
+                    hash_key=hash_key,
+                    use_cache=use_cache,
+                )
 
         deformable_layout = []
         if tracemalloc.is_tracing():
             before = tracemalloc.take_snapshot()
-        for i in convert_from_path_streamed_batched(filename, batch_size):
-            parts = self.process_batch(
+        batches = convert_from_path_streamed_batched(filename, batch_size)
+        for i in batches:
+            parts = self.process_batch_inference(
                 i,
                 threshold=threshold,
-                use_ocr=use_ocr,
-                ocr_images=ocr_images,
-                ocr_model=ocr_model,
-                extract_table_structure=extract_table_structure,
-                table_structure_extractor=table_structure_extractor,
-                extract_images=extract_images,
                 use_cache=use_cache,
             )
             assert len(parts) == len(i)
@@ -524,13 +533,35 @@ class ArynPDFPartitioner:
                 before = after
                 display_top(after)
 
-        if pdfminer is not None:
-            with LogTime("wait_for_pdfminer", log_start=True):
-                pdfminer_layout = pdfminer.result()
-            assert len(pdfminer_layout) == len(deformable_layout), f"{len(pdfminer_layout)} vs {len(deformable_layout)}"
-            with LogTime("pdfminer_supplement"):
-                for d, p in zip(deformable_layout, pdfminer_layout):
+        if text_extractor is not None:
+            with LogTime("wait_for_text_extractor", log_start=True):
+                text_extractor_layout = text_extractor.result()
+            assert len(text_extractor_layout) == len(
+                deformable_layout
+            ), f"{len(text_extractor_layout)} vs {len(deformable_layout)}"
+            with LogTime("text_extractor_supplement"):
+                for d, p in zip(deformable_layout, text_extractor_layout):
                     self._supplement_text(d, p)
+
+        for i in batches:
+            parts = self.process_batch_extraction(
+                i,
+                deformable_layout=deformable_layout,
+                extract_table_structure=extract_table_structure,
+                table_structure_extractor=table_structure_extractor,
+                extract_images=extract_images,
+            )
+            assert len(parts) == len(i)
+            if tracemalloc.is_tracing():
+                gc.collect()
+                after = tracemalloc.take_snapshot()
+                top_stats = after.compare_to(before, "lineno")
+
+                print("[ Top 10 differences ]")
+                for stat in top_stats[:10]:
+                    print(stat)
+                before = after
+                display_top(after)
 
         if tracemalloc.is_tracing():
             (current, peak) = tracemalloc.get_traced_memory()
@@ -540,25 +571,46 @@ class ArynPDFPartitioner:
         return deformable_layout
 
     @staticmethod
-    def _run_pdfminer(pdf_path, hash_key, use_cache):
-        from sycamore.transforms.text_extraction.pdf_miner import PDFMinerExtractor
+    def _run_text_extractor(
+        use_ocr: bool,
+        ocr_images: bool,
+        file_name: Union[str, IOBase],
+        hash_key: str,
+        use_cache: bool,
+        ocr_model: Optional[str] = None,
+    ):
+        kwargs = {"ocr_images": ocr_images}
+        if use_ocr:
+            if ocr_model == "paddle":
+                from sycamore.transforms.text_extraction import PaddleOCR
+                import paddle
 
-        pdfminer = PDFMinerExtractor()
-        with LogTime("pdfminer_extract", log_start=True):
-            pdfminer_layout = pdfminer.extract(pdf_path, hash_key, use_cache)
+                model = PaddleOCR(use_gpu=paddle.device.is_compiled_with_cuda())
+            elif ocr_model == "legacy":
+                from sycamore.transforms.text_extraction import LegacyOCR
 
-        return pdfminer_layout
+                model = LegacyOCR()
+            elif ocr_model == "tesseract":
+                from sycamore.transforms.text_extraction import Tesseract
 
-    def process_batch(
+                model = Tesseract()
+            else:
+                from sycamore.transforms.text_extraction import EasyOCR
+
+                model = EasyOCR()
+        else:
+            from sycamore.transforms.text_extraction import PDFMinerExtractor
+
+            model = PDFMinerExtractor()
+        with LogTime("text_extract", log_start=True):
+            extracted_layout = model.extract(file_name, hash_key, use_cache, **kwargs)
+
+        return extracted_layout
+
+    def process_batch_inference(
         self,
         batch: list[Image.Image],
         threshold,
-        use_ocr,
-        ocr_images,
-        ocr_model,
-        extract_table_structure,
-        table_structure_extractor,
-        extract_images,
         use_cache,
     ) -> Any:
         self._init_model()
@@ -570,6 +622,17 @@ class ArynPDFPartitioner:
         gc_tensor_dump()
         assert len(deformable_layout) == len(batch)
         # else pdfminer happens in parent since it is whole document.
+
+        return deformable_layout
+
+    def process_batch_extraction(
+        self,
+        batch: list[Image.Image],
+        deformable_layout: Any,
+        extract_table_structure,
+        table_structure_extractor,
+        extract_images,
+    ) -> Any:
 
         if extract_table_structure:
             with LogTime("extract_table_structure_batch"):

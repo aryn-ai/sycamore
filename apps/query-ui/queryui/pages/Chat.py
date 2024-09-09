@@ -5,10 +5,11 @@ from typing import List
 import streamlit as st
 from openai import OpenAI
 from openai.types.chat import ChatCompletionToolParam
-from sycamore.query.client import SycamoreQueryClient
+from configuration import get_sycamore_query_client
 
 from util import get_opensearch_indices, generate_plan, run_plan, show_dag
 
+client = get_sycamore_query_client()
 
 st.title("Sycamore Query Chat")
 
@@ -57,8 +58,8 @@ def query_data_source(query: str, index: str) -> str:
     if st.session_state.s3_cache_path:
         st.write(f"Using S3 cache at `{st.session_state.s3_cache_path}`")
 
-    client = SycamoreQueryClient(
-        s3_cache_path=st.session_state.s3_cache_path if st.session_state.use_cache else None,
+    client = get_sycamore_query_client(
+        s3_cache_path=st.session_state.s3_cache_path if st.session_state.use_cache else None
     )
     with st.spinner("Generating plan..."):
         plan = generate_plan(client, query, index)

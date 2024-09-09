@@ -3,10 +3,9 @@ import os
 import streamlit as st
 from streamlit_ace import st_ace
 
-
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
-
+from configuration import get_sycamore_query_client
 
 from util import show_query_traces, get_schema, generate_plan, run_plan, get_opensearch_indices, show_dag
 
@@ -61,9 +60,9 @@ def run_query():
     if st.session_state.s3_cache_path:
         st.write(f"Using S3 cache at `{st.session_state.s3_cache_path}`")
 
-    client = SycamoreQueryClient(
-        trace_dir=st.session_state.trace_dir,
+    client = get_sycamore_query_client(
         s3_cache_path=st.session_state.s3_cache_path if st.session_state.use_cache else None,
+        trace_dir=st.session_state.trace_dir,
     )
     with st.spinner("Generating plan..."):
         plan = generate_plan(client, st.session_state.query, st.session_state.index)
@@ -92,8 +91,7 @@ st.title("Sycamore Query")
 if "trace_dir" not in st.session_state:
     st.session_state.trace_dir = os.path.join(os.getcwd(), "traces")
 
-
-client = SycamoreQueryClient()
+client = get_sycamore_query_client()
 st.selectbox("Index", get_opensearch_indices(), key="index")
 show_schema(client, st.session_state.index)
 

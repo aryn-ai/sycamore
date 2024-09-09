@@ -13,60 +13,55 @@ from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.operators.logical_operator import LogicalOperator
 
 
-@st.cache_data(show_spinner=False)
 def get_schema(_client: SycamoreQueryClient, index: str) -> Dict[str, Tuple[str, Set[str]]]:
     return _client.get_opensearch_schema(index)
 
 
-@st.cache_data(show_spinner=False)
 def generate_plan(_client: SycamoreQueryClient, query: str, index: str) -> LogicalPlan:
     return _client.generate_plan(query, index, get_schema(_client, index))
 
 
-@st.cache_data(show_spinner=False, hash_funcs={LogicalPlan: lambda x: hash(x.model_dump_json())})
 def run_plan(_client: SycamoreQueryClient, plan: LogicalPlan) -> Tuple[str, Any]:
     return _client.run_plan(plan)
 
 
-@st.cache_data(show_spinner=False)
 def get_opensearch_indices() -> Set[str]:
     return {x for x in SycamoreQueryClient().get_opensearch_incides() if not x.startswith(".")}
 
 
 def show_dag(plan: LogicalPlan):
-    st.write(plan)
-#    nodes = []
-#    edges = []
-#    for node in plan.nodes.values():
-#        assert isinstance(node, LogicalOperator)
-#        nodes.append(
-#            Node(
-#                id=node.node_id,
-#                label=f"[Node {node.node_id}] {type(node).__name__}\n\n{node.description}",
-#                shape="box",
-#                color={
-#                    "background": "#404040",
-#                    "border": "#5050f0",
-#                },
-#                font="14px arial white",
-#                chosen=False,
-#                margin=30,
-#            )
-#        )
-#    for node in plan.nodes.values():
-#        if node.dependencies:
-#            for dep in node.dependencies:
-#                edges.append(Edge(source=dep.node_id, target=node.node_id, color="#ffffff"))
-#
-#    config = Config(
-#        width=700,
-#        height=500,
-#        directed=True,
-#        physics=False,
-#        hierarchical=True,
-#        direction="UD",
-#    )
-#    agraph(nodes=nodes, edges=edges, config=config)
+   nodes = []
+   edges = []
+   for node in plan.nodes.values():
+       assert isinstance(node, LogicalOperator)
+       nodes.append(
+           Node(
+               id=node.node_id,
+               label=f"[Node {node.node_id}] {type(node).__name__}\n\n{node.description}",
+               shape="box",
+               color={
+                   "background": "#404040",
+                   "border": "#5050f0",
+               },
+               font="14px arial white",
+               chosen=False,
+               margin=30,
+           )
+       )
+   for node in plan.nodes.values():
+       if node.dependencies:
+           for dep in node.dependencies:
+               edges.append(Edge(source=dep.node_id, target=node.node_id, color="#ffffff"))
+
+   config = Config(
+       width=700,
+       height=500,
+       directed=True,
+       physics=False,
+       hierarchical=True,
+       direction="UD",
+   )
+   agraph(nodes=nodes, edges=edges, config=config)
 
 
 @st.experimental_fragment

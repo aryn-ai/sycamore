@@ -17,14 +17,8 @@ from sycamore.query.operators.top_k import TopK
 from sycamore.query.operators.field_in import FieldIn
 from sycamore.query.operators.sort import Sort
 
-<<<<<<< HEAD
 from sycamore.query.execution.operations import summarize_data, generate_table, generate_preview
 from sycamore.llms import OpenAI, OpenAIModels
-=======
-from sycamore.query.execution.operations import (
-    summarize_data,
-)
->>>>>>> main
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 
 from sycamore import DocSet, Context
@@ -185,10 +179,8 @@ class SycamoreGenerateTable(SycamoreOperator):
         query_id: str,
         inputs: Optional[List[Any]] = None,
         trace_dir: Optional[str] = None,
-        s3_cache_path: Optional[str] = None,
     ) -> None:
         super().__init__(context, logical_node, query_id, inputs, trace_dir=trace_dir)
-        self.s3_cache_path = s3_cache_path
         assert isinstance(self.logical_node, GenerateTable)
 
     def execute(self) -> Any:
@@ -200,7 +192,6 @@ class SycamoreGenerateTable(SycamoreOperator):
         assert description is not None and isinstance(description, str)
 
         result = generate_table(
-            llm=OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(self.s3_cache_path) if self.s3_cache_path else None),
             table_definition=table_definition,
             result_description=description,
             result_data=self.inputs,
@@ -214,9 +205,6 @@ class SycamoreGenerateTable(SycamoreOperator):
         description = self.logical_node.description
         assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) >= 1
 
-        cache_string = ""
-        if self.s3_cache_path:
-            cache_string = f", cache=S3Cache('{self.s3_cache_path}')"
         logical_deps_str = ""
         for i, inp in enumerate(self.logical_node.dependencies):
             logical_deps_str += input_var or get_var_name(inp)
@@ -225,7 +213,6 @@ class SycamoreGenerateTable(SycamoreOperator):
 
         result = f"""
 {output_var or get_var_name(self.logical_node)} = generate_table(
-    llm=OpenAI(OpenAIModels.GPT_4O.value{cache_string}),
     table_definition='{table_definition}',
     result_description='{description}',
     result_data=[{logical_deps_str}],
@@ -234,7 +221,6 @@ class SycamoreGenerateTable(SycamoreOperator):
 """
         return result, [
             "from sycamore.query.execution.operations import generate_table",
-            "from sycamore.llms import OpenAI, OpenAIModels",
         ]
 
 

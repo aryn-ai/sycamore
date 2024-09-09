@@ -194,7 +194,6 @@ class SycamoreExecutor:
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                s3_cache_path=s3_cache_path,
                 trace_dir=self.trace_dir,
             )
         elif isinstance(logical_node, GenerateTable):
@@ -203,7 +202,6 @@ class SycamoreExecutor:
                 logical_node=logical_node,
                 query_id=query_id,
                 inputs=inputs,
-                s3_cache_path=s3_cache_path,
                 trace_dir=self.trace_dir,
             )
         elif isinstance(logical_node, GeneratePreview):

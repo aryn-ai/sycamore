@@ -2,14 +2,13 @@ import datetime
 from html.parser import HTMLParser
 import json
 import os
-import re
 from typing import Any, Dict, List, Optional, Tuple
 
+import pandas as pd
 
 import boto3
 import marko
 from marko.md_renderer import MarkdownRenderer
-from marko.helpers import MarkoExtension
 import requests
 from openai import OpenAI
 from openai.types.chat import ChatCompletionToolParam
@@ -18,7 +17,7 @@ from streamlit_pdf_viewer import pdf_viewer
 import sycamore
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
-from util import get_opensearch_indices, generate_plan, run_plan, show_dag
+from util import generate_plan, run_plan
 
 NUM_DOCS_GENERATE = 60
 NUM_DOCS_PREVIEW = 10
@@ -42,8 +41,8 @@ OS_CLIENT_ARGS = {
 
 EXAMPLE_QUERIES = [
     "How many incidents were there in Washington in 2023?",
-    "Show me incidents involving tail number N4811E",
     "What was the breakdown of aircraft types for incidents with substantial damage?",
+    "Show me incidents involving Piper aircraft",
     "Show the details on accident ERA23LA153",
 ]
 
@@ -69,7 +68,20 @@ component such as a button. Below is an example of MDX output that you might gen
 
 ```Here are the latest incidents referring to bad weather:
 
-<Table data={[[{"Incident ID": "ERA23LA153", "Location": "Seattle, WA", "Date": "2023-01-15"}]]} />
+<Table>
+    <TableHeader>
+        <TableCell>Incident ID</TableCell>
+        <TableCell>Date</TableCell>
+        <TableCell>Location</TableCell>
+        <TableCell>Aircraft Type</TableCell>
+    </TableHeader>
+    <TableRow>
+        <TableCell>ERA23LA153</TableCell>
+        <TableCell>2023-01-15</TableCell>
+        <TableCell>Seattle, WA</TableCell>
+        <TableCell>Cessna 172</TableCell>
+    </TableRow>
+</Table>
 ```
 
 Additional markdown text can follow the use of a JSX component, and JSX components can be
@@ -87,13 +99,17 @@ if a JSX component has a property that's a JSON object, encode it into a single 
 
 The following JSX components are available for your use:
   * <Table>
-      <TableRow>
-        <TableCell>Column 1</TableCell>
-        <TableCell>Column 2</TableCell>
-      </TableRow>
+      <TableHeader>
+        <TableCell>Column name 1</TableCell>
+        <TableCell>Column name 2</TableCell>
+      </TableHeader>
       <TableRow>
         <TableCell>Value 1</TableCell>
         <TableCell>Value 2</TableCell>
+      </TableRow>
+      <TableRow>
+        <TableCell>Value 3</TableCell>
+        <TableCell>Value 4</TableCell>
       </TableRow>
     </Table>
     Displays a table showing the provided data. 
@@ -104,12 +120,19 @@ The following JSX components are available for your use:
   * <SuggestedQuery query="How many incidents were there in Washington in 2023?" />
     Displays a button showing a query that the user might wish to consider asking next.
 
-Multiple JSX components can be used in your reply.
+  * <Map>
+     <MapMarker lat="47.6062" lon="-122.3321" />
+     <MapMarker lat="47.7105" lon="-122.4406" />
+    </Map>
+    Displays a map with markers at the provided coordinates.
 
-You may ONLY use these specific JSX components in your responses. Other than these components,
-you may ONLY use standard Markdown syntax.
+Multiple JSX components can be used in your reply. You may ONLY use these specific JSX components
+in your responses. Other than these components, you may ONLY use standard Markdown syntax.
 
-Please suggest 1-3 follow-on queries (using the <SuggestedQuery /> component) that the user might
+Please use <Preview> any time a specific document or incident is mentioned, and <Map> any time
+there is an opportunity to refer to a location.
+
+Please suggest 1-3 follow-on queries (using the <SuggestedQuery> component) that the user might
 ask, based on the response to the user's question.
 """
 
@@ -120,30 +143,50 @@ class MDXParser(HTMLParser):
         super().__init__()
         self.chat_message = chat_message
         self.in_table = False
+        self.in_header = False
         self.in_row = False
         self.in_cell = False
         self.table_data: List[List[Any]] = []
         self.row_data: List[Any] = []
+        self.header_data: List[Any] = []
+        self.in_map = False
+        self.map_data: List[Tuple[float, float]] = []
 
     def handle_starttag(self, tag, attrs):
         if tag == "table":
             self.in_table = True
             self.table_data = []
+        elif tag == "tableheader" and self.in_table:
+            self.in_header = True
+            self.header_data = []
         elif tag == "tablerow" and self.in_table:
             self.in_row = True
             self.row_data = []
         elif tag == "tablecell" and self.in_row:
             self.in_cell = True
+        elif tag == "map":
+            self.in_map = True
+            self.map_data = []
+        elif tag == "mapmarker" and self.in_map:
+            lat = float(dict(attrs).get("lat"))
+            lon = float(dict(attrs).get("lon"))
+            self.map_data.append((lat, lon))
 
     def handle_endtag(self, tag):
         if tag == "tablecell" and self.in_cell:
             self.in_cell = False
+        elif tag == "tableheader" and self.in_header:
+            self.in_header = False
+            self.table_data.append(self.header_data)
         elif tag == "tablerow" and self.in_row:
             self.in_row = False
             self.table_data.append(self.row_data)
         elif tag == "table" and self.in_table:
             self.in_table = False
             self.chat_message.render_table(self.table_data)
+        elif tag == "map" and self.in_map:
+            self.in_map = False
+            self.chat_message.render_map(self.map_data)
 
     def handle_startendtag(self, tag, attrs):
         if tag == "preview":
@@ -158,12 +201,18 @@ class MDXParser(HTMLParser):
                 self.chat_message.render_suggested_query(query)
             else:
                 self.chat_message.render_markdown("No query provided for suggested query")
+        elif tag == "mapmarker" and self.in_map:
+            lat = float(dict(attrs).get("lat"))
+            lon = float(dict(attrs).get("lon"))
+            self.map_data.append((lat, lon))
 
     def handle_data(self, data):
         data = data.strip()
         if not data:
             return
-        if self.in_cell:
+        if self.in_header:
+            self.header_data.append(data)
+        elif self.in_cell:
             self.row_data.append(data)
         else:
             self.chat_message.render_markdown(data)
@@ -226,6 +275,7 @@ class ChatMessage:
         return st.button(label, key=key, **kwargs)
 
     def render_markdown_with_jsx(self, text: str):
+        print(text)
         mdxparser = MDXParser(self)
         mdxparser.feed(text)
 
@@ -233,7 +283,7 @@ class ChatMessage:
         st.markdown(text)
 
     def render_table(self, data: List[Dict[str, Any]]):
-        st.table(data)
+        st.dataframe(data)
 
     def render_preview(self, path: str):
         Preview(path, self).show()
@@ -241,6 +291,10 @@ class ChatMessage:
     def render_suggested_query(self, query: str):
         if self.button(query):
             st.session_state.user_query = query
+
+    def render_map(self, data: List[Tuple[float, float]]):
+        df = pd.DataFrame(data, columns=["lat", "lon"])
+        st.map(df)
 
     def to_dict(self) -> Optional[Dict[str, Any]]:
         return self.message

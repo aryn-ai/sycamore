@@ -74,6 +74,9 @@ class SimpleTable(TableFormatTestCase):
     def csv(self) -> str:
         return "1,2\n3,4"
 
+    def markdown(self) -> str:
+        return "|   0 |   1 |\n|----:|----:|\n|   1 |   2 |\n|   3 |   4 |"
+
     def table(self) -> Table:
         return Table(
             [
@@ -149,6 +152,9 @@ class SimpleTableWithHeader(TableFormatTestCase):
     def csv(self) -> str:
         return "head1,head2\n3,4"
 
+    def markdown(self) -> str:
+        return "|   head1 |   head2 |\n|--------:|--------:|\n|       3 |       4 |"
+
     def table(self) -> Table:
         return Table(
             [
@@ -183,6 +189,14 @@ class SimpleTableMultiColHeader(TableFormatTestCase):
 
     def csv(self) -> str:
         return "multi head,multi head,head2\n1,2,3\n4,5,6"
+
+    def markdown(self) -> str:
+        return (
+            "|   multi head |   multi head |   head2 |\n"
+            "|-------------:|-------------:|--------:|\n"
+            "|            1 |            2 |       3 |\n"
+            "|            4 |            5 |       6 |"
+        )
 
     def table(self) -> Table:
         return Table(
@@ -226,6 +240,16 @@ class TableWithRowspanShenanigans(TableFormatTestCase):
     def csv(self) -> str:
         return "A,B,C\nD,,E\n,,F\nG,H,I"
 
+    def markdown(self) -> str:
+        return (
+            "| 0   | 1   | 2   |\n"
+            "|:----|:----|:----|\n"
+            "| A   | B   | C   |\n"
+            "| D   |     | E   |\n"
+            "|     |     | F   |\n"
+            "| G   | H   | I   |"
+        )
+
     def table(self) -> Table:
         return Table(
             [
@@ -267,6 +291,14 @@ class SimpleTableMultiRowHeader(TableFormatTestCase):
     def csv(self) -> str:
         return "multi head,head2_1 | head2_2\n1,2\n3,4"
 
+    def markdown(self) -> str:
+        return (
+            "|   multi head |   head2_1 > head2_2 |\n"
+            "|-------------:|--------------------:|\n"
+            "|            1 |                   2 |\n"
+            "|            3 |                   4 |"
+        )
+
     def table(self) -> Table:
         return Table(
             [
@@ -307,6 +339,14 @@ class SimpleTableMultiRowColHeader(TableFormatTestCase):
 
     def csv(self) -> str:
         return "multi head,multi head,head2_1 | head2_2\n1,2,3\n4,5,6"
+
+    def markdown(self) -> str:
+        return (
+            "|   multi head |   multi head |   head2_1 > head2_2 |\n"
+            "|-------------:|-------------:|--------------------:|\n"
+            "|            1 |            2 |                   3 |\n"
+            "|            4 |            5 |                   6 |"
+        )
 
     def table(self) -> Table:
         return Table(
@@ -376,6 +416,15 @@ Medium,0.45 ultimate,49.2,"70,000",18,25
 Soft,0.45 ultimate,42.2,"60,000",22,30
         """
 
+    def markdown(self) -> str:
+        return (
+            "| Grade.   | Yield Point.   |   Ultimate tensile strength > kg/mm2 | Ultimate tensile strength > lb/in2   |   Per cent elong. 50.8 mm or 2 in. |   Per cent reduct. area. |\n"
+            "|:---------|:---------------|-------------------------------------:|:-------------------------------------|-----------------------------------:|-------------------------:|\n"
+            "| Hard     | 0.45 ultimate  |                                 56.2 | 80,000                               |                                 15 |                       20 |\n"
+            "| Medium   | 0.45 ultimate  |                                 49.2 | 70,000                               |                                 18 |                       25 |\n"
+            "| Soft     | 0.45 ultimate  |                                 42.2 | 60,000                               |                                 22 |                       30 |"
+        )
+
     def table(self) -> Table:
         return Table(
             [
@@ -444,6 +493,13 @@ def test_to_html(test_case):
     # print(parsed_expected.prettify())
 
     assert parsed_actual == parsed_expected
+
+
+@pytest.mark.parametrize("test_case", test_cases)
+def test_to_markdown(test_case):
+    actual = test_case.table().to_markdown()
+    expected = test_case.markdown()
+    assert actual == expected
 
 
 def test_tablecell_from_dict():

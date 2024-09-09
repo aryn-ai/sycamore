@@ -248,7 +248,7 @@ class Table:
     # we speculate that duplication may create confusion, so we default to only displaying a cells
     # content for the first row/column for which it is applicable. The exception is for header rows,
     # where we duplicate values to each columnn to ensure that every column has a fully qualified header.
-    def to_pandas(self) -> DataFrame:
+    def to_pandas(self, split_header_token="|") -> DataFrame:
         """Returns this table as a Pandas DataFrame.
 
         For example, Suppose a cell spans row 2-3 and columns 4-5.
@@ -298,7 +298,9 @@ class Table:
         flattened_header = []
 
         for npcol in header.transpose():
-            flattened_header.append(" | ".join(OrderedDict.fromkeys((c for c in npcol if c not in [None, ""]))))
+            flattened_header.append(
+                f" {split_header_token} ".join(OrderedDict.fromkeys((c for c in npcol if c not in [None, ""])))
+            )
 
         df = DataFrame(
             table_array[max_header_prefix_row + 1 :, :],
@@ -380,6 +382,24 @@ class Table:
             ET.indent(root)
 
         return ET.tostring(root, encoding="unicode")
+
+    def to_markdown(self, **kwargs) -> str:
+        """Converts this table to a markdown string.
+
+        This conversion is made via Pandas.
+
+        Args:
+            kwargs: Keyword arguments to pass to the pandas to_markdown method.
+        """
+
+        pandas_kwargs = {"index": False}
+        pandas_kwargs.update(kwargs)
+        # By default we use '|' to combine multiple header rows in to_pandas, but since
+        # this token is meaningful in Markdown, we need to use something different.
+        ret = self.to_pandas(split_header_token=">").to_markdown(**pandas_kwargs)
+        if ret is None:
+            raise RuntimeError("Unable to convert table to markdown")
+        return ret
 
     def to_tree(self) -> "TableTree":
         root = TableTree(tag="table")

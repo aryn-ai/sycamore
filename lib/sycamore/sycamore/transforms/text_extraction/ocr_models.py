@@ -1,12 +1,9 @@
 from abc import abstractmethod
 from io import BytesIO
 from PIL import Image
-from typing import Any, Union
-from sycamore.data import BoundingBox
 from typing import Any, Union, List, Dict, cast, BinaryIO
 from sycamore.data import BoundingBox, Element
 from sycamore.utils.cache import DiskCache
-from typing import List, Union
 from pathlib import Path
 from io import IOBase
 from pdfminer.utils import open_filename

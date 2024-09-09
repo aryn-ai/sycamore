@@ -94,6 +94,39 @@ class TaskIdentifierZeroShotGuidancePrompt(SimplePrompt):
     """
 
 
+class ExtractTablePropertiesPrompt(SimplePrompt):
+    user = """
+            You are given a text string where columns are separated by comma representing either a single column, 
+            or multi-column table each new line is a new row.
+            Instructions:
+            1. Parse the table and return a flattened JSON object representing the key-value pairs of properties 
+            defined in the table.
+            2. Do not return nested objects, keep the dictionary only 1 level deep. The only valid value types 
+            are numbers, strings, and lists.
+            3. If you find multiple fields defined in a row, feel free to split them into separate properties.
+            4. Use camelCase for the key names
+            5. For fields where the values are in standard measurement units like miles, 
+            nautical miles, knots, celsius
+            6. return only the json object between ``` 
+            - include the unit in the key name and only set the numeric value as the value.
+            - e.g. "Wind Speed: 9 knots" should become windSpeedInKnots: 9, 
+            "Temperature: 3°C" should become temperatureInC: 3
+            """
+
+
+class ExtractTablePropertiesTablePrompt(SimplePrompt):
+    user = """
+            You are given a text string where columns are separated by comma representing either a single column, 
+            or multi-column table each new line is a new row.
+            Instructions:
+            1. Parse the table and make decision if key, value pair information can be extracted from it.
+            2. if the table contains multiple cell value corresponding to one key, the key, value pair for such table 
+            cant be extracted.
+            3. return True if table cant be parsed as key value pair.
+            4. return only True or False nothing should be added in the response.
+            """
+
+
 class EntityExtractorMessagesPrompt(SimplePrompt):
     def __init__(self, question: str, field: str, format: Optional[str], discrete: bool = False):
         super().__init__()

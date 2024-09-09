@@ -18,20 +18,18 @@ class TestStandardizer(unittest.TestCase):
         )
 
     def test_datetime(self):
-        date_standardizer = DateTimeStandardizer()
-
         output = StandardizeProperty(
-            None, standardizer=date_standardizer, path=[["properties", "entity", "dateTime"]]
+            None, standardizer=DateTimeStandardizer, path=[["properties", "entity", "dateTime"]]
         ).run(self.input)
+
         assert "properties" in output.keys()
         assert "entity" in output.properties.keys()
         assert output.properties.get("entity")["dateTime"] == "March 17, 2023, 14:25 "
         assert output.properties.get("entity")["day"] == date(2023, 3, 17)
 
     def test_location(self):
-        loc_standardizer = LocationStandardizer()
         output = StandardizeProperty(
-            None, standardizer=loc_standardizer, path=[["properties", "entity", "location"]]
+            None, standardizer=LocationStandardizer, path=[["properties", "entity", "location"]]
         ).run(self.input)
 
         assert "properties" in output.keys()

@@ -7,7 +7,7 @@ from typing import List, Dict
 
 class AssignDocProperties(SingleThreadUser, NonGPUUser, Map):
     """
-    The AssignDocProperties transform is used to copy properties from first element pf a specific type
+    The AssignDocProperties transform is used to copy properties from first element of a specific type
     to the parent document. This allows for the consolidation of key attributes at the document level.
 
     Args:

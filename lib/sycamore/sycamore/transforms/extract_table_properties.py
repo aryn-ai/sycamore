@@ -53,16 +53,13 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
     @staticmethod
     @timetrace("ExtrKeyVal")
     def extract_table_properties(
-        parent: Document, 
-        property_name: str, 
-        llm: LLM, 
-        prompt_find_table:str=None, 
-        prompt_LLM: str=None  ) -> Document:
+        parent: Document, property_name: str, llm: LLM, prompt_find_table: str = "", prompt_LLM: str = ""
+    ) -> Document:
         """
         This Method is used to extract key value pair from table using LLM and
         populate it as property of that element.
         """
-        if prompt_find_table is None:
+        if prompt_find_table =="":
             prompt_find_table = """
             You are given a text string where columns are separated by comma representing either a single column, 
             or multi-column table each new line is a new row.
@@ -74,13 +71,11 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
             4. return only True or False nothing should be added in the response.
             """
         query_agent = LLMTextQueryAgent(
-            prompt=prompt_find_table, 
-            llm=llm, 
-            output_property="keyValueTable", 
-            element_type="table")
+            prompt=prompt_find_table, llm=llm, output_property="keyValueTable", element_type="table"
+        )
         doc = query_agent.execute_query(parent)
-        
-        if prompt_LLM is None:
+
+        if prompt_LLM == "":
             prompt_LLM = """
             You are given a text string where columns are separated by comma representing either a single column, 
             or multi-column table each new line is a new row.

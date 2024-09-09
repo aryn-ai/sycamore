@@ -345,7 +345,6 @@ class ArynPDFPartitioner:
 
         return result
 
-    @requires_modules("easyocr", extra="local-inference")
     def _partition_pdf_sequenced(
         self,
         file: BinaryIO,
@@ -397,7 +396,7 @@ class ArynPDFPartitioner:
                 with LogTime(f"infer_one_batch {i}/{len(images) / batch_size}"):
                     assert self.model is not None
                     deformable_layout += self.model.infer(batch, threshold, use_cache)
-        # The cast here is to make mypy happy. TextExtractor / PDFMiner expects IOBase,
+        # The cast here is to make mypy happy. TextExtractor expects IOBase,
         # but typing.BinaryIO doesn't extend from it. BytesIO
         # (the concrete class) implements both.
         file_name = cast(IOBase, file)
@@ -516,8 +515,7 @@ class ArynPDFPartitioner:
         deformable_layout = []
         if tracemalloc.is_tracing():
             before = tracemalloc.take_snapshot()
-        batches = convert_from_path_streamed_batched(filename, batch_size)
-        for i in batches:
+        for i in convert_from_path_streamed_batched(filename, batch_size):
             parts = self.process_batch_inference(
                 i,
                 threshold=threshold,
@@ -546,7 +544,7 @@ class ArynPDFPartitioner:
                 for d, p in zip(deformable_layout, text_extractor_layout):
                     self._supplement_text(d, p)
 
-        for i in batches:
+        for i in convert_from_path_streamed_batched(filename, batch_size):
             parts = self.process_batch_extraction(
                 i,
                 deformable_layout=deformable_layout,

@@ -121,6 +121,7 @@ weaviate = ["weaviate-client"]
 # Partitioner extras
 local-inference = [
   "easyocr",
+  "paddleocr",
   "pdfminer-six",
   "pytesseract",
   "sentence-transformers",

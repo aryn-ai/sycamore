@@ -9467,7 +9467,7 @@ duckdb = ["duckdb"]
 elasticsearch = ["elasticsearch"]
 eval = ["apted", "datasets", "rouge"]
 legacy-partitioners = ["python-pptx", "unstructured"]
-local-inference = ["easyocr", "pdfminer-six", "pytesseract", "sentence-transformers", "timm", "torch", "torchvision", "transformers"]
+local-inference = ["easyocr", "paddleocr", "pdfminer-six", "pytesseract", "sentence-transformers", "timm", "torch", "torchvision", "transformers"]
 neo4j = ["neo4j"]
 opensearch = ["opensearch-py"]
 pinecone = ["pinecone-client", "pinecone-text"]
@@ -9476,4 +9476,4 @@ weaviate = ["weaviate-client"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.12"
-content-hash = "bedfb61a00f2c4534e90d45acb182ef96cd343883a6949c5b757ea3dd0dedf7c"
+content-hash = "54df6a9b6c0f10a83bbc699fd9817d1664afdb5381bce0010015158548802167"

@@ -5,12 +5,13 @@ from typing import Any, Union, List, Dict, cast, BinaryIO
 from sycamore.data import BoundingBox, Element
 from sycamore.utils.cache import DiskCache
 from pathlib import Path
-from io import IOBase
+from io import IOBase, BytesIO
 from pdfminer.utils import open_filename
 from sycamore.utils.import_utils import requires_modules
 import pdf2image
 from sycamore.transforms.text_extraction.text_extractor import TextExtractor
 import logging
+from sycamore.utils.time_trace import LogTime
 
 ocr_cache = DiskCache(str(Path.home() / ".sycamore/OCRCache"))
 
@@ -30,32 +31,33 @@ class OCRModel(TextExtractor):
     def extract(self, filename: Union[str, IOBase], hash_key: str, use_cache=False, **kwargs) -> List[List[Element]]:
         # The naming is slightly confusing, but `open_filename` accepts either
         # a filename (str) or a file-like object (IOBase)
+        with LogTime("OCR Extraction"):
+            cached_result = ocr_cache.get(hash_key) if use_cache else None
+            if cached_result:
+                logger.info(f"Cache Hit for OCR. Cache hit-rate is {ocr_cache.get_hit_rate()}")
+                return cached_result
+            else:
+                with open_filename(filename, "rb") as fp:
+                    fp = cast(BinaryIO, fp)
+                    fp.seek(0)
+                    images = pdf2image.convert_from_bytes(fp.read(), dpi=300)
+                    pages = []
+                    for image in images:
+                        ocr_output = self.get_boxes_and_text(image)
+                        texts: List[Element] = []
+                        for obj in ocr_output:
+                            if obj["bbox"] and not obj["bbox"].is_empty() and obj["text"] and len(obj["text"]) > 0:
+                                text = Element()
+                                text.type = "text"
+                                text.bbox = obj["bbox"]
+                                text.text_representation = obj["text"]
+                                texts.append(text)
 
-        cached_result = ocr_cache.get(hash_key) if use_cache else None
-        if cached_result:
-            logger.info(f"Cache Hit for OCR. Cache hit-rate is {ocr_cache.get_hit_rate()}")
-            return cached_result
-        else:
-            with open_filename(filename, "rb") as fp:
-                fp = cast(BinaryIO, fp)
-                images = pdf2image.convert_from_bytes(fp.read())
-                pages = []
-                for image in images:
-                    ocr_output = self.get_boxes_and_text(image)
-                    texts: List[Element] = []
-                    for obj in ocr_output:
-                        if obj["bbox"] and not obj["bbox"].is_empty() and obj["text"] and len(obj["text"]) > 0:
-                            text = Element()
-                            text.type = "text"
-                            text.bbox = obj["bbox"]
-                            text.text_representation = obj["text"]
-                            texts.append(text)
-
-                    pages.append(texts)
-                if use_cache:
-                    logger.info("Cache Miss for OCR. Storing the result to the cache.")
-                    ocr_cache.set(hash_key, pages)
-                return pages
+                        pages.append(texts)
+                    if use_cache:
+                        logger.info("Cache Miss for OCR. Storing the result to the cache.")
+                        ocr_cache.set(hash_key, pages)
+                    return pages
 
 
 class EasyOCR(OCRModel):

@@ -181,7 +181,7 @@ class TestPartition:
 
     def test_simple_ocr(self):
         import pdf2image
-        from sycamore.transforms.detr_partitioner import extract_ocr
+        from sycamore.transforms.text_extraction import LegacyOCR
 
         path = TEST_DIR / "resources/data/ocr_pdfs/test_simple_ocr.pdf"
         images = pdf2image.convert_from_path(path, dpi=800)
@@ -189,11 +189,10 @@ class TestPartition:
 
         elem = Element({"bbox": (0.0, 0.0, 1.0, 1.0), "properties": {"page_number": 1}})
 
-        new_elems = extract_ocr(images, [[elem]])
+        new_elems = [LegacyOCR.get_boxes_and_text(image) for image in images]
 
         assert len(new_elems) == 1
-        assert len(new_elems[0]) == 1
 
-        text = new_elems[0][0].text_representation
+        text = new_elems[0]["text"]
         assert text is not None
         assert text.strip() == "The quick brown fox"

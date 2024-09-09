@@ -52,7 +52,12 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
 
     @staticmethod
     @timetrace("ExtrKeyVal")
-    def extract_table_properties(parent: Document, property_name: str, llm: LLM, prompt_find_table:str=None, prompt_LLM: str=None,  ) -> Document:
+    def extract_table_properties(
+        parent: Document, 
+        property_name: str, 
+        llm: LLM, 
+        prompt_find_table:str=None, 
+        prompt_LLM: str=None  ) -> Document:
         """
         This Method is used to extract key value pair from table using LLM and
         populate it as property of that element.
@@ -68,7 +73,11 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
             3. return True if table cant be parsed as key value pair.
             4. return only True or False nothing should be added in the response.
             """
-        query_agent = LLMTextQueryAgent(prompt=prompt_find_table, llm=llm, output_property="keyValueTable", element_type="table")
+        query_agent = LLMTextQueryAgent(
+            prompt=prompt_find_table, 
+            llm=llm, 
+            output_property="keyValueTable", 
+            element_type="table")
         doc = query_agent.execute_query(parent)
         
         if prompt_LLM is None:

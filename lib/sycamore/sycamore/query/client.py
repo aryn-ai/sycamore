@@ -16,15 +16,14 @@ from typing import List, Optional, Tuple
 import os
 import uuid
 
-from opensearchpy import OpenSearch
-from opensearchpy.client.indices import IndicesClient
 import structlog
 
 import sycamore
+from sycamore import Context
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.transforms.query import OpenSearchQueryExecutor
 from sycamore.utils.cache import S3Cache
-
+from sycamore.utils.import_utils import requires_modules
 
 from sycamore.query.execution.sycamore_executor import SycamoreExecutor
 from sycamore.query.logical_plan import LogicalPlan
@@ -95,23 +94,34 @@ class SycamoreQueryClient:
     """A client for the Sycamore Query engine.
 
     Args:
+        context (optional): a configured Sycamore Context. A fresh one is created if not provided.
         s3_cache_path (optional): S3 path to use for LLM result caching.
         os_config (optional): OpenSearch configuration. Defaults to DEFAULT_OS_CONFIG.
         os_client_args (optional): OpenSearch client arguments. Defaults to DEFAULT_OS_CLIENT_ARGS.
         trace_dir (optional): Directory to write query execution trace.
     """
 
+    @requires_modules("opensearchpy", extra="opensearch")
     def __init__(
         self,
+        context: Optional[Context] = None,
         s3_cache_path: Optional[str] = None,
         os_config: dict = DEFAULT_OS_CONFIG,
         os_client_args: dict = DEFAULT_OS_CLIENT_ARGS,
         trace_dir: Optional[str] = None,
     ):
+        from opensearchpy import OpenSearch
+
         self.s3_cache_path = s3_cache_path
         self.os_config = os_config
         self.os_client_args = os_client_args
         self.trace_dir = trace_dir
+
+        if context and os_client_args:
+            raise AssertionError("If using a configured Context object, set os_client_args in context.params")
+        if context and s3_cache_path:
+            raise AssertionError("If using a configured Context object, set a cached llm in context.params")
+        self.context = context or self._get_default_context()
 
         self._os_client = OpenSearch(**self.os_client_args)
         self._os_query_executor = OpenSearchQueryExecutor(self.os_client_args)
@@ -121,8 +131,11 @@ class SycamoreQueryClient:
         indices = list([str(k) for k in self._os_client.indices.get_alias().keys()])
         return indices
 
+    @requires_modules("opensearchpy.client.indices", extra="opensearch")
     def get_opensearch_schema(self, index: str) -> OpenSearchSchema:
         """Get the schema for the provided OpenSearch index."""
+        from opensearchpy.client.indices import IndicesClient
+
         schema_provider = OpenSearchSchemaFetcher(IndicesClient(self._os_client), index, self._os_query_executor)
         return schema_provider.get_schema()
 
@@ -142,12 +155,10 @@ class SycamoreQueryClient:
         return plan
 
     def run_plan(self, plan: LogicalPlan, dry_run=False, codegen_mode=False) -> Tuple[str, str]:
+        assert self.context is not None, "Running a plan requires a configured Context"
         """Run the given logical query plan and return a tuple of the query ID and result."""
-        context = sycamore.init()
         executor = SycamoreExecutor(
-            context=context,
-            os_client_args=self.os_client_args,
-            s3_cache_path=self.s3_cache_path,
+            context=self.context,
             trace_dir=self.trace_dir,
             dry_run=dry_run,
             codegen_mode=codegen_mode,
@@ -156,7 +167,13 @@ class SycamoreQueryClient:
         result = executor.execute(plan, query_id)
         return (query_id, result)
 
-    def query(self, query: str, index: str, dry_run: bool = False, codegen_mode: bool = False) -> str:
+    def query(
+        self,
+        query: str,
+        index: str,
+        dry_run: bool = False,
+        codegen_mode: bool = False,
+    ) -> str:
         """Run a query against the given index."""
         schema = self.get_opensearch_schema(index)
         plan = self.generate_plan(query, index, schema)
@@ -173,6 +190,19 @@ class SycamoreQueryClient:
                         console.print(entry)
                 except json.JSONDecodeError:
                     console.print(line)
+
+    def _get_default_context(self) -> Context:
+        context_params = {
+            "default": {
+                "llm": OpenAI(
+                    OpenAIModels.GPT_4O.value, cache=S3Cache(self.s3_cache_path) if self.s3_cache_path else None
+                ),
+            },
+            "opensearch": {
+                "os_client_args": self.os_client_args,
+            },
+        }
+        return sycamore.init(params=context_params)
 
 
 def main():

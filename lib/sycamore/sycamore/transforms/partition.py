@@ -536,7 +536,7 @@ class ArynPartitioner(Partitioner):
             )
         except Exception as e:
             path = document.properties["path"]
-            raise RuntimeError(f"SycamorePartitioner Error processing {path}") from e
+            raise RuntimeError(f"ArynPartitioner Error processing {path}") from e
 
         document.elements = elements
         document = reorder_elements(document, self._elements_reorder)

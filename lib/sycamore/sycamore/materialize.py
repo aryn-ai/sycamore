@@ -1,7 +1,6 @@
 import logging
 from pathlib import Path
 from typing import Any, Optional, Union, TYPE_CHECKING
-import uuid
 
 from sycamore.context import Context
 from sycamore.data import Document, MetadataDocument
@@ -14,7 +13,7 @@ if TYPE_CHECKING:
     import pyarrow
 
 
-logger = logging.getLogger("__name__")
+logger = logging.getLogger(__name__)
 
 
 class _PyArrowFsHelper:
@@ -50,11 +49,12 @@ class Materialize(UnaryNode):
         child: Optional[Node],
         context: Context,
         path: Optional[Union[Path, str, dict]] = None,
-        source_mode: MaterializeSourceMode = MaterializeSourceMode.OFF,
+        source_mode: MaterializeSourceMode = MaterializeSourceMode.RECOMPUTE,
         **kwargs,
     ):
         assert child is None or isinstance(child, Node)
 
+        self._orig_path = path
         self._root = None
         if path is None:
             pass
@@ -79,7 +79,7 @@ class Materialize(UnaryNode):
         else:
             assert False, f"unsupported type ({type(path)}) for path argument, expected str, Path, or dict"
 
-        if source_mode != MaterializeSourceMode.OFF:
+        if source_mode != MaterializeSourceMode.RECOMPUTE:
             assert path is not None
             assert (
                 self._doc_to_binary == Document.serialize
@@ -91,16 +91,49 @@ class Materialize(UnaryNode):
 
         super().__init__(child, **kwargs)
 
+    def prepare(self):
+        """
+        Clean up the materialize location if necessary.
+        Validate that cleaning worked, but only once all materializes have finished cleaning.
+        This protects against multiple materializes pointing to the same location.
+        """
+
+        if self._will_be_source():
+            return
+
+        if self._root is None:
+            return
+
+        if not self._clean_root:
+            self._fs.create_dir(str(self._root))
+            return
+
+        self._fshelper.safe_cleanup(self._root)
+
+        def check_clean():
+            clean_path = self._root / "materialize.clean"
+            if self._fshelper.file_exists(clean_path):
+                raise ValueError(
+                    f"path {clean_path} already exists despite cleaning the root directory."
+                    + " Most likely there two materialize nodes are using the same path"
+                )
+            self._fs.open_output_stream(str(clean_path)).close()
+            assert self._fshelper.file_exists(
+                clean_path
+            ), f"{clean_path} was just created in {self._fs}, but does not exist?!"
+
+        return check_clean
+
     def execute(self, **kwargs) -> "Dataset":
         logger.debug("Materialize execute")
-        if self._source_mode == MaterializeSourceMode.IF_PRESENT:
+        if self._source_mode == MaterializeSourceMode.USE_STORED:
             success = self._fshelper.file_exists(self._success_path())
             if success or len(self.children) == 0:
-                logger.info(f"Using {self._root} as cached source of data")
+                logger.info(f"Using {self._orig_path} as the cached source of data")
                 self._executed_child = False
                 if not success:
                     self._verify_has_files()
-                    logging.warning(f"materialize.success not found in {self._root}. Returning partial data")
+                    logging.warning(f"materialize.success not found in {self._orig_path}. Returning partial data")
 
                 from ray.data import read_binary_files
 
@@ -112,11 +145,10 @@ class Materialize(UnaryNode):
         # right now, no validation happens, so save data in parallel. Once we support validation
         # to support retries we won't be able to run the validation in parallel.  non-shared
         # filesystems will also eventually be a problem but we can put it off for now.
+
         input_dataset = self.child().execute(**kwargs)
         if self._root is not None:
             import numpy
-
-            self.cleanup()
 
             @rename("materialize")
             def ray_callable(ray_input: dict[str, numpy.ndarray]) -> dict[str, numpy.ndarray]:
@@ -138,26 +170,27 @@ class Materialize(UnaryNode):
             if n.path.endswith(".pickle"):
                 return
 
-        raise ValueError(f"Materialize root {self._root} has no .pickle files")
+        raise ValueError(f"Materialize root {self._orig_path} has no .pickle files")
 
     def _ray_to_document(self, dict: dict[str, Any]) -> dict[str, bytes]:
         return {"doc": dict["bytes"]}
 
     def _will_be_source(self) -> bool:
-        return self._source_mode == MaterializeSourceMode.IF_PRESENT and self._fshelper.file_exists(
+        if len(self.children) == 0:
+            return True
+        return self._source_mode == MaterializeSourceMode.USE_STORED and self._fshelper.file_exists(
             self._success_path()
         )
 
     def local_execute(self, docs: list[Document]) -> list[Document]:
-        if self._source_mode == MaterializeSourceMode.IF_PRESENT:
+        if self._source_mode == MaterializeSourceMode.USE_STORED:
             if self._fshelper.file_exists(self._success_path()):
                 self._executed_child = False
-                logger.info(f"Using {self._root} as cached source of data")
+                logger.info(f"Using {self._orig_path} as cached source of data")
 
                 return self.local_source()
 
         if self._root is not None:
-            self.cleanup()
             for d in docs:
                 self.save(d)
             self._executed_child = True
@@ -167,9 +200,9 @@ class Materialize(UnaryNode):
     def local_source(self) -> list[Document]:
         assert self._root is not None
         self._verify_has_files()
-        logger.info(f"Using {self._root} as cached source of data")
+        logger.info(f"Using {self._orig_path} as cached source of data")
         if not self._fshelper.file_exists(self._success_path()):
-            logging.warning(f"materialize.success not found in {self._root}. Returning partial data")
+            logging.warning(f"materialize.success not found in {self._orig_path}. Returning partial data")
         ret = []
         for fi in self._fshelper.list_files(self._root):
             n = Path(fi.path)
@@ -214,30 +247,38 @@ class Materialize(UnaryNode):
             return
         assert isinstance(bin, bytes), f"tobin function returned {type(bin)} not bytes"
         assert self._root is not None
-        name = self._doc_to_name(doc)
+        name = self._doc_to_name(doc, bin)
         path = self._root / name
+
         if self._clean_root and self._fshelper.file_exists(path):
-            raise ValueError(f"Duplicate name {path} generated for clean root")
+            if self._doc_to_name != self.doc_to_name:
+                # default doc_to_name includes a content based hash, so "duplicate" entries
+                # should only be possible if ray executes the save operation multiple times on
+                # the same content.
+                logger.warn(
+                    f"Duplicate name {path} generated for clean root;"
+                    + " this could be ray re-execution or fault tolerance; first written data kept"
+                )
+
+            return
         with self._fs.open_output_stream(str(path)) as out:
             out.write(bin)
 
-    def cleanup(self) -> None:
-        if self._root is None:
-            return
-
-        if not self._clean_root:
-            self._fs.create_dir(str(self._root))
-            return
-
-        self._fshelper.safe_cleanup(self._root)
-
     @staticmethod
-    def doc_to_name(doc: Document) -> str:
+    def doc_to_name(doc: Document, bin: bytes) -> str:
+        from hashlib import sha256
+
+        hash_id = sha256(bin).hexdigest()
+        doc_id = doc.doc_id or doc.data.get("lineage_id", None)
+        if doc_id is None:
+            logger.warn(f"found document with no doc_id or lineage_id, assigned content based id {hash_id}")
+            doc_id = hash_id
+
         if isinstance(doc, MetadataDocument):
-            return "md-" + str(uuid.uuid4()) + ".pickle"
+            return f"md-{doc_id}:{hash_id}.pickle"
 
         assert isinstance(doc, Document)
-        return (doc.doc_id or str(uuid.uuid4())) + ".pickle"
+        return f"doc-{doc_id}:{hash_id}.pickle"
 
 
 class AutoMaterialize(NodeTraverse):
@@ -365,3 +406,28 @@ class AutoMaterialize(NodeTraverse):
         if "fs" in self._path:
             self._fs = self._path["fs"]
         self._fshelper = _PyArrowFsHelper(self._fs)
+
+
+def clear_materialize(plan: Node, *, path: Optional[Union[Path, str]], clear_non_local: bool):
+    """See docset.clear_materialize() for documentation"""
+    from pyarrow.fs import LocalFileSystem
+
+    if isinstance(path, Path):
+        path = str(path)  # pathlib.PurePath.match requires the match to be a string
+    if path is None:
+        path = "*"
+
+    def clean_dir(n: Node):
+        if not isinstance(n, Materialize):
+            return
+        if n._root is None:
+            return
+        if not (isinstance(n._fs, LocalFileSystem) or clear_non_local):
+            logger.info(f"Skipping clearing non-local path {n._orig_path}")
+            return
+        if not n._root.match(path):
+            return
+        # safe_cleanup logs
+        n._fshelper.safe_cleanup(n._root)
+
+    plan.traverse(visit=clean_dir)

@@ -13,6 +13,8 @@ from openai import OpenAI as OpenAIClient
 from openai import AsyncOpenAI as AsyncOpenAIClient
 from openai import max_retries as DEFAULT_MAX_RETRIES
 from openai.lib.azure import AzureADTokenProvider
+from openai.lib._parsing import type_to_response_format_param
+
 
 import pydantic
 
@@ -354,6 +356,11 @@ class OpenAI(LLM):
         if (llm_kwargs or {}).get("temperature", 0) != 0 or not self._cache:
             return (None, None)
 
+        response_format = (llm_kwargs or {}).get("response_format")
+        if inspect.isclass(response_format) and issubclass(response_format, pydantic.BaseModel):
+            assert llm_kwargs
+            llm_kwargs["response_format"] = type_to_response_format_param(response_format)
+
         key = self._get_cache_key(prompt_kwargs, llm_kwargs)
         hit = self._cache.get(key)
         if hit:
@@ -429,10 +436,16 @@ class OpenAI(LLM):
         return completion.choices[0].message.content
 
     def _generate_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:
-        kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
-        completion = self.client_wrapper.get_client().beta.chat.completions.parse(model=self._model_name, **kwargs)
-        assert completion.choices[0].message.content is not None, "OpenAI refused to respond to the query"
-        return completion.choices[0].message.content
+        try:
+            kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
+            completion = self.client_wrapper.get_client().beta.chat.completions.parse(model=self._model_name, **kwargs)
+            assert completion.choices[0].message.content is not None, "OpenAI refused to respond to the query"
+            return completion.choices[0].message.content
+        except Exception as e:
+            # OpenAI will not respond in two scenarios:
+            # 1.) The LLM ran out of output context length(usually do to hallucination of repeating the same phrase)
+            # 2.) The LLM refused to respond to the request because it did not meet guidelines
+            raise e
 
     async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
         key, ret = self._cache_get(prompt_kwargs, llm_kwargs)
@@ -463,12 +476,18 @@ class OpenAI(LLM):
         return completion.choices[0].message.content
 
     async def _generate_awaitable_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:
-        kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
-        completion = await self.client_wrapper.get_async_client().beta.chat.completions.parse(
-            model=self._model_name, **kwargs
-        )
-        assert completion.choices[0].message.content is not None, "OpenAI refused to respond to the query"
-        return completion.choices[0].message.content
+        try:
+            kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
+            completion = await self.client_wrapper.get_async_client().beta.chat.completions.parse(
+                model=self._model_name, **kwargs
+            )
+            assert completion.choices[0].message.content is not None, "OpenAI refused to respond to the query"
+            return completion.choices[0].message.content
+        except Exception as e:
+            # OpenAI will not respond in two scenarios:
+            # 1.) The LLM ran out of output context length(usually do to hallucination of repeating the same phrase)
+            # 2.) The LLM refused to respond to the request because it did not meet guidelines
+            raise e
 
     def _generate_using_guidance(self, prompt_kwargs) -> str:
         guidance_model = self.client_wrapper.get_guidance_model(self.model)

@@ -12,6 +12,23 @@ We recommend installing the Sycmaore library using ``pip``:
 
 ..
 
+Connectors for vector databases can be installed via extras. For example,
+
+.. code-block:: python
+
+    pip install sycamore-ai[opensearch]
+
+..
+
+will install Sycamore with OpenSearch support. You can find a list of supported connectors :doc:`here </sycamore/connectors>`.
+
+By default, Sycamore works with the Aryn Partitioning Service to process PDFs. To run inference locally, install the `local-inference` extra as follows:
+
+.. code-block:: python
+
+    pip install sycamore-ai[local-inference]
+
+..
 
 Next, you can set the proper API keys for related services, like the Aryn Partitioning Service (APS) for processing PDFs (`sign-up here <https://www.aryn.ai/get-started>`_ for free) or OpenAI to use GPT with Sycamore's LLM-based transforms.
 
@@ -19,6 +36,7 @@ Now, that you have installed Sycamore, you see it in action using the example Ju
 
 Here are a few good notebooks to start with:
 
+* An `intermediate ETL tutorial notebook <https://github.com/aryn-ai/sycamore/blob/main/notebooks/sycamore-tutorial-intermediate-etl.ipynb>`_ walking through an ETL flow with chunking (using APS), LLM-based data enrichment, data cleaning, and loading a Pinecone hybrid search index
 * A `notebook <https://github.com/aryn-ai/sycamore/blob/main/notebooks/tutorial.ipynb>`_ showing a simple processing job using APS to chunk PDFs, two LLM-based entity extraction transforms, and loading an OpenSearch hybrid index (vector + keyword)
 * A `notebook <https://github.com/aryn-ai/sycamore/blob/main/notebooks/VisualizePartitioner.ipynb>`_ that visually shows the bounding boxes created by the Aryn Partioning Service
 * A `more advanced Sycamore pipeline <https://github.com/aryn-ai/sycamore/blob/main/notebooks/metadata-extraction.ipynb>`_ that chunks PDFs using APS, does schema extraction and population using LLM transforms, data cleaning using Python, and loads an OpenSearch hybrid index (vector + keyword)

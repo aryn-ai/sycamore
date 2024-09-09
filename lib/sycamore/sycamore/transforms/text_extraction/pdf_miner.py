@@ -18,6 +18,7 @@ pdf_miner_cache = DiskCache(str(Path.home() / ".sycamore/PDFMinerCache"))
 
 
 class PDFMinerExtractor(TextExtractor):
+    @requires_modules(["pdfminer", "pdfminer.utils"], extra="local-inference")
     def __init__(self):
         rm = PDFResourceManager()
         param = LAParams()

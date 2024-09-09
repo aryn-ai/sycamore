@@ -21,6 +21,7 @@ import base64
 import pdf2image
 from PIL import Image
 import fasteners
+from pypdf import PdfReader
 
 from sycamore.data import Element, BoundingBox, ImageElement, TableElement
 from sycamore.data.element import create_element
@@ -28,6 +29,7 @@ from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_
 from sycamore.utils import choose_device
 from sycamore.utils.cache import Cache
 from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
+from sycamore.utils.import_utils import requires_modules
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
 from sycamore.utils.pdf import convert_from_path_streamed_batched
 from sycamore.utils.time_trace import LogTime, timetrace
@@ -312,11 +314,7 @@ class ArynPDFPartitioner:
         extract_images: bool = False,
         pages_per_call: int = -1,
     ) -> List[Element]:
-        file.seek(0)
-        parser = PDFParser(file)
-        document = PDFDocument(parser)
-        page_count = resolve1(document.catalog["Pages"])["Count"]
-        file.seek(0)
+        page_count = get_page_count(file)
 
         result: List[Element] = []
         low = 1
@@ -343,6 +341,7 @@ class ArynPDFPartitioner:
 
         return result
 
+    @requires_modules("easyocr", extra="local-inference")
     def _partition_pdf_sequenced(
         self,
         file: BinaryIO,
@@ -675,6 +674,8 @@ class SycamoreObjectDetection(ABC):
 
 
 class DeformableDetr(SycamoreObjectDetection):
+
+    @requires_modules("transformers", extra="local-inference")
     def __init__(self, model_name_or_path, device=None, cache: Optional[Cache] = None):
         super().__init__()
 

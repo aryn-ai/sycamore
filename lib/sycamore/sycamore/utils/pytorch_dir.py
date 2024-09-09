@@ -1,13 +1,10 @@
 import os
 import sys
 
-# copied from the torch code.  Importing the file that contains it uses 4GB. This uses 100M
-
-# from torch.utils.cpp_extension import _get_build_directory as get_pytorch_build_directory
-import torch.version
-import torch._appdirs
+from sycamore.utils.import_utils import requires_modules
 
 
+@requires_modules("torch", extra="local-inference")
 def get_default_build_root() -> str:
     """
     Return the path to the root folder under which extensions will built.
@@ -18,10 +15,16 @@ def get_default_build_root() -> str:
     This directory is **user-specific** so that multiple users on the same
     machine won't meet permission issues.
     """
+    # copied from the torch code.  Importing the file that contains it uses 4GB. This uses 100M
+    import torch._appdirs
+
     return os.path.realpath(torch._appdirs.user_cache_dir(appname="torch_extensions"))
 
 
+@requires_modules("torch", extra="local-inference")
 def get_pytorch_build_directory(name: str, verbose: bool) -> str:
+    import torch.version
+
     root_extensions_directory = os.environ.get("TORCH_EXTENSIONS_DIR")
     if root_extensions_directory is None:
         root_extensions_directory = get_default_build_root()

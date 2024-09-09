@@ -59,7 +59,7 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
         This Method is used to extract key value pair from table using LLM and
         populate it as property of that element.
         """
-        if prompt_find_table =="":
+        if prompt_find_table == "":
             prompt_find_table = """
             You are given a text string where columns are separated by comma representing either a single column, 
             or multi-column table each new line is a new row.

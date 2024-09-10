@@ -17,6 +17,7 @@ class BoundingBox(ABC):
         self.y1 = y1
         self.x2 = x2
         self.y2 = y2
+        assert x1 <= x2 and y1 <= y2
 
     def __eq__(self, other):
         if type(other) is not type(self):

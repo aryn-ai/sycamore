@@ -16,9 +16,24 @@ def check_table_extraction(partitioner, path, **kwargs):
         sequenced = partitioner._partition_pdf_sequenced(f, **kwargs)
         hash_key = Cache.get_hash_context(f.read()).hexdigest()
     batched = partitioner._partition_pdf_batched_named(path, hash_key, **kwargs)
-    assert all(d.tokens is not None if d.type == "table" else True for batched_list in batched for d in batched_list)
+    assert deep_eq(batched, sequenced)
     assert all(
-        d.tokens is not None if d.type == "table" else True for sequenced_list in sequenced for d in sequenced_list
+        (
+            d.tokens is not None and "bbox" in d.tokens and isinstance(d.tokens["bbox"], list)
+            if d.type == "table"
+            else True
+        )
+        for batched_list in batched
+        for d in batched_list
+    )
+    assert all(
+        (
+            d.tokens is not None and "bbox" in d.tokens and isinstance(d.tokens["bbox"], list)
+            if d.type == "table"
+            else True
+        )
+        for sequenced_list in sequenced
+        for d in sequenced_list
     )
     return batched
 

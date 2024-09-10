@@ -551,6 +551,8 @@ class ArynPDFPartitioner:
             with LogTime("pdfminer_supplement"):
                 for d, p in zip(deformable_layout, pdfminer_layout):
                     self._supplement_text(d, p)
+        # TODO: optimize this to make pdfminer also streamed so we can process each page in sequence without
+        # having to double-convert the document
         for i in convert_from_path_streamed_batched(filename, batch_size):
             self.process_batch_extraction(
                 i,

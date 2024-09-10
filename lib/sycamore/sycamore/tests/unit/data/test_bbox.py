@@ -36,5 +36,5 @@ def test_empty_bbox():
     assert bbox5.is_empty()
     assert bbox4.is_empty()
     assert bbox4.area == 0 and bbox5.area == 0
-    assert bbox4.union_self(bbox5).area == 0 and bbox4.union_self(bbox5).is_empty()
+    assert bbox4.union(bbox5).is_empty() and bbox4.union(bbox5).area == 0
     assert bbox4.intersect(bbox5).is_empty() and bbox4.intersect(bbox5) == EMPTY_BBOX

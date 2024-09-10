@@ -54,9 +54,7 @@ class TestArynPDFPartitioner:
 
     def test_batched_sequenced(self):
         s = ArynPDFPartitioner("Aryn/deformable-detr-DocLayNet")
-        d = compare_batched_sequenced(
-            s, TEST_DIR / "../../../../apps/crawler/crawler/http/tests/visit_aryn.pdf", use_cache=False
-        )
+        d = compare_batched_sequenced(s, TEST_DIR / "resources/data/pdfs/visit_aryn.pdf", use_cache=False)
         assert len(d) == 1
         d = compare_batched_sequenced(s, TEST_DIR / "resources/data/pdfs/basic_table.pdf", use_cache=False)
         assert len(d) == 1
@@ -66,10 +64,14 @@ class TestArynPDFPartitioner:
         assert len(d) == 1
 
     def test_table_extraction_order(self):
+        # In non-ocr mode partitioning basic_table.pdf will fail to include the table output in the correct format
+        # (with the bounding box as a list), and instead return it as a BoundingBox type.
+        # This indicates that the table extraction model never saw the input tokens to help with extraction,
+        # and hence was not able to modify it to the correct format.
         s = ArynPDFPartitioner("Aryn/deformable-detr-DocLayNet")
         d = check_table_extraction(
             s,
-            TEST_DIR / "../../../../apps/crawler/crawler/http/tests/visit_aryn.pdf",
+            TEST_DIR / "resources/data/pdfs/visit_aryn.pdf",
             extract_table_structure=True,
             use_cache=False,
         )

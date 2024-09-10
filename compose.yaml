@@ -91,6 +91,8 @@ services:
     command: /bin/sh -c 'echo "starting chown..." && chown -R 1000:1000 /tmp/crawl_data && echo "chown successful"'
 
   query-ui:
+    # ERIC: look into https://www.joyfulbikeshedding.com/blog/2021-03-15-docker-and-the-host-filesystem-owner-matching-problem.html
+    # as another solution to the uid/gid problem.
     profiles: ['query-ui']
     image: arynai/sycamore-query-ui:${QUERY_UI_VERSION}
     ports:

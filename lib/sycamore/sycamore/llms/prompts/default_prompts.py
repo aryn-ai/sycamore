@@ -114,7 +114,8 @@ class GraphRelationshipExtractorPrompt(SimplePrompt):
     Your job is to extract relationships that map between entities that have already been extracted from this text.
 
     """
-    
+
+
 class ExtractTablePropertiesPrompt(SimplePrompt):
     user = """
             You are given a text string where columns are separated by comma representing either a single column, 

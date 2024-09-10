@@ -1,6 +1,5 @@
 from typing import Optional
 from pydantic import BaseModel
-import pytest
 import sycamore
 from sycamore.data.document import Document
 from sycamore.data.element import Element
@@ -94,7 +93,6 @@ class TestResolveGraphEntities:
             }
             """
 
-    #@pytest.mark.skip
     def test_resolve_entities(self):
         context = sycamore.init()
         reader = DocSetReader(context)

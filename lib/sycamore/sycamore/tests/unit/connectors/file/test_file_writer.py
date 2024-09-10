@@ -1,5 +1,4 @@
 import sycamore
-from sycamore.materialize import MaterializeSourceMode
 from sycamore.tests.config import TEST_DIR
 from sycamore.connectors.file.file_writer import document_to_json_bytes
 
@@ -14,7 +13,7 @@ if False:
         .partition(ArynPartitioner(extract_images=True, use_partitioning_service=False, use_cache=False))
         .materialize(
             path="./lib/sycamore/sycamore/tests/resources/data/materialize/json_writer",
-            source_mode=MaterializeSourceMode.IF_PRESENT,
+            source_mode=sycamore.MATERIALIZE_USE_STORED,
         )
         .execute()
     )

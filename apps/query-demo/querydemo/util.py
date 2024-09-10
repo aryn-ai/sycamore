@@ -1,5 +1,4 @@
 import io
-import json
 import os
 import pickle
 import zipfile
@@ -9,8 +8,6 @@ from typing import Any, Dict, Set, Tuple
 import streamlit as st
 from streamlit_agraph import agraph, Node, Edge, Config
 
-from sycamore.docset import DocSet
-from sycamore.data import MetadataDocument
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.operators.logical_operator import LogicalOperator
@@ -30,49 +27,6 @@ def run_plan(_client: SycamoreQueryClient, plan: LogicalPlan) -> Tuple[str, Any]
 
 def get_opensearch_indices() -> Set[str]:
     return {x for x in SycamoreQueryClient().get_opensearch_incides() if not x.startswith(".")}
-
-
-def result_to_string(result: Any) -> str:
-    if isinstance(result, str):
-        # We got a straight string response from the query plan, which means we can
-        # return it directly.
-        return result
-    elif isinstance(result, DocSet):
-        # We got a DocSet.
-        return docset_to_string(result)
-    else:
-        # Fall back to string representation.
-        return str(result)
-
-
-NUM_DOCS_GENERATE = 60
-NUM_TEXT_CHARS_GENERATE = 2500
-
-
-def docset_to_string(docset: DocSet) -> str:
-    BASE_PROPS = [
-        "filename",
-        "filetype",
-        "page_number",
-        "page_numbers",
-        "links",
-        "element_id",
-        "parent_id",
-        "_schema",
-        "_schema_class",
-        "entity",
-    ]
-    retval = ""
-    for doc in docset.take(NUM_DOCS_GENERATE):
-        if isinstance(doc, MetadataDocument):
-            continue
-        props_dict = doc.properties.get("entity", {})
-        props_dict.update({p: doc.properties[p] for p in set(doc.properties) - set(BASE_PROPS)})
-        props_dict["text_representation"] = (
-            doc.text_representation[:NUM_TEXT_CHARS_GENERATE] if doc.text_representation is not None else None
-        )
-        retval += json.dumps(props_dict, indent=2) + "\n"
-    return retval
 
 
 def show_dag(plan: LogicalPlan):

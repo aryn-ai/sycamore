@@ -6,54 +6,49 @@
 [![Docs](https://readthedocs.org/projects/sycamore/badge/?version=stable)](https://sycamore.readthedocs.io/en/stable/?badge=stable)
 ![License](https://img.shields.io/github/license/aryn-ai/sycamore)
 
-Sycamore is a conversational search and analytics platform for complex unstructured data, such as documents, presentations, transcripts, embedded tables, and internal knowledge repositories. It retrieves and synthesizes high-quality answers through bringing AI to data preparation, indexing, and retrieval. Sycamore makes it easy to prepare unstructured data for search and analytics, providing a toolkit for data cleaning, information extraction, enrichment, summarization, and generation of vector embeddings that encapsulate the semantics of data. Sycamore uses your choice of generative AI models to make these operations simple and effective, and it enables quick experimentation and iteration. Additionally, Sycamore uses OpenSearch for indexing, enabling hybrid (vector + keyword) search, retrieval-augmented generation (RAG) pipelining, filtering, analytical functions, conversational memory, and other features to improve information retrieval.
+Sycamore is an open source, AI-powered document processing engine for ETL, RAG, LLM-based applications, and analytics on unstructured data. Sycamore can partition and enrich a wide range of document types including reports, presentations, transcripts, manuals, and more. It can analyze and chunk complex documents such as PDFs and images with embedded tables, figures, graphs, and other infographics. Check out an [example notebook](https://github.com/aryn-ai/sycamore/blob/main/notebooks/sycamore-tutorial-intermediate-etl.ipynb).
 
-![Untitled](docs/source/images/SycamoreDiagram2.png)
+For processing PDFs, Sycamore leverages the [Aryn Partitioning Service](https://www.aryn.ai/post/announcing-the-aryn-partitioning-service), a serverless, GPU-powered API for segmenting and labeling documents, doing OCR, extracting tables and images, and more. It levereages Aryn's state-of-the-art, [open source deep learning DETR AI model](https://huggingface.co/Aryn/deformable-detr-DocLayNet) trained on 80k+ enterprise documents, and it can lead to 6x more accurate data chunking and 2x improved recall on hybrid search or RAG when compared to alternate systems. You can [sign-up for free here](http://www.aryn.ai/get-started), or choose to run the Aryn Partitioner locally.
+
+The Aryn Partitioning Service takes PDFs and returns the partitioned output in JSON, and you can use Sycamore for additional data extraction, enrichment, transforms, cleaning, and loading into downstream databases. You can choose the LLMs to use with these transforms.
+
+Sycamore reliably loads your vector databases and hybrid search engines, including as OpenSearch, ElasticSearch, Pinecone, DuckDB and Weaviate, with higher quality data. 
+
+The Sycamore framework is built around a scalable and robust abstraction for document processing called a DocSet, and includes powerful high-level transformations in Python for data processing, enrichment, and cleaning. DocSets also encapsulate scalable data processing techniques removing the undifferentiated heavy lifting of reliably loading chunks. DocSets' functional programming approach allows you to rapidly customize and experiment with your chunking for better quality RAG results.
+
+![Untitled](docs/source/images/SycamoreDataflowDiagramv2.png)
 
 ## Features
 
-- Natural language, conversational interface to ask complex questions on unstructured data. Includes citations to source passages and conversational memory.
-- Includes a variety of query operations over unstructured data, including hybrid search, retrieval augmented generation (RAG), and analytical functions.
-- Prepares and enriches complex unstructured data for search and analytics through advanced data segmentation, LLM-powered UDFs for data enrichment, performant data manipulation with Python, and vector embeddings using a variety of AI models.
-- Helpful features like automatic data crawlers (Amazon S3 and HTTP) and Jupyter notebook support to create and iterate on data preparation scripts.
-- Scalable, secure, and customizable OpenSearch backend for indexing and data retrieval.
+- Integrated with the [Aryn Partitioning Service](https://sycamore.readthedocs.io/en/stable/aryn_cloud/aryn_partitioning_service.html), using a [state-of-the art vision AI model](https://huggingface.co/Aryn/deformable-detr-DocLayNet) for segmentation and preserving the semantic structure of documents
+- DocSet abstraction to scalably and reliably transform and manipulate unstructured documents
+- High-quality table extraction, OCR, visual summarization, LLM-powered UDFs, and other performant Python data transforms
+- Quickly create vector embeddings using your choice of AI model
+- Helpful features like automatic data crawlers (Amazon S3 and HTTP), Jupyter notebook for writing and iterating on jobs, and an OpenSearch hybrid search and RAG engine for testing
+- Scalable [Ray](https://github.com/ray-project/ray) backend
 
 ## Demo
 
-[Hosted on Loom](https://www.loom.com/share/53e68b0eb5ab49948111a3fcf6286b7f?sid=8627ff2a-db36-46ef-9762-a01b37e20ced)
+[Introduction to the Aryn Partitioning Service](https://www.aryn.ai/?name=ArynPartitioningService_Intro)
 
 ## Get Started
 
-You can easily deploy Sycamore locally or on a virtual machine using Docker.
+Sycamore currently runs on Linux and Mac OS. To install , run:
 
-With Docker installed:
+```pip install sycamore-ai```
 
-1.	Clone the Sycamore repo:
+Sycamore provides connectors to vector databases via Python extras. To install a connector, include it as an extra with your pip install. For example, 
 
-```git clone https://github.com/aryn-ai/sycamore```
+```pip install sycamore-ai[duckdb]```
 
-2.	Set OpenAI Key:
+Supported connectors include `duckdb`, `elasticsearch`, `opensearch`, `pinecone`, and `weaviate`.
 
-```export OPENAI_API_KEY=YOUR-KEY```
-
-3.	Go to:
-
-```./sycamore```
-
-4.	Launch Sycamore. Containers will be pulled from DockerHub:
-
-```docker compose up --pull=always```
-
-5.	The Sycamore demo query UI will be at localhost:3000
-
-You can next choose to run a demo that [prepares and ingests data from the Sort Benchmark website](/docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-sort-benchmark-dataset), [crawl data from a public website](/docs/source/welcome_to_sycamore/get_started.md#demo-ingest-and-query-data-from-an-arbitrary-website), or write your own data preparation script.
-
-For more info about Sycamore’s data ingestion and preparation feature set, visit the [Sycamore documentation](/docs/source/data_ingestion_and_preparation/data_preparation_concepts.md).
-
+To use the Aryn Partitioning Service, [sign-up for free here](https://www.aryn.ai/get-started) and use the API key.
 
 ## Resources
 
 - Documentation: https://sycamore.readthedocs.io
+- Example notebook: https://github.com/aryn-ai/sycamore/blob/main/notebooks/sycamore-tutorial-intermediate-etl.ipynb
 - Slack: https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg
 - Data preparation libraries (PyPi): https://pypi.org/project/sycamore-ai/
 - Contact us: info@aryn.ai

@@ -31,9 +31,10 @@ class Standardizer(ABC):
         """
         pass
 
+    @abstractmethod
     def standardize(self, doc: Document, key_path: List[str]) -> Document:
         """
-        Applies the fixer method to a specific field in the document as defined by the key_path.
+        Abstract method applies the fixer method to a specific field in the document as defined by the key_path.
 
         Args:
             doc (Document): The document to be standardized.
@@ -45,18 +46,7 @@ class Standardizer(ABC):
         Raises:
             KeyError: If any of the keys in key_path are not found in the document.
         """
-        current = doc
-        for key in key_path[:-1]:
-            if current.get(key, None):
-                current = current[key]
-            else:
-                raise KeyError(f"Key {key} not found in the dictionary among {current.keys()}")
-        target_key = key_path[-1]
-        if current.get(target_key, None):
-            current[target_key] = self.fixer(current[target_key])
-        else:
-            raise KeyError(f"Key {target_key} not found in the dictionary among {current.keys()}")
-        return doc
+        pass
 
 
 class LocationStandardizer(Standardizer):
@@ -118,7 +108,8 @@ class LocationStandardizer(Standardizer):
         "WY": "Wyoming",
     }
 
-    def fixer(self, text: str) -> str:
+    @staticmethod
+    def fixer(text: str) -> str:
         """
         Replaces any US state abbreviations in the text with their full state names.
 
@@ -135,13 +126,42 @@ class LocationStandardizer(Standardizer):
 
         return re.sub(r"\b[A-Z]{2}\b", replacer, text)
 
+    @staticmethod
+    def standardize(doc: Document, key_path: List[str]) -> Document:
+        """
+        Applies the fixer method to a specific field in the document as defined by the key_path.
+
+        Args:
+            doc (Document): The document to be standardized.
+            key_path (List[str]): The path to the field within the document that should be standardized.
+
+        Returns:
+            Document: The document with the standardized field.
+
+        Raises:
+            KeyError: If any of the keys in key_path are not found in the document.
+        """
+        current = doc
+        for key in key_path[:-1]:
+            if current.get(key, None):
+                current = current[key]
+            else:
+                raise KeyError(f"Key {key} not found in the dictionary among {current.keys()}")
+        target_key = key_path[-1]
+        if current.get(target_key, None):
+            current[target_key] = LocationStandardizer.fixer(current[target_key])
+        else:
+            raise KeyError(f"Key {target_key} not found in the dictionary among {current.keys()}")
+        return doc
+
 
 class DateTimeStandardizer(Standardizer):
     """
     A standardizer for transforming date and time strings into a consistent format.
     """
 
-    def fixer(self, raw_dateTime: str) -> Tuple[str, date]:
+    @staticmethod
+    def fixer(raw_dateTime: str) -> Tuple[str, date]:
         """
         Converts a date-time string by replacing periods with colons and parsing it into a date object.
 
@@ -175,7 +195,8 @@ class DateTimeStandardizer(Standardizer):
             # Handle any other exceptions
             raise RuntimeError(f"Unexpected error occurred while processing: {raw_dateTime}") from e
 
-    def standardize(self, doc: Document, key_path: List[str]) -> Document:
+    @staticmethod
+    def standardize(doc: Document, key_path: List[str]) -> Document:
         """
         Applies the fixer method to a specific date-time field in the document as defined by the key_path,
         and adds an additional "day" field with the extracted date.
@@ -199,7 +220,7 @@ class DateTimeStandardizer(Standardizer):
                 raise KeyError(f"Key {key} not found in the dictionary among {current.keys()}")
         target_key = key_path[-1]
         if target_key in current.keys():
-            current[target_key], current["day"] = self.fixer(current[target_key])
+            current[target_key], current["day"] = DateTimeStandardizer.fixer(current[target_key])
         else:
             raise KeyError(f"Key {target_key} not found in the dictionary among {current.keys()}")
         return doc

@@ -35,7 +35,7 @@ class DocSetReader:
 
         from sycamore.materialize import Materialize, MaterializeSourceMode
 
-        m = Materialize(child=None, context=self._context, path=path, source_mode=MaterializeSourceMode.IF_PRESENT)
+        m = Materialize(child=None, context=self._context, path=path, source_mode=MaterializeSourceMode.USE_STORED)
         return DocSet(self._context, m)
 
     def binary(

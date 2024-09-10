@@ -5,10 +5,11 @@ from typing import List
 import streamlit as st
 from openai import OpenAI
 from openai.types.chat import ChatCompletionToolParam
-from sycamore.query.client import SycamoreQueryClient
 
-from util import get_opensearch_indices, generate_plan, run_plan, show_dag
+from configuration import get_sycamore_query_client
+import util
 
+client = get_sycamore_query_client()
 
 st.title("Sycamore Query Chat")
 
@@ -47,7 +48,7 @@ TOOLS: List[ChatCompletionToolParam] = [
 @st.cache_data(show_spinner=False)
 def get_data_source_indices() -> str:
     """Return the list of data source indices available for querying."""
-    return ", ".join(list(get_opensearch_indices()))
+    return ", ".join(list(util.get_opensearch_indices()))
 
 
 @st.cache_data(show_spinner=False)
@@ -57,16 +58,16 @@ def query_data_source(query: str, index: str) -> str:
     if st.session_state.s3_cache_path:
         st.write(f"Using S3 cache at `{st.session_state.s3_cache_path}`")
 
-    client = SycamoreQueryClient(
-        s3_cache_path=st.session_state.s3_cache_path if st.session_state.use_cache else None,
+    client = get_sycamore_query_client(
+        s3_cache_path=st.session_state.s3_cache_path if st.session_state.use_cache else None
     )
     with st.spinner("Generating plan..."):
-        plan = generate_plan(client, query, index)
+        plan = util.generate_plan(client, query, index)
     with st.expander("View query plan"):
-        show_dag(plan)
+        st.write(plan)
 
     with st.spinner("Running query..."):
-        st.session_state.query_id, result = run_plan(client, plan)
+        st.session_state.query_id, result = util.run_plan(client, plan)
     return str(result)
 
 
@@ -95,7 +96,7 @@ def do_query():
             st.session_state.messages.append(
                 {
                     "role": "tool",
-                    "content": tool_response,
+                    "content": util.result_to_string(tool_response),
                     "tool_call_id": tool_call_id,
                     "name": tool_function_name,
                 }

@@ -3,10 +3,12 @@ from sycamore.query.operators.logical_operator import LogicalOperator
 
 class SummarizeData(LogicalOperator):
     """
-    LLM generates a conversational English response given a question and its answer
-    (or data from which the answer can be determined).
+    This operation generates an English response to a user query based on the input data provided.
 
-    Returns a string that contains the conversational English response.
+    The response should be in Markdown format. It can contain links, tables, and other
+    Markdown elements.
+
+    Whenever possible, provide links to relevant data sources and documents.
     """
 
     question: str

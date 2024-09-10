@@ -72,8 +72,16 @@ class Node(ABC):
     def execute(self, **kwargs) -> "Dataset":
         pass
 
+    def prepare(self) -> Optional[Callable]:
+        """Override this method to run something at the beginning of execution after rules have
+        been applied. The entire tree will be traversed in before mode and then any returned
+        callables will be called in the order they were returned. Each callable can return
+        another callable."""
+
+        pass
+
     def finalize(self) -> None:
-        """Override this to run something at the end of execution after all documents have
+        """Override this method to run something at the end of execution after all documents have
         been returned."""
         pass
 

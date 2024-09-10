@@ -66,7 +66,7 @@ class SycamoreExecutor:
         self.dry_run = dry_run
         self.codegen_mode = codegen_mode
 
-        if self.trace_dir:
+        if self.trace_dir and not self.dry_run:
             log.info("Using trace directory: %s", trace_dir)
         self.node_id_to_node: Dict[int, LogicalOperator] = {}
         self.node_id_to_code: Dict[int, str] = {}
@@ -86,7 +86,7 @@ class SycamoreExecutor:
         log.info("Executing dependencies")
         inputs = []
 
-        if self.trace_dir:
+        if self.trace_dir and not self.dry_run:
             trace_dir = os.path.join(self.trace_dir, query_id, str(logical_node.node_id))
             os.makedirs(trace_dir, exist_ok=True)
         else:
@@ -217,6 +217,9 @@ class SycamoreExecutor:
         result += "from sycamore.query.execution.metrics import SycamoreQueryLogger\n"
         result += "from sycamore.utils.cache import S3Cache\n"
         result += "import sycamore\n\n"
+
+        if not self.context.params:
+            result += "context = sycamore.init()\n\n"
 
         for node_id in sorted(self.node_id_to_node):
             description = self.node_id_to_node[node_id].description.strip("n")

@@ -8,6 +8,7 @@ from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.data import HierarchicalDocument
 from sycamore.llms import LLM
+from sycamore.llms.prompts import GraphEntityExtractorPrompt
 from PIL import Image
 from pydantic import BaseModel, create_model
 
@@ -16,17 +17,6 @@ import uuid
 import logging
 
 logger = logging.getLogger(__name__)
-
-
-ENTITY_DEFAULT_PROMPT = """
-    -Instructions-
-    You are a information extraction system.
-
-    You will be given a sequence of data in different formats(text, table, Section-header) in order.
-    Your job is to extract entities from the text input that match the entity schemas provided. Each entity
-    and property extracted should directly reference part of the text input provided.
-
-    """
 
 
 class GraphEntityExtractor(ABC):
@@ -51,7 +41,11 @@ class EntityExtractor(GraphEntityExtractor):
     """
 
     def __init__(
-        self, llm: LLM, entities: list[BaseModel], prompt: str = ENTITY_DEFAULT_PROMPT, split_calls: bool = False
+        self,
+        llm: LLM,
+        entities: list[BaseModel],
+        prompt: str = GraphEntityExtractorPrompt.user,
+        split_calls: bool = False,
     ):
         self.llm = llm
         self.entities = self._serialize_entities(entities)

@@ -94,6 +94,28 @@ class TaskIdentifierZeroShotGuidancePrompt(SimplePrompt):
     """
 
 
+class GraphEntityExtractorPrompt(SimplePrompt):
+    user = """
+    -Instructions-
+    You are a information extraction system.
+
+    You will be given a sequence of data in different formats(text, table, Section-header) in order.
+    Your job is to extract entities from the text input that match the entity schemas provided. Each entity
+    and property extracted should directly reference part of the text input provided.
+    """
+
+
+class GraphRelationshipExtractorPrompt(SimplePrompt):
+    user = """
+    -Goal-
+    You are a helpful information extraction system.
+
+    You will be given a sequence of data in different formats(text, table, Section-header) in order.
+    Your job is to extract relationships that map between entities that have already been extracted from this text.
+
+    """
+
+
 class EntityExtractorMessagesPrompt(SimplePrompt):
     def __init__(self, question: str, field: str, format: Optional[str], discrete: bool = False):
         super().__init__()

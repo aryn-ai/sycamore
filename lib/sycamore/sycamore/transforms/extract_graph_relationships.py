@@ -10,6 +10,7 @@ from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.data import HierarchicalDocument
 from sycamore.llms import LLM
+from sycamore.llms.prompts import GraphRelationshipExtractorPrompt
 from pydantic import BaseModel, create_model
 import asyncio
 
@@ -18,15 +19,6 @@ import uuid
 import logging
 
 logger = logging.getLogger(__name__)
-
-RELATIONSHIP_DEFAULT_PROMPT = """
-    -Goal-
-    You are a helpful information extraction system.
-
-    You will be given a sequence of data in different formats(text, table, Section-header) in order.
-    Your job is to extract relationships that map between entities that have already been extracted from this text.
-
-    """
 
 
 class GraphRelationshipExtractor(ABC):
@@ -54,7 +46,7 @@ class RelationshipExtractor(GraphRelationshipExtractor):
         self,
         llm: LLM,
         relationships: list[BaseModel],
-        prompt: str = RELATIONSHIP_DEFAULT_PROMPT,
+        prompt: str = GraphRelationshipExtractorPrompt.user,
         split_calls: bool = False,
     ):
         self.llm = llm

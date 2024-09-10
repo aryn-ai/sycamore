@@ -1,7 +1,7 @@
 from sycamore.data import Element
 from sycamore.transforms.detr_partitioner import ArynPDFPartitioner, DeformableDetr
 from sycamore.data import BoundingBox
-from sycamore.tests.unit.transforms.compare_detr_impls import compare_batched_sequenced
+from sycamore.tests.unit.transforms.compare_detr_impls import compare_batched_sequenced, check_table_extraction
 
 from PIL import Image
 import json
@@ -63,4 +63,15 @@ class TestArynPDFPartitioner:
         d = compare_batched_sequenced(
             s, TEST_DIR / "resources/data/pdfs/basic_table.pdf", use_ocr=True, use_cache=False
         )
+        assert len(d) == 1
+
+    def test_table_extraction_order(self):
+        s = ArynPDFPartitioner("Aryn/deformable-detr-DocLayNet")
+        d = check_table_extraction(
+            s, TEST_DIR / "../../../../apps/crawler/crawler/http/tests/visit_aryn.pdf", use_cache=False
+        )
+        assert len(d) == 1
+        d = check_table_extraction(s, TEST_DIR / "resources/data/pdfs/basic_table.pdf", use_cache=False)
+        assert len(d) == 1
+        d = check_table_extraction(s, TEST_DIR / "resources/data/pdfs/basic_table.pdf", use_ocr=True, use_cache=False)
         assert len(d) == 1

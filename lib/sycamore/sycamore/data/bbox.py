@@ -86,7 +86,7 @@ class BoundingBox(ABC):
         y1 = max(self.y1, other.y1)
         y2 = min(self.y2, other.y2)
 
-        if x1 > x2 or y1 > y2:
+        if x1 >= x2 or y1 >= y2:
             return EMPTY_BBOX
 
         return BoundingBox(x1, y1, x2, y2)

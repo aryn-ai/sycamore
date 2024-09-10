@@ -24,6 +24,8 @@ import tempfile
 argparser = argparse.ArgumentParser(prog="ntsb_loader")
 argparser.add_argument("--delete", action="store_true")
 argparser.add_argument("--tempdir", default=tempfile.gettempdir())
+argparser.add_argument("--oshost", default=None)
+argparser.add_argument("--osport", default=9200)
 args = argparser.parse_args()
 
 # The S3 location of the raw NTSB data.
@@ -70,15 +72,19 @@ def convert_timestamp(doc: Document) -> Document:
     return doc
 
 
-if os.path.exists("/.dockerenv"):
+if argparser.oshost is not None:
+    opensearch_host = argparser.oshost
+elif os.path.exists("/.dockerenv"):
     opensearch_host = "opensearch"
     print("Assuming we are in a Sycamore Jupyter container, using opensearch for OpenSearch host")
 else:
     opensearch_host = "localhost"
     print("Assuming we are running outside of a container, using localhost for OpenSearch host")
 
+opensearch_port = argparser.osport
+
 os_client_args = {
-    "hosts": [{"host": opensearch_host, "port": 9200}],
+    "hosts": [{"host": opensearch_host, "port": opensearch_port}],
     "http_compress": True,
     "http_auth": ("admin", "admin"),
     "use_ssl": True,

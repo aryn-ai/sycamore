@@ -1,5 +1,4 @@
 from abc import abstractmethod
-from io import BytesIO
 from PIL import Image
 from typing import Any, Union, List, Dict, cast, BinaryIO
 from sycamore.data import BoundingBox, Element

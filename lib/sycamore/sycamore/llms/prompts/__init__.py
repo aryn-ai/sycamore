@@ -10,6 +10,8 @@ from sycamore.llms.prompts.default_prompts import (
     SchemaZeroShotGuidancePrompt,
     PropertiesZeroShotGuidancePrompt,
     TaskIdentifierZeroShotGuidancePrompt,
+    GraphEntityExtractorPrompt,
+    GraphRelationshipExtractorPrompt,
     ExtractTablePropertiesTablePrompt,
     ExtractTablePropertiesPrompt,
 )
@@ -22,6 +24,8 @@ prompts = [
     "TextSummarizerGuidancePrompt",
     "SchemaZeroShotGuidancePrompt",
     "PropertiesZeroShotGuidancePrompt",
+    "GraphEntityExtractorPrompt",
+    "GraphRelationshipExtractorPrompt",
     "ExtractTablePropertiesTablePrompt",
     "ExtractTablePropertiesPrompt",
 ] + list(_deprecated_prompts.keys())

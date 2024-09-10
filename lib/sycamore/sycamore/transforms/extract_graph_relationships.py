@@ -1,12 +1,16 @@
 from abc import ABC, abstractmethod
+import base64
 from collections import defaultdict
 from enum import Enum
 import hashlib
+import io
+from PIL import Image
 from typing import Dict, Any, List
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.data import HierarchicalDocument
 from sycamore.llms import LLM
+from sycamore.llms.prompts import GraphRelationshipExtractorPrompt
 from pydantic import BaseModel, create_model
 import asyncio
 
@@ -33,13 +37,21 @@ class RelationshipExtractor(GraphRelationshipExtractor):
     Args:
         llm: OpenAI model that is compatable with structured outputs(gpt-4o-mini)
         relationships: list of entities in the form of pydantic schemas to be extracted
+        prompt: The prompt passed to the LLM describing the criteria to extracting the relationships
         split_calls: A boolean that if true, calls the LLM for each entity instead of batching them in one call
 
     """
 
-    def __init__(self, llm: LLM, relationships: list[BaseModel] = [], split_calls: bool = False):
-        self.relationships = self._serialize_relationships(relationships)
+    def __init__(
+        self,
+        llm: LLM,
+        relationships: list[BaseModel],
+        prompt: str = GraphRelationshipExtractorPrompt.user,
+        split_calls: bool = False,
+    ):
         self.llm = llm
+        self.relationships = self._serialize_relationships(relationships)
+        self.prompt = prompt
         self.split_calls = split_calls
 
     def extract(self, doc: HierarchicalDocument) -> HierarchicalDocument:
@@ -68,11 +80,16 @@ class RelationshipExtractor(GraphRelationshipExtractor):
                         )
                         continue
 
+                    start_id = section["properties"]["nodes"][relation["start_label"]][start_hash]["doc_id"]
+                    end_id = section["properties"]["nodes"][relation["end_label"]][end_hash]["doc_id"]
+
                     rel: Dict[str, Any] = {
                         "TYPE": label,
                         "properties": {},
-                        "START_HASH": start_hash,
+                        "START_ID": start_id,
                         "START_LABEL": relation["start_label"],
+                        "END_ID": end_id,
+                        "END_LABEL": relation["end_label"],
                     }
 
                     for key, value in relation.items():
@@ -141,8 +158,9 @@ class RelationshipExtractor(GraphRelationshipExtractor):
         assert len(models) == len(entities_list)
         outputs = []
         for i in range(len(models)):
+            messages = generate_prompt_messages(self.prompt, entities_list[i], section.data["summary"])
             llm_kwargs = {"response_format": models[i]}
-            prompt_kwargs = {"prompt": str(GraphRelationshipExtractorPrompt(section.data["summary"], entities_list[i]))}
+            prompt_kwargs = {"messages": messages}
             outputs.append(await self.llm.generate_async(prompt_kwargs=prompt_kwargs, llm_kwargs=llm_kwargs))
 
         async def _process_llm_output(outputs: list[str], parsed_metadata: dict, summary: str):
@@ -194,20 +212,70 @@ class RelationshipExtractor(GraphRelationshipExtractor):
         return models, entities_list
 
 
-def GraphRelationshipExtractorPrompt(query, entities):
-    return f"""
-    -Goal-
-    You are a helpful information extraction system.
+def generate_prompt_messages(prompt, nodes, data):
+    if isinstance(data, dict):  # image.data dictionary
+        return generate_openai_message_image(prompt, nodes, data)
+    if isinstance(data, str):  # text summary
+        return generate_openai_message_text(prompt, nodes, data)
 
-    You will be given a sequence of data in different formats(text, table, Section-header) in order.
-    Your job is to extract relationships that map between entities that have already been extracted from this text.
 
-    -Real Data-
-    ######################
-    Entities: {entities}
-    Text: {query}
-    ######################
-    Output:"""
+def generate_openai_message_text(prompt, nodes, data):
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": f"""
+            {prompt}
+            -Real Data-
+            ######################
+            Nodes:{nodes}
+            Text: {data}
+            ######################
+            Output:""",
+                }
+            ],
+        }
+    ]
+    return messages
+
+
+def generate_openai_message_image(prompt, nodes, image):
+    width = image["properties"]["image_size"][0]
+    height = image["properties"]["image_size"][1]
+    mode = image["properties"]["image_mode"]
+    im = Image.frombytes(mode, (width, height), image["binary_representation"])
+
+    buf = io.BytesIO()
+    im.save(buf, "JPEG")
+    jpeg_img = base64.b64encode(buf.getvalue()).decode("utf-8")
+
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": f"""
+            {prompt}
+            -Real Data-
+            ######################
+            Nodes:{nodes}
+            """,
+                },
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{jpeg_img}", "detail": "high"}},
+                {
+                    "type": "text",
+                    "text": """
+            ######################
+            Output:
+            """,
+                },
+            ],
+        }
+    ]
+    return messages
 
 
 class ExtractRelationships(Map):

@@ -2,7 +2,7 @@ import sycamore
 from sycamore.data.document import Document
 from sycamore.data.element import Element
 from sycamore.reader import DocSetReader
-from sycamore.transforms.extract_document_structure import ExtractSummaries, StructureBySection, StructureByDocument
+from sycamore.transforms.extract_document_structure import StructureBySection, StructureByDocument, ExtractTextSummaries
 import logging
 
 logger = logging.getLogger(__name__)
@@ -89,7 +89,7 @@ class TestExtractDocumentStructure:
         ds = reader.document(self.docs)
 
         ds = ds.extract_document_structure(structure=StructureBySection)
-        ds.plan = ExtractSummaries(ds.plan)
+        ds.map(lambda doc: ExtractTextSummaries.summarize(doc))
         docs = ds.take_all()
 
         summaries = [

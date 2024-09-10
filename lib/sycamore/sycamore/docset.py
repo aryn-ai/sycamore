@@ -642,6 +642,7 @@ class DocSet:
 
         Args:
             resolvers: A list of EntityResolvers that are used to determine what entities are duplicates
+            resolve_duplicates: If exact duplicate entities and relationships should be merged. Defaults to true
 
         Example:
             .. code-block:: python

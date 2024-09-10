@@ -103,7 +103,7 @@ class ResolveEntities:
     @staticmethod
     def _merge_document_nodes(dataset: Any) -> Dict[str, Any]:
         docs_serialized = dataset.take_all()
-        nodes = {}
+        nodes: dict[str, Any] = {}
         for row in docs_serialized:
             extracted = extract_nodes(row)
             merge_nodes(nodes, extracted)

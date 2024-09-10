@@ -351,7 +351,7 @@ def get_initial_documents():
 
 @st.fragment
 def show_document(doc: sycamore.data.Document):
-    bucket, key = parse_s3_path(doc.properties.get("path"))
+    bucket, key = parse_s3_path(str(doc.properties.get("path")))
     s3 = boto3.client("s3")
     response = s3.get_object(Bucket=bucket, Key=key)
     content = response["Body"].read()

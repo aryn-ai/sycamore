@@ -140,12 +140,12 @@ class LlmPlanner:
         # examples
         if self._use_examples:
             prompt += """
-            EXAMPLE 1:
+            EXAMPLE 1a:
 
             Data description: Database of aircraft incidents
             Schema: {
                         'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
-                        'properties.entity.aircraft': "(<class 'int'>) e.g. (Boeing 123), (Cessna Mini 5), (Piper 0.5),
+                        'properties.entity.aircraft': "(<class 'str'>) e.g. (Boeing 123), (Cessna Mini 5), (Piper 0.5),
                         'properties.entity.location': "(<class 'str'>) e.g. (Atlanta, GA), (Phoenix, Arizona), 
                             (Boise, Idaho),
                         'properties.entity.accidentNumber': "(<class 'str'>) e.g. (3589), (5903), (7531L),
@@ -171,11 +171,62 @@ class LlmPlanner:
                 },
             ]
 
+            EXAMPLE 1b:
+
+            Data description: Database of aircraft incidents
+            Schema: {
+                        'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
+                        'properties.entity.aircraft': "(<class 'str'>) e.g. (Boeing 123), (Cessna Mini 5), (Piper 0.5),
+                        'properties.entity.location': "(<class 'str'>) e.g. (Atlanta, GA), (Phoenix, Arizona), 
+                            (Boise, Idaho),
+                        'properties.entity.accidentNumber': "(<class 'str'>) e.g. (3589), (5903), (7531L),
+                        'text_representation': '(<class 'str'>) Can be assumed to have all other details'
+                    }
+            Question: Show incidents between July 1, 2023 and September 1, 2024 with an accident number containing '1234'
+            that occurred in Georgia.
+            Answer:
+            [
+                {
+                    "operatorName": "QueryDatabase",
+                    "description": "Get all the incident reports in the specified date range matching the accident number",
+                    "index": "ntsb",
+                    "query": {
+                        "bool": {
+                            "must": [
+                                {
+                                    "range": {
+                                        "properties.entity.isoDateTime": {
+                                        "gte": "2023-07-01T00:00:00",
+                                        "lte": "2024-09-30T23:59:59",
+                                        "format": "strict_date_optional_time"
+                                        }
+                                    }
+                                },
+                                {
+                                    "match": {
+                                        "properties.entity.accidentNumber": "1234"
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "node_id": 0
+                },
+                {
+                    "operatorName": "LlmFilter",
+                    "description": "Filter to only include incidents in Georgia",
+                    "question": "Did this incident occur in Georgia?",
+                    "field": "properties.entity.location",
+                    "input": [0],
+                    "node_id": 1
+                },
+            ]
+
             EXAMPLE 2:
             Data description: Database of aircraft incidents
             Schema: {
                         'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
-                        'properties.entity.aircraft': "(<class 'int'>) e.g. (Boeing 123), (Cessna Mini 5), (Piper 0.5),
+                        'properties.entity.aircraft': "(<class 'str'>) e.g. (Boeing 123), (Cessna Mini 5), (Piper 0.5),
                         'properties.entity.city': "(<class 'str'>) e.g. (Orlando, FL), (Palo Alto, CA), (Orlando, FL),
                         'properties.entity.accidentNumber': "(<class 'str'>) e.g. (3589), (5903), (7531L),
                         'text_representation': '(<class 'str'>) Can be assumed to have all other details'
@@ -185,9 +236,13 @@ class LlmPlanner:
             [
                 {
                     "operatorName": "QueryDatabase",
-                    "description": "Get all the incident reports",
+                    "description": "Get all the incident reports matching the query",
                     "index": "ntsb",
-                    "query": "aircraft incident reports",
+                    "query": {
+                        "match": {
+                            "properties.entity.aircraft": "Cessna"
+                        } 
+                    },
                     "node_id": 0
                 },
                 {

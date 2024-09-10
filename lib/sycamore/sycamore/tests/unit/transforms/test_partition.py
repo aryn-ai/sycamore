@@ -165,7 +165,7 @@ class TestPartition:
         # e4, e5 in left column, e4.y < e5.y1; e3, e6 in right columns, e3.y1 < e6.y1
         e3 = Element({"bbox": (0.60, 0.21, 0.59, 0.59), "properties": {"page_number": 1}})
         e4 = Element({"bbox": (0.20, 0.21, 0.59, 0.59), "properties": {"page_number": 1}})
-        e5 = Element({"bbox": (0.20, 0.71, 0.59, 0.59), "properties": {"page_number": 1}})
+        e5 = Element({"bbox": (0.20, 0.58, 0.59, 0.59), "properties": {"page_number": 1}})
         e6 = Element({"bbox": (0.70, 0.51, 0.59, 0.59), "properties": {"page_number": 1}})
 
         # all the same, test stable

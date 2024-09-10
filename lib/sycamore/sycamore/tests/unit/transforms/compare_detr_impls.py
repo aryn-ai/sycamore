@@ -19,7 +19,7 @@ def check_table_extraction(partitioner, path, **kwargs):
     assert deep_eq(batched, sequenced)
     assert all(
         (
-            d.tokens is not None and "bbox" in d.tokens and isinstance(d.tokens["bbox"], list)
+            d.tokens is not None and all("bbox" in token and isinstance(token["bbox"], list) for token in d.tokens)
             if d.type == "table"
             else True
         )
@@ -28,7 +28,7 @@ def check_table_extraction(partitioner, path, **kwargs):
     )
     assert all(
         (
-            d.tokens is not None and "bbox" in d.tokens and isinstance(d.tokens["bbox"], list)
+            d.tokens is not None and all("bbox" in token and isinstance(token["bbox"], list) for token in d.tokens)
             if d.type == "table"
             else True
         )

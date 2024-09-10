@@ -452,7 +452,7 @@ def test_tablecell_from_dict():
         "rows": [1, 2],
         "cols": [3, 4],
         "is_header": True,
-        "bbox": {"x1": 2.0, "y1": 3.0, "x2": 1.0, "y2": 4.0},
+        "bbox": {"x1": 2.0, "y1": 3.0, "x2": 3.0, "y2": 4.0},
         "properties": {"prop1": "val1"},
     }
 

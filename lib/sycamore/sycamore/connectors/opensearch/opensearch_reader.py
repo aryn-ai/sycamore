@@ -43,6 +43,7 @@ class OpenSearchReaderClient(BaseDBReader.Client):
             query_params.kwargs["scroll"] = "1m"
         if "size" not in query_params.kwargs:
             query_params.kwargs["size"] = 200
+        print(f"MDW: DOING QUERY WITH BODY: {query_params.query}")
         response = self._client.search(index=query_params.index_name, body=query_params.query, **query_params.kwargs)
         scroll_id = response["_scroll_id"]
         result = []

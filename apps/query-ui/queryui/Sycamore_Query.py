@@ -66,7 +66,7 @@ def run_query():
         trace_dir=st.session_state.trace_dir,
     )
     with st.spinner("Generating plan..."):
-        plan = generate_plan(client, st.session_state.query, st.session_state.index)
+        plan = util.generate_plan(client, st.session_state.query, st.session_state.index)
     with st.expander("Query plan"):
         st.write(plan.dict())
 

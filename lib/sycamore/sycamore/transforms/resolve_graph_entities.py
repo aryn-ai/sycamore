@@ -50,7 +50,7 @@ class ResolveEntities:
                             assert rel is not None, "relation value is None"
                             assert rel_uuid not in _nodes[0]["relationships"], "UUID Collision"
                             _nodes[0]["relationships"][rel_uuid] = rel
-                    _nodes = [_nodes[0]]
+                    hashes[hash] = [_nodes[0]]
 
             for key, hashes in nodes.items():
                 for hash, _nodes in hashes.items():

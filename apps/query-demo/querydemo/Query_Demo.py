@@ -254,10 +254,10 @@ class ChatMessage:
         self.timestamp = datetime.datetime.now()
         self.message = message or {}
         self.extras = extras or []
-        self.button_key = 0
+        self.widget_key = 0
 
     def show(self):
-        self.button_key = 0
+        self.widget_key = 0
         with st.chat_message(self.message.get("role", "assistant")):
             self.show_content()
 
@@ -270,18 +270,14 @@ class ChatMessage:
             self.render_markdown_with_jsx(content)
 
     def button(self, label: str, **kwargs):
-        key = f"{self.message_id}-{self.button_key}"
-        self.button_key += 1
-        return st.button(label, key=key, **kwargs)
+        return st.button(label, key=self.next_key(), **kwargs)
 
     def download_button(self, label: str, content: bytes, filename: str, file_type: str, **kwargs):
-        key = f"{self.message_id}-{self.button_key}"
-        self.button_key += 1
-        return st.download_button(label, content, filename, file_type, key=key, **kwargs)
+        return st.download_button(label, content, filename, file_type, key=self.next_key(), **kwargs)
 
     def next_key(self) -> str:
-        key = f"{self.message_id}-{self.button_key}"
-        self.button_key += 1
+        key = f"{self.message_id}-{self.widget_key}"
+        self.widget_key += 1
         return key
 
     def render_markdown_with_jsx(self, text: str):

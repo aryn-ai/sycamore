@@ -11,6 +11,33 @@ def compare_batched_sequenced(partitioner, path, **kwargs):
     return batched
 
 
+def check_table_extraction(partitioner, path, **kwargs):
+    with open(path, "rb") as f:
+        sequenced = partitioner._partition_pdf_sequenced(f, **kwargs)
+        hash_key = Cache.get_hash_context(f.read()).hexdigest()
+    batched = partitioner._partition_pdf_batched_named(path, hash_key, **kwargs)
+    assert deep_eq(batched, sequenced)
+    assert all(
+        (
+            d.tokens is not None and all("bbox" in token and isinstance(token["bbox"], list) for token in d.tokens)
+            if d.type == "table"
+            else True
+        )
+        for batched_list in batched
+        for d in batched_list
+    )
+    assert all(
+        (
+            d.tokens is not None and all("bbox" in token and isinstance(token["bbox"], list) for token in d.tokens)
+            if d.type == "table"
+            else True
+        )
+        for sequenced_list in sequenced
+        for d in sequenced_list
+    )
+    return batched
+
+
 if __name__ == "__main__":
     import sys
     from sycamore.transforms.detr_partitioner import ArynPDFPartitioner

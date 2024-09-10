@@ -158,7 +158,6 @@ class LlmPlanner:
                     "operatorName": "QueryDatabase",
                     "description": "Get all the incident reports",
                     "index": "ntsb",
-                    "query": "aircraft incident reports"
                     "node_id": 0
                 },
                 {
@@ -236,7 +235,7 @@ class LlmPlanner:
             [
                 {
                     "operatorName": "QueryDatabase",
-                    "description": "Get all the incident reports matching the query",
+                    "description": "Get all the incident reports involving Cessna aircrafts",
                     "index": "ntsb",
                     "query": {
                         "match": {
@@ -246,24 +245,12 @@ class LlmPlanner:
                     "node_id": 0
                 },
                 {
-                    "operatorName": "BasicFilter",
-                    "description": "Filter to only include Cessna aircraft incidents",
-                    "range_filter": false,
-                    "query": "Cessna",
-                    "start": null,
-                    "end": null,
-                    "field": "properties.entity.aircraft",
-                    "date": false,
-                    "input": [0],
-                    "node_id": 1,
-                },
-                {
                     "operatorName": "Count",
                     "description": "Count the number of cities that accidents occured in",
                     "field": "properties.entity.city",
                     "primary_field": "properties.entity.accidentNumber",
-                    "input": [1],
-                    "node_id": 2
+                    "input": [0],
+                    "node_id": 1
                 },
             ]
 
@@ -280,22 +267,18 @@ class LlmPlanner:
             [
                 {
                     "operatorName": "QueryDatabase",
-                    "description": "Get all the financial documents",
+                    "description": "Get all the financial documents from 2022",
                     "index": "finance",
-                    "query": "law firm financial documents",
+                    "query": {
+                        "range": {
+                            "properties.entity.isoDateTime": {
+                            "gte": "2022-01-01T00:00:00",
+                            "lte": "2022-12-31T23:59:59",
+                            "format": "strict_date_optional_time"
+                            }
+                        }
+                    },
                     "node_id": 0
-                },
-                {
-                    "operatorName": "BasicFilter",
-                    "description": "Filter to only include documents in 2022",
-                    "range_filter": true,
-                    "query": null,
-                    "start": "01-01-2022",
-                    "end": "12-31-2022",
-                    "field": "properties.entity.date",
-                    "date": true,
-                    "input": [0],
-                    "node_id": 1,
                 },
                 {
                     "operatorName": "Sort",
@@ -303,15 +286,15 @@ class LlmPlanner:
                     "descending": true,
                     "field": "properties.entity.revenue",
                     "default_value": 0
-                    "input": [1],
-                    "node_id": 2,
+                    "input": [0],
+                    "node_id": 1,
                 },
                 {
                     "operatorName": "Limit",
                     "description": "Get the 2 law firms with highest revenue",
                     "K": 2
-                    "input": [2],
-                    "node_id": 3,
+                    "input": [1],
+                    "node_id": 2,
                 }
             ]
 
@@ -331,7 +314,6 @@ class LlmPlanner:
                     "operatorName": "QueryDatabase",
                     "description": "Get all the shipwreck records",
                     "index": "shipwrecks",
-                    "query": "shipwreck records",
                     "node_id": 0
                 },
                 {
@@ -373,7 +355,6 @@ class LlmPlanner:
                     "operatorName": "QueryDatabase",
                     "description": "Get all the shipwreck records",
                     "index": "shipwrecks",
-                    "query": "shipwreck records",
                     "node_id": 0
                 },
                 {

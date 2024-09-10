@@ -11,7 +11,9 @@ class QueryDatabase(LogicalOperator):
 
     query: Optional[Dict] = None
     """A query in OpenSearch Query DSL format. This can be used to perform full-text queries,
-    term-level queries for specific fields, and more. Here is an example:
+    term-level queries for specific fields, and more. Here is an example of a query that
+    retrieves all documents that have a properties.entity.location field containing the word
+    "Georgia" and an isoDateTime field between July 1, 2023, and September 30, 2024:
 
     {
         "query": {

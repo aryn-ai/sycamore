@@ -254,10 +254,10 @@ class ChatMessage:
         self.timestamp = datetime.datetime.now()
         self.message = message or {}
         self.extras = extras or []
-        self.button_key = 0
+        self.widget_key = 0
 
     def show(self):
-        self.button_key = 0
+        self.widget_key = 0
         with st.chat_message(self.message.get("role", "assistant")):
             self.show_content()
 
@@ -270,9 +270,15 @@ class ChatMessage:
             self.render_markdown_with_jsx(content)
 
     def button(self, label: str, **kwargs):
-        key = f"{self.message_id}-{self.button_key}"
-        self.button_key += 1
-        return st.button(label, key=key, **kwargs)
+        return st.button(label, key=self.next_key(), **kwargs)
+
+    def download_button(self, label: str, content: bytes, filename: str, file_type: str, **kwargs):
+        return st.download_button(label, content, filename, file_type, key=self.next_key(), **kwargs)
+
+    def next_key(self) -> str:
+        key = f"{self.message_id}-{self.widget_key}"
+        self.widget_key += 1
+        return key
 
     def render_markdown_with_jsx(self, text: str):
         print(text)
@@ -336,49 +342,6 @@ def parse_s3_path(s3_path: str) -> Tuple[str, str]:
     return bucket, key
 
 
-def get_initial_documents():
-    context = sycamore.init()
-    docs = (
-        context.read.opensearch(OS_CLIENT_ARGS, OPENSEARCH_INDEX)
-        .filter(lambda doc: doc.properties.get("parent_id") is None)
-        .take_all()
-    )
-    all_docs = {doc.properties.get("path"): doc for doc in docs}
-    first_doc_path = sorted(all_docs.keys())[0]
-    first_doc = all_docs[first_doc_path]
-    show_document(first_doc)
-
-
-@st.fragment
-def show_document(doc: sycamore.data.Document):
-    bucket, key = parse_s3_path(str(doc.properties.get("path")))
-    s3 = boto3.client("s3")
-    response = s3.get_object(Bucket=bucket, Key=key)
-    content = response["Body"].read()
-    if st.session_state.get("pagenum") is None:
-        st.session_state.pagenum = 1
-
-    with st.container(border=True):
-        st.write(f"`{doc.properties.get('path')}`")
-        tab1, tab2 = st.tabs(["PDF", "Metadata"])
-        with tab1:
-            col1, col2, col3, col4 = st.columns(4)
-            if col1.button("First", use_container_width=True):
-                st.session_state.pagenum = 1
-            if col2.button("Prev", use_container_width=True):
-                st.session_state.pagenum = max(1, st.session_state.pagenum - 1)
-            if col3.button("Next", use_container_width=True):
-                st.session_state.pagenum += 1
-            col4.download_button(
-                "Download", content, f"{doc.properties.get('path')}.pdf", "pdf", use_container_width=True
-            )
-            pdf_viewer(content, pages_to_render=[st.session_state.pagenum])
-
-        with tab2:
-            props = {k: v for k, v in doc.properties["entity"].items() if v is not None}
-            st.dataframe(props)
-
-
 class Preview:
     def __init__(self, path: str, chat_message: ChatMessage):
         self.path = path
@@ -413,17 +376,14 @@ class Preview:
                 with col3:
                     if self.chat_message.button("Next", use_container_width=True):
                         st.session_state.pagenum += 1
-                #                if col1.button("First", use_container_width=True):
-                #                    st.session_state.pagenum = 1
-                #                if col2.button("Prev", use_container_width=True):
-                #                    st.session_state.pagenum = max(1, st.session_state.pagenum - 1)
-                #                if col3.button("Next", use_container_width=True):
-                #                    st.session_state.pagenum += 1
-                col4.download_button("Download", content, os.path.basename(self.path), "pdf", use_container_width=True)
-                pdf_viewer(content, pages_to_render=[st.session_state.pagenum])
+                with col4:
+                    self.chat_message.download_button(
+                        "Download", content, os.path.basename(self.path), "pdf", use_container_width=True
+                    )
+                pdf_viewer(content, pages_to_render=[st.session_state.pagenum], key=self.chat_message.next_key())
 
 
-# TODO: Fetch doc and show it.
+# TODO: Fetch underlying Sycamore doc and show metadata here.
 #            with tab2:
 #                props = {k: v for k, v in doc.properties["entity"].items() if v is not None}
 #                st.dataframe(props)
@@ -569,7 +529,6 @@ def main():
     if "messages" not in st.session_state:
         st.session_state.messages = [ChatMessage({"role": "assistant", "content": WELCOME_MESSAGE})]
 
-    # get_initial_documents()
     show_messages()
 
     if prompt := st.chat_input("Ask me anything"):

@@ -3,18 +3,18 @@ import os
 import streamlit as st
 from streamlit_ace import st_ace
 
-
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
+from configuration import get_sycamore_query_client
 
+from util import show_query_traces, get_schema, generate_plan, run_plan, get_opensearch_indices, result_to_string
 
-from util import show_query_traces, get_schema, generate_plan, run_plan, get_opensearch_indices, show_dag
 
 DEFAULT_S3_CACHE_PATH = "s3://aryn-temp/llm_cache/luna/ntsb"
 
 
 def generate_code(client: SycamoreQueryClient, plan: LogicalPlan) -> str:
-    st.session_state.query_id, code = client.run_plan(plan, dry_run=True)
+    _, code = client.run_plan(plan, dry_run=True)
     return code
 
 
@@ -61,25 +61,25 @@ def run_query():
     if st.session_state.s3_cache_path:
         st.write(f"Using S3 cache at `{st.session_state.s3_cache_path}`")
 
-    client = SycamoreQueryClient(
-        trace_dir=st.session_state.trace_dir,
+    client = get_sycamore_query_client(
         s3_cache_path=st.session_state.s3_cache_path if st.session_state.use_cache else None,
+        trace_dir=st.session_state.trace_dir,
     )
     with st.spinner("Generating plan..."):
         plan = generate_plan(client, st.session_state.query, st.session_state.index)
-    with st.expander("View query plan"):
-        show_dag(plan)
+    with st.expander("Query plan"):
+        st.write(plan)
 
     code = generate_code(client, plan)
     show_code(code)
 
-    st.write(f"Query ID `{st.session_state.query_id}`\n")
-
     if not st.session_state.plan_only:
         with st.spinner("Running query..."):
             st.session_state.query_id, result = run_plan(client, plan)
+            result_str = result_to_string(result)
+        st.write(f"Query ID `{st.session_state.query_id}`\n")
         st.subheader("Result", divider="rainbow")
-        st.success(result)
+        st.success(result_str)
         if st.session_state.do_trace:
             assert st.session_state.trace_dir
             st.subheader("Traces", divider="blue")
@@ -92,8 +92,7 @@ st.title("Sycamore Query")
 if "trace_dir" not in st.session_state:
     st.session_state.trace_dir = os.path.join(os.getcwd(), "traces")
 
-
-client = SycamoreQueryClient()
+client = get_sycamore_query_client()
 st.selectbox("Index", get_opensearch_indices(), key="index")
 show_schema(client, st.session_state.index)
 

@@ -543,27 +543,17 @@ class ArynPDFPartitioner:
             with LogTime("text_extractor_supplement"):
                 for d, p in zip(deformable_layout, text_extractor_layout):
                     self._supplement_text(d, p)
-
+        # TODO: optimize this to make pdfminer also streamed so we can process each page in sequence without
+        # having to double-convert the document
         for i in convert_from_path_streamed_batched(filename, batch_size):
-            parts = self.process_batch_extraction(
+            self.process_batch_extraction(
                 i,
-                deformable_layout=deformable_layout,
+                deformable_layout,
                 extract_table_structure=extract_table_structure,
                 table_structure_extractor=table_structure_extractor,
                 extract_images=extract_images,
             )
             assert len(parts) == len(i)
-            if tracemalloc.is_tracing():
-                gc.collect()
-                after = tracemalloc.take_snapshot()
-                top_stats = after.compare_to(before, "lineno")
-
-                print("[ Top 10 differences ]")
-                for stat in top_stats[:10]:
-                    print(stat)
-                before = after
-                display_top(after)
-
         if tracemalloc.is_tracing():
             (current, peak) = tracemalloc.get_traced_memory()
             logger.info(f"Memory Usage current={current} peak={peak}")
@@ -623,6 +613,16 @@ class ArynPDFPartitioner:
         gc_tensor_dump()
         assert len(deformable_layout) == len(batch)
         # else pdfminer happens in parent since it is whole document.
+        return deformable_layout
+
+    def process_batch_extraction(
+        self,
+        batch: list[Image.Image],
+        deformable_layout: Any,
+        extract_table_structure,
+        table_structure_extractor,
+        extract_images,
+    ) -> Any:
 
         return deformable_layout
 

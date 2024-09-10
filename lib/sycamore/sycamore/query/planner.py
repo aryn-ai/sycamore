@@ -1,4 +1,5 @@
 import json
+import logging
 import typing
 from typing import Dict, List, Mapping, MutableMapping, Optional, Tuple, Type
 
@@ -9,11 +10,11 @@ from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.llm_filter import LlmFilter
 from sycamore.query.operators.basic_filter import BasicFilter
-from sycamore.query.operators.summarize_data import SummarizeData
-from sycamore.query.operators.query_database import QueryDatabase
 from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
+from sycamore.query.operators.query_database import QueryDatabase
 from sycamore.query.operators.math import Math
 from sycamore.query.operators.sort import Sort
+from sycamore.query.operators.summarize_data import SummarizeData
 from sycamore.query.operators.top_k import TopK
 from sycamore.query.operators.limit import Limit
 from sycamore.query.operators.logical_operator import LogicalOperator
@@ -38,6 +39,28 @@ OPERATORS: List[Type[LogicalOperator]] = [
     TopK,
     Limit,
 ]
+
+
+# This is the base prompt for the planner.
+PLANNER_SYSTEM_PROMPT = """You are a helpful agent that translates the user's question into a
+series of steps to answer it, using a predefined set of operations. Please adhere to the following
+guidelines when generating a plan:
+
+        1. Return your answer as a standard JSON list of operators. Make sure to include each
+            operation as a separate step.
+        2. Do not return any information except the standard JSON objects.
+        3. Only use the operators described below.
+        4. Only use EXACT field names from the DATA_SCHEMA described below and fields created
+            from *LlmExtractEntity*. Any new fields created by *LlmExtractEntity* will be nested in properties.
+            e.g. if a new field called "state" is added, when referencing it in another operation,
+            you should use "properties.state". A database returned from *TopK* operation only has
+            "properties.key" or "properties.count"; you can only reference one of those fields.
+            Other than those, DO NOT USE ANY OTHER FIELD NAMES.
+        5. If an optional field does not have a value in the query plan, return null in its place.
+        6. If you cannot generate a plan to answer a question, return an empty list.
+        7. The first step of each plan MUST be a **QueryDatabase** operation that returns a database.
+        8. The last step of each plan should return the raw data associated with the response.
+"""
 
 
 class LlmPlanner:
@@ -93,29 +116,13 @@ class LlmPlanner:
             indent=2,
         )
 
-    def generate_prompt(self, query):
-        """Generate the LLM prompt for the given query."""
+    def generate_system_prompt(self, query):
+        """Generate the LLM system prompt for the given query."""
 
-        prompt = """
-        1. Return your answer as a standard JSON list of operators. Make sure to include each
-            operation as a separate step.
-        2. Do not return any information except the standard JSON objects.
-        3. Only use operators described below.
-        4. Only use EXACT field names from the DATA_SCHEMA described below and fields created
-            from *LlmExtractEntity*. Any new fields created by *LlmExtractEntity* will be nested in properties.
-            e.g. if a new field called "state" is added, when referencing it in another operation,
-            you should use "properties.state". A database returned from *TopK* operation only has
-            "properties.key" or "properties.count"; you can only reference one of those fields.
-            Other than those, DO NOT USE ANY OTHER FIELD NAMES.
-        5. If an optional field does not have a value in the query plan, return null in its place.
-        6. If you cannot generate a plan to answer a question, return an empty list.
-        7. The first step of each plan MUST be a **QueryDatabase** operation that returns a database.
-        8. The last step of each plan MUST be a **SummarizeData** operation to generate an English
-            answer.
-        """
+        prompt = PLANNER_SYSTEM_PROMPT
 
         # data schema
-        prompt += f"""
+        prompt += f"""\n
         INDEX_NAME: {self._index}
         """
         prompt += f"""
@@ -162,14 +169,6 @@ class LlmPlanner:
                     "input": [0],
                     "node_id": 1
                 },
-                {
-                    "operatorName": "SummarizeData",
-                    "description": "Generate an English response to the original question.
-                        Input 1 is a database that contains incidents in Georgia.",
-                    "question": "Were there any incidents in Georgia?",
-                    "input": [1],
-                    "node_id": 2
-                }
             ]
 
             EXAMPLE 2:
@@ -211,15 +210,6 @@ class LlmPlanner:
                     "input": [1],
                     "node_id": 2
                 },
-                {
-                    "operatorName": "SummarizeData",
-                    "description": "description": "Generate an English response to the
-                        question. Input 1 is a number that corresponds to the number of
-                        cities that accidents occurred in.",
-                    "question": "How many cities did Cessna aircrafts have incidents in?",
-                    "input": [2],
-                    "node_id": 3
-                }
             ]
 
             EXAMPLE 3:
@@ -268,15 +258,6 @@ class LlmPlanner:
                     "input": [2],
                     "node_id": 3,
                 }
-                {
-                    "operatorName": "SummarizeData",
-                    "description": "description": "Generate an English response to
-                        the question. Input 1 is a database that contains information
-                        about the 2 law firms with the highest revenue.",
-                    "question": "Which 2 law firms had the highest revenue in 2022?",
-                    "input": [3],
-                    "node_id": 4
-                }
             ]
 
             EXAMPLE 4:
@@ -321,15 +302,6 @@ class LlmPlanner:
                     "input": [1],
                     "node_id": 2,
                 },
-                {
-                    "operatorName": "SummarizeData",
-                    "description": "description": "Generate an English response to the
-                        question. Input 1 is a database that the top 5 water bodies shipwrecks
-                        occurred in and their corresponding frequency counts.",
-                    "question": "Which 5 countries were responsible for the most shipwrecks?",
-                    "input": [2],
-                    "node_id": 3
-                }
             ]
 
             EXAMPLE 5:
@@ -384,14 +356,6 @@ class LlmPlanner:
                     "input": [3, 1],
                     "node_id": 4
                 }
-                {
-                    "operatorName": "SummarizeData",
-                    "description": "Generate an English response to the question. Input 1 is a
-                        number that is the fraction of shipwrecks that occurred in 2023.",
-                    "question": "What percent of shipwrecks occurred in 2023?",
-                    "input": [4],
-                    "node_id": 5
-                }
             ]
 
             EXAMPLE 6:
@@ -417,19 +381,13 @@ class LlmPlanner:
                     "input": [0],
                     "id": 1
                 },
-                {
-                    "operatorName": "SummarizeData",
-                    "description": "Generate an English response to the question. Input 1 is a
-                        number of patients.",
-                    "question": "How many total patients?",
-                    "input": [1],
-                    "id": 2
-                }
             ]
             """
 
-        # input
-        prompt += f"""
+        return prompt
+
+    def generate_user_prompt(self, query: str) -> str:
+        prompt = f"""
         USER QUESTION: {query}
         """
         return prompt
@@ -439,13 +397,17 @@ class LlmPlanner:
 
         messages = [
             {
+                "role": "system",
+                "content": self.generate_system_prompt(question),
+            },
+            {
                 "role": "user",
-                "content": self.generate_prompt(question),
-            }
+                "content": self.generate_user_prompt(question),
+            },
         ]
-
         prompt_kwargs = {"messages": messages}
         chat_completion = self._llm_client.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
+        logging.debug(f"LLM chat completion: {chat_completion}")
         return chat_completion
 
     def process_llm_json_plan(self, llm_json_plan: str) -> Tuple[LogicalOperator, Mapping[int, LogicalOperator]]:
@@ -500,4 +462,5 @@ class LlmPlanner:
         llm_plan = self.generate_from_llm(question)
         result_node, nodes = self.process_llm_json_plan(llm_plan)
         plan = LogicalPlan(result_node=result_node, nodes=nodes, query=question, llm_plan=llm_plan)
+        logging.debug(f"Query plan: {plan}")
         return plan

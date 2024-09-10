@@ -12,7 +12,7 @@
 import argparse
 import json
 import logging
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 import os
 import uuid
 
@@ -107,24 +107,27 @@ class SycamoreQueryClient:
         context: Optional[Context] = None,
         s3_cache_path: Optional[str] = None,
         os_config: dict = DEFAULT_OS_CONFIG,
-        os_client_args: dict = DEFAULT_OS_CLIENT_ARGS,
+        os_client_args: Optional[dict] = None,
         trace_dir: Optional[str] = None,
     ):
         from opensearchpy import OpenSearch
 
         self.s3_cache_path = s3_cache_path
         self.os_config = os_config
-        self.os_client_args = os_client_args
         self.trace_dir = trace_dir
 
         if context and os_client_args:
             raise AssertionError("If using a configured Context object, set os_client_args in context.params")
         if context and s3_cache_path:
             raise AssertionError("If using a configured Context object, set a cached llm in context.params")
-        self.context = context or self._get_default_context()
 
-        self._os_client = OpenSearch(**self.os_client_args)
-        self._os_query_executor = OpenSearchQueryExecutor(self.os_client_args)
+        os_client_args = os_client_args or DEFAULT_OS_CLIENT_ARGS
+        self.context = context or self._get_default_context(s3_cache_path, os_client_args)
+
+        assert self.context.params, "Could not find required params in Context"
+        self.os_client_args = self.context.params.get("opensearch", {}).get("os_client_args")
+        self._os_client = OpenSearch(**os_client_args)
+        self._os_query_executor = OpenSearchQueryExecutor(os_client_args)
 
     def get_opensearch_incides(self) -> List[str]:
         """Get the schema for the provided OpenSearch index."""
@@ -154,7 +157,7 @@ class SycamoreQueryClient:
         plan = planner.plan(query)
         return plan
 
-    def run_plan(self, plan: LogicalPlan, dry_run=False, codegen_mode=False) -> Tuple[str, str]:
+    def run_plan(self, plan: LogicalPlan, dry_run=False, codegen_mode=False) -> Tuple[str, Any]:
         assert self.context is not None, "Running a plan requires a configured Context"
         """Run the given logical query plan and return a tuple of the query ID and result."""
         executor = SycamoreExecutor(
@@ -165,7 +168,7 @@ class SycamoreQueryClient:
         )
         query_id = str(uuid.uuid4())
         result = executor.execute(plan, query_id)
-        return (query_id, result)
+        return query_id, result
 
     def query(
         self,
@@ -173,14 +176,15 @@ class SycamoreQueryClient:
         index: str,
         dry_run: bool = False,
         codegen_mode: bool = False,
-    ) -> str:
+    ) -> Any:
         """Run a query against the given index."""
         schema = self.get_opensearch_schema(index)
         plan = self.generate_plan(query, index, schema)
         _, result = self.run_plan(plan, dry_run=dry_run, codegen_mode=codegen_mode)
         return result
 
-    def dump_traces(self, logfile: str, query_id: Optional[str] = None):
+    @staticmethod
+    def dump_traces(logfile: str, query_id: Optional[str] = None):
         """Dump traces from the given logfile."""
         with open(logfile, "r", encoding="utf-8") as f:
             for line in f:
@@ -191,15 +195,14 @@ class SycamoreQueryClient:
                 except json.JSONDecodeError:
                     console.print(line)
 
-    def _get_default_context(self) -> Context:
+    @staticmethod
+    def _get_default_context(s3_cache_path, os_client_args) -> Context:
         context_params = {
             "default": {
-                "llm": OpenAI(
-                    OpenAIModels.GPT_4O.value, cache=S3Cache(self.s3_cache_path) if self.s3_cache_path else None
-                ),
+                "llm": OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(s3_cache_path) if s3_cache_path else None),
             },
             "opensearch": {
-                "os_client_args": self.os_client_args,
+                "os_client_args": os_client_args,
             },
         }
         return sycamore.init(params=context_params)

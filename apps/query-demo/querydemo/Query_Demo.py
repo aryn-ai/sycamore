@@ -398,7 +398,7 @@ def query_data_source(query: str, index: str) -> Tuple[Any, LogicalPlan]:
         plan = generate_plan(sqclient, query, index)
         with st.expander("Query plan"):
             st.write(plan)
-    with st.spinner("Running query plan..."):
+    with st.spinner("Running Sycamore query..."):
         st.session_state.query_id, result = run_plan(sqclient, plan)
     return result, plan
 
@@ -451,7 +451,7 @@ def do_query():
         # We loop here because tool calls require re-invoking the LLM.
         while True:
             messages = [{"role": "system", "content": SYSTEM_PROMPT}] + [m.to_dict() for m in st.session_state.messages]
-            with st.spinner("Running query..."):
+            with st.spinner("Running LLM query..."):
                 response = openai_client.chat.completions.create(
                     model=st.session_state["openai_model"],
                     messages=messages,
@@ -472,9 +472,6 @@ def do_query():
                     tool_response, query_plan = query_data_source(tool_query, OPENSEARCH_INDEX)
                 else:
                     tool_response = f"Unknown tool: {tool_function_name}"
-
-                with st.expander("Raw query response"):
-                    st.write(tool_response)
 
                 with st.spinner("Running Sycamore query..."):
                     if isinstance(tool_response, str):

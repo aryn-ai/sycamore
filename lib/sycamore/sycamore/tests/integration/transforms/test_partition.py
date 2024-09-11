@@ -12,7 +12,7 @@ from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.partition import ArynPartitioner
 import os
 
-MODEL_SERVER_KEY = os.environ["ARYN_API_KEY"]
+ARYN_API_KEY = os.environ["ARYN_API_KEY"]
 
 
 def test_detr_ocr():
@@ -121,7 +121,7 @@ def test_aryn_partitioner():
 
     docs = (
         context.read.binary(paths=[str(path)], binary_format="pdf")
-        .partition(ArynPartitioner(aryn_api_key=MODEL_SERVER_KEY))
+        .partition(ArynPartitioner(aryn_api_key=ARYN_API_KEY))
         .explode()
         .filter(lambda doc: "page_number" in doc.properties and doc.properties["page_number"] == 1)
         .filter(lambda doc: doc.type in {"Section-header", "Title"})

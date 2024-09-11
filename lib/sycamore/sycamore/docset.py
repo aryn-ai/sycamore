@@ -1137,7 +1137,7 @@ class DocSet:
     @context_params(OperationTypes.INFORMATION_EXTRACTOR)
     def top_k(
         self,
-        llm: LLM,
+        llm: Optional[LLM],
         field: str,
         k: Optional[int],
         descending: bool = True,
@@ -1181,7 +1181,7 @@ class DocSet:
         return docset
 
     @context_params(OperationTypes.INFORMATION_EXTRACTOR)
-    def llm_cluster_entity(self, llm: LLM, instruction: str, field: str) -> "DocSet":
+    def llm_cluster_entity(self, llm: LLM, instruction: str, field: str, **kwargs) -> "DocSet":
         """
         Normalizes a particular field of a DocSet. Identifies and assigns each document to a "group".
 

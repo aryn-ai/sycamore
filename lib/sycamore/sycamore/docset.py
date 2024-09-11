@@ -441,10 +441,9 @@ class DocSet:
                     .explode()
 
         """
-        from sycamore.transforms.extract_document_structure import ExtractDocumentStructure, ExtractSummaries
+        from sycamore.transforms.extract_document_structure import ExtractDocumentStructure
 
         document_structure = ExtractDocumentStructure(self.plan, structure=structure, **kwargs)
-        document_structure = ExtractSummaries(document_structure)
         return DocSet(self.context, document_structure)
 
     def extract_entity(self, entity_extractor: EntityExtractor, **kwargs) -> "DocSet":
@@ -634,13 +633,16 @@ class DocSet:
 
         return DocSet(self.context, relationships)
 
-    def resolve_graph_entities(self, resolvers: list[EntityResolver] = [], **kwargs) -> "DocSet":
+    def resolve_graph_entities(
+        self, resolvers: list[EntityResolver] = [], resolve_duplicates=True, **kwargs
+    ) -> "DocSet":
         """
         Resolves graph entities across documents so that duplicate entities can be resolved
         to the same entity based off criteria of EntityResolver objects.
 
         Args:
             resolvers: A list of EntityResolvers that are used to determine what entities are duplicates
+            resolve_duplicates: If exact duplicate entities and relationships should be merged. Defaults to true
 
         Example:
             .. code-block:: python
@@ -650,7 +652,7 @@ class DocSet:
                     .extract_document_structure(...)
                     .extract_graph_entities(...)
                     .extract_graph_relationships(...)
-                    .resolve_graph_entities(resolvers=[TODO: Implement Resolvers])
+                    .resolve_graph_entities(resolvers=[], resolve_duplicates=False)
                     .explode()
                 )
                 ds.write.neo4j(...)
@@ -665,7 +667,7 @@ class DocSet:
             def execute(self, **kwargs):
                 return self._ds
 
-        entity_resolver = ResolveEntities(resolvers=resolvers)
+        entity_resolver = ResolveEntities(resolvers=resolvers, resolve_duplicates=resolve_duplicates)
         entities = entity_resolver.resolve(self)  # resolve entities
         entities_clean = CleanTempNodes(Wrapper(entities))  # cleanup temp objects
         return DocSet(self.context, entities_clean)

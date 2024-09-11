@@ -34,6 +34,7 @@ class Explode(SingleThreadUser, NonGPUUser, FlatMap):
             return Explode.explode_hierarchical(parent)
         if isinstance(parent, Document):
             return Explode.explode_default(parent)
+        raise ValueError(f"Unsupported document type: {type(parent)}")
 
     @staticmethod
     @timetrace("explode")

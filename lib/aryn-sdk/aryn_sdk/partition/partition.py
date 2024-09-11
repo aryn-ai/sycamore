@@ -28,6 +28,7 @@ def partition_file(
     use_ocr: bool = False,
     ocr_images: bool = False,
     ocr_model: str = "easy",
+    per_element_ocr: bool = False,
     extract_table_structure: bool = False,
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
@@ -48,6 +49,12 @@ def partition_file(
         use_ocr: extract text using an OCR model instead of extracting embedded text in PDF.
             default: False
         ocr_images: attempt to use OCR to generate a text representation of detected images.
+            default: False
+        ocr_model: model to use for OCR. Choices are "easy", "paddle", "tesseract" and "legacy", which
+            correspond to EasyOCR, PaddleOCR, and Tesseract respectively, with "legacy" being a combination of
+            Tesseract for text and EasyOCR for tables.
+            default: "easy"
+        per_element_ocr: perform OCR on each element individually compared to the whole page.
             default: False
         extract_table_structure: extract tables and their structural content.
             default: False
@@ -88,6 +95,7 @@ def partition_file(
         use_ocr=use_ocr,
         ocr_images=ocr_images,
         ocr_model=ocr_model,
+        per_element_ocr=per_element_ocr,
         extract_table_structure=extract_table_structure,
         extract_images=extract_images,
         selected_pages=selected_pages,
@@ -150,6 +158,7 @@ def _json_options(
     use_ocr: bool = False,
     ocr_images: bool = False,
     ocr_model: str = "easy",
+    per_element_ocr: bool = False,
     extract_table_structure: bool = False,
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
@@ -164,6 +173,8 @@ def _json_options(
         options["ocr_images"] = ocr_images
     if ocr_model:
         options["ocr_model"] = ocr_model
+    if per_element_ocr:
+        options["per_element_ocr"] = per_element_ocr
     if extract_images:
         options["extract_images"] = extract_images
     if extract_table_structure:

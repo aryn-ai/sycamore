@@ -1,13 +1,12 @@
 from abc import abstractmethod
 from PIL import Image
-from typing import Any, Union, List, Dict, cast, BinaryIO, Generator
+from typing import Any, Union, List, Dict
 from sycamore.data import BoundingBox, Element
 from sycamore.utils.cache import DiskCache
 from pathlib import Path
 from io import IOBase, BytesIO
 from sycamore.utils.pdf import pdf_to_image_files
 from sycamore.utils.import_utils import requires_modules
-import pdf2image
 from sycamore.transforms.text_extraction.text_extractor import TextExtractor
 import logging
 from sycamore.utils.time_trace import LogTime, timetrace

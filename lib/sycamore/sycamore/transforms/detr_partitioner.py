@@ -377,7 +377,9 @@ class ArynPDFPartitioner:
            ocr_images: If set with use_ocr, will attempt to OCR regions of the document identified as images.
            ocr_model: If set with use_ocr, will use the model specified by this argument.
            per_element_ocr= If set with use_ocr, will execute OCR on each element rather than the entire page.
-           Valid options are "easy", "tesseract", "paddle", and "legacy"
+                Valid options are "easy", "tesseract", "paddle", and "legacy". If you choose paddle make sure to install
+                paddlepaddle or paddlepaddle-gpu if you have a CPU or GPU. Further details are found below:
+                https://www.paddlepaddle.org.cn/documentation/docs/en/install/index_en.html
            extract_table_structure: If true, runs a separate table extraction model to extract cells from
              regions of the document identified as tables.
            table_structure_extractor: The table extraction implementaion to use when extract_table_structure is True.

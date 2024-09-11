@@ -52,7 +52,9 @@ def partition_file(
             default: False
         ocr_model: model to use for OCR. Choices are "easy", "paddle", "tesseract" and "legacy", which
             correspond to EasyOCR, PaddleOCR, and Tesseract respectively, with "legacy" being a combination of
-            Tesseract for text and EasyOCR for tables.
+            Tesseract for text and EasyOCR for tables. If you choose paddle make sure to install
+            paddlepaddle or paddlepaddle-gpu if you have a CPU or GPU. Further details are found below:
+            https://www.paddlepaddle.org.cn/documentation/docs/en/install/index_en.html
             default: "easy"
         per_element_ocr: perform OCR on each element individually compared to the whole page.
             default: False

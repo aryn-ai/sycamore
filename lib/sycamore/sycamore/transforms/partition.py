@@ -257,7 +257,7 @@ class UnstructuredPdfPartitioner(Partitioner):
         document.elements = [self.to_element(ee.to_dict(), self._retain_coordinates) for ee in elements]
         del elements
 
-        document = reorder_elements(document, _elements_reorder_comparator)
+        document = reorder_elements(document, comparator=_elements_reorder_comparator)
         return document
 
 
@@ -538,7 +538,7 @@ class ArynPartitioner(Partitioner):
             raise RuntimeError(f"ArynPartitioner Error processing {path}") from e
 
         document.elements = elements
-        document = reorder_elements(document, self._elements_reorder)
+        document = reorder_elements(document, comparator=self._elements_reorder)
         return document
 
 

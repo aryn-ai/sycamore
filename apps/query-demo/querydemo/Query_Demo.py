@@ -476,16 +476,19 @@ def do_query():
                 with st.expander("Raw query response"):
                     st.write(tool_response)
 
-                if isinstance(tool_response, str):
-                    # We got a straight string response from the query plan, which means we can
-                    # feed it back to the LLM directly.
-                    tool_response_str = tool_response
-                elif isinstance(tool_response, sycamore.docset.DocSet):
-                    # We got a DocSet.
-                    tool_response_str = docset_to_string(tool_response)
-                else:
-                    # Fall back to string representation.
-                    tool_response_str = str(tool_response)
+                with st.spinner("Running Sycamore query..."):
+                    if isinstance(tool_response, str):
+                        # We got a straight string response from the query plan, which means we can
+                        # feed it back to the LLM directly.
+                        tool_response_str = tool_response
+                    elif isinstance(tool_response, sycamore.docset.DocSet):
+                        # We got a DocSet.
+                        # Note that this can be slow because the .take()
+                        # actually runs the query.
+                        tool_response_str = docset_to_string(tool_response)
+                    else:
+                        # Fall back to string representation.
+                        tool_response_str = str(tool_response)
 
                 with st.expander("Tool response"):
                     st.write(tool_response_str)

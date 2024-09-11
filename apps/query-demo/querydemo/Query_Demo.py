@@ -17,7 +17,7 @@ from streamlit_pdf_viewer import pdf_viewer
 import sycamore
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
-from util import generate_plan, run_plan
+from util import generate_plan, run_plan, ray_init
 
 NUM_DOCS_GENERATE = 60
 NUM_DOCS_PREVIEW = 10
@@ -398,7 +398,7 @@ def query_data_source(query: str, index: str) -> Tuple[Any, LogicalPlan]:
         plan = generate_plan(sqclient, query, index)
         with st.expander("Query plan"):
             st.write(plan)
-    with st.spinner("Running query plan..."):
+    with st.spinner("Running Sycamore query..."):
         st.session_state.query_id, result = run_plan(sqclient, plan)
     return result, plan
 
@@ -451,7 +451,7 @@ def do_query():
         # We loop here because tool calls require re-invoking the LLM.
         while True:
             messages = [{"role": "system", "content": SYSTEM_PROMPT}] + [m.to_dict() for m in st.session_state.messages]
-            with st.spinner("Running query..."):
+            with st.spinner("Running LLM query..."):
                 response = openai_client.chat.completions.create(
                     model=st.session_state["openai_model"],
                     messages=messages,
@@ -473,19 +473,19 @@ def do_query():
                 else:
                     tool_response = f"Unknown tool: {tool_function_name}"
 
-                with st.expander("Raw query response"):
-                    st.write(tool_response)
-
-                if isinstance(tool_response, str):
-                    # We got a straight string response from the query plan, which means we can
-                    # feed it back to the LLM directly.
-                    tool_response_str = tool_response
-                elif isinstance(tool_response, sycamore.docset.DocSet):
-                    # We got a DocSet.
-                    tool_response_str = docset_to_string(tool_response)
-                else:
-                    # Fall back to string representation.
-                    tool_response_str = str(tool_response)
+                with st.spinner("Running Sycamore query..."):
+                    if isinstance(tool_response, str):
+                        # We got a straight string response from the query plan, which means we can
+                        # feed it back to the LLM directly.
+                        tool_response_str = tool_response
+                    elif isinstance(tool_response, sycamore.docset.DocSet):
+                        # We got a DocSet.
+                        # Note that this can be slow because the .take()
+                        # actually runs the query.
+                        tool_response_str = docset_to_string(tool_response)
+                    else:
+                        # Fall back to string representation.
+                        tool_response_str = str(tool_response)
 
                 with st.expander("Tool response"):
                     st.write(tool_response_str)
@@ -510,6 +510,8 @@ def do_query():
 
 
 def main():
+    ray_init(address="auto")
+
     # Set a default model
     if "openai_model" not in st.session_state:
         st.session_state["openai_model"] = "gpt-4o"

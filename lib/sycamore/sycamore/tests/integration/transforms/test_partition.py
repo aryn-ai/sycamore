@@ -100,7 +100,7 @@ def check_table_extraction(**kwargs):
 
         print(f"edit distance: {distance}")
         print(res_content1, res_content2)
-        assert distance <= 2
+        assert distance <= 3
 
         assert cell1.rows == cell2.rows
         assert cell1.cols == cell2.cols

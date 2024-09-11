@@ -45,9 +45,11 @@ class OCRModel(TextExtractor):
                         del data
                         temp_file.flush()
                     temp_file.close()
-                    filename = temp_file.name
+                    file_name = temp_file.name
+                else:
+                    file_name = filename
                 pages = []
-                for path in pdf_to_image_files(filename, Path(tempdirname)):
+                for path in pdf_to_image_files(file_name, Path(tempdirname)):
                     image = Image.open(path).convert("RGB")
                     ocr_output = self.get_boxes_and_text(image)
                     width, height = image.size
@@ -69,8 +71,8 @@ class OCRModel(TextExtractor):
                 if use_cache:
                     logger.info("Cache Miss for OCR. Storing the result to the cache.")
                     ocr_cache.set(hash_key, pages)
-                if isinstance(filename, str) and filename.startswith(tempfile.gettempdir()):
-                    os.unlink(filename)
+                if isinstance(filename, IOBase):
+                    os.unlink(file_name)
                 return pages
 
 

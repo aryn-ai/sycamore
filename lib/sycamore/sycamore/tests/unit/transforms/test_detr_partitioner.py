@@ -54,12 +54,12 @@ class TestArynPDFPartitioner:
 
     def test_batched_sequenced(self):
         s = ArynPDFPartitioner("Aryn/deformable-detr-DocLayNet")
-        # d = compare_batched_sequenced(s, TEST_DIR / "resources/data/pdfs/visit_aryn.pdf", use_cache=False)
-        # assert len(d) == 1
-        # d = compare_batched_sequenced(s, TEST_DIR / "resources/data/pdfs/basic_table.pdf", use_cache=False)
-        # assert len(d) == 1
+        d = compare_batched_sequenced(s, TEST_DIR / "resources/data/pdfs/visit_aryn.pdf", use_cache=False)
+        assert len(d) == 1
+        d = compare_batched_sequenced(s, TEST_DIR / "resources/data/pdfs/basic_table.pdf", use_cache=False)
+        assert len(d) == 1
         d = compare_batched_sequenced(
-            s, TEST_DIR / "resources/data/pdfs/basic_table.pdf", use_ocr=True, use_cache=False
+            s, TEST_DIR / "resources/data/pdfs/basic_table.pdf", use_ocr=True, use_cache=False, per_element_ocr=True
         )
         assert len(d) == 1
 
@@ -86,5 +86,6 @@ class TestArynPDFPartitioner:
             extract_table_structure=True,
             use_ocr=True,
             use_cache=False,
+            per_element_ocr=True,
         )
         assert len(d) == 1

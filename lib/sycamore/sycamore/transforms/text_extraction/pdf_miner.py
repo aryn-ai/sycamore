@@ -1,8 +1,3 @@
-from pdfminer.converter import PDFPageAggregator
-from pdfminer.layout import LAParams
-from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
-from pdfminer.pdfpage import PDFPage
-from pdfminer.utils import open_filename
 from sycamore.data import Element, BoundingBox
 from sycamore.utils.cache import DiskCache
 from io import IOBase
@@ -21,12 +16,18 @@ pdf_miner_cache = DiskCache(str(Path.home() / ".sycamore/PDFMinerCache"))
 class PDFMinerExtractor(TextExtractor):
     @requires_modules(["pdfminer", "pdfminer.utils"], extra="local-inference")
     def __init__(self):
+        from pdfminer.converter import PDFPageAggregator
+        from pdfminer.layout import LAParams
+        from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
+
         rm = PDFResourceManager()
         param = LAParams()
         self.device = PDFPageAggregator(rm, laparams=param)
         self.interpreter = PDFPageInterpreter(rm, self.device)
 
     def _open_pdfminer_pages_generator(self, fp: BinaryIO):
+        from pdfminer.pdfpage import PDFPage
+
         pages = PDFPage.get_pages(fp)
         for page in pages:
             self.interpreter.process_page(page)
@@ -49,6 +50,8 @@ class PDFMinerExtractor(TextExtractor):
         return x1, y1, x2, y2
 
     def extract(self, filename: Union[str, IOBase], hash_key: str, use_cache=False, **kwargs) -> List[List[Element]]:
+        from pdfminer.utils import open_filename
+
         # The naming is slightly confusing, but `open_filename` accepts either
         # a filename (str) or a file-like object (IOBase)
         print("pdf_text_extractor_print_2")

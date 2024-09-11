@@ -44,7 +44,7 @@ class OpenSearchSchemaFetcher:
             if not key.startswith("properties.entity") or ".keyword" in key:
                 continue
             try:
-                samples = set()
+                samples: set[str] = set()
                 sample_type = None
                 for sample in random_sample:
                     if len(samples) >= self.NUM_EXAMPLE_VALUES:

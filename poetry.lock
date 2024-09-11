@@ -602,17 +602,17 @@ files = [
 
 [[package]]
 name = "boto3"
-version = "1.34.124"
+version = "1.35.16"
 description = "The AWS SDK for Python"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "boto3-1.34.124-py3-none-any.whl", hash = "sha256:549d9735bbb7cf8e1a2f4b3b676be32946717c59f33c47234586835dc904d04e"},
-    {file = "boto3-1.34.124.tar.gz", hash = "sha256:a91ee58fa54b170f17b2e144f038e155f92cf515f1c073ac2595e9ee45f125a8"},
+    {file = "boto3-1.35.16-py3-none-any.whl", hash = "sha256:9c5b0ce4a25bb78d659478d1c552f1dbb7ff275aab3263bb41cdbef8bca28693"},
+    {file = "boto3-1.35.16.tar.gz", hash = "sha256:9b96c210678cf430b16b49dee87db30f46044602bb9a605a465e1900f468a43f"},
 ]
 
 [package.dependencies]
-botocore = ">=1.34.124,<1.35.0"
+botocore = ">=1.35.16,<1.36.0"
 jmespath = ">=0.7.1,<2.0.0"
 s3transfer = ">=0.10.0,<0.11.0"
 
@@ -1035,13 +1035,13 @@ xray = ["mypy-boto3-xray (>=1.35.0,<1.36.0)"]
 
 [[package]]
 name = "botocore"
-version = "1.34.124"
+version = "1.35.16"
 description = "Low-level, data-driven core of boto 3."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "botocore-1.34.124-py3-none-any.whl", hash = "sha256:fede092c7f8f414f78f3e7991e47cb0cf2279d90c027606ad7cba79fa370b827"},
-    {file = "botocore-1.34.124.tar.gz", hash = "sha256:3f0bf79c17d656acdfdb53581224f6a38867ff2829f7428c586198f67a90ea26"},
+    {file = "botocore-1.35.16-py3-none-any.whl", hash = "sha256:3564a980d95ff2861a6ca74313173d8778aa659125c63cf49c93ad23896c63b1"},
+    {file = "botocore-1.35.16.tar.gz", hash = "sha256:1b48c94e8a4bbe23143f3d1c21a32b9ffc7476b651ef42371ab45d678f6dbfbc"},
 ]
 
 [package.dependencies]
@@ -1053,7 +1053,7 @@ urllib3 = [
 ]
 
 [package.extras]
-crt = ["awscrt (==0.20.11)"]
+crt = ["awscrt (==0.21.5)"]
 
 [[package]]
 name = "botocore-stubs"
@@ -3797,6 +3797,22 @@ plugins = ["mdit-py-plugins"]
 profiling = ["gprof2dot"]
 rtd = ["jupyter_sphinx", "mdit-py-plugins", "myst-parser", "pyyaml", "sphinx", "sphinx-copybutton", "sphinx-design", "sphinx_book_theme"]
 testing = ["coverage", "pytest", "pytest-cov", "pytest-regressions"]
+
+[[package]]
+name = "marko"
+version = "2.1.2"
+description = "A markdown parser with high extensibility."
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "marko-2.1.2-py3-none-any.whl", hash = "sha256:c14aa7a77468aaaf53cf056dcd3d32398b9df4c3fb81f5e120dd37cbb9f8c859"},
+    {file = "marko-2.1.2.tar.gz", hash = "sha256:a9170006b879376e6845c91b1ae3dce2992772954b99b70175ff888537186011"},
+]
+
+[package.extras]
+codehilite = ["pygments"]
+repr = ["objprint"]
+toc = ["python-slugify"]
 
 [[package]]
 name = "markupsafe"
@@ -6595,6 +6611,29 @@ files = [
 cffi = {version = "*", markers = "implementation_name == \"pypy\""}
 
 [[package]]
+name = "query-demo"
+version = "0.1.0"
+description = ""
+optional = false
+python-versions = ">=3.9,<3.9.7 || >3.9.7,<3.12"
+files = []
+develop = true
+
+[package.dependencies]
+boto3 = "^1.35.10"
+marko = "^2.1.2"
+requests = "^2.32.3"
+streamlit = "^1.36.0"
+streamlit-ace = "^0.1.1"
+streamlit-agraph = "^0.0.45"
+streamlit-pdf-viewer = "^0.0.17"
+sycamore-ai = {path = "../../lib/sycamore", develop = true, extras = ["opensearch"]}
+
+[package.source]
+type = "directory"
+url = "apps/query-demo"
+
+[[package]]
 name = "queryui"
 version = "0.1.0"
 description = ""
@@ -7956,6 +7995,23 @@ files = [
 networkx = ">=2.5"
 rdflib = ">=6.0.2"
 streamlit = ">=0.63"
+
+[[package]]
+name = "streamlit-pdf-viewer"
+version = "0.0.17"
+description = "Streamlit component for PDF visualisation and manipulation"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "streamlit_pdf_viewer-0.0.17-py3-none-any.whl", hash = "sha256:d2dfe317d257ba6366ed3424cc0565c3ca2c24ad12ba731767d19eb6b33ad6e8"},
+    {file = "streamlit_pdf_viewer-0.0.17.tar.gz", hash = "sha256:69db3aaa80c3dffa34a31dfbd2d434b57d9d849770246bb91345b244de024b42"},
+]
+
+[package.dependencies]
+streamlit = ">=0.63"
+
+[package.extras]
+devel = ["wheel"]
 
 [[package]]
 name = "structlog"
@@ -9610,4 +9666,4 @@ docs = ["furo", "myst-parser", "sphinx"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.9.7 || >3.9.7,<3.12"
-content-hash = "8090d9f9ef4c3610d532dea927b03150dd2f83326451b7fea87a94e4b7540011"
+content-hash = "cdc849b57d381b3a25fc02f21e270e4176a2a89a596ffe8365d1ce91a723d16e"

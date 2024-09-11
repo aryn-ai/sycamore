@@ -99,7 +99,6 @@ def check_table_extraction(**kwargs):
         distance = nltk.edit_distance(res_content1, res_content2)
 
         print(f"edit distance: {distance}")
-        print(res_content1, res_content2)
         assert distance <= 3
 
         assert cell1.rows == cell2.rows

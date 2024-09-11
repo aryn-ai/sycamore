@@ -48,7 +48,6 @@ def test_to_neo4j():
         .resolve_graph_entities(resolvers=[])
         .explode()
     )
-    print("checker")
     ds.write.neo4j(uri=URI, auth=AUTH, database=DATABASE, import_dir="/neo4j/import")
 
     from neo4j import GraphDatabase

@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from PIL import Image
-from typing import Any, Union, List, Dict
+from typing import Any, Union, List, Dict, cast
 from sycamore.data import BoundingBox, Element
 from sycamore.utils.cache import DiskCache
 from pathlib import Path
@@ -9,9 +9,8 @@ from sycamore.utils.pdf import pdf_to_image_files
 from sycamore.utils.import_utils import requires_modules
 from sycamore.transforms.text_extraction.text_extractor import TextExtractor
 import logging
-from sycamore.utils.time_trace import LogTime, timetrace
+from sycamore.utils.time_trace import timetrace
 import tempfile
-import os
 
 ocr_cache = DiskCache(str(Path.home() / ".sycamore/OCRCache"))
 
@@ -37,20 +36,11 @@ class OCRModel(TextExtractor):
             return cached_result
         else:
             with tempfile.TemporaryDirectory() as tempdirname:  # type: ignore
-                if isinstance(filename, IOBase):
-                    temp_file = tempfile.NamedTemporaryFile(prefix="ocr-pdf-input-", delete=False)
-                    with LogTime("write_pdf"):
-                        filename.seek(0)
-                        data = filename.read()
-                        temp_file.write(data)
-                        del data
-                        temp_file.flush()
-                    temp_file.close()
-                    file_name = temp_file.name
-                else:
-                    file_name = filename
+                filename = cast(str, filename)
+                images = kwargs.get("images")
+                generator = (image for image in images) if images else pdf_to_image_files(filename, Path(tempdirname))
                 pages = []
-                for path in pdf_to_image_files(file_name, Path(tempdirname)):
+                for path in generator:
                     image = Image.open(path).convert("RGB")
                     ocr_output = self.get_boxes_and_text(image)
                     width, height = image.size
@@ -72,8 +62,6 @@ class OCRModel(TextExtractor):
                 if use_cache:
                     logger.info("Cache Miss for OCR. Storing the result to the cache.")
                     ocr_cache.set(hash_key, pages)
-                if isinstance(filename, IOBase):
-                    os.unlink(file_name)
                 return pages
 
 

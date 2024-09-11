@@ -390,14 +390,23 @@ class ArynPartitioner(Partitioner):
         threshold: The threshold to use for accepting the model's predicted bounding boxes. A lower
              value will include more objects, but may have overlaps, a higher value will reduce the
              number of overlaps, but may miss legitimate objects.
+            default: 0.4
         use_ocr: Whether to use OCR to extract text from the PDF. If false, we will attempt to extract
              the text from the underlying PDF.
+            default: False
         ocr_images: If set with use_ocr, will attempt to OCR regions of the document identified as images.
+            default: False
         ocr_tables: If set with use_ocr, will attempt to OCR regions of the document identified as tables.
-             Should not be set when `extract_table_structure` is true.
-        ocr_model: If set with use_ocr, will use the specified model to perform OCR. Defaults to ''
+             Should not be set when `extract_table_structure` is true. 
+             default: False
+        ocr_model: model to use for OCR. Choices are "easyocr", "paddle", "tesseract" and "legacy", which
+            correspond to EasyOCR, PaddleOCR, and Tesseract respectively, with "legacy" being a combination of
+            Tesseract for text and EasyOCR for tables. If you choose paddle make sure to install
+            paddlepaddle or paddlepaddle-gpu if you have a CPU or GPU. Further details are found below:
+            https://www.paddlepaddle.org.cn/documentation/docs/en/install/index_en.html
+            default: "easyocr"
         per_element_ocr: If true, will run OCR on each element individually instead of the entire page. 
-            Defaults to False.
+            default: False
         extract_table_structure: If true, runs a separate table extraction model to extract cells from
              regions of the document identified as tables.
         table_structure_extractor: The table extraction implementaion to use when extract_table_structure
@@ -405,17 +414,21 @@ class ArynPartitioner(Partitioner):
              Ignored when local mode is false.
         extract_images: If true, crops each region identified as an image and attaches it to the associated
              ImageElement. This can later be fed into the SummarizeImages transform.
+            default: False
         device: Device on which to run the partitioning model locally. One of 'cpu', 'cuda', and 'mps'. If
              not set, Sycamore will choose based on what's available. If running remotely, this doesn't
              matter.
         batch_size: How many pages to partition at once, when running locally. Default is 1. Ignored when
              running remotely.
         batch_at_a_time: When running locally, run inference on the pages in batches in order to not load
-             all pages into memory at the same time. Default is False
-        local: If false, runs the partitioner remotely. Defaults to false
+             all pages into memory at the same time. 
+             default: is False
+        local: If false, runs the partitioner remotely. 
+            default: false
         aryn_api_key: The account token used to authenticate with Aryn's servers.
         aryn_partitioner_address: The address of the server to use to partition the document
         use_cache: Cache results from the partitioner for faster inferences on the same documents in future runs.
+            default: False
         pages_per_call: Number of pages to send in a single call to the remote service. Default is -1,
              which means send all pages in one call.
 

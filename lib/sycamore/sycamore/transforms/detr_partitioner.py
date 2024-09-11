@@ -376,11 +376,11 @@ class ArynPDFPartitioner:
            threshold: The threshold to use for accepting the model's predicted bounding boxes.
            use_ocr: Whether to use OCR to extract text from the PDF
            ocr_images: If set with use_ocr, will attempt to OCR regions of the document identified as images.
-           ocr_model: If set with use_ocr, will use the model specified by this argument.
-           per_element_ocr= If set with use_ocr, will execute OCR on each element rather than the entire page.
-                Valid options are "easyocr", "tesseract", "paddle", and "legacy". If you choose paddle make sure to install
-                paddlepaddle or paddlepaddle-gpu if you have a CPU or GPU. Further details are found below:
+           ocr_model: If set with use_ocr, will use the model specified by this argument. Valid options are "easyocr",
+                "tesseract", "paddle", and "legacy". If you choose paddle make sure to install paddlepaddle
+                or paddlepaddle-gpu if you have a CPU or GPU. Further details are found below:
                 https://www.paddlepaddle.org.cn/documentation/docs/en/install/index_en.html
+           per_element_ocr= If set with use_ocr, will execute OCR on each element rather than the entire page.
            extract_table_structure: If true, runs a separate table extraction model to extract cells from
              regions of the document identified as tables.
            table_structure_extractor: The table extraction implementaion to use when extract_table_structure is True.
@@ -423,6 +423,7 @@ class ArynPDFPartitioner:
                     file_name=file_name,
                     hash_key=hash_key,
                     use_cache=use_cache,
+                    images=images,
                 )
             # page count should be the same
             assert len(extracted_layout) == len(deformable_layout)
@@ -591,9 +592,10 @@ class ArynPDFPartitioner:
         hash_key: str,
         use_cache: bool,
         ocr_model: str,
+        images: Optional[list[Image.Image]] = None,
     ):
         print("start_text_extractor_print_2")
-        kwargs = {"ocr_images": ocr_images}
+        kwargs = {"ocr_images": ocr_images, "images": images}
         if not use_ocr:
             ocr_model = "pdfminer"
         if ocr_model not in EXTRACTOR_DICT.keys():

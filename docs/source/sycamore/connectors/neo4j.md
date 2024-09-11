@@ -1,6 +1,6 @@
 # Neo4j
 
-[Neo4j](https://neo4j.com/) is a full-featured, open-source, native graph database and analytics engine. Neo4j makes it easy to build semantic search and RAG applications through the use of modular, configurable connectors to many popular AI services.
+[Neo4j](https://neo4j.com/) is a full-featured, open-source, native graph database and analytics engine.
 
 ## Configuration for Neo4j
 
@@ -36,11 +36,10 @@ To write a DocSet to a Neo4j instance from Sycamore, use the `docset.write.neo4j
     cannot be instantiated so you must use "neo4j". If using enterprise edition, ensure the database exists.
 - `use_auradb`: (Optional, default=`False`) Set to true if you are using neo4j's serverless implementation called AuraDB.
 - `s3_session`: (Optional, default=`None`) An AWS S3 Session. This is used as a proxy to securly upload your files into AuraDB. Defaults to None. This field is required if use_auradb is set to true.
-            
-```python
-from weaviate.client import ConnectionParams
-from weaviate.collections.classes.config import Configure
 
+
+To use the Neo4j Writer, you must follow the   
+```python
 ds = (
     ctx.read.binary(...),
     .partition(...),

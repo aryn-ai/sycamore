@@ -1,5 +1,5 @@
 import logging
-from typing import Callable, Iterable, Optional, TYPE_CHECKING
+from typing import Callable, Iterable, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ray.data import Dataset
@@ -42,7 +42,7 @@ def sycamore_ray_init(**ray_args) -> None:
     if ray.is_initialized():
         logging.warning("Ignoring explicit request to initialize ray when it is already initialized")
         return
-    
+
     if "logging_level" not in ray_args:
         ray_args.update({"logging_level": logging.INFO})
 
@@ -55,7 +55,7 @@ def sycamore_ray_init(**ray_args) -> None:
         ray_args["runtime_env"]["worker_process_setup_hook"] = _ray_logging_setup
 
     ray.init(**ray_args)
-    
+
 
 class Execution:
     def __init__(self, context: Context):

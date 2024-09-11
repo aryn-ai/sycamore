@@ -9,7 +9,6 @@ FROM arynai/sycamore-base:$TAG
 ARG GIT_BRANCH="unknown"
 ARG GIT_COMMIT="unknown"
 ARG GIT_DIFF="unknown"
-ARG ERIC_TEST="foo"
 
 ENV GIT_BRANCH=${GIT_BRANCH}
 ENV GIT_COMMIT=${GIT_COMMIT}

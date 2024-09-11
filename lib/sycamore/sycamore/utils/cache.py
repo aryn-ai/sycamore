@@ -153,6 +153,7 @@ class S3Cache(Cache):
 
         return s3_cache_deserializer, (kwargs,)
 
+
 def cache_from_path(path: Optional[str]) -> Optional[Cache]:
     if path is None:
         return None
@@ -163,5 +164,6 @@ def cache_from_path(path: Optional[str]) -> Optional[Cache]:
     if Path(path).is_dir():
         return DiskCache(path)
 
-    raise ValueError(f"Unable to interpret {path} as path for cache. Expected s3://, /... or a directory path that exists")
-
+    raise ValueError(
+        f"Unable to interpret {path} as path for cache. Expected s3://, /... or a directory path that exists"
+    )

@@ -72,8 +72,8 @@ def convert_timestamp(doc: Document) -> Document:
     return doc
 
 
-if argparser.oshost is not None:
-    opensearch_host = argparser.oshost
+if args.oshost is not None:
+    opensearch_host = args.oshost
 elif os.path.exists("/.dockerenv"):
     opensearch_host = "opensearch"
     print("Assuming we are in a Sycamore Jupyter container, using opensearch for OpenSearch host")
@@ -81,7 +81,7 @@ else:
     opensearch_host = "localhost"
     print("Assuming we are running outside of a container, using localhost for OpenSearch host")
 
-opensearch_port = argparser.osport
+opensearch_port = args.osport
 
 os_client_args = {
     "hosts": [{"host": opensearch_host, "port": opensearch_port}],

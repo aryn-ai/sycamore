@@ -74,11 +74,8 @@ index_settings = {
 
 
 context = sycamore.init()
-_ = (
-    context.read.materialize("s3://aryn-public/materialize/examples/luna/ntsb_loader_2024-08-29")
-    .write.opensearch(
-        os_client_args=os_client_args,
-        index_name=INDEX,
-        index_settings=index_settings,
-    )
+_ = context.read.materialize("s3://aryn-public/materialize/examples/luna/ntsb_loader_2024-08-29").write.opensearch(
+    os_client_args=os_client_args,
+    index_name=INDEX,
+    index_settings=index_settings,
 )

@@ -17,16 +17,23 @@ elif [[ ! -d "${QUERY_CACHE}" ]]; then
     exit 1
 fi
 
-if [[ "${OPENSEARCH_HOST}" == "" ]]; then
+i=0
+while [[ "${OPENSEARCH_HOST}" == "" ]]; do
+    i=$(expr $i + 1)
+    if [[ $i -gt 120 ]]; then
+        echo "Waiting 120 seconds to find opensearch. Giving up."
+        exit 1
+    fi
+    echo "Searching for opensearch try $i/120..."
     if curl -k https://localhost:9200 >/dev/null 2>&1; then
         export OPENSEARCH_HOST=localhost
     elif curl -k https://opensearch:9200 >/dev/null 2>&1; then
         export OPENSEARCH_HOST=opensearch
     else
-        echo "Unable to find opensearch at either localhost:9200 or opensearch:9200"
-        exit 1
+        echo "  unable to find opensearch at either localhost:9200 or opensearch:9200"
     fi
-    echo "Inferred opensearch host ${OPENSEARCH_HOST}"
 fi
 
+echo "Inferred opensearch host ${OPENSEARCH_HOST}"
+    
 poetry run python apps/query-ui/external_ray_wrapper.py

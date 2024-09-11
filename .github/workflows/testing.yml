@@ -111,7 +111,7 @@ jobs:
           df -h >> resource_usage.log
       - name: Upload resource usage logs
         if: always()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: resource-usage-logs
           path: resource_usage.log

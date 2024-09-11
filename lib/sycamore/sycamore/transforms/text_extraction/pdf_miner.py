@@ -80,3 +80,6 @@ class PDFMinerExtractor(TextExtractor):
                     logger.info("Cache Miss for PDFMiner. Storing the result to the cache.")
                     pdf_miner_cache.set(hash_key, pages)
                 return pages
+
+    def __name__(self):
+        return "PDFMinerExtractor"

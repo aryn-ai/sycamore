@@ -437,7 +437,7 @@ class ArynPartitioner(Partitioner):
         threshold: float = 0.4,
         use_ocr: bool = False,
         ocr_images: bool = False,
-        ocr_model: str = "easy",
+        ocr_model: str = "easyocr",
         per_element_ocr: bool = False,
         extract_table_structure: bool = False,
         table_structure_extractor: Optional[TableStructureExtractor] = None,

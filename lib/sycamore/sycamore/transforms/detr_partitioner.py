@@ -30,6 +30,7 @@ from sycamore.utils.import_utils import requires_modules
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
 from sycamore.utils.pdf import convert_from_path_streamed_batched
 from sycamore.utils.time_trace import LogTime, timetrace
+from sycamore.transforms.text_extraction import TextExtractor, OCRModel, EXTRACTOR_DICT
 
 logger = logging.getLogger(__name__)
 _DETR_LOCK_FILE = f"{pwd.getpwuid(os.getuid()).pw_dir}/.cache/Aryn-Detr.lock"
@@ -131,7 +132,7 @@ class ArynPDFPartitioner:
         threshold: float = 0.4,
         use_ocr=False,
         ocr_images=False,
-        ocr_model="easy",
+        ocr_model="easyocr",
         per_element_ocr=False,
         extract_table_structure=False,
         table_structure_extractor=None,
@@ -208,7 +209,7 @@ class ArynPDFPartitioner:
         threshold: float = 0.4,
         use_ocr: bool = False,
         ocr_images: bool = False,
-        ocr_model: str = "easy",
+        ocr_model: str = "easyocr",
         per_element_ocr: bool = False,
         extract_table_structure: bool = False,
         extract_images: bool = False,
@@ -319,7 +320,7 @@ class ArynPDFPartitioner:
         threshold: float = 0.4,
         use_ocr: bool = False,
         ocr_images: bool = False,
-        ocr_model: str = "easy",
+        ocr_model: str = "easyocr",
         per_element_ocr: bool = False,
         extract_table_structure: bool = False,
         extract_images: bool = False,
@@ -359,7 +360,7 @@ class ArynPDFPartitioner:
         threshold: float = 0.4,
         use_ocr: bool = False,
         ocr_images: bool = False,
-        ocr_model: str = "easy",
+        ocr_model: str = "easyocr",
         per_element_ocr: bool = False,
         extract_table_structure: bool = False,
         table_structure_extractor=None,
@@ -377,7 +378,7 @@ class ArynPDFPartitioner:
            ocr_images: If set with use_ocr, will attempt to OCR regions of the document identified as images.
            ocr_model: If set with use_ocr, will use the model specified by this argument.
            per_element_ocr= If set with use_ocr, will execute OCR on each element rather than the entire page.
-                Valid options are "easy", "tesseract", "paddle", and "legacy". If you choose paddle make sure to install
+                Valid options are "easyocr", "tesseract", "paddle", and "legacy". If you choose paddle make sure to install
                 paddlepaddle or paddlepaddle-gpu if you have a CPU or GPU. Further details are found below:
                 https://www.paddlepaddle.org.cn/documentation/docs/en/install/index_en.html
            extract_table_structure: If true, runs a separate table extraction model to extract cells from
@@ -456,7 +457,7 @@ class ArynPDFPartitioner:
         threshold: float = 0.4,
         use_ocr: bool = False,
         ocr_images: bool = False,
-        ocr_model: str = "easy",
+        ocr_model: str = "easyocr",
         per_element_ocr: bool = False,
         extract_table_structure: bool = False,
         table_structure_extractor=None,
@@ -500,7 +501,7 @@ class ArynPDFPartitioner:
         threshold: float = 0.4,
         use_ocr: bool = False,
         ocr_images: bool = False,
-        ocr_model: str = "easy",
+        ocr_model: str = "easyocr",
         per_element_ocr: bool = False,
         extract_table_structure=False,
         table_structure_extractor=None,
@@ -593,28 +594,11 @@ class ArynPDFPartitioner:
     ):
         print("start_text_extractor_print_2")
         kwargs = {"ocr_images": ocr_images}
-        if use_ocr:
-            if ocr_model == "paddle":
-                from sycamore.transforms.text_extraction import PaddleOCR
-                import paddle
-
-                model = PaddleOCR(use_gpu=paddle.device.is_compiled_with_cuda())
-            elif ocr_model == "legacy":
-                from sycamore.transforms.text_extraction import LegacyOCR
-
-                model = LegacyOCR()
-            elif ocr_model == "tesseract":
-                from sycamore.transforms.text_extraction import Tesseract
-
-                model = Tesseract()
-            else:
-                from sycamore.transforms.text_extraction import EasyOCR
-
-                model = EasyOCR()
-        else:
-            from sycamore.transforms.text_extraction import PDFMinerExtractor
-
-            model = PDFMinerExtractor()
+        if not use_ocr:
+            ocr_model = "pdfminer"
+        if ocr_model not in EXTRACTOR_DICT.keys():
+            raise ValueError(f"Unknown ocr_model: {ocr_model}")
+        model: TextExtractor = EXTRACTOR_DICT[ocr_model]()
         with LogTime("text_extract", log_start=True):
             extracted_layout = model.extract(file_name, hash_key, use_cache, **kwargs)
         print("end_text_extractor_print")
@@ -819,25 +803,11 @@ def extract_ocr(
     images: list[Image.Image],
     elements: list[list[Element]],
     ocr_images: bool = False,
-    ocr_model_name: str = "easy",
+    ocr_model_name: str = "easyocr",
 ) -> list[list[Element]]:
-    if ocr_model_name == "paddle":
-        from sycamore.transforms.text_extraction import PaddleOCR
-        import paddle
-
-        ocr_model = PaddleOCR(use_gpu=paddle.device.is_compiled_with_cuda())
-    elif ocr_model_name == "legacy":
-        from sycamore.transforms.text_extraction import LegacyOCR
-
-        ocr_model = LegacyOCR()
-    elif ocr_model_name == "tesseract":
-        from sycamore.transforms.text_extraction import Tesseract
-
-        ocr_model = Tesseract()
-    else:
-        from sycamore.transforms.text_extraction import EasyOCR
-
-        ocr_model = EasyOCR()
+    if ocr_model_name not in EXTRACTOR_DICT.keys():
+        raise ValueError(f"Unknown ocr_model: {ocr_model_name}")
+    ocr_model: OCRModel = EXTRACTOR_DICT[ocr_model_name]()
     for i, image in enumerate(images):
         page_elements = elements[i]
         width, height = image.size

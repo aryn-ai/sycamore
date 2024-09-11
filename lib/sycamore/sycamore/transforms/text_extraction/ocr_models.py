@@ -110,6 +110,9 @@ class EasyOCR(OCRModel):
 
         return out
 
+    def __name__(self):
+        return "EasyOCR"
+
 
 class Tesseract(OCRModel):
     @requires_modules("pytesseract", extra="local-inference")
@@ -137,6 +140,9 @@ class Tesseract(OCRModel):
                 )
         return output_list
 
+    def __name__(self):
+        return "Tesseract"
+
 
 class LegacyOCR(OCRModel):
     """Match existing behavior where we use tesseract for the main text and EasyOCR for tables."""
@@ -152,13 +158,17 @@ class LegacyOCR(OCRModel):
     def get_boxes_and_text(self, image: Image.Image) -> List[Dict[str, Any]]:
         return self.easy_ocr.get_boxes_and_text(image)
 
+    def __name__(self):
+        return "LegacyOCR"
+
 
 class PaddleOCR(OCRModel):
     @requires_modules("paddleocr", extra="local-inference")
     def __init__(self, use_gpu=True, language="en"):
         from paddleocr import PaddleOCR
+        import paddle
 
-        self.use_gpu = use_gpu
+        self.use_gpu = paddle.device.is_compiled_with_cuda()
         self.language = language
         self.reader = PaddleOCR(lang=self.language, use_gpu=self.use_gpu)
 
@@ -183,3 +193,6 @@ class PaddleOCR(OCRModel):
                 {"bbox": BoundingBox(raw_bbox[0][0], raw_bbox[0][1], raw_bbox[2][0], raw_bbox[2][1]), "text": text}
             )
         return out  # type: ignore
+
+    def __name__(self):
+        return "PaddleOCR"

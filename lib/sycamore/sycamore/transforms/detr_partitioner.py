@@ -517,6 +517,7 @@ class ArynPDFPartitioner:
         exec = ProcessPoolExecutor(max_workers=1)
         if not use_ocr or not per_element_ocr:
             with LogTime("start_text_extractor", log_start=True):
+                print("start_text_extractor_print")
                 text_extractor = exec.submit(
                     self._run_text_extractor,
                     use_ocr=use_ocr,
@@ -531,6 +532,7 @@ class ArynPDFPartitioner:
         if tracemalloc.is_tracing():
             before = tracemalloc.take_snapshot()
         for i in convert_from_path_streamed_batched(filename, batch_size):
+            print("process_batch_inference_print")
             parts = self.process_batch_inference(
                 i,
                 threshold=threshold,
@@ -552,7 +554,7 @@ class ArynPDFPartitioner:
                     print(stat)
                 before = after
                 display_top(after)
-
+        print("text_extractor_print")
         if text_extractor is not None:
             with LogTime("wait_for_text_extractor", log_start=True):
                 text_extractor_layout = text_extractor.result()
@@ -587,8 +589,9 @@ class ArynPDFPartitioner:
         file_name: Union[str, IOBase],
         hash_key: str,
         use_cache: bool,
-        ocr_model: Optional[str] = None,
+        ocr_model: str,
     ):
+        print("start_text_extractor_print_2")
         kwargs = {"ocr_images": ocr_images}
         if use_ocr:
             if ocr_model == "paddle":
@@ -614,7 +617,7 @@ class ArynPDFPartitioner:
             model = PDFMinerExtractor()
         with LogTime("text_extract", log_start=True):
             extracted_layout = model.extract(file_name, hash_key, use_cache, **kwargs)
-
+        print("end_text_extractor_print")
         return extracted_layout
 
     def process_batch_inference(

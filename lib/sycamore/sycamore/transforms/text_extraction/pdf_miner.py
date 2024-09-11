@@ -51,7 +51,7 @@ class PDFMinerExtractor(TextExtractor):
     def extract(self, filename: Union[str, IOBase], hash_key: str, use_cache=False, **kwargs) -> List[List[Element]]:
         # The naming is slightly confusing, but `open_filename` accepts either
         # a filename (str) or a file-like object (IOBase)
-
+        print("pdf_text_extractor_print_2")
         cached_result = pdf_miner_cache.get(hash_key) if use_cache else None
         if cached_result:
             logger.info(f"Cache Hit for PDFMiner. Cache hit-rate is {pdf_miner_cache.get_hit_rate()}")

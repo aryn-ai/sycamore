@@ -30,6 +30,7 @@ class OCRModel(TextExtractor):
 
     @timetrace("OCR Extraction")
     def extract(self, filename: Union[str, IOBase], hash_key: str, use_cache=False, **kwargs) -> List[List[Element]]:
+        print("ocr_text_extractor_print_2")
         cached_result = ocr_cache.get(hash_key) if use_cache else None
         if cached_result:
             logger.info(f"Cache Hit for OCR. Cache hit-rate is {ocr_cache.get_hit_rate()}")

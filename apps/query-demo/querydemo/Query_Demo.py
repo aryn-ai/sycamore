@@ -17,7 +17,7 @@ from streamlit_pdf_viewer import pdf_viewer
 import sycamore
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
-from util import generate_plan, run_plan
+from util import generate_plan, run_plan, ray_init
 
 NUM_DOCS_GENERATE = 60
 NUM_DOCS_PREVIEW = 10
@@ -510,6 +510,8 @@ def do_query():
 
 
 def main():
+    ray_init(address="auto")
+
     # Set a default model
     if "openai_model" not in st.session_state:
         st.session_state["openai_model"] = "gpt-4o"

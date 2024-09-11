@@ -12,8 +12,9 @@ import time
 import ray
 from sycamore.executor import _ray_logging_setup
 
-ray_args = {"logging_level": logging.INFO, "runtime_env": {"worker_process_setup_hook": _ray_logging_setup}}
-ray.init(**ray_args)
+from util import ray_init
+
+ray_init()
 
 while not ray.is_initialized():
     print("Waiting for ray to initialize...", flush=True)

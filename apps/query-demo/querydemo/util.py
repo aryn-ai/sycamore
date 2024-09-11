@@ -1,16 +1,32 @@
 import io
+import logging
 import os
 import pickle
 import zipfile
 import pandas as pd
 from typing import Any, Dict, Set, Tuple
 
+import ray
 import streamlit as st
 from streamlit_agraph import agraph, Node, Edge, Config
 
+from sycamore.executor import _ray_logging_setup
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.operators.logical_operator import LogicalOperator
+
+
+def ray_init(**ray_args):
+    if ray.is_initialized():
+        return
+
+    if "logging_level" not in ray_args:
+        ray_args.update({"logging_level": logging.INFO})
+    if "runtime_env" not in ray_args:
+        ray_args["runtime_env"] = {}
+    if "worker_process_setup_hook" not in ray_args["runtime_env"]:
+        ray_args["runtime_env"]["worker_process_setup_hook"] = _ray_logging_setup
+    ray.init(**ray_args)
 
 
 def get_schema(_client: SycamoreQueryClient, index: str) -> Dict[str, Tuple[str, Set[str]]]:

@@ -43,7 +43,7 @@ class Context:
     """
     Define parameters for global usage
     """
-    params: Optional[dict[str, Any]] = None
+    params: dict[str, Any] = field(default_factory=dict)
 
     @property
     def read(self):

@@ -15,7 +15,8 @@ class OpenSearchSchemaFetcher:
     """Responsible for retrieving the schema associated with a given OpenSearch index."""
 
     # Size of random samples for each field.
-    NUM_EXAMPLES = 10
+    NUM_EXAMPLES = 1000
+    NUM_EXAMPLE_VALUES = 5
 
     def __init__(self, client: "IndicesClient", index: str, query_executor: OpenSearchQueryExecutor) -> None:
         super().__init__()
@@ -46,6 +47,8 @@ class OpenSearchSchemaFetcher:
                 samples = set()
                 sample_type = None
                 for sample in random_sample:
+                    if len(samples) >= self.NUM_EXAMPLE_VALUES:
+                        break
                     sample_value = sample["_source"]["properties"]["entity"].get(key[18:], None)
                     if sample_value is not None:
                         if not sample_type:

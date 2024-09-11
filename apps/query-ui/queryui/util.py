@@ -14,6 +14,7 @@ from sycamore.data import MetadataDocument
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.operators.logical_operator import LogicalOperator
+from configuration import get_sycamore_query_client
 
 
 def get_schema(_client: SycamoreQueryClient, index: str) -> Dict[str, Tuple[str, Set[str]]]:
@@ -29,7 +30,7 @@ def run_plan(_client: SycamoreQueryClient, plan: LogicalPlan) -> Tuple[str, Any]
 
 
 def get_opensearch_indices() -> Set[str]:
-    return {x for x in SycamoreQueryClient().get_opensearch_incides() if not x.startswith(".")}
+    return {x for x in get_sycamore_query_client().get_opensearch_incides() if not x.startswith(".")}
 
 
 def result_to_string(result: Any) -> str:

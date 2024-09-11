@@ -21,9 +21,9 @@ def reorder_elements(
         Document with elements re-ordered
     """
     if key:
-        assert not comparator
+        assert not comparator, "passed both comparator and key"
     else:
-        assert comparator
+        assert comparator, "passed neither comparator nor key"
         key = functools.cmp_to_key(comparator)
     elements = document.elements
     elements.sort(key=key)

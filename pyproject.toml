@@ -38,6 +38,7 @@ integration = { path = "apps/integration", develop = true }
 sycamore-poetry-lock = { path = "lib/poetry-lock", develop = true }
 aryn-sdk = { path = "lib/aryn-sdk", develop = true }
 queryui = { path = "apps/query-ui", develop = true }
+query-demo = { path = "apps/query-demo", develop = true }
 ruff = "^0.0.287"
 black = "^24.4"
 pre-commit = "^3.4.0"

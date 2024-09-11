@@ -41,7 +41,10 @@ class OCRModel(TextExtractor):
                 generator = (image for image in images) if images else pdf_to_image_files(filename, Path(tempdirname))
                 pages = []
                 for path in generator:
-                    image = Image.open(path).convert("RGB")
+                    if isinstance(path, Image.Image):
+                        image = path
+                    else:
+                        image = Image.open(path).convert("RGB")
                     ocr_output = self.get_boxes_and_text(image)
                     width, height = image.size
                     texts: List[Element] = []

@@ -4,13 +4,11 @@
 # Because of issues with Ray, we need to initialize Ray externally
 # to the demo process, and then run the Streamlit demo in a subprocess.
 
-import logging
 import os
 import subprocess
 import time
 
 import ray
-from sycamore.executor import _ray_logging_setup
 
 from util import ray_init
 

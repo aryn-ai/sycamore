@@ -107,7 +107,6 @@ class ArynPDFPartitioner:
             matched = []
             for t in text:
                 if i.bbox and t.bbox and (i.bbox.iou(t.bbox) > threshold or i.bbox.contains(t.bbox)):
-                    print(f"matched {i.bbox} with {t.bbox}")
                     matched.append(t)
                     if t in unmatched:
                         unmatched.remove(t)

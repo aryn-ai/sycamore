@@ -36,10 +36,11 @@ class OCRModel(TextExtractor):
             logger.info(f"Cache Hit for OCR. Cache hit-rate is {ocr_cache.get_hit_rate()}")
             return cached_result
         else:
-            with tempfile.TemporaryDirectory(**kwargs) as tempdirname:  # type: ignore
+            with tempfile.TemporaryDirectory() as tempdirname:  # type: ignore
                 if isinstance(filename, IOBase):
                     temp_file = tempfile.NamedTemporaryFile(prefix="ocr-pdf-input-", delete=False)
                     with LogTime("write_pdf"):
+                        filename.seek(0)
                         data = filename.read()
                         temp_file.write(data)
                         del data
@@ -47,7 +48,7 @@ class OCRModel(TextExtractor):
                     temp_file.close()
                     filename = temp_file.name
                 pages = []
-                for path in pdf_to_image_files(filename, tempdirname):
+                for path in pdf_to_image_files(filename, Path(tempdirname)):
                     image = Image.open(path).convert("RGB")
                     ocr_output = self.get_boxes_and_text(image)
                     width, height = image.size
@@ -62,8 +63,6 @@ class OCRModel(TextExtractor):
                                 obj["bbox"].x2 / width,
                                 obj["bbox"].y2 / height,
                             )
-                            print(type(obj["bbox"]))
-                            print(type(text.bbox))
                             text.text_representation = obj["text"]
                             texts.append(text)
 

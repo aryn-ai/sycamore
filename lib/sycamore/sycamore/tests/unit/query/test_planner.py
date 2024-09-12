@@ -30,7 +30,7 @@ def test_llm_planner(mock_os_config, mock_os_client, mock_llm_client, monkeypatc
 
     # Mock the generate_from_llm method to return a static JSON object
     def mock_generate_from_llm(self, query):
-        return json.dumps(
+        return "Mock LLM prompt", json.dumps(
             [
                 {
                     "operatorName": "QueryDatabase",

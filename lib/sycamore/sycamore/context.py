@@ -108,7 +108,8 @@ def context_params(*names):
                 """
                 If positional args are provided, we want to pop those keys from candidate_kwargs
                 """
-                signature = func.__code__.co_varnames[: func.__code__.co_argcount]
+                sig = inspect.signature(func)
+                signature = list(sig.parameters.keys())
                 for param in signature[: len(args)]:
                     candidate_kwargs.pop(param, None)
 
@@ -117,7 +118,6 @@ def context_params(*names):
                 the function signature.
                 """
                 new_kwargs = {}
-                sig = inspect.signature(func)
                 accepts_kwargs = any(param.kind == param.VAR_KEYWORD for param in sig.parameters.values())
 
                 if accepts_kwargs:

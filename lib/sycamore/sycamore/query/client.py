@@ -126,8 +126,8 @@ class SycamoreQueryClient:
 
         assert self.context.params, "Could not find required params in Context"
         self.os_client_args = self.context.params.get("opensearch", {}).get("os_client_args")
-        self._os_client = OpenSearch(**os_client_args)
-        self._os_query_executor = OpenSearchQueryExecutor(os_client_args)
+        self._os_client = OpenSearch(**self.os_client_args)
+        self._os_query_executor = OpenSearchQueryExecutor(self.os_client_args)
 
     def get_opensearch_incides(self) -> List[str]:
         """Get the schema for the provided OpenSearch index."""
@@ -144,7 +144,12 @@ class SycamoreQueryClient:
 
     def generate_plan(self, query: str, index: str, schema: OpenSearchSchema) -> LogicalPlan:
         """Generate a logical query plan for the given query, index, and schema."""
-        llm_client = OpenAI(OpenAIModels.GPT_4O.value, cache=cache_from_path(self.s3_cache_path))
+
+        llm_client = self.context.params.get("default", {}).get("llm")
+        if not llm_client:
+            llm_client = OpenAI(
+                OpenAIModels.GPT_4O.value, cache=cache_from_path(self.s3_cache_path)
+           )
         planner = LlmPlanner(
             index,
             data_schema=schema,

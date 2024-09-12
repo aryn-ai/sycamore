@@ -64,6 +64,5 @@ class TestElementFunctions:
             }
         )
         doc.elements = [element1, element2, element3, element4, element5, element6]
-        comparator = _elements_reorder_comparator
-        doc = reorder_elements(doc, comparator)
+        doc = reorder_elements(doc, comparator=_elements_reorder_comparator)
         assert doc.elements[2] == element4

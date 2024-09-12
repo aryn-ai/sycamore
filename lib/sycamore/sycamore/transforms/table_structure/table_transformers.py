@@ -218,6 +218,8 @@ def slot_into_containers(
     for package_num, package in enumerate(package_objects):
         match_scores = []
         package_rect = BoundingBox(*package["bbox"])
+        if package_rect.is_empty():
+            continue
         package_area = package_rect.area
         for container_num, container in enumerate(container_objects):
             container_rect = BoundingBox(*container["bbox"])

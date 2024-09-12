@@ -27,6 +27,12 @@ def test_opensearch_schema():
                         "weather": {"type": "text", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}}
                     },
                 },
+                "properties.entity.test_prop": {
+                    "full_name": "properties.entity.test_prop",
+                    "mapping": {
+                        "weather": {"type": "text", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}}
+                    },
+                },
                 "properties.entity.colors": {
                     "full_name": "properties.entity.colors",
                     "mapping": {
@@ -38,8 +44,8 @@ def test_opensearch_schema():
     }
 
     mock_query_executor = MagicMock()
-    # Note that there are no values for 'location' here.
-    mock_query_executor.query.return_value = {
+
+    mock_random_sample = {
         "result": {
             "hits": {
                 "hits": [
@@ -67,6 +73,12 @@ def test_opensearch_schema():
         }
     }
 
+    # this is asserting we only take OpenSearchSchemaFetcher.NUM_EXAMPLE_VALUES examples
+    for i in range(0, OpenSearchSchemaFetcher.NUM_EXAMPLE_VALUES + 5):
+        mock_random_sample["result"]["hits"]["hits"] += [{"_source": {"properties": {"entity": {"test_prop": str(i)}}}}]
+    # Note that there are no values for 'location' here.
+    mock_query_executor.query.return_value = mock_random_sample
+
     fetcher = OpenSearchSchemaFetcher(mock_client, "test_index", mock_query_executor)
     got = fetcher.get_schema()
     assert "text_representation" in got
@@ -79,5 +91,10 @@ def test_opensearch_schema():
     assert got["properties.entity.weather"] == ("<class 'str'>", {"Sunny"})
     assert "properties.entity.colors" in got
     assert got["properties.entity.colors"] == ("<class 'list'>", {str(["red", "blue"]), str([])})
+    assert "properties.entity.test_prop" in got
+    assert got["properties.entity.test_prop"] == (
+        "<class 'str'>",
+        set([str(i) for i in range(OpenSearchSchemaFetcher.NUM_EXAMPLE_VALUES)]),
+    )
 
     assert "properties.entity.location" not in got

@@ -1,5 +1,3 @@
-import hashlib
-import json
 from typing import Optional
 from pydantic import BaseModel
 import sycamore
@@ -117,8 +115,11 @@ class TestGraphRelationshipExtractor:
 
         for doc in docs:
             for section in doc.children:
-                for node in section["properties"]["nodes"]["Company"].values():
+                nodes = section["properties"]["nodes"]["Company"]
+                for node in nodes.values():
                     if node["properties"]["name"] == "Google":
-                        start_hash = hashlib.sha256(json.dumps({"name": "Microsoft"}).encode()).hexdigest()
-                        hashes = set(relation.get("START_HASH", None) for relation in node["relationships"].values())
-                        assert start_hash in hashes
+                        relation_names = set(
+                            f"""{relation["START_LABEL"]}_{relation["END_LABEL"]}"""
+                            for relation in node["relationships"].values()
+                        )
+                        assert "Company_Company" in relation_names

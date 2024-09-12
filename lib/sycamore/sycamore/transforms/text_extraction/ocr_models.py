@@ -54,7 +54,7 @@ class OCRModel(TextExtractor):
                     
                     ocr_output = self.get_boxes_and_text(image)
                     width, height = image.size
-                    easy_logger.info("Starting to process output")
+                    easy_logger.info(f"Starting to process output {len(ocr_output)}")
                     texts: List[Element] = []
                     for obj in ocr_output:
                         if obj["bbox"] and not obj["bbox"].is_empty() and obj["text"] and len(obj["text"]) > 0:
@@ -68,11 +68,13 @@ class OCRModel(TextExtractor):
                             )
                             text.text_representation = obj["text"]
                             texts.append(text)
-
+                    easy_logger.info(f"After output loop")
                     pages.append(texts)
                 if use_cache:
                     logger.info("Cache Miss for OCR. Storing the result to the cache.")
                     ocr_cache.set(hash_key, pages)
+
+                easy_logger.info("Returning from extract")
                 return pages
 
 

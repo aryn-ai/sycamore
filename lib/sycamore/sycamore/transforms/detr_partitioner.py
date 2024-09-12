@@ -560,7 +560,8 @@ class ArynPDFPartitioner:
         print("text_extractor_print")
         if text_extractor is not None:
             with LogTime("wait_for_text_extractor", log_start=True):
-                text_extractor_layout = text_extractor.result(timeout=10)
+                text_extractor_layout = text_extractor.result(timeout=20)
+                faulthandler.cancel_dump_traceback_later()
             assert len(text_extractor_layout) == len(
                 deformable_layout
             ), f"{len(text_extractor_layout)} vs {len(deformable_layout)}"

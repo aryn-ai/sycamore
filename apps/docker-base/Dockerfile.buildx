@@ -29,6 +29,7 @@ COPY --link --chown=1000:1000 ./apps/demo-ui/openai-proxy/pyproject.toml ./apps/
 COPY --link --chown=1000:1000 ./apps/importer/pyproject.toml ./apps/importer/README.md ./apps/importer/
 COPY --link --chown=1000:1000 ./apps/integration/pyproject.toml ./apps/integration/README.md ./apps/integration/
 COPY --link --chown=1000:1000 ./apps/jupyter/pyproject.toml ./apps/jupyter/README.md ./apps/jupyter/
+COPY --link --chown=1000:1000 ./apps/query-demo/pyproject.toml ./apps/query-demo/README.md ./apps/query-demo/
 COPY --link --chown=1000:1000 ./apps/query-ui/pyproject.toml ./apps/query-ui/README.md ./apps/query-ui/
 COPY --link --chown=1000:1000 ./apps/remote-processor-service/pyproject.toml ./apps/remote-processor-service/README.md ./apps/remote-processor-service/
 COPY --link --chown=1000:1000 ./lib/aryn-sdk/pyproject.toml ./lib/aryn-sdk/README.md ./lib/aryn-sdk/

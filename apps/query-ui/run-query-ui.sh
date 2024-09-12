@@ -33,7 +33,7 @@ while [[ "${OPENSEARCH_HOST}" == "" ]]; do
         echo "  unable to find opensearch at either localhost:9200 or opensearch:9200"
     fi
     sleep 1
-fi
+done
 
 echo "Inferred opensearch host ${OPENSEARCH_HOST}"
     

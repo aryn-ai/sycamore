@@ -29,7 +29,10 @@ class OCRModel(TextExtractor):
 
     @timetrace("OCR Extraction")
     def extract(self, filename: Union[str, IOBase], hash_key: str, use_cache=False, **kwargs) -> List[List[Element]]:
-        print("ocr_text_extractor_print_2")
+        easy_logger = logging.getLogger("easyocr")
+
+        easy_logger.info("Starting easyocr")
+
         cached_result = ocr_cache.get(hash_key) if use_cache else None
         if cached_result:
             logger.info(f"Cache Hit for OCR. Cache hit-rate is {ocr_cache.get_hit_rate()}")
@@ -40,11 +43,14 @@ class OCRModel(TextExtractor):
                 images = kwargs.get("images")
                 generator = (image for image in images) if images else pdf_to_image_files(filename, Path(tempdirname))
                 pages = []
-                for path in generator:
+                for i,path in enumerate(generator):
                     if isinstance(path, Image.Image):
                         image = path
                     else:
                         image = Image.open(path).convert("RGB")
+
+                    easy_logger.info(f"Starting get_boxes_and_text for image {i}.")
+
                     ocr_output = self.get_boxes_and_text(image)
                     width, height = image.size
                     texts: List[Element] = []

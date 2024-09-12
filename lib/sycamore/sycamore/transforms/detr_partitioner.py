@@ -598,7 +598,9 @@ class ArynPDFPartitioner:
     ):
         faulthandler.dump_traceback_later(3, repeat=True)
 
-        logging.getLogger("easyocr").setLevel(logging.DEBUG)
+        easyocr_logger = logging.getLogger("easyocr")
+        easyocr_logger.setLevel(logging.DEBUG)
+
         print("start_text_extractor_print_2")
         kwargs = {"ocr_images": ocr_images, "images": images}
         if not use_ocr:
@@ -606,6 +608,8 @@ class ArynPDFPartitioner:
         if ocr_model not in EXTRACTOR_DICT.keys():
             raise ValueError(f"Unknown ocr_model: {ocr_model}")
         model: TextExtractor = EXTRACTOR_DICT[ocr_model]()
+
+        easyocr_logger.info("STARTING text_extract")
         with LogTime("text_extract", log_start=True):
             extracted_layout = model.extract(file_name, hash_key, use_cache, **kwargs)
         print("end_text_extractor_print")

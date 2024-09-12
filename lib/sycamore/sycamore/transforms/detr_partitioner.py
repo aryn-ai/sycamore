@@ -5,7 +5,7 @@ import tempfile
 import tracemalloc
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from io import IOBase
 from typing import cast, Any, BinaryIO, List, Optional, Union
 from pathlib import Path
@@ -515,7 +515,7 @@ class ArynPDFPartitioner:
             table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
 
         text_extractor = None
-        exec = ProcessPoolExecutor(max_workers=1)
+        exec = ThreadPoolExecutor(max_workers=1)
         logging.getLogger("easyocr").setLevel(logging.DEBUG)
         if not use_ocr or not per_element_ocr:
             with LogTime("start_text_extractor", log_start=True):

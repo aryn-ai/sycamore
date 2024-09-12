@@ -613,6 +613,8 @@ class ArynPDFPartitioner:
         with LogTime("text_extract", log_start=True):
             extracted_layout = model.extract(file_name, hash_key, use_cache, **kwargs)
         print("end_text_extractor_print")
+
+        easyocr_logger.info("Returning from _run_text_extractor")
         return extracted_layout
 
     def process_batch_inference(

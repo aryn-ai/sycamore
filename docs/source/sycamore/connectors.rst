@@ -1,4 +1,4 @@
-Connectors
+Vector Database Ingestion
 =============
 
 Writing a DocSet to Target Data Stores

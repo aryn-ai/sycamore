@@ -169,6 +169,8 @@ class BinaryScan(FileScan):
 
         if isinstance(self._paths, str):
             paths = [self._paths]
+        else:
+            paths = self._paths
         if not self._filesystem:
             self._filesystem = LocalFileSystem()
         documents = []

@@ -1,7 +1,7 @@
 import json
 import logging
 import typing
-from typing import Dict, List, Mapping, MutableMapping, Optional, Tuple, Type
+from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Tuple, Type
 
 
 from sycamore.llms.llms import LLM
@@ -434,8 +434,11 @@ class LlmPlanner:
         """
         return prompt
 
-    def generate_from_llm(self, question: str) -> str:
-        """Use LLM to generate a query plan for the given question."""
+    def generate_from_llm(self, question: str) -> Tuple[Any, str]:
+        """Use LLM to generate a query plan for the given question.
+
+        Returns the prompt sent to the LLM, and the plan.
+        """
 
         messages = [
             {
@@ -449,9 +452,8 @@ class LlmPlanner:
         ]
         prompt_kwargs = {"messages": messages}
         chat_completion = self._llm_client.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
-        logging.info(f"Planner LLM completion: {chat_completion}")
-        print(f"Planner LLM completion: {chat_completion}")
-        return chat_completion
+        logging.debug(f"LLM chat completion: {chat_completion}")
+        return prompt_kwargs, chat_completion
 
     def process_llm_json_plan(self, llm_json_plan: str) -> Tuple[LogicalOperator, Mapping[int, LogicalOperator]]:
         """Given the query plan provided by the LLM, return a tuple of (result_node, list of nodes)."""
@@ -502,8 +504,10 @@ class LlmPlanner:
 
     def plan(self, question: str) -> LogicalPlan:
         """Given a question from the user, generate a logical query plan."""
-        llm_plan = self.generate_from_llm(question)
+        llm_prompt, llm_plan = self.generate_from_llm(question)
         result_node, nodes = self.process_llm_json_plan(llm_plan)
-        plan = LogicalPlan(result_node=result_node, nodes=nodes, query=question, llm_plan=llm_plan)
+        plan = LogicalPlan(
+            result_node=result_node, nodes=nodes, query=question, llm_prompt=llm_prompt, llm_plan=llm_plan
+        )
         logging.debug(f"Query plan: {plan}")
         return plan

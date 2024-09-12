@@ -122,4 +122,3 @@ More Resources
    /sycamore/connectors.rst
    /sycamore/tutorials.rst
    /sycamore/APIs.rst
-   /sycamore/vector_database_ingestion.md

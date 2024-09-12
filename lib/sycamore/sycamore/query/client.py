@@ -147,9 +147,7 @@ class SycamoreQueryClient:
 
         llm_client = self.context.params.get("default", {}).get("llm")
         if not llm_client:
-            llm_client = OpenAI(
-                OpenAIModels.GPT_4O.value, cache=cache_from_path(self.s3_cache_path)
-           )
+            llm_client = OpenAI(OpenAIModels.GPT_4O.value, cache=cache_from_path(self.s3_cache_path))
         planner = LlmPlanner(
             index,
             data_schema=schema,

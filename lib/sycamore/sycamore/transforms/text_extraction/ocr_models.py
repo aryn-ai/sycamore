@@ -15,7 +15,7 @@ import tempfile
 ocr_cache = DiskCache(str(Path.home() / ".sycamore/OCRCache"))
 
 logger = logging.getLogger(__name__)
-
+easy_logger = logging.getLogger("easyocr")
 
 class OCRModel(TextExtractor):
 
@@ -29,7 +29,7 @@ class OCRModel(TextExtractor):
 
     @timetrace("OCR Extraction")
     def extract(self, filename: Union[str, IOBase], hash_key: str, use_cache=False, **kwargs) -> List[List[Element]]:
-        easy_logger = logging.getLogger("easyocr")
+
 
         easy_logger.info("Starting easyocr")
 
@@ -50,9 +50,11 @@ class OCRModel(TextExtractor):
                         image = Image.open(path).convert("RGB")
 
                     easy_logger.info(f"Starting get_boxes_and_text for image {i}.")
-
+                    easy_logger.info(f"Image format {image.format} {image.size}")
+                    
                     ocr_output = self.get_boxes_and_text(image)
                     width, height = image.size
+                    easy_logger.info("Starting to process output")
                     texts: List[Element] = []
                     for obj in ocr_output:
                         if obj["bbox"] and not obj["bbox"].is_empty() and obj["text"] and len(obj["text"]) > 0:
@@ -95,8 +97,9 @@ class EasyOCR(OCRModel):
     def get_boxes_and_text(self, image: Image.Image) -> List[Dict[str, Any]]:
         image_bytes = BytesIO()
         image.save(image_bytes, format="PNG")
+        easy_logger.info(f"Before readtext.")
         raw_results = self.reader.readtext(image_bytes.getvalue())
-
+        easy_logger.info(f"After readtext.")
         out: list[dict[str, Any]] = []
         for res in raw_results:
             raw_bbox = res[0]

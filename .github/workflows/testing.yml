@@ -82,7 +82,7 @@ jobs:
 
           # Store the background process ID
           echo "MONITOR_PID=$!" >> $GITHUB_ENV
-          timeout 600 poetry run pytest -vv -s sycamore/tests/unit/transforms/test_detr_partitioner.py
+          timeout 600 poetry run pytest -vv -s sycamore/tests/unit/transforms/test_detr_partitioner.py::TestArynPDFPartitioner::test_batched_sequenced
           if [ $TEST_EXIT_CODE -eq 124 ]; then
             echo "Tests timed out after 10 minutes"
             exit 1

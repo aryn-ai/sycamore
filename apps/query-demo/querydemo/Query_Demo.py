@@ -521,39 +521,44 @@ def do_query():
             if tool_calls:
                 tool_call_id = tool_calls[0].id
                 tool_function_name = tool_calls[0].function.name
-                tool_args = json.loads(tool_calls[0].function.arguments)
-                if tool_function_name == "queryDataSource":
-                    tool_query = tool_args["query"]
-                    tool_response, query_plan = query_data_source(tool_query, OPENSEARCH_INDEX)
-                else:
-                    tool_response = f"Unknown tool: {tool_function_name}"
-
-                with st.spinner("Running Sycamore query..."):
-                    if isinstance(tool_response, str):
-                        # We got a straight string response from the query plan, which means we can
-                        # feed it back to the LLM directly.
-                        tool_response_str = tool_response
-                    elif isinstance(tool_response, sycamore.docset.DocSet):
-                        # We got a DocSet.
-                        # Note that this can be slow because the .take()
-                        # actually runs the query.
-                        tool_response_str = docset_to_string(tool_response)
+                tool_response_str = ""
+                # Try to catch any errors that might corrupt the message history here.
+                try:
+                    tool_args = json.loads(tool_calls[0].function.arguments)
+                    if tool_function_name == "queryDataSource":
+                        tool_query = tool_args["query"]
+                        tool_response, query_plan = query_data_source(tool_query, OPENSEARCH_INDEX)
                     else:
-                        # Fall back to string representation.
-                        tool_response_str = str(tool_response)
+                        tool_response = f"Unknown tool: {tool_function_name}"
 
-                with st.expander("Tool response"):
-                    st.write(f"```{tool_response_str}```")
-
-                tool_response_message = ChatMessage(
-                    {
-                        "role": "tool",
-                        "content": tool_response_str,
-                        "tool_call_id": tool_call_id,
-                        "name": tool_function_name,
-                    }
-                )
-                st.session_state.messages.append(tool_response_message)
+                    with st.spinner("Running Sycamore query..."):
+                        if isinstance(tool_response, str):
+                            # We got a straight string response from the query plan, which means we can
+                            # feed it back to the LLM directly.
+                            tool_response_str = tool_response
+                        elif isinstance(tool_response, sycamore.docset.DocSet):
+                            # We got a DocSet.
+                            # Note that this can be slow because the .take()
+                            # actually runs the query.
+                            tool_response_str = docset_to_string(tool_response)
+                        else:
+                            # Fall back to string representation.
+                            tool_response_str = str(tool_response)
+                except Exception as e:
+                    st.error(f"Error running Sycamore query: {e}")
+                    tool_response_str = f"There was an error running your query: {e}"
+                finally:
+                    with st.expander("Tool response"):
+                        st.write(f"```{tool_response_str}```")
+                    tool_response_message = ChatMessage(
+                        {
+                            "role": "tool",
+                            "content": tool_response_str,
+                            "tool_call_id": tool_call_id,
+                            "name": tool_function_name,
+                        }
+                    )
+                    st.session_state.messages.append(tool_response_message)
 
             else:
                 # No function call was made.

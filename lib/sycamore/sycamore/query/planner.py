@@ -48,7 +48,8 @@ guidelines when generating a plan:
 
         1. Return your answer as a standard JSON list of operators. Make sure to include each
             operation as a separate step.
-        2. Do not return any information except the standard JSON objects.
+        2. Do not return any information except the standard JSON objects. This means not repeating the question
+            or providing any text outside the json block.
         3. Only use the operators described below.
         4. Only use EXACT field names from the DATA_SCHEMA described below and fields created
             from *LlmExtractEntity*. Any new fields created by *LlmExtractEntity* will be nested in properties.
@@ -256,13 +257,14 @@ class LlmPlanner:
 
             EXAMPLE 3:
             Data description: Database of financial documents for different law firms
-            Schema: {
-                        'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
-                        'properties.entity.revenue': "(<class 'int'>) e.g. (12304), (7978234), (2938903),
-                        'properties.entity.firmName': "(<class 'str'>) e.g. (East West), (Brody), (Hunter & Hunter),
-                        'text_representation': '(<class 'str'>) Can be assumed to have all other details'
-                    }
-            Question: Which 2 law firms had the highest revenue in 2022?
+            DATA_SCHEMA: 
+            {
+                'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
+                'properties.entity.revenue': "(<class 'int'>) e.g. (12304), (7978234), (2938903),
+                'properties.entity.firmName': "(<class 'str'>) e.g. (East West), (Brody), (Hunter & Hunter),
+                'text_representation': '(<class 'str'>) Can be assumed to have all other details'
+            }
+            USER QUESTION: Which 2 law firms had the highest revenue in 2022?
             Answer:
             [
                 {
@@ -300,14 +302,15 @@ class LlmPlanner:
 
             EXAMPLE 4:
             Data description: Database of shipwreck records and their respective properties
-            Schema: {
-                        'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
-                        'properties.entity.captain': "(<class 'str'>) e.g. (John D. Moore), (Terry Roberts), 
-                            (Alex Clark),
-                        'properties.entity.shipwreck_id': "(<class 'str'>) e.g. (ABFUHEU), (FUIHWHD), (FGHIOWB),
-                        'text_representation': '(<class 'str'>) Can be assumed to have all other details'
-                    }
-            Question: Which 5 countries were responsible for the most shipwrecks?
+            DATA_SCHEMA: 
+            {
+                'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
+                'properties.entity.captain': "(<class 'str'>) e.g. (John D. Moore), (Terry Roberts), 
+                    (Alex Clark),
+                'properties.entity.shipwreck_id': "(<class 'str'>) e.g. (ABFUHEU), (FUIHWHD), (FGHIOWB),
+                'text_representation': '(<class 'str'>) Can be assumed to have all other details'
+            }
+            USER QUESTION: Which 5 countries were responsible for the most shipwrecks?
             Answer:
             [
                 {
@@ -343,12 +346,13 @@ class LlmPlanner:
 
             EXAMPLE 5:
             Data description: Database of shipwreck records and their respective properties
-            Schema: {
-                        'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
-                        'properties.entity.shipwreck_id': "(<class 'str'>) e.g. (ABFUHEU), (FUIHWHD), (FGHIOWB),
-                        'text_representation': '(<class 'str'>) Can be assumed to have all other details'
-                    }
-            Question: What percent of shipwrecks occurred in 2023?
+            DATA_SCHEMA: 
+            {
+                'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
+                'properties.entity.shipwreck_id': "(<class 'str'>) e.g. (ABFUHEU), (FUIHWHD), (FGHIOWB),
+                'text_representation': '(<class 'str'>) Can be assumed to have all other details'
+            }
+            USER QUESTION: What percent of shipwrecks occurred in 2023?
             Answer:
             [
                 {
@@ -396,10 +400,11 @@ class LlmPlanner:
 
             EXAMPLE 6:
             Data description: Database of hospital patients
-            Schema: {
-                        'text_representation': '(<class 'str'>) Can be assumed to have all other details'
-                    }
-            Question: How many total patients?
+            DATA_SCHEMA: 
+            {
+                'text_representation': '(<class 'str'>) Can be assumed to have all other details'
+            }
+            USER QUESTION: How many total patients?
             Answer:
             [
                 {
@@ -425,6 +430,7 @@ class LlmPlanner:
     def generate_user_prompt(self, query: str) -> str:
         prompt = f"""
         USER QUESTION: {query}
+        Answer:
         """
         return prompt
 

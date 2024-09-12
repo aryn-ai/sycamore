@@ -20,7 +20,7 @@ class TestResolveGraphEntities:
             {
                 "doc_id": "1",
                 "type": "pdf",
-                "properties": {"company": "3M", "sector": "Industrial", "doctype": "10K"},
+                "properties": {},
                 "elements": [
                     Element(
                         {
@@ -109,7 +109,7 @@ class TestResolveGraphEntities:
             ds.extract_document_structure(structure=StructureBySection)
             .extract_graph_entities([EntityExtractor(self.MockEntityLLM(), [Company])])
             .extract_graph_relationships([RelationshipExtractor(self.MockRelationshipLLM(), [Competes])])
-            .resolve_graph_entities(resolvers=[])
+            .resolve_graph_entities(resolvers=[], resolve_duplicates=True)
         )
         docs = ds.take_all()
 

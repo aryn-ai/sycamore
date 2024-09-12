@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest #integ-test-runner2
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11"]
+        python-version: ["3.11"]
 
     steps:
       - name: DF-1

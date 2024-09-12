@@ -36,7 +36,6 @@ logger = logging.getLogger(__name__)
 _DETR_LOCK_FILE = f"{pwd.getpwuid(os.getuid()).pw_dir}/.cache/Aryn-Detr.lock"
 _VERSION = "0.2024.07.24"
 
-
 def _batchify(iterable, n=1):
     length = len(iterable)
     for i in range(0, length, n):
@@ -517,6 +516,7 @@ class ArynPDFPartitioner:
 
         text_extractor = None
         exec = ProcessPoolExecutor(max_workers=1)
+        logging.getLogger("easyocr").setLevel(logging.DEBUG)
         if not use_ocr or not per_element_ocr:
             with LogTime("start_text_extractor", log_start=True):
                 print("start_text_extractor_print")
@@ -594,6 +594,7 @@ class ArynPDFPartitioner:
         ocr_model: str,
         images: Optional[list[Image.Image]] = None,
     ):
+        logging.getLogger("easyocr").setLevel(logging.DEBUG)
         print("start_text_extractor_print_2")
         kwargs = {"ocr_images": ocr_images, "images": images}
         if not use_ocr:

@@ -35,7 +35,10 @@ def _ray_logging_setup():
     other_logger.setLevel(logging.INFO)
     # other_logger.info("RayLoggingSetup-After-3")
 
+    other_logger = logging.getLogger("easyocr")
+    other_logger.setLevel(logging.DEBUG)
 
+    
 class Execution:
     def __init__(self, context: Context):
         self._context = context

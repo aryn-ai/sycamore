@@ -104,7 +104,6 @@ def test_positional_args_and_context_args():
     # Should ignore context vars because of kwargs
     assert "a b" == two_positional_args_method(some_function_arg="a", some_other_arg="b", context=context)
 
-
     # Combine positional and kwarg
     assert "a b" == two_positional_args_method_with_kwargs("a", some_other_arg="b", context=context)
 

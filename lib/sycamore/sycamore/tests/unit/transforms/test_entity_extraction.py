@@ -62,9 +62,11 @@ class TestEntityExtraction:
     def test_extract_entity_w_context_llm(self, mocker):
         node = mocker.Mock(spec=Node)
         llm = MockLLM()
-        context = Context(params={
-            "default": {"llm": llm},
-        })
+        context = Context(
+            params={
+                "default": {"llm": llm},
+            }
+        )
         extract_entity = ExtractEntity(node, context=context, entity_extractor=OpenAIEntityExtractor("title"))
         input_dataset = ray.data.from_items([{"doc": self.doc.serialize()}])
         execute = mocker.patch.object(node, "execute")

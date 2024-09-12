@@ -123,7 +123,7 @@ def test_pdf_to_opensearch_with_llm_caching():
                     "index_settings": index_settings,
                 },
             },
-            exec_mode=ExecMode.LOCAL
+            exec_mode=ExecMode.LOCAL,
         )
         ds = (
             context.read.binary(paths, binary_format="pdf")

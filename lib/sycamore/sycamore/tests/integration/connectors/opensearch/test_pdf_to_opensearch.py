@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 from opensearchpy import OpenSearch
 
 import sycamore
-from sycamore.context import OperationTypes
+from sycamore.context import OperationTypes, ExecMode
 from sycamore.functions import HuggingFaceTokenizer
 from sycamore.llms import OpenAIModels, OpenAI
 from sycamore.tests.config import TEST_DIR
@@ -123,6 +123,7 @@ def test_pdf_to_opensearch_with_llm_caching():
                     "index_settings": index_settings,
                 },
             },
+            exec_mode=ExecMode.LOCAL
         )
         ds = (
             context.read.binary(paths, binary_format="pdf")

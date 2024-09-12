@@ -2,7 +2,7 @@
 set -e
 set -x
 if [[ ! -d /app/.venv ]]; then
-    echo "Missing /app/.venv; assuming about to do noop-poetry install"
+    echo "Missing /app/.venv; assuming this is the first poetry install"
 elif [[ $(grep -c VIRTUAL_ENV=./app/.venv .venv/bin/activate) != 1 ]]; then
     echo "ERROR: Broken venv"
     grep VIRTUAL_ENV .venv/bin/activate
@@ -20,7 +20,7 @@ else
 fi
 
 if [[ $# = 0 ]]; then
-    echo "Usage: $0 <poetry install packages>"
+    echo "Usage: $0 [group1] [group2] [group3]"
     exit 1
 fi
 for i in "$@"; do

@@ -90,8 +90,13 @@ services:
       - crawl_data:/tmp/crawl_data
     command: /bin/sh -c 'echo "starting chown..." && chown -R 1000:1000 /tmp/crawl_data && echo "chown successful"'
 
+  # Note: If you run
+  # aws s3 cp s3://aryn-public/query-ui-cache/ntsb-2024-09-11/cache.db apps/query-ui/cache_dir
+  # before starting the container, it will make the queries
+  # "How many accidents in WA" and "How many accidents in washington" significantly faster since
+  # it will skip calling the LLM on the input data.
   query-ui:
-    # ERIC: look into https://www.joyfulbikeshedding.com/blog/2021-03-15-docker-and-the-host-filesystem-owner-matching-problem.html
+    # TODO: look into https://www.joyfulbikeshedding.com/blog/2021-03-15-docker-and-the-host-filesystem-owner-matching-problem.html
     # as another solution to the uid/gid problem.
     profiles: ['query-ui']
     image: arynai/sycamore-query-ui:${QUERY_UI_VERSION}

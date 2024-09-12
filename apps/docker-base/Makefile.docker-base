@@ -26,6 +26,9 @@ record-version:
 	test "$(GIT_COMMIT)" != "unknown"
 	touch .git.commit.$(GIT_COMMIT)
 
+# Allow images that depend on the docker base image to verify that the version for their
+# source code is consistent with the version in the base image. If the code is inconsistent,
+# the resulting image could behave unexpectedly.
 check-version-compatibility:
 	test "$(GIT_COMMIT)" != ""
 	test "$(GIT_COMMIT)" != "unknown"

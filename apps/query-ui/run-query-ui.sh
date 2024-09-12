@@ -32,8 +32,12 @@ while [[ "${OPENSEARCH_HOST}" == "" ]]; do
     else
         echo "  unable to find opensearch at either localhost:9200 or opensearch:9200"
     fi
+    sleep 1
 fi
 
 echo "Inferred opensearch host ${OPENSEARCH_HOST}"
     
+# poetry run ray start --head
+# poetry run python -m streamlit run apps/query-ui/queryui/Sycamore_Query.py
+# might also work.  Then move the restart logic in here.
 poetry run python apps/query-ui/external_ray_wrapper.py

@@ -90,15 +90,23 @@ class SycamoreQueryDatabase(SycamoreOperator):
             get_val_from_context(context=self.context, val_key="os_client_args", param_names=["opensearch"]) is not None
         ), "QueryDatabase:OpenSearch requires os_client_args"
 
-        result = self.context.read.opensearch(index_name=self.logical_node.index, query=self.logical_node.query or {})
+        if self.logical_node.query:
+            os_query = { "query": self.logical_node.query }
+        else:
+            os_query = {}
+        result = self.context.read.opensearch(index_name=self.logical_node.index, query=os_query)
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         assert isinstance(self.logical_node, QueryDatabase)
+        if self.logical_node.query:
+            os_query = { "query": self.logical_node.query }
+        else:
+            os_query = {}
         return (
             f"""
 {output_var or get_var_name(self.logical_node)} = context.read.opensearch(
-    index_name='{self.logical_node.index}'
+    index_name='{self.logical_node.index}', query={os_query}
 )
 """,
             [],

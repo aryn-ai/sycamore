@@ -449,7 +449,8 @@ class LlmPlanner:
         ]
         prompt_kwargs = {"messages": messages}
         chat_completion = self._llm_client.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
-        logging.debug(f"LLM chat completion: {chat_completion}")
+        logging.info(f"Planner LLM completion: {chat_completion}")
+        print(f"Planner LLM completion: {chat_completion}")
         return chat_completion
 
     def process_llm_json_plan(self, llm_json_plan: str) -> Tuple[LogicalOperator, Mapping[int, LogicalOperator]]:

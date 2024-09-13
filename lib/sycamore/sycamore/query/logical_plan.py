@@ -1,4 +1,4 @@
-from typing import List, Mapping, Optional
+from typing import Any, List, Mapping, Optional
 
 from pydantic import BaseModel, ConfigDict, SerializeAsAny
 
@@ -46,10 +46,12 @@ class LogicalPlan(BaseModel):
         result_node: The node that is the result of the query.
         query: The query that the plan is for.
         nodes: A mapping of node IDs to nodes.
+        llm_prompt: The LLM prompt that was used to generate this query plan.
         llm_plan: The LLM plan that was used to generate this query plan.
     """
 
     result_node: SerializeAsAny[Node]
     query: str
     nodes: Mapping[int, SerializeAsAny[Node]]
+    llm_prompt: Optional[Any] = None
     llm_plan: Optional[str] = None

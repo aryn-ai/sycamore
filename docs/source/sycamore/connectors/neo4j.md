@@ -6,7 +6,7 @@
 
 *Please see Neo4j's [installation](https://neo4j.com/docs/operations-manual/current/docker/introduction/) page for more in-depth information on installing, configuring, and running Neo4j.*
 
-We recommend running Neo4j through docker run. The following APOC environment variables are required for sycamore to write to Neo4j.
+We recommend running Neo4j through docker run. The following APOC environment variables are required for sycamore to write to Neo4j. Please ensure you use a valid temporary path, and a valid password (must be above 8 characters).
 
 ```bash
 docker run -d \
@@ -21,7 +21,7 @@ neo4j:latest
 ```
 
 Note: You may have to run `sudo chmod -R 777 {REPLACE-WITH-TEMP-PATH}` to give read and write access to neo4j's import directory.
-
+Note: Make sure you set your password to be longer than 8 characters or neo4j will kill the docker container!
 ## Writing to Neo4j
 
 To write a DocSet to a Neo4j instance from Sycamore, use the `docset.write.neo4j(...)` function. The Neo4j writer takes the following arguments:
@@ -53,8 +53,8 @@ ds = (
 URI = "neo4j+s://<AURADB_INSTANCE_ID>.databases.neo4j.io"
 AUTH = ("neo4j", "sample_password")
 DATABASE = "neo4j
-IMPORT_DIR = "/tmp/neo4j"
-S3_SESSION = boto3.session.Session()
+IMPORT_DIR = "/tmp/neo4j" # Ensure this directory exists
+S3_SESSION = boto3.session.Session() # Ensure you pass in your AWS credentials or have run aws configure
 
 ds.write.neo4j(
     uri=URI, 
@@ -65,5 +65,3 @@ ds.write.neo4j(
     s3_session=S3_SESSION
 )
 ```
-
-More information can be found in the {doc}`API documentation <../APIs/docsetwriter>`.

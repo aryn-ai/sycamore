@@ -54,8 +54,8 @@ def test_count_operator():
     c = Count(node_id=77, description="Count operator", field="test_field")
     assert c.node_id == 77
     assert c.description == "Count operator"
-    assert c.field == "test_field"
-    assert c.usage().startswith("**Count**: Determines the length of a particular database")
+    assert c.distinct_field == "test_field"
+    assert c.usage().startswith("**Count**: Returns a count")
     schema = c.input_schema()
 
     assert "description" in schema
@@ -76,18 +76,10 @@ def test_count_operator():
     assert schema["node_id"].description == "A unique integer ID representing this node."
     assert schema["node_id"].type_hint == "<class 'int'>"
 
-    assert "field" in schema
-    assert schema["field"].field_name == "field"
-    assert schema["field"].description == "Non-primary database field to return a count based on."
-    assert schema["field"].type_hint == "typing.Optional[str]"
-
-    assert "primary_field" in schema
-    assert schema["primary_field"].field_name == "primary_field"
-    assert (
-        schema["primary_field"].description
-        == "Primary field that represents what a unique entry is considered for the data provided."
-    )
-    assert schema["primary_field"].type_hint == "typing.Optional[str]"
+    assert "distinct_field" in schema
+    assert schema["distinct_field"].field_name == "distinct_field"
+    assert schema["distinct_field"].description == "Non-primary database field to return a count based on."
+    assert schema["distinct_field"].type_hint == "typing.Optional[str]"
 
     assert "_dependencies" not in schema
     assert "_downstream_nodes" not in schema

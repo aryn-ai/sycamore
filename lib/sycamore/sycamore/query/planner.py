@@ -200,13 +200,14 @@ class LlmPlanner:
                         'properties.entity.accidentNumber': "(<class 'str'>) e.g. (3589), (5903), (7531L),
                         'text_representation': '(<class 'str'>) Can be assumed to have all other details'
                     }
-            Question: Show incidents between July 1, 2023 and September 1, 2024 with an accident number containing '1234'
-            that occurred in Georgia.
+            Question: Show incidents between July 1, 2023 and September 1, 2024 with an accident number
+            containing '1234' that occurred in Georgia.
             Answer:
             [
                 {
                     "operatorName": "QueryDatabase",
-                    "description": "Get all the incident reports in the specified date range matching the accident number",
+                    "description": "Get all the incident reports in the specified date range matching the
+                        accident number",
                     "index": "ntsb",
                     "query": {
                         "bool": {
@@ -494,7 +495,9 @@ class LlmPlanner:
                 node = cls(**step)
                 nodes[node_id] = node
             except Exception as e:
-                logging.error(f"Error creating node {node_id} of type {step['operatorName']}: {e}\nPlan is:\n{llm_json_plan}")
+                logging.error(
+                    f"Error creating node {node_id} of type {step['operatorName']}: {e}\nPlan is:\n{llm_json_plan}"
+                )
                 raise ValueError(f"Error creating node {node_id} of type {step['operatorName']}: {e}") from e
 
         # 2. Set dependencies

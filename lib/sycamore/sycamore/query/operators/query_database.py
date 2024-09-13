@@ -42,5 +42,3 @@ class QueryDatabase(LogicalOperator):
     Whenever possible, use the query parameter to filter data at the source, as this is more
     efficient than filtering data in subsequent data filtering operators.
     """
-
-

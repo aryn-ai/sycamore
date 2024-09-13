@@ -354,6 +354,7 @@ class OpenAI(LLM):
 
     def _cache_get(self, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
         if (llm_kwargs or {}).get("temperature", 0) != 0 or not self._cache:
+            # Never cache when temperature setting is nonzero.
             return (None, None)
 
         response_format = (llm_kwargs or {}).get("response_format")
@@ -378,7 +379,7 @@ class OpenAI(LLM):
         return (key, None)
 
     def _cache_set(self, key, result):
-        if key is None:
+        if key is None or not self._cache:
             return
         self._cache.set(key, result)
 
@@ -432,7 +433,9 @@ class OpenAI(LLM):
 
     def _generate_using_openai(self, prompt_kwargs, llm_kwargs) -> str:
         kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
+        logging.debug("OpenAI prompt: %s", kwargs)
         completion = self.client_wrapper.get_client().chat.completions.create(model=self._model_name, **kwargs)
+        logging.debug("OpenAI completion: %s", completion)
         return completion.choices[0].message.content
 
     def _generate_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:

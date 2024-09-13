@@ -21,7 +21,7 @@ Parameters:
 
 * ```use_partitioning_service```: If ```True```, the partitioner uses the *Aryn  Partitioning Service*. Defaults to ```True```.
 * ```model_name_or_path```: The HuggingFace coordinates or model local path. It defaults to ```SYCAMORE_DETR_MODEL```, and you should only change it if you are testing a custom model. Ignored when ```use_partitioning_service``` is ```True```.
-* ```threshold```: The threshold to use for accepting the models predicted bounding boxes. A lower value will include more objects, but may have overlaps; a higher value will reduce the number of overlaps, but may miss legitimate objects. It defaults to ```0.4```.
+* ```threshold```: This represents the threshold for accepting the model's predicted bounding boxes. It defaults to "auto", where the model make its best prediction. The user can specify a numerical threshold between 0 and 1. A lower value will include more objects, but may have overlaps, a higher value will reduce the number of overlaps, but may miss legitimate objects. We suggest trying values around ``0.32``.
 * ```use_ocr```: If ```True```, the partitioner uses OCR to extract text from the PDF. It defaults to ```False```, where the partitioner attempts to directly extract the text from the underlying PDF in the bounding box. It currently uses Tesseract for extraction.
 * `extract_table_structure`: If `True`, the partitioner runs a separate table extraction model to extract cells from regions of the document identified as tables.
 * `table_structure_extractor`: The table extraction implementation to use when `extract_table_structure` is `True`. The default is the `TableTransformerStructureExtractor`. Ignored when ```use_partitioning_service``` is ```True```.

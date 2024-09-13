@@ -258,10 +258,10 @@ class SycamoreBasicFilter(SycamoreOperator):
             field = logical_node.field
             start = logical_node.start
             end = logical_node.end
-            date = logical_node.date
+            is_date = logical_node.is_date
 
             result = self.inputs[0].filter(
-                f=RangeFilter(field=str(field), start=start, end=end, date=date), **self.get_node_args()
+                f=RangeFilter(field=str(field), start=start, end=end, date=is_date), **self.get_node_args()
             )
         else:
             query = logical_node.query
@@ -283,14 +283,14 @@ class SycamoreBasicFilter(SycamoreOperator):
             assert start is None or isinstance(start, str)
             end = self.logical_node.end
             assert end is None or isinstance(end, str)
-            date = self.logical_node.date
+            is_date = self.logical_node.is_date
             script = f"""
 {output_str} = {input_str}.filter(
     f=RangeFilter(
         field='{field}',
         start='{start}',
         end='{end}',
-        date={date}
+        date={is_date}
         ),
     **{self.get_node_args()}
 )

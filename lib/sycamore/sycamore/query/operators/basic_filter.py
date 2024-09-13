@@ -42,5 +42,5 @@ class BasicFilter(LogicalOperator):
     field: str
     """The name of the database field to filter based on."""
 
-    date: bool = False
+    is_date: Optional[bool] = False
     """Specifies if the range filter is being performed on a date."""

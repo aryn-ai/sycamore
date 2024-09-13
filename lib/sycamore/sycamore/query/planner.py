@@ -110,7 +110,7 @@ class LlmPlanner:
         self._use_examples = use_examples
         self._natural_language_response = natural_language_response
 
-    def make_operator_prompt(self, operator: LogicalOperator) -> str:
+    def make_operator_prompt(self, operator: Type[LogicalOperator]) -> str:
         """Generate the prompt fragment for the given LogicalOperator."""
 
         prompt = operator.usage() + "\n\nInput schema:\n"
@@ -393,7 +393,7 @@ class LlmPlanner:
                     "start": "01-01-2023",
                     "end": "12-31-2023",
                     "field": "properties.entity.date",
-                    "date": true,
+                    "is_date": true,
                     "input": [0],
                     "node_id": 2,
                 },
@@ -494,6 +494,7 @@ class LlmPlanner:
                 node = cls(**step)
                 nodes[node_id] = node
             except Exception as e:
+                logging.error(f"Error creating node {node_id} of type {step['operatorName']}: {e}\nPlan is:\n{llm_json_plan}")
                 raise ValueError(f"Error creating node {node_id} of type {step['operatorName']}: {e}") from e
 
         # 2. Set dependencies

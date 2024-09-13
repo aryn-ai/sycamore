@@ -2,7 +2,6 @@ import pytest
 from typing import Dict, List, Optional
 
 from sycamore import DocSet, Context
-from sycamore.connectors.base_reader import BaseDBReader
 from sycamore.connectors.opensearch.opensearch_reader import (
     OpenSearchReader,
     OpenSearchReaderClientParams,
@@ -18,6 +17,7 @@ MOCK_SCAN_NUM_DOCUMENTS = 20
 
 class MockOpenSearchReader(OpenSearchReader):
     """Mock out OpenSearchReader for tests."""
+
     def read_docs(self) -> List[Document]:
         return get_mock_docs()
 

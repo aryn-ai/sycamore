@@ -9,6 +9,9 @@ class Count(LogicalOperator):
     if distinct_field is 'incident_id', the count will return the number of unique incident_id values
     in the input database records. Otherwise, the count will return the total number of input records.
 
+    Note that you almost always want to use distinct_field, unless you are certain that each
+    of the input records represents a unique entity that you wish to count.
+
     Returns a number.
     """
 

@@ -331,7 +331,7 @@ class SycamoreCount(SycamoreOperator):
         # load into local vars for Ray serialization magic
         logical_node = self.logical_node
         assert isinstance(logical_node, Count)
-        distinct_field = logical_node.field
+        distinct_field = logical_node.distinct_field
 
         if distinct_field is None:
             result = self.inputs[0].count(**self.get_execute_args())

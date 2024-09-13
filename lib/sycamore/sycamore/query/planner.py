@@ -251,8 +251,7 @@ class LlmPlanner:
                 {
                     "operatorName": "Count",
                     "description": "Count the number of cities that accidents occured in",
-                    "field": "properties.entity.city",
-                    "primary_field": "properties.entity.accidentNumber",
+                    "distinct_field": "properties.entity.city",
                     "input": [0],
                     "node_id": 1
                 },
@@ -367,8 +366,7 @@ class LlmPlanner:
                 {
                     "operatorName": "Count",
                     "description": "Count the number of total shipwrecks",
-                    "field": null,
-                    "primary_field": "properties.entity.shipwreck_id",
+                    "distinct_field": "properties.entity.shipwreck_id",
                     "input": [0],
                     "node_id": 1
                 },
@@ -387,8 +385,7 @@ class LlmPlanner:
                 {
                     "operatorName": "Count",
                     "description": "Count the number of shipwrecks in 2023",
-                    "field": null,
-                    "primary_field": "properties.entity.shipwreck_id",
+                    "distinct_field": "properties.entity.shipwreck_id",
                     "input": [2],
                     "node_id": 3
                 },
@@ -405,6 +402,8 @@ class LlmPlanner:
             Data description: Database of hospital patients
             DATA_SCHEMA: 
             {
+                'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
+                'properties.entity.patient_id': "(<class 'str'>) e.g. (ABFUHEU), (FUIHWHD), (FGHIOWB),
                 'text_representation': '(<class 'str'>) Can be assumed to have all other details'
             }
             USER QUESTION: How many total patients?
@@ -420,8 +419,7 @@ class LlmPlanner:
                 {
                     "operatorName": "Count",
                     "description": "Count the number of total patients",
-                    "field": null,
-                    "primary_field": null,
+                    "distinct_field": "properties.entity.patient_id",
                     "input": [0],
                     "id": 1
                 },

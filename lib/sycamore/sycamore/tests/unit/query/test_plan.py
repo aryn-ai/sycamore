@@ -51,7 +51,7 @@ def test_plan():
 
 
 def test_count_operator():
-    c = Count(node_id=77, description="Count operator", field="test_field")
+    c = Count(node_id=77, description="Count operator", distinct_field="test_field")
     assert c.node_id == 77
     assert c.description == "Count operator"
     assert c.distinct_field == "test_field"
@@ -78,7 +78,7 @@ def test_count_operator():
 
     assert "distinct_field" in schema
     assert schema["distinct_field"].field_name == "distinct_field"
-    assert schema["distinct_field"].description == "Non-primary database field to return a count based on."
+    assert schema["distinct_field"].description.startswith("If specified, returns the count")
     assert schema["distinct_field"].type_hint == "typing.Optional[str]"
 
     assert "_dependencies" not in schema

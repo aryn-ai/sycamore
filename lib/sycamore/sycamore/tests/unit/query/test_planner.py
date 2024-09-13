@@ -20,13 +20,42 @@ def mock_llm_client():
     return MagicMock()
 
 
-def test_llm_planner(mock_os_config, mock_os_client, mock_llm_client, monkeypatch):
-    index = "test_index"
+@pytest.fixture
+def mock_schema():
     schema = {
-        "description": "Database of airplane incidents",
-        "incidentId": "(string) e.g. A123G73",
-        "date": "(string: YYYY-MM-DD) e.g. 2022-01-01, 2024-02-10",
+        "incidentId": ("string", {"A1234, B1234, C1234"}),
+        "date": ("string", {"2022-01-01", "2024-02-10"}),
     }
+    return schema
+
+
+def test_generate_system_prompt(mock_schema):
+    index = "test_index"
+    planner = LlmPlanner(
+        index,
+        data_schema=mock_schema,
+        os_config=mock_os_config,
+        os_client=mock_os_client,
+        llm_client=mock_llm_client,
+        natural_language_response=True,
+    )
+    prompt = planner.generate_system_prompt("Test query")
+    assert "The last step of each plan *MUST* be a **SummarizeData** operation" in prompt
+
+    planner = LlmPlanner(
+        index,
+        data_schema=mock_schema,
+        os_config=mock_os_config,
+        os_client=mock_os_client,
+        llm_client=mock_llm_client,
+        natural_language_response=False,
+    )
+    prompt = planner.generate_system_prompt("Test query")
+    assert "The last step of each plan should return the raw data" in prompt
+
+
+def test_llm_planner(mock_os_config, mock_os_client, mock_llm_client, mock_schema, monkeypatch):
+    index = "test_index"
 
     # Mock the generate_from_llm method to return a static JSON object
     def mock_generate_from_llm(self, query):
@@ -36,7 +65,7 @@ def test_llm_planner(mock_os_config, mock_os_client, mock_llm_client, monkeypatc
                     "operatorName": "QueryDatabase",
                     "description": "Get all the airplane incidents",
                     "index": "ntsb",
-                    "query": "airplane incidents",
+                    "query": {"match_all": {}},
                     "node_id": 0,
                 },
                 {
@@ -69,10 +98,11 @@ def test_llm_planner(mock_os_config, mock_os_client, mock_llm_client, monkeypatc
 
     planner = LlmPlanner(
         index,
-        data_schema=schema,
+        data_schema=mock_schema,
         os_config=mock_os_config,
         os_client=mock_os_client,
         llm_client=mock_llm_client,
+        natural_language_response=True,
     )
 
     plan = planner.plan("Dummy query")
@@ -89,6 +119,7 @@ def test_llm_planner(mock_os_config, mock_os_client, mock_llm_client, monkeypatc
     )
     assert len(plan.result_node.dependencies[0].dependencies[0].dependencies) == 1
     assert plan.result_node.dependencies[0].dependencies[0].dependencies[0].node_id == 0
+    assert plan.result_node.dependencies[0].dependencies[0].dependencies[0].query == {"match_all": {}}
     assert (
         plan.result_node.dependencies[0].dependencies[0].dependencies[0].description == "Get all the airplane incidents"
     )

@@ -76,7 +76,7 @@ def run_query():
     with st.spinner("Generating plan..."):
         plan = util.generate_plan(client, st.session_state.query, st.session_state.index)
     with st.expander("Query plan"):
-        st.write(plan)
+        st.write(plan.dict())
 
     code = generate_code(client, plan)
     show_code(code)

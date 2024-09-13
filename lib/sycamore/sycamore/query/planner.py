@@ -467,8 +467,9 @@ class LlmPlanner:
             },
         ]
         prompt_kwargs = {"messages": messages}
-        chat_completion = self._llm_client.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
-        logging.debug(f"LLM chat completion: {chat_completion}")
+        chat_completion = self._llm_client.generate(
+            prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0, "seed": 42}
+        )
         return prompt_kwargs, chat_completion
 
     def process_llm_json_plan(self, llm_json_plan: str) -> Tuple[LogicalOperator, Mapping[int, LogicalOperator]]:
@@ -521,7 +522,12 @@ class LlmPlanner:
     def plan(self, question: str) -> LogicalPlan:
         """Given a question from the user, generate a logical query plan."""
         llm_prompt, llm_plan = self.generate_from_llm(question)
-        result_node, nodes = self.process_llm_json_plan(llm_plan)
+        try:
+            result_node, nodes = self.process_llm_json_plan(llm_plan)
+        except Exception as e:
+            logging.error(f"Error processing LLM-generated query plan: {e}\nPlan is:\n{llm_plan}")
+            raise
+
         plan = LogicalPlan(
             result_node=result_node, nodes=nodes, query=question, llm_prompt=llm_prompt, llm_plan=llm_plan
         )

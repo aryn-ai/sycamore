@@ -60,6 +60,9 @@ guidelines when generating a plan:
         5. If an optional field does not have a value in the query plan, return null in its place.
         6. If you cannot generate a plan to answer a question, return an empty list.
         7. The first step of each plan MUST be a **QueryDatabase** operation that returns a database.
+           Whenever possible, include all possible filtering operations in the QueryDatabase step.
+           That is, you should strive to construct an OpenSearch query that filters the data as
+           much as possible, reducing the need for further query operations.
         8. The last step of each plan should return the raw data associated with the response.
 """
 

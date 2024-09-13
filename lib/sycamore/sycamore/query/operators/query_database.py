@@ -4,7 +4,7 @@ from sycamore.query.operators.logical_operator import LogicalOperator
 
 
 class QueryDatabase(LogicalOperator):
-    """Loads data from a specified OpenSearch index."""
+    """Queries OpenSearch for data from a specified index."""
 
     index: str
     """The index to load data from."""
@@ -39,6 +39,8 @@ class QueryDatabase(LogicalOperator):
     }
 
     The full range of OpenSearch Query DSL parameters are supported.
+    Whenever possible, use the query parameter to filter data at the source, as this is more
+    efficient than filtering data in subsequent data filtering operators.
     """
 
 

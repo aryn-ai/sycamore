@@ -56,7 +56,7 @@ class Element(UserDict):
 
     @property
     def properties(self) -> dict[str, Any]:
-        return self.data["properties"]
+        return self.data.get("properties", None)
 
     @properties.setter
     def properties(self, properties: dict[str, Any]):
@@ -109,7 +109,7 @@ class ImageElement(Element):
 
     @property
     def image_size(self) -> Optional[tuple[int, int]]:
-        return self.data["properties"]["image_size"]
+        return self.data.get("properties")["image_size"]
 
     @image_size.setter
     def image_size(self, image_size: Optional[tuple[int, int]]) -> None:
@@ -117,7 +117,7 @@ class ImageElement(Element):
 
     @property
     def image_mode(self) -> Optional[str]:
-        return self.data["properties"]["image_mode"]
+        return self.data.get("properties")["image_mode"]
 
     @image_mode.setter
     def image_mode(self, image_mode: Optional[str]) -> None:
@@ -125,7 +125,7 @@ class ImageElement(Element):
 
     @property
     def image_format(self) -> Optional[str]:
-        return self.data["properties"]["image_format"]
+        return self.data.get("properties")["image_format"]
 
     @image_format.setter
     def image_format(self, image_format: Optional[str]) -> None:
@@ -155,7 +155,7 @@ class TableElement(Element):
 
     @property
     def rows(self) -> Optional[list[Any]]:
-        return self.data["properties"]["rows"]
+        return self.data.get("properties")["rows"]
 
     @rows.setter
     def rows(self, rows: Optional[list[Any]] = None) -> None:
@@ -163,7 +163,7 @@ class TableElement(Element):
 
     @property
     def columns(self) -> Optional[list[str]]:
-        return self.data["properties"]["columns"]
+        return self.data.get("properties")["columns"]
 
     @columns.setter
     def columns(self, columns: Optional[list[str]] = None) -> None:
@@ -171,7 +171,7 @@ class TableElement(Element):
 
     @property
     def table(self) -> Optional[Table]:
-        return self.data["table"]
+        return self.data.get("table", None)
 
     @table.setter
     def table(self, value: Optional[Table]) -> None:
@@ -183,7 +183,7 @@ class TableElement(Element):
 
     @property
     def tokens(self) -> Optional[list[dict[str, Any]]]:
-        return self.data["tokens"]
+        return self.data.get("tokens", None)
 
     @tokens.setter
     def tokens(self, tokens: list[dict[str, Any]]) -> None:

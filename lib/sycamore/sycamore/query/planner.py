@@ -107,7 +107,7 @@ class LlmPlanner:
         self._use_examples = use_examples
         self._natural_language_response = natural_language_response
 
-    def make_operator_prompt(self, operator: LogicalOperator) -> str:
+    def make_operator_prompt(self, operator: Type[LogicalOperator]) -> str:
         """Generate the prompt fragment for the given LogicalOperator."""
 
         prompt = operator.usage() + "\n\nInput schema:\n"

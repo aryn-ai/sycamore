@@ -63,8 +63,14 @@ guidelines when generating a plan:
            Whenever possible, include all possible filtering operations in the QueryDatabase step.
            That is, you should strive to construct an OpenSearch query that filters the data as
            much as possible, reducing the need for further query operations.
-        8. The last step of each plan should return the raw data associated with the response.
 """
+
+# Variants on the last step in the query plan, based on whether the user has requested raw data
+# or a natural language response.
+PLANNER_RAW_DATA_PROMPT = "8. The last step of each plan should return the raw data associated with the response."
+PLANNER_NATURAL_LANGUAGE_PROMPT = (
+    "8. The last step of each plan *MUST* be a **SummarizeData** operation that returns a natural language response."
+)
 
 
 class LlmPlanner:
@@ -79,6 +85,8 @@ class LlmPlanner:
         operators: A list of operators to use in the query plan.
         llm_client: The LLM client.
         use_examples: Whether to include examples in the prompt.
+        natural_language_response: Whether to generate a natural language response. If False,
+            the response will be raw data.
     """
 
     def __init__(
@@ -90,6 +98,7 @@ class LlmPlanner:
         operators: Optional[List[Type[LogicalOperator]]] = None,
         llm_client: Optional[LLM] = None,
         use_examples: bool = True,
+        natural_language_response: bool = False,
     ) -> None:
         super().__init__()
         self._index = index
@@ -99,6 +108,7 @@ class LlmPlanner:
         self._os_client = os_client
         self._llm_client = llm_client or OpenAI(OpenAIModels.GPT_4O.value)
         self._use_examples = use_examples
+        self._natural_language_response = natural_language_response
 
     def make_operator_prompt(self, operator: LogicalOperator) -> str:
         """Generate the prompt fragment for the given LogicalOperator."""
@@ -120,10 +130,15 @@ class LlmPlanner:
             indent=2,
         )
 
-    def generate_system_prompt(self, query):
+    def generate_system_prompt(self, query: str) -> str:
         """Generate the LLM system prompt for the given query."""
 
         prompt = PLANNER_SYSTEM_PROMPT
+
+        if self._natural_language_response:
+            prompt += PLANNER_NATURAL_LANGUAGE_PROMPT
+        else:
+            prompt += PLANNER_RAW_DATA_PROMPT
 
         # data schema
         prompt += f"""\n

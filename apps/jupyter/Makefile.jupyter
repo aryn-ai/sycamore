@@ -1,0 +1,13 @@
+# -*- makefile -*-
+help:
+	@echo "This should be run as part of the Dockerfile"
+	false
+
+apt-install:
+	DEBIAN_FRONTEND=noninteractive apt update
+	DEBIAN_FRONTEND=noninteractive apt -y install --no-install-recommends fonts-liberation less sudo groff-base awscli
+
+fix-notebooks:
+	for i in /app/work/examples/*ipynb; do \
+	     perl -i -pe 's/localhost/opensearch/ if /9200/;s,tmp/sycamore/data,/app/work/docker_volume,' $$i; \
+	done

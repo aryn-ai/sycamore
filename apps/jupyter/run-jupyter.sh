@@ -19,6 +19,16 @@ ARYN_ETC=/etc/opt/aryn
 JUPYTER_CONFIG_DOCKER="${VOLUME}/jupyter_notebook_config.py"
 mkdir -p "${BIND_DIR}" "${VOLUME}"
 
+SETUP_FAILED=false
+if [[ -x "${BIND_DIR}/setup.sh" ]]; then
+    echo "Running ${BIND_DIR}/setup.sh"
+    if "${BIND_DIR}/setup.sh"; then
+        echo "Customized setup successful"
+    else
+        echo "WARNING: customized setup failed."
+        SETUP_FAILED=true
+    fi
+fi
 if [[ ! -f "${JUPYTER_CONFIG_DOCKER}" ]]; then
     TOKEN=$(openssl rand -hex 24)
     cat >"${JUPYTER_CONFIG_DOCKER}" <<EOF
@@ -76,6 +86,7 @@ fi
         echo
         echo
         echo
+        ${SETUP_FAILED} && echo "WARNING: customized setup failed. See messages much earlier"
         echo "Either:"
         echo "  a) Visit: ${URL}"
         echo "  b) open jupyter/bind_dir/redirect.html on your host machine"

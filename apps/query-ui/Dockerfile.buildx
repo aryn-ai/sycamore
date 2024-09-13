@@ -1,4 +1,4 @@
-# Repo name: arynai/sycamore-jupyter
+# Repo name: arynai/sycamore-query-ui
 
 # Note: This dockerfile is intended to work with docker buildx build -f Dockerfile.buildx .
 
@@ -9,7 +9,6 @@ FROM arynai/sycamore-base:$TAG
 ARG GIT_BRANCH="unknown"
 ARG GIT_COMMIT="unknown"
 ARG GIT_DIFF="unknown"
-ARG ERIC_TEST="foo"
 
 ENV GIT_BRANCH=${GIT_BRANCH}
 ENV GIT_COMMIT=${GIT_COMMIT}
@@ -22,28 +21,18 @@ USER app
 RUN make -f Makefile.docker-base check-version-compatibility
 
 # https://github.com/docker/buildx/issues/1408 app:app + --link isn't supported
-COPY --link --chown=1000:1000 apps/jupyter/Makefile.jupyter /app/
+COPY --link --chown=1000:1000 apps/query-ui/Makefile.query-ui /app/
 
 USER root
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    make -f Makefile.jupyter apt-install
-
-COPY apps/jupyter/sudoers /etc/sudoers
-COPY apps/jupyter/entrypoint.py /root
+    make -f Makefile.query-ui apt-install
 
 USER app
-COPY --link --chown=1000:1000 apps/jupyter/profile ./.profile
 RUN --mount=type=cache,id=cache_poetry_1000,target=/tmp/poetry_cache,uid=1000,gid=1000,sharing=locked \
-    ./poetry-install.sh notebook opensearch
+    ./poetry-install.sh query-ui
 
-RUN mkdir -p /app/work/docker_volume /app/work/bind_dir /app/work/examples
-RUN touch /app/work/AAA_SEE_README_FOR_PERSISTENT_DATA_DIRECTORIES
-COPY --link --chown=1000:1000 apps/jupyter/run-jupyter.sh ./
-COPY --link --chown=1000:1000 apps/jupyter/README.md ./work/
-COPY --link --chown=1000:1000 examples ./work/examples
-COPY --link --chown=1000:1000 notebooks ./work/notebooks
-RUN make -f Makefile.jupyter fix-notebooks
+COPY --link --chown=1000:1000 apps/query-ui apps/query-ui
 
 RUN make -f Makefile.docker-base non-root-files-check
 
@@ -52,4 +41,4 @@ LABEL git_branch=${GIT_BRANCH}
 LABEL git_commit=${GIT_COMMIT}
 LABEL git_diff=${GIT_DIFF}
 
-ENTRYPOINT ["sudo", "-E", "/root/entrypoint.py"]
+ENTRYPOINT ["./apps/query-ui/run-query-ui.sh"]

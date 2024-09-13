@@ -1,6 +1,7 @@
 from __future__ import annotations
 import hashlib
 import json
+from pathlib import Path
 import time
 from tempfile import SpooledTemporaryFile
 from typing import Any, Optional, Union, BinaryIO
@@ -151,3 +152,18 @@ class S3Cache(Cache):
         kwargs = {"s3_path": self._s3_path, "freshness_in_seconds": self._freshness_in_seconds}
 
         return s3_cache_deserializer, (kwargs,)
+
+
+def cache_from_path(path: Optional[str]) -> Optional[Cache]:
+    if path is None:
+        return None
+    if path.startswith("s3://"):
+        return S3Cache(path)
+    if path.startswith("/"):
+        return DiskCache(path)
+    if Path(path).is_dir():
+        return DiskCache(path)
+
+    raise ValueError(
+        f"Unable to interpret {path} as path for cache. Expected s3://, /... or a directory path that exists"
+    )

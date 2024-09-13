@@ -14,12 +14,10 @@ import requests
 from openai import OpenAI
 from openai.types.chat import ChatCompletionToolParam
 import streamlit as st
-from streamlit_pdf_viewer import pdf_viewer
 import sycamore
 from sycamore.data import OpenSearchQuery
 from sycamore.transforms.query import OpenSearchQueryExecutor
 from sycamore.query.client import SycamoreQueryClient
-from sycamore.query.logical_plan import LogicalPlan
 from util import generate_plan, run_plan, ray_init
 
 NUM_DOCS_GENERATE = 60
@@ -366,7 +364,10 @@ class Preview:
         with st.container(border=True):
             st.write(f"`{self.path}`")
             encoded = base64.b64encode(content).decode("utf-8")
-            pdf_display = f'<iframe src="data:application/pdf;base64,{encoded}" width="600" height="800" type="application/pdf"></iframe>'
+            pdf_display = (
+                f'<iframe src="data:application/pdf;base64,{encoded}" '
+                + 'width="600" height="800" type="application/pdf"></iframe>'
+            )
             st.markdown(pdf_display, unsafe_allow_html=True)
 
 

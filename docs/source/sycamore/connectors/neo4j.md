@@ -38,7 +38,12 @@ To write a DocSet to a Neo4j instance from Sycamore, use the `docset.write.neo4j
 - `s3_session`: (Optional, default=`None`) An AWS S3 Session. This is used as a proxy to securly upload your files into AuraDB. Defaults to None. This field is required if use_auradb is set to true.
 
 
-To use the Neo4j Writer, you must follow the   
+To use the Neo4j Writer, you can follow the example below.
+For the follow graph transformations, follow the guidelines.
+1. You must run `extract_document_structure()` before `extract_graph_entities()` and `extract_graph_relationships()`
+2. You must run `resolve_graph_entities()` after `extract_graph_entities` and `extract_graph_relationships`
+3. You must run `extract_graph_relationships()` after on entities extracted from `extract_graph_entities()`
+4. You may call `extract_graph_entities()` and `extract_graph_relationships()` as many times where it is valid to call them.
 ```python
 ds = (
     ctx.read.binary(...),

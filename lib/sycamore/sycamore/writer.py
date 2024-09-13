@@ -590,15 +590,18 @@ class DocSetWriter:
             use_auradb: Set to true if you are using neo4j's serverless implementation called AuraDB. Defaults to false.
             s3_session: An AWS S3 Session. This must be passed in if use_auradb is set to true. This is used as a public
                 csv proxy to securly upload your files into AuraDB. Defaults to None.
-            
+
         Example:
-            The following code shows how to write to a neo4j database
+            The following code shows how to write to a neo4j database.
 
             ..code-block::python
             ds = (
                 ctx.read.manifest(...)
                 .partition(...)
-                .extract_graph_structure([MetadataExtractor(metadata=metadata)])
+                .extract_document_structure(...)
+                .extract_graph_entities(...)
+                .extract_graph_relationships(...)
+                .resolve_graph_entities(...)
                 .explode()
             )
 
@@ -609,11 +612,11 @@ class DocSetWriter:
             S3_SESSION = boto3.session.Session()
 
             ds.write.neo4j(
-                uri=URI, 
-                auth=AUTH, 
-                database=DATABASE, 
-                import_dir=IMPORT_DIR, 
-                use_auradb=True, 
+                uri=URI,
+                auth=AUTH,
+                database=DATABASE,
+                import_dir=IMPORT_DIR,
+                use_auradb=True,
                 s3_session=S3_SESSION
             )
             .. code-block:: python

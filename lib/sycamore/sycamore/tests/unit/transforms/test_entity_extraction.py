@@ -2,6 +2,7 @@ from typing import Optional
 
 import ray.data
 
+from sycamore import Context
 from sycamore.data import Document
 from sycamore.plan_nodes import Node
 from sycamore.transforms import ExtractEntity
@@ -52,6 +53,21 @@ class TestEntityExtraction:
         node = mocker.Mock(spec=Node)
         llm = MockLLM()
         extract_entity = ExtractEntity(node, entity_extractor=OpenAIEntityExtractor("title", llm=llm))
+        input_dataset = ray.data.from_items([{"doc": self.doc.serialize()}])
+        execute = mocker.patch.object(node, "execute")
+        execute.return_value = input_dataset
+        output_dataset = extract_entity.execute()
+        assert Document.from_row(output_dataset.take(1)[0]).properties.get("title") == "title"
+
+    def test_extract_entity_w_context_llm(self, mocker):
+        node = mocker.Mock(spec=Node)
+        llm = MockLLM()
+        context = Context(
+            params={
+                "default": {"llm": llm},
+            }
+        )
+        extract_entity = ExtractEntity(node, context=context, entity_extractor=OpenAIEntityExtractor("title"))
         input_dataset = ray.data.from_items([{"doc": self.doc.serialize()}])
         execute = mocker.patch.object(node, "execute")
         execute.return_value = input_dataset

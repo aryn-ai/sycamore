@@ -78,7 +78,7 @@ Takes the format `[x1, y1, x2, y2]` where each coordinate is given as the propor
       "page_number": 1-indexed page number the element occurs on }
 ```
 
-The `score` is the model's "confidence" in its prediction for that particular bounding box. By dafault the model makes its best prediction, but the user can control this using the `threshold` parameter (defaults to "auto"). If the user specifies a numeric value between 0 and 1, only Elements with a confidence score higher than the specified threshold value will be kept. 
+The `score` is the model's "confidence" in its prediction for that particular bounding box. By default, we automatically select bounding boxes to achieve good coverage with high prediction accuracy, but the user can control this by using the `threshold` parameter (defaults to "auto"). If the user specifies a numeric value between 0 and 1, only Elements with a confidence score higher than the specified threshold value will be kept.
 
 ### Text Representation
 

@@ -860,6 +860,7 @@ class DocSet:
         Args:
             f: The function to apply to each document.
 
+        See the :class:`~sycamore.transforms.map.Map` documentation for advanced features.
         """
         from sycamore.transforms import Map
 
@@ -872,6 +873,8 @@ class DocSet:
 
         Args:
             f: The function to apply to each document.
+
+        See the :class:`~sycamore.transforms.map.FlatMap` documentation for advanced features.
 
         Example:
              .. code-block:: python
@@ -989,6 +992,8 @@ class DocSet:
         """
         The map_batch transform is similar to map, except that it processes a list of documents and returns a list of
         documents. map_batch is ideal for transformations that get performance benefits from batching.
+
+        See the :class:`~sycamore.transforms.map.MapBatch` documentation for advanced features.
 
         Example:
              .. code-block:: python

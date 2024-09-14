@@ -6,7 +6,6 @@ from bs4 import BeautifulSoup
 
 from sycamore.functions import TextOverlapChunker, Chunker
 from sycamore.functions import CharacterTokenizer, Tokenizer
-from sycamore.functions import reorder_elements
 from sycamore.data import BoundingBox, Document, Element, TableElement, Table
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base import CompositeTransform
@@ -17,41 +16,9 @@ from sycamore.utils.cache import Cache
 from sycamore.utils.time_trace import timetrace
 from sycamore.utils import choose_device
 from sycamore.utils.aryn_config import ArynConfig
+from sycamore.utils.bbox_sort import bbox_sort_document
 
 from sycamore.transforms.detr_partitioner import ARYN_DETR_MODEL, DEFAULT_ARYN_PARTITIONER_ADDRESS
-
-
-def _pageless_reorder_comparator(element1: Element, element2: Element) -> int:
-    # The following function checks if the x0 point of the element is in the
-    # left column
-    def element_in_left_col(e: Element) -> bool:
-        if e.bbox is None:
-            raise RuntimeError("Element BBox is None")
-        return e.bbox.x1 <= 0.5
-
-    if element_in_left_col(element1) and not element_in_left_col(element2):
-        return -1
-    elif not element_in_left_col(element1) and element_in_left_col(element2):
-        return 1
-    else:
-        return 0
-
-
-# This comparator helps sort the elements per page specifically when a page
-# has two columns
-def _elements_reorder_comparator(element1: Element, element2: Element) -> int:
-    # In PixelSpace (default coordinate system), the coordinates of each
-    # element starts in the top left corner and proceeds counter-clockwise.
-
-    page1 = element1.properties["page_number"]
-    page2 = element2.properties["page_number"]
-
-    if page1 < page2:
-        return -1
-    elif page1 > page2:
-        return 1
-    else:
-        return _pageless_reorder_comparator(element1, element2)
 
 
 class Partitioner(ABC):
@@ -257,7 +224,7 @@ class UnstructuredPdfPartitioner(Partitioner):
         document.elements = [self.to_element(ee.to_dict(), self._retain_coordinates) for ee in elements]
         del elements
 
-        document = reorder_elements(document, comparator=_elements_reorder_comparator)
+        bbox_sort_document(document)
         return document
 
 
@@ -474,40 +441,6 @@ class ArynPartitioner(Partitioner):
         self._cache = cache
         self._pages_per_call = pages_per_call
 
-    # For now, we reorder elements based on page, left/right column, y axle position then finally x axle position
-    @staticmethod
-    def _elements_reorder(element1: Element, element2: Element) -> int:
-        def element_in_left_col(e: Element) -> bool:
-            if e.bbox is None:
-                raise RuntimeError("Element BBox is None")
-            return e.bbox.x1 <= 0.5
-
-        page1 = element1.properties["page_number"]
-        page2 = element2.properties["page_number"]
-        bbox1 = element1.bbox
-        bbox2 = element2.bbox
-
-        if page1 < page2:
-            return -1
-        elif page1 > page2:
-            return 1
-        elif element_in_left_col(element1) and not element_in_left_col(element2):
-            return -1
-        elif not element_in_left_col(element1) and element_in_left_col(element2):
-            return 1
-        elif bbox1 is None or bbox2 is None:
-            return 0
-        elif bbox1.y1 < bbox2.y1:
-            return -1
-        elif bbox1.y1 > bbox2.y1:
-            return 1
-        elif bbox1.x1 < bbox2.x1:
-            return -1
-        elif bbox1.x1 > bbox2.x1:
-            return 1
-        else:
-            return 0
-
     @timetrace("SycamorePdf")
     def partition(self, document: Document) -> Document:
         binary = io.BytesIO(document.data["binary_representation"])
@@ -538,7 +471,7 @@ class ArynPartitioner(Partitioner):
             raise RuntimeError(f"ArynPartitioner Error processing {path}") from e
 
         document.elements = elements
-        document = reorder_elements(document, comparator=self._elements_reorder)
+        bbox_sort_document(document)
         return document
 
 

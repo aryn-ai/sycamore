@@ -42,7 +42,8 @@ def partition_file(
         aryn_config: ArynConfig object, used for finding an api key.
             If aryn_api_key is set it will override this.
             default: The default ArynConfig looks in the env var ARYN_API_KEY and the file ~/.aryn/config.yaml
-        threshold:  value in [0.0 .. 1.0] to specify the cutoff for detecting bounding boxes.
+        threshold:  value in to specify the cutoff for detecting bounding boxes. Must be set to "auto" or
+            a floating point value between 0.0 and 1.0.
             default: None (APS will choose)
         use_ocr: extract text using an OCR model instead of extracting embedded text in PDF.
             default: False

@@ -407,8 +407,6 @@ class ArynPartitioner(Partitioner):
              matter.
         batch_size: How many pages to partition at once, when running locally. Default is 1. Ignored when
              running remotely.
-        batch_at_a_time: When running locally, run inference on the pages in batches in order to not load
-             all pages into memory at the same time. Default is False
         local: If false, runs the partitioner remotely. Defaults to false
         aryn_api_key: The account token used to authenticate with Aryn's servers.
         aryn_partitioner_address: The address of the server to use to partition the document
@@ -440,7 +438,6 @@ class ArynPartitioner(Partitioner):
         extract_images: bool = False,
         device=None,
         batch_size: int = 1,
-        batch_at_a_time: bool = False,
         use_partitioning_service: bool = True,
         aryn_api_key: str = "",
         aryn_partitioner_address: str = DEFAULT_ARYN_PARTITIONER_ADDRESS,
@@ -467,7 +464,6 @@ class ArynPartitioner(Partitioner):
         self._table_structure_extractor = table_structure_extractor
         self._extract_images = extract_images
         self._batch_size = batch_size
-        self._batch_at_a_time = batch_at_a_time
         self._use_partitioning_service = use_partitioning_service
         self._aryn_partitioner_address = aryn_partitioner_address
         self._use_cache = use_cache
@@ -526,7 +522,6 @@ class ArynPartitioner(Partitioner):
                 table_structure_extractor=self._table_structure_extractor,
                 extract_images=self._extract_images,
                 batch_size=self._batch_size,
-                batch_at_a_time=self._batch_at_a_time,
                 use_partitioning_service=self._use_partitioning_service,
                 aryn_api_key=self._aryn_api_key,
                 aryn_partitioner_address=self._aryn_partitioner_address,
@@ -562,7 +557,6 @@ class SycamorePartitioner(ArynPartitioner):
         extract_images=False,
         device=None,
         batch_size: int = 1,
-        batch_at_a_time: bool = False,
     ):
         device = choose_device(device)
         super().__init__(
@@ -574,7 +568,6 @@ class SycamorePartitioner(ArynPartitioner):
             extract_images=extract_images,
             device=device,
             batch_size=batch_size,
-            batch_at_a_time=batch_at_a_time,
             use_partitioning_service=False,
         )
 

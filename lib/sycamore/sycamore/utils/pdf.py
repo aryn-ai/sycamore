@@ -7,8 +7,9 @@ from queue import Queue
 from subprocess import PIPE, Popen
 from threading import Thread
 from typing import List, Generator
-
+from sycamore.utils.import_utils import requires_modules
 from sycamore.utils.time_trace import LogTime
+from typing import BinaryIO, Any, Union, cast
 
 
 def convert_from_path_streamed(pdf_path: str) -> Generator[Image.Image, None, None]:
@@ -234,3 +235,24 @@ def pdf_to_image_files(pdf_path: str, file_dir: Path) -> Generator[Path, None, N
 
         t_out.join()
         t_err.join()
+
+
+@requires_modules(["pdfminer", "pdfminer.utils"], extra="local-inference")
+def pdf_to_pages(file_name: str) -> Generator[Any, None, None]:
+    from pdfminer.converter import PDFPageAggregator
+    from pdfminer.layout import LAParams
+    from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
+    from pdfminer.pdfpage import PDFPage
+    from pdfminer.utils import open_filename
+
+    rm = PDFResourceManager()
+    param = LAParams()
+    device = PDFPageAggregator(rm, laparams=param)
+    interpreter = PDFPageInterpreter(rm, device)
+    with open_filename(file_name, "rb") as fp:
+        fp = cast(BinaryIO, fp)
+        pages = PDFPage.get_pages(fp)
+        for page in pages:
+            interpreter.process_page(page)
+            page_layout = device.get_result()
+            yield page_layout

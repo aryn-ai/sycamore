@@ -28,8 +28,9 @@ from sycamore.utils.cache import Cache, DiskCache
 from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
 from sycamore.utils.import_utils import requires_modules
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
-from sycamore.utils.pdf import convert_from_path_streamed_batched
+from sycamore.utils.pdf import convert_from_path_streamed_batched, pdf_to_pages
 from sycamore.utils.time_trace import LogTime, timetrace
+from sycamore.transforms.text_extraction.pdf_miner import PDFMinerExtractor
 
 logger = logging.getLogger(__name__)
 _DETR_LOCK_FILE = f"{pwd.getpwuid(os.getuid()).pw_dir}/.cache/Aryn-Detr.lock"
@@ -92,6 +93,7 @@ class ArynPDFPartitioner:
         self.device = device
         self.cache = cache
         self.ocr_table_reader = None
+        self.pdf_extractor = PDFMinerExtractor()
 
     def _init_model(self):
         if self.model is None:
@@ -140,7 +142,6 @@ class ArynPDFPartitioner:
         table_structure_extractor=None,
         extract_images=False,
         batch_size: int = 1,
-        batch_at_a_time=True,
         use_partitioning_service=True,
         aryn_api_key: str = "",
         aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
@@ -162,32 +163,18 @@ class ArynPDFPartitioner:
                 pages_per_call=pages_per_call,
             )
         else:
-            if batch_at_a_time:
-                temp = self._partition_pdf_batched(
-                    file=file,
-                    threshold=threshold,
-                    use_ocr=use_ocr,
-                    ocr_images=ocr_images,
-                    ocr_tables=ocr_tables,
-                    extract_table_structure=extract_table_structure,
-                    table_structure_extractor=table_structure_extractor,
-                    extract_images=extract_images,
-                    batch_size=batch_size,
-                    use_cache=use_cache,
-                )
-            else:
-                temp = self._partition_pdf_sequenced(
-                    file=file,
-                    threshold=threshold,
-                    use_ocr=use_ocr,
-                    ocr_images=ocr_images,
-                    ocr_tables=ocr_tables,
-                    extract_table_structure=extract_table_structure,
-                    table_structure_extractor=table_structure_extractor,
-                    extract_images=extract_images,
-                    batch_size=batch_size,
-                    use_cache=use_cache,
-                )
+            temp = self._partition_pdf_batched(
+                file=file,
+                threshold=threshold,
+                use_ocr=use_ocr,
+                ocr_images=ocr_images,
+                ocr_tables=ocr_tables,
+                extract_table_structure=extract_table_structure,
+                table_structure_extractor=table_structure_extractor,
+                extract_images=extract_images,
+                batch_size=batch_size,
+                use_cache=use_cache,
+            )
             elements = []
             for i, r in enumerate(temp):
                 for ele in r:
@@ -349,110 +336,6 @@ class ArynPDFPartitioner:
 
         return result
 
-    @requires_modules("easyocr", extra="local-inference")
-    def _partition_pdf_sequenced(
-        self,
-        file: BinaryIO,
-        threshold: float = 0.4,
-        use_ocr=False,
-        ocr_images=False,
-        ocr_tables=False,
-        extract_table_structure=False,
-        table_structure_extractor=None,
-        extract_images=False,
-        batch_size: int = 1,
-        use_cache=False,
-    ) -> List[List["Element"]]:
-        """
-        Partitions a PDF with the DeformableDETR model.
-
-        Args:
-           file: A file-like object containing the PDF. Generally this is a wrapper around binary_representation.
-           threshold: The threshold to use for accepting the model's predicted bounding boxes.
-           use_ocr: Whether to use OCR to extract text from the PDF
-           ocr_images: If set with use_ocr, will attempt to OCR regions of the document identified as images.
-           ocr_tables: If set with use_ocr, will attempt to OCR regions on the document identified as tables.
-           extract_table_structure: If true, runs a separate table extraction model to extract cells from
-             regions of the document identified as tables.
-           table_structure_extractor: The table extraction implementaion to use when extract_table_structure is True.
-           extract_images: If true, crops each region identified as an image and
-             attaches it to the associated ImageElement.
-
-        Returns:
-           A list of lists of Elements. Each sublist corresponds to a page in the original PDF.
-        """
-        import easyocr
-
-        self._init_model()
-
-        if not table_structure_extractor:
-            table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
-
-        LogTime("partition_start", point=True)
-        with LogTime("convert2bytes"):
-            images: list[Image.Image] = pdf2image.convert_from_bytes(file.read())
-
-        with LogTime("toRGB"):
-            images = [im.convert("RGB") for im in images]
-
-        batches = _batchify(images, batch_size)
-        deformable_layout: list[list[Element]] = []
-        with LogTime("all_batches"):
-            for i, batch in enumerate(batches):
-                with LogTime(f"infer_one_batch {i}/{len(images) / batch_size}"):
-                    assert self.model is not None
-                    deformable_layout += self.model.infer(batch, threshold, use_cache)
-
-        if use_ocr:
-            with LogTime("ocr"):
-                if self.ocr_table_reader is None:
-                    self.ocr_table_reader = easyocr.Reader(["en"])
-
-                extract_ocr(
-                    images,
-                    deformable_layout,
-                    ocr_images=ocr_images,
-                    ocr_tables=ocr_tables,
-                    table_reader=self.ocr_table_reader,
-                )
-        else:
-            with LogTime("pdfminer"):
-                pdfminer = PDFMinerExtractor()
-                # The cast here is to make mypy happy. PDFMiner expects IOBase,
-                # but typing.BinaryIO doesn't extend from it. BytesIO
-                # (the concrete class) implements both.
-                file_name = cast(IOBase, file)
-                hash_key = Cache.get_hash_context(file_name.read()).hexdigest()
-                with LogTime("pdfminer_extract", log_start=True):
-                    pdfminer_layout = pdfminer.extract(file_name, hash_key, use_cache)
-                # page count should be the same
-                assert len(pdfminer_layout) == len(deformable_layout)
-
-                with LogTime("pdfminer_supplement"):
-                    for d, p in zip(deformable_layout, pdfminer_layout):
-                        self._supplement_text(d, p)
-
-        if extract_table_structure or extract_images:
-            with LogTime("extract_images_or_table"):
-                for i, page_elements in enumerate(deformable_layout):
-                    with LogTime(f"extract_images_or_table_one {i}/{len(deformable_layout)}"):
-                        image = images[i]
-                        for element in page_elements:
-                            if isinstance(element, TableElement) and extract_table_structure:
-                                table_structure_extractor.extract(element, image)
-
-                            if isinstance(element, ImageElement) and extract_images:
-                                if element.bbox is None:
-                                    continue
-                                cropped_image = crop_to_bbox(image, element.bbox).convert("RGB")
-                                element.binary_representation = image_to_bytes(cropped_image)
-                                element.image_mode = cropped_image.mode
-                                element.image_size = cropped_image.size
-                                # print(element.properties)
-
-        LogTime("finish", point=True)
-        return deformable_layout
-
     def _partition_pdf_batched(
         self,
         file: BinaryIO,
@@ -509,27 +392,25 @@ class ArynPDFPartitioner:
         use_cache=False,
     ) -> List[List["Element"]]:
         self._init_model()
-
         if extract_table_structure and not table_structure_extractor:
             table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
 
-        pdfminer = None
-        exec = ProcessPoolExecutor(max_workers=1)
-        if not use_ocr:
-            with LogTime("start_pdfminer", log_start=True):
-                pdfminer = exec.submit(self._run_pdfminer, filename, hash_key, use_cache)
-
         deformable_layout = []
+        pdfminer_generator = pdf_to_pages(filename) if not use_ocr else None
         if tracemalloc.is_tracing():
             before = tracemalloc.take_snapshot()
         for i in convert_from_path_streamed_batched(filename, batch_size):
-            parts = self.process_batch_inference(
+            parts = self.process_batch(
                 i,
                 threshold=threshold,
                 use_ocr=use_ocr,
+                pdf_generator=pdfminer_generator,
                 ocr_images=ocr_images,
                 ocr_tables=ocr_tables,
                 use_cache=use_cache,
+                extract_table_structure=extract_table_structure,
+                table_structure_extractor=table_structure_extractor,
+                extract_images=extract_images,
             )
             assert len(parts) == len(i)
             deformable_layout.extend(parts)
@@ -544,24 +425,6 @@ class ArynPDFPartitioner:
                 before = after
                 display_top(after)
 
-        if pdfminer is not None:
-            with LogTime("wait_for_pdfminer", log_start=True):
-                pdfminer_layout = pdfminer.result()
-            assert len(pdfminer_layout) == len(deformable_layout), f"{len(pdfminer_layout)} vs {len(deformable_layout)}"
-            with LogTime("pdfminer_supplement"):
-                for d, p in zip(deformable_layout, pdfminer_layout):
-                    self._supplement_text(d, p)
-        # TODO: optimize this to make pdfminer also streamed so we can process each page in sequence without
-        # having to double-convert the document
-        for i in convert_from_path_streamed_batched(filename, batch_size):
-            self.process_batch_extraction(
-                i,
-                deformable_layout,
-                extract_table_structure=extract_table_structure,
-                table_structure_extractor=table_structure_extractor,
-                extract_images=extract_images,
-            )
-            assert len(parts) == len(i)
         if tracemalloc.is_tracing():
             (current, peak) = tracemalloc.get_traced_memory()
             logger.info(f"Memory Usage current={current} peak={peak}")
@@ -573,9 +436,78 @@ class ArynPDFPartitioner:
     def _run_pdfminer(pdf_path, hash_key, use_cache):
         pdfminer = PDFMinerExtractor()
         with LogTime("pdfminer_extract", log_start=True):
-            pdfminer_layout = pdfminer.extract(pdf_path, hash_key, use_cache)
+            pdfminer_layout = pdfminer.extract_document(pdf_path, hash_key, use_cache)
 
         return pdfminer_layout
+
+    @requires_modules("easyocr", extra="local-inference")
+    def process_batch(
+        self,
+        batch: list[Image.Image],
+        pdf_generator,
+        threshold,
+        use_ocr,
+        ocr_images,
+        ocr_tables,
+        extract_table_structure,
+        table_structure_extractor,
+        extract_images,
+        use_cache,
+    ) -> Any:
+        import easyocr
+
+        self._init_model()
+
+        with LogTime("infer"):
+            assert self.model is not None
+            deformable_layout = self.model.infer(batch, threshold, use_cache)
+
+        gc_tensor_dump()
+        assert len(deformable_layout) == len(batch)
+        if use_ocr:
+            with LogTime("ocr"):
+                if self.ocr_table_reader is None:
+                    self.ocr_table_reader = easyocr.Reader(["en"])
+
+                extract_ocr(
+                    batch,
+                    deformable_layout,
+                    ocr_images=ocr_images,
+                    ocr_tables=ocr_tables,
+                    table_reader=self.ocr_table_reader,
+                )
+        else:
+            pdfminer_pages = []
+            for _ in range(len(batch)):
+                pdf_page = pdf_generator.__next__()
+                pdfminer_pages.append(self.pdf_extractor.extract_page(pdf_page))
+
+            assert len(pdfminer_pages) == len(deformable_layout)
+            with LogTime("pdfminer_supplement"):
+                for d, p in zip(deformable_layout, pdfminer_pages):
+                    self._supplement_text(d, p)
+        # else pdfminer happens in parent since it is whole document.
+        if extract_table_structure:
+            with LogTime("extract_table_structure_batch"):
+                if table_structure_extractor is None:
+                    table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
+                for i, page_elements in enumerate(deformable_layout):
+                    image = batch[i]
+                    for element in page_elements:
+                        if isinstance(element, TableElement):
+                            table_structure_extractor.extract(element, image)
+
+        if extract_images:
+            with LogTime("extract_images_batch"):
+                for i, page_elements in enumerate(deformable_layout):
+                    image = batch[i]
+                    for element in page_elements:
+                        if isinstance(element, ImageElement) and element.bbox is not None:
+                            cropped_image = crop_to_bbox(image, element.bbox).convert("RGB")
+                            element.binary_representation = image_to_bytes(cropped_image)
+                            element.image_mode = cropped_image.mode
+                            element.image_size = cropped_image.size
+        return deformable_layout
 
     @requires_modules("easyocr", extra="local-inference")
     def process_batch_inference(
@@ -776,77 +708,6 @@ class DeformableDetr(SycamoreObjectDetection):
         hash_ctx.update(f"{threshold:.6f}".encode())
         hash_ctx.update(_VERSION.encode())
         return hash_ctx.hexdigest()
-
-
-class PDFMinerExtractor:
-    @requires_modules(["pdfminer", "pdfminer.utils"], extra="local-inference")
-    def __init__(self):
-        from pdfminer.layout import LAParams
-        from pdfminer.converter import PDFPageAggregator
-        from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
-
-        rm = PDFResourceManager()
-        param = LAParams()
-        self.device = PDFPageAggregator(rm, laparams=param)
-        self.interpreter = PDFPageInterpreter(rm, self.device)
-
-    def _open_pdfminer_pages_generator(self, fp: BinaryIO):
-        from pdfminer.pdfpage import PDFPage
-
-        pages = PDFPage.get_pages(fp)
-        for page in pages:
-            self.interpreter.process_page(page)
-            page_layout = self.device.get_result()
-            yield page, page_layout
-
-    @staticmethod
-    def _convert_bbox_coordinates(
-        rect: Tuple[float, float, float, float],
-        height: float,
-    ) -> Tuple[float, float, float, float]:
-        """
-        pdf coordinates are different, bottom left is origin, also two diagonal points defining a rectangle is
-        (bottom left, upper right), for details, refer
-        https://www.leadtools.com/help/leadtools/v19/dh/to/pdf-topics-pdfcoordinatesystem.html
-        """
-        x1, y2, x2, y1 = rect
-        y1 = height - y1
-        y2 = height - y2
-        return x1, y1, x2, y2
-
-    def extract(self, filename: Union[str, IOBase], hash_key: str, use_cache=False) -> List[List[Element]]:
-        # The naming is slightly confusing, but `open_filename` accepts either
-        # a filename (str) or a file-like object (IOBase)
-        from pdfminer.utils import open_filename
-
-        cached_result = pdf_miner_cache.get(hash_key) if use_cache else None
-        if cached_result:
-            logger.info(f"Cache Hit for PDFMiner. Cache hit-rate is {pdf_miner_cache.get_hit_rate()}")
-            return cached_result
-        else:
-            with open_filename(filename, "rb") as fp:
-                fp = cast(BinaryIO, fp)
-                pages = []
-                for page, page_layout in self._open_pdfminer_pages_generator(fp):
-                    width = page_layout.width
-                    height = page_layout.height
-                    texts: List[Element] = []
-                    for obj in page_layout:
-                        x1, y1, x2, y2 = self._convert_bbox_coordinates(obj.bbox, height)
-
-                        if hasattr(obj, "get_text"):
-                            text = Element()
-                            text.type = "text"
-                            text.bbox = BoundingBox(x1 / width, y1 / height, x2 / width, y2 / height)
-                            text.text_representation = obj.get_text()
-                            if text.text_representation:
-                                texts.append(text)
-
-                    pages.append(texts)
-                if use_cache:
-                    logger.info("Cache Miss for PDFMiner. Storing the result to the cache.")
-                    pdf_miner_cache.set(hash_key, pages)
-                return pages
 
 
 @timetrace("OCR")

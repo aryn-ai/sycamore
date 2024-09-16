@@ -27,8 +27,16 @@ class TestAssignDocProperties(unittest.TestCase):
             }
         )
 
-    def test_assign_doc_propoerties(self):
+    def test_assign_doc_properties(self):
         output = AssignDocProperties.assign_doc_properties(self.input, "title", "property1")
         assert "entity" in output.get("properties").keys()
         assert output.get("properties").get("entity") is not None
+        assert output.get("properties").get("entity")["test1"] == "from element1"
+
+    def test_assign_doc_properties_with_existing_entity(self):
+        self.input.properties["entity"] = {"test0": "should be retained", "test1": "from parent"}
+        output = AssignDocProperties.assign_doc_properties(self.input, "title", "property1")
+        assert "entity" in output.get("properties").keys()
+        assert output.get("properties").get("entity") is not None
+        assert output.get("properties").get("entity")["test0"] == "should be retained"
         assert output.get("properties").get("entity")["test1"] == "from element1"

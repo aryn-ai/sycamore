@@ -10,10 +10,12 @@ import sycamore
 from sycamore.data import Document
 from sycamore.transforms.partition import ArynPartitioner
 from sycamore.functions import HuggingFaceTokenizer
-from sycamore.transforms.merge_elements import GreedyTextElementMerger
+from sycamore.transforms import AssignDocProperties, DateTimeStandardizer, ExtractTableProperties, LocationStandardizer
 from sycamore.transforms.extract_schema import (
     OpenAIPropertyExtractor,
 )
+from sycamore.transforms.merge_elements import GreedyTextElementMerger
+from sycamore.transforms.summarize_images import SummarizeImages
 from sycamore.llms import OpenAI, OpenAIModels
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 import os
@@ -125,36 +127,66 @@ index_settings = {
 
 context = sycamore.init()
 docset = context.read.binary(SOURCE_DATA_PATH, binary_format="pdf")
+# XXX MDW HACKING
+docset = docset.limit(2)
 tokenizer = HuggingFaceTokenizer("thenlper/gte-small")
-llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
+llm = OpenAI(OpenAIModels.GPT_4O.value)
 
 # partitioning docset
 partitioned_docset = (
-    docset.partition(partitioner=ArynPartitioner())
+    docset.partition(partitioner=ArynPartitioner(extract_table_structure=True, use_ocr=True, extract_images=True))
     # these are here mostly as examples; the last materialize will at this point take
     # effect, you can use these during testing.
-    .materialize(path=f"{TMP_DIR}/ntsb_loader_after_partition", source_mode=sycamore.MATERIALIZE_USE_STORED)
+    #    .materialize(path=f"{TMP_DIR}/ntsb_loader_after_partition", source_mode=sycamore.MATERIALIZE_USE_STORED)
+    .transform(SummarizeImages)
+    .materialize(path=f"{TMP_DIR}/ntsb-loader-stage-0", source_mode=sycamore.MATERIALIZE_USE_STORED)
     .map(add_property_to_schema)
+    .map(
+        lambda doc: ExtractTableProperties.extract_table_properties(
+            doc, property_name="table_props", llm=llm, prompt_LLM=TABLE_EXTRACTION_PROMPT
+        )
+    )
+    .materialize(path=f"{TMP_DIR}/ntsb-loader-stage-1", source_mode=sycamore.MATERIALIZE_USE_STORED)
+    .map(lambda doc: AssignDocProperties.assign_doc_properties(doc, element_type="table", property_name="table_props"))
     .extract_properties(property_extractor=OpenAIPropertyExtractor(llm=llm, num_of_elements=35))
-    .materialize(path=f"{TMP_DIR}/ntsb_loader_after_llm", source_mode=sycamore.MATERIALIZE_USE_STORED)
-    .merge(GreedyTextElementMerger(tokenizer, 300))
-    .map(convert_timestamp)
+#    .merge(GreedyTextElementMerger(tokenizer, 300))
+    .map(lambda doc: LocationStandardizer.standardize(doc, key_path=["properties", "entity", "location"]))
+    .map(lambda doc: DateTimeStandardizer.standardize(doc, key_path=["properties", "entity", "dateAndTime"]))
     .spread_properties(["entity", "path"])
     .explode()
-    .sketch()
-    .embed(embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2"))
-    # comment out to force re-evaluation of the pipeline, otherwise since this always exists it
-    # will be used. If you've run it commented out you can move this step after the next materialize
-    # to avoid re-computation.
-    .materialize(
-        path="s3://aryn-public/materialize/examples/luna/ntsb_loader_2024-08-29",
-        source_mode=sycamore.MATERIALIZE_USE_STORED,
-    )
-    .materialize(path=f"{TMP_DIR}/ntsb_loader_after_embed", source_mode=sycamore.MATERIALIZE_USE_STORED)
-    # materialize locally after reading from S3, it's a bit faster if you're running remotely
-    .write.opensearch(
-        os_client_args=os_client_args,
-        index_name=INDEX,
-        index_settings=index_settings,
-    )
 )
+    # #    .materialize(path=f"{TMP_DIR}/ntsb_loader_after_llm", source_mode=sycamore.MATERIALIZE_USE_STORED)
+    # #    .map(convert_timestamp)
+    # .sketch()
+    # .embed(embedder=SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2"))
+    # # comment out to force re-evaluation of the pipeline, otherwise since this always exists it
+    # # will be used. If you've run it commented out you can move this step after the next materialize
+    # # to avoid re-computation.
+    # #    .materialize(
+    # #        path="s3://aryn-public/materialize/examples/luna/ntsb_loader_2024-08-29",
+    # #        source_mode=sycamore.MATERIALIZE_USE_STORED,
+    # #    )
+    # #    .materialize(path=f"{TMP_DIR}/ntsb_loader_after_embed", source_mode=sycamore.MATERIALIZE_USE_STORED)
+    # # materialize locally after reading from S3, it's a bit faster if you're running remotely
+    # .write.opensearch(
+    #     os_client_args=os_client_args,
+    #     index_name=INDEX,
+    #     index_settings=index_settings,
+    # # )
+
+for doc in partitioned_docset.take_all():
+    print(str(doc))
+#    if isinstance(doc, sycamore.data.MetadataDocument):
+#        continue
+#    for element in doc.elements:
+#        for prop in element.properties:
+#            print(f"{prop}: {element.properties[prop]}")
+
+    #print(doc)
+#        props_dict = doc.properties.get("entity", {})
+#        props_dict.update({p: doc.properties[p] for p in set(doc.properties) - set(BASE_PROPS)})
+#        props_dict["text_representation"] = (
+#            doc.text_representation[:NUM_TEXT_CHARS_GENERATE] if doc.text_representation is not None else None
+#        )
+#        retval += json.dumps(props_dict, indent=2) + "\n"
+#    return retval

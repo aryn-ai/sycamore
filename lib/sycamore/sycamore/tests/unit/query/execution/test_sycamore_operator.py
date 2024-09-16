@@ -95,15 +95,6 @@ def test_query_database_with_query(mock_sycamore_docsetreader, mock_opensearch_n
         assert result.plan._query_params.query == {"query": os_query_plan}
 
 
-#        assert mock_impl.query_params == "4949494"
-# mock_impl.assert_called_once_with(
-#    context=context,
-#    index=logical_node.index,
-#    query=logical_node.query,
-#    os_client_args=context.params["opensearch"]["os_client_args"],
-# )
-
-
 def test_summarize_data():
     with (patch("sycamore.query.execution.sycamore_operator.summarize_data") as mock_impl,):
         # Define the mock return value

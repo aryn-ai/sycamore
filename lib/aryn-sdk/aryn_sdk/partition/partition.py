@@ -1,4 +1,4 @@
-from typing import BinaryIO, Optional, Union
+from typing import BinaryIO, Literal, Optional, Union
 from collections.abc import Mapping
 from aryn_sdk.config import ArynConfig
 import requests
@@ -24,7 +24,7 @@ def partition_file(
     file: BinaryIO,
     aryn_api_key: Optional[str] = None,
     aryn_config: ArynConfig = ArynConfig(),
-    threshold: Optional[float] = None,
+    threshold: Optional[Union[float, Literal["auto"]]] = None,
     use_ocr: bool = False,
     ocr_images: bool = False,
     extract_table_structure: bool = False,
@@ -144,7 +144,7 @@ def partition_file(
 
 
 def _json_options(
-    threshold: Optional[float] = None,
+    threshold: Optional[Union[float, Literal["auto"]]] = None,
     use_ocr: bool = False,
     ocr_images: bool = False,
     extract_table_structure: bool = False,

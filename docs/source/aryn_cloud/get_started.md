@@ -1,5 +1,5 @@
 ## An Introduction to the Aryn Partitioning Service 
-You can use the Aryn Partitioning Service to easily chunk and extract data from complex PDFs. The Partitioning Service can extract paragraphs, tables and images. It returns detailed information about the components it has just identified in a JSON object.  The following two sections will walk you through two examples where we segment  PDF documents and extract a table and an image from those documents using the python aryn-sdk.
+You can use the Aryn Partitioning Service to easily chunk and extract data from complex documents. The Partitioning Service accepts PDF and Microsoft office formats (.docx, .doc, .pptx, .ppt). It can extract paragraphs, tables and images. It returns detailed information about the components it has just identified in a JSON object.  The following two sections will walk you through two examples where we segment PDF documents and extract a table and an image from those documents using the python aryn-sdk.
 
 ### Extracting Tables from a PDF
 
@@ -28,7 +28,7 @@ aryn_api_key = 'YOUR-KEY-HERE'
 partitioned_file = partition_file(file, aryn_api_key, extract_table_structure=True, use_ocr=True)
 ```
 
-If you inspect the partitioned_file variable, you’ll notice that it’s a large JSON object with details about all the components in the PDF (checkout [this page](./aps_output.md) to understand the schema of the returned JSON object in detail).  Below, we highlight  the ‘table’ element that contains the information about the table in the page.
+If you inspect the `partitioned_file` variable, you’ll notice that it’s a large JSON object with details about all the components in the PDF (checkout [this page](./aps_output.md) to understand the schema of the returned JSON object in detail).  Below, we highlight  the ‘table’ element that contains the information about the table in the page.
 
 ```
 {'type': 'table',

@@ -4,16 +4,16 @@ from sycamore.query.operators.logical_operator import LogicalOperator
 class LlmFilter(LogicalOperator):
     """LlmFilter uses a Large Language Model (LLM) to filter database records based on the
     value of a field. This operation is useful when the filtering to be performed is complex
-    and cannot be expressed either as a OpenSearch query (for QueryDatabase) or as a simple
-    range or match filter (for BasicFilter).
+    and cannot be expressed either as a OpenSearch query (for QueryDatabase), vector query (QueryVectorDatabase)
+    or as a simple range or match filter (for BasicFilter).
 
     For example, LlmFilter is useful when the filter is operating on the semantic content
     of a field. For example, if a field contains a description of an event and the filter
     is to only include events that are natural disasters, LlmFilter can be used to analyze
     the text of the field to determine if the event is a natural disaster.
 
-    Whenever possible, use the `query' parameter to the QueryDatabase operation to filter
-    data at the source, as this is more efficient than use of the BasicFilter operation.
+    Whenever possible, use the `query' parameter to the QueryDatabase operation or 'query_to_embed' parameter
+    to the QueryVectorDatabase operation to filter data at the source.
 
     The BasicFilter operation is preferred to LLMFilter when the filter is simple and does not
     require the complexity of an LLM model to analyze the data.

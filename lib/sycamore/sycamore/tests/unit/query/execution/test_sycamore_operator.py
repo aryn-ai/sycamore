@@ -19,14 +19,15 @@ from sycamore.query.execution.sycamore_operator import (
     SycamoreLlmExtractEntity,
     SycamoreSort,
     SycamoreTopK,
-    SycamoreLimit,
+    SycamoreLimit, SycamoreQueryVectorDatabase,
 )
 from sycamore.query.operators.basic_filter import BasicFilter
 from sycamore.query.operators.sort import Sort
 from sycamore.query.operators.llm_filter import LlmFilter
 from sycamore.query.operators.summarize_data import SummarizeData
-from sycamore.query.operators.query_database import QueryDatabase
+from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDatabase
 from sycamore.query.operators.top_k import TopK
+from sycamore.transforms import Embedder
 
 
 def test_query_database(mock_sycamore_docsetreader, mock_opensearch_num_docs):
@@ -93,6 +94,69 @@ def test_query_database_with_query(mock_sycamore_docsetreader, mock_opensearch_n
 
         # Validate that the correct query would be passed to OpenSearch.
         assert result.plan._query_params.query == {"query": os_query_plan}
+
+
+def test_vector_query_database():
+    with patch("sycamore.reader.DocSetReader") as mock_docset_reader_class:
+        embedder = Mock(spec=Embedder)
+        embedding = [0.1, 0.2]
+        embedder.generate_text_embedding.return_value = embedding
+
+        mock_docset = Mock(spec=DocSet)
+        mock_docset.count.return_value = 5
+
+        mock_docset_reader_impl = Mock()
+        mock_docset_reader_class.return_value = mock_docset_reader_impl
+
+        mock_docset_reader_impl.opensearch.return_value = mock_docset
+
+        context = sycamore.init(
+            params={
+                "opensearch": {
+                    "os_client_args": {
+                        "hosts": [{"host": "localhost", "port": 9200}],
+                        "http_compress": True,
+                        "http_auth": ("admin", "admin"),
+                        "use_ssl": True,
+                        "verify_certs": False,
+                        "ssl_assert_hostname": False,
+                        "ssl_show_warn": False,
+                        "timeout": 120,
+                    },
+                    "index_name": "test_index",
+                    "text_embedder": embedder
+                }
+            }
+        )
+        os_filter = {
+            "filterKey": {
+                "nestedKey": "some value"
+            }
+        }
+        logical_node = QueryVectorDatabase(node_id=0,
+                                           description="Load data",
+                                           index=context.params["opensearch"]["index_name"],
+                                           query_to_embed="question",
+                                           filter=os_filter
+                                           )
+        sycamore_operator = SycamoreQueryVectorDatabase(context=context, logical_node=logical_node, query_id="test")
+        sycamore_operator.execute()
+
+        # Assert request
+        mock_docset_reader_impl.opensearch.assert_called_once_with(
+            index_name=context.params["opensearch"]["index_name"],
+            query={
+                "query": {
+                    "knn": {
+                        "embedding": {
+                            "vector": embedding,
+                            "k": 500,
+                            "filter": os_filter
+                        }
+                    }
+                }
+            }
+        )
 
 
 def test_summarize_data():

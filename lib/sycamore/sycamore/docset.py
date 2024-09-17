@@ -894,7 +894,7 @@ class DocSet:
         flat_map = FlatMap(self.plan, f=f, **resource_args)
         return DocSet(self.context, flat_map)
 
-    def filter(self, f: Callable[[Document], bool], **resource_args) -> "DocSet":
+    def filter(self, f: Callable[[Document], bool], **kwargs) -> "DocSet":
         """
         Applies the Filter transform on the Docset.
 
@@ -917,7 +917,7 @@ class DocSet:
         """
         from sycamore.transforms import Filter
 
-        filtered = Filter(self.plan, f=f, **resource_args)
+        filtered = Filter(self.plan, f=f, **kwargs)
         return DocSet(self.context, filtered)
 
     def filter_elements(self, f: Callable[[Element], bool], **resource_args) -> "DocSet":

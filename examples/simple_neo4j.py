@@ -57,8 +57,8 @@ ds = (
 # https://sycamore.readthedocs.io/en/stable/sycamore/connectors/neo4j.html #
 ############################################################################
 
-URI = "bolt://localhost:11001"
-AUTH = ("neo4j", "koala-stereo-comedy-spray-figure-6974")
-DATABASE = "neo4j"
-IMPORT_DIR = "/home/ritam/neo4j/import"
+URI = "<ENTER_NEO4J_URI>" # default: "bolt://localhost:7687"
+AUTH = ("<ENTER_NEO4J_USERNAME>", "<ENTER_NEO4J_PASSWORD>")
+DATABASE = "<ENTER_NEO4J_DB>" # default: "neo4j"
+IMPORT_DIR = "<ENTER_NEO4J_IMPORT_DIR>" # configured during neo4j docker run
 ds.write.neo4j(uri=URI,auth=AUTH,import_dir=IMPORT_DIR, database=DATABASE)

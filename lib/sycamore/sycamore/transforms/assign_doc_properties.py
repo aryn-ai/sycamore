@@ -33,7 +33,9 @@ class AssignDocProperties(SingleThreadUser, NonGPUUser, Map):
         for e in parent.elements:
             if e.type == element_type and property_name in e.properties.keys():
                 prop = e.properties.get(property_name)
-                assert isinstance(prop, Dict), f"AssignDocProperties: property {property_name}, expected Dict, got {type(prop).__name__}: {str(prop)}"
+                assert isinstance(
+                    prop, Dict
+                ), f"AssignDocProperties: property {property_name}, expected Dict, got {type(prop).__name__}: {str(prop)}"
                 if "entity" in parent.properties:
                     parent.properties["entity"].update(prop)
                 else:

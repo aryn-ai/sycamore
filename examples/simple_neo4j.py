@@ -40,9 +40,9 @@ class FLOWN_BY(BaseModel):
     end: Pilot
 
 
-entity_extractors = [EntityExtractor(llm=llm, entities=[Report, Aircraft, Pilot])]
+entity_extractors = [EntityExtractor(llm=llm, entities=[Report, Aircraft, Pilot])]  # type: ignore
 
-relationship_extractors = [RelationshipExtractor(llm=llm, relationships=[INVOLVED_AIRCRAFT, FLOWN_BY])]
+relationship_extractors = [RelationshipExtractor(llm=llm, relationships=[INVOLVED_AIRCRAFT, FLOWN_BY])]  # type: ignore
 
 paths = "s3://aryn-public/knowledge-graph-blog-data/"
 ds = (

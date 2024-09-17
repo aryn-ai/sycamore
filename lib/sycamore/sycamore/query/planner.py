@@ -431,7 +431,7 @@ class LlmPlanner:
                     "operatorName": "QueryVectorDatabase",
                     "description": "Get all the shipwreck records relating to sudden weather changes",
                     "index": "shipwrecks",
-                    "query_to_embed": "sudden weather changes",
+                    "query_phrase": "sudden weather changes",
                     "node_id": 0
                 }
             ]

@@ -138,18 +138,18 @@ class SycamoreQueryVectorDatabase(SycamoreOperator):
             get_val_from_context(context=self.context, val_key="os_client_args", param_names=["opensearch"]) is not None
         ), "QueryDatabase:OpenSearch requires os_client_args"
 
-        os_query = get_knn_query(query_phrase=self.logical_node.query_to_embed, context=self.context)
-        if self.logical_node.filter:
-            os_query["query"]["knn"]["embedding"]["filter"] = self.logical_node.filter
+        os_query = get_knn_query(query_phrase=self.logical_node.query_phrase, context=self.context)
+        if self.logical_node.opensearch_filter:
+            os_query["query"]["knn"]["embedding"]["filter"] = self.logical_node.opensearch_filter
         result = self.context.read.opensearch(index_name=self.logical_node.index, query=os_query)
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         assert isinstance(self.logical_node, QueryVectorDatabase)
-        result = f"""os_query = get_knn_query(query_phrase='{self.logical_node.query_to_embed}', context=context)"""
-        if self.logical_node.filter:
+        result = f"""os_query = get_knn_query(query_phrase='{self.logical_node.query_phrase}', context=context)"""
+        if self.logical_node.opensearch_filter:
             result += f"""
-os_query["query"]["knn"]["embedding"]["filter"] = {self.logical_node.filter}"""
+os_query["query"]["knn"]["embedding"]["filter"] = {self.logical_node.opensearch_filter}"""
         result += f"""
 {output_var or get_var_name(self.logical_node)} = context.read.opensearch(
     index_name='{self.logical_node.index}', 

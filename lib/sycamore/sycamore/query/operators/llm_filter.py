@@ -12,7 +12,7 @@ class LlmFilter(LogicalOperator):
     is to only include events that are natural disasters, LlmFilter can be used to analyze
     the text of the field to determine if the event is a natural disaster.
 
-    Whenever possible, use the `query' parameter to the QueryDatabase operation or 'query_to_embed' parameter
+    Whenever possible, use the `query' parameter to the QueryDatabase operation or 'query_phrase' parameter
     to the QueryVectorDatabase operation to filter data at the source.
 
     The BasicFilter operation is preferred to LLMFilter when the filter is simple and does not

@@ -134,8 +134,8 @@ def test_vector_query_database():
             node_id=0,
             description="Load data",
             index=context.params["opensearch"]["index_name"],
-            query_to_embed="question",
-            filter=os_filter,
+            query_phrase="question",
+            opensearch_filter=os_filter,
         )
         sycamore_operator = SycamoreQueryVectorDatabase(context=context, logical_node=logical_node, query_id="test")
         sycamore_operator.execute()

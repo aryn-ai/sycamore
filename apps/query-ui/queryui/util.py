@@ -67,12 +67,22 @@ def docset_to_string(docset: DocSet) -> str:
     for doc in docset.take(NUM_DOCS_GENERATE):
         if isinstance(doc, MetadataDocument):
             continue
+        retval += f"**{doc.properties.get('path')}** page: {doc.properties.get('page_number', 'meta')}  \n"
+
+        retval += "| Property | Value |\n"
+        retval += "|----------|-------|\n"
+
         props_dict = doc.properties.get("entity", {})
         props_dict.update({p: doc.properties[p] for p in set(doc.properties) - set(BASE_PROPS)})
-        props_dict["text_representation"] = (
+        
+        for k, v in props_dict.items():
+            retval += f"| {k} | {v} |\n"
+    
+        retval += "\n\n"
+        text_content = (
             doc.text_representation[:NUM_TEXT_CHARS_GENERATE] if doc.text_representation is not None else None
         )
-        retval += json.dumps(props_dict, indent=2) + "\n"
+        retval += f'*..."{text_content}"...* <br><br>'
     return retval
 
 

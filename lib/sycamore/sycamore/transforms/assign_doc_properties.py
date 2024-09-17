@@ -35,7 +35,7 @@ class AssignDocProperties(SingleThreadUser, NonGPUUser, Map):
                 prop = e.properties.get(property_name)
                 assert isinstance(
                     prop, Dict
-                ), f"AssignDocProperties: property {property_name}, expected Dict, got {type(prop).__name__}: {str(prop)}"
+                ), f"property {property_name}, expected Dict, got {type(prop).__name__}: {str(prop)}"
                 if "entity" in parent.properties:
                     parent.properties["entity"].update(prop)
                 else:

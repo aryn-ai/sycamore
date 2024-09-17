@@ -14,7 +14,7 @@ import sycamore
 from sycamore.data import Document
 from sycamore.transforms.partition import ArynPartitioner
 from sycamore.functions import HuggingFaceTokenizer
-from sycamore.transforms import AssignDocProperties, DateTimeStandardizer, ExtractTableProperties, USStateStandardizer
+from sycamore.transforms import AssignDocProperties, DateTimeStandardizer, USStateStandardizer
 from sycamore.transforms.extract_schema import (
     OpenAIPropertyExtractor,
 )

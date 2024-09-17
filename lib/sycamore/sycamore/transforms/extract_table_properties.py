@@ -1,5 +1,4 @@
 import json
-import logging
 from typing import Optional, Union
 
 from sycamore.data import Document

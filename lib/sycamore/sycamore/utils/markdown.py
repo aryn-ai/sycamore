@@ -4,9 +4,10 @@ Utilities for converting a list of Elements into Markdown-formatted text.
 TODO:
 - maybe insert horizontal rules at page breaks
 - handle numbered lists
+- render textract tables
 """
 
-from typing import cast
+from io import StringIO
 
 from sycamore.data import Element, TableElement
 
@@ -20,7 +21,7 @@ def elements_to_markdown(elems: list[Element]) -> str:
     Assumes elements are sorted as per bbox_sort.bbox_sort_document().
     """
     label_lists(elems)
-    s = ""
+    sio = StringIO()
     last = [-1, -1, -1, -1]
     for elem in elems:
         type = elem_type(elem).lower()
@@ -32,16 +33,17 @@ def elements_to_markdown(elems: list[Element]) -> str:
                 continue
             last = bbox
         if type == "table":
-            s += render_table(cast(TableElement, elem))
+            if isinstance(elem, TableElement):
+                render_table(elem, sio)
             continue
         text = elem_text(elem).strip()
         if not text:
             continue
         text = text.replace("\n", " ")
         if type == "title":
-            s += f"\n# {text}\n\n"
+            sio.write(f"\n# {text}\n\n")
         elif type == "section-header":
-            s += f"\n## {text}\n\n"
+            sio.write(f"\n## {text}\n\n")
         elif type == "list-item":
             tup = elem.data.get("_listctx")
             if tup:
@@ -50,20 +52,20 @@ def elements_to_markdown(elems: list[Element]) -> str:
                 t = text[n:]
                 if not t[0].isspace():
                     t = " " + t
-                s += f"{indent}-{t}\n"
+                sio.write(f"{indent}-{t}\n")
             else:
-                s += f"- {text}\n"
+                sio.write(f"- {text}\n")
         elif type in ("caption", "footnote"):
-            s += f"\n{text}\n\n"
+            sio.write(f"\n{text}\n\n")
         else:
-            s += text + "\n"
-    return s
+            sio.write(text + "\n")
+    return sio.getvalue()
 
 
-def render_table(elem: TableElement) -> str:
+def render_table(elem: TableElement, sio: StringIO) -> None:
     table = elem.table
     if not table:
-        return ""
+        return
     nrow = table.num_rows
     ncol = table.num_cols
     cells = table.cells
@@ -78,15 +80,15 @@ def render_table(elem: TableElement) -> str:
                 if cell.content:
                     matrix[row][col] = cell.content
     sep = "| " + " | ".join(["-----" for _ in range(ncol)]) + " |\n"
-    s = "\n"
+    sio.write("\n")
     if hdr_max < 0:
-        s += "|  " * ncol + "|\n"
-        s += sep
+        sio.write("|  " * ncol + "|\n")
+        sio.write(sep)
     for row in range(nrow):
-        s += "| " + " | ".join(matrix[row]) + " |\n"
+        sio.write("| " + " | ".join(matrix[row]) + " |\n")
         if row == hdr_max:
-            s += sep
-    return s + "\n"
+            sio.write(sep)
+    sio.write("\n")
 
 
 def label_lists(elems: list[Element]) -> None:

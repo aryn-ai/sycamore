@@ -27,7 +27,8 @@ NUM_TEXT_CHARS_GENERATE = 2500
 # Set OpenAI API key from Streamlit secrets
 openai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-OPENSEARCH_INDEX = "const_ntsb"
+# OPENSEARCH_INDEX = "const_ntsb"
+OPENSEARCH_INDEX = "ntsb_reports"
 OS_CONFIG = {"search_pipeline": "hybrid_pipeline"}
 OS_CLIENT_ARGS = {
     "hosts": [{"host": "localhost", "port": 9200}],
@@ -54,6 +55,7 @@ If you're not sure what to ask, you can try one of the following example queries
 
 {"".join([f"<SuggestedQuery query='{query}' />" for query in EXAMPLE_QUERIES])}
 """
+
 
 SYSTEM_PROMPT = """You are a helpful agent that answers questions about NTSB
 (National Transportation Safety Board) incidents. You have access to a database of incident
@@ -117,6 +119,7 @@ The following JSX components are available for your use:
  
   * <Preview path="s3://aryn-public/samples/sampledata1.pdf" />
     Displays an inline preview of the provided document. You may provide an S3 path or a URL.
+    ALWAYS use a <Preview> instead of a regular link whenever a document is mentioned.
 
   * <SuggestedQuery query="How many incidents were there in Washington in 2023?" />
     Displays a button showing a query that the user might wish to consider asking next.
@@ -334,6 +337,29 @@ TOOLS: List[ChatCompletionToolParam] = [
 ]
 
 
+TOOLS_RAG: List[ChatCompletionToolParam] = [
+    {
+        "type": "function",
+        "function": {
+            "name": "queryDataSource",
+            "description": """Run a query against the backend data source. The query should be a
+            natural language query. This function should only be called when new data is needed;
+            if the data is already available in the message history, it should be used directly.""",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The user's query",
+                    },
+                },
+                "required": ["query"],
+            },
+        },
+    },
+]
+
+
 def parse_s3_path(s3_path: str) -> Tuple[str, str]:
     """Parse an S3 path into a bucket and key."""
     s3_path = s3_path.replace("s3://", "")
@@ -511,7 +537,7 @@ def do_query():
                 response = openai_client.chat.completions.create(
                     model=st.session_state["openai_model"],
                     messages=messages,
-                    tools=TOOLS,
+                    tools=TOOLS_RAG if st.session_state.rag_only else TOOLS,
                     tool_choice="auto",
                 )
             response_dict = response.choices[0].message.to_dict()

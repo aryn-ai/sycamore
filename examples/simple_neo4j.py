@@ -4,14 +4,12 @@ from sycamore.transforms.extract_graph_entities import EntityExtractor
 from sycamore.transforms.extract_graph_relationships import RelationshipExtractor
 from sycamore.transforms.partition import ArynPartitioner
 
-from sycamore.llms import OpenAI
-from sycamore.llms.openai import OpenAIModel
+from sycamore.llms import OpenAI, OpenAIModels
 
 from typing import Optional
 from pydantic import BaseModel, Field
 
-GPT_4O_STRUCTURED = OpenAIModel(name="gpt-4o-2024-08-06", is_chat=True)
-llm = OpenAI(GPT_4O_STRUCTURED)
+llm = OpenAI(OpenAIModels.GPT_4O_STRUCTURED)
 ctx = sycamore.init() 
 
 class Report(BaseModel):

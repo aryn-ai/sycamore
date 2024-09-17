@@ -11,7 +11,7 @@ from sycamore.query.operators.count import Count
 from sycamore.query.operators.llm_filter import LlmFilter
 from sycamore.query.operators.basic_filter import BasicFilter
 from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
-from sycamore.query.operators.query_database import QueryDatabase
+from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDatabase
 from sycamore.query.operators.math import Math
 from sycamore.query.operators.sort import Sort
 from sycamore.query.operators.summarize_data import SummarizeData
@@ -29,6 +29,7 @@ if typing.TYPE_CHECKING:
 # If a class is not in this list, it will not be used.
 OPERATORS: List[Type[LogicalOperator]] = [
     QueryDatabase,
+    QueryVectorDatabase,
     BasicFilter,
     LlmFilter,
     LlmExtractEntity,
@@ -59,10 +60,11 @@ guidelines when generating a plan:
             Other than those, DO NOT USE ANY OTHER FIELD NAMES.
         5. If an optional field does not have a value in the query plan, return null in its place.
         6. If you cannot generate a plan to answer a question, return an empty list.
-        7. The first step of each plan MUST be a **QueryDatabase** operation that returns a database.
-           Whenever possible, include all possible filtering operations in the QueryDatabase step.
+        7. The first step of each plan MUST be a **QueryDatabase** or **QueryVectorDatabase" operation that returns a 
+           database. Whenever possible, include all possible filtering operations in the QueryDatabase step.
            That is, you should strive to construct an OpenSearch query that filters the data as
-           much as possible, reducing the need for further query operations.
+           much as possible, reducing the need for further query operations. Use a QueryVectorDatabase step instead of
+           an LLMFilter if the query looks reasonable.
 """
 
 # Variants on the last step in the query plan, based on whether the user has requested raw data
@@ -415,6 +417,26 @@ class LlmPlanner:
             ]
 
             EXAMPLE 6:
+            Data description: Database of shipwreck records and their respective properties
+            DATA_SCHEMA: 
+            {
+                'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
+                'properties.entity.shipwreck_id': "(<class 'str'>) e.g. (ABFUHEU), (FUIHWHD), (FGHIOWB),
+                'text_representation': '(<class 'str'>) Can be assumed to have all other details'
+            }
+            USER QUESTION: Were there any shipwrecks because of sudden weather changes?
+            Answer:
+            [
+                {
+                    "operatorName": "QueryVectorDatabase",
+                    "description": "Get all the shipwreck records relating to sudden weather changes",
+                    "index": "shipwrecks",
+                    "query_phrase": "sudden weather changes",
+                    "node_id": 0
+                }
+            ]
+
+            EXAMPLE 7:
             Data description: Database of hospital patients
             DATA_SCHEMA: 
             {

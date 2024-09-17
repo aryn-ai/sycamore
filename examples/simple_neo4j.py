@@ -10,19 +10,25 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 llm = OpenAI(OpenAIModels.GPT_4O_STRUCTURED)
-ctx = sycamore.init() 
+ctx = sycamore.init()
+
 
 class Report(BaseModel):
-    ID: str = Field(description="This ID can be found under either Accident Number, Incident Number, or Occurance Number")
+    ID: str = Field(
+        description="This ID can be found under either Accident Number, Incident Number, or Occurance Number"
+    )
+
 
 class Aircraft(BaseModel):
     registration: str
     make: str
     model: str
 
+
 class Pilot(BaseModel):
     is_student: bool
     total_flight_hours: Optional[int]
+
 
 class INVOLVED_AIRCRAFT(BaseModel):
     start: Report
@@ -33,13 +39,10 @@ class FLOWN_BY(BaseModel):
     start: Aircraft
     end: Pilot
 
-entity_extractors = [
-    EntityExtractor(llm=llm, entities=[Report, Aircraft, Pilot])
-]
 
-relationship_extractors = [
-    RelationshipExtractor(llm=llm, relationships=[INVOLVED_AIRCRAFT, FLOWN_BY])
-]
+entity_extractors = [EntityExtractor(llm=llm, entities=[Report, Aircraft, Pilot])]
+
+relationship_extractors = [RelationshipExtractor(llm=llm, relationships=[INVOLVED_AIRCRAFT, FLOWN_BY])]
 
 paths = "s3://aryn-public/knowledge-graph-blog-data/"
 ds = (
@@ -57,8 +60,8 @@ ds = (
 # https://sycamore.readthedocs.io/en/stable/sycamore/connectors/neo4j.html #
 ############################################################################
 
-URI = "<ENTER_NEO4J_URI>" # default: "bolt://localhost:7687"
+URI = "<ENTER_NEO4J_URI>"  # default: "bolt://localhost:7687"
 AUTH = ("<ENTER_NEO4J_USERNAME>", "<ENTER_NEO4J_PASSWORD>")
-DATABASE = "<ENTER_NEO4J_DB>" # default: "neo4j"
-IMPORT_DIR = "<ENTER_NEO4J_IMPORT_DIR>" # configured during neo4j docker run
-ds.write.neo4j(uri=URI,auth=AUTH,import_dir=IMPORT_DIR, database=DATABASE)
+DATABASE = "<ENTER_NEO4J_DB>"  # default: "neo4j"
+IMPORT_DIR = "<ENTER_NEO4J_IMPORT_DIR>"  # configured during neo4j docker run
+ds.write.neo4j(uri=URI, auth=AUTH, import_dir=IMPORT_DIR, database=DATABASE)

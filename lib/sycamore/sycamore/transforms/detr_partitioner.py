@@ -5,9 +5,8 @@ import tempfile
 import tracemalloc
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
-from concurrent.futures import ProcessPoolExecutor
-from io import BytesIO, IOBase
-from typing import cast, Any, BinaryIO, List, Literal, Tuple, Union, Optional
+from io import BytesIO
+from typing import Any, BinaryIO, List, Literal, Union, Optional
 from pathlib import Path
 import pwd
 
@@ -15,7 +14,6 @@ import requests
 import json
 from tenacity import retry, retry_if_exception, wait_exponential, stop_after_delay
 import base64
-import pdf2image
 from PIL import Image
 import fasteners
 from pypdf import PdfReader
@@ -340,6 +338,7 @@ class ArynPDFPartitioner:
             high += pages_per_call
 
         return result
+
     def _partition_pdf_batched(
         self,
         file: BinaryIO,

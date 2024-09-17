@@ -9,7 +9,7 @@ from threading import Thread
 from typing import List, Generator
 from sycamore.utils.import_utils import requires_modules
 from sycamore.utils.time_trace import LogTime
-from typing import BinaryIO, Any, Union, cast
+from typing import BinaryIO, Any, cast
 
 
 def convert_from_path_streamed(pdf_path: str) -> Generator[Image.Image, None, None]:

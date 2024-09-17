@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "sycamore-jupyter"
+version = "0.0.1"
+description = "Jupyter container with sycamore preinstalled"
+authors = ["aryn.ai <opensource@aryn.ai>"]
+readme = "README.md"
+repository = "https://github.com/aryn-ai/sycamore.git"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.12"
+sycamore-ai = {extras = ["opensearch"], version = "^0.1.13"}
+
+jupyterlab = "^4.0.11"
+jupyter-lsp = "^2.2.2"
+ipywidgets = "^8.1.0"
+notebook = "^7.1.2"
+
+
+[tool.poetry.group.dev.dependencies]
+sycamore-ai = { path = "../../lib/sycamore", develop = true }
+
+[tool.poetry.group.sycamore_poetry_lock.dependencies]
+sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }

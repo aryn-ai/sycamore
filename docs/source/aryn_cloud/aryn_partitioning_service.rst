@@ -12,6 +12,5 @@ If you'd like to experiment with the service, you can use the UI in the `Aryn Pl
    ./get_started.md
    ./accessing_the_partitioning_service.rst
    ./specifying_options.rst
-   ./aps_input.md
    ./aps_output.md
    ./using_the_console.md

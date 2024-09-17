@@ -84,6 +84,8 @@ def outputs_to_objects(outputs, img_size, id2label):
 
     objects = []
     for label, score, bbox in zip(pred_labels, pred_scores, pred_bboxes):
+        if float(bbox[0]) > float(bbox[2]) or float(bbox[1]) > float(bbox[3]):
+            continue
         class_label = id2label[int(label)]
         if not class_label == "no object":
             objects.append({"label": class_label, "score": float(score), "bbox": [float(elem) for elem in bbox]})

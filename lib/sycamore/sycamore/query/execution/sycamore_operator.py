@@ -90,15 +90,23 @@ class SycamoreQueryDatabase(SycamoreOperator):
             get_val_from_context(context=self.context, val_key="os_client_args", param_names=["opensearch"]) is not None
         ), "QueryDatabase:OpenSearch requires os_client_args"
 
-        result = self.context.read.opensearch(index_name=self.logical_node.index)
+        if self.logical_node.query:
+            os_query = {"query": self.logical_node.query}
+        else:
+            os_query = {}
+        result = self.context.read.opensearch(index_name=self.logical_node.index, query=os_query)
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         assert isinstance(self.logical_node, QueryDatabase)
+        if self.logical_node.query:
+            os_query = {"query": self.logical_node.query}
+        else:
+            os_query = {}
         return (
             f"""
 {output_var or get_var_name(self.logical_node)} = context.read.opensearch(
-    index_name='{self.logical_node.index}'
+    index_name='{self.logical_node.index}', query={os_query}
 )
 """,
             [],
@@ -250,10 +258,10 @@ class SycamoreBasicFilter(SycamoreOperator):
             field = logical_node.field
             start = logical_node.start
             end = logical_node.end
-            date = logical_node.date
+            is_date = logical_node.is_date
 
             result = self.inputs[0].filter(
-                f=RangeFilter(field=str(field), start=start, end=end, date=date), **self.get_node_args()
+                f=RangeFilter(field=str(field), start=start, end=end, date=is_date), **self.get_node_args()
             )
         else:
             query = logical_node.query
@@ -275,14 +283,14 @@ class SycamoreBasicFilter(SycamoreOperator):
             assert start is None or isinstance(start, str)
             end = self.logical_node.end
             assert end is None or isinstance(end, str)
-            date = self.logical_node.date
+            is_date = self.logical_node.is_date
             script = f"""
 {output_str} = {input_str}.filter(
     f=RangeFilter(
         field='{field}',
         start='{start}',
         end='{end}',
-        date={date}
+        date={is_date}
         ),
     **{self.get_node_args()}
 )
@@ -323,33 +331,27 @@ class SycamoreCount(SycamoreOperator):
         # load into local vars for Ray serialization magic
         logical_node = self.logical_node
         assert isinstance(logical_node, Count)
-        field = logical_node.field
-        primary_field = logical_node.primary_field
+        distinct_field = logical_node.distinct_field
 
-        if field is None and primary_field is None:
+        if distinct_field is None:
             result = self.inputs[0].count(**self.get_execute_args())
         else:
-            field_name = field or primary_field
-            assert isinstance(field_name, str)
-            result = self.inputs[0].count_distinct(field=field_name, **self.get_execute_args())
+            assert isinstance(distinct_field, str)
+            result = self.inputs[0].count_distinct(field=distinct_field, **self.get_execute_args())
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         assert isinstance(self.logical_node, Count)
         assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) == 1
-        field = self.logical_node.field
-        primary_field = self.logical_node.primary_field
+        distinct_field = self.logical_node.distinct_field
 
         imports: list[str] = []
         script = f"""{output_var or get_var_name(self.logical_node)} ="""
-        if field is None and primary_field is None:
+        if distinct_field is None:
             script += f"""{input_var or get_var_name(self.logical_node.dependencies[0])}.count("""
         else:
             script += f"""{input_var or get_var_name(self.logical_node.dependencies[0])}.count_distinct("""
-            if field:
-                script += f"""field='{field}', """
-            elif primary_field:
-                script += f"""field='{primary_field}', """
+            script += f"""field='{distinct_field}', """
         script += f"""**{get_str_for_dict(self.get_execute_args())})"""
         return script, imports
 

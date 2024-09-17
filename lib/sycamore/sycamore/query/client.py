@@ -22,7 +22,7 @@ import sycamore
 from sycamore import Context
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.transforms.query import OpenSearchQueryExecutor
-from sycamore.utils.cache import S3Cache
+from sycamore.utils.cache import cache_from_path
 from sycamore.utils.import_utils import requires_modules
 
 from sycamore.query.execution.sycamore_executor import SycamoreExecutor
@@ -39,7 +39,7 @@ console = Console()
 
 DEFAULT_OS_CONFIG = {"search_pipeline": "hybrid_pipeline"}
 DEFAULT_OS_CLIENT_ARGS = {
-    "hosts": [{"host": "localhost", "port": 9200}],
+    "hosts": [{"host": os.getenv("OPENSEARCH_HOST", "localhost"), "port": os.getenv("OPENSEARCH_PORT", 9200)}],
     "http_compress": True,
     "http_auth": ("admin", "admin"),
     "use_ssl": True,
@@ -142,20 +142,28 @@ class SycamoreQueryClient:
         schema_provider = OpenSearchSchemaFetcher(IndicesClient(self._os_client), index, self._os_query_executor)
         return schema_provider.get_schema()
 
-    def generate_plan(self, query: str, index: str, schema: OpenSearchSchema) -> LogicalPlan:
-        """Generate a logical query plan for the given query, index, and schema."""
+    def generate_plan(
+        self, query: str, index: str, schema: OpenSearchSchema, natural_language_response: bool = False
+    ) -> LogicalPlan:
+        """Generate a logical query plan for the given query, index, and schema.
 
+        Args:
+            query: The query to generate a plan for.
+            index: The index to query against.
+            schema: The schema for the index.
+            natural_language_response: Whether to generate a natural language response. If False,
+                raw data will be returned.
+        """
         llm_client = self.context.params.get("default", {}).get("llm")
         if not llm_client:
-            llm_client = OpenAI(
-                OpenAIModels.GPT_4O.value, cache=S3Cache(self.s3_cache_path) if self.s3_cache_path else None
-            )
+            llm_client = OpenAI(OpenAIModels.GPT_4O.value, cache=cache_from_path(self.s3_cache_path))
         planner = LlmPlanner(
             index,
             data_schema=schema,
             os_config=self.os_config,
             os_client=self._os_client,
             llm_client=llm_client,
+            natural_language_response=natural_language_response,
         )
         plan = planner.plan(query)
         return plan
@@ -202,13 +210,50 @@ class SycamoreQueryClient:
     def _get_default_context(s3_cache_path, os_client_args) -> Context:
         context_params = {
             "default": {
-                "llm": OpenAI(OpenAIModels.GPT_4O.value, cache=S3Cache(s3_cache_path) if s3_cache_path else None),
+                "llm": OpenAI(OpenAIModels.GPT_4O.value, cache=cache_from_path(s3_cache_path)),
             },
             "opensearch": {
                 "os_client_args": os_client_args,
             },
         }
         return sycamore.init(params=context_params)
+
+    def result_to_str(self, result: Any, max_docs: int = 100, max_chars_per_doc: int = 2500) -> str:
+        """Convert a query result to a string.
+
+        Args:
+            result: The result to convert.
+            max_docs: The maximum number of documents to include in the result.
+            max_chars_per_doc: The maximum number of characters to include in each document.
+        """
+        if isinstance(result, str):
+            return result
+        elif isinstance(result, sycamore.docset.DocSet):
+            BASE_PROPS = [
+                "filename",
+                "filetype",
+                "page_number",
+                "page_numbers",
+                "links",
+                "element_id",
+                "parent_id",
+                "_schema",
+                "_schema_class",
+                "entity",
+            ]
+            retval = ""
+            for doc in result.take(max_docs):
+                if isinstance(doc, sycamore.data.MetadataDocument):
+                    continue
+                props_dict = doc.properties.get("entity", {})
+                props_dict.update({p: doc.properties[p] for p in set(doc.properties) - set(BASE_PROPS)})
+                props_dict["text_representation"] = (
+                    doc.text_representation[:max_chars_per_doc] if doc.text_representation is not None else None
+                )
+                retval += json.dumps(props_dict, indent=2) + "\n"
+            return retval
+        else:
+            return str(result)
 
 
 def main():
@@ -221,6 +266,9 @@ def main():
         type=str,
         help="S3 cache path",
         default=None,
+    )
+    parser.add_argument(
+        "--raw-data-response", action="store_true", help="Return raw data instead of natural language response."
     )
     parser.add_argument("--show-schema", action="store_true", help="Show schema extracted from index.")
     parser.add_argument("--show-dag", action="store_true", help="Show DAG of query plan.")
@@ -263,7 +311,7 @@ def main():
         console.print(schema)
         console.rule()
 
-    plan = client.generate_plan(args.query, args.index, schema)
+    plan = client.generate_plan(args.query, args.index, schema, natural_language_response=not args.raw_data_response)
 
     if args.show_plan or args.plan_only:
         console.rule("Generated query plan")
@@ -276,7 +324,7 @@ def main():
     query_id, result = client.run_plan(plan, args.dry_run, args.codegen_mode)
 
     console.rule(f"Query result [{query_id}]")
-    console.print(result)
+    console.print(client.result_to_str(result))
 
     if args.dump_traces:
         console.rule(f"Execution traces from {args.trace_dir}/sycamore.log")

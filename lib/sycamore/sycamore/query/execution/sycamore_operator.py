@@ -132,9 +132,7 @@ class SycamoreQueryVectorDatabase(SycamoreOperator):
     def execute(self) -> Any:
         assert isinstance(self.logical_node, QueryVectorDatabase)
         embedder = get_val_from_context(context=self.context, val_key="text_embedder", param_names=["opensearch"])
-        assert (
-            embedder and isinstance(embedder, Embedder)
-        ), "QueryVectorDatabase requires an Embedder in the context"
+        assert embedder and isinstance(embedder, Embedder), "QueryVectorDatabase requires an Embedder in the context"
 
         assert (
             get_val_from_context(context=self.context, val_key="os_client_args", param_names=["opensearch"]) is not None
@@ -158,7 +156,8 @@ os_query["query"]["knn"]["embedding"]["filter"] = {self.logical_node.filter}"""
     query=os_query
 )
 """
-        return (result,
+        return (
+            result,
             ["from sycamore.connectors.opensearch.utils import get_knn_query"],
         )
 

@@ -231,6 +231,7 @@ class TestOpenSearchRecord:
         assert record._id == document.doc_id
         assert record._index == tp.index_name
 
+
 class TestOpenSearchUtils:
 
     def test_get_knn_query(self):
@@ -250,26 +251,14 @@ class TestOpenSearchUtils:
                         "ssl_show_warn": False,
                         "timeout": 120,
                     },
-                    "index_name": "test_index"
+                    "index_name": "test_index",
                 },
-                "default": {
-                    "text_embedder": embedder
-                }
+                "default": {"text_embedder": embedder},
             }
         )
-        expected_query = {
-            "query": {
-                "knn": {
-                    "embedding": {
-                        "vector": embedding,
-                        "k": 1000
-                    }
-                }
-            }
-        }
+        expected_query = {"query": {"knn": {"embedding": {"vector": embedding, "k": 1000}}}}
         assert get_knn_query(query_phrase="test", k=1000, context=context) == expected_query
         embedder.generate_text_embedding.assert_called_with("test")
-
 
         assert get_knn_query(query_phrase="test", k=1000, text_embedder=embedder) == expected_query
         embedder.generate_text_embedding.assert_called_with("test")

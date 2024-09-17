@@ -19,7 +19,8 @@ from sycamore.query.execution.sycamore_operator import (
     SycamoreLlmExtractEntity,
     SycamoreSort,
     SycamoreTopK,
-    SycamoreLimit, SycamoreQueryVectorDatabase,
+    SycamoreLimit,
+    SycamoreQueryVectorDatabase,
 )
 from sycamore.query.operators.basic_filter import BasicFilter
 from sycamore.query.operators.sort import Sort
@@ -124,38 +125,25 @@ def test_vector_query_database():
                         "timeout": 120,
                     },
                     "index_name": "test_index",
-                    "text_embedder": embedder
+                    "text_embedder": embedder,
                 }
             }
         )
-        os_filter = {
-            "filterKey": {
-                "nestedKey": "some value"
-            }
-        }
-        logical_node = QueryVectorDatabase(node_id=0,
-                                           description="Load data",
-                                           index=context.params["opensearch"]["index_name"],
-                                           query_to_embed="question",
-                                           filter=os_filter
-                                           )
+        os_filter = {"filterKey": {"nestedKey": "some value"}}
+        logical_node = QueryVectorDatabase(
+            node_id=0,
+            description="Load data",
+            index=context.params["opensearch"]["index_name"],
+            query_to_embed="question",
+            filter=os_filter,
+        )
         sycamore_operator = SycamoreQueryVectorDatabase(context=context, logical_node=logical_node, query_id="test")
         sycamore_operator.execute()
 
         # Assert request
         mock_docset_reader_impl.opensearch.assert_called_once_with(
             index_name=context.params["opensearch"]["index_name"],
-            query={
-                "query": {
-                    "knn": {
-                        "embedding": {
-                            "vector": embedding,
-                            "k": 500,
-                            "filter": os_filter
-                        }
-                    }
-                }
-            }
+            query={"query": {"knn": {"embedding": {"vector": embedding, "k": 500, "filter": os_filter}}}},
         )
 
 

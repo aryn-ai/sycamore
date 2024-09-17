@@ -13,8 +13,12 @@ class TestSycamoreQuery:
         """
         client = SycamoreQueryClient()
         schema = client.get_opensearch_schema(query_integration_test_index)
-        plan = client.generate_plan("How many incidents happened in california?",
-                                    query_integration_test_index, schema, natural_language_response=True)
+        plan = client.generate_plan(
+            "How many incidents happened in california?",
+            query_integration_test_index,
+            schema,
+            natural_language_response=True,
+        )
         query_id, result = client.run_plan(plan, codegen_mode=codegen_mode)
         assert isinstance(result, str)
         assert len(result) > 0
@@ -27,8 +31,10 @@ class TestSycamoreQuery:
         client = SycamoreQueryClient()
         schema = client.get_opensearch_schema(query_integration_test_index)
         plan = client.generate_plan(
-            "What fraction of all incidents happened in california?", query_integration_test_index, schema,
-            natural_language_response=True
+            "What fraction of all incidents happened in california?",
+            query_integration_test_index,
+            schema,
+            natural_language_response=True,
         )
         query_id, result = client.run_plan(plan, codegen_mode=codegen_mode)
         assert isinstance(result, str)
@@ -46,8 +52,10 @@ class TestSycamoreQuery:
         client = SycamoreQueryClient()
         schema = client.get_opensearch_schema(query_integration_test_index)
         plan = client.generate_plan(
-            "What fraction of all incidents happened in california?", query_integration_test_index, schema,
-            natural_language_response=True
+            "What fraction of all incidents happened in california?",
+            query_integration_test_index,
+            schema,
+            natural_language_response=True,
         )
         ray.shutdown()
         query_id, result = client.run_plan(plan, dry_run=dry_run)
@@ -60,14 +68,15 @@ class TestSycamoreQuery:
 
     @pytest.mark.parametrize("codegen_mode", [True, False])
     def test_vector_search(self, query_integration_test_index: str, codegen_mode: bool):
-        """
-        """
+        """ """
 
         client = SycamoreQueryClient()
         schema = client.get_opensearch_schema(query_integration_test_index)
         plan = client.generate_plan(
-            "were there any environmentally caused incidents?", query_integration_test_index, schema,
-            natural_language_response=True
+            "were there any environmentally caused incidents?",
+            query_integration_test_index,
+            schema,
+            natural_language_response=True,
         )
         assert len(plan.nodes) == 2
         assert isinstance(plan.nodes[0], QueryVectorDatabase)

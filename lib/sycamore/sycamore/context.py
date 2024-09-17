@@ -125,7 +125,7 @@ def context_params(*names):
                 if accepts_kwargs:
                     new_kwargs = candidate_kwargs
                 else:
-                    for param in signature[len(args):]:  # arguments that haven't been passed as positional args
+                    for param in signature[len(args) :]:  # arguments that haven't been passed as positional args
                         candidate_val = candidate_kwargs.get(param)
                         if candidate_val:
                             new_kwargs[param] = candidate_val

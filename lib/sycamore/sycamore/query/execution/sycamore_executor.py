@@ -31,7 +31,8 @@ from sycamore.query.execution.sycamore_operator import (
     SycamoreTopK,
     SycamoreSort,
     SycamoreLimit,
-    SycamoreFieldIn, SycamoreQueryVectorDatabase,
+    SycamoreFieldIn,
+    SycamoreQueryVectorDatabase,
 )
 from sycamore.query.logical_plan import LogicalPlan
 

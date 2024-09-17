@@ -74,16 +74,18 @@ def test_function_w_class_context():
 
 
 @context_params
-def two_positional_args_method(some_function_arg: str, some_other_arg: str, separator: str = " ",
-                               context: Optional[Context] = None):
+def two_positional_args_method(
+    some_function_arg: str, some_other_arg: str, separator: str = " ", context: Optional[Context] = None
+):
     assert some_function_arg is not None
     assert some_other_arg is not None
     return some_function_arg + separator + some_other_arg
 
 
 @context_params
-def two_positional_args_method_with_kwargs(some_function_arg: str, separator: str = " ",
-                                           context: Optional[Context] = None, **kwargs):
+def two_positional_args_method_with_kwargs(
+    some_function_arg: str, separator: str = " ", context: Optional[Context] = None, **kwargs
+):
     assert some_function_arg is not None
     assert kwargs.get("some_other_arg") is not None
     return some_function_arg + separator + str(kwargs.get("some_other_arg"))

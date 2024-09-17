@@ -65,7 +65,7 @@ def test_llm_planner(mock_os_config, mock_os_client, mock_llm_client, mock_schem
                     "operatorName": "QueryDatabase",
                     "description": "Get all the airplane incidents",
                     "index": "ntsb",
-                    "query": "airplane incidents",
+                    "query": {"match_all": {}},
                     "node_id": 0,
                 },
                 {
@@ -119,6 +119,7 @@ def test_llm_planner(mock_os_config, mock_os_client, mock_llm_client, mock_schem
     )
     assert len(plan.result_node.dependencies[0].dependencies[0].dependencies) == 1
     assert plan.result_node.dependencies[0].dependencies[0].dependencies[0].node_id == 0
+    assert plan.result_node.dependencies[0].dependencies[0].dependencies[0].query == {"match_all": {}}
     assert (
         plan.result_node.dependencies[0].dependencies[0].dependencies[0].description == "Get all the airplane incidents"
     )

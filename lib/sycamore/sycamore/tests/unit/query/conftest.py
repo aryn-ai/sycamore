@@ -1,8 +1,13 @@
 import pytest
-from typing import Optional, List
+from typing import Dict, List, Optional
 
 from sycamore import DocSet, Context
-from sycamore.connectors.base_reader import BaseDBReader
+from sycamore.connectors.opensearch.opensearch_reader import (
+    OpenSearchReader,
+    OpenSearchReaderClientParams,
+    OpenSearchReaderQueryParams,
+)
+from sycamore.context import context_params
 from sycamore.data import Document
 from sycamore.plan_nodes import Node
 from sycamore.reader import DocSetReader
@@ -10,11 +15,8 @@ from sycamore.reader import DocSetReader
 MOCK_SCAN_NUM_DOCUMENTS = 20
 
 
-class MockOpenSearchReader(BaseDBReader):
+class MockOpenSearchReader(OpenSearchReader):
     """Mock out OpenSearchReader for tests."""
-
-    def __init__(self, **kwargs):
-        super().__init__(client_params=BaseDBReader.ClientParams, query_params=BaseDBReader.QueryParams, **kwargs)
 
     def read_docs(self) -> List[Document]:
         return get_mock_docs()
@@ -28,8 +30,16 @@ class MockDocSetReader(DocSetReader):
         self.context = context
         self.plan = plan
 
-    def opensearch(self, *args, **kwargs) -> DocSet:
-        return DocSet(self._context, MockOpenSearchReader())
+    @context_params
+    def opensearch(self, os_client_args: dict, index_name: str, query: Optional[Dict] = None, **kwargs) -> DocSet:
+        client_params = OpenSearchReaderClientParams(os_client_args=os_client_args)
+        query_params = (
+            OpenSearchReaderQueryParams(index_name=index_name, query=query)
+            if query is not None
+            else OpenSearchReaderQueryParams(index_name=index_name)
+        )
+        mock_osr = MockOpenSearchReader(client_params=client_params, query_params=query_params)
+        return DocSet(self._context, mock_osr)
 
 
 @pytest.fixture

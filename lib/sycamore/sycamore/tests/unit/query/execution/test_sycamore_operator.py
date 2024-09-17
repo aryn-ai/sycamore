@@ -57,6 +57,44 @@ def test_query_database(mock_sycamore_docsetreader, mock_opensearch_num_docs):
         assert result.count() == mock_opensearch_num_docs
 
 
+def test_query_database_with_query(mock_sycamore_docsetreader, mock_opensearch_num_docs):
+    with patch("sycamore.reader.DocSetReader", new=mock_sycamore_docsetreader):
+        context = sycamore.init(
+            params={
+                "opensearch": {
+                    "os_client_args": {
+                        "hosts": [{"host": "localhost", "port": 9200}],
+                        "http_compress": True,
+                        "http_auth": ("admin", "admin"),
+                        "use_ssl": True,
+                        "verify_certs": False,
+                        "ssl_assert_hostname": False,
+                        "ssl_show_warn": False,
+                        "timeout": 120,
+                    }
+                }
+            }
+        )
+        os_query_plan = {"bool": {"must": [{"match": {"properties.location": "Washington"}}]}}
+
+        logical_node = QueryDatabase(
+            node_id=0,
+            description="Load data",
+            index="test_index",
+            query=os_query_plan,
+        )
+        sycamore_operator = SycamoreQueryDatabase(context=context, logical_node=logical_node, query_id="test")
+        result = sycamore_operator.execute()
+        # Validate result type
+        assert isinstance(result, DocSet)
+
+        # Validate result
+        assert result.count() == mock_opensearch_num_docs
+
+        # Validate that the correct query would be passed to OpenSearch.
+        assert result.plan._query_params.query == {"query": os_query_plan}
+
+
 def test_summarize_data():
     with (patch("sycamore.query.execution.sycamore_operator.summarize_data") as mock_impl,):
         # Define the mock return value
@@ -134,7 +172,7 @@ def test_count():
 
     return_value_count = 5
     doc_set.count.return_value = return_value_count
-    logical_node_count = Count(node_id=0, field=None, primary_field=None)
+    logical_node_count = Count(node_id=0, field=None, distinct_field=None)
     sycamore_operator = SycamoreCount(context, logical_node_count, query_id="test", inputs=[doc_set])
     count_result = sycamore_operator.execute()
 
@@ -149,12 +187,12 @@ def test_count_distinct():
 
     return_value_count_distinct = 6
     doc_set.count_distinct.return_value = return_value_count_distinct
-    logical_node_count_distinct = Count(node_id=0, field="properties.counter", primary_field="text_representation")
+    logical_node_count_distinct = Count(node_id=0, field="properties.counter", distinct_field="text_representation")
     sycamore_operator = SycamoreCount(context, logical_node_count_distinct, query_id="test", inputs=[doc_set])
     count_distinct_result = sycamore_operator.execute()
 
     doc_set.count_distinct.assert_called_once_with(
-        field=logical_node_count_distinct.field, **sycamore_operator.get_execute_args()
+        field=logical_node_count_distinct.distinct_field, **sycamore_operator.get_execute_args()
     )
 
     assert count_distinct_result == return_value_count_distinct
@@ -166,13 +204,13 @@ def test_count_distinct_primary_field():
 
     return_value_count_distinct_primary = 7
     doc_set.count_distinct.return_value = return_value_count_distinct_primary
-    logical_node_count_distinct_primary = Count(node_id=0, field=None, primary_field="text_representation")
+    logical_node_count_distinct_primary = Count(node_id=0, field=None, distinct_field="text_representation")
 
     sycamore_operator = SycamoreCount(context, logical_node_count_distinct_primary, query_id="test", inputs=[doc_set])
     count_distinct_primary_result = sycamore_operator.execute()
 
     doc_set.count_distinct.assert_called_once_with(
-        field=logical_node_count_distinct_primary.primary_field, **sycamore_operator.get_execute_args()
+        field=logical_node_count_distinct_primary.distinct_field, **sycamore_operator.get_execute_args()
     )
 
     assert count_distinct_primary_result == return_value_count_distinct_primary

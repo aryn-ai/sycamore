@@ -64,6 +64,8 @@ class EntityExtractor(GraphEntityExtractor):
 
         for i, section in enumerate(doc.children):
             nodes: defaultdict[dict, Any] = defaultdict(dict)
+            if "nodes" in section["properties"]:
+                nodes = section["properties"]["nodes"]
             try:
                 output_dict: dict[str, Any] = {}
                 for output in res[i]:

@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from concurrent.futures import ProcessPoolExecutor
 from io import BytesIO, IOBase
-from typing import cast, Any, BinaryIO, List, Tuple, Union, Optional
+from typing import cast, Any, BinaryIO, List, Literal, Tuple, Union, Optional
 from pathlib import Path
 import pwd
 
@@ -46,6 +46,7 @@ def _batchify(iterable, n=1):
 ARYN_DETR_MODEL = "Aryn/deformable-detr-DocLayNet"
 DEFAULT_ARYN_PARTITIONER_ADDRESS = "https://api.aryn.cloud/v1/document/partition"
 _TEN_MINUTES = 600
+DEFAULT_LOCAL_THRESHOLD = 0.35
 
 
 class ArynPDFPartitionerException(Exception):
@@ -134,7 +135,7 @@ class ArynPDFPartitioner:
     def partition_pdf(
         self,
         file: BinaryIO,
-        threshold: float = 0.4,
+        threshold: Union[float, Literal["auto"]] = DEFAULT_LOCAL_THRESHOLD,
         use_ocr=False,
         ocr_images=False,
         ocr_tables=False,
@@ -150,6 +151,7 @@ class ArynPDFPartitioner:
     ) -> List[Element]:
         if use_partitioning_service:
             assert aryn_api_key != ""
+
             return self._partition_remote(
                 file=file,
                 aryn_api_key=aryn_api_key,
@@ -163,6 +165,9 @@ class ArynPDFPartitioner:
                 pages_per_call=pages_per_call,
             )
         else:
+            if isinstance(threshold, str):
+                raise ValueError("Auto threshold is only supported with the Aryn Partitioning Service.")
+
             temp = self._partition_pdf_batched(
                 file=file,
                 threshold=threshold,
@@ -192,7 +197,7 @@ class ArynPDFPartitioner:
         file: BinaryIO,
         aryn_api_key: str,
         aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
-        threshold: float = 0.4,
+        threshold: Union[float, Literal["auto"]] = "auto",
         use_ocr: bool = False,
         ocr_images: bool = False,
         ocr_tables: bool = False,
@@ -301,7 +306,7 @@ class ArynPDFPartitioner:
         file: BinaryIO,
         aryn_api_key: str,
         aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
-        threshold: float = 0.4,
+        threshold: Union[float, Literal["auto"]] = "auto",
         use_ocr: bool = False,
         ocr_images: bool = False,
         ocr_tables: bool = False,
@@ -335,11 +340,10 @@ class ArynPDFPartitioner:
             high += pages_per_call
 
         return result
-
     def _partition_pdf_batched(
         self,
         file: BinaryIO,
-        threshold: float = 0.4,
+        threshold: float = DEFAULT_LOCAL_THRESHOLD,
         use_ocr=False,
         ocr_images=False,
         ocr_tables=False,
@@ -381,7 +385,7 @@ class ArynPDFPartitioner:
         self,
         filename: str,
         hash_key: str,
-        threshold: float = 0.4,
+        threshold: float = DEFAULT_LOCAL_THRESHOLD,
         use_ocr=False,
         ocr_images=False,
         ocr_tables=False,

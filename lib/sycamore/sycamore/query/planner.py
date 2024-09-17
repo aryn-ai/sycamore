@@ -60,6 +60,9 @@ guidelines when generating a plan:
         5. If an optional field does not have a value in the query plan, return null in its place.
         6. If you cannot generate a plan to answer a question, return an empty list.
         7. The first step of each plan MUST be a **QueryDatabase** operation that returns a database.
+           Whenever possible, include all possible filtering operations in the QueryDatabase step.
+           That is, you should strive to construct an OpenSearch query that filters the data as
+           much as possible, reducing the need for further query operations.
 """
 
 # Variants on the last step in the query plan, based on whether the user has requested raw data
@@ -156,26 +159,76 @@ class LlmPlanner:
         # examples
         if self._use_examples:
             prompt += """
-            EXAMPLE 1:
+            EXAMPLE 1a:
 
             Data description: Database of aircraft incidents
-            DATA_SCHEMA: 
-            {
-                'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
-                'properties.entity.aircraft': "(<class 'int'>) e.g. (Boeing 123), (Cessna Mini 5), (Piper 0.5),
-                'properties.entity.location': "(<class 'str'>) e.g. (Atlanta, GA), (Phoenix, Arizona), 
-                    (Boise, Idaho),
-                'properties.entity.accidentNumber': "(<class 'str'>) e.g. (3589), (5903), (7531L),
-                'text_representation': '(<class 'str'>) Can be assumed to have all other details'
-            }
-            USER QUESTION: Were there any incidents in Georgia?
+            Schema: {
+                        'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
+                        'properties.entity.aircraft': "(<class 'str'>) e.g. (Boeing 123), (Cessna Mini 5), (Piper 0.5),
+                        'properties.entity.location': "(<class 'str'>) e.g. (Atlanta, GA), (Phoenix, Arizona), 
+                            (Boise, Idaho),
+                        'properties.entity.accidentNumber': "(<class 'str'>) e.g. (3589), (5903), (7531L),
+                        'text_representation': '(<class 'str'>) Can be assumed to have all other details'
+                    }
+            Question: Were there any incidents in Georgia?
             Answer:
             [
                 {
                     "operatorName": "QueryDatabase",
                     "description": "Get all the incident reports",
                     "index": "ntsb",
-                    "query": "aircraft incident reports"
+                    "node_id": 0
+                },
+                {
+                    "operatorName": "LlmFilter",
+                    "description": "Filter to only include incidents in Georgia",
+                    "question": "Did this incident occur in Georgia?",
+                    "field": "properties.entity.location",
+                    "input": [0],
+                    "node_id": 1
+                },
+            ]
+
+            EXAMPLE 1b:
+
+            Data description: Database of aircraft incidents
+            Schema: {
+                        'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
+                        'properties.entity.aircraft': "(<class 'str'>) e.g. (Boeing 123), (Cessna Mini 5), (Piper 0.5),
+                        'properties.entity.location': "(<class 'str'>) e.g. (Atlanta, GA), (Phoenix, Arizona), 
+                            (Boise, Idaho),
+                        'properties.entity.accidentNumber': "(<class 'str'>) e.g. (3589), (5903), (7531L),
+                        'text_representation': '(<class 'str'>) Can be assumed to have all other details'
+                    }
+            Question: Show incidents between July 1, 2023 and September 1, 2024 with an accident number
+            containing '1234' that occurred in Georgia.
+            Answer:
+            [
+                {
+                    "operatorName": "QueryDatabase",
+                    "description": "Get all the incident reports in the specified date range matching the
+                        accident number",
+                    "index": "ntsb",
+                    "query": {
+                        "bool": {
+                            "must": [
+                                {
+                                    "range": {
+                                        "properties.entity.isoDateTime": {
+                                        "gte": "2023-07-01T00:00:00",
+                                        "lte": "2024-09-30T23:59:59",
+                                        "format": "strict_date_optional_time"
+                                        }
+                                    }
+                                },
+                                {
+                                    "match": {
+                                        "properties.entity.accidentNumber": "1234"
+                                    }
+                                }
+                            ]
+                        }
+                    },
                     "node_id": 0
                 },
                 {
@@ -190,43 +243,33 @@ class LlmPlanner:
 
             EXAMPLE 2:
             Data description: Database of aircraft incidents
-            DATA_SCHEMA: 
-            {
-                'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
-                'properties.entity.aircraft': "(<class 'int'>) e.g. (Boeing 123), (Cessna Mini 5), (Piper 0.5),
-                'properties.entity.city': "(<class 'str'>) e.g. (Orlando, FL), (Palo Alto, CA), (Orlando, FL),
-                'properties.entity.accidentNumber': "(<class 'str'>) e.g. (3589), (5903), (7531L),
-                'text_representation': '(<class 'str'>) Can be assumed to have all other details'
-            }
-            USER QUESTION: How many cities did Cessna aircrafts have incidents in?
+            Schema: {
+                        'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
+                        'properties.entity.aircraft': "(<class 'str'>) e.g. (Boeing 123), (Cessna Mini 5), (Piper 0.5),
+                        'properties.entity.city': "(<class 'str'>) e.g. (Orlando, FL), (Palo Alto, CA), (Orlando, FL),
+                        'properties.entity.accidentNumber': "(<class 'str'>) e.g. (3589), (5903), (7531L),
+                        'text_representation': '(<class 'str'>) Can be assumed to have all other details'
+                    }
+            Question: How many cities did Cessna aircrafts have incidents in?
             Answer:
             [
                 {
                     "operatorName": "QueryDatabase",
-                    "description": "Get all the incident reports",
+                    "description": "Get all the incident reports involving Cessna aircrafts",
                     "index": "ntsb",
-                    "query": "aircraft incident reports",
+                    "query": {
+                        "match": {
+                            "properties.entity.aircraft": "Cessna"
+                        } 
+                    },
                     "node_id": 0
-                },
-                {
-                    "operatorName": "BasicFilter",
-                    "description": "Filter to only include Cessna aircraft incidents",
-                    "range_filter": false,
-                    "query": "Cessna",
-                    "start": null,
-                    "end": null,
-                    "field": "properties.entity.aircraft",
-                    "date": false,
-                    "input": [0],
-                    "node_id": 1,
                 },
                 {
                     "operatorName": "Count",
                     "description": "Count the number of cities that accidents occured in",
-                    "field": "properties.entity.city",
-                    "primary_field": "properties.entity.accidentNumber",
-                    "input": [1],
-                    "node_id": 2
+                    "distinct_field": "properties.entity.city",
+                    "input": [0],
+                    "node_id": 1
                 },
             ]
 
@@ -244,22 +287,18 @@ class LlmPlanner:
             [
                 {
                     "operatorName": "QueryDatabase",
-                    "description": "Get all the financial documents",
+                    "description": "Get all the financial documents from 2022",
                     "index": "finance",
-                    "query": "law firm financial documents",
+                    "query": {
+                        "range": {
+                            "properties.entity.isoDateTime": {
+                            "gte": "2022-01-01T00:00:00",
+                            "lte": "2022-12-31T23:59:59",
+                            "format": "strict_date_optional_time"
+                            }
+                        }
+                    },
                     "node_id": 0
-                },
-                {
-                    "operatorName": "BasicFilter",
-                    "description": "Filter to only include documents in 2022",
-                    "range_filter": true,
-                    "query": null,
-                    "start": "01-01-2022",
-                    "end": "12-31-2022",
-                    "field": "properties.entity.date",
-                    "date": true,
-                    "input": [0],
-                    "node_id": 1,
                 },
                 {
                     "operatorName": "Sort",
@@ -267,15 +306,15 @@ class LlmPlanner:
                     "descending": true,
                     "field": "properties.entity.revenue",
                     "default_value": 0
-                    "input": [1],
-                    "node_id": 2,
+                    "input": [0],
+                    "node_id": 1,
                 },
                 {
                     "operatorName": "Limit",
                     "description": "Get the 2 law firms with highest revenue",
                     "K": 2
-                    "input": [2],
-                    "node_id": 3,
+                    "input": [1],
+                    "node_id": 2,
                 }
             ]
 
@@ -296,7 +335,6 @@ class LlmPlanner:
                     "operatorName": "QueryDatabase",
                     "description": "Get all the shipwreck records",
                     "index": "shipwrecks",
-                    "query": "shipwreck records",
                     "node_id": 0
                 },
                 {
@@ -339,14 +377,12 @@ class LlmPlanner:
                     "operatorName": "QueryDatabase",
                     "description": "Get all the shipwreck records",
                     "index": "shipwrecks",
-                    "query": "shipwreck records",
                     "node_id": 0
                 },
                 {
                     "operatorName": "Count",
                     "description": "Count the number of total shipwrecks",
-                    "field": null,
-                    "primary_field": "properties.entity.shipwreck_id",
+                    "distinct_field": "properties.entity.shipwreck_id",
                     "input": [0],
                     "node_id": 1
                 },
@@ -358,15 +394,14 @@ class LlmPlanner:
                     "start": "01-01-2023",
                     "end": "12-31-2023",
                     "field": "properties.entity.date",
-                    "date": true,
+                    "is_date": true,
                     "input": [0],
                     "node_id": 2,
                 },
                 {
                     "operatorName": "Count",
                     "description": "Count the number of shipwrecks in 2023",
-                    "field": null,
-                    "primary_field": "properties.entity.shipwreck_id",
+                    "distinct_field": "properties.entity.shipwreck_id",
                     "input": [2],
                     "node_id": 3
                 },
@@ -383,6 +418,8 @@ class LlmPlanner:
             Data description: Database of hospital patients
             DATA_SCHEMA: 
             {
+                'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
+                'properties.entity.patient_id': "(<class 'str'>) e.g. (ABFUHEU), (FUIHWHD), (FGHIOWB),
                 'text_representation': '(<class 'str'>) Can be assumed to have all other details'
             }
             USER QUESTION: How many total patients?
@@ -398,8 +435,7 @@ class LlmPlanner:
                 {
                     "operatorName": "Count",
                     "description": "Count the number of total patients",
-                    "field": null,
-                    "primary_field": null,
+                    "distinct_field": "properties.entity.patient_id",
                     "input": [0],
                     "id": 1
                 },
@@ -432,8 +468,9 @@ class LlmPlanner:
             },
         ]
         prompt_kwargs = {"messages": messages}
-        chat_completion = self._llm_client.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
-        logging.debug(f"LLM chat completion: {chat_completion}")
+        chat_completion = self._llm_client.generate(
+            prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0, "seed": 42}
+        )
         return prompt_kwargs, chat_completion
 
     def process_llm_json_plan(self, llm_json_plan: str) -> Tuple[LogicalOperator, Mapping[int, LogicalOperator]]:
@@ -458,6 +495,9 @@ class LlmPlanner:
                 node = cls(**step)
                 nodes[node_id] = node
             except Exception as e:
+                logging.error(
+                    f"Error creating node {node_id} of type {step['operatorName']}: {e}\nPlan is:\n{llm_json_plan}"
+                )
                 raise ValueError(f"Error creating node {node_id} of type {step['operatorName']}: {e}") from e
 
         # 2. Set dependencies
@@ -486,7 +526,12 @@ class LlmPlanner:
     def plan(self, question: str) -> LogicalPlan:
         """Given a question from the user, generate a logical query plan."""
         llm_prompt, llm_plan = self.generate_from_llm(question)
-        result_node, nodes = self.process_llm_json_plan(llm_plan)
+        try:
+            result_node, nodes = self.process_llm_json_plan(llm_plan)
+        except Exception as e:
+            logging.error(f"Error processing LLM-generated query plan: {e}\nPlan is:\n{llm_plan}")
+            raise
+
         plan = LogicalPlan(
             result_node=result_node, nodes=nodes, query=question, llm_prompt=llm_prompt, llm_plan=llm_plan
         )

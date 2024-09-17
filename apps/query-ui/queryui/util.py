@@ -1,5 +1,4 @@
 import io
-import json
 import os
 import pickle
 import zipfile
@@ -74,10 +73,10 @@ def docset_to_string(docset: DocSet) -> str:
 
         props_dict = doc.properties.get("entity", {})
         props_dict.update({p: doc.properties[p] for p in set(doc.properties) - set(BASE_PROPS)})
-        
+
         for k, v in props_dict.items():
             retval += f"| {k} | {v} |\n"
-    
+
         retval += "\n\n"
         text_content = (
             doc.text_representation[:NUM_TEXT_CHARS_GENERATE] if doc.text_representation is not None else None

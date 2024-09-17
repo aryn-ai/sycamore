@@ -28,8 +28,7 @@ NUM_TEXT_CHARS_GENERATE = 2500
 # Set OpenAI API key from Streamlit secrets
 openai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-# OPENSEARCH_INDEX = "const_ntsb"
-OPENSEARCH_INDEX = "ntsb_reports"
+OPENSEARCH_INDEX = "const_ntsb"
 OS_CONFIG = {"search_pipeline": "hybrid_pipeline"}
 OS_CLIENT_ARGS = {
     "hosts": [{"host": "localhost", "port": 9200}],
@@ -91,6 +90,9 @@ component such as a button. Below is an example of MDX output that you might gen
 Additional markdown text can follow the use of a JSX component, and JSX components can be
 inlined in the markdown text as follows:
 
+```For more information about this incident, please see the following document:
+  <Preview path="s3://aryn-public/samples/sampledata1.pdf" />.
+```
 
 Do not include a starting ``` and closing ``` line in your reply. Just respond with the MDX itself.
 Do not include extra whitespace that is not needed for the markdown interpretation. For instance,
@@ -114,7 +116,10 @@ The following JSX components are available for your use:
       </TableRow>
     </Table>
     Displays a table showing the provided data. 
- 
+
+  * <Preview path="s3://aryn-public/samples/sampledata1.pdf" />
+    Displays an inline preview of the provided document. You may provide an S3 path or a URL.
+    ALWAYS use a <Preview> instead of a regular link whenever a document is mentioned.
 
   * <SuggestedQuery query="How many incidents were there in Washington in 2023?" />
     Displays a button showing a query that the user might wish to consider asking next.
@@ -128,21 +133,12 @@ The following JSX components are available for your use:
 Multiple JSX components can be used in your reply. You may ONLY use these specific JSX components
 in your responses. Other than these components, you may ONLY use standard Markdown syntax.
 
+Please use <Preview> any time a specific document or incident is mentioned, and <Map> any time
+there is an opportunity to refer to a location.
 
 Please suggest 1-3 follow-on queries (using the <SuggestedQuery> component) that the user might
 ask, based on the response to the user's question.
 """
-
-# ```For more information about this incident, please see the following document:
-#   <Preview path="s3://aryn-public/samples/sampledata1.pdf" />.
-# ```
-
-#  * <Preview path="s3://aryn-public/samples/sampledata1.pdf" />
-#    Displays an inline preview of the provided document. You may provide an S3 path or a URL.
-#    ALWAYS use a <Preview> instead of a regular link whenever a document is mentioned.
-
-# Please use <Preview> any time a specific document or incident is mentioned, and <Map> any time
-# there is an opportunity to refer to a location.
 
 
 class MDXParser(HTMLParser):

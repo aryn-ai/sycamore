@@ -1,7 +1,8 @@
 from sycamore.data import Document
-from sycamore.transforms.standardizer import LocationStandardizer, StandardizeProperty, DateTimeStandardizer
+from sycamore.transforms.standardizer import USStateStandardizer, StandardizeProperty, DateTimeStandardizer
 import unittest
-from datetime import date
+from datetime import date, datetime
+import pytz
 
 
 class TestStandardizer(unittest.TestCase):
@@ -24,7 +25,7 @@ class TestStandardizer(unittest.TestCase):
 
         assert "properties" in output.keys()
         assert "entity" in output.properties.keys()
-        assert output.properties.get("entity")["dateTime"] == "2023-03-17 14:25:00"
+        assert output.properties.get("entity")["dateTime"] == "March 17, 2023 14:25:00"
         assert output.properties.get("entity")["day"] == date(2023, 3, 17)
 
     def test_datetime_format(self):
@@ -32,17 +33,17 @@ class TestStandardizer(unittest.TestCase):
             None,
             standardizer=DateTimeStandardizer,
             path=[["properties", "entity", "dateTime"]],
-            format="%M %d, %Y %H:%m",
+            date_format="%Y-%m-%d %H:%M:%S",
         ).run(self.input)
 
         assert "properties" in output.keys()
         assert "entity" in output.properties.keys()
-        assert output.properties.get("entity")["dateTime"] == "March 17, 2023, 14:25"
+        assert output.properties.get("entity")["dateTime"] == "2023-03-17 14:25:00"
         assert output.properties.get("entity")["day"] == date(2023, 3, 17)
 
     def test_location(self):
         output = StandardizeProperty(
-            None, standardizer=LocationStandardizer, path=[["properties", "entity", "location"]]
+            None, standardizer=USStateStandardizer, path=[["properties", "entity", "location"]]
         ).run(self.input)
 
         assert "properties" in output.keys()
@@ -58,7 +59,7 @@ class TestStandardizer(unittest.TestCase):
             None, standardizer=date_standardizer, path=[["properties", "entity", "dateTime"]]
         ).run(input_copy)
 
-        assert output.properties["entity"]["dateTime"] == "March 17, 2023, 14:25"
+        assert output.properties["entity"]["dateTime"] == "March 17, 2023 14:25:00"
         assert output.properties["entity"]["day"] == date(2023, 3, 17)
 
     def test_nonexistent_datetime_key(self):
@@ -69,10 +70,10 @@ class TestStandardizer(unittest.TestCase):
             ).run(self.input)
 
 
-class TestLocationStandardizer(unittest.TestCase):
+class TestUSStateStandardizer(unittest.TestCase):
 
     def setUp(self):
-        self.standardizer = LocationStandardizer()
+        self.standardizer = USStateStandardizer()
 
     def test_replace_abbreviations(self):
         # Test with single abbreviation
@@ -144,30 +145,87 @@ class TestDateTimeStandardizer(unittest.TestCase):
             self.standardizer.fixer(raw_datetime)
 
         raw_dateTime = "2023-07-15 10.30.00 Local"
-        expected_output = ("2023-07-15 10:30:00 ", date(2023, 7, 15))
+        expected_output = datetime(2023, 7, 15, 10, 30)
         self.assertEqual(self.standardizer.fixer(raw_dateTime), expected_output)
 
         # Test with datetime without 'Local'
         raw_dateTime = "2023-07-15 10.30.00"
-        expected_output = ("2023-07-15 10:30:00", date(2023, 7, 15))
+        expected_output = datetime(2023, 7, 15, 10, 30)
         self.assertEqual(self.standardizer.fixer(raw_dateTime), expected_output)
 
         # Test with different datetime format
         raw_dateTime = "15/07/2023 10.30.00"
-        expected_output = ("15/07/2023 10:30:00", date(2023, 7, 15))
+        expected_output = datetime(2023, 7, 15, 10, 30)
         self.assertEqual(self.standardizer.fixer(raw_dateTime), expected_output)
 
     def test_standardize(self):
-        # Test with a simple document
+        # Test with a simple document.
         doc = {"event": {"dateTime": "2023-07-15 10.30.00 Local"}}
         key_path = ["event", "dateTime"]
-        expected_output = {"event": {"dateTime": "2023-07-15 10:30:00 ", "day": date(2023, 7, 15)}}
+        expected_output = {"event": {"dateTime": "July 15, 2023 10:30:00", "day": date(2023, 7, 15)}}
         self.assertEqual(self.standardizer.standardize(doc, key_path), expected_output)
+
+        # Test with a different date_format.
+        doc = {"event": {"dateTime": "2023-07-15 10.30.00 Local"}}
+        key_path = ["event", "dateTime"]
+        expected_output = {"event": {"dateTime": "07/15/2023 10:30:00", "day": date(2023, 7, 15)}}
+        self.assertEqual(
+            self.standardizer.standardize(doc, key_path, date_format="%m/%d/%Y %H:%M:%S"),
+            expected_output,
+        )
+
+        # Test with a different source key.
+        doc = {"event": {"myDateTime": "2023-07-15 10.30.00 Local"}}
+        key_path = ["event", "myDateTime"]
+        expected_output = {
+            "event": {
+                "myDateTime": "07/15/2023 10:30:00",
+                "dateTime": datetime(2023, 7, 15, 10, 30, 00),
+                "day": date(2023, 7, 15),
+            }
+        }
+        self.assertEqual(
+            self.standardizer.standardize(doc, key_path, date_format="%m/%d/%Y %H:%M:%S"),
+            expected_output,
+        )
+
+        # Test with a different source key and time zone in input.
+        # For this test we need to convert to UTC since the time zone objects contained
+        # in the datetime objects may not be equal.
+        doc = {"event": {"myDateTime": "2023-07-15 10.30.00PDT"}}
+        key_path = ["event", "myDateTime"]
+        expected_output = {
+            "event": {
+                "myDateTime": "07/15/2023 10:30:00 PDT",
+                "dateTime": datetime(2023, 7, 15, 10, 30, 00).astimezone(pytz.utc),
+                "day": date(2023, 7, 15),
+            }
+        }
+        result = self.standardizer.standardize(doc, key_path, date_format="%m/%d/%Y %H:%M:%S %Z")
+        result["event"]["dateTime"] = result["event"]["dateTime"].astimezone(pytz.utc)
+        self.assertEqual(
+            result,
+            expected_output,
+        )
+
+        # Test with a different source key and setting add_dateTime=False.
+        doc = {"event": {"myDateTime": "2023-07-15 10.30.00 Local"}}
+        key_path = ["event", "myDateTime"]
+        expected_output = {
+            "event": {
+                "myDateTime": "07/15/2023 10:30:00",
+                "day": date(2023, 7, 15),
+            }
+        }
+        self.assertEqual(
+            self.standardizer.standardize(doc, key_path, date_format="%m/%d/%Y %H:%M:%S", add_dateTime=False),
+            expected_output,
+        )
 
         # Test with nested document
         doc = {"user": {"activity": {"dateTime": "2023-07-15 10.30.00 Local"}}}
         key_path = ["user", "activity", "dateTime"]
-        expected_output = {"user": {"activity": {"dateTime": "2023-07-15 10:30:00 ", "day": date(2023, 7, 15)}}}
+        expected_output = {"user": {"activity": {"dateTime": "July 15, 2023 10:30:00", "day": date(2023, 7, 15)}}}
         self.assertEqual(self.standardizer.standardize(doc, key_path), expected_output)
 
         # Test with non-existent key
@@ -179,5 +237,7 @@ class TestDateTimeStandardizer(unittest.TestCase):
         # Test with deeply nested document
         doc = {"system": {"log": {"entry": {"dateTime": "2023-07-15 10.30.00 Local"}}}}
         key_path = ["system", "log", "entry", "dateTime"]
-        expected_output = {"system": {"log": {"entry": {"dateTime": "2023-07-15 10:30:00 ", "day": date(2023, 7, 15)}}}}
+        expected_output = {
+            "system": {"log": {"entry": {"dateTime": "July 15, 2023 10:30:00", "day": date(2023, 7, 15)}}}
+        }
         self.assertEqual(self.standardizer.standardize(doc, key_path), expected_output)

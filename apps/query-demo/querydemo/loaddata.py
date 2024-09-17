@@ -14,7 +14,7 @@ import sycamore
 from sycamore.data import Document
 from sycamore.transforms.partition import ArynPartitioner
 from sycamore.functions import HuggingFaceTokenizer
-from sycamore.transforms import AssignDocProperties, DateTimeStandardizer, ExtractTableProperties, LocationStandardizer
+from sycamore.transforms import AssignDocProperties, DateTimeStandardizer, ExtractTableProperties, USStateStandardizer
 from sycamore.transforms.extract_schema import (
     OpenAIPropertyExtractor,
 )
@@ -82,7 +82,9 @@ def main():
     os_client = OpenSearch(**os_client_args)  # type: ignore
 
     if args.dump:
-        contents = os_client.search(index=args.index, body={"query": {"match_all": {}}})
+        # This will dump up to the first 10000 documents in the index.
+        # TODO: Implement pagination to handle larger indices.
+        contents = os_client.search(index=args.index, body={"query": {"match_all": {}}}, size=args.limit or 10000)
         hits = contents["hits"]["hits"]
         for hit in hits:
             print(json.dumps(hit, indent=2))
@@ -122,7 +124,6 @@ def main():
     tokenizer = HuggingFaceTokenizer("thenlper/gte-small")
     llm = OpenAI(OpenAIModels.GPT_4O.value)
 
-    # partitioning docset
     partitioned_docset = (
         docset.partition(partitioner=ArynPartitioner(extract_table_structure=True, use_ocr=True, extract_images=True))
         .transform(SummarizeImages)
@@ -136,7 +137,7 @@ def main():
         )
         .extract_properties(property_extractor=OpenAIPropertyExtractor(llm=llm, num_of_elements=35))
         .merge(GreedyTextElementMerger(tokenizer, 300))
-        .map(lambda doc: LocationStandardizer.standardize(doc, key_path=["properties", "entity", "location"]))
+        .map(lambda doc: USStateStandardizer.standardize(doc, key_path=["properties", "entity", "location"]))
         .map(lambda doc: DateTimeStandardizer.standardize(doc, key_path=["properties", "entity", "dateAndTime"]))
         .spread_properties(["entity", "path"])
         .explode()

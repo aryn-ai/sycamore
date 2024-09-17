@@ -1,13 +1,12 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
+import re
+from typing import Any, List, Optional, Tuple
 
+import dateparser
 from sycamore.plan_nodes import Node
-
 from sycamore.data import Document
 from sycamore.transforms.map import Map
-from dateutil import parser
-import re
-from typing import List, Optional, Tuple, Union
-from datetime import date
 
 
 class Standardizer(ABC):
@@ -16,8 +15,8 @@ class Standardizer(ABC):
     transforming specific fields within a document according to certain rules.
     """
 
-    @abstractmethod
-    def fixer(self, text: str) -> Union[str, Tuple[str, date]]:
+    @staticmethod
+    def fixer(text: str) -> Any:
         """
         Abstract method to be implemented by subclasses to define how the relevant values
         should be standardized.
@@ -26,13 +25,11 @@ class Standardizer(ABC):
             text (str): The text or date string to be standardized.
 
         Returns:
-            Union[str, Tuple[str, date]]: The standardized text or a tuple containing the
-            standardized date string and date.
+            A standardized value.
         """
-        pass
 
-    @abstractmethod
-    def standardize(self, doc: Document, key_path: List[str]) -> Document:
+    @staticmethod
+    def standardize(doc: Document, key_path: List[str]) -> Document:
         """
         Abstract method applies the fixer method to a specific field in the document as defined by the key_path.
 
@@ -46,12 +43,12 @@ class Standardizer(ABC):
         Raises:
             KeyError: If any of the keys in key_path are not found in the document.
         """
-        pass
 
 
-class LocationStandardizer(Standardizer):
+class USStateStandardizer(Standardizer):
     """
     A standardizer for transforming US state abbreviations in text to their full state names.
+    Transforms substrings matching a state abbreviation to the full state name.
     """
 
     state_abbreviations = {
@@ -122,7 +119,7 @@ class LocationStandardizer(Standardizer):
 
         def replacer(match):
             abbreviation = match.group(0)
-            return LocationStandardizer.state_abbreviations.get(abbreviation, abbreviation)
+            return USStateStandardizer.state_abbreviations.get(abbreviation, abbreviation)
 
         return re.sub(r"\b[A-Z]{2}\b", replacer, text)
 
@@ -149,7 +146,7 @@ class LocationStandardizer(Standardizer):
                 raise KeyError(f"Key {key} not found in the dictionary among {current.keys()}")
         target_key = key_path[-1]
         if current.get(target_key, None):
-            current[target_key] = LocationStandardizer.fixer(current[target_key])
+            current[target_key] = USStateStandardizer.fixer(current[target_key])
         else:
             raise KeyError(f"Key {target_key} not found in the dictionary among {current.keys()}")
         return doc
@@ -159,37 +156,34 @@ class DateTimeStandardizer(Standardizer):
     """
     A standardizer for transforming date and time strings into a consistent format.
     """
+    DEFAULT_FORMAT = "%B %d, %Y %H:%M:%S%Z"
 
     @staticmethod
-    def fixer(raw_dateTime: str, format: Optional[str]=None) -> Tuple[str, date]:
+    def fixer(raw_dateTime: str) -> datetime:
         """
-        Converts a date-time string by replacing periods with colons and parsing it into a date object.
+        Standardize a date-time string by parsing it into a datetime object.
 
         Args:
             raw_dateTime (str): The raw date-time string to be standardized.
-            format: Optional[str]: strftime-compatible format string to render the date-time string.
+            format: Optional[str]: strftime-compatible format string to render the datetime.
 
         Returns:
             Tuple[str, date]: A tuple containing the standardized date-time string and the corresponding
-            date object.
+            datetime object.
 
         Raises:
             ValueError: If the input string cannot be parsed into a valid date-time.
             RuntimeError: For any other unexpected errors during the processing.
         """
         try:
-            # Clean up the raw_dateTime string
             raw_dateTime = raw_dateTime.strip()
             raw_dateTime = raw_dateTime.replace("Local", "")
+            raw_dateTime = raw_dateTime.replace("local", "")
             raw_dateTime = raw_dateTime.replace(".", ":")
-
-            # Parse the cleaned dateTime string and re-render it in a standard form.
-            parsed_date = parser.parse(raw_dateTime)
-            rendered_date = parsed_date.strftime(format or "%Y-%m-%d %H:%M:%S%Z")
-            import logging
-            logging.info(f"MDW: RENDERED DATE IS >>>{rendered_date}<<<")
-            extracted_date = parsed_date.date()
-            return rendered_date, extracted_date
+            parsed = dateparser.parse(raw_dateTime)
+            if not parsed:
+                raise ValueError(f"Invalid date format: {raw_dateTime}")
+            return parsed
 
         except ValueError as e:
             # Handle errors related to value parsing
@@ -200,15 +194,25 @@ class DateTimeStandardizer(Standardizer):
             raise RuntimeError(f"Unexpected error occurred while processing: {raw_dateTime}") from e
 
     @staticmethod
-    def standardize(doc: Document, key_path: List[str], format: Optional[str]=None) -> Document:
+    def standardize(
+        doc: Document,
+        key_path: List[str],
+        add_day: bool = True,
+        add_dateTime: bool = True,
+        date_format: Optional[str] = None,
+    ) -> Document:
         """
-        Applies the fixer method to a specific date-time field in the document as defined by the key_path,
-        and adds an additional "day" field with the extracted date.
+        Applies the fixer method to a specific date-time field in the document as defined by the key_path.
 
         Args:
             doc (Document): The document to be standardized.
             key_path (List[str]): The path to the date-time field within the document that should be
-            standardized.
+                standardized.
+            add_day (bool): Whether to add a "day" field to the document with the date extracted from the
+                standardized date-time field. Will not overwrite an existing "day" field.
+            add_dateTime (bool): Whether to add a "dateTime" field to the document with the standardized
+                standardized date-time field. Will not overwrite an existing "dateTime" field.
+            date_format (Optional[str]): strftime-compatible format string to render the datetime.
 
         Returns:
             Document: The document with the standardized date-time field and an additional "day" field.
@@ -223,10 +227,16 @@ class DateTimeStandardizer(Standardizer):
             else:
                 raise KeyError(f"Key {key} not found in the dictionary among {current.keys()}")
         target_key = key_path[-1]
-        if target_key in current.keys():
-            current[target_key], current["day"] = DateTimeStandardizer.fixer(current[target_key], format)
-        else:
+        if target_key not in current.keys():
             raise KeyError(f"Key {target_key} not found in the dictionary among {current.keys()}")
+
+        parsed = DateTimeStandardizer.fixer(current[target_key])
+        rendered = parsed.strftime(date_format or DateTimeStandardizer.DEFAULT_FORMAT)
+        current[target_key] = rendered
+        if add_dateTime and "dateTime" not in current.keys():
+            current["dateTime"] = parsed
+        if add_day and "day" not in current.keys():
+            current["day"] = parsed.date()
         return doc
 
 

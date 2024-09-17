@@ -24,7 +24,20 @@ class TestStandardizer(unittest.TestCase):
 
         assert "properties" in output.keys()
         assert "entity" in output.properties.keys()
-        assert output.properties.get("entity")["dateTime"] == "March 17, 2023, 14:25 "
+        assert output.properties.get("entity")["dateTime"] == "2023-03-17 14:25:00"
+        assert output.properties.get("entity")["day"] == date(2023, 3, 17)
+
+    def test_datetime_format(self):
+        output = StandardizeProperty(
+            None,
+            standardizer=DateTimeStandardizer,
+            path=[["properties", "entity", "dateTime"]],
+            format="%M %d, %Y %H:%m",
+        ).run(self.input)
+
+        assert "properties" in output.keys()
+        assert "entity" in output.properties.keys()
+        assert output.properties.get("entity")["dateTime"] == "March 17, 2023, 14:25"
         assert output.properties.get("entity")["day"] == date(2023, 3, 17)
 
     def test_location(self):

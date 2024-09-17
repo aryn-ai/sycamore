@@ -6,7 +6,7 @@ from sycamore.data import Document
 from sycamore.transforms.map import Map
 from dateutil import parser
 import re
-from typing import List, Tuple, Union
+from typing import List, Optional, Tuple, Union
 from datetime import date
 
 
@@ -161,12 +161,13 @@ class DateTimeStandardizer(Standardizer):
     """
 
     @staticmethod
-    def fixer(raw_dateTime: str) -> Tuple[str, date]:
+    def fixer(raw_dateTime: str, format: Optional[str]=None) -> Tuple[str, date]:
         """
         Converts a date-time string by replacing periods with colons and parsing it into a date object.
 
         Args:
             raw_dateTime (str): The raw date-time string to be standardized.
+            format: Optional[str]: strftime-compatible format string to render the date-time string.
 
         Returns:
             Tuple[str, date]: A tuple containing the standardized date-time string and the corresponding
@@ -178,14 +179,17 @@ class DateTimeStandardizer(Standardizer):
         """
         try:
             # Clean up the raw_dateTime string
+            raw_dateTime = raw_dateTime.strip()
             raw_dateTime = raw_dateTime.replace("Local", "")
             raw_dateTime = raw_dateTime.replace(".", ":")
 
-            # Parse the cleaned dateTime string
-
+            # Parse the cleaned dateTime string and re-render it in a standard form.
             parsed_date = parser.parse(raw_dateTime)
+            rendered_date = parsed_date.strftime(format or "%Y-%m-%d %H:%M:%S%Z")
+            import logging
+            logging.info(f"MDW: RENDERED DATE IS >>>{rendered_date}<<<")
             extracted_date = parsed_date.date()
-            return raw_dateTime, extracted_date
+            return rendered_date, extracted_date
 
         except ValueError as e:
             # Handle errors related to value parsing
@@ -196,7 +200,7 @@ class DateTimeStandardizer(Standardizer):
             raise RuntimeError(f"Unexpected error occurred while processing: {raw_dateTime}") from e
 
     @staticmethod
-    def standardize(doc: Document, key_path: List[str]) -> Document:
+    def standardize(doc: Document, key_path: List[str], format: Optional[str]=None) -> Document:
         """
         Applies the fixer method to a specific date-time field in the document as defined by the key_path,
         and adds an additional "day" field with the extracted date.
@@ -220,7 +224,7 @@ class DateTimeStandardizer(Standardizer):
                 raise KeyError(f"Key {key} not found in the dictionary among {current.keys()}")
         target_key = key_path[-1]
         if target_key in current.keys():
-            current[target_key], current["day"] = DateTimeStandardizer.fixer(current[target_key])
+            current[target_key], current["day"] = DateTimeStandardizer.fixer(current[target_key], format)
         else:
             raise KeyError(f"Key {target_key} not found in the dictionary among {current.keys()}")
         return doc
@@ -239,5 +243,6 @@ class StandardizeProperty(Map):
         child: Node,
         standardizer: Standardizer,
         path: list[str],
+        **kwargs,
     ):
-        super().__init__(child, f=standardizer.standardize, args=path)
+        super().__init__(child, f=standardizer.standardize, args=path, kwargs=kwargs)

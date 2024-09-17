@@ -3,6 +3,7 @@ import datetime
 from html.parser import HTMLParser
 import json
 import os
+import re
 from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -55,6 +56,7 @@ If you're not sure what to ask, you can try one of the following example queries
 {"".join([f"<SuggestedQuery query='{query}' />" for query in EXAMPLE_QUERIES])}
 """
 
+
 SYSTEM_PROMPT = """You are a helpful agent that answers questions about NTSB
 (National Transportation Safety Board) incidents. You have access to a database of incident
 reports, each of which has an associated PDF document, as well as metadata about the incident
@@ -89,7 +91,7 @@ Additional markdown text can follow the use of a JSX component, and JSX componen
 inlined in the markdown text as follows:
 
 ```For more information about this incident, please see the following document:
-   <Preview path="s3://aryn-public/samples/sampledata1.pdf" />.
+  <Preview path="s3://aryn-public/samples/sampledata1.pdf" />.
 ```
 
 Do not include a starting ``` and closing ``` line in your reply. Just respond with the MDX itself.
@@ -114,9 +116,10 @@ The following JSX components are available for your use:
       </TableRow>
     </Table>
     Displays a table showing the provided data. 
- 
+
   * <Preview path="s3://aryn-public/samples/sampledata1.pdf" />
     Displays an inline preview of the provided document. You may provide an S3 path or a URL.
+    ALWAYS use a <Preview> instead of a regular link whenever a document is mentioned.
 
   * <SuggestedQuery query="How many incidents were there in Washington in 2023?" />
     Displays a button showing a query that the user might wish to consider asking next.
@@ -217,6 +220,12 @@ class MDXParser(HTMLParser):
             self.row_data.append(data)
         else:
             self.chat_message.render_markdown(data)
+            # Scan for previewable markdown links and add previews.
+            markdown_link_regexp = r"!?\[([^\]]+)\]\(([^\)]+)\)"
+            for m in re.finditer(markdown_link_regexp, data):
+                if m and m.group(2).startswith("s3://"):
+                    self.chat_message.render_preview(m.group(2))
+                    data = re.sub(markdown_link_regexp, "\1", data)
 
 
 class JSXElementParser(HTMLParser):
@@ -319,6 +328,29 @@ TOOLS: List[ChatCompletionToolParam] = [
             query and can represent operations such as filters, aggregations, sorting, formatting,
             and more. This function should only be called when new data is needed; if the data
             is already available in the message history, it should be used directly.""",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The user's query",
+                    },
+                },
+                "required": ["query"],
+            },
+        },
+    },
+]
+
+
+TOOLS_RAG: List[ChatCompletionToolParam] = [
+    {
+        "type": "function",
+        "function": {
+            "name": "queryDataSource",
+            "description": """Run a query against the backend data source. The query should be a
+            natural language query. This function should only be called when new data is needed;
+            if the data is already available in the message history, it should be used directly.""",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -452,6 +484,8 @@ def query_data_source(query: str, index: str) -> Tuple[Any, Any]:
         )
         with st.spinner("Generating plan..."):
             plan = generate_plan(sqclient, query, index)
+            # No need to show the prompt used in the demo.
+            plan.llm_prompt = None
             with st.expander("Query plan"):
                 st.write(plan)
         with st.spinner("Running Sycamore query..."):
@@ -503,6 +537,7 @@ def do_query():
 
     assistant_message = None
     query_plan = None
+    tool_response_str = None
     with st.chat_message("assistant"):
         # We loop here because tool calls require re-invoking the LLM.
         while True:
@@ -511,7 +546,7 @@ def do_query():
                 response = openai_client.chat.completions.create(
                     model=st.session_state["openai_model"],
                     messages=messages,
-                    tools=TOOLS,
+                    tools=TOOLS_RAG if st.session_state.rag_only else TOOLS,
                     tool_choice="auto",
                 )
             response_dict = response.choices[0].message.to_dict()
@@ -567,6 +602,8 @@ def do_query():
                 # Stash away the query plan in the message in case we want to show it later.
                 if query_plan:
                     assistant_message.extras.append(ChatMessageExtra("Query plan", query_plan))
+                if tool_response_str:
+                    assistant_message.extras.append(ChatMessageExtra("Tool response", f"```{tool_response_str}```"))
                 break
 
 

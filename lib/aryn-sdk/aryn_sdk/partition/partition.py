@@ -1,4 +1,4 @@
-from typing import BinaryIO, Optional, Union
+from typing import BinaryIO, Literal, Optional, Union
 from collections.abc import Mapping
 from aryn_sdk.config import ArynConfig
 import requests
@@ -24,7 +24,7 @@ def partition_file(
     file: BinaryIO,
     aryn_api_key: Optional[str] = None,
     aryn_config: ArynConfig = ArynConfig(),
-    threshold: Optional[float] = None,
+    threshold: Optional[Union[float, Literal["auto"]]] = None,
     use_ocr: bool = False,
     ocr_images: bool = False,
     extract_table_structure: bool = False,
@@ -42,7 +42,8 @@ def partition_file(
         aryn_config: ArynConfig object, used for finding an api key.
             If aryn_api_key is set it will override this.
             default: The default ArynConfig looks in the env var ARYN_API_KEY and the file ~/.aryn/config.yaml
-        threshold:  value in [0.0 .. 1.0] to specify the cutoff for detecting bounding boxes.
+        threshold:  value in to specify the cutoff for detecting bounding boxes. Must be set to "auto" or
+            a floating point value between 0.0 and 1.0.
             default: None (APS will choose)
         use_ocr: extract text using an OCR model instead of extracting embedded text in PDF.
             default: False
@@ -144,7 +145,7 @@ def partition_file(
 
 
 def _json_options(
-    threshold: Optional[float] = None,
+    threshold: Optional[Union[float, Literal["auto"]]] = None,
     use_ocr: bool = False,
     ocr_images: bool = False,
     extract_table_structure: bool = False,

@@ -1,7 +1,9 @@
+import base64
 import datetime
 from html.parser import HTMLParser
 import json
 import os
+import re
 from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -13,10 +15,10 @@ import requests
 from openai import OpenAI
 from openai.types.chat import ChatCompletionToolParam
 import streamlit as st
-from streamlit_pdf_viewer import pdf_viewer
 import sycamore
+from sycamore.data import OpenSearchQuery
+from sycamore.transforms.query import OpenSearchQueryExecutor
 from sycamore.query.client import SycamoreQueryClient
-from sycamore.query.logical_plan import LogicalPlan
 from util import generate_plan, run_plan, ray_init
 
 NUM_DOCS_GENERATE = 60
@@ -54,6 +56,7 @@ If you're not sure what to ask, you can try one of the following example queries
 {"".join([f"<SuggestedQuery query='{query}' />" for query in EXAMPLE_QUERIES])}
 """
 
+
 SYSTEM_PROMPT = """You are a helpful agent that answers questions about NTSB
 (National Transportation Safety Board) incidents. You have access to a database of incident
 reports, each of which has an associated PDF document, as well as metadata about the incident
@@ -88,7 +91,7 @@ Additional markdown text can follow the use of a JSX component, and JSX componen
 inlined in the markdown text as follows:
 
 ```For more information about this incident, please see the following document:
-   <Preview path="s3://aryn-public/samples/sampledata1.pdf" />.
+  <Preview path="s3://aryn-public/samples/sampledata1.pdf" />.
 ```
 
 Do not include a starting ``` and closing ``` line in your reply. Just respond with the MDX itself.
@@ -113,9 +116,10 @@ The following JSX components are available for your use:
       </TableRow>
     </Table>
     Displays a table showing the provided data. 
- 
+
   * <Preview path="s3://aryn-public/samples/sampledata1.pdf" />
     Displays an inline preview of the provided document. You may provide an S3 path or a URL.
+    ALWAYS use a <Preview> instead of a regular link whenever a document is mentioned.
 
   * <SuggestedQuery query="How many incidents were there in Washington in 2023?" />
     Displays a button showing a query that the user might wish to consider asking next.
@@ -216,6 +220,12 @@ class MDXParser(HTMLParser):
             self.row_data.append(data)
         else:
             self.chat_message.render_markdown(data)
+            # Scan for previewable markdown links and add previews.
+            markdown_link_regexp = r"!?\[([^\]]+)\]\(([^\)]+)\)"
+            for m in re.finditer(markdown_link_regexp, data):
+                if m and m.group(2).startswith("s3://"):
+                    self.chat_message.render_preview(m.group(2))
+                    data = re.sub(markdown_link_regexp, "\1", data)
 
 
 class JSXElementParser(HTMLParser):
@@ -309,8 +319,6 @@ class ChatMessage:
         return f"{self.message.get('role', 'assistant')}: {self.message.get('content')}"
 
 
-st.title("Sycamore NTSB Query Demo")
-
 TOOLS: List[ChatCompletionToolParam] = [
     {
         "type": "function",
@@ -320,6 +328,29 @@ TOOLS: List[ChatCompletionToolParam] = [
             query and can represent operations such as filters, aggregations, sorting, formatting,
             and more. This function should only be called when new data is needed; if the data
             is already available in the message history, it should be used directly.""",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The user's query",
+                    },
+                },
+                "required": ["query"],
+            },
+        },
+    },
+]
+
+
+TOOLS_RAG: List[ChatCompletionToolParam] = [
+    {
+        "type": "function",
+        "function": {
+            "name": "queryDataSource",
+            "description": """Run a query against the backend data source. The query should be a
+            natural language query. This function should only be called when new data is needed;
+            if the data is already available in the message history, it should be used directly.""",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -364,43 +395,102 @@ class Preview:
 
         with st.container(border=True):
             st.write(f"`{self.path}`")
-            tab1, tab2 = st.tabs(["PDF", "Metadata"])
-            with tab1:
-                col1, col2, col3, col4 = st.columns(4)
-                with col1:
-                    if self.chat_message.button("First", use_container_width=True):
-                        st.session_state.pagenum = 1
-                with col2:
-                    if self.chat_message.button("Prev", use_container_width=True):
-                        st.session_state.pagenum = max(1, st.session_state.pagenum - 1)
-                with col3:
-                    if self.chat_message.button("Next", use_container_width=True):
-                        st.session_state.pagenum += 1
-                with col4:
-                    self.chat_message.download_button(
-                        "Download", content, os.path.basename(self.path), "pdf", use_container_width=True
-                    )
-                pdf_viewer(content, pages_to_render=[st.session_state.pagenum], key=self.chat_message.next_key())
+            encoded = base64.b64encode(content).decode("utf-8")
+            pdf_display = (
+                f'<iframe src="data:application/pdf;base64,{encoded}" '
+                + 'width="600" height="800" type="application/pdf"></iframe>'
+            )
+            st.markdown(pdf_display, unsafe_allow_html=True)
 
 
-# TODO: Fetch underlying Sycamore doc and show metadata here.
-#            with tab2:
-#                props = {k: v for k, v in doc.properties["entity"].items() if v is not None}
-#                st.dataframe(props)
+def get_embedding_model_id() -> str:
+    """Get the embedding model ID from the OpenSearch instance."""
+    query = {
+        "query": {
+            "bool": {
+                "must": [
+                    {
+                        "match": {"name": "all-MiniLM-L6-v2"},
+                    },
+                    {
+                        "term": {"model_config.model_type": "bert"},
+                    },
+                ],
+            },
+        },
+    }
+    with requests.get(
+        "https://localhost:9200/_plugins/_ml/models/_search", json=query, verify=False, timeout=60
+    ) as resp:
+        res = json.loads(resp.text)
+        return res["hits"]["hits"][0]["_id"]
 
 
-def query_data_source(query: str, index: str) -> Tuple[Any, LogicalPlan]:
-    """Run a Sycamore query."""
-    sqclient = SycamoreQueryClient(
-        s3_cache_path=st.session_state.s3_cache_path if st.session_state.use_cache else None,
-    )
-    with st.spinner("Generating plan..."):
-        plan = generate_plan(sqclient, query, index)
-        with st.expander("Query plan"):
-            st.write(plan)
-    with st.spinner("Running Sycamore query..."):
-        st.session_state.query_id, result = run_plan(sqclient, plan)
-    return result, plan
+def do_rag_query(query: str, index: str) -> str:
+    """Uses OpenSearch to perform a RAG query."""
+    embedding_model_id = get_embedding_model_id()
+    search_pipeline = "hybrid_rag_pipeline"
+    llm = "gpt-4o"
+    rag_query = OpenSearchQuery()
+    rag_query["index"] = index
+    rag_query["query"] = {
+        "_source": {"excludes": ["embedding"]},
+        "query": {
+            "hybrid": {
+                "queries": [
+                    {"match": {"text_representation": query}},
+                    {
+                        "neural": {
+                            "embedding": {
+                                "query_text": query,
+                                "model_id": embedding_model_id,
+                                "k": 100,
+                            }
+                        }
+                    },
+                ]
+            }
+        },
+        "size": 20,
+    }
+
+    # RAG params
+    rag_query["params"] = {"search_pipeline": search_pipeline}
+    rag_query["query"]["ext"] = {
+        "generative_qa_parameters": {
+            "llm_question": query,
+            "context_size": 10,
+            "llm_model": llm,
+        }
+    }
+
+    with st.expander("RAG query"):
+        st.write(rag_query)
+
+    with st.spinner("Running RAG query..."):
+        osq = OpenSearchQueryExecutor(OS_CLIENT_ARGS)
+        rag_result = osq.query(rag_query)["result"]
+    return rag_result
+
+
+def query_data_source(query: str, index: str) -> Tuple[Any, Any]:
+    """Run a Sycamore or RAG query."""
+
+    if st.session_state.rag_only:
+        return do_rag_query(query, index), None
+    else:
+        sqclient = SycamoreQueryClient(
+            s3_cache_path=st.session_state.s3_cache_path if st.session_state.use_cache else None,
+        )
+        with st.spinner("Generating plan..."):
+            plan = generate_plan(sqclient, query, index)
+            # No need to show the prompt used in the demo.
+            plan.llm_prompt = None
+            with st.expander("Query plan"):
+                st.write(plan)
+        with st.spinner("Running Sycamore query..."):
+            st.session_state.query_id, result = run_plan(sqclient, plan)
+        return result, plan
 
 
 def docset_to_string(docset: sycamore.docset.DocSet) -> str:
@@ -447,6 +537,7 @@ def do_query():
 
     assistant_message = None
     query_plan = None
+    tool_response_str = None
     with st.chat_message("assistant"):
         # We loop here because tool calls require re-invoking the LLM.
         while True:
@@ -455,7 +546,7 @@ def do_query():
                 response = openai_client.chat.completions.create(
                     model=st.session_state["openai_model"],
                     messages=messages,
-                    tools=TOOLS,
+                    tools=TOOLS_RAG if st.session_state.rag_only else TOOLS,
                     tool_choice="auto",
                 )
             response_dict = response.choices[0].message.to_dict()
@@ -466,39 +557,44 @@ def do_query():
             if tool_calls:
                 tool_call_id = tool_calls[0].id
                 tool_function_name = tool_calls[0].function.name
-                tool_args = json.loads(tool_calls[0].function.arguments)
-                if tool_function_name == "queryDataSource":
-                    tool_query = tool_args["query"]
-                    tool_response, query_plan = query_data_source(tool_query, OPENSEARCH_INDEX)
-                else:
-                    tool_response = f"Unknown tool: {tool_function_name}"
-
-                with st.spinner("Running Sycamore query..."):
-                    if isinstance(tool_response, str):
-                        # We got a straight string response from the query plan, which means we can
-                        # feed it back to the LLM directly.
-                        tool_response_str = tool_response
-                    elif isinstance(tool_response, sycamore.docset.DocSet):
-                        # We got a DocSet.
-                        # Note that this can be slow because the .take()
-                        # actually runs the query.
-                        tool_response_str = docset_to_string(tool_response)
+                tool_response_str = ""
+                # Try to catch any errors that might corrupt the message history here.
+                try:
+                    tool_args = json.loads(tool_calls[0].function.arguments)
+                    if tool_function_name == "queryDataSource":
+                        tool_query = tool_args["query"]
+                        tool_response, query_plan = query_data_source(tool_query, OPENSEARCH_INDEX)
                     else:
-                        # Fall back to string representation.
-                        tool_response_str = str(tool_response)
+                        tool_response = f"Unknown tool: {tool_function_name}"
 
-                with st.expander("Tool response"):
-                    st.write(tool_response_str)
-
-                tool_response_message = ChatMessage(
-                    {
-                        "role": "tool",
-                        "content": tool_response_str,
-                        "tool_call_id": tool_call_id,
-                        "name": tool_function_name,
-                    }
-                )
-                st.session_state.messages.append(tool_response_message)
+                    with st.spinner("Running Sycamore query..."):
+                        if isinstance(tool_response, str):
+                            # We got a straight string response from the query plan, which means we can
+                            # feed it back to the LLM directly.
+                            tool_response_str = tool_response
+                        elif isinstance(tool_response, sycamore.docset.DocSet):
+                            # We got a DocSet.
+                            # Note that this can be slow because the .take()
+                            # actually runs the query.
+                            tool_response_str = docset_to_string(tool_response)
+                        else:
+                            # Fall back to string representation.
+                            tool_response_str = str(tool_response)
+                except Exception as e:
+                    st.error(f"Error running Sycamore query: {e}")
+                    tool_response_str = f"There was an error running your query: {e}"
+                finally:
+                    with st.expander("Tool response"):
+                        st.write(f"```{tool_response_str}```")
+                    tool_response_message = ChatMessage(
+                        {
+                            "role": "tool",
+                            "content": tool_response_str,
+                            "tool_call_id": tool_call_id,
+                            "name": tool_function_name,
+                        }
+                    )
+                    st.session_state.messages.append(tool_response_message)
 
             else:
                 # No function call was made.
@@ -506,6 +602,8 @@ def do_query():
                 # Stash away the query plan in the message in case we want to show it later.
                 if query_plan:
                     assistant_message.extras.append(ChatMessageExtra("Query plan", query_plan))
+                if tool_response_str:
+                    assistant_message.extras.append(ChatMessageExtra("Tool response", f"```{tool_response_str}```"))
                 break
 
 
@@ -531,6 +629,8 @@ def main():
     if "messages" not in st.session_state:
         st.session_state.messages = [ChatMessage({"role": "assistant", "content": WELCOME_MESSAGE})]
 
+    st.title("Sycamore NTSB Query Demo")
+    st.toggle("Use RAG only", key="rag_only")
     show_messages()
 
     if prompt := st.chat_input("Ask me anything"):

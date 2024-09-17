@@ -1,4 +1,4 @@
-# Process and load data into an OpenSearch hybrid search index
+# ETL tutorial with Sycamore and OpenSearch
 
 This tutorial provides a walkthrough of how to use Sycamore to extract, enrich, transform, and create vector embeddings from a PDF dataset in S3 and load it into OpenSearch. The way in which you run ETL on these document is critical for the end quality of your application, and you can easily use Sycamore to facilitate this. The example below shows a few transforms Sycamore can do in a pipeline, and how to use LLMs to extract information.
 

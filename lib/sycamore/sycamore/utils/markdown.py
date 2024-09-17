@@ -2,6 +2,7 @@
 Utilities for converting a list of Elements into Markdown-formatted text.
 
 TODO:
+- address multi-line and span headers
 - maybe insert horizontal rules at page breaks
 - handle numbered lists
 - render textract tables
@@ -58,7 +59,8 @@ def elements_to_markdown(elems: list[Element]) -> str:
         elif type in ("caption", "footnote"):
             sio.write(f"\n{text}\n\n")
         else:
-            sio.write(text + "\n")
+            sio.write(text)
+            sio.write("\n")
     return sio.getvalue()
 
 
@@ -89,6 +91,12 @@ def render_table(elem: TableElement, sio: StringIO) -> None:
         if row == hdr_max:
             sio.write(sep)
     sio.write("\n")
+    caption = table.caption
+    if caption:
+        caption = caption.replace("\n", " ").strip()
+        if caption:
+            sio.write(caption)
+            sio.write("\n")
 
 
 def label_lists(elems: list[Element]) -> None:

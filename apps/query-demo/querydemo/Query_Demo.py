@@ -3,6 +3,7 @@ import datetime
 from html.parser import HTMLParser
 import json
 import os
+import re
 from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -90,9 +91,6 @@ component such as a button. Below is an example of MDX output that you might gen
 Additional markdown text can follow the use of a JSX component, and JSX components can be
 inlined in the markdown text as follows:
 
-```For more information about this incident, please see the following document:
-   <Preview path="s3://aryn-public/samples/sampledata1.pdf" />.
-```
 
 Do not include a starting ``` and closing ``` line in your reply. Just respond with the MDX itself.
 Do not include extra whitespace that is not needed for the markdown interpretation. For instance,
@@ -117,9 +115,6 @@ The following JSX components are available for your use:
     </Table>
     Displays a table showing the provided data. 
  
-  * <Preview path="s3://aryn-public/samples/sampledata1.pdf" />
-    Displays an inline preview of the provided document. You may provide an S3 path or a URL.
-    ALWAYS use a <Preview> instead of a regular link whenever a document is mentioned.
 
   * <SuggestedQuery query="How many incidents were there in Washington in 2023?" />
     Displays a button showing a query that the user might wish to consider asking next.
@@ -133,12 +128,21 @@ The following JSX components are available for your use:
 Multiple JSX components can be used in your reply. You may ONLY use these specific JSX components
 in your responses. Other than these components, you may ONLY use standard Markdown syntax.
 
-Please use <Preview> any time a specific document or incident is mentioned, and <Map> any time
-there is an opportunity to refer to a location.
 
 Please suggest 1-3 follow-on queries (using the <SuggestedQuery> component) that the user might
 ask, based on the response to the user's question.
 """
+
+# ```For more information about this incident, please see the following document:
+#   <Preview path="s3://aryn-public/samples/sampledata1.pdf" />.
+# ```
+
+#  * <Preview path="s3://aryn-public/samples/sampledata1.pdf" />
+#    Displays an inline preview of the provided document. You may provide an S3 path or a URL.
+#    ALWAYS use a <Preview> instead of a regular link whenever a document is mentioned.
+
+# Please use <Preview> any time a specific document or incident is mentioned, and <Map> any time
+# there is an opportunity to refer to a location.
 
 
 class MDXParser(HTMLParser):
@@ -220,6 +224,12 @@ class MDXParser(HTMLParser):
             self.row_data.append(data)
         else:
             self.chat_message.render_markdown(data)
+            # Scan for previewable markdown links and add previews.
+            markdown_link_regexp = r"!?\[([^\]]+)\]\(([^\)]+)\)"
+            for m in re.finditer(markdown_link_regexp, data):
+                if m and m.group(2).startswith("s3://"):
+                    self.chat_message.render_preview(m.group(2))
+                    data = re.sub(markdown_link_regexp, "\1", data)
 
 
 class JSXElementParser(HTMLParser):

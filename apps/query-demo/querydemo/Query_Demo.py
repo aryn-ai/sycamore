@@ -488,6 +488,8 @@ def query_data_source(query: str, index: str) -> Tuple[Any, Any]:
         )
         with st.spinner("Generating plan..."):
             plan = generate_plan(sqclient, query, index)
+            # No need to show the prompt used in the demo.
+            plan.llm_prompt = None
             with st.expander("Query plan"):
                 st.write(plan)
         with st.spinner("Running Sycamore query..."):
@@ -539,6 +541,7 @@ def do_query():
 
     assistant_message = None
     query_plan = None
+    tool_response_str = None
     with st.chat_message("assistant"):
         # We loop here because tool calls require re-invoking the LLM.
         while True:
@@ -603,6 +606,8 @@ def do_query():
                 # Stash away the query plan in the message in case we want to show it later.
                 if query_plan:
                     assistant_message.extras.append(ChatMessageExtra("Query plan", query_plan))
+                if tool_response_str:
+                    assistant_message.extras.append(ChatMessageExtra("Tool response", f"```{tool_response_str}```"))
                 break
 
 

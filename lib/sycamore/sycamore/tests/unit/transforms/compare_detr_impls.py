@@ -1,5 +1,4 @@
 from sycamore.utils.cache import Cache
-from sycamore.utils.deep_eq import deep_eq
 
 
 def check_partition(partitioner, path, **kwargs):

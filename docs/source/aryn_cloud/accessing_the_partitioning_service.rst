@@ -54,10 +54,10 @@ Helper Functions
     # Draw the detected bounding boxes on the pages. requires poppler
     images = draw_with_boxes("mydocument.pdf", data)
 
-Different Formats
-+++++++++++++++++
+Different File Formats
+++++++++++++++++++++++
 
-It is easy to use multiple file types with aryn-sdk:
+It is easy to process files with different formats using the aryn-sdk:
 
 .. code :: python
 
@@ -128,8 +128,8 @@ Your results have been saved to ``document.json``.
 
     cat document.json
 
-Different Formats
-+++++++++++++++++
+Different File Formats
+++++++++++++++++++++++
 
 .. code:: bash
 

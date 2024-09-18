@@ -31,7 +31,12 @@ class QdrantWriterTargetParams(BaseDBWriter.TargetParams):
     collection_params: dict
 
     def compatible_with(self, other: BaseDBWriter.TargetParams) -> bool:
-        return True
+        return all(
+            [
+                self.collection_params["collection_name"] == other.collection_params["collection_name"],
+                self.collection_params["vectors_config"] == other.collection_params["vectors_config"],
+            ]
+        )
 
 
 class QdrantWriterClient(BaseDBWriter.Client):
@@ -71,7 +76,7 @@ class QdrantWriterClient(BaseDBWriter.Client):
         return QdrantWriterTargetParams(
             collection_params={
                 "collection_name": target_params.collection_params["collection_name"],
-                "vectors_config": collection_info.config.params.vectors,
+                "vectors_config": collection_info.config.params.vectors.model_dump(exclude_defaults=True),
                 "sparse_vectors_config": collection_info.config.params.sparse_vectors,
                 "shard_number": collection_info.config.params.shard_number,
                 "sharding_method": collection_info.config.params.sharding_method,

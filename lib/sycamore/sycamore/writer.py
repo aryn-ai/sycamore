@@ -699,7 +699,7 @@ class DocSetWriter:
         collection_params: dict,
         execute: bool = True,
         **kwargs,
-    ) -> DocSet:
+    ) -> Optional["DocSet"]:
         """Writes the content of the DocSet into a Qdrant collection
 
         Args:
@@ -719,10 +719,12 @@ class DocSetWriter:
             QdrantWriterTargetParams,
         )
 
-        client_params = QdrantWriterClientParams(**client_params)
-        target_params = QdrantWriterTargetParams(collection_params=collection_params)
         qw = QdrantWriter(
-            self.plan, client_params=client_params, target_params=target_params, name="qdrant_write", **kwargs
+            self.plan,
+            client_params=QdrantWriterClientParams(**client_params),
+            target_params=QdrantWriterTargetParams(collection_params=collection_params),
+            name="qdrant_write",
+            **kwargs,
         )
         pcds = DocSet(self.context, qw)
         if execute:

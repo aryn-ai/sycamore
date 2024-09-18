@@ -586,7 +586,8 @@ class DocSetReader:
             QdrantReaderQueryParams,
         )
 
-        client_params = QdrantReaderClientParams(**client_params)
-        query_params = QdrantReaderQueryParams(query_params=query_params)
-        wr = QdrantReader(client_params=client_params, query_params=query_params)
+        wr = QdrantReader(
+            client_params=QdrantReaderClientParams(**client_params),
+            query_params=QdrantReaderQueryParams(query_params=query_params),
+        )
         return DocSet(self._context, wr)

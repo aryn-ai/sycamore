@@ -31,6 +31,8 @@ class QdrantWriterTargetParams(BaseDBWriter.TargetParams):
     collection_params: dict
 
     def compatible_with(self, other: BaseDBWriter.TargetParams) -> bool:
+        assert isinstance(other, QdrantWriterTargetParams)
+
         return all(
             [
                 self.collection_params["collection_name"] == other.collection_params["collection_name"],
@@ -59,7 +61,7 @@ class QdrantWriterClient(BaseDBWriter.Client):
 
         from qdrant_client.models import PointStruct
 
-        points = [PointStruct(id=record.id, vector=record.vector, payload=record.payload) for record in records]
+        points = [PointStruct(id=record.id, vector=record.vector, payload=record.payload) for record in records]  # type: ignore
 
         self._client.upload_points(collection_name=target_params.collection_params["collection_name"], points=points)
 
@@ -73,10 +75,16 @@ class QdrantWriterClient(BaseDBWriter.Client):
         assert isinstance(target_params, QdrantWriterTargetParams)
 
         collection_info = self._client.get_collection(target_params.collection_params["collection_name"])
+        vectors_config = collection_info.config.params.vectors
+        assert vectors_config is not None
         return QdrantWriterTargetParams(
             collection_params={
                 "collection_name": target_params.collection_params["collection_name"],
-                "vectors_config": collection_info.config.params.vectors.model_dump(exclude_defaults=True),
+                "vectors_config": (
+                    vectors_config
+                    if isinstance(vectors_config, dict)
+                    else vectors_config.model_dump(exclude_defaults=True)
+                ),
                 "sparse_vectors_config": collection_info.config.params.sparse_vectors,
                 "shard_number": collection_info.config.params.shard_number,
                 "sharding_method": collection_info.config.params.sharding_method,
@@ -101,7 +109,7 @@ class QdrantWriterRecord(BaseDBWriter.Record):
     def from_doc(cls, document: Document, target_params: "BaseDBWriter.TargetParams") -> "QdrantWriterRecord":
         assert isinstance(target_params, QdrantWriterTargetParams)
         assert document.doc_id is not None, f"Document found with null id: {document}"
-        vector = document.embedding or {}
+        vector: Union[list, dict] = document.embedding or {}
         payload = {
             "type": document.type,
             "text_representation": document.text_representation,
@@ -112,14 +120,8 @@ class QdrantWriterRecord(BaseDBWriter.Record):
 
         return QdrantWriterRecord(document.doc_id, vector, payload)
 
-    def to_http_vector(self) -> dict:
-        if self.sparse_values:
-            return asdict(self)
-        else:
-            return {"id": self.id, "values": self.values, "metadata": self.metadata}
 
-
-def _narrow_list_of_qdrant_records(records: list[BaseDBWriter.Record]) -> TypeGuard[QdrantWriterRecord]:
+def _narrow_list_of_qdrant_records(records: list[BaseDBWriter.Record]) -> TypeGuard[list[QdrantWriterRecord]]:
     return all(isinstance(r, QdrantWriterRecord) for r in records)
 
 

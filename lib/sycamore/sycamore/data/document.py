@@ -210,7 +210,7 @@ class Document(UserDict):
             "shingles": (str(self.shingles[0:4]) + f"... <{len(self.shingles)} total>") if self.shingles else None,
             "parent_id": self.parent_id,
             "bbox": str(self.bbox),
-            "properties": self.properties,
+            "properties": {k: str(v) for k, v in self.properties.items()},
         }
         return json.dumps(d, indent=2)
 

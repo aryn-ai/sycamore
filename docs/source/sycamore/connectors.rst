@@ -16,4 +16,5 @@ Further information for each supported database and its relevant documentation i
     ./connectors/pinecone.md
     ./connectors/elasticsearch.md
     ./connectors/opensearch.md
+    ./connectors/neo4j.md
 

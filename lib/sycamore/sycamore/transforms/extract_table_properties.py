@@ -80,7 +80,9 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
                     del ele.properties[property_name]
                     continue
                 jsonstring_llm = ele.properties.get(property_name)
-                assert isinstance(jsonstring_llm, str)
+                assert isinstance(
+                    jsonstring_llm, str
+                ), f"Expected string, got {type(jsonstring_llm).__name__}: {jsonstring_llm}"
                 json_string = ExtractTableProperties.extract_parent_json(jsonstring_llm)
                 assert isinstance(json_string, str)
                 keyValue = json.loads(json_string)

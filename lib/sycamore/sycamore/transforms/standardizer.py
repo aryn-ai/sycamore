@@ -27,6 +27,7 @@ class Standardizer(ABC):
         Returns:
             A standardized value.
         """
+        pass
 
     @staticmethod
     def standardize(doc: Document, key_path: List[str]) -> Document:
@@ -43,6 +44,7 @@ class Standardizer(ABC):
         Raises:
             KeyError: If any of the keys in key_path are not found in the document.
         """
+        pass
 
 
 class USStateStandardizer(Standardizer):

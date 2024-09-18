@@ -2,7 +2,6 @@ from sycamore.data import Document
 from sycamore.transforms.standardizer import USStateStandardizer, StandardizeProperty, DateTimeStandardizer
 import unittest
 from datetime import date, datetime
-import pytz
 
 
 class TestStandardizer(unittest.TestCase):
@@ -190,19 +189,19 @@ class TestDateTimeStandardizer(unittest.TestCase):
         )
 
         # Test with a different source key and time zone in input.
-        # For this test we need to convert to UTC since the time zone objects contained
-        # in the datetime objects may not be equal.
+        # For this test we need to remove the tzinfo from the datetime objects, since they
+        # may not be equal.
         doc = {"event": {"myDateTime": "2023-07-15 10.30.00PDT"}}
         key_path = ["event", "myDateTime"]
         expected_output = {
             "event": {
                 "myDateTime": "07/15/2023 10:30:00 PDT",
-                "dateTime": datetime(2023, 7, 15, 10, 30, 00).astimezone(pytz.utc),
+                "dateTime": datetime(2023, 7, 15, 10, 30, 00).replace(tzinfo=None),
                 "day": date(2023, 7, 15),
             }
         }
         result = self.standardizer.standardize(doc, key_path, date_format="%m/%d/%Y %H:%M:%S %Z")
-        result["event"]["dateTime"] = result["event"]["dateTime"].astimezone(pytz.utc)
+        result["event"]["dateTime"] = result["event"]["dateTime"].replace(tzinfo=None)
         self.assertEqual(
             result,
             expected_output,

@@ -19,7 +19,7 @@ import sycamore
 from sycamore.data import OpenSearchQuery
 from sycamore.transforms.query import OpenSearchQueryExecutor
 from sycamore.query.client import SycamoreQueryClient
-from util import generate_plan, run_plan, ray_init
+from util import generate_plan, run_plan, ray_init, show_query_traces
 
 NUM_DOCS_GENERATE = 60
 NUM_DOCS_PREVIEW = 10
@@ -252,9 +252,21 @@ class MDRenderer(MarkdownRenderer):
 
 
 class ChatMessageExtra:
-    def __init__(self, name: str, content: Any):
+    def __init__(self, name: str, content: Optional[Any] = None):
         self.name = name
         self.content = content
+
+    def show(self):
+        st.write(self.content)
+
+
+class ChatMessageTraces(ChatMessageExtra):
+    def __init__(self, name: str, query_id: str):
+        super().__init__(name)
+        self.query_id = query_id
+
+    def show(self):
+        show_query_traces(st.session_state.trace_dir, self.query_id)
 
 
 class ChatMessage:
@@ -274,7 +286,7 @@ class ChatMessage:
     def show_content(self):
         for extra in self.extras:
             with st.expander(extra.name):
-                st.write(extra.content)
+                extra.show()
         if self.message.get("content"):
             content = self.message.get("content")
             self.render_markdown_with_jsx(content)
@@ -473,14 +485,18 @@ def do_rag_query(query: str, index: str) -> str:
     return rag_result
 
 
-def query_data_source(query: str, index: str) -> Tuple[Any, Any]:
-    """Run a Sycamore or RAG query."""
+def query_data_source(query: str, index: str) -> Tuple[Any, Optional[Any], Optional[str]]:
+    """Run a Sycamore or RAG query.
+
+    Returns a tuple of (query_result, query_plan, query_id).
+    """
 
     if st.session_state.rag_only:
-        return do_rag_query(query, index), None
+        return do_rag_query(query, index), None, None
     else:
         sqclient = SycamoreQueryClient(
             s3_cache_path=st.session_state.s3_cache_path if st.session_state.use_cache else None,
+            trace_dir=st.session_state.trace_dir,
         )
         with st.spinner("Generating plan..."):
             plan = generate_plan(sqclient, query, index)
@@ -489,8 +505,8 @@ def query_data_source(query: str, index: str) -> Tuple[Any, Any]:
             with st.expander("Query plan"):
                 st.write(plan)
         with st.spinner("Running Sycamore query..."):
-            st.session_state.query_id, result = run_plan(sqclient, plan)
-        return result, plan
+            query_id, result = run_plan(sqclient, plan)
+        return result, plan, query_id
 
 
 def docset_to_string(docset: sycamore.docset.DocSet) -> str:
@@ -558,12 +574,14 @@ def do_query():
                 tool_call_id = tool_calls[0].id
                 tool_function_name = tool_calls[0].function.name
                 tool_response_str = ""
+                query_plan = None
+                query_id = None
                 # Try to catch any errors that might corrupt the message history here.
                 try:
                     tool_args = json.loads(tool_calls[0].function.arguments)
                     if tool_function_name == "queryDataSource":
                         tool_query = tool_args["query"]
-                        tool_response, query_plan = query_data_source(tool_query, OPENSEARCH_INDEX)
+                        tool_response, query_plan, query_id = query_data_source(tool_query, OPENSEARCH_INDEX)
                     else:
                         tool_response = f"Unknown tool: {tool_function_name}"
 
@@ -584,8 +602,6 @@ def do_query():
                     st.error(f"Error running Sycamore query: {e}")
                     tool_response_str = f"There was an error running your query: {e}"
                 finally:
-                    with st.expander("Tool response"):
-                        st.write(f"```{tool_response_str}```")
                     tool_response_message = ChatMessage(
                         {
                             "role": "tool",
@@ -595,15 +611,21 @@ def do_query():
                         }
                     )
                     st.session_state.messages.append(tool_response_message)
+                    with st.expander("Tool response"):
+                        st.write(f"```{tool_response_str}```")
 
             else:
                 # No function call was made.
                 assistant_message.show_content()
-                # Stash away the query plan in the message in case we want to show it later.
                 if query_plan:
                     assistant_message.extras.append(ChatMessageExtra("Query plan", query_plan))
                 if tool_response_str:
                     assistant_message.extras.append(ChatMessageExtra("Tool response", f"```{tool_response_str}```"))
+                if query_id:
+                    cmt = ChatMessageTraces("Query trace", query_id)
+                    with st.expander("Query trace"):
+                        cmt.show()
+                    assistant_message.extras.append(cmt)
                 break
 
 
@@ -628,6 +650,9 @@ def main():
 
     if "messages" not in st.session_state:
         st.session_state.messages = [ChatMessage({"role": "assistant", "content": WELCOME_MESSAGE})]
+
+    if "trace_dir" not in st.session_state:
+        st.session_state.trace_dir = os.path.join(os.getcwd(), "traces")
 
     st.title("Sycamore NTSB Query Demo")
     st.toggle("Use RAG only", key="rag_only")

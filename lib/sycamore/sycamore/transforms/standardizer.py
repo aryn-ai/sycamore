@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from datetime import datetime
 import re
 from typing import Any, List, Optional
@@ -15,8 +15,8 @@ class Standardizer(ABC):
     transforming specific fields within a document according to certain rules.
     """
 
-    @staticmethod
-    def fixer(text: str) -> Any:
+    @abstractmethod
+    def fixer(self, text: str) -> Any:
         """
         Abstract method to be implemented by subclasses to define how the relevant values
         should be standardized.
@@ -29,8 +29,8 @@ class Standardizer(ABC):
         """
         pass
 
-    @staticmethod
-    def standardize(doc: Document, key_path: List[str]) -> Document:
+    @abstractmethod
+    def standardize(self, doc: Document, key_path: List[str]) -> Document:
         """
         Abstract method applies the fixer method to a specific field in the document as defined by the key_path.
 

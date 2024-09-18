@@ -20,7 +20,7 @@ from sycamore.transforms.bbox_merge import (
 from sycamore.transforms.extract_table_properties import ExtractTableProperties
 
 from sycamore.transforms.standardizer import (
-    LocationStandardizer,
+    USStateStandardizer,
     Standardizer,
     StandardizeProperty,
     DateTimeStandardizer,
@@ -90,7 +90,7 @@ __all__ = [
     "Sort",
     "LLMQuery",
     "AssignDocProperties",
-    "LocationStandardizer",
+    "USStateStandardizer",
     "Standardizer",
     "DateTimeStandardizer",
     "StandardizeProperty",

@@ -692,6 +692,45 @@ class DocSetWriter:
 
         return None
 
+    @requires_modules("qdrant_client", extra="qdrant")
+    def qdrant(
+        self,
+        client_params: dict,
+        collection_params: dict,
+        execute: bool = True,
+        **kwargs,
+    ) -> DocSet:
+        """Writes the content of the DocSet into a Qdrant collection
+
+        Args:
+            client_params: Parameters that are passed to the Qdrant client constructor.
+                            See more information at
+                            https://python-client.qdrant.tech/qdrant_client.qdrant_client
+            query_params: Parameters that are passed into the qdrant_client.QdrantClient.query_points method.
+                            See more information at
+                            https://python-client.qdrant.tech/_modules/qdrant_client/qdrant_client#QdrantClient.query_points
+            execute: Execute the pipeline and write to Qdrant on adding this operator. If False,
+                    will return a DocSet with this write in the plan. Defaults to True.
+            kwargs: Arguments to pass to the underlying execution engine
+        """
+        from sycamore.connectors.qdrant import (
+            QdrantWriter,
+            QdrantWriterClientParams,
+            QdrantWriterTargetParams,
+        )
+
+        client_params = QdrantWriterClientParams(**client_params)
+        target_params = QdrantWriterTargetParams(collection_params=collection_params)
+        qw = QdrantWriter(
+            self.plan, client_params=client_params, target_params=target_params, name="qdrant_write", **kwargs
+        )
+        pcds = DocSet(self.context, qw)
+        if execute:
+            pcds.execute()
+            return None
+        else:
+            return pcds
+
     def files(
         self,
         path: str,

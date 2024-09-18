@@ -117,6 +117,9 @@ sycamore-ai = { path = "lib/sycamore", develop = true, extras = ["opensearch"] }
 [tool.poetry.group.pinecone.dependencies]
 sycamore-ai = { path = "lib/sycamore", develop = true, extras = ["pinecone"] }
 
+[tool.poetry.group.qdrant.dependencies]
+sycamore-ai = { path = "lib/sycamore", develop = true, extras = ["qdrant"] }
+
 [tool.poetry.group.weaviate.dependencies]
 sycamore-ai = { path = "lib/sycamore", develop = true, extras = ["weaviate"] }
 

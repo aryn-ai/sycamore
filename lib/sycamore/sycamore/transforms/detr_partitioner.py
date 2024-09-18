@@ -26,7 +26,7 @@ from sycamore.utils.cache import Cache, DiskCache
 from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
 from sycamore.utils.import_utils import requires_modules
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
-from sycamore.utils.pdf import convert_from_path_streamed_batched, pdf_to_pages
+from sycamore.utils.pdf import convert_from_path_streamed_batched
 from sycamore.utils.time_trace import LogTime, timetrace
 from sycamore.transforms.text_extraction.pdf_miner import PDFMinerExtractor
 
@@ -399,7 +399,7 @@ class ArynPDFPartitioner:
             table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
 
         deformable_layout = []
-        pdfminer_generator = pdf_to_pages(filename) if not use_ocr else None
+        pdfminer_generator = PDFMinerExtractor.pdf_to_pages(filename) if not use_ocr else None
         if tracemalloc.is_tracing():
             before = tracemalloc.take_snapshot()
         for i in convert_from_path_streamed_batched(filename, batch_size):
@@ -489,11 +489,8 @@ class ArynPDFPartitioner:
             with LogTime("pdfminer_supplement"):
                 for d, p in zip(deformable_layout, pdfminer_pages):
                     self._supplement_text(d, p)
-        # else pdfminer happens in parent since it is whole document.
         if extract_table_structure:
             with LogTime("extract_table_structure_batch"):
-                if table_structure_extractor is None:
-                    table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
                 for i, page_elements in enumerate(deformable_layout):
                     image = batch[i]
                     for element in page_elements:

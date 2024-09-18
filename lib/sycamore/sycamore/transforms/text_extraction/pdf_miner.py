@@ -1,11 +1,12 @@
 from sycamore.data import Element, BoundingBox
 from sycamore.utils.cache import DiskCache
-from io import IOBase
-from typing import BinaryIO, Tuple, List, Union, cast, Any
+from typing import BinaryIO, Tuple, List, cast, Generator, TYPE_CHECKING
 from pathlib import Path
 from sycamore.utils.import_utils import requires_modules
 import logging
 
+if TYPE_CHECKING:
+    from pdfminer.layout import LTPage
 
 logger = logging.getLogger(__name__)
 
@@ -24,14 +25,26 @@ class PDFMinerExtractor:
         self.device = PDFPageAggregator(rm, laparams=param)
         self.interpreter = PDFPageInterpreter(rm, self.device)
 
-    def _open_pdfminer_pages_generator(self, fp: BinaryIO):
+    @staticmethod
+    @requires_modules(["pdfminer", "pdfminer.utils"], extra="local-inference")
+    def pdf_to_pages(file_name: str) -> Generator["LTPage", None, None]:
+        from pdfminer.converter import PDFPageAggregator
+        from pdfminer.layout import LAParams
+        from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
         from pdfminer.pdfpage import PDFPage
+        from pdfminer.utils import open_filename
 
-        pages = PDFPage.get_pages(fp)
-        for page in pages:
-            self.interpreter.process_page(page)
-            page_layout = self.device.get_result()
-            yield page, page_layout
+        rm = PDFResourceManager()
+        param = LAParams()
+        device = PDFPageAggregator(rm, laparams=param)
+        interpreter = PDFPageInterpreter(rm, device)
+        with open_filename(file_name, "rb") as fp:
+            fp = cast(BinaryIO, fp)
+            pages = PDFPage.get_pages(fp)
+            for page in pages:
+                interpreter.process_page(page)
+                page_layout = device.get_result()
+                yield page_layout
 
     @staticmethod
     def _convert_bbox_coordinates(
@@ -48,47 +61,34 @@ class PDFMinerExtractor:
         y2 = height - y2
         return x1, y1, x2, y2
 
-    def extract_document(
-        self, filename: Union[str, IOBase], hash_key: str, use_cache=False, **kwargs
-    ) -> List[List[Element]]:
-        from pdfminer.utils import open_filename
-
-        # The naming is slightly confusing, but `open_filename` accepts either
-        # a filename (str) or a file-like object (IOBase)
-        print("pdf_text_extractor_print_2")
+    def extract_document(self, filename: str, hash_key: str, use_cache=False, **kwargs) -> List[List[Element]]:
         cached_result = pdf_miner_cache.get(hash_key) if use_cache else None
         if cached_result:
             logger.info(f"Cache Hit for PDFMiner. Cache hit-rate is {pdf_miner_cache.get_hit_rate()}")
             return cached_result
         else:
-            with open_filename(filename, "rb") as fp:
-                fp = cast(BinaryIO, fp)
-                pages = []
-                for page, page_layout in self._open_pdfminer_pages_generator(fp):
-                    width = page_layout.width
-                    height = page_layout.height
-                    texts: List[Element] = []
-                    for obj in page_layout:
-                        x1, y1, x2, y2 = self._convert_bbox_coordinates(obj.bbox, height)
+            pages = []
+            for page_layout in PDFMinerExtractor.pdf_to_pages(filename):
+                width = page_layout.width
+                height = page_layout.height
+                texts: List[Element] = []
+                for obj in page_layout:
+                    x1, y1, x2, y2 = self._convert_bbox_coordinates(obj.bbox, height)
 
-                        if hasattr(obj, "get_text"):
-                            text = Element()
-                            text.type = "text"
-                            text.bbox = BoundingBox(x1 / width, y1 / height, x2 / width, y2 / height)
-                            text.text_representation = obj.get_text()
-                            if text.text_representation:
-                                texts.append(text)
+                    if hasattr(obj, "get_text"):
+                        text = Element()
+                        text.type = "text"
+                        text.bbox = BoundingBox(x1 / width, y1 / height, x2 / width, y2 / height)
+                        text.text_representation = obj.get_text()
+                        if text.text_representation:
+                            texts.append(text)
+                pages.append(texts)
+            if use_cache:
+                logger.info("Cache Miss for PDFMiner. Storing the result to the cache.")
+                pdf_miner_cache.set(hash_key, pages)
+            return pages
 
-                    pages.append(texts)
-                if use_cache:
-                    logger.info("Cache Miss for PDFMiner. Storing the result to the cache.")
-                    pdf_miner_cache.set(hash_key, pages)
-                return pages
-
-    def extract_page(self, page: Any, **kwargs) -> List[Element]:
-        from pdfminer.layout import LTPage
-
-        assert isinstance(page, LTPage)
+    def extract_page(self, page: "LTPage") -> List[Element]:
         width = page.width
         height = page.height
         texts: List[Element] = []

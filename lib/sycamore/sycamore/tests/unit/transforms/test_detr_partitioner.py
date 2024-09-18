@@ -1,7 +1,7 @@
 from sycamore.data import Element
 from sycamore.transforms.detr_partitioner import ArynPDFPartitioner, DeformableDetr
 from sycamore.data import BoundingBox
-from sycamore.tests.unit.transforms.compare_detr_impls import check_partition, check_table_extraction
+from sycamore.tests.unit.transforms.check_partition_impl import check_partition, check_table_extraction
 
 from PIL import Image
 import json

@@ -138,13 +138,11 @@ class OpenAIEntityExtractor(EntityExtractor):
         value = str(document.field_to_value(self._field))
 
         if isinstance(self._prompt, str):
-            self._prompt += value
-            response = self._llm.generate(prompt_kwargs={"prompt": self._prompt}, llm_kwargs={})
+            prompt = self._prompt + value
+            response = self._llm.generate(prompt_kwargs={"prompt": prompt}, llm_kwargs={})
         else:
-            if self._prompt is None:
-                self._prompt = []
-            self._prompt.append({"role": "user", "content": value})
-            response = self._llm.generate(prompt_kwargs={"messages": self._prompt}, llm_kwargs={})
+            messages = (self._prompt or []) + [{"role": "user", "content": value}]
+            response = self._llm.generate(prompt_kwargs={"messages": messages}, llm_kwargs={})
 
         return response
 

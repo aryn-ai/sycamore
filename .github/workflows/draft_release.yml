@@ -23,6 +23,9 @@ jobs:
       - name: Install
         run: poetry install
         working-directory: lib/sycamore
+      - name: Copy README
+        working-directory: lib/scyamore
+        run: cp ../../README.md README.md
       - name: build
         run: poetry build
         working-directory: lib/sycamore

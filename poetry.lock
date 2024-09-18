@@ -1600,6 +1600,28 @@ torch = ["torch"]
 vision = ["Pillow (>=9.4.0)"]
 
 [[package]]
+name = "dateparser"
+version = "1.2.0"
+description = "Date parsing library designed to parse dates from HTML pages"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "dateparser-1.2.0-py2.py3-none-any.whl", hash = "sha256:0b21ad96534e562920a0083e97fd45fa959882d4162acc358705144520a35830"},
+    {file = "dateparser-1.2.0.tar.gz", hash = "sha256:7975b43a4222283e0ae15be7b4999d08c9a70e2d378ac87385b1ccf2cffbbb30"},
+]
+
+[package.dependencies]
+python-dateutil = "*"
+pytz = "*"
+regex = "<2019.02.19 || >2019.02.19,<2021.8.27 || >2021.8.27"
+tzlocal = "*"
+
+[package.extras]
+calendars = ["convertdate", "hijri-converter"]
+fasttext = ["fasttext"]
+langdetect = ["langdetect"]
+
+[[package]]
 name = "debugpy"
 version = "1.8.5"
 description = "An implementation of the Debug Adapter Protocol for Python"
@@ -6708,7 +6730,8 @@ streamlit = "^1.36.0"
 streamlit-ace = "^0.1.1"
 streamlit-agraph = "^0.0.45"
 streamlit-pdf-viewer = "^0.0.17"
-sycamore-ai = {path = "../../lib/sycamore", develop = true, extras = ["opensearch"]}
+sycamore-ai = {path = "../../lib/sycamore", develop = true, extras = ["local-inference", "opensearch"]}
+transformers = "^4.43.1"
 
 [package.source]
 type = "directory"
@@ -8113,7 +8136,7 @@ typing = ["mypy (>=1.4)", "rich", "twisted"]
 
 [[package]]
 name = "sycamore-ai"
-version = "0.1.20"
+version = "0.1.21"
 description = "Sycamore is an LLM-powered semantic data preparation system for building search applications."
 optional = false
 python-versions = ">=3.9,<3.12"
@@ -8129,6 +8152,7 @@ beautifulsoup4 = "^4.12.2"
 boto3 = "^1.28.70"
 boto3-stubs = {version = "^1.35.12", extras = ["essential"]}
 datasets = {version = "^2.16.1", optional = true}
+dateparser = "^1.2.0"
 diskcache = "^5.6.3"
 duckdb = {version = "1.0.0", optional = true}
 easyocr = {version = "^1.7.1", optional = true}
@@ -9049,6 +9073,23 @@ files = [
     {file = "tzdata-2024.1-py2.py3-none-any.whl", hash = "sha256:9068bc196136463f5245e51efda838afa15aaeca9903f49050dfa2679db4d252"},
     {file = "tzdata-2024.1.tar.gz", hash = "sha256:2674120f8d891909751c38abcdfd386ac0a5a1127954fbc332af6b5ceae07efd"},
 ]
+
+[[package]]
+name = "tzlocal"
+version = "5.2"
+description = "tzinfo object for the local timezone"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "tzlocal-5.2-py3-none-any.whl", hash = "sha256:49816ef2fe65ea8ac19d19aa7a1ae0551c834303d5014c6d5a62e4cbda8047b8"},
+    {file = "tzlocal-5.2.tar.gz", hash = "sha256:8d399205578f1a9342816409cc1e46a93ebd5755e39ea2d85334bea911bf0e6e"},
+]
+
+[package.dependencies]
+tzdata = {version = "*", markers = "platform_system == \"Windows\""}
+
+[package.extras]
+devenv = ["check-manifest", "pytest (>=4.3)", "pytest-cov", "pytest-mock (>=3.3)", "zest.releaser"]
 
 [[package]]
 name = "uc-micro-py"

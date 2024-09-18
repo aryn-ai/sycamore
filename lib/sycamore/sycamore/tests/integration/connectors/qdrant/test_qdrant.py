@@ -9,7 +9,7 @@ from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.tests.config import TEST_DIR
 
 
-def test_qdrant_write():
+def test_qdrant():
     collection_name = uuid.uuid4().hex
     qdrant_url = "http://localhost:6333"
     model_name = "sentence-transformers/all-MiniLM-L6-v2"

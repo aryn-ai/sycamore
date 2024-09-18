@@ -61,7 +61,10 @@ class QdrantWriterClient(BaseDBWriter.Client):
 
         from qdrant_client.models import PointStruct
 
-        points = [PointStruct(id=record.id, vector=record.vector, payload=record.payload) for record in records]  # type: ignore
+        points = [
+            PointStruct(id=record.id, vector=record.vector, payload=record.payload)  # type: ignore
+            for record in records
+        ]
 
         self._client.upload_points(collection_name=target_params.collection_params["collection_name"], points=points)
 

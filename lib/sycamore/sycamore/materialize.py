@@ -225,9 +225,9 @@ class Materialize(UnaryNode):
 
     @staticmethod
     def infer_fs(path: str) -> Tuple["pyarrow.FileSystem", Path]:
-        from sycamore.utils.pyarrow import infer_fs
+        from sycamore.utils.pyarrow import infer_fs as util_infer_fs
 
-        (fs, path) = infer_fs(path)
+        (fs, path) = util_infer_fs(path)
         return (fs, Path(path))
 
     def save(self, doc: Document) -> None:

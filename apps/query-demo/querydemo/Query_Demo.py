@@ -600,6 +600,8 @@ def do_query():
                         else:
                             # Fall back to string representation.
                             tool_response_str = str(tool_response)
+                        if not tool_response_str:
+                            tool_response_str = "No results found for your query."
                 except Exception as e:
                     st.error(f"Error running Sycamore query: {e}")
                     tool_response_str = f"There was an error running your query: {e}"

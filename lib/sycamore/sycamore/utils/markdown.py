@@ -65,30 +65,45 @@ def elements_to_markdown(elems: list[Element]) -> str:
 
 
 def render_table(elem: TableElement, sio: StringIO) -> None:
+    """
+    Emit Markdown representation of TableElement.  The tricky parts here are:
+    (1) Markdown doesn't support spans.
+    (2) Markdown requires one and only one header line (it seems).
+    """
     table = elem.table
     if not table:
         return
     nrow = table.num_rows
     ncol = table.num_cols
     cells = table.cells
-    matrix = [[""] * ncol for _ in range(nrow)]
-    hdr_max = -1
+    hdr_max = -1  # assume all cells at or before this row are headers
     for cell in cells:
-        hdr = cell.is_header
-        for row in cell.rows:
-            if hdr:
+        if cell.is_header:
+            for row in cell.rows:
                 hdr_max = max(hdr_max, row)
+    matrix = [[""] * ncol for _ in range(nrow)]
+    for cell in cells:
+        if cell.content:
             for col in cell.cols:
-                if cell.content:
-                    matrix[row][col] = cell.content
+                if cell.rows[0] <= hdr_max:  # ignore rowspan in headers
+                    s = matrix[0][col]
+                    if s:
+                        matrix[0][col] = f"{s} {cell.content}"
+                    else:
+                        matrix[0][col] = cell.content
+                else:
+                    for row in cell.rows:
+                        matrix[row][col] = cell.content
     sep = "| " + " | ".join(["-----" for _ in range(ncol)]) + " |\n"
     sio.write("\n")
     if hdr_max < 0:
         sio.write("|  " * ncol + "|\n")
         sio.write(sep)
     for row in range(nrow):
+        if (row > 0) and (row <= hdr_max):  # skip merged header rows
+            continue
         sio.write("| " + " | ".join(matrix[row]) + " |\n")
-        if row == hdr_max:
+        if (row == 0) and (hdr_max >= 0):
             sio.write(sep)
     sio.write("\n")
     caption = table.caption

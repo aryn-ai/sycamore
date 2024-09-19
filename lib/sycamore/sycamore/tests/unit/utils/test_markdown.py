@@ -162,8 +162,7 @@ def test_multi_rowcol() -> None:
     te = elemFromTable(table, 1, 0.1, 0.1)
     s = elements_to_markdown([te])
     answer = """
-| multi head | multi head | head2_1 |
-| multi head | multi head | head2_2 |
+| multi head | multi head | head2_1 head2_2 |
 | ----- | ----- | ----- |
 | 1 | 2 | 3 |
 | 4 | 5 | 6 |
@@ -206,8 +205,7 @@ def test_smithsonian() -> None:
     te = elemFromTable(table, 1, 0.1, 0.1)
     s = elements_to_markdown([te])
     answer = """
-| Grade. | Yield Point. | Ultimate tensile strength | Ultimate tensile strength | Per cent elong. 50.8 mm or 2 in. | Per cent reduct. area. |
-| Grade. | Yield Point. | kg/mm2 | lb/in2 | Per cent elong. 50.8 mm or 2 in. | Per cent reduct. area. |
+| Grade. | Yield Point. | Ultimate tensile strength kg/mm2 | Ultimate tensile strength lb/in2 | Per cent elong. 50.8 mm or 2 in. | Per cent reduct. area. |
 | ----- | ----- | ----- | ----- | ----- | ----- |
 | Hard | 0.45 ultimate | 56.2 | 80,000 | 15 | 20 |
 | Medium | 0.45 ultimate | 49.2 | 70,000 | 18 | 25 |

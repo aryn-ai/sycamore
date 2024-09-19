@@ -6,8 +6,7 @@ from sycamore.transforms.partition import ArynPartitioner
 docs = (
     sycamore.init()
     .read.binary(sys.argv[1:], binary_format="pdf")
-    .partition(partitioner=ArynPartitioner(extract_table_structure=True,
-                                           use_partitioning_service=False))
+    .partition(partitioner=ArynPartitioner(extract_table_structure=True, use_partitioning_service=False))
     .markdown()
     .explode()
     .take()

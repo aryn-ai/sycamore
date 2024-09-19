@@ -61,6 +61,7 @@ class PDFMinerExtractor:
         y2 = height - y2
         return x1, y1, x2, y2
 
+    # TODO: Remove this function once the service is moved off it
     def extract_document(self, filename: str, hash_key: str, use_cache=False, **kwargs) -> List[List[Element]]:
         cached_result = pdf_miner_cache.get(hash_key) if use_cache else None
         if cached_result:

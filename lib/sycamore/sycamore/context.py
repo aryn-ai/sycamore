@@ -104,6 +104,8 @@ def context_params(*names):
                 function_name_wo_class = qual_name.split(".")[-1]  # e.g. 'opensearch'
                 candidate_kwargs.update(ctx.params.get(function_name_wo_class, {}))
                 candidate_kwargs.update(ctx.params.get(qual_name, {}))
+                for i in names:
+                    candidate_kwargs.update(ctx.params.get(i, {}))
 
                 """
                 If positional args are provided, we want to pop those keys from candidate_kwargs
@@ -124,13 +126,13 @@ def context_params(*names):
                     new_kwargs = candidate_kwargs
                 else:
                     for param in signature[len(args) :]:  # arguments that haven't been passed as positional args
-                        new_kwargs[param] = candidate_kwargs.get(param)
+                        candidate_val = candidate_kwargs.get(param)
+                        if candidate_val:
+                            new_kwargs[param] = candidate_val
 
                 """
                 Put in user provided kwargs (either through decorator param or function call)
                 """
-                for i in names:
-                    new_kwargs.update(ctx.params.get(i, {}))
                 new_kwargs.update(kwargs)
 
                 return func(*args, **new_kwargs)

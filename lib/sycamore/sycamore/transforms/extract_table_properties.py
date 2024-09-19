@@ -1,10 +1,10 @@
+import json
+from typing import Optional, Union
+
 from sycamore.data import Document
 from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
-import json
-from typing import Union
-import logging
 from sycamore.transforms.llm_query import LLMTextQueryAgent
 from sycamore.llms import LLM
 from sycamore.llms.prompts import ExtractTablePropertiesPrompt, ExtractTablePropertiesTablePrompt
@@ -54,36 +54,40 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
     @staticmethod
     @timetrace("ExtrKeyVal")
     def extract_table_properties(
-        parent: Document, property_name: str, llm: LLM, prompt_find_table: str = "", prompt_LLM: str = ""
+        parent: Document,
+        property_name: str,
+        llm: LLM,
+        prompt_find_table: Optional[str] = None,
+        prompt_LLM: Optional[str] = None,
     ) -> Document:
         """
-        This Method is used to extract key value pair from table using LLM and
-        populate it as property of that element.
+        This method is used to extract key/value pairs from tables, using the LLM,
+        and populate them as a property of that element.
         """
-        if prompt_find_table == "":
-            prompt_find_table = ExtractTablePropertiesTablePrompt().user
+        prompt_find_table = prompt_find_table or ExtractTablePropertiesTablePrompt().user
         query_agent = LLMTextQueryAgent(
             prompt=prompt_find_table, llm=llm, output_property="keyValueTable", element_type="table"
         )
         doc = query_agent.execute_query(parent)
 
-        if prompt_LLM == "":
-            prompt_LLM = ExtractTablePropertiesPrompt().user
-        query_agent = LLMTextQueryAgent(prompt=prompt_LLM, llm=llm, output_property=property_name, element_type="table")
+        prompt_llm = prompt_LLM or ExtractTablePropertiesPrompt().user
+        query_agent = LLMTextQueryAgent(prompt=prompt_llm, llm=llm, output_property=property_name, element_type="table")
         doc = query_agent.execute_query(parent)
 
         for ele in doc.elements:
             if ele.type == "table" and property_name in ele.properties.keys():
-                try:
-                    if ele.properties.get("keyValueTable", False) != "True":
-                        del ele.properties[property_name]
-                        continue
-                    jsonstring_llm = ele.properties.get(property_name)
-                    assert isinstance(jsonstring_llm, str)
-                    json_string = ExtractTableProperties.extract_parent_json(jsonstring_llm)
-                    assert isinstance(json_string, str)
-                    keyValue = json.loads(json_string)
+                if ele.properties.get("keyValueTable", False) != "True":
+                    del ele.properties[property_name]
+                    continue
+                jsonstring_llm = ele.properties.get(property_name)
+                assert isinstance(
+                    jsonstring_llm, str
+                ), f"Expected string, got {type(jsonstring_llm).__name__}: {jsonstring_llm}"
+                json_string = ExtractTableProperties.extract_parent_json(jsonstring_llm)
+                assert isinstance(json_string, str)
+                keyValue = json.loads(json_string)
+                if isinstance(keyValue, dict):
                     ele.properties[property_name] = keyValue
-                except Exception as e:
-                    logging.error(str(e))
+                else:
+                    raise ValueError(f"Extracted JSON string is not a dictionary: {keyValue}")
         return doc

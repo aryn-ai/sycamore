@@ -21,6 +21,7 @@ import structlog
 import sycamore
 from sycamore import Context
 from sycamore.llms.openai import OpenAI, OpenAIModels
+from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.transforms.query import OpenSearchQueryExecutor
 from sycamore.utils.cache import cache_from_path
 from sycamore.utils.import_utils import requires_modules
@@ -209,11 +210,12 @@ class SycamoreQueryClient:
     @staticmethod
     def _get_default_context(s3_cache_path, os_client_args) -> Context:
         context_params = {
-            "default": {
-                "llm": OpenAI(OpenAIModels.GPT_4O.value, cache=cache_from_path(s3_cache_path)),
-            },
+            "default": {"llm": OpenAI(OpenAIModels.GPT_4O.value, cache=cache_from_path(s3_cache_path))},
             "opensearch": {
                 "os_client_args": os_client_args,
+                "text_embedder": SentenceTransformerEmbedder(
+                    batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2"
+                ),
             },
         }
         return sycamore.init(params=context_params)

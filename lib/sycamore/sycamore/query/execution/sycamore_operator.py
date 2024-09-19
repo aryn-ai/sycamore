@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from typing import Any, Optional, List, Dict, Tuple
 
+from sycamore.connectors.opensearch.utils import get_knn_query
 from sycamore.context import get_val_from_context, OperationTypes
 from sycamore.functions.basic_filters import MatchFilter, RangeFilter
 from sycamore.llms import LLM
@@ -11,12 +12,13 @@ from sycamore.query.operators.limit import Limit
 from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
 from sycamore.query.operators.llm_filter import LlmFilter
 from sycamore.query.operators.summarize_data import SummarizeData
-from sycamore.query.operators.query_database import QueryDatabase
+from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDatabase
 from sycamore.query.operators.top_k import TopK
 from sycamore.query.operators.field_in import FieldIn
 from sycamore.query.operators.sort import Sort
 
 from sycamore.query.execution.operations import summarize_data
+from sycamore.transforms import Embedder
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 
 from sycamore import DocSet, Context
@@ -110,6 +112,53 @@ class SycamoreQueryDatabase(SycamoreOperator):
 )
 """,
             [],
+        )
+
+
+class SycamoreQueryVectorDatabase(SycamoreOperator):
+    """
+    Note: Currently only supports an OpenSearch vector search implementation.
+    """
+
+    def __init__(
+        self,
+        context: Context,
+        logical_node: QueryVectorDatabase,
+        query_id: str,
+        trace_dir: Optional[str] = None,
+    ) -> None:
+        super().__init__(context=context, logical_node=logical_node, query_id=query_id, trace_dir=trace_dir)
+
+    def execute(self) -> Any:
+        assert isinstance(self.logical_node, QueryVectorDatabase)
+        embedder = get_val_from_context(context=self.context, val_key="text_embedder", param_names=["opensearch"])
+        assert embedder and isinstance(embedder, Embedder), "QueryVectorDatabase requires an Embedder in the context"
+
+        assert (
+            get_val_from_context(context=self.context, val_key="os_client_args", param_names=["opensearch"]) is not None
+        ), "QueryDatabase:OpenSearch requires os_client_args"
+
+        os_query = get_knn_query(query_phrase=self.logical_node.query_phrase, context=self.context)
+        if self.logical_node.opensearch_filter:
+            os_query["query"]["knn"]["embedding"]["filter"] = self.logical_node.opensearch_filter
+        result = self.context.read.opensearch(index_name=self.logical_node.index, query=os_query)
+        return result
+
+    def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
+        assert isinstance(self.logical_node, QueryVectorDatabase)
+        result = f"""os_query = get_knn_query(query_phrase='{self.logical_node.query_phrase}', context=context)"""
+        if self.logical_node.opensearch_filter:
+            result += f"""
+os_query["query"]["knn"]["embedding"]["filter"] = {self.logical_node.opensearch_filter}"""
+        result += f"""
+{output_var or get_var_name(self.logical_node)} = context.read.opensearch(
+    index_name='{self.logical_node.index}', 
+    query=os_query
+)
+"""
+        return (
+            result,
+            ["from sycamore.connectors.opensearch.utils import get_knn_query"],
         )
 
 

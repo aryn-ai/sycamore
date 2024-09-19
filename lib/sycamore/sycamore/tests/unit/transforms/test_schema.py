@@ -97,7 +97,7 @@ class TestSchema:
     def test_extract_properties(self, mocker):
         llm = mocker.Mock(spec=LLM)
         generate = mocker.patch.object(llm, "generate")
-        generate.return_value = '```json {"accidentNumber": "FTW95FA129"}```'
+        generate.return_value = '```json {"accidentNumber": "FTW95FA129", "location": "Fort Worth, TX"}```'
 
         doc = Document()
         element1 = Element()
@@ -110,12 +110,15 @@ class TestSchema:
                 "accidentNumber": "string",
             },
             "_schema_class": "AircraftIncident",
+            "entity": {"weather": "sunny"},
         }
 
         property_extractor = OpenAIPropertyExtractor(llm)
         doc = property_extractor.extract_properties(doc)
 
+        assert doc.properties["entity"]["weather"] == "sunny"
         assert doc.properties["entity"]["accidentNumber"] == "FTW95FA129"
+        assert doc.properties["entity"]["location"] == "Fort Worth, TX"
 
     def test_extract_properties_explicit_json(self, mocker):
         llm = mocker.Mock(spec=LLM)

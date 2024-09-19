@@ -767,6 +767,25 @@ class DocSet:
         merged = Merge(self.plan, merger=merger, **kwargs)
         return DocSet(self.context, merged)
 
+    def markdown(self, **kwargs) -> "DocSet":
+        """
+        Modifies Document to have a single Element containing the Markdown
+        representation of all the original elements.
+
+        Example:
+            .. code-block:: python
+
+               context = sycamore.init()
+               ds = context.read.binary(paths, binary_format="pdf")
+                   .partition(partitioner=ArynPartitioner())
+                   .markdown()
+                   .explode()
+        """
+        from sycamore.transforms.markdown import Markdown
+
+        plan = Markdown(self.plan, **kwargs)
+        return DocSet(self.context, plan)
+
     def regex_replace(self, spec: list[tuple[str, str]], **kwargs) -> "DocSet":
         """
         Performs regular expression replacement (using re.sub()) on the
@@ -894,7 +913,7 @@ class DocSet:
         flat_map = FlatMap(self.plan, f=f, **resource_args)
         return DocSet(self.context, flat_map)
 
-    def filter(self, f: Callable[[Document], bool], **resource_args) -> "DocSet":
+    def filter(self, f: Callable[[Document], bool], **kwargs) -> "DocSet":
         """
         Applies the Filter transform on the Docset.
 
@@ -917,7 +936,7 @@ class DocSet:
         """
         from sycamore.transforms import Filter
 
-        filtered = Filter(self.plan, f=f, **resource_args)
+        filtered = Filter(self.plan, f=f, **kwargs)
         return DocSet(self.context, filtered)
 
     def filter_elements(self, f: Callable[[Element], bool], **resource_args) -> "DocSet":

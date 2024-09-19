@@ -8,6 +8,7 @@ from io import StringIO
 import json
 import logging
 from pathlib import Path
+import posixpath
 import uuid
 from typing import Callable, Optional, TYPE_CHECKING
 
@@ -172,8 +173,24 @@ class FileWriter(Write):
 
         return dataset
 
+    def local_execute(self, all_docs: list[Document]) -> list[Document]:
+        from sycamore.utils.pyarrow import cross_check_infer_fs
+        from sycamore.data import MetadataDocument
 
-class JsonWriter(Write):
+        (filesystem, path) = cross_check_infer_fs(self.filesystem, self.path)
+
+        for d in all_docs:
+            if isinstance(d, MetadataDocument):
+                continue
+            bytes = self.doc_to_bytes_fn(d)
+            file_path = posixpath.join(path, self.filename_fn(d))
+            with filesystem.open_output_stream(str(file_path)) as file:
+                file.write(bytes)
+
+        return all_docs
+
+
+class JsonWriter(FileWriter):
     """
     Sycamore Write implementation that writes blocks of Documents to JSONL
     files.  Supports output to any Ray-supported filesystem.  Typically
@@ -201,10 +218,9 @@ class JsonWriter(Write):
             ray_remote_args: Arguments to pass to the underlying execution environment.
         """
 
-        super().__init__(plan, **ray_remote_args)
-        self.path = path
-        self.filesystem = filesystem
-        self.ray_remote_args = ray_remote_args
+        super().__init__(
+            plan, path=path, filesystem=filesystem, doc_to_bytes_fn=document_to_json_bytes, **ray_remote_args
+        )
 
     def execute(self, **kwargs) -> "Dataset":
         ds = self.child().execute()

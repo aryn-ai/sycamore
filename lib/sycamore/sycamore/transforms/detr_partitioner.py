@@ -427,12 +427,12 @@ class ArynPDFPartitioner:
                     print(stat)
                 before = after
                 display_top(after)
-
         if tracemalloc.is_tracing():
             (current, peak) = tracemalloc.get_traced_memory()
             logger.info(f"Memory Usage current={current} peak={peak}")
             top = tracemalloc.take_snapshot()
             display_top(top)
+        deformable_layout = final_layout
         return deformable_layout
 
     @staticmethod
@@ -552,7 +552,6 @@ class ArynPDFPartitioner:
         table_structure_extractor,
         extract_images,
     ) -> Any:
-
         if extract_table_structure:
             with LogTime("extract_table_structure_batch"):
                 if table_structure_extractor is None:

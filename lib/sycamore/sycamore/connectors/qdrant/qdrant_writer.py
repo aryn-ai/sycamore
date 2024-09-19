@@ -70,9 +70,10 @@ class QdrantWriterClient(BaseDBWriter.Client):
 
     def create_target_idempotent(self, target_params: "BaseDBWriter.TargetParams"):
         assert isinstance(target_params, QdrantWriterTargetParams)
-        params = target_params.collection_params
-        if not self._client.collection_exists(params["collection_name"]):
-            self._client.create_collection(**params)
+        try:
+            self._client.create_collection(**target_params.collection_params)
+        except Exception:  # Can swallow since we validate with get_existing_target_params + compatible_with
+            return
 
     def get_existing_target_params(self, target_params: "BaseDBWriter.TargetParams") -> QdrantWriterTargetParams:
         assert isinstance(target_params, QdrantWriterTargetParams)
@@ -117,7 +118,7 @@ class QdrantWriterRecord(BaseDBWriter.Record):
             "type": document.type,
             "text_representation": document.text_representation,
             "bbox": document.bbox.to_dict() if document.bbox else None,
-            "shingles": [str(s) for s in document.shingles] if document.shingles else None,
+            "shingles": document.shingles or None,
             "properties": document.properties,
         }
 

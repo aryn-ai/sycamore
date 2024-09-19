@@ -1,6 +1,5 @@
 from sycamore.data import Document
 
-from sycamore.connectors.common import unflatten_data
 from sycamore.connectors.base_reader import BaseDBReader
 from sycamore.utils.import_utils import requires_modules
 from dataclasses import dataclass, asdict
@@ -72,7 +71,7 @@ class QdrantReaderQueryResponse(BaseDBReader.QueryResponse):
         result = []
         for point in self.points:
             assert isinstance(point, ScoredPoint)
-            doc = Document({"doc_id": point.id, "embedding": point.vector} | unflatten_data(point.payload or {}))
+            doc = Document({"doc_id": point.id, "embedding": point.vector} | (point.payload or {}))
             result.append(doc)
         return result
 

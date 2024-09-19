@@ -149,13 +149,7 @@ class DocSetWriter:
         # doesn't execute automatically, and instead you need to say something
         # like docset.write.opensearch().execute(), allowing sensible writes
         # to multiple locations and post-write operations.
-        osds = DocSet(self.context, os)
-        if execute:
-            # If execute, force execution
-            osds.execute()
-            return None
-        else:
-            return osds
+        return self._maybe_execute(os, execute)
 
     @requires_modules(["weaviate", "weaviate.collections.classes.config"], extra="weaviate")
     def weaviate(
@@ -287,13 +281,7 @@ class DocSetWriter:
             wv_docs, client_params, target_params, name="weaviate_write_references", **kwargs
         )
 
-        wvds = DocSet(self.context, wv_refs)
-        if execute:
-            # If execute, force execution
-            wvds.execute()
-            return None
-        else:
-            return wvds
+        return self._maybe_execute(wv_refs, execute)
 
     @requires_modules("pinecone", extra="pinecone")
     def pinecone(
@@ -380,13 +368,7 @@ class DocSetWriter:
         )
 
         pc = PineconeWriter(self.plan, client_params=pcp, target_params=ptp, name="pinecone_write", **kwargs)
-        pcds = DocSet(self.context, pc)
-        if execute:
-            # If execute, force execution
-            pcds.execute()
-            return None
-        else:
-            return pcds
+        return self._maybe_execute(pc, execute)
 
     @requires_modules("duckdb", extra="duckdb")
     def duckdb(
@@ -468,12 +450,7 @@ class DocSetWriter:
             name="duckdb_write_documents",
             **kwargs,
         )
-        ddbds = DocSet(self.context, ddb)
-        if execute:
-            ddbds.execute()
-            return None
-        else:
-            return ddbds
+        return self._maybe_execute(ddb, execute)
 
     @requires_modules("elasticsearch", extra="elasticsearch")
     def elasticsearch(
@@ -554,13 +531,7 @@ class DocSetWriter:
         es_docs = ElasticsearchDocumentWriter(
             self.plan, client_params, target_params, name="elastic_document_writer", **kwargs
         )
-        esds = DocSet(self.context, es_docs)
-        if execute:
-            # If execute, force execution
-            esds.execute()
-            return None
-        else:
-            return esds
+        return self._maybe_execute(es_docs, execute)
 
     @requires_modules("neo4j", extra="neo4j")
     def neo4j(
@@ -720,9 +691,7 @@ class DocSetWriter:
             doc_to_bytes_fn=doc_to_bytes_fn,
             **resource_args,
         )
-        file_writer = Execution(self.context)._apply_rules(file_writer)
-        file_writer.execute()
-        file_writer.traverse(visit=lambda n: n.finalize())
+        self._maybe_execute(file_writer, True)
 
     def json(
         self,
@@ -742,6 +711,13 @@ class DocSetWriter:
         """
 
         node: Node = JsonWriter(self.plan, path, filesystem=filesystem, **resource_args)
-        node = Execution(self.context)._apply_rules(node)
-        node.execute()
-        node.traverse(visit=lambda n: n.finalize())
+
+        self._maybe_execute(node, True)
+
+    def _maybe_execute(self, node: Node, execute: bool) -> Optional[DocSet]:
+        ds = DocSet(self.context, node)
+        if not execute:
+            return ds
+
+        ds.execute()
+        return None

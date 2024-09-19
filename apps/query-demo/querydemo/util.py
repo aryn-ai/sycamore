@@ -1,12 +1,13 @@
-import io
+import base64
 import logging
 import os
 import pickle
-import zipfile
 import pandas as pd
 from typing import Any, Dict, List, Set, Tuple
 
+import boto3
 import ray
+import requests
 import streamlit as st
 from streamlit_agraph import agraph, Node, Edge, Config
 
@@ -43,6 +44,45 @@ def run_plan(_client: SycamoreQueryClient, plan: LogicalPlan) -> Tuple[str, Any]
 
 def get_opensearch_indices() -> Set[str]:
     return {x for x in SycamoreQueryClient().get_opensearch_incides() if not x.startswith(".")}
+
+
+def parse_s3_path(s3_path: str) -> Tuple[str, str]:
+    """Parse an S3 path into a bucket and key."""
+    s3_path = s3_path.replace("s3://", "")
+    bucket, key = s3_path.split("/", 1)
+    return bucket, key
+
+
+class PDFPreview:
+    """Display a preview of the given PDF file."""
+
+    def __init__(self, path: str):
+        self.path = path
+
+    def show(self):
+        if self.path.startswith("s3://"):
+            bucket, key = parse_s3_path(self.path)
+            s3 = boto3.client("s3")
+            response = s3.get_object(Bucket=bucket, Key=key)
+            content = response["Body"].read()
+        elif self.path.startswith("http"):
+            content = requests.get(self.path, timeout=30).content
+        else:
+            st.write(f"Unknown path format: {self.path}")
+            return
+
+        st.text(self.path)
+        encoded = base64.b64encode(content).decode("utf-8")
+        pdf_display = (
+            f'<iframe src="data:application/pdf;base64,{encoded}" '
+            + 'width="600" height="800" type="application/pdf"></iframe>'
+        )
+        st.markdown(pdf_display, unsafe_allow_html=True)
+
+
+@st.dialog("Document preview", width="large")
+def show_pdf_preview(path: str):
+    PDFPreview(path).show()
 
 
 def show_dag(plan: LogicalPlan):
@@ -117,9 +157,11 @@ class QueryNodeTrace:
 
         # Group by the parent ID.
         self.parent_docs = [x for x in self.docs if x.get("parent_id") is None]
-        print(self.parent_docs)
-        for doc in self.parent_docs:
-            doc["children"] = [x for x in self.docs if x.get("parent_id") == doc.get("doc_id")]
+        if self.parent_docs:
+            for doc in self.parent_docs:
+                doc["children"] = [x for x in self.docs if x.get("parent_id") == doc.get("doc_id")]
+        else:
+            self.parent_docs = self.docs
 
     def show(self):
         if not self.parent_docs:
@@ -147,18 +189,7 @@ class QueryNodeTrace:
                 data[col].append(row.get(col))
 
         df = pd.DataFrame(data)
-        st.dataframe(
-            df,
-            column_order=columns,
-            column_config={
-                "properties.path": st.column_config.LinkColumn(
-                    "Document link",
-                    validate=r"^[a-z]+://[a-z\.\/]+$",
-                    max_chars=100,
-                    #            display_text=r"https://(.*?)\.streamlit\.app"
-                )
-            },
-        )
+        st.dataframe(df, column_order=columns)
 
 
 class QueryTrace:

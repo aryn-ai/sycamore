@@ -1,12 +1,13 @@
-import io
+import base64
 import logging
 import os
 import pickle
-import zipfile
 import pandas as pd
-from typing import Any, Dict, Set, Tuple
+from typing import Any, Dict, List, Set, Tuple
 
+import boto3
 import ray
+import requests
 import streamlit as st
 from streamlit_agraph import agraph, Node, Edge, Config
 
@@ -45,6 +46,45 @@ def get_opensearch_indices() -> Set[str]:
     return {x for x in SycamoreQueryClient().get_opensearch_incides() if not x.startswith(".")}
 
 
+def parse_s3_path(s3_path: str) -> Tuple[str, str]:
+    """Parse an S3 path into a bucket and key."""
+    s3_path = s3_path.replace("s3://", "")
+    bucket, key = s3_path.split("/", 1)
+    return bucket, key
+
+
+class PDFPreview:
+    """Display a preview of the given PDF file."""
+
+    def __init__(self, path: str):
+        self.path = path
+
+    def show(self):
+        if self.path.startswith("s3://"):
+            bucket, key = parse_s3_path(self.path)
+            s3 = boto3.client("s3")
+            response = s3.get_object(Bucket=bucket, Key=key)
+            content = response["Body"].read()
+        elif self.path.startswith("http"):
+            content = requests.get(self.path, timeout=30).content
+        else:
+            st.write(f"Unknown path format: {self.path}")
+            return
+
+        st.text(self.path)
+        encoded = base64.b64encode(content).decode("utf-8")
+        pdf_display = (
+            f'<iframe src="data:application/pdf;base64,{encoded}" '
+            + 'width="600" height="800" type="application/pdf"></iframe>'
+        )
+        st.markdown(pdf_display, unsafe_allow_html=True)
+
+
+@st.dialog("Document preview", width="large")
+def show_pdf_preview(path: str):
+    PDFPreview(path).show()
+
+
 def show_dag(plan: LogicalPlan):
     nodes = []
     edges = []
@@ -80,13 +120,15 @@ def show_dag(plan: LogicalPlan):
     agraph(nodes=nodes, edges=edges, config=config)
 
 
-@st.experimental_fragment
-def show_query_traces(trace_dir: str, query_id: str):
-    """Show the query traces in the given trace_dir."""
-    trace_dir = os.path.join(trace_dir, query_id)
-    for node_id in sorted(os.listdir(trace_dir)):
-        data_list = []
-        directory = os.path.join(trace_dir, node_id)
+class QueryNodeTrace:
+    def __init__(self, trace_dir: str, node_id: str):
+        self.trace_dir = trace_dir
+        self.node_id = node_id
+        self.docs: List[Dict[str, Any]] = []
+        self.readdata()
+
+    def readdata(self):
+        directory = os.path.join(self.trace_dir, self.node_id)
         for filename in os.listdir(directory):
             f = os.path.join(directory, filename)
             if os.path.isfile(f):
@@ -94,12 +136,12 @@ def show_query_traces(trace_dir: str, query_id: str):
                     try:
                         doc = pickle.load(file)
                     except EOFError:
-                        doc = []
-
+                        continue
                     # For now, skip over MetadataDocuments.
-                    if "doc_id" not in doc:
+                    if "metadata" in doc.keys():
                         continue
 
+                    # Flatten properties.
                     if "properties" in doc:
                         for property in doc["properties"]:
                             if isinstance(doc["properties"][property], dict):
@@ -110,21 +152,58 @@ def show_query_traces(trace_dir: str, query_id: str):
                             else:
                                 doc[".".join(["properties", property])] = doc["properties"][property]
                         doc.pop("properties")
-                    data_list.append(doc)
 
-        df = pd.DataFrame(data_list)
-        st.write(f"Docset after node {node_id} — {len(df)} documents")
-        st.dataframe(df)
+                    self.docs.append(doc)
 
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-        for root, _, files in os.walk(trace_dir):
-            for filename in files:
-                file_path = os.path.join(root, filename)
-                zf.write(file_path, os.path.relpath(file_path, trace_dir))
-    st.download_button(
-        label="Download Traces as ZIP",
-        data=zip_buffer.getvalue(),
-        file_name=f"traces_{query_id}.zip",
-        mime="application/zip",
-    )
+        # Group by the parent ID.
+        self.parent_docs = [x for x in self.docs if x.get("parent_id") is None]
+        if self.parent_docs:
+            for doc in self.parent_docs:
+                doc["children"] = [x for x in self.docs if x.get("parent_id") == doc.get("doc_id")]
+        else:
+            self.parent_docs = self.docs
+
+    def show(self):
+        if not self.parent_docs:
+            st.write(f"Result of node {self.node_id} — **no** documents")
+            st.write("No data.")
+            return
+        st.write(f"Result of node {self.node_id} — **{len(self.parent_docs)}** documents")
+        DEFAULT_COLUMNS = [
+            "properties.path",
+            "properties.entity.accidentNumber",
+            "properties.entity.dateAndTime",
+            "properties.entity.location",
+            "properties.entity.aircraft",
+            "properties.entity.registration",
+            "properties.entity.injuries",
+            "properties.entity.aircraftDamage",
+        ]
+        all_columns = self.parent_docs[0].keys()
+        columns = DEFAULT_COLUMNS + [x for x in all_columns if x not in DEFAULT_COLUMNS]
+
+        # Transpose data to a dict where each key is a column, and each value is a list of rows.
+        data = {col: [] for col in columns}
+        for row in self.parent_docs:
+            for col in columns:
+                data[col].append(row.get(col))
+
+        df = pd.DataFrame(data)
+        st.dataframe(df, column_order=columns)
+
+
+class QueryTrace:
+    def __init__(self, trace_dir: str):
+        self.trace_dir = trace_dir
+        self.node_traces = [QueryNodeTrace(trace_dir, node_id) for node_id in sorted(os.listdir(self.trace_dir))]
+
+    def show(self):
+        for node_trace in self.node_traces:
+            node_trace.show()
+
+
+@st.fragment
+def show_query_traces(trace_dir: str, query_id: str):
+    """Show the query traces in the given trace_dir."""
+    trace_dir = os.path.join(trace_dir, query_id)
+    QueryTrace(trace_dir).show()

@@ -102,7 +102,7 @@ class SycamoreQueryClient:
         trace_dir (optional): Directory to write query execution trace.
 
     Notes:
-        If you override the context. You cannot override the s3_cache_path or os_client_args; you need
+        If you override the context, you cannot override the s3_cache_path or os_client_args; you need
         to pass those in via the context paramaters, i.e. sycamore.init(params={...})
 
         To override os_client_args, set params["opensearch"]["os_client_args"]. You are likely to also need
@@ -129,6 +129,8 @@ class SycamoreQueryClient:
         self.os_config = os_config
         self.trace_dir = trace_dir
 
+        # TODO: remove these assertions and simplify the code to get all customization via the
+        # context.
         if context and os_client_args:
             raise AssertionError("setting os_client_args requires context==None. See Notes in class documentation.")
 

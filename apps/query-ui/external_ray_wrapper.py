@@ -13,8 +13,12 @@ while not ray.is_initialized():
     time.sleep(1)
 
 os.environ["EXTERNAL_RAY"] = "1"
+os.environ["PYTHONPATH"] = "apps/query-ui/queryui"
 
 while True:
     print("Starting streamlit process...", flush=True)
-    ret = subprocess.run(["python", "-m", "streamlit", "run", "apps/query-ui/queryui/Sycamore_Query.py"])
+    # Hardcode the port so you can't accidentally be using a previous run of the app
+    ret = subprocess.run(
+        ["python", "-m", "streamlit", "run", "apps/query-ui/queryui/Sycamore_Query.py", "--server.port", "8501"]
+    )
     print(f"Subprocess exited {ret}", flush=True)

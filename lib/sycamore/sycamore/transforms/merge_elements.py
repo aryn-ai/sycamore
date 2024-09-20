@@ -159,8 +159,8 @@ class GreedySectionMerger(ElementMerger):
         self.merge_across_pages = merge_across_pages
 
     def preprocess_element(self, element: Element) -> Element:
-        if element.type == "Image" and "summary" in element.properties:
-            element.data["token_count"] = len(self.tokenizer.tokenize(element.properties["summary"] or ""))
+        if element.type == "Image" and "summary" in element.properties and "summary" in element.properties["summary"]:
+            element.data["token_count"] = len(self.tokenizer.tokenize(element.properties["summary"]["summary"] or ""))
         else:
             element.data["token_count"] = len(self.tokenizer.tokenize(element.text_representation or ""))
         return element

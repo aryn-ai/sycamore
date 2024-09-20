@@ -432,7 +432,6 @@ class ArynPDFPartitioner:
             logger.info(f"Memory Usage current={current} peak={peak}")
             top = tracemalloc.take_snapshot()
             display_top(top)
-        deformable_layout = final_layout
         return deformable_layout
 
     @staticmethod

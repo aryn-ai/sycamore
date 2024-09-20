@@ -7,4 +7,4 @@ def test_configuration_sha():
         sha = sha256(bytes).hexdigest()
         # If the change was intentional, update the hash
         # Think about whether you have to make the change since everyone with a custom config will need to update it
-        assert sha == "c8805d3e9a641a6e29a947e179a8eb7441567ecbbc238bc7a39c8ea2e2c811cf", f"hash mismatch got {sha}"
+        assert sha == "1c12bf1d3437a494d24910bf2073b7461ac6dfa4c37c25d9929878fc35be9d40", f"hash mismatch got {sha}"

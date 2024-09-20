@@ -27,7 +27,7 @@ permissions:
 
 jobs:
   sycamore-unit-tests:
-    runs-on: integ-test-runner2
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.9", "3.10", "3.11"]

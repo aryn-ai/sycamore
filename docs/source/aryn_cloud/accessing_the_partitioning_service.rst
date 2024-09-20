@@ -54,6 +54,25 @@ Helper Functions
     # Draw the detected bounding boxes on the pages. requires poppler
     images = draw_with_boxes("mydocument.pdf", data)
 
+Different File Formats
+++++++++++++++++++++++
+
+It is easy to process files with different formats using the aryn-sdk:
+
+.. code :: python
+
+    from aryn_sdk.partition import partition_file
+    with open("mydocument.pdf", "rb") as f:
+        data = partition_file(f)
+    with open("mydocument.docx", "rb") as f:
+        data = partition_file(f)
+    with open("mypresentation.doc", "rb") as f:
+        data = partition_file(f)
+    with open("mypresentation.pptx", "rb") as f:
+        data = partition_file(f)
+    with open("mypresentation.ppt", "rb") as f:
+        data = partition_file(f)
+
 ++++++++++++++++++++++++++++++++++++
 Using Sycamore's Partition transform
 ++++++++++++++++++++++++++++++++++++
@@ -108,3 +127,15 @@ Your results have been saved to ``document.json``.
 .. code:: bash
 
     cat document.json
+
+Different File Formats
+++++++++++++++++++++++
+
+.. code:: bash
+
+    export ARYN_API_KEY="PUT API KEY HERE"
+    curl -s -N -D headers "https://api.aryn.cloud/v1/document/partition" -H "Authorization: Bearer $ARYN_API_KEY" -F "pdf=@document.pdf" | tee document.json
+    curl -s -N -D headers "https://api.aryn.cloud/v1/document/partition" -H "Authorization: Bearer $ARYN_API_KEY" -F "pdf=@document.docx" | tee document.json
+    curl -s -N -D headers "https://api.aryn.cloud/v1/document/partition" -H "Authorization: Bearer $ARYN_API_KEY" -F "pdf=@document.doc" | tee document.json
+    curl -s -N -D headers "https://api.aryn.cloud/v1/document/partition" -H "Authorization: Bearer $ARYN_API_KEY" -F "pdf=@document.pptx" | tee document.json
+    curl -s -N -D headers "https://api.aryn.cloud/v1/document/partition" -H "Authorization: Bearer $ARYN_API_KEY" -F "pdf=@document.ppt" | tee document.json

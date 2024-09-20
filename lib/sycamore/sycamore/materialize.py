@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Any, Optional, Union, TYPE_CHECKING
+from typing import Any, Optional, Tuple, Union, TYPE_CHECKING
 
 from sycamore.context import Context
 from sycamore.data import Document, MetadataDocument
@@ -224,22 +224,11 @@ class Materialize(UnaryNode):
             assert self._fshelper.file_exists(self._success_path())
 
     @staticmethod
-    def infer_fs(path: str) -> "pyarrow.FileSystem":
-        import re
+    def infer_fs(path: str) -> Tuple["pyarrow.FileSystem", Path]:
+        from sycamore.utils.pyarrow import infer_fs as util_infer_fs
 
-        if not re.match("^[a-z0-9]+://.", path):
-            # pyarrow expects URIs, accepts /dir/path, but rejects ./dir/path
-            # normalize everything to a URI.
-            p = Path(path)
-            if p.is_absolute():
-                path = p.as_uri()
-            else:
-                path = p.absolute().as_uri()
-
-        from pyarrow import fs
-
-        (fs, root) = fs.FileSystem.from_uri(path)
-        return (fs, Path(root))
+        (fs, path) = util_infer_fs(path)
+        return (fs, Path(path))
 
     def save(self, doc: Document) -> None:
         bin = self._doc_to_binary(doc)

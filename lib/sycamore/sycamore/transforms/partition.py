@@ -1,6 +1,6 @@
 from abc import abstractmethod, ABC
 import io
-from typing import Any, Optional
+from typing import Any, Literal, Optional, Union
 
 from bs4 import BeautifulSoup
 
@@ -18,7 +18,11 @@ from sycamore.utils import choose_device
 from sycamore.utils.aryn_config import ArynConfig
 from sycamore.utils.bbox_sort import bbox_sort_document
 
-from sycamore.transforms.detr_partitioner import ARYN_DETR_MODEL, DEFAULT_ARYN_PARTITIONER_ADDRESS
+from sycamore.transforms.detr_partitioner import (
+    ARYN_DETR_MODEL,
+    DEFAULT_ARYN_PARTITIONER_ADDRESS,
+    DEFAULT_LOCAL_THRESHOLD,
+)
 
 
 class Partitioner(ABC):
@@ -354,9 +358,11 @@ class ArynPartitioner(Partitioner):
         model_name_or_path: The HuggingFace coordinates or model local path. Should be set to
              the default ARYN_DETR_MODEL unless you are testing a custom model.
              Ignored when local mode is false
-        threshold: The threshold to use for accepting the model's predicted bounding boxes. A lower
-             value will include more objects, but may have overlaps, a higher value will reduce the
-             number of overlaps, but may miss legitimate objects.
+        threshold: The threshold to use for accepting the model's predicted bounding boxes. When using
+             the Aryn Partitioning Service, this defaults to "auto", where the service will automatically
+             find the best predictions. You can override this or set it locally by specifying a numerical
+             threshold between 0 and 1. A lower value will include more objects, but may have overlaps,
+             while a higher value will reduce the number of overlaps, but may miss legitimate objects.
         use_ocr: Whether to use OCR to extract text from the PDF. If false, we will attempt to extract
              the text from the underlying PDF.
         ocr_images: If set with use_ocr, will attempt to OCR regions of the document identified as images.
@@ -398,7 +404,7 @@ class ArynPartitioner(Partitioner):
     def __init__(
         self,
         model_name_or_path=ARYN_DETR_MODEL,
-        threshold: float = 0.4,
+        threshold: Optional[Union[float, Literal["auto"]]] = None,
         use_ocr: bool = False,
         ocr_images: bool = False,
         ocr_tables: bool = False,
@@ -426,7 +432,17 @@ class ArynPartitioner(Partitioner):
             self._aryn_api_key = aryn_api_key
         self._model_name_or_path = model_name_or_path
         self._device = device
-        self._threshold = threshold
+
+        if threshold is None:
+            if use_partitioning_service:
+                self._threshold: Union[float, Literal["auto"]] = "auto"
+            else:
+                self._threshold = DEFAULT_LOCAL_THRESHOLD
+        else:
+            if not isinstance(threshold, float) and not use_partitioning_service:
+                raise ValueError("Auto threshold is only supported with the Aryn Partitioning Service.")
+            self._threshold = threshold
+
         self._use_ocr = use_ocr
         self._ocr_images = ocr_images
         self._ocr_tables = ocr_tables

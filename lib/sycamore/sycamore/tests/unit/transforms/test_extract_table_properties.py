@@ -35,9 +35,8 @@ class TestExtractTableProperties:
             }
         )
         # print(self.doc)
-        llm = mocker.Mock(sepc=OpenAI)
-        generate = mocker.patch.object(llm, "generate", side_effect=["True", {"llm_response": '{"key1":"val1"}'}])
-        generate.return_value = {"llm_response": '{"key1":"val1"}'}
+        llm = mocker.Mock(spec=OpenAI)
+        _ = mocker.patch.object(llm, "generate", side_effect=["True", '{"key1":"val1"}'])
         doc1 = ExtractTableProperties(None, parameters=["llm_response", llm]).run(self.doc)
         print(doc1)
-        assert (doc1.elements[0].properties.get("llm_response")) == {"llm_response": '{"key1":"val1"}'}
+        assert (doc1.elements[0].properties.get("llm_response")) == {"key1": "val1"}

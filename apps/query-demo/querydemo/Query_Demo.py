@@ -17,7 +17,7 @@ import sycamore
 from sycamore.data import OpenSearchQuery
 from sycamore.transforms.query import OpenSearchQueryExecutor
 from sycamore.query.client import SycamoreQueryClient
-from util import generate_plan, run_plan, show_query_traces, show_pdf_preview
+from util import generate_plan, run_plan, show_query_traces, show_pdf_preview, ray_init
 
 NUM_DOCS_GENERATE = 60
 NUM_DOCS_PREVIEW = 10
@@ -641,6 +641,8 @@ def do_query():
 
 
 def main():
+    ray_init(address="auto")
+
     # Set a default model
     if "openai_model" not in st.session_state:
         st.session_state["openai_model"] = "gpt-4o"

@@ -263,8 +263,13 @@ class GreedySectionMerger(ElementMerger):
         else:
             if new_elt.type == "Image+Text":
                 # text rep = summary(image) + text
-                if "summary" in elt1.properties:
-                    new_elt.text_representation = elt1.properties["summary"] + "\n" + elt2.text_representation
+                if elt1.type == "Image":
+                    if "summary" in elt1.properties and "summary" in elt1.properties["summary"]:
+                        new_elt.text_representation = (
+                            elt1.properties["summary"]["summary"] + "\n" + elt2.text_representation
+                        )
+                    else:
+                        new_elt.text_representation = elt2.text_representation
                 else:
                     new_elt.text_representation = elt1.text_representation + "\n" + elt2.text_representation
                 new_elt.data["token_count"] = tok1 + 1 + tok2

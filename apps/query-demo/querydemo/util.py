@@ -3,7 +3,7 @@ import logging
 import os
 import pickle
 import pandas as pd
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, Set, Tuple
 
 import boto3
 import ray

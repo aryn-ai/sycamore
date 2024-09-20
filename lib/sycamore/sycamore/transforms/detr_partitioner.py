@@ -558,20 +558,25 @@ class ArynPDFPartitioner:
                     self._supplement_text(d, p)
         # TODO: optimize this to make pdfminer also streamed so we can process each page in sequence without
         # having to double-convert the document
+        counter = 0
+        final_layout = []
         for i in convert_from_path_streamed_batched(filename, batch_size):
-            self.process_batch_extraction(
+            parts = self.process_batch_extraction(
                 i,
-                deformable_layout,
+                deformable_layout[counter : counter + batch_size],
                 extract_table_structure=extract_table_structure,
                 table_structure_extractor=table_structure_extractor,
                 extract_images=extract_images,
             )
             assert len(parts) == len(i)
+            counter += batch_size
+            final_layout.extend(parts)
         if tracemalloc.is_tracing():
             (current, peak) = tracemalloc.get_traced_memory()
             logger.info(f"Memory Usage current={current} peak={peak}")
             top = tracemalloc.take_snapshot()
             display_top(top)
+        deformable_layout = final_layout
         return deformable_layout
 
     @staticmethod
@@ -625,7 +630,6 @@ class ArynPDFPartitioner:
         table_structure_extractor,
         extract_images,
     ) -> Any:
-
         if extract_table_structure:
             with LogTime("extract_table_structure_batch"):
                 if table_structure_extractor is None:

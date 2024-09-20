@@ -336,7 +336,11 @@ class ChatMessage:
         data: Dict[str, List[Any]] = {col: [] for col in columns}
         for row in rows:
             for index, col in enumerate(columns):
-                data[col].append(row[index])
+                try:
+                    data[col].append(row[index])
+                except IndexError:
+                    # This can happen if we end up with missing cells in the MDX.
+                    data[col].append(None)
 
         df = pd.DataFrame(data)
         st.dataframe(df)

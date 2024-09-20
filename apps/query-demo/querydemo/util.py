@@ -121,75 +121,113 @@ def show_dag(plan: LogicalPlan):
 
 
 class QueryNodeTrace:
+    # The order here is chosen to ensure that the most important columns are shown first.
+    # The logic below ensure that additional columns are also shown, and that empty columns
+    # are omitted.
+    COLUMNS = [
+        "properties.path",
+        "properties.entity.accidentNumber",
+        "properties.key",
+        "properties.count",
+        "properties.entity.location",
+        "properties.entity.dateAndTime",
+        "properties.entity.aircraft",
+        "properties.entity.registration",
+        "properties.entity.injuries",
+        "properties.entity.aircraftDamage",
+        "text_representation",
+        "doc_id",
+        "parent_id",
+    ]
+
     def __init__(self, trace_dir: str, node_id: str):
         self.trace_dir = trace_dir
         self.node_id = node_id
-        self.docs: List[Dict[str, Any]] = []
+        self.df = None
         self.readdata()
+
+    def readfile(self, f):
+        with open(f, "rb") as file:
+            try:
+                doc = pickle.load(file)
+            except EOFError:
+                return None
+
+            # For now, skip over MetadataDocuments.
+            if "metadata" in doc.keys():
+                return None
+
+            # Flatten properties.
+            if "properties" in doc:
+                for prop in doc["properties"]:
+                    if isinstance(doc["properties"][prop], dict):
+                        for nested_property in doc["properties"][prop]:
+                            doc[".".join(["properties", prop, nested_property])] = doc["properties"][prop][
+                                nested_property
+                            ]
+                    else:
+                        doc[".".join(["properties", prop])] = doc["properties"][prop]
+                doc.pop("properties")
+
+            # Keep only the columns we care about.
+            # Limit size of each to avoid blowing out memory.
+            def format_value(value):
+                MAX_CHARS = 1024
+                if isinstance(value, str):
+                    if len(value) > MAX_CHARS:
+                        return value[:MAX_CHARS] + "..."
+                    else:
+                        return value
+                if isinstance(value, dict):
+                    return format_value(str(value))
+                if isinstance(value, list):
+                    return format_value(str(value))
+                return value
+
+            row = {k: format_value(doc.get(k)) for k in doc.keys() if k in self.COLUMNS or k.startswith("properties.")}
+            return row
 
     def readdata(self):
         directory = os.path.join(self.trace_dir, self.node_id)
+        docs = []
+
+        # We need to read all of the individual docs to ensure we get all of the parent
+        # docs. With a very large number of docs, we are likely to blow out memory doing
+        # this. Unfortunately there's no easy way to tell up-front that a given stage in
+        # the pipeline has a mix of parent and child docs, unless we do two passes.
+        # Just a heads up that with a larger number of docs, we may need to revisit this.
         for filename in os.listdir(directory):
             f = os.path.join(directory, filename)
             if os.path.isfile(f):
-                with open(f, "rb") as file:
-                    try:
-                        doc = pickle.load(file)
-                    except EOFError:
-                        continue
-                    # For now, skip over MetadataDocuments.
-                    if "metadata" in doc.keys():
-                        continue
+                newdoc = self.readfile(f)
+                if newdoc:
+                    docs.append(newdoc)
 
-                    # Flatten properties.
-                    if "properties" in doc:
-                        for property in doc["properties"]:
-                            if isinstance(doc["properties"][property], dict):
-                                for nested_property in doc["properties"][property]:
-                                    doc[".".join(["properties", property, nested_property])] = doc["properties"][
-                                        property
-                                    ][nested_property]
-                            else:
-                                doc[".".join(["properties", property])] = doc["properties"][property]
-                        doc.pop("properties")
+        # Only keep parent docs if there are child docs in the list.
+        parent_docs = [x for x in docs if x.get("parent_id") is None]
+        if parent_docs:
+            docs = parent_docs
 
-                    self.docs.append(doc)
-
-        # Group by the parent ID.
-        self.parent_docs = [x for x in self.docs if x.get("parent_id") is None]
-        if self.parent_docs:
-            for doc in self.parent_docs:
-                doc["children"] = [x for x in self.docs if x.get("parent_id") == doc.get("doc_id")]
-        else:
-            self.parent_docs = self.docs
+        # Transpose data to a dict where each key is a column, and each value is a list of rows.
+        if docs:
+            all_keys = {k for d in docs for k in d.keys()}
+            data = {col: [] for col in all_keys}
+            for row in docs:
+                for col in all_keys:
+                    data[col].append(row.get(col))
+            self.df = pd.DataFrame(data)
 
     def show(self):
-        if not self.parent_docs:
+        all_columns = list(self.df.columns)
+        column_order = [c for c in self.COLUMNS if c in all_columns]
+        column_order += [c for c in all_columns if c not in column_order]
+
+        if self.df is None or not len(self.df):
             st.write(f"Result of node {self.node_id} — **no** documents")
             st.write("No data.")
             return
-        st.write(f"Result of node {self.node_id} — **{len(self.parent_docs)}** documents")
-        DEFAULT_COLUMNS = [
-            "properties.path",
-            "properties.entity.accidentNumber",
-            "properties.entity.dateAndTime",
-            "properties.entity.location",
-            "properties.entity.aircraft",
-            "properties.entity.registration",
-            "properties.entity.injuries",
-            "properties.entity.aircraftDamage",
-        ]
-        all_columns = self.parent_docs[0].keys()
-        columns = DEFAULT_COLUMNS + [x for x in all_columns if x not in DEFAULT_COLUMNS]
-
-        # Transpose data to a dict where each key is a column, and each value is a list of rows.
-        data = {col: [] for col in columns}
-        for row in self.parent_docs:
-            for col in columns:
-                data[col].append(row.get(col))
-
-        df = pd.DataFrame(data)
-        st.dataframe(df, column_order=columns)
+        st.write(f"Result of node {self.node_id} — **{len(self.df)}** documents")
+        st.dataframe(self.df, column_order=column_order)
 
 
 class QueryTrace:

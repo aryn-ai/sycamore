@@ -7,6 +7,7 @@
 
 import argparse
 import json
+import logging
 import os
 import tempfile
 
@@ -24,6 +25,8 @@ from sycamore.llms import OpenAI, OpenAIModels
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from opensearchpy import OpenSearch
 
+logging.basicConfig(level=logging.INFO)
+
 
 def add_schema_property(doc: Document) -> Document:
     """Add a _schema and _schema_class property to the document with the NTSB data schema."""
@@ -38,9 +41,28 @@ def add_schema_property(doc: Document) -> Document:
             "registration": {"type": "string"},
             "injuries": {"type": "string"},
             "aircraftDamage": {"type": "string"},
+            "operator": {"type": "string"},
+            "conditions": {"type": "string"},
+            "lowestCloudCondition": {"type": "string"},
+            "lowestCeiling": {"type": "string"},
+            "conditionOfLight": {"type": "string"},
+            "temperature": {"type": "string"},
+            "windSpeed": {"type": "string"},
+            "windDirection": {"type": "string"},
+            "visibility": {"type": "string"},
+            "departureAirport": {"type": "string"},
+            "destinationAirport": {"type": "string"},
         },
     }
     doc.properties.update({"_schema": schema_json, "_schema_class": "Flight Accident Report"})
+    return doc
+
+
+def standardize_location(doc: Document, key_path: list[str]) -> Document:
+    try:
+        doc = USStateStandardizer.standardize(doc, key_path=key_path)
+    except KeyError:
+        logging.warning(f"Key {key_path} not found in document: {doc}")
     return doc
 
 
@@ -137,7 +159,9 @@ def main():
         )
         .extract_properties(property_extractor=OpenAIPropertyExtractor(llm=llm, num_of_elements=35))
         .merge(GreedyTextElementMerger(tokenizer, 300))
-        .map(lambda doc: USStateStandardizer.standardize(doc, key_path=["properties", "entity", "location"]))
+        .map(lambda doc: standardize_location(doc, key_path=["properties", "entity", "location"]))
+        .map(lambda doc: standardize_location(doc, key_path=["properties", "entity", "departureAirport"]))
+        .map(lambda doc: standardize_location(doc, key_path=["properties", "entity", "destinationAirport"]))
         .map(lambda doc: DateTimeStandardizer.standardize(doc, key_path=["properties", "entity", "dateAndTime"]))
         .spread_properties(["entity", "path"])
         .explode()

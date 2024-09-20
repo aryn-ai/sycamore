@@ -2,7 +2,7 @@ import pytest
 import ray.data
 
 import sycamore
-from sycamore.data import Document, Element
+from sycamore.data import Document
 from sycamore.transforms.merge_elements import GreedyTextElementMerger, Merge, GreedySectionMerger
 from sycamore.functions.tokenizer import HuggingFaceTokenizer
 from sycamore.plan_nodes import Node

@@ -256,7 +256,7 @@ class GreedySectionMerger(ElementMerger):
             new_elt.binary_representation = elt1.binary_representation + elt2.binary_representation
 
         # Merge text representations by concatenation with a newline
-        if elt1.text_representation is None or elt2.text_representation is None:
+        if elt1.type != "Image" and (elt1.text_representation is None or elt2.text_representation is None):
             new_elt.text_representation = elt1.text_representation or elt2.text_representation
             new_elt.data["token_count"] = max(tok1, tok2)
 
@@ -271,20 +271,28 @@ class GreedySectionMerger(ElementMerger):
                     else:
                         new_elt.text_representation = elt2.text_representation
                 else:
-                    new_elt.text_representation = elt1.text_representation + "\n" + elt2.text_representation
+                    if elt1.text_representation and elt2.text_representation:
+                        new_elt.text_representation = elt1.text_representation + "\n" + elt2.text_representation
+                    else:
+                        new_elt.text_representation = elt2.text_representation
                 new_elt.data["token_count"] = tok1 + 1 + tok2
 
             elif new_elt.type == "Section-header+table":
                 # text rep = header text + table html
                 if hasattr(elt2, "table") and elt2.table:
-                    new_elt.text_representation = elt1.text_representation + "\n" + elt2.table.to_html()
-                    new_elt.data["token_count"] = tok1 + 1 + tok2
+                    if elt1.text_representation:
+                        new_elt.text_representation = elt1.text_representation + "\n" + elt2.table.to_html()
+                        new_elt.data["token_count"] = tok1 + 1 + tok2
                 else:
                     new_elt.text_representation = elt1.text_representation
                     new_elt.data["token_count"] = tok1
             else:
                 # text + text
-                new_elt.text_representation = elt1.text_representation + "\n" + elt2.text_representation
+                new_elt_text_representation = "\n".join(
+                    filter(None, [elt1.text_representation, elt2.text_representation])
+                )
+                new_elt.text_representation = new_elt_text_representation if new_elt_text_representation else None
+                # new_elt.text_representation = elt1.text_representation + "\n" + elt2.text_representation
                 new_elt.data["token_count"] = tok1 + 1 + tok2
 
         # Merge bbox by taking the coords that make the largest box

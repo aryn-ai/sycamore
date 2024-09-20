@@ -195,6 +195,67 @@ class TestGreedySectionMerger:
             ],
         }
     )
+    doc1 = Document(
+        {
+            "doc_id": "doc_id",
+            "type": "pdf",
+            "text_representation": "text",
+            "binary_representation": None,
+            "parent_id": None,
+            "properties": {"path": "/docs/foo.txt", "title": "bar"},
+            "elements": [
+                {
+                    "type": "Text",
+                    "text_representation": "text1 on page 1",
+                    "properties": {"filetype": "text/plain", "page_number": 1},
+                },
+                {
+                    "type": "Text",
+                    "text_representation": "text2 on page 1",
+                    "properties": {"filetype": "text/plain", "page_number": 1},
+                },
+                {
+                    "type": "Text",
+                    "text_representation": "text3 on page 1",
+                    "properties": {"filetype": "text/plain", "page_number": 1},
+                },
+                {
+                    "type": "Text",
+                    "text_representation": "text4 on page 2",
+                    "properties": {"filetype": "text/plain", "page_number": 2},
+                },
+                {
+                    "type": "Image",
+                    "properties": {
+                        "filetype": "text/plain",
+                        "page_number": 2,
+                        "summary": {"isgraph": False, "summary": "image1 on page 2 before text5 from summary"},
+                    },
+                },
+                {
+                    "type": "Text",
+                    "text_representation": "text5 on page 2",
+                    "properties": {"filetype": "text/plain", "page_number": 2},
+                },
+                {
+                    "type": "Text",
+                    "text_representation": "text6 on page 2",
+                    "properties": {"filetype": "text/plain", "page_number": 2},
+                },
+                {
+                    "type": "Section-header",
+                    "text_representation": "Section-header1 on page 3",
+                    "properties": {"page_number": 3},
+                },
+                {
+                    "type": "table",
+                    "text_representation": "table1 on page 3",
+                    "properties": {"page_number": 3},
+                },
+                {},
+            ],
+        }
+    )
 
     def test_merge_elements(self):
         tokenizer = HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2")
@@ -239,21 +300,11 @@ class TestGreedySectionMerger:
         assert e.properties == {"page_number": 3, "columns": None, "page_numbers": [3], "rows": None, "title": None}
 
     def test_merge_elements_image_summarize(self):
-        self.doc.elements[4] = Element(
-            {
-                "type": "Image",
-                "text_representation": "image1 on page 2 before text5",
-                "properties": {
-                    "filetype": "text/plain",
-                    "page_number": 2,
-                    "summary": {"isgraph": False, "summary": "image1 on page 2 before text5 from summary"},
-                },
-            }
-        )
+
         tokenizer = HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2")
         merger = GreedySectionMerger(tokenizer, 1200, merge_across_pages=False)
 
-        new_doc = merger.merge_elements(self.doc)
+        new_doc = merger.merge_elements(self.doc1)
         assert len(new_doc.elements) == 5
 
         # doc = "text1 text2 text3 || text4 Image text5 text6 || Section-header table"
@@ -275,7 +326,7 @@ class TestGreedySectionMerger:
 
         e = new_doc.elements[2]
         assert e.type == "Image+Text"
-        assert e.text_representation == ("text5 on page 2\ntext6 on page 2")
+        assert e.text_representation == ("image1 on page 2 before text5 from summary\ntext5 on page 2\ntext6 on page 2")
         assert e.properties["page_number"] == 2
 
         e = new_doc.elements[3]

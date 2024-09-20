@@ -10,7 +10,7 @@ from sycamore.query.operators.limit import Limit
 from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
 from sycamore.query.operators.llm_filter import LlmFilter
 from sycamore.query.operators.summarize_data import SummarizeData
-from sycamore.query.operators.query_database import QueryDatabase
+from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDatabase
 from sycamore.query.operators.logical_operator import LogicalOperator
 from sycamore.query.execution.physical_operator import PhysicalOperator
 from sycamore.query.operators.math import Math
@@ -32,6 +32,7 @@ from sycamore.query.execution.sycamore_operator import (
     SycamoreSort,
     SycamoreLimit,
     SycamoreFieldIn,
+    SycamoreQueryVectorDatabase,
 )
 from sycamore.query.logical_plan import LogicalPlan
 
@@ -104,6 +105,13 @@ class SycamoreExecutor:
         operation: Optional[PhysicalOperator] = None
         if isinstance(logical_node, QueryDatabase):
             operation = SycamoreQueryDatabase(
+                context=self.context,
+                logical_node=logical_node,
+                query_id=query_id,
+                trace_dir=self.trace_dir,
+            )
+        elif isinstance(logical_node, QueryVectorDatabase):
+            operation = SycamoreQueryVectorDatabase(
                 context=self.context,
                 logical_node=logical_node,
                 query_id=query_id,

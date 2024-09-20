@@ -3,6 +3,8 @@ from sycamore.docset import DocSet
 from sycamore.executor import Execution
 from sycamore.materialize_config import MaterializeSourceMode
 
+EXEC_RAY = ExecMode.RAY
+EXEC_LOCAL = ExecMode.LOCAL
 MATERIALIZE_RECOMPUTE = MaterializeSourceMode.RECOMPUTE
 MATERIALIZE_USE_STORED = MaterializeSourceMode.USE_STORED
 
@@ -14,6 +16,4 @@ __all__ = [
     "Execution",
     "ExecMode",
     "MaterializeSourceMode",
-    "MATERIALIZE_RECOMPUTE",
-    "MATERIALIZE_USE_STORED",
 ]

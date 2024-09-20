@@ -3,14 +3,22 @@ import os
 import streamlit as st
 from streamlit_ace import st_ace
 
+from sycamore.executor import sycamore_ray_init
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
 
 from configuration import get_sycamore_query_client
 import util
 
+if "EXTERNAL_RAY" in os.environ:
+    # For not yet understood reasons, the ray processes will die when started under streamlit.
+    # Which then crashes the streamlit app. Running ray externally and connecting to it fixes those problems.
+    print("Configuring ray with auto address")
+    sycamore_ray_init(address="auto")
 
-DEFAULT_S3_CACHE_PATH = "s3://aryn-temp/llm_cache/luna/ntsb"
+# Streamlit is swallowing command line arguments. trying with -- didn't work for me.
+# https://github.com/streamlit/streamlit/issues/337
+DEFAULT_S3_CACHE_PATH = os.getenv("QUERY_CACHE", default="s3://aryn-temp/llm_cache/luna/ntsb")
 
 
 def generate_code(client: SycamoreQueryClient, plan: LogicalPlan) -> str:
@@ -21,8 +29,8 @@ def generate_code(client: SycamoreQueryClient, plan: LogicalPlan) -> str:
 def show_schema(_client: SycamoreQueryClient, index: str):
     schema = util.get_schema(_client, index)
     table_data = []
-    for key, (value, _) in schema.items():
-        table_data.append([key, value])
+    for key, values in schema.items():
+        table_data.append([key] + list(values))
     with st.expander(f"Schema for index `[{index}]`"):
         st.dataframe(table_data)
 
@@ -68,7 +76,7 @@ def run_query():
     with st.spinner("Generating plan..."):
         plan = util.generate_plan(client, st.session_state.query, st.session_state.index)
     with st.expander("Query plan"):
-        st.write(plan)
+        st.write(plan.dict())
 
     code = generate_code(client, plan)
     show_code(code)
@@ -79,7 +87,8 @@ def run_query():
             result_str = util.result_to_string(result)
         st.write(f"Query ID `{st.session_state.query_id}`\n")
         st.subheader("Result", divider="rainbow")
-        st.success(result_str)
+        st.markdown(result_str, unsafe_allow_html=True)
+
         if st.session_state.do_trace:
             assert st.session_state.trace_dir
             st.subheader("Traces", divider="blue")

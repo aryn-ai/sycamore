@@ -767,6 +767,25 @@ class DocSet:
         merged = Merge(self.plan, merger=merger, **kwargs)
         return DocSet(self.context, merged)
 
+    def markdown(self, **kwargs) -> "DocSet":
+        """
+        Modifies Document to have a single Element containing the Markdown
+        representation of all the original elements.
+
+        Example:
+            .. code-block:: python
+
+               context = sycamore.init()
+               ds = context.read.binary(paths, binary_format="pdf")
+                   .partition(partitioner=ArynPartitioner())
+                   .markdown()
+                   .explode()
+        """
+        from sycamore.transforms.markdown import Markdown
+
+        plan = Markdown(self.plan, **kwargs)
+        return DocSet(self.context, plan)
+
     def regex_replace(self, spec: list[tuple[str, str]], **kwargs) -> "DocSet":
         """
         Performs regular expression replacement (using re.sub()) on the
@@ -860,6 +879,7 @@ class DocSet:
         Args:
             f: The function to apply to each document.
 
+        See the :class:`~sycamore.transforms.map.Map` documentation for advanced features.
         """
         from sycamore.transforms import Map
 
@@ -872,6 +892,8 @@ class DocSet:
 
         Args:
             f: The function to apply to each document.
+
+        See the :class:`~sycamore.transforms.map.FlatMap` documentation for advanced features.
 
         Example:
              .. code-block:: python
@@ -891,7 +913,7 @@ class DocSet:
         flat_map = FlatMap(self.plan, f=f, **resource_args)
         return DocSet(self.context, flat_map)
 
-    def filter(self, f: Callable[[Document], bool], **resource_args) -> "DocSet":
+    def filter(self, f: Callable[[Document], bool], **kwargs) -> "DocSet":
         """
         Applies the Filter transform on the Docset.
 
@@ -914,7 +936,7 @@ class DocSet:
         """
         from sycamore.transforms import Filter
 
-        filtered = Filter(self.plan, f=f, **resource_args)
+        filtered = Filter(self.plan, f=f, **kwargs)
         return DocSet(self.context, filtered)
 
     def filter_elements(self, f: Callable[[Element], bool], **resource_args) -> "DocSet":
@@ -989,6 +1011,8 @@ class DocSet:
         """
         The map_batch transform is similar to map, except that it processes a list of documents and returns a list of
         documents. map_batch is ideal for transformations that get performance benefits from batching.
+
+        See the :class:`~sycamore.transforms.map.MapBatch` documentation for advanced features.
 
         Example:
              .. code-block:: python
@@ -1137,7 +1161,7 @@ class DocSet:
     @context_params(OperationTypes.INFORMATION_EXTRACTOR)
     def top_k(
         self,
-        llm: LLM,
+        llm: Optional[LLM],
         field: str,
         k: Optional[int],
         descending: bool = True,
@@ -1181,7 +1205,7 @@ class DocSet:
         return docset
 
     @context_params(OperationTypes.INFORMATION_EXTRACTOR)
-    def llm_cluster_entity(self, llm: LLM, instruction: str, field: str) -> "DocSet":
+    def llm_cluster_entity(self, llm: LLM, instruction: str, field: str, **kwargs) -> "DocSet":
         """
         Normalizes a particular field of a DocSet. Identifies and assigns each document to a "group".
 

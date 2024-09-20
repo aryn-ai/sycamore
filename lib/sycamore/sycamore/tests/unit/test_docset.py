@@ -86,7 +86,7 @@ class TestDocSet:
             Document(text_representation="1", parent_id=13),
             Document(text_representation="3", parent_id=5),
         ]
-        context = sycamore.init()
+        context = sycamore.init(params={"default": {"llm": MockLLM()}})
         return context.read.document(doc_list)
 
     @pytest.fixture
@@ -448,7 +448,6 @@ class TestDocSet:
 
     def test_top_k_llm_cluster(self, number_docset):
         top_k_docset = number_docset.top_k(
-            llm=MockLLM(),
             field="text_representation",
             k=2,
             descending=True,
@@ -464,7 +463,7 @@ class TestDocSet:
         assert top_k_list[1].properties["count"] == 2
 
     def test_llm_cluster_entity(self, number_docset):
-        cluster_docset = number_docset.llm_cluster_entity(llm=MockLLM(), instruction="", field="text_representation")
+        cluster_docset = number_docset.llm_cluster_entity(instruction="", field="text_representation")
         for doc in cluster_docset.take():
             if doc.text_representation == "1" or doc.text_representation == "one":
                 assert doc.properties["_autogen_ClusterAssignment"] == "group1"

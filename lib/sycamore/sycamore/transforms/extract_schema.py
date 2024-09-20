@@ -156,7 +156,10 @@ class OpenAIPropertyExtractor(PropertyExtractor):
         except (json.JSONDecodeError, AttributeError):
             answer = entities
 
-        document.properties.update({"entity": answer})
+        if "entity" in document.properties:
+            document.properties["entity"].update(answer)
+        else:
+            document.properties.update({"entity": answer})
 
         return document
 

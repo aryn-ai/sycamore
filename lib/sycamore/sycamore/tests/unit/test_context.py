@@ -1,7 +1,7 @@
 from typing import Optional
 
 import sycamore
-from sycamore.context import context_params, Context, get_val_from_context
+from sycamore.context import context_params, Context, get_val_from_context, ExecMode
 
 
 def test_init():
@@ -71,3 +71,56 @@ def test_function_w_class_context():
 
     # ensure explicit arg overrides context
     assert "B" == obj.get_first_character_w_class_context("Baryn")
+
+
+@context_params
+def two_positional_args_method(
+    some_function_arg: str, some_other_arg: str, separator: str = " ", context: Optional[Context] = None
+):
+    assert some_function_arg is not None
+    assert some_other_arg is not None
+    return some_function_arg + separator + some_other_arg
+
+
+@context_params
+def two_positional_args_method_with_kwargs(
+    some_function_arg: str, separator: str = " ", context: Optional[Context] = None, **kwargs
+):
+    assert some_function_arg is not None
+    assert kwargs.get("some_other_arg") is not None
+    return some_function_arg + separator + str(kwargs.get("some_other_arg"))
+
+
+def test_positional_args_and_context_args():
+    context = Context(
+        params={"default": {"some_other_arg": "Aryn2", "some_unrelated_arg": "ArynZ"}}, exec_mode=ExecMode.LOCAL
+    )
+
+    # no context
+    assert "a b" == two_positional_args_method("a", "b")
+
+    # Should ignore context vars because of positional args
+    assert "a b" == two_positional_args_method("a", "b", context=context)
+
+    # Pickup 'some_other_arg' from context
+    assert "a Aryn2" == two_positional_args_method(some_function_arg="a", context=context)
+
+    # Should ignore context vars because of kwargs
+    assert "a b" == two_positional_args_method(some_function_arg="a", some_other_arg="b", context=context)
+
+    # Combine positional and kwarg
+    assert "a b" == two_positional_args_method_with_kwargs("a", some_other_arg="b", context=context)
+
+
+def test_positional_args_and_context_args_f_with_kwargs():
+    context = Context(
+        params={"default": {"some_other_arg": "Aryn2", "some_unrelated_arg": "ArynZ"}}, exec_mode=ExecMode.LOCAL
+    )
+    # Pickup 'some_other_arg' from context
+    assert "a Aryn2" == two_positional_args_method_with_kwargs(some_function_arg="a", context=context)
+
+    # Should ignore context vars because of kwargs
+    assert "a b" == two_positional_args_method_with_kwargs(some_function_arg="a", some_other_arg="b", context=context)
+
+    # Combine positional and kwarg
+    assert "a b" == two_positional_args_method_with_kwargs("a", some_other_arg="b", context=context)

@@ -1,7 +1,7 @@
 import json
 import logging
 import typing
-from typing import Dict, List, Mapping, MutableMapping, Optional, Tuple, Type
+from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Tuple, Type
 
 
 from sycamore.llms.llms import LLM
@@ -11,7 +11,7 @@ from sycamore.query.operators.count import Count
 from sycamore.query.operators.llm_filter import LlmFilter
 from sycamore.query.operators.basic_filter import BasicFilter
 from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
-from sycamore.query.operators.query_database import QueryDatabase
+from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDatabase
 from sycamore.query.operators.math import Math
 from sycamore.query.operators.sort import Sort
 from sycamore.query.operators.summarize_data import SummarizeData
@@ -29,6 +29,7 @@ if typing.TYPE_CHECKING:
 # If a class is not in this list, it will not be used.
 OPERATORS: List[Type[LogicalOperator]] = [
     QueryDatabase,
+    QueryVectorDatabase,
     BasicFilter,
     LlmFilter,
     LlmExtractEntity,
@@ -48,7 +49,8 @@ guidelines when generating a plan:
 
         1. Return your answer as a standard JSON list of operators. Make sure to include each
             operation as a separate step.
-        2. Do not return any information except the standard JSON objects.
+        2. Do not return any information except the standard JSON objects. This means not repeating the question
+            or providing any text outside the json block.
         3. Only use the operators described below.
         4. Only use EXACT field names from the DATA_SCHEMA described below and fields created
             from *LlmExtractEntity*. Any new fields created by *LlmExtractEntity* will be nested in properties.
@@ -58,9 +60,19 @@ guidelines when generating a plan:
             Other than those, DO NOT USE ANY OTHER FIELD NAMES.
         5. If an optional field does not have a value in the query plan, return null in its place.
         6. If you cannot generate a plan to answer a question, return an empty list.
-        7. The first step of each plan MUST be a **QueryDatabase** operation that returns a database.
-        8. The last step of each plan should return the raw data associated with the response.
+        7. The first step of each plan MUST be a **QueryDatabase** or **QueryVectorDatabase" operation that returns a 
+           database. Whenever possible, include all possible filtering operations in the QueryDatabase step.
+           That is, you should strive to construct an OpenSearch query that filters the data as
+           much as possible, reducing the need for further query operations. Use a QueryVectorDatabase step instead of
+           an LLMFilter if the query looks reasonable.
 """
+
+# Variants on the last step in the query plan, based on whether the user has requested raw data
+# or a natural language response.
+PLANNER_RAW_DATA_PROMPT = "8. The last step of each plan should return the raw data associated with the response."
+PLANNER_NATURAL_LANGUAGE_PROMPT = (
+    "8. The last step of each plan *MUST* be a **SummarizeData** operation that returns a natural language response."
+)
 
 
 class LlmPlanner:
@@ -75,6 +87,8 @@ class LlmPlanner:
         operators: A list of operators to use in the query plan.
         llm_client: The LLM client.
         use_examples: Whether to include examples in the prompt.
+        natural_language_response: Whether to generate a natural language response. If False,
+            the response will be raw data.
     """
 
     def __init__(
@@ -86,6 +100,7 @@ class LlmPlanner:
         operators: Optional[List[Type[LogicalOperator]]] = None,
         llm_client: Optional[LLM] = None,
         use_examples: bool = True,
+        natural_language_response: bool = False,
     ) -> None:
         super().__init__()
         self._index = index
@@ -95,8 +110,9 @@ class LlmPlanner:
         self._os_client = os_client
         self._llm_client = llm_client or OpenAI(OpenAIModels.GPT_4O.value)
         self._use_examples = use_examples
+        self._natural_language_response = natural_language_response
 
-    def make_operator_prompt(self, operator: LogicalOperator) -> str:
+    def make_operator_prompt(self, operator: Type[LogicalOperator]) -> str:
         """Generate the prompt fragment for the given LogicalOperator."""
 
         prompt = operator.usage() + "\n\nInput schema:\n"
@@ -116,10 +132,15 @@ class LlmPlanner:
             indent=2,
         )
 
-    def generate_system_prompt(self, query):
+    def generate_system_prompt(self, query: str) -> str:
         """Generate the LLM system prompt for the given query."""
 
         prompt = PLANNER_SYSTEM_PROMPT
+
+        if self._natural_language_response:
+            prompt += PLANNER_NATURAL_LANGUAGE_PROMPT
+        else:
+            prompt += PLANNER_RAW_DATA_PROMPT
 
         # data schema
         prompt += f"""\n
@@ -140,12 +161,12 @@ class LlmPlanner:
         # examples
         if self._use_examples:
             prompt += """
-            EXAMPLE 1:
+            EXAMPLE 1a:
 
             Data description: Database of aircraft incidents
             Schema: {
                         'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
-                        'properties.entity.aircraft': "(<class 'int'>) e.g. (Boeing 123), (Cessna Mini 5), (Piper 0.5),
+                        'properties.entity.aircraft': "(<class 'str'>) e.g. (Boeing 123), (Cessna Mini 5), (Piper 0.5),
                         'properties.entity.location': "(<class 'str'>) e.g. (Atlanta, GA), (Phoenix, Arizona), 
                             (Boise, Idaho),
                         'properties.entity.accidentNumber': "(<class 'str'>) e.g. (3589), (5903), (7531L),
@@ -158,7 +179,58 @@ class LlmPlanner:
                     "operatorName": "QueryDatabase",
                     "description": "Get all the incident reports",
                     "index": "ntsb",
-                    "query": "aircraft incident reports"
+                    "node_id": 0
+                },
+                {
+                    "operatorName": "LlmFilter",
+                    "description": "Filter to only include incidents in Georgia",
+                    "question": "Did this incident occur in Georgia?",
+                    "field": "properties.entity.location",
+                    "input": [0],
+                    "node_id": 1
+                },
+            ]
+
+            EXAMPLE 1b:
+
+            Data description: Database of aircraft incidents
+            Schema: {
+                        'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
+                        'properties.entity.aircraft': "(<class 'str'>) e.g. (Boeing 123), (Cessna Mini 5), (Piper 0.5),
+                        'properties.entity.location': "(<class 'str'>) e.g. (Atlanta, GA), (Phoenix, Arizona), 
+                            (Boise, Idaho),
+                        'properties.entity.accidentNumber': "(<class 'str'>) e.g. (3589), (5903), (7531L),
+                        'text_representation': '(<class 'str'>) Can be assumed to have all other details'
+                    }
+            Question: Show incidents between July 1, 2023 and September 1, 2024 with an accident number
+            containing '1234' that occurred in Georgia.
+            Answer:
+            [
+                {
+                    "operatorName": "QueryDatabase",
+                    "description": "Get all the incident reports in the specified date range matching the
+                        accident number",
+                    "index": "ntsb",
+                    "query": {
+                        "bool": {
+                            "must": [
+                                {
+                                    "range": {
+                                        "properties.entity.isoDateTime": {
+                                        "gte": "2023-07-01T00:00:00",
+                                        "lte": "2024-09-30T23:59:59",
+                                        "format": "strict_date_optional_time"
+                                        }
+                                    }
+                                },
+                                {
+                                    "match": {
+                                        "properties.entity.accidentNumber": "1234"
+                                    }
+                                }
+                            ]
+                        }
+                    },
                     "node_id": 0
                 },
                 {
@@ -175,7 +247,7 @@ class LlmPlanner:
             Data description: Database of aircraft incidents
             Schema: {
                         'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
-                        'properties.entity.aircraft': "(<class 'int'>) e.g. (Boeing 123), (Cessna Mini 5), (Piper 0.5),
+                        'properties.entity.aircraft': "(<class 'str'>) e.g. (Boeing 123), (Cessna Mini 5), (Piper 0.5),
                         'properties.entity.city': "(<class 'str'>) e.g. (Orlando, FL), (Palo Alto, CA), (Orlando, FL),
                         'properties.entity.accidentNumber': "(<class 'str'>) e.g. (3589), (5903), (7531L),
                         'text_representation': '(<class 'str'>) Can be assumed to have all other details'
@@ -185,62 +257,50 @@ class LlmPlanner:
             [
                 {
                     "operatorName": "QueryDatabase",
-                    "description": "Get all the incident reports",
+                    "description": "Get all the incident reports involving Cessna aircrafts",
                     "index": "ntsb",
-                    "query": "aircraft incident reports",
+                    "query": {
+                        "match": {
+                            "properties.entity.aircraft": "Cessna"
+                        } 
+                    },
                     "node_id": 0
-                },
-                {
-                    "operatorName": "BasicFilter",
-                    "description": "Filter to only include Cessna aircraft incidents",
-                    "range_filter": false,
-                    "query": "Cessna",
-                    "start": null,
-                    "end": null,
-                    "field": "properties.entity.aircraft",
-                    "date": false,
-                    "input": [0],
-                    "node_id": 1,
                 },
                 {
                     "operatorName": "Count",
                     "description": "Count the number of cities that accidents occured in",
-                    "field": "properties.entity.city",
-                    "primary_field": "properties.entity.accidentNumber",
-                    "input": [1],
-                    "node_id": 2
+                    "distinct_field": "properties.entity.city",
+                    "input": [0],
+                    "node_id": 1
                 },
             ]
 
             EXAMPLE 3:
             Data description: Database of financial documents for different law firms
-            Schema: {
-                        'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
-                        'properties.entity.revenue': "(<class 'int'>) e.g. (12304), (7978234), (2938903),
-                        'properties.entity.firmName': "(<class 'str'>) e.g. (East West), (Brody), (Hunter & Hunter),
-                        'text_representation': '(<class 'str'>) Can be assumed to have all other details'
-                    }
-            Question: Which 2 law firms had the highest revenue in 2022?
+            DATA_SCHEMA: 
+            {
+                'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
+                'properties.entity.revenue': "(<class 'int'>) e.g. (12304), (7978234), (2938903),
+                'properties.entity.firmName': "(<class 'str'>) e.g. (East West), (Brody), (Hunter & Hunter),
+                'text_representation': '(<class 'str'>) Can be assumed to have all other details'
+            }
+            USER QUESTION: Which 2 law firms had the highest revenue in 2022?
             Answer:
             [
                 {
                     "operatorName": "QueryDatabase",
-                    "description": "Get all the financial documents",
+                    "description": "Get all the financial documents from 2022",
                     "index": "finance",
-                    "query": "law firm financial documents",
+                    "query": {
+                        "range": {
+                            "properties.entity.isoDateTime": {
+                            "gte": "2022-01-01T00:00:00",
+                            "lte": "2022-12-31T23:59:59",
+                            "format": "strict_date_optional_time"
+                            }
+                        }
+                    },
                     "node_id": 0
-                },
-                {
-                    "operatorName": "BasicFilter",
-                    "description": "Filter to only include documents in 2022",
-                    "range_filter": true,
-                    "query": null,
-                    "start": "01-01-2022",
-                    "end": "12-31-2022",
-                    "field": "properties.entity.date",
-                    "date": true,
-                    "input": [0],
-                    "node_id": 1,
                 },
                 {
                     "operatorName": "Sort",
@@ -248,35 +308,35 @@ class LlmPlanner:
                     "descending": true,
                     "field": "properties.entity.revenue",
                     "default_value": 0
-                    "input": [1],
-                    "node_id": 2,
+                    "input": [0],
+                    "node_id": 1,
                 },
                 {
                     "operatorName": "Limit",
                     "description": "Get the 2 law firms with highest revenue",
                     "K": 2
-                    "input": [2],
-                    "node_id": 3,
+                    "input": [1],
+                    "node_id": 2,
                 }
             ]
 
             EXAMPLE 4:
             Data description: Database of shipwreck records and their respective properties
-            Schema: {
-                        'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
-                        'properties.entity.captain': "(<class 'str'>) e.g. (John D. Moore), (Terry Roberts), 
-                            (Alex Clark),
-                        'properties.entity.shipwreck_id': "(<class 'str'>) e.g. (ABFUHEU), (FUIHWHD), (FGHIOWB),
-                        'text_representation': '(<class 'str'>) Can be assumed to have all other details'
-                    }
-            Question: Which 5 countries were responsible for the most shipwrecks?
+            DATA_SCHEMA: 
+            {
+                'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
+                'properties.entity.captain': "(<class 'str'>) e.g. (John D. Moore), (Terry Roberts), 
+                    (Alex Clark),
+                'properties.entity.shipwreck_id': "(<class 'str'>) e.g. (ABFUHEU), (FUIHWHD), (FGHIOWB),
+                'text_representation': '(<class 'str'>) Can be assumed to have all other details'
+            }
+            USER QUESTION: Which 5 countries were responsible for the most shipwrecks?
             Answer:
             [
                 {
                     "operatorName": "QueryDatabase",
                     "description": "Get all the shipwreck records",
                     "index": "shipwrecks",
-                    "query": "shipwreck records",
                     "node_id": 0
                 },
                 {
@@ -306,26 +366,25 @@ class LlmPlanner:
 
             EXAMPLE 5:
             Data description: Database of shipwreck records and their respective properties
-            Schema: {
-                        'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
-                        'properties.entity.shipwreck_id': "(<class 'str'>) e.g. (ABFUHEU), (FUIHWHD), (FGHIOWB),
-                        'text_representation': '(<class 'str'>) Can be assumed to have all other details'
-                    }
-            Question: What percent of shipwrecks occurred in 2023?
+            DATA_SCHEMA: 
+            {
+                'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
+                'properties.entity.shipwreck_id': "(<class 'str'>) e.g. (ABFUHEU), (FUIHWHD), (FGHIOWB),
+                'text_representation': '(<class 'str'>) Can be assumed to have all other details'
+            }
+            USER QUESTION: What percent of shipwrecks occurred in 2023?
             Answer:
             [
                 {
                     "operatorName": "QueryDatabase",
                     "description": "Get all the shipwreck records",
                     "index": "shipwrecks",
-                    "query": "shipwreck records",
                     "node_id": 0
                 },
                 {
                     "operatorName": "Count",
                     "description": "Count the number of total shipwrecks",
-                    "field": null,
-                    "primary_field": "properties.entity.shipwreck_id",
+                    "distinct_field": "properties.entity.shipwreck_id",
                     "input": [0],
                     "node_id": 1
                 },
@@ -337,15 +396,14 @@ class LlmPlanner:
                     "start": "01-01-2023",
                     "end": "12-31-2023",
                     "field": "properties.entity.date",
-                    "date": true,
+                    "is_date": true,
                     "input": [0],
                     "node_id": 2,
                 },
                 {
                     "operatorName": "Count",
                     "description": "Count the number of shipwrecks in 2023",
-                    "field": null,
-                    "primary_field": "properties.entity.shipwreck_id",
+                    "distinct_field": "properties.entity.shipwreck_id",
                     "input": [2],
                     "node_id": 3
                 },
@@ -359,11 +417,34 @@ class LlmPlanner:
             ]
 
             EXAMPLE 6:
+            Data description: Database of shipwreck records and their respective properties
+            DATA_SCHEMA: 
+            {
+                'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
+                'properties.entity.shipwreck_id': "(<class 'str'>) e.g. (ABFUHEU), (FUIHWHD), (FGHIOWB),
+                'text_representation': '(<class 'str'>) Can be assumed to have all other details'
+            }
+            USER QUESTION: Were there any shipwrecks because of sudden weather changes?
+            Answer:
+            [
+                {
+                    "operatorName": "QueryVectorDatabase",
+                    "description": "Get all the shipwreck records relating to sudden weather changes",
+                    "index": "shipwrecks",
+                    "query_phrase": "sudden weather changes",
+                    "node_id": 0
+                }
+            ]
+
+            EXAMPLE 7:
             Data description: Database of hospital patients
-            Schema: {
-                        'text_representation': '(<class 'str'>) Can be assumed to have all other details'
-                    }
-            Question: How many total patients?
+            DATA_SCHEMA: 
+            {
+                'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
+                'properties.entity.patient_id': "(<class 'str'>) e.g. (ABFUHEU), (FUIHWHD), (FGHIOWB),
+                'text_representation': '(<class 'str'>) Can be assumed to have all other details'
+            }
+            USER QUESTION: How many total patients?
             Answer:
             [
                 {
@@ -376,8 +457,7 @@ class LlmPlanner:
                 {
                     "operatorName": "Count",
                     "description": "Count the number of total patients",
-                    "field": null,
-                    "primary_field": null,
+                    "distinct_field": "properties.entity.patient_id",
                     "input": [0],
                     "id": 1
                 },
@@ -389,11 +469,15 @@ class LlmPlanner:
     def generate_user_prompt(self, query: str) -> str:
         prompt = f"""
         USER QUESTION: {query}
+        Answer:
         """
         return prompt
 
-    def generate_from_llm(self, question: str) -> str:
-        """Use LLM to generate a query plan for the given question."""
+    def generate_from_llm(self, question: str) -> Tuple[Any, str]:
+        """Use LLM to generate a query plan for the given question.
+
+        Returns the prompt sent to the LLM, and the plan.
+        """
 
         messages = [
             {
@@ -406,9 +490,10 @@ class LlmPlanner:
             },
         ]
         prompt_kwargs = {"messages": messages}
-        chat_completion = self._llm_client.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
-        logging.debug(f"LLM chat completion: {chat_completion}")
-        return chat_completion
+        chat_completion = self._llm_client.generate(
+            prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0, "seed": 42}
+        )
+        return prompt_kwargs, chat_completion
 
     def process_llm_json_plan(self, llm_json_plan: str) -> Tuple[LogicalOperator, Mapping[int, LogicalOperator]]:
         """Given the query plan provided by the LLM, return a tuple of (result_node, list of nodes)."""
@@ -432,6 +517,9 @@ class LlmPlanner:
                 node = cls(**step)
                 nodes[node_id] = node
             except Exception as e:
+                logging.error(
+                    f"Error creating node {node_id} of type {step['operatorName']}: {e}\nPlan is:\n{llm_json_plan}"
+                )
                 raise ValueError(f"Error creating node {node_id} of type {step['operatorName']}: {e}") from e
 
         # 2. Set dependencies
@@ -459,8 +547,15 @@ class LlmPlanner:
 
     def plan(self, question: str) -> LogicalPlan:
         """Given a question from the user, generate a logical query plan."""
-        llm_plan = self.generate_from_llm(question)
-        result_node, nodes = self.process_llm_json_plan(llm_plan)
-        plan = LogicalPlan(result_node=result_node, nodes=nodes, query=question, llm_plan=llm_plan)
+        llm_prompt, llm_plan = self.generate_from_llm(question)
+        try:
+            result_node, nodes = self.process_llm_json_plan(llm_plan)
+        except Exception as e:
+            logging.error(f"Error processing LLM-generated query plan: {e}\nPlan is:\n{llm_plan}")
+            raise
+
+        plan = LogicalPlan(
+            result_node=result_node, nodes=nodes, query=question, llm_prompt=llm_prompt, llm_plan=llm_plan
+        )
         logging.debug(f"Query plan: {plan}")
         return plan

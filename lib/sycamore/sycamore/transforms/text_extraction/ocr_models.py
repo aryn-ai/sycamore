@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from PIL import Image
-from typing import Any, Union, List, Dict, cast
+from typing import Any, Union, List, Dict, cast, TYPE_CHECKING
 from sycamore.data import BoundingBox, Element
 from sycamore.utils.cache import DiskCache
 from pathlib import Path
@@ -12,6 +12,10 @@ import logging
 from sycamore.utils.time_trace import timetrace
 import tempfile
 
+if TYPE_CHECKING:
+    from pdfminer.layout import LTPage
+
+# TODO: Add cache support for OCR per page
 ocr_cache = DiskCache(str(Path.home() / ".sycamore/OCRCache"))
 
 logger = logging.getLogger(__name__)
@@ -27,9 +31,30 @@ class OCRModel(TextExtractor):
     def get_boxes_and_text(self, image: Image.Image) -> List[Dict[str, Any]]:
         pass
 
-    @timetrace("OCR Extraction")
-    def extract(self, filename: Union[str, IOBase], hash_key: str, use_cache=False, **kwargs) -> List[List[Element]]:
-        print("ocr_text_extractor_print_2")
+    @timetrace("OCR Page Extraction")
+    def extract_page(self, page: Union["Image.Image", "LTPage"]) -> List[Element]:
+        assert isinstance(page, Image.Image)
+        ocr_output = self.get_boxes_and_text(page)
+        width, height = page.size
+        texts: List[Element] = []
+        for obj in ocr_output:
+            if obj["bbox"] and not obj["bbox"].is_empty() and obj["text"] and len(obj["text"]) > 0:
+                text = Element()
+                text.type = "text"
+                text.bbox = BoundingBox(
+                    obj["bbox"].x1 / width,
+                    obj["bbox"].y1 / height,
+                    obj["bbox"].x2 / width,
+                    obj["bbox"].y2 / height,
+                )
+                text.text_representation = obj["text"]
+                texts.append(text)
+        return texts
+
+    @timetrace("OCR Document Extraction")
+    def extract_document(
+        self, filename: Union[str, IOBase], hash_key: str, use_cache=False, **kwargs
+    ) -> List[List[Element]]:
         cached_result = ocr_cache.get(hash_key) if use_cache else None
         if cached_result:
             logger.info(f"Cache Hit for OCR. Cache hit-rate is {ocr_cache.get_hit_rate()}")

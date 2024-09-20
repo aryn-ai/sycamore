@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# TODO: Add cache support for PDFMiner per page
 pdf_miner_cache = DiskCache(str(Path.home() / ".sycamore/PDFMinerCache"))
 
 

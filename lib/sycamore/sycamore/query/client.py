@@ -100,6 +100,18 @@ class SycamoreQueryClient:
         os_config (optional): OpenSearch configuration. Defaults to DEFAULT_OS_CONFIG.
         os_client_args (optional): OpenSearch client arguments. Defaults to DEFAULT_OS_CLIENT_ARGS.
         trace_dir (optional): Directory to write query execution trace.
+
+    Notes:
+        If you override the context. You cannot override the s3_cache_path or os_client_args; you need
+        to pass those in via the context paramaters, i.e. sycamore.init(params={...})
+
+        To override os_client_args, set params["opensearch"]["os_client_args"]. You are likely to also need
+        params["opensearch"]["text_embedder"] = SycamoreQueryClient.default_text_embedder() or another
+        embedder of your choice.
+
+        To override the cache path, you need to override the llm, for example:
+        from sycamore.utils.cache import cache_from_path
+        params["default"]["llm"] = OpenAI(OpenAIModels.GPT_40.value, cache=cache_from_path("/example/path"))
     """
 
     @requires_modules("opensearchpy", extra="opensearch")
@@ -118,15 +130,16 @@ class SycamoreQueryClient:
         self.trace_dir = trace_dir
 
         if context and os_client_args:
-            raise AssertionError("If using a configured Context object, set os_client_args in context.params")
+            raise AssertionError("setting os_client_args requires context==None. See Notes in class documentation.")
+
         if context and s3_cache_path:
-            raise AssertionError("If using a configured Context object, set a cached llm in context.params")
+            raise AssertionError("setting s3_cache_path requires context==None. See Notes in class documentation.")
 
         os_client_args = os_client_args or DEFAULT_OS_CLIENT_ARGS
         self.context = context or self._get_default_context(s3_cache_path, os_client_args)
 
         assert self.context.params, "Could not find required params in Context"
-        self.os_client_args = self.context.params.get("opensearch", {}).get("os_client_args")
+        self.os_client_args = self.context.params.get("opensearch", {}).get("os_client_args", os_client_args)
         self._os_client = OpenSearch(**self.os_client_args)
         self._os_query_executor = OpenSearchQueryExecutor(self.os_client_args)
 
@@ -208,14 +221,16 @@ class SycamoreQueryClient:
                     console.print(line)
 
     @staticmethod
+    def default_text_embedder():
+        return SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
+
+    @staticmethod
     def _get_default_context(s3_cache_path, os_client_args) -> Context:
         context_params = {
             "default": {"llm": OpenAI(OpenAIModels.GPT_4O.value, cache=cache_from_path(s3_cache_path))},
             "opensearch": {
                 "os_client_args": os_client_args,
-                "text_embedder": SentenceTransformerEmbedder(
-                    batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2"
-                ),
+                "text_embedder": SycamoreQueryClient.default_text_embedder(),
             },
         }
         return sycamore.init(params=context_params)

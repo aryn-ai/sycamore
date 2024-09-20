@@ -3,7 +3,7 @@ import logging
 import os
 import pickle
 import pandas as pd
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, Set, Tuple
 
 import boto3
 import ray
@@ -218,14 +218,14 @@ class QueryNodeTrace:
             self.df = pd.DataFrame(data)
 
     def show(self):
-        all_columns = list(self.df.columns)
-        column_order = [c for c in self.COLUMNS if c in all_columns]
-        column_order += [c for c in all_columns if c not in column_order]
-
         if self.df is None or not len(self.df):
             st.write(f"Result of node {self.node_id} — **no** documents")
             st.write("No data.")
             return
+
+        all_columns = list(self.df.columns)
+        column_order = [c for c in self.COLUMNS if c in all_columns]
+        column_order += [c for c in all_columns if c not in column_order]
         st.write(f"Result of node {self.node_id} — **{len(self.df)}** documents")
         st.dataframe(self.df, column_order=column_order)
 

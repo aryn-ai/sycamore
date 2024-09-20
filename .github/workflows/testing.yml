@@ -68,53 +68,8 @@ jobs:
       - name: DF-5
         run: df
       - name: Run tests
-        run: |
-          # Start resource monitoring in the background
-          (
-            while true; do
-              top -b -n 1 | head -n 20 >> resource_usage.log
-              free -m >> resource_usage.log
-              df -h >> resource_usage.log
-              echo "---" >> resource_usage.log
-              sleep 60  # Collect data every 60 seconds
-            done
-          ) &
-
-          # Store the background process ID
-          echo "MONITOR_PID=$!" >> $GITHUB_ENV
-          timeout 600 poetry run pytest -vv -s sycamore/tests/unit/transforms/test_detr_partitioner.py
-          if [ $TEST_EXIT_CODE -eq 124 ]; then
-            echo "Tests timed out after 10 minutes"
-            exit 1
-          elif [ $TEST_EXIT_CODE -ne 0 ]; then
-            echo "Tests failed with exit code $TEST_EXIT_CODE"
-            exit 1
-          fi
+        run: poetry run pytest sycamore/tests/unit/
         working-directory: lib/sycamore
-        env:
-          ACTIONS_STEP_DEBUG: true
-      - name: Stop monitoring and upload logs
-        if: always()
-        run: |
-          # Stop the resource monitoring
-          if [ ! -z "$MONITOR_PID" ]; then
-            kill $MONITOR_PID || true
-          fi
-
-          # Ensure the log file exists
-          touch resource_usage.log
-
-          # Add final system state
-          echo "Final system state:" >> resource_usage.log
-          top -b -n 1 | head -n 20 >> resource_usage.log
-          free -m >> resource_usage.log
-          df -h >> resource_usage.log
-      - name: Upload resource usage logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: resource-usage-logs
-          path: resource_usage.log
       - name: Run more tests
         run: poetry run python sycamore/tests/manual/test_fast_sycamore_import.py
         working-directory: lib/sycamore

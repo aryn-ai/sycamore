@@ -399,6 +399,7 @@ class ArynPDFPartitioner:
         batch_size: int = 1,
         use_cache=False,
     ) -> List[List["Element"]]:
+        self._init_model()
 
         if extract_table_structure and not table_structure_extractor:
             table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
@@ -474,8 +475,8 @@ class ArynPDFPartitioner:
         else:
             extracted_pages = []
             for i in range(len(batch)):
-                pdf_page = pdf_generator.__next__() if use_ocr else batch[i]
-                extracted_pages.append(text_extractor.extract_page(pdf_page))
+                page = batch[i] if use_ocr else pdf_generator.__next__()
+                extracted_pages.append(text_extractor.extract_page(page))
 
             assert len(extracted_pages) == len(deformable_layout)
             with LogTime("pdfminer_supplement"):

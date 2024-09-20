@@ -368,9 +368,6 @@ class ArynPartitioner(Partitioner):
             default: False
         ocr_images: If set with use_ocr, will attempt to OCR regions of the document identified as images.
             default: False
-        ocr_tables: If set with use_ocr, will attempt to OCR regions of the document identified as tables.
-             Should not be set when `extract_table_structure` is true. 
-             default: False
         ocr_model: model to use for OCR. Choices are "easyocr", "paddle", "tesseract" and "legacy", which
             correspond to EasyOCR, PaddleOCR, and Tesseract respectively, with "legacy" being a combination of
             Tesseract for text and EasyOCR for tables. If you choose paddle make sure to install

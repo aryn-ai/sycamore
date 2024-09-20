@@ -67,6 +67,8 @@ def col_tag(elem: Element) -> Optional[str]:
 
 def find_overlap(top: float, bot: float, elems: list[Element]) -> list[Element]:
     """
+    Returns the elements that overlap (top, bot) in the y-axis,
+    if and only if there are elements in both left and right columns.
     Assumes elems is sorted by top, ascending.
     """
     rv: list[Element] = []

@@ -24,14 +24,14 @@ index = "demoindex0"
 davinci_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value)
 tokenizer = HuggingFaceTokenizer("thenlper/gte-small")
 
-ctx = sycamore.init()
+ctx = sycamore.init(exec_mode=sycamore.EXEC_LOCAL)
 
 ds = (
     ctx.read.binary(paths, binary_format="html")
     .partition(
         partitioner=HtmlPartitioner(
             extract_tables=True,
-            text_chunker=TextOverlapChunker(chunk_token_count=1200, chunk_overlap_token_count=120),
+            text_chunker=TextOverlapChunker(chunk_token_count=1000, chunk_overlap_token_count=120),
         )
     )
     .regex_replace(COALESCE_WHITESPACE)

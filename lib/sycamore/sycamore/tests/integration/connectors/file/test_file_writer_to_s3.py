@@ -12,8 +12,11 @@ from io import BytesIO
 import os
 import os.path
 from pathlib import Path
+import tempfile
 from urllib.parse import urlparse
 import uuid
+
+import logging
 
 
 def get_s3_fs(session):
@@ -45,11 +48,12 @@ def image_page_filename(doc: Document):
     return f"{base_name}_page_{page_num}.png"
 
 
-def test_convert_to_images(request):
+def one_test_convert_to_images(request, exec_mode, tempdir):
+    logging.info(f"RUNNING test in exec mode {exec_mode}")
     from sycamore.tests.integration.connectors.file.test_file_writer_to_s3 import render_as_png
     from sycamore.tests.integration.connectors.file.test_file_writer_to_s3 import image_page_filename
 
-    context = sycamore.init()
+    context = sycamore.init(exec_mode=exec_mode)
 
     paths = str(TEST_DIR / "resources/data/pdfs/")
 
@@ -58,8 +62,10 @@ def test_convert_to_images(request):
         .partition(partitioner=UnstructuredPdfPartitioner())
         .flat_map(split_and_convert_to_image)
         .map(render_as_png)
+        .materialize(path=tempdir, source_mode=sycamore.MATERIALIZE_USE_STORED)
     )
 
+    logging.info("Running conversion")
     num_pages = image_docset.count()
 
     session = boto3.session.Session()
@@ -68,7 +74,12 @@ def test_convert_to_images(request):
     test_path = str(uuid.uuid4())
     out_path = os.path.join(s3_url, request.node.originalname, test_path)
 
+    logging.info("Writing files to S3")
     image_docset.write.files(path=out_path, filesystem=get_s3_fs(session), filename_fn=image_page_filename)
+
+    logging.info("Reading files from S3")
+    read_docs = context.read.binary([out_path], filesystem=get_s3_fs(session), binary_format="png").take_all()
+    assert len(read_docs) == num_pages
 
     s3 = session.client("s3")
     paginator = s3.get_paginator("list_objects_v2")
@@ -94,9 +105,16 @@ def test_convert_to_images(request):
 
     assert len(keys) == num_pages
 
+    logging.info("Deleting files from S3")
     # Cleanup if the test succeeded. If the test fails, we wan to leave the objects for a while
     # for debugging. It's not a crisis if these calls fail because we have a lifecycle policy on
     # bucket to clean up old objects.
     s3.delete_objects(Bucket=bucket, Delete={"Objects": [{"Key": k} for k in keys]})
 
     s3.delete_object(Bucket=bucket, Key=s3_path)
+
+
+def test_convert_to_images(request):
+    with tempfile.TemporaryDirectory() as tempdir:
+        one_test_convert_to_images(request, sycamore.EXEC_LOCAL, tempdir)
+        one_test_convert_to_images(request, sycamore.EXEC_RAY, tempdir)

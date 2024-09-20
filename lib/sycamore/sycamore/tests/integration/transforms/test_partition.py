@@ -140,13 +140,13 @@ def test_table_extraction_with_ocr_batched():
     check_table_extraction(use_ocr=True)
 
 
-def test_sycamore_batched_sequenced():
+def test_sycamore_batched():
     import pathlib
     from sycamore.transforms.detr_partitioner import ArynPDFPartitioner
-    from sycamore.tests.unit.transforms.check_partition_impl import compare_batched_sequenced
+    from sycamore.tests.unit.transforms.check_partition_impl import check_partition
 
     s = ArynPDFPartitioner("Aryn/deformable-detr-DocLayNet")
     for pdf in pathlib.Path(TEST_DIR).rglob("*.pdf"):
         print(f"Testing {pdf}")
-        p = compare_batched_sequenced(s, pdf, use_cache=False)
+        p = check_partition(s, pdf, use_cache=False)
         print(f"Compared {len(p)} pages")

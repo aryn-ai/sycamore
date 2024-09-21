@@ -12,7 +12,7 @@ schema = client.get_opensearch_schema(OS_INDEX)
 # console.print(schema)
 
 plan = client.generate_plan(QUERY, OS_INDEX, schema)
-# plan.show(verbose=True)
+# from sycamore.query.visualize import visualize_plan
 # visualize_plan(plan)
 
 # WARNING: As of 2024-09-03, the results are inconsistent; you can get different results

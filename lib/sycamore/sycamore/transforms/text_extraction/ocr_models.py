@@ -182,8 +182,10 @@ class PaddleOCR(OCRModel):
     @requires_modules("paddleocr", extra="local-inference")
     def __init__(self, use_gpu=True, language="en"):
         from paddleocr import PaddleOCR
+        from paddleocr.ppocr.utils.logging import get_logger
         import paddle
 
+        get_logger().setLevel(logging.ERROR)
         self.use_gpu = paddle.device.is_compiled_with_cuda()
         self.language = language
         self.reader = PaddleOCR(lang=self.language, use_gpu=self.use_gpu)

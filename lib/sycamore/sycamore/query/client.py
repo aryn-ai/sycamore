@@ -159,7 +159,12 @@ class SycamoreQueryClient:
         return schema_provider.get_schema()
 
     def generate_plan(
-        self, query: str, index: str, schema: OpenSearchSchema, natural_language_response: bool = False
+        self,
+        query: str,
+        index: str,
+        schema: OpenSearchSchema,
+        examples: Optional[str] = None,
+        natural_language_response: bool = False,
     ) -> LogicalPlan:
         """Generate a logical query plan for the given query, index, and schema.
 
@@ -179,6 +184,7 @@ class SycamoreQueryClient:
             os_config=self.os_config,
             os_client=self._os_client,
             llm_client=llm_client,
+            examples=examples,
             natural_language_response=natural_language_response,
         )
         plan = planner.plan(query)

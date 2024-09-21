@@ -474,12 +474,13 @@ class ArynPDFPartitioner:
                 )
         else:
             extracted_pages = []
-            for i in range(len(batch)):
-                page = batch[i] if use_ocr else pdf_generator.__next__()
-                extracted_pages.append(text_extractor.extract_page(page))
+            with LogTime("text_extraction"):
+                for i in range(len(batch)):
+                    page = batch[i] if use_ocr else pdf_generator.__next__()
+                    extracted_pages.append(text_extractor.extract_page(page))
 
             assert len(extracted_pages) == len(deformable_layout)
-            with LogTime("pdfminer_supplement"):
+            with LogTime("text_supplement"):
                 for d, p in zip(deformable_layout, extracted_pages):
                     self._supplement_text(d, p)
         if extract_table_structure:

@@ -371,8 +371,8 @@ class ArynPartitioner(Partitioner):
         ocr_model: model to use for OCR. Choices are "easyocr", "paddle", "tesseract" and "legacy", which
             correspond to EasyOCR, PaddleOCR, and Tesseract respectively, with "legacy" being a combination of
             Tesseract for text and EasyOCR for tables. If you choose paddle make sure to install
-            paddlepaddle or paddlepaddle-gpu if you have a CPU or GPU. Further details are found below:
-            https://www.paddlepaddle.org.cn/documentation/docs/en/install/index_en.html
+            paddlepaddle or paddlepaddle-gpu depending on whether you have a CPU or GPU. Further details are found
+            at: https://www.paddlepaddle.org.cn/documentation/docs/en/install/index_en.html
             default: "easyocr"
         per_element_ocr: If true, will run OCR on each element individually instead of the entire page. 
             default: False

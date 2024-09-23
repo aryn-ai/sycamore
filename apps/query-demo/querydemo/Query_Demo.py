@@ -23,7 +23,6 @@ NUM_DOCS_GENERATE = 60
 NUM_DOCS_PREVIEW = 10
 NUM_TEXT_CHARS_GENERATE = 2500
 
-# Set OpenAI API key from Streamlit secrets
 openai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
 OPENSEARCH_INDEX = "const_ntsb"
@@ -38,6 +37,7 @@ OS_CLIENT_ARGS = {
     "ssl_show_warn": False,
     "timeout": 120,
 }
+S3_CACHE_PATH = "s3://aryn-temp/llm_cache/luna/query-demo"
 
 EXAMPLE_QUERIES = [
     "How many incidents were there in Washington in 2023?",
@@ -46,9 +46,9 @@ EXAMPLE_QUERIES = [
     "Show the details on accident ERA23LA153",
 ]
 
-WELCOME_MESSAGE = f"""Welcome to the NTSB incident query demo! You can ask me questions about NTSB
-incident reports, and I'll do my best to answer them. Feel free to ask about specific incidents,o
-aggregate statistics, or anything else you're curious about.
+WELCOME_MESSAGE = f"""Welcome to the NTSB incident query demo! You can ask me questions about
+[NTSB incident reports](https://carol.ntsb.gov/), and I'll do my best to answer them. Feel free
+to ask about specific incidents,o aggregate statistics, or anything else you're curious about.
 If you're not sure what to ask, you can try one of the following example queries:
 
 {"".join([f"<SuggestedQuery query='{query}' />" for query in EXAMPLE_QUERIES])}
@@ -136,6 +136,225 @@ there is an opportunity to refer to a location.
 Please suggest 1-3 follow-on queries (using the <SuggestedQuery> component) that the user might
 ask, based on the response to the user's question.
 """
+
+PLANNER_EXAMPLE_SCHEMA = """
+DATA_SCHEMA: {
+  "text_representation": "<class 'str'> (e.g., Can be assumed to have all other details)",
+  "properties.entity.dateTime": "<class 'str'> (e.g., 2023-01-12T11:00:00, 2023-01-11T18:09:00,
+    2023-01-10T16:43:00, 2023-01-28T19:02:00, 2023-01-12T13:00:00)",
+  "properties.entity.dateAndTime": "<class 'str'> (e.g., January 28, 2023 19:02:00, January 10, 2023
+    16:43:00, January 11, 2023 18:09:00, January 12, 2023 13:00:00, January 12, 2023 11:00:00)",
+  "properties.entity.lowestCeiling": "<class 'str'> (e.g., Broken 3800 ft AGL, Broken 6500 ft AGL,
+    Overcast 500 ft AGL, Overcast 1800 ft AGL)",
+  "properties.entity.aircraftDamage": "<class 'str'> (e.g., Substantial, None, Destroyed)",
+  "properties.entity.conditions": "<class 'str'> (e.g., , Instrument (IMC), IMC, VMC, Visual (VMC))",
+  "properties.entity.departureAirport": "<class 'str'> (e.g., Somerville, Tennessee, Colorado Springs,
+    Colorado (FLY), Yelm; Washington, Winchester, Virginia (OKV), San Diego, California (KMYF))",
+  "properties.entity.accidentNumber": "<class 'str'> (e.g., CEN23FA095, ERA2BLAT1I, WPR23LA088,
+    ERA23FA108, WPR23LA089)",
+  "properties.entity.windSpeed": "<class 'str'> (e.g., , 10 knots, 7 knots, knots, 19 knots gusting
+    to 22 knots)",
+  "properties.entity.day": "<class 'str'> (e.g., 2023-01-12, 2023-01-10, 2023-01-20, 2023-01-11,
+    2023-01-28)",
+  "properties.entity.destinationAirport": "<class 'str'> (e.g., Somerville, Tennessee, Yelm;
+    Washington, Agua Caliente Springs, California, Liberal, Kansas (LBL), Alabaster, Alabama (EET))",
+  "properties.entity.location": "<class 'str'> (e.g., Hooker, Oklahoma, Somerville, Tennessee, Yelm;
+    Washington, Agua Caliente Springs, California, Dayton, Virginia)",
+  "properties.entity.operator": "<class 'str'> (e.g., On file, First Team Pilot Training LLC,
+    file On, Anderson Aviation LLC, Flying W Ranch)",
+  "properties.entity.temperature": "<class 'str'> (e.g., 18'C /-2'C, 15.8C, 13'C, 2C / -3C)",
+  "properties.entity.registration": "<class 'str'> (e.g., N5841W, N2875K, N6482B, N43156, N225V)",
+  "properties.entity.visibility": "<class 'str'> (e.g., , miles, 0.5 miles, 7 miles, 10 miles)",
+  "properties.entity.aircraft": "<class 'str'> (e.g., Piper PA-32R-301, Beech 95-C55, Cessna 172,
+    Piper PA-28-160, Cessna 180K)",
+  "properties.entity.conditionOfLight": "<class 'str'> (e.g., , Night/dark, Night, Day, Dusk)",
+  "properties.entity.windDirection": "<class 'str'> (e.g., , 190\\u00b0, 200, 2005, 040\\u00b0)",
+  "properties.entity.lowestCloudCondition": "<class 'str'> (e.g., , Broken 3800 ft AGL, Overcast
+    500 ft AGL, Clear, Overcast 200 ft AGL)",
+  "properties.entity.injuries": "<class 'str'> (e.g., Minor, Fatal, None, 3 None, 2 None)",
+  "properties.entity.flightConductedUnder": "<class 'str'> (e.g.,
+  Part 91: General aviation Instructional, Part 135: Air taxi & commuter Non-scheduled, Part 91:
+    General aviation Personal, Part 135: Air taxi & commuter Scheduled, Part 91: General aviation
+    Business)"
+}
+  """
+
+PLANNER_EXAMPLES = [
+    (
+        "List the incidents in Georgia in 2023.",
+        [
+            {
+                "operatorName": "QueryDatabase",
+                "description": "Get all the incident reports",
+                "index": OPENSEARCH_INDEX,
+                "node_id": 0,
+                "query": {
+                    "bool": {
+                        "must": [
+                            {
+                                "range": {
+                                    "properties.entity.dateTime": {
+                                        "gte": "2023-01-01T00:00:00",
+                                        "lte": "2023-12-31T23:59:59",
+                                        "format": "strict_date_optional_time",
+                                    }
+                                }
+                            },
+                            {"match": {"properties.entity.location": "Georgia"}},
+                        ]
+                    }
+                },
+            },
+        ],
+    ),
+    (
+        "Show the incidents involving Piper aircraft.",
+        [
+            {
+                "operatorName": "QueryDatabase",
+                "description": "Get all the incident reports",
+                "index": OPENSEARCH_INDEX,
+                "node_id": 0,
+                "query": {"match": {"properties.entity.aircraft": "Piper"}},
+            },
+        ],
+    ),
+    (
+        "How many incidents happened in clear weather?",
+        [
+            {
+                "operatorName": "QueryDatabase",
+                "description": "Get all the incident reports in clear weather",
+                "index": OPENSEARCH_INDEX,
+                "node_id": 0,
+                "query": {"match": {"properties.entity.conditions": "VMC"}},
+            },
+            {
+                "operatorName": "Count",
+                "description": "Count the number of incidents",
+                "distinct_field": "properties.entity.accidentNumber",
+                "input": [0],
+                "node_id": 1,
+            },
+        ],
+    ),
+    (
+        "What types of aircrafts were involved in accidents in California?",
+        [
+            {
+                "operatorName": "QueryDatabase",
+                "description": "Get all the incident reports in California",
+                "index": OPENSEARCH_INDEX,
+                "query": {"match": {"properties.entity.location": "California"}},
+                "node_id": 0,
+            },
+            {
+                "operatorName": "TopK",
+                "description": "Get the types of aircraft involved in incidents in California",
+                "field": "properties.entity.aircraft",
+                "primary_field": "properties.entity.accidentNumber",
+                "K": 100,
+                "descending": False,
+                "llm_cluster": False,
+                "llm_cluster_instruction": None,
+                "input": [0],
+                "node_id": 1,
+            },
+        ],
+    ),
+    (
+        "Which aircraft accidents in California in 2023 occurred when the wind was stronger than 4 knots?",
+        [
+            {
+                "operatorName": "QueryDatabase",
+                "description": "Get all the incident reports in California in 2023",
+                "index": OPENSEARCH_INDEX,
+                "query": {
+                    "bool": {
+                        "must": [
+                            {
+                                "range": {
+                                    "properties.entity.dateTime": {
+                                        "gte": "2023-01-01T00:00:00",
+                                        "lte": "2023-12-31T23:59:59",
+                                        "format": "strict_date_optional_time",
+                                    }
+                                }
+                            },
+                            {"match": {"properties.entity.location": "California"}},
+                        ]
+                    }
+                },
+                "node_id": 0,
+            },
+            {
+                "operatorName": "LlmFilter",
+                "description": "Filter to reports with wind speed greater than 4 knots",
+                "index": OPENSEARCH_INDEX,
+                "question": "Is the wind speed greater than 4 knots?",
+                "field": "properties.entity.windSpeed",
+                "input": [0],
+                "node_id": 1,
+            },
+        ],
+    ),
+    (
+        "Which three aircraft types were involved in the most accidents?",
+        [
+            {
+                "operatorName": "QueryDatabase",
+                "description": "Get all the incident reports",
+                "index": OPENSEARCH_INDEX,
+                "node_id": 0,
+                "query": {"match_all": {}},
+            },
+            {
+                "operatorName": "TopK",
+                "description": "Get the top three aircraft types involved in accidents",
+                "field": "properties.entity.aircraft",
+                "primary_field": "properties.entity.accidentNumber",
+                "K": 3,
+                "descending": True,
+                "llm_cluster": False,
+                "llm_cluster_instruction": None,
+                "input": [0],
+                "node_id": 1,
+            },
+        ],
+    ),
+    (
+        "Show some incidents where pilot training was mentioned as a cause",
+        [
+            {
+                "operatorName": "QueryVectorDatabase",
+                "description": "Get incident reports mentioning pilot training",
+                "index": OPENSEARCH_INDEX,
+                "query_phrase": "pilot training",
+                "node_id": 0,
+            },
+        ],
+    ),
+    (
+        "Show all incidents involving a Cessna 172 aircraft",
+        [
+            {
+                "operatorName": "QueryDatabase",
+                "description": "Get all the incident reports involving a Cessna 172 aircraft",
+                "index": OPENSEARCH_INDEX,
+                "query": {"match": {"properties.entity.aircraft": "Cessna 172"}},
+                "node_id": 0,
+            },
+        ],
+    ),
+]
+
+
+def generate_example_prompt() -> str:
+    prompt = f"The following examples refer to the following data schema:\n{PLANNER_EXAMPLE_SCHEMA}\n\n"
+    for index, (query, plan) in enumerate(PLANNER_EXAMPLES):
+        plan_string = json.dumps(plan)
+        prompt += f"Example {index+1}:\nUSER QUESTION: {query}\nAnswer:\n{plan_string}\n\n"
+    return prompt
 
 
 class MDXParser(HTMLParser):
@@ -496,11 +715,11 @@ def query_data_source(query: str, index: str) -> Tuple[Any, Optional[Any], Optio
         return do_rag_query(query, index), None, None
     else:
         sqclient = SycamoreQueryClient(
-            s3_cache_path=st.session_state.s3_cache_path if st.session_state.use_cache else None,
+            s3_cache_path=S3_CACHE_PATH,
             trace_dir=st.session_state.trace_dir,
         )
         with st.spinner("Generating plan..."):
-            plan = generate_plan(sqclient, query, index)
+            plan = generate_plan(sqclient, query, index, examples=generate_example_prompt())
             print(f"Generated plan:\n{plan}\n")
             # No need to show the prompt used in the demo.
             plan.llm_prompt = None
@@ -612,6 +831,11 @@ def do_query():
                             tool_response_str = "No results found for your query."
                 except Exception as e:
                     st.error(f"Error running Sycamore query: {e}")
+                    print(f"Error running Sycamore query: {e}")
+                    # Print stack trace.
+                    import traceback
+
+                    traceback.print_exc()
                     tool_response_str = f"There was an error running your query: {e}"
                 finally:
                     print(f"\nTool response: {tool_response_str}")
@@ -651,9 +875,6 @@ def main():
     if "openai_model" not in st.session_state:
         st.session_state["openai_model"] = "gpt-4o"
 
-    if "s3_cache_path" not in st.session_state:
-        st.session_state.s3_cache_path = "s3://aryn-temp/llm_cache/luna/query-demo"
-
     if "use_cache" not in st.session_state:
         st.session_state.use_cache = True
 
@@ -669,7 +890,7 @@ def main():
     if "trace_dir" not in st.session_state:
         st.session_state.trace_dir = os.path.join(os.getcwd(), "traces")
 
-    st.title("Sycamore NTSB Query Demo")
+    st.title(":airplane: Aryn NTSB Report Query Demo")
     st.toggle("Use RAG only", key="rag_only")
     show_messages()
 

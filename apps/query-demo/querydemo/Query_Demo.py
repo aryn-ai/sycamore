@@ -17,6 +17,7 @@ import sycamore
 from sycamore.data import OpenSearchQuery
 from sycamore.transforms.query import OpenSearchQueryExecutor
 from sycamore.query.client import SycamoreQueryClient
+from sycamore.query.planner import PlannerExample
 from util import generate_plan, run_plan, show_query_traces, show_pdf_preview, ray_init
 
 NUM_DOCS_GENERATE = 60
@@ -137,52 +138,108 @@ Please suggest 1-3 follow-on queries (using the <SuggestedQuery> component) that
 ask, based on the response to the user's question.
 """
 
-PLANNER_EXAMPLE_SCHEMA = """
-DATA_SCHEMA: {
-  "text_representation": "<class 'str'> (e.g., Can be assumed to have all other details)",
-  "properties.entity.dateTime": "<class 'str'> (e.g., 2023-01-12T11:00:00, 2023-01-11T18:09:00,
-    2023-01-10T16:43:00, 2023-01-28T19:02:00, 2023-01-12T13:00:00)",
-  "properties.entity.dateAndTime": "<class 'str'> (e.g., January 28, 2023 19:02:00, January 10, 2023
-    16:43:00, January 11, 2023 18:09:00, January 12, 2023 13:00:00, January 12, 2023 11:00:00)",
-  "properties.entity.lowestCeiling": "<class 'str'> (e.g., Broken 3800 ft AGL, Broken 6500 ft AGL,
-    Overcast 500 ft AGL, Overcast 1800 ft AGL)",
-  "properties.entity.aircraftDamage": "<class 'str'> (e.g., Substantial, None, Destroyed)",
-  "properties.entity.conditions": "<class 'str'> (e.g., , Instrument (IMC), IMC, VMC, Visual (VMC))",
-  "properties.entity.departureAirport": "<class 'str'> (e.g., Somerville, Tennessee, Colorado Springs,
-    Colorado (FLY), Yelm; Washington, Winchester, Virginia (OKV), San Diego, California (KMYF))",
-  "properties.entity.accidentNumber": "<class 'str'> (e.g., CEN23FA095, ERA2BLAT1I, WPR23LA088,
-    ERA23FA108, WPR23LA089)",
-  "properties.entity.windSpeed": "<class 'str'> (e.g., , 10 knots, 7 knots, knots, 19 knots gusting
-    to 22 knots)",
-  "properties.entity.day": "<class 'str'> (e.g., 2023-01-12, 2023-01-10, 2023-01-20, 2023-01-11,
-    2023-01-28)",
-  "properties.entity.destinationAirport": "<class 'str'> (e.g., Somerville, Tennessee, Yelm;
-    Washington, Agua Caliente Springs, California, Liberal, Kansas (LBL), Alabaster, Alabama (EET))",
-  "properties.entity.location": "<class 'str'> (e.g., Hooker, Oklahoma, Somerville, Tennessee, Yelm;
-    Washington, Agua Caliente Springs, California, Dayton, Virginia)",
-  "properties.entity.operator": "<class 'str'> (e.g., On file, First Team Pilot Training LLC,
-    file On, Anderson Aviation LLC, Flying W Ranch)",
-  "properties.entity.temperature": "<class 'str'> (e.g., 18'C /-2'C, 15.8C, 13'C, 2C / -3C)",
-  "properties.entity.registration": "<class 'str'> (e.g., N5841W, N2875K, N6482B, N43156, N225V)",
-  "properties.entity.visibility": "<class 'str'> (e.g., , miles, 0.5 miles, 7 miles, 10 miles)",
-  "properties.entity.aircraft": "<class 'str'> (e.g., Piper PA-32R-301, Beech 95-C55, Cessna 172,
-    Piper PA-28-160, Cessna 180K)",
-  "properties.entity.conditionOfLight": "<class 'str'> (e.g., , Night/dark, Night, Day, Dusk)",
-  "properties.entity.windDirection": "<class 'str'> (e.g., , 190\\u00b0, 200, 2005, 040\\u00b0)",
-  "properties.entity.lowestCloudCondition": "<class 'str'> (e.g., , Broken 3800 ft AGL, Overcast
-    500 ft AGL, Clear, Overcast 200 ft AGL)",
-  "properties.entity.injuries": "<class 'str'> (e.g., Minor, Fatal, None, 3 None, 2 None)",
-  "properties.entity.flightConductedUnder": "<class 'str'> (e.g.,
-  Part 91: General aviation Instructional, Part 135: Air taxi & commuter Non-scheduled, Part 91:
-    General aviation Personal, Part 135: Air taxi & commuter Scheduled, Part 91: General aviation
-    Business)"
+PLANNER_EXAMPLE_SCHEMA = {
+    "text_representation": ("str", {"Can be assumed to have all other details"}),
+    "properties.entity.dateTime": (
+        "str",
+        {
+            "2023-01-12T11:00:00",
+            "2023-01-11T18:09:00",
+            "2023-01-10T16:43:00",
+            "2023-01-28T19:02:00",
+            "2023-01-12T13:00:00",
+        },
+    ),
+    "properties.entity.dateAndTime": (
+        "str",
+        {
+            "January 28, 2023 19:02:00",
+            "January 10, 2023 16:43:00",
+            "January 11, 2023 18:09:00",
+            "January 12, 2023 13:00:00",
+            "January 12, 2023 11:00:00",
+        },
+    ),
+    "properties.entity.lowestCeiling": (
+        "str",
+        {"Broken 3800 ft AGL", "Broken 6500 ft AGL", "Overcast 500 ft AGL", "Overcast 1800 ft AGL"},
+    ),
+    "properties.entity.aircraftDamage": ("str", {"Substantial", "None", "Destroyed"}),
+    "properties.entity.conditions": ("str", {"Instrument (IMC)", "IMC", "VMC", "Visual (VMC)"}),
+    "properties.entity.departureAirport": (
+        "str",
+        {
+            "Somerville, Tennessee",
+            "Colorado Springs, Colorado (FLY)",
+            "Yelm; Washington",
+            "Winchester, Virginia (OKV)",
+            "San Diego, California (KMYF)",
+        },
+    ),
+    "properties.entity.accidentNumber": (
+        "str",
+        {"CEN23FA095", "ERA2BLAT1I", "WPR23LA088", "ERA23FA108", "WPR23LA089"},
+    ),
+    "properties.entity.windSpeed": (
+        "str",
+        {"", "10 knots", "7 knots", "knots", "19 knots gusting to 22 knots"},
+    ),
+    "properties.entity.day": ("str", {"2023-01-12", "2023-01-10", "2023-01-20", "2023-01-11", "2023-01-28"}),
+    "properties.entity.destinationAirport": (
+        "str",
+        {
+            "Somerville, Tennessee",
+            "Yelm; Washington",
+            "Agua Caliente Springs, California",
+            "Liberal, Kansas (LBL)",
+            "Alabaster, Alabama (EET)",
+        },
+    ),
+    "properties.entity.location": (
+        "str",
+        {
+            "Hooker, Oklahoma",
+            "Somerville, Tennessee",
+            "Yelm; Washington",
+            "Agua Caliente Springs, California",
+            "Dayton, Virginia",
+        },
+    ),
+    "properties.entity.operator": (
+        "str",
+        {"On file", "First Team Pilot Training LLC", "file On", "Anderson Aviation LLC", "Flying W Ranch"},
+    ),
+    "properties.entity.temperature": ("str", {"18'C /-2'C", "15.8C", "13'C", "2C / -3C"}),
+    "properties.entity.visibility": ("str", {"", "miles", "0.5 miles", "7 miles", "10 miles"}),
+    "properties.entity.aircraft": (
+        "str",
+        {"Piper PA-32R-301", "Beech 95-C55", "Cessna 172", "Piper PA-28-160", "Cessna 180K"},
+    ),
+    "properties.entity.conditionOfLight": ("str", {"", "Night/dark", "Night", "Day", "Dusk"}),
+    "properties.entity.windDirection": ("str", {"", "190°", "200", "2005", "040°"}),
+    "properties.entity.lowestCloudCondition": (
+        "str",
+        {"", "Broken 3800 ft AGL", "Overcast 500 ft AGL", "Clear", "Overcast 200 ft AGL"},
+    ),
+    "properties.entity.injuries": ("str", {"Minor", "Fatal", "None", "3 None", "2 None"}),
+    "properties.entity.flightConductedUnder": (
+        "str",
+        {
+            "Part 91: General aviation Instructional",
+            "Part 135: Air taxi & commuter Non-scheduled",
+            "Part 91: General aviation Personal",
+            "Part 135: Air taxi & commuter Scheduled",
+            "Part 91: General aviation Business",
+        },
+    ),
 }
-  """
 
-PLANNER_EXAMPLES = [
-    (
-        "List the incidents in Georgia in 2023.",
-        [
+
+PLANNER_EXAMPLES: List[PlannerExample] = [
+    PlannerExample(
+        query="List the incidents in Georgia in 2023.",
+        schema=PLANNER_EXAMPLE_SCHEMA,
+        plan=[
             {
                 "operatorName": "QueryDatabase",
                 "description": "Get all the incident reports",
@@ -207,9 +264,10 @@ PLANNER_EXAMPLES = [
             },
         ],
     ),
-    (
-        "Show the incidents involving Piper aircraft.",
-        [
+    PlannerExample(
+        query="Show the incidents involving Piper aircraft.",
+        schema=PLANNER_EXAMPLE_SCHEMA,
+        plan=[
             {
                 "operatorName": "QueryDatabase",
                 "description": "Get all the incident reports",
@@ -219,9 +277,10 @@ PLANNER_EXAMPLES = [
             },
         ],
     ),
-    (
-        "How many incidents happened in clear weather?",
-        [
+    PlannerExample(
+        query="How many incidents happened in clear weather?",
+        schema=PLANNER_EXAMPLE_SCHEMA,
+        plan=[
             {
                 "operatorName": "QueryDatabase",
                 "description": "Get all the incident reports in clear weather",
@@ -238,9 +297,10 @@ PLANNER_EXAMPLES = [
             },
         ],
     ),
-    (
-        "What types of aircrafts were involved in accidents in California?",
-        [
+    PlannerExample(
+        query="What types of aircrafts were involved in accidents in California?",
+        schema=PLANNER_EXAMPLE_SCHEMA,
+        plan=[
             {
                 "operatorName": "QueryDatabase",
                 "description": "Get all the incident reports in California",
@@ -262,9 +322,10 @@ PLANNER_EXAMPLES = [
             },
         ],
     ),
-    (
-        "Which aircraft accidents in California in 2023 occurred when the wind was stronger than 4 knots?",
-        [
+    PlannerExample(
+        query="Which aircraft accidents in California in 2023 occurred when the wind was stronger than 4 knots?",
+        schema=PLANNER_EXAMPLE_SCHEMA,
+        plan=[
             {
                 "operatorName": "QueryDatabase",
                 "description": "Get all the incident reports in California in 2023",
@@ -298,9 +359,10 @@ PLANNER_EXAMPLES = [
             },
         ],
     ),
-    (
-        "Which three aircraft types were involved in the most accidents?",
-        [
+    PlannerExample(
+        query="Which three aircraft types were involved in the most accidents?",
+        schema=PLANNER_EXAMPLE_SCHEMA,
+        plan=[
             {
                 "operatorName": "QueryDatabase",
                 "description": "Get all the incident reports",
@@ -322,9 +384,10 @@ PLANNER_EXAMPLES = [
             },
         ],
     ),
-    (
-        "Show some incidents where pilot training was mentioned as a cause",
-        [
+    PlannerExample(
+        query="Show some incidents where pilot training was mentioned as a cause",
+        schema=PLANNER_EXAMPLE_SCHEMA,
+        plan=[
             {
                 "operatorName": "QueryVectorDatabase",
                 "description": "Get incident reports mentioning pilot training",
@@ -334,9 +397,10 @@ PLANNER_EXAMPLES = [
             },
         ],
     ),
-    (
-        "Show all incidents involving a Cessna 172 aircraft",
-        [
+    PlannerExample(
+        query="Show all incidents involving a Cessna 172 aircraft",
+        schema=PLANNER_EXAMPLE_SCHEMA,
+        plan=[
             {
                 "operatorName": "QueryDatabase",
                 "description": "Get all the incident reports involving a Cessna 172 aircraft",
@@ -347,14 +411,6 @@ PLANNER_EXAMPLES = [
         ],
     ),
 ]
-
-
-def generate_example_prompt() -> str:
-    prompt = f"The following examples refer to the following data schema:\n{PLANNER_EXAMPLE_SCHEMA}\n\n"
-    for index, (query, plan) in enumerate(PLANNER_EXAMPLES):
-        plan_string = json.dumps(plan)
-        prompt += f"Example {index+1}:\nUSER QUESTION: {query}\nAnswer:\n{plan_string}\n\n"
-    return prompt
 
 
 class MDXParser(HTMLParser):
@@ -738,7 +794,7 @@ def query_data_source(query: str, index: str) -> Tuple[Any, Optional[Any], Optio
             trace_dir=st.session_state.trace_dir,
         )
         with st.spinner("Generating plan..."):
-            plan = generate_plan(sqclient, query, index, examples=generate_example_prompt())
+            plan = generate_plan(sqclient, query, index, examples=PLANNER_EXAMPLES)
             print(f"Generated plan:\n{plan}\n")
             # No need to show the prompt used in the demo.
             plan.llm_prompt = None
@@ -863,7 +919,7 @@ def do_query():
                         }
                     )
                     st.session_state.messages.append(tool_response_message)
-                    with st.expander("Tool response"):
+                    with st.expander("Sycamore query result"):
                         st.write(f"```{tool_response_str}```")
 
             else:
@@ -873,7 +929,7 @@ def do_query():
                     assistant_message.before_extras.append(ChatMessageExtra("Query plan", query_plan))
                 if tool_response_str:
                     assistant_message.before_extras.append(
-                        ChatMessageExtra("Tool response", f"```{tool_response_str}```")
+                        ChatMessageExtra("Sycamore query result", f"```{tool_response_str}```")
                     )
                 if query_id:
                     cmt = ChatMessageTraces("Query trace", query_id)

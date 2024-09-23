@@ -546,6 +546,10 @@ def show_messages():
         if msg.message.get("content") is None:
             continue
         msg.show()
+    _, col2 = st.columns([0.75, 0.25])
+    with col2:
+        st.link_button("Send feedback", "/feedback", type="primary")
+
 
 
 def do_query():

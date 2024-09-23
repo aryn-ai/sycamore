@@ -166,7 +166,6 @@ class BinaryScan(FileScan):
         return files.map(self._to_document, **self.resource_args)
 
     def local_source(self, **kwargs) -> list[Document]:
-
         if isinstance(self._paths, str):
             paths = [self._paths]
         else:
@@ -198,12 +197,16 @@ class BinaryScan(FileScan):
 
             documents.append(document)
 
-        for path in paths:
-            path_info = self._filesystem.get_file_info(path)
+        for orig_path in paths:
+            from sycamore.utils.pyarrow import cross_check_infer_fs
+
+            (filesystem, path) = cross_check_infer_fs(self._filesystem, orig_path)
+
+            path_info = filesystem.get_file_info(path)
             if path_info.is_file:
                 process_file(path_info)
             else:
-                for info in self._filesystem.get_file_info(FileSelector(path, recursive=True)):
+                for info in filesystem.get_file_info(FileSelector(path, recursive=True)):
                     process_file(info)
         return documents
 

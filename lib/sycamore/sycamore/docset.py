@@ -767,6 +767,25 @@ class DocSet:
         merged = Merge(self.plan, merger=merger, **kwargs)
         return DocSet(self.context, merged)
 
+    def markdown(self, **kwargs) -> "DocSet":
+        """
+        Modifies Document to have a single Element containing the Markdown
+        representation of all the original elements.
+
+        Example:
+            .. code-block:: python
+
+               context = sycamore.init()
+               ds = context.read.binary(paths, binary_format="pdf")
+                   .partition(partitioner=ArynPartitioner())
+                   .markdown()
+                   .explode()
+        """
+        from sycamore.transforms.markdown import Markdown
+
+        plan = Markdown(self.plan, **kwargs)
+        return DocSet(self.context, plan)
+
     def regex_replace(self, spec: list[tuple[str, str]], **kwargs) -> "DocSet":
         """
         Performs regular expression replacement (using re.sub()) on the

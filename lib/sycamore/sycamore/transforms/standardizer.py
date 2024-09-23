@@ -178,6 +178,7 @@ class DateTimeStandardizer(Standardizer):
             ValueError: If the input string cannot be parsed into a valid date-time.
             RuntimeError: For any other unexpected errors during the processing.
         """
+        assert raw_dateTime is not None, "raw_dateTime is None"
         try:
             raw_dateTime = raw_dateTime.strip()
             raw_dateTime = raw_dateTime.replace("Local", "")
@@ -232,6 +233,8 @@ class DateTimeStandardizer(Standardizer):
         target_key = key_path[-1]
         if target_key not in current.keys():
             raise KeyError(f"Key {target_key} not found in the dictionary among {current.keys()}")
+        if current[target_key] is None:
+            raise KeyError(f"Key {target_key} has value None")
 
         parsed = DateTimeStandardizer.fixer(current[target_key])
         rendered = parsed.strftime(date_format or DateTimeStandardizer.DEFAULT_FORMAT)

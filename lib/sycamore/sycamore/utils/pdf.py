@@ -7,7 +7,6 @@ from queue import Queue
 from subprocess import PIPE, Popen
 from threading import Thread
 from typing import List, Generator
-
 from sycamore.utils.time_trace import LogTime
 
 

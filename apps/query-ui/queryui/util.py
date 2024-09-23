@@ -134,10 +134,10 @@ def show_query_traces(trace_dir: str, query_id: str):
                     try:
                         doc = pickle.load(file)
                     except EOFError:
-                        doc = []
+                        continue
 
                     # For now, skip over MetadataDocuments.
-                    if "doc_id" not in doc:
+                    if "metadata" in doc.keys():
                         continue
 
                     if "properties" in doc:

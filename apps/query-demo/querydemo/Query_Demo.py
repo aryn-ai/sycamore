@@ -1,4 +1,3 @@
-import base64
 import datetime
 from html.parser import HTMLParser
 import json
@@ -8,7 +7,6 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
-import boto3
 import marko
 from marko.md_renderer import MarkdownRenderer
 import requests
@@ -19,7 +17,7 @@ import sycamore
 from sycamore.data import OpenSearchQuery
 from sycamore.transforms.query import OpenSearchQueryExecutor
 from sycamore.query.client import SycamoreQueryClient
-from util import generate_plan, run_plan, ray_init
+from util import generate_plan, run_plan, show_query_traces, show_pdf_preview, ray_init
 
 NUM_DOCS_GENERATE = 60
 NUM_DOCS_PREVIEW = 10
@@ -55,7 +53,6 @@ If you're not sure what to ask, you can try one of the following example queries
 
 {"".join([f"<SuggestedQuery query='{query}' />" for query in EXAMPLE_QUERIES])}
 """
-
 
 SYSTEM_PROMPT = """You are a helpful agent that answers questions about NTSB
 (National Transportation Safety Board) incidents. You have access to a database of incident
@@ -148,6 +145,7 @@ class MDXParser(HTMLParser):
         self.chat_message = chat_message
         self.in_table = False
         self.in_header = False
+        self.in_header_cell = False
         self.in_row = False
         self.in_cell = False
         self.table_data: List[List[Any]] = []
@@ -166,8 +164,11 @@ class MDXParser(HTMLParser):
         elif tag == "tablerow" and self.in_table:
             self.in_row = True
             self.row_data = []
-        elif tag == "tablecell" and self.in_row:
-            self.in_cell = True
+        elif tag == "tablecell":
+            if self.in_header:
+                self.in_header_cell = True
+            elif self.in_row:
+                self.in_cell = True
         elif tag == "map":
             self.in_map = True
             self.map_data = []
@@ -177,17 +178,19 @@ class MDXParser(HTMLParser):
             self.map_data.append((lat, lon))
 
     def handle_endtag(self, tag):
-        if tag == "tablecell" and self.in_cell:
-            self.in_cell = False
+        if tag == "tablecell":
+            if self.in_header_cell:
+                self.in_header_cell = False
+            elif self.in_cell:
+                self.in_cell = False
         elif tag == "tableheader" and self.in_header:
             self.in_header = False
-            self.table_data.append(self.header_data)
         elif tag == "tablerow" and self.in_row:
             self.in_row = False
             self.table_data.append(self.row_data)
         elif tag == "table" and self.in_table:
             self.in_table = False
-            self.chat_message.render_table(self.table_data)
+            self.chat_message.render_table(self.header_data, self.table_data)
         elif tag == "map" and self.in_map:
             self.in_map = False
             self.chat_message.render_map(self.map_data)
@@ -214,7 +217,7 @@ class MDXParser(HTMLParser):
         data = data.strip()
         if not data:
             return
-        if self.in_header:
+        if self.in_header_cell:
             self.header_data.append(data)
         elif self.in_cell:
             self.row_data.append(data)
@@ -252,18 +255,36 @@ class MDRenderer(MarkdownRenderer):
 
 
 class ChatMessageExtra:
-    def __init__(self, name: str, content: Any):
+    def __init__(self, name: str, content: Optional[Any] = None):
         self.name = name
         self.content = content
 
+    def show(self):
+        st.write(self.content)
+
+
+class ChatMessageTraces(ChatMessageExtra):
+    def __init__(self, name: str, query_id: str):
+        super().__init__(name)
+        self.query_id = query_id
+
+    def show(self):
+        show_query_traces(st.session_state.trace_dir, self.query_id)
+
 
 class ChatMessage:
-    def __init__(self, message: Optional[Dict[str, Any]] = None, extras: Optional[List[ChatMessageExtra]] = None):
+    def __init__(
+        self,
+        message: Optional[Dict[str, Any]] = None,
+        before_extras: Optional[List[ChatMessageExtra]] = None,
+        after_extras: Optional[List[ChatMessageExtra]] = None,
+    ):
         self.message_id = st.session_state.next_message_id
         st.session_state.next_message_id += 1
         self.timestamp = datetime.datetime.now()
         self.message = message or {}
-        self.extras = extras or []
+        self.before_extras = before_extras or []
+        self.after_extras = after_extras or []
         self.widget_key = 0
 
     def show(self):
@@ -272,12 +293,15 @@ class ChatMessage:
             self.show_content()
 
     def show_content(self):
-        for extra in self.extras:
+        for extra in self.before_extras:
             with st.expander(extra.name):
-                st.write(extra.content)
+                extra.show()
         if self.message.get("content"):
             content = self.message.get("content")
             self.render_markdown_with_jsx(content)
+        for extra in self.after_extras:
+            with st.expander(extra.name):
+                extra.show()
 
     def button(self, label: str, **kwargs):
         return st.button(label, key=self.next_key(), **kwargs)
@@ -291,18 +315,44 @@ class ChatMessage:
         return key
 
     def render_markdown_with_jsx(self, text: str):
-        print(text)
+        print(f"Rendering MDX:\n{text}\n")
         mdxparser = MDXParser(self)
         mdxparser.feed(text)
 
     def render_markdown(self, text: str):
         st.markdown(text)
 
-    def render_table(self, data: List[Dict[str, Any]]):
-        st.dataframe(data)
+    def render_table(self, columns: List[str], rows: List[List[str]]):
+        if not rows:
+            return
+        num_cols = max([len(row) for row in rows])
+        if not columns:
+            columns = [f"Column {i}" for i in range(1, num_cols + 1)]
+        if len(columns) < num_cols:
+            columns += [f"Column {i}" for i in range(len(columns) + 1, num_cols + 1)]
+        if len(columns) > num_cols:
+            columns = columns[:num_cols]
+
+        data: Dict[str, List[Any]] = {col: [] for col in columns}
+        for row in rows:
+            for index, col in enumerate(columns):
+                try:
+                    data[col].append(row[index])
+                except IndexError:
+                    # This can happen if we end up with missing cells in the MDX.
+                    data[col].append(None)
+
+        df = pd.DataFrame(data)
+        st.dataframe(df)
 
     def render_preview(self, path: str):
-        Preview(path, self).show()
+        with st.container(border=True):
+            col1, col2 = st.columns([0.75, 0.25])
+            with col1:
+                st.text("📄 " + path)
+            with col2:
+                if st.button("View document", key=self.next_key()):
+                    show_pdf_preview(path)
 
     def render_suggested_query(self, query: str):
         if self.button(query):
@@ -310,7 +360,7 @@ class ChatMessage:
 
     def render_map(self, data: List[Tuple[float, float]]):
         df = pd.DataFrame(data, columns=["lat", "lon"])
-        st.map(df)
+        st.map(df, color="#00ff00", size=100)
 
     def to_dict(self) -> Optional[Dict[str, Any]]:
         return self.message
@@ -364,43 +414,6 @@ TOOLS_RAG: List[ChatCompletionToolParam] = [
         },
     },
 ]
-
-
-def parse_s3_path(s3_path: str) -> Tuple[str, str]:
-    """Parse an S3 path into a bucket and key."""
-    s3_path = s3_path.replace("s3://", "")
-    bucket, key = s3_path.split("/", 1)
-    return bucket, key
-
-
-class Preview:
-    def __init__(self, path: str, chat_message: ChatMessage):
-        self.path = path
-        self.chat_message = chat_message
-
-    def show(self):
-        if self.path.startswith("s3://"):
-            bucket, key = parse_s3_path(self.path)
-            s3 = boto3.client("s3")
-            response = s3.get_object(Bucket=bucket, Key=key)
-            content = response["Body"].read()
-        elif self.path.startswith("http"):
-            content = requests.get(self.path, timeout=30).content
-        else:
-            st.write(f"Unknown path format: {self.path}")
-            return
-
-        if st.session_state.get("pagenum") is None:
-            st.session_state.pagenum = 1
-
-        with st.container(border=True):
-            st.write(f"`{self.path}`")
-            encoded = base64.b64encode(content).decode("utf-8")
-            pdf_display = (
-                f'<iframe src="data:application/pdf;base64,{encoded}" '
-                + 'width="600" height="800" type="application/pdf"></iframe>'
-            )
-            st.markdown(pdf_display, unsafe_allow_html=True)
 
 
 def get_embedding_model_id() -> str:
@@ -473,24 +486,31 @@ def do_rag_query(query: str, index: str) -> str:
     return rag_result
 
 
-def query_data_source(query: str, index: str) -> Tuple[Any, Any]:
-    """Run a Sycamore or RAG query."""
+def query_data_source(query: str, index: str) -> Tuple[Any, Optional[Any], Optional[str]]:
+    """Run a Sycamore or RAG query.
+
+    Returns a tuple of (query_result, query_plan, query_id).
+    """
 
     if st.session_state.rag_only:
-        return do_rag_query(query, index), None
+        return do_rag_query(query, index), None, None
     else:
         sqclient = SycamoreQueryClient(
             s3_cache_path=st.session_state.s3_cache_path if st.session_state.use_cache else None,
+            trace_dir=st.session_state.trace_dir,
         )
         with st.spinner("Generating plan..."):
             plan = generate_plan(sqclient, query, index)
+            print(f"Generated plan:\n{plan}\n")
             # No need to show the prompt used in the demo.
             plan.llm_prompt = None
             with st.expander("Query plan"):
                 st.write(plan)
         with st.spinner("Running Sycamore query..."):
-            st.session_state.query_id, result = run_plan(sqclient, plan)
-        return result, plan
+            print("Running plan...")
+            query_id, result = run_plan(sqclient, plan)
+            print(f"Ran query ID: {query_id}")
+        return result, plan, query_id
 
 
 def docset_to_string(docset: sycamore.docset.DocSet) -> str:
@@ -531,12 +551,14 @@ def show_messages():
 def do_query():
     prompt = st.session_state.user_query
     st.session_state.user_query = None
+    print(f"User query: {prompt}")
     user_message = ChatMessage({"role": "user", "content": prompt})
     st.session_state.messages.append(user_message)
     user_message.show()
 
     assistant_message = None
     query_plan = None
+    query_id = None
     tool_response_str = None
     with st.chat_message("assistant"):
         # We loop here because tool calls require re-invoking the LLM.
@@ -558,12 +580,14 @@ def do_query():
                 tool_call_id = tool_calls[0].id
                 tool_function_name = tool_calls[0].function.name
                 tool_response_str = ""
+                query_plan = None
+                query_id = None
                 # Try to catch any errors that might corrupt the message history here.
                 try:
                     tool_args = json.loads(tool_calls[0].function.arguments)
                     if tool_function_name == "queryDataSource":
                         tool_query = tool_args["query"]
-                        tool_response, query_plan = query_data_source(tool_query, OPENSEARCH_INDEX)
+                        tool_response, query_plan, query_id = query_data_source(tool_query, OPENSEARCH_INDEX)
                     else:
                         tool_response = f"Unknown tool: {tool_function_name}"
 
@@ -586,8 +610,7 @@ def do_query():
                     st.error(f"Error running Sycamore query: {e}")
                     tool_response_str = f"There was an error running your query: {e}"
                 finally:
-                    with st.expander("Tool response"):
-                        st.write(f"```{tool_response_str}```")
+                    print(f"\nTool response: {tool_response_str}")
                     tool_response_message = ChatMessage(
                         {
                             "role": "tool",
@@ -597,15 +620,23 @@ def do_query():
                         }
                     )
                     st.session_state.messages.append(tool_response_message)
+                    with st.expander("Tool response"):
+                        st.write(f"```{tool_response_str}```")
 
             else:
                 # No function call was made.
                 assistant_message.show_content()
-                # Stash away the query plan in the message in case we want to show it later.
                 if query_plan:
-                    assistant_message.extras.append(ChatMessageExtra("Query plan", query_plan))
+                    assistant_message.before_extras.append(ChatMessageExtra("Query plan", query_plan))
                 if tool_response_str:
-                    assistant_message.extras.append(ChatMessageExtra("Tool response", f"```{tool_response_str}```"))
+                    assistant_message.before_extras.append(
+                        ChatMessageExtra("Tool response", f"```{tool_response_str}```")
+                    )
+                if query_id:
+                    cmt = ChatMessageTraces("Query trace", query_id)
+                    with st.expander("Query trace"):
+                        cmt.show()
+                    assistant_message.after_extras.append(cmt)
                 break
 
 
@@ -630,6 +661,9 @@ def main():
 
     if "messages" not in st.session_state:
         st.session_state.messages = [ChatMessage({"role": "assistant", "content": WELCOME_MESSAGE})]
+
+    if "trace_dir" not in st.session_state:
+        st.session_state.trace_dir = os.path.join(os.getcwd(), "traces")
 
     st.title("Sycamore NTSB Query Demo")
     st.toggle("Use RAG only", key="rag_only")

@@ -1222,7 +1222,9 @@ class DocSet:
         """
 
         docset = self
-        text = ", ".join([doc.field_to_value(field) for doc in docset.take_all()])
+        # Not all documents will have a value for the given field, so we filter those out.
+        field_values = [doc.field_to_value(field) for doc in docset.take_all()]
+        text = ", ".join([str(v) for v in field_values if v is not None])
 
         # sets message
         messages = LlmClusterEntityFormGroupsMessagesPrompt(

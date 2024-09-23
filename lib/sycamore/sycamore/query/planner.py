@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import json
 import logging
 import typing
@@ -75,6 +76,239 @@ PLANNER_NATURAL_LANGUAGE_PROMPT = (
 )
 
 
+@dataclass
+class PlannerExample:
+    """Represents an example query and query plan for the planner."""
+
+    query: str
+    schema: OpenSearchSchema
+    plan: List[Dict[str, Any]]
+
+
+# Example schema and planner examples for the NTSB and financial datasets.
+EXAMPLE_NTSB_SCHEMA = {
+    "properties.entity.date": ("date", {"2023-07-01", "2024-09-01"}),
+    "properties.entity.accidentNumber": ("str", {"1234", "5678", "91011"}),
+    "properties.entity.location": ("str", {"Atlanta, Georgia", "Miami, Florida", "San Diego, California"}),
+    "properties.entity.aircraft": ("str", {"Cessna", "Boeing", "Airbus"}),
+    "properties.entity.city": ("str", {"Atlanta", "Savannah", "Augusta"}),
+    "text_representation": ("str", {"Can be assumed to have all other details"}),
+}
+
+EXAMPLE_FINANCIAL_SCHEMA = {
+    "properties.entity.date": ("str", {"2022-01-01", "2022-12-31", "2023-01-01"}),
+    "properties.entity.revenue": ("float", {"1000000.0", "2000000.0", "3000000.0"}),
+    "properties.entity.firmName": (
+        "str",
+        {"Dewey, Cheatem, and Howe", "Saul Goodman & Associates", "Wolfram & Hart"},
+    ),
+    "text_representation": ("str", {"Can be assumed to have all other details"}),
+}
+
+
+PLANNER_EXAMPLES = [
+    PlannerExample(
+        query="Were there any incidents in Georgia?",
+        schema=EXAMPLE_NTSB_SCHEMA,
+        plan=[
+            {
+                "operatorName": "QueryDatabase",
+                "description": "Get all the incident reports",
+                "index": "ntsb",
+                "node_id": 0,
+            },
+            {
+                "operatorName": "LlmFilter",
+                "description": "Filter to only include incidents in Georgia",
+                "question": "Did this incident occur in Georgia?",
+                "field": "properties.entity.location",
+                "input": [0],
+                "node_id": 1,
+            },
+        ],
+    ),
+    PlannerExample(
+        query="""Show incidents between July 1, 2023 and September 1, 2024 with an accident
+ .         number containing '1234' that occurred in Georgia.""",
+        schema=EXAMPLE_NTSB_SCHEMA,
+        plan=[
+            {
+                "operatorName": "QueryDatabase",
+                "description": "Get all the incident reports in the specified date range matching the accident number",
+                "index": "ntsb",
+                "query": {
+                    "bool": {
+                        "must": [
+                            {
+                                "range": {
+                                    "properties.entity.isoDateTime": {
+                                        "gte": "2023-07-01T00:00:00",
+                                        "lte": "2024-09-30T23:59:59",
+                                        "format": "strict_date_optional_time",
+                                    }
+                                }
+                            },
+                            {"match": {"properties.entity.accidentNumber": "1234"}},
+                            {"match": {"properties.entity.location": "Georgia"}},
+                        ]
+                    }
+                },
+                "node_id": 0,
+            }
+        ],
+    ),
+    PlannerExample(
+        query="How many cities did Cessna aircrafts have incidents in?",
+        schema=EXAMPLE_NTSB_SCHEMA,
+        plan=[
+            {
+                "operatorName": "QueryDatabase",
+                "description": "Get all the incident reports involving Cessna aircrafts",
+                "index": "ntsb",
+                "query": {"match": {"properties.entity.aircraft": "Cessna"}},
+                "node_id": 0,
+            },
+            {
+                "operatorName": "Count",
+                "description": "Count the number of cities that accidents occured in",
+                "distinct_field": "properties.entity.city",
+                "input": [0],
+                "node_id": 1,
+            },
+        ],
+    ),
+    PlannerExample(
+        query="Which 5 pilots were responsible for the most incidents?",
+        schema=EXAMPLE_NTSB_SCHEMA,
+        plan=[
+            {
+                "operatorName": "QueryDatabase",
+                "description": "Get all the NTSB incident reports",
+                "index": "ntsb",
+                "node_id": 0,
+            },
+            {
+                "operatorName": "LlmExtractEntity",
+                "description": "Extract the pilot",
+                "question": "Who was the pilot of this aircraft?",
+                "field": "text_representation",
+                "new_field": "pilot",
+                "format": "string",
+                "discrete": True,
+                "input": [0],
+                "node_id": 1,
+            },
+            {
+                "operatorName": "TopK",
+                "description": "Return top 5 pilot names",
+                "field": "properties.pilot",
+                "primary_field": "properties.entity.accidentNumber",
+                "K": 5,
+                "descending": True,
+                "llm_cluster": False,
+                "input": [1],
+                "node_id": 2,
+            },
+        ],
+    ),
+    PlannerExample(
+        query="What percent of incidents occurred in 2023?",
+        schema=EXAMPLE_NTSB_SCHEMA,
+        plan=[
+            {
+                "operatorName": "QueryDatabase",
+                "description": "Get all the incident reports",
+                "index": "ntsb",
+                "node_id": 0,
+            },
+            {
+                "operatorName": "Count",
+                "description": "Count the number of total incidents",
+                "distinct_field": "properties.entity.accidentNumber",
+                "input": [0],
+                "node_id": 1,
+            },
+            {
+                "operatorName": "BasicFilter",
+                "description": "Filter to only include incidents in 2023",
+                "range_filter": True,
+                "query": None,
+                "start": "01-01-2023",
+                "end": "12-31-2023",
+                "field": "properties.entity.date",
+                "is_date": True,
+                "input": [0],
+                "node_id": 2,
+            },
+            {
+                "operatorName": "Count",
+                "description": "Count the number of incidents in 2023",
+                "distinct_field": "properties.entity.accidentNumber",
+                "input": [2],
+                "node_id": 3,
+            },
+            {
+                "operatorName": "Math",
+                "description": "Divide the number of incidents in 2023 by the total number",
+                "type": "divide",
+                "input": [3, 1],
+                "node_id": 4,
+            },
+        ],
+    ),
+    PlannerExample(
+        query="Were there any incidents because of sudden weather changes?",
+        schema=EXAMPLE_NTSB_SCHEMA,
+        plan=[
+            {
+                "operatorName": "QueryVectorDatabase",
+                "description": "Get all the incidents relating to sudden weather changes",
+                "index": "ntsb",
+                "query_phrase": "sudden weather changes",
+                "node_id": 0,
+            }
+        ],
+    ),
+    PlannerExample(
+        query="Which 2 law firms had the highest revenue in 2022?",
+        schema=EXAMPLE_FINANCIAL_SCHEMA,
+        plan=[
+            {
+                "operatorName": "QueryDatabase",
+                "description": "Get all the financial documents from 2022",
+                "index": "finance",
+                "query": {
+                    "range": {
+                        "properties.entity.isoDateTime": {
+                            "gte": "2022-01-01T00:00:00",
+                            "lte": "2022-12-31T23:59:59",
+                            "format": "strict_date_optional_time",
+                        }
+                    }
+                },
+                "node_id": 0,
+            },
+            {
+                "operatorName": "Sort",
+                "description": "Sort in descending order by revenue",
+                "descending": True,
+                "field": "properties.entity.revenue",
+                "default_value": 0,
+                "input": [0],
+                "node_id": 1,
+            },
+            {
+                "operatorName": "Limit",
+                "description": "Get the 2 law firms with highest revenue",
+                "K": 2,
+                "input": [1],
+                "node_id": 2,
+            },
+        ],
+    ),
+]
+
+
 class LlmPlanner:
     """The top-level query planner for SycamoreQuery. This class is responsible for generating
     a logical query plan from a user query using the OpenAI LLM.
@@ -86,7 +320,8 @@ class LlmPlanner:
         os_client: The OpenSearch client.
         operators: A list of operators to use in the query plan.
         llm_client: The LLM client.
-        use_examples: Whether to include examples in the prompt.
+        examples: Query examples to assist the LLM planner in few-shot learning.
+            You may override this to customize the few-shot examples provided to the planner.
         natural_language_response: Whether to generate a natural language response. If False,
             the response will be raw data.
     """
@@ -99,7 +334,7 @@ class LlmPlanner:
         os_client: "OpenSearch",
         operators: Optional[List[Type[LogicalOperator]]] = None,
         llm_client: Optional[LLM] = None,
-        use_examples: bool = True,
+        examples: Optional[List[PlannerExample]] = None,
         natural_language_response: bool = False,
     ) -> None:
         super().__init__()
@@ -109,7 +344,7 @@ class LlmPlanner:
         self._os_config = os_config
         self._os_client = os_client
         self._llm_client = llm_client or OpenAI(OpenAIModels.GPT_4O.value)
-        self._use_examples = use_examples
+        self._examples = PLANNER_EXAMPLES if examples is None else examples
         self._natural_language_response = natural_language_response
 
     def make_operator_prompt(self, operator: Type[LogicalOperator]) -> str:
@@ -122,19 +357,34 @@ class LlmPlanner:
         prompt += "\n------------\n"
         return prompt
 
-    def make_schema_prompt(self) -> str:
-        """Generate the prompt fragment for the data schema."""
+    def make_schema_prompt(self, schema: OpenSearchSchema) -> str:
+        """Generate the prompt fragment for the provided schema."""
         return json.dumps(
             {
                 field: f"{field_type} (e.g., {', '.join({str(e) for e in examples})})"
-                for field, (field_type, examples) in self._data_schema.items()
+                for field, (field_type, examples) in schema.items()
             },
             indent=2,
         )
 
+    def make_examples_prompt(self) -> str:
+        """Generate the prompt fragment for the query examples."""
+        prompt = ""
+        schemas_shown = set()
+        for example in self._examples:
+            # Avoid showing schema multiple times.
+            schema_prompt = self.make_schema_prompt(example.schema)
+            if schema_prompt not in schemas_shown:
+                prompt += f"DATA SCHEMA:\n{schema_prompt}\n\n"
+                schemas_shown.add(schema_prompt)
+            prompt += f"USER QUESTION: {example.query}\n"
+            prompt += f"Answer:\n{json.dumps(example.plan, indent=2)}\n\n"
+        return prompt
+
     def generate_system_prompt(self, query: str) -> str:
         """Generate the LLM system prompt for the given query."""
 
+        # Initial prompt.
         prompt = PLANNER_SYSTEM_PROMPT
 
         if self._natural_language_response:
@@ -142,327 +392,26 @@ class LlmPlanner:
         else:
             prompt += PLANNER_RAW_DATA_PROMPT
 
-        # data schema
-        prompt += f"""\n
-        INDEX_NAME: {self._index}
-        """
-        prompt += f"""
-        DATA_SCHEMA:
-        {self.make_schema_prompt()}
-        """
+        # Few-shot examples.
+        if self._examples:
+            prompt += self.make_examples_prompt()
 
-        # operator definitions
+        # Operator definitions.
         prompt += """
+        You may use the following operators to construct your query plan:
+
         OPERATORS:
         """
         for operator in self._operators:
             prompt += self.make_operator_prompt(operator)
 
-        # examples
-        if self._use_examples:
-            prompt += """
-            EXAMPLE 1a:
+        # Data schema.
+        prompt += f"""The following represents the schema of the data you should return a query plan for:
 
-            Data description: Database of aircraft incidents
-            Schema: {
-                        'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
-                        'properties.entity.aircraft': "(<class 'str'>) e.g. (Boeing 123), (Cessna Mini 5), (Piper 0.5),
-                        'properties.entity.location': "(<class 'str'>) e.g. (Atlanta, GA), (Phoenix, Arizona), 
-                            (Boise, Idaho),
-                        'properties.entity.accidentNumber': "(<class 'str'>) e.g. (3589), (5903), (7531L),
-                        'text_representation': '(<class 'str'>) Can be assumed to have all other details'
-                    }
-            Question: Were there any incidents in Georgia?
-            Answer:
-            [
-                {
-                    "operatorName": "QueryDatabase",
-                    "description": "Get all the incident reports",
-                    "index": "ntsb",
-                    "node_id": 0
-                },
-                {
-                    "operatorName": "LlmFilter",
-                    "description": "Filter to only include incidents in Georgia",
-                    "question": "Did this incident occur in Georgia?",
-                    "field": "properties.entity.location",
-                    "input": [0],
-                    "node_id": 1
-                },
-            ]
-
-            EXAMPLE 1b:
-
-            Data description: Database of aircraft incidents
-            Schema: {
-                        'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
-                        'properties.entity.aircraft': "(<class 'str'>) e.g. (Boeing 123), (Cessna Mini 5), (Piper 0.5),
-                        'properties.entity.location': "(<class 'str'>) e.g. (Atlanta, GA), (Phoenix, Arizona), 
-                            (Boise, Idaho),
-                        'properties.entity.accidentNumber': "(<class 'str'>) e.g. (3589), (5903), (7531L),
-                        'text_representation': '(<class 'str'>) Can be assumed to have all other details'
-                    }
-            Question: Show incidents between July 1, 2023 and September 1, 2024 with an accident number
-            containing '1234' that occurred in Georgia.
-            Answer:
-            [
-                {
-                    "operatorName": "QueryDatabase",
-                    "description": "Get all the incident reports in the specified date range matching the
-                        accident number",
-                    "index": "ntsb",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {
-                                    "range": {
-                                        "properties.entity.isoDateTime": {
-                                        "gte": "2023-07-01T00:00:00",
-                                        "lte": "2024-09-30T23:59:59",
-                                        "format": "strict_date_optional_time"
-                                        }
-                                    }
-                                },
-                                {
-                                    "match": {
-                                        "properties.entity.accidentNumber": "1234"
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "node_id": 0
-                },
-                {
-                    "operatorName": "LlmFilter",
-                    "description": "Filter to only include incidents in Georgia",
-                    "question": "Did this incident occur in Georgia?",
-                    "field": "properties.entity.location",
-                    "input": [0],
-                    "node_id": 1
-                },
-            ]
-
-            EXAMPLE 2:
-            Data description: Database of aircraft incidents
-            Schema: {
-                        'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
-                        'properties.entity.aircraft': "(<class 'str'>) e.g. (Boeing 123), (Cessna Mini 5), (Piper 0.5),
-                        'properties.entity.city': "(<class 'str'>) e.g. (Orlando, FL), (Palo Alto, CA), (Orlando, FL),
-                        'properties.entity.accidentNumber': "(<class 'str'>) e.g. (3589), (5903), (7531L),
-                        'text_representation': '(<class 'str'>) Can be assumed to have all other details'
-                    }
-            Question: How many cities did Cessna aircrafts have incidents in?
-            Answer:
-            [
-                {
-                    "operatorName": "QueryDatabase",
-                    "description": "Get all the incident reports involving Cessna aircrafts",
-                    "index": "ntsb",
-                    "query": {
-                        "match": {
-                            "properties.entity.aircraft": "Cessna"
-                        } 
-                    },
-                    "node_id": 0
-                },
-                {
-                    "operatorName": "Count",
-                    "description": "Count the number of cities that accidents occured in",
-                    "distinct_field": "properties.entity.city",
-                    "input": [0],
-                    "node_id": 1
-                },
-            ]
-
-            EXAMPLE 3:
-            Data description: Database of financial documents for different law firms
-            DATA_SCHEMA: 
-            {
-                'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
-                'properties.entity.revenue': "(<class 'int'>) e.g. (12304), (7978234), (2938903),
-                'properties.entity.firmName': "(<class 'str'>) e.g. (East West), (Brody), (Hunter & Hunter),
-                'text_representation': '(<class 'str'>) Can be assumed to have all other details'
-            }
-            USER QUESTION: Which 2 law firms had the highest revenue in 2022?
-            Answer:
-            [
-                {
-                    "operatorName": "QueryDatabase",
-                    "description": "Get all the financial documents from 2022",
-                    "index": "finance",
-                    "query": {
-                        "range": {
-                            "properties.entity.isoDateTime": {
-                            "gte": "2022-01-01T00:00:00",
-                            "lte": "2022-12-31T23:59:59",
-                            "format": "strict_date_optional_time"
-                            }
-                        }
-                    },
-                    "node_id": 0
-                },
-                {
-                    "operatorName": "Sort",
-                    "description": "Sort in descending order by revenue",
-                    "descending": true,
-                    "field": "properties.entity.revenue",
-                    "default_value": 0
-                    "input": [0],
-                    "node_id": 1,
-                },
-                {
-                    "operatorName": "Limit",
-                    "description": "Get the 2 law firms with highest revenue",
-                    "K": 2
-                    "input": [1],
-                    "node_id": 2,
-                }
-            ]
-
-            EXAMPLE 4:
-            Data description: Database of shipwreck records and their respective properties
-            DATA_SCHEMA: 
-            {
-                'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
-                'properties.entity.captain': "(<class 'str'>) e.g. (John D. Moore), (Terry Roberts), 
-                    (Alex Clark),
-                'properties.entity.shipwreck_id': "(<class 'str'>) e.g. (ABFUHEU), (FUIHWHD), (FGHIOWB),
-                'text_representation': '(<class 'str'>) Can be assumed to have all other details'
-            }
-            USER QUESTION: Which 5 countries were responsible for the most shipwrecks?
-            Answer:
-            [
-                {
-                    "operatorName": "QueryDatabase",
-                    "description": "Get all the shipwreck records",
-                    "index": "shipwrecks",
-                    "node_id": 0
-                },
-                {
-                    "operatorName": "LlmExtractEntity",
-                    "description": "Extract the country",
-                    "question": "What country was responsible for this ship?",
-                    "field": "text_representation",
-                    "new_field": "country",
-                    "format": "string",
-                    "discrete": true,
-                    "input": [0],
-                    "node_id": 1
-                },
-                {
-                    "operatorName": '"TopK"',
-                    "description": "Gets top 5 water bodies based on shipwrecks",
-                    "field": "properties.country",
-                    "primary_field": "properties.entity.shipwreck_id",
-                    "K": 5,
-                    "descending": true,
-                    "llm_cluster": false,
-                    "llm_cluster_instruction": "Form groups of different water bodies",
-                    "input": [1],
-                    "node_id": 2,
-                },
-            ]
-
-            EXAMPLE 5:
-            Data description: Database of shipwreck records and their respective properties
-            DATA_SCHEMA: 
-            {
-                'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
-                'properties.entity.shipwreck_id': "(<class 'str'>) e.g. (ABFUHEU), (FUIHWHD), (FGHIOWB),
-                'text_representation': '(<class 'str'>) Can be assumed to have all other details'
-            }
-            USER QUESTION: What percent of shipwrecks occurred in 2023?
-            Answer:
-            [
-                {
-                    "operatorName": "QueryDatabase",
-                    "description": "Get all the shipwreck records",
-                    "index": "shipwrecks",
-                    "node_id": 0
-                },
-                {
-                    "operatorName": "Count",
-                    "description": "Count the number of total shipwrecks",
-                    "distinct_field": "properties.entity.shipwreck_id",
-                    "input": [0],
-                    "node_id": 1
-                },
-                {
-                    "operatorName": "BasicFilter",
-                    "description": "Filter to only include documents in 2023",
-                    "range_filter": true,
-                    "query": null,
-                    "start": "01-01-2023",
-                    "end": "12-31-2023",
-                    "field": "properties.entity.date",
-                    "is_date": true,
-                    "input": [0],
-                    "node_id": 2,
-                },
-                {
-                    "operatorName": "Count",
-                    "description": "Count the number of shipwrecks in 2023",
-                    "distinct_field": "properties.entity.shipwreck_id",
-                    "input": [2],
-                    "node_id": 3
-                },
-                {
-                    "operatorName": "Math",
-                    "description": "Divide the number of shipwrecks in 2023 by the total number",
-                    "type": "divide",
-                    "input": [3, 1],
-                    "node_id": 4
-                }
-            ]
-
-            EXAMPLE 6:
-            Data description: Database of shipwreck records and their respective properties
-            DATA_SCHEMA: 
-            {
-                'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
-                'properties.entity.shipwreck_id': "(<class 'str'>) e.g. (ABFUHEU), (FUIHWHD), (FGHIOWB),
-                'text_representation': '(<class 'str'>) Can be assumed to have all other details'
-            }
-            USER QUESTION: Were there any shipwrecks because of sudden weather changes?
-            Answer:
-            [
-                {
-                    "operatorName": "QueryVectorDatabase",
-                    "description": "Get all the shipwreck records relating to sudden weather changes",
-                    "index": "shipwrecks",
-                    "query_phrase": "sudden weather changes",
-                    "node_id": 0
-                }
-            ]
-
-            EXAMPLE 7:
-            Data description: Database of hospital patients
-            DATA_SCHEMA: 
-            {
-                'properties.entity.date': "(<class 'str'>) e.g. (2023-01-14), (2023-01-14), (2023-01-29),
-                'properties.entity.patient_id': "(<class 'str'>) e.g. (ABFUHEU), (FUIHWHD), (FGHIOWB),
-                'text_representation': '(<class 'str'>) Can be assumed to have all other details'
-            }
-            USER QUESTION: How many total patients?
-            Answer:
-            [
-                {
-                    "operatorName": "QueryDatabase",
-                    "description": "Get all the patient records",
-                    "index": "patients",
-                    "query": "patient records",
-                    "id": 0
-                },
-                {
-                    "operatorName": "Count",
-                    "description": "Count the number of total patients",
-                    "distinct_field": "properties.entity.patient_id",
-                    "input": [0],
-                    "id": 1
-                },
-            ]
-            """
+        INDEX_NAME: {self._index}
+        DATA_SCHEMA:
+        {self.make_schema_prompt(self._data_schema)}
+        """
 
         return prompt
 
@@ -489,6 +438,8 @@ class LlmPlanner:
                 "content": self.generate_user_prompt(question),
             },
         ]
+        print(messages)
+
         prompt_kwargs = {"messages": messages}
         chat_completion = self._llm_client.generate(
             prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0, "seed": 42}

@@ -28,7 +28,7 @@ from sycamore.utils.import_utils import requires_modules
 
 from sycamore.query.execution.sycamore_executor import SycamoreExecutor
 from sycamore.query.logical_plan import LogicalPlan
-from sycamore.query.planner import LlmPlanner
+from sycamore.query.planner import LlmPlanner, PlannerExample
 from sycamore.query.schema import OpenSearchSchema, OpenSearchSchemaFetcher
 from sycamore.query.visualize import visualize_plan
 
@@ -163,7 +163,7 @@ class SycamoreQueryClient:
         query: str,
         index: str,
         schema: OpenSearchSchema,
-        examples: Optional[str] = None,
+        examples: Optional[List[PlannerExample]] = None,
         natural_language_response: bool = False,
     ) -> LogicalPlan:
         """Generate a logical query plan for the given query, index, and schema.
@@ -172,6 +172,7 @@ class SycamoreQueryClient:
             query: The query to generate a plan for.
             index: The index to query against.
             schema: The schema for the index.
+            examples: Optional examples to use for planning.
             natural_language_response: Whether to generate a natural language response. If False,
                 raw data will be returned.
         """

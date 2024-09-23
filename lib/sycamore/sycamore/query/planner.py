@@ -97,7 +97,7 @@ EXAMPLE_NTSB_SCHEMA = {
 
 EXAMPLE_FINANCIAL_SCHEMA = {
     "properties.entity.date": ("str", {"2022-01-01", "2022-12-31", "2023-01-01"}),
-    "properties.entity.revenue": ("float", {1000000.0, 2000000.0, 3000000.0}),
+    "properties.entity.revenue": ("float", {"1000000.0", "2000000.0", "3000000.0"}),
     "properties.entity.firmName": (
         "str",
         {"Dewey, Cheatem, and Howe", "Saul Goodman & Associates", "Wolfram & Hart"},

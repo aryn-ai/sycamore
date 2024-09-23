@@ -491,12 +491,22 @@ class ChatMessageTraces(ChatMessageExtra):
         show_query_traces(st.session_state.trace_dir, self.query_id)
 
 
+@st.dialog("Send Feedback", width="large")
+def send_feedback():
+    feedback_form_code = (
+        """<iframe src="https://tally.so/r/me2O2e" style="width: 100%; height: 800px; border: none;"></iframe>"""
+    )
+    with st.container(height=800):
+        st.markdown(feedback_form_code, unsafe_allow_html=True)
+
+
 class ChatMessage:
     def __init__(
         self,
         message: Optional[Dict[str, Any]] = None,
         before_extras: Optional[List[ChatMessageExtra]] = None,
         after_extras: Optional[List[ChatMessageExtra]] = None,
+        feedback_button: bool = False,
     ):
         self.message_id = st.session_state.next_message_id
         st.session_state.next_message_id += 1
@@ -505,6 +515,7 @@ class ChatMessage:
         self.before_extras = before_extras or []
         self.after_extras = after_extras or []
         self.widget_key = 0
+        self.feedback_button = feedback_button
 
     def show(self):
         self.widget_key = 0
@@ -521,12 +532,20 @@ class ChatMessage:
         for extra in self.after_extras:
             with st.expander(extra.name):
                 extra.show()
+        if self.feedback_button:
+            self.show_feedback_button()
 
     def button(self, label: str, **kwargs):
         return st.button(label, key=self.next_key(), **kwargs)
 
     def download_button(self, label: str, content: bytes, filename: str, file_type: str, **kwargs):
         return st.download_button(label, content, filename, file_type, key=self.next_key(), **kwargs)
+
+    def show_feedback_button(self):
+        _, col2 = st.columns([0.75, 0.25])
+        with col2:
+            if self.button("Send feedback"):
+                send_feedback()
 
     def next_key(self) -> str:
         key = f"{self.message_id}-{self.widget_key}"
@@ -765,10 +784,6 @@ def show_messages():
         if msg.message.get("content") is None:
             continue
         msg.show()
-    _, col2 = st.columns([0.75, 0.25])
-    with col2:
-        st.link_button("Send feedback", "/feedback", type="primary")
-
 
 
 def do_query():
@@ -795,7 +810,7 @@ def do_query():
                     tool_choice="auto",
                 )
             response_dict = response.choices[0].message.to_dict()
-            assistant_message = ChatMessage(response_dict)
+            assistant_message = ChatMessage(response_dict, feedback_button=True)
             st.session_state.messages.append(assistant_message)
 
             tool_calls = response.choices[0].message.tool_calls

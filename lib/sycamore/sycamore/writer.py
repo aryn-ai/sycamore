@@ -712,6 +712,46 @@ class DocSetWriter:
             execute: Execute the pipeline and write to Qdrant on adding this operator. If False,
                     will return a DocSet with this write in the plan. Defaults to True.
             kwargs: Arguments to pass to the underlying execution engine
+
+        Example:
+            The following code shows how to read a pdf dataset into a ``DocSet`` and write it out to a
+            Qdrant collection called `"sycamore_collection"`.
+
+            .. code-block:: python
+                model_name = "sentence-transformers/all-MiniLM-L6-v2"
+
+                davinci_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value, api_key=os.environ["OPENAI_API_KEY"])
+                tokenizer = HuggingFaceTokenizer(model_name)
+
+                ctx = sycamore.init()
+
+                ds = (
+                    ctx.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=SycamorePartitioner(extract_table_structure=True, extract_images=True))
+                    .regex_replace(COALESCE_WHITESPACE)
+                    .extract_entity(entity_extractor=OpenAIEntityExtractor("title", llm=davinci_llm, prompt_template=title_template))
+                    .mark_bbox_preset(tokenizer=tokenizer)
+                    .merge(merger=MarkedMerger())
+                    .spread_properties(["path", "title"])
+                    .split_elements(tokenizer=tokenizer, max_tokens=512)
+                    .explode()
+                    .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
+                    .term_frequency(tokenizer=tokenizer, with_token_ids=True)
+                    .sketch(window=17)
+                )
+
+                ds.write.qdrant(
+                    {
+                        "location": "http://localhost:6333",
+                    },
+                    {
+                        "collection_name": "sycamore_collection",
+                        "vectors_config": {
+                            "size": 384,
+                            "distance": "Cosine",
+                        },
+                    },
+                )
         """
         from sycamore.connectors.qdrant import (
             QdrantWriter,

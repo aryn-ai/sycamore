@@ -159,7 +159,6 @@ class TableElement(Element):
         self.data["properties"]["rows"] = rows
         self.data["table"] = table
         self.data["tokens"] = tokens
-        self.data["text_representation"] = None
 
     @property
     def rows(self) -> Optional[list[Any]]:
@@ -202,6 +201,9 @@ class TableElement(Element):
 
     @property
     def text_representation(self) -> Optional[str]:
+        if "text_representation" not in self.data:
+            self.data["text_representation"] = None
+            return self.data["text_representation"]
         if not self.data["text_representation"] and self.data["table"]:
             self.data["text_representation"] = self.data["table"].to_csv()
         return self.data["text_representation"]

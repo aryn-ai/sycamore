@@ -43,7 +43,7 @@ class OpenSearchWriterTargetParams(BaseDBWriter.TargetParams):
                     "type": "knn_vector",
                     "dimension": 384,
                     "method": {"name": "hnsw", "engine": "faiss"},
-                },
+                }
             }
         }
     )

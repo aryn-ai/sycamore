@@ -101,27 +101,29 @@ st.title("Sycamore Query")
 if "trace_dir" not in st.session_state:
     st.session_state.trace_dir = os.path.join(os.getcwd(), "traces")
 
+if "index" not in st.session_state:
+    st.session_state.index = None
+
 client = get_sycamore_query_client()
 st.selectbox("Index", util.get_opensearch_indices(), key="index")
-show_schema(client, st.session_state.index)
 
+if st.session_state.index:
+    show_schema(client, st.session_state.index)
+    with st.form("query_form"):
+        st.text_input("Query", key="query")
+        schema_container = st.container()
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            submitted = st.form_submit_button("Run query")
+        with col2:
+            st.toggle("Plan only", key="plan_only", value=False)
+        with col3:
+            st.toggle("Capture traces", key="do_trace", value=True)
+        with col4:
+            st.toggle("Use cache", key="use_cache", value=True)
+        with st.expander("Advanced"):
+            st.text_input("S3 cache path", key="s3_cache_path", value=DEFAULT_S3_CACHE_PATH)
+            st.session_state.trace_dir = st.text_input("Trace directory", value=st.session_state.trace_dir)
 
-with st.form("query_form"):
-    st.text_input("Query", key="query")
-    schema_container = st.container()
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        submitted = st.form_submit_button("Run query")
-    with col2:
-        st.toggle("Plan only", key="plan_only", value=False)
-    with col3:
-        st.toggle("Capture traces", key="do_trace", value=True)
-    with col4:
-        st.toggle("Use cache", key="use_cache", value=True)
-    with st.expander("Advanced"):
-        st.text_input("S3 cache path", key="s3_cache_path", value=DEFAULT_S3_CACHE_PATH)
-        st.session_state.trace_dir = st.text_input("Trace directory", value=st.session_state.trace_dir)
-
-
-if submitted:
-    run_query()
+    if submitted:
+        run_query()

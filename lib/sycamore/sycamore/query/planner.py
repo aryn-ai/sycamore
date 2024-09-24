@@ -87,6 +87,7 @@ class PlannerExample:
 
 # Example schema and planner examples for the NTSB and financial datasets.
 EXAMPLE_NTSB_SCHEMA = {
+    "properties.path": ("str", {"/docs/incident1.pdf", "/docs/incident2.pdf", "/docs/incident3.pdf"}),
     "properties.entity.date": ("date", {"2023-07-01", "2024-09-01"}),
     "properties.entity.accidentNumber": ("str", {"1234", "5678", "91011"}),
     "properties.entity.location": ("str", {"Atlanta, Georgia", "Miami, Florida", "San Diego, California"}),
@@ -96,6 +97,7 @@ EXAMPLE_NTSB_SCHEMA = {
 }
 
 EXAMPLE_FINANCIAL_SCHEMA = {
+    "properties.path": ("str", {"doc1.pdf", "doc2.pdf", "doc3.pdf"}),
     "properties.entity.date": ("str", {"2022-01-01", "2022-12-31", "2023-01-01"}),
     "properties.entity.revenue": ("float", {"1000000.0", "2000000.0", "3000000.0"}),
     "properties.entity.firmName": (
@@ -128,8 +130,28 @@ PLANNER_EXAMPLES = [
         ],
     ),
     PlannerExample(
+        query="Count the number of incidents containing 'foo' in the filename.",
+        schema=EXAMPLE_NTSB_SCHEMA,
+        plan=[
+            {
+                "operatorName": "QueryDatabase",
+                "description": "Get all the incident reports matching 'foo' in the filename",
+                "index": "ntsb",
+                "node_id": 0,
+                "query": {"match": {"properties.path.keyword": "*foo*"}},
+            },
+            {
+                "operatorName": "Count",
+                "description": "Count the number of incidents",
+                "distinct_field": "properties.entity.accidentNumber",
+                "input": [0],
+                "node_id": 1,
+            },
+        ],
+    ),
+    PlannerExample(
         query="""Show incidents between July 1, 2023 and September 1, 2024 with an accident
- .         number containing '1234' that occurred in Georgia.""",
+ .         number containing 'K1234N' that occurred in Georgia.""",
         schema=EXAMPLE_NTSB_SCHEMA,
         plan=[
             {
@@ -148,7 +170,7 @@ PLANNER_EXAMPLES = [
                                     }
                                 }
                             },
-                            {"match": {"properties.entity.accidentNumber": "1234"}},
+                            {"match": {"properties.entity.accidentNumber.keyword": "*K1234N*"}},
                             {"match": {"properties.entity.location": "Georgia"}},
                         ]
                     }
@@ -417,6 +439,7 @@ class LlmPlanner:
 
     def generate_user_prompt(self, query: str) -> str:
         prompt = f"""
+        INDEX_NAME: {self._index}
         USER QUESTION: {query}
         Answer:
         """

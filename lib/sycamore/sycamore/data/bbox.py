@@ -1,5 +1,6 @@
 from abc import ABC
 from collections.abc import Iterable
+import logging
 
 
 class BoundingBox(ABC):
@@ -17,8 +18,9 @@ class BoundingBox(ABC):
         self.y1 = y1
         self.x2 = x2
         self.y2 = y2
+        # TODO: Make this as an assertion and fix any bugs in TableTransformers that violate it
         if x1 > x2 or y1 > y2:
-            raise ValueError(f"x1 ({x1}) must be <= x2 ({x2}) and y1 ({y1}) must be <= y2 ({y2})")
+            logging.warning(f"x1 ({x1}) must be <= x2 ({x2}) and y1 ({y1}) must be <= y2 ({y2})")
 
     def __eq__(self, other):
         if type(other) is not type(self):

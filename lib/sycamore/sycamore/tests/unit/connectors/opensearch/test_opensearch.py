@@ -1,5 +1,9 @@
+from unittest.mock import Mock
+
 from opensearchpy import OpenSearch, RequestError, ConnectionError
 import pytest
+
+from sycamore import Context
 from sycamore.connectors.opensearch import (
     OpenSearchWriterClient,
     OpenSearchWriterClientParams,
@@ -7,7 +11,9 @@ from sycamore.connectors.opensearch import (
     OpenSearchWriterTargetParams,
 )
 from sycamore.connectors.common import HostAndPort
+from sycamore.connectors.opensearch.utils import get_knn_query
 from sycamore.data.document import Document
+from sycamore.transforms import Embedder
 
 
 class TestOpenSearchTargetParams:
@@ -224,3 +230,35 @@ class TestOpenSearchRecord:
         }
         assert record._id == document.doc_id
         assert record._index == tp.index_name
+
+
+class TestOpenSearchUtils:
+
+    def test_get_knn_query(self):
+        embedder = Mock(spec=Embedder)
+        embedding = [0.1, 0.2]
+        embedder.generate_text_embedding.return_value = embedding
+        context = Context(
+            params={
+                "opensearch": {
+                    "os_client_args": {
+                        "hosts": [{"host": "localhost", "port": 9200}],
+                        "http_compress": True,
+                        "http_auth": ("admin", "admin"),
+                        "use_ssl": True,
+                        "verify_certs": False,
+                        "ssl_assert_hostname": False,
+                        "ssl_show_warn": False,
+                        "timeout": 120,
+                    },
+                    "index_name": "test_index",
+                },
+                "default": {"text_embedder": embedder},
+            }
+        )
+        expected_query = {"query": {"knn": {"embedding": {"vector": embedding, "k": 1000}}}}
+        assert get_knn_query(query_phrase="test", k=1000, context=context) == expected_query
+        embedder.generate_text_embedding.assert_called_with("test")
+
+        assert get_knn_query(query_phrase="test", k=1000, text_embedder=embedder) == expected_query
+        embedder.generate_text_embedding.assert_called_with("test")

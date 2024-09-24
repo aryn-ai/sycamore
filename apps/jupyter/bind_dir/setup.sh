@@ -34,6 +34,6 @@ if [[ -f /app/sycamore.git/README.md ]]; then
     done
     # Reinstall everything that's been installed
     for i in $(cat /app/.poetry.install); do
-        ./poetry-install.sh $i
+        ./poetry-install.sh $(echo $i | sed 's/,/ /')
     done
 fi

@@ -76,7 +76,7 @@ def run_query():
     with st.spinner("Generating plan..."):
         plan = util.generate_plan(client, st.session_state.query, st.session_state.index)
     with st.expander("Query plan"):
-        st.write(plan)
+        st.write(plan.dict())
 
     code = generate_code(client, plan)
     show_code(code)
@@ -87,7 +87,8 @@ def run_query():
             result_str = util.result_to_string(result)
         st.write(f"Query ID `{st.session_state.query_id}`\n")
         st.subheader("Result", divider="rainbow")
-        st.success(result_str)
+        st.markdown(result_str, unsafe_allow_html=True)
+
         if st.session_state.do_trace:
             assert st.session_state.trace_dir
             st.subheader("Traces", divider="blue")

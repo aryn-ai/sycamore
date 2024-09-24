@@ -75,7 +75,7 @@ class Element(UserDict):
                 f"<{len(self.binary_representation)} bytes>" if self.binary_representation else None
             ),
             "bbox": str(self.bbox),
-            "properties": self.properties,
+            "properties": {k: str(v) for k, v in self.properties.items()},
         }
         return json.dumps(d, indent=2)
 

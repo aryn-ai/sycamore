@@ -1,6 +1,16 @@
 from sycamore.data import Document, Element
 from sycamore.functions import reorder_elements
-from sycamore.transforms.partition import _elements_reorder_comparator
+
+
+def _key(ee: Element) -> tuple[int, int, float]:
+    bbox = ee.bbox
+    xx = bbox.x1 if bbox else 0.0
+    yy = bbox.y1 if bbox else 0.0
+    return (
+        ee.properties["page_number"],
+        0 if xx < 0.5 else 1,
+        yy,
+    )
 
 
 class TestElementFunctions:
@@ -64,5 +74,5 @@ class TestElementFunctions:
             }
         )
         doc.elements = [element1, element2, element3, element4, element5, element6]
-        doc = reorder_elements(doc, comparator=_elements_reorder_comparator)
+        doc = reorder_elements(doc, key=_key)
         assert doc.elements[2] == element4

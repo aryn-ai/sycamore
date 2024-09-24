@@ -1,12 +1,11 @@
 from abc import abstractmethod, ABC
 import io
-from typing import Any, Optional
+from typing import Any, Literal, Optional, Union
 
 from bs4 import BeautifulSoup
 
 from sycamore.functions import TextOverlapChunker, Chunker
 from sycamore.functions import CharacterTokenizer, Tokenizer
-from sycamore.functions import reorder_elements
 from sycamore.data import BoundingBox, Document, Element, TableElement, Table
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base import CompositeTransform
@@ -17,41 +16,13 @@ from sycamore.utils.cache import Cache
 from sycamore.utils.time_trace import timetrace
 from sycamore.utils import choose_device
 from sycamore.utils.aryn_config import ArynConfig
+from sycamore.utils.bbox_sort import bbox_sort_document
 
-from sycamore.transforms.detr_partitioner import ARYN_DETR_MODEL, DEFAULT_ARYN_PARTITIONER_ADDRESS
-
-
-def _pageless_reorder_comparator(element1: Element, element2: Element) -> int:
-    # The following function checks if the x0 point of the element is in the
-    # left column
-    def element_in_left_col(e: Element) -> bool:
-        if e.bbox is None:
-            raise RuntimeError("Element BBox is None")
-        return e.bbox.x1 <= 0.5
-
-    if element_in_left_col(element1) and not element_in_left_col(element2):
-        return -1
-    elif not element_in_left_col(element1) and element_in_left_col(element2):
-        return 1
-    else:
-        return 0
-
-
-# This comparator helps sort the elements per page specifically when a page
-# has two columns
-def _elements_reorder_comparator(element1: Element, element2: Element) -> int:
-    # In PixelSpace (default coordinate system), the coordinates of each
-    # element starts in the top left corner and proceeds counter-clockwise.
-
-    page1 = element1.properties["page_number"]
-    page2 = element2.properties["page_number"]
-
-    if page1 < page2:
-        return -1
-    elif page1 > page2:
-        return 1
-    else:
-        return _pageless_reorder_comparator(element1, element2)
+from sycamore.transforms.detr_partitioner import (
+    ARYN_DETR_MODEL,
+    DEFAULT_ARYN_PARTITIONER_ADDRESS,
+    DEFAULT_LOCAL_THRESHOLD,
+)
 
 
 class Partitioner(ABC):
@@ -257,7 +228,7 @@ class UnstructuredPdfPartitioner(Partitioner):
         document.elements = [self.to_element(ee.to_dict(), self._retain_coordinates) for ee in elements]
         del elements
 
-        document = reorder_elements(document, comparator=_elements_reorder_comparator)
+        bbox_sort_document(document)
         return document
 
 
@@ -387,9 +358,11 @@ class ArynPartitioner(Partitioner):
         model_name_or_path: The HuggingFace coordinates or model local path. Should be set to
              the default ARYN_DETR_MODEL unless you are testing a custom model.
              Ignored when local mode is false
-        threshold: The threshold to use for accepting the model's predicted bounding boxes. A lower
-             value will include more objects, but may have overlaps, a higher value will reduce the
-             number of overlaps, but may miss legitimate objects.
+        threshold: The threshold to use for accepting the model's predicted bounding boxes. When using
+             the Aryn Partitioning Service, this defaults to "auto", where the service will automatically
+             find the best predictions. You can override this or set it locally by specifying a numerical
+             threshold between 0 and 1. A lower value will include more objects, but may have overlaps,
+             while a higher value will reduce the number of overlaps, but may miss legitimate objects.
         use_ocr: Whether to use OCR to extract text from the PDF. If false, we will attempt to extract
              the text from the underlying PDF.
         ocr_images: If set with use_ocr, will attempt to OCR regions of the document identified as images.
@@ -407,8 +380,6 @@ class ArynPartitioner(Partitioner):
              matter.
         batch_size: How many pages to partition at once, when running locally. Default is 1. Ignored when
              running remotely.
-        batch_at_a_time: When running locally, run inference on the pages in batches in order to not load
-             all pages into memory at the same time. Default is False
         local: If false, runs the partitioner remotely. Defaults to false
         aryn_api_key: The account token used to authenticate with Aryn's servers.
         aryn_partitioner_address: The address of the server to use to partition the document
@@ -431,7 +402,7 @@ class ArynPartitioner(Partitioner):
     def __init__(
         self,
         model_name_or_path=ARYN_DETR_MODEL,
-        threshold: float = 0.4,
+        threshold: Optional[Union[float, Literal["auto"]]] = None,
         use_ocr: bool = False,
         ocr_images: bool = False,
         ocr_tables: bool = False,
@@ -440,7 +411,6 @@ class ArynPartitioner(Partitioner):
         extract_images: bool = False,
         device=None,
         batch_size: int = 1,
-        batch_at_a_time: bool = False,
         use_partitioning_service: bool = True,
         aryn_api_key: str = "",
         aryn_partitioner_address: str = DEFAULT_ARYN_PARTITIONER_ADDRESS,
@@ -459,7 +429,17 @@ class ArynPartitioner(Partitioner):
             self._aryn_api_key = aryn_api_key
         self._model_name_or_path = model_name_or_path
         self._device = device
-        self._threshold = threshold
+
+        if threshold is None:
+            if use_partitioning_service:
+                self._threshold: Union[float, Literal["auto"]] = "auto"
+            else:
+                self._threshold = DEFAULT_LOCAL_THRESHOLD
+        else:
+            if not isinstance(threshold, float) and not use_partitioning_service:
+                raise ValueError("Auto threshold is only supported with the Aryn Partitioning Service.")
+            self._threshold = threshold
+
         self._use_ocr = use_ocr
         self._ocr_images = ocr_images
         self._ocr_tables = ocr_tables
@@ -467,46 +447,11 @@ class ArynPartitioner(Partitioner):
         self._table_structure_extractor = table_structure_extractor
         self._extract_images = extract_images
         self._batch_size = batch_size
-        self._batch_at_a_time = batch_at_a_time
         self._use_partitioning_service = use_partitioning_service
         self._aryn_partitioner_address = aryn_partitioner_address
         self._use_cache = use_cache
         self._cache = cache
         self._pages_per_call = pages_per_call
-
-    # For now, we reorder elements based on page, left/right column, y axle position then finally x axle position
-    @staticmethod
-    def _elements_reorder(element1: Element, element2: Element) -> int:
-        def element_in_left_col(e: Element) -> bool:
-            if e.bbox is None:
-                raise RuntimeError("Element BBox is None")
-            return e.bbox.x1 <= 0.5
-
-        page1 = element1.properties["page_number"]
-        page2 = element2.properties["page_number"]
-        bbox1 = element1.bbox
-        bbox2 = element2.bbox
-
-        if page1 < page2:
-            return -1
-        elif page1 > page2:
-            return 1
-        elif element_in_left_col(element1) and not element_in_left_col(element2):
-            return -1
-        elif not element_in_left_col(element1) and element_in_left_col(element2):
-            return 1
-        elif bbox1 is None or bbox2 is None:
-            return 0
-        elif bbox1.y1 < bbox2.y1:
-            return -1
-        elif bbox1.y1 > bbox2.y1:
-            return 1
-        elif bbox1.x1 < bbox2.x1:
-            return -1
-        elif bbox1.x1 > bbox2.x1:
-            return 1
-        else:
-            return 0
 
     @timetrace("SycamorePdf")
     def partition(self, document: Document) -> Document:
@@ -526,7 +471,6 @@ class ArynPartitioner(Partitioner):
                 table_structure_extractor=self._table_structure_extractor,
                 extract_images=self._extract_images,
                 batch_size=self._batch_size,
-                batch_at_a_time=self._batch_at_a_time,
                 use_partitioning_service=self._use_partitioning_service,
                 aryn_api_key=self._aryn_api_key,
                 aryn_partitioner_address=self._aryn_partitioner_address,
@@ -538,7 +482,7 @@ class ArynPartitioner(Partitioner):
             raise RuntimeError(f"ArynPartitioner Error processing {path}") from e
 
         document.elements = elements
-        document = reorder_elements(document, comparator=self._elements_reorder)
+        bbox_sort_document(document)
         return document
 
 
@@ -562,7 +506,6 @@ class SycamorePartitioner(ArynPartitioner):
         extract_images=False,
         device=None,
         batch_size: int = 1,
-        batch_at_a_time: bool = False,
     ):
         device = choose_device(device)
         super().__init__(
@@ -574,7 +517,6 @@ class SycamorePartitioner(ArynPartitioner):
             extract_images=extract_images,
             device=device,
             batch_size=batch_size,
-            batch_at_a_time=batch_at_a_time,
             use_partitioning_service=False,
         )
 

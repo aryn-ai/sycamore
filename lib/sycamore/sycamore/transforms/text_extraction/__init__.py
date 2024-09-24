@@ -1,13 +1,13 @@
-from sycamore.transforms.text_extraction.ocr_models import OCRModel, PaddleOCR, LegacyOCR, Tesseract, EasyOCR
-from sycamore.transforms.text_extraction.pdf_miner import PDFMinerExtractor
+from sycamore.transforms.text_extraction.ocr_models import OcrModel, PaddleOcr, LegacyOcr, Tesseract, EasyOcr
+from sycamore.transforms.text_extraction.pdf_miner import PdfMinerExtractor
 from sycamore.transforms.text_extraction.text_extractor import TextExtractor
 
-__all__ = ["PaddleOCR", "LegacyOCR", "Tesseract", "EasyOCR", "PDFMinerExtractor", "OCRModel", "TextExtractor"]
+__all__ = ["PaddleOcr", "LegacyOcr", "Tesseract", "EasyOcr", "PdfMinerExtractor", "OcrModel", "TextExtractor"]
 
 EXTRACTOR_DICT = {
-    "paddle": PaddleOCR,
-    "legacy": LegacyOCR,
+    "paddle": PaddleOcr,
+    "legacy": LegacyOcr,
     "tesseract": Tesseract,
-    "easyocr": EasyOCR,
-    "pdfminer": PDFMinerExtractor,
+    "easyocr": EasyOcr,
+    "pdfminer": PdfMinerExtractor,
 }

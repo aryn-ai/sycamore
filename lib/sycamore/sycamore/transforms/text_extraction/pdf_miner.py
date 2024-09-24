@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 pdf_miner_cache = DiskCache(str(Path.home() / ".sycamore/PDFMinerCache"))
 
 
-class PDFMinerExtractor(TextExtractor):
+class PdfMinerExtractor(TextExtractor):
     @requires_modules(["pdfminer", "pdfminer.utils"], extra="local-inference")
     def __init__(self):
         from pdfminer.converter import PDFPageAggregator
@@ -65,16 +65,16 @@ class PDFMinerExtractor(TextExtractor):
         y2 = height - y2
         return x1, y1, x2, y2
 
-    @timetrace("PDFMiner Document Extraction")
+    @timetrace("PdfMiner Document Extraction")
     # TODO: Remove this function once the service is moved off it
     def extract_document(self, filename: str, hash_key: str, use_cache=False, **kwargs) -> List[List[Element]]:
         cached_result = pdf_miner_cache.get(hash_key) if use_cache else None
         if cached_result:
-            logger.info(f"Cache Hit for PDFMiner. Cache hit-rate is {pdf_miner_cache.get_hit_rate()}")
+            logger.info(f"Cache Hit for PdfMiner. Cache hit-rate is {pdf_miner_cache.get_hit_rate()}")
             return cached_result
         else:
             pages = []
-            for page_layout in PDFMinerExtractor.pdf_to_pages(filename):
+            for page_layout in PdfMinerExtractor.pdf_to_pages(filename):
                 width = page_layout.width
                 height = page_layout.height
                 texts: List[Element] = []
@@ -114,4 +114,4 @@ class PDFMinerExtractor(TextExtractor):
         return texts
 
     def __name__(self):
-        return "PDFMinerExtractor"
+        return "PdfMinerExtractor"

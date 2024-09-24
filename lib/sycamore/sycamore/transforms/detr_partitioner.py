@@ -27,8 +27,8 @@ from sycamore.utils.import_utils import requires_modules
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
 from sycamore.utils.pdf import convert_from_path_streamed_batched
 from sycamore.utils.time_trace import LogTime, timetrace
-from sycamore.transforms.text_extraction import TextExtractor, OCRModel, EXTRACTOR_DICT
-from sycamore.transforms.text_extraction.pdf_miner import PDFMinerExtractor
+from sycamore.transforms.text_extraction import TextExtractor, OcrModel, EXTRACTOR_DICT
+from sycamore.transforms.text_extraction.pdf_miner import PdfMinerExtractor
 
 logger = logging.getLogger(__name__)
 _DETR_LOCK_FILE = f"{pwd.getpwuid(os.getuid()).pw_dir}/.cache/Aryn-Detr.lock"
@@ -404,8 +404,8 @@ class ArynPDFPartitioner:
         if extract_table_structure and not table_structure_extractor:
             table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
         if not use_ocr:
-            text_extractor = PDFMinerExtractor()
-            text_generator = PDFMinerExtractor.pdf_to_pages(filename)
+            text_extractor = PdfMinerExtractor()
+            text_generator = PdfMinerExtractor.pdf_to_pages(filename)
         else:
             text_extractor = EXTRACTOR_DICT[ocr_model]()
             text_generator = None
@@ -726,7 +726,7 @@ def extract_ocr(
 ) -> list[list[Element]]:
     if ocr_model_name not in EXTRACTOR_DICT.keys():
         raise ValueError(f"Unknown ocr_model: {ocr_model_name}")
-    ocr_model: OCRModel = EXTRACTOR_DICT[ocr_model_name]()
+    ocr_model: OcrModel = EXTRACTOR_DICT[ocr_model_name]()
     for i, image in enumerate(images):
         page_elements = elements[i]
         width, height = image.size

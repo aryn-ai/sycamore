@@ -16,12 +16,12 @@ if TYPE_CHECKING:
     from pdfminer.layout import LTPage
 
 # TODO: Add cache support for OCR per page
-ocr_cache = DiskCache(str(Path.home() / ".sycamore/OCRCache"))
+ocr_cache = DiskCache(str(Path.home() / ".sycamore/OcrCache"))
 
 logger = logging.getLogger(__name__)
 
 
-class OCRModel(TextExtractor):
+class OcrModel(TextExtractor):
 
     @abstractmethod
     def get_text(self, image: Image.Image) -> str:
@@ -93,7 +93,7 @@ class OCRModel(TextExtractor):
                 return pages
 
 
-class EasyOCR(OCRModel):
+class EasyOcr(OcrModel):
     @requires_modules("easyocr", extra="local-inference")
     def __init__(self, lang_list=["en"]):
         import easyocr
@@ -127,10 +127,10 @@ class EasyOCR(OCRModel):
         return out
 
     def __name__(self):
-        return "EasyOCR"
+        return "EasyOcr"
 
 
-class Tesseract(OCRModel):
+class Tesseract(OcrModel):
     @requires_modules("pytesseract", extra="local-inference")
     def __init__(self):
         import pytesseract
@@ -160,13 +160,13 @@ class Tesseract(OCRModel):
         return "Tesseract"
 
 
-class LegacyOCR(OCRModel):
-    """Match existing behavior where we use tesseract for the main text and EasyOCR for tables."""
+class LegacyOcr(OcrModel):
+    """Match existing behavior where we use tesseract for the main text and EasyOcr for tables."""
 
     @requires_modules(["easyocr", "pytesseract"], extra="local-inference")
     def __init__(self):
         self.tesseract = Tesseract()
-        self.easy_ocr = EasyOCR()
+        self.easy_ocr = EasyOcr()
 
     def get_text(self, image: Image.Image) -> str:
         return self.tesseract.get_text(image)
@@ -175,20 +175,20 @@ class LegacyOCR(OCRModel):
         return self.easy_ocr.get_boxes_and_text(image)
 
     def __name__(self):
-        return "LegacyOCR"
+        return "LegacyOcr"
 
 
-class PaddleOCR(OCRModel):
+class PaddleOcr(OcrModel):
     @requires_modules("paddleocr", extra="local-inference")
     def __init__(self, use_gpu=True, language="en"):
-        from paddleocr import PaddleOCR
+        from paddleocr import PaddleOcr
         from paddleocr.ppocr.utils.logging import get_logger
         import paddle
 
         get_logger().setLevel(logging.ERROR)
         self.use_gpu = paddle.device.is_compiled_with_cuda()
         self.language = language
-        self.reader = PaddleOCR(lang=self.language, use_gpu=self.use_gpu)
+        self.reader = PaddleOcr(lang=self.language, use_gpu=self.use_gpu)
 
     def get_text(
         self,
@@ -213,4 +213,4 @@ class PaddleOCR(OCRModel):
         return out  # type: ignore
 
     def __name__(self):
-        return "PaddleOCR"
+        return "PaddleOcr"

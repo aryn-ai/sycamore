@@ -189,7 +189,7 @@ class TableElement(Element):
     @table.setter
     def table(self, value: Optional[Table]) -> None:
         self.data["table"] = value
-        self.data["text_representation"] = None
+        self.data["text_representation"] = None  # Invalidate cache
 
     @property
     def tokens(self) -> Optional[list[dict[str, Any]]]:
@@ -201,12 +201,11 @@ class TableElement(Element):
 
     @property
     def text_representation(self) -> Optional[str]:
-        if "text_representation" not in self.data:
-            self.data["text_representation"] = None
-            return self.data["text_representation"]
-        if not self.data["text_representation"] and self.data["table"]:
-            self.data["text_representation"] = self.data["table"].to_csv()
-        return self.data["text_representation"]
+        tr = self.data.get("text_representation")
+        if not isinstance(tr, str) and (tbl := self.data.get("table")):
+            tr = tbl.to_csv()
+            self.data["text_representation"] = tr
+        return tr
 
     @text_representation.setter
     def text_representation(self, text_representation: str) -> None:

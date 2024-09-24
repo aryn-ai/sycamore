@@ -4,6 +4,19 @@ from sycamore.query.logical_plan import LogicalPlan, Node
 
 
 def compare_graphs(node_a: Node, node_b: Node, visited_a: Set[int], visited_b: Set[int]) -> dict[str, Any]:
+    """
+    Traverse and compare 2 graphs given a node pointer in each. Computes different comparison metrics per node.
+    The function will continue to traverse as long as the graph structure is identical, i.e. same number of outgoing
+    nodes per node. It also assumes that the "downstream_nodes"/edges are ordered - this is the current logical
+    plan implementation to support operations like math.
+
+
+    @param node_a: graph node a
+    @param node_b: graph node b
+    @param visited_a: helper to track traversal in graph a
+    @param visited_b: helper to track traversal in graph b
+    @return: Dict with comparison metrics in the format diff_type_name: [(node_a, node_b)...]
+    """
     diff_result: dict[str, Any] = {
         "node_type_diff_result": [],
         "node_data_diff_result": [],

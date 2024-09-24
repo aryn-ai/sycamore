@@ -77,7 +77,7 @@ PLANNER_NATURAL_LANGUAGE_PROMPT = (
 
 
 def process_json_plan(
-    plan: typing.Union[str | Any], operators: Optional[List[Type[LogicalOperator]]] = None
+    plan: typing.Union[str, Any], operators: Optional[List[Type[LogicalOperator]]] = None
 ) -> (Tuple)[LogicalOperator, Mapping[int, LogicalOperator]]:
     """Given the query plan provided by the LLM, return a tuple of (result_node, list of nodes)."""
     operators = operators or OPERATORS

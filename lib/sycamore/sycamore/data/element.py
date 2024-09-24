@@ -159,8 +159,7 @@ class TableElement(Element):
         self.data["properties"]["rows"] = rows
         self.data["table"] = table
         self.data["tokens"] = tokens
-        if self.data["table"]:
-            self.data["text_representation"] = self.data["table"].to_csv()
+        self.data["text_representation"] = None
 
     @property
     def rows(self) -> Optional[list[Any]]:
@@ -191,10 +190,7 @@ class TableElement(Element):
     @table.setter
     def table(self, value: Optional[Table]) -> None:
         self.data["table"] = value
-        if value is not None:
-            self.data["text_representation"] = self.data["table"].to_csv()
-        else:
-            self.data["text_representation"] = None
+        self.data["text_representation"] = None
 
     @property
     def tokens(self) -> Optional[list[dict[str, Any]]]:
@@ -203,6 +199,16 @@ class TableElement(Element):
     @tokens.setter
     def tokens(self, tokens: list[dict[str, Any]]) -> None:
         self.data["tokens"] = tokens
+
+    @property
+    def text_representation(self) -> Optional[str]:
+        if not self.data["text_representation"] and self.data["table"]:
+            self.data["text_representation"] = self.data["table"].to_csv()
+        return self.data["text_representation"]
+
+    @text_representation.setter
+    def text_representation(self, text_representation: str) -> None:
+        self.data["text_representation"] = text_representation
 
 
 def create_element(**kwargs) -> Element:

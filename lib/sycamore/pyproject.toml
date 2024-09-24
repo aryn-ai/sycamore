@@ -45,6 +45,8 @@ aiohttp = "^3.9.2"
 fasteners = "^0.19"
 pydantic = "^2.8.2"
 
+typing-extensions = "^4.12.2"
+
 #Evaluation dependencies
 apted = { version = "^1.0.3", optional = true }
 datasets = { version = "^2.16.1", optional = true }

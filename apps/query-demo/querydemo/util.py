@@ -3,7 +3,7 @@ import logging
 import os
 import pickle
 import pandas as pd
-from typing import Any, Dict, Set, Tuple
+from typing import Any, Dict, Optional, Set, Tuple
 
 import boto3
 import ray
@@ -34,8 +34,8 @@ def get_schema(_client: SycamoreQueryClient, index: str) -> Dict[str, Tuple[str,
     return _client.get_opensearch_schema(index)
 
 
-def generate_plan(_client: SycamoreQueryClient, query: str, index: str) -> LogicalPlan:
-    return _client.generate_plan(query, index, get_schema(_client, index))
+def generate_plan(_client: SycamoreQueryClient, query: str, index: str, examples: Optional[Any] = None) -> LogicalPlan:
+    return _client.generate_plan(query, index, get_schema(_client, index), examples=examples)
 
 
 def run_plan(_client: SycamoreQueryClient, plan: LogicalPlan) -> Tuple[str, Any]:
@@ -133,6 +133,10 @@ class QueryNodeTrace:
         "properties.entity.dateAndTime",
         "properties.entity.aircraft",
         "properties.entity.registration",
+        "properties.entity.conditions",
+        "properties.entity.windSpeed",
+        "properties.entity.visibility",
+        "properties.entity.lowestCeiling",
         "properties.entity.injuries",
         "properties.entity.aircraftDamage",
         "text_representation",

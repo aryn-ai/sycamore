@@ -1,3 +1,5 @@
+from pydantic import Field
+
 from sycamore.query.operators.logical_operator import LogicalOperator
 
 
@@ -24,10 +26,8 @@ class LlmFilter(LogicalOperator):
     field: str
     """The name of the field to filter based on."""
 
-    question: str
+    question: str = Field(..., json_schema_extra={"exclude_from_comparison": True})
     """The predicate to filter on. This is a yes/no question in natural language that the LLM will
     use to filter the data. The question should be phrased in a way that the LLM can understand
     and answer. For example, "Is this event a natural disaster?" or "Did this event occur
     outside the United States?"."""
-
-    _keys_to_exclude_for_comparison = {"question"}

@@ -1,3 +1,5 @@
+from pydantic import Field
+
 from sycamore.query.operators.logical_operator import LogicalOperator
 
 
@@ -11,7 +13,5 @@ class SummarizeData(LogicalOperator):
     Whenever possible, provide links to relevant data sources and documents.
     """
 
-    question: str
+    question: str = Field(..., json_schema_extra={"exclude_from_comparison": True})
     """The question to ask the LLM."""
-
-    _keys_to_exclude_for_comparison = {"question"}

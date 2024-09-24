@@ -34,3 +34,5 @@ class TopK(LogicalOperator):
     """An instruction of what the groups should be about if llm_cluster is True. E.g. if the
     purpose of this operation is to find the top 2 most frequent cities, llm_cluster_instruction
     could be 'Form groups of different food'"""
+
+    _keys_to_exclude_for_comparison = {"llm_cluster_instruction"}

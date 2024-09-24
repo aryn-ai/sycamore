@@ -76,6 +76,59 @@ PLANNER_NATURAL_LANGUAGE_PROMPT = (
 )
 
 
+def process_json_plan(
+    plan: typing.Union[str | Any], operators: Optional[List[Type[LogicalOperator]]] = None
+) -> (Tuple)[LogicalOperator, Mapping[int, LogicalOperator]]:
+    """Given the query plan provided by the LLM, return a tuple of (result_node, list of nodes)."""
+    operators = operators or OPERATORS
+    classes = globals()
+    parsed_plan = plan
+    if isinstance(plan, str):
+        parsed_plan = extract_json(plan)
+    assert isinstance(parsed_plan, list), f"Expected LLM query plan to contain a list, got f{type(parsed_plan)}"
+
+    nodes: MutableMapping[int, LogicalOperator] = {}
+    downstream_dependencies: Dict[int, List[int]] = {}
+
+    # 1. Build nodes
+    for step in parsed_plan:
+        node_id = step["node_id"]
+        cls = classes.get(step["operatorName"])
+        if cls is None:
+            raise ValueError(f"Operator {step['operatorName']} not found")
+        if cls not in operators:
+            raise ValueError(f"Operator {step['operatorName']} is not a valid operator")
+        try:
+            node = cls(**step)
+            nodes[node_id] = node
+        except Exception as e:
+            logging.error(f"Error creating node {node_id} of type {step['operatorName']}: {e}\nPlan is:\n{plan}")
+            raise ValueError(f"Error creating node {node_id} of type {step['operatorName']}: {e}") from e
+
+    # 2. Set dependencies
+    for node_id, node in nodes.items():
+        if not node.input:
+            continue
+        inputs = []
+        for dependency_id in node.input:
+            downstream_dependencies[dependency_id] = downstream_dependencies.get(dependency_id, []) + [node]
+            inputs += [nodes.get(dependency_id)]
+        # pylint: disable=protected-access
+        node._dependencies = inputs
+
+    # 3. Set downstream nodes
+    for node_id, node in nodes.items():
+        if node_id in downstream_dependencies.keys():
+            # pylint: disable=protected-access
+            node._downstream_nodes = downstream_dependencies[node_id]
+
+    # pylint: disable=protected-access
+    result_nodes = list(filter(lambda n: len(n._downstream_nodes) == 0, nodes.values()))
+    if len(result_nodes) == 0:
+        raise RuntimeError("Invalid plan: Plan requires at least one terminal node")
+    return result_nodes[0], nodes
+
+
 @dataclass
 class PlannerExample:
     """Represents an example query and query plan for the planner."""
@@ -446,61 +499,11 @@ class LlmPlanner:
         )
         return prompt_kwargs, chat_completion
 
-    def process_llm_json_plan(self, llm_json_plan: str) -> Tuple[LogicalOperator, Mapping[int, LogicalOperator]]:
-        """Given the query plan provided by the LLM, return a tuple of (result_node, list of nodes)."""
-
-        classes = globals()
-        parsed_plan = extract_json(llm_json_plan)
-        assert isinstance(parsed_plan, list), f"Expected LLM query plan to contain a list, got f{type(parsed_plan)}"
-
-        nodes: MutableMapping[int, LogicalOperator] = {}
-        downstream_dependencies: Dict[int, List[int]] = {}
-
-        # 1. Build nodes
-        for step in parsed_plan:
-            node_id = step["node_id"]
-            cls = classes.get(step["operatorName"])
-            if cls is None:
-                raise ValueError(f"Operator {step['operatorName']} not found")
-            if cls not in self._operators:
-                raise ValueError(f"Operator {step['operatorName']} is not a valid operator")
-            try:
-                node = cls(**step)
-                nodes[node_id] = node
-            except Exception as e:
-                logging.error(
-                    f"Error creating node {node_id} of type {step['operatorName']}: {e}\nPlan is:\n{llm_json_plan}"
-                )
-                raise ValueError(f"Error creating node {node_id} of type {step['operatorName']}: {e}") from e
-
-        # 2. Set dependencies
-        for node_id, node in nodes.items():
-            if not node.input:
-                continue
-            inputs = []
-            for dependency_id in node.input:
-                downstream_dependencies[dependency_id] = downstream_dependencies.get(dependency_id, []) + [node]
-                inputs += [nodes.get(dependency_id)]
-            # pylint: disable=protected-access
-            node._dependencies = inputs
-
-        # 3. Set downstream nodes
-        for node_id, node in nodes.items():
-            if node_id in downstream_dependencies.keys():
-                # pylint: disable=protected-access
-                node._downstream_nodes = downstream_dependencies[node_id]
-
-        # pylint: disable=protected-access
-        result_nodes = list(filter(lambda n: n._downstream_nodes is None, nodes.values()))
-        if len(result_nodes) == 0:
-            raise RuntimeError("Invalid plan: Plan requires at least one terminal node")
-        return result_nodes[0], nodes
-
     def plan(self, question: str) -> LogicalPlan:
         """Given a question from the user, generate a logical query plan."""
         llm_prompt, llm_plan = self.generate_from_llm(question)
         try:
-            result_node, nodes = self.process_llm_json_plan(llm_plan)
+            result_node, nodes = process_json_plan(llm_plan, self._operators)
         except Exception as e:
             logging.error(f"Error processing LLM-generated query plan: {e}\nPlan is:\n{llm_plan}")
             raise

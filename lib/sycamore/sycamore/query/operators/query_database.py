@@ -93,3 +93,5 @@ class QueryVectorDatabase(LogicalOperator):
 
     The full range of OpenSearch Query DSL parameters for a filter query are supported.
     """
+
+    _keys_to_exclude_for_comparison = {"query_phrase"}

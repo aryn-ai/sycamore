@@ -22,8 +22,11 @@ class Node(BaseModel):
     # These are underscored here to prevent them from leaking out to the
     # input_schema used by the planner.
 
-    _dependencies: Optional[List["Node"]] = None
-    _downstream_nodes: Optional[List["Node"]] = None
+    _dependencies: List["Node"] = []
+    _downstream_nodes: List["Node"] = []
+
+    # Allows you to exclude certain keys when comparing nodes. This is useful for llm generated strings.
+    _keys_to_exclude_for_comparison: set[str] = set()
 
     @property
     def dependencies(self) -> Optional[List["Node"]]:
@@ -37,6 +40,16 @@ class Node(BaseModel):
 
     def __str__(self) -> str:
         return f"Id: {self.node_id} Op: {type(self).__name__}"
+
+    def logical_compare(self, other):
+        if not isinstance(other, Node):
+            return False
+
+        # explicitly use dict to compare and exclude keys if needed
+        self_dict = self.dict(exclude=self._keys_to_exclude_for_comparison)
+        other_dict = other.dict(exclude=self._keys_to_exclude_for_comparison)
+
+        return self_dict == other_dict
 
 
 class LogicalPlan(BaseModel):

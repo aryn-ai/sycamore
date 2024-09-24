@@ -24,3 +24,5 @@ class LlmExtractEntity(LogicalOperator):
     discrete: bool = False
     """True if the new field has a known finite number of possible values (e.g. number, letter,
     continent, color). False otherwise (e.g., for any free text outputs)."""
+
+    _keys_to_exclude_for_comparison = {"question", "new_field"}

@@ -13,3 +13,5 @@ class SummarizeData(LogicalOperator):
 
     question: str
     """The question to ask the LLM."""
+
+    _keys_to_exclude_for_comparison = {"question"}

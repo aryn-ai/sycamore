@@ -29,3 +29,5 @@ class LlmFilter(LogicalOperator):
     use to filter the data. The question should be phrased in a way that the LLM can understand
     and answer. For example, "Is this event a natural disaster?" or "Did this event occur
     outside the United States?"."""
+
+    _keys_to_exclude_for_comparison = {"question"}

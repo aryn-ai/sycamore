@@ -180,13 +180,13 @@ class TestPartition:
 
     def test_simple_ocr(self):
         import pdf2image
-        from sycamore.transforms.text_extraction import LegacyOCR
+        from sycamore.transforms.text_extraction import LegacyOcr
 
         path = TEST_DIR / "resources/data/ocr_pdfs/test_simple_ocr.pdf"
         images = pdf2image.convert_from_path(path, dpi=800)
         assert len(images) == 1
 
-        new_elems = [LegacyOCR().get_boxes_and_text(image=image) for image in images]
+        new_elems = [LegacyOcr().get_boxes_and_text(image=image) for image in images]
 
         assert len(new_elems) == 1
         text_list = []

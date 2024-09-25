@@ -130,12 +130,20 @@ def process_json_plan(
 
 
 @dataclass
+class PlannerExamplePlan:
+    """Represents a plan in the planner examples."""
+
+    result_node: int
+    nodes: List[Dict[str, Any]]
+
+
+@dataclass
 class PlannerExample:
-    """Represents an example query and query plan for the planner."""
+    """Represents an example query, schema, and query plan for the planner."""
 
     query: str
     schema: OpenSearchSchema
-    plan: List[Dict[str, Any]]
+    plan: PlannerExamplePlan
 
 
 # Example schema and planner examples for the NTSB and financial datasets.
@@ -165,221 +173,245 @@ PLANNER_EXAMPLES = [
     PlannerExample(
         query="Were there any incidents in Georgia?",
         schema=EXAMPLE_NTSB_SCHEMA,
-        plan=[
-            {
-                "operatorName": "QueryDatabase",
-                "description": "Get all the incident reports",
-                "index": "ntsb",
-                "node_id": 0,
-            },
-            {
-                "operatorName": "LlmFilter",
-                "description": "Filter to only include incidents in Georgia",
-                "question": "Did this incident occur in Georgia?",
-                "field": "properties.entity.location",
-                "input": [0],
-                "node_id": 1,
-            },
-        ],
+        plan=PlannerExamplePlan(
+            result_node=1,
+            nodes=[
+                {
+                    "operatorName": "QueryDatabase",
+                    "description": "Get all the incident reports",
+                    "index": "ntsb",
+                    "node_id": 0,
+                },
+                {
+                    "operatorName": "LlmFilter",
+                    "description": "Filter to only include incidents in Georgia",
+                    "question": "Did this incident occur in Georgia?",
+                    "field": "properties.entity.location",
+                    "input": [0],
+                    "node_id": 1,
+                },
+            ],
+        ),
     ),
     PlannerExample(
         query="Count the number of incidents containing 'foo' in the filename.",
         schema=EXAMPLE_NTSB_SCHEMA,
-        plan=[
-            {
-                "operatorName": "QueryDatabase",
-                "description": "Get all the incident reports matching 'foo' in the filename",
-                "index": "ntsb",
-                "node_id": 0,
-                "query": {"match": {"properties.path.keyword": "*foo*"}},
-            },
-            {
-                "operatorName": "Count",
-                "description": "Count the number of incidents",
-                "distinct_field": "properties.entity.accidentNumber",
-                "input": [0],
-                "node_id": 1,
-            },
-        ],
+        plan=PlannerExamplePlan(
+            result_node=1,
+            nodes=[
+                {
+                    "operatorName": "QueryDatabase",
+                    "description": "Get all the incident reports matching 'foo' in the filename",
+                    "index": "ntsb",
+                    "node_id": 0,
+                    "query": {"match": {"properties.path.keyword": "*foo*"}},
+                },
+                {
+                    "operatorName": "Count",
+                    "description": "Count the number of incidents",
+                    "distinct_field": "properties.entity.accidentNumber",
+                    "input": [0],
+                    "node_id": 1,
+                },
+            ],
+        ),
     ),
     PlannerExample(
         query="""Show incidents between July 1, 2023 and September 1, 2024 with an accident
  .         number containing 'K1234N' that occurred in Georgia.""",
         schema=EXAMPLE_NTSB_SCHEMA,
-        plan=[
-            {
-                "operatorName": "QueryDatabase",
-                "description": "Get all the incident reports in the specified date range matching the accident number",
-                "index": "ntsb",
-                "query": {
-                    "bool": {
-                        "must": [
-                            {
-                                "range": {
-                                    "properties.entity.isoDateTime": {
-                                        "gte": "2023-07-01T00:00:00",
-                                        "lte": "2024-09-30T23:59:59",
-                                        "format": "strict_date_optional_time",
+        plan=PlannerExamplePlan(
+            result_node=0,
+            nodes=[
+                {
+                    "operatorName": "QueryDatabase",
+                    "description": "Get all the incident reports in the specified date range matching the accident number",
+                    "index": "ntsb",
+                    "query": {
+                        "bool": {
+                            "must": [
+                                {
+                                    "range": {
+                                        "properties.entity.isoDateTime": {
+                                            "gte": "2023-07-01T00:00:00",
+                                            "lte": "2024-09-30T23:59:59",
+                                            "format": "strict_date_optional_time",
+                                        }
                                     }
-                                }
-                            },
-                            {"match": {"properties.entity.accidentNumber.keyword": "*K1234N*"}},
-                            {"match": {"properties.entity.location": "Georgia"}},
-                        ]
-                    }
-                },
-                "node_id": 0,
-            }
-        ],
+                                },
+                                {"match": {"properties.entity.accidentNumber.keyword": "*K1234N*"}},
+                                {"match": {"properties.entity.location": "Georgia"}},
+                            ]
+                        }
+                    },
+                    "node_id": 0,
+                }
+            ],
+        ),
     ),
     PlannerExample(
         query="How many cities did Cessna aircrafts have incidents in?",
         schema=EXAMPLE_NTSB_SCHEMA,
-        plan=[
-            {
-                "operatorName": "QueryDatabase",
-                "description": "Get all the incident reports involving Cessna aircrafts",
-                "index": "ntsb",
-                "query": {"match": {"properties.entity.aircraft": "Cessna"}},
-                "node_id": 0,
-            },
-            {
-                "operatorName": "Count",
-                "description": "Count the number of cities that accidents occured in",
-                "distinct_field": "properties.entity.city",
-                "input": [0],
-                "node_id": 1,
-            },
-        ],
+        plan=PlannerExamplePlan(
+            result_node=1,
+            nodes=[
+                {
+                    "operatorName": "QueryDatabase",
+                    "description": "Get all the incident reports involving Cessna aircrafts",
+                    "index": "ntsb",
+                    "query": {"match": {"properties.entity.aircraft": "Cessna"}},
+                    "node_id": 0,
+                },
+                {
+                    "operatorName": "Count",
+                    "description": "Count the number of cities that accidents occured in",
+                    "distinct_field": "properties.entity.city",
+                    "input": [0],
+                    "node_id": 1,
+                },
+            ],
+        ),
     ),
     PlannerExample(
         query="Which 5 pilots were responsible for the most incidents?",
         schema=EXAMPLE_NTSB_SCHEMA,
-        plan=[
-            {
-                "operatorName": "QueryDatabase",
-                "description": "Get all the NTSB incident reports",
-                "index": "ntsb",
-                "node_id": 0,
-            },
-            {
-                "operatorName": "LlmExtractEntity",
-                "description": "Extract the pilot",
-                "question": "Who was the pilot of this aircraft?",
-                "field": "text_representation",
-                "new_field": "pilot",
-                "format": "string",
-                "discrete": True,
-                "input": [0],
-                "node_id": 1,
-            },
-            {
-                "operatorName": "TopK",
-                "description": "Return top 5 pilot names",
-                "field": "properties.pilot",
-                "primary_field": "properties.entity.accidentNumber",
-                "K": 5,
-                "descending": True,
-                "llm_cluster": False,
-                "input": [1],
-                "node_id": 2,
-            },
-        ],
+        plan=PlannerExamplePlan(
+            result_node=2,
+            nodes=[
+                {
+                    "operatorName": "QueryDatabase",
+                    "description": "Get all the NTSB incident reports",
+                    "index": "ntsb",
+                    "node_id": 0,
+                },
+                {
+                    "operatorName": "LlmExtractEntity",
+                    "description": "Extract the pilot",
+                    "question": "Who was the pilot of this aircraft?",
+                    "field": "text_representation",
+                    "new_field": "pilot",
+                    "format": "string",
+                    "discrete": True,
+                    "input": [0],
+                    "node_id": 1,
+                },
+                {
+                    "operatorName": "TopK",
+                    "description": "Return top 5 pilot names",
+                    "field": "properties.pilot",
+                    "primary_field": "properties.entity.accidentNumber",
+                    "K": 5,
+                    "descending": True,
+                    "llm_cluster": False,
+                    "input": [1],
+                    "node_id": 2,
+                },
+            ],
+        ),
     ),
     PlannerExample(
         query="What percent of incidents occurred in 2023?",
         schema=EXAMPLE_NTSB_SCHEMA,
-        plan=[
-            {
-                "operatorName": "QueryDatabase",
-                "description": "Get all the incident reports",
-                "index": "ntsb",
-                "node_id": 0,
-            },
-            {
-                "operatorName": "Count",
-                "description": "Count the number of total incidents",
-                "distinct_field": "properties.entity.accidentNumber",
-                "input": [0],
-                "node_id": 1,
-            },
-            {
-                "operatorName": "BasicFilter",
-                "description": "Filter to only include incidents in 2023",
-                "range_filter": True,
-                "query": None,
-                "start": "01-01-2023",
-                "end": "12-31-2023",
-                "field": "properties.entity.date",
-                "is_date": True,
-                "input": [0],
-                "node_id": 2,
-            },
-            {
-                "operatorName": "Count",
-                "description": "Count the number of incidents in 2023",
-                "distinct_field": "properties.entity.accidentNumber",
-                "input": [2],
-                "node_id": 3,
-            },
-            {
-                "operatorName": "Math",
-                "description": "Divide the number of incidents in 2023 by the total number",
-                "type": "divide",
-                "input": [3, 1],
-                "node_id": 4,
-            },
-        ],
+        plan=PlannerExamplePlan(
+            result_node=4,
+            nodes=[
+                {
+                    "operatorName": "QueryDatabase",
+                    "description": "Get all the incident reports",
+                    "index": "ntsb",
+                    "node_id": 0,
+                },
+                {
+                    "operatorName": "Count",
+                    "description": "Count the number of total incidents",
+                    "distinct_field": "properties.entity.accidentNumber",
+                    "input": [0],
+                    "node_id": 1,
+                },
+                {
+                    "operatorName": "BasicFilter",
+                    "description": "Filter to only include incidents in 2023",
+                    "range_filter": True,
+                    "query": None,
+                    "start": "01-01-2023",
+                    "end": "12-31-2023",
+                    "field": "properties.entity.date",
+                    "is_date": True,
+                    "input": [0],
+                    "node_id": 2,
+                },
+                {
+                    "operatorName": "Count",
+                    "description": "Count the number of incidents in 2023",
+                    "distinct_field": "properties.entity.accidentNumber",
+                    "input": [2],
+                    "node_id": 3,
+                },
+                {
+                    "operatorName": "Math",
+                    "description": "Divide the number of incidents in 2023 by the total number",
+                    "type": "divide",
+                    "input": [3, 1],
+                    "node_id": 4,
+                },
+            ],
+        ),
     ),
     PlannerExample(
         query="Were there any incidents because of sudden weather changes?",
         schema=EXAMPLE_NTSB_SCHEMA,
-        plan=[
-            {
-                "operatorName": "QueryVectorDatabase",
-                "description": "Get all the incidents relating to sudden weather changes",
-                "index": "ntsb",
-                "query_phrase": "sudden weather changes",
-                "node_id": 0,
-            }
-        ],
+        plan=PlannerExamplePlan(
+            result_node=0,
+            nodes=[
+                {
+                    "operatorName": "QueryVectorDatabase",
+                    "description": "Get all the incidents relating to sudden weather changes",
+                    "index": "ntsb",
+                    "query_phrase": "sudden weather changes",
+                    "node_id": 0,
+                }
+            ],
+        ),
     ),
     PlannerExample(
         query="Which 2 law firms had the highest revenue in 2022?",
         schema=EXAMPLE_FINANCIAL_SCHEMA,
-        plan=[
-            {
-                "operatorName": "QueryDatabase",
-                "description": "Get all the financial documents from 2022",
-                "index": "finance",
-                "query": {
-                    "range": {
-                        "properties.entity.isoDateTime": {
-                            "gte": "2022-01-01T00:00:00",
-                            "lte": "2022-12-31T23:59:59",
-                            "format": "strict_date_optional_time",
+        plan=PlannerExamplePlan(
+            result_node=2,
+            nodes=[
+                {
+                    "operatorName": "QueryDatabase",
+                    "description": "Get all the financial documents from 2022",
+                    "index": "finance",
+                    "query": {
+                        "range": {
+                            "properties.entity.isoDateTime": {
+                                "gte": "2022-01-01T00:00:00",
+                                "lte": "2022-12-31T23:59:59",
+                                "format": "strict_date_optional_time",
+                            }
                         }
-                    }
+                    },
+                    "node_id": 0,
                 },
-                "node_id": 0,
-            },
-            {
-                "operatorName": "Sort",
-                "description": "Sort in descending order by revenue",
-                "descending": True,
-                "field": "properties.entity.revenue",
-                "default_value": 0,
-                "input": [0],
-                "node_id": 1,
-            },
-            {
-                "operatorName": "Limit",
-                "description": "Get the 2 law firms with highest revenue",
-                "K": 2,
-                "input": [1],
-                "node_id": 2,
-            },
-        ],
+                {
+                    "operatorName": "Sort",
+                    "description": "Sort in descending order by revenue",
+                    "descending": True,
+                    "field": "properties.entity.revenue",
+                    "default_value": 0,
+                    "input": [0],
+                    "node_id": 1,
+                },
+                {
+                    "operatorName": "Limit",
+                    "description": "Get the 2 law firms with highest revenue",
+                    "K": 2,
+                    "input": [1],
+                    "node_id": 2,
+                },
+            ],
+        ),
     ),
 ]
 

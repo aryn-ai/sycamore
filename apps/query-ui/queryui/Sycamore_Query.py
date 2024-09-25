@@ -97,6 +97,9 @@ def run_query():
 
 st.title("Sycamore Query")
 
+config = util.read_config_file(os.environ.get("LUNA_CONFIG", "lunaconfig.yaml"))
+print(config.model_dump())
+
 
 if "trace_dir" not in st.session_state:
     st.session_state.trace_dir = os.path.join(os.getcwd(), "traces")

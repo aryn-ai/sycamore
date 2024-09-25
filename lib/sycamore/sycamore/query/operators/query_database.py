@@ -1,5 +1,7 @@
 from typing import Dict, Optional
 
+from pydantic import Field
+
 from sycamore.query.operators.logical_operator import LogicalOperator
 
 
@@ -70,7 +72,7 @@ class QueryVectorDatabase(LogicalOperator):
     index: str
     """The index to load data from."""
 
-    query_phrase: str
+    query_phrase: str = Field(..., json_schema_extra={"exclude_from_comparison": True})
     """The string to convert to a vector and perform vector search"""
 
     opensearch_filter: Optional[Dict] = None

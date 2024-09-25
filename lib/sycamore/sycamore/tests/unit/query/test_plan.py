@@ -1,8 +1,14 @@
 from typing import Optional
 
-from sycamore.query.logical_plan import LogicalPlan
+import pytest
+
+from sycamore.query.logical_plan import LogicalPlan, LogicalNodeDiffType
 from sycamore.query.operators.count import Count
+from sycamore.query.operators.llm_filter import LlmFilter
 from sycamore.query.operators.logical_operator import LogicalOperator
+from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDatabase
+from sycamore.query.operators.summarize_data import SummarizeData
+from sycamore.query.planner import process_json_plan
 
 
 class DummyOperator(LogicalOperator):
@@ -85,3 +91,126 @@ def test_count_operator():
     assert "_downstream_nodes" not in schema
     assert "dependencies" not in schema
     assert "downstream_nodes" not in schema
+
+
+@pytest.fixture
+def llm_filter_plan():
+    return [
+        {
+            "operatorName": "QueryDatabase",
+            "description": "Get all the airplane incidents",
+            "index": "ntsb",
+            "query": {"match_all": {}},
+            "node_id": 0,
+        },
+        {
+            "operatorName": "LlmFilter",
+            "description": "Filter to only include Piper aircraft incidents",
+            "question": "Did this incident occur in a Piper aircraft?",
+            "field": "properties.entity.aircraft",
+            "input": [0],
+            "node_id": 1,
+        },
+        {
+            "operatorName": "Count",
+            "description": "Determine how many incidents occurred in Piper aircrafts",
+            "countUnique": False,
+            "field": None,
+            "input": [1],
+            "node_id": 2,
+        },
+        {
+            "operatorName": "SummarizeData",
+            "description": "Generate an English response to the question",
+            "question": "How many Piper aircrafts were involved in accidents?",
+            "input": [2],
+            "node_id": 3,
+        },
+    ]
+
+
+@pytest.fixture
+def vector_search_filter_plan():
+    return [
+        {
+            "operatorName": "QueryVectorDatabase",
+            "description": "Get all the airplane incidents",
+            "index": "ntsb",
+            "query_phrase": "Get all the airplane incidents",
+            "filter": {"properties.entity.aircraft": "Piper"},
+            "node_id": 0,
+        },
+        {
+            "operatorName": "Count",
+            "description": "Determine how many incidents occurred in Piper aircrafts",
+            "countUnique": False,
+            "field": None,
+            "input": [0],
+            "node_id": 1,
+        },
+        {
+            "operatorName": "SummarizeData",
+            "description": "Generate an English response to the question",
+            "question": "How many Piper aircrafts were involved in accidents?",
+            "input": [1],
+            "node_id": 2,
+        },
+    ]
+
+
+def get_logical_plan(plan):
+    result_node, nodes = process_json_plan(plan)
+    plan = LogicalPlan(result_node=result_node, nodes=nodes, query="", llm_prompt="", llm_plan="")
+    return plan
+
+
+def test_compare_plans(llm_filter_plan, vector_search_filter_plan):
+    diff = get_logical_plan(llm_filter_plan).compare(get_logical_plan(vector_search_filter_plan))
+    assert len(diff) == 7
+    assert diff[0].diff_type == LogicalNodeDiffType.OPERATOR_TYPE
+    assert isinstance(diff[0].node_a, QueryDatabase)
+    assert isinstance(diff[0].node_b, QueryVectorDatabase)
+    assert diff[1].diff_type == LogicalNodeDiffType.OPERATOR_DATA
+
+    assert diff[2].diff_type == LogicalNodeDiffType.OPERATOR_TYPE
+    assert isinstance(diff[2].node_a, LlmFilter)
+    assert isinstance(diff[2].node_b, Count)
+    assert diff[3].diff_type == LogicalNodeDiffType.OPERATOR_DATA
+
+    assert diff[4].diff_type == LogicalNodeDiffType.OPERATOR_TYPE
+    assert isinstance(diff[4].node_a, Count)
+    assert isinstance(diff[4].node_b, SummarizeData)
+    assert diff[5].diff_type == LogicalNodeDiffType.OPERATOR_DATA
+
+    assert diff[6].diff_type == LogicalNodeDiffType.PLAN_STRUCTURE
+
+
+def test_compare_plans_diff_llm_filter_string(llm_filter_plan):
+    llm_filter_plan_modified = get_logical_plan(llm_filter_plan)
+    llm_filter_plan_modified.nodes[1].question = "this is another question"
+    diff = get_logical_plan(llm_filter_plan).compare(llm_filter_plan_modified)
+    assert len(diff) == 0
+
+
+def test_compare_plans_data_changed(llm_filter_plan):
+    llm_filter_plan_modified = get_logical_plan(llm_filter_plan)
+    llm_filter_plan_modified.nodes[1].field = "different_field"
+    diff = get_logical_plan(llm_filter_plan).compare(llm_filter_plan_modified)
+    assert len(diff) == 1
+    assert diff[0].diff_type == LogicalNodeDiffType.OPERATOR_DATA
+    assert isinstance(diff[0].node_a, LlmFilter)
+    assert isinstance(diff[0].node_b, LlmFilter)
+    assert diff[0].node_a.field == "properties.entity.aircraft"
+    assert diff[0].node_b.field == "different_field"
+
+
+def test_compare_plans_structure_changed(llm_filter_plan):
+    llm_filter_plan_modified = get_logical_plan(llm_filter_plan)
+    llm_filter_plan_modified.nodes[1]._downstream_nodes = []
+    diff = get_logical_plan(llm_filter_plan).compare(llm_filter_plan_modified)
+    assert len(diff) == 1
+    assert diff[0].diff_type == LogicalNodeDiffType.PLAN_STRUCTURE
+    assert isinstance(diff[0].node_a, LlmFilter)
+    assert isinstance(diff[0].node_b, LlmFilter)
+    assert len(diff[0].node_a.downstream_nodes) == 1
+    assert len(diff[0].node_b.downstream_nodes) == 0

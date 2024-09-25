@@ -4,11 +4,13 @@ from typing import Any
 def nested_lookup(d: Any, keys: list[str]) -> Any:
     # Eventually we can support integer indexes into tuples and lists also
     while len(keys) > 0:
-        if not isinstance(d, dict):
+        if d is None:
             return None
-        if keys[0] not in d:
+        try:
+            d = d.get(keys[0])
+        except AttributeError:
             return None
-        d = d[keys[0]]
+
         keys = keys[1:]
 
     return d

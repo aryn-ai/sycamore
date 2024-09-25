@@ -40,7 +40,6 @@ class OpenSearchSchemaFetcher:
         query["index"] = self._index
         query["query"] = {"query": {"match_all": {}}, "size": self.NUM_EXAMPLES}
         random_sample = self._query_executor.query(query)["result"]["hits"]["hits"]
-        # logger.debug(f"Random sample came back with {random_sample}")
         result: OpenSearchSchema = {}
         result["text_representation"] = ("<class 'str'>", {"Can be assumed to have all other details"})
 

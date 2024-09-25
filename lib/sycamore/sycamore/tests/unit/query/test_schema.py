@@ -96,7 +96,7 @@ def test_opensearch_schema():
         }
     }
 
-    # Verify we can handle schems where int and float are both used
+    # Verify we can handle schemas where int and float are both used
     airspeeds = [500, 37.5, 300, 217.11]
     for i in airspeeds:
         mock_random_sample["result"]["hits"]["hits"].append({"_source": {"properties": {"entity": {"airspeed": i}}}})

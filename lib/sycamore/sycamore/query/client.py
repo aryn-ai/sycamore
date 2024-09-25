@@ -152,7 +152,11 @@ class SycamoreQueryClient:
 
     @requires_modules("opensearchpy.client.indices", extra="opensearch")
     def get_opensearch_schema(self, index: str) -> OpenSearchSchema:
-        """Get the schema for the provided OpenSearch index."""
+        """Get the schema for the provided OpenSearch index.
+
+        To debug:
+        logging.getLogger("sycamore.query.schema").setLevel(logging.DEBUG)
+        """
         from opensearchpy.client.indices import IndicesClient
 
         schema_provider = OpenSearchSchemaFetcher(IndicesClient(self._os_client), index, self._os_query_executor)

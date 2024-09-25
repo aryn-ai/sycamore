@@ -92,7 +92,7 @@ class OpenSearchSchemaFetcher:
                                     )
 
                         samples.add(str(sample_value))
-                if len(samples) > 0:
+                if len(samples) > 0 and sample_type is not None:
                     logger.debug(f"  Got samples for {key} of type {sample_type}")
                     result[key] = OpenSearchSchemaField(
                         type=sample_type.__name__, samples={str(example) for example in samples}

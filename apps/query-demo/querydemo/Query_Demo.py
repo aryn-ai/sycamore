@@ -17,7 +17,7 @@ import sycamore
 from sycamore.data import OpenSearchQuery
 from sycamore.transforms.query import OpenSearchQueryExecutor
 from sycamore.query.client import SycamoreQueryClient
-from sycamore.query.planner import PlannerExample
+from sycamore.query.planner import PlannerExample, QueryPlan
 from util import generate_plan, run_plan, show_query_traces, show_pdf_preview, ray_init
 
 NUM_DOCS_GENERATE = 60
@@ -238,177 +238,193 @@ PLANNER_EXAMPLE_SCHEMA = {
 PLANNER_EXAMPLES: List[PlannerExample] = [
     PlannerExample(
         query="List the incidents in Georgia in 2023.",
-        schema=PLANNER_EXAMPLE_SCHEMA,
-        plan=[
-            {
-                "operatorName": "QueryDatabase",
-                "description": "Get all the incident reports",
-                "index": OPENSEARCH_INDEX,
-                "node_id": 0,
-                "query": {
-                    "bool": {
-                        "must": [
-                            {
-                                "range": {
-                                    "properties.entity.dateTime": {
-                                        "gte": "2023-01-01T00:00:00",
-                                        "lte": "2023-12-31T23:59:59",
-                                        "format": "strict_date_optional_time",
+        data_schema=PLANNER_EXAMPLE_SCHEMA,
+        plan=QueryPlan(
+            nodes=[
+                {
+                    "operatorName": "QueryDatabase",
+                    "description": "Get all the incident reports",
+                    "index": OPENSEARCH_INDEX,
+                    "node_id": 0,
+                    "query": {
+                        "bool": {
+                            "must": [
+                                {
+                                    "range": {
+                                        "properties.entity.dateTime": {
+                                            "gte": "2023-01-01T00:00:00",
+                                            "lte": "2023-12-31T23:59:59",
+                                            "format": "strict_date_optional_time",
+                                        }
                                     }
-                                }
-                            },
-                            {"match": {"properties.entity.location": "Georgia"}},
-                        ]
-                    }
+                                },
+                                {"match": {"properties.entity.location": "Georgia"}},
+                            ]
+                        }
+                    },
                 },
-            },
-        ],
+            ]
+        ),
     ),
     PlannerExample(
         query="Show the incidents involving Piper aircraft.",
-        schema=PLANNER_EXAMPLE_SCHEMA,
-        plan=[
-            {
-                "operatorName": "QueryDatabase",
-                "description": "Get all the incident reports",
-                "index": OPENSEARCH_INDEX,
-                "node_id": 0,
-                "query": {"match": {"properties.entity.aircraft": "Piper"}},
-            },
-        ],
+        data_schema=PLANNER_EXAMPLE_SCHEMA,
+        plan=QueryPlan(
+            nodes=[
+                {
+                    "operatorName": "QueryDatabase",
+                    "description": "Get all the incident reports",
+                    "index": OPENSEARCH_INDEX,
+                    "node_id": 0,
+                    "query": {"match": {"properties.entity.aircraft": "Piper"}},
+                },
+            ]
+        ),
     ),
     PlannerExample(
         query="How many incidents happened in clear weather?",
-        schema=PLANNER_EXAMPLE_SCHEMA,
-        plan=[
-            {
-                "operatorName": "QueryDatabase",
-                "description": "Get all the incident reports in clear weather",
-                "index": OPENSEARCH_INDEX,
-                "node_id": 0,
-                "query": {"match": {"properties.entity.conditions": "VMC"}},
-            },
-            {
-                "operatorName": "Count",
-                "description": "Count the number of incidents",
-                "distinct_field": "properties.entity.accidentNumber",
-                "input": [0],
-                "node_id": 1,
-            },
-        ],
+        data_schema=PLANNER_EXAMPLE_SCHEMA,
+        plan=QueryPlan(
+            nodes=[
+                {
+                    "operatorName": "QueryDatabase",
+                    "description": "Get all the incident reports in clear weather",
+                    "index": OPENSEARCH_INDEX,
+                    "node_id": 0,
+                    "query": {"match": {"properties.entity.conditions": "VMC"}},
+                },
+                {
+                    "operatorName": "Count",
+                    "description": "Count the number of incidents",
+                    "distinct_field": "properties.entity.accidentNumber",
+                    "input": [0],
+                    "node_id": 1,
+                },
+            ]
+        ),
     ),
     PlannerExample(
         query="What types of aircrafts were involved in accidents in California?",
-        schema=PLANNER_EXAMPLE_SCHEMA,
-        plan=[
-            {
-                "operatorName": "QueryDatabase",
-                "description": "Get all the incident reports in California",
-                "index": OPENSEARCH_INDEX,
-                "query": {"match": {"properties.entity.location": "California"}},
-                "node_id": 0,
-            },
-            {
-                "operatorName": "TopK",
-                "description": "Get the types of aircraft involved in incidents in California",
-                "field": "properties.entity.aircraft",
-                "primary_field": "properties.entity.accidentNumber",
-                "K": 100,
-                "descending": False,
-                "llm_cluster": False,
-                "llm_cluster_instruction": None,
-                "input": [0],
-                "node_id": 1,
-            },
-        ],
+        data_schema=PLANNER_EXAMPLE_SCHEMA,
+        plan=QueryPlan(
+            nodes=[
+                {
+                    "operatorName": "QueryDatabase",
+                    "description": "Get all the incident reports in California",
+                    "index": OPENSEARCH_INDEX,
+                    "query": {"match": {"properties.entity.location": "California"}},
+                    "node_id": 0,
+                },
+                {
+                    "operatorName": "TopK",
+                    "description": "Get the types of aircraft involved in incidents in California",
+                    "field": "properties.entity.aircraft",
+                    "primary_field": "properties.entity.accidentNumber",
+                    "K": 100,
+                    "descending": False,
+                    "llm_cluster": False,
+                    "llm_cluster_instruction": None,
+                    "input": [0],
+                    "node_id": 1,
+                },
+            ]
+        ),
     ),
     PlannerExample(
         query="Which aircraft accidents in California in 2023 occurred when the wind was stronger than 4 knots?",
-        schema=PLANNER_EXAMPLE_SCHEMA,
-        plan=[
-            {
-                "operatorName": "QueryDatabase",
-                "description": "Get all the incident reports in California in 2023",
-                "index": OPENSEARCH_INDEX,
-                "query": {
-                    "bool": {
-                        "must": [
-                            {
-                                "range": {
-                                    "properties.entity.dateTime": {
-                                        "gte": "2023-01-01T00:00:00",
-                                        "lte": "2023-12-31T23:59:59",
-                                        "format": "strict_date_optional_time",
+        data_schema=PLANNER_EXAMPLE_SCHEMA,
+        plan=QueryPlan(
+            nodes=[
+                {
+                    "operatorName": "QueryDatabase",
+                    "description": "Get all the incident reports in California in 2023",
+                    "index": OPENSEARCH_INDEX,
+                    "query": {
+                        "bool": {
+                            "must": [
+                                {
+                                    "range": {
+                                        "properties.entity.dateTime": {
+                                            "gte": "2023-01-01T00:00:00",
+                                            "lte": "2023-12-31T23:59:59",
+                                            "format": "strict_date_optional_time",
+                                        }
                                     }
-                                }
-                            },
-                            {"match": {"properties.entity.location": "California"}},
-                        ]
-                    }
+                                },
+                                {"match": {"properties.entity.location": "California"}},
+                            ]
+                        }
+                    },
+                    "node_id": 0,
                 },
-                "node_id": 0,
-            },
-            {
-                "operatorName": "LlmFilter",
-                "description": "Filter to reports with wind speed greater than 4 knots",
-                "index": OPENSEARCH_INDEX,
-                "question": "Is the wind speed greater than 4 knots?",
-                "field": "properties.entity.windSpeed",
-                "input": [0],
-                "node_id": 1,
-            },
-        ],
+                {
+                    "operatorName": "LlmFilter",
+                    "description": "Filter to reports with wind speed greater than 4 knots",
+                    "index": OPENSEARCH_INDEX,
+                    "question": "Is the wind speed greater than 4 knots?",
+                    "field": "properties.entity.windSpeed",
+                    "input": [0],
+                    "node_id": 1,
+                },
+            ]
+        ),
     ),
     PlannerExample(
         query="Which three aircraft types were involved in the most accidents?",
-        schema=PLANNER_EXAMPLE_SCHEMA,
-        plan=[
-            {
-                "operatorName": "QueryDatabase",
-                "description": "Get all the incident reports",
-                "index": OPENSEARCH_INDEX,
-                "node_id": 0,
-                "query": {"match_all": {}},
-            },
-            {
-                "operatorName": "TopK",
-                "description": "Get the top three aircraft types involved in accidents",
-                "field": "properties.entity.aircraft",
-                "primary_field": "properties.entity.accidentNumber",
-                "K": 3,
-                "descending": True,
-                "llm_cluster": False,
-                "llm_cluster_instruction": None,
-                "input": [0],
-                "node_id": 1,
-            },
-        ],
+        data_schema=PLANNER_EXAMPLE_SCHEMA,
+        plan=QueryPlan(
+            nodes=[
+                {
+                    "operatorName": "QueryDatabase",
+                    "description": "Get all the incident reports",
+                    "index": OPENSEARCH_INDEX,
+                    "node_id": 0,
+                    "query": {"match_all": {}},
+                },
+                {
+                    "operatorName": "TopK",
+                    "description": "Get the top three aircraft types involved in accidents",
+                    "field": "properties.entity.aircraft",
+                    "primary_field": "properties.entity.accidentNumber",
+                    "K": 3,
+                    "descending": True,
+                    "llm_cluster": False,
+                    "llm_cluster_instruction": None,
+                    "input": [0],
+                    "node_id": 1,
+                },
+            ]
+        ),
     ),
     PlannerExample(
         query="Show some incidents where pilot training was mentioned as a cause",
-        schema=PLANNER_EXAMPLE_SCHEMA,
-        plan=[
-            {
-                "operatorName": "QueryVectorDatabase",
-                "description": "Get incident reports mentioning pilot training",
-                "index": OPENSEARCH_INDEX,
-                "query_phrase": "pilot training",
-                "node_id": 0,
-            },
-        ],
+        data_schema=PLANNER_EXAMPLE_SCHEMA,
+        plan=QueryPlan(
+            nodes=[
+                {
+                    "operatorName": "QueryVectorDatabase",
+                    "description": "Get incident reports mentioning pilot training",
+                    "index": OPENSEARCH_INDEX,
+                    "query_phrase": "pilot training",
+                    "node_id": 0,
+                },
+            ]
+        ),
     ),
     PlannerExample(
         query="Show all incidents involving a Cessna 172 aircraft",
-        schema=PLANNER_EXAMPLE_SCHEMA,
-        plan=[
-            {
-                "operatorName": "QueryDatabase",
-                "description": "Get all the incident reports involving a Cessna 172 aircraft",
-                "index": OPENSEARCH_INDEX,
-                "query": {"match": {"properties.entity.aircraft": "Cessna 172"}},
-                "node_id": 0,
-            },
-        ],
+        data_schema=PLANNER_EXAMPLE_SCHEMA,
+        plan=QueryPlan(
+            nodes=[
+                {
+                    "operatorName": "QueryDatabase",
+                    "description": "Get all the incident reports involving a Cessna 172 aircraft",
+                    "index": OPENSEARCH_INDEX,
+                    "query": {"match": {"properties.entity.aircraft": "Cessna 172"}},
+                    "node_id": 0,
+                },
+            ]
+        ),
     ),
 ]
 

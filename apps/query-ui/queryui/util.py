@@ -68,7 +68,7 @@ def ray_init(**ray_args):
     ray.init(**ray_args)
 
 
-def get_schema(_client: SycamoreQueryClient, index: str) -> Dict[str, Tuple[str, Set[str]]]:
+def get_schema(_client: SycamoreQueryClient, index: str) -> OpenSearchSchema:
     """Get the schema for the given index."""
     return _client.get_opensearch_schema(index)
 

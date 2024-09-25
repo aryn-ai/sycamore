@@ -2,6 +2,7 @@ from sycamore.data import Document
 
 from sycamore.connectors.common import unflatten_data
 from sycamore.connectors.base_reader import BaseDBReader
+from sycamore.data.document import DocumentPropertyTypes, DocumentSource
 from sycamore.utils.import_utils import requires_modules
 from dataclasses import dataclass
 from typing import Optional, Dict
@@ -70,6 +71,7 @@ class PineconeReaderQueryResponse(BaseDBReader.QueryResponse):
                 data.metadata["properties.term_frequency"] = term_frequency
             metadata = data.metadata if data.metadata else {}
             doc = Document({"doc_id": doc_id, "embedding": data.values} | unflatten_data(metadata))
+            doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
             result.append(doc)
         return result
 

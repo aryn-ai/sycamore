@@ -211,7 +211,9 @@ class DocSetReader:
 
     @requires_modules("opensearchpy", extra="opensearch")
     @context_params
-    def opensearch(self, os_client_args: dict, index_name: str, query: Optional[Dict] = None, **kwargs) -> DocSet:
+    def opensearch(
+        self, os_client_args: dict, index_name: str, query: Optional[Dict] = None, implode: bool = False, **kwargs
+    ) -> DocSet:
         """
         Reads the content of an OpenSearch index into a DocSet.
 
@@ -222,6 +224,10 @@ class DocSetReader:
             query: (Optional) Query to perform on the index. Note that this must be specified in the OpenSearch
                 Query DSL as a dictionary. Otherwise, it defaults to a full scan of the table. See more information at
                 https://opensearch.org/docs/latest/query-dsl/
+            implode: Used to decide whether the returned DocSet is imploded, i.e. reconstructed by collecting all
+                elements belong to a single parent document (parent_id). This requires OpenSearch to be an index of
+                docset.explode() type. Default to false.
+
         Example:
             The following shows how to write to data into a OpenSearch Index, and read it back into a DocSet.
 
@@ -268,9 +274,9 @@ class DocSetReader:
 
         client_params = OpenSearchReaderClientParams(os_client_args=os_client_args)
         query_params = (
-            OpenSearchReaderQueryParams(index_name=index_name, query=query)
+            OpenSearchReaderQueryParams(index_name=index_name, query=query, implode=implode)
             if query is not None
-            else OpenSearchReaderQueryParams(index_name=index_name)
+            else OpenSearchReaderQueryParams(index_name=index_name, implode=implode)
         )
         osr = OpenSearchReader(client_params=client_params, query_params=query_params)
         return DocSet(self._context, osr)

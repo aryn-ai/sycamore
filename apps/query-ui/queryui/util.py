@@ -12,28 +12,38 @@ from sycamore.data import MetadataDocument
 from sycamore.executor import _ray_logging_setup
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
-from sycamore.query.planner import PlannerExample
+from sycamore.query.planner import QueryPlan, PlannerExample
+from sycamore.query.schema import OpenSearchSchema
 from yaml import safe_load
 
 
 from configuration import get_sycamore_query_client
 
 
-class LunaSchemaField(BaseModel):
-    type: str
-    samples: List[Any]
+class LunaQueryExample(BaseModel):
+    """Represents a single example query in the Luna configuration file."""
+
+    query: str
+    plan: QueryPlan
+
 
 class LunaIndexConfig(BaseModel):
-    """Represents the configuration for a single index in the luna.yaml configuration file."""
+    """Represents the configuration for a single index in the Luna configuration file."""
 
-    schema: Optional[Dict[str, LunaSchemaField]]
-    examples: Optional[List[PlannerExample]]
+    data_schema: Optional[OpenSearchSchema]
+    examples: Optional[List[LunaQueryExample]]
+
+    def get_planner_examples(self):
+        """Return a list of PlannerExample objects for this index."""
+        return [
+            PlannerExample(query=example.query, data_schema=self.data_schema, plan=example.plan)
+            for example in self.examples
+        ]
 
 
 class LunaConfig(BaseModel):
-    """The format of the luna.yaml configuration file."""
+    """The format of the Luna configuration file."""
 
-    llm_cache_path: Optional[str] = None
     indices: Dict[str, LunaIndexConfig]
 
 
@@ -42,7 +52,7 @@ def read_config_file(config_file: str) -> LunaConfig:
         with open(config_file, "r", encoding="utf-8") as f:
             return LunaConfig(**safe_load(f))
     except FileNotFoundError:
-        return LunaConfig(llm_cache_path="", indices=[])
+        return LunaConfig(indices={})
 
 
 def ray_init(**ray_args):

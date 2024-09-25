@@ -21,6 +21,9 @@ if "EXTERNAL_RAY" in os.environ:
 DEFAULT_S3_CACHE_PATH = os.getenv("QUERY_CACHE", default="s3://aryn-temp/llm_cache/luna/ntsb")
 
 
+config = util.read_config_file(os.environ.get("LUNA_CONFIG", "lunaconfig.yaml"))
+
+
 def generate_code(client: SycamoreQueryClient, plan: LogicalPlan) -> str:
     _, code = client.run_plan(plan, dry_run=True)
     return code
@@ -29,13 +32,13 @@ def generate_code(client: SycamoreQueryClient, plan: LogicalPlan) -> str:
 def show_schema(_client: SycamoreQueryClient, index: str):
     schema = util.get_schema(_client, index)
     table_data = []
-    for key, values in schema.items():
-        table_data.append([key] + list(values))
+    for key, field in schema.items():
+        table_data.append([key, field.type, field.samples])
     with st.expander(f"Schema for index `[{index}]`"):
         st.dataframe(table_data)
 
 
-@st.experimental_fragment
+@st.fragment
 def show_code(code: str):
     with st.expander("View code"):
         code = st_ace(
@@ -74,7 +77,9 @@ def run_query():
         trace_dir=st.session_state.trace_dir,
     )
     with st.spinner("Generating plan..."):
-        plan = util.generate_plan(client, st.session_state.query, st.session_state.index)
+        index_config = config.indices.get(st.session_state.index)
+        examples = index_config.get_planner_examples() if index_config else None
+        plan = util.generate_plan(client, st.session_state.query, st.session_state.index, examples=examples)
     with st.expander("Query plan"):
         st.write(plan.dict())
 
@@ -96,9 +101,6 @@ def run_query():
 
 
 st.title("Sycamore Query")
-
-config = util.read_config_file(os.environ.get("LUNA_CONFIG", "lunaconfig.yaml"))
-print(config.model_dump())
 
 
 if "trace_dir" not in st.session_state:

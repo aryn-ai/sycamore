@@ -3,6 +3,7 @@ import pytest
 import json
 
 from sycamore.query.planner import LlmPlanner
+from sycamore.query.schema import OpenSearchSchema, OpenSearchSchemaField
 
 
 @pytest.fixture
@@ -21,10 +22,10 @@ def mock_llm_client():
 
 
 @pytest.fixture
-def mock_schema():
-    schema = {
-        "incidentId": ("string", {"A1234, B1234, C1234"}),
-        "date": ("string", {"2022-01-01", "2024-02-10"}),
+def mock_schema() -> OpenSearchSchema:
+    schema: OpenSearchSchema = {
+        "incidentId": OpenSearchSchemaField(type="string", samples={"A1234, B1234, C1234"}),
+        "date": OpenSearchSchemaField(type="string", samples={"2022-01-01", "2024-02-10"}),
     }
     return schema
 
@@ -60,38 +61,40 @@ def test_llm_planner(mock_os_config, mock_os_client, mock_llm_client, mock_schem
     # Mock the generate_from_llm method to return a static JSON object
     def mock_generate_from_llm(self, query):
         return "Mock LLM prompt", json.dumps(
-            [
-                {
-                    "operatorName": "QueryDatabase",
-                    "description": "Get all the airplane incidents",
-                    "index": "ntsb",
-                    "query": {"match_all": {}},
-                    "node_id": 0,
-                },
-                {
-                    "operatorName": "LlmFilter",
-                    "description": "Filter to only include Piper aircraft incidents",
-                    "question": "Did this incident occur in a Piper aircraft?",
-                    "field": "properties.entity.aircraft",
-                    "input": [0],
-                    "node_id": 1,
-                },
-                {
-                    "operatorName": "Count",
-                    "description": "Determine how many incidents occurred in Piper aircrafts",
-                    "countUnique": False,
-                    "field": None,
-                    "input": [1],
-                    "node_id": 2,
-                },
-                {
-                    "operatorName": "SummarizeData",
-                    "description": "Generate an English response to the question",
-                    "question": "How many Piper aircrafts were involved in accidents?",
-                    "input": [2],
-                    "node_id": 3,
-                },
-            ]
+            {
+                "nodes": [
+                    {
+                        "operator_name": "QueryDatabase",
+                        "description": "Get all the airplane incidents",
+                        "index": "ntsb",
+                        "query": {"match_all": {}},
+                        "node_id": 0,
+                    },
+                    {
+                        "operator_name": "LlmFilter",
+                        "description": "Filter to only include Piper aircraft incidents",
+                        "question": "Did this incident occur in a Piper aircraft?",
+                        "field": "properties.entity.aircraft",
+                        "input": [0],
+                        "node_id": 1,
+                    },
+                    {
+                        "operator_name": "Count",
+                        "description": "Determine how many incidents occurred in Piper aircrafts",
+                        "countUnique": False,
+                        "field": None,
+                        "input": [1],
+                        "node_id": 2,
+                    },
+                    {
+                        "operator_name": "SummarizeData",
+                        "description": "Generate an English response to the question",
+                        "question": "How many Piper aircrafts were involved in accidents?",
+                        "input": [2],
+                        "node_id": 3,
+                    },
+                ]
+            }
         )
 
     monkeypatch.setattr(LlmPlanner, "generate_from_llm", mock_generate_from_llm)

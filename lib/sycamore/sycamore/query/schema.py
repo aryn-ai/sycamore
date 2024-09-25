@@ -1,6 +1,8 @@
 import logging
 import typing
-from typing import Dict, Set, Tuple
+from typing import Dict, Set
+
+from pydantic import BaseModel, field_serializer
 
 from sycamore.transforms.query import OpenSearchQueryExecutor
 from sycamore.data import OpenSearchQuery
@@ -9,7 +11,19 @@ from sycamore.utils.nested import dotted_lookup
 if typing.TYPE_CHECKING:
     from opensearchpy.client.indices import IndicesClient
 
-OpenSearchSchema = Dict[str, Tuple[str, Set[str]]]
+
+class OpenSearchSchemaField(BaseModel):
+    """Represents the schema for a single field in an OpenSearch index."""
+
+    type: str
+    samples: Set[str]
+
+    @field_serializer("samples")
+    def serialize_samples(self, samples: Set[str]):
+        return list(samples)
+
+
+OpenSearchSchema = Dict[str, OpenSearchSchemaField]
 """Represents a mapping from field name to field type and a set of example values."""
 
 logger = logging.getLogger(__name__)
@@ -41,12 +55,14 @@ class OpenSearchSchemaFetcher:
         query["query"] = {"query": {"match_all": {}}, "size": self.NUM_EXAMPLES}
         random_sample = self._query_executor.query(query)["result"]["hits"]["hits"]
         result: OpenSearchSchema = {}
-        result["text_representation"] = ("<class 'str'>", {"Can be assumed to have all other details"})
+        result["text_representation"] = OpenSearchSchemaField(
+            type="str", samples={"Can be assumed to have all other details"}
+        )
 
         # Get type and example values for each field.
         for key in schema[self._index]["mappings"].keys():
-            if key.endswith(".keyword"):
-                logger.debug(f"  Ignoring redundant exact match .keyword key {key}")
+            if key.endswith(".keyword") or key.endswith(".type"):
+                logger.debug(f"  Ignoring match key {key}")
                 continue
             if not key.startswith("properties."):
                 logger.debug(f"  Ignoring non-properties key {key} as they are likely not from sycamore")
@@ -59,15 +75,15 @@ class OpenSearchSchemaFetcher:
                     if len(samples) >= self.NUM_EXAMPLE_VALUES:
                         break
                     sample_value = dotted_lookup(sample["_source"], key)
-                    if sample_value is not None:
+                    if sample_value is not None and sample_value != "":
                         if not sample_type:
                             sample_type = type(sample_value)
                         else:
                             t = type(sample_value)
                             if str(t) != str(sample_type):
-                                if str(t) == "<class 'int'>" and str(sample_type) == "<class 'float'>":
+                                if t.__name__ == "int" and sample_type.__name__ == "float":
                                     pass  # compatible
-                                elif str(sample_type) == "<class 'int'>" and str(t) == "<class 'float'>":
+                                elif sample_type.__name__ == "int" and t.__name__ == "float":
                                     sample_type = t  # upgrade
                                 else:
                                     logger.warning(
@@ -78,7 +94,9 @@ class OpenSearchSchemaFetcher:
                         samples.add(str(sample_value))
                 if len(samples) > 0:
                     logger.debug(f"  Got samples for {key} of type {sample_type}")
-                    result[key] = (str(sample_type), {str(example) for example in samples})
+                    result[key] = OpenSearchSchemaField(
+                        type=sample_type.__name__, samples={str(example) for example in samples}
+                    )
                 else:
                     logger.debug(f"  No samples for {key}; ignoring key")
             except KeyError:

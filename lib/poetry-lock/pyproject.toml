@@ -7,7 +7,7 @@ readme = "README.md"
 repository = "https://github.com/aryn-ai/sycamore.git"
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.12"
+python = ">=3.9,<3.13"
 # required older version
 protobuf = "4.25.3"   # rps
 fsspec = "2024.2.0"   # sycamore (via datasets)
@@ -17,7 +17,7 @@ pillow = "10.2.0"     # sycamore -- type hints don't work with 10.3.0
 # poetry run pytest lib/sycamore/sycamore/tests/unit/scans/test_materialized_scan.py lib/sycamore/sycamore/tests/unit/test_docset.py
 pytest = "7.4.0"
 guidance = "0.1.14" # They removed AzureOpenAIChat in https://github.com/guidance-ai/guidance/commit/a75896a851edf8b3cf15534af4fed8d15f277af1
-ray = "2.20.0" # Latest version supported on linux/aarch64 https://github.com/ray-project/ray/issues/46104
+ray = "2.36.0" # Latest version supported on linux/aarch64 https://github.com/ray-project/ray/issues/46104
 pandas = "2.1.1" # Hardcoded into sycamore pyproject.toml. Unclear why.
 weaviate-client = "4.6.4" # Failes typechecking with 4.7.0
 

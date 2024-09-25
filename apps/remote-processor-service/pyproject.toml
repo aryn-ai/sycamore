@@ -7,7 +7,7 @@ readme = "README.md"
 packages = [{include = "remote_processor_service"}]
 
 [tool.poetry.dependencies]
-python = ">=3.9.0,<3.12"
+python = ">=3.9.0,<3.13"
 click = "^8.1.7"
 
 [tool.poetry.group.dev.dependencies]

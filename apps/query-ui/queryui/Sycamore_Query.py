@@ -35,7 +35,7 @@ def show_schema(_client: SycamoreQueryClient, index: str):
         st.dataframe(table_data)
 
 
-@st.experimental_fragment
+@st.fragment
 def show_code(code: str):
     with st.expander("View code"):
         code = st_ace(
@@ -76,7 +76,7 @@ def run_query():
     with st.spinner("Generating plan..."):
         plan = util.generate_plan(client, st.session_state.query, st.session_state.index)
     with st.expander("Query plan"):
-        st.write(plan.dict())
+        st.write(plan.model_dump(serialize_as_any=True))
 
     code = generate_code(client, plan)
     show_code(code)

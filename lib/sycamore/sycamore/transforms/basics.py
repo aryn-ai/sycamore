@@ -32,6 +32,9 @@ class Limit(NonCPUUser, NonGPUUser, Transform):
         dataset = self.child().execute()
         return dataset.limit(self._limit)
 
+    def local_execute(self, all_docs: list[Document]):
+        return all_docs[0 : self._limit]
+
 
 class Filter(MapBatch):
     """

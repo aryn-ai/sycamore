@@ -267,6 +267,23 @@ class TestDocSet:
 
         return count
 
+    def _test_limit(self, exec_mode):
+        texts = [self.random_string(min_size=20, max_size=100) for _ in range(10)]
+        docs = [Document(text_representation=t, doc_id=i, properties={}) for i, t in enumerate(texts)]
+
+        context = sycamore.init(exec_mode=exec_mode)
+
+        for i in [0, 4, 10]:
+            docset = context.read.document(docs).limit(i)
+            assert docset.count() == i
+            assert len(set(d.doc_id for d in docset.take_all())) == i
+
+    def test_limit_local(self):
+        self._test_limit(sycamore.EXEC_LOCAL)
+
+    def test_limit_ray(self):
+        self._test_limit(sycamore.EXEC_RAY)
+
     def test_with_property(self):
         texts = [self.random_string(min_size=20, max_size=100) for _ in range(10)]
         docs = [Document(text_representation=t, doc_id=i, properties={}) for i, t in enumerate(texts)]

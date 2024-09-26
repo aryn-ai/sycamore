@@ -249,7 +249,7 @@ class ExtractTextSummaries(ExtractSummary):
             sec_sum = f"-----SECTION TITLE: {section.text_representation.strip()}-----\n"
             summary_list.append(sec_sum)
             for element in section.children:
-                if element.type is not None and element.text_representation is not None
+                if element.type is not None and element.text_representation is not None:
                     elem_sum = f"---Element Type: {element.type.strip()}---\n{element.text_representation.strip()}\n"
                     summary_list.append(elem_sum)
             section.data["summary"] = "".join(summary_list)

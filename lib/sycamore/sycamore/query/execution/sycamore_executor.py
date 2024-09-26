@@ -48,14 +48,20 @@ class SycamoreExecutor:
     Args:
         context (Context): The Sycamore context to use.
         trace_dir (str, optional): If set, query execution traces will be written to this directory.
+        cache_dir (str, optional): If set, intermediate query results will be cached in this
+            directory. Query plans will reuse cached results from identical subtrees previously
+            executed with the same cache_dir. This can greatly improve performance, but be aware
+            that the cache is not automatically invalidated when the source data changes.
+            Defaults to None.
         codegen_mode (bool, optional): If set, query execution traces will be done by generating python code.
-        dry_run (bool, optional): If set, query will not be executed, only generated python code will be returned
+        dry_run (bool, optional): If set, query will not be executed, only generated python code will be returned.
     """
 
     def __init__(
         self,
         context: Context,
         trace_dir: Optional[str] = None,
+        cache_dir: Optional[str] = None,
         codegen_mode: bool = False,
         dry_run: bool = False,
     ) -> None:
@@ -63,6 +69,7 @@ class SycamoreExecutor:
 
         self.context = context
         self.trace_dir = trace_dir
+        self.cache_dir = cache_dir
         self.processed: Dict[int, Any] = dict()
         self.dry_run = dry_run
         self.codegen_mode = codegen_mode

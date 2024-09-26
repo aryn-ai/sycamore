@@ -258,7 +258,6 @@ class QueryNodeTrace:
         st.write(f"Result of node {self.node_id} — **{len(self.df)}** documents")
         st.dataframe(self.df, column_order=column_order)
 
-
 class QueryTrace:
     """Display query traces from the given trace_dir."""
 

@@ -81,7 +81,7 @@ def run_query():
         examples = index_config.get_planner_examples() if index_config else None
         plan = queryui.util.generate_plan(client, st.session_state.query, st.session_state.index, examples=examples)
     with st.expander("Query plan"):
-        st.write(plan.dict())
+        st.write(plan.model_dump(serialize_as_any=True))
 
     code = generate_code(client, plan)
     show_code(code)

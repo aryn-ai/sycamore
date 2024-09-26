@@ -74,10 +74,8 @@ class Node(BaseModel):
         if self.dependencies is not None:
             for dep in self.dependencies:
                 cache_key += dep.model_dump_json()
-        hashval = hash(cache_key) & 0xffffffffffffffff
+        hashval = hash(cache_key) & 0xFFFFFFFFFFFFFFFF
         return f"{hashval:16x}"
-
-
 
 
 class LogicalNodeDiffType(Enum):

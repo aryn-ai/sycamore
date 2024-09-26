@@ -67,16 +67,6 @@ class Node(BaseModel):
 
         return self_dict == other_dict
 
-    def cache_key(self) -> str:
-        # The cache key of a node is based on the JSON representation of the node, plus
-        # the JSON representation of its dependencies.
-        cache_key = self.model_dump_json()
-        if self.dependencies is not None:
-            for dep in self.dependencies:
-                cache_key += dep.model_dump_json()
-        hashval = hash(cache_key) & 0xFFFFFFFFFFFFFFFF
-        return f"{hashval:16x}"
-
 
 class LogicalNodeDiffType(Enum):
     OPERATOR_TYPE = "operator_type"

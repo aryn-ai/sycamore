@@ -753,8 +753,8 @@ def objects_to_structures(objects, tokens, class_thresholds):
 
     tables = [obj for obj in objects if obj["label"] == "table"]
 
-    assert len(tables) <= 1
-    if len(tables) == 0:
+    # assert len(tables) <= 1
+    if len(tables) == 0 or len(tables) > 1:
         return {}
 
     table = tables[0]

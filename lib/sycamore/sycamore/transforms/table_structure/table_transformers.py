@@ -758,6 +758,7 @@ def objects_to_structures(objects, tokens, class_thresholds):
         return {}
     if len(tables) > 1:
         import logging
+
         logging.warning("Got multiple tables in document. Using only the first one")
 
     table = tables[0]

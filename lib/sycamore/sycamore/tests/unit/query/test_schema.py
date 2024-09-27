@@ -2,7 +2,7 @@ import logging
 
 from unittest.mock import MagicMock
 
-from sycamore.query.schema import OpenSearchSchemaFetcher, OpenSearchSchemaField
+from sycamore.query.schema import OpenSearchSchemaFetcher
 
 logging.getLogger("sycamore.query.schema").setLevel(logging.DEBUG)
 
@@ -115,28 +115,22 @@ def test_opensearch_schema():
     fetcher = OpenSearchSchemaFetcher(mock_client, "test_index", mock_query_executor)
     got = fetcher.get_schema()
     assert "text_representation" in got
-    assert got["text_representation"] == OpenSearchSchemaField(
-        type="str", samples={"Can be assumed to have all other details"}
-    )
+    assert got["text_representation"] == ("<class 'str'>", {"Can be assumed to have all other details"})
     assert "properties.entity.day" in got
-    assert got["properties.entity.day"] == OpenSearchSchemaField(type="str", samples={"2021-01-01", "2021-01-02"})
+    assert got["properties.entity.day"] == ("<class 'str'>", {"2021-01-01", "2021-01-02"})
     assert "properties.entity.aircraft" in got
-    assert got["properties.entity.aircraft"] == OpenSearchSchemaField(type="str", samples={"Boeing 747", "Airbus A380"})
+    assert got["properties.entity.aircraft"] == ("<class 'str'>", {"Boeing 747", "Airbus A380"})
     assert "properties.entity.weather" in got
-    assert got["properties.entity.weather"] == OpenSearchSchemaField(type="str", samples={"Sunny"})
+    assert got["properties.entity.weather"] == ("<class 'str'>", {"Sunny"})
     assert "properties.entity.colors" in got
-    assert got["properties.entity.colors"] == OpenSearchSchemaField(
-        type="list", samples={str(["red", "blue"]), str([])}
-    )
+    assert got["properties.entity.colors"] == ("<class 'list'>", {str(["red", "blue"]), str([])})
     assert "properties.entity.test_prop" in got
-    assert got["properties.entity.test_prop"] == OpenSearchSchemaField(
-        type="str",
-        samples=set([str(i) for i in range(OpenSearchSchemaFetcher.NUM_EXAMPLE_VALUES)]),
+    assert got["properties.entity.test_prop"] == (
+        "<class 'str'>",
+        set([str(i) for i in range(OpenSearchSchemaFetcher.NUM_EXAMPLE_VALUES)]),
     )
-    assert got["properties.entity.airspeed"] == OpenSearchSchemaField(
-        type="float", samples=set([str(a) for a in airspeeds])
-    )
-    assert got["properties.entity.weird"] == OpenSearchSchemaField(type="bool", samples=set([str(w) for w in weird]))
-    assert got["properties.happiness"] == OpenSearchSchemaField(type="str", samples={"yes"})
+    assert got["properties.entity.airspeed"] == ("<class 'float'>", set([str(a) for a in airspeeds]))
+    assert got["properties.entity.weird"] == ("<class 'bool'>", set([str(w) for w in weird]))
+    assert got["properties.happiness"] == ("<class 'str'>", {"yes"})
 
     assert "properties.entity.location" not in got

@@ -1,6 +1,6 @@
-# Sycamore Query Demo
+# Sycamore Query Web UI
 
-This is a simple web-based demo for Sycamore Query on NTSB data.
+This is a simple web-based UI for Sycamore Query.
 
 ## Setup
 
@@ -17,7 +17,7 @@ $ cd ../.. && docker compose up
 Run it with:
 
 ```bash
-$ poetry run python querydemo/main.py
+$ poetry run python -m streamlit run ./queryui/queryui.py
 ```
 
 You can use this to issue a query against an index in the locally-running OpenSearch cluster.

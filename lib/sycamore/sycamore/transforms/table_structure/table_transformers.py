@@ -753,9 +753,13 @@ def objects_to_structures(objects, tokens, class_thresholds):
 
     tables = [obj for obj in objects if obj["label"] == "table"]
 
-    assert len(tables) <= 1
+    # assert len(tables) <= 1
     if len(tables) == 0:
         return {}
+    if len(tables) > 1:
+        import logging
+
+        logging.warning("Got multiple tables in document. Using only the first one")
 
     table = tables[0]
     structure = {}

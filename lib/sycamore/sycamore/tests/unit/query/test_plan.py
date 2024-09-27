@@ -97,14 +97,14 @@ def test_count_operator():
 def llm_filter_plan():
     return [
         {
-            "operator_name": "QueryDatabase",
+            "operatorName": "QueryDatabase",
             "description": "Get all the airplane incidents",
             "index": "ntsb",
             "query": {"match_all": {}},
             "node_id": 0,
         },
         {
-            "operator_name": "LlmFilter",
+            "operatorName": "LlmFilter",
             "description": "Filter to only include Piper aircraft incidents",
             "question": "Did this incident occur in a Piper aircraft?",
             "field": "properties.entity.aircraft",
@@ -112,7 +112,7 @@ def llm_filter_plan():
             "node_id": 1,
         },
         {
-            "operator_name": "Count",
+            "operatorName": "Count",
             "description": "Determine how many incidents occurred in Piper aircrafts",
             "countUnique": False,
             "field": None,
@@ -120,7 +120,7 @@ def llm_filter_plan():
             "node_id": 2,
         },
         {
-            "operator_name": "SummarizeData",
+            "operatorName": "SummarizeData",
             "description": "Generate an English response to the question",
             "question": "How many Piper aircrafts were involved in accidents?",
             "input": [2],
@@ -133,7 +133,7 @@ def llm_filter_plan():
 def vector_search_filter_plan():
     return [
         {
-            "operator_name": "QueryVectorDatabase",
+            "operatorName": "QueryVectorDatabase",
             "description": "Get all the airplane incidents",
             "index": "ntsb",
             "query_phrase": "Get all the airplane incidents",
@@ -141,7 +141,7 @@ def vector_search_filter_plan():
             "node_id": 0,
         },
         {
-            "operator_name": "Count",
+            "operatorName": "Count",
             "description": "Determine how many incidents occurred in Piper aircrafts",
             "countUnique": False,
             "field": None,
@@ -149,7 +149,7 @@ def vector_search_filter_plan():
             "node_id": 1,
         },
         {
-            "operator_name": "SummarizeData",
+            "operatorName": "SummarizeData",
             "description": "Generate an English response to the question",
             "question": "How many Piper aircrafts were involved in accidents?",
             "input": [1],

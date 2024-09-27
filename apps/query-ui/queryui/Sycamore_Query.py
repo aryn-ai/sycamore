@@ -8,7 +8,7 @@ from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
 
 from configuration import get_sycamore_query_client
-import queryui.util
+import util
 
 if "EXTERNAL_RAY" in os.environ:
     # For not yet understood reasons, the ray processes will die when started under streamlit.
@@ -21,19 +21,16 @@ if "EXTERNAL_RAY" in os.environ:
 DEFAULT_S3_CACHE_PATH = os.getenv("QUERY_CACHE", default="s3://aryn-temp/llm_cache/luna/ntsb")
 
 
-config = queryui.util.read_config_file(os.environ.get("LUNA_CONFIG", "lunaconfig.yaml"))
-
-
 def generate_code(client: SycamoreQueryClient, plan: LogicalPlan) -> str:
     _, code = client.run_plan(plan, dry_run=True)
     return code
 
 
 def show_schema(_client: SycamoreQueryClient, index: str):
-    schema = queryui.util.get_schema(_client, index)
+    schema = util.get_schema(_client, index)
     table_data = []
-    for key, field in schema.items():
-        table_data.append([key, field.type, field.samples])
+    for key, values in schema.items():
+        table_data.append([key] + list(values))
     with st.expander(f"Schema for index `[{index}]`"):
         st.dataframe(table_data)
 
@@ -61,7 +58,7 @@ def show_code(code: str):
             if st.session_state.do_trace:
                 assert st.session_state.trace_dir
                 st.subheader("Traces", divider="blue")
-                queryui.util.show_query_traces(st.session_state.trace_dir, st.session_state.query_id)
+                util.show_query_traces(st.session_state.trace_dir, st.session_state.query_id)
 
 
 def run_query():
@@ -77,9 +74,7 @@ def run_query():
         trace_dir=st.session_state.trace_dir,
     )
     with st.spinner("Generating plan..."):
-        index_config = config.indices.get(st.session_state.index)
-        examples = index_config.get_planner_examples() if index_config else None
-        plan = queryui.util.generate_plan(client, st.session_state.query, st.session_state.index, examples=examples)
+        plan = util.generate_plan(client, st.session_state.query, st.session_state.index)
     with st.expander("Query plan"):
         st.write(plan.model_dump(serialize_as_any=True))
 
@@ -88,8 +83,8 @@ def run_query():
 
     if not st.session_state.plan_only:
         with st.spinner("Running query..."):
-            st.session_state.query_id, result = queryui.util.run_plan(client, plan)
-            result_str = queryui.util.result_to_string(result)
+            st.session_state.query_id, result = util.run_plan(client, plan)
+            result_str = util.result_to_string(result)
         st.write(f"Query ID `{st.session_state.query_id}`\n")
         st.subheader("Result", divider="rainbow")
         st.markdown(result_str, unsafe_allow_html=True)
@@ -97,7 +92,7 @@ def run_query():
         if st.session_state.do_trace:
             assert st.session_state.trace_dir
             st.subheader("Traces", divider="blue")
-            queryui.util.show_query_traces(st.session_state.trace_dir, st.session_state.query_id)
+            util.show_query_traces(st.session_state.trace_dir, st.session_state.query_id)
 
 
 st.title("Sycamore Query")
@@ -110,7 +105,7 @@ if "index" not in st.session_state:
     st.session_state.index = None
 
 client = get_sycamore_query_client()
-st.selectbox("Index", queryui.util.get_opensearch_indices(), key="index")
+st.selectbox("Index", util.get_opensearch_indices(), key="index")
 
 if st.session_state.index:
     show_schema(client, st.session_state.index)

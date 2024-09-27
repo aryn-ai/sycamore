@@ -17,7 +17,7 @@ $ cd ../.. && docker compose up
 Run it with:
 
 ```bash
-$ poetry run python queryui/main.py
+$ poetry run python -m streamlit run ./queryui/Sycamore_Query.py
 ```
 
 You can use this to issue a query against an index in the locally-running OpenSearch cluster.

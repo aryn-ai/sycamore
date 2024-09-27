@@ -225,15 +225,9 @@ class Document(UserDict):
             The value associated with the document field.
             Returns None if field does not exist in document.
         """
-        fields = field.split(".")
-        value = self.get(fields[0], None)
-        if len(fields) > 1:
-            for f in fields[1:]:
-                if isinstance(value, dict):
-                    value = value.get(f, None)
-                else:
-                    return None
-        return value
+        from sycamore.utils.nested import dotted_lookup
+
+        return dotted_lookup(self, field)
 
 
 class MetadataDocument(Document):

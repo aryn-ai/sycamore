@@ -13,11 +13,11 @@ packages = [{ include = "sycamore" }]
 "Documentation" = "https://sycamore.readthedocs.io"
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.12"
+python = ">=3.9,<3.13"
 
 pandas = "^2.1.1"
 pdf2image = "^1.16.3"
-ray = { extras = ["default"], version = "^2.20.0" }
+ray = { extras = ["default"], version = "^2.36.0" }
 
 pyarrow = "^14.0.2"
 numpy = "<2.0.0"
@@ -44,6 +44,8 @@ fsspec = "2024.2.0" # See poetry-lock/pyproject.toml
 aiohttp = "^3.9.2"
 fasteners = "^0.19"
 pydantic = "^2.8.2"
+
+typing-extensions = "^4.12.2"
 
 #Evaluation dependencies
 apted = { version = "^1.0.3", optional = true }

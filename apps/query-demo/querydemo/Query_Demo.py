@@ -17,13 +17,13 @@ import sycamore
 from sycamore.data import OpenSearchQuery
 from sycamore.transforms.query import OpenSearchQueryExecutor
 from sycamore.query.client import SycamoreQueryClient
+from sycamore.query.planner import PlannerExample
 from util import generate_plan, run_plan, show_query_traces, show_pdf_preview, ray_init
 
 NUM_DOCS_GENERATE = 60
 NUM_DOCS_PREVIEW = 10
 NUM_TEXT_CHARS_GENERATE = 2500
 
-# Set OpenAI API key from Streamlit secrets
 openai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
 OPENSEARCH_INDEX = "const_ntsb"
@@ -38,6 +38,7 @@ OS_CLIENT_ARGS = {
     "ssl_show_warn": False,
     "timeout": 120,
 }
+S3_CACHE_PATH = "s3://aryn-temp/llm_cache/luna/query-demo"
 
 EXAMPLE_QUERIES = [
     "How many incidents were there in Washington in 2023?",
@@ -46,9 +47,9 @@ EXAMPLE_QUERIES = [
     "Show the details on accident ERA23LA153",
 ]
 
-WELCOME_MESSAGE = f"""Welcome to the NTSB incident query demo! You can ask me questions about NTSB
-incident reports, and I'll do my best to answer them. Feel free to ask about specific incidents,o
-aggregate statistics, or anything else you're curious about.
+WELCOME_MESSAGE = f"""Welcome to the NTSB incident query demo! You can ask me questions about
+[NTSB incident reports](https://carol.ntsb.gov/), and I'll do my best to answer them. Feel free
+to ask about specific incidents,o aggregate statistics, or anything else you're curious about.
 If you're not sure what to ask, you can try one of the following example queries:
 
 {"".join([f"<SuggestedQuery query='{query}' />" for query in EXAMPLE_QUERIES])}
@@ -136,6 +137,280 @@ there is an opportunity to refer to a location.
 Please suggest 1-3 follow-on queries (using the <SuggestedQuery> component) that the user might
 ask, based on the response to the user's question.
 """
+
+PLANNER_EXAMPLE_SCHEMA = {
+    "text_representation": ("str", {"Can be assumed to have all other details"}),
+    "properties.entity.dateTime": (
+        "str",
+        {
+            "2023-01-12T11:00:00",
+            "2023-01-11T18:09:00",
+            "2023-01-10T16:43:00",
+            "2023-01-28T19:02:00",
+            "2023-01-12T13:00:00",
+        },
+    ),
+    "properties.entity.dateAndTime": (
+        "str",
+        {
+            "January 28, 2023 19:02:00",
+            "January 10, 2023 16:43:00",
+            "January 11, 2023 18:09:00",
+            "January 12, 2023 13:00:00",
+            "January 12, 2023 11:00:00",
+        },
+    ),
+    "properties.entity.lowestCeiling": (
+        "str",
+        {"Broken 3800 ft AGL", "Broken 6500 ft AGL", "Overcast 500 ft AGL", "Overcast 1800 ft AGL"},
+    ),
+    "properties.entity.aircraftDamage": ("str", {"Substantial", "None", "Destroyed"}),
+    "properties.entity.conditions": ("str", {"Instrument (IMC)", "IMC", "VMC", "Visual (VMC)"}),
+    "properties.entity.departureAirport": (
+        "str",
+        {
+            "Somerville, Tennessee",
+            "Colorado Springs, Colorado (FLY)",
+            "Yelm; Washington",
+            "Winchester, Virginia (OKV)",
+            "San Diego, California (KMYF)",
+        },
+    ),
+    "properties.entity.accidentNumber": (
+        "str",
+        {"CEN23FA095", "ERA2BLAT1I", "WPR23LA088", "ERA23FA108", "WPR23LA089"},
+    ),
+    "properties.entity.windSpeed": (
+        "str",
+        {"", "10 knots", "7 knots", "knots", "19 knots gusting to 22 knots"},
+    ),
+    "properties.entity.day": ("str", {"2023-01-12", "2023-01-10", "2023-01-20", "2023-01-11", "2023-01-28"}),
+    "properties.entity.destinationAirport": (
+        "str",
+        {
+            "Somerville, Tennessee",
+            "Yelm; Washington",
+            "Agua Caliente Springs, California",
+            "Liberal, Kansas (LBL)",
+            "Alabaster, Alabama (EET)",
+        },
+    ),
+    "properties.entity.location": (
+        "str",
+        {
+            "Hooker, Oklahoma",
+            "Somerville, Tennessee",
+            "Yelm; Washington",
+            "Agua Caliente Springs, California",
+            "Dayton, Virginia",
+        },
+    ),
+    "properties.entity.operator": (
+        "str",
+        {"On file", "First Team Pilot Training LLC", "file On", "Anderson Aviation LLC", "Flying W Ranch"},
+    ),
+    "properties.entity.temperature": ("str", {"18'C /-2'C", "15.8C", "13'C", "2C / -3C"}),
+    "properties.entity.visibility": ("str", {"", "miles", "0.5 miles", "7 miles", "10 miles"}),
+    "properties.entity.aircraft": (
+        "str",
+        {"Piper PA-32R-301", "Beech 95-C55", "Cessna 172", "Piper PA-28-160", "Cessna 180K"},
+    ),
+    "properties.entity.conditionOfLight": ("str", {"", "Night/dark", "Night", "Day", "Dusk"}),
+    "properties.entity.windDirection": ("str", {"", "190°", "200", "2005", "040°"}),
+    "properties.entity.lowestCloudCondition": (
+        "str",
+        {"", "Broken 3800 ft AGL", "Overcast 500 ft AGL", "Clear", "Overcast 200 ft AGL"},
+    ),
+    "properties.entity.injuries": ("str", {"Minor", "Fatal", "None", "3 None", "2 None"}),
+    "properties.entity.flightConductedUnder": (
+        "str",
+        {
+            "Part 91: General aviation Instructional",
+            "Part 135: Air taxi & commuter Non-scheduled",
+            "Part 91: General aviation Personal",
+            "Part 135: Air taxi & commuter Scheduled",
+            "Part 91: General aviation Business",
+        },
+    ),
+}
+
+
+PLANNER_EXAMPLES: List[PlannerExample] = [
+    PlannerExample(
+        query="List the incidents in Georgia in 2023.",
+        schema=PLANNER_EXAMPLE_SCHEMA,
+        plan=[
+            {
+                "operatorName": "QueryDatabase",
+                "description": "Get all the incident reports",
+                "index": OPENSEARCH_INDEX,
+                "node_id": 0,
+                "query": {
+                    "bool": {
+                        "must": [
+                            {
+                                "range": {
+                                    "properties.entity.dateTime": {
+                                        "gte": "2023-01-01T00:00:00",
+                                        "lte": "2023-12-31T23:59:59",
+                                        "format": "strict_date_optional_time",
+                                    }
+                                }
+                            },
+                            {"match": {"properties.entity.location": "Georgia"}},
+                        ]
+                    }
+                },
+            },
+        ],
+    ),
+    PlannerExample(
+        query="Show the incidents involving Piper aircraft.",
+        schema=PLANNER_EXAMPLE_SCHEMA,
+        plan=[
+            {
+                "operatorName": "QueryDatabase",
+                "description": "Get all the incident reports",
+                "index": OPENSEARCH_INDEX,
+                "node_id": 0,
+                "query": {"match": {"properties.entity.aircraft": "Piper"}},
+            },
+        ],
+    ),
+    PlannerExample(
+        query="How many incidents happened in clear weather?",
+        schema=PLANNER_EXAMPLE_SCHEMA,
+        plan=[
+            {
+                "operatorName": "QueryDatabase",
+                "description": "Get all the incident reports in clear weather",
+                "index": OPENSEARCH_INDEX,
+                "node_id": 0,
+                "query": {"match": {"properties.entity.conditions": "VMC"}},
+            },
+            {
+                "operatorName": "Count",
+                "description": "Count the number of incidents",
+                "distinct_field": "properties.entity.accidentNumber",
+                "input": [0],
+                "node_id": 1,
+            },
+        ],
+    ),
+    PlannerExample(
+        query="What types of aircrafts were involved in accidents in California?",
+        schema=PLANNER_EXAMPLE_SCHEMA,
+        plan=[
+            {
+                "operatorName": "QueryDatabase",
+                "description": "Get all the incident reports in California",
+                "index": OPENSEARCH_INDEX,
+                "query": {"match": {"properties.entity.location": "California"}},
+                "node_id": 0,
+            },
+            {
+                "operatorName": "TopK",
+                "description": "Get the types of aircraft involved in incidents in California",
+                "field": "properties.entity.aircraft",
+                "primary_field": "properties.entity.accidentNumber",
+                "K": 100,
+                "descending": False,
+                "llm_cluster": False,
+                "llm_cluster_instruction": None,
+                "input": [0],
+                "node_id": 1,
+            },
+        ],
+    ),
+    PlannerExample(
+        query="Which aircraft accidents in California in 2023 occurred when the wind was stronger than 4 knots?",
+        schema=PLANNER_EXAMPLE_SCHEMA,
+        plan=[
+            {
+                "operatorName": "QueryDatabase",
+                "description": "Get all the incident reports in California in 2023",
+                "index": OPENSEARCH_INDEX,
+                "query": {
+                    "bool": {
+                        "must": [
+                            {
+                                "range": {
+                                    "properties.entity.dateTime": {
+                                        "gte": "2023-01-01T00:00:00",
+                                        "lte": "2023-12-31T23:59:59",
+                                        "format": "strict_date_optional_time",
+                                    }
+                                }
+                            },
+                            {"match": {"properties.entity.location": "California"}},
+                        ]
+                    }
+                },
+                "node_id": 0,
+            },
+            {
+                "operatorName": "LlmFilter",
+                "description": "Filter to reports with wind speed greater than 4 knots",
+                "index": OPENSEARCH_INDEX,
+                "question": "Is the wind speed greater than 4 knots?",
+                "field": "properties.entity.windSpeed",
+                "input": [0],
+                "node_id": 1,
+            },
+        ],
+    ),
+    PlannerExample(
+        query="Which three aircraft types were involved in the most accidents?",
+        schema=PLANNER_EXAMPLE_SCHEMA,
+        plan=[
+            {
+                "operatorName": "QueryDatabase",
+                "description": "Get all the incident reports",
+                "index": OPENSEARCH_INDEX,
+                "node_id": 0,
+                "query": {"match_all": {}},
+            },
+            {
+                "operatorName": "TopK",
+                "description": "Get the top three aircraft types involved in accidents",
+                "field": "properties.entity.aircraft",
+                "primary_field": "properties.entity.accidentNumber",
+                "K": 3,
+                "descending": True,
+                "llm_cluster": False,
+                "llm_cluster_instruction": None,
+                "input": [0],
+                "node_id": 1,
+            },
+        ],
+    ),
+    PlannerExample(
+        query="Show some incidents where pilot training was mentioned as a cause",
+        schema=PLANNER_EXAMPLE_SCHEMA,
+        plan=[
+            {
+                "operatorName": "QueryVectorDatabase",
+                "description": "Get incident reports mentioning pilot training",
+                "index": OPENSEARCH_INDEX,
+                "query_phrase": "pilot training",
+                "node_id": 0,
+            },
+        ],
+    ),
+    PlannerExample(
+        query="Show all incidents involving a Cessna 172 aircraft",
+        schema=PLANNER_EXAMPLE_SCHEMA,
+        plan=[
+            {
+                "operatorName": "QueryDatabase",
+                "description": "Get all the incident reports involving a Cessna 172 aircraft",
+                "index": OPENSEARCH_INDEX,
+                "query": {"match": {"properties.entity.aircraft": "Cessna 172"}},
+                "node_id": 0,
+            },
+        ],
+    ),
+]
 
 
 class MDXParser(HTMLParser):
@@ -272,12 +547,22 @@ class ChatMessageTraces(ChatMessageExtra):
         show_query_traces(st.session_state.trace_dir, self.query_id)
 
 
+@st.dialog("Send Feedback", width="large")
+def send_feedback():
+    feedback_form_code = (
+        """<iframe src="https://tally.so/r/me2O2e" style="width: 100%; height: 800px; border: none;"></iframe>"""
+    )
+    with st.container(height=800):
+        st.markdown(feedback_form_code, unsafe_allow_html=True)
+
+
 class ChatMessage:
     def __init__(
         self,
         message: Optional[Dict[str, Any]] = None,
         before_extras: Optional[List[ChatMessageExtra]] = None,
         after_extras: Optional[List[ChatMessageExtra]] = None,
+        feedback_button: bool = False,
     ):
         self.message_id = st.session_state.next_message_id
         st.session_state.next_message_id += 1
@@ -286,6 +571,7 @@ class ChatMessage:
         self.before_extras = before_extras or []
         self.after_extras = after_extras or []
         self.widget_key = 0
+        self.feedback_button = feedback_button
 
     def show(self):
         self.widget_key = 0
@@ -302,12 +588,20 @@ class ChatMessage:
         for extra in self.after_extras:
             with st.expander(extra.name):
                 extra.show()
+        if self.feedback_button:
+            self.show_feedback_button()
 
     def button(self, label: str, **kwargs):
         return st.button(label, key=self.next_key(), **kwargs)
 
     def download_button(self, label: str, content: bytes, filename: str, file_type: str, **kwargs):
         return st.download_button(label, content, filename, file_type, key=self.next_key(), **kwargs)
+
+    def show_feedback_button(self):
+        _, col2 = st.columns([0.75, 0.25])
+        with col2:
+            if self.button("Send feedback"):
+                send_feedback()
 
     def next_key(self) -> str:
         key = f"{self.message_id}-{self.widget_key}"
@@ -496,11 +790,11 @@ def query_data_source(query: str, index: str) -> Tuple[Any, Optional[Any], Optio
         return do_rag_query(query, index), None, None
     else:
         sqclient = SycamoreQueryClient(
-            s3_cache_path=st.session_state.s3_cache_path if st.session_state.use_cache else None,
+            s3_cache_path=S3_CACHE_PATH,
             trace_dir=st.session_state.trace_dir,
         )
         with st.spinner("Generating plan..."):
-            plan = generate_plan(sqclient, query, index)
+            plan = generate_plan(sqclient, query, index, examples=PLANNER_EXAMPLES)
             print(f"Generated plan:\n{plan}\n")
             # No need to show the prompt used in the demo.
             plan.llm_prompt = None
@@ -572,7 +866,7 @@ def do_query():
                     tool_choice="auto",
                 )
             response_dict = response.choices[0].message.to_dict()
-            assistant_message = ChatMessage(response_dict)
+            assistant_message = ChatMessage(response_dict, feedback_button=True)
             st.session_state.messages.append(assistant_message)
 
             tool_calls = response.choices[0].message.tool_calls
@@ -608,6 +902,11 @@ def do_query():
                             tool_response_str = "No results found for your query."
                 except Exception as e:
                     st.error(f"Error running Sycamore query: {e}")
+                    print(f"Error running Sycamore query: {e}")
+                    # Print stack trace.
+                    import traceback
+
+                    traceback.print_exc()
                     tool_response_str = f"There was an error running your query: {e}"
                 finally:
                     print(f"\nTool response: {tool_response_str}")
@@ -620,7 +919,7 @@ def do_query():
                         }
                     )
                     st.session_state.messages.append(tool_response_message)
-                    with st.expander("Tool response"):
+                    with st.expander("Sycamore query result"):
                         st.write(f"```{tool_response_str}```")
 
             else:
@@ -630,7 +929,7 @@ def do_query():
                     assistant_message.before_extras.append(ChatMessageExtra("Query plan", query_plan))
                 if tool_response_str:
                     assistant_message.before_extras.append(
-                        ChatMessageExtra("Tool response", f"```{tool_response_str}```")
+                        ChatMessageExtra("Sycamore query result", f"```{tool_response_str}```")
                     )
                 if query_id:
                     cmt = ChatMessageTraces("Query trace", query_id)
@@ -647,9 +946,6 @@ def main():
     if "openai_model" not in st.session_state:
         st.session_state["openai_model"] = "gpt-4o"
 
-    if "s3_cache_path" not in st.session_state:
-        st.session_state.s3_cache_path = "s3://aryn-temp/llm_cache/luna/query-demo"
-
     if "use_cache" not in st.session_state:
         st.session_state.use_cache = True
 
@@ -665,7 +961,7 @@ def main():
     if "trace_dir" not in st.session_state:
         st.session_state.trace_dir = os.path.join(os.getcwd(), "traces")
 
-    st.title("Sycamore NTSB Query Demo")
+    st.title(":airplane: Aryn NTSB Report Query Demo")
     st.toggle("Use RAG only", key="rag_only")
     show_messages()
 

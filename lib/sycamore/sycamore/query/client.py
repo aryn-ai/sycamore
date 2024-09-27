@@ -28,7 +28,7 @@ from sycamore.utils.import_utils import requires_modules
 
 from sycamore.query.execution.sycamore_executor import SycamoreExecutor
 from sycamore.query.logical_plan import LogicalPlan
-from sycamore.query.planner import LlmPlanner
+from sycamore.query.planner import LlmPlanner, PlannerExample
 from sycamore.query.schema import OpenSearchSchema, OpenSearchSchemaFetcher
 from sycamore.query.visualize import visualize_plan
 
@@ -152,14 +152,23 @@ class SycamoreQueryClient:
 
     @requires_modules("opensearchpy.client.indices", extra="opensearch")
     def get_opensearch_schema(self, index: str) -> OpenSearchSchema:
-        """Get the schema for the provided OpenSearch index."""
+        """Get the schema for the provided OpenSearch index.
+
+        To debug:
+        logging.getLogger("sycamore.query.schema").setLevel(logging.DEBUG)
+        """
         from opensearchpy.client.indices import IndicesClient
 
         schema_provider = OpenSearchSchemaFetcher(IndicesClient(self._os_client), index, self._os_query_executor)
         return schema_provider.get_schema()
 
     def generate_plan(
-        self, query: str, index: str, schema: OpenSearchSchema, natural_language_response: bool = False
+        self,
+        query: str,
+        index: str,
+        schema: OpenSearchSchema,
+        examples: Optional[List[PlannerExample]] = None,
+        natural_language_response: bool = False,
     ) -> LogicalPlan:
         """Generate a logical query plan for the given query, index, and schema.
 
@@ -167,6 +176,7 @@ class SycamoreQueryClient:
             query: The query to generate a plan for.
             index: The index to query against.
             schema: The schema for the index.
+            examples: Optional examples to use for planning.
             natural_language_response: Whether to generate a natural language response. If False,
                 raw data will be returned.
         """
@@ -179,6 +189,7 @@ class SycamoreQueryClient:
             os_config=self.os_config,
             os_client=self._os_client,
             llm_client=llm_client,
+            examples=examples,
             natural_language_response=natural_language_response,
         )
         plan = planner.plan(query)

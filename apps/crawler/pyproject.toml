@@ -13,7 +13,7 @@ packages = [{ include = "crawler" }]
 "Documentation" = "https://sycamore.readthedocs.io"
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.12"
+python = ">=3.9,<3.13"
 
 # s3 deps; make sure this is consistent with lib/sycamore pyproject.toml
 [tool.poetry.group.crawler_s3.dependencies]

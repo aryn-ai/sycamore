@@ -6,7 +6,7 @@ authors = ["Matt Welsh <matt@aryn.ai>"]
 packages = [{include = "queryui"}]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.9.7 || >3.9.7,<3.12"
+python = ">=3.9,<3.9.7 || >3.9.7,<3.13"
 sycamore-ai = { path = "../../lib/sycamore", develop = true, extras = ["opensearch"] }
 streamlit = "^1.36.0"
 streamlit-ace = "^0.1.1"

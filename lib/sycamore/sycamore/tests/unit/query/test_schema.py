@@ -1,6 +1,10 @@
+import logging
+
 from unittest.mock import MagicMock
 
 from sycamore.query.schema import OpenSearchSchemaFetcher
+
+logging.getLogger("sycamore.query.schema").setLevel(logging.DEBUG)
 
 
 def test_opensearch_schema():
@@ -39,6 +43,24 @@ def test_opensearch_schema():
                         "colors": {"type": "array", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}}
                     },
                 },
+                "properties.entity.airspeed": {
+                    "full_name": "properties.entity.airspeed",
+                    "mapping": {
+                        "airspeed": {"type": "array", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}}
+                    },
+                },
+                "properties.entity.weird": {
+                    "full_name": "properties.entity.weird",
+                    "mapping": {
+                        "weird": {"type": "array", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}}
+                    },
+                },
+                "properties.happiness": {
+                    "full_name": "properties.happiness",
+                    "mapping": {
+                        "happiness": {"type": "array", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}}
+                    },
+                },
             }
         }
     }
@@ -52,7 +74,8 @@ def test_opensearch_schema():
                     {
                         "_source": {
                             "properties": {
-                                "entity": {"day": "2021-01-01", "aircraft": "Boeing 747", "colors": ["red", "blue"]}
+                                "entity": {"day": "2021-01-01", "aircraft": "Boeing 747", "colors": ["red", "blue"]},
+                                "happiness": "yes",
                             }
                         }
                     },
@@ -72,6 +95,16 @@ def test_opensearch_schema():
             }
         }
     }
+
+    # Verify we can handle schemas where int and float are both used
+    airspeeds = [500, 37.5, 300, 217.11]
+    for i in airspeeds:
+        mock_random_sample["result"]["hits"]["hits"].append({"_source": {"properties": {"entity": {"airspeed": i}}}})
+
+    # Verify we tolerate schemas where the types are incompatible
+    weird = [True, 500, "alphabetical"]
+    for i in weird:
+        mock_random_sample["result"]["hits"]["hits"].append({"_source": {"properties": {"entity": {"weird": i}}}})
 
     # this is asserting we only take OpenSearchSchemaFetcher.NUM_EXAMPLE_VALUES examples
     for i in range(0, OpenSearchSchemaFetcher.NUM_EXAMPLE_VALUES + 5):
@@ -96,5 +129,8 @@ def test_opensearch_schema():
         "<class 'str'>",
         set([str(i) for i in range(OpenSearchSchemaFetcher.NUM_EXAMPLE_VALUES)]),
     )
+    assert got["properties.entity.airspeed"] == ("<class 'float'>", set([str(a) for a in airspeeds]))
+    assert got["properties.entity.weird"] == ("<class 'bool'>", set([str(w) for w in weird]))
+    assert got["properties.happiness"] == ("<class 'str'>", {"yes"})
 
     assert "properties.entity.location" not in got

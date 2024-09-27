@@ -4,6 +4,7 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 import structlog
+from sycamore.materialize_config import MaterializeSourceMode
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.basic_filter import BasicFilter
 from sycamore.query.operators.limit import Limit
@@ -76,6 +77,8 @@ class SycamoreExecutor:
 
         if self.trace_dir and not self.dry_run:
             log.info("Using trace directory: %s", trace_dir)
+        if self.cache_dir and not self.dry_run:
+            log.info("Using cache directory: %s", cache_dir)
         self.node_id_to_node: Dict[int, LogicalOperator] = {}
         self.node_id_to_code: Dict[int, str] = {}
         self.imports: List[str] = []
@@ -99,6 +102,12 @@ class SycamoreExecutor:
             os.makedirs(trace_dir, exist_ok=True)
         else:
             trace_dir = None
+
+        if self.cache_dir and not self.dry_run:
+            cache_dir = os.path.join(self.cache_dir, logical_node.cache_key())
+            os.makedirs(cache_dir, exist_ok=True)
+        else:
+            cache_dir = None
 
         # Process dependencies
         if logical_node.dependencies:
@@ -212,9 +221,12 @@ class SycamoreExecutor:
         result = "visited"
         if not self.codegen_mode and not self.dry_run:
             result = operation.execute()
+            if cache_dir and hasattr(result, "materialize"):
+                log.info("Caching node execution", cache_dir=cache_dir)
+                result = result.materialize(cache_dir, source_mode=MaterializeSourceMode.USE_STORED)
             if trace_dir and hasattr(result, "materialize"):
                 log.info("Materializing result", trace_dir=trace_dir)
-                result = result.materialize(trace_dir)
+                result = result.materialize(trace_dir, source_mode=MaterializeSourceMode.RECOMPUTE)
 
         self.processed[logical_node.node_id] = result
         log.info("Executed node", result=str(result))

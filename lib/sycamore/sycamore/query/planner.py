@@ -572,7 +572,6 @@ class LlmPlanner:
                 "content": self.generate_user_prompt(question),
             },
         ]
-        print(messages)
 
         prompt_kwargs = {"messages": messages}
         chat_completion = self._llm_client.generate(

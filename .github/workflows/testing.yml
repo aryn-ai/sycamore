@@ -115,12 +115,12 @@ jobs:
       matrix:
         python-version: ["3.9"]
     services:
-      opensearch:
-        image: opensearchproject/opensearch:2.17.0
-        env:
-          discovery.type: "single-node"
-        ports:
-          - 9200:9200
+      # opensearch:
+      #   image: opensearchproject/opensearch:2.17.0
+      #   env:
+      #     discovery.type: "single-node"
+      #   ports:
+      #     - 9200:9200
       elasticsearch:
         image: elasticsearch:8.14.2
         env:

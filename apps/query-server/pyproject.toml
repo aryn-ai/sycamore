@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "queryserver"
+version = "0.1.0"
+description = ""
+authors = ["Matt Welsh <matt@aryn.ai>"]
+packages = [{include = "queryserver"}]
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.13"
+sycamore-ai = { path = "../../lib/sycamore", develop = true, extras = ["opensearch"] }
+fastapi = { version = "^0.115.0", extras = ["standard"]}
+pydantic = "^2.9.2"
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.4"
+sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }
+
+[tool.black]
+line-length = 120
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

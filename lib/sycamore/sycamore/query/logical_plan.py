@@ -1,6 +1,9 @@
 from enum import Enum
 from functools import wraps
+import json
 from typing import Any, List, Mapping, Optional
+from hashlib import sha256
+
 
 from pydantic import BaseModel, ConfigDict, SerializeAsAny
 
@@ -35,6 +38,7 @@ class Node(BaseModel):
 
     _dependencies: List["Node"] = []
     _downstream_nodes: List["Node"] = []
+    _cache_key: Optional[str] = None
 
     @property
     def dependencies(self) -> Optional[List["Node"]]:
@@ -66,6 +70,31 @@ class Node(BaseModel):
         }
 
         return self_dict == other_dict
+
+    def __hash__(self) -> int:
+        # Note that this hash value will change from run to run as Python's built-in hash()
+        # is not deterministic.
+        return hash(self.model_dump_json())
+
+    def cache_dict(self) -> dict:
+        """Returns a dict representation of this node that can be used for comparison."""
+
+        # We want to exclude fields that may change from plan to plan, but which do not
+        # affect the semantic equivalence of the plan.
+        retval = self.model_dump(exclude={"node_id", "input", "description"})
+        retval["operator_type"] = type(self).__name__
+        # Recursively include dependencies.
+        retval["dependencies"] = [dep.cache_dict() for dep in self._dependencies]
+        return retval
+
+    def cache_key(self) -> str:
+        """Returns the cache key of this node, used for caching intermediate query results during
+        execution."""
+        if self._cache_key:
+            return self._cache_key
+        cache_key = self.cache_dict()
+        self._cache_key = sha256(json.dumps(cache_key).encode()).hexdigest()
+        return self._cache_key
 
 
 class LogicalNodeDiffType(Enum):

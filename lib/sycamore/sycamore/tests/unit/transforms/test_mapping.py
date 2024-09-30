@@ -51,6 +51,10 @@ class TestMapping:
         input_dataset = ray.data.from_items([{"doc": d.serialize()} for d in in_docs])
         execute = mocker.patch.object(node, "execute")
         execute.return_value = input_dataset
+        if mapping.parallelism is not None:
+            from ray.data import ActorPoolStrategy
+
+            mapping.resource_args["compute"] = ActorPoolStrategy(size=mapping.parallelism)
         output_dataset = mapping.execute()
         (output_docs, _) = take_separate(output_dataset)
         dicts = [d.data for d in output_docs]
@@ -109,6 +113,10 @@ class TestMapping:
         input_dataset = ray.data.from_items([{"doc": d.serialize()} for d in in_docs])
         execute = mocker.patch.object(node, "execute")
         execute.return_value = input_dataset
+        if mapping.parallelism is not None:
+            from ray.data import ActorPoolStrategy
+
+            mapping.resource_args["compute"] = ActorPoolStrategy(size=mapping.parallelism)
         output_dataset = mapping.execute()
         (data, metadata) = take_separate(output_dataset)
         assert len(data) == 4
@@ -145,6 +153,10 @@ class TestMapping:
         input_dataset = ray.data.from_items([{"doc": Document(dict).serialize()} for dict in dicts])
         execute = mocker.patch.object(node, "execute")
         execute.return_value = input_dataset
+        if mapping.parallelism is not None:
+            from ray.data import ActorPoolStrategy
+
+            mapping.resource_args["compute"] = ActorPoolStrategy(size=mapping.parallelism)
         output_dataset = mapping.execute()
         (output_docs, _) = take_separate(output_dataset)
         dicts = [d.data for d in output_docs]
@@ -186,6 +198,10 @@ class TestMapping:
         input_dataset = ray.data.from_items([{"doc": Document(dict).serialize()} for dict in dicts])
         execute = mocker.patch.object(node, "execute")
         execute.return_value = input_dataset
+        if mapping.parallelism is not None:
+            from ray.data import ActorPoolStrategy
+
+            mapping.resource_args["compute"] = ActorPoolStrategy(size=mapping.parallelism)
         output_dataset = mapping.execute()
         batch = output_dataset.take_batch()
         assert len(batch["doc"]) == 4 + 2

@@ -325,10 +325,8 @@ class Embed(MapBatch):
                 self.resource_args["num_gpus"] = 1
             if self.resource_args["num_gpus"] <= 0:
                 raise RuntimeError("Invalid GPU Nums!")
-            if "compute" not in self.resource_args:
-                from ray.data import ActorPoolStrategy
-
-                self.resource_args["compute"] = ActorPoolStrategy(size=1)
+            if "parallelism" not in self.resource_args:
+                self.resource_args["parallelism"] = 1
         elif embedder.device == "cpu":
             self.resource_args.pop("num_gpus", None)
 

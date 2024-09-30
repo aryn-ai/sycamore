@@ -393,22 +393,29 @@ class ArynPDFPartitioner:
 
         if extract_table_structure and not table_structure_extractor:
             table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
-        if not use_ocr:
-            text_extractor = PdfMinerExtractor()
-            text_generator = PdfMinerExtractor.pdf_to_pages(filename)
-        else:
+        if use_ocr:
             text_extractor = EXTRACTOR_DICT[ocr_model]()
             text_generator = None
+        else:
+            text_extractor = PdfMinerExtractor()
+            text_generator = PdfMinerExtractor.pdf_to_pages(filename)
         deformable_layout = []
         if tracemalloc.is_tracing():
             before = tracemalloc.take_snapshot()
         for i in convert_from_path_streamed_batched(filename, batch_size):
+            if text_generator:
+                try:
+                    extractor_list = [text_generator.__next__() for _ in range(batch_size)]
+                except StopIteration:
+                    raise ValueError("Not enough pages in PDF")
+            else:
+                extractor_list = i
             parts = self.process_batch(
                 i,
                 threshold=threshold,
                 use_ocr=use_ocr,
                 text_extractor=text_extractor,
-                pdf_generator=text_generator,
+                extractor_list=extractor_list,
                 ocr_images=ocr_images,
                 ocr_model=ocr_model,
                 per_element_ocr=per_element_ocr,
@@ -438,7 +445,7 @@ class ArynPDFPartitioner:
         batch: list[Image.Image],
         threshold: float,
         text_extractor: TextExtractor,
-        pdf_generator,
+        extractor_list,
         use_ocr,
         ocr_images,
         ocr_model,
@@ -465,8 +472,7 @@ class ArynPDFPartitioner:
         else:
             extracted_pages = []
             with LogTime("text_extraction"):
-                for i in range(len(batch)):
-                    page = batch[i] if use_ocr else pdf_generator.__next__()
+                for page in extractor_list:
                     extracted_pages.append(text_extractor.extract_page(page))
 
             assert len(extracted_pages) == len(deformable_layout)
@@ -474,6 +480,8 @@ class ArynPDFPartitioner:
                 for d, p in zip(deformable_layout, extracted_pages):
                     self._supplement_text(d, p)
         if extract_table_structure:
+            if table_structure_extractor is None:
+                table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
             with LogTime("extract_table_structure_batch"):
                 for i, page_elements in enumerate(deformable_layout):
                     image = batch[i]
@@ -500,15 +508,16 @@ class ArynPDFPartitioner:
         use_cache: bool,
         use_ocr: bool,
         ocr_images: bool,
-        ocr_model: str,
+        text_extractor_model: str,
         images: Optional[list[Image.Image]] = None,
     ):
         kwargs = {"ocr_images": ocr_images, "images": images}
         if not use_ocr:
-            ocr_model = "pdfminer"
-        if ocr_model not in EXTRACTOR_DICT.keys():
-            raise ValueError(f"Unknown ocr_model: {ocr_model}")
-        model: TextExtractor = EXTRACTOR_DICT[ocr_model]()
+            text_extractor_model = "pdfminer"
+        model_cls = EXTRACTOR_DICT.get(text_extractor_model)
+        if not model_cls:
+            raise ValueError(f"Unknown OCR Model: {text_extractor_model}")
+        model = model_cls()
         with LogTime("text_extract", log_start=True):
             extracted_layout = model.extract_document(file_name, hash_key, use_cache, **kwargs)
         return extracted_layout
@@ -714,9 +723,10 @@ def extract_ocr(
     ocr_images: bool = False,
     ocr_model_name: str = "easyocr",
 ) -> list[list[Element]]:
-    if ocr_model_name not in EXTRACTOR_DICT.keys():
-        raise ValueError(f"Unknown ocr_model: {ocr_model_name}")
-    ocr_model: OcrModel = EXTRACTOR_DICT[ocr_model_name]()
+    model_cls = EXTRACTOR_DICT.get(ocr_model_name)
+    if not model_cls:
+        raise ValueError(f"Unknown OCR Model: {ocr_model_name}")
+    ocr_model: OcrModel = model_cls()
     for i, image in enumerate(images):
         page_elements = elements[i]
         width, height = image.size

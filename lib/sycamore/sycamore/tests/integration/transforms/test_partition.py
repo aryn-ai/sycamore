@@ -30,7 +30,7 @@ def test_detr_ocr():
         .take_all()
     )
 
-    assert "Attention Is All You Need" or "Abstract" in set(str(d.text_representation).strip() for d in docs)
+    assert "Attention Is All You Need" in set(str(d.text_representation).strip() for d in docs)
 
 
 def check_table_extraction(**kwargs):

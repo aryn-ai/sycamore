@@ -102,7 +102,7 @@ class EasyOcr(OcrModel):
 
     def get_text(self, image: Image.Image) -> str:
         image_bytes = BytesIO()
-        image.save(image_bytes, format="PNG")
+        image.save(image_bytes, format="BMP")
         raw_results = self.reader.readtext(image_bytes.getvalue())
         out_list = []
         for res in raw_results:
@@ -113,7 +113,7 @@ class EasyOcr(OcrModel):
 
     def get_boxes_and_text(self, image: Image.Image) -> List[Dict[str, Any]]:
         image_bytes = BytesIO()
-        image.save(image_bytes, format="PNG")
+        image.save(image_bytes, format="BMP")
         raw_results = self.reader.readtext(image_bytes.getvalue())
 
         out: list[dict[str, Any]] = []
@@ -195,13 +195,13 @@ class PaddleOcr(OcrModel):
         image: Image.Image,
     ) -> str:
         bytearray = BytesIO()
-        image.save(bytearray, format="PNG")
+        image.save(bytearray, format="BMP")
         result = self.reader.ocr(bytearray.getvalue(), rec=True, det=True, cls=False)
         return ans if result and result[0] and (ans := " ".join(value[1][0] for value in result[0])) else ""
 
     def get_boxes_and_text(self, image: Image.Image) -> List[Dict[str, Any]]:
         bytearray = BytesIO()
-        image.save(bytearray, format="PNG")
+        image.save(bytearray, format="BMP")
         result = self.reader.ocr(bytearray.getvalue(), rec=True, det=True, cls=False)
         out = []
         for res in result[0]:

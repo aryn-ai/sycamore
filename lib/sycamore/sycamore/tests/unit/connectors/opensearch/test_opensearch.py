@@ -187,13 +187,13 @@ class TestOpenSearchReaderQueryResponse:
             assert docs[i].parent_id == records[i]["parent_id"]
             assert docs[i].text_representation == records[i]["text_representation"]
 
-    def test_to_docs_implode_require_client(self):
+    def test_to_docs_reconstruct_require_client(self):
         query_response = OpenSearchReaderQueryResponse([])
-        query_params = OpenSearchReaderQueryParams(index_name="some index", implode=True)
+        query_params = OpenSearchReaderQueryParams(index_name="some index", reconstruct_document=True)
         with pytest.raises(AssertionError):
             query_response.to_docs(query_params)
 
-    def test_to_docs_implode(self, mocker):
+    def test_to_docs_reconstruct(self, mocker):
         records = [
             {
                 "text_representation": "this is an element belonging to parent doc 1",
@@ -222,14 +222,14 @@ class TestOpenSearchReaderQueryResponse:
         return_val["hits"]["hits"] += [
             {
                 "_source": {
-                    "text_representation": "this is an element belonging to parent doc 2 retrieved via implode",
+                    "text_representation": "this is an element belonging to parent doc 2 retrieved via reconstruction",
                     "parent_id": "doc_2",
                     "doc_id": "element_2",
                 }
             },
             {
                 "_source": {
-                    "text_representation": "this is an element belonging to parent doc 2 retrieved via implode",
+                    "text_representation": "this is an element belonging to parent doc 2 retrieved via reconstruction",
                     "parent_id": "doc_2",
                     "doc_id": "element_3",
                 }
@@ -237,7 +237,7 @@ class TestOpenSearchReaderQueryResponse:
         ]
         client.search.return_value = return_val
         query_response = OpenSearchReaderQueryResponse(hits, client=client)
-        query_params = OpenSearchReaderQueryParams(index_name="some index", implode=True)
+        query_params = OpenSearchReaderQueryParams(index_name="some index", reconstruct_document=True)
         docs = query_response.to_docs(query_params)
 
         assert len(docs) == 3
@@ -259,17 +259,23 @@ class TestOpenSearchReaderQueryResponse:
         assert doc_2.elements[0].text_representation == "this is an element belonging to parent doc 2"
         assert (
             doc_2.elements[1].text_representation
-            == "this is an element belonging to parent doc 2 retrieved via implode"
+            == "this is an element belonging to parent doc 2 retrieved via reconstruction"
         )
         assert (
             doc_2.elements[2].text_representation
-            == "this is an element belonging to parent doc 2 retrieved via implode"
+            == "this is an element belonging to parent doc 2 retrieved via reconstruction"
         )
         assert doc_2.elements[0].properties[DocumentPropertyTypes.SOURCE] == DocumentSource.DB_QUERY
-        assert doc_2.elements[1].properties[DocumentPropertyTypes.SOURCE] == DocumentSource.IMPLODE_RETRIEVAL
-        assert doc_2.elements[2].properties[DocumentPropertyTypes.SOURCE] == DocumentSource.IMPLODE_RETRIEVAL
+        assert (
+            doc_2.elements[1].properties[DocumentPropertyTypes.SOURCE]
+            == DocumentSource.DOCUMENT_RECONSTRUCTION_RETRIEVAL
+        )
+        assert (
+            doc_2.elements[2].properties[DocumentPropertyTypes.SOURCE]
+            == DocumentSource.DOCUMENT_RECONSTRUCTION_RETRIEVAL
+        )
 
-    def test_to_docs_implode_no_additional_elements(self, mocker):
+    def test_to_docs_reconstruct_no_additional_elements(self, mocker):
         records = [
             {
                 "text_representation": "this is an element belonging to parent doc 1",
@@ -296,7 +302,7 @@ class TestOpenSearchReaderQueryResponse:
         hits = [{"_source": record} for record in records]
         client.search.return_value = {"hits": {"hits": [hit for hit in hits if hit["_source"].get("parent_id")]}}
         query_response = OpenSearchReaderQueryResponse(hits, client=client)
-        query_params = OpenSearchReaderQueryParams(index_name="some index", implode=True)
+        query_params = OpenSearchReaderQueryParams(index_name="some index", reconstruct_document=True)
         docs = query_response.to_docs(query_params)
 
         assert len(docs) == 3

@@ -22,7 +22,7 @@ class OpenSearchReaderQueryParams(BaseDBReader.QueryParams):
     index_name: str
     query: Dict = field(default_factory=lambda: {"query": {"match_all": {}}})
     kwargs: Dict = field(default_factory=lambda: {})
-    implode: bool = False
+    reconstruct_document: bool = False
 
 
 class OpenSearchReaderClient(BaseDBReader.Client):
@@ -74,14 +74,14 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
     output: list
 
     """
-    The client used to implement an implosion. Can also be used for lazy loading.
+    The client used to implement document reconstruction. Can also be used for lazy loading.
     """
     client: typing.Optional["OpenSearch"] = None
 
     def to_docs(self, query_params: "BaseDBReader.QueryParams") -> list[Document]:
         assert isinstance(query_params, OpenSearchReaderQueryParams)
         result = []
-        if not query_params.implode:
+        if not query_params.reconstruct_document:
             for data in self.output:
                 doc = Document(
                     {
@@ -92,9 +92,9 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
         else:
             assert (
                 self.client is not None
-            ), "Imploded reading requires an OpenSearch client in OpenSearchReaderQueryResponse"
+            ), "Document reconstruction requires an OpenSearch client in OpenSearchReaderQueryResponse"
             """
-            Implode:
+            Document reconstruction:
             1. Construct a map of all unique parent Documents (i.e. no parent_id field)
             2. Perform a terms query to retrieve all (including non-matched) other records for that parent_id
             3. Add elements to unique parent Documents
@@ -119,21 +119,21 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
 
             # Batched retrieval of all elements belong to unique docs
             doc_ids = list(unique_docs.keys())
-            imploded_elements = self._get_imploded_elements(doc_ids, query_params.index_name)
+            all_elements_for_docs = self._get_all_elements_for_doc_ids(doc_ids, query_params.index_name)
 
             """
             Add elements to unique docs. If they were not part of the original result, 
-            we set properties.implode_result = True
+            we set properties.DocumentPropertyTypes.SOURCE = DOCUMENT_RECONSTRUCTION_RETRIEVAL
             """
-            for imploded_element in imploded_elements:
+            for element in all_elements_for_docs:
                 doc = Document(
                     {
-                        **imploded_element.get("_source", {}),
+                        **element.get("_source", {}),
                     }
                 )
-                assert doc.parent_id, "Got non-element record from OpenSearch implode query"
+                assert doc.parent_id, "Got non-element record from OpenSearch reconstruction query"
                 if doc.doc_id not in query_result_elements_per_doc.get(doc.parent_id, {}):
-                    doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.IMPLODE_RETRIEVAL
+                    doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DOCUMENT_RECONSTRUCTION_RETRIEVAL
                 else:
                     doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
                 parent = unique_docs[doc.parent_id]
@@ -143,15 +143,15 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
 
         return result
 
-    def _get_imploded_elements(self, doc_ids: list[str], index: str) -> list[typing.Any]:
-        assert self.client, "_get_imploded_elements requires an OpenSearch client instance in this class"
+    def _get_all_elements_for_doc_ids(self, doc_ids: list[str], index: str) -> list[typing.Any]:
+        assert self.client, "_get_all_elements_for_doc_ids requires an OpenSearch client instance in this class"
         """
         Returns all records in OpenSearch belonging to a list of Document ids (element.parent_id)
         """
         batch_size = 1000
         page_size = 1000
 
-        imploded_elements = []
+        all_elements = []
         for i in range(0, len(doc_ids), batch_size):
             doc_ids_batch = doc_ids[i : i + batch_size]
             from_offset = 0
@@ -163,11 +163,11 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
                 }
                 response = self.client.search(index=index, body=query)
                 hits = response["hits"]["hits"]
-                imploded_elements.extend(hits)
+                all_elements.extend(hits)
                 if len(hits) < page_size:
                     break
                 from_offset += page_size
-        return imploded_elements
+        return all_elements
 
 
 class OpenSearchReader(BaseDBReader):

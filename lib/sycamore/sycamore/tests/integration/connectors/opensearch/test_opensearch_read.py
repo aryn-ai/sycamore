@@ -82,8 +82,10 @@ class TestOpenSearchRead:
             os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS, index_name=TestOpenSearchRead.INDEX, query=query
         )
 
-        retrieved_docs_imploded = context.read.opensearch(
-            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS, index_name=TestOpenSearchRead.INDEX, implode=True
+        retrieved_docs_reconstructed = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+            index_name=TestOpenSearchRead.INDEX,
+            reconstruct_document=True,
         )
         original_materialized = sorted(original_docs, key=lambda d: d.doc_id)
 
@@ -92,7 +94,7 @@ class TestOpenSearchRead:
         time.sleep(1)
         retrieved_materialized = sorted(retrieved_docs.take_all(), key=lambda d: d.doc_id)
         query_materialized = query_docs.take_all()
-        retrieved_materialized_imploded = sorted(retrieved_docs_imploded.take_all(), key=lambda d: d.doc_id)
+        retrieved_materialized_reconstructed = sorted(retrieved_docs_reconstructed.take_all(), key=lambda d: d.doc_id)
 
         with OpenSearch(**TestOpenSearchRead.OS_CLIENT_ARGS) as os_client:
             os_client.indices.delete(TestOpenSearchRead.INDEX)
@@ -101,6 +103,6 @@ class TestOpenSearchRead:
         for original, retrieved in zip(original_materialized, retrieved_materialized):
             assert compare_docs(original, retrieved)
 
-        assert len(retrieved_materialized_imploded) == 1
-        doc = retrieved_materialized_imploded[0]
+        assert len(retrieved_materialized_reconstructed) == 1
+        doc = retrieved_materialized_reconstructed[0]
         assert len(doc.elements) == len(retrieved_materialized) - 1  # drop the document parent record

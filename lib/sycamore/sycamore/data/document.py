@@ -11,7 +11,7 @@ from sycamore.data.element import create_element
 class DocumentSource(Enum):
     UNKNOWN: str = "UNKNOWN"
     DB_QUERY: str = "DB_QUERY"
-    IMPLODE_RETRIEVAL: str = "IMPLODE_RETRIEVAL"
+    DOCUMENT_RECONSTRUCTION_RETRIEVAL: str = "DOCUMENT_RECONSTRUCTION_RETRIEVAL"
 
 
 class DocumentPropertyTypes:

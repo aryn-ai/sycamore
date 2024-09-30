@@ -6,7 +6,6 @@ from typing import Callable
 from sycamore.data.document import Document
 from sycamore.plan_nodes import Node, Write
 from sycamore.transforms.map import MapBatch
-from sycamore.utils.ray_utils import check_serializable
 from sycamore.utils.time_trace import TimeTrace
 
 
@@ -59,7 +58,7 @@ class BaseDBWriter(MapBatch, Write):
         **kwargs,
     ):
         super().__init__(plan, f=self._write_docs_tt, **kwargs)
-        check_serializable(client_params, target_params, filter)
+
         self._filter = filter
         self._client_params = client_params
         self._target_params = target_params

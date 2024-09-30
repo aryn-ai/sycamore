@@ -546,17 +546,15 @@ class Partition(CompositeTransform):
         self, child: Node, partitioner: Partitioner, table_extractor: Optional[TableExtractor] = None, **resource_args
     ):
         ops = []
-        from ray.data import ActorPoolStrategy
 
         if isinstance(partitioner, ArynPartitioner) and partitioner._use_partitioning_service:
-            resource_args["compute"] = ActorPoolStrategy(size=1)
+            resource_args["parallelism"] = 1
         if partitioner.device == "cuda":
             if "num_gpus" not in resource_args:
                 resource_args["num_gpus"] = 1.0
             assert resource_args["num_gpus"] >= 0
-            if "compute" not in resource_args:
-                resource_args["compute"] = ActorPoolStrategy(size=1)
-            assert isinstance(resource_args["compute"], ActorPoolStrategy)
+            if "parallelism" not in resource_args:
+                resource_args["parallelism"] = 1
             if "batch_size" not in resource_args:
                 resource_args["batch_size"] = partitioner.batch_size
         elif partitioner.device == "cpu":

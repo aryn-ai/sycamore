@@ -26,9 +26,7 @@ class Map(BaseMapTransform):
     change that with:
         .. code-block:: python
 
-           from ray.data import ActorPoolStrategy
-
-           ctx.map(ExampleClass, compute=ActorPoolStrategy(size=num_actors))
+           ctx.map(ExampleClass, parallelism=num_instances)
 
     Example:
          .. code-block:: python

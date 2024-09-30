@@ -5,6 +5,7 @@ import time
 
 import queryui.util as util
 from queryui.configuration import get_sycamore_query_client
+import queryui.ntsb as ntsb
 
 import streamlit as st
 from streamlit_ace import st_ace
@@ -12,6 +13,8 @@ from streamlit_ace import st_ace
 from sycamore.executor import sycamore_ray_init
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
+
+PLANNER_EXAMPLES = ntsb.PLANNER_EXAMPLES
 
 
 def generate_code(client: SycamoreQueryClient, plan: LogicalPlan) -> str:
@@ -58,10 +61,11 @@ def run_query():
     client = get_sycamore_query_client(
         s3_cache_path=st.session_state.llm_cache_dir,
         trace_dir=st.session_state.trace_dir,
+        cache_dir=st.session_state.cache_dir,
     )
     with st.spinner("Generating plan..."):
         t1 = time.time()
-        plan = util.generate_plan(client, st.session_state.query, st.session_state.index)
+        plan = util.generate_plan(client, st.session_state.query, st.session_state.index, examples=PLANNER_EXAMPLES)
         t2 = time.time()
     with st.expander("Query plan"):
         st.write(f"Generated plan in :blue[{t2 - t1:.2f}] seconds.")
@@ -93,12 +97,16 @@ def main():
     argparser.add_argument(
         "--index", help="OpenSearch index name to use. If specified, only this index will be queried."
     )
+    argparser.add_argument("--cache-dir", type=str, help="Query execution cache dir.")
     argparser.add_argument("--llm-cache-dir", type=str, help="LLM query cache dir.")
     argparser.add_argument("--trace-dir", type=str, help="Directory to store query traces.")
     args = argparser.parse_args()
 
     if "index" not in st.session_state:
         st.session_state.index = args.index
+
+    if "cache_dir" not in st.session_state:
+        st.session_state.cache_dir = args.cache_dir
 
     if "llm_cache_dir" not in st.session_state:
         st.session_state.llm_cache_dir = args.llm_cache_dir
@@ -110,6 +118,7 @@ def main():
     client = get_sycamore_query_client()
 
     st.title("Sycamore Query")
+    st.write(f"Query cache dir: `{st.session_state.cache_dir}`")
     st.write(f"LLM cache dir: `{st.session_state.llm_cache_dir}`")
     st.write(f"Trace dir: `{st.session_state.trace_dir}`")
 

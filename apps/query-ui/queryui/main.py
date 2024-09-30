@@ -40,6 +40,9 @@ def main():
         "--index", help="OpenSearch index name to use. If specified, only this index will be queried."
     )
     argparser.add_argument(
+        "--cache-dir", type=str, default="cache_dir", help="Query execution cache dir. Defaults to ./query_cache."
+    )
+    argparser.add_argument(
         "--llm-cache-dir", type=str, default="llm_cache", help="LLM query cache dir. Defaults to ./llm_cache."
     )
     argparser.add_argument(
@@ -56,6 +59,14 @@ def main():
 
     if args.index:
         cmdline_args.extend(["--index", args.index])
+
+    if args.cache_dir:
+        if not args.cache_dir.startswith("s3://"):
+            cache_dir = os.path.abspath(args.cache_dir)
+            os.makedirs(cache_dir, exist_ok=True)
+        else:
+            cache_dir = args.cache_dir
+        cmdline_args.extend(["--cache-dir", cache_dir])
 
     if args.llm_cache_dir:
         if not args.llm_cache_dir.startswith("s3://"):

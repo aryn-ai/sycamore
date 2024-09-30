@@ -176,6 +176,7 @@ def query_data_source(query: str, index: str) -> Tuple[Any, Optional[Any], Optio
         sqclient = SycamoreQueryClient(
             s3_cache_path=st.session_state.llm_cache_dir,
             trace_dir=st.session_state.trace_dir,
+            cache_dir=st.session_state.cache_dir,
         )
         with st.spinner("Generating plan..."):
             plan = util.generate_plan(sqclient, query, index, examples=PLANNER_EXAMPLES)
@@ -310,12 +311,16 @@ def main():
         "--index", help="OpenSearch index name to use. If specified, only this index will be queried."
     )
     argparser.add_argument("--title", type=str, help="Title text.")
+    argparser.add_argument("--cache-dir", type=str, help="Query execution cache dir.")
     argparser.add_argument("--llm-cache-dir", type=str, help="LLM query cache dir.")
     argparser.add_argument("--trace-dir", type=str, help="Directory to store query traces.")
     args = argparser.parse_args()
 
     if "index" not in st.session_state:
         st.session_state.index = args.index
+
+    if "cache_dir" not in st.session_state:
+        st.session_state.cache_dir = args.cache_dir
 
     if "llm_cache_dir" not in st.session_state:
         st.session_state.llm_cache_dir = args.llm_cache_dir

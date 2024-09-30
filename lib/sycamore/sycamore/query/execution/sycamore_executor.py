@@ -4,6 +4,7 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 import structlog
+from sycamore.materialize_config import MaterializeSourceMode
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.basic_filter import BasicFilter
 from sycamore.query.operators.limit import Limit
@@ -48,14 +49,20 @@ class SycamoreExecutor:
     Args:
         context (Context): The Sycamore context to use.
         trace_dir (str, optional): If set, query execution traces will be written to this directory.
+        cache_dir (str, optional): If set, intermediate query results will be cached in this
+            directory. Query plans will reuse cached results from identical subtrees previously
+            executed with the same cache_dir. This can greatly improve performance, but be aware
+            that the cache is not automatically invalidated when the source data changes.
+            Defaults to None.
         codegen_mode (bool, optional): If set, query execution traces will be done by generating python code.
-        dry_run (bool, optional): If set, query will not be executed, only generated python code will be returned
+        dry_run (bool, optional): If set, query will not be executed, only generated python code will be returned.
     """
 
     def __init__(
         self,
         context: Context,
         trace_dir: Optional[str] = None,
+        cache_dir: Optional[str] = None,
         codegen_mode: bool = False,
         dry_run: bool = False,
     ) -> None:
@@ -63,12 +70,15 @@ class SycamoreExecutor:
 
         self.context = context
         self.trace_dir = trace_dir
+        self.cache_dir = cache_dir
         self.processed: Dict[int, Any] = dict()
         self.dry_run = dry_run
         self.codegen_mode = codegen_mode
 
         if self.trace_dir and not self.dry_run:
             log.info("Using trace directory: %s", trace_dir)
+        if self.cache_dir and not self.dry_run:
+            log.info("Using cache directory: %s", cache_dir)
         self.node_id_to_node: Dict[int, LogicalOperator] = {}
         self.node_id_to_code: Dict[int, str] = {}
         self.imports: List[str] = []
@@ -92,6 +102,12 @@ class SycamoreExecutor:
             os.makedirs(trace_dir, exist_ok=True)
         else:
             trace_dir = None
+
+        if self.cache_dir and not self.dry_run:
+            cache_dir = os.path.join(self.cache_dir, logical_node.cache_key())
+            os.makedirs(cache_dir, exist_ok=True)
+        else:
+            cache_dir = None
 
         # Process dependencies
         if logical_node.dependencies:
@@ -205,9 +221,12 @@ class SycamoreExecutor:
         result = "visited"
         if not self.codegen_mode and not self.dry_run:
             result = operation.execute()
+            if cache_dir and hasattr(result, "materialize"):
+                log.info("Caching node execution", cache_dir=cache_dir)
+                result = result.materialize(cache_dir, source_mode=MaterializeSourceMode.USE_STORED)
             if trace_dir and hasattr(result, "materialize"):
                 log.info("Materializing result", trace_dir=trace_dir)
-                result = result.materialize(trace_dir)
+                result = result.materialize(trace_dir, source_mode=MaterializeSourceMode.RECOMPUTE)
 
         self.processed[logical_node.node_id] = result
         log.info("Executed node", result=str(result))

@@ -161,7 +161,7 @@ EXAMPLE_FINANCIAL_SCHEMA = {
 }
 
 
-PLANNER_EXAMPLES = [
+PLANNER_EXAMPLES: List[PlannerExample] = [
     PlannerExample(
         query="Were there any incidents in Georgia?",
         schema=EXAMPLE_NTSB_SCHEMA,

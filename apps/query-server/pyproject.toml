@@ -7,7 +7,7 @@ packages = [{include = "queryserver"}]
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.13"
-sycamore-ai = { path = "../../lib/sycamore", develop = true, extras = ["opensearch"] }
+sycamore-ai = { path = "../../lib/sycamore", develop = true, extras = ["opensearch", "local-inference"] }
 fastapi = { version = "^0.115.0", extras = ["standard"]}
 pydantic = "^2.9.2"
 

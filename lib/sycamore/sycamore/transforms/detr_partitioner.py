@@ -739,7 +739,7 @@ def extract_ocr(
 
             # TODO: Do we want to switch to easyocr here too?
             if 0 in cropped_image.size:
-                text = ''
+                text = ""
             else:
                 text = pytesseract.image_to_string(cropped_image)
 

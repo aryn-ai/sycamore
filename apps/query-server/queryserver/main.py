@@ -24,12 +24,6 @@ LLM_CACHE_PATH = os.getenv("QUERYSERVER_LLM_CACHE_PATH", os.path.join(tempfile.g
 sqclient = SycamoreQueryClient(s3_cache_path=LLM_CACHE_PATH, cache_dir=CACHE_PATH)
 
 
-def get_sycamore_query_client(
-    s3_cache_path: Optional[str] = None, trace_dir: Optional[str] = None
-) -> SycamoreQueryClient:
-    pass
-
-
 class IndexSchemaField(BaseModel):
     """Represents a single field in an index schema."""
 
@@ -71,7 +65,7 @@ def get_index_schema(index: str) -> IndexSchema:
     index_schema = IndexSchema()
     schema = sqclient.get_opensearch_schema(index)
     for field in schema:
-        index_schema.fields[field] = IndexSchemaField(field_type=schema[field][0], examples=schema[field][1])
+        index_schema.fields[field] = IndexSchemaField(field_type=schema[field][0], examples=list(schema[field][1]))
     return index_schema
 
 
@@ -85,7 +79,7 @@ async def list_indices() -> List[Index]:
         index_schema = IndexSchema()
         schema = sqclient.get_opensearch_schema(index)
         for field in schema:
-            index_schema.fields[field] = IndexSchemaField(field_type=schema[field][0], examples=schema[field][1])
+            index_schema.fields[field] = IndexSchemaField(field_type=schema[field][0], examples=list(schema[field][1]))
         retval.append(Index(index=index, index_schema=index_schema))
     return retval
 

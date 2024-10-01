@@ -40,4 +40,5 @@ traces/
 apps/jupyter/bind_dir/poetry_cache
 apps/query-ui/cache_dir
 docs/build
+cache
 notebooks/default-prep-data

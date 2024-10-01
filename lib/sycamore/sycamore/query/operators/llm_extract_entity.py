@@ -1,3 +1,5 @@
+from pydantic import Field
+
 from sycamore.query.operators.logical_operator import LogicalOperator
 
 
@@ -8,14 +10,14 @@ class LlmExtractEntity(LogicalOperator):
     Returns a database.
     """
 
-    question: str
+    question: str = Field(..., json_schema_extra={"exclude_from_comparison": True})
     """The prompt to the LLM for creating the new field. Be descriptive with the question and
     include examples if possible."""
 
     field: str
     """The name of the existing field for the LLM to use."""
 
-    new_field: str
+    new_field: str = Field(..., json_schema_extra={"exclude_from_comparison": True})
     """The name of the new field to add."""
 
     new_field_type: str

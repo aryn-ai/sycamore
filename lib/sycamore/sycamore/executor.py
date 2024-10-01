@@ -69,6 +69,17 @@ class Execution:
             ray_args = self._context.ray_args or {}
             sycamore_ray_init(**ray_args)
 
+        from ray.data import ActorPoolStrategy
+
+        def visit_parallelism(n: Node):
+            assert isinstance(n, Node)
+            if n.parallelism is None:
+                n.resource_args.pop("compute", None)
+            else:
+                assert n.parallelism > 0
+                n.resource_args["compute"] = ActorPoolStrategy(size=n.parallelism)
+
+        plan = plan.traverse(visit=visit_parallelism)
         return plan.execute(**kwargs)
 
     def _apply_rules(self, plan: Node) -> Node:

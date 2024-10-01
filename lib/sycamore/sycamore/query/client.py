@@ -28,7 +28,7 @@ from sycamore.utils.import_utils import requires_modules
 
 from sycamore.query.execution.sycamore_executor import SycamoreExecutor
 from sycamore.query.logical_plan import LogicalPlan
-from sycamore.query.planner import LlmPlanner
+from sycamore.query.planner import LlmPlanner, PlannerExample
 from sycamore.query.schema import OpenSearchSchema, OpenSearchSchemaFetcher
 from sycamore.query.visualize import visualize_plan
 
@@ -100,6 +100,7 @@ class SycamoreQueryClient:
         os_config (optional): OpenSearch configuration. Defaults to DEFAULT_OS_CONFIG.
         os_client_args (optional): OpenSearch client arguments. Defaults to DEFAULT_OS_CLIENT_ARGS.
         trace_dir (optional): Directory to write query execution trace.
+        cache_dir (optional): Directory to use for caching intermediate query results.
 
     Notes:
         If you override the context, you cannot override the s3_cache_path or os_client_args; you need
@@ -122,12 +123,14 @@ class SycamoreQueryClient:
         os_config: dict = DEFAULT_OS_CONFIG,
         os_client_args: Optional[dict] = None,
         trace_dir: Optional[str] = None,
+        cache_dir: Optional[str] = None,
     ):
         from opensearchpy import OpenSearch
 
         self.s3_cache_path = s3_cache_path
         self.os_config = os_config
         self.trace_dir = trace_dir
+        self.cache_dir = cache_dir
 
         # TODO: remove these assertions and simplify the code to get all customization via the
         # context.
@@ -152,7 +155,11 @@ class SycamoreQueryClient:
 
     @requires_modules("opensearchpy.client.indices", extra="opensearch")
     def get_opensearch_schema(self, index: str) -> OpenSearchSchema:
-        """Get the schema for the provided OpenSearch index."""
+        """Get the schema for the provided OpenSearch index.
+
+        To debug:
+        logging.getLogger("sycamore.query.schema").setLevel(logging.DEBUG)
+        """
         from opensearchpy.client.indices import IndicesClient
 
         schema_provider = OpenSearchSchemaFetcher(IndicesClient(self._os_client), index, self._os_query_executor)
@@ -163,7 +170,7 @@ class SycamoreQueryClient:
         query: str,
         index: str,
         schema: OpenSearchSchema,
-        examples: Optional[str] = None,
+        examples: Optional[List[PlannerExample]] = None,
         natural_language_response: bool = False,
     ) -> LogicalPlan:
         """Generate a logical query plan for the given query, index, and schema.
@@ -172,6 +179,7 @@ class SycamoreQueryClient:
             query: The query to generate a plan for.
             index: The index to query against.
             schema: The schema for the index.
+            examples: Optional examples to use for planning.
             natural_language_response: Whether to generate a natural language response. If False,
                 raw data will be returned.
         """
@@ -195,6 +203,7 @@ class SycamoreQueryClient:
         """Run the given logical query plan and return a tuple of the query ID and result."""
         executor = SycamoreExecutor(
             context=self.context,
+            cache_dir=self.cache_dir,
             trace_dir=self.trace_dir,
             dry_run=dry_run,
             codegen_mode=codegen_mode,
@@ -289,7 +298,7 @@ def main():
     parser.add_argument(
         "--s3-cache-path",
         type=str,
-        help="S3 cache path",
+        help="LLM cache path",
         default=None,
     )
     parser.add_argument(
@@ -302,6 +311,7 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="Generate and show query plan and execution code")
     parser.add_argument("--codegen-mode", action="store_true", help="Execute through codegen")
     parser.add_argument("--trace-dir", help="Directory to write query execution trace.")
+    parser.add_argument("--cache-dir", help="Directory to use for query execution cache.")
     parser.add_argument("--dump-traces", action="store_true", help="Dump traces from the execution.")
     parser.add_argument("--log-level", type=str, help="Log level", default="WARN")
     args = parser.parse_args()
@@ -320,7 +330,11 @@ def main():
         # Make trace_dir absolute.
         args.trace_dir = os.path.abspath(args.trace_dir)
 
-    client = SycamoreQueryClient(s3_cache_path=args.s3_cache_path, trace_dir=args.trace_dir)
+    if args.cache_dir:
+        # Make cache_dir absolute.
+        args.cache_dir = os.path.abspath(args.cache_dir)
+
+    client = SycamoreQueryClient(s3_cache_path=args.s3_cache_path, trace_dir=args.trace_dir, cache_dir=args.cache_dir)
 
     if args.show_indices:
         for index in client.get_opensearch_incides():

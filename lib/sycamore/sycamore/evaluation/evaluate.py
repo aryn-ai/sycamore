@@ -17,7 +17,9 @@ def add_search_context_to_datapoint(datapoint: Document) -> List[Element]:
     assert datapoint.type == "EvaluationDataPoint"
     source_documents: List[Element] = []
     assert datapoint.get("raw") is not None
-    for search_result in datapoint.get("raw", {}).get("SearchContexts", []):
+    raw_point: Any = datapoint.get("raw", {})
+
+    for search_result in raw_point.get("SearchContexts", []):
         source_document = Element()
         pg_number = search_result.get("page_numbers", [search_result.get("page_number", None)])
         assert pg_number is not None

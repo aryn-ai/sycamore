@@ -661,8 +661,8 @@ class DocSet:
 
         class Wrapper(Node):
             def __init__(self, dataset):
+                super().__init__(children=[])
                 self._ds = dataset
-                self.children = []
 
             def execute(self, **kwargs):
                 return self._ds

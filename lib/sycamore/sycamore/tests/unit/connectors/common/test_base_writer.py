@@ -72,7 +72,6 @@ class Common:
 
 
 class TestBaseDBWriter(Common):
-
     def test_fake_writer_e2e_happy(self, mocker, tmp_path) -> None:
         input_node = mocker.Mock(spec=Node)
         client_params = FakeClientParams(fspath=tmp_path)

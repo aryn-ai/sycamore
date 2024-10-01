@@ -32,6 +32,7 @@ def partition_file(
     selected_pages: Optional[list[Union[list[int], int]]] = None,
     aps_url: str = APS_URL,
     ssl_verify: bool = True,
+    output_format: Optional[str] = None,
 ) -> dict:
     """
     Sends file to the Aryn Partitioning Service and returns a dict of its document structure and text
@@ -58,9 +59,12 @@ def partition_file(
         aps_url: url of the Aryn Partitioning Service endpoint.
             default: "https://api.aryn.cloud/v1/document/partition"
         ssl_verify: verify ssl certificates. In databricks, set this to False to fix ssl imcompatibilities.
+        output_format: controls output representation; can be set to markdown.
+            default: None (JSON elements)
 
     Returns:
-        A dictionary containing "status" and "elements"
+        A dictionary containing "status" and "elements".
+        If output_format is markdown, dictionary of "status" and "markdown".
 
     Example:
          .. code-block:: python
@@ -90,6 +94,7 @@ def partition_file(
         extract_table_structure=extract_table_structure,
         extract_images=extract_images,
         selected_pages=selected_pages,
+        output_format=output_format,
     )
 
     _logger.debug(f"{options_str}")
@@ -151,6 +156,7 @@ def _json_options(
     extract_table_structure: bool = False,
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
+    output_format: Optional[str] = None,
 ) -> str:
     # isn't type-checking fun
     options: dict[str, Union[float, bool, str, list[Union[list[int], int]]]] = dict()
@@ -166,6 +172,8 @@ def _json_options(
         options["extract_table_structure"] = extract_table_structure
     if selected_pages:
         options["selected_pages"] = selected_pages
+    if output_format:
+        options["output_format"] = output_format
 
     options["source"] = "aryn-sdk"
 

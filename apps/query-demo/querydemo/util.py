@@ -34,7 +34,7 @@ def get_schema(_client: SycamoreQueryClient, index: str) -> Dict[str, Tuple[str,
     return _client.get_opensearch_schema(index)
 
 
-def generate_plan(_client: SycamoreQueryClient, query: str, index: str, examples: Optional[str] = None) -> LogicalPlan:
+def generate_plan(_client: SycamoreQueryClient, query: str, index: str, examples: Optional[Any] = None) -> LogicalPlan:
     return _client.generate_plan(query, index, get_schema(_client, index), examples=examples)
 
 

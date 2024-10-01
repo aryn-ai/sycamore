@@ -82,9 +82,7 @@ class SketchUniquify(SingleThreadUser, NonGPUUser, FlatMap):
 
     def __init__(self, child: Node, threshold: float = 0.4, **kwargs) -> None:
         # must run on 1 instance to get a global view
-        from ray.data import ActorPoolStrategy
-
-        kwargs["compute"] = ActorPoolStrategy(size=1)
+        kwargs["parallelism"] = 1
         super().__init__(child, f=SketchUniquify.Predicate, constructor_args=[threshold], **kwargs)
 
     class Predicate:
@@ -137,9 +135,7 @@ class SketchDebug(SingleThreadUser, NonGPUUser, FlatMap):
     """
 
     def __init__(self, child: Node, threshold: float = 0.4, **kwargs) -> None:
-        from ray.data import ActorPoolStrategy
-
-        kwargs["compute"] = ActorPoolStrategy(size=1)
+        kwargs["parallelism"] = 1
         super().__init__(child, f=SketchDebug.Predicate, constructor_args=[threshold], **kwargs)
         self.threshold = threshold
 

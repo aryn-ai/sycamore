@@ -1,16 +1,15 @@
 [tool.poetry]
-name = "queryui"
+name = "queryserver"
 version = "0.1.0"
 description = ""
 authors = ["Matt Welsh <matt@aryn.ai>"]
-packages = [{include = "queryui"}]
+packages = [{include = "queryserver"}]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.9.7 || >3.9.7,<3.13"
+python = ">=3.9,<3.13"
 sycamore-ai = { path = "../../lib/sycamore", develop = true, extras = ["opensearch", "local-inference"] }
-streamlit = "^1.36.0"
-streamlit-ace = "^0.1.1"
-marko = "^2.1.2"
+fastapi = { version = "^0.115.0", extras = ["standard"]}
+pydantic = "^2.9.2"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.4"

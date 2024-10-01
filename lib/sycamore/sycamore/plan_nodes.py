@@ -58,8 +58,16 @@ class Node(ABC):
     and then implemented
     """
 
-    def __init__(self, children: list[Optional["Node"]], materialize: dict = {}, **resource_args):
+    def __init__(
+        self,
+        children: list[Optional["Node"]],
+        materialize: dict = {},
+        parallelism: Optional[int] = None,
+        **resource_args
+    ):
         self.children = children
+        assert parallelism is None or parallelism > 0
+        self.parallelism = parallelism
         self.resource_args = resource_args
         self.properties = {}
         # copy because of https://stackoverflow.com/questions/1132941/least-astonishment-and-the-mutable-default-argument

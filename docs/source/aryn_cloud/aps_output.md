@@ -95,3 +95,12 @@ When `extract_images` is set to True, Images include a `binary_representation` t
 ```text
 "binary_representation": base64 encoded ppm image file of the pdf cropped to the image
 ```
+
+## Markdown Format
+
+If the request to the Aryn Partitioning Service has the `output_format` option set to `markdown`, a successful response will look like this:
+
+```text
+{ "status": ...,
+  "markdown": "# Title\ndolorem ipsum, quia dolor sit amet consectetur..." }
+```

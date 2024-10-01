@@ -48,7 +48,7 @@ class Index(BaseModel):
 
     index: str
     description: Optional[str] = None
-    schema: IndexSchema
+    index_schema: IndexSchema
 
 
 class Query(BaseModel):
@@ -86,7 +86,7 @@ async def list_indices() -> List[Index]:
         schema = sqclient.get_opensearch_schema(index)
         for field in schema:
             index_schema.fields[field] = IndexSchemaField(field_type=schema[field][0], examples=schema[field][1])
-        retval.append(Index(index=index, schema=index_schema))
+        retval.append(Index(index=index, index_schema=index_schema))
     return retval
 
 
@@ -97,16 +97,14 @@ async def get_index(
     """Return details on the given index."""
 
     schema = get_index_schema(index)
-    return Index(index=index, schema=schema)
+    return Index(index=index, index_schema=schema)
 
 
 @app.post("/v1/plan")
 async def generate_plan(query: Query) -> LogicalPlan:
     """Generate a query plan for the given query, but do not run it."""
 
-    plan = sqclient.generate_plan(
-        query.query, query.index, util.get_schema(sqclient, query.index), examples=query.examples
-    )
+    plan = sqclient.generate_plan(query.query, query.index, util.get_schema(sqclient, query.index))
     return plan
 
 
@@ -122,8 +120,6 @@ async def run_plan(plan: LogicalPlan) -> QueryResult:
 async def run_query(query: Query) -> QueryResult:
     """Generate a plan for the given query, run it, and return the result."""
 
-    plan = sqclient.generate_plan(
-        query.query, query.index, util.get_schema(sqclient, query.index), examples=query.examples
-    )
+    plan = sqclient.generate_plan(query.query, query.index, util.get_schema(sqclient, query.index))
     _, result = sqclient.run_plan(plan)
     return QueryResult(plan=plan, result=result)

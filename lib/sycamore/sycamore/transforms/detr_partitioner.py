@@ -646,6 +646,8 @@ class DeformableDetr(SycamoreObjectDetection):
             (w, h) = image.size
             elements = []
             for score, label, box in zip(result["scores"], result["labels"], result["boxes"]):
+                # Potential fix if negative bbox is causing downstream failures
+                # box = [max(0.0, coord) for coord in box]
                 element = create_element(
                     type=self.labels[label],
                     bbox=BoundingBox(box[0] / w, box[1] / h, box[2] / w, box[3] / h).coordinates,
@@ -736,7 +738,10 @@ def extract_ocr(
             cropped_image = image.crop(crop_box)
 
             # TODO: Do we want to switch to easyocr here too?
-            text = pytesseract.image_to_string(cropped_image)
+            if 0 in cropped_image.size:
+                text = ''
+            else:
+                text = pytesseract.image_to_string(cropped_image)
 
             elem.text_representation = text
 

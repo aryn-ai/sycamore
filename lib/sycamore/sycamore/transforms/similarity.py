@@ -130,8 +130,6 @@ class HuggingFaceTransformersSimilarityScorer(SimilarityScorer):
 
     """
 
-    import torch
-
     def __init__(
         self,
         model_name: str = "BAAI/bge-reranker-large",
@@ -155,8 +153,9 @@ class HuggingFaceTransformersSimilarityScorer(SimilarityScorer):
         return self.generate_similarity_scores(doc_batch, query, score_property_name)
 
     @timetrace("TransformersSimilarity")
-    @torch.no_grad()
     def score(self, inputs: list[tuple[str, str]]) -> list[float]:
+        import torch
+
         if not self._model or not self._tokenizer:
             logger.info(f"Initializing transformers model: {self.model_name}")
             from transformers import AutoModelForSequenceClassification, AutoTokenizer
@@ -168,23 +167,23 @@ class HuggingFaceTransformersSimilarityScorer(SimilarityScorer):
         assert self._tokenizer is not None
 
         scores = []
+        with torch.no_grad():
+            for i in range(0, len(inputs), self.model_batch_size):
+                input_batch = inputs[i : i + self.model_batch_size]
 
-        for i in range(0, len(inputs), self.model_batch_size):
-            input_batch = inputs[i : i + self.model_batch_size]
-
-            tokenized = self._tokenizer(
-                input_batch, padding=True, truncation=True, return_tensors="pt", max_length=self.max_tokens
-            )
-            scores.extend(
-                (
-                    self._model(**tokenized, return_dict=True)
-                    .logits.view(
-                        -1,
-                    )
-                    .float()
+                tokenized = self._tokenizer(
+                    input_batch, padding=True, truncation=True, return_tensors="pt", max_length=self.max_tokens
                 )
-            )
-        return scores
+                scores.extend(
+                    (
+                        self._model(**tokenized, return_dict=True)
+                        .logits.view(
+                            -1,
+                        )
+                        .float()
+                    )
+                )
+            return scores
 
 
 class ScoreSimilarity(MapBatch):

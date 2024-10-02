@@ -181,8 +181,8 @@ class LegacyOcr(OcrModel):
 class PaddleOcr(OcrModel):
     # NOTE: Also requires the installation of paddlepaddle or paddlepaddle-gpu
     # depending on your system
-    @requires_modules("paddleocr", extra="local-inference")
-    def __init__(self, use_gpu=True, language="en"):
+    @requires_modules(["paddleocr", "paddle"], extra="local-inference")
+    def __init__(self, language="en"):
         from paddleocr import PaddleOCR
         from paddleocr.ppocr.utils.logging import get_logger
         import paddle

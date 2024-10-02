@@ -798,7 +798,7 @@ class DocSet:
                ds = context.read.binary(paths, binary_format="pdf")
                    .partition(partitioner=ArynPartitioner())
                    .regex_replace(COALESCE_WHITESPACE)
-                   .regex_replace([(r"\d+", "1313"), (r"old", "new")])
+                   .regex_replace([(r"\\d+", "1313"), (r"old", "new")])
                    .explode()
         """
         from sycamore.transforms import RegexReplace

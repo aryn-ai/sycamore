@@ -219,7 +219,7 @@ class ScoreSimilarity(MapBatch):
     ):
         super().__init__(
             child,
-            f=similarity_scorer.generate_similarity_scores,  # type: ignore
+            f=similarity_scorer,  # type: ignore
             f_args=[query, score_property_name],
             **resource_args,
         )

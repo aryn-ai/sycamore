@@ -6,7 +6,7 @@ from typing import Any, Optional, Union, Tuple, Callable, TYPE_CHECKING
 import uuid
 import logging
 
-from pyarrow.fs import FileSystem, LocalFileSystem, FileSelector
+from pyarrow.fs import FileSystem, FileSelector
 from sycamore.data import Document
 from sycamore.plan_nodes import Scan
 from sycamore.utils.time_trace import timetrace
@@ -169,8 +169,7 @@ class BinaryScan(FileScan):
             paths = [self._paths]
         else:
             paths = self._paths
-        if not self._filesystem:
-            self._filesystem = LocalFileSystem()
+
         documents = []
 
         def process_file(info):
@@ -200,6 +199,8 @@ class BinaryScan(FileScan):
             from sycamore.utils.pyarrow import cross_check_infer_fs
 
             (filesystem, path) = cross_check_infer_fs(self._filesystem, orig_path)
+            if self._filesystem is None:
+                self._filesystem = filesystem
 
             path_info = filesystem.get_file_info(path)
             if path_info.is_file:

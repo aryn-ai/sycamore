@@ -95,4 +95,4 @@ def test_run_plan_with_caching(test_count_docs_query_plan, mock_sycamore_docsetr
 
             # No new directories should have been created.
             existing_dirs = [os.path.join(temp_dir, x) for x in os.listdir(temp_dir)]
-            assert existing_dirs == cache_dirs
+            assert set(existing_dirs) == set(cache_dirs)

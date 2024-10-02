@@ -4,6 +4,7 @@ import pytest
 from opensearchpy import OpenSearch
 
 import sycamore
+from sycamore import ExecMode
 from sycamore.connectors.common import compare_docs
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
@@ -59,7 +60,7 @@ class TestOpenSearchRead:
         """
 
         path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
-        context = sycamore.init()
+        context = sycamore.init(exec_mode=ExecMode.LOCAL)
         original_docs = (
             context.read.binary(path, binary_format="pdf")
             .partition(partitioner=UnstructuredPdfPartitioner())

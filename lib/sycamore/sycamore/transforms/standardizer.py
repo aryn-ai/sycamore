@@ -57,7 +57,10 @@ class USStateStandardizer(Standardizer):
         .. code-block:: python
 
             source_docset = ...  # Define a source node or component that provides hierarchical documents.
-            transformed_docset = source_docset.map( lambda doc: USStateStandardizer.standardize(doc, key_path = ["path","to","location"]))
+            transformed_docset = source_docset.map(
+                lambda doc: USStateStandardizer.standardize(
+                    doc,
+                    key_path = ["path","to","location"]))
 
     """
 
@@ -171,7 +174,10 @@ class DateTimeStandardizer(Standardizer):
         .. code-block:: python
 
             source_docset = ...  # Define a source node or component that provides hierarchical documents.
-            transformed_docset = source_docset.map( lambda doc: USStateStandardizer.standardize(doc, key_path = ["path","to","location"]))
+            transformed_docset = source_docset.map(
+                lambda doc: USStateStandardizer.standardize(
+                    doc,
+                    key_path = ["path","to","location"]))
     """
 
     DEFAULT_FORMAT = "%B %d, %Y %H:%M:%S%Z"

@@ -377,7 +377,7 @@ class ArynPartitioner(Partitioner):
             default: "easyocr"
         per_element_ocr: If true, will run OCR on each element individually instead of the entire page. Note: this
             will be ignored for the Aryn Partitioning Service, which uses its own OCR implementation.
-            default: False
+            default: True
         extract_table_structure: If true, runs a separate table extraction model to extract cells from
              regions of the document identified as tables.
         table_structure_extractor: The table extraction implementaion to use when extract_table_structure
@@ -418,7 +418,7 @@ class ArynPartitioner(Partitioner):
         use_ocr: bool = False,
         ocr_images: bool = False,
         ocr_model: str = "easyocr",
-        per_element_ocr: bool = False,
+        per_element_ocr: bool = True,
         extract_table_structure: bool = False,
         table_structure_extractor: Optional[TableStructureExtractor] = None,
         extract_images: bool = False,

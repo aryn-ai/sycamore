@@ -132,7 +132,7 @@ class ArynPDFPartitioner:
         use_ocr=False,
         ocr_images=False,
         ocr_model="easyocr",
-        per_element_ocr=False,
+        per_element_ocr=True,
         extract_table_structure=False,
         table_structure_extractor=None,
         extract_images=False,
@@ -338,7 +338,7 @@ class ArynPDFPartitioner:
         use_ocr: bool = False,
         ocr_images: bool = False,
         ocr_model: str = "easyocr",
-        per_element_ocr: bool = False,
+        per_element_ocr: bool = True,
         extract_table_structure: bool = False,
         table_structure_extractor=None,
         extract_images: bool = False,
@@ -382,7 +382,7 @@ class ArynPDFPartitioner:
         use_ocr: bool = False,
         ocr_images: bool = False,
         ocr_model: str = "easyocr",
-        per_element_ocr: bool = False,
+        per_element_ocr: bool = True,
         extract_table_structure=False,
         table_structure_extractor=None,
         extract_images=False,
@@ -522,7 +522,6 @@ class ArynPDFPartitioner:
             extracted_layout = model.extract_document(file_name, hash_key, use_cache, **kwargs)
         return extracted_layout
 
-    # TODO: Remove once the service has been updated
     def process_batch_inference(
         self,
         batch: list[Image.Image],
@@ -550,7 +549,6 @@ class ArynPDFPartitioner:
             )
         return deformable_layout
 
-    # TODO: Remove once the service has been updated
     def process_batch_extraction(
         self,
         batch: list[Image.Image],

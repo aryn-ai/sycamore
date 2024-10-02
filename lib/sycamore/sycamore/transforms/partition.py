@@ -365,9 +365,19 @@ class ArynPartitioner(Partitioner):
              while a higher value will reduce the number of overlaps, but may miss legitimate objects.
         use_ocr: Whether to use OCR to extract text from the PDF. If false, we will attempt to extract
              the text from the underlying PDF.
+            default: False
         ocr_images: If set with use_ocr, will attempt to OCR regions of the document identified as images.
-        ocr_tables: If set with use_ocr, will attempt to OCR regions of the document identified as tables.
-             Should not be set when `extract_table_structure` is true.
+            default: False
+        ocr_model: model to use for OCR. Choices are "easyocr", "paddle", "tesseract" and "legacy", which
+            correspond to EasyOCR, PaddleOCR, and Tesseract respectively, with "legacy" being a combination of
+            Tesseract for text and EasyOCR for tables. If you choose paddle make sure to install
+            paddlepaddle or paddlepaddle-gpu depending on whether you have a CPU or GPU. Further details are found
+            at: https://www.paddlepaddle.org.cn/documentation/docs/en/install/index_en.html. Note: this
+            will be ignored for the Aryn Partitioning Service, which uses its own OCR implementation.
+            default: "easyocr"
+        per_element_ocr: If true, will run OCR on each element individually instead of the entire page. Note: this
+            will be ignored for the Aryn Partitioning Service, which uses its own OCR implementation.
+            default: True
         extract_table_structure: If true, runs a separate table extraction model to extract cells from
              regions of the document identified as tables.
         table_structure_extractor: The table extraction implementaion to use when extract_table_structure
@@ -375,6 +385,7 @@ class ArynPartitioner(Partitioner):
              Ignored when local mode is false.
         extract_images: If true, crops each region identified as an image and attaches it to the associated
              ImageElement. This can later be fed into the SummarizeImages transform.
+            default: False
         device: Device on which to run the partitioning model locally. One of 'cpu', 'cuda', and 'mps'. If
              not set, Sycamore will choose based on what's available. If running remotely, this doesn't
              matter.
@@ -384,6 +395,7 @@ class ArynPartitioner(Partitioner):
         aryn_api_key: The account token used to authenticate with Aryn's servers.
         aryn_partitioner_address: The address of the server to use to partition the document
         use_cache: Cache results from the partitioner for faster inferences on the same documents in future runs.
+            default: False
         pages_per_call: Number of pages to send in a single call to the remote service. Default is -1,
              which means send all pages in one call.
         output_format: controls output representation: json (default) or markdown.
@@ -406,7 +418,8 @@ class ArynPartitioner(Partitioner):
         threshold: Optional[Union[float, Literal["auto"]]] = None,
         use_ocr: bool = False,
         ocr_images: bool = False,
-        ocr_tables: bool = False,
+        ocr_model: str = "easyocr",
+        per_element_ocr: bool = True,
         extract_table_structure: bool = False,
         table_structure_extractor: Optional[TableStructureExtractor] = None,
         extract_images: bool = False,
@@ -444,7 +457,8 @@ class ArynPartitioner(Partitioner):
 
         self._use_ocr = use_ocr
         self._ocr_images = ocr_images
-        self._ocr_tables = ocr_tables
+        self._ocr_model = ocr_model
+        self._per_element_ocr = per_element_ocr
         self._extract_table_structure = extract_table_structure
         self._table_structure_extractor = table_structure_extractor
         self._extract_images = extract_images
@@ -469,7 +483,8 @@ class ArynPartitioner(Partitioner):
                 self._threshold,
                 use_ocr=self._use_ocr,
                 ocr_images=self._ocr_images,
-                ocr_tables=self._ocr_tables,
+                per_element_ocr=self._per_element_ocr,
+                ocr_model=self._ocr_model,
                 extract_table_structure=self._extract_table_structure,
                 table_structure_extractor=self._table_structure_extractor,
                 extract_images=self._extract_images,

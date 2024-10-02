@@ -107,6 +107,10 @@ class TestSketchUniquify:
         )
         execute = mocker.patch.object(node, "execute")
         execute.return_value = in_ds
+        if uq.parallelism is not None:
+            from ray.data import ActorPoolStrategy
+
+            uq.resource_args["compute"] = ActorPoolStrategy(size=uq.parallelism)
         ds = uq.execute()
         (docs, _) = take_separate(ds)
         assert len(docs) == 1

@@ -24,6 +24,6 @@ will get a merge conflict.
 
 
 def get_sycamore_query_client(
-    s3_cache_path: Optional[str] = None, trace_dir: Optional[str] = None
+    s3_cache_path: Optional[str] = None, trace_dir: Optional[str] = None, cache_dir: Optional[str] = None
 ) -> SycamoreQueryClient:
-    return SycamoreQueryClient(s3_cache_path=s3_cache_path, trace_dir=trace_dir)
+    return SycamoreQueryClient(s3_cache_path=s3_cache_path, trace_dir=trace_dir, cache_dir=cache_dir)

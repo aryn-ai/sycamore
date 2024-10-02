@@ -3,6 +3,8 @@ from unittest.mock import Mock
 from opensearchpy import OpenSearch, RequestError, ConnectionError
 import pytest
 
+from sycamore.connectors.opensearch.opensearch_reader import OpenSearchReaderQueryResponse, OpenSearchReaderQueryParams
+
 from sycamore import Context
 from sycamore.connectors.opensearch import (
     OpenSearchWriterClient,
@@ -12,7 +14,7 @@ from sycamore.connectors.opensearch import (
 )
 from sycamore.connectors.common import HostAndPort
 from sycamore.connectors.opensearch.utils import get_knn_query
-from sycamore.data.document import Document
+from sycamore.data.document import Document, DocumentPropertyTypes, DocumentSource
 from sycamore.transforms import Embedder
 
 
@@ -163,6 +165,161 @@ class TestOpenSearchClient:
         target_params = OpenSearchWriterTargetParams(index_name="test")
         osc_testing = OpenSearchWriterClient(client)
         osc_testing.write_many_records(records, target_params)
+
+
+class TestOpenSearchReaderQueryResponse:
+    def test_to_docs(self):
+        records = [
+            {
+                "text_representation": "this is an element",
+                "parent_id": "doc_1",
+            },
+            {"text_representation": "this is a parent doc", "parent_id": None, "doc_id": "doc_1"},
+        ]
+        hits = [{"_source": record} for record in records]
+        query_response = OpenSearchReaderQueryResponse(hits)
+        query_params = OpenSearchReaderQueryParams(index_name="some index")
+        docs = query_response.to_docs(query_params)
+
+        assert len(docs) == 2
+
+        for i in range(len(docs)):
+            assert docs[i].parent_id == records[i]["parent_id"]
+            assert docs[i].text_representation == records[i]["text_representation"]
+
+    def test_to_docs_reconstruct_require_client(self):
+        query_response = OpenSearchReaderQueryResponse([])
+        query_params = OpenSearchReaderQueryParams(index_name="some index", reconstruct_document=True)
+        with pytest.raises(AssertionError):
+            query_response.to_docs(query_params)
+
+    def test_to_docs_reconstruct(self, mocker):
+        records = [
+            {
+                "text_representation": "this is an element belonging to parent doc 1",
+                "parent_id": "doc_1",
+                "doc_id": "element_1",
+            },
+            {
+                "text_representation": "this is an element belonging to parent doc 1",
+                "parent_id": "doc_1",
+                "doc_id": "element_2",
+            },
+            {
+                "text_representation": "this is an element belonging to parent doc 2",
+                "parent_id": "doc_2",
+                "doc_id": "element_1",
+            },
+            {"text_representation": "this is a parent doc 1", "parent_id": None, "doc_id": "doc_1"},
+            {"text_representation": "this is a parent doc 2", "parent_id": None, "doc_id": "doc_2"},
+            {"text_representation": "this is a parent doc 3", "parent_id": None, "doc_id": "doc_3"},
+        ]
+        client = mocker.Mock(spec=OpenSearch)
+
+        # no elements match
+        hits = [{"_source": record} for record in records]
+        return_val = {"hits": {"hits": [hit for hit in hits if hit["_source"].get("parent_id")]}}
+        return_val["hits"]["hits"] += [
+            {
+                "_source": {
+                    "text_representation": "this is an element belonging to parent doc 2 retrieved via reconstruction",
+                    "parent_id": "doc_2",
+                    "doc_id": "element_2",
+                }
+            },
+            {
+                "_source": {
+                    "text_representation": "this is an element belonging to parent doc 2 retrieved via reconstruction",
+                    "parent_id": "doc_2",
+                    "doc_id": "element_3",
+                }
+            },
+        ]
+        client.search.return_value = return_val
+        query_response = OpenSearchReaderQueryResponse(hits, client=client)
+        query_params = OpenSearchReaderQueryParams(index_name="some index", reconstruct_document=True)
+        docs = query_response.to_docs(query_params)
+
+        assert len(docs) == 3
+
+        # since docs are unordered
+        doc_1 = [doc for doc in docs if doc.doc_id == "doc_1"][0]
+        doc_2 = [doc for doc in docs if doc.doc_id == "doc_2"][0]
+        doc_3 = [doc for doc in docs if doc.doc_id == "doc_3"][0]
+
+        assert len(doc_1.elements) == 2
+        assert len(doc_2.elements) == 3
+        assert len(doc_3.elements) == 0
+
+        assert doc_1.elements[0].text_representation == "this is an element belonging to parent doc 1"
+        assert doc_1.elements[1].text_representation == "this is an element belonging to parent doc 1"
+        assert doc_1.elements[0].properties[DocumentPropertyTypes.SOURCE] == DocumentSource.DB_QUERY
+        assert doc_1.elements[1].properties[DocumentPropertyTypes.SOURCE] == DocumentSource.DB_QUERY
+
+        assert doc_2.elements[0].text_representation == "this is an element belonging to parent doc 2"
+        assert (
+            doc_2.elements[1].text_representation
+            == "this is an element belonging to parent doc 2 retrieved via reconstruction"
+        )
+        assert (
+            doc_2.elements[2].text_representation
+            == "this is an element belonging to parent doc 2 retrieved via reconstruction"
+        )
+        assert doc_2.elements[0].properties[DocumentPropertyTypes.SOURCE] == DocumentSource.DB_QUERY
+        assert (
+            doc_2.elements[1].properties[DocumentPropertyTypes.SOURCE]
+            == DocumentSource.DOCUMENT_RECONSTRUCTION_RETRIEVAL
+        )
+        assert (
+            doc_2.elements[2].properties[DocumentPropertyTypes.SOURCE]
+            == DocumentSource.DOCUMENT_RECONSTRUCTION_RETRIEVAL
+        )
+
+    def test_to_docs_reconstruct_no_additional_elements(self, mocker):
+        records = [
+            {
+                "text_representation": "this is an element belonging to parent doc 1",
+                "parent_id": "doc_1",
+                "doc_id": "element_1",
+            },
+            {
+                "text_representation": "this is an element belonging to parent doc 1",
+                "parent_id": "doc_1",
+                "doc_id": "element_2",
+            },
+            {
+                "text_representation": "this is an element belonging to parent doc 2",
+                "parent_id": "doc_2",
+                "doc_id": "element_1",
+            },
+            {"text_representation": "this is a parent doc 1", "parent_id": None, "doc_id": "doc_1"},
+            {"text_representation": "this is a parent doc 2", "parent_id": None, "doc_id": "doc_2"},
+            {"text_representation": "this is a parent doc 3", "parent_id": None, "doc_id": "doc_3"},
+        ]
+        client = mocker.Mock(spec=OpenSearch)
+
+        # no elements match
+        hits = [{"_source": record} for record in records]
+        client.search.return_value = {"hits": {"hits": [hit for hit in hits if hit["_source"].get("parent_id")]}}
+        query_response = OpenSearchReaderQueryResponse(hits, client=client)
+        query_params = OpenSearchReaderQueryParams(index_name="some index", reconstruct_document=True)
+        docs = query_response.to_docs(query_params)
+
+        assert len(docs) == 3
+
+        # since docs are unordered
+        doc_1 = [doc for doc in docs if doc.doc_id == "doc_1"][0]
+        doc_2 = [doc for doc in docs if doc.doc_id == "doc_2"][0]
+        doc_3 = [doc for doc in docs if doc.doc_id == "doc_3"][0]
+
+        assert len(doc_1.elements) == 2
+        assert len(doc_2.elements) == 1
+        assert len(doc_3.elements) == 0
+
+        assert doc_1.elements[0].text_representation == "this is an element belonging to parent doc 1"
+        assert doc_1.elements[1].text_representation == "this is an element belonging to parent doc 1"
+
+        assert doc_2.elements[0].text_representation == "this is an element belonging to parent doc 2"
 
 
 class TestOpenSearchRecord:

@@ -21,9 +21,11 @@ from sycamore.data import Element, BoundingBox, ImageElement, TableElement
 from sycamore.data.element import create_element
 from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
 from sycamore.utils import choose_device
+from sycamore.utils.bbox_sort import bbox_sort_page
 from sycamore.utils.cache import Cache
 from sycamore.utils.image_utils import crop_to_bbox, image_to_bytes
 from sycamore.utils.import_utils import requires_modules
+from sycamore.utils.markdown import elements_to_markdown
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
 from sycamore.utils.pdf import convert_from_path_streamed_batched
 from sycamore.utils.time_trace import LogTime, timetrace
@@ -66,6 +68,18 @@ def get_page_count(fp: BinaryIO):
     num_pages = len(reader.pages)
     fp.seek(0)
     return num_pages
+
+
+def text_elem(text: str) -> Element:
+    return Element(
+        {
+            "type": "Text",
+            "properties": {
+                "page_number": 1,
+            },
+            "text_representation": text,
+        }
+    )
 
 
 class ArynPDFPartitioner:
@@ -142,6 +156,7 @@ class ArynPDFPartitioner:
         aryn_partitioner_address=DEFAULT_ARYN_PARTITIONER_ADDRESS,
         use_cache=False,
         pages_per_call: int = -1,
+        output_format: Optional[str] = None,
     ) -> List[Element]:
         if use_partitioning_service:
             assert aryn_api_key != ""
@@ -156,6 +171,7 @@ class ArynPDFPartitioner:
                 extract_table_structure=extract_table_structure,
                 extract_images=extract_images,
                 pages_per_call=pages_per_call,
+                output_format=output_format,
             )
         else:
             if isinstance(threshold, str):
@@ -176,9 +192,15 @@ class ArynPDFPartitioner:
             )
             elements = []
             for i, r in enumerate(temp):
+                page = []
                 for ele in r:
                     ele.properties["page_number"] = i + 1
-                    elements.append(ele)
+                    page.append(ele)
+                bbox_sort_page(page)
+                elements.extend(page)
+            if output_format == "markdown":
+                md = elements_to_markdown(elements)
+                return [text_elem(md)]
             return elements
 
     @staticmethod
@@ -197,6 +219,7 @@ class ArynPDFPartitioner:
         extract_table_structure: bool = False,
         extract_images: bool = False,
         selected_pages: list = [],
+        output_format: Optional[str] = None,
     ) -> List[Element]:
         file.seek(0)
         options = {
@@ -208,6 +231,8 @@ class ArynPDFPartitioner:
             "selected_pages": selected_pages,
             "source": "sycamore",
         }
+        if output_format:
+            options["output_format"] = output_format
 
         files: Mapping = {"pdf": file, "options": json.dumps(options).encode("utf-8")}
         header = {"Authorization": f"Bearer {aryn_api_key}"}
@@ -282,6 +307,8 @@ class ArynPDFPartitioner:
                 raise ArynPDFPartitionerException(
                     f"Error partway through processing: {response_json['error']}\nPartial Status:\n{status}"
                 )
+            if (output_format == "markdown") and ((md := response_json.get("markdown")) is not None):
+                return [text_elem(md)]
             response_json = response_json.get("elements", [])
 
         elements = []
@@ -304,6 +331,7 @@ class ArynPDFPartitioner:
         extract_table_structure: bool = False,
         extract_images: bool = False,
         pages_per_call: int = -1,
+        output_format: Optional[str] = None,
     ) -> List[Element]:
         page_count = get_page_count(file)
 
@@ -324,6 +352,7 @@ class ArynPDFPartitioner:
                     extract_table_structure=extract_table_structure,
                     extract_images=extract_images,
                     selected_pages=[[low, min(high, page_count)]],
+                    output_format=output_format,
                 )
             )
             low = high + 1
@@ -652,6 +681,8 @@ class DeformableDetr(SycamoreObjectDetection):
             (w, h) = image.size
             elements = []
             for score, label, box in zip(result["scores"], result["labels"], result["boxes"]):
+                # Potential fix if negative bbox is causing downstream failures
+                # box = [max(0.0, coord) for coord in box]
                 element = create_element(
                     type=self.labels[label],
                     bbox=BoundingBox(box[0] / w, box[1] / h, box[2] / w, box[3] / h).coordinates,
@@ -734,6 +765,9 @@ def extract_ocr(
             if elem.type == "Picture" and not ocr_images:
                 continue
             cropped_image = crop_to_bbox(image, elem.bbox)
+            if 0 in cropped_image.size:
+                elem.text_representation = ""
+                continue
             if elem.type == "table":
                 tokens = []
                 assert isinstance(elem, TableElement)

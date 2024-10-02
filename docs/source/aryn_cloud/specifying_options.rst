@@ -16,6 +16,7 @@ All of the available options are listed below:
 * ``extract_images``: If ``true``, the partitioner crops each region identified as an image and attaches it to the associated ``ImageElement``. This can later be fed into the ``SummarizeImages`` transform when used within Sycamore.
 * ``selected_pages``: You can specify a page (like ``[11]`` ), a page range (like ``[[25,30]]`` ), or a combination of both (like ``[11, [25,30]]`` ) of your PDF to process. The first page of the PDF is ``1``, not ``0``.
 * ``pages_per_call``: This is only available when using the Partition function in Sycamore. This option divides the processing of your document into batches of pages, and you specify the size of each batch (number of pages). This is useful when running OCR on large documents. 
+* ``output_format``:  Defaults to ``json`` which yields an array called ``elements`` which contains the partitioned elements, represented in JSON.  If set to ``markdown`` the service response will instead include a field called ``markdown`` that contains a string representing the entire document in Markdown format.
 
 You can use multiple options at the same time like in the example below:
 

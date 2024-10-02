@@ -68,10 +68,11 @@ class BaseMapTransform(UnaryNode):
     """
     BaseMapTransform abstracts away MetadataDocuments from all other transforms.
 
-    If f is a class type, the class will be instantiated and run as an actor in ray. constructor_args and
+    If f is a class type, the class will be instantiated and run as an actor in ray.
+    The parallelism will default to 1 if unspecified. constructor_args and
     constructor_kwargs can be used to provide arguments when initializing the class
 
-    If f is an object type and resource_args["compute"] is set to ActorPoolStrategy, it will run as an actor
+    If f is an object type and parallelism is specified, it will run as an actor
     Otherwise f will be run as a function.
 
     Use args, kwargs to pass additional args to the function call.
@@ -93,18 +94,8 @@ class BaseMapTransform(UnaryNode):
         enable_auto_metadata: bool = True,
         **resource_args,
     ):
-        if child is None:
-            logging.info("Assuming this is for local execution only, not checking serializability")
-        else:
-            # If serializability fails, the error messages are very confusing. These checks
-            # give a much more sensible error message and give it before ray starts execution.
-            check_serializable(f, name, args, kwargs, constructor_args, constructor_kwargs)
-
-        if isinstance(f, type) and "compute" not in resource_args:
-            from ray.data import ActorPoolStrategy
-
-            # classes require actor strategy for now
-            resource_args["compute"] = ActorPoolStrategy(size=1)
+        if isinstance(f, type) and "parallelism" not in resource_args:
+            resource_args["parallelism"] = 1
 
         super().__init__(child, **resource_args)
         if name is None:
@@ -125,6 +116,12 @@ class BaseMapTransform(UnaryNode):
         intermediate_datasink_kwargs: Optional[dict[str, Any]] = None,
         **kwargs,
     ) -> "Dataset":
+        # If serializability fails, the error messages are very confusing. These checks
+        # give a much more sensible error message and give it before ray starts execution.
+        check_serializable(
+            self._f, self._name, self._args, self._kwargs, self._constructor_args, self._constructor_kwargs
+        )
+
         from ray.data import ActorPoolStrategy
 
         if "num_gpus" in self.resource_args:
@@ -136,10 +133,13 @@ class BaseMapTransform(UnaryNode):
             intermediate_datasink_kwargs=intermediate_datasink_kwargs,
         )
         if isinstance(self._f, type):  # is f a class?
-            # Maybe add a class as function variant if the caller specified TaskPoolStrategy
+            # Maybe add a class as function variant if the caller specified parallelism=None
             result = input_dataset.map_batches(self._map_class(), **self.resource_args)
-        elif "compute" in self.resource_args and isinstance(self.resource_args["compute"], ActorPoolStrategy):
-            # Ray requires a class for ActorPoolStrategy.
+        elif "compute" in self.resource_args:
+            assert isinstance(
+                self.resource_args["compute"], ActorPoolStrategy
+            ), "only supported compute type is ActorPoolStrategy"
+            # Ray requires a class for ActorPoolStrategy
             result = input_dataset.map_batches(self._map_callable_as_class(), **self.resource_args)
         else:
             result = input_dataset.map_batches(self._map_function(), **self.resource_args)

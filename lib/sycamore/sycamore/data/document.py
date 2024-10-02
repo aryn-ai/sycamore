@@ -1,10 +1,22 @@
 from collections import UserDict
 import json
+from enum import Enum
 from typing import Any, Optional
 import uuid
 
 from sycamore.data import BoundingBox, Element
 from sycamore.data.element import create_element
+
+
+class DocumentSource(Enum):
+    UNKNOWN: str = "UNKNOWN"
+    DB_QUERY: str = "DB_QUERY"
+    DOCUMENT_RECONSTRUCTION_RETRIEVAL: str = "DOCUMENT_RECONSTRUCTION_RETRIEVAL"
+
+
+class DocumentPropertyTypes:
+    SOURCE: str = "_doc_source"
+    PAGE_NUMBER: str = "page_number"
 
 
 class Document(UserDict):

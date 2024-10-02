@@ -177,7 +177,7 @@ class DateTimeStandardizer(Standardizer):
             transformed_docset = source_docset.map(
                 lambda doc: USStateStandardizer.standardize(
                     doc,
-                    key_path = ["path","to","location"]))
+                    key_path = ["path","to","datetime"]))
     """
 
     DEFAULT_FORMAT = "%B %d, %Y %H:%M:%S%Z"

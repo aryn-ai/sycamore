@@ -74,5 +74,8 @@ class BaseDBReader(Scan):
         with TimeTrace("Reader"):
             return from_items(items=[{"doc": doc.serialize()} for doc in self.read_docs()])
 
+    def local_source(self) -> list[Document]:
+        return self.read_docs()
+
     def format(self):
         return "reader"

@@ -3,6 +3,7 @@ import tempfile
 
 from opensearchpy import OpenSearch
 import sycamore
+from sycamore import ExecMode
 from sycamore.connectors.file.file_scan import JsonManifestMetadataProvider
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.embed import SentenceTransformerEmbedder
@@ -54,7 +55,7 @@ def test_html_to_opensearch():
         tmp_manifest.flush()
         manifest_path = tmp_manifest.name
 
-        context = sycamore.init()
+        context = sycamore.init(exec_mode=ExecMode.LOCAL)
         ds = (
             context.read.binary(
                 base_path, binary_format="html", metadata_provider=JsonManifestMetadataProvider(manifest_path)

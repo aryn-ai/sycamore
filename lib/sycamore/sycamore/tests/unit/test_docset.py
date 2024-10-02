@@ -33,6 +33,7 @@ from sycamore.transforms.base import get_name_from_callable
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor
 from sycamore.transforms import Filter
+from sycamore.transforms.similarity import SimilarityScorer
 from sycamore.transforms.sort import Sort
 from sycamore.transforms.summarize import LLMElementTextSummarizer
 from sycamore.transforms.query import QueryExecutor
@@ -208,6 +209,12 @@ class TestDocSet:
         context = mocker.Mock(spec=Context)
         docset = DocSet(context, None)
         docset = docset.sort(None, None)
+        assert isinstance(docset.lineage(), Sort)
+
+    def test_rerank(self, mocker):
+        docset = DocSet(Context(), None)
+        similarity_scorer = mocker.Mock(spec=SimilarityScorer)
+        docset = docset.rerank(similarity_scorer, "")
         assert isinstance(docset.lineage(), Sort)
 
     def test_extract_schema(self, mocker):

@@ -23,6 +23,16 @@ class Element(UserDict):
             self.data["properties"] = {}
 
     @property
+    def id(self) -> Optional[int]:
+        """A unique identifier for the element within a Document. Represents an order within the document"""
+        return self.data.get("id")
+
+    @id.setter
+    def id(self, value: int) -> None:
+        """Set the unique identifier of the element within a Document."""
+        self.data["id"] = value
+
+    @property
     def type(self) -> Optional[str]:
         return self.data.get("type")
 

@@ -67,7 +67,7 @@ class SimilarityScorer(ABC):
         doc_score = document.properties.get(score_property_name, float("-inf"))
         if score > doc_score:
             document.properties[score_property_name] = score
-            document.properties[f"{score_property_name}_source_element_id"] = element.id
+            document.properties[f"{score_property_name}_source_element_seq_no"] = element.seq_no
         return document
 
     def generate_similarity_scores(
@@ -79,17 +79,17 @@ class SimilarityScorer(ABC):
 
         for doc_idx, doc in enumerate(doc_batch):
             candidate_elements = self._get_inputs_from_document(doc)
-            for element_idx, element_text in candidate_elements:
+            for element_seq_no, element_text in candidate_elements:
                 input_pairs.append((query, element_text))
-                input_metadata.append([doc_idx, element_idx])
+                input_metadata.append([doc_idx, element_seq_no])
 
         if not input_pairs:
             return doc_batch
 
         scores = self.score(input_pairs)
 
-        for i, (doc_idx, element_idx) in enumerate(input_metadata):
-            self._populate_score(scores[i], score_property_name, doc_batch[doc_idx], element_idx)
+        for i, (doc_idx, element_seq_no) in enumerate(input_metadata):
+            self._populate_score(scores[i], score_property_name, doc_batch[doc_idx], element_seq_no)
 
         return doc_batch
 

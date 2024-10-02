@@ -3,28 +3,30 @@ import sycamore
 from sycamore.data import Document
 from sycamore.transforms.similarity import HuggingFaceTransformersSimilarityScorer
 
+RERANKER_MODEL = "cross-encoder/ms-marco-MiniLM-L-2-v2"
+
 
 def test_rerank_docset():
-    similarity_scorer = HuggingFaceTransformersSimilarityScorer()
+    similarity_scorer = HuggingFaceTransformersSimilarityScorer(RERANKER_MODEL)
     score_property_name = "similarity_score"
     dicts = [
         {
             "doc_id": 1,
             "elements": [
-                {"text_representation": "here is an animal with 4 legs and whiskers"},
+                {"text_representation": "here is an animal that meows"},
             ],
         },
         {
             "doc_id": 2,
             "elements": [
                 {"id": 7, "text_representation": "this is a cat"},
-                {"id": 1, "text_representation": "this is a dog"},
+                {"id": 1, "text_representation": "here is an animal that moos"},
             ],
         },
         {
             "doc_id": 3,
             "elements": [
-                {"text_representation": "this is a dog"},
+                {"text_representation": "here is an animal that moos"},
             ],
         },
         {  # handle element with not text
@@ -59,12 +61,12 @@ def test_rerank_docset():
 
 
 def test_rerank_docset_exploded():
-    similarity_scorer = HuggingFaceTransformersSimilarityScorer(ignore_doc_structure=True)
+    similarity_scorer = HuggingFaceTransformersSimilarityScorer(RERANKER_MODEL, ignore_doc_structure=True)
     score_property_name = "similarity_score"
     dicts = [
-        {"doc_id": 1, "text_representation": "here is an animal with 4 legs and whiskers"},
+        {"doc_id": 1, "text_representation": "here is an animal that meows"},
         {"doc_id": 2, "text_representation": "this is a cat"},
-        {"doc_id": 3, "text_representation": "this is a dog"},
+        {"doc_id": 3, "text_representation": "here is an animal that moos"},
         {
             "doc_id": 4,
             "elements": [

@@ -23,14 +23,14 @@ class Element(UserDict):
             self.data["properties"] = {}
 
     @property
-    def id(self) -> Optional[int]:
+    def seq_no(self) -> Optional[int]:
         """A unique identifier for the element within a Document. Represents an order within the document"""
-        return self.data.get("id")
+        return self.data.get("seq_no")
 
-    @id.setter
-    def id(self, value: int) -> None:
+    @seq_no.setter
+    def seq_no(self, value: int) -> None:
         """Set the unique identifier of the element within a Document."""
-        self.data["id"] = value
+        self.data["seq_no"] = value
 
     @property
     def type(self) -> Optional[str]:

@@ -77,19 +77,19 @@ class SimilarityScorer(ABC):
         input_metadata = []
         input_pairs = []
 
-        for i, doc in enumerate(doc_batch):
-            elements = self._get_inputs_from_document(doc)
-            for element in elements:
-                input_pairs.append((query, element[1]))
-                input_metadata.append([i, element[0]])
+        for doc_idx, doc in enumerate(doc_batch):
+            candidate_elements = self._get_inputs_from_document(doc)
+            for element_idx, element_text in candidate_elements:
+                input_pairs.append((query, element_text))
+                input_metadata.append([doc_idx, element_idx])
 
         if not input_pairs:
             return doc_batch
 
         scores = self.score(input_pairs)
 
-        for i, (doc_index, element_index) in enumerate(input_metadata):
-            self._populate_score(scores[i], score_property_name, doc_batch[doc_index], element_index)
+        for i, (doc_idx, element_idx) in enumerate(input_metadata):
+            self._populate_score(scores[i], score_property_name, doc_batch[doc_idx], element_idx)
 
         return doc_batch
 

@@ -76,7 +76,7 @@ class TestSimilarityScorer:
 
 class TestSimilarityTransform:
 
-    def test_sentence_transformer_embedding(self, mocker):
+    def test_transformers_score_similarity(self, mocker):
         node = mocker.Mock(spec=Node)
         similarity_scorer = HuggingFaceTransformersSimilarityScorer(ignore_doc_structure=True)
         score_similarity = ScoreSimilarity(node, similarity_scorer=similarity_scorer, query="Is this a cat?")
@@ -84,7 +84,7 @@ class TestSimilarityTransform:
             {"doc_id": 1, "text_representation": "Members of a strike at Yale University.", "embedding": None},
             {"doc_id": 2, "text_representation": "A woman is speaking at a podium outdoors.", "embedding": None},
         ]
-        input_dataset = ray.data.from_items([{"doc": Document(dict).serialize()} for dict in dicts])
+        input_dataset = ray.data.from_items([{"doc": Document(doc_dict).serialize()} for doc_dict in dicts])
         execute = mocker.patch.object(node, "execute")
         execute.return_value = input_dataset
         input_dataset.show()
@@ -95,4 +95,4 @@ class TestSimilarityTransform:
             doc = Document.from_row(d)
             if isinstance(doc, MetadataDocument):
                 continue
-            assert float(doc.properties.get("similarity_score"))
+            assert float(doc.properties.get("_similarity_score"))

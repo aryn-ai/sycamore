@@ -27,9 +27,15 @@ def test_rerank_docset():
                 {"text_representation": "this is a dog"},
             ],
         },
-        {"doc_id": 4, "elements": [{"text_representation": "the number of pages in this document are 253"}]},
         {  # handle element with not text
-            "doc_id": 5,
+            "doc_id": 4,
+            "elements": [
+                {"id": 1},
+            ],
+        },
+        {"doc_id": 5, "elements": [{"text_representation": "the number of pages in this document are 253"}]},
+        {  # drop because of limit
+            "doc_id": 6,
             "elements": [
                 {"id": 1},
             ],
@@ -39,15 +45,15 @@ def test_rerank_docset():
 
     context = sycamore.init()
     doc_set = context.read.document(docs).rerank(
-        similarity_scorer=similarity_scorer, query="is this a cat?", score_property_name=score_property_name
+        similarity_scorer=similarity_scorer, query="is this a cat?", score_property_name=score_property_name, limit=5
     )
     result = doc_set.take()
 
-    assert len(result) == len(docs)
+    assert len(result) == len(docs) - 1
     assert [doc.doc_id for doc in result] == [2, 1, 3, 5, 4]
 
     for doc in result:
-        if doc.doc_id == 5:
+        if doc.doc_id == 4:
             continue
         assert float(doc.properties.get(score_property_name))
 

@@ -73,8 +73,11 @@ def test_basic() -> None:
     answer = """
 # Title
 
+
 left
+
 right
+
 full
 
 ## Section

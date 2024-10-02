@@ -59,8 +59,7 @@ def elements_to_markdown(elems: list[Element]) -> str:
         elif type in ("caption", "footnote"):
             sio.write(f"\n{text}\n\n")
         else:
-            sio.write(text)
-            sio.write("\n")
+            sio.write(f"\n{text}\n")
     return sio.getvalue()
 
 

@@ -3,7 +3,6 @@ import boto3
 import pyarrow.fs
 import os
 
-# Usage: poetry run python s3_ingest.py s3://<something> [s3://another-thing ...]
 
 # ruff: noqa: E402
 sys.path.append("../lib/sycamore")
@@ -18,6 +17,10 @@ from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 
 from simple_config import idx_settings, osrch_args, title_template
+
+if len(sys.argv) <= 1 or sys.argv[1] == "-h" or sys.argv[1] == "--help":
+    print("Usage: poetry run python s3_ingest.py s3://<something> [s3://another-thing ...]")
+    exit(1)
 
 index = "demoindex0"
 

@@ -139,14 +139,12 @@ class Execution:
         from sycamore.materialize import Materialize
 
         def get_name(f):
-            try:
+            if hasattr(f, "_name"):
                 return f._name  # handle the case of basemap transforms
-            except AttributeError:
-                pass
-            try:
+
+            if hasattr(f, "__name__"):
                 return f.__name__
-            except AttributeError:
-                pass
+
             return f.__class__.__name__
 
         if len(n.children) == 0:

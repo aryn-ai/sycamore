@@ -161,7 +161,7 @@ EXAMPLE_FINANCIAL_SCHEMA = {
 }
 
 
-PLANNER_EXAMPLES = [
+PLANNER_EXAMPLES: List[PlannerExample] = [
     PlannerExample(
         query="Were there any incidents in Georgia?",
         schema=EXAMPLE_NTSB_SCHEMA,
@@ -514,7 +514,6 @@ class LlmPlanner:
                 "content": self.generate_user_prompt(question),
             },
         ]
-        print(messages)
 
         prompt_kwargs = {"messages": messages}
         chat_completion = self._llm_client.generate(

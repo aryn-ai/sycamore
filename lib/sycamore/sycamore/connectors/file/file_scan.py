@@ -6,7 +6,7 @@ from typing import Any, Optional, Union, Tuple, Callable, TYPE_CHECKING
 import uuid
 import logging
 
-from pyarrow.fs import FileSystem, LocalFileSystem, FileSelector
+from pyarrow.fs import FileSystem, FileSelector
 from sycamore.data import Document
 from sycamore.plan_nodes import Scan
 from sycamore.utils.time_trace import timetrace
@@ -117,7 +117,6 @@ class BinaryScan(FileScan):
     ):
         super().__init__(paths, parallelism=parallelism, filesystem=filesystem, **resource_args)
         self._paths = paths
-        self.parallelism = -1 if parallelism is None else parallelism
         self._binary_format = binary_format
         self._metadata_provider = metadata_provider
         self._filter_paths_by_extension = filter_paths_by_extension
@@ -158,7 +157,7 @@ class BinaryScan(FileScan):
             self._paths,
             include_paths=True,
             filesystem=self._filesystem,
-            override_num_blocks=self.parallelism,
+            override_num_blocks=self.parallelism if self.parallelism is not None else -1,
             ray_remote_args=self.resource_args,
             file_extensions=file_extensions,
         )
@@ -170,8 +169,7 @@ class BinaryScan(FileScan):
             paths = [self._paths]
         else:
             paths = self._paths
-        if not self._filesystem:
-            self._filesystem = LocalFileSystem()
+
         documents = []
 
         def process_file(info):
@@ -201,6 +199,8 @@ class BinaryScan(FileScan):
             from sycamore.utils.pyarrow import cross_check_infer_fs
 
             (filesystem, path) = cross_check_infer_fs(self._filesystem, orig_path)
+            if self._filesystem is None:
+                self._filesystem = filesystem
 
             path_info = filesystem.get_file_info(path)
             if path_info.is_file:
@@ -229,7 +229,6 @@ class JsonScan(FileScan):
     ):
         super().__init__(paths, parallelism=parallelism, filesystem=filesystem, **resource_args)
         self._properties = properties
-        self.parallelism = -1 if parallelism is None else parallelism
         self._metadata_provider = metadata_provider
         self._document_body_field = document_body_field
         self._doc_extractor = doc_extractor
@@ -282,7 +281,7 @@ class JsonScan(FileScan):
             self._paths,
             include_paths=True,
             filesystem=self._filesystem,
-            parallelism=self.parallelism,
+            parallelism=self.parallelism if self.parallelism is not None else -1,
             ray_remote_args=self.resource_args,
         )
 
@@ -303,7 +302,6 @@ class JsonDocumentScan(FileScan):
         **resource_args,
     ):
         super().__init__(paths, parallelism=parallelism, filesystem=filesystem, **resource_args)
-        self.parallelism = -1 if parallelism is None else parallelism
 
     @staticmethod
     def json_as_document(json: dict[str, Any]) -> list[dict[str, Any]]:
@@ -318,7 +316,7 @@ class JsonDocumentScan(FileScan):
             self._paths,
             include_paths=True,
             filesystem=self._filesystem,
-            parallelism=self.parallelism,
+            parallelism=self.parallelism if self.parallelism is not None else -1,
             ray_remote_args=self.resource_args,
         )
         return ds.flat_map(self.json_as_document, **self.resource_args)

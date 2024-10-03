@@ -5,7 +5,9 @@ description = "Sycamore is an LLM-powered semantic data preparation system for b
 authors = ["aryn.ai <opensource@aryn.ai>"]
 readme = "README.md"
 repository = "https://github.com/aryn-ai/sycamore.git"
-
+# Once all supported OSes we use default to poetry 1.8.x, we can enable this line to remove the
+# warning. Until then people will have to specify --no-root
+# package-mode = false
 
 [tool.poetry.urls]
 "Repository" = "https://github.com/aryn-ai/sycamore.git"
@@ -44,12 +46,14 @@ black = "^24.4"
 pre-commit = "^3.4.0"
 mypy = "^1.11.0"
 nbmake = "^1.4.5"
+pip = "^24.2"
 
 [tool.poetry.group.notebook.dependencies]
 jupyterlab = "^4.0.11"
 jupyter-lsp = "^2.2.2"
 ipywidgets = "^8.1.0"
 notebook = "^7.1.2"
+s3contents = "^0.11"
 
 [tool.poetry.extras]
 docs = ["furo", "myst-parser", "sphinx"]

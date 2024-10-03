@@ -8,8 +8,6 @@
 
 import pyarrow.fs
 
-from ray.data import ActorPoolStrategy
-
 import sycamore
 from sycamore.functions.tokenizer import HuggingFaceTokenizer
 from sycamore.llms import OpenAIModels, OpenAI
@@ -34,7 +32,7 @@ ds = (
     ctx.read.binary(paths, binary_format="pdf", filesystem=fsys)
     .partition(
         partitioner=SycamorePartitioner(extract_table_structure=True, extract_images=True),
-        compute=ActorPoolStrategy(size=1),
+        parallelism=1,
     )
     .regex_replace(COALESCE_WHITESPACE)
     .extract_entity(entity_extractor=OpenAIEntityExtractor("title", llm=davinci_llm, prompt_template=title_template))

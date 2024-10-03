@@ -71,6 +71,9 @@ services:
       - AWS_SECRET_ACCESS_KEY
       - AWS_SESSION_TOKEN
       - AWS_CREDENTIAL_EXPIRATION
+      - JUPYTER_S3_BUCKET
+      - JUPYTER_S3_PREFIX
+      - JUPYTER_CONFIG_RESET # set this to 'yes' to reset the configuration
       - SSL # Set to 1 if you want self-signed certificates
 
 ### Optional profiles below here

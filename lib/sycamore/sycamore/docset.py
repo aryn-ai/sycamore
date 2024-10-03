@@ -16,12 +16,13 @@ from sycamore.llms.prompts.default_prompts import (
 from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.augment_text import TextAugmentor
 from sycamore.transforms.embed import Embedder
-from sycamore.transforms import DocumentStructure
+from sycamore.transforms import DocumentStructure, Sort
 from sycamore.transforms.extract_entity import EntityExtractor, OpenAIEntityExtractor
 from sycamore.transforms.extract_graph_entities import GraphEntityExtractor
 from sycamore.transforms.extract_graph_relationships import GraphRelationshipExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
 from sycamore.transforms.partition import Partitioner
+from sycamore.transforms.similarity import SimilarityScorer
 from sycamore.transforms.resolve_graph_entities import EntityResolver, ResolveEntities
 from sycamore.transforms.summarize import Summarizer
 from sycamore.transforms.llm_query import LLMTextQueryAgent
@@ -661,8 +662,8 @@ class DocSet:
 
         class Wrapper(Node):
             def __init__(self, dataset):
+                super().__init__(children=[])
                 self._ds = dataset
-                self.children = []
 
             def execute(self, **kwargs):
                 return self._ds
@@ -798,7 +799,7 @@ class DocSet:
                ds = context.read.binary(paths, binary_format="pdf")
                    .partition(partitioner=ArynPartitioner())
                    .regex_replace(COALESCE_WHITESPACE)
-                   .regex_replace([(r"\d+", "1313"), (r"old", "new")])
+                   .regex_replace([(r"\\d+", "1313"), (r"old", "new")])
                    .explode()
         """
         from sycamore.transforms import RegexReplace
@@ -1100,6 +1101,40 @@ class DocSet:
 
         query = Query(self.plan, query_executor, **resource_args)
         return DocSet(self.context, query)
+
+    @context_params(OperationTypes.TEXT_SIMILARITY)
+    def rerank(
+        self,
+        similarity_scorer: SimilarityScorer,
+        query: str,
+        score_property_name: str = "_rerank_score",
+        limit: Optional[int] = None,
+        **kwargs,
+    ) -> "DocSet":
+        """
+        Sort a DocSet given a scoring class.
+
+        Args:
+            similarity_scorer: An instance of an SimilarityScorer class that executes the scoring function.
+            query: The query string to compute similarity against.
+            score_property_name: The name of the key where the score will be stored in document.properties
+            limit: Limit scoring and sorting to fixed size.
+        """
+        from sycamore.transforms import ScoreSimilarity, Limit
+
+        if limit:
+            plan = Limit(self.plan, limit)
+        else:
+            plan = self.plan
+        similarity_scored = ScoreSimilarity(
+            plan, similarity_scorer=similarity_scorer, query=query, score_property_name=score_property_name, **kwargs
+        )
+        return DocSet(
+            self.context,
+            Sort(
+                similarity_scored, descending=True, field=f"properties.{score_property_name}", default_val=float("-inf")
+            ),
+        )
 
     def sort(self, descending: bool, field: str, default_val: Optional[Any] = None) -> "DocSet":
         """

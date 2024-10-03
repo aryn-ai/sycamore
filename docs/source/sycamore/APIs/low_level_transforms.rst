@@ -9,6 +9,7 @@ Low-Level Transforms (for Sycamore development)
 .. toctree::
    :maxdepth: 2
 
+   ./low_level_transforms/assign_doc_properties.rst
    ./low_level_transforms/augment_text.rst
    ./low_level_transforms/basics.rst
    ./low_level_transforms/bbox_merge.rst
@@ -17,6 +18,7 @@ Low-Level Transforms (for Sycamore development)
    ./low_level_transforms/extract_entity.rst
    ./low_level_transforms/extract_schema.rst
    ./low_level_transforms/extract_table.rst
+   ./low_level_transforms/extract_table_properties.rst
    ./low_level_transforms/llm_query.rst
    ./low_level_transforms/map.rst
    ./low_level_transforms/mark_misc.rst
@@ -28,5 +30,6 @@ Low-Level Transforms (for Sycamore development)
    ./low_level_transforms/sketcher.rst
    ./low_level_transforms/split_elements.rst
    ./low_level_transforms/spread_properties.rst
+   ./low_level_transforms/standardizer.rst
    ./low_level_transforms/summarize.rst
    ./low_level_transforms/summarize_images.rst

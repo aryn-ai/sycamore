@@ -189,7 +189,6 @@ class TestPartition:
         new_elems = [LegacyOcr().get_boxes_and_text(image=image) for image in images]
 
         assert len(new_elems) == 1
-        text_list = []
-        text_list.extend(val["text"] for val in new_elems[0])
+        text_list = [val["text"] for val in new_elems[0]]
         assert all(val is not None for val in text_list)
         assert " ".join(text_list).strip() == "The quick brown fox"

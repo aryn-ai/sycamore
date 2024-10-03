@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from PIL import Image
-from typing import Any, Union, List, Dict, cast, TYPE_CHECKING
+from typing import Any, Union, cast, TYPE_CHECKING
 from sycamore.data import BoundingBox, Element
 from sycamore.utils.cache import DiskCache
 from pathlib import Path
@@ -28,69 +28,60 @@ class OcrModel(TextExtractor):
         pass
 
     @abstractmethod
-    def get_boxes_and_text(self, image: Image.Image) -> List[Dict[str, Any]]:
+    def get_boxes_and_text(self, image: Image.Image) -> list[dict[str, Any]]:
         pass
 
-    @timetrace("OCR Page Extraction")
-    def extract_page(self, page: Union["Image.Image", "LTPage"]) -> List[Element]:
-        assert isinstance(page, Image.Image)
-        ocr_output = self.get_boxes_and_text(page)
-        width, height = page.size
-        texts: List[Element] = []
+    def parse_ocr_output(self, ocr_output: list[dict[str, Any]], width, height) -> list[Element]:
+        texts: list[Element] = []
         for obj in ocr_output:
-            if obj["bbox"] and not obj["bbox"].is_empty() and obj["text"] and len(obj["text"]) > 0:
+            obj_bbox = obj.get("bbox")
+            obj_text = obj.get("text")
+            if obj_bbox and not obj_bbox.is_empty() and obj_text:
                 text = Element()
                 text.type = "text"
                 text.bbox = BoundingBox(
-                    obj["bbox"].x1 / width,
-                    obj["bbox"].y1 / height,
-                    obj["bbox"].x2 / width,
-                    obj["bbox"].y2 / height,
+                    obj_bbox.x1 / width,
+                    obj_bbox.y1 / height,
+                    obj_bbox.x2 / width,
+                    obj_bbox.y2 / height,
                 )
-                text.text_representation = obj["text"]
+                text.text_representation = obj_text
                 texts.append(text)
         return texts
 
-    @timetrace("OCR Document Extraction")
+    @timetrace("OCRPageEx")
+    def extract_page(self, page: Union["Image.Image", "LTPage"]) -> list[Element]:
+        assert isinstance(page, Image.Image)
+        ocr_output = self.get_boxes_and_text(page)
+        width, height = page.size
+        texts: list[Element] = self.parse_ocr_output(ocr_output, width, height)
+        return texts
+
+    @timetrace("OCRDocEx")
     def extract_document(
         self, filename: Union[str, IOBase], hash_key: str, use_cache=False, **kwargs
-    ) -> List[List[Element]]:
-        cached_result = ocr_cache.get(hash_key) if use_cache else None
-        if cached_result:
+    ) -> list[list[Element]]:
+        if use_cache and (cached_result := ocr_cache.get(hash_key)):
             logger.info(f"Cache Hit for OCR. Cache hit-rate is {ocr_cache.get_hit_rate()}")
             return cached_result
-        else:
-            with tempfile.TemporaryDirectory() as tempdirname:  # type: ignore
-                filename = cast(str, filename)
-                images = kwargs.get("images")
-                generator = (image for image in images) if images else pdf_to_image_files(filename, Path(tempdirname))
-                pages = []
-                for path in generator:
-                    if isinstance(path, Image.Image):
-                        image = path
-                    else:
-                        image = Image.open(path).convert("RGB")
-                    ocr_output = self.get_boxes_and_text(image)
-                    width, height = image.size
-                    texts: List[Element] = []
-                    for obj in ocr_output:
-                        if obj["bbox"] and not obj["bbox"].is_empty() and obj["text"] and len(obj["text"]) > 0:
-                            text = Element()
-                            text.type = "text"
-                            text.bbox = BoundingBox(
-                                obj["bbox"].x1 / width,
-                                obj["bbox"].y1 / height,
-                                obj["bbox"].x2 / width,
-                                obj["bbox"].y2 / height,
-                            )
-                            text.text_representation = obj["text"]
-                            texts.append(text)
-
-                    pages.append(texts)
-                if use_cache:
-                    logger.info("Cache Miss for OCR. Storing the result to the cache.")
-                    ocr_cache.set(hash_key, pages)
-                return pages
+        with tempfile.TemporaryDirectory() as tempdirname:  # type: ignore
+            filename = cast(str, filename)
+            images = kwargs.get("images")
+            generator = (image for image in images) if images else pdf_to_image_files(filename, Path(tempdirname))
+            pages = []
+            for image_file in generator:
+                if isinstance(image_file, Image.Image):
+                    image = image_file
+                else:
+                    image = Image.open(image_file).convert("RGB")
+                ocr_output = self.get_boxes_and_text(image)
+                width, height = image.size
+                texts: list[Element] = self.parse_ocr_output(ocr_output, width, height)
+                pages.append(texts)
+            if use_cache:
+                logger.info("Cache Miss for OCR. Storing the result to the cache.")
+                ocr_cache.set(hash_key, pages)
+            return pages
 
 
 class EasyOcr(OcrModel):
@@ -111,7 +102,7 @@ class EasyOcr(OcrModel):
         val = " ".join(out_list)
         return val
 
-    def get_boxes_and_text(self, image: Image.Image) -> List[Dict[str, Any]]:
+    def get_boxes_and_text(self, image: Image.Image) -> list[dict[str, Any]]:
         image_bytes = BytesIO()
         image.save(image_bytes, format="BMP")
         raw_results = self.reader.readtext(image_bytes.getvalue())
@@ -141,13 +132,13 @@ class Tesseract(OcrModel):
         val = self.pytesseract.image_to_string(image)
         return val
 
-    def get_boxes_and_text(self, image: Image.Image) -> List[Dict[str, Any]]:
+    def get_boxes_and_text(self, image: Image.Image) -> list[dict[str, Any]]:
         output_list = []
         base_dict = self.pytesseract.image_to_data(image, output_type=self.pytesseract.Output.DICT)
         for value in zip(
             base_dict["left"], base_dict["top"], base_dict["width"], base_dict["height"], base_dict["text"]
         ):
-            if value[4] != "":
+            if value[4]:
                 output_list.append(
                     {
                         "bbox": BoundingBox(value[0], value[1], value[0] + value[2], value[1] + value[3]),
@@ -171,7 +162,7 @@ class LegacyOcr(OcrModel):
     def get_text(self, image: Image.Image) -> str:
         return self.tesseract.get_text(image)
 
-    def get_boxes_and_text(self, image: Image.Image) -> List[Dict[str, Any]]:
+    def get_boxes_and_text(self, image: Image.Image) -> list[dict[str, Any]]:
         return self.easy_ocr.get_boxes_and_text(image)
 
     def __name__(self):
@@ -192,20 +183,20 @@ class PaddleOcr(OcrModel):
         self.language = language
         self.reader = PaddleOCR(lang=self.language, use_gpu=self.use_gpu)
 
-    def get_text(
-        self,
-        image: Image.Image,
-    ) -> str:
+    def get_text(self, image: Image.Image) -> str:
         bytearray = BytesIO()
         image.save(bytearray, format="BMP")
         result = self.reader.ocr(bytearray.getvalue(), rec=True, det=True, cls=False)
-        return ans if result and result[0] and (ans := " ".join(value[1][0] for value in result[0])) else ""
+        if result and result[0]:
+            text_values = [value[1][0] for value in result[0]]
+            return " ".join(text_values)
+        return ""
 
-    def get_boxes_and_text(self, image: Image.Image) -> List[Dict[str, Any]]:
+    def get_boxes_and_text(self, image: Image.Image) -> list[dict[str, Any]]:
         bytearray = BytesIO()
         image.save(bytearray, format="BMP")
         result = self.reader.ocr(bytearray.getvalue(), rec=True, det=True, cls=False)
-        out = []
+        out: list[dict[str, Any]] = []
         for res in result[0]:
             raw_bbox = res[0]
             text = res[1][0]

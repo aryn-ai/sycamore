@@ -1,6 +1,6 @@
 from sycamore.data import Element, BoundingBox
 from sycamore.utils.cache import DiskCache
-from typing import BinaryIO, Tuple, List, cast, Generator, TYPE_CHECKING, Union
+from typing import BinaryIO, Tuple, cast, Generator, TYPE_CHECKING, Union
 from pathlib import Path
 from sycamore.utils.import_utils import requires_modules
 from sycamore.utils.time_trace import timetrace
@@ -65,9 +65,9 @@ class PdfMinerExtractor(TextExtractor):
         y2 = height - y2
         return x1, y1, x2, y2
 
-    @timetrace("PdfMiner Document Extraction")
+    @timetrace("PdfMinerDocEx")
     # TODO: Remove this function once the service is moved off it
-    def extract_document(self, filename: str, hash_key: str, use_cache=False, **kwargs) -> List[List[Element]]:
+    def extract_document(self, filename: str, hash_key: str, use_cache=False, **kwargs) -> list[list[Element]]:
         cached_result = pdf_miner_cache.get(hash_key) if use_cache else None
         if cached_result:
             logger.info(f"Cache Hit for PdfMiner. Cache hit-rate is {pdf_miner_cache.get_hit_rate()}")
@@ -77,7 +77,7 @@ class PdfMinerExtractor(TextExtractor):
             for page_layout in PdfMinerExtractor.pdf_to_pages(filename):
                 width = page_layout.width
                 height = page_layout.height
-                texts: List[Element] = []
+                texts: list[Element] = []
                 for obj in page_layout:
                     x1, y1, x2, y2 = self._convert_bbox_coordinates(obj.bbox, height)
 
@@ -94,13 +94,14 @@ class PdfMinerExtractor(TextExtractor):
                 pdf_miner_cache.set(hash_key, pages)
             return pages
 
-    def extract_page(self, page: Union["LTPage", "Image"]) -> List[Element]:
+    @timetrace("PdfMinerPageEx")
+    def extract_page(self, page: Union["LTPage", "Image"]) -> list[Element]:
         from pdfminer.layout import LTPage
 
         assert isinstance(page, LTPage)
         width = page.width
         height = page.height
-        texts: List[Element] = []
+        texts: list[Element] = []
         for obj in page:
             x1, y1, x2, y2 = self._convert_bbox_coordinates(obj.bbox, height)
 

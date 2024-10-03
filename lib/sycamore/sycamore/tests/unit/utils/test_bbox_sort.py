@@ -100,6 +100,7 @@ def test_elements_basic() -> None:
     elems = bbox_sorted_elements(elems)
     answer = [e4, e5, e3, e6, e7, e8, e9, e1, e0, e2]
     assert elems == answer
+    assert_element_index_sorted(elems)
 
 
 def test_document_basic() -> None:
@@ -114,3 +115,10 @@ def test_document_basic() -> None:
     bbox_sort_document(doc)
     answer = [e3, e2, e5, e4, e1, e0]
     assert doc.elements == answer
+    assert_element_index_sorted(doc.elements)
+
+
+def assert_element_index_sorted(elements: list[Element]):
+    assert all(
+        elements[i].element_index < elements[i + 1].element_index for i in range(len(elements) - 1)  # type: ignore
+    )

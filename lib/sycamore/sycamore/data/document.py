@@ -201,6 +201,7 @@ class Document(UserDict):
     @staticmethod
     def from_row(row: dict[str, bytes]) -> "Document":
         """Unserialize a Ray row back into a Document."""
+
         return Document.deserialize(row["doc"])
 
     def to_row(self) -> dict[str, bytes]:

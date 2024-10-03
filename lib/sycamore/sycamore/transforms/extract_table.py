@@ -13,6 +13,7 @@ from textractor.data.constants import TextractFeatures
 from textractor.parsers import response_parser
 
 from sycamore.data import BoundingBox, Document, Element
+from sycamore.data.document import DocumentPropertyTypes
 
 logger = logging.getLogger("sycamore")
 
@@ -96,7 +97,7 @@ class TextractTableExtractor(TableExtractor):
             element.type = "Table"
             element.properties["boxes"] = []
             element.properties["id"] = table.id
-            element.properties["page_number"] = table.page
+            element.properties[DocumentPropertyTypes.PAGE_NUMBER] = table.page
 
             if table.title:
                 element.text_representation = table.title.text + "\n"
@@ -192,7 +193,11 @@ class CachedTextractTableExtractor(TextractTableExtractor):
 
         document_page_mapping = list(
             OrderedDict.fromkeys(
-                [element.properties["page_number"] for element in document.elements if element.type == "Table"]
+                [
+                    element.properties[DocumentPropertyTypes.PAGE_NUMBER]
+                    for element in document.elements
+                    if element.type == "Table"
+                ]
             )
         )
 
@@ -241,10 +246,10 @@ class CachedTextractTableExtractor(TextractTableExtractor):
             tables = self.get_tables_from_textract_result(textract_result)
             # put back actual page numbers
             for table in tables:
-                table.properties["page_number"] = (
-                    document_page_mapping[table.properties["page_number"] - 1]
+                table.properties[DocumentPropertyTypes.PAGE_NUMBER] = (
+                    document_page_mapping[table.properties[DocumentPropertyTypes.PAGE_NUMBER] - 1]
                     if document_page_mapping
-                    else table.properties["page_number"]
+                    else table.properties[DocumentPropertyTypes.PAGE_NUMBER]
                 )
             document.elements = document.elements + tables
         return document

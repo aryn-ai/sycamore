@@ -101,7 +101,7 @@ def render_table(elem: TableElement, sio: StringIO) -> None:
     matrix = [[""] * ncol for _ in range(nrow)]
     for cell in cells:
         if cell.content:
-            content = escape_str(cell.content)
+            content = escape_str(cell.content).strip()
             for col in cell.cols:
                 if cell.rows[0] <= hdr_max:  # ignore rowspan in headers
                     s = matrix[0][col]
@@ -126,7 +126,7 @@ def render_table(elem: TableElement, sio: StringIO) -> None:
     sio.write("\n")
     caption = table.caption
     if caption:
-        caption = caption.replace("\n", " ").strip()
+        caption = escape_str(caption).strip()
         if caption:
             sio.write(caption)
             sio.write("\n")

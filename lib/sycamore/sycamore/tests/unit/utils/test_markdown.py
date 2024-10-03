@@ -131,7 +131,7 @@ def test_shenanigans() -> None:
             TableCell(content="F", rows=[2], cols=[2], is_header=False),
             TableCell(content="G", rows=[3], cols=[0], is_header=False),
             TableCell(content="H", rows=[3], cols=[1], is_header=False),
-            TableCell(content="I", rows=[3], cols=[2], is_header=False),
+            TableCell(content="|", rows=[3], cols=[2], is_header=False),
         ]
     )
     te = elemFromTable(table, 1, 0.1, 0.1)
@@ -142,7 +142,7 @@ def test_shenanigans() -> None:
 | A | B | C |
 | D | B | E |
 | D | B | F |
-| G | H | I |
+| G | H | \\| |
 
 """
     assert s == answer

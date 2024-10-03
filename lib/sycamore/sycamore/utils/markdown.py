@@ -2,7 +2,6 @@
 Utilities for converting a list of Elements into Markdown-formatted text.
 
 TODO:
-- address multi-line and span headers
 - maybe insert horizontal rules at page breaks
 - handle numbered lists
 - render textract tables
@@ -14,6 +13,24 @@ from sycamore.data import Element, TableElement
 
 
 SKIP_TYPES = {"page-header", "page-footer", "image"}
+
+ESCAPE_CHARS = {"\\", "!", "#", ">", "[", "|"}
+
+
+def escape_str(s: str) -> str:
+    """
+    We don't expect input with meaningful backslashes.
+    """
+    sio = StringIO()
+    for ch in s:
+        if ch < " ":
+            sio.write(" ")
+        elif ch in ESCAPE_CHARS:
+            sio.write("\\")
+            sio.write(ch)
+        else:
+            sio.write(ch)
+    return sio.getvalue()
 
 
 def elements_to_markdown(elems: list[Element]) -> str:
@@ -40,7 +57,7 @@ def elements_to_markdown(elems: list[Element]) -> str:
         text = elem_text(elem).strip()
         if not text:
             continue
-        text = text.replace("\n", " ")
+        text = escape_str(text)
         if type == "title":
             sio.write(f"\n# {text}\n\n")
         elif type == "section-header":

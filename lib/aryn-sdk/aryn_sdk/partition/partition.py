@@ -83,7 +83,7 @@ def partition_file(
             elements = data['elements']
     """
 
-    # If you hand me a for the file, read it in instead of trying to send the path
+    # If you hand me a path for the file, read it in instead of trying to send the path
     if isinstance(file, (str, PathLike)):
         with open(file, "rb") as f:
             file = io.BytesIO(f.read())

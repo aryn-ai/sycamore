@@ -71,7 +71,17 @@ class QdrantReaderQueryResponse(BaseDBReader.QueryResponse):
         result = []
         for point in self.points:
             assert isinstance(point, ScoredPoint)
-            doc = Document({"doc_id": point.id, "embedding": point.vector} | (point.payload or {}))
+            if isinstance(point.vector, dict):
+                # https://api.qdrant.tech/api-reference/search/query-points#request.body.using
+                vector_name = query_params.query_params.get("using")
+                if vector_name:
+                    vector = point.vector.get(vector_name)
+                else:
+                    # Get the first vector if no vector name is provided
+                    vector = list(point.vector.values())[0]
+            else:
+                vector = point.vector
+            doc = Document({"doc_id": point.id, "embedding": vector} | (point.payload or {}))
             result.append(doc)
         return result
 

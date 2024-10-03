@@ -29,6 +29,7 @@ class QdrantWriterClientParams(BaseDBWriter.ClientParams):
 @dataclass
 class QdrantWriterTargetParams(BaseDBWriter.TargetParams):
     collection_params: dict
+    vector_name: Optional[str]
 
     def compatible_with(self, other: BaseDBWriter.TargetParams) -> bool:
         assert isinstance(other, QdrantWriterTargetParams)
@@ -37,6 +38,7 @@ class QdrantWriterTargetParams(BaseDBWriter.TargetParams):
             [
                 self.collection_params["collection_name"] == other.collection_params["collection_name"],
                 self.collection_params["vectors_config"] == other.collection_params["vectors_config"],
+                self.vector_name == other.vector_name,
             ]
         )
 
@@ -66,7 +68,9 @@ class QdrantWriterClient(BaseDBWriter.Client):
             for record in records
         ]
 
-        self._client.upload_points(collection_name=target_params.collection_params["collection_name"], points=points)
+        self._client.upload_points(
+            collection_name=target_params.collection_params["collection_name"], points=points, wait=True
+        )
 
     def create_target_idempotent(self, target_params: "BaseDBWriter.TargetParams"):
         assert isinstance(target_params, QdrantWriterTargetParams)
@@ -89,17 +93,8 @@ class QdrantWriterClient(BaseDBWriter.Client):
                     if isinstance(vectors_config, dict)
                     else vectors_config.model_dump(exclude_defaults=True)
                 ),
-                "sparse_vectors_config": collection_info.config.params.sparse_vectors,
-                "shard_number": collection_info.config.params.shard_number,
-                "sharding_method": collection_info.config.params.sharding_method,
-                "replication_factor": collection_info.config.params.replication_factor,
-                "write_consistency_factor": collection_info.config.params.write_consistency_factor,
-                "on_disk_payload": collection_info.config.params.on_disk_payload,
-                "hnsw_config": collection_info.config.hnsw_config,
-                "optimizers_config": collection_info.config.optimizer_config,
-                "wal_config": collection_info.config.wal_config,
-                "quantization_config": collection_info.config.quantization_config,
             },
+            vector_name=target_params.vector_name,
         )
 
 
@@ -113,7 +108,14 @@ class QdrantWriterRecord(BaseDBWriter.Record):
     def from_doc(cls, document: Document, target_params: "BaseDBWriter.TargetParams") -> "QdrantWriterRecord":
         assert isinstance(target_params, QdrantWriterTargetParams)
         assert document.doc_id is not None, f"Document found with null id: {document}"
-        vector: Union[list, dict] = document.embedding or {}
+        if document.embedding:
+            if target_params.vector_name:
+                vector = {target_params.vector_name: document.embedding}
+            else:
+                vector = document.embedding
+        else:
+            vector = {}
+
         payload = {
             "type": document.type,
             "text_representation": document.text_representation,

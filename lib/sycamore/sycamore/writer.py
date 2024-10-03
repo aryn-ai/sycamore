@@ -668,6 +668,7 @@ class DocSetWriter:
         self,
         client_params: dict,
         collection_params: dict,
+        vector_name: Optional[str] = None,
         execute: bool = True,
         **kwargs,
     ) -> Optional["DocSet"]:
@@ -733,7 +734,7 @@ class DocSetWriter:
         qw = QdrantWriter(
             self.plan,
             client_params=QdrantWriterClientParams(**client_params),
-            target_params=QdrantWriterTargetParams(collection_params=collection_params),
+            target_params=QdrantWriterTargetParams(collection_params=collection_params, vector_name=vector_name),
             name="qdrant_write",
             **kwargs,
         )

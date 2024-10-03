@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "aryn-sdk"
-version = "0.1.5"
+version = "0.1.6"
 description = "The client library for Aryn services"
 authors = ["aryn.ai <opensource@aryn.ai>"]
 license = "Apache 2.0"

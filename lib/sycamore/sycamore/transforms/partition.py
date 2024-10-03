@@ -66,7 +66,7 @@ class UnstructuredPPTXPartitioner(Partitioner):
     """
 
     @staticmethod
-    def to_element(dict: dict[str, Any]) -> Element:
+    def to_element(dict: dict[str, Any], seq_no: Optional[int] = None) -> Element:
         text = dict.pop("text")
         if isinstance(text, str):
             binary = text.encode("utf-8")
@@ -80,6 +80,7 @@ class UnstructuredPPTXPartitioner(Partitioner):
         element.text_representation = text
         element.properties.update(dict.pop("metadata"))
         element.properties.update(dict)
+        element.seq_no = seq_no
 
         return element
 
@@ -114,7 +115,7 @@ class UnstructuredPPTXPartitioner(Partitioner):
 
         # Here we convert unstructured.io elements into our elements and
         # append them as child elements to the document.
-        document.elements = [self.to_element(element.to_dict()) for element in elements]
+        document.elements = [self.to_element(element.to_dict(), i) for i, element in enumerate(elements)]
         del elements
 
         return document
@@ -175,7 +176,7 @@ class UnstructuredPdfPartitioner(Partitioner):
         self._retain_coordinates = retain_coordinates
 
     @staticmethod
-    def to_element(dict: dict[str, Any], retain_coordinates=False) -> Element:
+    def to_element(dict: dict[str, Any], seq_no: Optional[int] = None, retain_coordinates=False) -> Element:
         text = dict.pop("text")
         if isinstance(text, str):
             binary = text.encode("utf-8")
@@ -185,6 +186,7 @@ class UnstructuredPdfPartitioner(Partitioner):
 
         element = Element()
         element.type = dict.pop("type", "unknown")
+        element.seq_no = seq_no
         element.binary_representation = binary
         element.text_representation = text
 
@@ -225,7 +227,10 @@ class UnstructuredPdfPartitioner(Partitioner):
 
         # Here we convert unstructured.io elements into our elements and
         # set them as the child elements of the document.
-        document.elements = [self.to_element(ee.to_dict(), self._retain_coordinates) for ee in elements]
+        document.elements = [
+            self.to_element(ee.to_dict(), retain_coordinates=self._retain_coordinates, seq_no=i)
+            for i, ee in enumerate(elements)
+        ]
         del elements
 
         bbox_sort_document(document)
@@ -291,9 +296,11 @@ class HtmlPartitioner(Partitioner):
         elements = []
         text = soup.get_text(separator=" ", strip=True)
         tokens = self._tokenizer.tokenize(text)
-        for chunk in self._text_chunker.chunk(tokens):
+        chunks = self._text_chunker.chunk(tokens)
+        for i, chunk in enumerate(chunks):
             content = "".join(chunk)
             element = Element()
+            element.seq_no = i
             element.type = "text"
             element.text_representation = content
 
@@ -301,6 +308,7 @@ class HtmlPartitioner(Partitioner):
             elements += [element]
 
         # extract tables
+        last_seq_no = len(chunks)
         if self._extract_tables:
             for table in soup.find_all("table"):
                 # ignore nested tables
@@ -310,7 +318,9 @@ class HtmlPartitioner(Partitioner):
                 table_object = Table.from_html(html_tag=table)
                 table_element = TableElement(table=table_object)
                 table_element.properties.update(document.properties)
+                table_element.seq_no = last_seq_no
                 elements.append(table_element)
+                last_seq_no += 1
         document.elements = document.elements + elements
 
         return document
@@ -321,7 +331,7 @@ class HtmlPartitioner(Partitioner):
         parts = document.binary_representation.decode().split("\n")
         if not parts:
             return document
-        elements = []
+        elements: list[Element] = []
         start_time = ""
         speaker = ""
         end_time = ""
@@ -336,15 +346,17 @@ class HtmlPartitioner(Partitioner):
             assert spk_ix > 0
             if start_time != "":
                 end_time = i[0:time_ix]
-                elements.append(
-                    Element({"start_time": start_time, "end_time": end_time, "speaker": speaker, "text": text})
-                )
+                element = Element({"start_time": start_time, "end_time": end_time, "speaker": speaker, "text": text})
+                element.seq_no = len(elements)
+                elements.append(element)
             start_time = i[0:time_ix]
             speaker = i[time_ix:spk_ix]
             text = i[spk_ix:]
         if start_time != "":
             end_time = i[0:time_ix]
-            elements.append(Element({"start_time": start_time, "end_time": "N/A", "speaker": speaker, "text": text}))
+            element = Element({"start_time": start_time, "end_time": "N/A", "speaker": speaker, "text": text})
+            element.seq_no = len(elements)
+            elements.append(element)
         document.elements = elements
         return document
 
@@ -501,7 +513,9 @@ class ArynPartitioner(Partitioner):
             raise RuntimeError(f"ArynPartitioner Error processing {path}") from e
 
         document.elements = elements
+
         bbox_sort_document(document)
+
         return document
 
 

@@ -14,7 +14,7 @@ import os
 ARYN_API_KEY = os.environ["ARYN_API_KEY"]
 
 
-def test_detr_ocr():
+def test_aryn_partitioner_w_ocr():
     path = TEST_DIR / "resources/data/pdfs/Transformer.pdf"
 
     context = sycamore.init()
@@ -23,7 +23,7 @@ def test_detr_ocr():
     # The test will need to be updated if and when that changes.
     docs = (
         context.read.binary(paths=[str(path)], binary_format="pdf")
-        .partition(ArynPartitioner(use_ocr=True))
+        .partition(ArynPartitioner(aryn_api_key=ARYN_API_KEY, use_ocr=True))
         .explode()
         .filter(lambda doc: "page_number" in doc.properties and doc.properties["page_number"] == 1)
         .filter(lambda doc: doc.type in {"Section-header", "Title"})
@@ -31,6 +31,7 @@ def test_detr_ocr():
     )
 
     assert "Attention Is All You Need" in set(str(d.text_representation).strip() for d in docs)
+    assert all(docs[i].properties["_seq_no"] <= docs[i + 1].properties["_seq_no"] for i in range(len(docs) - 1))
 
 
 def check_table_extraction(**kwargs):
@@ -81,6 +82,7 @@ def check_table_extraction(**kwargs):
     assert len(docs) == 1
     doc = docs[0]
     tables = [e for e in doc.elements if e.type == "table"]
+    assert all(tables[i].seq_no <= tables[i + 1].seq_no for i in range(len(tables) - 1))
     assert len(tables) == 1
     assert isinstance(tables[0], TableElement)
     assert tables[0].table is not None
@@ -128,6 +130,7 @@ def test_aryn_partitioner():
     )
 
     assert "Attention Is All You Need" in set(str(d.text_representation).strip() for d in docs)
+    assert all(docs[i].properties["_seq_no"] <= docs[i + 1].properties["_seq_no"] for i in range(len(docs) - 1))
 
 
 def test_table_extraction_with_ocr_batched():

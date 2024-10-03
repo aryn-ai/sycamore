@@ -1,6 +1,7 @@
 import pytest
 from pyarrow.fs import LocalFileSystem
 
+from sycamore import ExecMode
 from sycamore.data.document import Document
 
 
@@ -13,3 +14,8 @@ def read_local_binary(request) -> Document:
     document.binary_representation = input_stream.readall()
     document.properties["path"] = path
     return document
+
+
+@pytest.fixture(params=[ExecMode.LOCAL, ExecMode.RAY])
+def exec_mode(request):
+    return request.param

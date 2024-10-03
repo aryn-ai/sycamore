@@ -1,4 +1,5 @@
 from sycamore.data import Document
+from sycamore.data.document import DocumentPropertyTypes
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
 from sycamore.transforms import Map
@@ -65,9 +66,9 @@ class MarkBreakPage(SingleThreadUser, NonGPUUser, Map):
     @timetrace("markBreakPage")
     def mark_break_page(parent: Document) -> Document:
         if len(parent.elements) > 1:
-            last = parent.elements[0].properties["page_number"]
+            last = parent.elements[0].properties[DocumentPropertyTypes.PAGE_NUMBER]
             for elem in parent.elements:
-                page = elem.properties["page_number"]
+                page = elem.properties[DocumentPropertyTypes.PAGE_NUMBER]
                 if page != last:
                     elem.data["_break"] = True  # mark for later
                     last = page

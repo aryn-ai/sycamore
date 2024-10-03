@@ -18,6 +18,7 @@ import fasteners
 from pypdf import PdfReader
 
 from sycamore.data import Element, BoundingBox, ImageElement, TableElement
+from sycamore.data.document import DocumentPropertyTypes
 from sycamore.data.element import create_element
 from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
 from sycamore.utils import choose_device
@@ -74,9 +75,7 @@ def text_elem(text: str) -> Element:
     return Element(
         {
             "type": "Text",
-            "properties": {
-                "page_number": 1,
-            },
+            "properties": {DocumentPropertyTypes.PAGE_NUMBER: 1},
             "text_representation": text,
         }
     )
@@ -194,7 +193,7 @@ class ArynPDFPartitioner:
             for i, r in enumerate(temp):
                 page = []
                 for ele in r:
-                    ele.properties["page_number"] = i + 1
+                    ele.properties[DocumentPropertyTypes.PAGE_NUMBER] = i + 1
                     page.append(ele)
                 bbox_sort_page(page)
                 elements.extend(page)
@@ -312,8 +311,8 @@ class ArynPDFPartitioner:
             response_json = response_json.get("elements", [])
 
         elements = []
-        for element_json in response_json:
-            element = create_element(**element_json)
+        for idx, element_json in enumerate(response_json):
+            element = create_element(seq_no=idx, **element_json)
             if element.binary_representation:
                 element.binary_representation = base64.b64decode(element.binary_representation)
             elements.append(element)
@@ -432,6 +431,7 @@ class ArynPDFPartitioner:
         if tracemalloc.is_tracing():
             before = tracemalloc.take_snapshot()
         for i in convert_from_path_streamed_batched(filename, batch_size):
+            extractor_list: list[Any] = list()
             if text_generator:
                 try:
                     extractor_list = [text_generator.__next__() for _ in range(batch_size)]
@@ -665,7 +665,7 @@ class DeformableDetr(SycamoreObjectDetection):
                 self.model = DeformableDetrForObjectDetection.from_pretrained(model_name_or_path).to(self._get_device())
 
     # Note: We wrap this in a function so that we can execute on both the leader and the workers
-    # to account for heterogeneous systems. Currently if you pass in an explicit device parameter
+    # to account for heterogeneous systems. Currently, if you pass in an explicit device parameter
     # it will be applied everywhere.
     def _get_device(self) -> str:
         return choose_device(self.device, detr=True)
@@ -680,10 +680,11 @@ class DeformableDetr(SycamoreObjectDetection):
         for result, image in zip(results, images):
             (w, h) = image.size
             elements = []
-            for score, label, box in zip(result["scores"], result["labels"], result["boxes"]):
+            for idx, (score, label, box) in enumerate(zip(result["scores"], result["labels"], result["boxes"])):
                 # Potential fix if negative bbox is causing downstream failures
                 # box = [max(0.0, coord) for coord in box]
                 element = create_element(
+                    seq_no=idx,
                     type=self.labels[label],
                     bbox=BoundingBox(box[0] / w, box[1] / h, box[2] / w, box[3] / h).coordinates,
                     properties={"score": score},

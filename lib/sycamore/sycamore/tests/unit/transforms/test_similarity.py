@@ -18,27 +18,35 @@ class TestSimilarityScorer:
             {
                 "doc_id": 1,
                 "elements": [
-                    {"text_representation": "here is an animal that meows"},
+                    {"text_representation": "here is an animal that meows", "properties": {"_element_index": 1}}
                 ],
             },
             {
                 "doc_id": 2,
                 "elements": [
-                    {"element_index": 7, "text_representation": "this is a cat"},
-                    {"element_index": 1, "text_representation": "here is an animal that moos"},
+                    {"properties": {"_element_index": 7}, "text_representation": "this is a cat"},
+                    {"properties": {"_element_index": 1}, "text_representation": "here is an animal that moos"},
                 ],
             },
             {
                 "doc_id": 3,
                 "elements": [
-                    {"text_representation": "here is an animal that moos"},
+                    {"properties": {"_element_index": 1}, "text_representation": "here is an animal that moos"},
                 ],
             },
-            {"doc_id": 4, "elements": [{"text_representation": "the number of pages in this document are 253"}]},
+            {
+                "doc_id": 4,
+                "elements": [
+                    {
+                        "properties": {"_element_index": 1},
+                        "text_representation": "the number of pages in this document are 253",
+                    }
+                ],
+            },
             {  # handle empty element
                 "doc_id": 5,
                 "elements": [
-                    {"element_index": 1},
+                    {"properties": {"_element_index": 1}},
                 ],
             },
         ]
@@ -49,7 +57,7 @@ class TestSimilarityScorer:
         result.sort(key=lambda doc: doc.properties.get(score_property_name, float("-inf")), reverse=True)
         assert [doc.doc_id for doc in result] == [2, 1, 3, 4, 5]
 
-        assert result[0].properties[score_property_name + "_source_element_element_index"] == 7
+        assert result[0].properties[score_property_name + "_source_element_index"] == 7
 
     def test_transformers_similarity_scorer_no_doc_structure(self):
         similarity_scorer = HuggingFaceTransformersSimilarityScorer(RERANKER_MODEL, ignore_doc_structure=True)

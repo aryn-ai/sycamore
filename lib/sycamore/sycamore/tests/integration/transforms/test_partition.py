@@ -32,7 +32,7 @@ def test_aryn_partitioner_w_ocr():
 
     assert "Attention Is All You Need" in set(str(d.text_representation).strip() for d in docs)
     assert all(
-        docs[i].properties["_element_index"] <= docs[i + 1].properties["_element_index"] for i in range(len(docs) - 1)
+        docs[i].properties["_element_index"] < docs[i + 1].properties["_element_index"] for i in range(len(docs) - 1)
     )
 
 
@@ -84,7 +84,7 @@ def check_table_extraction(**kwargs):
     assert len(docs) == 1
     doc = docs[0]
     tables = [e for e in doc.elements if e.type == "table"]
-    assert all(tables[i].element_index <= tables[i + 1].element_index for i in range(len(tables) - 1))
+    assert all(tables[i].element_index < tables[i + 1].element_index for i in range(len(tables) - 1))
     assert len(tables) == 1
     assert isinstance(tables[0], TableElement)
     assert tables[0].table is not None
@@ -133,7 +133,7 @@ def test_aryn_partitioner():
 
     assert "Attention Is All You Need" in set(str(d.text_representation).strip() for d in docs)
     assert all(
-        docs[i].properties["_element_index"] <= docs[i + 1].properties["_element_index"] for i in range(len(docs) - 1)
+        docs[i].properties["_element_index"] < docs[i + 1].properties["_element_index"] for i in range(len(docs) - 1)
     )
 
 

@@ -93,7 +93,25 @@ def test_qdrant_named_vector():
         {
             "url": qdrant_url,
         },
+        # Not specifying the vector name
+        # Should be handled by getting the first available vector
         {"collection_name": collection_name, "limit": 100},
+    ).take_all()
+
+    assert len(out_docs) == len(docs)
+    assert all(
+        compare_docs(original, plumbed)
+        for original, plumbed in zip(
+            sorted(docs, key=lambda d: d.doc_id or ""), sorted(out_docs, key=lambda d: d.doc_id or "")
+        )
+    )
+
+    out_docs = ctx.read.qdrant(
+        {
+            "url": qdrant_url,
+        },
+        # Specify the vector name
+        {"collection_name": collection_name, "limit": 100, "using": vector_name},
     ).take_all()
 
     assert len(out_docs) == len(docs)

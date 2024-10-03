@@ -22,7 +22,7 @@ _logger.addHandler(logging.StreamHandler(sys.stderr))
 
 
 def partition_file(
-    file: BinaryIO,
+    file: Union[BinaryIO, str, PathLike],
     aryn_api_key: Optional[str] = None,
     aryn_config: Optional[ArynConfig] = None,
     threshold: Optional[Union[float, Literal["auto"]]] = None,
@@ -39,7 +39,7 @@ def partition_file(
     Sends file to the Aryn Partitioning Service and returns a dict of its document structure and text
 
     Args:
-        file: open pdf file to partition
+        file: pdf file to partition
         aryn_api_key: aryn api key, provided as a string
         aryn_config: ArynConfig object, used for finding an api key.
             If aryn_api_key is set it will override this.

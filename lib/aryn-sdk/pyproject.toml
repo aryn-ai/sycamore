@@ -20,6 +20,7 @@ pillow = ">=9.4.0"
 #
 # [tool.poetry.group.dev.dependencies]
 # sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }
+packaging = "^24.1"
 
 [build-system]
 requires = ["poetry-core"]

@@ -32,8 +32,8 @@ class TestArynPDFPartitioner:
                 expected_json = json.loads(expected_text.read())
                 partitioner = ArynPDFPartitioner(None)
                 expected_elements = []
-                for element_json in expected_json:
-                    element = create_element(**element_json)
+                for i, element_json in enumerate(expected_json):
+                    element = create_element(i, **element_json)
                     if element.binary_representation:
                         element.binary_representation = base64.b64decode(element.binary_representation)
                     expected_elements.append(element)
@@ -49,8 +49,8 @@ class TestArynPDFPartitioner:
                 expected_json = json.loads(expected_text.read())
                 partitioner = ArynPDFPartitioner(None)
                 expected_elements = []
-                for element_json in expected_json:
-                    element = create_element(**element_json)
+                for i, element_json in enumerate(expected_json):
+                    element = create_element(i, **element_json)
                     if element.binary_representation:
                         element.binary_representation = base64.b64decode(element.binary_representation)
                     expected_elements.append(element)

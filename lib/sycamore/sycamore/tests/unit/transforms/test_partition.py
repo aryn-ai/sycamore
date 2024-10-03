@@ -45,7 +45,7 @@ class TestPartition:
             "metadata": {"filename": "Bert.pdf", "filetype": "application/pdf", "page_number": 1},
             "text": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
         }
-        element = UnstructuredPdfPartitioner.to_element(dict)
+        element = UnstructuredPdfPartitioner.to_element(dict, seq_no=1)
         assert element.type == "Title"
         assert (
             element.text_representation == "BERT: Pre-training of Deep Bidirectional Transformers for"
@@ -62,6 +62,7 @@ class TestPartition:
             "filename": "Bert.pdf",
             "filetype": "application/pdf",
             "page_number": 1,
+            "_seq_no": 1,
         }
 
     @pytest.mark.parametrize(

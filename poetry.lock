@@ -406,7 +406,7 @@ test = ["dateparser (==1.*)", "pre-commit", "pytest", "pytest-cov", "pytest-mock
 
 [[package]]
 name = "aryn-sdk"
-version = "0.1.5"
+version = "0.1.6"
 description = "The client library for Aryn services"
 optional = false
 python-versions = ">=3.9"
@@ -415,6 +415,7 @@ develop = true
 
 [package.dependencies]
 numpy = ">=1.21.5"
+packaging = "^24.1"
 pandas = ">=2.0"
 pdf2image = "^1.16.3"
 pillow = ">=9.4.0"
@@ -10331,4 +10332,4 @@ docs = ["furo", "myst-parser", "sphinx"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.9.7 || >3.9.7,<3.13"
-content-hash = "3eb2e550134aa74749fa637952fd5ade6d6574cd3282530b13a5b6d52725aeac"
+content-hash = "a9012ae6535a0df314cde098b92159070cbfe6b8afd3724780a9af936207cbf3"

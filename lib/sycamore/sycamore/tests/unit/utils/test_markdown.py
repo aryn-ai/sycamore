@@ -139,7 +139,7 @@ def test_shenanigans() -> None:
 | A | B | C |
 | D | B | E |
 | D | B | F |
-| G | H | | |
+| G | H | \\| |
 
 """
     assert s == answer

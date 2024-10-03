@@ -101,16 +101,17 @@ def render_table(elem: TableElement, sio: StringIO) -> None:
     matrix = [[""] * ncol for _ in range(nrow)]
     for cell in cells:
         if cell.content:
+            content = escape_str(cell.content)
             for col in cell.cols:
                 if cell.rows[0] <= hdr_max:  # ignore rowspan in headers
                     s = matrix[0][col]
                     if s:
-                        matrix[0][col] = f"{s} {cell.content}"
+                        matrix[0][col] = f"{s} {content}"
                     else:
-                        matrix[0][col] = cell.content
+                        matrix[0][col] = content
                 else:
                     for row in cell.rows:
-                        matrix[row][col] = cell.content
+                        matrix[row][col] = content
     sep = "| " + " | ".join(["-----" for _ in range(ncol)]) + " |\n"
     sio.write("\n")
     if hdr_max < 0:

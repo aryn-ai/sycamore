@@ -1,3 +1,4 @@
+from os import PathLike
 from typing import BinaryIO, Literal, Optional, Union
 from collections.abc import Mapping
 from aryn_sdk.config import ArynConfig
@@ -23,7 +24,7 @@ _logger.addHandler(logging.StreamHandler(sys.stderr))
 def partition_file(
     file: BinaryIO,
     aryn_api_key: Optional[str] = None,
-    aryn_config: ArynConfig = ArynConfig(),
+    aryn_config: Optional[ArynConfig] = None,
     threshold: Optional[Union[float, Literal["auto"]]] = None,
     use_ocr: bool = False,
     ocr_images: bool = False,
@@ -82,10 +83,17 @@ def partition_file(
             elements = data['elements']
     """
 
+    # If you hand me a for the file, read it in instead of trying to send the path
+    if isinstance(file, (str, PathLike)):
+        with open(file, "rb") as f:
+            file = io.BytesIO(f.read())
+
     if aryn_api_key is not None:
         if aryn_config is not None:
             _logger.warning("Both aryn_api_key and aryn_config were provided. Using aryn_api_key")
         aryn_config = ArynConfig(aryn_api_key=aryn_api_key)
+    if aryn_config is None:
+        aryn_config = ArynConfig()
 
     options_str = _json_options(
         threshold=threshold,

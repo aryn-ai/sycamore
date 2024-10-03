@@ -1,4 +1,5 @@
 import sycamore
+from sycamore import ExecMode
 
 from sycamore.data import Document
 from sycamore.transforms.similarity import HuggingFaceTransformersSimilarityScorer
@@ -13,39 +14,47 @@ def test_rerank_docset():
         {
             "doc_id": 1,
             "elements": [
-                {"text_representation": "here is an animal that meows"},
+                {"properties": {"_element_index": 1}, "text_representation": "here is an animal that meows"},
             ],
         },
         {
             "doc_id": 2,
             "elements": [
-                {"id": 7, "text_representation": "this is a cat"},
-                {"id": 1, "text_representation": "here is an animal that moos"},
+                {"id": 7, "properties": {"_element_index": 7}, "text_representation": "this is a cat"},
+                {"id": 1, "properties": {"_element_index": 1}, "text_representation": "here is an animal that moos"},
             ],
         },
         {
             "doc_id": 3,
             "elements": [
-                {"text_representation": "here is an animal that moos"},
+                {"properties": {"_element_index": 1}, "text_representation": "here is an animal that moos"},
             ],
         },
         {  # handle element with not text
             "doc_id": 4,
             "elements": [
-                {"id": 1},
+                {"id": 1, "properties": {"_element_index": 1}},
             ],
         },
-        {"doc_id": 5, "elements": [{"text_representation": "the number of pages in this document are 253"}]},
+        {
+            "doc_id": 5,
+            "elements": [
+                {
+                    "properties": {"_element_index": 1},
+                    "text_representation": "the number of pages in this document are 253",
+                }
+            ],
+        },
         {  # drop because of limit
             "doc_id": 6,
             "elements": [
-                {"id": 1},
+                {"id": 1, "properties": {"_element_index": 1}},
             ],
         },
     ]
     docs = [Document(item) for item in dicts]
 
-    context = sycamore.init()
+    context = sycamore.init(exec_mode=ExecMode.LOCAL)
     doc_set = context.read.document(docs).rerank(
         similarity_scorer=similarity_scorer, query="is this a cat?", score_property_name=score_property_name, limit=5
     )
@@ -70,14 +79,17 @@ def test_rerank_docset_exploded():
         {
             "doc_id": 4,
             "elements": [
-                {"text_representation": "this doc doesn't have a text representation but instead has an element"}
+                {
+                    "properties": {"_element_index": 1},
+                    "text_representation": "this doc doesn't have a text representation but instead has an element",
+                }
             ],
         },
         {"doc_id": 5, "text_representation": "the number of pages in this document are 253"},
     ]
     docs = [Document(item) for item in dicts]
 
-    context = sycamore.init()
+    context = sycamore.init(exec_mode=ExecMode.LOCAL)
     doc_set = context.read.document(docs).rerank(
         similarity_scorer=similarity_scorer, query="is this a cat?", score_property_name=score_property_name
     )

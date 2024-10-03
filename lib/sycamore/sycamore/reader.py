@@ -568,7 +568,7 @@ class DocSetReader:
         return DocSet(self._context, wr)
 
     @requires_modules("qdrant_client", extra="qdrant")
-    def qdrant(self, client_params: dict, query_params: dict) -> DocSet:
+    def qdrant(self, client_params: dict, query_params: dict, **kwargs) -> DocSet:
         """
         Reads the contents of a Qdrant collection into a DocSet.
 
@@ -579,6 +579,7 @@ class DocSetReader:
             query_params: Parameters that are passed into the qdrant_client.QdrantClient.query_points method.
             See more information at
             https://python-client.qdrant.tech/_modules/qdrant_client/qdrant_client#QdrantClient.query_points
+            kwargs: Keyword arguments to pass to the underlying execution engine.
         """
         from sycamore.connectors.qdrant import (
             QdrantReader,
@@ -589,5 +590,6 @@ class DocSetReader:
         wr = QdrantReader(
             client_params=QdrantReaderClientParams(**client_params),
             query_params=QdrantReaderQueryParams(query_params=query_params),
+            **kwargs,
         )
         return DocSet(self._context, wr)

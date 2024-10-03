@@ -57,7 +57,7 @@ class DocSetWriter:
                 https://opensearch.org/docs/latest/api-reference/index-apis/create-index/
             execute: Execute the pipeline and write to opensearch on adding this operator. If false,
                 will return a new docset with the write in the plan
-            kwargs: Arguments to pass to the underlying execution engine
+            kwargs: Keyword arguments to pass to the underlying execution engine
 
         Example:
             The following code shows how to read a pdf dataset into a ``DocSet`` and write it out to a
@@ -678,9 +678,10 @@ class DocSetWriter:
             client_params: Parameters that are passed to the Qdrant client constructor.
                             See more information at
                             https://python-client.qdrant.tech/qdrant_client.qdrant_client
-            query_params: Parameters that are passed into the qdrant_client.QdrantClient.query_points method.
+            collection_params: Parameters that are passed into the qdrant_client.QdrantClient.create_collection method.
                             See more information at
-                            https://python-client.qdrant.tech/_modules/qdrant_client/qdrant_client#QdrantClient.query_points
+                            https://python-client.qdrant.tech/_modules/qdrant_client/qdrant_client#QdrantClient.create_collection
+            vector_name: The name of the vector in the Qdrant collection. Defaults to None.
             execute: Execute the pipeline and write to Qdrant on adding this operator. If False,
                     will return a DocSet with this write in the plan. Defaults to True.
             kwargs: Arguments to pass to the underlying execution engine

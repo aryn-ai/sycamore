@@ -66,7 +66,7 @@ class UnstructuredPPTXPartitioner(Partitioner):
     """
 
     @staticmethod
-    def to_element(dict: dict[str, Any], seq_no: Optional[int] = None) -> Element:
+    def to_element(dict: dict[str, Any], element_index: Optional[int] = None) -> Element:
         text = dict.pop("text")
         if isinstance(text, str):
             binary = text.encode("utf-8")
@@ -80,7 +80,7 @@ class UnstructuredPPTXPartitioner(Partitioner):
         element.text_representation = text
         element.properties.update(dict.pop("metadata"))
         element.properties.update(dict)
-        element.seq_no = seq_no
+        element.element_index = element_index
 
         return element
 
@@ -176,7 +176,7 @@ class UnstructuredPdfPartitioner(Partitioner):
         self._retain_coordinates = retain_coordinates
 
     @staticmethod
-    def to_element(dict: dict[str, Any], seq_no: Optional[int] = None, retain_coordinates=False) -> Element:
+    def to_element(dict: dict[str, Any], element_index: Optional[int] = None, retain_coordinates=False) -> Element:
         text = dict.pop("text")
         if isinstance(text, str):
             binary = text.encode("utf-8")
@@ -186,7 +186,7 @@ class UnstructuredPdfPartitioner(Partitioner):
 
         element = Element()
         element.type = dict.pop("type", "unknown")
-        element.seq_no = seq_no
+        element.element_index = element_index
         element.binary_representation = binary
         element.text_representation = text
 
@@ -228,7 +228,7 @@ class UnstructuredPdfPartitioner(Partitioner):
         # Here we convert unstructured.io elements into our elements and
         # set them as the child elements of the document.
         document.elements = [
-            self.to_element(ee.to_dict(), retain_coordinates=self._retain_coordinates, seq_no=i)
+            self.to_element(ee.to_dict(), retain_coordinates=self._retain_coordinates, element_index=i)
             for i, ee in enumerate(elements)
         ]
         del elements
@@ -300,7 +300,7 @@ class HtmlPartitioner(Partitioner):
         for i, chunk in enumerate(chunks):
             content = "".join(chunk)
             element = Element()
-            element.seq_no = i
+            element.element_index = i
             element.type = "text"
             element.text_representation = content
 
@@ -308,7 +308,7 @@ class HtmlPartitioner(Partitioner):
             elements += [element]
 
         # extract tables
-        last_seq_no = len(chunks)
+        last_element_index = len(chunks)
         if self._extract_tables:
             for table in soup.find_all("table"):
                 # ignore nested tables
@@ -318,9 +318,9 @@ class HtmlPartitioner(Partitioner):
                 table_object = Table.from_html(html_tag=table)
                 table_element = TableElement(table=table_object)
                 table_element.properties.update(document.properties)
-                table_element.seq_no = last_seq_no
+                table_element.element_index = last_element_index
                 elements.append(table_element)
-                last_seq_no += 1
+                last_element_index += 1
         document.elements = document.elements + elements
 
         return document
@@ -347,7 +347,7 @@ class HtmlPartitioner(Partitioner):
             if start_time != "":
                 end_time = i[0:time_ix]
                 element = Element({"start_time": start_time, "end_time": end_time, "speaker": speaker, "text": text})
-                element.seq_no = len(elements)
+                element.element_index = len(elements)
                 elements.append(element)
             start_time = i[0:time_ix]
             speaker = i[time_ix:spk_ix]
@@ -355,7 +355,7 @@ class HtmlPartitioner(Partitioner):
         if start_time != "":
             end_time = i[0:time_ix]
             element = Element({"start_time": start_time, "end_time": "N/A", "speaker": speaker, "text": text})
-            element.seq_no = len(elements)
+            element.element_index = len(elements)
             elements.append(element)
         document.elements = elements
         return document

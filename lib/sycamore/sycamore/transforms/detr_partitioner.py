@@ -312,7 +312,7 @@ class ArynPDFPartitioner:
 
         elements = []
         for idx, element_json in enumerate(response_json):
-            element = create_element(seq_no=idx, **element_json)
+            element = create_element(element_index=idx, **element_json)
             if element.binary_representation:
                 element.binary_representation = base64.b64decode(element.binary_representation)
             elements.append(element)
@@ -684,7 +684,7 @@ class DeformableDetr(SycamoreObjectDetection):
                 # Potential fix if negative bbox is causing downstream failures
                 # box = [max(0.0, coord) for coord in box]
                 element = create_element(
-                    seq_no=idx,
+                    element_index=idx,
                     type=self.labels[label],
                     bbox=BoundingBox(box[0] / w, box[1] / h, box[2] / w, box[3] / h).coordinates,
                     properties={"score": score},

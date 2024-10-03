@@ -23,14 +23,14 @@ class Element(UserDict):
             self.data["properties"] = {}
 
     @property
-    def seq_no(self) -> Optional[int]:
+    def element_index(self) -> Optional[int]:
         """A unique identifier for the element within a Document. Represents an order within the document"""
-        return self.data.get("properties", {}).get("_seq_no")
+        return self.data.get("properties", {}).get("_element_index")
 
-    @seq_no.setter
-    def seq_no(self, value: int) -> None:
+    @element_index.setter
+    def element_index(self, value: int) -> None:
         """Set the unique identifier of the element within a Document."""
-        self.data["properties"]["_seq_no"] = value
+        self.data["properties"]["_element_index"] = value
 
     @property
     def type(self) -> Optional[str]:
@@ -222,7 +222,7 @@ class TableElement(Element):
         self.data["text_representation"] = text_representation
 
 
-def create_element(seq_no: Optional[int] = None, **kwargs) -> Element:
+def create_element(element_index: Optional[int] = None, **kwargs) -> Element:
     element: Element
     if "type" in kwargs and kwargs["type"].lower() == "table":
         if "properties" in kwargs:
@@ -247,6 +247,6 @@ def create_element(seq_no: Optional[int] = None, **kwargs) -> Element:
 
     else:
         element = Element(**kwargs)
-    if seq_no is not None:
-        element.seq_no = seq_no
+    if element_index is not None:
+        element.element_index = element_index
     return element

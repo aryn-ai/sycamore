@@ -24,8 +24,8 @@ class TestSimilarityScorer:
             {
                 "doc_id": 2,
                 "elements": [
-                    {"seq_no": 7, "text_representation": "this is a cat"},
-                    {"seq_no": 1, "text_representation": "here is an animal that moos"},
+                    {"element_index": 7, "text_representation": "this is a cat"},
+                    {"element_index": 1, "text_representation": "here is an animal that moos"},
                 ],
             },
             {
@@ -38,7 +38,7 @@ class TestSimilarityScorer:
             {  # handle empty element
                 "doc_id": 5,
                 "elements": [
-                    {"seq_no": 1},
+                    {"element_index": 1},
                 ],
             },
         ]
@@ -49,7 +49,7 @@ class TestSimilarityScorer:
         result.sort(key=lambda doc: doc.properties.get(score_property_name, float("-inf")), reverse=True)
         assert [doc.doc_id for doc in result] == [2, 1, 3, 4, 5]
 
-        assert result[0].properties[score_property_name + "_source_element_seq_no"] == 7
+        assert result[0].properties[score_property_name + "_source_element_element_index"] == 7
 
     def test_transformers_similarity_scorer_no_doc_structure(self):
         similarity_scorer = HuggingFaceTransformersSimilarityScorer(RERANKER_MODEL, ignore_doc_structure=True)

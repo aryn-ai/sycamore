@@ -16,6 +16,17 @@ def read_local_binary(request) -> Document:
     return document
 
 
-@pytest.fixture(params=[ExecMode.LOCAL, ExecMode.RAY])
+@pytest.fixture(params=(exec_mode for exec_mode in ExecMode if exec_mode != ExecMode.UNKNOWN))
 def exec_mode(request):
+    """
+    Use this to run a test against all available execution modes. You will need to pass this as a parameter to
+    the Context initialization. e.g.
+
+    Example:
+        .. code-block:: python
+
+            def test_example(exec_mode):
+                context = sycamore.init(exec_mode=exec_mode)
+                ...
+    """
     return request.param

@@ -143,16 +143,16 @@ def bbox_sort_page(elems: list[Element]) -> None:
         elem.data.pop("_coltag", None)  # clean up tags
 
 
-def bbox_sorted_elements(elements: list[Element], update_seq_nos: bool = True) -> list[Element]:
+def bbox_sorted_elements(elements: list[Element], update_element_indexs: bool = True) -> list[Element]:
     pages = collect_pages(elements)
     for elems in pages:
         bbox_sort_page(elems)
     ordered_elements = [elem for elems in pages for elem in elems]  # flatten
-    if update_seq_nos:
+    if update_element_indexs:
         for idx, element in enumerate(ordered_elements):
-            element.seq_no = idx
+            element.element_index = idx
     return ordered_elements
 
 
-def bbox_sort_document(doc: Document, update_seq_nos: bool = True) -> None:
-    doc.elements = bbox_sorted_elements(doc.elements, update_seq_nos)
+def bbox_sort_document(doc: Document, update_element_indexs: bool = True) -> None:
+    doc.elements = bbox_sorted_elements(doc.elements, update_element_indexs)

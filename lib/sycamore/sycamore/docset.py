@@ -980,12 +980,14 @@ class DocSet:
             new_field: The field that will be added to the DocSet with the outputs.
             prompt: LLM prompt.
             field: Document field to filter based on.
-            threshold: Cutoff that determines whether to keep document.
-            keep_none:  whether to keep records with a None value.
+            threshold:  If the value of the computed result is an integer value greater than or equal to this threshold,
+                        the document will be kept.
+            keep_none:  keep records with a None value for the provided field to filter on.
                         Warning: using this might hide data corruption issues.
             use_elements: use contents of a document's elements to filter as opposed to document level contents.
-            similarity_query: query string to compute similarity against.
-            similarity_scorer: scorer to generate similarity if 'sort_elements_by_similarity' is True.
+            similarity_query: query string to compute similarity against. Also requires a 'similarity_scorer'.
+            similarity_scorer: scorer used to generate similarity scores used in element sorting.
+                        Also requires a 'similarity_query'.
             **resource_args
 
         Returns:
@@ -1000,6 +1002,7 @@ class DocSet:
                 if doc.field_to_value(field) is None:
                     return keep_none
                 doc = entity_extractor.extract_entity(doc)
+                # todo: move data extraction and validation to entity extractor
                 return int(re.findall(r"\d+", doc.properties[new_field])[0]) >= threshold
 
             if similarity_query or similarity_scorer:
@@ -1017,6 +1020,7 @@ class DocSet:
                     continue
                 e_doc = entity_extractor.extract_entity(e_doc)
                 element.properties[new_field] = e_doc.properties[new_field]
+                # todo: move data extraction and validation to entity extractor
                 if int(re.findall(r"\d+", element.properties[new_field])[0]) >= threshold:
                     return True
                 evaluated_elements += 1

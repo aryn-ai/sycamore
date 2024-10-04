@@ -31,6 +31,9 @@ contents of individual reports, as well as aggregate statistics about the incide
 database. You can perform actions such as filtering, sorting, and aggregating the data to
 answer questions. You can also provide links to relevant documents and data sources."""
 
+# The index name used for Planner query examples.
+PLANNER_EXAMPLE_INDEX = "const_ntsb"
+
 # The example schema used for the Planner query examples.
 PLANNER_EXAMPLE_SCHEMA = {
     "text_representation": ("str", {"Can be assumed to have all other details"}),
@@ -138,7 +141,7 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
             {
                 "operatorName": "QueryDatabase",
                 "description": "Get all the incident reports",
-                "index": "ntsb_incident_index",
+                "index": PLANNER_EXAMPLE_INDEX,
                 "node_id": 0,
                 "query": {
                     "bool": {
@@ -166,7 +169,7 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
             {
                 "operatorName": "QueryDatabase",
                 "description": "Get all the incident reports",
-                "index": "ntsb_incident_index",
+                "index": PLANNNER_EXAMPLE_INDEX,
                 "node_id": 0,
                 "query": {"match": {"properties.entity.aircraft": "Piper"}},
             },
@@ -179,7 +182,7 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
             {
                 "operatorName": "QueryDatabase",
                 "description": "Get all the incident reports in clear weather",
-                "index": "ntsb_incident_index",
+                "index": PLANNER_EXAMPLE_INDEX,
                 "node_id": 0,
                 "query": {"match": {"properties.entity.conditions": "VMC"}},
             },
@@ -199,7 +202,7 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
             {
                 "operatorName": "QueryDatabase",
                 "description": "Get all the incident reports in California",
-                "index": "ntsb_incident_index",
+                "index": PLANNER_EXAMPLE_INDEX,
                 "query": {"match": {"properties.entity.location": "California"}},
                 "node_id": 0,
             },
@@ -224,7 +227,7 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
             {
                 "operatorName": "QueryDatabase",
                 "description": "Get all the incident reports in California in 2023",
-                "index": "ntsb_incident_index",
+                "index": PLANNER_EXAMPLE_INDEX,
                 "query": {
                     "bool": {
                         "must": [
@@ -260,7 +263,7 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
             {
                 "operatorName": "QueryDatabase",
                 "description": "Get all the incident reports",
-                "index": "ntsb_incident_index",
+                "index": PLANNER_EXAMPLE_INDEX,
                 "node_id": 0,
                 "query": {"match_all": {}},
             },
@@ -285,7 +288,7 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
             {
                 "operatorName": "QueryVectorDatabase",
                 "description": "Get incident reports mentioning pilot training",
-                "index": "ntsb_incident_index",
+                "index": PLANNER_EXAMPLE_INDEX,
                 "query_phrase": "pilot training",
                 "node_id": 0,
             },
@@ -298,7 +301,7 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
             {
                 "operatorName": "QueryDatabase",
                 "description": "Get all the incident reports involving a Cessna 172 aircraft",
-                "index": "ntsb_incident_index",
+                "index": PLANNER_EXAMPLE_INDEX,
                 "query": {"match": {"properties.entity.aircraft": "Cessna 172"}},
                 "node_id": 0,
             },

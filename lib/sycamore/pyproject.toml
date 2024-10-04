@@ -68,6 +68,7 @@ opensearch-py = { version = "^2.3.1", optional = true }
 pinecone-client = { version = "^4.1.0", extras = ["grpc"], optional = true }
 pinecone-text = { version = "^0.9.0", optional = true }
 weaviate-client = { version = ">=4.6.1,<4.7", optional = true } # typechecking fails with 4.7
+qdrant-client = { version = "^1.11.2", optional = true }
 
 # Local inference dependencies
 easyocr = { version = "^1.7.1", optional = true }
@@ -119,6 +120,7 @@ neo4j = ["neo4j"]
 opensearch = ["opensearch-py"]
 pinecone = ["pinecone-client", "pinecone-text"]
 weaviate = ["weaviate-client"]
+qdrant = ["qdrant-client"]
 
 # Partitioner extras
 local-inference = [

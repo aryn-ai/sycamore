@@ -45,7 +45,7 @@ class TestPartition:
             "metadata": {"filename": "Bert.pdf", "filetype": "application/pdf", "page_number": 1},
             "text": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
         }
-        element = UnstructuredPdfPartitioner.to_element(dict)
+        element = UnstructuredPdfPartitioner.to_element(dict, element_index=1)
         assert element.type == "Title"
         assert (
             element.text_representation == "BERT: Pre-training of Deep Bidirectional Transformers for"
@@ -62,6 +62,7 @@ class TestPartition:
             "filename": "Bert.pdf",
             "filetype": "application/pdf",
             "page_number": 1,
+            "_element_index": 1,
         }
 
     @pytest.mark.parametrize(
@@ -180,19 +181,16 @@ class TestPartition:
 
     def test_simple_ocr(self):
         import pdf2image
-        from sycamore.transforms.detr_partitioner import extract_ocr
+        from sycamore.transforms.text_extraction import LegacyOcr
 
         path = TEST_DIR / "resources/data/ocr_pdfs/test_simple_ocr.pdf"
         images = pdf2image.convert_from_path(path, dpi=800)
         assert len(images) == 1
 
-        elem = Element({"bbox": (0.0, 0.0, 1.0, 1.0), "properties": {"page_number": 1}})
-
-        new_elems = extract_ocr(images, [[elem]])
+        new_elems = [LegacyOcr().get_boxes_and_text(image=image) for image in images]
 
         assert len(new_elems) == 1
-        assert len(new_elems[0]) == 1
-
-        text = new_elems[0][0].text_representation
-        assert text is not None
-        assert text.strip() == "The quick brown fox"
+        text_list = []
+        text_list.extend(val["text"] for val in new_elems[0])
+        assert all(val is not None for val in text_list)
+        assert " ".join(text_list).strip() == "The quick brown fox"

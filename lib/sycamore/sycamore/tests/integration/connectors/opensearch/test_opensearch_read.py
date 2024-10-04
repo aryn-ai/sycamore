@@ -53,13 +53,13 @@ class TestOpenSearchRead:
         "timeout": 120,
     }
 
-    def test_ingest_and_read(self, setup_index):
+    def test_ingest_and_read(self, setup_index, exec_mode):
         """
         Validates data is readable from OpenSearch, and that we can rebuild processed Sycamore documents.
         """
 
         path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
-        context = sycamore.init()
+        context = sycamore.init(exec_mode=exec_mode)
         original_docs = (
             context.read.binary(path, binary_format="pdf")
             .partition(partitioner=UnstructuredPdfPartitioner())

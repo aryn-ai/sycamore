@@ -3,6 +3,7 @@ from typing import Any, Dict
 
 
 from sycamore.data import Document, Element, BoundingBox
+from sycamore.data.document import DocumentPropertyTypes
 from sycamore.plan_nodes import SingleThreadUser, NonGPUUser, Node
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.transforms.map import Map
@@ -72,7 +73,11 @@ class GreedyTextElementMerger(ElementMerger):
         return element
 
     def should_merge(self, element1: Element, element2: Element) -> bool:
-        if not self.merge_across_pages and element1.properties["page_number"] != element2.properties["page_number"]:
+        if (
+            not self.merge_across_pages
+            and element1.properties[DocumentPropertyTypes.PAGE_NUMBER]
+            != element2.properties[DocumentPropertyTypes.PAGE_NUMBER]
+        ):
             return False
         if element1.data["token_count"] + 1 + element2.data["token_count"] > self.max_tokens:
             return False
@@ -127,14 +132,14 @@ class GreedyTextElementMerger(ElementMerger):
         properties = new_elt.properties
         for k, v in elt1.properties.items():
             properties[k] = v
-            if k == "page_number":
+            if k == DocumentPropertyTypes.PAGE_NUMBER:
                 properties["page_numbers"] = properties.get("page_numbers", list())
                 properties["page_numbers"] = list(set(properties["page_numbers"] + [v]))
         for k, v in elt2.properties.items():
             if properties.get(k) is None:
                 properties[k] = v
             # if a page number exists, add it to the set of page numbers for this new element
-            if k == "page_number":
+            if k == DocumentPropertyTypes.PAGE_NUMBER:
                 properties["page_numbers"] = properties.get("page_numbers", list())
                 properties["page_numbers"] = list(set(properties["page_numbers"] + [v]))
 
@@ -172,15 +177,19 @@ class GreedySectionMerger(ElementMerger):
     def should_merge(self, element1: Element, element2: Element) -> bool:
         # deal with empty elements
         if (
-            "page_number" not in element1.properties
-            or "page_number" not in element2.properties
+            DocumentPropertyTypes.PAGE_NUMBER not in element1.properties
+            or DocumentPropertyTypes.PAGE_NUMBER not in element2.properties
             or element1.type is None
             or element2.type is None
         ):
             return False
 
         # DO NOT MERGE across pages
-        if not self.merge_across_pages and element1.properties["page_number"] != element2.properties["page_number"]:
+        if (
+            not self.merge_across_pages
+            and element1.properties[DocumentPropertyTypes.PAGE_NUMBER]
+            != element2.properties[DocumentPropertyTypes.PAGE_NUMBER]
+        ):
             return False
 
         if element1.data["token_count"] + 1 + element2.data["token_count"] > self.max_tokens:
@@ -312,14 +321,14 @@ class GreedySectionMerger(ElementMerger):
         properties = new_elt.properties
         for k, v in elt1.properties.items():
             properties[k] = v
-            if k == "page_number":
+            if k == DocumentPropertyTypes.PAGE_NUMBER:
                 properties["page_numbers"] = properties.get("page_numbers", list())
                 properties["page_numbers"] = list(set(properties["page_numbers"] + [v]))
         for k, v in elt2.properties.items():
             if properties.get(k) is None:
                 properties[k] = v
             # if a page number exists, add it to the set of page numbers for this new element
-            if k == "page_number":
+            if k == DocumentPropertyTypes.PAGE_NUMBER:
                 properties["page_numbers"] = properties.get("page_numbers", list())
                 properties["page_numbers"] = list(set(properties["page_numbers"] + [v]))
 
@@ -379,7 +388,7 @@ class MarkedMerger(ElementMerger):
             if elem.text_representation:
                 text += elem.text_representation + "\n"
             for k, v in elem.properties.items():
-                if k == "page_number":
+                if k == DocumentPropertyTypes.PAGE_NUMBER:
                     props["page_numbers"] = props.get("page_numbers", list())
                     props["page_numbers"] = list(set(props["page_numbers"] + [v]))
                 if k not in props:  # ??? order may matter here

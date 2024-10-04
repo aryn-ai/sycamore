@@ -45,7 +45,7 @@ class DocSetReader:
         parallelism: Optional[int] = None,
         filesystem: Optional[FileSystem] = None,
         metadata_provider: Optional[FileMetadataProvider] = None,
-        **kwargs
+        **kwargs,
     ) -> DocSet:
         """
         Reads the contents of Binary Files into a DocSet
@@ -76,7 +76,7 @@ class DocSetReader:
             parallelism=parallelism,
             filesystem=filesystem,
             metadata_provider=metadata_provider,
-            **kwargs
+            **kwargs,
         )
         return DocSet(self._context, scan)
 
@@ -87,7 +87,7 @@ class DocSetReader:
         binary_format: str,
         parallelism: Optional[int] = None,
         filesystem: Optional[FileSystem] = None,
-        **kwargs
+        **kwargs,
     ) -> DocSet:
         """
         Reads the contents of Binary Files into a DocSet using the Metadata manifest as their paths
@@ -126,7 +126,7 @@ class DocSetReader:
             parallelism=parallelism,
             filesystem=filesystem,
             metadata_provider=metadata_provider,
-            **kwargs
+            **kwargs,
         )
         return DocSet(self._context, scan)
 
@@ -137,7 +137,7 @@ class DocSetReader:
         metadata_provider: Optional[FileMetadataProvider] = None,
         document_body_field: Optional[str] = None,
         doc_extractor: Optional[Callable] = None,
-        **kwargs
+        **kwargs,
     ) -> DocSet:
         """
          Reads the contents of JSON Documents into a DocSet
@@ -165,7 +165,7 @@ class DocSetReader:
             metadata_provider=metadata_provider,
             document_body_field=document_body_field,
             doc_extractor=doc_extractor,
-            **kwargs
+            **kwargs,
         )
         return DocSet(self._context, json_scan)
 
@@ -217,7 +217,7 @@ class DocSetReader:
         index_name: str,
         query: Optional[Dict] = None,
         reconstruct_document: bool = False,
-        **kwargs
+        **kwargs,
     ) -> DocSet:
         """
         Reads the content of an OpenSearch index into a DocSet.
@@ -576,4 +576,31 @@ class DocSetReader:
         client_params = WeaviateReaderClientParams(**wv_client_args)
         query_params = WeaviateReaderQueryParams(collection_name=collection_name, query_kwargs=kwargs)
         wr = WeaviateReader(client_params=client_params, query_params=query_params)
+        return DocSet(self._context, wr)
+
+    @requires_modules("qdrant_client", extra="qdrant")
+    def qdrant(self, client_params: dict, query_params: dict, **kwargs) -> DocSet:
+        """
+        Reads the contents of a Qdrant collection into a DocSet.
+
+        Args:
+            client_params: Parameters that are passed to the Qdrant client constructor.
+            See more information at
+            https://python-client.qdrant.tech/qdrant_client.qdrant_client
+            query_params: Parameters that are passed into the qdrant_client.QdrantClient.query_points method.
+            See more information at
+            https://python-client.qdrant.tech/_modules/qdrant_client/qdrant_client#QdrantClient.query_points
+            kwargs: Keyword arguments to pass to the underlying execution engine.
+        """
+        from sycamore.connectors.qdrant import (
+            QdrantReader,
+            QdrantReaderClientParams,
+            QdrantReaderQueryParams,
+        )
+
+        wr = QdrantReader(
+            client_params=QdrantReaderClientParams(**client_params),
+            query_params=QdrantReaderQueryParams(query_params=query_params),
+            **kwargs,
+        )
         return DocSet(self._context, wr)

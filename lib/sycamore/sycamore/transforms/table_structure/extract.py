@@ -5,6 +5,7 @@ from PIL import Image
 import pdf2image
 
 from sycamore.data import BoundingBox, Element, Document, TableElement
+from sycamore.data.document import DocumentPropertyTypes
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.transforms.table_structure import table_transformers
@@ -50,8 +51,8 @@ class TableStructureExtractor:
 
         for elem in doc.elements:
             if isinstance(elem, TableElement):
-                if "page_number" in elem.properties:
-                    page_num = elem.properties["page_number"] - 1
+                if DocumentPropertyTypes.PAGE_NUMBER in elem.properties:
+                    page_num = elem.properties[DocumentPropertyTypes.PAGE_NUMBER] - 1
                 elif len(images) == 1:
                     page_num = 0
                 else:

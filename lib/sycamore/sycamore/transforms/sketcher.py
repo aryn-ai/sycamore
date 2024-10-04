@@ -4,6 +4,7 @@ import functools
 import unicodedata
 
 from sycamore.data import Document
+from sycamore.data.document import DocumentPropertyTypes
 from sycamore.functions.simhash import shinglesCalc, shinglesDist
 from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import Map, FlatMap
@@ -154,7 +155,10 @@ class SketchDebug(SingleThreadUser, NonGPUUser, FlatMap):
             self.total += 1
             docSketch = doc.shingles
             docText = str(doc.text_representation)
-            docLoc = "%s:%s" % (doc.properties.get("path", "NoPath"), doc.properties.get("page_number", "NoPage"))
+            docLoc = "%s:%s" % (
+                doc.properties.get("path", "NoPath"),
+                doc.properties.get(DocumentPropertyTypes.PAGE_NUMBER, "NoPage"),
+            )
             if docSketch:
                 for ii, prevSketch in enumerate(self.seenSketches):
                     dist = shinglesDist(docSketch, prevSketch)

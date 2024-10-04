@@ -1,6 +1,5 @@
 from typing import Any, Callable, Iterable, Optional
 
-
 from sycamore.data import Document
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base import BaseMapTransform, get_name_from_callable

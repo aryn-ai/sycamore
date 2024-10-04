@@ -5,7 +5,7 @@ from typing import Optional, TYPE_CHECKING
 from sycamore.data.document import DocumentPropertyTypes, DocumentSource
 from sycamore.utils.import_utils import requires_modules
 
-from sycamore.data import Document
+from sycamore.data import Document, Element
 from sycamore.plan_nodes import Node
 from sycamore.transforms import MapBatch
 from sycamore.utils import choose_device
@@ -41,55 +41,54 @@ class SimilarityScorer(ABC):
     def __call__(self, doc_batch: list[Document], query: str, score_property_name: str) -> list[Document]:
         return self.generate_similarity_scores(doc_batch, query, score_property_name)
 
-    def _get_inputs_from_document(self, document: Document) -> list[tuple[int, str]]:
+    def _get_inputs_from_document(self, document: Document) -> list[Element]:
         if self._ignore_doc_structure:
-            return [(-1, document.text_representation)] if document.text_representation else []
+            return [Element(document.data)] if document.text_representation else []
 
-        result: list[tuple[int, str]] = list()
-        for i, element in enumerate(document.elements):
+        result: list[Element] = list()
+        for element in document.elements:
+            assert element.element_index is not None, "generating similarity score requires element_index"
             if (
                 element.properties.get(DocumentPropertyTypes.SOURCE, "") not in self._ignore_element_sources
                 and element.text_representation
             ):
-                result.append((i, element.text_representation))
+                result.append(element)
         return result
 
-    def _populate_score(
-        self, score: float, score_property_name: str, document: Document, element_index: Optional[int] = None
-    ) -> Document:
+    def _populate_score(self, score: float, score_property_name: str, document: Document, element: Element) -> Document:
         if self._ignore_doc_structure:
             document.properties[score_property_name] = score
             return document
-        assert element_index is not None, "populating similarity score requires the element's index"
-        element = document.elements[element_index]
+        assert element.element_index is not None, "populating similarity score requires the element's index"
         element.properties[score_property_name] = score
 
         doc_score = document.properties.get(score_property_name, float("-inf"))
         if score > doc_score:
             document.properties[score_property_name] = score
-            document.properties[f"{score_property_name}_source_element_seq_no"] = element.seq_no
+            document.properties[f"{score_property_name}_source_element_index"] = element.element_index
         return document
 
     def generate_similarity_scores(
         self, doc_batch: list[Document], query: str, score_property_name: str
     ) -> list[Document]:
 
-        input_metadata = []
+        input_metadata: list[tuple[int, Element]] = []
         input_pairs = []
 
         for doc_idx, doc in enumerate(doc_batch):
             candidate_elements = self._get_inputs_from_document(doc)
-            for element_seq_no, element_text in candidate_elements:
-                input_pairs.append((query, element_text))
-                input_metadata.append([doc_idx, element_seq_no])
+            for element in candidate_elements:
+                assert element.text_representation is not None, "Found element without text_representation"
+                input_pairs.append((query, element.text_representation))
+                input_metadata.append((doc_idx, element))
 
         if not input_pairs:
             return doc_batch
 
         scores = self.score(input_pairs)
 
-        for i, (doc_idx, element_seq_no) in enumerate(input_metadata):
-            self._populate_score(scores[i], score_property_name, doc_batch[doc_idx], element_seq_no)
+        for i, (doc_idx, element) in enumerate(input_metadata):
+            self._populate_score(scores[i], score_property_name, doc_batch[doc_idx], element)
 
         return doc_batch
 

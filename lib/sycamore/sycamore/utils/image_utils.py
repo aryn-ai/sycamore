@@ -7,6 +7,7 @@ import PIL
 from PIL import Image, ImageDraw, ImageFont
 from sycamore.data import Document
 from sycamore.data.bbox import BoundingBox
+from sycamore.data.document import DocumentPropertyTypes
 
 DEFAULT_PADDING = 10
 
@@ -65,7 +66,7 @@ def base64_data_url(image: Image.Image) -> str:
 def image_page_filename_fn(doc: Document) -> str:
     path = Path(doc.properties["path"])
     base_name = ".".join(path.name.split(".")[0:-1])
-    page_num = doc.properties["page_number"]
+    page_num = doc.properties[DocumentPropertyTypes.PAGE_NUMBER]
     return f"{base_name}_page_{page_num}.png"
 
 

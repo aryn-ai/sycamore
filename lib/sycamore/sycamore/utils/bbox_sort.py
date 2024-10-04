@@ -9,6 +9,7 @@ TODO:
 from typing import Optional
 
 from sycamore.data import Document, Element
+from sycamore.data.document import DocumentPropertyTypes
 
 
 def elem_top_left(elem: Element) -> tuple:
@@ -33,7 +34,7 @@ def collect_pages(elems: list[Element]) -> list[list[Element]]:
     """
     pagemap: dict[int, list[Element]] = {}
     for elem in elems:
-        page = elem.properties.get("page_number", 0)
+        page = elem.properties.get(DocumentPropertyTypes.PAGE_NUMBER, 0)
         ary = pagemap.get(page)
         if ary:
             ary.append(elem)
@@ -142,12 +143,16 @@ def bbox_sort_page(elems: list[Element]) -> None:
         elem.data.pop("_coltag", None)  # clean up tags
 
 
-def bbox_sorted_elements(elements: list[Element]) -> list[Element]:
+def bbox_sorted_elements(elements: list[Element], update_element_indexs: bool = True) -> list[Element]:
     pages = collect_pages(elements)
     for elems in pages:
         bbox_sort_page(elems)
-    return [elem for elems in pages for elem in elems]  # flatten
+    ordered_elements = [elem for elems in pages for elem in elems]  # flatten
+    if update_element_indexs:
+        for idx, element in enumerate(ordered_elements):
+            element.element_index = idx
+    return ordered_elements
 
 
-def bbox_sort_document(doc: Document) -> None:
-    doc.elements = bbox_sorted_elements(doc.elements)
+def bbox_sort_document(doc: Document, update_element_indexs: bool = True) -> None:
+    doc.elements = bbox_sorted_elements(doc.elements, update_element_indexs)

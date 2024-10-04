@@ -80,7 +80,7 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
 
     def to_docs(self, query_params: "BaseDBReader.QueryParams") -> list[Document]:
         assert isinstance(query_params, OpenSearchReaderQueryParams)
-        result = []
+        result: list[Document] = []
         if not query_params.reconstruct_document:
             for data in self.output:
                 doc = Document(
@@ -140,6 +140,11 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
                 parent.elements.append(Element(doc.data))
 
             result = list(unique_docs.values())
+
+            # sort elements per doc
+            for doc in result:
+                num_elements = len(doc.elements)
+                doc.elements.sort(key=lambda e: e.element_index if e.element_index is not None else num_elements)
 
         return result
 

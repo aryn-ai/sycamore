@@ -4,6 +4,7 @@ from pathlib import Path
 import pprint
 import sys
 from typing import Callable, Optional, Any, Iterable, Type, Union, TYPE_CHECKING
+import re
 
 from sycamore.context import Context, context_params, OperationTypes
 from sycamore.data import Document, Element, MetadataDocument
@@ -956,6 +957,7 @@ class DocSet:
         return self.map(process_doc, **resource_args)
 
     @context_params(OperationTypes.BINARY_CLASSIFIER)
+    @context_params(OperationTypes.TEXT_SIMILARITY)
     def llm_filter(
         self,
         llm: LLM,
@@ -963,6 +965,9 @@ class DocSet:
         prompt: Union[list[dict], str],
         field: str = "text_representation",
         threshold: int = 3,
+        ignore_doc_structure: bool = True,
+        sort_elements_by_similarity: bool = False,
+        similarity_scorer: Optional[SimilarityScorer] = None,
         **resource_args,
     ) -> "DocSet":
         """
@@ -975,28 +980,41 @@ class DocSet:
             prompt: LLM prompt.
             field: Document field to filter based on.
             threshold: Cutoff that determines whether or not to keep document.
+            ignore_doc_structure: ignores document.element mapping.
+            sort_elements_by_similarity: sort elements by similarity to the prompt.
+            similarity_scorer: scorer to generate similarity if 'sort_elements_by_similarity' is True.
             **resource_args
 
         Returns:
             A filtered DocSet.
         """
-
-        def threshold_filter(doc: Document, threshold) -> bool:
-            try:
-                return_value = int(doc.properties[new_field]) >= threshold
-            except Exception:
-                # accounts for llm output errors
-                return_value = False
-
-            return return_value
-
-        docset = self.filter(lambda doc: doc.field_to_value(field) is not None and doc.field_to_value(field) != "None")
-
         entity_extractor = OpenAIEntityExtractor(
             entity_name=new_field, llm=llm, use_elements=False, prompt=prompt, field=field
         )
-        docset = docset.extract_entity(entity_extractor=entity_extractor)
-        docset = docset.filter(lambda doc: threshold_filter(doc, threshold), **resource_args)
+
+        def threshold_filter(doc: Document, threshold) -> bool:
+            if ignore_doc_structure:
+                if doc.field_to_value(field) is None:
+                    return False
+                doc = entity_extractor.extract_entity(doc)
+                return int(re.findall(r"\d+", doc.properties[new_field])[0]) >= threshold
+            else:
+                if sort_elements_by_similarity:
+                    assert similarity_scorer is not None
+                    score_property_name = f"{field}_similarity_score"
+                    doc = similarity_scorer.generate_similarity_scores(
+                        doc_batch=[doc], query=prompt, score_property_name=score_property_name
+                    )[0]
+                    doc.elements.sort(key=lambda e: e.properties.get(score_property_name, float("-inf")), reverse=True)
+                for element in doc.elements:
+                    e_doc = Document(element.data)
+                    e_doc = entity_extractor.extract_entity(e_doc)
+                    element.properties[new_field] = e_doc.properties[new_field]
+                    if int(re.findall(r"\d+", element.properties[new_field])[0]) >= threshold:
+                        return True
+            return False
+
+        docset = self.filter(lambda doc: threshold_filter(doc, threshold), **resource_args)
 
         return docset
 

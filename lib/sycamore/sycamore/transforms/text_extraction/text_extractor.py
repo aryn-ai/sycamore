@@ -5,12 +5,12 @@ from io import IOBase
 
 if TYPE_CHECKING:
     from PIL.Image import Image
-    from pdfminer.layout import LTPage
+    from pdfminer.pdfpage import PDFPage
 
 
 class TextExtractor:
     @abstractmethod
-    def extract_page(self, filename: Union["Image", "LTPage"]) -> list[Element]:
+    def extract_page(self, filename: Union["Image", "PDFPage"]) -> list[Element]:
         pass
 
     @abstractmethod

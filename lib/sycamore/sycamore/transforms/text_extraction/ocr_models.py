@@ -197,6 +197,8 @@ class PaddleOcr(OcrModel):
         image.save(bytearray, format="BMP")
         result = self.reader.ocr(bytearray.getvalue(), rec=True, det=True, cls=False)
         out: list[dict[str, Any]] = []
+        if not result or not result[0]:
+            return out
         for res in result[0]:
             raw_bbox = res[0]
             text = res[1][0]

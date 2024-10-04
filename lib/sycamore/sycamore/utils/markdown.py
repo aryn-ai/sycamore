@@ -2,7 +2,6 @@
 Utilities for converting a list of Elements into Markdown-formatted text.
 
 TODO:
-- address multi-line and span headers
 - maybe insert horizontal rules at page breaks
 - handle numbered lists
 - render textract tables
@@ -14,6 +13,24 @@ from sycamore.data import Element, TableElement
 
 
 SKIP_TYPES = {"page-header", "page-footer", "image"}
+
+ESCAPE_CHARS = {"\\", "!", "#", ">", "[", "|"}
+
+
+def escape_str(s: str) -> str:
+    """
+    We don't expect input with meaningful backslashes.
+    """
+    sio = StringIO()
+    for ch in s:
+        if ch < " ":
+            sio.write(" ")
+        elif ch in ESCAPE_CHARS:
+            sio.write("\\")
+            sio.write(ch)
+        else:
+            sio.write(ch)
+    return sio.getvalue()
 
 
 def elements_to_markdown(elems: list[Element]) -> str:
@@ -40,7 +57,7 @@ def elements_to_markdown(elems: list[Element]) -> str:
         text = elem_text(elem).strip()
         if not text:
             continue
-        text = text.replace("\n", " ")
+        text = escape_str(text)
         if type == "title":
             sio.write(f"\n# {text}\n\n")
         elif type == "section-header":
@@ -59,8 +76,7 @@ def elements_to_markdown(elems: list[Element]) -> str:
         elif type in ("caption", "footnote"):
             sio.write(f"\n{text}\n\n")
         else:
-            sio.write(text)
-            sio.write("\n")
+            sio.write(f"\n{text}\n")
     return sio.getvalue()
 
 
@@ -84,16 +100,17 @@ def render_table(elem: TableElement, sio: StringIO) -> None:
     matrix = [[""] * ncol for _ in range(nrow)]
     for cell in cells:
         if cell.content:
+            content = escape_str(cell.content).strip()
             for col in cell.cols:
                 if cell.rows[0] <= hdr_max:  # ignore rowspan in headers
                     s = matrix[0][col]
                     if s:
-                        matrix[0][col] = f"{s} {cell.content}"
+                        matrix[0][col] = f"{s} {content}"
                     else:
-                        matrix[0][col] = cell.content
+                        matrix[0][col] = content
                 else:
                     for row in cell.rows:
-                        matrix[row][col] = cell.content
+                        matrix[row][col] = content
     sep = "| " + " | ".join(["-----" for _ in range(ncol)]) + " |\n"
     sio.write("\n")
     if hdr_max < 0:
@@ -108,7 +125,7 @@ def render_table(elem: TableElement, sio: StringIO) -> None:
     sio.write("\n")
     caption = table.caption
     if caption:
-        caption = caption.replace("\n", " ").strip()
+        caption = escape_str(caption).strip()
         if caption:
             sio.write(caption)
             sio.write("\n")

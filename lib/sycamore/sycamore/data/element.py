@@ -23,6 +23,16 @@ class Element(UserDict):
             self.data["properties"] = {}
 
     @property
+    def element_index(self) -> Optional[int]:
+        """A unique identifier for the element within a Document. Represents an order within the document"""
+        return self.data.get("properties", {}).get("_element_index")
+
+    @element_index.setter
+    def element_index(self, value: int) -> None:
+        """Set the unique identifier of the element within a Document."""
+        self.data["properties"]["_element_index"] = value
+
+    @property
     def type(self) -> Optional[str]:
         return self.data.get("type")
 
@@ -212,7 +222,8 @@ class TableElement(Element):
         self.data["text_representation"] = text_representation
 
 
-def create_element(**kwargs) -> Element:
+def create_element(element_index: Optional[int] = None, **kwargs) -> Element:
+    element: Element
     if "type" in kwargs and kwargs["type"].lower() == "table":
         if "properties" in kwargs:
             props = kwargs["properties"]
@@ -223,7 +234,7 @@ def create_element(**kwargs) -> Element:
             table = Table.from_dict(kwargs["table"])
             kwargs["table"] = table
 
-        return TableElement(**kwargs)
+        element = TableElement(**kwargs)
 
     elif "type" in kwargs and kwargs["type"].lower() in {"picture", "image", "figure"}:
         if "properties" in kwargs:
@@ -232,7 +243,10 @@ def create_element(**kwargs) -> Element:
             kwargs["image_mode"] = props.get("image_mode")
             kwargs["image_format"] = props.get("image_format")
 
-        return ImageElement(**kwargs)
+        element = ImageElement(**kwargs)
 
     else:
-        return Element(**kwargs)
+        element = Element(**kwargs)
+    if element_index is not None:
+        element.element_index = element_index
+    return element

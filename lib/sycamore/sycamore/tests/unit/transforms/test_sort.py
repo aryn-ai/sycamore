@@ -3,7 +3,7 @@ import pytest
 import random
 
 import sycamore
-from sycamore import DocSet
+from sycamore import DocSet, ExecMode
 from sycamore.data import Document, MetadataDocument
 
 
@@ -24,9 +24,9 @@ class TestSort:
                 doc.properties.pop("even")
         return doc_list
 
-    @pytest.fixture()
-    def docset(self, docs: list[Document]) -> DocSet:
-        context = sycamore.init()
+    @pytest.fixture(params=(exec_mode for exec_mode in ExecMode if exec_mode != ExecMode.UNKNOWN))
+    def docset(self, docs: list[Document], exec_mode) -> DocSet:
+        context = sycamore.init(exec_mode=exec_mode)
         return context.read.document(docs)
 
     def test_sort_descending(self, docset: DocSet):

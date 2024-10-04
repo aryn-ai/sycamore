@@ -57,7 +57,7 @@ class DocSetWriter:
                 https://opensearch.org/docs/latest/api-reference/index-apis/create-index/
             execute: Execute the pipeline and write to opensearch on adding this operator. If false,
                 will return a new docset with the write in the plan
-            kwargs: Arguments to pass to the underlying execution engine
+            kwargs: Keyword arguments to pass to the underlying execution engine
 
         Example:
             The following code shows how to read a pdf dataset into a ``DocSet`` and write it out to a
@@ -660,6 +660,93 @@ class DocSetWriter:
             delete_temp_bucket(s3_client, s3_resource, s3_bucket)
 
         return None
+
+    @requires_modules("qdrant_client", extra="qdrant")
+    def qdrant(
+        self,
+        client_params: dict,
+        collection_params: dict,
+        vector_name: Optional[str] = None,
+        execute: bool = True,
+        **kwargs,
+    ) -> Optional["DocSet"]:
+        """Writes the content of the DocSet into a Qdrant collection
+
+        Args:
+            client_params: Parameters that are passed to the Qdrant client constructor.
+                            See more information at
+                            https://python-client.qdrant.tech/qdrant_client.qdrant_client
+            collection_params: Parameters that are passed into the qdrant_client.QdrantClient.create_collection method.
+                            See more information at
+                            https://python-client.qdrant.tech/_modules/qdrant_client/qdrant_client#QdrantClient.create_collection
+            vector_name: The name of the vector in the Qdrant collection. Defaults to None.
+            execute: Execute the pipeline and write to Qdrant on adding this operator. If False,
+                    will return a DocSet with this write in the plan. Defaults to True.
+            kwargs: Arguments to pass to the underlying execution engine
+
+        Example:
+            The following code shows how to read a pdf dataset into a ``DocSet`` and write it out to a
+            Qdrant collection called `"sycamore_collection"`.
+
+            .. code-block:: python
+                model_name = "sentence-transformers/all-MiniLM-L6-v2"
+
+                davinci_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value, api_key=os.environ["OPENAI_API_KEY"])
+                tokenizer = HuggingFaceTokenizer(model_name)
+
+                ctx = sycamore.init()
+
+                ds = (
+                    ctx.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=SycamorePartitioner(extract_table_structure=True, extract_images=True))
+                    .regex_replace(COALESCE_WHITESPACE)
+                    .extract_entity(
+                        entity_extractor=OpenAIEntityExtractor(
+                            "title", llm=davinci_llm, prompt_template=title_template
+                        )
+                    )
+                    .mark_bbox_preset(tokenizer=tokenizer)
+                    .merge(merger=MarkedMerger())
+                    .spread_properties(["path", "title"])
+                    .split_elements(tokenizer=tokenizer, max_tokens=512)
+                    .explode()
+                    .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
+                    .term_frequency(tokenizer=tokenizer, with_token_ids=True)
+                    .sketch(window=17)
+                )
+
+                ds.write.qdrant(
+                    {
+                        "location": "http://localhost:6333",
+                    },
+                    {
+                        "collection_name": "sycamore_collection",
+                        "vectors_config": {
+                            "size": 384,
+                            "distance": "Cosine",
+                        },
+                    },
+                )
+        """
+        from sycamore.connectors.qdrant import (
+            QdrantWriter,
+            QdrantWriterClientParams,
+            QdrantWriterTargetParams,
+        )
+
+        qw = QdrantWriter(
+            self.plan,
+            client_params=QdrantWriterClientParams(**client_params),
+            target_params=QdrantWriterTargetParams(collection_params=collection_params, vector_name=vector_name),
+            name="qdrant_write",
+            **kwargs,
+        )
+        pcds = DocSet(self.context, qw)
+        if execute:
+            pcds.execute()
+            return None
+        else:
+            return pcds
 
     def files(
         self,

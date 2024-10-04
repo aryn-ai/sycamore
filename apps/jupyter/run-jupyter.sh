@@ -29,15 +29,42 @@ if [[ -x "${BIND_DIR}/setup.sh" ]]; then
         SETUP_FAILED=true
     fi
 fi
+
+if [[ "${JUPYTER_CONFIG_RESET}" == yes ]]; then
+    echo "Resetting jupyter configuration"
+    rm -f "${JUPYTER_CONFIG_DOCKER}"
+fi
+
 if [[ ! -f "${JUPYTER_CONFIG_DOCKER}" ]]; then
     TOKEN=$(openssl rand -hex 24)
-    cat >"${JUPYTER_CONFIG_DOCKER}" <<EOF
+    cat >"${JUPYTER_CONFIG_DOCKER}".tmp <<EOF
 # Configuration file for notebook.
 
 c = get_config()  #noqa
 
 c.IdentityProvider.token = '${TOKEN}'
 EOF
+
+    if [[ "${JUPYTER_S3_BUCKET}" ]]; then
+        echo "Enabling S3 contents manager with bucket ${JUPYTER_S3_BUCKET}"
+        cat >>"${JUPYTER_CONFIG_DOCKER}".tmp <<EOF
+from s3contents import S3ContentsManager
+c.ServerApp.contents_manager_class = S3ContentsManager
+c.S3ContentsManager.bucket = "${JUPYTER_S3_BUCKET}"
+c.ServerApp.root_dir = ""
+EOF
+        case "${JUPYTER_S3_PREFIX}" in
+            "") : ;;
+            */)
+                echo "ERROR: JUPYTER_S3_PREFIX ${JUPYTER_S3_PREFIX} must not end in / or no file will be accessible"
+                exit 1
+              ;;
+            *)
+                echo "Using S3 Prefix ${JUPYTER_S3_PREFIX}"
+                echo "c.S3ContentsManager.prefix = \"${JUPYTER_S3_PREFIX}\"" >>"${JUPYTER_CONFIG_DOCKER}".tmp ;;
+        esac
+    fi
+    mv "${JUPYTER_CONFIG_DOCKER}".tmp "${JUPYTER_CONFIG_DOCKER}"
 fi
 ln -snf "${JUPYTER_CONFIG_DOCKER}" $HOME/.jupyter
 
@@ -77,10 +104,13 @@ fi
         exit 1
     fi
 
-    sleep 1 # reduce race with file being written
     REDIRECT="${BIND_DIR}/redirect.html"
-    perl -ne 's,://\S+:8888/tree,://localhost:8888/tree,;print' < "${FILE}" >"${REDIRECT}"
-    URL=$(perl -ne 'print $1 if m,url=(https?://localhost:8888/tree\S+)",;' <"${REDIRECT}")
+    while [[ "${URL}" == "" ]]; do
+        echo "Waiting to find the URL in ${FILE}..."
+        sleep 1
+        perl -ne 's,://\S+:8888/lab,://localhost:8888/lab,;print' < "${FILE}" >"${REDIRECT}"
+        URL=$(perl -ne 'print $1 if m,url=(https?://localhost:8888/lab\S+)",;' <"${REDIRECT}")
+    done
 
     for i in {1..10}; do
         echo
@@ -93,6 +123,7 @@ fi
         echo "  c) docker compose cp jupyter:${BIND_DIR}/redirect.html ."
         echo "      and open redirect.html in a browser"
         echo "  Note: the token is stable unless you delete docker_volume/jupyter_notebook_config.py"
+        echo "        or you set JUPYTER_CONFIG_RESET=yes when starting the container"
         sleep 30
     done
 ) &
@@ -100,4 +131,4 @@ fi
 trap "kill $!" EXIT
 
 cd "${WORK_DIR}"
-poetry run jupyter notebook "${SSLARG[@]}" --no-browser --ip 0.0.0.0 "$@"
+poetry run jupyter lab "${SSLARG[@]}" --no-browser --ip 0.0.0.0 "$@"

@@ -412,7 +412,7 @@ class TestDocSet:
         new_field = "_autogen_LLMFilterOutput"
 
         filtered_docset = docset.llm_filter(
-            new_field=new_field, prompt=[], field="text_representation", threshold=4, ignore_doc_structure=False
+            new_field=new_field, prompt=[], field="text_representation", threshold=4, use_elements=True
         )
 
         taken = filtered_docset.take()
@@ -422,7 +422,7 @@ class TestDocSet:
         assert mock_llm.generate.call_count == 4
 
         filtered_docset = docset.llm_filter(
-            new_field=new_field, prompt=[], field="text_representation", threshold=2, ignore_doc_structure=False
+            new_field=new_field, prompt=[], field="text_representation", threshold=2, use_elements=True
         )
 
         taken = filtered_docset.take()
@@ -431,54 +431,6 @@ class TestDocSet:
         assert taken[0].doc_id == "doc_1"
         assert taken[1].doc_id == "doc_2"
         assert taken[2].doc_id == "doc_3"
-
-    def test_llm_filter_with_doc_structure_on_doc_properties(self):
-        doc_list = [
-            Document(
-                doc_id="doc_1",
-                properties={"custom": {"prop1": "test1"}, "path": "earth/ray.pdf"},
-                text_representation="test2",
-                elements=[
-                    Element(text_representation="test1"),  # llm_filter result = 4
-                    Element(text_representation="test1"),  # llm_filter result = 4
-                ],
-            ),
-            Document(
-                doc_id="doc_2",
-                properties={"custom": {"prop1": "test2"}, "path": "earth/ray.pdf"},
-                text_representation="test2",
-                elements=[
-                    Element(text_representation="test2"),  # llm_filter result = 2,
-                    Element(text_representation="test1"),  # llm_filter result = 4
-                ],
-            ),
-        ]
-        mock_llm = MockLLM()
-        mock_llm.generate = MagicMock(wraps=mock_llm.generate)
-        context = sycamore.init(params={OperationTypes.BINARY_CLASSIFIER: {"llm": mock_llm}}, exec_mode=ExecMode.LOCAL)
-        docset = context.read.document(doc_list)
-        new_field = "_autogen_LLMFilterOutput"
-
-        # ensure only 1 call per document, because we only look at document level properties
-        filtered_docset = docset.llm_filter(
-            new_field=new_field, prompt=[], field="properties.custom.prop1", threshold=4, ignore_doc_structure=False
-        )
-
-        taken = filtered_docset.take()
-        assert len(taken) == 1
-        assert taken[0].doc_id == "doc_1"
-        assert mock_llm.generate.call_count == 2
-
-        # since we're looking at text_representation, we scroll through elements
-        filtered_docset = docset.llm_filter(
-            new_field=new_field, prompt=[], field="text_representation", threshold=4, ignore_doc_structure=False
-        )
-
-        taken = filtered_docset.take()
-        assert len(taken) == 2
-        assert taken[0].doc_id == "doc_1"
-        assert taken[1].doc_id == "doc_2"
-        assert mock_llm.generate.call_count == (2 + 3)
 
     def test_llm_filter_with_doc_structure_with_similarity_sorting(self):
         doc_list = [
@@ -522,7 +474,7 @@ class TestDocSet:
             prompt=[],
             field="text_representation",
             threshold=4,
-            ignore_doc_structure=False,
+            use_elements=True,
             similarity_scorer=similarity_scorer,
             similarity_query="this is an unused query because unit test",
         )
@@ -542,7 +494,7 @@ class TestDocSet:
             prompt=[],
             field="text_representation",
             threshold=2,
-            ignore_doc_structure=False,
+            use_elements=True,
             similarity_scorer=similarity_scorer,
             similarity_query="this is an unused query because unit test",
         )
@@ -579,6 +531,20 @@ class TestDocSet:
                 assert int(doc.properties[new_field]) == 4
             elif doc.text_representation == "test2":
                 assert int(doc.properties[new_field]) == 2
+
+    def test_llm_filter_with_keep_none(self):
+        doc_list = [Document(text_representation="test1"), Document(text_representation="test2")]
+        context = sycamore.init(params={OperationTypes.BINARY_CLASSIFIER: {"llm": MockLLM()}}, exec_mode=ExecMode.LOCAL)
+        docset = context.read.document(doc_list)
+        new_field = "_autogen_LLMFilterOutput"
+
+        filtered_docset = docset.llm_filter(
+            new_field=new_field, prompt=[], field="missing_field", threshold=5, keep_none=True
+        ).take()
+
+        assert len(filtered_docset) == 2
+        assert filtered_docset[0].text_representation == "test1"
+        assert filtered_docset[1].text_representation == "test2"
 
     def test_groupby_count(self, fruits_docset):
         grouped_docset = fruits_docset.groupby_count(field="text_representation")

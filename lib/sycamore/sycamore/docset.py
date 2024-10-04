@@ -965,7 +965,8 @@ class DocSet:
         prompt: Union[list[dict], str],
         field: str = "text_representation",
         threshold: int = 3,
-        ignore_doc_structure: bool = True,
+        keep_none: bool = False,
+        use_elements: bool = False,
         similarity_query: Optional[str] = None,
         similarity_scorer: Optional[SimilarityScorer] = None,
         **resource_args,
@@ -979,8 +980,10 @@ class DocSet:
             new_field: The field that will be added to the DocSet with the outputs.
             prompt: LLM prompt.
             field: Document field to filter based on.
-            threshold: Cutoff that determines whether or not to keep document.
-            ignore_doc_structure: ignores document.element mapping.
+            threshold: Cutoff that determines whether to keep document.
+            keep_none:  whether to keep records with a None value.
+                        Warning: using this might hide data corruption issues.
+            use_elements: use contents of a document's elements to filter as opposed to document level contents.
             similarity_query: query string to compute similarity against.
             similarity_scorer: scorer to generate similarity if 'sort_elements_by_similarity' is True.
             **resource_args
@@ -993,15 +996,9 @@ class DocSet:
         )
 
         def threshold_filter(doc: Document, threshold) -> bool:
-            if ignore_doc_structure:
+            if not use_elements:
                 if doc.field_to_value(field) is None:
-                    return False
-                doc = entity_extractor.extract_entity(doc)
-                return int(re.findall(r"\d+", doc.properties[new_field])[0]) >= threshold
-
-            # If we're looking at a document level custom property (i.e. not text_representation),
-            # only evaluate the Document and not elements.
-            if field != "text_representation" and doc.field_to_value(field) is not None:
+                    return keep_none
                 doc = entity_extractor.extract_entity(doc)
                 return int(re.findall(r"\d+", doc.properties[new_field])[0]) >= threshold
 
@@ -1013,12 +1010,18 @@ class DocSet:
                     doc_batch=[doc], query=similarity_query, score_property_name=score_property_name
                 )[0]
                 doc.elements.sort(key=lambda e: e.properties.get(score_property_name, float("-inf")), reverse=True)
+            evaluated_elements = 0
             for element in doc.elements:
                 e_doc = Document(element.data)
+                if e_doc.field_to_value(field) is None:
+                    continue
                 e_doc = entity_extractor.extract_entity(e_doc)
                 element.properties[new_field] = e_doc.properties[new_field]
                 if int(re.findall(r"\d+", element.properties[new_field])[0]) >= threshold:
                     return True
+                evaluated_elements += 1
+            if evaluated_elements == 0:  # no elements found for property
+                return keep_none
             return False
 
         docset = self.filter(lambda doc: threshold_filter(doc, threshold), **resource_args)

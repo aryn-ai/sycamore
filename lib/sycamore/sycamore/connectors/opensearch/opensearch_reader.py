@@ -143,8 +143,7 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
 
             # sort elements per doc
             for doc in result:
-                num_elements = len(doc.elements)
-                doc.elements.sort(key=lambda e: e.element_index if e.element_index is not None else num_elements)
+                doc.elements.sort(key=lambda e: e.element_index if e.element_index is not None else float("inf"))
 
         return result
 

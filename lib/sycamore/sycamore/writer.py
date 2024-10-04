@@ -700,7 +700,11 @@ class DocSetWriter:
                     ctx.read.binary(paths, binary_format="pdf")
                     .partition(partitioner=SycamorePartitioner(extract_table_structure=True, extract_images=True))
                     .regex_replace(COALESCE_WHITESPACE)
-                    .extract_entity(entity_extractor=OpenAIEntityExtractor("title", llm=davinci_llm, prompt_template=title_template))
+                    .extract_entity(
+                        entity_extractor=OpenAIEntityExtractor(
+                            "title", llm=davinci_llm, prompt_template=title_template
+                        )
+                    )
                     .mark_bbox_preset(tokenizer=tokenizer)
                     .merge(merger=MarkedMerger())
                     .spread_properties(["path", "title"])

@@ -217,7 +217,7 @@ class DocSetReader:
         index_name: str,
         query: Optional[Dict] = None,
         reconstruct_document: bool = False,
-        **kwargs
+        **kwargs,
     ) -> DocSet:
         """
         Reads the content of an OpenSearch index into a DocSet.

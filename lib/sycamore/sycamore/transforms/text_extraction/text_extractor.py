@@ -1,4 +1,4 @@
-from typing import Union, TYPE_CHECKING
+from typing import Union, TYPE_CHECKING, Optional
 from abc import abstractmethod
 from sycamore.data import Element
 from io import IOBase
@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 class TextExtractor:
     @abstractmethod
-    def extract_page(self, filename: Union["Image", "PDFPage"]) -> list[Element]:
+    def extract_page(self, filename: Optional[Union["PDFPage", "Image"]]) -> list[Element]:
         pass
 
     @abstractmethod

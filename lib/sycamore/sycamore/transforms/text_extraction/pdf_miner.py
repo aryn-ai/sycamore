@@ -1,6 +1,6 @@
 from sycamore.data import Element, BoundingBox
 from sycamore.utils.cache import DiskCache
-from typing import BinaryIO, Tuple, cast, Generator, TYPE_CHECKING, Union
+from typing import BinaryIO, Tuple, cast, Generator, TYPE_CHECKING, Union, Optional, Any
 from pathlib import Path
 from sycamore.utils.import_utils import requires_modules
 from sycamore.utils.time_trace import timetrace
@@ -73,24 +73,30 @@ class PdfMinerExtractor(TextExtractor):
             return pages
 
     @timetrace("PdfMinerPageEx")
-    def extract_page(self, page: Union["PDFPage", "Image"]) -> list[Element]:
+    def extract_page(
+        self, page: Optional[Union["PDFPage", "Image"]] = None, page_data: list[tuple[Any, Any, Any, Any]] = []
+    ) -> list[Element]:
         from pdfminer.pdfpage import PDFPage
 
-        assert isinstance(page, PDFPage)
-        self.interpreter.process_page(page)
-        page_layout = self.device.get_result()
-        width = page_layout.width
-        height = page_layout.height
         texts: list[Element] = []
-        for obj in page_layout:
-            if hasattr(obj, "get_text"):
-                x1, y1, x2, y2 = self._convert_bbox_coordinates(obj.bbox, height)
-                text = Element()
-                text.type = "text"
-                text.bbox = BoundingBox(x1 / width, y1 / height, x2 / width, y2 / height)
-                text.text_representation = obj.get_text()
-                if text.text_representation:
-                    texts.append(text)
+        if page:
+            assert isinstance(page, PDFPage)
+            self.interpreter.process_page(page)
+            page_layout = self.device.get_result()
+            width = page_layout.width
+            height = page_layout.height
+            page_data = []
+            for obj in page_layout:
+                if hasattr(obj, "get_text"):
+                    page_data.append((obj.bbox, obj.get_text(), width, height))
+        for bbox, bbox_text, width, height in page_data:
+            x1, y1, x2, y2 = self._convert_bbox_coordinates(bbox, height)
+            text = Element()
+            text.type = "text"
+            text.bbox = BoundingBox(x1 / width, y1 / height, x2 / width, y2 / height)
+            text.text_representation = bbox_text
+            if text.text_representation:
+                texts.append(text)
         return texts
 
     def __name__(self):

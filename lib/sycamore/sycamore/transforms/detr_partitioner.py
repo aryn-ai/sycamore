@@ -474,7 +474,7 @@ class ArynPDFPartitioner:
         batch: list[Image.Image],
         threshold: float,
         text_extractor: TextExtractor,
-        extractor_list,
+        extractor_list: list,
         use_ocr,
         ocr_images,
         ocr_model,
@@ -502,8 +502,11 @@ class ArynPDFPartitioner:
             extracted_pages = []
             with LogTime("text_extraction"):
                 for page in extractor_list:
-                    extracted_pages.append(text_extractor.extract_page(page))
-
+                    if isinstance(page, list):
+                        page = text_extractor.extract_page(data=page)
+                    else:
+                        page = text_extractor.extract_page(page)
+                    extracted_pages.append(page)
             assert len(extracted_pages) == len(deformable_layout)
             with LogTime("text_supplement"):
                 for d, p in zip(deformable_layout, extracted_pages):

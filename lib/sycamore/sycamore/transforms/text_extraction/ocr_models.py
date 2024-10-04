@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from PIL import Image
-from typing import Any, Union, cast, TYPE_CHECKING
+from typing import Any, Union, cast, TYPE_CHECKING, Optional
 from sycamore.data import BoundingBox, Element
 from sycamore.utils.cache import DiskCache
 from pathlib import Path
@@ -50,7 +50,7 @@ class OcrModel(TextExtractor):
         return texts
 
     @timetrace("OCRPageEx")
-    def extract_page(self, page: Union["Image.Image", "PDFPage"]) -> list[Element]:
+    def extract_page(self, page: Optional[Union["PDFPage", "Image.Image"]]) -> list[Element]:
         assert isinstance(page, Image.Image)
         ocr_output = self.get_boxes_and_text(page)
         width, height = page.size

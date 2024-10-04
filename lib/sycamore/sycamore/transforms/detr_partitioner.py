@@ -31,7 +31,7 @@ from sycamore.utils.markdown import elements_to_markdown
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
 from sycamore.utils.pdf import convert_from_path_streamed_batched
 from sycamore.utils.time_trace import LogTime, timetrace
-from sycamore.transforms.text_extraction import TextExtractor, OcrModel, EXTRACTOR_DICT
+from sycamore.transforms.text_extraction import TextExtractor, TextExtractorBase, OcrModel, EXTRACTOR_DICT
 from sycamore.transforms.text_extraction.pdf_miner import PdfMinerExtractor
 
 logger = logging.getLogger(__name__)
@@ -157,6 +157,7 @@ class ArynPDFPartitioner:
         use_cache=False,
         pages_per_call: int = -1,
         output_format: Optional[str] = None,
+        text_extraction_options: dict[str, Any] = {},
     ) -> list[Element]:
         if use_partitioning_service:
             assert aryn_api_key != ""
@@ -189,6 +190,7 @@ class ArynPDFPartitioner:
                 extract_images=extract_images,
                 batch_size=batch_size,
                 use_cache=use_cache,
+                text_extraction_options=text_extraction_options,
             )
             elements = []
             for i, r in enumerate(temp):
@@ -373,6 +375,7 @@ class ArynPDFPartitioner:
         extract_images: bool = False,
         batch_size: int = 1,
         use_cache=False,
+        text_extraction_options: dict[str, Any] = {},
     ) -> list[list["Element"]]:
         self._init_model()
 
@@ -401,6 +404,7 @@ class ArynPDFPartitioner:
                 extract_images,
                 batch_size,
                 use_cache,
+                text_extraction_options,
             )
 
     def _partition_pdf_batched_named(
@@ -417,18 +421,18 @@ class ArynPDFPartitioner:
         extract_images=False,
         batch_size: int = 1,
         use_cache=False,
+        text_extraction_options: dict[str, Any] = {},
     ) -> list[list["Element"]]:
         self._init_model()
 
         if extract_table_structure and not table_structure_extractor:
             table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
 
-        if use_ocr:
-            text_extractor = EXTRACTOR_DICT[ocr_model]()
-            text_generator: Any = repeat(None)
-        else:
-            text_extractor = PdfMinerExtractor()
-            text_generator = PdfMinerExtractor.pdf_to_pages(filename)
+        text_extractor_type = ocr_model if use_ocr else "pdfminer"
+        text_extractor = TextExtractor(text_extractor_type, **text_extraction_options)
+
+        text_generator: Any = repeat(None) if use_ocr else PdfMinerExtractor.pdf_to_pages(filename)
+
         deformable_layout = []
         if tracemalloc.is_tracing():
             before = tracemalloc.take_snapshot()
@@ -472,7 +476,7 @@ class ArynPDFPartitioner:
         self,
         batch: list[Image.Image],
         threshold: float,
-        text_extractor: TextExtractor,
+        text_extractor: TextExtractorBase,
         extractor_inputs: Any,
         use_ocr,
         ocr_images,

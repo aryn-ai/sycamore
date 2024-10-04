@@ -432,6 +432,54 @@ class TestDocSet:
         assert taken[1].doc_id == "doc_2"
         assert taken[2].doc_id == "doc_3"
 
+    def test_llm_filter_with_doc_structure_on_doc_properties(self):
+        doc_list = [
+            Document(
+                doc_id="doc_1",
+                properties={"custom": {"prop1": "test1"}, "path": "earth/ray.pdf"},
+                text_representation="test2",
+                elements=[
+                    Element(text_representation="test1"),  # llm_filter result = 4
+                    Element(text_representation="test1"),  # llm_filter result = 4
+                ],
+            ),
+            Document(
+                doc_id="doc_2",
+                properties={"custom": {"prop1": "test2"}, "path": "earth/ray.pdf"},
+                text_representation="test2",
+                elements=[
+                    Element(text_representation="test2"),  # llm_filter result = 2,
+                    Element(text_representation="test1"),  # llm_filter result = 4
+                ],
+            ),
+        ]
+        mock_llm = MockLLM()
+        mock_llm.generate = MagicMock(wraps=mock_llm.generate)
+        context = sycamore.init(params={OperationTypes.BINARY_CLASSIFIER: {"llm": mock_llm}}, exec_mode=ExecMode.LOCAL)
+        docset = context.read.document(doc_list)
+        new_field = "_autogen_LLMFilterOutput"
+
+        # ensure only 1 call per document, because we only look at document level properties
+        filtered_docset = docset.llm_filter(
+            new_field=new_field, prompt=[], field="properties.custom.prop1", threshold=4, ignore_doc_structure=False
+        )
+
+        taken = filtered_docset.take()
+        assert len(taken) == 1
+        assert taken[0].doc_id == "doc_1"
+        assert mock_llm.generate.call_count == 2
+
+        # since we're looking at text_representation, we scroll through elements
+        filtered_docset = docset.llm_filter(
+            new_field=new_field, prompt=[], field="text_representation", threshold=4, ignore_doc_structure=False
+        )
+
+        taken = filtered_docset.take()
+        assert len(taken) == 2
+        assert taken[0].doc_id == "doc_1"
+        assert taken[1].doc_id == "doc_2"
+        assert mock_llm.generate.call_count == (2 + 3)
+
     def test_llm_filter_with_doc_structure_with_similarity_sorting(self):
         doc_list = [
             Document(
@@ -476,6 +524,7 @@ class TestDocSet:
             threshold=4,
             ignore_doc_structure=False,
             sort_elements_by_similarity=True,
+            similarity_query="this is an unused query because unit test",
         )
 
         """

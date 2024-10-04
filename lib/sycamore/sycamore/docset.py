@@ -967,6 +967,7 @@ class DocSet:
         threshold: int = 3,
         ignore_doc_structure: bool = True,
         sort_elements_by_similarity: bool = False,
+        similarity_query: Optional[str] = None,
         similarity_scorer: Optional[SimilarityScorer] = None,
         **resource_args,
     ) -> "DocSet":
@@ -998,20 +999,27 @@ class DocSet:
                     return False
                 doc = entity_extractor.extract_entity(doc)
                 return int(re.findall(r"\d+", doc.properties[new_field])[0]) >= threshold
-            else:
-                if sort_elements_by_similarity:
-                    assert similarity_scorer is not None
-                    score_property_name = f"{field}_similarity_score"
-                    doc = similarity_scorer.generate_similarity_scores(
-                        doc_batch=[doc], query=prompt, score_property_name=score_property_name
-                    )[0]
-                    doc.elements.sort(key=lambda e: e.properties.get(score_property_name, float("-inf")), reverse=True)
-                for element in doc.elements:
-                    e_doc = Document(element.data)
-                    e_doc = entity_extractor.extract_entity(e_doc)
-                    element.properties[new_field] = e_doc.properties[new_field]
-                    if int(re.findall(r"\d+", element.properties[new_field])[0]) >= threshold:
-                        return True
+
+            # If we're looking at a document level custom property (i.e. not text_representation),
+            # only evaluate the Document and not elements.
+            if field != "text_representation" and doc.field_to_value(field) is not None:
+                doc = entity_extractor.extract_entity(doc)
+                return int(re.findall(r"\d+", doc.properties[new_field])[0]) >= threshold
+
+            if sort_elements_by_similarity:
+                assert similarity_scorer is not None, "Similarity sorting requires a scorer"
+                assert similarity_query is not None, "Similarity sorting requires a string query"
+                score_property_name = f"{field}_similarity_score"
+                doc = similarity_scorer.generate_similarity_scores(
+                    doc_batch=[doc], query=similarity_query, score_property_name=score_property_name
+                )[0]
+                doc.elements.sort(key=lambda e: e.properties.get(score_property_name, float("-inf")), reverse=True)
+            for element in doc.elements:
+                e_doc = Document(element.data)
+                e_doc = entity_extractor.extract_entity(e_doc)
+                element.properties[new_field] = e_doc.properties[new_field]
+                if int(re.findall(r"\d+", element.properties[new_field])[0]) >= threshold:
+                    return True
             return False
 
         docset = self.filter(lambda doc: threshold_filter(doc, threshold), **resource_args)

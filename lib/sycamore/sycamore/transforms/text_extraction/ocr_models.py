@@ -13,7 +13,7 @@ from sycamore.utils.time_trace import timetrace
 import tempfile
 
 if TYPE_CHECKING:
-    from pdfminer.layout import LTPage
+    from pdfminer.pdfpage import PDFPage
 
 # TODO: Add cache support for OCR per page
 ocr_cache = DiskCache(str(Path.home() / ".sycamore/OcrCache"))
@@ -50,7 +50,7 @@ class OcrModel(TextExtractor):
         return texts
 
     @timetrace("OCRPageEx")
-    def extract_page(self, page: Union["Image.Image", "LTPage"]) -> list[Element]:
+    def extract_page(self, page: Union["Image.Image", "PDFPage"]) -> list[Element]:
         assert isinstance(page, Image.Image)
         ocr_output = self.get_boxes_and_text(page)
         width, height = page.size

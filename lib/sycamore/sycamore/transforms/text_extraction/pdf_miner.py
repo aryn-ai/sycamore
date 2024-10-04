@@ -33,6 +33,7 @@ class PdfMinerExtractor(TextExtractor):
     @requires_modules(["pdfminer", "pdfminer.utils"], extra="local-inference")
     def pdf_to_pages(file_name: str) -> Generator["PDFPage", None, None]:
         from pdfminer.utils import open_filename
+        from pdfminer.pdfpage import PDFPage
 
         with open_filename(file_name, "rb") as fp:
             fp = cast(BinaryIO, fp)
@@ -56,7 +57,6 @@ class PdfMinerExtractor(TextExtractor):
         return x1, y1, x2, y2
 
     @timetrace("PdfMinerDocEx")
-    # TODO: Remove this function once the service is moved off it
     def extract_document(self, filename: str, hash_key: str, use_cache=False, **kwargs) -> list[list[Element]]:
         cached_result = pdf_miner_cache.get(hash_key) if use_cache else None
         if cached_result:

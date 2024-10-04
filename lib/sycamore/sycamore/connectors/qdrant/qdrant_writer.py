@@ -108,7 +108,7 @@ class QdrantWriterRecord(BaseDBWriter.Record):
     def from_doc(cls, document: Document, target_params: "BaseDBWriter.TargetParams") -> "QdrantWriterRecord":
         assert isinstance(target_params, QdrantWriterTargetParams)
         assert document.doc_id is not None, f"Document found with null id: {document}"
-        vector: dict[str, list[float]] | list[float]
+        vector: Union[dict[str, list[float]], list[float]]
         if document.embedding:
             if target_params.vector_name:
                 vector = {target_params.vector_name: document.embedding}

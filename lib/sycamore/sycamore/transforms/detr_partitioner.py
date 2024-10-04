@@ -501,11 +501,11 @@ class ArynPDFPartitioner:
         else:
             extracted_pages = []
             with LogTime("text_extraction"):
-                for page in extractor_list:
+                for page_value in extractor_list:
                     if isinstance(page, list):
-                        page = text_extractor.extract_page(data=page)
+                        page = text_extractor.extract_page(data=page_value)
                     else:
-                        page = text_extractor.extract_page(page)
+                        page = text_extractor.extract_page(page_value)
                     extracted_pages.append(page)
             assert len(extracted_pages) == len(deformable_layout)
             with LogTime("text_supplement"):

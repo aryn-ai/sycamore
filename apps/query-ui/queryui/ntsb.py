@@ -169,7 +169,7 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
             {
                 "operatorName": "QueryDatabase",
                 "description": "Get all the incident reports",
-                "index": PLANNNER_EXAMPLE_INDEX,
+                "index": PLANNER_EXAMPLE_INDEX,
                 "node_id": 0,
                 "query": {"match": {"properties.entity.aircraft": "Piper"}},
             },

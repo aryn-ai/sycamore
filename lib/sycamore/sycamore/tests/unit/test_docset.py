@@ -523,7 +523,7 @@ class TestDocSet:
             field="text_representation",
             threshold=4,
             ignore_doc_structure=False,
-            sort_elements_by_similarity=True,
+            similarity_scorer=similarity_scorer,
             similarity_query="this is an unused query because unit test",
         )
 
@@ -543,7 +543,8 @@ class TestDocSet:
             field="text_representation",
             threshold=2,
             ignore_doc_structure=False,
-            sort_elements_by_similarity=True,
+            similarity_scorer=similarity_scorer,
+            similarity_query="this is an unused query because unit test",
         )
 
         """

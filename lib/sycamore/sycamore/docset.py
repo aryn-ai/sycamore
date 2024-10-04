@@ -966,7 +966,6 @@ class DocSet:
         field: str = "text_representation",
         threshold: int = 3,
         ignore_doc_structure: bool = True,
-        sort_elements_by_similarity: bool = False,
         similarity_query: Optional[str] = None,
         similarity_scorer: Optional[SimilarityScorer] = None,
         **resource_args,
@@ -982,7 +981,7 @@ class DocSet:
             field: Document field to filter based on.
             threshold: Cutoff that determines whether or not to keep document.
             ignore_doc_structure: ignores document.element mapping.
-            sort_elements_by_similarity: sort elements by similarity to the prompt.
+            similarity_query: query string to compute similarity against.
             similarity_scorer: scorer to generate similarity if 'sort_elements_by_similarity' is True.
             **resource_args
 
@@ -1006,7 +1005,7 @@ class DocSet:
                 doc = entity_extractor.extract_entity(doc)
                 return int(re.findall(r"\d+", doc.properties[new_field])[0]) >= threshold
 
-            if sort_elements_by_similarity:
+            if similarity_query or similarity_scorer:
                 assert similarity_scorer is not None, "Similarity sorting requires a scorer"
                 assert similarity_query is not None, "Similarity sorting requires a string query"
                 score_property_name = f"{field}_similarity_score"

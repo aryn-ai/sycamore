@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from pdfminer.pdfpage import PDFPage
 
 
-class TextExtractor:
+class TextExtractorBase:
     @abstractmethod
     def extract_page(self, filename: Optional[Union["PDFPage", "Image"]]) -> list[Element]:
         pass

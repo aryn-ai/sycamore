@@ -4,6 +4,7 @@ from sycamore.data import Element
 from sycamore.transforms.detr_partitioner import ArynPDFPartitioner, DeformableDetr
 from sycamore.data import BoundingBox
 from sycamore.tests.unit.transforms.check_partition_impl import check_partition, check_table_extraction
+from sycamore.transforms.text_extraction import TextExtractor, PdfMinerExtractor
 
 from PIL import Image
 import json
@@ -100,3 +101,69 @@ class TestArynPDFPartitioner:
             use_cache=False,
         )
         assert len(d) == 1
+
+    def test_pdfminer_object_type(self):
+        filename = str(TEST_DIR / "resources/data/pdfs/Ray_page11.pdf")
+        lines_extractor = TextExtractor("pdfminer", object_type="lines")
+        pages = PdfMinerExtractor.pdf_to_pages(file_name=filename)
+
+        lines_elements = []
+        for i, p in enumerate(pages):
+            assert i == 0
+            lines_elements.extend(lines_extractor.extract_page(p))
+
+        objects_extractor = TextExtractor("pdfminer", object_type="boxes")
+        pages = PdfMinerExtractor.pdf_to_pages(file_name=filename)
+
+        objects_elements = []
+        for i, p in enumerate(pages):
+            assert i == 0
+            objects_elements.extend(objects_extractor.extract_page(p))
+
+        # Note: It's possible that for some documents these values would be equal, but
+        # I was worried that if I used <= I might silently mask an issue where we weren't
+        # actually honoring the object_type parameter. For this doc the values are quite
+        # different
+        assert len(objects_elements) < len(lines_elements)
+        print(f"objects_elements {len(objects_elements)}, lines_elements {len(lines_elements)}")
+
+        lines_text = "".join([e.text_representation for e in lines_elements if e.text_representation is not None])
+        objects_text = "".join([e.text_representation for e in objects_elements if e.text_representation is not None])
+
+        # I was very surprised that this equality succeeded. I'm not sure in general we can expect
+        # exact text equality. I imagine in some cases the order might be different, but in this case
+        # they match, so I'm asserting here so we can catch regressions.
+        assert lines_text == objects_text
+
+        print(f"objects_text {len(objects_text)}, lines_text {len(lines_text)}")
+
+    def test_detr_pdfminer_object_type(self):
+        s = ArynPDFPartitioner("Aryn/deformable-detr-DocLayNet")
+        lines_result = check_table_extraction(
+            s,
+            TEST_DIR / "resources/data/pdfs/Ray_page11.pdf",
+            extract_table_structure=True,
+            use_cache=False,
+            text_extraction_options={"object_type": "lines"},
+        )
+
+        assert len(lines_result) == 1
+        lines_page = lines_result[0]
+
+        objects_result = check_table_extraction(
+            s,
+            TEST_DIR / "resources/data/pdfs/Ray_page11.pdf",
+            extract_table_structure=True,
+            use_cache=False,
+            text_extraction_options={"object_type": "objects"},
+        )
+
+        assert len(objects_result) == 1
+        objects_page = objects_result[0]
+
+        assert len(lines_page) == len(objects_page)
+
+        lines_text = "".join(el.text_representation for el in lines_page if el.text_representation is not None)
+        objects_text = "".join(el.text_representation for el in objects_page if el.text_representation is not None)
+
+        assert lines_text == objects_text

@@ -33,7 +33,7 @@ class QueryDatabase(LogicalOperator):
                     },
                     {
                         "match": {
-                            "properties.path.keyword": "/path/to/data/*.pdf",
+                            "properties.path": "/path/to/data/*.pdf",
                             "properties.entity.location": "Georgia"
                         }
                     }
@@ -42,8 +42,8 @@ class QueryDatabase(LogicalOperator):
         }
     }
 
-    Use the ".keyword" subfield for "properties.path", as this field represents the filename of the
-    original document, and is generally accessed as a keyword field.
+    Any time you would use the field properties.path for an exact match, instead use the field
+    properties.path.keyword and make sure to include the full path.
 
     The full range of OpenSearch Query DSL parameters are supported.
     Whenever possible, use the query parameter to filter data at the source, as this is more

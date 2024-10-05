@@ -503,7 +503,7 @@ class ArynPDFPartitioner:
             with LogTime("text_extraction"):
                 for page_value in extractor_list:
                     if isinstance(page_value, list):
-                        page = text_extractor.extract_page(data=page_value)
+                        page = text_extractor.extract_page(page_data=page_value)
                     else:
                         page = text_extractor.extract_page(page_value)
                     extracted_pages.append(page)

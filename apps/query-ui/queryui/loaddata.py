@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
 # This script will populate a local OpenSearch index, using Sycamore, with data
-# from NTSB incident reports.
+# from NTSB incident reports. This is useful for testing the Sycamore Query UI
+# with a real dataset.
 #
-# Run with: poetry run python querydemo/loader.py [--delete]
+# Run with: poetry run python queryui/loader.py [--delete]
 
 import argparse
 import json
@@ -66,7 +67,7 @@ def standardize_location(doc: Document, key_path: list[str]) -> Document:
 
 
 def main():
-    argparser = argparse.ArgumentParser(prog="ntsb_loader")
+    argparser = argparse.ArgumentParser(prog="loaddata")
     argparser.add_argument("--dump", action="store_true", help="Dump contents of existing index and exit")
     argparser.add_argument("--delete", action="store_true", help="Delete the index if it already exists")
     argparser.add_argument(
@@ -147,8 +148,6 @@ def main():
 
     partitioned_docset = (
         docset.partition(partitioner=ArynPartitioner(extract_table_structure=True, use_ocr=True, extract_images=True))
-        # XXX MDW 3 Oct 2024 - Disable this for now as it seems to be failing on the demo instance.
-        #        .transform(SummarizeImages)
         .materialize(path=f"{args.tempdir}/ntsb-loader-stage-0", source_mode=sycamore.MATERIALIZE_USE_STORED)
         .map(add_schema_property)
         .materialize(path=f"{args.tempdir}/ntsb-loader-stage-1", source_mode=sycamore.MATERIALIZE_USE_STORED)

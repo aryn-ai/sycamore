@@ -120,5 +120,6 @@ More Resources
    /sycamore/using_jupyter.md
    /sycamore/transforms.rst
    /sycamore/connectors.rst
+   /sycamore/query.rst
    /sycamore/tutorials.rst
    /sycamore/APIs.rst

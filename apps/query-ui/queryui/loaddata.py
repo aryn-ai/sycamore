@@ -21,7 +21,6 @@ from sycamore.transforms.extract_schema import (
     OpenAIPropertyExtractor,
 )
 from sycamore.transforms.merge_elements import GreedyTextElementMerger
-from sycamore.transforms.summarize_images import SummarizeImages
 from sycamore.llms import OpenAI, OpenAIModels
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from opensearchpy import OpenSearch

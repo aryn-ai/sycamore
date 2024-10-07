@@ -548,7 +548,7 @@ class ArynPDFPartitioner:
             text_extractor_model = "pdfminer"
         model_cls = EXTRACTOR_DICT.get(text_extractor_model)
         if not model_cls:
-            raise ValueError(f"Unknown OCR Model: {text_extractor_model}")
+            raise ValueError(f"Unknown Text Extractor Model: {text_extractor_model}")
         model = model_cls()
         with LogTime("text_extract", log_start=True):
             extracted_layout = model.extract_document(file_name, hash_key, use_cache, **kwargs)

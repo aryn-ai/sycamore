@@ -477,8 +477,6 @@ class TableMerger(ElementMerger):
 
     def merge(self, elt1: Element, elt2: Element) -> Element:
 
-        tok1 = elt1.data["token_count"]
-        tok2 = elt2.data["token_count"]
         new_elt = Element()
         new_elt.type = "table"
         # Merge binary representations by concatenation
@@ -489,22 +487,8 @@ class TableMerger(ElementMerger):
         # Merge text representations by concatenation with a newline
         if elt1.text_representation is None or elt2.text_representation is None:
             new_elt.text_representation = elt1.text_representation or elt2.text_representation
-            new_elt.data["token_count"] = max(tok1, tok2)
         else:
             new_elt.text_representation = elt1.text_representation + "\n" + elt2.text_representation
-            new_elt.data["token_count"] = tok1 + 1 + tok2
-        # Merge bbox by taking the coords that make the largest box
-        # if elt1.bbox is None and elt2.bbox is None:
-        #     pass
-        # elif elt1.bbox is None or elt2.bbox is None:
-        #     new_elt.bbox = elt1.bbox or elt2.bbox
-        # else:
-        #     new_elt.bbox = BoundingBox(
-        #         min(elt1.bbox.x1, elt2.bbox.x1),
-        #         min(elt1.bbox.y1, elt2.bbox.y1),
-        #         max(elt1.bbox.x2, elt2.bbox.x2),
-        #         max(elt1.bbox.y2, elt2.bbox.y2),
-        #     )
         # Merge properties by taking the union of the keys
         properties = new_elt.properties
         for k, v in elt1.properties.items():
@@ -550,9 +534,7 @@ class TableMerger(ElementMerger):
         return elements
 
     def process_llm_query(self, document):
-        # Here you can implement how to use the LLM prompt on merged elements
         llm_query_agent = LLMTextQueryAgent(prompt=self.llm_prompt, element_type="table", llm=self.llm, table_cont=True)
-        # Assume you have a method to extract relevant information from merged elements
         llm_results = llm_query_agent.execute_query(document)
         return llm_results
 

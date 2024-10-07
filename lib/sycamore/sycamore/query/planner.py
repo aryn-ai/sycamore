@@ -4,6 +4,7 @@ import logging
 import typing
 from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Tuple, Type
 
+import copy
 
 from sycamore.llms.llms import LLM
 from sycamore.llms.openai import OpenAI, OpenAIModels
@@ -90,8 +91,10 @@ def process_json_plan(
     nodes: MutableMapping[int, LogicalOperator] = {}
     downstream_dependencies: Dict[int, List[int]] = {}
 
+    postprocessed_plan = postprocess_json_plan(parsed_plan)
+
     # 1. Build nodes
-    for step in parsed_plan:
+    for step in postprocessed_plan:
         node_id = step["node_id"]
         cls = classes.get(step["operatorName"])
         if cls is None:
@@ -128,6 +131,74 @@ def process_json_plan(
         raise RuntimeError("Invalid plan: Plan requires at least one terminal node")
     return result_nodes[0], nodes
 
+
+def postprocess_llm_helper(user_message: str):
+    messages = [
+          {
+                "role": "system",
+                "content": "You are a helpful agent that assists in small transformations of input text as per the instructions. You should make minimal changes to the provided input and keep your response short"
+          },
+          {
+                "role": "user",
+                "content": user_message
+          },
+    ]
+
+    prompt_kwargs = {"messages": messages}
+    chat_completion = OpenAI(OpenAIModels.GPT_4O.value).generate(
+            prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0, "seed": 42}
+    )
+    return chat_completion
+
+def postprocess_json_plan(parsed_plan: typing.Union[str, Any]) -> typing.Union[str, Any]:
+    """Given the query plan provided by the LLM, postprocess it using a set of rules that modify the plan for optimizing or other purposes."""
+
+    postprocessed_plan = copy.deepcopy(parsed_plan)
+
+    # Rule 1: If the plan has a vector search in the beginning followed by a count or nothing or extract_entity, we replace 
+    # that by removing the vector search and adding an LLM Filter before the count
+
+    if postprocessed_plan[0]['operatorName'] == 'QueryVectorDatabase' and (len(postprocessed_plan) == 1 or postprocessed_plan[1]['operatorName'] in ['Count', 'LlmExtractEntity']):
+        # If the first operator has an "opensearch_filter", we will convert it to a QueryDatabase with that opensearch_filter as "query"
+        # If not, we do a QueryDatabase with "match_all" instead
+        op = postprocessed_plan[0]
+
+        modified_description = postprocess_llm_helper(f"""
+                    The following is the description of a Python function. I am modifying the function code to remove any functionality that has to do with "{op['query_phrase']}". 
+                    Return only the modified description. 
+                    {op['description']}""")
+
+        if 'opensearch_filter' in op:
+            new_op = {'operatorName': 'QueryDatabase', 'description': modified_description, 'index': op['index'], 'node_id': 0, 'query': op['opensearch_filter']}
+        else:
+            new_op = {'operatorName': 'QueryDatabase', 'description': modified_description, 'index': op['index'], 'node_id': 0, 'query': {'match_all': {}}}
+
+        postprocessed_plan[0] = new_op
+        
+        # Add an LLM Filter as the second operator
+        llm_op_description = postprocess_llm_helper(f"""
+                Generate a one-line description for a python function whose goal is to filter the input records based on whether they contain {op['query_phrase']}.
+                The output should be of the format: Filter to records involving wildfires.
+                """)
+        llm_op_question = postprocess_llm_helper(f"""
+                Generate a one-line true/false question that is appropriate to check whether an input document satisfies {op['query_phrase']}.
+                Keep it as generic and short as possible. Do not make assumptions about the intent of the question that are not explicitly specified.
+                Here are two examples: (1) Was this incident caused by an environmental condition? (2) Did this incident occur in Georgia? 
+                """)
+        llm_op = {'operatorName': 'LlmFilter', 
+                      'node_id': 1, 
+                      'description': llm_op_description,
+                      'input': [0], 
+                      'field': 'text_representation', 
+                      'question': llm_op_question}
+        postprocessed_plan.insert(1, llm_op)
+
+        # shift the node ids for later operators, and modify the "inputs"
+        for step in postprocessed_plan[2:]:
+            step['node_id'] += 1
+            step['input'] = [x + 1 for x in step['input']]
+
+    return postprocessed_plan
 
 @dataclass
 class PlannerExample:

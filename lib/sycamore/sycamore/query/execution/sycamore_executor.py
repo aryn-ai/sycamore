@@ -255,6 +255,9 @@ class SycamoreExecutor:
 # {description}
 {code}
 """
+
+        result += "print(result)"
+
         return result
 
     def execute(self, plan: LogicalPlan, query_id: Optional[str] = None) -> Any:

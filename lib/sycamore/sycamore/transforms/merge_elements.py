@@ -1,13 +1,16 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict
+from collections import defaultdict
+import re
 
 
-from sycamore.data import Document, Element, BoundingBox
+from sycamore.data import Document, Element, BoundingBox, Table
 from sycamore.data.document import DocumentPropertyTypes
 from sycamore.plan_nodes import SingleThreadUser, NonGPUUser, Node
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
+from sycamore.transforms.llm_query import LLMTextQueryAgent
 
 
 class ElementMerger(ABC):
@@ -410,6 +413,154 @@ class MarkedMerger(ElementMerger):
 
         document.elements = merged
         return document
+
+
+class TableMerger(ElementMerger):
+    """
+    The ``Table merger`` handles 3 operations
+    1. If a text element (Caption, Section-header, Text...) contains the regex pattern anywhere in a page
+     it is attached to the text_representation of the table on the page.
+    2. LLMQuery is used for adding a table_continuation property to table elements. Is the table is
+     a continuation from a previous table the property is stored as true, else false.
+    3. After LLMQuery, table elements which are continuations are merged as one element.
+    Example:
+         .. code-block:: python
+
+            llm = OpenAI(OpenAIModels.GPT_4O, api_key = '')
+
+            prompt = "Analyze two CSV tables that may be parts of a single table split across pages. Determine if the second table is a continuation of the first with 100% certainty. Check either of the following:\
+            1. Column headers: Must be near identical in terms of text(the ordering/text may contain minor errors because of OCR quality) in both tables. If the headers are almost the same check the number of columns, they should be roughly the same.\
+            2. Missing headers: If the header/columns in the second table are missing, then the first row in the second table should logically be in continutaion of the last row in the first table.\
+            Respond with only 'true' or 'false' based on your certainty that the second table is a continuation. Certainty is determinedx if either of the two conditions is true."
+
+            regex_pattern = r"table \d+"
+
+            merger = TableMerger(llm_prompt = prompt, llm=llm)
+
+            context = sycamore.init()
+            pdf_docset = context.read.binary(paths, binary_format="pdf", regex_pattern= regex_pattern)
+                .partition(partitioner=ArynPartitioner())
+                .merge(merger=merger)
+    """
+
+    def __init__(self, regex_pattern=None, llm_prompt=None, llm=None, *args, **kwargs):
+        self.regex_pattern = regex_pattern
+        self.llm_prompt = llm_prompt
+        self.llm = llm
+
+    def merge_elements(self, document: Document) -> Document:
+
+        table_elements = [ele for ele in document.elements if ele.type == "table"]
+        if len(table_elements) < 1:
+            return document
+        if self.regex_pattern:
+            document.elements = self.customTableHeaderAdditionFilter(document.elements)
+        if not self.llm_prompt or len(table_elements) < 2:
+            return document
+        document = self.process_llm_query(document)
+        table_elements = [ele for ele in document.elements if ele.type == "table"]
+        other_elements = [ele for ele in document.elements if ele.type != "table"]
+        new_table_elements = [table_elements[0]]
+        for element in table_elements[1:]:
+            if self.should_merge(new_table_elements[-1], element):
+                new_table_elements[-1] = self.merge(new_table_elements[-1], element)
+            else:
+                new_table_elements.append(element)
+        other_elements.extend(new_table_elements)
+        document.elements = other_elements
+        return document
+
+    def should_merge(self, element1: Element, element2: Element) -> bool:
+        if "true" in element2["properties"]["table_continuation"].lower():
+            return True
+        return False
+
+    def merge(self, elt1: Element, elt2: Element) -> Element:
+
+        tok1 = elt1.data["token_count"]
+        tok2 = elt2.data["token_count"]
+        new_elt = Element()
+        new_elt.type = "table"
+        # Merge binary representations by concatenation
+        if elt1.binary_representation is None or elt2.binary_representation is None:
+            new_elt.binary_representation = elt1.binary_representation or elt2.binary_representation
+        else:
+            new_elt.binary_representation = elt1.binary_representation + elt2.binary_representation
+        # Merge text representations by concatenation with a newline
+        if elt1.text_representation is None or elt2.text_representation is None:
+            new_elt.text_representation = elt1.text_representation or elt2.text_representation
+            new_elt.data["token_count"] = max(tok1, tok2)
+        else:
+            new_elt.text_representation = elt1.text_representation + "\n" + elt2.text_representation
+            new_elt.data["token_count"] = tok1 + 1 + tok2
+        # Merge bbox by taking the coords that make the largest box
+        # if elt1.bbox is None and elt2.bbox is None:
+        #     pass
+        # elif elt1.bbox is None or elt2.bbox is None:
+        #     new_elt.bbox = elt1.bbox or elt2.bbox
+        # else:
+        #     new_elt.bbox = BoundingBox(
+        #         min(elt1.bbox.x1, elt2.bbox.x1),
+        #         min(elt1.bbox.y1, elt2.bbox.y1),
+        #         max(elt1.bbox.x2, elt2.bbox.x2),
+        #         max(elt1.bbox.y2, elt2.bbox.y2),
+        #     )
+        # Merge properties by taking the union of the keys
+        properties = new_elt.properties
+        for k, v in elt1.properties.items():
+            properties[k] = v
+            if k == DocumentPropertyTypes.PAGE_NUMBER:
+                properties["page_numbers"] = properties.get("page_numbers", list())
+                properties["page_numbers"] = list(set(properties["page_numbers"] + [v]))
+        for k, v in elt2.properties.items():
+            if properties.get(k) is None:
+                properties[k] = v
+            # if a page number exists, add it to the set of page numbers for this new element
+            if k == DocumentPropertyTypes.PAGE_NUMBER:
+                properties["page_numbers"] = properties.get("page_numbers", list())
+                properties["page_numbers"] = list(set(properties["page_numbers"] + [v]))
+
+        new_elt.properties = properties
+
+        return new_elt
+
+    def customTableHeaderAdditionFilter(self, elements):
+
+        dic = defaultdict(str)
+
+        # First pass: capture headers
+        for ele in elements:
+            if ele.type in ["table", "Image", "Formula"]:
+                continue
+            elif ele.type in ["Text", "Title", "Page-header", "Section-header", "Caption"]:
+                if ele.text_representation is not None:
+                    text_rep = ele.text_representation.strip().lower()
+                if text_rep == "":
+                    continue
+                if re.search(self.regex_pattern, text_rep):
+                    dic[ele["properties"]["page_number"]] = text_rep + " "
+
+        # Second pass: update table elements with headers, done in separate loops since
+        # table headers can be within table elements as well or after them
+        for ele in elements:
+            if ele.type == "table" and isinstance(ele["table"], Table):
+                ele.text_representation = dic[ele["properties"]["page_number"]] + ele.text_representation
+                ele["properties"]["table_header"] = dic[ele["properties"]["page_number"]]
+
+        return elements
+
+    def process_llm_query(self, document):
+        # Here you can implement how to use the LLM prompt on merged elements
+        llm_query_agent = LLMTextQueryAgent(prompt=self.llm_prompt, element_type="table", llm=self.llm, table_cont=True)
+        # Assume you have a method to extract relevant information from merged elements
+        llm_results = llm_query_agent.execute_query(document)
+        return llm_results
+
+    def preprocess_element(self, elem: Element) -> Element:
+        return elem
+
+    def postprocess_element(self, elem: Element) -> Element:
+        return elem
 
 
 class Merge(SingleThreadUser, NonGPUUser, Map):

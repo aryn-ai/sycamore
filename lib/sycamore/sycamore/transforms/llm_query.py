@@ -48,6 +48,7 @@ class LLMTextQueryAgent:
         llm_kwargs: dict = {},
         per_element: bool = True,
         element_type: Optional[str] = None,
+        table_cont: Optional[bool] = False,
     ):
         self._llm = llm
         self._prompt = prompt
@@ -57,16 +58,25 @@ class LLMTextQueryAgent:
         self._format_kwargs = format_kwargs
         self._number_of_elements = number_of_elements
         self._element_type = element_type
+        self._table_cont = table_cont
 
     def execute_query(self, document: Document) -> Document:
         final_prompt = self._prompt
         element_count = 0
+        prev_table = -1
         if self._per_element or self._number_of_elements:
             for idx, element in enumerate(document.elements):
                 if self._element_type and element.type != self._element_type:
                     continue
                 if self._per_element:
-                    document.elements[idx] = self._query_text_object(element)
+                    if not self._table_cont:
+                        document.elements[idx] = self._query_text_object(element)
+                    else:
+                        if prev_table > 0:
+                            document.elements[idx] = self._query_text_object(element, document.elements[prev_table])
+                        else:
+                            document.elements[idx] = self._query_text_object(element)
+                        prev_table = idx
                 else:
                     final_prompt += "\n" + element["text_representation"]
                 if self._number_of_elements:
@@ -83,7 +93,9 @@ class LLMTextQueryAgent:
         return document
 
     @timetrace("LLMQueryText")
-    def _query_text_object(self, object: Union[Document, Element]) -> Union[Document, Element]:
+    def _query_text_object(
+        self, object: Union[Document, Element], objectPrev: Element = None
+    ) -> Union[Document, Element]:
         if object.text_representation:
             if self._format_kwargs:
                 prompt = (
@@ -92,10 +104,16 @@ class LLMTextQueryAgent:
                     .render(doc=object)
                 )
             else:
-                prompt = self._prompt + "\n" + object.text_representation
+                if objectPrev and objectPrev.text_representation:
+                    prompt = self._prompt + "\n" + objectPrev.text_representation + "\n\n" + object.text_representation
+                else:
+                    prompt = self._prompt + "\n" + object.text_representation
             prompt_kwargs = {"prompt": prompt}
             llm_resp = self._llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs=self._llm_kwargs)
-            object["properties"][self._output_property] = llm_resp
+            if self._table_cont:
+                object["properties"]["table_continuation"] = llm_resp
+            else:
+                object["properties"][self._output_property] = llm_resp
         return object
 
 

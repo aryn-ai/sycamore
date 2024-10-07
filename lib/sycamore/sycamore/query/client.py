@@ -19,10 +19,12 @@ import uuid
 import structlog
 
 import sycamore
-from sycamore import Context
+from sycamore import Context, ExecMode
+from sycamore.context import OperationTypes
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.transforms.query import OpenSearchQueryExecutor
+from sycamore.transforms.similarity import HuggingFaceTransformersSimilarityScorer
 from sycamore.utils.cache import cache_from_path
 from sycamore.utils.import_utils import requires_modules
 
@@ -249,8 +251,18 @@ class SycamoreQueryClient:
                 "os_client_args": os_client_args,
                 "text_embedder": SycamoreQueryClient.default_text_embedder(),
             },
+            OperationTypes.BINARY_CLASSIFIER: {
+                "llm": OpenAI(OpenAIModels.GPT_4O_MINI.value, cache=cache_from_path(s3_cache_path))
+            },
+            OperationTypes.INFORMATION_EXTRACTOR: {
+                "llm": OpenAI(OpenAIModels.GPT_4O_MINI.value, cache=cache_from_path(s3_cache_path))
+            },
+            OperationTypes.TEXT_SIMILARITY: {
+                "similarity_scorer": HuggingFaceTransformersSimilarityScorer()
+            },
+
         }
-        return sycamore.init(params=context_params)
+        return sycamore.init(params=context_params, exec_mode=ExecMode.LOCAL)
 
     def result_to_str(self, result: Any, max_docs: int = 100, max_chars_per_doc: int = 2500) -> str:
         """Convert a query result to a string.

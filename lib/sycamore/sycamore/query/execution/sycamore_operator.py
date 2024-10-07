@@ -96,7 +96,8 @@ class SycamoreQueryDatabase(SycamoreOperator):
             os_query = {"query": self.logical_node.query}
         else:
             os_query = {}
-        result = self.context.read.opensearch(index_name=self.logical_node.index, query=os_query)
+        result = self.context.read.opensearch(index_name=self.logical_node.index, query=os_query,
+                                              reconstruct_document=True)
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
@@ -108,7 +109,7 @@ class SycamoreQueryDatabase(SycamoreOperator):
         return (
             f"""
 {output_var or get_var_name(self.logical_node)} = context.read.opensearch(
-    index_name='{self.logical_node.index}', query={os_query}
+    index_name='{self.logical_node.index}', query={os_query}, reconstruct_document=True
 )
 """,
             [],
@@ -141,7 +142,7 @@ class SycamoreQueryVectorDatabase(SycamoreOperator):
         os_query = get_knn_query(query_phrase=self.logical_node.query_phrase, context=self.context)
         if self.logical_node.opensearch_filter:
             os_query["query"]["knn"]["embedding"]["filter"] = self.logical_node.opensearch_filter
-        result = self.context.read.opensearch(index_name=self.logical_node.index, query=os_query)
+        result = self.context.read.opensearch(index_name=self.logical_node.index, query=os_query, reconstruct_document=True).rerank()
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
@@ -153,8 +154,9 @@ os_query["query"]["knn"]["embedding"]["filter"] = {self.logical_node.opensearch_
         result += f"""
 {output_var or get_var_name(self.logical_node)} = context.read.opensearch(
     index_name='{self.logical_node.index}', 
-    query=os_query
-)
+    query=os_query,
+    reconstruct_document=True
+).rerank()
 """
         return (
             result,
@@ -223,7 +225,8 @@ class SycamoreSummarizeData(SycamoreOperator):
 class SycamoreLlmFilter(SycamoreOperator):
     """
     Use an LLM to filter records on a Docset.
-    Args:
+    If trying to filter on a documents text contents, i.e. field == text_representation, we run the llm_filter
+    on the elements of the document (i.e. use_elements = True)
     """
 
     def __init__(
@@ -245,7 +248,7 @@ class SycamoreLlmFilter(SycamoreOperator):
                 context=self.context, val_key="llm", param_names=[OperationTypes.BINARY_CLASSIFIER.value]
             ),
             LLM,
-        ), "LLMFilter requies an 'llm' configured on the Context"
+        ), "LLMFilter requires an 'llm' configured on the Context"
         question = self.logical_node.question
         field = self.logical_node.field
 
@@ -257,6 +260,7 @@ class SycamoreLlmFilter(SycamoreOperator):
             new_field="_autogen_LLMFilterOutput",
             prompt=prompt,
             field=field,
+            use_elements=(field == "text_representation"),
             **self.get_node_args(),
         )
         return result
@@ -272,6 +276,7 @@ prompt = LlmFilterMessagesPrompt(filter_question='{self.logical_node.question}')
     new_field='_autogen_LLMFilterOutput',
     prompt=prompt,
     field='{self.logical_node.field}',
+    use_elements={(self.logical_node.field == "text_representation")},
     **{self.get_node_args()},
 )
 """
@@ -432,7 +437,7 @@ class SycamoreLlmExtractEntity(SycamoreOperator):
                 context=self.context, val_key="llm", param_names=[OperationTypes.INFORMATION_EXTRACTOR.value]
             ),
             LLM,
-        ), "LLMExtractEntity requies an 'llm' configured on the Context"
+        ), "LLMExtractEntity requires an 'llm' configured on the Context"
 
         question = logical_node.question
         new_field = logical_node.new_field
@@ -446,7 +451,7 @@ class SycamoreLlmExtractEntity(SycamoreOperator):
 
         entity_extractor = OpenAIEntityExtractor(
             entity_name=new_field,
-            use_elements=False,
+            use_elements=True,
             prompt=prompt,
             field=field,
         )
@@ -473,7 +478,7 @@ prompt = EntityExtractorMessagesPrompt(
 
 entity_extractor = OpenAIEntityExtractor(
     entity_name='{new_field}',
-    use_elements=False,
+    use_elements=True,
     prompt=prompt,
     field='{field}',
 )
@@ -538,6 +543,8 @@ class SycamoreSort(SycamoreOperator):
 
 class SycamoreTopK(SycamoreOperator):
     """
+    Note: top_k clustering only operators on document level fields. If you try to cluster on the text contents it
+    will not use text from elements.
     Return the Top-K values from a DocSet
     """
 

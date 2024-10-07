@@ -3,7 +3,6 @@
 import argparse
 import time
 import io
-import uuid
 
 import queryui.util as util
 from queryui.configuration import get_sycamore_query_client
@@ -17,6 +16,8 @@ from streamlit_ace import st_ace
 from sycamore.executor import sycamore_ray_init
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
+
+from typing import Any
 
 PLANNER_EXAMPLES = ntsb.PLANNER_EXAMPLES
 
@@ -62,17 +63,17 @@ def show_code(client: SycamoreQueryClient, code: str):
                     print("Done printing out the results...")
                 st.subheader("Result", divider="rainbow")
                 st.markdown(result_str, unsafe_allow_html=True)
-                #exec(code, global_context)
+                # exec(code, global_context)
             except Exception as e:
                 st.exception(e)
             if code_locals and "result" in code_locals:
                 st.subheader("Result", divider="rainbow")
                 st.success(code_locals["result"])
             # Commenting this out for now -- we don't have the right query_id for this to work TODO
-            #if st.session_state.trace_dir:
-                #st.session_state.query_id = str(uuid.uuid4())
-                #st.subheader("Traces", divider="blue")
-                #util.show_query_traces(st.session_state.trace_dir, st.session_state.query_id)
+            # if st.session_state.trace_dir:
+            # st.session_state.query_id = str(uuid.uuid4())
+            # st.subheader("Traces", divider="blue")
+            # util.show_query_traces(st.session_state.trace_dir, st.session_state.query_id)
 
 
 def run_query():
@@ -92,7 +93,6 @@ def run_query():
 
     code = generate_code(client, plan)
     show_code(client, code)
-
 
     if not st.session_state.plan_only:
         with st.spinner("Running query..."):

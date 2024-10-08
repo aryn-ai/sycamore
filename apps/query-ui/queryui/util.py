@@ -277,7 +277,6 @@ class QueryMetadataTrace:
             return {}
         result = dict()
         for node_id, node in self.query_plan.nodes.items():
-            # st.write(str(type(node.description)))
             result[str(node_id)]  = node.description
         return result
 

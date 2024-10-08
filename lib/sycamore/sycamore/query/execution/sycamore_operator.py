@@ -96,8 +96,9 @@ class SycamoreQueryDatabase(SycamoreOperator):
             os_query = {"query": self.logical_node.query}
         else:
             os_query = {}
-        result = self.context.read.opensearch(index_name=self.logical_node.index, query=os_query,
-                                              reconstruct_document=True)
+        result = self.context.read.opensearch(
+            index_name=self.logical_node.index, query=os_query, reconstruct_document=True
+        )
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:

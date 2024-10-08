@@ -13,10 +13,10 @@ from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
 
 
-def element_list_formatter(elements: list[Element], field_name: str = "text_representation") -> str:
+def element_list_formatter(elements: list[Element], field: str = "text_representation") -> str:
     query = ""
     for i in range(len(elements)):
-        value = str(elements[i].field_to_value(field_name))
+        value = str(elements[i].field_to_value(field))
         query += f"ELEMENT {i + 1}: {value}\n"
     return query
 
@@ -69,10 +69,10 @@ class OpenAIEntityExtractor(EntityExtractor):
         llm: Optional[LLM] = None,
         prompt_template: Optional[str] = None,
         num_of_elements: int = 10,
-        prompt_formatter: Callable[[list[Element]], str] = element_list_formatter,
+        prompt_formatter: Callable[[list[Element], str], str] = element_list_formatter,
         use_elements: Optional[bool] = True,
         prompt: Optional[Union[list[dict], str]] = [],
-        field: Optional[str] = None,
+        field: str = "text_representation",
     ):
         super().__init__(entity_name)
         self._llm = llm
@@ -103,15 +103,19 @@ class OpenAIEntityExtractor(EntityExtractor):
     def _handle_element_prompting(self, document: Document) -> Any:
         assert self._llm is not None
         sub_elements = [document.elements[i] for i in range((min(self._num_of_elements, len(document.elements))))]
-        content = self._prompt_formatter(sub_elements)
+        content = self._prompt_formatter(sub_elements, self._field)
         if self._prompt is None:
+            prompt: Any = None
             if self._prompt_template:
                 prompt = EntityExtractorFewShotGuidancePrompt()
             else:
                 prompt = EntityExtractorZeroShotGuidancePrompt()
             entities = self._llm.generate(
                 prompt_kwargs={
-                    "prompt": prompt, "entity": self._entity_name, "query": content, "examples": self._prompt_template
+                    "prompt": prompt,
+                    "entity": self._entity_name,
+                    "query": content,
+                    "examples": self._prompt_template,
                 }
             )
             return entities
@@ -128,6 +132,7 @@ class OpenAIEntityExtractor(EntityExtractor):
         return self._get_entities(value)
 
     def _get_entities(self, content: str, prompt: Optional[Union[list[dict], str]] = None):
+        assert self._llm is not None
         prompt = prompt or self._prompt
         assert prompt is not None, "No prompt found for entity extraction"
         if isinstance(self._prompt, str):

@@ -126,7 +126,7 @@ class SycamoreQueryClient:
         os_client_args: Optional[dict] = None,
         trace_dir: Optional[str] = None,
         cache_dir: Optional[str] = None,
-        sycamore_exec_mode: ExecMode = ExecMode.RAY
+        sycamore_exec_mode: ExecMode = ExecMode.RAY,
     ):
         from opensearchpy import OpenSearch
 
@@ -259,10 +259,7 @@ class SycamoreQueryClient:
             OperationTypes.INFORMATION_EXTRACTOR: {
                 "llm": OpenAI(OpenAIModels.GPT_4O_MINI.value, cache=cache_from_path(s3_cache_path))
             },
-            OperationTypes.TEXT_SIMILARITY: {
-                "similarity_scorer": HuggingFaceTransformersSimilarityScorer()
-            },
-
+            OperationTypes.TEXT_SIMILARITY: {"similarity_scorer": HuggingFaceTransformersSimilarityScorer()},
         }
         return sycamore.init(params=context_params, exec_mode=sycamore_exec_mode)
 

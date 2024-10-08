@@ -34,7 +34,7 @@ class TestSycamoreQuery:
             "What fraction of all incidents happened in california?",
             query_integration_test_index,
             schema,
-            natural_language_response=False,
+            natural_language_response=True,
         )
         query_id, result = client.run_plan(plan, codegen_mode=codegen_mode)
         assert isinstance(result, str)
@@ -55,7 +55,7 @@ class TestSycamoreQuery:
             "What fraction of all incidents happened in california?",
             query_integration_test_index,
             schema,
-            natural_language_response=False,
+            natural_language_response=True,
         )
         ray.shutdown()
         query_id, result = client.run_plan(plan, dry_run=dry_run)
@@ -76,7 +76,7 @@ class TestSycamoreQuery:
             "were there any environmentally caused incidents?",
             query_integration_test_index,
             schema,
-            natural_language_response=True,
+            natural_language_response=False,
         )
         assert len(plan.nodes) == 2
         assert isinstance(plan.nodes[0], QueryVectorDatabase)

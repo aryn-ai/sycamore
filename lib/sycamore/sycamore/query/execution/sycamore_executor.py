@@ -76,7 +76,6 @@ class SycamoreExecutor:
         self.dry_run = dry_run
         self.codegen_mode = codegen_mode
 
-
         if self.trace_dir and not self.dry_run:
             log.info("Using trace directory: %s", trace_dir)
         if self.cache_dir and not self.dry_run:
@@ -260,6 +259,7 @@ class SycamoreExecutor:
         return result
 
     def _write_metadata_to_trace_dir(self, plan: LogicalPlan, query_id: str):
+        assert self.trace_dir is not None, "Writing metadata requires trace_dir to be set"
         path = os.path.join(self.trace_dir, f"{query_id}/metadata/")
         os.makedirs(path, exist_ok=True)
         with open(os.path.join(path, "query_plan.pickle"), "wb") as f:

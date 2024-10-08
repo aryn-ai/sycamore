@@ -13,7 +13,7 @@ from pyarrow import fs
 import sycamore
 from sycamore.context import ExecMode
 from sycamore.data import Document, MetadataDocument
-from sycamore.materialize import AutoMaterialize, Materialize, MaterializeSourceMode
+from sycamore.materialize import AutoMaterialize, Materialize
 from sycamore.tests.unit.inmempyarrowfs import InMemPyArrowFileSystem
 
 
@@ -279,14 +279,14 @@ class TestAutoMaterialize(unittest.TestCase):
 
         docs = make_docs(3)
         with tempfile.TemporaryDirectory() as tmpdir:
-            a = AutoMaterialize(tmpdir, source_mode=MaterializeSourceMode.USE_STORED)
+            a = AutoMaterialize(tmpdir, source_mode=sycamore.MATERIALIZE_USE_STORED)
             check(a, docs)
             assert NumCalls.x == 3
 
         NumCalls.x = 0
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            a = AutoMaterialize(tmpdir, source_mode=MaterializeSourceMode.RECOMPUTE)
+            a = AutoMaterialize(tmpdir, source_mode=sycamore.MATERIALIZE_RECOMPUTE)
             check(a, docs)
             assert NumCalls.x == 6
 

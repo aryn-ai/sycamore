@@ -292,7 +292,7 @@ class AutoMaterialize(NodeTraverse):
 
        # The source_mode can be passed to AutoMaterialize, which will in turn be passed to all
        # created materialize nodes. To use each materialized node as a source:
-       ctx.rewrite_rules.append(AutoMaterialize(source_mode=MaterializeSourceMode.USE_STORED)
+       ctx.rewrite_rules.append(AutoMaterialize(source_mode=sycamore.MATERIALIZED_USE_STORED)
 
     Nodes in the plan will automatically be named. You can specify a name by defining it for the node:
        ctx = sycamore.init()

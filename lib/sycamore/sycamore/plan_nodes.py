@@ -220,16 +220,14 @@ def print_plan(node: Node, stream=sys.stdout) -> None:
             super().__init__()
             self.indent = 0
             self.stream = stream
-            self.before_fn = self._print_node
-            self.after_fn = self._after_node
 
-        def _print_node(self, n: Node) -> Node:
-            stream.write(" " * self.indent)
-            stream.write(f"{n.__class__.__name__} {n.properties}\n")
+        def before(self, n: Node) -> Node:
+            self.stream.write(" " * self.indent)
+            self.stream.write(f"{n.__class__.__name__} {n.properties}\n")
             self.indent += 2
             return n
 
-        def _after_node(self, n: Node) -> Node:
+        def after(self, n: Node) -> Node:
             if self.indent >= 0:
                 self.indent -= 2
             return n

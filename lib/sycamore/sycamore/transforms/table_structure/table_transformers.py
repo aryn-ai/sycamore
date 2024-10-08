@@ -210,7 +210,7 @@ def slot_into_containers(
     overlap_threshold=0.5,
     unique_assignment=True,
     forced_assignment=False,
-    _early_exit_vertical=False,  # yes. see docstring.
+    _early_exit_vertical=False,  # see docstring.
 ):
     """
     Slot a collection of objects into the container they occupy most

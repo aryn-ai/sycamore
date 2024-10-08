@@ -82,9 +82,10 @@ class PdfMinerExtractor(TextExtractor):
         page_layout = self.device.get_result()
         for obj in page_layout:
             if hasattr(obj, "get_text"):
+                x1, y1, x2, y2 = self._convert_bbox_coordinates(obj.bbox, page_layout.height)
                 page_data.append(
                     {
-                        "bbox": BoundingBox(obj.bbox[0][0], obj.bbox[0][1], obj.bbox[2][0], obj.bbox[2][1]),
+                        "bbox": BoundingBox(x1, y1, x2, y2),
                         "text": obj.get_text(),
                     }
                 )

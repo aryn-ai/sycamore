@@ -243,12 +243,12 @@ class QueryNodeTrace:
                     data[col].append(row.get(col))
             self.df = pd.DataFrame(data)
 
-    def show(self, node_descriptions: dict[str, str]):  
+    def show(self, node_descriptions: dict[str, str]):
         """Render the trace data."""
         st.subheader(f"Node {self.node_id}")
         st.markdown(f"*Description: {node_descriptions.get(self.node_id) or 'n/a'}*")
         if self.df is None or not len(self.df):
-            st.write(f":red[0] documents")
+            st.write(":red[0] documents")
             st.write("No data.")
             return
 
@@ -257,6 +257,7 @@ class QueryNodeTrace:
         column_order += [c for c in all_columns if c not in column_order]
         st.write(f"**{len(self.df)}** documents")
         st.dataframe(self.df, column_order=column_order)
+
 
 class QueryMetadataTrace:
     """Helper class to read and display metadata about a query."""
@@ -271,13 +272,13 @@ class QueryMetadataTrace:
         if os.path.isfile(f):
             with open(f, "rb") as file:
                 self.query_plan = pickle.load(file)
-    
+
     def get_node_to_description(self) -> dict[str, str]:
         if self.query_plan is None:
             return {}
         result = dict()
         for node_id, node in self.query_plan.nodes.items():
-            result[str(node_id)]  = node.description
+            result[str(node_id)] = node.description
         return result
 
     def show(self):

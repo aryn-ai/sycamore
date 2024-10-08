@@ -350,7 +350,6 @@ def main():
     if "trace_dir" not in st.session_state:
         st.session_state.trace_dir = os.path.join(os.getcwd(), "traces")
 
-
     if not args.local_mode and args.external_ray:
         sycamore_ray_init(address="auto")
     st.title("Sycamore Query Chat")

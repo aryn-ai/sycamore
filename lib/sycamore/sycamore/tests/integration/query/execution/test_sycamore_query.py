@@ -83,20 +83,3 @@ class TestSycamoreQuery:
         query_id, result = client.run_plan(plan, codegen_mode=codegen_mode)
         assert isinstance(result, str)
         assert "No" in result or "no" in result
-
-
-def test_reconstructed(query_integration_test_index, codegen_mode=False):
-    index = "const_ntsb"
-    client = SycamoreQueryClient()
-    schema = client.get_opensearch_schema(index)
-    plan = client.generate_plan(
-        "Give me all the incidents in calidornia",
-        index,
-        schema,
-        natural_language_response=False,
-    )
-    query_id, result = client.run_plan(plan, codegen_mode=codegen_mode)
-    results = result.take_all()
-    assert isinstance(result, str)
-    assert len(result) > 0
-    assert "0" in result

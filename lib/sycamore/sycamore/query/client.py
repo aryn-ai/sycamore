@@ -126,6 +126,7 @@ class SycamoreQueryClient:
         os_client_args: Optional[dict] = None,
         trace_dir: Optional[str] = None,
         cache_dir: Optional[str] = None,
+        sycamore_exec_mode: ExecMode = ExecMode.RAY
     ):
         from opensearchpy import OpenSearch
 
@@ -133,6 +134,7 @@ class SycamoreQueryClient:
         self.os_config = os_config
         self.trace_dir = trace_dir
         self.cache_dir = cache_dir
+        self.sycamore_exec_mode = sycamore_exec_mode
 
         # TODO: remove these assertions and simplify the code to get all customization via the
         # context.
@@ -143,7 +145,7 @@ class SycamoreQueryClient:
             raise AssertionError("setting s3_cache_path requires context==None. See Notes in class documentation.")
 
         os_client_args = os_client_args or DEFAULT_OS_CLIENT_ARGS
-        self.context = context or self._get_default_context(s3_cache_path, os_client_args)
+        self.context = context or self._get_default_context(s3_cache_path, os_client_args, sycamore_exec_mode)
 
         assert self.context.params, "Could not find required params in Context"
         self.os_client_args = self.context.params.get("opensearch", {}).get("os_client_args", os_client_args)
@@ -244,7 +246,7 @@ class SycamoreQueryClient:
         return SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
 
     @staticmethod
-    def _get_default_context(s3_cache_path, os_client_args) -> Context:
+    def _get_default_context(s3_cache_path, os_client_args, sycamore_exec_mode) -> Context:
         context_params = {
             "default": {"llm": OpenAI(OpenAIModels.GPT_4O.value, cache=cache_from_path(s3_cache_path))},
             "opensearch": {
@@ -262,9 +264,10 @@ class SycamoreQueryClient:
             },
 
         }
-        return sycamore.init(params=context_params, exec_mode=ExecMode.LOCAL)
+        return sycamore.init(params=context_params, exec_mode=sycamore_exec_mode)
 
-    def result_to_str(self, result: Any, max_docs: int = 100, max_chars_per_doc: int = 2500) -> str:
+    @staticmethod
+    def result_to_str(result: Any, max_docs: int = 100, max_chars_per_doc: int = 2500) -> str:
         """Convert a query result to a string.
 
         Args:

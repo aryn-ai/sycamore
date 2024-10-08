@@ -177,6 +177,7 @@ def query_data_source(query: str, index: str) -> Tuple[Any, Optional[Any], Optio
             s3_cache_path=st.session_state.llm_cache_dir,
             trace_dir=st.session_state.trace_dir,
             cache_dir=st.session_state.cache_dir,
+            sycamore_exec_mode=st.session_state.exec_mode,
         )
         with st.spinner("Generating plan..."):
             plan = util.generate_plan(sqclient, query, index, examples=PLANNER_EXAMPLES)
@@ -310,6 +311,9 @@ def main():
     argparser.add_argument(
         "--index", help="OpenSearch index name to use. If specified, only this index will be queried."
     )
+    group = argparser.add_mutually_exclusive_group()
+    group.add_argument("--external-ray", action="store_true", help="Use external Ray process.")
+    group.add_argument("--local-mode", action="store_true", help="Enable Sycamore local execution mode.")
     argparser.add_argument("--title", type=str, help="Title text.")
     argparser.add_argument("--cache-dir", type=str, help="Query execution cache dir.")
     argparser.add_argument("--llm-cache-dir", type=str, help="LLM query cache dir.")
@@ -331,6 +335,9 @@ def main():
     if "use_cache" not in st.session_state:
         st.session_state.use_cache = True
 
+    if "local_mode" not in st.session_state:
+        st.session_state.local_mode = args.local_mode
+
     if "next_message_id" not in st.session_state:
         st.session_state.next_message_id = 0
 
@@ -343,7 +350,9 @@ def main():
     if "trace_dir" not in st.session_state:
         st.session_state.trace_dir = os.path.join(os.getcwd(), "traces")
 
-    sycamore_ray_init(address="auto")
+
+    if not args.local_mode and args.external_ray:
+        sycamore_ray_init(address="auto")
     st.title("Sycamore Query Chat")
     st.toggle("Use RAG only", key="rag_only")
 

@@ -1,5 +1,6 @@
 from typing import Optional
 
+from sycamore import ExecMode
 from sycamore.query.client import SycamoreQueryClient
 
 """
@@ -24,6 +25,6 @@ will get a merge conflict.
 
 
 def get_sycamore_query_client(
-    s3_cache_path: Optional[str] = None, trace_dir: Optional[str] = None, cache_dir: Optional[str] = None
+    s3_cache_path: Optional[str] = None, trace_dir: Optional[str] = None, cache_dir: Optional[str] = None, exec_mode: ExecMode = ExecMode.RAY
 ) -> SycamoreQueryClient:
-    return SycamoreQueryClient(s3_cache_path=s3_cache_path, trace_dir=trace_dir, cache_dir=cache_dir)
+    return SycamoreQueryClient(s3_cache_path=s3_cache_path, trace_dir=trace_dir, cache_dir=cache_dir, sycamore_exec_mode=exec_mode)

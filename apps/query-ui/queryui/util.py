@@ -81,7 +81,7 @@ def docset_to_string(docset: DocSet, html: bool = True) -> str:
         if isinstance(doc, MetadataDocument):
             continue
         if html:
-            retval += f"**{doc.properties.get('path')}** page: {doc.properties.get('page_number', 'meta')}  \n"
+            retval += f"**{doc.properties.get('path')}** \n"
 
             retval += "| Property | Value |\n"
             retval += "|----------|-------|\n"
@@ -96,7 +96,8 @@ def docset_to_string(docset: DocSet, html: bool = True) -> str:
             text_content = (
                 doc.text_representation[:NUM_TEXT_CHARS_GENERATE] if doc.text_representation is not None else None
             )
-            retval += f'*..."{text_content}"...* <br><br>'
+            if text_content:
+                retval += f'*..."{text_content}"...* <br><br>'
         else:
             props_dict = doc.properties.get("entity", {})
             props_dict.update({p: doc.properties[p] for p in set(doc.properties) - set(BASE_PROPS)})
@@ -242,18 +243,51 @@ class QueryNodeTrace:
                     data[col].append(row.get(col))
             self.df = pd.DataFrame(data)
 
-    def show(self):
+    def show(self, node_descriptions: dict[str, str]):  
         """Render the trace data."""
+        st.subheader(f"Node {self.node_id}")
+        st.markdown(f"*Description: {node_descriptions.get(self.node_id) or 'n/a'}*")
         if self.df is None or not len(self.df):
-            st.write(f"Result of node {self.node_id} — :red[0] documents")
+            st.write(f":red[0] documents")
             st.write("No data.")
             return
 
         all_columns = list(self.df.columns)
         column_order = [c for c in self.COLUMNS if c in all_columns]
         column_order += [c for c in all_columns if c not in column_order]
-        st.write(f"Result of node {self.node_id} — **{len(self.df)}** documents")
+        st.write(f"**{len(self.df)}** documents")
         st.dataframe(self.df, column_order=column_order)
+
+class QueryMetadataTrace:
+    """Helper class to read and display metadata about a query."""
+
+    def __init__(self, metadata_dir: str):
+        self.metadata_dir = metadata_dir
+        self.query_plan = None
+        self.readdata()
+
+    def readdata(self):
+        f = os.path.join(self.metadata_dir, "query_plan.pickle")
+        if os.path.isfile(f):
+            with open(f, "rb") as file:
+                self.query_plan = pickle.load(file)
+    
+    def get_node_to_description(self) -> dict[str, str]:
+        if self.query_plan is None:
+            return {}
+        result = dict()
+        for node_id, node in self.query_plan.nodes.items():
+            # st.write(str(type(node.description)))
+            result[str(node_id)]  = node.description
+        return result
+
+    def show(self):
+        if self.query_plan is not None:
+            st.write(f"Query: {self.query_plan.query}")
+            with st.expander("Query plan"):
+                st.write(self.query_plan)
+        else:
+            st.write("No query plan found")
 
 
 class QueryTrace:
@@ -261,11 +295,20 @@ class QueryTrace:
 
     def __init__(self, trace_dir: str):
         self.trace_dir = trace_dir
-        self.node_traces = [QueryNodeTrace(trace_dir, node_id) for node_id in sorted(os.listdir(self.trace_dir))]
+        self.node_traces = []
+        for dir in sorted(os.listdir(self.trace_dir)):
+            if "metadata" not in dir:
+                self.node_traces += [QueryNodeTrace(trace_dir, dir)]
+            self.metadata = QueryMetadataTrace(self.trace_dir + "/" + dir)
 
     def show(self):
+        node_descriptions = dict()
+        if self.metadata:
+            self.metadata.show()
+            node_descriptions = self.metadata.get_node_to_description()
+        st.write(node_descriptions)
         for node_trace in self.node_traces:
-            node_trace.show()
+            node_trace.show(node_descriptions)
 
 
 @st.fragment

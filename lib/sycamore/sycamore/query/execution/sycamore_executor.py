@@ -1,4 +1,5 @@
 import os
+import pickle
 import traceback
 import uuid
 from typing import Any, Dict, List, Optional
@@ -74,6 +75,7 @@ class SycamoreExecutor:
         self.processed: Dict[int, Any] = dict()
         self.dry_run = dry_run
         self.codegen_mode = codegen_mode
+
 
         if self.trace_dir and not self.dry_run:
             log.info("Using trace directory: %s", trace_dir)
@@ -257,12 +259,23 @@ class SycamoreExecutor:
 """
         return result
 
+    def _write_metadata_to_trace_dir(self, plan: LogicalPlan, query_id: str):
+        path = os.path.join(self.trace_dir, f"{query_id}/metadata/")
+        os.makedirs(path, exist_ok=True)
+        with open(os.path.join(path, "query_plan.pickle"), "wb") as f:
+            pickle.dump(plan, f)
+
     def execute(self, plan: LogicalPlan, query_id: Optional[str] = None) -> Any:
         try:
             """Execute a logical plan using Sycamore."""
             if not query_id:
                 query_id = str(uuid.uuid4())
             bind_contextvars(query_id=query_id)
+
+            log.info("Writing query metadata")
+            if self.trace_dir:
+                self._write_metadata_to_trace_dir(plan, query_id)
+
             log.info("Executing query")
             assert isinstance(plan.result_node, LogicalOperator)
             result = self.process_node(plan.result_node, query_id)

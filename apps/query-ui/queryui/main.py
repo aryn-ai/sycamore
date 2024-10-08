@@ -35,6 +35,7 @@ def ray_init(**ray_args):
 
 def main():
     argparser = argparse.ArgumentParser()
+    argparser.add_argument("--exec-mode", type=str, default="ray", help="Configure Sycamore execution mode.")
     argparser.add_argument("--chat", action="store_true", help="Only show the chat demo pane.")
     argparser.add_argument(
         "--index", help="OpenSearch index name to use. If specified, only this index will be queried."
@@ -83,8 +84,11 @@ def main():
             trace_dir = args.trace_dir
         cmdline_args.extend(["--trace-dir", trace_dir])
 
-    ray_init()
-
+    if args.exec_mode == "ray":
+        ray_init()
+        cmdline_args.extend(["--external-ray"])
+    elif args.exec_mode == "local":
+        cmdline_args.extend(["--local-mode"])
     while True:
         print("Starting streamlit process...", flush=True)
         # Streamlit requires the -- separator to separate streamlit arguments from script arguments.

@@ -31,31 +31,12 @@ class OcrModel(TextExtractor):
     def get_boxes_and_text(self, image: Image.Image) -> list[dict[str, Any]]:
         pass
 
-    def parse_ocr_output(self, ocr_output: list[dict[str, Any]], width, height) -> list[Element]:
-        texts: list[Element] = []
-        for obj in ocr_output:
-            obj_bbox = obj.get("bbox")
-            obj_text = obj.get("text")
-            if obj_bbox and not obj_bbox.is_empty() and obj_text:
-                text = Element()
-                text.type = "text"
-                text.bbox = BoundingBox(
-                    obj_bbox.x1 / width,
-                    obj_bbox.y1 / height,
-                    obj_bbox.x2 / width,
-                    obj_bbox.y2 / height,
-                )
-                text.text_representation = obj_text
-                texts.append(text)
-        return texts
-
     @timetrace("OCRPageEx")
     def extract_page(self, page: Optional[Union["PDFPage", "Image.Image"]]) -> list[Element]:
         assert isinstance(page, Image.Image)
         ocr_output = self.get_boxes_and_text(page)
         width, height = page.size
-        texts: list[Element] = self.parse_ocr_output(ocr_output, width, height)
-        return texts
+        return self.parse_output(ocr_output, width, height)
 
     @timetrace("OCRDocEx")
     def extract_document(
@@ -66,17 +47,17 @@ class OcrModel(TextExtractor):
             return cached_result
         with tempfile.TemporaryDirectory() as tempdirname:  # type: ignore
             filename = cast(str, filename)
-            images = kwargs.get("images")
-            generator = (image for image in images) if images else pdf_to_image_files(filename, Path(tempdirname))
+            if images := kwargs.get("images"):
+                generator = (image for image in images)
+            else:
+                generator = pdf_to_image_files(filename, Path(tempdirname))
             pages = []
-            for image_file in generator:
-                if isinstance(image_file, Image.Image):
-                    image = image_file
-                else:
-                    image = Image.open(image_file).convert("RGB")
+            for image in generator:
+                if not isinstance(image, Image.Image):
+                    image = Image.open(image).convert("RGB")
                 ocr_output = self.get_boxes_and_text(image)
                 width, height = image.size
-                texts: list[Element] = self.parse_ocr_output(ocr_output, width, height)
+                texts: list[Element] = self.parse_output(ocr_output, width, height)
                 pages.append(texts)
             if use_cache:
                 logger.info("Cache Miss for OCR. Storing the result to the cache.")
@@ -173,7 +154,7 @@ class PaddleOcr(OcrModel):
     # NOTE: Also requires the installation of paddlepaddle or paddlepaddle-gpu
     # depending on your system
     @requires_modules(["paddleocr", "paddle"], extra="local-inference")
-    def __init__(self, language="en"):
+    def __init__(self, language="en", slice_kwargs={}):
         from paddleocr import PaddleOCR
         from paddleocr.ppocr.utils.logging import get_logger
         import paddle
@@ -182,8 +163,12 @@ class PaddleOcr(OcrModel):
         self.use_gpu = paddle.device.is_compiled_with_cuda()
         self.language = language
         self.reader = PaddleOCR(lang=self.language, use_gpu=self.use_gpu)
+        self.slice_kwargs = slice_kwargs
 
-    def get_text(self, image: Image.Image) -> str:
+    def get_text(
+        self,
+        image: Image.Image,
+    ) -> str:
         bytearray = BytesIO()
         image.save(bytearray, format="BMP")
         result = self.reader.ocr(bytearray.getvalue(), rec=True, det=True, cls=False)
@@ -192,10 +177,39 @@ class PaddleOcr(OcrModel):
             return " ".join(text_values)
         return ""
 
+    def set_slicing_parameters(self, image_width, image_height) -> dict[str, Any]:
+        slicing_params = {}
+        slice_threshold = self.slice_kwargs.get("slice_threshold", 1000)  # Only slice big images
+        if image_width * image_height > slice_threshold ^ 2:
+            merge_threshold = self.slice_kwargs.get("image_threshold", 1000)
+            default_horizontal_stride = self.slice_kwargs.get("horizontal_stride", 300)  # pixels
+            default_vertical_stride = self.slice_kwargs.get("vertical_stride", 500)  # pixels
+
+            # Adjust strides if they exceed image dimensions
+            horizontal_stride = min(default_horizontal_stride, image_width)
+            vertical_stride = min(default_vertical_stride, image_height)
+
+            # Set merge thresholds
+            merge_x_thres = merge_threshold
+            merge_y_thres = merge_threshold
+
+            # Compile slicing parameters
+            slicing_params = {
+                "horizontal_stride": horizontal_stride,
+                "vertical_stride": vertical_stride,
+                "merge_x_thres": merge_x_thres,
+                "merge_y_thres": merge_y_thres,
+            }
+
+        return slicing_params
+
     def get_boxes_and_text(self, image: Image.Image) -> list[dict[str, Any]]:
         bytearray = BytesIO()
         image.save(bytearray, format="BMP")
-        result = self.reader.ocr(bytearray.getvalue(), rec=True, det=True, cls=False)
+        width, height = image.size
+        result = self.reader.ocr(
+            bytearray.getvalue(), rec=True, det=True, cls=False, slice=self.set_slicing_parameters(width, height)
+        )
         out: list[dict[str, Any]] = []
         if not result or not result[0]:
             return out

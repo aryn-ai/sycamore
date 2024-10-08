@@ -1,4 +1,4 @@
-from sycamore.data import Element, BoundingBox
+from sycamore.data import Element
 from sycamore.utils.cache import DiskCache
 from typing import BinaryIO, Tuple, cast, Generator, TYPE_CHECKING, Union, Optional, Any
 from pathlib import Path
@@ -24,10 +24,10 @@ class PdfMinerExtractor(TextExtractor):
         from pdfminer.layout import LAParams
         from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
 
-        self.rm = PDFResourceManager()
-        self.param = LAParams()
-        self.device = PDFPageAggregator(self.rm, laparams=self.param)
-        self.interpreter = PDFPageInterpreter(self.rm, self.device)
+        rm = PDFResourceManager()
+        param = LAParams()
+        self.device = PDFPageAggregator(rm, laparams=param)
+        self.interpreter = PDFPageInterpreter(rm, self.device)
 
     @staticmethod
     @requires_modules(["pdfminer", "pdfminer.utils"], extra="local-inference")
@@ -73,31 +73,17 @@ class PdfMinerExtractor(TextExtractor):
             return pages
 
     @timetrace("PdfMinerPageEx")
-    def extract_page(
-        self, page: Optional[Union["PDFPage", "Image"]] = None, page_data: list[tuple[Any, Any, Any, Any]] = []
-    ) -> list[Element]:
+    def extract_page(self, page: Optional[Union["PDFPage", "Image"]] = None) -> list[Element]:
         from pdfminer.pdfpage import PDFPage
 
-        texts: list[Element] = []
-        if page:
-            assert isinstance(page, PDFPage)
-            self.interpreter.process_page(page)
-            page_layout = self.device.get_result()
-            width = page_layout.width
-            height = page_layout.height
-            page_data = []
-            for obj in page_layout:
-                if hasattr(obj, "get_text"):
-                    page_data.append((obj.bbox, obj.get_text(), width, height))
-        for bbox, bbox_text, width, height in page_data:
-            x1, y1, x2, y2 = self._convert_bbox_coordinates(bbox, height)
-            text = Element()
-            text.type = "text"
-            text.bbox = BoundingBox(x1 / width, y1 / height, x2 / width, y2 / height)
-            text.text_representation = bbox_text
-            if text.text_representation:
-                texts.append(text)
-        return texts
+        assert isinstance(page, PDFPage)
+        page_data: list[dict[str, Any]] = []
+        self.interpreter.process_page(page)
+        page_layout = self.device.get_result()
+        for obj in page_layout:
+            if hasattr(obj, "get_text"):
+                page_data.append({"bbox": obj.bbox, "text": obj.get_text()})
+        return self.parse_output(page_data, page_layout.width, page_layout.height)
 
     def __name__(self):
         return "PdfMinerExtractor"

@@ -1,4 +1,4 @@
-from sycamore.data import Element
+from sycamore.data import Element, BoundingBox
 from sycamore.utils.cache import DiskCache
 from typing import BinaryIO, Tuple, cast, Generator, TYPE_CHECKING, Union, Optional, Any
 from pathlib import Path
@@ -82,7 +82,12 @@ class PdfMinerExtractor(TextExtractor):
         page_layout = self.device.get_result()
         for obj in page_layout:
             if hasattr(obj, "get_text"):
-                page_data.append({"bbox": obj.bbox, "text": obj.get_text()})
+                page_data.append(
+                    {
+                        "bbox": BoundingBox(obj.bbox[0][0], obj.bbox[0][1], obj.bbox[2][0], obj.bbox[2][1]),
+                        "text": obj.get_text(),
+                    }
+                )
         return self.parse_output(page_data, page_layout.width, page_layout.height)
 
     def __name__(self):

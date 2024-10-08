@@ -43,6 +43,10 @@ class _PyArrowFsHelper:
         self._fs.create_dir(str(path))
 
 
+def _success_path(base_path: Path) -> Path:
+    return base_path / "materialize.success"
+
+
 class Materialize(UnaryNode):
     def __init__(
         self,
@@ -214,7 +218,7 @@ class Materialize(UnaryNode):
         return ret
 
     def _success_path(self):
-        return self._root / "materialize.success"
+        return _success_path(self._root)
 
     def finalize(self):
         if not self._executed_child:
@@ -286,6 +290,10 @@ class AutoMaterialize(NodeTraverse):
        a = AutoMaterialize({"root":Path|str, fs=pyarrow.fs, name=fn, clean=bool, tobin=fn})
        ctx.rewrite_rules.append(a)
 
+       # The source_mode can be passed to AutoMaterialize, which will in turn be passed to all
+       # created materialize nodes. To use each materialized node as a source:
+       ctx.rewrite_rules.append(AutoMaterialize(source_mode=MaterializeSourceMode.USE_STORED)
+
     Nodes in the plan will automatically be named. You can specify a name by defining it for the node:
        ctx = sycamore.init()
        ds = ctx.read.document(docs, materialize={"name": "reader"}).map(noop_fn, materialize={"name": "noop"})
@@ -293,7 +301,7 @@ class AutoMaterialize(NodeTraverse):
        # NOTE: automatic names are not guaranteed to be stable
     """
 
-    def __init__(self, path: Union[str, Path, dict] = {}):
+    def __init__(self, path: Union[str, Path, dict] = {}, source_mode=MaterializeSourceMode.RECOMPUTE):
         super().__init__()
         if isinstance(path, str) or isinstance(path, Path):
             path = {"root": path}
@@ -304,6 +312,7 @@ class AutoMaterialize(NodeTraverse):
 
         self._choose_directory(path)
         self._basename_to_count: dict[str, int] = {}
+        self._source_mode = source_mode
 
     def once(self, context, node):
         self._name_unique = set()
@@ -341,12 +350,18 @@ class AutoMaterialize(NodeTraverse):
         def visit(node):
             if isinstance(node, Materialize):
                 return
+
             materialize = node.properties["materialize"]
             materialize.pop("mark", None)
 
             path = self._directory / materialize["name"]
 
             if not self._path["clean"]:
+                return
+
+            if self._source_mode == MaterializeSourceMode.USE_STORED and self._fshelper.file_exists(
+                _success_path(path)
+            ):
                 return
 
             self._fshelper.safe_cleanup(path)
@@ -372,7 +387,7 @@ class AutoMaterialize(NodeTraverse):
             path["root"] = self._directory / materialize["name"]
             materialize["mark"] = True
             materialize["count"] = materialize.get("count", 0) + 1
-            return Materialize(node, context, path=path)
+            return Materialize(node, context, path=path, source_mode=self._source_mode)
 
         return before
 

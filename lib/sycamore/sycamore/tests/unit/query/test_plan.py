@@ -159,7 +159,7 @@ def vector_search_filter_plan():
 
 
 def get_logical_plan(plan):
-    result_node, nodes = process_json_plan(plan)
+    result_node, nodes = process_json_plan(plan, postProcess = False)
     plan = LogicalPlan(result_node=result_node, nodes=nodes, query="", llm_prompt="", llm_plan="")
     return plan
 

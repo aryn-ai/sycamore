@@ -144,7 +144,7 @@ def test_vector_query_database():
         mock_docset_reader_impl.opensearch.assert_called_once_with(
             index_name=context.params["opensearch"]["index_name"],
             query={"query": {"knn": {"embedding": {"vector": embedding, "k": 500, "filter": os_filter}}}},
-            reconstruct_document=True
+            reconstruct_document=True,
         )
 
 

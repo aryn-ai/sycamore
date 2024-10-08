@@ -1,7 +1,7 @@
 import pytest
 import logging
-
-from sycamore.plan_nodes import Node, NodeTraverse
+from io import StringIO
+from sycamore.plan_nodes import Node, NodeTraverse, print_plan
 
 
 class MockNode(Node):
@@ -241,3 +241,21 @@ class TestTraverse:
 
         assert isinstance(n, One)
         n.traverse(before=assert_alternate)
+
+
+def test_print_plan(mock_a_dag):
+    root_node, _, _, _, _ = mock_a_dag
+
+    io_str = StringIO()
+    print_plan(root_node, stream=io_str)
+    plan_str = io_str.getvalue()
+    plan_arr = plan_str.rstrip().split("\n")
+
+    # We assert this way to make the test resilient to
+    # property changes.
+    assert len(plan_arr) == 5
+    assert plan_arr[0].startswith("MockNode")
+    assert plan_arr[1].startswith("  MockNode")
+    assert plan_arr[2].startswith("    MockNode")
+    assert plan_arr[3].startswith("  MockNode")
+    assert plan_arr[4].startswith("    MockNode")

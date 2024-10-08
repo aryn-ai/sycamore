@@ -40,7 +40,6 @@ integration = { path = "apps/integration", develop = true }
 sycamore-poetry-lock = { path = "lib/poetry-lock", develop = true }
 aryn-sdk = { path = "lib/aryn-sdk", develop = true }
 queryui = { path = "apps/query-ui", develop = true }
-query-demo = { path = "apps/query-demo", develop = true }
 ruff = "^0.0.287"
 black = "^24.4"
 pre-commit = "^3.4.0"
@@ -120,6 +119,9 @@ sycamore-ai = { path = "lib/sycamore", develop = true, extras = ["opensearch"] }
 
 [tool.poetry.group.pinecone.dependencies]
 sycamore-ai = { path = "lib/sycamore", develop = true, extras = ["pinecone"] }
+
+[tool.poetry.group.qdrant.dependencies]
+sycamore-ai = { path = "lib/sycamore", develop = true, extras = ["qdrant"] }
 
 [tool.poetry.group.weaviate.dependencies]
 sycamore-ai = { path = "lib/sycamore", develop = true, extras = ["weaviate"] }

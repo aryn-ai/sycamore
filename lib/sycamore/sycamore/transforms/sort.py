@@ -31,6 +31,20 @@ class Sort(Transform):
         ds = ds.drop_columns(["key"])
         return ds
 
+    def local_execute(self, all_docs: list[Document]) -> list[Document]:
+        def get_sort_key(doc, field, default_val):
+            field_value = doc.field_to_value(field)
+            if field_value is not None:
+                return field_value
+            if default_val is None:
+                raise ValueError("default_value cannot be None")
+            return default_val
+
+        sorted_docs = sorted(
+            all_docs, key=lambda doc: get_sort_key(doc, self._field, self._default_val), reverse=self._descending
+        )
+        return sorted_docs
+
     def make_map_fn_sort(self):
         def ray_callable(input_dict: dict[str, Any]) -> dict[str, Any]:
             doc = Document.from_row(input_dict)

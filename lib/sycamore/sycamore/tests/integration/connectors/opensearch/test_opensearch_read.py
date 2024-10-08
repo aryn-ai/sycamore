@@ -4,7 +4,6 @@ import pytest
 from opensearchpy import OpenSearch
 
 import sycamore
-from sycamore import ExecMode
 from sycamore.connectors.common import compare_docs
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
@@ -54,13 +53,13 @@ class TestOpenSearchRead:
         "timeout": 120,
     }
 
-    def test_ingest_and_read(self, setup_index):
+    def test_ingest_and_read(self, setup_index, exec_mode):
         """
         Validates data is readable from OpenSearch, and that we can rebuild processed Sycamore documents.
         """
 
         path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
-        context = sycamore.init(exec_mode=ExecMode.LOCAL)
+        context = sycamore.init(exec_mode=exec_mode)
         original_docs = (
             context.read.binary(path, binary_format="pdf")
             .partition(partitioner=UnstructuredPdfPartitioner())
@@ -107,3 +106,6 @@ class TestOpenSearchRead:
         assert len(retrieved_materialized_reconstructed) == 1
         doc = retrieved_materialized_reconstructed[0]
         assert len(doc.elements) == len(retrieved_materialized) - 1  # drop the document parent record
+
+        for i in range(len(doc.elements) - 1):
+            assert doc.elements[i].element_index < doc.elements[i + 1].element_index

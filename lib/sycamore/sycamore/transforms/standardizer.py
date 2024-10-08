@@ -13,6 +13,7 @@ class Standardizer(ABC):
     """
     An abstract base class for implementing standardizers, which are responsible for
     transforming specific fields within a document according to certain rules.
+
     """
 
     @abstractmethod
@@ -51,6 +52,16 @@ class USStateStandardizer(Standardizer):
     """
     A standardizer for transforming US state abbreviations in text to their full state names.
     Transforms substrings matching a state abbreviation to the full state name.
+
+    Example:
+        .. code-block:: python
+
+            source_docset = ...  # Define a source node or component that provides hierarchical documents.
+            transformed_docset = source_docset.map(
+                lambda doc: USStateStandardizer.standardize(
+                    doc,
+                    key_path = ["path","to","location"]))
+
     """
 
     state_abbreviations = {
@@ -157,6 +168,16 @@ class USStateStandardizer(Standardizer):
 class DateTimeStandardizer(Standardizer):
     """
     A standardizer for transforming date and time strings into a consistent format.
+
+
+    Example:
+        .. code-block:: python
+
+            source_docset = ...  # Define a source node or component that provides hierarchical documents.
+            transformed_docset = source_docset.map(
+                lambda doc: USStateStandardizer.standardize(
+                    doc,
+                    key_path = ["path","to","datetime"]))
     """
 
     DEFAULT_FORMAT = "%B %d, %Y %H:%M:%S%Z"

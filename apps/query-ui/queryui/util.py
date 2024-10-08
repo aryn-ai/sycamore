@@ -284,8 +284,7 @@ class QueryMetadataTrace:
     def show(self):
         if self.query_plan is not None:
             st.write(f"Query: {self.query_plan.query}")
-            with st.expander("Query plan"):
-                st.write(self.query_plan)
+            st.write(self.query_plan)
         else:
             st.write("No query plan found")
 
@@ -303,12 +302,14 @@ class QueryTrace:
 
     def show(self):
         node_descriptions = dict()
-        if self.metadata:
-            self.metadata.show()
-            node_descriptions = self.metadata.get_node_to_description()
-        st.write(node_descriptions)
-        for node_trace in self.node_traces:
-            node_trace.show(node_descriptions)
+        tab1, tab2 = st.tabs(["Node data", "Query plan"])
+        with tab1:
+            for node_trace in self.node_traces:
+                node_trace.show(node_descriptions)
+        with tab2:
+            if self.metadata:
+                self.metadata.show()
+                node_descriptions = self.metadata.get_node_to_description()
 
 
 @st.fragment

@@ -301,4 +301,9 @@ class CompositeTransform(UnaryNode):
         return outputs
 
     def execute(self, **kwargs) -> "Dataset":
+        from sycamore.executor import visit_parallelism
+
+        for n in self.nodes:
+            visit_parallelism(n)
+
         return self.nodes[-1].execute()

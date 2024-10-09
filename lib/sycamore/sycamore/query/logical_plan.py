@@ -5,7 +5,7 @@ from typing import Any, List, Mapping, Optional
 from hashlib import sha256
 
 
-from pydantic import BaseModel, ConfigDict, SerializeAsAny
+from pydantic import BaseModel, ConfigDict, SerializeAsAny, computed_field
 
 
 def exclude_from_comparison(func):
@@ -33,6 +33,9 @@ class Node(BaseModel):
     node_id: int
     """A unique integer ID representing this node."""
 
+    description: Optional[str] = None
+    """A detailed description of why this operator was chosen for this query plan."""
+
     # These are underscored here to prevent them from leaking out to the
     # input_schema used by the planner.
 
@@ -40,15 +43,23 @@ class Node(BaseModel):
     _downstream_nodes: List["Node"] = []
     _cache_key: Optional[str] = None
 
-    @property
-    def dependencies(self) -> Optional[List["Node"]]:
+    def get_dependencies(self) -> List["Node"]:
         """The nodes that this node depends on."""
         return self._dependencies
 
-    @property
-    def downstream_nodes(self) -> Optional[List["Node"]]:
+    def get_downstream_nodes(self) -> List["Node"]:
         """The nodes that depend on this node."""
         return self._downstream_nodes
+
+    @property
+    @computed_field
+    def dependencies(self) -> List[int]:
+        return [dep.node_id for dep in self._dependencies]
+
+    @property
+    @computed_field
+    def downstream_nodes(self) -> List[int]:
+        return [dep.node_id for dep in self._downstream_nodes]
 
     def __str__(self) -> str:
         return f"Id: {self.node_id} Op: {type(self).__name__}"

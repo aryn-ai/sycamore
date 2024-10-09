@@ -96,7 +96,9 @@ class SycamoreQueryDatabase(SycamoreOperator):
             os_query = {"query": self.logical_node.query}
         else:
             os_query = {}
-        result = self.context.read.opensearch(index_name=self.logical_node.index, query=os_query)
+        result = self.context.read.opensearch(
+            index_name=self.logical_node.index, query=os_query, reconstruct_document=True
+        )
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
@@ -108,7 +110,7 @@ class SycamoreQueryDatabase(SycamoreOperator):
         return (
             f"""
 {output_var or get_var_name(self.logical_node)} = context.read.opensearch(
-    index_name='{self.logical_node.index}', query={os_query}
+    index_name='{self.logical_node.index}', query={os_query}, reconstruct_document=True
 )
 """,
             [],
@@ -141,7 +143,9 @@ class SycamoreQueryVectorDatabase(SycamoreOperator):
         os_query = get_knn_query(query_phrase=self.logical_node.query_phrase, context=self.context)
         if self.logical_node.opensearch_filter:
             os_query["query"]["knn"]["embedding"]["filter"] = self.logical_node.opensearch_filter
-        result = self.context.read.opensearch(index_name=self.logical_node.index, query=os_query)
+        result = self.context.read.opensearch(
+            index_name=self.logical_node.index, query=os_query, reconstruct_document=True
+        ).rerank(query=self.logical_node.query_phrase)
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
@@ -153,8 +157,9 @@ os_query["query"]["knn"]["embedding"]["filter"] = {self.logical_node.opensearch_
         result += f"""
 {output_var or get_var_name(self.logical_node)} = context.read.opensearch(
     index_name='{self.logical_node.index}', 
-    query=os_query
-)
+    query=os_query,
+    reconstruct_document=True
+).rerank(query={self.logical_node.query_phrase})
 """
         return (
             result,
@@ -198,12 +203,12 @@ class SycamoreSummarizeData(SycamoreOperator):
         assert isinstance(self.logical_node, SummarizeData)
         question = self.logical_node.question
         description = self.logical_node.description
-        assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) >= 1
+        assert self.logical_node.get_dependencies() is not None and len(self.logical_node.get_dependencies()) >= 1
 
         logical_deps_str = ""
-        for i, inp in enumerate(self.logical_node.dependencies):
+        for i, inp in enumerate(self.logical_node.get_dependencies()):
             logical_deps_str += input_var or get_var_name(inp)
-            if i != len(self.logical_node.dependencies) - 1:
+            if i != len(self.logical_node.get_dependencies()) - 1:
                 logical_deps_str += ", "
 
         result = f"""
@@ -223,7 +228,8 @@ class SycamoreSummarizeData(SycamoreOperator):
 class SycamoreLlmFilter(SycamoreOperator):
     """
     Use an LLM to filter records on a Docset.
-    Args:
+    If field == text_representation, the filter is run
+    on the elements of the document (i.e. use_elements = True)
     """
 
     def __init__(
@@ -245,7 +251,7 @@ class SycamoreLlmFilter(SycamoreOperator):
                 context=self.context, val_key="llm", param_names=[OperationTypes.BINARY_CLASSIFIER.value]
             ),
             LLM,
-        ), "LLMFilter requies an 'llm' configured on the Context"
+        ), "SyamoreLlmFilter requires an 'llm' configured on the Context"
         question = self.logical_node.question
         field = self.logical_node.field
 
@@ -257,14 +263,15 @@ class SycamoreLlmFilter(SycamoreOperator):
             new_field="_autogen_LLMFilterOutput",
             prompt=prompt,
             field=field,
+            use_elements=(field == "text_representation"),
             **self.get_node_args(),
         )
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
-        assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) == 1
+        assert self.logical_node.get_dependencies() is not None and len(self.logical_node.get_dependencies()) == 1
         assert isinstance(self.logical_node, LlmFilter)
-        input_str = input_var or get_var_name(self.logical_node.dependencies[0])
+        input_str = input_var or get_var_name(self.logical_node.get_dependencies()[0])
         output_str = output_var or get_var_name(self.logical_node)
         result = f"""
 prompt = LlmFilterMessagesPrompt(filter_question='{self.logical_node.question}').as_messages()
@@ -272,6 +279,7 @@ prompt = LlmFilterMessagesPrompt(filter_question='{self.logical_node.question}')
     new_field='_autogen_LLMFilterOutput',
     prompt=prompt,
     field='{self.logical_node.field}',
+    use_elements={(self.logical_node.field == "text_representation")},
     **{self.get_node_args()},
 )
 """
@@ -321,10 +329,10 @@ class SycamoreBasicFilter(SycamoreOperator):
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         assert isinstance(self.logical_node, BasicFilter)
-        assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) == 1
+        assert self.logical_node.get_dependencies() is not None and len(self.logical_node.get_dependencies()) == 1
         imports: list[str] = []
 
-        input_str = input_var or get_var_name(self.logical_node.dependencies[0])
+        input_str = input_var or get_var_name(self.logical_node.get_dependencies()[0])
         output_str = output_var or get_var_name(self.logical_node)
         if self.logical_node.range_filter:
             field = self.logical_node.field
@@ -391,15 +399,15 @@ class SycamoreCount(SycamoreOperator):
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         assert isinstance(self.logical_node, Count)
-        assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) == 1
+        assert self.logical_node.get_dependencies() is not None and len(self.logical_node.get_dependencies()) == 1
         distinct_field = self.logical_node.distinct_field
 
         imports: list[str] = []
         script = f"""{output_var or get_var_name(self.logical_node)} ="""
         if distinct_field is None:
-            script += f"""{input_var or get_var_name(self.logical_node.dependencies[0])}.count("""
+            script += f"""{input_var or get_var_name(self.logical_node.get_dependencies()[0])}.count("""
         else:
-            script += f"""{input_var or get_var_name(self.logical_node.dependencies[0])}.count_distinct("""
+            script += f"""{input_var or get_var_name(self.logical_node.get_dependencies()[0])}.count_distinct("""
             script += f"""field='{distinct_field}', """
         script += f"""**{get_str_for_dict(self.get_execute_args())})"""
         return script, imports
@@ -432,7 +440,7 @@ class SycamoreLlmExtractEntity(SycamoreOperator):
                 context=self.context, val_key="llm", param_names=[OperationTypes.INFORMATION_EXTRACTOR.value]
             ),
             LLM,
-        ), "LLMExtractEntity requies an 'llm' configured on the Context"
+        ), "LLMExtractEntity requires an 'llm' configured on the Context"
 
         question = logical_node.question
         new_field = logical_node.new_field
@@ -446,7 +454,7 @@ class SycamoreLlmExtractEntity(SycamoreOperator):
 
         entity_extractor = OpenAIEntityExtractor(
             entity_name=new_field,
-            use_elements=False,
+            use_elements=True,
             prompt=prompt,
             field=field,
         )
@@ -461,9 +469,9 @@ class SycamoreLlmExtractEntity(SycamoreOperator):
         field = logical_node.field
         fmt = logical_node.new_field_type
         discrete = logical_node.discrete
-        assert logical_node.dependencies is not None and len(logical_node.dependencies) == 1
+        assert logical_node.get_dependencies() is not None and len(logical_node.get_dependencies()) == 1
 
-        input_str = input_var or get_var_name(logical_node.dependencies[0])
+        input_str = input_var or get_var_name(logical_node.get_dependencies()[0])
         output_str = output_var or get_var_name(logical_node)
 
         result = f"""
@@ -473,7 +481,7 @@ prompt = EntityExtractorMessagesPrompt(
 
 entity_extractor = OpenAIEntityExtractor(
     entity_name='{new_field}',
-    use_elements=False,
+    use_elements=True,
     prompt=prompt,
     field='{field}',
 )
@@ -524,10 +532,10 @@ class SycamoreSort(SycamoreOperator):
         descending = logical_node.descending
         field = logical_node.field
         default_value = logical_node.default_value
-        assert logical_node.dependencies is not None and len(logical_node.dependencies) == 1
+        assert logical_node.get_dependencies() is not None and len(logical_node.get_dependencies()) == 1
 
         result = f"""
-{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(logical_node.dependencies[0])}.sort(
+{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(logical_node.get_dependencies()[0])}.sort(
     descending={descending},
     field='{field}'
     default_val={default_value}
@@ -538,6 +546,7 @@ class SycamoreSort(SycamoreOperator):
 
 class SycamoreTopK(SycamoreOperator):
     """
+    Note: top_k clustering only operators on properties, it will not cluster on text_representation currently.
     Return the Top-K values from a DocSet
     """
 
@@ -550,6 +559,9 @@ class SycamoreTopK(SycamoreOperator):
         trace_dir: Optional[str] = None,
     ) -> None:
         super().__init__(context, logical_node, query_id, inputs, trace_dir=trace_dir)
+        assert (
+            self.logical_node.primary_field != "text_representation"  # type: ignore[attr-defined]
+        ), "TopK can only operate on properties"
 
     def execute(self) -> Any:
         assert self.inputs and len(self.inputs) == 1, "TopK requires 1 input node"
@@ -580,10 +592,10 @@ class SycamoreTopK(SycamoreOperator):
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         logical_node = self.logical_node
         assert isinstance(logical_node, TopK)
-        assert logical_node.dependencies is not None and len(logical_node.dependencies) == 1
+        assert logical_node.get_dependencies() is not None and len(logical_node.get_dependencies()) == 1
 
         result = f"""
-{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(logical_node.dependencies[0])}.top_k(
+{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(logical_node.get_dependencies()[0])}.top_k(
     field='{logical_node.field}',
     k={logical_node.K},
     descending={logical_node.descending},
@@ -636,15 +648,15 @@ class SycamoreFieldIn(SycamoreOperator):
         assert isinstance(logical_node, FieldIn)
         field1 = logical_node.field_one
         field2 = logical_node.field_two
-        assert logical_node.dependencies is not None and len(logical_node.dependencies) == 2
+        assert logical_node.get_dependencies() is not None and len(logical_node.get_dependencies()) == 2
 
         result = f"""
-{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(logical_node.dependencies[0])}.field_in(
-    docset2={input_var or get_var_name(logical_node.dependencies[2])},
+{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(logical_node.get_dependencies()[0])}.field_in(
+    docset2={input_var or get_var_name(logical_node.get_dependencies()[2])},
     field1='{field1}',
     field2='{field2}'
 )
-"""
+"""  # noqa: E501
         return result, []
 
 
@@ -676,10 +688,10 @@ class SycamoreLimit(SycamoreOperator):
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         logical_node = self.logical_node
         assert isinstance(logical_node, Limit)
-        assert logical_node.dependencies is not None and len(logical_node.dependencies) == 1
+        assert logical_node.get_dependencies() is not None and len(logical_node.get_dependencies()) == 1
 
         result = f"""
-{output_var or get_var_name(logical_node)} = {input_var or get_var_name(logical_node.dependencies[0])}.limit(
+{output_var or get_var_name(logical_node)} = {input_var or get_var_name(logical_node.get_dependencies()[0])}.limit(
     {logical_node.num_records},
     **{get_str_for_dict(self.get_execute_args())},
 )

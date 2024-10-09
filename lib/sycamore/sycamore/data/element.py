@@ -89,6 +89,21 @@ class Element(UserDict):
         }
         return json.dumps(d, indent=2)
 
+    def field_to_value(self, field: str) -> Any:
+        """
+        Extracts the value for a particular element field.
+
+        Args:
+            field: The field in dotted notation to indicate nesting, e.g. properties.schema
+
+        Returns:
+            The value associated with the document field.
+            Returns None if field does not exist in document.
+        """
+        from sycamore.utils.nested import dotted_lookup
+
+        return dotted_lookup(self, field)
+
 
 class ImageElement(Element):
     def __init__(

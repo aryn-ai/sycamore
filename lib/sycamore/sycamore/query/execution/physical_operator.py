@@ -82,12 +82,12 @@ class MathOperator(PhysicalOperator):
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         assert isinstance(self.logical_node, Math)
-        assert self.logical_node.dependencies is not None and len(self.logical_node.dependencies) == 2
+        assert self.logical_node.get_dependencies() is not None and len(self.logical_node.get_dependencies()) == 2
         operator = self.logical_node.operation
         result = f"""
 {output_var or get_var_name(self.logical_node)} = math_operation(
-    val1={input_var or get_var_name(self.logical_node.dependencies[0])},
-    val2={input_var or get_var_name(self.logical_node.dependencies[1])},
+    val1={input_var or get_var_name(self.logical_node.get_dependencies()[0])},
+    val2={input_var or get_var_name(self.logical_node.get_dependencies()[1])},
     operator='{operator}'
 )
 """

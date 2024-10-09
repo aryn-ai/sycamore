@@ -17,6 +17,8 @@ from sycamore.query.planner import PlannerExample
 
 from queryui.configuration import get_sycamore_query_client
 
+from sycamore.data.document import DocumentSource
+
 
 def get_schema(_client: SycamoreQueryClient, index: str) -> Dict[str, Tuple[str, Set[str]]]:
     """Return the OpenSearch schema for the given index."""
@@ -81,7 +83,7 @@ def docset_to_string(docset: DocSet, html: bool = True) -> str:
         if isinstance(doc, MetadataDocument):
             continue
         if html:
-            retval += f"**{doc.properties.get('path')}** page: {doc.properties.get('page_number', 'meta')}  \n"
+            retval += f"**{doc.properties.get('path')}** \n"
 
             retval += "| Property | Value |\n"
             retval += "|----------|-------|\n"
@@ -96,13 +98,16 @@ def docset_to_string(docset: DocSet, html: bool = True) -> str:
             text_content = (
                 doc.text_representation[:NUM_TEXT_CHARS_GENERATE] if doc.text_representation is not None else None
             )
-            retval += f'*..."{text_content}"...* <br><br>'
+            if text_content:
+                retval += f'*..."{text_content}"...* <br><br>'
         else:
             props_dict = doc.properties.get("entity", {})
             props_dict.update({p: doc.properties[p] for p in set(doc.properties) - set(BASE_PROPS)})
             props_dict["text_representation"] = (
                 doc.text_representation[:NUM_TEXT_CHARS_GENERATE] if doc.text_representation is not None else None
             )
+            props_dict.get("_doc_source", {}).apply(lambda x: x.value if isinstance(x, DocumentSource) else x)
+
             retval += json.dumps(props_dict, indent=2) + "\n"
     return retval
 
@@ -242,17 +247,19 @@ class QueryNodeTrace:
                     data[col].append(row.get(col))
             self.df = pd.DataFrame(data)
 
-    def show(self):
+    def show(self, node):
         """Render the trace data."""
+        st.subheader(f"Node {self.node_id}")
+        st.markdown(f"*Description: {node.description if node else 'n/a'}*")
         if self.df is None or not len(self.df):
-            st.write(f"Result of node {self.node_id} — :red[0] documents")
+            st.write(":red[0] documents")
             st.write("No data.")
             return
 
         all_columns = list(self.df.columns)
         column_order = [c for c in self.COLUMNS if c in all_columns]
         column_order += [c for c in all_columns if c not in column_order]
-        st.write(f"Result of node {self.node_id} — **{len(self.df)}** documents")
+        st.write(f"**{len(self.df)}** documents")
         st.dataframe(self.df, column_order=column_order)
 
 
@@ -261,11 +268,29 @@ class QueryTrace:
 
     def __init__(self, trace_dir: str):
         self.trace_dir = trace_dir
-        self.node_traces = [QueryNodeTrace(trace_dir, node_id) for node_id in sorted(os.listdir(self.trace_dir))]
+        self.node_traces = []
+        self.query_plan = self._get_query_plan(self.trace_dir)
+        for dir in sorted(os.listdir(self.trace_dir)):
+            if "metadata" not in dir:
+                self.node_traces += [QueryNodeTrace(trace_dir, dir)]
+
+    def _get_query_plan(self, trace_dir: str):
+        metadata_dir = os.path.join(trace_dir, "metadata")
+        if os.path.isfile(os.path.join(trace_dir, "metadata", "query_plan.json")):
+            return LogicalPlan.parse_file(os.path.join(metadata_dir, "query_plan.json"))
+        return None
 
     def show(self):
-        for node_trace in self.node_traces:
-            node_trace.show()
+        tab1, tab2 = st.tabs(["Node data", "Query plan"])
+        with tab1:
+            for node_trace in self.node_traces:
+                node_trace.show(self.query_plan.nodes.get(int(node_trace.node_id), None))
+        with tab2:
+            if self.query_plan is not None:
+                st.write(f"Query: {self.query_plan.query}")
+                st.write(self.query_plan)
+            else:
+                st.write("No query plan found")
 
 
 @st.fragment

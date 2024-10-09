@@ -33,7 +33,12 @@ def test_node_cache_dict():
     assert node4.cache_dict() == {
         "operator_type": "Count",
         "dependencies": [
-            {"operator_type": "QueryDatabase", "dependencies": [], "index": "ntsb", "query": {"match_all": {}}}
+            {
+                "operator_type": "QueryDatabase",
+                "dependencies": [],
+                "index": "ntsb",
+                "query": {"match_all": {}},
+            }
         ],
         "distinct_field": "temperature",
     }

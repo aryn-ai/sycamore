@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any, Dict, Pattern
 from collections import defaultdict
 import re
 
@@ -11,6 +11,8 @@ from sycamore.functions.tokenizer import Tokenizer
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
 from sycamore.transforms.llm_query import LLMTextQueryAgent
+from sycamore.llms import LLM
+
 
 
 class ElementMerger(ABC):
@@ -443,7 +445,7 @@ class TableMerger(ElementMerger):
                 .merge(merger=merger)
     """
 
-    def __init__(self, regex_pattern=None, llm_prompt=None, llm=None, *args, **kwargs):
+    def __init__(self, regex_pattern: Optional[Pattern] = None, llm_prompt: Optional[str] = None, llm=Optional[LLM] = None, *args, **kwargs):
         self.regex_pattern = regex_pattern
         self.llm_prompt = llm_prompt
         self.llm = llm
@@ -471,9 +473,7 @@ class TableMerger(ElementMerger):
         return document
 
     def should_merge(self, element1: Element, element2: Element) -> bool:
-        if "true" in element2["properties"]["table_continuation"].lower():
-            return True
-        return False
+        return "true" in element2["properties"]["table_continuation"].lower()
 
     def merge(self, elt1: Element, elt2: Element) -> Element:
 

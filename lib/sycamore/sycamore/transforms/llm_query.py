@@ -72,7 +72,7 @@ class LLMTextQueryAgent:
                     if not self._table_cont:
                         document.elements[idx] = self._query_text_object(element)
                     else:
-                        if prev_table > 0:
+                        if prev_table >= 0:
                             document.elements[idx] = self._query_text_object(element, document.elements[prev_table])
                         else:
                             document.elements[idx] = self._query_text_object(element)
@@ -94,7 +94,7 @@ class LLMTextQueryAgent:
 
     @timetrace("LLMQueryText")
     def _query_text_object(
-        self, object: Union[Document, Element], objectPrev: Element = None
+        self, object: Union[Document, Element], objectPrev: Optional[Element] = None
     ) -> Union[Document, Element]:
         if object.text_representation:
             if self._format_kwargs:

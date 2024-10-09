@@ -559,8 +559,9 @@ class SycamoreTopK(SycamoreOperator):
         trace_dir: Optional[str] = None,
     ) -> None:
         super().__init__(context, logical_node, query_id, inputs, trace_dir=trace_dir)
-        assert (self.logical_node.primary_field !=  # type: ignore[attr-defined]
-                "text_representation"), "TopK can only operate on properties"
+        assert (
+            self.logical_node.primary_field != "text_representation"  # type: ignore[attr-defined]
+        ), "TopK can only operate on properties"
 
     def execute(self) -> Any:
         assert self.inputs and len(self.inputs) == 1, "TopK requires 1 input node"

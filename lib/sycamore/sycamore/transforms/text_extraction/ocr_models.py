@@ -67,10 +67,10 @@ class OcrModel(TextExtractor):
 
 class EasyOcr(OcrModel):
     @requires_modules("easyocr", extra="local-inference")
-    def __init__(self, lang_list=["en"]):
+    def __init__(self, lang_list=["en"], **kwargs):
         import easyocr
 
-        self.reader = easyocr.Reader(lang_list=lang_list)
+        self.reader = easyocr.Reader(lang_list=lang_list, **kwargs)
 
     def get_text(self, image: Image.Image) -> str:
         image_bytes = BytesIO()

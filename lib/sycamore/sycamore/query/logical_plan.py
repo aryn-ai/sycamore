@@ -134,9 +134,9 @@ class LogicalPlan(BaseModel):
         llm_plan: The LLM plan that was used to generate this query plan.
     """
 
-    result_node: SerializeAsAny[Node]
+    result_node: Node
     query: str
-    nodes: Mapping[int, SerializeAsAny[Node]]
+    nodes: Mapping[int, Node]
     llm_prompt: Optional[Any] = None
     llm_plan: Optional[str] = None
 
@@ -153,6 +153,15 @@ class LogicalPlan(BaseModel):
         assert 0 in self.nodes, "Plan a requires at least 1 node indexed [0]"
         assert 0 in other.nodes, "Plan b requires at least 1 node indexed [0]"
         return compare_graphs(self.nodes[0], other.nodes[0], set(), set())
+
+    def model_dump(self, **kwargs) -> dict:
+        """
+        Override pydantic model_dump to handle custom node.model_dump.
+        """
+        data = super().model_dump(**kwargs)
+        data["result_node"] = self.result_node.model_dump()
+        data["nodes"] = {node_id: node.model_dump() for node_id, node in self.nodes.items()}
+        return data
 
 
 def compare_graphs(node_a: Node, node_b: Node, visited_a: set[int], visited_b: set[int]) -> list[LogicalPlanDiffEntry]:

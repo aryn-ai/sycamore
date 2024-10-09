@@ -5,7 +5,7 @@ from typing import Any, List, Mapping, Optional
 from hashlib import sha256
 
 
-from pydantic import BaseModel, ConfigDict, SerializeAsAny
+from pydantic import BaseModel, ConfigDict, SerializeAsAny, computed_field, model_validator
 
 
 def exclude_from_comparison(func):
@@ -35,20 +35,33 @@ class Node(BaseModel):
 
     # These are underscored here to prevent them from leaking out to the
     # input_schema used by the planner.
-
     _dependencies: List["Node"] = []
     _downstream_nodes: List["Node"] = []
     _cache_key: Optional[str] = None
 
-    @property
-    def dependencies(self) -> Optional[List["Node"]]:
-        """The nodes that this node depends on."""
+    def get_dependencies(self) -> Optional[List["Node"]]:
+        """Return the nodes that this node depends on."""
         return self._dependencies
 
-    @property
-    def downstream_nodes(self) -> Optional[List["Node"]]:
-        """The nodes that depend on this node."""
+    def get_downstream_nodes(self) -> Optional[List["Node"]]:
+        """Return the nodes that depend on this node."""
         return self._downstream_nodes
+
+    @computed_field
+    def dependencies(self) -> List[int]:
+        """The IDs of the nodes that this node depends on."""
+        return [dep.node_id for dep in self._dependencies]
+
+    @computed_field
+    def downstream_nodes(self) -> List[int]:
+        """The IDs of the nodes that depend on this node."""
+        return [dep.node_id for dep in self._dependencies]
+
+    @computed_field
+    @property
+    def node_type(self) -> str:
+        """The type of the node."""
+        return type(self).__name__
 
     def __str__(self) -> str:
         return f"Id: {self.node_id} Op: {type(self).__name__}"
@@ -126,6 +139,15 @@ class LogicalPlan(BaseModel):
     nodes: Mapping[int, SerializeAsAny[Node]]
     llm_prompt: Optional[Any] = None
     llm_plan: Optional[str] = None
+
+    @model_validator(mode='before')
+    @classmethod
+    def convert_node_dependencies(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            assert (
+                'card_number' not in data
+            ), 'card_number should not be included'
+        return data
 
     def compare(self, other: "LogicalPlan") -> list[LogicalPlanDiffEntry]:
         """

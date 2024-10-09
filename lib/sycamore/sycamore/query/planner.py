@@ -78,7 +78,7 @@ PLANNER_NATURAL_LANGUAGE_PROMPT = (
 
 
 def process_json_plan(
-    plan: typing.Union[str, Any], operators: Optional[List[Type[LogicalOperator]]] = None, postProcess: bool = False
+    plan: typing.Union[str, Any], operators: Optional[List[Type[LogicalOperator]]] = None
 ) -> (Tuple)[LogicalOperator, Mapping[int, LogicalOperator]]:
     """Given the query plan provided by the LLM, return a tuple of (result_node, list of nodes)."""
     operators = operators or OPERATORS
@@ -91,13 +91,8 @@ def process_json_plan(
     nodes: MutableMapping[int, LogicalOperator] = {}
     downstream_dependencies: Dict[int, List[int]] = {}
 
-    if postProcess:
-        postprocessed_plan = postprocess_json_plan(parsed_plan)
-    else:
-        postprocessed_plan = parsed_plan
-
     # 1. Build nodes
-    for step in postprocessed_plan:
+    for step in parsed_plan:
         node_id = step["node_id"]
         cls = classes.get(step["operatorName"])
         if cls is None:
@@ -135,7 +130,7 @@ def process_json_plan(
     return result_nodes[0], nodes
 
 
-def postprocess_llm_helper(user_message: str) -> str:
+def postprocess_llm_helper(user_message: str, llm_client: LLM) -> str:
     messages = [
         {
             "role": "system",
@@ -153,11 +148,14 @@ def postprocess_llm_helper(user_message: str) -> str:
     return chat_completion
 
 
-def postprocess_json_plan(parsed_plan: Any) -> Any:
+def postprocess_plan(llm_plan: Any, llm_client: LLM) -> Any:
     """Given the query plan provided by the LLM, postprocess it using a set of rules
     that modify the plan for optimizing or other purposes."""
 
-    postprocessed_plan = copy.deepcopy(parsed_plan)
+    if isinstance(llm_plan, str):
+        postprocessed_plan = extract_json(llm_plan)
+    else:
+        postprocessed_plan = copy.deepcopy(llm_plan)
 
     # Rule 1: If the plan has a vector search in the beginning followed by a count or nothing or extract_entity,
     # we replace that by removing the vector search and adding an LLM Filter before the count
@@ -175,35 +173,31 @@ def postprocess_json_plan(parsed_plan: Any) -> Any:
                     The following is the description of a Python function. I am modifying the function code
                     to remove any functionality that has to do with "{op['query_phrase']}".
                     Return only the modified description.
-                    {op['description']}"""
+                    {op['description']}""",
+            llm_client,
         )
 
-        if "opensearch_filter" in op:
-            new_op = {
-                "operatorName": "QueryDatabase",
-                "description": modified_description,
-                "index": op["index"],
-                "node_id": 0,
-                "query": op["opensearch_filter"],
-            }
+        new_op = copy.deepcopy(op)
+        new_op["operatorName"] = "QueryDatabase"
+        new_op["description"] = modified_description
+
+        if "opensearch_filter" in new_op:
+            new_op["query"] = new_op.pop("opensearch_filter")
         else:
-            new_op = {
-                "operatorName": "QueryDatabase",
-                "description": modified_description,
-                "index": op["index"],
-                "node_id": 0,
-                "query": {"match_all": {}},
-            }
+            new_op["query"] = {"match_all": {}}
 
         postprocessed_plan[0] = new_op
 
         # Add an LLM Filter as the second operator
         llm_op_description = postprocess_llm_helper(
             f"""
-                Generate a one-line description for a python function whose goal is to filter the input r
-                ecords based on whether they contain {op['query_phrase']}.
-                The output should be of the format: Filter to records involving wildfires.
-                """
+                Generate a one-line description for a python function whose goal is to filter the input
+                records based on whether they contain {op['query_phrase']}.
+                Here are two example outputs: 
+                (1) Filter to records involving wildfires.
+                (2) Filter to records that occured in Northwest USA.
+                """,
+            llm_client,
         )
         llm_op_question = postprocess_llm_helper(
             f"""
@@ -214,7 +208,8 @@ def postprocess_json_plan(parsed_plan: Any) -> Any:
                 Here are two examples:
                 (1) Was this incident caused by an environmental condition?
                 (2) Did this incident occur in Georgia?
-                """
+                """,
+            llm_client,
         )
         llm_op = {
             "operatorName": "LlmFilter",
@@ -230,6 +225,8 @@ def postprocess_json_plan(parsed_plan: Any) -> Any:
         for step in postprocessed_plan[2:]:
             step["node_id"] += 1
             step["input"] = [x + 1 for x in step["input"]]
+
+    print(postprocessed_plan)
 
     return postprocessed_plan
 
@@ -630,7 +627,8 @@ class LlmPlanner:
         """Given a question from the user, generate a logical query plan."""
         llm_prompt, llm_plan = self.generate_from_llm(question)
         try:
-            result_node, nodes = process_json_plan(llm_plan, self._operators, True)
+            postprocessed_llm_plan = postprocess_plan(llm_plan, self._llm_client)
+            result_node, nodes = process_json_plan(postprocessed_llm_plan, self._operators)
         except Exception as e:
             logging.error(f"Error processing LLM-generated query plan: {e}\nPlan is:\n{llm_plan}")
             raise

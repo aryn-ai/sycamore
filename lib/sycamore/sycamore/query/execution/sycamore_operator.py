@@ -251,7 +251,7 @@ class SycamoreLlmFilter(SycamoreOperator):
                 context=self.context, val_key="llm", param_names=[OperationTypes.BINARY_CLASSIFIER.value]
             ),
             LLM,
-        ), "LLMFilter requires an 'llm' configured on the Context"
+        ), "SyamoreLlmFilter requires an 'llm' configured on the Context"
         question = self.logical_node.question
         field = self.logical_node.field
 

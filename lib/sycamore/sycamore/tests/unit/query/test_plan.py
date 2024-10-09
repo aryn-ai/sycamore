@@ -212,5 +212,5 @@ def test_compare_plans_structure_changed(llm_filter_plan):
     assert diff[0].diff_type == LogicalNodeDiffType.PLAN_STRUCTURE
     assert isinstance(diff[0].node_a, LlmFilter)
     assert isinstance(diff[0].node_b, LlmFilter)
-    assert len(diff[0].node_a.downstream_nodes) == 1
-    assert len(diff[0].node_b.downstream_nodes) == 0
+    assert len(diff[0].node_a.get_downstream_nodes()) == 1
+    assert len(diff[0].node_b.get_downstream_nodes()) == 0

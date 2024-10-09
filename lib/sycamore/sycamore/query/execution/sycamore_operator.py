@@ -228,7 +228,7 @@ class SycamoreSummarizeData(SycamoreOperator):
 class SycamoreLlmFilter(SycamoreOperator):
     """
     Use an LLM to filter records on a Docset.
-    If trying to filter on a documents text contents, i.e. field == text_representation, we run the llm_filter
+    If field == text_representation, the filter is run
     on the elements of the document (i.e. use_elements = True)
     """
 

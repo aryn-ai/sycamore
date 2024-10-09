@@ -503,9 +503,9 @@ class ArynPDFPartitioner:
             extracted_pages = []
             with LogTime("text_extraction"):
                 for i, page_data in enumerate(extractor_inputs):
-                    if isinstance(page_data, list):
-                        width, height = batch[i].size
-                        page = text_extractor.parse_output(page_data, width, height)
+                    if isinstance(page_data, dict):
+                        width, height = page_data.get("dimensions")
+                        page = text_extractor.parse_output(page_data.get("data"), width, height)
                     else:
                         page = text_extractor.extract_page(page_data)
                     extracted_pages.append(page)

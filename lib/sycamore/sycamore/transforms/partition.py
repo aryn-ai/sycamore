@@ -411,7 +411,9 @@ class ArynPartitioner(Partitioner):
         pages_per_call: Number of pages to send in a single call to the remote service. Default is -1,
              which means send all pages in one call.
         output_format: controls output representation: json (default) or markdown.
-
+        text_extraction_options: Dict of options that are sent to the TextExtractor implementation,
+             either pdfminer or OCR. Currently supports the 'object_type' property for pdfminer,
+             which can be set to 'boxes' or 'lines' to control the granularity of output.
     Example:
          The following shows an example of using the ArynPartitioner to partition a PDF and extract
          both table structure and image
@@ -444,6 +446,7 @@ class ArynPartitioner(Partitioner):
         pages_per_call: int = -1,
         cache: Optional[Cache] = None,
         output_format: Optional[str] = None,
+        text_extraction_options: dict[str, Any] = {},
     ):
         if use_partitioning_service:
             device = "cpu"
@@ -481,6 +484,7 @@ class ArynPartitioner(Partitioner):
         self._use_cache = use_cache
         self._cache = cache
         self._pages_per_call = pages_per_call
+        self._text_extraction_options = text_extraction_options
 
     @timetrace("SycamorePdf")
     def partition(self, document: Document) -> Document:
@@ -507,6 +511,7 @@ class ArynPartitioner(Partitioner):
                 use_cache=self._use_cache,
                 pages_per_call=self._pages_per_call,
                 output_format=self._output_format,
+                text_extraction_options=self._text_extraction_options,
             )
         except Exception as e:
             path = document.properties["path"]

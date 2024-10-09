@@ -1,45 +1,9 @@
-import pytest
-
 from sycamore.query.planner import postprocess_plan
 
 
-from sycamore.llms.openai import OpenAI, OpenAIModels
-
-
-@pytest.fixture
-def llm_filter_plan():
-    return [
-        {
-            "operatorName": "QueryDatabase",
-            "description": "Get all the airplane incidents",
-            "index": "ntsb",
-            "query": {"match_all": {}},
-            "node_id": 0,
-        },
-        {
-            "operatorName": "LlmFilter",
-            "description": "Filter to only include Piper aircraft incidents",
-            "question": "Did this incident occur in a Piper aircraft?",
-            "field": "properties.entity.aircraft",
-            "input": [0],
-            "node_id": 1,
-        },
-        {
-            "operatorName": "Count",
-            "description": "Determine how many incidents occurred in Piper aircrafts",
-            "countUnique": False,
-            "field": None,
-            "input": [1],
-            "node_id": 2,
-        },
-        {
-            "operatorName": "SummarizeData",
-            "description": "Generate an English response to the question",
-            "question": "How many Piper aircrafts were involved in accidents?",
-            "input": [2],
-            "node_id": 3,
-        },
-    ]
+class DummyLLMClient:
+    def generate(prompt_kwargs, llm_kwargs):
+        return "Dummy response from an LLM Client"
 
 
 def vector_search_filter_plan_with_opensearch_filter():
@@ -99,7 +63,8 @@ def vector_search_filter_plan_without_opensearch_filter():
 
 
 def test_postprocess_plan():
-    llm_client = OpenAI(OpenAIModels.GPT_4O.value)
+    # llm_client = OpenAI(OpenAIModels.GPT_4O.value)
+    llm_client = DummyLLMClient
 
     for index, plan in enumerate(
         [vector_search_filter_plan_without_opensearch_filter(), vector_search_filter_plan_with_opensearch_filter()]

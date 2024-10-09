@@ -259,7 +259,7 @@ class SycamoreExecutor:
 
     def _write_query_plan_to_trace_dir(self, plan: LogicalPlan, query_id: str):
         assert self.trace_dir is not None, "Writing query_plan requires trace_dir to be set"
-        path = os.path.join(self.trace_dir, f"{query_id}/metadata/")
+        path = os.path.join(self.trace_dir, query_id, "metadata")
         os.makedirs(path, exist_ok=True)
         with open(os.path.join(path, "query_plan.json"), "w") as f:
             f.write(plan.model_dump_json())

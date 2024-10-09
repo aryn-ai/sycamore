@@ -276,10 +276,8 @@ class QueryTrace:
 
     def _get_query_plan(self, trace_dir: str):
         metadata_dir = os.path.join(trace_dir, "metadata")
-        if os.path.isdir(metadata_dir):
-            f = os.path.join(metadata_dir, "query_plan.json")
-            if os.path.isfile(f):
-                return LogicalPlan.parse_file(f)
+        if os.path.isfile(os.path.join(trace_dir, "metadata", "query_plan.json")):
+            return LogicalPlan.parse_file(os.path.join(metadata_dir, "query_plan.json"))
         return None
 
     def show(self):

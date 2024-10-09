@@ -213,4 +213,5 @@ def test_compare_plans_structure_changed(llm_filter_plan):
     assert isinstance(diff[0].node_a, LlmFilter)
     assert isinstance(diff[0].node_b, LlmFilter)
     assert len(diff[0].node_a.get_downstream_nodes()) == 1
+    assert diff[0].node_a.get_downstream_nodes()[0].node_id == 2
     assert len(diff[0].node_b.get_downstream_nodes()) == 0

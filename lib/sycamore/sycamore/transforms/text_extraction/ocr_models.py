@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from PIL import Image
-from typing import Any, Union, cast, TYPE_CHECKING, Optional
+from typing import Any, Union, TYPE_CHECKING, Optional
 from sycamore.data import BoundingBox, Element
 from sycamore.utils.cache import DiskCache
 from pathlib import Path
@@ -46,7 +46,7 @@ class OcrModel(TextExtractor):
             logger.info(f"Cache Hit for OCR. Cache hit-rate is {ocr_cache.get_hit_rate()}")
             return cached_result
         with tempfile.TemporaryDirectory() as tempdirname:  # type: ignore
-            filename = cast(str, filename)
+            assert isinstance(filename, str)
             if images := kwargs.get("images"):
                 generator = (image for image in images)
             else:
@@ -165,10 +165,7 @@ class PaddleOcr(OcrModel):
         self.reader = PaddleOCR(lang=self.language, use_gpu=self.use_gpu)
         self.slice_kwargs = slice_kwargs
 
-    def get_text(
-        self,
-        image: Image.Image,
-    ) -> str:
+    def get_text(self, image: Image.Image) -> str:
         bytearray = BytesIO()
         image.save(bytearray, format="BMP")
         result = self.reader.ocr(bytearray.getvalue(), rec=True, det=True, cls=False)
@@ -179,19 +176,14 @@ class PaddleOcr(OcrModel):
 
     def set_slicing_parameters(self, image_width, image_height) -> dict[str, Any]:
         slicing_params = {}
-        slice_threshold = self.slice_kwargs.get("slice_threshold", 1000)  # Only slice big images
-        if image_width * image_height > slice_threshold ^ 2:
-            merge_threshold = self.slice_kwargs.get("image_threshold", 10)
-            default_horizontal_stride = self.slice_kwargs.get("horizontal_stride", 300)  # pixels
-            default_vertical_stride = self.slice_kwargs.get("vertical_stride", 500)  # pixels
+        slice_threshold = self.slice_kwargs.get("slice_threshold", 800)  # Only slice big images
+        if image_width * image_height > slice_threshold**2:
+            merge_x_thres, merge_y_thres = self.slice_kwargs.get("merge_threshold", (10, 10))
+            default_horizontal_stride, default_vertical_stride = self.slice_kwargs.get("stride", (300, 500))  # pixels
 
             # Adjust strides if they exceed image dimensions
             horizontal_stride = min(default_horizontal_stride, image_width)
             vertical_stride = min(default_vertical_stride, image_height)
-
-            # Set merge thresholds
-            merge_x_thres = merge_threshold
-            merge_y_thres = merge_threshold
 
             # Compile slicing parameters
             slicing_params = {

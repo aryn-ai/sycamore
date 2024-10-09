@@ -46,3 +46,4 @@ cache
 notebooks/default-prep-data
 .python-version
 apps/timetrace/ttviz
+notebooks/pc-tutorial

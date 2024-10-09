@@ -247,10 +247,10 @@ class QueryNodeTrace:
                     data[col].append(row.get(col))
             self.df = pd.DataFrame(data)
 
-    def show(self, node_descriptions: dict[str, str]):
+    def show(self, node):
         """Render the trace data."""
         st.subheader(f"Node {self.node_id}")
-        st.markdown(f"*Description: {node_descriptions.get(self.node_id) or 'n/a'}*")
+        st.markdown(f"*Description: {node.description if node else 'n/a'}*")
         if self.df is None or not len(self.df):
             st.write(":red[0] documents")
             st.write("No data.")
@@ -263,57 +263,36 @@ class QueryNodeTrace:
         st.dataframe(self.df, column_order=column_order)
 
 
-class QueryMetadataTrace:
-    """Helper class to read and display metadata about a query."""
-
-    def __init__(self, metadata_dir: str):
-        self.metadata_dir = metadata_dir
-        self.query_plan = None
-        self.readdata()
-
-    def readdata(self):
-        f = os.path.join(self.metadata_dir, "query_plan.json")
-        if os.path.isfile(f):
-            self.query_plan = LogicalPlan.parse_file(f)
-
-    def get_node_to_description(self) -> dict[str, str]:
-        if self.query_plan is None:
-            return {}
-        result = dict()
-        for node_id, node in self.query_plan.nodes.items():
-            result[str(node_id)] = node.description
-        return result
-
-    def show(self):
-        if self.query_plan is not None:
-            st.write(f"Query: {self.query_plan.query}")
-            st.write(self.query_plan)
-        else:
-            st.write("No query plan found")
-
-
 class QueryTrace:
     """Helper class used to read and display query traces."""
 
     def __init__(self, trace_dir: str):
         self.trace_dir = trace_dir
         self.node_traces = []
+        self.query_plan = self._get_query_plan(self.trace_dir)
         for dir in sorted(os.listdir(self.trace_dir)):
             if "metadata" not in dir:
                 self.node_traces += [QueryNodeTrace(trace_dir, dir)]
-            self.metadata = QueryMetadataTrace(self.trace_dir + "/" + dir)
+
+    def _get_query_plan(self, trace_dir: str):
+        metadata_dir = os.path.join(trace_dir, "metadata")
+        if os.path.isdir(metadata_dir):
+            f = os.path.join(metadata_dir, "query_plan.json")
+            if os.path.isfile(f):
+                return LogicalPlan.parse_file(f)
+        return None
 
     def show(self):
-        node_descriptions = dict()
         tab1, tab2 = st.tabs(["Node data", "Query plan"])
-        if self.metadata:
-            node_descriptions = self.metadata.get_node_to_description()
         with tab1:
             for node_trace in self.node_traces:
-                node_trace.show(node_descriptions)
+                node_trace.show(self.query_plan.nodes.get(int(node_trace.node_id), None))
         with tab2:
-            if self.metadata:
-                self.metadata.show()
+            if self.query_plan is not None:
+                st.write(f"Query: {self.query_plan.query}")
+                st.write(self.query_plan)
+            else:
+                st.write("No query plan found")
 
 
 @st.fragment

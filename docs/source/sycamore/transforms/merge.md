@@ -43,6 +43,6 @@ The marks are "_break" and "_drop". The `MarkedMerger` will merge elements until
 We have found that the `MarkedMerger` is best used with the DocSet method `docset.mark_bbox_preset`, which applies a pre-defined series of marking transforms.
 
 ```python
-marked_ds = docset.mark_bbox_preset(tokenizer=HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2", token_limit=512))
+marked_ds = docset.mark_bbox_preset(tokenizer=HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2"))
 merged_ds = marked_ds.merge(merger=MarkedMerger())
 ```

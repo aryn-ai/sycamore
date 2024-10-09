@@ -181,7 +181,7 @@ class PaddleOcr(OcrModel):
         slicing_params = {}
         slice_threshold = self.slice_kwargs.get("slice_threshold", 1000)  # Only slice big images
         if image_width * image_height > slice_threshold ^ 2:
-            merge_threshold = self.slice_kwargs.get("image_threshold", 1000)
+            merge_threshold = self.slice_kwargs.get("image_threshold", 10)
             default_horizontal_stride = self.slice_kwargs.get("horizontal_stride", 300)  # pixels
             default_vertical_stride = self.slice_kwargs.get("vertical_stride", 500)  # pixels
 

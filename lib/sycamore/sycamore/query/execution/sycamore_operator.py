@@ -546,8 +546,7 @@ class SycamoreSort(SycamoreOperator):
 
 class SycamoreTopK(SycamoreOperator):
     """
-    Note: top_k clustering only operates on document level fields. If you try to cluster on the text contents it
-    will not use text from elements.
+    Note: top_k clustering only operators on properties, it will not cluster on text_representation currently.
     Return the Top-K values from a DocSet
     """
 
@@ -560,6 +559,8 @@ class SycamoreTopK(SycamoreOperator):
         trace_dir: Optional[str] = None,
     ) -> None:
         super().__init__(context, logical_node, query_id, inputs, trace_dir=trace_dir)
+        assert (self.logical_node.primary_field !=  # type: ignore[attr-defined]
+                "text_representation"), "TopK can only operate on properties"
 
     def execute(self) -> Any:
         assert self.inputs and len(self.inputs) == 1, "TopK requires 1 input node"

@@ -16,9 +16,6 @@ class LogicalOperator(Node):
     Logical operator class for LLM prompting.
     """
 
-    description: Optional[str] = None
-    """A detailed description of why this operator was chosen for this query plan."""
-
     input: Optional[List[int]] = None
     """A list of node IDs that this operation depends on."""
 

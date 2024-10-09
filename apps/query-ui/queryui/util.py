@@ -268,10 +268,9 @@ class QueryMetadataTrace:
         self.readdata()
 
     def readdata(self):
-        f = os.path.join(self.metadata_dir, "query_plan.pickle")
+        f = os.path.join(self.metadata_dir, "query_plan.json")
         if os.path.isfile(f):
-            with open(f, "rb") as file:
-                self.query_plan = pickle.load(file)
+            self.query_plan = LogicalPlan.parse_file(f)
 
     def get_node_to_description(self) -> dict[str, str]:
         if self.query_plan is None:
@@ -303,13 +302,14 @@ class QueryTrace:
     def show(self):
         node_descriptions = dict()
         tab1, tab2 = st.tabs(["Node data", "Query plan"])
+        if self.metadata:
+            node_descriptions = self.metadata.get_node_to_description()
         with tab1:
             for node_trace in self.node_traces:
                 node_trace.show(node_descriptions)
         with tab2:
             if self.metadata:
                 self.metadata.show()
-                node_descriptions = self.metadata.get_node_to_description()
 
 
 @st.fragment

@@ -311,9 +311,7 @@ def main():
     argparser.add_argument(
         "--index", help="OpenSearch index name to use. If specified, only this index will be queried."
     )
-    group = argparser.add_mutually_exclusive_group()
-    group.add_argument("--external-ray", action="store_true", help="Use external Ray process.")
-    group.add_argument("--local-mode", action="store_true", help="Enable Sycamore local execution mode.")
+    argparser.add_argument("--local-mode", action="store_true", help="Enable Sycamore local execution mode.")
     argparser.add_argument("--title", type=str, help="Title text.")
     argparser.add_argument("--cache-dir", type=str, help="Query execution cache dir.")
     argparser.add_argument("--llm-cache-dir", type=str, help="LLM query cache dir.")
@@ -350,7 +348,7 @@ def main():
     if "trace_dir" not in st.session_state:
         st.session_state.trace_dir = os.path.join(os.getcwd(), "traces")
 
-    if not args.local_mode and args.external_ray:
+    if not args.local_mode:
         sycamore_ray_init(address="auto")
     st.title("Sycamore Query Chat")
     st.toggle("Use RAG only", key="rag_only")

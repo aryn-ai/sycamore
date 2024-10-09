@@ -1,5 +1,4 @@
 import os
-import pickle
 import traceback
 import uuid
 from typing import Any, Dict, List, Optional
@@ -258,12 +257,12 @@ class SycamoreExecutor:
 """
         return result
 
-    def _write_metadata_to_trace_dir(self, plan: LogicalPlan, query_id: str):
-        assert self.trace_dir is not None, "Writing metadata requires trace_dir to be set"
+    def _write_query_plan_to_trace_dir(self, plan: LogicalPlan, query_id: str):
+        assert self.trace_dir is not None, "Writing query_plan requires trace_dir to be set"
         path = os.path.join(self.trace_dir, f"{query_id}/metadata/")
         os.makedirs(path, exist_ok=True)
-        with open(os.path.join(path, "query_plan.pickle"), "wb") as f:
-            pickle.dump(plan, f)
+        with open(os.path.join(path, "query_plan.json"), "w") as f:
+            f.write(plan.json())
 
     def execute(self, plan: LogicalPlan, query_id: Optional[str] = None) -> Any:
         try:
@@ -272,9 +271,9 @@ class SycamoreExecutor:
                 query_id = str(uuid.uuid4())
             bind_contextvars(query_id=query_id)
 
-            log.info("Writing query metadata")
+            log.info("Writing query plan to trace dir")
             if self.trace_dir:
-                self._write_metadata_to_trace_dir(plan, query_id)
+                self._write_query_plan_to_trace_dir(plan, query_id)
 
             log.info("Executing query")
             assert isinstance(plan.result_node, LogicalOperator)

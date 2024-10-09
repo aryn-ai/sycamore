@@ -33,6 +33,9 @@ class Node(BaseModel):
     node_id: int
     """A unique integer ID representing this node."""
 
+    description: Optional[str] = None
+    """A detailed description of why this operator was chosen for this query plan."""
+
     # These are underscored here to prevent them from leaking out to the
     # input_schema used by the planner.
 
@@ -52,6 +55,16 @@ class Node(BaseModel):
 
     def __str__(self) -> str:
         return f"Id: {self.node_id} Op: {type(self).__name__}"
+
+    def model_dump(self, **kwargs) -> dict:
+        """
+        Override pydantic model_dump to handle node pointers. Rather than trying to serialize node references,
+        we output the node_id instead.
+        """
+        data = super().model_dump(**kwargs)
+        data["_dependencies"] = [dep.node_id for dep in self._dependencies]
+        data["_downstream_nodes"] = [node.node_id for node in self._downstream_nodes]
+        return data
 
     def logical_compare(self, other):
         if not isinstance(other, Node):

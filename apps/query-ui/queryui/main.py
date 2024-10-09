@@ -86,7 +86,6 @@ def main():
 
     if args.exec_mode == "ray":
         ray_init()
-        cmdline_args.extend(["--external-ray"])
     elif args.exec_mode == "local":
         cmdline_args.extend(["--local-mode"])
     while True:

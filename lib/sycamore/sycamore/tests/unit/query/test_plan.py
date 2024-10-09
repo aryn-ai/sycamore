@@ -2,7 +2,7 @@ from typing import Optional
 
 import pytest
 
-from sycamore.query.logical_plan import LogicalPlan, LogicalNodeDiffType
+from sycamore.query.logical_plan import Node, LogicalPlan, LogicalNodeDiffType
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.llm_filter import LlmFilter
 from sycamore.query.operators.logical_operator import LogicalOperator
@@ -16,7 +16,31 @@ class DummyOperator(LogicalOperator):
     """A dummy field for testing purposes."""
 
 
-def test_plan():
+def test_node_serialize_deserialize():
+    node = DummyOperator(node_id=1, description="Test node", dummy="Dummy value")
+    serialized = node.model_dump()
+    assert serialized["node_id"] == 1
+    assert serialized["description"] == "Test node"
+    assert serialized["node_type"] == "DummyOperator"
+    assert serialized["dummy"] == "Dummy value"
+
+    # Explicit deserialization as DummyOperator works.
+#    deserialized = DummyOperator.model_validate(serialized)
+#    assert isinstance(deserialized, DummyOperator)
+#    assert deserialized.node_id == 1
+#    assert deserialized.description == "Test node"
+#    assert deserialized.dummy == "Dummy value"
+
+    # Duck-typed deserialization as Node works.
+    deserialized = Node.deserialize(serialized)
+    assert isinstance(deserialized, DummyOperator)
+    assert deserialized.node_id == 1
+    assert deserialized.description == "Test node"
+    assert deserialized.dummy == "Dummy value"
+    assert deserialized.node_type == "DummyOperator"
+
+
+def test_plan_serialize_deserialize():
     node_1 = DummyOperator(node_id=1, description="node_1")
     node_2 = DummyOperator(node_id=2, description="node_2", dummy="test2")
     node_3 = DummyOperator(node_id=3, description="node_3", dummy="test3")
@@ -35,25 +59,57 @@ def test_plan():
         4: node_4,
     }
 
-    plan = LogicalPlan(result_node=node_4, nodes=nodes, query="Test query plan")
+    plan = LogicalPlan(
+        result_node=node_4, nodes=nodes, query="Test query plan", llm_prompt="Test LLM prompt", llm_plan="Test LLM plan"
+    )
     assert plan.result_node == node_4
     assert plan.nodes == nodes
 
     serialized = plan.model_dump()
     assert serialized["result_node"] == node_4.model_dump()
     assert serialized["nodes"] == {k: v.model_dump() for k, v in nodes.items()}
-    assert node_1.model_dump()["node_id"] == 1
-    assert node_1.model_dump()["description"] == "node_1"
-    assert node_1.model_dump()["dummy"] is None
-    assert node_2.model_dump()["node_id"] == 2
-    assert node_2.model_dump()["description"] == "node_2"
-    assert node_2.model_dump()["dummy"] == "test2"
-    assert node_3.model_dump()["node_id"] == 3
-    assert node_3.model_dump()["description"] == "node_3"
-    assert node_3.model_dump()["dummy"] == "test3"
-    assert node_4.model_dump()["node_id"] == 4
-    assert node_4.model_dump()["description"] == "final"
-    assert node_4.model_dump()["dummy"] is None
+
+    # Ensure serialized nodes have the correct fields and references to one another.
+    node_1_serialized = serialized["nodes"][1]
+    assert node_1_serialized == node_1.model_dump()
+    assert "_dependencies" not in node_1_serialized
+    assert "_downstream_nodes" not in node_1_serialized
+    assert node_1_serialized["node_type"] == "DummyOperator"
+    assert node_1_serialized["dependencies"] == []
+    assert node_1_serialized["downstream_nodes"] == [2, 3]
+
+    node_2_serialized = serialized["nodes"][2]
+    assert node_2_serialized == node_2.model_dump()
+    assert "_dependencies" not in node_2_serialized
+    assert "_downstream_nodes" not in node_2_serialized
+    assert node_2_serialized["dependencies"] == [1]
+    assert node_2_serialized["downstream_nodes"] == [4]
+
+    node_3_serialized = serialized["nodes"][3]
+    assert node_3_serialized == node_3.model_dump()
+    assert "_dependencies" not in node_3_serialized
+    assert "_downstream_nodes" not in node_3_serialized
+    assert node_3_serialized["dependencies"] == [1]
+    assert node_3_serialized["downstream_nodes"] == [4]
+
+    node_4_serialized = serialized["nodes"][4]
+    assert node_4_serialized == node_4.model_dump()
+    assert "_dependencies" not in node_4_serialized
+    assert "_downstream_nodes" not in node_4_serialized
+    assert node_4_serialized["dependencies"] == [2, 3]
+    assert node_4_serialized["downstream_nodes"] == []
+
+    print("MDW: DOING VALIDATION")
+    deserialized = LogicalPlan.model_validate(serialized)
+    print("MDW: DONE WITH VALIDATION")
+    print(f"MDW: GOT BACK: {deserialized}")
+    assert deserialized.query == "Test query plan"
+    assert deserialized.llm_prompt == "Test LLM prompt"
+    assert deserialized.llm_plan == "Test LLM plan"
+    assert deserialized.result_node == deserialized.nodes[4]
+    assert len(deserialized.nodes) == 4
+
+    assert isinstance(deserialized.nodes[1], DummyOperator)
 
 
 def test_count_operator():

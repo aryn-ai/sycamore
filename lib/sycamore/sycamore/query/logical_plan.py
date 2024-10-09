@@ -1,11 +1,11 @@
 from enum import Enum
 from functools import wraps
 import json
-from typing import Any, List, Mapping, Optional
+from typing import Any, Dict, List, Mapping, Optional
 from hashlib import sha256
 
 
-from pydantic import BaseModel, ConfigDict, SerializeAsAny, computed_field
+from pydantic import BaseModel, ConfigDict, SerializeAsAny, computed_field, model_validator
 
 
 def exclude_from_comparison(func):
@@ -15,6 +15,9 @@ def exclude_from_comparison(func):
 
     wrapper._exclude_from_comparison = True
     return wrapper
+
+
+_NODE_SUBCLASSES: Dict[str, Any] = {}
 
 
 class Node(BaseModel):
@@ -30,6 +33,14 @@ class Node(BaseModel):
     # docstrings.
     model_config = ConfigDict(use_attribute_docstrings=True)
 
+    def __init_subclass__(cls, **kwargs: Any):
+        """Called when subclasses of Node are initialized. Used to register all subclasses."""
+        super().__init_subclass__(**kwargs)
+        if cls.__name__ in _NODE_SUBCLASSES:
+            raise ValueError(f"Duplicate node type: {cls.__name__}")
+        _NODE_SUBCLASSES[cls.__name__] = cls
+        print(f"MDW: REGISTERED {cls.__name__}")
+
     node_id: int
     """A unique integer ID representing this node."""
 
@@ -39,32 +50,42 @@ class Node(BaseModel):
     # These are underscored here to prevent them from leaking out to the
     # input_schema used by the planner.
 
+    # The nodes that this node depends on.
     _dependencies: List["Node"] = []
+    # The nodes that depend on this node.
     _downstream_nodes: List["Node"] = []
+    # The cache key for this node.
     _cache_key: Optional[str] = None
 
     def get_dependencies(self) -> List["Node"]:
-        """The nodes that this node depends on."""
+        """Return the nodes that this node depends on."""
         return self._dependencies
 
     def get_downstream_nodes(self) -> List["Node"]:
-        """The nodes that depend on this node."""
+        """Return the nodes that depend on this node."""
         return self._downstream_nodes
 
-    @property
     @computed_field
+    @property
+    def node_type(self) -> str:
+        """Returns the type of this node."""
+        return type(self).__name__
+
+    @computed_field
+    @property
     def dependencies(self) -> List[int]:
         return [dep.node_id for dep in self._dependencies]
 
-    @property
     @computed_field
+    @property
     def downstream_nodes(self) -> List[int]:
         return [dep.node_id for dep in self._downstream_nodes]
 
     def __str__(self) -> str:
         return f"Id: {self.node_id} Op: {type(self).__name__}"
 
-    def logical_compare(self, other):
+    def logical_compare(self, other: "Node") -> bool:
+        """Logically compare two instances of a Node."""
         if not isinstance(other, Node):
             return False
 
@@ -72,12 +93,12 @@ class Node(BaseModel):
         self_dict = {
             k: v
             for k, v in self.__dict__.items()
-            if not (self.__fields__[k].json_schema_extra or {}).get("exclude_from_comparison", False)
+            if not (self.model_fields[k].json_schema_extra or {}).get("exclude_from_comparison", False)
         }
         other_dict = {
             k: v
             for k, v in other.__dict__.items()
-            if not (other.__fields__[k].json_schema_extra or {}).get("exclude_from_comparison", False)
+            if not (other.model_fields[k].json_schema_extra or {}).get("exclude_from_comparison", False)
         }
 
         return self_dict == other_dict
@@ -93,7 +114,6 @@ class Node(BaseModel):
         # We want to exclude fields that may change from plan to plan, but which do not
         # affect the semantic equivalence of the plan.
         retval = self.model_dump(exclude={"node_id", "input", "description"})
-        retval["operator_type"] = type(self).__name__
         # Recursively include dependencies.
         retval["dependencies"] = [dep.cache_dict() for dep in self._dependencies]
         return retval
@@ -106,6 +126,16 @@ class Node(BaseModel):
         cache_key = self.cache_dict()
         self._cache_key = sha256(json.dumps(cache_key).encode()).hexdigest()
         return self._cache_key
+
+    @classmethod
+    def deserialize(cls, data: Dict[str, Any]) -> "Node":
+        """Used to deserialize a Node from a dictionary, by returning the appropriate Node subclass."""
+        if "node_type" not in data:
+            raise ValueError("Serialized Node missing node_type field")
+        if data["node_type"] in _NODE_SUBCLASSES:
+            return _NODE_SUBCLASSES[data["node_type"]](**data)
+        else:
+            raise ValueError(f"Unknown node type: {data['node_type']}")
 
 
 class LogicalNodeDiffType(Enum):
@@ -132,11 +162,62 @@ class LogicalPlan(BaseModel):
         llm_plan: The LLM plan that was used to generate this query plan.
     """
 
-    result_node: SerializeAsAny[Node]
+    _result_node: Optional[Node] = None
+
     query: str
     nodes: Mapping[int, SerializeAsAny[Node]]
     llm_prompt: Optional[Any] = None
     llm_plan: Optional[str] = None
+
+    @computed_field
+    @property
+    def result_node(self) -> int:
+        return self._result_node.node_id
+
+    @classmethod
+    def deserialize(cls, data: Dict[str, Any]) -> "LogicalPlan":
+        """Deserialize a LogicalPlan from a dictionary. This is a little complex, due to our use
+        of duck typing for Nodes, and the fact that node dependencies are serialized as node IDs."""
+        print(f"MDW: DATA IS {data}")
+        if "nodes" not in data:
+            raise ValueError("No nodes field found in LogicalPlan")
+
+        # Create Nodes from the serialized data.
+        nodes: Dict[int, Node] = {}
+        data_nodes = data["nodes"]
+        if not isinstance(data_nodes, dict):
+            raise ValueError("nodes field must be a dictionary")
+        for node_id, node in data_nodes.items():
+            if not isinstance(node, dict):
+                raise ValueError("Each node in the nodes field must be a dictionary")
+            if "node_type" not in node:
+                raise ValueError("Each node in the nodes field must have a node_type field")
+            nodes[node_id] = Node.deserialize(node)
+
+        # Set dependencies.
+        for node_id, node in data_nodes.items():
+            if "dependencies" in node:
+                if not isinstance(node["dependencies"], list):
+                    raise ValueError("Dependencies field must be a list")
+                nodes[node_id]._dependencies = [nodes[dep_id] for dep_id in node["dependencies"]]
+                for dep in nodes[node_id]._dependencies:
+                    dep._downstream_nodes.append(nodes[node_id])
+
+        if "query" not in data:
+            raise ValueError("No query field found in LogicalPlan")
+        if "result_node" not in data:
+            raise ValueError("No result_node field found in LogicalPlan")
+        if data["result_node"] not in nodes:
+            raise ValueError(f"result_node {data['result_node']} not found in nodes")
+
+        plan = LogicalPlan(
+            query=data["query"],
+            nodes=nodes,
+            llm_prompt=data.get("llm_prompt"),
+            llm_plan=data.get("llm_plan"),
+        )
+        plan._result_node = nodes[data["result_node"]]
+        return plan
 
     def compare(self, other: "LogicalPlan") -> list[LogicalPlanDiffEntry]:
         """

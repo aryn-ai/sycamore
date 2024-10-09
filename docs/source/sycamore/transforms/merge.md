@@ -17,7 +17,7 @@ A BC D EF GHI J KLMNO -> ABCD EF GHIJ KLMNO
 To add this to a script:
 
 ```python
-merger = GreedyTextElementMerger(tokenizer=HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2", max_tokens=512))
+merger = GreedyTextElementMerger(tokenizer=HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2"))
 merged_docset = docset.merge(merger=merger)
 ```
 
@@ -31,7 +31,7 @@ The `GreedySectionMerger` groups together different elements in a Document accor
 Use it in much the same way as the text element merger:
 
 ```python
-merger = GreedySectionMerger(tokenizer=HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2", max_tokens=512))
+merger = GreedySectionMerger(tokenizer=HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2"))
 merged_docset = docset.merge(merger=merger)
 ```
 

@@ -145,7 +145,7 @@ class ArynPDFPartitioner:
         threshold: Union[float, Literal["auto"]] = DEFAULT_LOCAL_THRESHOLD,
         use_ocr=False,
         ocr_images=False,
-        ocr_model="easyocr",
+        ocr_model: Union[str, OcrModel] = "easyocr",
         per_element_ocr=True,
         extract_table_structure=False,
         table_structure_extractor=None,
@@ -366,7 +366,7 @@ class ArynPDFPartitioner:
         threshold: float = DEFAULT_LOCAL_THRESHOLD,
         use_ocr: bool = False,
         ocr_images: bool = False,
-        ocr_model: str = "easyocr",
+        ocr_model: Union[str, OcrModel] = "easyocr",
         per_element_ocr: bool = True,
         extract_table_structure: bool = False,
         table_structure_extractor=None,
@@ -410,7 +410,7 @@ class ArynPDFPartitioner:
         threshold: float = DEFAULT_LOCAL_THRESHOLD,
         use_ocr: bool = False,
         ocr_images: bool = False,
-        ocr_model: str = "easyocr",
+        ocr_model: Union[str, OcrModel] = "easyocr",
         per_element_ocr: bool = True,
         extract_table_structure=False,
         table_structure_extractor=None,
@@ -422,9 +422,12 @@ class ArynPDFPartitioner:
 
         if extract_table_structure and not table_structure_extractor:
             table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
-
+        text_extractor: TextExtractor
         if use_ocr:
-            text_extractor = EXTRACTOR_DICT[ocr_model]()
+            if isinstance(ocr_model, OcrModel):
+                text_extractor = ocr_model
+            else:
+                text_extractor = EXTRACTOR_DICT[ocr_model]()
             text_generator: Any = repeat(None)
         else:
             text_extractor = PdfMinerExtractor()
@@ -542,16 +545,19 @@ class ArynPDFPartitioner:
         use_cache: bool,
         use_ocr: bool,
         ocr_images: bool,
-        text_extractor_model: str,
+        text_extractor_model: Union[str, OcrModel],
         images: Optional[list[Image.Image]] = None,
     ):
         kwargs = {"ocr_images": ocr_images, "images": images}
-        if not use_ocr:
-            text_extractor_model = "pdfminer"
-        model_cls = EXTRACTOR_DICT.get(text_extractor_model)
-        if not model_cls:
-            raise ValueError(f"Unknown Text Extractor Model: {text_extractor_model}")
-        model = model_cls()
+        if isinstance(text_extractor_model, OcrModel):
+            model = text_extractor_model
+        else:
+            if not use_ocr:
+                text_extractor_model = "pdfminer"
+            model_cls = EXTRACTOR_DICT.get(text_extractor_model)
+            if not model_cls:
+                raise ValueError(f"Unknown Text Extractor Model: {text_extractor_model}")
+            model = model_cls()
         with LogTime("text_extract", log_start=True):
             extracted_layout = model.extract_document(file_name, hash_key, use_cache, **kwargs)
         return extracted_layout
@@ -562,7 +568,7 @@ class ArynPDFPartitioner:
         threshold: float,
         use_cache: bool,
         use_ocr: bool,
-        ocr_model: str,
+        ocr_model: Union[str, OcrModel],
         ocr_images: bool,
         per_element_ocr: bool,
     ) -> Any:
@@ -755,12 +761,16 @@ def extract_ocr(
     images: list[Image.Image],
     elements: list[list[Element]],
     ocr_images: bool = False,
-    ocr_model: str = "easyocr",
+    ocr_model: Union[str, OcrModel] = "easyocr",
 ) -> list[list[Element]]:
-    model_cls = EXTRACTOR_DICT.get(ocr_model)
-    if not model_cls:
-        raise ValueError(f"Unknown OCR Model: {ocr_model}")
-    ocr_model_obj: OcrModel = model_cls()
+    ocr_model_obj: OcrModel
+    if isinstance(ocr_model, OcrModel):
+        ocr_model_obj = ocr_model
+    else:
+        model_cls = EXTRACTOR_DICT.get(ocr_model)
+        if not model_cls:
+            raise ValueError(f"Unknown OCR Model: {ocr_model}")
+        ocr_model_obj = model_cls()
     for i, image in enumerate(images):
         page_elements = elements[i]
         width, height = image.size

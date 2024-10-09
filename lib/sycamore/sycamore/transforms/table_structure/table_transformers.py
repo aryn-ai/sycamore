@@ -244,8 +244,12 @@ def slot_into_containers(
         for container_num, container in sorted_co:
             # If the container starts after the package ends, break
             if not _early_exit_vertical and container["bbox"][0] > package["bbox"][2]:
+                if len(match_scores) == 0:
+                    match_scores.append({"container": container, "container_num": container_num, "score": 0})
                 break
             elif _early_exit_vertical and container["bbox"][1] > package["bbox"][3]:
+                if len(match_scores) == 0:
+                    match_scores.append({"container": container, "container_num": container_num, "score": 0})
                 break
             container_rect = BoundingBox(*container["bbox"])
             intersect_area = container_rect.intersect(package_rect).area

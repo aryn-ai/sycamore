@@ -142,7 +142,7 @@ def postprocess_llm_helper(user_message: str, llm_client: LLM) -> str:
     ]
 
     prompt_kwargs = {"messages": messages}
-    chat_completion = OpenAI(OpenAIModels.GPT_4O.value).generate(
+    chat_completion = llm_client.generate(
         prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0, "seed": 42}
     )
     return chat_completion

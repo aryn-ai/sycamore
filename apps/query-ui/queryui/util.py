@@ -17,6 +17,8 @@ from sycamore.query.planner import PlannerExample
 
 from queryui.configuration import get_sycamore_query_client
 
+from sycamore.data.document import DocumentSource
+
 
 def get_schema(_client: SycamoreQueryClient, index: str) -> Dict[str, Tuple[str, Set[str]]]:
     """Return the OpenSearch schema for the given index."""
@@ -104,6 +106,8 @@ def docset_to_string(docset: DocSet, html: bool = True) -> str:
             props_dict["text_representation"] = (
                 doc.text_representation[:NUM_TEXT_CHARS_GENERATE] if doc.text_representation is not None else None
             )
+            props_dict.get("_doc_source", {}).apply(lambda x: x.value if isinstance(x, DocumentSource) else x)
+
             retval += json.dumps(props_dict, indent=2) + "\n"
     return retval
 

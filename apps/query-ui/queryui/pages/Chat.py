@@ -16,6 +16,7 @@ import requests
 import streamlit as st
 import sycamore
 from sycamore.data import OpenSearchQuery
+from sycamore import ExecMode
 from sycamore.executor import sycamore_ray_init
 from sycamore.transforms.query import OpenSearchQueryExecutor
 from sycamore.query.client import SycamoreQueryClient
@@ -177,7 +178,7 @@ def query_data_source(query: str, index: str) -> Tuple[Any, Optional[Any], Optio
             s3_cache_path=st.session_state.llm_cache_dir,
             trace_dir=st.session_state.trace_dir,
             cache_dir=st.session_state.cache_dir,
-            sycamore_exec_mode=st.session_state.exec_mode,
+            sycamore_exec_mode=ExecMode.LOCAL if st.session_state.local_mode else ExecMode.RAY,
         )
         with st.spinner("Generating plan..."):
             plan = util.generate_plan(sqclient, query, index, examples=PLANNER_EXAMPLES)

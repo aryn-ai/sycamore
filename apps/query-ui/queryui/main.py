@@ -35,7 +35,9 @@ def ray_init(**ray_args):
 
 def main():
     argparser = argparse.ArgumentParser()
-    argparser.add_argument("--exec-mode", type=str, default="ray", help="Configure Sycamore execution mode.")
+    argparser.add_argument(
+        "--exec-mode", type=str, choices=["ray", "local"], default="ray", help="Configure Sycamore execution mode."
+    )
     argparser.add_argument("--chat", action="store_true", help="Only show the chat demo pane.")
     argparser.add_argument(
         "--index", help="OpenSearch index name to use. If specified, only this index will be queried."

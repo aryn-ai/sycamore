@@ -12,8 +12,8 @@ def build_graph(plan: LogicalPlan):
         else:
             description = None
         graph.add_node(node.node_id, description=f"{type(node).__name__}\n{description}")
-        if node.dependencies:
-            for dep in node.dependencies:
+        if node.get_dependencies():
+            for dep in node.get_dependencies():
                 graph.add_edge(dep.node_id, node.node_id)
 
     return graph

@@ -127,7 +127,6 @@ def main():
     st.write(f"Query cache dir: `{st.session_state.cache_dir}`")
     st.write(f"LLM cache dir: `{st.session_state.llm_cache_dir}`")
     st.write(f"Trace dir: `{st.session_state.trace_dir}`")
-    st.write(f"Local mode: `{st.session_state.local_mode}`")
 
     if not args.index:
         with st.spinner("Loading indices..."):
@@ -154,7 +153,7 @@ def main():
             with col2:
                 st.toggle("Plan only", key="plan_only", value=False)
             with col3:
-                st.toggle("Local mode", key="local_mode", value=False)
+                st.toggle("Use Ray", key="use_ray", value=True)
 
         if submitted:
             run_query()

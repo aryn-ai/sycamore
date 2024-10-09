@@ -108,18 +108,21 @@ def test_llm_planner(mock_os_config, mock_os_client, mock_llm_client, mock_schem
     plan = planner.plan("Dummy query")
     assert plan.result_node.node_id == 3
     assert plan.result_node.description == "Generate an English response to the question"
-    assert len(plan.result_node.dependencies) == 1
-    assert plan.result_node.dependencies[0].node_id == 2
-    assert plan.result_node.dependencies[0].description == "Determine how many incidents occurred in Piper aircrafts"
-    assert len(plan.result_node.dependencies[0].dependencies) == 1
-    assert plan.result_node.dependencies[0].dependencies[0].node_id == 1
+    assert len(plan.result_node.get_dependencies()) == 1
+    assert plan.result_node.get_dependencies()[0].node_id == 2
     assert (
-        plan.result_node.dependencies[0].dependencies[0].description
+        plan.result_node.get_dependencies()[0].description == "Determine how many incidents occurred in Piper aircrafts"
+    )
+    assert len(plan.result_node.get_dependencies()[0].get_dependencies()) == 1
+    assert plan.result_node.get_dependencies()[0].get_dependencies()[0].node_id == 1
+    assert (
+        plan.result_node.get_dependencies()[0].get_dependencies()[0].description
         == "Filter to only include Piper aircraft incidents"
     )
-    assert len(plan.result_node.dependencies[0].dependencies[0].dependencies) == 1
-    assert plan.result_node.dependencies[0].dependencies[0].dependencies[0].node_id == 0
-    assert plan.result_node.dependencies[0].dependencies[0].dependencies[0].query == {"match_all": {}}
+    assert len(plan.result_node.get_dependencies()[0].get_dependencies()[0].get_dependencies()) == 1
+    assert plan.result_node.get_dependencies()[0].get_dependencies()[0].get_dependencies()[0].node_id == 0
+    assert plan.result_node.get_dependencies()[0].get_dependencies()[0].get_dependencies()[0].query == {"match_all": {}}
     assert (
-        plan.result_node.dependencies[0].dependencies[0].dependencies[0].description == "Get all the airplane incidents"
+        plan.result_node.get_dependencies()[0].get_dependencies()[0].get_dependencies()[0].description
+        == "Get all the airplane incidents"
     )

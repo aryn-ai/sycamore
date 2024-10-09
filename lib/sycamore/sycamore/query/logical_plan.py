@@ -5,7 +5,7 @@ from typing import Any, List, Mapping, Optional
 from hashlib import sha256
 
 
-from pydantic import BaseModel, ConfigDict, SerializeAsAny
+from pydantic import BaseModel, ConfigDict, SerializeAsAny, computed_field
 
 
 def exclude_from_comparison(func):
@@ -43,28 +43,26 @@ class Node(BaseModel):
     _downstream_nodes: List["Node"] = []
     _cache_key: Optional[str] = None
 
-    @property
-    def dependencies(self) -> Optional[List["Node"]]:
+    def get_dependencies(self) -> List["Node"]:
         """The nodes that this node depends on."""
         return self._dependencies
 
-    @property
-    def downstream_nodes(self) -> Optional[List["Node"]]:
+    def get_downstream_nodes(self) -> List["Node"]:
         """The nodes that depend on this node."""
         return self._downstream_nodes
 
+    @computed_field
+    @property
+    def dependencies(self) -> List[int]:
+        return [dep.node_id for dep in self._dependencies]
+
+    @computed_field
+    @property
+    def downstream_nodes(self) -> List[int]:
+        return [dep.node_id for dep in self._downstream_nodes]
+
     def __str__(self) -> str:
         return f"Id: {self.node_id} Op: {type(self).__name__}"
-
-    def model_dump(self, **kwargs) -> dict:
-        """
-        Override pydantic model_dump to handle node pointers. Rather than trying to serialize node references,
-        we output the node_id instead.
-        """
-        data = super().model_dump(**kwargs)
-        data["_dependencies"] = [dep.node_id for dep in self._dependencies]
-        data["_downstream_nodes"] = [node.node_id for node in self._downstream_nodes]
-        return data
 
     def logical_compare(self, other):
         if not isinstance(other, Node):
@@ -134,9 +132,9 @@ class LogicalPlan(BaseModel):
         llm_plan: The LLM plan that was used to generate this query plan.
     """
 
-    result_node: Node
+    result_node: SerializeAsAny[Node]
     query: str
-    nodes: Mapping[int, Node]
+    nodes: Mapping[int, SerializeAsAny[Node]]
     llm_prompt: Optional[Any] = None
     llm_plan: Optional[str] = None
 
@@ -153,15 +151,6 @@ class LogicalPlan(BaseModel):
         assert 0 in self.nodes, "Plan a requires at least 1 node indexed [0]"
         assert 0 in other.nodes, "Plan b requires at least 1 node indexed [0]"
         return compare_graphs(self.nodes[0], other.nodes[0], set(), set())
-
-    def model_dump(self, **kwargs) -> dict:
-        """
-        Override pydantic model_dump to handle custom node.model_dump.
-        """
-        data = super().model_dump(**kwargs)
-        data["result_node"] = self.result_node.model_dump()
-        data["nodes"] = {node_id: node.model_dump() for node_id, node in self.nodes.items()}
-        return data
 
 
 def compare_graphs(node_a: Node, node_b: Node, visited_a: set[int], visited_b: set[int]) -> list[LogicalPlanDiffEntry]:

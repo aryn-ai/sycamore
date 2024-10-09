@@ -9,9 +9,9 @@ from sycamore.data.element import create_element
 
 
 class DocumentSource(Enum):
-    UNKNOWN: str = "UNKNOWN"
-    DB_QUERY: str = "DB_QUERY"
-    DOCUMENT_RECONSTRUCTION_RETRIEVAL: str = "DOCUMENT_RECONSTRUCTION_RETRIEVAL"
+    UNKNOWN = "UNKNOWN"
+    DB_QUERY = "DB_QUERY"
+    DOCUMENT_RECONSTRUCTION_RETRIEVAL = "DOCUMENT_RECONSTRUCTION_RETRIEVAL"
 
 
 class DocumentPropertyTypes:

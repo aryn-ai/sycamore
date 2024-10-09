@@ -8,12 +8,7 @@ from sycamore.query.operators.query_database import QueryDatabase
 
 def test_node_cache_dict():
     node1 = Node(node_id=1)
-    assert node1.cache_dict() == {
-        "operator_type": "Node",
-        "dependencies": [],
-        "_dependencies": [],
-        "_downstream_nodes": [],
-    }
+    assert node1.cache_dict() == {"operator_type": "Node", "dependencies": [], "downstream_nodes": []}
     assert node1.cache_key() == sha256(json.dumps(node1.cache_dict()).encode()).hexdigest()
 
     # Changing node ID does not affect cache_dict.
@@ -26,8 +21,7 @@ def test_node_cache_dict():
     assert node3.cache_dict() == {
         "operator_type": "QueryDatabase",
         "dependencies": [],
-        "_dependencies": [],
-        "_downstream_nodes": [],
+        "downstream_nodes": [],
         "index": "ntsb",
         "query": {"match_all": {}},
     }
@@ -43,14 +37,12 @@ def test_node_cache_dict():
             {
                 "operator_type": "QueryDatabase",
                 "dependencies": [],
+                "downstream_nodes": [],
                 "index": "ntsb",
                 "query": {"match_all": {}},
-                "_dependencies": [],
-                "_downstream_nodes": [],
             }
         ],
-        "_dependencies": [3],
-        "_downstream_nodes": [],
+        "downstream_nodes": [],
         "distinct_field": "temperature",
     }
     assert node4.cache_key() == sha256(json.dumps(node4.cache_dict()).encode()).hexdigest()

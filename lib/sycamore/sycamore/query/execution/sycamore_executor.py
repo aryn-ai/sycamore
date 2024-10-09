@@ -110,8 +110,8 @@ class SycamoreExecutor:
             cache_dir = None
 
         # Process dependencies
-        if logical_node.dependencies:
-            for dependency in logical_node.dependencies:
+        if logical_node.get_dependencies():
+            for dependency in logical_node.get_dependencies():
                 assert isinstance(dependency, LogicalOperator)
                 inputs += [self.process_node(dependency, query_id)]
 
@@ -212,7 +212,7 @@ class SycamoreExecutor:
             raise ValueError(f"Unsupported node type: {str(logical_node)}")
 
         code, imports = operation.script(
-            output_var=(self.OUTPUT_VAR_NAME if not logical_node.downstream_nodes else None)
+            output_var=(self.OUTPUT_VAR_NAME if not logical_node.get_downstream_nodes() else None)
         )
         self.imports += imports
         self.node_id_to_code[logical_node.node_id] = code
@@ -262,7 +262,7 @@ class SycamoreExecutor:
         path = os.path.join(self.trace_dir, f"{query_id}/metadata/")
         os.makedirs(path, exist_ok=True)
         with open(os.path.join(path, "query_plan.json"), "w") as f:
-            f.write(plan.json())
+            f.write(plan.model_dump_json())
 
     def execute(self, plan: LogicalPlan, query_id: Optional[str] = None) -> Any:
         try:

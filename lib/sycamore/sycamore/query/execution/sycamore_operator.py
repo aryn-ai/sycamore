@@ -546,7 +546,7 @@ class SycamoreSort(SycamoreOperator):
 
 class SycamoreTopK(SycamoreOperator):
     """
-    Note: top_k clustering only operators on document level fields. If you try to cluster on the text contents it
+    Note: top_k clustering only operates on document level fields. If you try to cluster on the text contents it
     will not use text from elements.
     Return the Top-K values from a DocSet
     """

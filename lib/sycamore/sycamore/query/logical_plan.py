@@ -51,13 +51,13 @@ class Node(BaseModel):
         """The nodes that depend on this node."""
         return self._downstream_nodes
 
-    @computed_field
     @property
+    @computed_field
     def dependencies(self) -> List[int]:
         return [dep.node_id for dep in self._dependencies]
 
-    @computed_field
     @property
+    @computed_field
     def downstream_nodes(self) -> List[int]:
         return [dep.node_id for dep in self._downstream_nodes]
 

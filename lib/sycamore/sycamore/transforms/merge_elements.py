@@ -429,10 +429,14 @@ class TableMerger(ElementMerger):
 
             llm = OpenAI(OpenAIModels.GPT_4O, api_key = '')
 
-            prompt = "Analyze two CSV tables that may be parts of a single table split across pages. Determine if the second table is a continuation of the first with 100% certainty. Check either of the following:\
-            1. Column headers: Must be near identical in terms of text(the ordering/text may contain minor errors because of OCR quality) in both tables. If the headers are almost the same check the number of columns, they should be roughly the same.\
-            2. Missing headers: If the header/columns in the second table are missing, then the first row in the second table should logically be in continutaion of the last row in the first table.\
-            Respond with only 'true' or 'false' based on your certainty that the second table is a continuation. Certainty is determinedx if either of the two conditions is true."
+            prompt = "Analyze two CSV tables that may be parts of a single table split across pages. Determine if the second table\
+                      is a continuation of the first with 100% certainty. Check either of the following:\
+            1. Column headers: Must be near identical in terms of text(the ordering/text may contain minor errors because of OCR quality)\
+               in both tables. If the headers are almost the same check the number of columns, they should be roughly the same.\
+            2. Missing headers: If the header/columns in the second table are missing, then the first row in the second table should logically\
+               be in continutaion of the last row in the first table.\
+            Respond with only 'true' or 'false' based on your certainty that the second table is a continuation. \
+            Certainty is determined if either of the two conditions is true."
 
             regex_pattern = r"table \d+"
 

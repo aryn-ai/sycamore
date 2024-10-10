@@ -81,7 +81,7 @@ def process_json_plan(json_plan: str) -> LogicalPlan:
     parsed_plan = extract_json(json_plan)
     if not isinstance(parsed_plan, dict):
         raise ValueError(f"Expected LLM query plan to contain a dict, got f{type(parsed_plan)}")
-    return LogicalPlan.deserialize(parsed_plan)
+    return LogicalPlan.model_validate(parsed_plan)
 
 
 @dataclass
@@ -114,6 +114,7 @@ EXAMPLE_FINANCIAL_SCHEMA = {
     "text_representation": ("str", {"Can be assumed to have all other details"}),
 }
 
+PLANNER_EXAMPLES: List[PlannerExample] = []
 
 PLANNER_EXAMPLES: List[PlannerExample] = [
     PlannerExample(

@@ -203,12 +203,12 @@ class SycamoreSummarizeData(SycamoreOperator):
         assert isinstance(self.logical_node, SummarizeData)
         question = self.logical_node.question
         description = self.logical_node.description
-        assert self.logical_node.get_dependencies() is not None and len(self.logical_node.get_dependencies()) >= 1
+        assert len(self.logical_node.inputs) >= 1
 
         logical_deps_str = ""
-        for i, inp in enumerate(self.logical_node.get_dependencies()):
+        for i, inp in enumerate(self.logical_node.input_nodes()):
             logical_deps_str += input_var or get_var_name(inp)
-            if i != len(self.logical_node.get_dependencies()) - 1:
+            if i != len(self.logical_node.inputs) - 1:
                 logical_deps_str += ", "
 
         result = f"""
@@ -269,9 +269,9 @@ class SycamoreLlmFilter(SycamoreOperator):
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
-        assert self.logical_node.get_dependencies() is not None and len(self.logical_node.get_dependencies()) == 1
+        assert len(self.logical_node.inputs) == 1
         assert isinstance(self.logical_node, LlmFilter)
-        input_str = input_var or get_var_name(self.logical_node.get_dependencies()[0])
+        input_str = input_var or get_var_name(self.logical_node.input_nodes()[0])
         output_str = output_var or get_var_name(self.logical_node)
         result = f"""
 prompt = LlmFilterMessagesPrompt(filter_question='{self.logical_node.question}').as_messages()
@@ -329,10 +329,10 @@ class SycamoreBasicFilter(SycamoreOperator):
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         assert isinstance(self.logical_node, BasicFilter)
-        assert self.logical_node.get_dependencies() is not None and len(self.logical_node.get_dependencies()) == 1
+        assert len(self.logical_node.inputs) == 1
         imports: list[str] = []
 
-        input_str = input_var or get_var_name(self.logical_node.get_dependencies()[0])
+        input_str = input_var or get_var_name(self.logical_node.input_nodes()[0])
         output_str = output_var or get_var_name(self.logical_node)
         if self.logical_node.range_filter:
             field = self.logical_node.field
@@ -399,15 +399,15 @@ class SycamoreCount(SycamoreOperator):
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         assert isinstance(self.logical_node, Count)
-        assert self.logical_node.get_dependencies() is not None and len(self.logical_node.get_dependencies()) == 1
+        assert len(self.logical_node.inputs) == 1
         distinct_field = self.logical_node.distinct_field
 
         imports: list[str] = []
         script = f"""{output_var or get_var_name(self.logical_node)} ="""
         if distinct_field is None:
-            script += f"""{input_var or get_var_name(self.logical_node.get_dependencies()[0])}.count("""
+            script += f"""{input_var or get_var_name(self.logical_node.input_nodes()[0])}.count("""
         else:
-            script += f"""{input_var or get_var_name(self.logical_node.get_dependencies()[0])}.count_distinct("""
+            script += f"""{input_var or get_var_name(self.logical_node.input_nodes()[0])}.count_distinct("""
             script += f"""field='{distinct_field}', """
         script += f"""**{get_str_for_dict(self.get_execute_args())})"""
         return script, imports
@@ -469,9 +469,9 @@ class SycamoreLlmExtractEntity(SycamoreOperator):
         field = logical_node.field
         fmt = logical_node.new_field_type
         discrete = logical_node.discrete
-        assert logical_node.get_dependencies() is not None and len(logical_node.get_dependencies()) == 1
+        assert len(logical_node.inputs) == 1
 
-        input_str = input_var or get_var_name(logical_node.get_dependencies()[0])
+        input_str = input_var or get_var_name(logical_node.input_nodes()[0])
         output_str = output_var or get_var_name(logical_node)
 
         result = f"""
@@ -532,10 +532,10 @@ class SycamoreSort(SycamoreOperator):
         descending = logical_node.descending
         field = logical_node.field
         default_value = logical_node.default_value
-        assert logical_node.get_dependencies() is not None and len(logical_node.get_dependencies()) == 1
+        assert len(logical_node.inputs) == 1
 
         result = f"""
-{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(logical_node.get_dependencies()[0])}.sort(
+{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(logical_node.input_nodes()[0])}.sort(
     descending={descending},
     field='{field}'
     default_val={default_value}
@@ -592,10 +592,10 @@ class SycamoreTopK(SycamoreOperator):
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         logical_node = self.logical_node
         assert isinstance(logical_node, TopK)
-        assert logical_node.get_dependencies() is not None and len(logical_node.get_dependencies()) == 1
+        assert len(logical_node.inputs) == 1
 
         result = f"""
-{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(logical_node.get_dependencies()[0])}.top_k(
+{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(logical_node.input_nodes()[0])}.top_k(
     field='{logical_node.field}',
     k={logical_node.K},
     descending={logical_node.descending},
@@ -648,11 +648,11 @@ class SycamoreFieldIn(SycamoreOperator):
         assert isinstance(logical_node, FieldIn)
         field1 = logical_node.field_one
         field2 = logical_node.field_two
-        assert logical_node.get_dependencies() is not None and len(logical_node.get_dependencies()) == 2
+        assert len(logical_node.inputs) == 2
 
         result = f"""
-{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(logical_node.get_dependencies()[0])}.field_in(
-    docset2={input_var or get_var_name(logical_node.get_dependencies()[2])},
+{output_var or get_var_name(self.logical_node)} = {input_var or get_var_name(logical_node.input_nodes()[0])}.field_in(
+    docset2={input_var or get_var_name(logical_node.input_nodes()[2])},
     field1='{field1}',
     field2='{field2}'
 )
@@ -688,10 +688,10 @@ class SycamoreLimit(SycamoreOperator):
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
         logical_node = self.logical_node
         assert isinstance(logical_node, Limit)
-        assert logical_node.get_dependencies() is not None and len(logical_node.get_dependencies()) == 1
+        assert len(logical_node.inputs) == 1
 
         result = f"""
-{output_var or get_var_name(logical_node)} = {input_var or get_var_name(logical_node.get_dependencies()[0])}.limit(
+{output_var or get_var_name(logical_node)} = {input_var or get_var_name(logical_node.input_nodes()[0])}.limit(
     {logical_node.num_records},
     **{get_str_for_dict(self.get_execute_args())},
 )

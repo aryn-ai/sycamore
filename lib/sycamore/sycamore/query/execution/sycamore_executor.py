@@ -8,7 +8,7 @@ from structlog.contextvars import clear_contextvars, bind_contextvars
 
 from sycamore import Context
 from sycamore.materialize_config import MaterializeSourceMode
-from sycamore.query.logical_plan import Node
+from sycamore.query.logical_plan import LogicalPlan, Node
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.basic_filter import BasicFilter
 from sycamore.query.operators.limit import Limit
@@ -91,7 +91,7 @@ class SycamoreExecutor:
             log.info("Already processed")
             return self.processed[logical_node.node_id]
         log.info("Executing dependencies")
-        inputs = []
+        inputs: List[Any] = []
 
         if self.trace_dir and not self.dry_run:
             trace_dir = os.path.join(self.trace_dir, query_id, str(logical_node.node_id))
@@ -106,10 +106,7 @@ class SycamoreExecutor:
             cache_dir = None
 
         # Process inputs.
-        if logical_node.get_inputs():
-            for dependency in logical_node.get_inputs():
-                assert isinstance(dependency, Node)
-                inputs += [self.process_node(dependency, query_id)]
+        inputs = [self.process_node(n, query_id) for n in logical_node.input_nodes()]
 
         # refresh context as nested execution overrides it
         bind_contextvars(logical_node=logical_node)
@@ -259,7 +256,7 @@ class SycamoreExecutor:
         with open(os.path.join(path, "query_plan.json"), "w", encoding="utf-8") as f:
             f.write(plan.model_dump_json())
 
-    def execute(self, plan: Node, query_id: Optional[str] = None) -> Any:
+    def execute(self, plan: LogicalPlan, query_id: Optional[str] = None) -> Any:
         """Execute a logical plan using Sycamore."""
 
         try:
@@ -272,8 +269,7 @@ class SycamoreExecutor:
                 self._write_query_plan_to_trace_dir(plan, query_id)
 
             log.info("Executing query")
-            assert isinstance(plan.result_node, Node)
-            result = self.process_node(plan.result_node, query_id, is_result_node=True)
+            result = self.process_node(plan.nodes[plan.result_node], query_id, is_result_node=True)
 
             if self.dry_run:
                 code = self.get_code_string()

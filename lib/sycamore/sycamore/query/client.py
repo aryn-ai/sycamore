@@ -152,7 +152,7 @@ class SycamoreQueryClient:
         self._os_client = OpenSearch(**self.os_client_args)
         self._os_query_executor = OpenSearchQueryExecutor(self.os_client_args)
 
-    def get_opensearch_incides(self) -> List[str]:
+    def get_opensearch_indices(self) -> List[str]:
         """Get the schema for the provided OpenSearch index."""
         indices = list([str(k) for k in self._os_client.indices.get_alias().keys()])
         return indices
@@ -307,6 +307,7 @@ def main():
     parser.add_argument("query", type=str, help="Query to run against the index.", nargs="?", default=None)
     parser.add_argument("--show-indices", action="store_true", help="Show all indices")
     parser.add_argument("--index", type=str, help="Index name")
+    parser.add_argument("--schema-file", type=str, help="Schema File")   
     parser.add_argument(
         "--s3-cache-path",
         type=str,
@@ -346,21 +347,44 @@ def main():
         # Make cache_dir absolute.
         args.cache_dir = os.path.abspath(args.cache_dir)
 
-    client = SycamoreQueryClient(s3_cache_path=args.s3_cache_path, trace_dir=args.trace_dir, cache_dir=args.cache_dir)
+    # either index or index-file is required
+    if not args.show_indices and not args.schema_file:
+        parser.error("Either index or schema-file is required")
 
-    if args.show_indices:
-        for index in client.get_opensearch_incides():
-            console.print(index)
-        return
-
+    # query is required
     if not args.query:
         parser.error("Query is required")
 
-    schema = client.get_opensearch_schema(args.index)
+    client = SycamoreQueryClient(s3_cache_path=args.s3_cache_path, trace_dir=args.trace_dir, cache_dir=args.cache_dir)
+
+    # get schema (schema_file overrides index)
+    # index is read from file
+    if args.schema_file:
+        if os.path.exists(args.schema_file):
+            # read the schema from file
+            if args.schema_file:
+                try:
+                    with open(args.schema_file) as f:           
+                        schema = json.load(f)
+                except json.JSONDecodeError as e:
+                    print(f"Error loading schema file: {e}")
+                    return
+                    # Handle the error here, such as logging or raising an exception
+        else:
+            parser.error(f"index-file {args.schema_file} does not exist")
+    # index is read from OpenSearch
+    else:
+        schema = client.get_opensearch_schema(args.index)
+
     if args.show_schema:
-        console.rule("Extracted schema")
+        console.rule("Using schema")
         console.print(schema)
         console.rule()
+
+    if args.show_indices:
+        for index in client.get_opensearch_indices():
+            console.print(index)
+        return
 
     plan = client.generate_plan(args.query, args.index, schema, natural_language_response=not args.raw_data_response)
 

@@ -28,8 +28,7 @@ To write a DocSet to a Neo4j instance from Sycamore, use the `docset.write.neo4j
 
 - `uri`: Connection endpoint for the neo4j instance. Note that this must be paired with the
     necessary client arguments below
-- `auth`: Authentication arguments to be specified. See more information at
-    https://neo4j.com/docs/api/python-driver/current/api.html#auth-ref
+- `auth`: Authentication arguments to be specified. See more information [here](https://neo4j.com/docs/api/python-driver/current/api.html#auth-ref).
 - `import_dir`: The import directory that neo4j uses. You can specify where to mount this volume when you launch
     your neo4j docker container.
 - `database`: (Optional, default=`neo4j`) Database to write to in Neo4j. By default in the neo4j community addition, new databases

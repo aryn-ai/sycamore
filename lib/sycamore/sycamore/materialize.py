@@ -95,6 +95,34 @@ class Materialize(UnaryNode):
 
         super().__init__(child, **kwargs)
 
+        self._maybe_anonymous()
+
+    def _maybe_anonymous(self):
+        if self._root is None:
+            return
+        from pyarrow.fs import S3FileSystem
+
+        if not isinstance(self._fs, S3FileSystem):
+            return
+
+        try:
+            self._fs.get_file_info(str(self._root))
+            return
+        except OSError as e:
+            logging.warning(f"Got error {e} trying to get file info on {self._root}, trying again in anonymous mode")
+
+        fs = S3FileSystem(anonymous=True)
+        try:
+            fs.get_file_info(str(self._root))
+            self._fs = fs
+            self._fshelper = _PyArrowFsHelper(self._fs)
+            return
+        except OSError as e:
+            logging.warning(
+                f"Got error {e} trying to anonymously get file info on {self._root}. Likely to fail shortly."
+            )
+            return
+
     def prepare(self):
         """
         Clean up the materialize location if necessary.
@@ -102,10 +130,10 @@ class Materialize(UnaryNode):
         This protects against multiple materializes pointing to the same location.
         """
 
-        if self._will_be_source():
+        if self._root is None:
             return
 
-        if self._root is None:
+        if self._will_be_source():
             return
 
         if not self._clean_root:
@@ -207,13 +235,21 @@ class Materialize(UnaryNode):
         logger.info(f"Using {self._orig_path} as cached source of data")
         if not self._fshelper.file_exists(self._success_path()):
             logging.warning(f"materialize.success not found in {self._orig_path}. Returning partial data")
+        from sycamore.utils.sycamore_logger import LoggerFilter
+
+        limited_logger = logging.getLogger(__name__ + ".limited_local_source")
+        limited_logger.addFilter(LoggerFilter())
         ret = []
+        count = 0
         for fi in self._fshelper.list_files(self._root):
             n = Path(fi.path)
             if n.suffix == ".pickle":
+                limited_logger.info(f"  reading file {count} from {str(n)}")
+                count = count + 1
                 f = self._fs.open_input_stream(str(n))
                 ret.append(Document.deserialize(f.read()))
                 f.close()
+        logger.info(f"  read {count} total files")
 
         return ret
 

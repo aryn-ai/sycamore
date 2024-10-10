@@ -434,7 +434,7 @@ class DocSetReader:
 
             .. code-block:: python
 
-                url = "http://localhost:9201"
+                url = "http://localhost:9200"
                 index_name = "test_index-read"
                 wait_for_completion = "wait_for"
                 model_name = "sentence-transformers/all-MiniLM-L6-v2"

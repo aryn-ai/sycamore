@@ -17,7 +17,7 @@ For local development and testing, we recommend running Elasticsearch through do
     elasticsearch:
       image: docker.elastic.co/elasticsearch/elasticsearch:8.14.2
       ports:
-        - 9201:9200
+        - 9200:9200
       restart: on-failure
       environment:
         - discovery.type=single-node
@@ -47,7 +47,7 @@ To write a DocSet to a Elasticsearch index from Sycamore, use the `docset.write.
 To write a docset to a local Elasticsearch index run by the Docker compose above, we can write the following:
 
 ```python
-url = "http://localhost:9201"
+url = "http://localhost:9200"
 index_name = "test_index-write"
 wait_for_completion = "wait_for"
 
@@ -68,7 +68,7 @@ To read from a Elasticsearch index into a Sycamore DocSet, use the following cod
 
 ```python
 ctx = sycamore.init()
-url = "http://localhost:9201"
+url = "http://localhost:9200"
 index_name = "test_index-read"
 target_doc_id = "target"
 query_params = {"term": {"_id": target_doc_id}}

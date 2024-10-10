@@ -9,8 +9,8 @@ Check out [this notebook](https://github.com/aryn-ai/sycamore/blob/main/notebook
 To write a Docset to a Pinecone index from Sycamore, use the DocSet `docset.write.pinecone(....)` function. The Pinecone writer takes in the following arguments:
 
 - index_name: Name of the pinecone index to ingest into, is a required parameter.
-- index_spec: Cloud parameters needed by pinecone to create your index. See https://docs.pinecone.io/guides/indexes/create-an-index for additional information. Defaults to None, which assumes the index already exists, and will not modify an existing index if provided.
-- namespace: Namespace withing the pinecone index to ingest into. See https://docs.pinecone.io/guides/indexes/use-namespaces for additional information. Defaults to "", which is the default namespace.
+- index_spec: Cloud parameters needed by pinecone to create your index. See [here](https://docs.pinecone.io/guides/indexes/create-an-index) for additional information. Defaults to None, which assumes the index already exists, and will not modify an existing index if provided.
+- namespace: Namespace withing the pinecone index to ingest into. See [here](https://docs.pinecone.io/guides/indexes/use-namespaces) for additional information. Defaults to "", which is the default namespace.
 - dimensions: Dimensionality of dense vectors in your index. Defaults to None, which assumes the index already exists, and will not modify an existing index if provided.
 - distance_metric: Distance metric used for nearest-neighbor search in your index. Defaults to "cosine", but will not modify an already-existing index.
 - api_key: Pinecone service API Key. Defaults to None (will use the environment variable PINECONE_API_KEY).

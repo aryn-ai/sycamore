@@ -477,7 +477,7 @@ class LlmPlanner:
 
         prompt_kwargs = {"messages": messages}
         chat_completion = self._llm_client.generate(
-            prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0, "seed": 42, "response_format": LogicalPlan}
+            prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0, "seed": 42}
         )
         return prompt_kwargs, chat_completion
 

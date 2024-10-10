@@ -249,7 +249,7 @@ class SycamoreExecutor:
 """
         return result
 
-    def _write_query_plan_to_trace_dir(self, plan: Node, query_id: str):
+    def _write_query_plan_to_trace_dir(self, plan: LogicalPlan, query_id: str):
         assert self.trace_dir is not None, "Writing query_plan requires trace_dir to be set"
         path = os.path.join(self.trace_dir, query_id, "metadata")
         os.makedirs(path, exist_ok=True)

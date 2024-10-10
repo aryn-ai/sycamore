@@ -114,8 +114,6 @@ EXAMPLE_FINANCIAL_SCHEMA = {
     "text_representation": ("str", {"Can be assumed to have all other details"}),
 }
 
-PLANNER_EXAMPLES: List[PlannerExample] = []
-
 PLANNER_EXAMPLES: List[PlannerExample] = [
     PlannerExample(
         schema=EXAMPLE_NTSB_SCHEMA,
@@ -230,7 +228,6 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
                     field="text_representation",
                     new_field="pilot",
                     new_field_type="str",
-                    format="string",
                     discrete=True,
                     inputs=[0],
                 ),

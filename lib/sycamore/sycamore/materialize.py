@@ -7,7 +7,6 @@ from sycamore.data import Document, MetadataDocument
 from sycamore.materialize_config import MaterializeSourceMode
 from sycamore.plan_nodes import Node, UnaryNode, NodeTraverse
 from sycamore.transforms.base import rename
-from sycamore.utils.sycamore_logger import LoggerFilter
 
 if TYPE_CHECKING:
     from ray import Dataset
@@ -15,8 +14,6 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
-limited_logger = logging.getLogger(__name__ + ".limited")
-limited_logger.addFilter(LoggerFilter())
 
 
 class _PyArrowFsHelper:

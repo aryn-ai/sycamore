@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Pattern
+from typing import Any, Dict, Pattern, Optional
 from collections import defaultdict
 import re
 
@@ -12,7 +12,6 @@ from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
 from sycamore.transforms.llm_query import LLMTextQueryAgent
 from sycamore.llms import LLM
-
 
 
 class ElementMerger(ABC):
@@ -445,7 +444,14 @@ class TableMerger(ElementMerger):
                 .merge(merger=merger)
     """
 
-    def __init__(self, regex_pattern: Optional[Pattern] = None, llm_prompt: Optional[str] = None, llm=Optional[LLM] = None, *args, **kwargs):
+    def __init__(
+        self,
+        regex_pattern: Optional[Pattern] = None,
+        llm_prompt: Optional[str] = None,
+        llm: Optional[LLM] = None,
+        *args,
+        **kwargs
+    ):
         self.regex_pattern = regex_pattern
         self.llm_prompt = llm_prompt
         self.llm = llm

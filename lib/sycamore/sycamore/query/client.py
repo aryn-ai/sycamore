@@ -306,7 +306,11 @@ def main():
     parser.add_argument("query", type=str, help="Query to run against the index.", nargs="?", default=None)
     parser.add_argument("--show-indices", action="store_true", help="Show all indices")
     parser.add_argument("--index", type=str, help="Index name")
+<<<<<<< HEAD
     parser.add_argument("--schema-file", type=str, help="Schema file")
+=======
+    parser.add_argument("--schema-file", type=str, help="Schema File")   
+>>>>>>> cf46af0f (added ability to read schema from file)
     parser.add_argument(
         "--s3-cache-path",
         type=str,

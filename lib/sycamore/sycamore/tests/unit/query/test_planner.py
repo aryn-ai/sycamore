@@ -1,6 +1,5 @@
 from unittest.mock import MagicMock
 import pytest
-import json
 
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.operators.count import Count

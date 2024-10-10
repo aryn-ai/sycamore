@@ -1,13 +1,12 @@
 import os
 import tempfile
-from typing import Dict
 from unittest.mock import patch
 
 import pytest
 
 import sycamore
 from sycamore.query.execution.sycamore_executor import SycamoreExecutor
-from sycamore.query.logical_plan import LogicalPlan, Node
+from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.query_database import QueryDatabase
 

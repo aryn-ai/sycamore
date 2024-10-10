@@ -6,6 +6,7 @@ from sycamore.context import get_val_from_context, OperationTypes
 from sycamore.functions.basic_filters import MatchFilter, RangeFilter
 from sycamore.llms import LLM
 from sycamore.llms.prompts.default_prompts import EntityExtractorMessagesPrompt, LlmFilterMessagesPrompt
+from sycamore.query.logical_plan import Node
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.basic_filter import BasicFilter
 from sycamore.query.operators.limit import Limit
@@ -22,7 +23,6 @@ from sycamore.transforms import Embedder
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 
 from sycamore import DocSet, Context
-from sycamore.query.operators.logical_operator import LogicalOperator
 from sycamore.query.execution.physical_operator import PhysicalOperator, get_var_name, get_str_for_dict
 
 
@@ -43,7 +43,7 @@ class SycamoreOperator(PhysicalOperator):
     def __init__(
         self,
         context: Context,
-        logical_node: LogicalOperator,
+        logical_node: Node,
         query_id: str,
         inputs: Optional[List[Any]] = None,
         trace_dir: Optional[str] = None,

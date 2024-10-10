@@ -2,10 +2,10 @@ from typing import Optional
 
 from pydantic import Field
 
-from sycamore.query.operators.logical_operator import LogicalOperator
+from sycamore.query.logical_plan import Node
 
 
-class TopK(LogicalOperator):
+class TopK(Node):
     """Finds the top K frequent occurences of values for a particular field.
 
     Returns a database with ONLY 2 FIELDS: "properties.key" (which corresponds to unique values of

@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from enum import Enum
 from functools import wraps
 import json
@@ -17,7 +18,15 @@ def exclude_from_comparison(func):
     return wrapper
 
 
+# This is a mapping from class name to subclasses of Node, which is used for deserialization.
 _NODE_SUBCLASSES: Dict[str, Any] = {}
+
+
+@dataclass
+class NodeSchemaField:
+    field_name: str
+    description: Optional[str]
+    type_hint: str
 
 
 class Node(BaseModel):
@@ -25,8 +34,7 @@ class Node(BaseModel):
 
     Args:
         node_id: The ID of the node.
-        _dependencies: The nodes that this node depends on.
-        _downstream_nodes: The nodes that depend on this node.
+        _inputs: The nodes that this node depends on.
     """
 
     # This allows pydantic to pick up field descriptions from
@@ -39,7 +47,6 @@ class Node(BaseModel):
         if cls.__name__ in _NODE_SUBCLASSES:
             raise ValueError(f"Duplicate node type: {cls.__name__}")
         _NODE_SUBCLASSES[cls.__name__] = cls
-        print(f"MDW: REGISTERED {cls.__name__}")
 
     node_id: int
     """A unique integer ID representing this node."""
@@ -51,19 +58,13 @@ class Node(BaseModel):
     # input_schema used by the planner.
 
     # The nodes that this node depends on.
-    _dependencies: List["Node"] = []
-    # The nodes that depend on this node.
-    _downstream_nodes: List["Node"] = []
+    _inputs: List["Node"] = []
     # The cache key for this node.
     _cache_key: Optional[str] = None
 
-    def get_dependencies(self) -> List["Node"]:
+    def get_inputs(self) -> List["Node"]:
         """Return the nodes that this node depends on."""
-        return self._dependencies
-
-    def get_downstream_nodes(self) -> List["Node"]:
-        """Return the nodes that depend on this node."""
-        return self._downstream_nodes
+        return self._inputs
 
     @computed_field
     @property
@@ -73,13 +74,9 @@ class Node(BaseModel):
 
     @computed_field
     @property
-    def dependencies(self) -> List[int]:
-        return [dep.node_id for dep in self._dependencies]
-
-    @computed_field
-    @property
-    def downstream_nodes(self) -> List[int]:
-        return [dep.node_id for dep in self._downstream_nodes]
+    def inputs(self) -> List[int]:
+        """The serialized form of the inputs to this node."""
+        return [dep.node_id for dep in self._inputs]
 
     def __str__(self) -> str:
         return f"Id: {self.node_id} Op: {type(self).__name__}"
@@ -114,8 +111,8 @@ class Node(BaseModel):
         # We want to exclude fields that may change from plan to plan, but which do not
         # affect the semantic equivalence of the plan.
         retval = self.model_dump(exclude={"node_id", "input", "description"})
-        # Recursively include dependencies.
-        retval["dependencies"] = [dep.cache_dict() for dep in self._dependencies]
+        # Recursively include inputs.
+        retval["inputs"] = [dep.cache_dict() for dep in self.get_inputs()]
         return retval
 
     def cache_key(self) -> str:
@@ -137,6 +134,16 @@ class Node(BaseModel):
         else:
             raise ValueError(f"Unknown node type: {data['node_type']}")
 
+    @classmethod
+    def usage(cls) -> str:
+        """Return a detailed description of the this query operator. Used by the planner."""
+        return f"""**{cls.__name__}**: {cls.__doc__}"""
+
+    @classmethod
+    def input_schema(cls) -> Dict[str, NodeSchemaField]:
+        """Return a dict mapping field name to type hint for each input field."""
+        return {k: NodeSchemaField(k, v.description, str(v.annotation)) for k, v in cls.model_fields.items()}
+
 
 class LogicalNodeDiffType(Enum):
     OPERATOR_TYPE = "operator_type"
@@ -155,53 +162,50 @@ class LogicalPlan(BaseModel):
     """Represents a logical query plan.
 
     Args:
-        result_node: The node that is the result of the query.
         query: The query that the plan is for.
         nodes: A mapping of node IDs to nodes.
+        result_node: The node that is the result of the query.
         llm_prompt: The LLM prompt that was used to generate this query plan.
         llm_plan: The LLM plan that was used to generate this query plan.
     """
 
-    _result_node: Optional[Node] = None
-
     query: str
     nodes: Mapping[int, SerializeAsAny[Node]]
+    result_node: int
     llm_prompt: Optional[Any] = None
     llm_plan: Optional[str] = None
-
-    @computed_field
-    @property
-    def result_node(self) -> int:
-        return self._result_node.node_id
 
     @classmethod
     def deserialize(cls, data: Dict[str, Any]) -> "LogicalPlan":
         """Deserialize a LogicalPlan from a dictionary. This is a little complex, due to our use
-        of duck typing for Nodes, and the fact that node dependencies are serialized as node IDs."""
-        print(f"MDW: DATA IS {data}")
+        of duck typing for Nodes, and the fact that node inputs are serialized as node IDs."""
         if "nodes" not in data:
             raise ValueError("No nodes field found in LogicalPlan")
 
         # Create Nodes from the serialized data.
         nodes: Dict[int, Node] = {}
         data_nodes = data["nodes"]
+
         if not isinstance(data_nodes, dict):
             raise ValueError("nodes field must be a dictionary")
-        for node_id, node in data_nodes.items():
-            if not isinstance(node, dict):
+        for node_id, data_node in data_nodes.items():
+            if not isinstance(data_node, dict):
                 raise ValueError("Each node in the nodes field must be a dictionary")
-            if "node_type" not in node:
+            if "node_type" not in data_node:
                 raise ValueError("Each node in the nodes field must have a node_type field")
-            nodes[node_id] = Node.deserialize(node)
+            nodes[node_id] = Node.deserialize(data_node)
 
-        # Set dependencies.
-        for node_id, node in data_nodes.items():
-            if "dependencies" in node:
-                if not isinstance(node["dependencies"], list):
-                    raise ValueError("Dependencies field must be a list")
-                nodes[node_id]._dependencies = [nodes[dep_id] for dep_id in node["dependencies"]]
-                for dep in nodes[node_id]._dependencies:
-                    dep._downstream_nodes.append(nodes[node_id])
+        # Set node inputs.
+        for node_id, data_node in data_nodes.items():
+            if "inputs" in data_node:
+                if not isinstance(data_node["inputs"], list):
+                    raise ValueError("inputs field must be a list")
+                if not all(isinstance(dep_id, int) for dep_id in data_node["inputs"]):
+                    raise ValueError("All elements of inputs must be integers")
+                if not all(dep_id in nodes for dep_id in data_node["inputs"]):
+                    raise ValueError("All elements of inputs must be valid node IDs")
+                # pylint: disable=protected-access
+                nodes[node_id]._inputs = [nodes[dep_id] for dep_id in data_node["inputs"]]
 
         if "query" not in data:
             raise ValueError("No query field found in LogicalPlan")
@@ -210,14 +214,13 @@ class LogicalPlan(BaseModel):
         if data["result_node"] not in nodes:
             raise ValueError(f"result_node {data['result_node']} not found in nodes")
 
-        plan = LogicalPlan(
+        return LogicalPlan(
             query=data["query"],
             nodes=nodes,
+            result_node=data["result_node"],
             llm_prompt=data.get("llm_prompt"),
             llm_plan=data.get("llm_plan"),
         )
-        plan._result_node = nodes[data["result_node"]]
-        return plan
 
     def compare(self, other: "LogicalPlan") -> list[LogicalPlanDiffEntry]:
         """
@@ -238,9 +241,8 @@ def compare_graphs(node_a: Node, node_b: Node, visited_a: set[int], visited_b: s
     """
     Traverse and compare 2 graphs given a node pointer in each. Computes different comparison metrics per node.
     The function will continue to traverse as long as the graph structure is identical, i.e. same number of outgoing
-    nodes per node. It also assumes that the "downstream_nodes"/edges are ordered - this is the current logical
+    nodes per node. It also assumes that the "downstream nodes"/edges are ordered - this is the current logical
     plan implementation to support operations like math.
-
 
     @param node_a: graph node a
     @param node_b: graph node b
@@ -257,6 +259,7 @@ def compare_graphs(node_a: Node, node_b: Node, visited_a: set[int], visited_b: s
     visited_b.add(node_b.node_id)
 
     # Compare node types
+    # pylint: disable=unidiomatic-typecheck
     if type(node_a) != type(node_b):
         diff_results.append(
             LogicalPlanDiffEntry(node_a=node_a, node_b=node_b, diff_type=LogicalNodeDiffType.OPERATOR_TYPE)
@@ -269,11 +272,11 @@ def compare_graphs(node_a: Node, node_b: Node, visited_a: set[int], visited_b: s
         )
 
     # Compare the structure (inputs)
-    if len(node_a._downstream_nodes) != len(node_b._downstream_nodes):
+    if len(node_a.get_inputs()) != len(node_b.get_inputs()):
         diff_results.append(
             LogicalPlanDiffEntry(node_a=node_a, node_b=node_b, diff_type=LogicalNodeDiffType.PLAN_STRUCTURE)
         )
     else:
-        for input1, input2 in zip(node_a._downstream_nodes, node_b._downstream_nodes):
+        for input1, input2 in zip(node_a.get_inputs(), node_b.get_inputs()):
             diff_results.extend(compare_graphs(input1, input2, visited_a, visited_b))
     return diff_results

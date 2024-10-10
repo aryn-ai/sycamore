@@ -2,7 +2,6 @@ from abc import abstractmethod
 from typing import List, Any, Optional, Tuple, Dict
 
 from sycamore.query.logical_plan import Node
-from sycamore.query.operators.logical_operator import LogicalOperator
 from sycamore.query.operators.math import Math
 
 from sycamore.query.execution.operations import math_operation
@@ -27,12 +26,12 @@ class PhysicalOperator:
     This interface represents a physical operator that executes a logical plan operator.
 
     Args:
-        logical_node (LogicalOperator): The logical query plan node to execute. Contains runtime params based on type.
+        logical_node (Node): The logical query plan node to execute. Contains runtime params based on type.
         query_id (str): Query id
         inputs (List[Any]): List of inputs required to execute the node. Varies based on node type.
     """
 
-    def __init__(self, logical_node: LogicalOperator, query_id: str, inputs: Optional[List[Any]] = None) -> None:
+    def __init__(self, logical_node: Node, query_id: str, inputs: Optional[List[Any]] = None) -> None:
         super().__init__()
         self.logical_node = logical_node
         self.query_id = query_id

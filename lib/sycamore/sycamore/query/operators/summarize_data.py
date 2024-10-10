@@ -1,9 +1,9 @@
 from pydantic import Field
 
-from sycamore.query.operators.logical_operator import LogicalOperator
+from sycamore.query.logical_plan import Node
 
 
-class SummarizeData(LogicalOperator):
+class SummarizeData(Node):
     """
     This operation generates an English response to a user query based on the input data provided.
 

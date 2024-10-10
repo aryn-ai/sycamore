@@ -5,13 +5,12 @@ import pytest
 from sycamore.query.logical_plan import Node, LogicalPlan, LogicalNodeDiffType
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.llm_filter import LlmFilter
-from sycamore.query.operators.logical_operator import LogicalOperator
 from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDatabase
 from sycamore.query.operators.summarize_data import SummarizeData
 from sycamore.query.planner import process_json_plan
 
 
-class DummyOperator(LogicalOperator):
+class DummyOperator(Node):
     dummy: Optional[str] = None
     """A dummy field for testing purposes."""
 
@@ -25,11 +24,11 @@ def test_node_serialize_deserialize():
     assert serialized["dummy"] == "Dummy value"
 
     # Explicit deserialization as DummyOperator works.
-#    deserialized = DummyOperator.model_validate(serialized)
-#    assert isinstance(deserialized, DummyOperator)
-#    assert deserialized.node_id == 1
-#    assert deserialized.description == "Test node"
-#    assert deserialized.dummy == "Dummy value"
+    deserialized = DummyOperator.model_validate(serialized)
+    assert isinstance(deserialized, DummyOperator)
+    assert deserialized.node_id == 1
+    assert deserialized.description == "Test node"
+    assert deserialized.dummy == "Dummy value"
 
     # Duck-typed deserialization as Node works.
     deserialized = Node.deserialize(serialized)
@@ -46,12 +45,12 @@ def test_plan_serialize_deserialize():
     node_3 = DummyOperator(node_id=3, description="node_3", dummy="test3")
     node_4 = DummyOperator(node_id=4, description="final")
 
-    node_1._downstream_nodes = [node_2, node_3]
-    node_2._dependencies = [node_1]
-    node_2._downstream_nodes = [node_4]
-    node_3._dependencies = [node_1]
-    node_3._downstream_nodes = [node_4]
-    node_4._dependencies = [node_2, node_3]
+    # pylint: disable=protected-access
+    node_2._inputs = [node_1]
+    # pylint: disable=protected-access
+    node_3._inputs = [node_1]
+    # pylint: disable=protected-access
+    node_4._inputs = [node_2, node_3]
     nodes = {
         1: node_1,
         2: node_2,
@@ -60,56 +59,55 @@ def test_plan_serialize_deserialize():
     }
 
     plan = LogicalPlan(
-        result_node=node_4, nodes=nodes, query="Test query plan", llm_prompt="Test LLM prompt", llm_plan="Test LLM plan"
+        result_node=4, nodes=nodes, query="Test query plan", llm_prompt="Test LLM prompt", llm_plan="Test LLM plan"
     )
-    assert plan.result_node == node_4
+    assert plan.result_node == 4
     assert plan.nodes == nodes
 
     serialized = plan.model_dump()
-    assert serialized["result_node"] == node_4.model_dump()
+    assert serialized["result_node"] == 4
     assert serialized["nodes"] == {k: v.model_dump() for k, v in nodes.items()}
 
     # Ensure serialized nodes have the correct fields and references to one another.
     node_1_serialized = serialized["nodes"][1]
     assert node_1_serialized == node_1.model_dump()
-    assert "_dependencies" not in node_1_serialized
-    assert "_downstream_nodes" not in node_1_serialized
+    assert "_inputs" not in node_1_serialized
     assert node_1_serialized["node_type"] == "DummyOperator"
-    assert node_1_serialized["dependencies"] == []
-    assert node_1_serialized["downstream_nodes"] == [2, 3]
+    assert node_1_serialized["inputs"] == []
 
     node_2_serialized = serialized["nodes"][2]
     assert node_2_serialized == node_2.model_dump()
-    assert "_dependencies" not in node_2_serialized
-    assert "_downstream_nodes" not in node_2_serialized
-    assert node_2_serialized["dependencies"] == [1]
-    assert node_2_serialized["downstream_nodes"] == [4]
+    assert "_inputs" not in node_2_serialized
+    assert node_2_serialized["node_type"] == "DummyOperator"
+    assert node_2_serialized["inputs"] == [1]
 
     node_3_serialized = serialized["nodes"][3]
     assert node_3_serialized == node_3.model_dump()
-    assert "_dependencies" not in node_3_serialized
-    assert "_downstream_nodes" not in node_3_serialized
-    assert node_3_serialized["dependencies"] == [1]
-    assert node_3_serialized["downstream_nodes"] == [4]
+    assert "_inputs" not in node_3_serialized
+    assert node_2_serialized["node_type"] == "DummyOperator"
+    assert node_3_serialized["inputs"] == [1]
 
     node_4_serialized = serialized["nodes"][4]
     assert node_4_serialized == node_4.model_dump()
-    assert "_dependencies" not in node_4_serialized
-    assert "_downstream_nodes" not in node_4_serialized
-    assert node_4_serialized["dependencies"] == [2, 3]
-    assert node_4_serialized["downstream_nodes"] == []
+    assert "_inputs" not in node_4_serialized
+    assert node_2_serialized["node_type"] == "DummyOperator"
+    assert node_4_serialized["inputs"] == [2, 3]
 
-    print("MDW: DOING VALIDATION")
-    deserialized = LogicalPlan.model_validate(serialized)
-    print("MDW: DONE WITH VALIDATION")
-    print(f"MDW: GOT BACK: {deserialized}")
+    deserialized = LogicalPlan.deserialize(serialized)
     assert deserialized.query == "Test query plan"
     assert deserialized.llm_prompt == "Test LLM prompt"
     assert deserialized.llm_plan == "Test LLM plan"
-    assert deserialized.result_node == deserialized.nodes[4]
+    assert deserialized.result_node == 4
     assert len(deserialized.nodes) == 4
 
     assert isinstance(deserialized.nodes[1], DummyOperator)
+    assert deserialized.nodes[1].node_id == 1
+    assert isinstance(deserialized.nodes[2], DummyOperator)
+    assert deserialized.nodes[2].node_id == 2
+    assert isinstance(deserialized.nodes[3], DummyOperator)
+    assert deserialized.nodes[3].node_id == 3
+    assert isinstance(deserialized.nodes[4], DummyOperator)
+    assert deserialized.nodes[4].node_id == 4
 
 
 def test_count_operator():
@@ -143,10 +141,8 @@ def test_count_operator():
     assert schema["distinct_field"].description.startswith("If specified, returns the count")
     assert schema["distinct_field"].type_hint == "typing.Optional[str]"
 
-    assert "_dependencies" not in schema
-    assert "_downstream_nodes" not in schema
-    assert "dependencies" not in schema
-    assert "downstream_nodes" not in schema
+    assert "_inputs" not in schema
+    assert "inputs" not in schema
 
 
 @pytest.fixture

@@ -59,10 +59,15 @@ More information can be found in the {doc}`API documentation <../APIs/docsetwrit
 
 ## Reading from Elasticsearch
 
-Reading from an Elasticsearch index takes in the `index_name`, `url`,  and `es_client_args` arguments, with the same specification and defaults as above. It also takes in the arguments below:
+Reading from an Elasticsearch index takes in the `index_name`, `url`,  and `es_client_args` arguments, with the same specification and defaults as above. It paginates and reads from all search results. It also takes in the arguments below:
 
-- query: (Optional) SQL query to read from the table. If not specified, the read will perform a full scan of the table
-- kwargs: (Optional) Parameters to pass in to the Elasticsearch search query.
+- query: (Optional) Query to perform on the index. Note that this must be specified in the Elasticsearch
+    Query DSL as a dictionary. Otherwise, it defaults to a full scan of the table.
+    See more information at https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
+- keep_alive: (Optional) Keep alive time for the search context point in time. Defaults to 1 minute if not specified
+- kwargs: (Optional) Parameters to configure the underlying Elasticsearch search query.
+    See more information at
+    https://elasticsearch-py.readthedocs.io/en/v8.14.0/api/elasticsearch.html#elasticsearch.Elasticsearch.search
 
 To read from a Elasticsearch index into a Sycamore DocSet, use the following code:
 

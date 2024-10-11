@@ -71,7 +71,7 @@ class OpenAIEntityExtractor(EntityExtractor):
         num_of_elements: int = 10,
         prompt_formatter: Callable[[list[Element], str], str] = element_list_formatter,
         use_elements: Optional[bool] = True,
-        prompt: Optional[Union[list[dict], str]] = [],
+        prompt: Optional[Union[list[dict], str]] = None,
         field: str = "text_representation",
     ):
         super().__init__(entity_name)

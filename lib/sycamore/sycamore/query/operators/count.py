@@ -1,9 +1,9 @@
 from typing import Optional
 
-from sycamore.query.operators.logical_operator import LogicalOperator
+from sycamore.query.logical_plan import Node
 
 
-class Count(LogicalOperator):
+class Count(Node):
     """Returns a count of the number of database records provided as input. Optionally supports
     a distinct_field parameter to count the number of distinct values of a given field. For example,
     if distinct_field is 'incident_id', the count will return the number of unique incident_id values

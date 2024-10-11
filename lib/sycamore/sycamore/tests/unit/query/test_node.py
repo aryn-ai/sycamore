@@ -8,19 +8,25 @@ from sycamore.query.operators.query_database import QueryDatabase
 
 def test_node_cache_dict():
     node1 = Node(node_id=1)
-    assert node1.cache_dict() == {"operator_type": "Node", "dependencies": []}
+    # pylint: disable=protected-access
+    node1._input_nodes = []
+    assert node1.cache_dict() == {"node_type": "Node", "inputs": []}
     assert node1.cache_key() == sha256(json.dumps(node1.cache_dict()).encode()).hexdigest()
 
     # Changing node ID does not affect cache_dict.
     node2 = Node(node_id=2)
+    # pylint: disable=protected-access
+    node2._input_nodes = []
     assert node2.cache_dict() == node1.cache_dict()
     assert node2.cache_key() == node1.cache_key()
 
     # QueryDatabase node.
     node3 = QueryDatabase(node_id=3, description="Test description", index="ntsb", query={"match_all": {}})
+    # pylint: disable=protected-access
+    node3._input_nodes = []
     assert node3.cache_dict() == {
-        "operator_type": "QueryDatabase",
-        "dependencies": [],
+        "node_type": "QueryDatabase",
+        "inputs": [],
         "index": "ntsb",
         "query": {"match_all": {}},
     }
@@ -29,13 +35,13 @@ def test_node_cache_dict():
     # Count node that depends on QueryDatabase node.
     node4 = Count(node_id=4, description="Count description", distinct_field="temperature")
     # pylint: disable=protected-access
-    node4._dependencies = [node3]
+    node4._input_nodes = [node3]
     assert node4.cache_dict() == {
-        "operator_type": "Count",
-        "dependencies": [
+        "node_type": "Count",
+        "inputs": [
             {
-                "operator_type": "QueryDatabase",
-                "dependencies": [],
+                "node_type": "QueryDatabase",
+                "inputs": [],
                 "index": "ntsb",
                 "query": {"match_all": {}},
             }

@@ -1,9 +1,9 @@
 from typing import Any
 
-from sycamore.query.operators.logical_operator import LogicalOperator
+from sycamore.query.logical_plan import Node
 
 
-class Sort(LogicalOperator):
+class Sort(Node):
     """Sorts a database based on the value of a field.
 
     Returns a database.

@@ -1,9 +1,9 @@
 from pydantic import Field
 
-from sycamore.query.operators.logical_operator import LogicalOperator
+from sycamore.query.logical_plan import Node
 
 
-class Math(LogicalOperator):
+class Math(Node):
     """
     Performs an arithmetic operation on two input numbers.
 

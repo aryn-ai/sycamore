@@ -2,10 +2,10 @@ from typing import Dict, Optional
 
 from pydantic import Field
 
-from sycamore.query.operators.logical_operator import LogicalOperator
+from sycamore.query.logical_plan import Node
 
 
-class QueryDatabase(LogicalOperator):
+class QueryDatabase(Node):
     """Queries OpenSearch for data from a specified index."""
 
     index: str
@@ -51,7 +51,7 @@ class QueryDatabase(LogicalOperator):
     """
 
 
-class QueryVectorDatabase(LogicalOperator):
+class QueryVectorDatabase(Node):
     """Vector search to load records that are similar to a given query string. Returns the top k records
     according to the vector similarity between the query string and record's text content.
     Use this if you need to filter on a field that can't suffice with an exact match, but also isn't complex enough to

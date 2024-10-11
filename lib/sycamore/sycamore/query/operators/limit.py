@@ -1,7 +1,7 @@
-from sycamore.query.operators.logical_operator import LogicalOperator
+from sycamore.query.logical_plan import Node
 
 
-class Limit(LogicalOperator):
+class Limit(Node):
     """Limits a database to the first num_records records.
 
     Returns a database.

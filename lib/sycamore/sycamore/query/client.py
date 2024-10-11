@@ -32,7 +32,6 @@ from sycamore.query.execution.sycamore_executor import SycamoreExecutor
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.planner import LlmPlanner, PlannerExample
 from sycamore.query.schema import OpenSearchSchema, OpenSearchSchemaFetcher
-from sycamore.query.visualize import visualize_plan
 
 from rich.console import Console
 
@@ -318,7 +317,7 @@ def main():
         "--raw-data-response", action="store_true", help="Return raw data instead of natural language response."
     )
     parser.add_argument("--show-schema", action="store_true", help="Show schema extracted from index.")
-    parser.add_argument("--show-dag", action="store_true", help="Show DAG of query plan.")
+    parser.add_argument("--show-prompt", action="store_true", help="Show planner LLM prompt.")
     parser.add_argument("--show-plan", action="store_true", help="Show generated query plan.")
     parser.add_argument("--plan-only", action="store_true", help="Only generate and show query plan.")
     parser.add_argument("--dry-run", action="store_true", help="Generate and show query plan and execution code")
@@ -395,7 +394,12 @@ def main():
 
     if args.show_plan or args.plan_only:
         console.rule("Generated query plan")
-        print(plan.llm_plan)
+        console.print(plan.model_dump(exclude=["llm_plan", "llm_prompt"]))
+        console.rule()
+
+    if args.show_prompt:
+        console.rule("Prompt")
+        console.print(plan.llm_prompt)
         console.rule()
 
     if args.plan_only:
@@ -409,12 +413,6 @@ def main():
     if args.dump_traces:
         console.rule(f"Execution traces from {args.trace_dir}/sycamore.log")
         client.dump_traces(os.path.join(os.path.abspath(args.trace_dir), "sycamore.log"), query_id)
-
-    if args.show_dag:
-        import matplotlib.pyplot as plt
-
-        visualize_plan(plan)
-        plt.show()
 
 
 if __name__ == "__main__":

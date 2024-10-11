@@ -279,9 +279,13 @@ class DocSetReader:
 
         client_params = OpenSearchReaderClientParams(os_client_args=os_client_args)
         query_params = (
-            OpenSearchReaderQueryParams(index_name=index_name, query=query, reconstruct_document=reconstruct_document)
+            OpenSearchReaderQueryParams(
+                index_name=index_name, query=query, reconstruct_document=reconstruct_document, kwargs=kwargs
+            )
             if query is not None
-            else OpenSearchReaderQueryParams(index_name=index_name, reconstruct_document=reconstruct_document)
+            else OpenSearchReaderQueryParams(
+                index_name=index_name, reconstruct_document=reconstruct_document, kwargs=kwargs
+            )
         )
         osr = OpenSearchReader(client_params=client_params, query_params=query_params)
         return DocSet(self._context, osr)

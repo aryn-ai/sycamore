@@ -1,3 +1,5 @@
+from unittest.mock import Mock
+
 from sycamore.data import Element
 from sycamore.transforms.detr_partitioner import ArynPDFPartitioner, DeformableDetr
 from sycamore.data import BoundingBox
@@ -6,6 +8,7 @@ from sycamore.tests.unit.transforms.check_partition_impl import check_partition,
 from PIL import Image
 import json
 from sycamore.tests.config import TEST_DIR
+from sycamore.transforms.text_extraction import OcrModel
 
 
 class TestArynPDFPartitioner:
@@ -60,6 +63,17 @@ class TestArynPDFPartitioner:
         assert len(d) == 1
         d = check_partition(s, TEST_DIR / "resources/data/pdfs/basic_table.pdf", use_ocr=True, use_cache=False)
         assert len(d) == 1
+
+    def test_partition_w_ocr_instance(self):
+        s = ArynPDFPartitioner("Aryn/deformable-detr-DocLayNet")
+        ocr = Mock(spec=OcrModel)
+        dummy_text = "mocked ocr text"
+        ocr.get_text.return_value = dummy_text
+        d = check_partition(
+            s, TEST_DIR / "resources/data/pdfs/visit_aryn.pdf", use_ocr=True, use_cache=False, ocr_model=ocr
+        )
+        assert len(d) == 1
+        assert d[0][0].text_representation == dummy_text
 
     def test_table_extraction_order(self):
         # In non-ocr mode partitioning basic_table.pdf will fail to include the table output in the correct format

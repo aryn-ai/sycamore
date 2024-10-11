@@ -22,7 +22,7 @@ def test_map_class_parallelism():
     class AgentMark:
         def __init__(self):
             self.id = uuid.uuid4()
-            logging.error("Start AgentMark {self.id}")
+            logging.error(f"Start AgentMark {self.id}")
 
         def __call__(self, d):
             logging.error(f"Call AgentMark {self.id} on {d.doc_id}")

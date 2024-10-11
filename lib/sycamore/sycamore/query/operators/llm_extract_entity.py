@@ -1,9 +1,9 @@
 from pydantic import Field
 
-from sycamore.query.operators.logical_operator import LogicalOperator
+from sycamore.query.logical_plan import Node
 
 
-class LlmExtractEntity(LogicalOperator):
+class LlmExtractEntity(Node):
     """Adds a new field to the input database based on extracting information from an
     existing field.
 

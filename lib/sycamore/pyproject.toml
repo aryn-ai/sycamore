@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sycamore-ai"
-version = "0.1.21"
+version = "0.1.23"
 description = "Sycamore is an LLM-powered semantic data preparation system for building search applications."
 authors = ["aryn.ai <opensource@aryn.ai>"]
 readme = "README.md"

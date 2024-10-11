@@ -4,7 +4,11 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 import structlog
+from structlog.contextvars import clear_contextvars, bind_contextvars
+
+from sycamore import Context
 from sycamore.materialize_config import MaterializeSourceMode
+from sycamore.query.logical_plan import LogicalPlan, Node
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.basic_filter import BasicFilter
 from sycamore.query.operators.limit import Limit
@@ -12,15 +16,11 @@ from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
 from sycamore.query.operators.llm_filter import LlmFilter
 from sycamore.query.operators.summarize_data import SummarizeData
 from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDatabase
-from sycamore.query.operators.logical_operator import LogicalOperator
 from sycamore.query.execution.physical_operator import PhysicalOperator
 from sycamore.query.operators.math import Math
 from sycamore.query.operators.sort import Sort
 from sycamore.query.operators.top_k import TopK
 from sycamore.query.operators.field_in import FieldIn
-from structlog.contextvars import clear_contextvars, bind_contextvars
-from sycamore import Context
-
 from sycamore.query.execution.physical_operator import MathOperator
 from sycamore.query.execution.sycamore_operator import (
     SycamoreQueryDatabase,
@@ -35,15 +35,11 @@ from sycamore.query.execution.sycamore_operator import (
     SycamoreFieldIn,
     SycamoreQueryVectorDatabase,
 )
-from sycamore.query.logical_plan import LogicalPlan
 
 log = structlog.get_logger(__name__)
 
 
 class SycamoreExecutor:
-
-    OUTPUT_VAR_NAME = "result"
-
     """The Sycamore Query executor that processes a logical plan and executes it using Sycamore.
 
     Args:
@@ -57,6 +53,8 @@ class SycamoreExecutor:
         codegen_mode (bool, optional): If set, query execution traces will be done by generating python code.
         dry_run (bool, optional): If set, query will not be executed, only generated python code will be returned.
     """
+
+    OUTPUT_VAR_NAME = "result"
 
     def __init__(
         self,
@@ -79,15 +77,13 @@ class SycamoreExecutor:
             log.info("Using trace directory: %s", trace_dir)
         if self.cache_dir and not self.dry_run:
             log.info("Using cache directory: %s", cache_dir)
-        self.node_id_to_node: Dict[int, LogicalOperator] = {}
+        self.node_id_to_node: Dict[int, Node] = {}
         self.node_id_to_code: Dict[int, str] = {}
         self.imports: List[str] = []
 
-    @staticmethod
-    def get_node_args(query_id: str, logical_node: LogicalOperator) -> Dict:
-        return {"name": str(logical_node.node_id)}
+    def process_node(self, logical_node: Node, query_id: str, is_result_node: Optional[bool] = False) -> Any:
+        """Process the given node. Recursively processes dependencies first."""
 
-    def process_node(self, logical_node: LogicalOperator, query_id: str) -> Any:
         bind_contextvars(logical_node=logical_node)
         # This is lifted up here to avoid serialization issues with Ray.
 
@@ -95,7 +91,7 @@ class SycamoreExecutor:
             log.info("Already processed")
             return self.processed[logical_node.node_id]
         log.info("Executing dependencies")
-        inputs = []
+        inputs: List[Any] = []
 
         if self.trace_dir and not self.dry_run:
             trace_dir = os.path.join(self.trace_dir, query_id, str(logical_node.node_id))
@@ -109,11 +105,8 @@ class SycamoreExecutor:
         else:
             cache_dir = None
 
-        # Process dependencies
-        if logical_node.dependencies:
-            for dependency in logical_node.dependencies:
-                assert isinstance(dependency, LogicalOperator)
-                inputs += [self.process_node(dependency, query_id)]
+        # Process inputs.
+        inputs = [self.process_node(n, query_id) for n in logical_node.input_nodes()]
 
         # refresh context as nested execution overrides it
         bind_contextvars(logical_node=logical_node)
@@ -211,9 +204,7 @@ class SycamoreExecutor:
         else:
             raise ValueError(f"Unsupported node type: {str(logical_node)}")
 
-        code, imports = operation.script(
-            output_var=(self.OUTPUT_VAR_NAME if not logical_node.downstream_nodes else None)
-        )
+        code, imports = operation.script(output_var=(self.OUTPUT_VAR_NAME if not is_result_node else None))
         self.imports += imports
         self.node_id_to_code[logical_node.node_id] = code
         self.node_id_to_node[logical_node.node_id] = logical_node
@@ -233,6 +224,7 @@ class SycamoreExecutor:
         return result
 
     def get_code_string(self):
+        """Return the generated python code as a string."""
 
         result = ""
         unique_import_str = set()
@@ -260,15 +252,27 @@ class SycamoreExecutor:
 
         return result
 
+    def _write_query_plan_to_trace_dir(self, plan: LogicalPlan, query_id: str):
+        assert self.trace_dir is not None, "Writing query_plan requires trace_dir to be set"
+        path = os.path.join(self.trace_dir, query_id, "metadata")
+        os.makedirs(path, exist_ok=True)
+        with open(os.path.join(path, "query_plan.json"), "w", encoding="utf-8") as f:
+            f.write(plan.model_dump_json())
+
     def execute(self, plan: LogicalPlan, query_id: Optional[str] = None) -> Any:
+        """Execute a logical plan using Sycamore."""
+
         try:
-            """Execute a logical plan using Sycamore."""
             if not query_id:
                 query_id = str(uuid.uuid4())
             bind_contextvars(query_id=query_id)
+
+            log.info("Writing query plan to trace dir")
+            if self.trace_dir:
+                self._write_query_plan_to_trace_dir(plan, query_id)
+
             log.info("Executing query")
-            assert isinstance(plan.result_node, LogicalOperator)
-            result = self.process_node(plan.result_node, query_id)
+            result = self.process_node(plan.nodes[plan.result_node], query_id, is_result_node=True)
 
             if self.dry_run:
                 code = self.get_code_string()
@@ -278,6 +282,7 @@ class SycamoreExecutor:
                 code = self.get_code_string()
                 global_context: dict[str, Any] = {"context": self.context}
                 try:
+                    # pylint: disable=exec-used
                     exec(code, global_context)
                 except Exception as e:
                     # exec(..) doesn't seem to print error messages completely, need to traceback

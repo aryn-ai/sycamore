@@ -95,8 +95,8 @@ class TestQueryOpenSearch:
                 "default": {"llm": "some unrelated value"},
             },
         )
-        result = context.read.opensearch(query={"query": {"match_all": {}}, "size": 1}).take()
-        assert len(result) > 0
+        result = context.read.opensearch(query={"query": {"match_all": {}}, "size": 1}, reconstruct_document=True).take()
+        assert len(result) == 1
 
     def test_query_docset(self, setup_index):
         query_executor = OpenSearchQueryExecutor(self.OS_CLIENT_ARGS)

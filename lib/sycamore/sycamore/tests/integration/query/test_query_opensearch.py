@@ -1,5 +1,6 @@
 import pytest
 import sycamore
+from sycamore import ExecMode
 from sycamore.data.document import OpenSearchQuery
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.embed import SentenceTransformerEmbedder
@@ -31,7 +32,7 @@ def setup_index():
     }
     paths = str(TEST_DIR / "resources/data/pdfs/")
 
-    context = sycamore.init()
+    context = sycamore.init(exec_mode=ExecMode.LOCAL)
     ds = (
         context.read.binary(paths, binary_format="pdf")
         .limit(1)
@@ -73,6 +74,29 @@ class TestQueryOpenSearch:
         query.index = self.INDEX
         result = query_executor.query(query)
         assert len(result.hits) > 0
+
+    def test_single_query_with_docset_reader(self, setup_index):
+        context = sycamore.init(
+            exec_mode=ExecMode.LOCAL,
+            params={
+                "opensearch": {
+                    "os_client_args": {
+                        "hosts": [{"host": "localhost", "port": 9200}],
+                        "http_compress": True,
+                        "http_auth": ("admin", "admin"),
+                        "use_ssl": True,
+                        "verify_certs": False,
+                        "ssl_assert_hostname": False,
+                        "ssl_show_warn": False,
+                        "timeout": 120,
+                    },
+                    "index_name": self.INDEX,
+                },
+                "default": {"llm": "some unrelated value"},
+            },
+        )
+        result = context.read.opensearch(query={"query": {"match_all": {}}, "size": 1}).take()
+        assert len(result) > 0
 
     def test_query_docset(self, setup_index):
         query_executor = OpenSearchQueryExecutor(self.OS_CLIENT_ARGS)

@@ -483,7 +483,7 @@ class DocSetWriter:
 
             .. code-block:: python
 
-                url = "http://localhost:9201"
+                url = "http://localhost:9200"
                 index_name = "test-index"
                 model_name = "sentence-transformers/all-MiniLM-L6-v2"
                 paths = str(TEST_DIR / "resources/data/pdfs/")

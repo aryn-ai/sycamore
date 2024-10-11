@@ -10,6 +10,7 @@ import queryui.ntsb as ntsb
 import streamlit as st
 from streamlit_ace import st_ace
 
+from sycamore import ExecMode
 from sycamore.executor import sycamore_ray_init
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
@@ -62,6 +63,7 @@ def run_query():
         s3_cache_path=st.session_state.llm_cache_dir,
         trace_dir=st.session_state.trace_dir,
         cache_dir=st.session_state.cache_dir,
+        exec_mode=ExecMode.LOCAL if st.session_state.local_mode else ExecMode.RAY,
     )
     with st.spinner("Generating plan..."):
         t1 = time.time()
@@ -93,7 +95,7 @@ def run_query():
 
 def main():
     argparser = argparse.ArgumentParser()
-    argparser.add_argument("--external-ray", action="store_true", help="Use external Ray process.")
+    argparser.add_argument("--local-mode", action="store_true", help="Enable Sycamore local execution mode.")
     argparser.add_argument(
         "--index", help="OpenSearch index name to use. If specified, only this index will be queried."
     )
@@ -111,11 +113,15 @@ def main():
     if "llm_cache_dir" not in st.session_state:
         st.session_state.llm_cache_dir = args.llm_cache_dir
 
+    if "local_mode" not in st.session_state:
+        st.session_state.local_mode = args.local_mode
+
     if "trace_dir" not in st.session_state:
         st.session_state.trace_dir = args.trace_dir
 
-    sycamore_ray_init(address="auto")
-    client = get_sycamore_query_client()
+    if not args.local_mode:
+        sycamore_ray_init(address="auto")
+    client = get_sycamore_query_client(exec_mode=ExecMode.LOCAL if args.local_mode else ExecMode.RAY)
 
     st.title("Sycamore Query")
     st.write(f"Query cache dir: `{st.session_state.cache_dir}`")
@@ -141,11 +147,13 @@ def main():
         show_schema(client, st.session_state.index)
         with st.form("query_form"):
             st.text_input("Query", key="query")
-            col1, col2 = st.columns(2)
+            col1, col2, col3 = st.columns(3)
             with col1:
                 submitted = st.form_submit_button("Run query")
             with col2:
                 st.toggle("Plan only", key="plan_only", value=False)
+            with col3:
+                st.toggle("Use Ray", key="use_ray", value=True)
 
         if submitted:
             run_query()

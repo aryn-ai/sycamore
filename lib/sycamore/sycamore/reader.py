@@ -411,7 +411,13 @@ class DocSetReader:
 
     @requires_modules("elasticsearch", extra="elasticsearch")
     def elasticsearch(
-        self, url: str, index_name: str, es_client_args: dict = {}, query: Optional[Dict] = None, **kwargs
+        self,
+        url: str,
+        index_name: str,
+        es_client_args: dict = {},
+        query: Optional[Dict] = None,
+        keep_alive: str = "1m",
+        **kwargs,
     ) -> DocSet:
         """
         Reads the content of an Elasticsearch index into a DocSet.
@@ -426,7 +432,8 @@ class DocSetReader:
                 Query DSL as a dictionary. Otherwise, it defaults to a full scan of the table.
                 See more information at
                 https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
-            kwargs: (Optional) Parameters to pass in to the underlying Elasticsearch search query.
+            keep_alive: (Optional) Keep alive time for the search context. Defaults to 1 minute if not specified
+            kwargs: (Optional) Parameters to configure the underlying Elasticsearch search query.
                 See more information at
                 https://elasticsearch-py.readthedocs.io/en/v8.14.0/api/elasticsearch.html#elasticsearch.Elasticsearch.search
         Example:
@@ -434,7 +441,7 @@ class DocSetReader:
 
             .. code-block:: python
 
-                url = "http://localhost:9201"
+                url = "http://localhost:9200"
                 index_name = "test_index-read"
                 wait_for_completion = "wait_for"
                 model_name = "sentence-transformers/all-MiniLM-L6-v2"
@@ -473,9 +480,9 @@ class DocSetReader:
 
         client_params = ElasticsearchReaderClientParams(url=url, es_client_args=es_client_args)
         query_params = (
-            ElasticsearchReaderQueryParams(index_name=index_name, query=query, kwargs=kwargs)
+            ElasticsearchReaderQueryParams(index_name=index_name, query=query, keep_alive=keep_alive, kwargs=kwargs)
             if query is not None
-            else ElasticsearchReaderQueryParams(index_name=index_name, kwargs=kwargs)
+            else ElasticsearchReaderQueryParams(index_name=index_name, keep_alive=keep_alive, kwargs=kwargs)
         )
 
         esr = ElasticsearchReader(client_params=client_params, query_params=query_params)

@@ -5,9 +5,10 @@ import tempfile
 import tracemalloc
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
-from typing import Any, BinaryIO, List, Literal, Union, Optional
+from typing import Any, BinaryIO, Literal, Union, Optional
 from pathlib import Path
 import pwd
+from itertools import repeat
 
 import requests
 import json
@@ -109,7 +110,7 @@ class ArynPDFPartitioner:
                 self.model = DeformableDetr(self.model_name_or_path, self.device, self.cache)
 
     @staticmethod
-    def _supplement_text(inferred: List[Element], text: List[Element], threshold: float = 0.5) -> List[Element]:
+    def _supplement_text(inferred: list[Element], text: list[Element], threshold: float = 0.5) -> list[Element]:
         # We first check IOU between inferred object and pdf miner text object, we also check if a detected object
         # fully contains a pdf miner text object. After that, we combined all texts belonging a detected object and
         # update its text representation. We allow multiple detected objects contain the same text, we hold on solving
@@ -119,7 +120,11 @@ class ArynPDFPartitioner:
         for index_i, i in enumerate(inferred):
             matched = []
             for t in text:
-                if i.bbox and t.bbox and (i.bbox.iou(t.bbox) > threshold or i.bbox.contains(t.bbox)):
+                if (
+                    i.bbox
+                    and t.bbox
+                    and (i.bbox.iou(t.bbox) > threshold or t.bbox.iob(i.bbox) > threshold or i.bbox.contains(t.bbox))
+                ):
                     matched.append(t)
                     if t in unmatched:
                         unmatched.remove(t)
@@ -144,7 +149,7 @@ class ArynPDFPartitioner:
         threshold: Union[float, Literal["auto"]] = DEFAULT_LOCAL_THRESHOLD,
         use_ocr=False,
         ocr_images=False,
-        ocr_model="easyocr",
+        ocr_model: Union[str, OcrModel] = "easyocr",
         per_element_ocr=True,
         extract_table_structure=False,
         table_structure_extractor=None,
@@ -156,7 +161,7 @@ class ArynPDFPartitioner:
         use_cache=False,
         pages_per_call: int = -1,
         output_format: Optional[str] = None,
-    ) -> List[Element]:
+    ) -> list[Element]:
         if use_partitioning_service:
             assert aryn_api_key != ""
 
@@ -219,7 +224,7 @@ class ArynPDFPartitioner:
         extract_images: bool = False,
         selected_pages: list = [],
         output_format: Optional[str] = None,
-    ) -> List[Element]:
+    ) -> list[Element]:
         file.seek(0)
         options = {
             "threshold": threshold,
@@ -331,10 +336,10 @@ class ArynPDFPartitioner:
         extract_images: bool = False,
         pages_per_call: int = -1,
         output_format: Optional[str] = None,
-    ) -> List[Element]:
+    ) -> list[Element]:
         page_count = get_page_count(file)
 
-        result: List[Element] = []
+        result: list[Element] = []
         low = 1
         high = pages_per_call
         if pages_per_call == -1:
@@ -365,14 +370,14 @@ class ArynPDFPartitioner:
         threshold: float = DEFAULT_LOCAL_THRESHOLD,
         use_ocr: bool = False,
         ocr_images: bool = False,
-        ocr_model: str = "easyocr",
+        ocr_model: Union[str, OcrModel] = "easyocr",
         per_element_ocr: bool = True,
         extract_table_structure: bool = False,
         table_structure_extractor=None,
         extract_images: bool = False,
         batch_size: int = 1,
         use_cache=False,
-    ) -> List[List["Element"]]:
+    ) -> list[list["Element"]]:
         self._init_model()
 
         LogTime("partition_start", point=True)
@@ -409,21 +414,25 @@ class ArynPDFPartitioner:
         threshold: float = DEFAULT_LOCAL_THRESHOLD,
         use_ocr: bool = False,
         ocr_images: bool = False,
-        ocr_model: str = "easyocr",
+        ocr_model: Union[str, OcrModel] = "easyocr",
         per_element_ocr: bool = True,
         extract_table_structure=False,
         table_structure_extractor=None,
         extract_images=False,
         batch_size: int = 1,
         use_cache=False,
-    ) -> List[List["Element"]]:
+    ) -> list[list["Element"]]:
         self._init_model()
 
         if extract_table_structure and not table_structure_extractor:
             table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
+        text_extractor: TextExtractor
         if use_ocr:
-            text_extractor = EXTRACTOR_DICT[ocr_model]()
-            text_generator = None
+            if isinstance(ocr_model, OcrModel):
+                text_extractor = ocr_model
+            else:
+                text_extractor = EXTRACTOR_DICT[ocr_model]()
+            text_generator: Any = repeat(None)
         else:
             text_extractor = PdfMinerExtractor()
             text_generator = PdfMinerExtractor.pdf_to_pages(filename)
@@ -431,20 +440,17 @@ class ArynPDFPartitioner:
         if tracemalloc.is_tracing():
             before = tracemalloc.take_snapshot()
         for i in convert_from_path_streamed_batched(filename, batch_size):
-            extractor_list: list[Any] = list()
-            if text_generator:
-                try:
-                    extractor_list = [text_generator.__next__() for _ in range(batch_size)]
-                except StopIteration:
-                    raise ValueError("Not enough pages in PDF")
-            else:
-                extractor_list = i
+            extractor_inputs: Any = None
+            try:
+                extractor_inputs = [text_generator.__next__() for _ in range(batch_size)]
+            except StopIteration:
+                raise ValueError("Not enough pages in PDF")
             parts = self.process_batch(
                 i,
                 threshold=threshold,
                 use_ocr=use_ocr,
                 text_extractor=text_extractor,
-                extractor_list=extractor_list,
+                extractor_inputs=extractor_inputs,
                 ocr_images=ocr_images,
                 ocr_model=ocr_model,
                 per_element_ocr=per_element_ocr,
@@ -474,7 +480,7 @@ class ArynPDFPartitioner:
         batch: list[Image.Image],
         threshold: float,
         text_extractor: TextExtractor,
-        extractor_list,
+        extractor_inputs: Any,
         use_ocr,
         ocr_images,
         ocr_model,
@@ -488,6 +494,8 @@ class ArynPDFPartitioner:
             assert self.model is not None
             deformable_layout = self.model.infer(batch, threshold, use_cache)
 
+        if not extractor_inputs:
+            extractor_inputs = batch
         gc_tensor_dump()
         assert len(deformable_layout) == len(batch)
         if use_ocr and per_element_ocr:
@@ -496,14 +504,18 @@ class ArynPDFPartitioner:
                     batch,
                     deformable_layout,
                     ocr_images=ocr_images,
-                    ocr_model_name=ocr_model,
+                    ocr_model=ocr_model,
                 )
         else:
             extracted_pages = []
             with LogTime("text_extraction"):
-                for page in extractor_list:
-                    extracted_pages.append(text_extractor.extract_page(page))
-
+                for i, page_data in enumerate(extractor_inputs):
+                    if isinstance(page_data, dict):
+                        width, height = page_data.get("dimensions")
+                        page = text_extractor.parse_output(page_data.get("data"), width, height)
+                    else:
+                        page = text_extractor.extract_page(page_data)
+                    extracted_pages.append(page)
             assert len(extracted_pages) == len(deformable_layout)
             with LogTime("text_supplement"):
                 for d, p in zip(deformable_layout, extracted_pages):
@@ -537,16 +549,19 @@ class ArynPDFPartitioner:
         use_cache: bool,
         use_ocr: bool,
         ocr_images: bool,
-        text_extractor_model: str,
+        text_extractor_model: Union[str, OcrModel],
         images: Optional[list[Image.Image]] = None,
     ):
         kwargs = {"ocr_images": ocr_images, "images": images}
-        if not use_ocr:
-            text_extractor_model = "pdfminer"
-        model_cls = EXTRACTOR_DICT.get(text_extractor_model)
-        if not model_cls:
-            raise ValueError(f"Unknown OCR Model: {text_extractor_model}")
-        model = model_cls()
+        if isinstance(text_extractor_model, OcrModel):
+            model = text_extractor_model
+        else:
+            if not use_ocr:
+                text_extractor_model = "pdfminer"
+            model_cls = EXTRACTOR_DICT.get(text_extractor_model)
+            if not model_cls:
+                raise ValueError(f"Unknown Text Extractor Model: {text_extractor_model}")
+            model = model_cls()
         with LogTime("text_extract", log_start=True):
             extracted_layout = model.extract_document(file_name, hash_key, use_cache, **kwargs)
         return extracted_layout
@@ -557,12 +572,11 @@ class ArynPDFPartitioner:
         threshold: float,
         use_cache: bool,
         use_ocr: bool,
-        ocr_model: str,
+        ocr_model: Union[str, OcrModel],
         ocr_images: bool,
         per_element_ocr: bool,
     ) -> Any:
         self._init_model()
-
         with LogTime("infer"):
             assert self.model is not None
             deformable_layout = self.model.infer(batch, threshold, use_cache)
@@ -574,7 +588,7 @@ class ArynPDFPartitioner:
                 batch,
                 deformable_layout,
                 ocr_images=ocr_images,
-                ocr_model_name=ocr_model,
+                ocr_model=ocr_model,
             )
         return deformable_layout
 
@@ -617,11 +631,11 @@ class SycamoreObjectDetection(ABC):
         self.model = None
 
     @abstractmethod
-    def infer(self, image: List[Image.Image], threshold: float) -> List[List[Element]]:
+    def infer(self, image: list[Image.Image], threshold: float) -> list[list[Element]]:
         """Do inference using the wrapped model."""
         pass
 
-    def __call__(self, image: List[Image.Image], threshold: float) -> List[List[Element]]:
+    def __call__(self, image: list[Image.Image], threshold: float) -> list[list[Element]]:
         """Inference using function call interface."""
         return self.infer(image, threshold)
 
@@ -670,7 +684,7 @@ class DeformableDetr(SycamoreObjectDetection):
     def _get_device(self) -> str:
         return choose_device(self.device, detr=True)
 
-    def infer(self, images: List[Image.Image], threshold: float, use_cache: bool = False) -> List[List[Element]]:
+    def infer(self, images: list[Image.Image], threshold: float, use_cache: bool = False) -> list[list[Element]]:
         if use_cache and self.cache:
             results = self._get_cached_inference(images, threshold)
         else:
@@ -697,7 +711,7 @@ class DeformableDetr(SycamoreObjectDetection):
 
         return batched_results
 
-    def _get_cached_inference(self, images: List[Image.Image], threshold: float) -> list:
+    def _get_cached_inference(self, images: list[Image.Image], threshold: float) -> list:
         results = []
         uncached_images = []
         uncached_indices = []
@@ -723,7 +737,7 @@ class DeformableDetr(SycamoreObjectDetection):
                 results[index] = processed_img
         return results
 
-    def _get_uncached_inference(self, images: List[Image.Image], threshold: float) -> list:
+    def _get_uncached_inference(self, images: list[Image.Image], threshold: float) -> list:
         import torch
 
         results = []
@@ -751,12 +765,16 @@ def extract_ocr(
     images: list[Image.Image],
     elements: list[list[Element]],
     ocr_images: bool = False,
-    ocr_model_name: str = "easyocr",
+    ocr_model: Union[str, OcrModel] = "easyocr",
 ) -> list[list[Element]]:
-    model_cls = EXTRACTOR_DICT.get(ocr_model_name)
-    if not model_cls:
-        raise ValueError(f"Unknown OCR Model: {ocr_model_name}")
-    ocr_model: OcrModel = model_cls()
+    ocr_model_obj: OcrModel
+    if isinstance(ocr_model, OcrModel):
+        ocr_model_obj = ocr_model
+    else:
+        model_cls = EXTRACTOR_DICT.get(ocr_model)
+        if not model_cls:
+            raise ValueError(f"Unknown OCR Model: {ocr_model}")
+        ocr_model_obj = model_cls()
     for i, image in enumerate(images):
         page_elements = elements[i]
         width, height = image.size
@@ -772,7 +790,7 @@ def extract_ocr(
             if elem.type == "table":
                 tokens = []
                 assert isinstance(elem, TableElement)
-                for token in ocr_model.get_boxes_and_text(cropped_image):
+                for token in ocr_model_obj.get_boxes_and_text(cropped_image):
                     # Shift the BoundingBox to be relative to the whole image.
                     # TODO: We can likely reduce the number of bounding box translations/conversion in the pipeline,
                     #  but for the moment I'm prioritizing clarity over (theoretical) performance, and we have the
@@ -783,6 +801,6 @@ def extract_ocr(
                     tokens.append(token)
                 elem.tokens = tokens
             else:
-                elem.text_representation = ocr_model.get_text(cropped_image)
+                elem.text_representation = ocr_model_obj.get_text(cropped_image)
 
     return elements

@@ -111,7 +111,7 @@ class WeaviateWriterClient(BaseDBWriter.Client):
         from weaviate import WeaviateClient
 
         assert isinstance(params, WeaviateClientParams)
-        client = WeaviateClient(**asdict(params))
+        client = WeaviateClient(**params.__dict__)
         return WeaviateWriterClient(client)
 
     def write_many_records(self, records: list[BaseDBWriter.Record], target_params: BaseDBWriter.TargetParams):
@@ -171,7 +171,7 @@ class WeaviateCrossReferenceClient(WeaviateWriterClient):
         from weaviate import WeaviateClient
 
         assert isinstance(params, WeaviateClientParams)
-        client = WeaviateClient(**asdict(params))
+        client = WeaviateClient(**params.__dict__)
         return WeaviateCrossReferenceClient(client)
 
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):

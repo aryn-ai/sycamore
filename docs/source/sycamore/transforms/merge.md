@@ -17,7 +17,7 @@ A BC D EF GHI J KLMNO -> ABCD EF GHIJ KLMNO
 To add this to a script:
 
 ```python
-merger = GreedyTextElementMerger(tokenizer=HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2", max_tokens=512))
+merger = GreedyTextElementMerger(tokenizer=HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2"), max_tokens=512)
 merged_docset = docset.merge(merger=merger)
 ```
 
@@ -31,7 +31,7 @@ The `GreedySectionMerger` groups together different elements in a Document accor
 Use it in much the same way as the text element merger:
 
 ```python
-merger = GreedySectionMerger(tokenizer=HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2", max_tokens=512))
+merger = GreedySectionMerger(tokenizer=HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2"), max_tokens=512)
 merged_docset = docset.merge(merger=merger)
 ```
 
@@ -43,6 +43,6 @@ The marks are "_break" and "_drop". The `MarkedMerger` will merge elements until
 We have found that the `MarkedMerger` is best used with the DocSet method `docset.mark_bbox_preset`, which applies a pre-defined series of marking transforms.
 
 ```python
-marked_ds = docset.mark_bbox_preset(tokenizer=HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2", token_limit=512))
+marked_ds = docset.mark_bbox_preset(tokenizer=HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2"), token_limit=512)
 merged_ds = marked_ds.merge(merger=MarkedMerger())
 ```

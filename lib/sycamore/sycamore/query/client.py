@@ -308,6 +308,7 @@ def main():
     parser.add_argument("--index", type=str, help="Index name")
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     parser.add_argument("--schema-file", type=str, help="Schema file")
 =======
     parser.add_argument("--schema-file", type=str, help="Schema File")   
@@ -315,6 +316,9 @@ def main():
 =======
     parser.add_argument("--schema-file", type=str, help="Schema file")   
 >>>>>>> 5e8b93f1 (small typo)
+=======
+    parser.add_argument("--schema-file", type=str, help="Schema file")
+>>>>>>> 08f2d3d3 (reformatted file with black)
     parser.add_argument(
         "--s3-cache-path",
         type=str,

@@ -42,6 +42,7 @@ class QueryEvalDriver:
         natural_language_response: If True, return the response in natural language format. Otherwise,
             return the raw DocSet results.
         doc_limit: Limit the number of documents in each result set to this number.
+        overwrite: If True, overwrite the results file if it already exists.
     """
 
     def __init__(
@@ -55,8 +56,10 @@ class QueryEvalDriver:
         dry_run: bool = False,
         natural_language_response: bool = True,
         doc_limit: Optional[int] = None,
+        overwrite: bool = False,
     ):
-        console.print(f"Reading input file: {input_file_path}")
+        console.print(":moon: Sycamore Query Eval Driver starting")
+        console.print(f"Reading input file: [green]{input_file_path}")
         self.input_file_path = os.path.abspath(input_file_path)
         self.config = QueryEvalDriver.read_input_file(self.input_file_path)
 
@@ -75,6 +78,7 @@ class QueryEvalDriver:
             self.config.config.natural_language_response or natural_language_response
         )
         self.config.config.doc_limit = self.config.config.doc_limit or doc_limit
+        self.config.config.overwrite = self.config.config.overwrite or overwrite
 
         # Configure logging.
         if self.config.config.log_file:
@@ -86,12 +90,12 @@ class QueryEvalDriver:
         if not self.config.config.results_file:
             raise ValueError("Results file must be specified")
 
-        # Read results file if it exists.
         console.print(f"Writing results to: {self.config.config.results_file}")
         os.makedirs(os.path.dirname(self.config.config.results_file), exist_ok=True)
-        if os.path.exists(self.config.config.results_file):
+        # Read results file if it exists.
+        if not self.config.config.overwrite and os.path.exists(self.config.config.results_file):
             results = self.read_results_file(self.config.config.results_file)
-            console.print(f"Read {len(results.results or [])} existing results from {self.config.config.results_file}")
+            console.print(f":white_check_mark: Read {len(results.results or [])} existing results from {self.config.config.results_file}")
         else:
             results = QueryEvalResultsFile(config=self.config.config, data_schema={}, results=[])
 
@@ -110,7 +114,6 @@ class QueryEvalDriver:
         else:
             self.data_schema = self.client.get_opensearch_schema(self.config.config.index)
 
-        print(self.config.model_dump_json())
 
     @staticmethod
     def read_input_file(input_file_path: str) -> QueryEvalInputFile:
@@ -139,7 +142,7 @@ class QueryEvalDriver:
 
         with open(self.config.config.results_file, "w", encoding="utf8") as results_file:
             results_file.write(to_yaml_str(results_file_obj))
-        console.print(f"Wrote {len(self.results_map)} results to {self.config.config.results_file}")
+        console.print(f":white_check_mark: Wrote {len(self.results_map)} results to {self.config.config.results_file}")
 
     def format_docset(self, docset: DocSet) -> List[Dict[str, Any]]:
         """Convert a DocSet query result to a list of dicts."""
@@ -152,6 +155,7 @@ class QueryEvalDriver:
         """Get the existing result for the query, or return a new result object."""
         if query.query in self.results_map:
             return self.results_map.get(query.query)
+
         result = QueryEvalResult(query=query)
         result.timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
         result.metrics = result.metrics or QueryEvalMetrics()
@@ -162,13 +166,13 @@ class QueryEvalDriver:
         """Generate or return an existing query plan."""
         if result.plan:
             # Use existing result plan.
-            console.print(f"[blue]Using existing query plan from results file")
+            console.print(f"[blue]:point_right: Using existing query plan from results file")
         elif query.plan:
             # Use plan from input file.
             result.plan = query.plan
-            console.print(f"[blue]Using existing query plan from input file")
+            console.print(f"[blue]:point_right: Using existing query plan from input file")
         elif self.config.config and self.config.config.dry_run:
-            console.print("[yellow]Dry run: skipping plan generation")
+            console.print("[yellow]:point_right: Dry run: skipping plan generation")
         else:
             # Generate a plan.
             assert self.config.config
@@ -189,7 +193,7 @@ class QueryEvalDriver:
             plan.llm_prompt = None
             result.plan = plan
             result.error = None
-            console.print(f"[green]Generated query plan in {result.metrics.plan_generation_time:.2f} seconds")
+            console.print(f"[green]:clock: Generated query plan in {result.metrics.plan_generation_time:.2f} seconds")
             console.print(result.plan)
 
         return result
@@ -197,14 +201,12 @@ class QueryEvalDriver:
     def do_query(self, _query: QueryEvalQuery, result: QueryEvalResult) -> QueryEvalResult:
         """Run query plan."""
         if self.config.config and self.config.config.dry_run:
-            console.print("[yellow]Dry run: skipping query execution")
+            console.print("[yellow]:point_right: Dry run: skipping query execution")
             return result
 
         if not result.plan:
-            console.print("[yellow]No plan available - skipping query execution")
+            console.print("[red]:heavy_exclamation_mark: No plan available - skipping query execution")
             return result
-
-        console.print(f"PLAN IS: {result.plan}")
 
         t1 = time.time()
         result.error = None
@@ -226,21 +228,22 @@ class QueryEvalDriver:
         assert result.metrics
         result.metrics.query_time = t2 - t1
 
-        console.print(f"[green]Executed query in {result.metrics.query_time:.2f} seconds")
-        console.print(result.result)
+        console.print(f"[green]:clock: Executed query in {result.metrics.query_time:.2f} seconds")
+        console.print(f":white_check_mark: Result: {result.result}")
         return result
 
     def do_eval(self, _query: QueryEvalQuery, result: QueryEvalResult) -> QueryEvalResult:
         """Run query evaluation."""
         if self.config.config and self.config.config.dry_run:
-            console.print("[yellow]Dry run: skipping eval")
+            console.print("[yellow]:point_right: Dry run: skipping eval")
             return result
 
         if not result.result:
-            console.print("[yellow]No result available - skipping eval")
+            console.print("[yellow]:point_right: No result available - skipping eval")
             return result
 
         # TODO: Implement this.
+        console.print("[yellow]:construction: Eval not yet implemented")
         return result
 
     def plan_all(self):
@@ -255,6 +258,7 @@ class QueryEvalDriver:
                 console.print(f"[red]Error generating plan: {tb}")
                 result.error = f"Error generating plan: {tb}"
         self.write_results_file()
+        console.print(":tada: Done!")
 
     def query_all(self):
         """Run the query stage."""
@@ -268,6 +272,7 @@ class QueryEvalDriver:
                 console.print(f"[red]Error running query: {tb}")
                 result.error = f"Error running query: {tb}"
         self.write_results_file()
+        console.print(":tada: Done!")
 
     def eval_all(self):
         """Run the eval stage."""
@@ -281,6 +286,7 @@ class QueryEvalDriver:
                 console.print(f"[red]Error running eval: {tb}")
                 result.error = f"Error running eval: {tb}"
         self.write_results_file()
+        console.print(":tada: Done!")
 
     def run(self):
         """Run all stages."""
@@ -296,3 +302,4 @@ class QueryEvalDriver:
                 console.print(f"[red]Error: {tb}")
                 result.error = f"Error: {tb}"
         self.write_results_file()
+        console.print(":tada: Done!")

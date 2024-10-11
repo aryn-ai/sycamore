@@ -32,6 +32,7 @@ console = Console()
 @click.option("--llm-cache-path", help="LLM cache path")
 @click.option("--dry-run", help="Dry run - do not run any stages", is_flag=True)
 @click.option("--doc-limit", help="Limit number of docs in result set", type=int)
+@click.option("--overwrite", help="Overwrite existing results file", is_flag=True)
 @click.option(
     "--raw-output", help="Output should be a raw DocSet, rather than natural language", is_flag=True, default=False
 )
@@ -45,8 +46,9 @@ def cli(
     query_cache_path: Optional[str],
     llm_cache_path: Optional[str],
     dry_run: bool,
-    raw_output: bool,
     doc_limit: Optional[int],
+    overwrite: bool,
+    raw_output: bool,
 ):
     ctx.ensure_object(dict)
     driver = QueryEvalDriver(
@@ -59,6 +61,7 @@ def cli(
         natural_language_response=not raw_output,
         log_file=logfile,
         doc_limit=doc_limit,
+        overwrite=overwrite,
     )
     ctx.obj["driver"] = driver
 

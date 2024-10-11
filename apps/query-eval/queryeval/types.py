@@ -21,6 +21,7 @@ class QueryEvalConfig(BaseModel):
     dry_run: Optional[bool] = False
     natural_language_response: Optional[bool] = True
     doc_limit: Optional[int] = None
+    overwrite: Optional[bool] = False
 
 
 class QueryEvalQuery(BaseModel):

@@ -777,7 +777,7 @@ def extract_ocr(
     else:
         extractor = get_text_extractor(ocr_model, **text_extraction_options)
         if not isinstance(extractor, OcrModel):
-            raise TypeError("Unexpected OCR model type {ocr_model}")
+            raise TypeError(f"Unexpected OCR model type {ocr_model}")
         ocr_model_obj = extractor
 
     for i, image in enumerate(images):

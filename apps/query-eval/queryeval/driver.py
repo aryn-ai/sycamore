@@ -133,6 +133,10 @@ class QueryEvalDriver:
             return QueryEvalResultsFile(config=QueryEvalConfig(), data_schema={}, results=[])
 
     def write_results_file(self):
+        if self.config.config.dry_run:
+            console.print("[yellow]:point_right: Dry run: skipping writing results file")
+            return
+
         """Write the results to the results file."""
         assert self.config.config and self.config.config.results_file
 

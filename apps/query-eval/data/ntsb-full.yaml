@@ -1,6 +1,9 @@
 # This file contains a query-eval config for evaluating Sycamore Query against
 # the NTSB incident dataset.
 
+config:
+  index: const_ntsb
+
 queries:
   - query: "Were there any environmentally caused incidents?"
     expected: "Yes, there were environmentally caused incidents."

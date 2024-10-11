@@ -51,3 +51,58 @@ You can get a full list of options by running:
 ```bash
 $ poetry run python queryeval/main.py --help
 ```
+
+To generate query plans and run all of the resulting queries:
+
+```bash
+$ poetry run python queryeval/main.py --outfile results.yaml data/ntsb-mini.yaml run
+```
+
+To only generate query plans:
+
+```bash
+$ poetry run python queryeval/main.py --outfile results.yaml data/ntsb-mini.yaml plan
+```
+
+Note that the query plans generated during the `plan` phase are saved to the results
+file, so if you use `run` after `plan` with the same `--outfile` option set, the query plans
+will be reused. You can force regeneration of the query plans using the `--overwrite` option.
+
+## Specifying the schema
+
+By default, the data schema will be fetched from the provided OpenSearch index.
+However, the schema can be specified manually by setting the `data_schema` field in the
+input file. Each field in the schema has two entries: the type of the field, and
+a list of example values. For example:
+
+```yaml
+data_schema:
+
+  properties.entity.accidentNumber:
+    # The type of the field.
+    - str
+    # A list of example values.
+    - ["CEN23LAO80", "DCA23LA133", "CEN23LA086", "ERA23LA168", "CEN23LA097"]
+
+  properties.entity.aircraftDamage:
+    - str
+    # You can also specify individual examples as list entries on their own line.
+    - - Destroyed
+      - None
+      - Substantial
+```
+
+## Useful flags
+
+Use the `--query-cache-path` and `--llm-cache-path` flags to specify caches for intermediate
+query results and LLM results, respectively. This can save a substantial amount of time and
+LLM cost if you are doing repeated evaluations, however, be aware that stale cache entries
+may affect your results.
+
+Use `--dry-run` to avoid performing any planning, queries, or writing results. This is useful
+to test if your config file format is correct.
+
+Use `--logfile` to write detailed logs of the evaluation process to a file.
+
+
+

@@ -31,7 +31,7 @@ from sycamore.utils.markdown import elements_to_markdown
 from sycamore.utils.memory_debugging import display_top, gc_tensor_dump
 from sycamore.utils.pdf import convert_from_path_streamed_batched
 from sycamore.utils.time_trace import LogTime, timetrace
-from sycamore.transforms.text_extraction import TextExtractor, OcrModel, EXTRACTOR_DICT
+from sycamore.transforms.text_extraction import TextExtractor, OcrModel, get_text_extractor
 from sycamore.transforms.text_extraction.pdf_miner import PdfMinerExtractor
 
 logger = logging.getLogger(__name__)
@@ -161,6 +161,7 @@ class ArynPDFPartitioner:
         use_cache=False,
         pages_per_call: int = -1,
         output_format: Optional[str] = None,
+        text_extraction_options: dict[str, Any] = {},
     ) -> list[Element]:
         if use_partitioning_service:
             assert aryn_api_key != ""
@@ -193,6 +194,7 @@ class ArynPDFPartitioner:
                 extract_images=extract_images,
                 batch_size=batch_size,
                 use_cache=use_cache,
+                text_extraction_options=text_extraction_options,
             )
             elements = []
             for i, r in enumerate(temp):
@@ -377,6 +379,7 @@ class ArynPDFPartitioner:
         extract_images: bool = False,
         batch_size: int = 1,
         use_cache=False,
+        text_extraction_options: dict[str, Any] = {},
     ) -> list[list["Element"]]:
         self._init_model()
 
@@ -405,6 +408,7 @@ class ArynPDFPartitioner:
                 extract_images,
                 batch_size,
                 use_cache,
+                text_extraction_options,
             )
 
     def _partition_pdf_batched_named(
@@ -421,20 +425,23 @@ class ArynPDFPartitioner:
         extract_images=False,
         batch_size: int = 1,
         use_cache=False,
+        text_extraction_options: dict[str, Any] = {},
     ) -> list[list["Element"]]:
         self._init_model()
 
         if extract_table_structure and not table_structure_extractor:
             table_structure_extractor = DEFAULT_TABLE_STRUCTURE_EXTRACTOR(device=self.device)
+
         text_extractor: TextExtractor
+
         if use_ocr:
             if isinstance(ocr_model, OcrModel):
                 text_extractor = ocr_model
             else:
-                text_extractor = EXTRACTOR_DICT[ocr_model]()
+                text_extractor = get_text_extractor(ocr_model, **text_extraction_options)
             text_generator: Any = repeat(None)
         else:
-            text_extractor = PdfMinerExtractor()
+            text_extractor = get_text_extractor("pdfminer", **text_extraction_options)
             text_generator = PdfMinerExtractor.pdf_to_pages(filename)
         deformable_layout = []
         if tracemalloc.is_tracing():
@@ -550,18 +557,14 @@ class ArynPDFPartitioner:
         use_ocr: bool,
         ocr_images: bool,
         text_extractor_model: Union[str, OcrModel],
+        text_extraction_options: dict[str, Any],
         images: Optional[list[Image.Image]] = None,
     ):
         kwargs = {"ocr_images": ocr_images, "images": images}
         if isinstance(text_extractor_model, OcrModel):
-            model = text_extractor_model
+            model: TextExtractor = text_extractor_model
         else:
-            if not use_ocr:
-                text_extractor_model = "pdfminer"
-            model_cls = EXTRACTOR_DICT.get(text_extractor_model)
-            if not model_cls:
-                raise ValueError(f"Unknown Text Extractor Model: {text_extractor_model}")
-            model = model_cls()
+            model = get_text_extractor("pdfminer" if not use_ocr else text_extractor_model, **text_extraction_options)
         with LogTime("text_extract", log_start=True):
             extracted_layout = model.extract_document(file_name, hash_key, use_cache, **kwargs)
         return extracted_layout
@@ -766,15 +769,17 @@ def extract_ocr(
     elements: list[list[Element]],
     ocr_images: bool = False,
     ocr_model: Union[str, OcrModel] = "easyocr",
+    text_extraction_options: dict[str, Any] = {},
 ) -> list[list[Element]]:
     ocr_model_obj: OcrModel
     if isinstance(ocr_model, OcrModel):
         ocr_model_obj = ocr_model
     else:
-        model_cls = EXTRACTOR_DICT.get(ocr_model)
-        if not model_cls:
-            raise ValueError(f"Unknown OCR Model: {ocr_model}")
-        ocr_model_obj = model_cls()
+        extractor = get_text_extractor(ocr_model, **text_extraction_options)
+        if not isinstance(extractor, OcrModel):
+            raise TypeError(f"Unexpected OCR model type {ocr_model}")
+        ocr_model_obj = extractor
+
     for i, image in enumerate(images):
         page_elements = elements[i]
         width, height = image.size

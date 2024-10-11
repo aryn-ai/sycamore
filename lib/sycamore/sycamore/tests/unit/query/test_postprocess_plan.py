@@ -63,7 +63,6 @@ def vector_search_filter_plan_without_opensearch_filter():
 
 
 def test_postprocess_plan():
-    # llm_client = OpenAI(OpenAIModels.GPT_4O.value)
     llm_client = DummyLLMClient
 
     for index, plan in enumerate(

@@ -108,7 +108,20 @@ def objects_to_table(objects, tokens, structure_class_thresholds=DEFAULT_STRUCTU
     structures = objects_to_structures(objects, tokens=tokens, class_thresholds=structure_class_thresholds)
 
     if len(structures) == 0:
-        return None
+
+        if not tokens:
+            return None
+
+        table_cells = []
+        table_cells.append(
+            TableCell(
+                rows=[0],
+                cols=[0],
+                is_header=False,
+                content="\n".join(token["text"] for token in tokens),
+            )
+        )
+        return Table(table_cells)
 
     cells, _ = structure_to_cells(structures, tokens=tokens)
 
@@ -132,7 +145,19 @@ def objects_to_table(objects, tokens, structure_class_thresholds=DEFAULT_STRUCTU
         )
 
     if len(table_cells) == 0:
-        return None
+
+        if not tokens:
+            return None
+
+        table_cells = []
+        table_cells.append(
+            TableCell(
+                rows=[0],
+                cols=[0],
+                is_header=False,
+                content="\n".join(token["text"] for token in tokens),
+            )
+        )
 
     return Table(table_cells)
 

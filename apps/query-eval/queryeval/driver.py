@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 
 from pydantic_yaml import to_yaml_str
 from rich.console import Console
-from yaml import safe_load, safe_load_all
+from yaml import safe_load
 from queryeval.types import (
     QueryEvalConfig,
     QueryEvalInputFile,
@@ -18,8 +18,6 @@ from queryeval.types import (
 )
 from sycamore.docset import DocSet
 from sycamore.query.client import SycamoreQueryClient, configure_logging
-from sycamore.query.logical_plan import LogicalPlan
-from sycamore.query.schema import OpenSearchSchema
 
 
 console = Console()
@@ -95,7 +93,10 @@ class QueryEvalDriver:
         # Read results file if it exists.
         if not self.config.config.overwrite and os.path.exists(self.config.config.results_file):
             results = self.read_results_file(self.config.config.results_file)
-            console.print(f":white_check_mark: Read {len(results.results or [])} existing results from {self.config.config.results_file}")
+            console.print(
+                f":white_check_mark: Read {len(results.results or [])} "
+                + f"existing results from {self.config.config.results_file}"
+            )
         else:
             results = QueryEvalResultsFile(config=self.config.config, data_schema={}, results=[])
 
@@ -113,7 +114,6 @@ class QueryEvalDriver:
             self.data_schema = self.config.data_schema
         else:
             self.data_schema = self.client.get_opensearch_schema(self.config.config.index)
-
 
     @staticmethod
     def read_input_file(input_file_path: str) -> QueryEvalInputFile:
@@ -166,11 +166,11 @@ class QueryEvalDriver:
         """Generate or return an existing query plan."""
         if result.plan:
             # Use existing result plan.
-            console.print(f"[blue]:point_right: Using existing query plan from results file")
+            console.print("[blue]:point_right: Using existing query plan from results file")
         elif query.plan:
             # Use plan from input file.
             result.plan = query.plan
-            console.print(f"[blue]:point_right: Using existing query plan from input file")
+            console.print("[blue]:point_right: Using existing query plan from input file")
         elif self.config.config and self.config.config.dry_run:
             console.print("[yellow]:point_right: Dry run: skipping plan generation")
         else:

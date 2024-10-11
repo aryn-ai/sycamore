@@ -1,5 +1,3 @@
-from itertools import chain
-
 from sycamore.data import Element, BoundingBox
 from sycamore.utils.cache import DiskCache
 from typing import Any, BinaryIO, Tuple, Iterable, Literal, Optional, cast, Generator, TYPE_CHECKING, Union
@@ -12,7 +10,6 @@ import logging
 if TYPE_CHECKING:
     from PIL.Image import Image
     from pdfminer.pdfpage import PDFPage
-    from pdfminer.layout import LTAnno, LTChar
 
 logger = logging.getLogger(__name__)
 
@@ -31,17 +28,6 @@ def _enumerate_objs(page_layout, target_type: str):
             yield obj
         elif isinstance(obj, Iterable):
             yield from _enumerate_objs(obj, target_type)
-
-
-@requires_modules(["pdfminer.layout"], extra="local-inference")
-def _get_char_stream(obj) -> Iterable[Union["LTChar", "LTAnno"]]:
-    from pdfminer.layout import LTTextLine
-
-    if isinstance(obj, LTTextLine):
-        return obj
-    elif isinstance(obj, Iterable):
-        return chain.from_iterable((_get_char_stream(o) for o in obj))
-    return iter(())
 
 
 class PdfMinerExtractor(TextExtractor):

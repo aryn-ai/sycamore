@@ -418,7 +418,9 @@ class LlmPlanner:
 
             # Get the index name for the example from the first query node that references it.
             index_name_options = [
-                example.plan.nodes[x].index for x in example.plan.nodes.keys() if hasattr(example.plan.nodes[x], "index")  # type: ignore
+                example.plan.nodes[x].index  # type: ignore
+                for x in example.plan.nodes.keys()
+                if hasattr(example.plan.nodes[x], "index")
             ]
             if len(index_name_options) > 0:
                 index_name = index_name_options[0]

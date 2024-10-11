@@ -44,14 +44,13 @@ OPERATORS: List[Type[Node]] = [
 
 # This is the base prompt for the planner.
 PLANNER_SYSTEM_PROMPT = """You are a helpful agent that translates the user's question into a
-series of steps to answer it, using a predefined set of operations. Please adhere to the following
+query plan, using a predefined set of query operators. Please adhere to the following
 guidelines when generating a plan:
 
-        1. Return your answer as a standard JSON list of operators. Make sure to include each
-            operation as a separate step.
-        2. Do not return any information except the standard JSON objects. This means not repeating the question
+        1. Return your answer as a JSON dictionary containing a query plan in the format shown below.
+        2. Do not return any information except a single JSON object. This means not repeating the question
             or providing any text outside the json block.
-        3. Only use the operators described below.
+        3. Only use the query operators described below.
         4. Only use EXACT field names from the DATA_SCHEMA described below and fields created
             from *LlmExtractEntity*. Any new fields created by *LlmExtractEntity* will be nested in properties.
             e.g. if a new field called "state" is added, when referencing it in another operation,
@@ -59,8 +58,7 @@ guidelines when generating a plan:
             "properties.key" or "properties.count"; you can only reference one of those fields.
             Other than those, DO NOT USE ANY OTHER FIELD NAMES.
         5. If an optional field does not have a value in the query plan, return null in its place.
-        6. If you cannot generate a plan to answer a question, return an empty list.
-        7. The first step of each plan MUST be a **QueryDatabase** or **QueryVectorDatabase" operation that returns a 
+        6. The first step of each plan MUST be a **QueryDatabase** or **QueryVectorDatabase" operation that returns a 
            database. Whenever possible, include all possible filtering operations in the QueryDatabase step.
            That is, you should strive to construct an OpenSearch query that filters the data as
            much as possible, reducing the need for further query operations. Use a QueryVectorDatabase step instead of
@@ -69,9 +67,9 @@ guidelines when generating a plan:
 
 # Variants on the last step in the query plan, based on whether the user has requested raw data
 # or a natural language response.
-PLANNER_RAW_DATA_PROMPT = "8. The last step of each plan should return the raw data associated with the response."
+PLANNER_RAW_DATA_PROMPT = "7. The last step of each plan should return the raw data associated with the response."
 PLANNER_NATURAL_LANGUAGE_PROMPT = (
-    "8. The last step of each plan *MUST* be a **SummarizeData** operation that returns a natural language response."
+    "7. The last step of each plan *MUST* be a **SummarizeData** operation that returns a natural language response."
 )
 
 
@@ -402,16 +400,32 @@ class LlmPlanner:
 
     def make_examples_prompt(self) -> str:
         """Generate the prompt fragment for the query examples."""
-        prompt = ""
+        prompt = "\n\nThe following examples demonstrate how to construct query plans.\n\n-- BEGIN EXAMPLES --\n\n"
         schemas_shown = set()
-        for example in self._examples:
+        for example_index, example in enumerate(self._examples):
             # Avoid showing schema multiple times.
             schema_prompt = self.make_schema_prompt(example.schema)
             if schema_prompt not in schemas_shown:
-                prompt += f"DATA SCHEMA:\n{schema_prompt}\n\n"
+                prompt += f"""
+                The following is the data schema for the example queries below:
+                -- Begin example schema --\n
+                {schema_prompt}
+                \n-- End of example schema --\n
+                """
                 schemas_shown.add(schema_prompt)
+
+            prompt += f"EXAMPLE {example_index + 1}:\n"
+
+            # Get the index name for the example from the first query node that references it.
+            index_name_options = [
+                example.plan.nodes[x].index for x in example.plan.nodes.keys() if hasattr(example.plan.nodes[x], "index")  # type: ignore
+            ]
+            if len(index_name_options) > 0:
+                index_name = index_name_options[0]
+                prompt += f"INDEX NAME: {index_name}\n"
             prompt += f"USER QUESTION: {example.plan.query}\n"
             prompt += f"Answer:\n{example.plan.model_dump_json(indent=2)}\n\n"
+        prompt += "-- END EXAMPLES --\n\n"
         return prompt
 
     def generate_system_prompt(self, _query: str) -> str:
@@ -424,6 +438,7 @@ class LlmPlanner:
             prompt += PLANNER_NATURAL_LANGUAGE_PROMPT
         else:
             prompt += PLANNER_RAW_DATA_PROMPT
+        prompt += "\n\n"
 
         # Few-shot examples.
         if self._examples:
@@ -439,11 +454,10 @@ class LlmPlanner:
             prompt += self.make_operator_prompt(operator)
 
         # Data schema.
-        prompt += f"""The following represents the schema of the data you should return a query plan for:
+        prompt += f"""\n\nThe following represents the schema of the data you should return a query plan for:
 
         INDEX_NAME: {self._index}
-        DATA_SCHEMA:
-        {self.make_schema_prompt(self._data_schema)}
+        DATA_SCHEMA:\n\n{self.make_schema_prompt(self._data_schema)}
         """
 
         return prompt
@@ -454,8 +468,7 @@ class LlmPlanner:
         prompt = f"""
         INDEX_NAME: {self._index}
         USER QUESTION: {query}
-        Answer:
-        """
+        Answer: """
         return prompt
 
     def generate_from_llm(self, question: str) -> Tuple[Any, str]:

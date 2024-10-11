@@ -106,7 +106,9 @@ def docset_to_string(docset: DocSet, html: bool = True) -> str:
             props_dict["text_representation"] = (
                 doc.text_representation[:NUM_TEXT_CHARS_GENERATE] if doc.text_representation is not None else None
             )
-            props_dict.get("_doc_source", {}).apply(lambda x: x.value if isinstance(x, DocumentSource) else x)
+            # The DocumentSource is not JSON serializable.
+            if "_doc_source" in props_dict:
+                props_dict["_doc_source"] = None
 
             retval += json.dumps(props_dict, indent=2) + "\n"
     return retval

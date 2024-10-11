@@ -307,7 +307,7 @@ def main():
     parser.add_argument("query", type=str, help="Query to run against the index.", nargs="?", default=None)
     parser.add_argument("--show-indices", action="store_true", help="Show all indices")
     parser.add_argument("--index", type=str, help="Index name")
-    parser.add_argument("--schema-file", type=str, help="Schema file")   
+    parser.add_argument("--schema-file", type=str, help="Schema file")
     parser.add_argument(
         "--s3-cache-path",
         type=str,
@@ -364,7 +364,7 @@ def main():
             # read the schema from file
             if args.schema_file:
                 try:
-                    with open(args.schema_file) as f:           
+                    with open(args.schema_file) as f:
                         schema = json.load(f)
                 except json.JSONDecodeError as e:
                     print(f"Error loading schema file: {e}")

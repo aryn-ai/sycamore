@@ -31,6 +31,8 @@ def _enumerate_objs(page_layout, target_type: str):
 
 
 class PdfMinerExtractor(TextExtractor):
+
+    # TODO: Switch the default to lines once we are confident there aren't any regressions.
     @requires_modules(["pdfminer", "pdfminer.utils"], extra="local-inference")
     def __init__(self, object_type: Literal["boxes", "lines"] = "boxes"):
         from pdfminer.converter import PDFPageAggregator

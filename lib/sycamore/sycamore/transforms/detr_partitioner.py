@@ -5,7 +5,7 @@ import tempfile
 import tracemalloc
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
-from typing import Any, BinaryIO, Literal, Union, Optional, cast
+from typing import Any, BinaryIO, Literal, Union, Optional
 from pathlib import Path
 import pwd
 from itertools import repeat
@@ -775,7 +775,10 @@ def extract_ocr(
     if isinstance(ocr_model, OcrModel):
         ocr_model_obj = ocr_model
     else:
-        ocr_model_obj = cast(OcrModel, get_text_extractor(ocr_model, **text_extraction_options))
+        extractor = get_text_extractor(ocr_model, **text_extraction_options)
+        if not isinstance(extractor, OcrModel):
+            raise TypeError("Unexpected OCR model type {ocr_model}")
+        ocr_model_obj = extractor
 
     for i, image in enumerate(images):
         page_elements = elements[i]

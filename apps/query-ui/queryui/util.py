@@ -17,8 +17,6 @@ from sycamore.query.planner import PlannerExample
 
 from queryui.configuration import get_sycamore_query_client
 
-from sycamore.data.document import DocumentSource
-
 
 def get_schema(_client: SycamoreQueryClient, index: str) -> Dict[str, Tuple[str, Set[str]]]:
     """Return the OpenSearch schema for the given index."""

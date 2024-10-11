@@ -307,10 +307,14 @@ def main():
     parser.add_argument("--show-indices", action="store_true", help="Show all indices")
     parser.add_argument("--index", type=str, help="Index name")
 <<<<<<< HEAD
+<<<<<<< HEAD
     parser.add_argument("--schema-file", type=str, help="Schema file")
 =======
     parser.add_argument("--schema-file", type=str, help="Schema File")   
 >>>>>>> cf46af0f (added ability to read schema from file)
+=======
+    parser.add_argument("--schema-file", type=str, help="Schema file")   
+>>>>>>> 5e8b93f1 (small typo)
     parser.add_argument(
         "--s3-cache-path",
         type=str,

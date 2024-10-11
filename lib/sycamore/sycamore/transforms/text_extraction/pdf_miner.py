@@ -6,7 +6,7 @@ from typing import Any, BinaryIO, Tuple, Iterable, Literal, Optional, cast, Gene
 from pathlib import Path
 from sycamore.utils.import_utils import requires_modules
 from sycamore.utils.time_trace import timetrace
-from sycamore.transforms.text_extraction.text_extractor import TextExtractorBase
+from sycamore.transforms.text_extraction.text_extractor import TextExtractor
 import logging
 
 if TYPE_CHECKING:
@@ -44,7 +44,7 @@ def _get_char_stream(obj) -> Iterable[Union["LTChar", "LTAnno"]]:
     return iter(())
 
 
-class PdfMinerExtractor(TextExtractorBase):
+class PdfMinerExtractor(TextExtractor):
     @requires_modules(["pdfminer", "pdfminer.utils"], extra="local-inference")
     def __init__(self, object_type: Literal["boxes", "lines"] = "boxes"):
         from pdfminer.converter import PDFPageAggregator

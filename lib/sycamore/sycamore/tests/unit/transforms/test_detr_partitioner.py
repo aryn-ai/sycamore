@@ -4,7 +4,7 @@ from sycamore.data import Element
 from sycamore.transforms.detr_partitioner import ArynPDFPartitioner, DeformableDetr
 from sycamore.data import BoundingBox
 from sycamore.tests.unit.transforms.check_partition_impl import check_partition, check_table_extraction
-from sycamore.transforms.text_extraction import TextExtractor, PdfMinerExtractor
+from sycamore.transforms.text_extraction import get_text_extractor, PdfMinerExtractor
 
 from PIL import Image
 import json
@@ -104,7 +104,7 @@ class TestArynPDFPartitioner:
 
     def test_pdfminer_object_type(self):
         filename = str(TEST_DIR / "resources/data/pdfs/Ray_page11.pdf")
-        lines_extractor = TextExtractor("pdfminer", object_type="lines")
+        lines_extractor = get_text_extractor("pdfminer", object_type="lines")
         pages = PdfMinerExtractor.pdf_to_pages(file_name=filename)
 
         lines_elements = []
@@ -112,7 +112,7 @@ class TestArynPDFPartitioner:
             assert i == 0
             lines_elements.extend(lines_extractor.extract_page(p))
 
-        objects_extractor = TextExtractor("pdfminer", object_type="boxes")
+        objects_extractor = get_text_extractor("pdfminer", object_type="boxes")
         pages = PdfMinerExtractor.pdf_to_pages(file_name=filename)
 
         objects_elements = []

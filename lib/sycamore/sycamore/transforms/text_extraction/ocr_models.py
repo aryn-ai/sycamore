@@ -7,7 +7,7 @@ from pathlib import Path
 from io import IOBase, BytesIO
 from sycamore.utils.pdf import pdf_to_image_files
 from sycamore.utils.import_utils import requires_modules
-from sycamore.transforms.text_extraction.text_extractor import TextExtractorBase
+from sycamore.transforms.text_extraction.text_extractor import TextExtractor
 import logging
 from sycamore.utils.time_trace import timetrace
 import tempfile
@@ -21,7 +21,7 @@ ocr_cache = DiskCache(str(Path.home() / ".sycamore/OcrCache"))
 logger = logging.getLogger(__name__)
 
 
-class OcrModel(TextExtractorBase):
+class OcrModel(TextExtractor):
 
     @abstractmethod
     def get_text(self, image: Image.Image) -> str:

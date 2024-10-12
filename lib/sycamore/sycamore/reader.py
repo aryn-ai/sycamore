@@ -234,6 +234,7 @@ class DocSetReader:
                 i.e. by collecting all elements belong to a single parent document (parent_id). This requires OpenSearch
                 to be an index of docset.explode() type. Default to false.
             query_kwargs: (Optional) Parameters to configure the underlying OpenSearch search query.
+            **kwargs: (Optional) kwargs to pass undefined parameters around.
 
         Example:
             The following shows how to write to data into a OpenSearch Index, and read it back into a DocSet.

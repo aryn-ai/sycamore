@@ -420,9 +420,7 @@ class TestOpenSearchUtils:
                     },
                     "index_name": "test_index",
                 },
-                "default": {
-                    "text_embedder": embedder,
-                },
+                "default": {"text_embedder": embedder},
             }
         )
         expected_query = {"query": {"knn": {"embedding": {"vector": embedding, "k": 1000}}}}

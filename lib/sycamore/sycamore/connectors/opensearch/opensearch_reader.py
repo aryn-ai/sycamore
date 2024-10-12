@@ -45,7 +45,7 @@ class OpenSearchReaderClient(BaseDBReader.Client):
         assert "index" not in query_params.kwargs and "body" not in query_params.kwargs
         if "scroll" not in query_params.kwargs:
             query_params.kwargs["scroll"] = "1m"
-        if "size" not in query_params.query:
+        if "size" not in query_params.query and "size" not in query_params.kwargs:
             query_params.kwargs["size"] = 200
         logging.debug(f"OpenSearch query on {query_params.index_name}: {query_params.query}")
         response = self._client.search(index=query_params.index_name, body=query_params.query, **query_params.kwargs)

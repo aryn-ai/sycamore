@@ -22,7 +22,7 @@ EXAMPLE_QUERIES = [
 # The welcome message shown at the top of a chat session.
 WELCOME_MESSAGE = f"""Welcome to the NTSB incident query demo! You can ask me questions about
 [NTSB incident reports](https://carol.ntsb.gov/), and I'll do my best to answer them. Feel free
-to ask about specific incidents,o aggregate statistics, or anything else you're curious about.
+to ask about specific incidents, aggregate statistics, or anything else you're curious about.
 If you're not sure what to ask, you can try one of the following example queries:
 
 {"".join([f"<SuggestedQuery query='{query}' />" for query in EXAMPLE_QUERIES])}

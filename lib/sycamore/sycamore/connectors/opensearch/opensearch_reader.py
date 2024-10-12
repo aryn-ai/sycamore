@@ -45,7 +45,7 @@ class OpenSearchReaderClient(BaseDBReader.Client):
         assert "index" not in query_params.kwargs and "body" not in query_params.kwargs
         if "scroll" not in query_params.kwargs:
             query_params.kwargs["scroll"] = "1m"
-        if "size" not in query_params.kwargs:
+        if "size" not in query_params.query and "size" not in query_params.kwargs:
             query_params.kwargs["size"] = 200
         logging.debug(f"OpenSearch query on {query_params.index_name}: {query_params.query}")
         response = self._client.search(index=query_params.index_name, body=query_params.query, **query_params.kwargs)
@@ -96,6 +96,7 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
             """
             Document reconstruction:
             1. Construct a map of all unique parent Documents (i.e. no parent_id field)
+                1.1 If we find doc_ids without parent documents, we create empty parent Documents
             2. Perform a terms query to retrieve all (including non-matched) other records for that parent_id
             3. Add elements to unique parent Documents
             """
@@ -111,8 +112,22 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
                 doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
                 assert doc.doc_id, "Retrieved invalid doc with missing doc_id"
                 if not doc.parent_id:
+                    # Always use retrieved doc as the unique parent doc - override any empty parent doc created below
                     unique_docs[doc.doc_id] = doc
                 else:
+                    # Create empty parent documents if no parent document was in result set
+                    unique_docs[doc.parent_id] = unique_docs.get(
+                        doc.parent_id,
+                        Document(
+                            {
+                                "doc_id": doc.parent_id,
+                                "properties": {
+                                    **doc.properties,
+                                    DocumentPropertyTypes.SOURCE: DocumentSource.DOCUMENT_RECONSTRUCTION_PARENT,
+                                },
+                            }
+                        ),
+                    )
                     elements = query_result_elements_per_doc.get(doc.parent_id, set())
                     elements.add(doc.doc_id)
                     query_result_elements_per_doc[doc.parent_id] = elements

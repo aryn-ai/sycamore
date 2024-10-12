@@ -1,6 +1,6 @@
 from sycamore.data import Element, BoundingBox
 from sycamore.utils.cache import DiskCache
-from typing import BinaryIO, Tuple, cast, Generator, TYPE_CHECKING, Union, Optional, Any
+from typing import Any, BinaryIO, Tuple, Iterable, Literal, Optional, cast, Generator, TYPE_CHECKING, Union
 from pathlib import Path
 from sycamore.utils.import_utils import requires_modules
 from sycamore.utils.time_trace import timetrace
@@ -17,9 +17,24 @@ logger = logging.getLogger(__name__)
 pdf_miner_cache = DiskCache(str(Path.home() / ".sycamore/PDFMinerCache"))
 
 
+@requires_modules(["pdfminer.layout"], extra="local-inference")
+def _enumerate_objs(page_layout, target_type: str):
+    from pdfminer.layout import LTTextLine
+
+    for obj in page_layout:
+        if not hasattr(obj, "get_text"):
+            continue
+        if target_type == "boxes" or isinstance(obj, LTTextLine):
+            yield obj
+        elif isinstance(obj, Iterable):
+            yield from _enumerate_objs(obj, target_type)
+
+
 class PdfMinerExtractor(TextExtractor):
+
+    # TODO: Switch the default to lines once we are confident there aren't any regressions.
     @requires_modules(["pdfminer", "pdfminer.utils"], extra="local-inference")
-    def __init__(self):
+    def __init__(self, object_type: Literal["boxes", "lines"] = "boxes"):
         from pdfminer.converter import PDFPageAggregator
         from pdfminer.layout import LAParams
         from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
@@ -28,6 +43,7 @@ class PdfMinerExtractor(TextExtractor):
         param = LAParams()
         self.device = PDFPageAggregator(rm, laparams=param)
         self.interpreter = PDFPageInterpreter(rm, self.device)
+        self.object_type = object_type
 
     @staticmethod
     @requires_modules(["pdfminer", "pdfminer.utils"], extra="local-inference")
@@ -73,22 +89,23 @@ class PdfMinerExtractor(TextExtractor):
             return pages
 
     @timetrace("PdfMinerPageEx")
-    def extract_page(self, page: Optional[Union["PDFPage", "Image"]] = None) -> list[Element]:
+    def extract_page(self, page: Optional[Union["PDFPage", "Image"]]) -> list[Element]:
         from pdfminer.pdfpage import PDFPage
 
         assert isinstance(page, PDFPage)
         page_data: list[dict[str, Any]] = []
         self.interpreter.process_page(page)
         page_layout = self.device.get_result()
-        for obj in page_layout:
-            if hasattr(obj, "get_text"):
-                x1, y1, x2, y2 = self._convert_bbox_coordinates(obj.bbox, page_layout.height)
-                page_data.append(
-                    {
-                        "bbox": BoundingBox(x1, y1, x2, y2),
-                        "text": obj.get_text(),
-                    }
-                )
+
+        for obj in _enumerate_objs(page_layout, self.object_type):
+            x1, y1, x2, y2 = self._convert_bbox_coordinates(obj.bbox, page_layout.height)
+            page_data.append(
+                {
+                    "bbox": BoundingBox(x1, y1, x2, y2),
+                    "text": obj.get_text(),
+                }
+            )
+
         return self.parse_output(page_data, page_layout.width, page_layout.height)
 
     def __name__(self):

@@ -210,6 +210,11 @@ class TestOpenSearchReaderQueryResponse:
                 "parent_id": "doc_2",
                 "doc_id": "element_1",
             },
+            {
+                "text_representation": "the parent doc of this element was not part of the result set",
+                "parent_id": "doc_4",
+                "doc_id": "element_1",
+            },
             {"text_representation": "this is a parent doc 1", "parent_id": None, "doc_id": "doc_1"},
             {"text_representation": "this is a parent doc 2", "parent_id": None, "doc_id": "doc_2"},
             {"text_representation": "this is a parent doc 3", "parent_id": None, "doc_id": "doc_3"},
@@ -240,16 +245,18 @@ class TestOpenSearchReaderQueryResponse:
         query_params = OpenSearchReaderQueryParams(index_name="some index", reconstruct_document=True)
         docs = query_response.to_docs(query_params)
 
-        assert len(docs) == 3
+        assert len(docs) == 4
 
         # since docs are unordered
         doc_1 = [doc for doc in docs if doc.doc_id == "doc_1"][0]
         doc_2 = [doc for doc in docs if doc.doc_id == "doc_2"][0]
         doc_3 = [doc for doc in docs if doc.doc_id == "doc_3"][0]
+        doc_4 = [doc for doc in docs if doc.doc_id == "doc_4"][0]
 
         assert len(doc_1.elements) == 2
         assert len(doc_2.elements) == 3
         assert len(doc_3.elements) == 0
+        assert len(doc_4.elements) == 1
 
         assert doc_1.elements[0].text_representation == "this is an element belonging to parent doc 1"
         assert doc_1.elements[1].text_representation == "this is an element belonging to parent doc 1"
@@ -274,6 +281,9 @@ class TestOpenSearchReaderQueryResponse:
             doc_2.elements[2].properties[DocumentPropertyTypes.SOURCE]
             == DocumentSource.DOCUMENT_RECONSTRUCTION_RETRIEVAL
         )
+        assert doc_4.elements[0].text_representation == "the parent doc of this element was not part of the result set"
+        assert doc_4.properties[DocumentPropertyTypes.SOURCE] == DocumentSource.DOCUMENT_RECONSTRUCTION_PARENT
+        assert doc_4.elements[0].properties[DocumentPropertyTypes.SOURCE] == DocumentSource.DB_QUERY
 
     def test_to_docs_reconstruct_no_additional_elements(self, mocker):
         records = [

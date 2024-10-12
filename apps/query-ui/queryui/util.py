@@ -35,7 +35,7 @@ def run_plan(_client: SycamoreQueryClient, plan: LogicalPlan) -> Tuple[str, Any]
 
 def get_opensearch_indices() -> Set[str]:
     """Return a list of OpenSearch indices."""
-    return {x for x in get_sycamore_query_client().get_opensearch_incides() if not x.startswith(".")}
+    return {x for x in get_sycamore_query_client().get_opensearch_indices() if not x.startswith(".")}
 
 
 def result_to_string(result: Any) -> str:

@@ -15,7 +15,7 @@ import logging
 from typing import Any, List, Optional, Tuple
 import os
 import uuid
-
+import ast
 import structlog
 
 import sycamore
@@ -360,18 +360,23 @@ def main():
     # get schema (schema_file overrides index)
     # index is read from file
     if args.schema_file:
-        if os.path.exists(args.schema_file):
-            # read the schema from file
-            if args.schema_file:
-                try:
-                    with open(args.schema_file) as f:
-                        schema = json.load(f)
-                except json.JSONDecodeError as e:
-                    print(f"Error loading schema file: {e}")
-                    return
-                    # Handle the error here, such as logging or raising an exception
-        else:
-            parser.error(f"index-file {args.schema_file} does not exist")
+        try:
+            with open(args.schema_file,'r') as f:
+                schema = ast.literal_eval(f.read())
+
+        except FileNotFoundError as e:
+            print(f"Schema file {args.schema_file} not found: {e}")
+            return
+        except PermissionError as e:
+            print(f"Permission error whenre ading schema file {args.schema_file}: {e}")
+            return
+        except (SyntaxError, ValueError, KeyError, TypeError) as e:
+            print(f"Error while parsing schema file: {args.schema_file} {e}")
+            return
+        except Exception as e:
+            print(f"An unexpected error occurred while readingf schema fiole {args.schema_file}: {e}")
+            return
+
     # index is read from OpenSearch
     else:
         schema = client.get_opensearch_schema(args.index)

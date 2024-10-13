@@ -483,7 +483,9 @@ class TableMerger(ElementMerger):
         return document
 
     def should_merge(self, element1: Element, element2: Element) -> bool:
-        return "true" in element2["properties"]["table_continuation"].lower()
+        if "table_continuation" in element2["properties"]:
+            return "true" in element2["properties"]["table_continuation"].lower()
+        return False
 
     def merge(self, elt1: Element, elt2: Element) -> Element:
 

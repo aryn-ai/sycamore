@@ -220,13 +220,6 @@ class LogicalPlan(BaseModel):
         """Return the IDs of all nodes that are downstream of the given node."""
         return [n for n in self.nodes.keys() if node_id in self.nodes[n].inputs]
 
-    @model_validator(mode="before")
-    @classmethod
-    def convert_node_dependencies(cls, data: Any) -> Any:
-        if isinstance(data, dict):
-            assert "card_number" not in data, "card_number should not be included"
-        return data
-
     def compare(self, other: "LogicalPlan") -> list[LogicalPlanDiffEntry]:
         """
         A simple method to compare 2 logical plans. This comparator traverses a plan 'forward', i.e. it attempts to

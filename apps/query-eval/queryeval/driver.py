@@ -105,7 +105,9 @@ class QueryEvalDriver:
         self.results_map = {r.query.query: r for r in results.results}
 
         # Set up Sycamore Query Client.
-        self.client = SycamoreQueryClient(s3_cache_path=self.config.config.llm_cache_path)
+        self.client = SycamoreQueryClient(
+            s3_cache_path=self.config.config.llm_cache_path, query_cache_path=self.config.config.query_cache_path
+        )
 
         # Use schema from the results file, input file, or OpenSearch, in that order.
         if results.data_schema:

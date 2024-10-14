@@ -71,6 +71,8 @@ class DuckDBReaderQueryResponse(BaseDBReader.QueryResponse):
             val = object.get("properties")
             if val is not None:
                 object["properties"] = convert_from_str_dict(val)
+            if isinstance(object["embedding"], float):
+                object["embedding"] = []
             result.append(Document(object))
         return result
 

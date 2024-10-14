@@ -106,7 +106,7 @@ class QueryEvalDriver:
 
         # Set up Sycamore Query Client.
         self.client = SycamoreQueryClient(
-            s3_cache_path=self.config.config.llm_cache_path, query_cache_path=self.config.config.query_cache_path
+            s3_cache_path=self.config.config.llm_cache_path, cache_dir=self.config.config.query_cache_path
         )
 
         # Use schema from the results file, input file, or OpenSearch, in that order.
@@ -153,7 +153,7 @@ class QueryEvalDriver:
     def format_docset(self, docset: DocSet) -> List[Dict[str, Any]]:
         """Convert a DocSet query result to a list of dicts."""
         results = []
-        for doc in docset:
+        for doc in docset.take_all():
             results.append(doc.data)
         return results
 
@@ -182,12 +182,13 @@ class QueryEvalDriver:
         else:
             # Generate a plan.
             assert self.config.config
+            assert self.config.config.index
             t1 = time.time()
             plan = self.client.generate_plan(
                 query.query,
                 self.config.config.index,
                 self.data_schema,
-                natural_language_response=self.config.config.natural_language_response,
+                natural_language_response=self.config.config.natural_language_response or False,
             )
             t2 = time.time()
             assert result.metrics

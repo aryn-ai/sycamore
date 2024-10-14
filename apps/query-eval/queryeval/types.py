@@ -1,7 +1,7 @@
 # This module defines types used for the config, input, and output
 # files for the Sycamore Query evaluator.
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel
 
@@ -28,7 +28,7 @@ class QueryEvalQuery(BaseModel):
     """Represents a single query and expected response."""
 
     query: str
-    expected: Optional[str | List[Dict[str, Any]]] = None
+    expected: Optional[Union[str, List[Dict[str, Any]]]] = None
     plan: Optional[LogicalPlan] = None
 
 
@@ -56,7 +56,7 @@ class QueryEvalResult(BaseModel):
     timestamp: Optional[str] = None
     query: QueryEvalQuery
     plan: Optional[LogicalPlan] = None
-    result: Optional[str | List[Dict[str, Any]]] = None
+    result: Optional[Union[str, List[Dict[str, Any]]]] = None
     error: Optional[str] = None
     metrics: Optional[QueryEvalMetrics] = None
 

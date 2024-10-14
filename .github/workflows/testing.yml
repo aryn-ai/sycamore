@@ -165,7 +165,7 @@ jobs:
       - name: Install sycamore
         run: poetry install --all-extras
       - name: Download nltk packages
-        run: poetry run python -m nltk.downloader punkt averaged_perceptron_tagger
+        run: poetry run python -m nltk.downloader punkt_tab averaged_perceptron_tagger
       - name: Update Apt
         run: sudo apt-get update
       - name: Install poppler and tesseract

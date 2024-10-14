@@ -368,13 +368,13 @@ def main():
             print(f"Schema file {args.schema_file} not found: {e}")
             return
         except PermissionError as e:
-            print(f"Permission error whenre ading schema file {args.schema_file}: {e}")
+            print(f"Permission error when reading schema file {args.schema_file}: {e}")
             return
         except (SyntaxError, ValueError, KeyError, TypeError) as e:
             print(f"Error while parsing schema file: {args.schema_file} {e}")
             return
         except Exception as e:
-            print(f"An unexpected error occurred while readingf schema fiole {args.schema_file}: {e}")
+            print(f"An unexpected error occurred while reading schema file {args.schema_file}: {e}")
             return
 
     # index is read from OpenSearch

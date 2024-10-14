@@ -15,8 +15,8 @@ import logging
 from typing import Any, List, Optional, Tuple
 import os
 import uuid
-
 import structlog
+import yaml
 
 import sycamore
 from sycamore import Context, ExecMode
@@ -307,6 +307,7 @@ def main():
     parser.add_argument("--show-indices", action="store_true", help="Show all indices")
     parser.add_argument("--index", type=str, help="Index name")
     parser.add_argument("--schema-file", type=str, help="Schema file")
+
     parser.add_argument(
         "--s3-cache-path",
         type=str,
@@ -346,31 +347,42 @@ def main():
         # Make cache_dir absolute.
         args.cache_dir = os.path.abspath(args.cache_dir)
 
+    client = SycamoreQueryClient(s3_cache_path=args.s3_cache_path, trace_dir=args.trace_dir, cache_dir=args.cache_dir)
+
+    # Show indices and exit.
+    if args.show_indices:
+        for index in client.get_opensearch_indices():
+            console.print(index)
+        return
+
     # either index or index-file is required
-    if not args.show_indices and not args.schema_file:
+    if not args.index and not args.schema_file:
         parser.error("Either index or schema-file is required")
 
     # query is required
     if not args.query:
         parser.error("Query is required")
 
-    client = SycamoreQueryClient(s3_cache_path=args.s3_cache_path, trace_dir=args.trace_dir, cache_dir=args.cache_dir)
-
     # get schema (schema_file overrides index)
     # index is read from file
     if args.schema_file:
-        if os.path.exists(args.schema_file):
-            # read the schema from file
-            if args.schema_file:
-                try:
-                    with open(args.schema_file) as f:
-                        schema = json.load(f)
-                except json.JSONDecodeError as e:
-                    print(f"Error loading schema file: {e}")
-                    return
-                    # Handle the error here, such as logging or raising an exception
-        else:
-            parser.error(f"index-file {args.schema_file} does not exist")
+        try:
+            with open(args.schema_file, "r") as file:
+                schema = yaml.safe_load(file)
+
+        except FileNotFoundError as e:
+            print(f"Schema file {args.schema_file} not found: {e}")
+            return
+        except PermissionError as e:
+            print(f"Permission error when reading schema file {args.schema_file}: {e}")
+            return
+        except (SyntaxError, ValueError, KeyError, TypeError) as e:
+            print(f"Error while parsing schema file: {args.schema_file} {e}")
+            return
+        except Exception as e:
+            print(f"An unexpected error occurred while reading schema file {args.schema_file}: {e}")
+            return
+
     # index is read from OpenSearch
     else:
         schema = client.get_opensearch_schema(args.index)
@@ -379,11 +391,6 @@ def main():
         console.rule("Using schema")
         console.print(schema)
         console.rule()
-
-    if args.show_indices:
-        for index in client.get_opensearch_indices():
-            console.print(index)
-        return
 
     plan = client.generate_plan(args.query, args.index, schema, natural_language_response=not args.raw_data_response)
 

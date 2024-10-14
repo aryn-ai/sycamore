@@ -98,7 +98,7 @@ class QueryEvalDriver:
                 + f"existing results from {self.config.config.results_file}"
             )
         else:
-            results = QueryEvalResultsFile(config=self.config.config, data_schema={}, results=[])
+            results = QueryEvalResultsFile(config=self.config.config, results=[])
 
         # Build lookup from query string to result object.
         results.results = results.results or []
@@ -132,7 +132,7 @@ class QueryEvalDriver:
         if isinstance(retval, dict):
             return QueryEvalResultsFile(**retval)
         else:
-            return QueryEvalResultsFile(config=QueryEvalConfig(), data_schema={}, results=[])
+            return QueryEvalResultsFile(config=QueryEvalConfig(), results=[])
 
     def write_results_file(self):
         if self.config.config.dry_run:

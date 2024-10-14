@@ -17,6 +17,7 @@ import os
 import uuid
 import ast
 import structlog
+import yaml
 
 import sycamore
 from sycamore import Context, ExecMode
@@ -361,8 +362,8 @@ def main():
     # index is read from file
     if args.schema_file:
         try:
-            with open(args.schema_file,'r') as f:
-                schema = ast.literal_eval(f.read())
+            with open(args.schema_file, 'r') as file:
+                schema = yaml.safe_load(file)
 
         except FileNotFoundError as e:
             print(f"Schema file {args.schema_file} not found: {e}")

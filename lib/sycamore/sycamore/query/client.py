@@ -361,7 +361,7 @@ def main():
     # index is read from file
     if args.schema_file:
         try:
-            with open(args.schema_file, 'r') as file:
+            with open(args.schema_file, "r") as file:
                 schema = yaml.safe_load(file)
 
         except FileNotFoundError as e:

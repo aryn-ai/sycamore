@@ -347,15 +347,21 @@ def main():
         # Make cache_dir absolute.
         args.cache_dir = os.path.abspath(args.cache_dir)
 
+    client = SycamoreQueryClient(s3_cache_path=args.s3_cache_path, trace_dir=args.trace_dir, cache_dir=args.cache_dir)
+
+    # Show indices and exit.
+    if args.show_indices:
+        for index in client.get_opensearch_indices():
+            console.print(index)
+        return
+
     # either index or index-file is required
-    if not args.show_indices and not args.schema_file:
+    if not args.index and not args.schema_file:
         parser.error("Either index or schema-file is required")
 
     # query is required
     if not args.query:
         parser.error("Query is required")
-
-    client = SycamoreQueryClient(s3_cache_path=args.s3_cache_path, trace_dir=args.trace_dir, cache_dir=args.cache_dir)
 
     # get schema (schema_file overrides index)
     # index is read from file
@@ -385,11 +391,6 @@ def main():
         console.rule("Using schema")
         console.print(schema)
         console.rule()
-
-    if args.show_indices:
-        for index in client.get_opensearch_indices():
-            console.print(index)
-        return
 
     plan = client.generate_plan(args.query, args.index, schema, natural_language_response=not args.raw_data_response)
 

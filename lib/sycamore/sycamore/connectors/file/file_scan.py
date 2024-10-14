@@ -76,13 +76,15 @@ class FileScan(Scan):
         paths: Union[str, list[str]],
         *,
         filesystem: Optional[FileSystem] = None,
-        parallelism: Optional[int] = None,
+        parallelism: Optional[str] = None,
+        override_num_blocks: Optional[int] = None,
         **resource_args,
     ):
         super().__init__(**resource_args)
         self._paths = paths
         self._filesystem = filesystem
-        self.parallelism = parallelism
+        assert parallelism is None, "Use override_num_blocks; remove parameter after 2025-03-01"
+        self.override_num_blocks = override_num_blocks
 
     def _is_s3_scheme(self) -> bool:
         if isinstance(self._paths, str):
@@ -109,13 +111,20 @@ class BinaryScan(FileScan):
         paths: Union[str, list[str]],
         *,
         binary_format: str,
-        parallelism: Optional[int] = None,
+        parallelism: Optional[str] = None,
+        override_num_blocks: Optional[int] = None,
         filesystem: Optional[FileSystem] = None,
         metadata_provider: Optional[FileMetadataProvider] = None,
         filter_paths_by_extension: bool = True,
         **resource_args,
     ):
-        super().__init__(paths, parallelism=parallelism, filesystem=filesystem, **resource_args)
+        super().__init__(
+            paths,
+            parallelism=parallelism,
+            override_num_blocks=override_num_blocks,
+            filesystem=filesystem,
+            **resource_args,
+        )
         self._paths = paths
         self._binary_format = binary_format
         self._metadata_provider = metadata_provider
@@ -157,7 +166,7 @@ class BinaryScan(FileScan):
             self._paths,
             include_paths=True,
             filesystem=self._filesystem,
-            override_num_blocks=self.parallelism if self.parallelism is not None else -1,
+            override_num_blocks=self.override_num_blocks,
             ray_remote_args=self.resource_args,
             file_extensions=file_extensions,
         )
@@ -220,14 +229,21 @@ class JsonScan(FileScan):
         paths: Union[str, list[str]],
         *,
         properties: Optional[Union[str, list[str]]] = None,
-        parallelism: Optional[int] = None,
+        parallelism: Optional[str] = None,
+        override_num_blocks: Optional[int] = None,
         filesystem: Optional[FileSystem] = None,
         metadata_provider: Optional[FileMetadataProvider] = None,
         document_body_field: Optional[str] = None,
         doc_extractor: Optional[Callable] = None,
         **resource_args,
     ):
-        super().__init__(paths, parallelism=parallelism, filesystem=filesystem, **resource_args)
+        super().__init__(
+            paths,
+            parallelism=parallelism,
+            override_num_blocks=override_num_blocks,
+            filesystem=filesystem,
+            **resource_args,
+        )
         self._properties = properties
         self._metadata_provider = metadata_provider
         self._document_body_field = document_body_field
@@ -281,7 +297,7 @@ class JsonScan(FileScan):
             self._paths,
             include_paths=True,
             filesystem=self._filesystem,
-            parallelism=self.parallelism if self.parallelism is not None else -1,
+            override_num_blocks=self.override_num_blocks,
             ray_remote_args=self.resource_args,
         )
 
@@ -297,11 +313,18 @@ class JsonDocumentScan(FileScan):
         self,
         paths: Union[str, list[str]],
         *,
-        parallelism: Optional[int] = None,
+        parallelism: Optional[str] = None,
+        override_num_blocks: Optional[int] = None,
         filesystem: Optional[FileSystem] = None,
         **resource_args,
     ):
-        super().__init__(paths, parallelism=parallelism, filesystem=filesystem, **resource_args)
+        super().__init__(
+            paths,
+            parallelism=parallelism,
+            override_num_blocks=override_num_blocks,
+            filesystem=filesystem,
+            **resource_args,
+        )
 
     @staticmethod
     def json_as_document(json: dict[str, Any]) -> list[dict[str, Any]]:
@@ -316,7 +339,7 @@ class JsonDocumentScan(FileScan):
             self._paths,
             include_paths=True,
             filesystem=self._filesystem,
-            parallelism=self.parallelism if self.parallelism is not None else -1,
+            override_num_blocks=self.override_num_blocks,
             ray_remote_args=self.resource_args,
         )
         return ds.flat_map(self.json_as_document, **self.resource_args)

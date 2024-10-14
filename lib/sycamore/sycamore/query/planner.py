@@ -392,8 +392,8 @@ class LlmPlanner:
         """Generate the prompt fragment for the provided schema."""
         return json.dumps(
             {
-                field: f"{field_type} (e.g., {', '.join({str(e) for e in examples})})"
-                for field, (field_type, examples) in schema.items()
+                field_name: f"{field.field_type}{field.field_description} (e.g., {', '.join({str(e) for e in fieldexamples})})"
+                for field_name, field in schema.fields.items()
             },
             indent=2,
         )

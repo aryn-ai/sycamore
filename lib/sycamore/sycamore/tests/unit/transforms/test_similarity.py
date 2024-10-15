@@ -92,9 +92,7 @@ class TestSimilarityScorer:
         dicts = [
             {
                 "doc_id": 1,
-                "elements": [
-                    {"text_representation": "here is an animal that meows", "properties": {}}
-                ],
+                "elements": [{"text_representation": "here is an animal that meows", "properties": {}}],
             },
             {
                 "doc_id": 2,

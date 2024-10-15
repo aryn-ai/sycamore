@@ -1670,6 +1670,16 @@ files = [
 ]
 
 [[package]]
+name = "distance"
+version = "0.1.3"
+description = "Utilities for comparing sequences"
+optional = false
+python-versions = "*"
+files = [
+    {file = "Distance-0.1.3.tar.gz", hash = "sha256:60807584f5b6003f5c521aa73f39f51f631de3be5cccc5a1d67166fcbf0d4551"},
+]
+
+[[package]]
 name = "distlib"
 version = "0.3.8"
 description = "Distribution utilities"
@@ -9619,4 +9629,4 @@ weaviate = ["weaviate-client"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.13"
-content-hash = "c501cd6aee169ebb9ea8967c4568e6eff432712ecf1ddc4d802c19cf08804780"
+content-hash = "bccd312cc9353bddb220979e64400e2c55e94209633e65e69ea805cbe2bb2357"

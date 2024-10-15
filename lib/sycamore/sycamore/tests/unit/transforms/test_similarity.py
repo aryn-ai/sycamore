@@ -111,7 +111,7 @@ class TestSimilarityScorer:
         result.sort(key=lambda doc: doc.properties.get(score_property_name, float("-inf")), reverse=True)
         assert [doc.doc_id for doc in result] == [2, 1]
 
-        assert result[0].properties[score_property_name + "_source_element_index"] == "Unknown"
+        assert f"{score_property_name}_source_element_index" not in result[0].properties
 
 
 class TestSimilarityTransform:

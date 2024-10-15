@@ -63,12 +63,11 @@ class SimilarityScorer(ABC):
         doc_score = document.properties.get(score_property_name, float("-inf"))
         if score > doc_score:
             document.properties[score_property_name] = score
-            source = element.element_index
-            if source is None:
+            if element.element_index is None:
                 # note: this is for backwards compatibility with older versions of sycamore
                 logger.warning("No element_index found, please update your index to trace document similarity scores.")
-                source = f"Unknown"
-            document.properties[f"{score_property_name}_source_element_index"] = source
+            else:
+                document.properties[f"{score_property_name}_source_element_index"] = element.element_index
         return document
 
     def generate_similarity_scores(

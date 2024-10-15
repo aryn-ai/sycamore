@@ -1,6 +1,5 @@
 from collections import UserDict
 import json
-from enum import Enum
 from typing import Any, Optional
 import uuid
 
@@ -8,7 +7,7 @@ from sycamore.data import BoundingBox, Element
 from sycamore.data.element import create_element
 
 
-class DocumentSource(Enum):
+class DocumentSource:
     UNKNOWN = "UNKNOWN"
     DB_QUERY = "DB_QUERY"
     DOCUMENT_RECONSTRUCTION_RETRIEVAL = "DOCUMENT_RECONSTRUCTION_RETRIEVAL"

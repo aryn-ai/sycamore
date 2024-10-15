@@ -4,6 +4,7 @@ from pathlib import Path
 import pprint
 import sys
 from typing import Callable, Optional, Any, Iterable, Type, Union, TYPE_CHECKING
+import re
 
 from sycamore.context import Context, context_params, OperationTypes
 from sycamore.data import Document, Element, MetadataDocument
@@ -956,6 +957,7 @@ class DocSet:
         return self.map(process_doc, **resource_args)
 
     @context_params(OperationTypes.BINARY_CLASSIFIER)
+    @context_params(OperationTypes.TEXT_SIMILARITY)
     def llm_filter(
         self,
         llm: LLM,
@@ -963,6 +965,10 @@ class DocSet:
         prompt: Union[list[dict], str],
         field: str = "text_representation",
         threshold: int = 3,
+        keep_none: bool = False,
+        use_elements: bool = False,
+        similarity_query: Optional[str] = None,
+        similarity_scorer: Optional[SimilarityScorer] = None,
         **resource_args,
     ) -> "DocSet":
         """
@@ -974,29 +980,54 @@ class DocSet:
             new_field: The field that will be added to the DocSet with the outputs.
             prompt: LLM prompt.
             field: Document field to filter based on.
-            threshold: Cutoff that determines whether or not to keep document.
+            threshold:  If the value of the computed result is an integer value greater than or equal to this threshold,
+                        the document will be kept.
+            keep_none:  keep records with a None value for the provided field to filter on.
+                        Warning: using this might hide data corruption issues.
+            use_elements: use contents of a document's elements to filter as opposed to document level contents.
+            similarity_query: query string to compute similarity against. Also requires a 'similarity_scorer'.
+            similarity_scorer: scorer used to generate similarity scores used in element sorting.
+                        Also requires a 'similarity_query'.
             **resource_args
 
         Returns:
             A filtered DocSet.
         """
-
-        def threshold_filter(doc: Document, threshold) -> bool:
-            try:
-                return_value = int(doc.properties[new_field]) >= threshold
-            except Exception:
-                # accounts for llm output errors
-                return_value = False
-
-            return return_value
-
-        docset = self.filter(lambda doc: doc.field_to_value(field) is not None and doc.field_to_value(field) != "None")
-
         entity_extractor = OpenAIEntityExtractor(
             entity_name=new_field, llm=llm, use_elements=False, prompt=prompt, field=field
         )
-        docset = docset.extract_entity(entity_extractor=entity_extractor)
-        docset = docset.filter(lambda doc: threshold_filter(doc, threshold), **resource_args)
+
+        def threshold_filter(doc: Document, threshold) -> bool:
+            if not use_elements:
+                if doc.field_to_value(field) is None:
+                    return keep_none
+                doc = entity_extractor.extract_entity(doc)
+                # todo: move data extraction and validation to entity extractor
+                return int(re.findall(r"\d+", doc.properties[new_field])[0]) >= threshold
+
+            if similarity_query is not None:
+                assert similarity_scorer is not None, "Similarity sorting requires a scorer"
+                score_property_name = f"{field}_similarity_score"
+                doc = similarity_scorer.generate_similarity_scores(
+                    doc_batch=[doc], query=similarity_query, score_property_name=score_property_name
+                )[0]
+                doc.elements.sort(key=lambda e: e.properties.get(score_property_name, float("-inf")), reverse=True)
+            evaluated_elements = 0
+            for element in doc.elements:
+                e_doc = Document(element.data)
+                if e_doc.field_to_value(field) is None:
+                    continue
+                e_doc = entity_extractor.extract_entity(e_doc)
+                element.properties[new_field] = e_doc.properties[new_field]
+                # todo: move data extraction and validation to entity extractor
+                if int(re.findall(r"\d+", element.properties[new_field])[0]) >= threshold:
+                    return True
+                evaluated_elements += 1
+            if evaluated_elements == 0:  # no elements found for property
+                return keep_none
+            return False
+
+        docset = self.filter(lambda doc: threshold_filter(doc, threshold), **resource_args)
 
         return docset
 

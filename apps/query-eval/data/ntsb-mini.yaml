@@ -1,0 +1,15 @@
+# This file contains a query-eval config for evaluating Sycamore Query against
+# the NTSB incident dataset. This version only contains a few queries for quick
+# testing.
+
+config:
+  index: const_ntsb
+
+
+queries:
+  - query: "Were there any fire related incidents in CA in 2023?"
+    expected: "Yes, there was a fire-related incident in California in 2023."
+  - query: "How many Piper aircrafts were involved in accidents?"
+    expected: "There were 21 Piper aircrafts involved in accidents."
+  - query: "What fraction of incidents that resulted in substantial damage were due to engine problems?"
+    expected: "0.338 of the incidents that resulted in substantial damage were due to engine problems."

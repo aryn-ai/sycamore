@@ -19,13 +19,19 @@ class HashContext:
     This is a wrapper class for the hash context as Python/mypy/IDE does not like accessing _Hash from hashlib
     """
 
-    def __init__(self, algorithm="sha256"):
-        self.hash_obj = hashlib.new(algorithm)
+    def __init__(self, /, algorithm: str = "sha256", copy_from=None) -> None:
+        if copy_from:
+            self.hash_obj = copy_from.hash_obj.copy()
+        else:
+            self.hash_obj = hashlib.new(algorithm, usedforsecurity=False)
 
-    def update(self, data: bytes):
+    def copy(self) -> HashContext:
+        return HashContext(copy_from=self)
+
+    def update(self, data: bytes) -> None:
         self.hash_obj.update(data)
 
-    def hexdigest(self):
+    def hexdigest(self) -> str:
         return self.hash_obj.hexdigest()
 
 

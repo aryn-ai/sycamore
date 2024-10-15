@@ -14,7 +14,7 @@ To avoid duplicate or unnecessary work, please follow this process to make contr
 
 ## What to Contribute
 
-Sycamore is a new project with big ambitions, so there are a lots of ways to contribute:
+Sycamore is a new project with big ambitions, so there are a lot of ways to contribute:
 
 - **Bug reports**. We love bug reports! If you find something broken, please open an issue using the Bug report template and provide as much detail as possible about what happened and how we can reproduce it.
 - **Documentation improvements**. We want it to be as easy as possible to get started with sycamore. If you spot something wrong or something that could be clearer in the docs, please open an issue, or better yet contribute a fix yourself!

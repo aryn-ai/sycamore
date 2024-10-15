@@ -1,11 +1,12 @@
 import logging
-from typing import Any, Dict, Optional, Set, Tuple
+from typing import Any, Optional, Set, Tuple
 
 import ray
 
 from sycamore.executor import _ray_logging_setup
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
+from sycamore.query.schema import OpenSearchSchema
 
 
 def ray_init(**ray_args):
@@ -21,7 +22,7 @@ def ray_init(**ray_args):
     ray.init(**ray_args)
 
 
-def get_schema(_client: SycamoreQueryClient, index: str) -> Dict[str, Tuple[str, Set[str]]]:
+def get_schema(_client: SycamoreQueryClient, index: str) -> OpenSearchSchema:
     return _client.get_opensearch_schema(index)
 
 
@@ -34,4 +35,4 @@ def run_plan(_client: SycamoreQueryClient, plan: LogicalPlan) -> Tuple[str, Any]
 
 
 def get_opensearch_indices() -> Set[str]:
-    return {x for x in SycamoreQueryClient().get_opensearch_incides() if not x.startswith(".")}
+    return {x for x in SycamoreQueryClient().get_opensearch_indices() if not x.startswith(".")}

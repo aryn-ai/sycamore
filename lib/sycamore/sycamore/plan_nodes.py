@@ -1,3 +1,4 @@
+import sys
 from abc import ABC, abstractmethod
 from typing import Callable, Optional, TYPE_CHECKING
 
@@ -63,7 +64,7 @@ class Node(ABC):
         children: list[Optional["Node"]],
         materialize: dict = {},
         parallelism: Optional[int] = None,
-        **resource_args
+        **resource_args,
     ):
         self.children = children
         assert parallelism is None or parallelism > 0
@@ -199,3 +200,36 @@ class Write(SingleThreadUser, NonGPUUser, UnaryNode):
 
     def __str__(self):
         return "write"
+
+
+def print_plan(node: Node, stream=sys.stdout) -> None:
+    """Utility function for printing plans.
+
+    Prints the node and all its children. Indentation is used
+    to indicate the parent-child relation, e.g.
+
+    RootNode
+      InternalNode1
+        LeafNode1
+      InternalNode2
+        LeafNode2
+    """
+
+    class PrintTraverse(NodeTraverse):
+        def __init__(self):
+            super().__init__()
+            self.indent = 0
+            self.stream = stream
+
+        def before(self, n: Node) -> Node:
+            self.stream.write(" " * self.indent)
+            self.stream.write(f"{n.__class__.__name__} {n.properties}\n")
+            self.indent += 2
+            return n
+
+        def after(self, n: Node) -> Node:
+            if self.indent >= 0:
+                self.indent -= 2
+            return n
+
+    node.traverse(obj=PrintTraverse())

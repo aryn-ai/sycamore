@@ -21,7 +21,6 @@ from sycamore.transforms.extract_schema import (
     OpenAIPropertyExtractor,
 )
 from sycamore.transforms.merge_elements import GreedyTextElementMerger
-from sycamore.transforms.summarize_images import SummarizeImages
 from sycamore.llms import OpenAI, OpenAIModels
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from opensearchpy import OpenSearch
@@ -149,6 +148,8 @@ def main():
 
     partitioned_docset = (
         docset.partition(partitioner=ArynPartitioner(extract_table_structure=True, use_ocr=True, extract_images=True))
+# XXX MDW 3 Oct 2024 - Disable this for now as it seems to be failing on the demo instance.
+#        .transform(SummarizeImages)
         .materialize(path=f"{args.tempdir}/ntsb-loader-stage-0", source_mode=sycamore.MATERIALIZE_USE_STORED)
         .map(add_schema_property)
         .materialize(path=f"{args.tempdir}/ntsb-loader-stage-1", source_mode=sycamore.MATERIALIZE_USE_STORED)

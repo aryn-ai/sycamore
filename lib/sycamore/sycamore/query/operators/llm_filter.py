@@ -1,9 +1,9 @@
 from pydantic import Field
 
-from sycamore.query.operators.logical_operator import LogicalOperator
+from sycamore.query.logical_plan import Node
 
 
-class LlmFilter(LogicalOperator):
+class LlmFilter(Node):
     """LlmFilter uses a Large Language Model (LLM) to filter database records based on the
     value of a field. This operation is useful when the filtering to be performed is complex
     and cannot be expressed either as a OpenSearch query (for QueryDatabase), vector query (QueryVectorDatabase)

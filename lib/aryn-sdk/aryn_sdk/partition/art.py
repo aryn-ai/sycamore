@@ -54,7 +54,7 @@ def draw_with_boxes(
 
          .. code-block:: python
 
-            from arynsdk.partition import partition_file, draw_with_boxes
+            from aryn_sdk.partition import partition_file, draw_with_boxes
 
             with open("my-favorite-pdf.pdf", "rb") as f:
                 data = partition_file(

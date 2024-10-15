@@ -6,7 +6,6 @@ from sycamore.utils.import_utils import requires_modules
 from dataclasses import dataclass
 import typing
 from typing import Optional, Dict, Any
-from dataclasses import asdict
 
 
 if typing.TYPE_CHECKING:
@@ -45,7 +44,7 @@ class WeaviateReaderClient(BaseDBReader.Client):
         from weaviate import WeaviateClient
 
         assert isinstance(params, WeaviateReaderClientParams)
-        client = WeaviateClient(**asdict(params))
+        client = WeaviateClient(**params.__dict__)
         return WeaviateReaderClient(client)
 
     def read_records(self, query_params: BaseDBReader.QueryParams) -> "WeaviateReaderQueryResponse":

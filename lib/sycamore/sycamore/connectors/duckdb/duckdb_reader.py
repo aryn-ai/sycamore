@@ -64,13 +64,15 @@ class DuckDBReaderQueryResponse(BaseDBReader.QueryResponse):
 
     def to_docs(self, query_params: "BaseDBReader.QueryParams") -> list[Document]:
         assert isinstance(self, DuckDBReaderQueryResponse)
-        data = self.output.fetchdf()
+        data = self.output.df()
         data = data.to_dict(orient="records")
         result = []
         for object in data:
             val = object.get("properties")
             if val is not None:
-                object["properties"] = convert_from_str_dict(dict(zip(val["key"], val["value"])))
+                object["properties"] = convert_from_str_dict(val)
+            if isinstance(object["embedding"], float):
+                object["embedding"] = []
             result.append(Document(object))
         return result
 

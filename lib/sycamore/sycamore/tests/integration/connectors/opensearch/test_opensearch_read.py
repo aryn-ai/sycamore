@@ -106,3 +106,6 @@ class TestOpenSearchRead:
         assert len(retrieved_materialized_reconstructed) == 1
         doc = retrieved_materialized_reconstructed[0]
         assert len(doc.elements) == len(retrieved_materialized) - 1  # drop the document parent record
+
+        for i in range(len(doc.elements) - 1):
+            assert doc.elements[i].element_index < doc.elements[i + 1].element_index

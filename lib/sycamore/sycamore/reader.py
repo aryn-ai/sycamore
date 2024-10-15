@@ -1,4 +1,4 @@
-from typing import Optional, Union, Callable, Dict
+from typing import Optional, Union, Callable, Dict, Any
 from pathlib import Path
 
 from pandas import DataFrame
@@ -42,7 +42,11 @@ class DocSetReader:
         self,
         paths: Union[str, list[str]],
         binary_format: str,
-        parallelism: Optional[int] = None,
+        parallelism: Optional[str] = None,
+        # consider removing override_num_blocks unless we find a good case where specifying it
+        # helps. Specifying override_num_blocks=4 in metadata-extraction.py was causing slowness
+        # and hangs in eric@aryn.ai's experience.
+        override_num_blocks: Optional[int] = None,
         filesystem: Optional[FileSystem] = None,
         metadata_provider: Optional[FileMetadataProvider] = None,
         **kwargs,
@@ -53,8 +57,8 @@ class DocSetReader:
         Args:
             paths: Paths to the Binary file
             binary_format:  Binary file format to read from
-            parallelism: (Optional) Override the number of output blocks from all read tasks. Defaults to
-                -1 if not specified
+            override_num_blocks: (Optional) Override the number of output blocks from all read
+                tasks.  You probably don't want to specify this.
             filesystem: (Optional) The PyArrow filesystem to read from. By default is selected based on the
                 scheme of the paths passed in
             kwargs: (Optional) Arguments to passed into the underlying execution engine
@@ -68,12 +72,13 @@ class DocSetReader:
             # Initializng sycamore which also initializes Ray underneath
             context = sycamore.init()
             # Creating a DocSet
-            docset = context.read.binary(paths, parallelism=1, binary_format="pdf")
+            docset = context.read.binary(paths, binary_format="pdf")
         """
         scan = BinaryScan(
             paths,
             binary_format=binary_format,
             parallelism=parallelism,
+            override_num_blocks=override_num_blocks,
             filesystem=filesystem,
             metadata_provider=metadata_provider,
             **kwargs,
@@ -85,7 +90,8 @@ class DocSetReader:
         self,
         metadata_provider: FileMetadataProvider,
         binary_format: str,
-        parallelism: Optional[int] = None,
+        parallelism: Optional[str] = None,
+        override_num_blocks: Optional[int] = None,
         filesystem: Optional[FileSystem] = None,
         **kwargs,
     ) -> DocSet:
@@ -95,8 +101,8 @@ class DocSetReader:
         Args:
             metadata_provider: Metadata provider for each file, with the manifest being used as the paths to read from
             binary_format:  Binary file format to read from
-            parallelism: (Optional) Override the number of output blocks from all read tasks. Defaults to
-                -1 if not specified
+            override_num_blocks: (Optional) Override the number of output blocks from all read
+                tasks.  You probably don't want to specify this.
             filesystem: (Optional) The PyArrow filesystem to read from. By default is selected based on the scheme
                 of the paths passed in
             kwargs: (Optional) Arguments to passed into the underlying execution engine
@@ -124,6 +130,7 @@ class DocSetReader:
             paths,
             binary_format=binary_format,
             parallelism=parallelism,
+            override_num_blocks=override_num_blocks,
             filesystem=filesystem,
             metadata_provider=metadata_provider,
             **kwargs,
@@ -217,6 +224,7 @@ class DocSetReader:
         index_name: str,
         query: Optional[Dict] = None,
         reconstruct_document: bool = False,
+        query_kwargs: dict[str, Any] = {},
         **kwargs,
     ) -> DocSet:
         """
@@ -232,6 +240,8 @@ class DocSetReader:
             reconstruct_document: Used to decide whether the returned DocSet comprises reconstructed documents,
                 i.e. by collecting all elements belong to a single parent document (parent_id). This requires OpenSearch
                 to be an index of docset.explode() type. Default to false.
+            query_kwargs: (Optional) Parameters to configure the underlying OpenSearch search query.
+            **kwargs: (Optional) kwargs to pass undefined parameters around.
 
         Example:
             The following shows how to write to data into a OpenSearch Index, and read it back into a DocSet.
@@ -279,9 +289,13 @@ class DocSetReader:
 
         client_params = OpenSearchReaderClientParams(os_client_args=os_client_args)
         query_params = (
-            OpenSearchReaderQueryParams(index_name=index_name, query=query, reconstruct_document=reconstruct_document)
+            OpenSearchReaderQueryParams(
+                index_name=index_name, query=query, reconstruct_document=reconstruct_document, kwargs=query_kwargs
+            )
             if query is not None
-            else OpenSearchReaderQueryParams(index_name=index_name, reconstruct_document=reconstruct_document)
+            else OpenSearchReaderQueryParams(
+                index_name=index_name, reconstruct_document=reconstruct_document, kwargs=query_kwargs
+            )
         )
         osr = OpenSearchReader(client_params=client_params, query_params=query_params)
         return DocSet(self._context, osr)
@@ -411,7 +425,13 @@ class DocSetReader:
 
     @requires_modules("elasticsearch", extra="elasticsearch")
     def elasticsearch(
-        self, url: str, index_name: str, es_client_args: dict = {}, query: Optional[Dict] = None, **kwargs
+        self,
+        url: str,
+        index_name: str,
+        es_client_args: dict = {},
+        query: Optional[Dict] = None,
+        keep_alive: str = "1m",
+        **kwargs,
     ) -> DocSet:
         """
         Reads the content of an Elasticsearch index into a DocSet.
@@ -426,7 +446,8 @@ class DocSetReader:
                 Query DSL as a dictionary. Otherwise, it defaults to a full scan of the table.
                 See more information at
                 https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
-            kwargs: (Optional) Parameters to pass in to the underlying Elasticsearch search query.
+            keep_alive: (Optional) Keep alive time for the search context. Defaults to 1 minute if not specified
+            kwargs: (Optional) Parameters to configure the underlying Elasticsearch search query.
                 See more information at
                 https://elasticsearch-py.readthedocs.io/en/v8.14.0/api/elasticsearch.html#elasticsearch.Elasticsearch.search
         Example:
@@ -434,7 +455,7 @@ class DocSetReader:
 
             .. code-block:: python
 
-                url = "http://localhost:9201"
+                url = "http://localhost:9200"
                 index_name = "test_index-read"
                 wait_for_completion = "wait_for"
                 model_name = "sentence-transformers/all-MiniLM-L6-v2"
@@ -473,9 +494,9 @@ class DocSetReader:
 
         client_params = ElasticsearchReaderClientParams(url=url, es_client_args=es_client_args)
         query_params = (
-            ElasticsearchReaderQueryParams(index_name=index_name, query=query, kwargs=kwargs)
+            ElasticsearchReaderQueryParams(index_name=index_name, query=query, keep_alive=keep_alive, kwargs=kwargs)
             if query is not None
-            else ElasticsearchReaderQueryParams(index_name=index_name, kwargs=kwargs)
+            else ElasticsearchReaderQueryParams(index_name=index_name, keep_alive=keep_alive, kwargs=kwargs)
         )
 
         esr = ElasticsearchReader(client_params=client_params, query_params=query_params)

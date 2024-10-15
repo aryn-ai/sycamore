@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from sycamore.data import Document, TableElement
+from sycamore.data.document import DocumentPropertyTypes
 
 
 def to_html_tables(doc: Document) -> list[Document]:
@@ -15,8 +16,8 @@ def to_html_tables(doc: Document) -> list[Document]:
 
         new_doc.properties["path"] = doc.properties["path"]
 
-        if "page_number" in doc.properties:
-            new_doc.properties["page_number"] = doc.properties["page_number"]
+        if DocumentPropertyTypes.PAGE_NUMBER in doc.properties:
+            new_doc.properties[DocumentPropertyTypes.PAGE_NUMBER] = doc.properties[DocumentPropertyTypes.PAGE_NUMBER]
         new_doc.properties["table_num"] = table_num
         new_docs.append(new_doc)
 

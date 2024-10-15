@@ -1,0 +1,44 @@
+# Repo name: arynai/sycamore-query-ui
+
+# Note: This dockerfile is intended to work with docker buildx build -f Dockerfile.buildx .
+
+ARG TAG=stable
+
+FROM arynai/sycamore-base:$TAG
+
+ARG GIT_BRANCH="unknown"
+ARG GIT_COMMIT="unknown"
+ARG GIT_DIFF="unknown"
+
+ENV GIT_BRANCH=${GIT_BRANCH}
+ENV GIT_COMMIT=${GIT_COMMIT}
+ENV GIT_DIFF=${GIT_DIFF}
+ENV SSL=0
+
+WORKDIR /app
+USER app
+
+RUN make -f Makefile.docker-base check-version-compatibility
+
+# https://github.com/docker/buildx/issues/1408 app:app + --link isn't supported
+COPY --link --chown=1000:1000 apps/query-ui/Makefile.query-ui /app/
+
+USER root
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    make -f Makefile.query-ui apt-install
+
+USER app
+RUN --mount=type=cache,id=cache_poetry_1000,target=/tmp/poetry_cache,uid=1000,gid=1000,sharing=locked \
+    ./poetry-install.sh query-ui
+
+COPY --link --chown=1000:1000 apps/query-ui apps/query-ui
+
+RUN make -f Makefile.docker-base non-root-files-check
+
+LABEL org.opencontainers.image.authors="opensource@aryn.ai"
+LABEL git_branch=${GIT_BRANCH}
+LABEL git_commit=${GIT_COMMIT}
+LABEL git_diff=${GIT_DIFF}
+
+ENTRYPOINT ["./apps/query-ui/run-query-ui.sh"]

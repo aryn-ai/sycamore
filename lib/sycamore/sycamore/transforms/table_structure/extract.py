@@ -3,15 +3,16 @@ from typing import Any
 
 from PIL import Image
 import pdf2image
-import torch
 
 from sycamore.data import BoundingBox, Element, Document, TableElement
+from sycamore.data.document import DocumentPropertyTypes
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.transforms.table_structure import table_transformers
 from sycamore.transforms.table_structure.table_transformers import MaxResize
 from sycamore.utils.time_trace import timetrace
 from sycamore.utils import choose_device
+from sycamore.utils.import_utils import requires_modules
 
 
 class TableStructureExtractor:
@@ -50,8 +51,8 @@ class TableStructureExtractor:
 
         for elem in doc.elements:
             if isinstance(elem, TableElement):
-                if "page_number" in elem.properties:
-                    page_num = elem.properties["page_number"] - 1
+                if DocumentPropertyTypes.PAGE_NUMBER in elem.properties:
+                    page_num = elem.properties[DocumentPropertyTypes.PAGE_NUMBER] - 1
                 elif len(images) == 1:
                     page_num = 0
                 else:
@@ -104,6 +105,7 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         return tokens
 
     @timetrace("tblExtr")
+    @requires_modules(["torch", "torchvision"], extra="local-inference")
     def extract(self, element: TableElement, doc_image: Image.Image) -> TableElement:
         """Extracts the table structure from the specified element using a TableTransformer model.
 
@@ -154,6 +156,8 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
 
         # Run inference using the model and convert the output to raw "objects" containing bounding boxes and types.
         pixel_values = structure_transform(cropped_image).unsqueeze(0).to(self._get_device())
+
+        import torch
 
         with torch.no_grad():
             outputs = self.structure_model(pixel_values)

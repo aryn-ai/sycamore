@@ -1,12 +1,14 @@
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from abc import ABC, abstractmethod
-from ray.data import Dataset, from_items
 
 from sycamore.data.document import Document
 from sycamore.plan_nodes import Scan
-from sycamore.utils.ray_utils import check_serializable
 from sycamore.utils.time_trace import TimeTrace
+
+if TYPE_CHECKING:
+    from ray.data import Dataset
 
 
 class BaseDBReader(Scan):
@@ -51,7 +53,6 @@ class BaseDBReader(Scan):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        check_serializable(client_params, query_params)
         self._client_params = client_params
         self._query_params = query_params
 
@@ -64,9 +65,17 @@ class BaseDBReader(Scan):
         docs = records.to_docs(query_params=self._query_params)
         return docs
 
-    def execute(self, **kwargs) -> Dataset:
+    def execute(self, **kwargs) -> "Dataset":
+        from sycamore.utils.ray_utils import check_serializable
+
+        check_serializable(self._client_params, self._query_params)
+        from ray.data import from_items
+
         with TimeTrace("Reader"):
             return from_items(items=[{"doc": doc.serialize()} for doc in self.read_docs()])
+
+    def local_source(self) -> list[Document]:
+        return self.read_docs()
 
     def format(self):
         return "reader"

@@ -1,9 +1,10 @@
 import sycamore
-from sycamore import DocSet, Context
+from sycamore import DocSet
+from sycamore.context import Context, ExecMode
 from sycamore.data import Document, Element
 from sycamore.plan_nodes import Node
 from sycamore.connectors.opensearch import OpenSearchWriter
-from sycamore.connectors.weaviate import WeaviateDocumentWriter
+from sycamore.connectors.weaviate import WeaviateDocumentWriter, WeaviateCrossReferenceWriter
 from sycamore.connectors.duckdb import DuckDBWriter
 from sycamore.connectors.elasticsearch import ElasticsearchDocumentWriter
 
@@ -116,34 +117,58 @@ def noop_map(doc: Document) -> Document:
     return doc
 
 
+class MockNode(Node):
+    def __init__(self, **kwargs):
+        super().__init__([], **kwargs)
+        self.value = 0
+
+    def execute(self, **kwargs):
+        pass
+
+    def local_source(self, **kwargs):
+        return []
+
+    def finalize(self) -> None:
+        self.value = 1
+
+
 class TestDocSetWriter:
+    @staticmethod
+    def make_fake_docset() -> tuple[MockNode, DocSet]:
+        context = Context(exec_mode=ExecMode.LOCAL)
+        mn = MockNode()
+        docset = DocSet(context, mn)
+        return mn, docset
+
     def test_opensearch(self, mocker):
-        context = mocker.Mock(spec=Context)
-        docset = DocSet(context, mocker.Mock(spec=Node))
-        execute = mocker.patch.object(OpenSearchWriter, "execute")
-        docset.write.opensearch(os_client_args={}, index_name="index")
+        mn, docset = TestDocSetWriter.make_fake_docset()
+        execute = mocker.patch.object(OpenSearchWriter, "write_docs")
+        docset.write.opensearch(os_client_args={}, index_name="index", index_settings={})
         execute.assert_called_once()
+        assert mn.value == 1
 
     def test_weaviate(self, mocker):
-        context = mocker.Mock(spec=Context)
-        docset = DocSet(context, mocker.Mock(spec=Node))
-        execute = mocker.patch.object(WeaviateDocumentWriter, "execute")
+        mn, docset = TestDocSetWriter.make_fake_docset()
+        doc_execute = mocker.patch.object(WeaviateDocumentWriter, "write_docs")
+        ref_execute = mocker.patch.object(WeaviateCrossReferenceWriter, "write_docs")
         docset.write.weaviate(wv_client_args={}, collection_name="Collection")
-        execute.assert_called_once()
+        doc_execute.assert_called_once()
+        ref_execute.assert_called_once()
+        assert mn.value == 1
 
     def test_elasticsearch(self, mocker):
-        context = mocker.Mock(spec=Context)
-        docset = DocSet(context, mocker.Mock(spec=Node))
-        execute = mocker.patch.object(ElasticsearchDocumentWriter, "execute")
+        mn, docset = TestDocSetWriter.make_fake_docset()
+        execute = mocker.patch.object(ElasticsearchDocumentWriter, "write_docs")
         docset.write.elasticsearch(url="", index_name="index")
         execute.assert_called_once()
+        assert mn.value == 1
 
     def test_duckdb(self, mocker):
-        context = mocker.Mock(spec=Context)
-        docset = DocSet(context, mocker.Mock(spec=Node))
-        execute = mocker.patch.object(DuckDBWriter, "execute")
+        mn, docset = TestDocSetWriter.make_fake_docset()
+        execute = mocker.patch.object(DuckDBWriter, "write_docs")
         docset.write.duckdb(dimensions=384)
         execute.assert_called_once()
+        assert mn.value == 1
 
     def test_file_writer_text(self, tmp_path: Path):
         docs = generate_docs(5)
@@ -186,3 +211,11 @@ class TestDocSetWriter:
         doc_set = context.read.document(docs).map(noop_map)
         doc_set.write.json(str(tmp_path))
         _check_doc_blocks(docs, tmp_path)
+
+    def test_file_writer_create_path(self, tmp_path: Path):
+        docs = generate_docs(5)
+        context = sycamore.init()
+        doc_set = context.read.document(docs).map(noop_map)
+        out_path = tmp_path / "new_subdir"
+        doc_set.write.files(str(out_path))
+        _check_doc_path(docs, out_path)

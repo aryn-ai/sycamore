@@ -1,9 +1,12 @@
 from sycamore.data import Document
 from sycamore.connectors.base_reader import BaseDBReader
+from sycamore.utils.import_utils import requires_modules
 from dataclasses import dataclass, field
+import typing
 from typing import Dict
 
-from elasticsearch import Elasticsearch
+if typing.TYPE_CHECKING:
+    from elasticsearch import Elasticsearch
 
 
 @dataclass
@@ -16,16 +19,19 @@ class ElasticsearchReaderClientParams(BaseDBReader.ClientParams):
 class ElasticsearchReaderQueryParams(BaseDBReader.QueryParams):
     index_name: str
     query: Dict = field(default_factory=lambda: {"match_all": {}})
-    keep_alive = "1m"
+    keep_alive: str = "1m"
     kwargs: Dict = field(default_factory=lambda: {})
 
 
 class ElasticsearchReaderClient(BaseDBReader.Client):
-    def __init__(self, client: Elasticsearch):
+    def __init__(self, client: "Elasticsearch"):
         self._client = client
 
     @classmethod
+    @requires_modules("elasticsearch", extra="elasticsearch")
     def from_client_params(cls, params: BaseDBReader.ClientParams) -> "ElasticsearchReaderClient":
+        from elasticsearch import Elasticsearch
+
         assert isinstance(params, ElasticsearchReaderClientParams)
         client = Elasticsearch(params.url, **params.es_client_args)
         return ElasticsearchReaderClient(client)
@@ -35,7 +41,9 @@ class ElasticsearchReaderClient(BaseDBReader.Client):
             query_params, ElasticsearchReaderQueryParams
         ), f"Wrong kind of query parameters found: {query_params}"
         no_specification = ["query", "pit", "search_after", "index_name"]
-        assert all(no_specification) not in query_params.kwargs
+        assert (
+            all(no_specification) not in query_params.kwargs
+        ), "Please do not specify the following parameters: " + ", ".join(no_specification)
         if not query_params.kwargs.get("track_total_hits"):
             query_params.kwargs["track_total_hits"] = False
         if not query_params.kwargs.get("sort"):

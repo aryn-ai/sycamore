@@ -1,10 +1,13 @@
 import base64
 from io import BytesIO
+from packaging.version import InvalidVersion, Version
 from pathlib import Path
 from typing import Any, Callable, Optional, TypeVar, Union
+import PIL
 from PIL import Image, ImageDraw, ImageFont
 from sycamore.data import Document
 from sycamore.data.bbox import BoundingBox
+from sycamore.data.document import DocumentPropertyTypes
 
 DEFAULT_PADDING = 10
 
@@ -63,7 +66,7 @@ def base64_data_url(image: Image.Image) -> str:
 def image_page_filename_fn(doc: Document) -> str:
     path = Path(doc.properties["path"])
     base_name = ".".join(path.name.split(".")[0:-1])
-    page_num = doc.properties["page_number"]
+    page_num = doc.properties[DocumentPropertyTypes.PAGE_NUMBER]
     return f"{base_name}_page_{page_num}.png"
 
 
@@ -134,6 +137,13 @@ def _default_color_fn(box) -> str:
 U = TypeVar("U", bound=Union[Image.Image, ImageDraw.ImageDraw])
 
 
+def _supports_font_size() -> bool:
+    try:
+        return Version(PIL.__version__) >= Version("10.1.0")
+    except InvalidVersion:
+        return False
+
+
 def try_draw_boxes(
     target: U,
     boxes: Any,
@@ -174,8 +184,10 @@ def try_draw_boxes(
 
     if font_path is not None:
         font = ImageFont.truetype(font_path, 20)
-    else:
+    elif _supports_font_size():
         font = ImageFont.load_default(size=20)
+    else:
+        font = ImageFont.load_default()
 
     for i, box in enumerate(boxes):
         raw_coords = coord_fn(box)
@@ -217,8 +229,6 @@ def show_images(images: Union[Image.Image, list[Image.Image]], width: int = 600)
         images: A PIL image or list of images.
         width: An optional width for the image. This only applies in Jupyter notebooks.
     """
-    from IPython.display import display, Image as JImage
-
     if isinstance(images, Image.Image):
         images = [images]
 
@@ -231,13 +241,15 @@ def show_images(images: Union[Image.Image, list[Image.Image]], width: int = 600)
     in_jupyter = False
 
     try:
-        ipy_class = get_ipython().__class__.__name__  # type: ignore
-        if ipy_class == "ZMQInteractiveShell":
+        ipy_class = get_ipython().__class__  # type: ignore
+        if ipy_class.__name__ == "ZMQInteractiveShell" or ipy_class.__module__ == "google.colab._shell":  # type: ignore
             in_jupyter = True
     except NameError:
         in_jupyter = False
 
     if in_jupyter:
+        from IPython.display import display, Image as JImage
+
         for image in images:
             data = BytesIO()
             image.save(data, format="png")

@@ -1,33 +1,28 @@
-from typing import List
-
 from opensearchpy import OpenSearch
 
 from sycamore.tests.integration.query.conftest import OS_CLIENT_ARGS, OS_CONFIG
-from sycamore.query.logical_plan import Node
 from sycamore.query.planner import LlmPlanner
+from sycamore.query.schema import OpenSearchSchema, OpenSearchSchemaField
 
 
-def test_simple_openai_planner(query_integration_test_index: str):
+def test_simple_llm_planner(query_integration_test_index: str):
     """
-    Simple test ensuring nodes are being creating and dependencies are being set.
+    Simple test ensuring nodes are being created and dependencies are being set.
     Using a simple query here for consistent query plans.
     """
     os_client = OpenSearch(OS_CLIENT_ARGS)
 
-    schema = {"location": "string", "airplaneType": "string"}
+    schema = OpenSearchSchema(
+        fields={
+            "location": OpenSearchSchemaField(field_type="string", examples=["New York", "Seattle"]),
+            "airplaneType": OpenSearchSchemaField(field_type="string", examples=["Boeing 747", "Airbus A380"]),
+        }
+    )
     planner = LlmPlanner(query_integration_test_index, data_schema=schema, os_config=OS_CONFIG, os_client=os_client)
     plan = planner.plan("How many locations did incidents happen in?")
-    plan.show()
 
-    nodes: List[Node] = plan.nodes()
+    assert len(plan.nodes) == 2
+    assert type(plan.nodes[0]).__name__ == "QueryDatabase"
+    assert type(plan.nodes[1]).__name__ == "Count"
 
-    assert len(nodes) == 3
-    assert type(nodes[0]).__name__ == "LoadData"
-    assert type(nodes[1]).__name__ == "Count"
-    assert type(nodes[2]).__name__ == "LlmGenerate"
-
-    assert [nodes[1]] == nodes[0].downstream_nodes
-    assert [nodes[2]] == nodes[1].downstream_nodes
-
-    assert [nodes[0]] == nodes[1].dependencies
-    assert [nodes[1]] == nodes[2].dependencies
+    assert [plan.nodes[0]] == plan.nodes[1].input_nodes()

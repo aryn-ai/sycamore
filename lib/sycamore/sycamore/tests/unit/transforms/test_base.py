@@ -5,12 +5,10 @@ from pathlib import Path
 import ray
 import pytest
 
-from ray.data import ActorPoolStrategy
-
 from sycamore.data import Document, MetadataDocument
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base import BaseMapTransform, CompositeTransform, get_name_from_callable, rename
-from sycamore.connectors.file import _FileDataSink
+from sycamore.connectors.file.file_writer_ray import _FileDataSink
 
 
 class Common:
@@ -32,6 +30,10 @@ class Common:
 
     @staticmethod
     def outputs(node: Node, **kwargs):
+        if node.parallelism is not None:
+            from ray.data import ActorPoolStrategy
+
+            node.resource_args["compute"] = ActorPoolStrategy(size=node.parallelism)
         all_docs = [Document.from_row(r) for r in node.execute(**kwargs).take()]
         docs = [d for d in all_docs if not isinstance(d, MetadataDocument)]
         metadata = [d for d in all_docs if isinstance(d, MetadataDocument)]
@@ -255,9 +257,7 @@ class TestBaseMapTransform(Common):
             f=Test("as_function"),
             enable_auto_metadata=False,
         )
-        as_object = BaseMapTransform(
-            as_function, f=Test("as_object"), compute=ActorPoolStrategy(size=1), enable_auto_metadata=False
-        )
+        as_object = BaseMapTransform(as_function, f=Test("as_object"), parallelism=1, enable_auto_metadata=False)
 
         (docs, mds) = self.outputs(as_object)
 

@@ -1,16 +1,19 @@
 import logging
-from typing import Any, Callable, Iterable, Optional, Union
+from typing import Any, Callable, Iterable, Optional, Union, TYPE_CHECKING
 
 import numpy as np
-from ray.data import ActorPoolStrategy, Dataset, Datasink
 
 from sycamore.data import Document, MetadataDocument
+from sycamore.utils.lineage_utils import update_lineage
 from sycamore.data.document import split_data_metadata
 from sycamore.plan_nodes import Node, UnaryNode
 from sycamore.utils.ray_utils import check_serializable
 
+if TYPE_CHECKING:
+    from ray.data import Dataset, Datasink
 
-def take_separate(dataset: Dataset, limit: Optional[int] = None) -> tuple[list[Document], list[MetadataDocument]]:
+
+def take_separate(dataset: "Dataset", limit: Optional[int] = None) -> tuple[list[Document], list[MetadataDocument]]:
     """
     Returns the list of documents from a dataset separating out data and metadata docs.
     """
@@ -66,8 +69,13 @@ class BaseMapTransform(UnaryNode):
     BaseMapTransform abstracts away MetadataDocuments from all other transforms.
 
     If f is a class type, the class will be instantiated and run as an actor in ray.
-    If f is an object type and resource_args["compute"] is set to ActorPoolStrategy, it will run as an actor
+    The parallelism will default to 1 if unspecified. constructor_args and
+    constructor_kwargs can be used to provide arguments when initializing the class
+
+    If f is an object type and parallelism is specified, it will run as an actor
     Otherwise f will be run as a function.
+
+    Use args, kwargs to pass additional args to the function call.
     """
 
     def __init__(
@@ -86,16 +94,8 @@ class BaseMapTransform(UnaryNode):
         enable_auto_metadata: bool = True,
         **resource_args,
     ):
-        if child is None:
-            logging.info("Assuming this is for local execution only, not checking serializability")
-        else:
-            # If serializability fails, the error messages are very confusing. These checks
-            # give a much more sensible error message and give it before ray starts execution.
-            check_serializable(f, name, args, kwargs, constructor_args, constructor_kwargs)
-
-        if isinstance(f, type) and "compute" not in resource_args:
-            # classes require actor strategy for now
-            resource_args["compute"] = ActorPoolStrategy(size=1)
+        if isinstance(f, type) and "parallelism" not in resource_args:
+            resource_args["parallelism"] = 1
 
         super().__init__(child, **resource_args)
         if name is None:
@@ -112,10 +112,18 @@ class BaseMapTransform(UnaryNode):
     def execute(
         self,
         write_intermediate_data: bool = False,
-        intermediate_datasink: Optional[Union[type[Datasink], Datasink]] = None,
+        intermediate_datasink: Optional[Union[type["Datasink"], "Datasink"]] = None,
         intermediate_datasink_kwargs: Optional[dict[str, Any]] = None,
         **kwargs,
     ) -> "Dataset":
+        # If serializability fails, the error messages are very confusing. These checks
+        # give a much more sensible error message and give it before ray starts execution.
+        check_serializable(
+            self._f, self._name, self._args, self._kwargs, self._constructor_args, self._constructor_kwargs
+        )
+
+        from ray.data import ActorPoolStrategy
+
         if "num_gpus" in self.resource_args:
             assert self.resource_args["num_gpus"] > 0
 
@@ -125,10 +133,13 @@ class BaseMapTransform(UnaryNode):
             intermediate_datasink_kwargs=intermediate_datasink_kwargs,
         )
         if isinstance(self._f, type):  # is f a class?
-            # Maybe add a class as function variant if the caller specified TaskPoolStrategy
+            # Maybe add a class as function variant if the caller specified parallelism=None
             result = input_dataset.map_batches(self._map_class(), **self.resource_args)
-        elif "compute" in self.resource_args and isinstance(self.resource_args["compute"], ActorPoolStrategy):
-            # Ray requires a class for ActorPoolStrategy.
+        elif "compute" in self.resource_args:
+            assert isinstance(
+                self.resource_args["compute"], ActorPoolStrategy
+            ), "only supported compute type is ActorPoolStrategy"
+            # Ray requires a class for ActorPoolStrategy
             result = input_dataset.map_batches(self._map_callable_as_class(), **self.resource_args)
         else:
             result = input_dataset.map_batches(self._map_function(), **self.resource_args)
@@ -151,7 +162,7 @@ class BaseMapTransform(UnaryNode):
         outputs = self._local_process(docs)
         to_docs = [d for d in outputs if not isinstance(d, MetadataDocument)]
         if self._enable_auto_metadata and (len(docs) > 0 or len(to_docs) > 0):
-            outputs.extend(BaseMapTransform._update_lineage(docs, to_docs))
+            outputs.extend(update_lineage(docs, to_docs))
         outputs.extend(metadata)
         return outputs
 
@@ -251,24 +262,16 @@ class BaseMapTransform(UnaryNode):
 
         to_docs = [d for d in outputs if not isinstance(d, MetadataDocument)]
         if enable_auto_metadata and (len(docs) > 0 or len(to_docs) > 0):
-            outputs.extend(BaseMapTransform._update_lineage(docs, to_docs))
+            outputs.extend(update_lineage(docs, to_docs))
         outputs.extend(metadata)
         return {"doc": [d.serialize() for d in outputs]}
 
-    @classmethod
-    def _update_lineage(cls, from_docs, to_docs):
-        from_ids = [d.lineage_id for d in from_docs]
-        for d in to_docs:
-            d.update_lineage_id()
-        to_ids = [d.lineage_id for d in to_docs]
-
-        return [MetadataDocument(lineage_links={"from_ids": from_ids, "to_ids": to_ids})]
-
 
 class CompositeTransform(UnaryNode):
-    def __init__(self, child: Node, base_args: list[dict], **resource_args):
+    def __init__(self, child: Node, base_args: list[dict], enable_auto_metadata=True, **resource_args):
         super().__init__(child, **resource_args)
         self.nodes = CompositeTransform.combine(child, base_args, **resource_args)
+        self._enable_auto_metadata = enable_auto_metadata
 
     @staticmethod
     def combine(last: Node, base_args: list[dict], **resource_args) -> list[BaseMapTransform]:
@@ -287,5 +290,20 @@ class CompositeTransform(UnaryNode):
 
         return docs
 
-    def execute(self, **kwargs) -> Dataset:
+    def local_execute(self, all_docs: list[Document]) -> list[Document]:
+        docs = [d for d in all_docs if not isinstance(d, MetadataDocument)]
+        metadata = [d for d in all_docs if isinstance(d, MetadataDocument)]
+        outputs = self._local_process(docs)
+        to_docs = [d for d in outputs if not isinstance(d, MetadataDocument)]
+        if self._enable_auto_metadata and (len(docs) > 0 or len(to_docs) > 0):
+            outputs.extend(update_lineage(docs, to_docs))
+        outputs.extend(metadata)
+        return outputs
+
+    def execute(self, **kwargs) -> "Dataset":
+        from sycamore.executor import visit_parallelism
+
+        for n in self.nodes:
+            visit_parallelism(n)
+
         return self.nodes[-1].execute()

@@ -1,18 +1,30 @@
 from sycamore.transforms.embed import Embed, Embedder
 from sycamore.transforms.basics import Limit, Filter
+from sycamore.transforms.extract_document_structure import DocumentStructure, ExtractDocumentStructure
 from sycamore.transforms.extract_entity import ExtractEntity, EntityExtractor
 from sycamore.transforms.explode import Explode
 from sycamore.transforms.map import Map, FlatMap, MapBatch
 from sycamore.transforms.partition import Partition, Partitioner
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.regex_replace import COALESCE_WHITESPACE, RegexReplace
+from sycamore.transforms.similarity import ScoreSimilarity
 from sycamore.transforms.sketcher import Sketcher, SketchUniquify, SketchDebug
 from sycamore.transforms.spread_properties import SpreadProperties
+from sycamore.transforms.assign_doc_properties import AssignDocProperties
 from sycamore.transforms.summarize import Summarize
 from sycamore.transforms.bbox_merge import (
     SortByPageBbox,
     MarkDropHeaderFooter,
     MarkBreakByColumn,
+)
+
+from sycamore.transforms.extract_table_properties import ExtractTableProperties
+
+from sycamore.transforms.standardizer import (
+    USStateStandardizer,
+    Standardizer,
+    StandardizeProperty,
+    DateTimeStandardizer,
 )
 from sycamore.transforms.mark_misc import (
     MarkDropTiny,
@@ -33,6 +45,9 @@ from sycamore.transforms.query import Query
 from sycamore.transforms.term_frequency import TermFrequency
 from sycamore.transforms.sort import Sort
 from sycamore.transforms.llm_query import LLMQuery
+from sycamore.transforms.groupby_count import GroupByCount
+from sycamore.transforms.dataset_scan import DatasetScan
+
 
 __all__ = [
     "COALESCE_WHITESPACE",
@@ -45,6 +60,8 @@ __all__ = [
     "Embed",
     "Embedder",
     "Partition",
+    "DocumentStructure",
+    "ExtractDocumentStructure",
     "ExtractEntity",
     "EntityExtractor",
     "TableExtractor",
@@ -73,4 +90,13 @@ __all__ = [
     "TermFrequency",
     "Sort",
     "LLMQuery",
+    "AssignDocProperties",
+    "USStateStandardizer",
+    "Standardizer",
+    "DateTimeStandardizer",
+    "StandardizeProperty",
+    "ExtractTableProperties",
+    "GroupByCount",
+    "DatasetScan",
+    "ScoreSimilarity",
 ]

@@ -6,14 +6,15 @@ authors = ["Matt Welsh <matt@aryn.ai>"]
 packages = [{include = "queryui"}]
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.12"
-sycamore-ai = { path = "../../lib/sycamore", develop = true }
+python = ">=3.9,<3.9.7 || >3.9.7,<3.13"
+sycamore-ai = { path = "../../lib/sycamore", develop = true, extras = ["opensearch", "local-inference"] }
 streamlit = "^1.36.0"
 streamlit-ace = "^0.1.1"
-streamlit-agraph = "^0.0.45"
+marko = "^2.1.2"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.4"
+sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }
 
 [tool.black]
 line-length = 120

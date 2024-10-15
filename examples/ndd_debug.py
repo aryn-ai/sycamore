@@ -22,10 +22,11 @@ fsys = pyarrow.fs.S3FileSystem(region="us-east-1", anonymous=True)
 
 tokenizer = HuggingFaceTokenizer("thenlper/gte-small")
 
-ctx = sycamore.init()
+ctx = sycamore.init(exec_mode=sycamore.EXEC_LOCAL)
 
 ds = (
     ctx.read.binary(paths, binary_format="pdf", filesystem=fsys)
+    .materialize("tmp/ndd_debug_read", source_mode=sycamore.MATERIALIZE_USE_STORED)
     .partition(partitioner=UnstructuredPdfPartitioner())
     .regex_replace(COALESCE_WHITESPACE)
     .mark_bbox_preset(tokenizer=tokenizer)

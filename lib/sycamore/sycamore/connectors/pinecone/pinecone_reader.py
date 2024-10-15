@@ -1,7 +1,9 @@
 from sycamore.data import Document
-from pinecone.grpc import PineconeGRPC
+
 from sycamore.connectors.common import unflatten_data
 from sycamore.connectors.base_reader import BaseDBReader
+from sycamore.data.document import DocumentPropertyTypes, DocumentSource
+from sycamore.utils.import_utils import requires_modules
 from dataclasses import dataclass
 from typing import Optional, Dict
 
@@ -19,8 +21,11 @@ class PineconeReaderQueryParams(BaseDBReader.QueryParams):
 
 
 class PineconeReaderClient(BaseDBReader.Client):
+    @requires_modules("pinecone", extra="pinecone")
     def __init__(self, client_params: PineconeReaderClientParams):
-        self._client = PineconeGRPC(api_key=client_params.api_key)
+        from pinecone.grpc import PineconeGRPC
+
+        self._client = PineconeGRPC(api_key=client_params.api_key, source_tag="Aryn")
 
     @classmethod
     def from_client_params(cls, params: BaseDBReader.ClientParams) -> "PineconeReaderClient":
@@ -66,6 +71,7 @@ class PineconeReaderQueryResponse(BaseDBReader.QueryResponse):
                 data.metadata["properties.term_frequency"] = term_frequency
             metadata = data.metadata if data.metadata else {}
             doc = Document({"doc_id": doc_id, "embedding": data.values} | unflatten_data(metadata))
+            doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
             result.append(doc)
         return result
 

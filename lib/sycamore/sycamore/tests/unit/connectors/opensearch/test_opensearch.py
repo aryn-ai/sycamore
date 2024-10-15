@@ -1,5 +1,11 @@
-from opensearchpy import OpenSearch, RequestError
+from unittest.mock import Mock
+
+from opensearchpy import OpenSearch, RequestError, ConnectionError
 import pytest
+
+from sycamore.connectors.opensearch.opensearch_reader import OpenSearchReaderQueryResponse, OpenSearchReaderQueryParams
+
+from sycamore import Context
 from sycamore.connectors.opensearch import (
     OpenSearchWriterClient,
     OpenSearchWriterClientParams,
@@ -7,7 +13,9 @@ from sycamore.connectors.opensearch import (
     OpenSearchWriterTargetParams,
 )
 from sycamore.connectors.common import HostAndPort
-from sycamore.data.document import Document
+from sycamore.connectors.opensearch.utils import get_knn_query
+from sycamore.data.document import Document, DocumentPropertyTypes, DocumentSource
+from sycamore.transforms import Embedder
 
 
 class TestOpenSearchTargetParams:
@@ -60,11 +68,11 @@ class TestOpenSearchTargetParams:
 
 
 class TestOpenSearchClient:
-    def test_create_target_already_exists(self, mocker):
+    def test_create_target_request_error(self, mocker):
         client = mocker.Mock(spec=OpenSearch)
         client.indices = mocker.Mock()
         client.indices.create = mocker.Mock()
-        client.indices.create.side_effect = RequestError(400, "resource_already_exists_exception", {})
+        client.indices.create.side_effect = RequestError(400, "Some Reason", {})
 
         params = OpenSearchWriterTargetParams(index_name="found")
         osc_testing = OpenSearchWriterClient(client)
@@ -76,14 +84,14 @@ class TestOpenSearchClient:
         client = mocker.Mock(spec=OpenSearch)
         client.indices = mocker.Mock()
         client.indices.create = mocker.Mock()
-        client.indices.create.side_effect = RequestError(400, "could_not_create_index_for_some_other_reason", {})
+        client.indices.create.side_effect = ConnectionError(400, "Not connected", {})
 
         params = OpenSearchWriterTargetParams(index_name="fail")
         osc_testing = OpenSearchWriterClient(client)
 
-        with pytest.raises(RequestError) as einfo:
+        with pytest.raises(ConnectionError) as einfo:
             osc_testing.create_target_idempotent(params)
-        assert einfo.value.error == "could_not_create_index_for_some_other_reason"
+        assert einfo.value.error == "Not connected"
 
     def test_get_target_awkward_field_types_n_stuff(self, mocker):
         client = mocker.Mock(spec=OpenSearch)
@@ -148,7 +156,7 @@ class TestOpenSearchClient:
 
     def test_write_many_documents(self, mocker):
         client = mocker.Mock(spec=OpenSearch)
-        parallel_blk = mocker.patch("sycamore.connectors.opensearch.opensearch_writer.parallel_bulk")
+        parallel_blk = mocker.patch("opensearchpy.helpers.parallel_bulk")
         parallel_blk.return_value = []
         records = [
             OpenSearchWriterRecord(_source={"field": 1}, _index="test", _id="1"),
@@ -157,6 +165,171 @@ class TestOpenSearchClient:
         target_params = OpenSearchWriterTargetParams(index_name="test")
         osc_testing = OpenSearchWriterClient(client)
         osc_testing.write_many_records(records, target_params)
+
+
+class TestOpenSearchReaderQueryResponse:
+    def test_to_docs(self):
+        records = [
+            {
+                "text_representation": "this is an element",
+                "parent_id": "doc_1",
+            },
+            {"text_representation": "this is a parent doc", "parent_id": None, "doc_id": "doc_1"},
+        ]
+        hits = [{"_source": record} for record in records]
+        query_response = OpenSearchReaderQueryResponse(hits)
+        query_params = OpenSearchReaderQueryParams(index_name="some index")
+        docs = query_response.to_docs(query_params)
+
+        assert len(docs) == 2
+
+        for i in range(len(docs)):
+            assert docs[i].parent_id == records[i]["parent_id"]
+            assert docs[i].text_representation == records[i]["text_representation"]
+
+    def test_to_docs_reconstruct_require_client(self):
+        query_response = OpenSearchReaderQueryResponse([])
+        query_params = OpenSearchReaderQueryParams(index_name="some index", reconstruct_document=True)
+        with pytest.raises(AssertionError):
+            query_response.to_docs(query_params)
+
+    def test_to_docs_reconstruct(self, mocker):
+        records = [
+            {
+                "text_representation": "this is an element belonging to parent doc 1",
+                "parent_id": "doc_1",
+                "doc_id": "element_1",
+            },
+            {
+                "text_representation": "this is an element belonging to parent doc 1",
+                "parent_id": "doc_1",
+                "doc_id": "element_2",
+            },
+            {
+                "text_representation": "this is an element belonging to parent doc 2",
+                "parent_id": "doc_2",
+                "doc_id": "element_1",
+            },
+            {
+                "text_representation": "the parent doc of this element was not part of the result set",
+                "parent_id": "doc_4",
+                "doc_id": "element_1",
+            },
+            {"text_representation": "this is a parent doc 1", "parent_id": None, "doc_id": "doc_1"},
+            {"text_representation": "this is a parent doc 2", "parent_id": None, "doc_id": "doc_2"},
+            {"text_representation": "this is a parent doc 3", "parent_id": None, "doc_id": "doc_3"},
+        ]
+        client = mocker.Mock(spec=OpenSearch)
+
+        # no elements match
+        hits = [{"_source": record} for record in records]
+        return_val = {"hits": {"hits": [hit for hit in hits if hit["_source"].get("parent_id")]}}
+        return_val["hits"]["hits"] += [
+            {
+                "_source": {
+                    "text_representation": "this is an element belonging to parent doc 2 retrieved via reconstruction",
+                    "parent_id": "doc_2",
+                    "doc_id": "element_2",
+                }
+            },
+            {
+                "_source": {
+                    "text_representation": "this is an element belonging to parent doc 2 retrieved via reconstruction",
+                    "parent_id": "doc_2",
+                    "doc_id": "element_3",
+                }
+            },
+        ]
+        client.search.return_value = return_val
+        query_response = OpenSearchReaderQueryResponse(hits, client=client)
+        query_params = OpenSearchReaderQueryParams(index_name="some index", reconstruct_document=True)
+        docs = query_response.to_docs(query_params)
+
+        assert len(docs) == 4
+
+        # since docs are unordered
+        doc_1 = [doc for doc in docs if doc.doc_id == "doc_1"][0]
+        doc_2 = [doc for doc in docs if doc.doc_id == "doc_2"][0]
+        doc_3 = [doc for doc in docs if doc.doc_id == "doc_3"][0]
+        doc_4 = [doc for doc in docs if doc.doc_id == "doc_4"][0]
+
+        assert len(doc_1.elements) == 2
+        assert len(doc_2.elements) == 3
+        assert len(doc_3.elements) == 0
+        assert len(doc_4.elements) == 1
+
+        assert doc_1.elements[0].text_representation == "this is an element belonging to parent doc 1"
+        assert doc_1.elements[1].text_representation == "this is an element belonging to parent doc 1"
+        assert doc_1.elements[0].properties[DocumentPropertyTypes.SOURCE] == DocumentSource.DB_QUERY
+        assert doc_1.elements[1].properties[DocumentPropertyTypes.SOURCE] == DocumentSource.DB_QUERY
+
+        assert doc_2.elements[0].text_representation == "this is an element belonging to parent doc 2"
+        assert (
+            doc_2.elements[1].text_representation
+            == "this is an element belonging to parent doc 2 retrieved via reconstruction"
+        )
+        assert (
+            doc_2.elements[2].text_representation
+            == "this is an element belonging to parent doc 2 retrieved via reconstruction"
+        )
+        assert doc_2.elements[0].properties[DocumentPropertyTypes.SOURCE] == DocumentSource.DB_QUERY
+        assert (
+            doc_2.elements[1].properties[DocumentPropertyTypes.SOURCE]
+            == DocumentSource.DOCUMENT_RECONSTRUCTION_RETRIEVAL
+        )
+        assert (
+            doc_2.elements[2].properties[DocumentPropertyTypes.SOURCE]
+            == DocumentSource.DOCUMENT_RECONSTRUCTION_RETRIEVAL
+        )
+        assert doc_4.elements[0].text_representation == "the parent doc of this element was not part of the result set"
+        assert doc_4.properties[DocumentPropertyTypes.SOURCE] == DocumentSource.DOCUMENT_RECONSTRUCTION_PARENT
+        assert doc_4.elements[0].properties[DocumentPropertyTypes.SOURCE] == DocumentSource.DB_QUERY
+
+    def test_to_docs_reconstruct_no_additional_elements(self, mocker):
+        records = [
+            {
+                "text_representation": "this is an element belonging to parent doc 1",
+                "parent_id": "doc_1",
+                "doc_id": "element_1",
+            },
+            {
+                "text_representation": "this is an element belonging to parent doc 1",
+                "parent_id": "doc_1",
+                "doc_id": "element_2",
+            },
+            {
+                "text_representation": "this is an element belonging to parent doc 2",
+                "parent_id": "doc_2",
+                "doc_id": "element_1",
+            },
+            {"text_representation": "this is a parent doc 1", "parent_id": None, "doc_id": "doc_1"},
+            {"text_representation": "this is a parent doc 2", "parent_id": None, "doc_id": "doc_2"},
+            {"text_representation": "this is a parent doc 3", "parent_id": None, "doc_id": "doc_3"},
+        ]
+        client = mocker.Mock(spec=OpenSearch)
+
+        # no elements match
+        hits = [{"_source": record} for record in records]
+        client.search.return_value = {"hits": {"hits": [hit for hit in hits if hit["_source"].get("parent_id")]}}
+        query_response = OpenSearchReaderQueryResponse(hits, client=client)
+        query_params = OpenSearchReaderQueryParams(index_name="some index", reconstruct_document=True)
+        docs = query_response.to_docs(query_params)
+
+        assert len(docs) == 3
+
+        # since docs are unordered
+        doc_1 = [doc for doc in docs if doc.doc_id == "doc_1"][0]
+        doc_2 = [doc for doc in docs if doc.doc_id == "doc_2"][0]
+        doc_3 = [doc for doc in docs if doc.doc_id == "doc_3"][0]
+
+        assert len(doc_1.elements) == 2
+        assert len(doc_2.elements) == 1
+        assert len(doc_3.elements) == 0
+
+        assert doc_1.elements[0].text_representation == "this is an element belonging to parent doc 1"
+        assert doc_1.elements[1].text_representation == "this is an element belonging to parent doc 1"
+
+        assert doc_2.elements[0].text_representation == "this is an element belonging to parent doc 2"
 
 
 class TestOpenSearchRecord:
@@ -224,3 +397,35 @@ class TestOpenSearchRecord:
         }
         assert record._id == document.doc_id
         assert record._index == tp.index_name
+
+
+class TestOpenSearchUtils:
+
+    def test_get_knn_query(self):
+        embedder = Mock(spec=Embedder)
+        embedding = [0.1, 0.2]
+        embedder.generate_text_embedding.return_value = embedding
+        context = Context(
+            params={
+                "opensearch": {
+                    "os_client_args": {
+                        "hosts": [{"host": "localhost", "port": 9200}],
+                        "http_compress": True,
+                        "http_auth": ("admin", "admin"),
+                        "use_ssl": True,
+                        "verify_certs": False,
+                        "ssl_assert_hostname": False,
+                        "ssl_show_warn": False,
+                        "timeout": 120,
+                    },
+                    "index_name": "test_index",
+                },
+                "default": {"text_embedder": embedder},
+            }
+        )
+        expected_query = {"query": {"knn": {"embedding": {"vector": embedding, "k": 1000}}}}
+        assert get_knn_query(query_phrase="test", k=1000, context=context) == expected_query
+        embedder.generate_text_embedding.assert_called_with("test")
+
+        assert get_knn_query(query_phrase="test", k=1000, text_embedder=embedder) == expected_query
+        embedder.generate_text_embedding.assert_called_with("test")

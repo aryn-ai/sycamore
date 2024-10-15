@@ -1,39 +1,10 @@
+import functools
+from dataclasses import dataclass, field
 from enum import Enum
-import logging
-import threading
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, Callable, Optional, Union, List
+import inspect
 
-from sycamore.rules import Rule
-
-if TYPE_CHECKING:
-    import ray
-
-
-def _ray_logging_setup():
-    # The commented out lines allow for easier testing that logging is working correctly since
-    # they will emit information at the start.
-
-    # logging.error("RayLoggingSetup-Before (expect -After; if missing there is a bug)")
-
-    ## WARNING: There can be weird interactions in jupyter/ray with auto-reload. Without the
-    ## Spurious log [0-2]: messages below to verify that log messages are being properly
-    ## propogated.  Spurious log 1 seems to somehow be required.  Without it, the remote map
-    ## worker messages are less likely to come back.
-
-    ## Some documentation for ray implies things should use the ray logger
-    ray_logger = logging.getLogger("ray")
-    ray_logger.setLevel(logging.INFO)
-    # ray_logger.info("Spurious log 2: Verifying that log messages are propogated")
-
-    ## Make the default logging show info messages
-    logging.getLogger().setLevel(logging.INFO)
-    logging.info("Spurious log 1: Verifying that log messages are propogated")
-    # logging.error("RayLoggingSetup-After-2Error")
-
-    ## Verify that another logger would also log properly
-    other_logger = logging.getLogger("other_logger")
-    other_logger.setLevel(logging.INFO)
-    # other_logger.info("RayLoggingSetup-After-3")
+from sycamore.plan_nodes import Node, NodeTraverse
 
 
 class ExecMode(Enum):
@@ -42,38 +13,39 @@ class ExecMode(Enum):
     LOCAL = 2
 
 
+class OperationTypes(Enum):
+    DEFAULT = "default"
+    BINARY_CLASSIFIER = "binary_classifier"
+    INFORMATION_EXTRACTOR = "information_extractor"
+    TEXT_SIMILARITY = "text_similarity"
+
+
+def _default_rewrite_rules():
+    import sycamore.rules.optimize_resource_args as o
+
+    return [o.EnforceResourceUsage(), o.OptimizeResourceArgs()]
+
+
+@dataclass
 class Context:
     """
     A class to implement a Sycamore Context, which initializes a Ray Worker and provides the ability
     to read data into a DocSet
     """
 
-    def __init__(self, exec_mode=ExecMode.RAY, ray_args: Optional[dict[str, Any]] = None):
-        self.exec_mode = exec_mode
-        if self.exec_mode == ExecMode.RAY:
-            import ray
+    exec_mode: ExecMode = ExecMode.RAY
+    ray_args: Optional[dict[str, Any]] = None
 
-            if ray_args is None:
-                ray_args = {}
+    """
+    Allows for the registration of Rules in the Sycamore Context that allow for transforming the
+    nodes before execution.  These rules can optimize ray execution or perform other manipulations.
+    """
+    rewrite_rules: list[Union[Callable[[Node], Node], NodeTraverse]] = field(default_factory=_default_rewrite_rules)
 
-            if "logging_level" not in ray_args:
-                ray_args.update({"logging_level": logging.INFO})
-
-            if "runtime_env" not in ray_args:
-                ray_args["runtime_env"] = {}
-
-            if "worker_process_setup_hook" not in ray_args["runtime_env"]:
-                # logging.error("Spurious log 0: If you do not see spurious log 1 & 2, log messages are being dropped")
-                ray_args["runtime_env"]["worker_process_setup_hook"] = _ray_logging_setup
-
-            ray.init(**ray_args)
-        elif self.exec_mode == ExecMode.LOCAL:
-            pass
-        else:
-            assert False, f"unsupported mode {self.exec_mode}"
-
-        self.extension_rules: list[Rule] = []
-        self._internal_lock = threading.Lock()
+    """
+    Define parameters for global usage
+    """
+    params: dict[str, Any] = field(default_factory=dict)
 
     @property
     def read(self):
@@ -81,54 +53,125 @@ class Context:
 
         return DocSetReader(self)
 
-    def register_rule(self, rule: Rule) -> None:
-        """
-        Allows for the registration of Rules in the Sycamore Context that allow for communication with the
-        underlying Ray context and can specify additional performance optimizations
-        """
-        with self._internal_lock:
-            self.extension_rules.append(rule)
 
-    def get_extension_rule(self) -> list[Rule]:
-        """
-        Returns all Rules currently registered in the Context
-        """
-        with self._internal_lock:
-            copied = self.extension_rules.copy()
-        return copied
+def get_val_from_context(
+    context: "Context", val_key: str, param_names: Optional[List[str]] = None, ignore_default: bool = False
+) -> Optional[Any]:
+    """
+    Helper function: Given a Context object, return the possible value for a given val.
+    This assumes context.params is not a nested dict.
+    @param context: Context to use
+    @param val_key: Key for the value to be returned
+    @param param_names: List of parameter namespaces to look for.
+        Always uses OperationTypes.DEFAULT unless configured otherwise.
+    @param ignore_default: disable usage for OperationTypes.DEFAULT parameter namespace
+    @return: Optional value given configs.
+    """
+    if not context.params:
+        return None
 
-    def deregister_rule(self, rule: Rule) -> None:
-        """
-        Removes a currently registered Rule from the context
-        """
-        with self._internal_lock:
-            self.extension_rules.remove(rule)
+    if param_names:
+        for param_name in param_names:
+            cand = context.params.get(param_name, {}).get(val_key)
+            if cand is not None:
+                return cand
+
+    if not ignore_default:
+        return context.params.get(OperationTypes.DEFAULT.value, {}).get(val_key)
+
+    return None
 
 
-_context_lock = threading.Lock()
-_global_context: Optional[Context] = None
+def context_params(*names):
+    """
+    Applies kwargs from the context to a function call. Requires 'context': Context, to be an argument to the method.
+
+    There is a fair bit of complexity regarding arg management but the comments should be clear.
+    """
+
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            self = args[0] if len(args) > 0 else {}
+            ctx = kwargs.get("context", getattr(self, "context", getattr(self, "_context", None)))
+            if ctx and ctx.params:
+
+                """
+                Create argument candidates 'candidate_kwargs' from the Context
+                """
+                candidate_kwargs = {}
+                candidate_kwargs.update(ctx.params.get("default", {}))
+                qual_name = func.__qualname__  # e.g. 'DocSetWriter.opensearch'
+                function_name_wo_class = qual_name.split(".")[-1]  # e.g. 'opensearch'
+                candidate_kwargs.update(ctx.params.get(function_name_wo_class, {}))
+                candidate_kwargs.update(ctx.params.get(qual_name, {}))
+                for i in names:
+                    candidate_kwargs.update(ctx.params.get(i, {}))
+
+                """
+                If positional args are provided, we want to pop those keys from candidate_kwargs
+                """
+                sig = inspect.signature(func)
+                signature = list(sig.parameters.keys())
+                for param in signature[: len(args)]:
+                    candidate_kwargs.pop(param, None)
+
+                """
+                If the function doesn't accept arbitrary kwargs, we don't want to use candidate_kwargs that aren't in 
+                the function signature.
+                """
+                new_kwargs = {}
+                accepts_kwargs = any(param.kind == param.VAR_KEYWORD for param in sig.parameters.values())
+
+                if accepts_kwargs:
+                    new_kwargs = candidate_kwargs
+                else:
+                    for param in signature[len(args) :]:  # arguments that haven't been passed as positional args
+                        candidate_val = candidate_kwargs.get(param)
+                        if candidate_val:
+                            new_kwargs[param] = candidate_val
+
+                """
+                Put in user provided kwargs (either through decorator param or function call)
+                """
+                new_kwargs.update(kwargs)
+
+                return func(*args, **new_kwargs)
+            else:
+                return func(*args, **kwargs)
+
+        return wrapper
+
+    """
+        this let's you handle decorator usage like:
+        @context_params OR
+        @context_params() OR 
+        @context_params("template") OR 
+        @context_params("template1", "template2")
+    """
+    if len(names) == 1 and callable(names[0]):
+        return decorator(names[0])
+    else:
+        return decorator
 
 
-def init(exec_mode=ExecMode.RAY, ray_args: Optional[dict[str, Any]] = None) -> Context:
-    global _global_context
-    with _context_lock:
-        if _global_context is None:
-            if ray_args is None:
-                ray_args = {}
+def init(exec_mode=ExecMode.RAY, ray_args: Optional[dict[str, Any]] = None, **kwargs) -> Context:
+    """
+    Initialize a new Context.
+    """
+    if ray_args is None:
+        ray_args = {}
 
-            # Set Logger for driver only, we consider worker_process_setup_hook
-            # or runtime_env/config file for worker application log
-            from sycamore.utils import sycamore_logger
+    # Set Logger for driver only, we consider worker_process_setup_hook
+    # or runtime_env/config file for worker application log
+    from sycamore.utils import sycamore_logger
 
-            sycamore_logger.setup_logger()
+    sycamore_logger.setup_logger()
 
-            _global_context = Context(exec_mode, ray_args)
-
-        return _global_context
+    return Context(exec_mode=exec_mode, ray_args=ray_args, **kwargs)
 
 
 def shutdown() -> None:
-    global _global_context
-    with _context_lock:
-        ray.shutdown()
-        _global_context = None
+    import ray
+
+    ray.shutdown()

@@ -199,6 +199,49 @@ class SimpleTableMultiColHeader(TableFormatTestCase):
         )
 
 
+class TableWithRowspanShenanigans(TableFormatTestCase):
+    def canonical_html(self) -> str:
+        return """
+        <table>
+          <tr>
+            <td>A</td>
+            <td rowspan="3">B</td>
+            <td>C</td>
+          </tr>
+          <tr>
+            <td rowspan="2">D</td>
+            <td>E</td>
+          </tr>
+          <tr>
+            <td>F</td>
+          </tr>
+          <tr>
+            <td>G</td>
+            <td>H</td>
+            <td>I</td>
+          </tr>
+        </table>
+        """
+
+    def csv(self) -> str:
+        return "A,B,C\nD,,E\n,,F\nG,H,I"
+
+    def table(self) -> Table:
+        return Table(
+            [
+                TableCell(content="A", rows=[0], cols=[0], is_header=False),
+                TableCell(content="B", rows=[0, 1, 2], cols=[1], is_header=False),
+                TableCell(content="C", rows=[0], cols=[2], is_header=False),
+                TableCell(content="D", rows=[1, 2], cols=[0], is_header=False),
+                TableCell(content="E", rows=[1], cols=[2], is_header=False),
+                TableCell(content="F", rows=[2], cols=[2], is_header=False),
+                TableCell(content="G", rows=[3], cols=[0], is_header=False),
+                TableCell(content="H", rows=[3], cols=[1], is_header=False),
+                TableCell(content="I", rows=[3], cols=[2], is_header=False),
+            ]
+        )
+
+
 class SimpleTableMultiRowHeader(TableFormatTestCase):
     def canonical_html(self) -> str:
         return """
@@ -373,6 +416,7 @@ test_cases = [
     SimpleTableMultiRowHeader(),
     SimpleTableMultiRowColHeader(),
     SmithsonianSampleTable(),
+    TableWithRowspanShenanigans(),
 ]
 
 
@@ -408,7 +452,7 @@ def test_tablecell_from_dict():
         "rows": [1, 2],
         "cols": [3, 4],
         "is_header": True,
-        "bbox": {"x1": 2.0, "y1": 3.0, "x2": 1.0, "y2": 4.0},
+        "bbox": {"x1": 2.0, "y1": 3.0, "x2": 3.0, "y2": 4.0},
         "properties": {"prop1": "val1"},
     }
 

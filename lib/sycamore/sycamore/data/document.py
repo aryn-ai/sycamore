@@ -1,10 +1,23 @@
 from collections import UserDict
 import json
+from enum import Enum
 from typing import Any, Optional
 import uuid
 
 from sycamore.data import BoundingBox, Element
 from sycamore.data.element import create_element
+
+
+class DocumentSource(Enum):
+    UNKNOWN = "UNKNOWN"
+    DB_QUERY = "DB_QUERY"
+    DOCUMENT_RECONSTRUCTION_RETRIEVAL = "DOCUMENT_RECONSTRUCTION_RETRIEVAL"
+    DOCUMENT_RECONSTRUCTION_PARENT = "DOCUMENT_RECONSTRUCTION_PARENT"
+
+
+class DocumentPropertyTypes:
+    SOURCE: str = "_doc_source"
+    PAGE_NUMBER: str = "page_number"
 
 
 class Document(UserDict):
@@ -181,12 +194,15 @@ class Document(UserDict):
         data = loads(raw)
         if "metadata" in data:
             return MetadataDocument(data)
+        elif "children" in data:
+            return HierarchicalDocument(data)
         else:
             return Document(data)
 
     @staticmethod
     def from_row(row: dict[str, bytes]) -> "Document":
         """Unserialize a Ray row back into a Document."""
+
         return Document.deserialize(row["doc"])
 
     def to_row(self) -> dict[str, bytes]:
@@ -208,7 +224,7 @@ class Document(UserDict):
             "shingles": (str(self.shingles[0:4]) + f"... <{len(self.shingles)} total>") if self.shingles else None,
             "parent_id": self.parent_id,
             "bbox": str(self.bbox),
-            "properties": self.properties,
+            "properties": {k: str(v) for k, v in self.properties.items()},
         }
         return json.dumps(d, indent=2)
 
@@ -217,19 +233,15 @@ class Document(UserDict):
         Extracts the value for a particular document field.
 
         Args:
-            doc: The document
-            field: The field in dotted notation to indicate nesting, e.g. doc.properties.schema.
+            field: The field in dotted notation to indicate nesting, e.g. properties.schema
 
         Returns:
             The value associated with the document field.
+            Returns None if field does not exist in document.
         """
-        fields = field.split(".")
-        value = getattr(self, fields[0])
-        if len(fields) > 1:
-            assert fields[0] == "properties"
-            for f in fields[1:]:
-                value = value[f]
-        return value
+        from sycamore.utils.nested import dotted_lookup
+
+        return dotted_lookup(self, field)
 
 
 class MetadataDocument(Document):
@@ -243,6 +255,7 @@ class MetadataDocument(Document):
         if "lineage_links" in self.metadata:
             assert len(self.metadata["lineage_links"]["from_ids"]) > 0
 
+        self.data["doc_id"] = str(uuid.uuid4())
         del self.data["lineage_id"]
         del self.data["elements"]
         del self.data["properties"]
@@ -250,16 +263,6 @@ class MetadataDocument(Document):
     # Override some of the common operations to make it hard to mis-use metadata. If any of these
     # are called it means that something tried to process a MetadataDocument as if it was a
     # Document.
-
-    @property
-    def doc_id(self) -> Optional[str]:
-        """A unique identifier for the document. Defaults to a uuid."""
-        raise ValueError("MetadataDocument does not have doc_id")
-
-    @doc_id.setter
-    def doc_id(self, value: str) -> None:
-        """Set the unique identifier of the document."""
-        raise ValueError("MetadataDocument does not have doc_id")
 
     @property
     def lineage_id(self) -> str:
@@ -324,6 +327,68 @@ def split_data_metadata(all: list[Document]) -> tuple[list[Document], list[Metad
         [d for d in all if not isinstance(d, MetadataDocument)],
         [d for d in all if isinstance(d, MetadataDocument)],
     )
+
+
+############### EXPERIMENTAL
+class HierarchicalDocument(Document):
+    def __init__(self, document=None, **kwargs):
+        super().__init__(document)
+
+        self.doc_id = self.data.get("doc_id", str(uuid.uuid4()))
+        self.children = self.data.get("children", [])
+        if self.data.get("type", None) == "table":
+            table_csv = self.data.get("table").to_csv() if self.data.get("table") else ""
+            self.text_representation = self.data.get("text_representation", table_csv)
+
+        for element in self.data.get("elements", []):
+            self.children.append(HierarchicalDocument(Document(element.data)))
+
+        del self.data["elements"]
+
+    @property
+    def children(self) -> list["HierarchicalDocument"]:
+        """Returns this documents children"""
+        return self.data["children"]
+
+    @children.setter
+    def children(self, children: list["HierarchicalDocument"]):
+        """Sets the children of this document"""
+        self.data["children"] = children
+
+    @children.deleter
+    def children(self) -> None:
+        """Deletes all children that belong to this document"""
+        self.data["children"] = []
+
+    @property
+    def elements(self) -> list[Element]:
+        raise ValueError("HierarchicalDocument does not have elements")
+
+    @elements.setter
+    def elements(self, elements: list[Element]):
+        raise ValueError("HierarchicalDocument does not have elements")
+
+    def __str__(self) -> str:
+        """Return a pretty-printed string representing this document."""
+        d = {
+            "doc_id": self.doc_id,
+            "lineage_id": self.lineage_id,
+            "type": self.type,
+            "text_representation": self.text_representation[0:40] + "..." if self.text_representation else None,
+            "binary_representation": (
+                f"<{len(self.binary_representation)} bytes>" if self.binary_representation else None
+            ),
+            "children": [str(c) for c in self.children],
+            "embedding": (str(self.embedding[0:4]) + f"... <{len(self.embedding)} total>") if self.embedding else None,
+            "shingles": (str(self.shingles[0:4]) + f"... <{len(self.shingles)} total>") if self.shingles else None,
+            "parent_id": self.parent_id,
+            "bbox": str(self.bbox),
+            "properties": self.properties,
+        }
+        return json.dumps(d, indent=2)
+
+
+###############
 
 
 class OpenSearchQuery(Document):

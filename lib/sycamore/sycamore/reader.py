@@ -1,14 +1,17 @@
-from typing import Optional, Union, Callable, Dict
+from typing import Optional, Union, Callable, Dict, Any
+from pathlib import Path
 
 from pandas import DataFrame
 from pyarrow import Table
 from pyarrow.filesystem import FileSystem
 
+from sycamore.context import context_params
 from sycamore.plan_nodes import Node
 from sycamore import Context, DocSet
 from sycamore.data import Document
 from sycamore.connectors.file import ArrowScan, BinaryScan, DocScan, PandasScan, JsonScan, JsonDocumentScan
 from sycamore.connectors.file.file_scan import FileMetadataProvider
+from sycamore.utils.import_utils import requires_modules
 
 
 class DocSetReader:
@@ -23,14 +26,30 @@ class DocSetReader:
         self._context = context
         self.plan = plan
 
+    def materialize(self, path: Union[Path, str], **kwargs) -> DocSet:
+        """Read a docset via materialization.
+
+        Semantics are a subset of the allowed options for DocSet.materialize.
+        source_mode is always IF_PRESENT.  Complex path specifications are disallowed
+        since reading from materialization requires default options."""
+
+        from sycamore.materialize import Materialize, MaterializeSourceMode
+
+        m = Materialize(child=None, context=self._context, path=path, source_mode=MaterializeSourceMode.USE_STORED)
+        return DocSet(self._context, m)
+
     def binary(
         self,
         paths: Union[str, list[str]],
         binary_format: str,
-        parallelism: Optional[int] = None,
+        parallelism: Optional[str] = None,
+        # consider removing override_num_blocks unless we find a good case where specifying it
+        # helps. Specifying override_num_blocks=4 in metadata-extraction.py was causing slowness
+        # and hangs in eric@aryn.ai's experience.
+        override_num_blocks: Optional[int] = None,
         filesystem: Optional[FileSystem] = None,
         metadata_provider: Optional[FileMetadataProvider] = None,
-        **kwargs
+        **kwargs,
     ) -> DocSet:
         """
         Reads the contents of Binary Files into a DocSet
@@ -38,10 +57,10 @@ class DocSetReader:
         Args:
             paths: Paths to the Binary file
             binary_format:  Binary file format to read from
-            parallelism: (Optional) Override the number of output blocks from all read tasks. Defaults to
-            -1 if not specified
+            override_num_blocks: (Optional) Override the number of output blocks from all read
+                tasks.  You probably don't want to specify this.
             filesystem: (Optional) The PyArrow filesystem to read from. By default is selected based on the
-            scheme of the paths passed in
+                scheme of the paths passed in
             kwargs: (Optional) Arguments to passed into the underlying execution engine
 
         Example:
@@ -53,15 +72,16 @@ class DocSetReader:
             # Initializng sycamore which also initializes Ray underneath
             context = sycamore.init()
             # Creating a DocSet
-            docset = context.read.binary(paths, parallelism=1, binary_format="pdf")
+            docset = context.read.binary(paths, binary_format="pdf")
         """
         scan = BinaryScan(
             paths,
             binary_format=binary_format,
             parallelism=parallelism,
+            override_num_blocks=override_num_blocks,
             filesystem=filesystem,
             metadata_provider=metadata_provider,
-            **kwargs
+            **kwargs,
         )
         return DocSet(self._context, scan)
 
@@ -70,9 +90,10 @@ class DocSetReader:
         self,
         metadata_provider: FileMetadataProvider,
         binary_format: str,
-        parallelism: Optional[int] = None,
+        parallelism: Optional[str] = None,
+        override_num_blocks: Optional[int] = None,
         filesystem: Optional[FileSystem] = None,
-        **kwargs
+        **kwargs,
     ) -> DocSet:
         """
         Reads the contents of Binary Files into a DocSet using the Metadata manifest as their paths
@@ -80,10 +101,10 @@ class DocSetReader:
         Args:
             metadata_provider: Metadata provider for each file, with the manifest being used as the paths to read from
             binary_format:  Binary file format to read from
-            parallelism: (Optional) Override the number of output blocks from all read tasks. Defaults to
-            -1 if not specified
+            override_num_blocks: (Optional) Override the number of output blocks from all read
+                tasks.  You probably don't want to specify this.
             filesystem: (Optional) The PyArrow filesystem to read from. By default is selected based on the scheme
-            of the paths passed in
+                of the paths passed in
             kwargs: (Optional) Arguments to passed into the underlying execution engine
 
         Example:
@@ -109,9 +130,10 @@ class DocSetReader:
             paths,
             binary_format=binary_format,
             parallelism=parallelism,
+            override_num_blocks=override_num_blocks,
             filesystem=filesystem,
             metadata_provider=metadata_provider,
-            **kwargs
+            **kwargs,
         )
         return DocSet(self._context, scan)
 
@@ -122,7 +144,7 @@ class DocSetReader:
         metadata_provider: Optional[FileMetadataProvider] = None,
         document_body_field: Optional[str] = None,
         doc_extractor: Optional[Callable] = None,
-        **kwargs
+        **kwargs,
     ) -> DocSet:
         """
          Reads the contents of JSON Documents into a DocSet
@@ -131,9 +153,9 @@ class DocSetReader:
              paths: Paths to JSON documents to read into a DocSet
              properties: (Optional) Properties to be extracted into the DocSet
              metadata_provider: (Optional) Metadata provider for each file
-             (will be added to the Document's metadata)
+                (will be added to the Document's metadata)
              document_body_field: (Optional) Document Body Field specification.
-             Will use the entire json output otherwise.
+                Will use the entire json output otherwise.
              doc_extractor: (Optional) Custom function to convert the JSON document to a Sycamore Document
              kwargs: (Optional) Arguments to passed into the underlying execution engine
 
@@ -150,7 +172,7 @@ class DocSetReader:
             metadata_provider=metadata_provider,
             document_body_field=document_body_field,
             doc_extractor=doc_extractor,
-            **kwargs
+            **kwargs,
         )
         return DocSet(self._context, json_scan)
 
@@ -174,14 +196,14 @@ class DocSetReader:
         scan = ArrowScan(tables)
         return DocSet(self._context, scan)
 
-    def document(self, docs: list[Document]) -> DocSet:
+    def document(self, docs: list[Document], **kwargs) -> DocSet:
         """
         Reads the contents of Sycamore Documents into a DocSet
 
         Args:
             docs: Sycamore Documents to read into a DocSet
         """
-        scan = DocScan(docs)
+        scan = DocScan(docs, **kwargs)
         return DocSet(self._context, scan)
 
     def pandas(self, dfs: Union[DataFrame, list[DataFrame]]) -> DocSet:
@@ -194,7 +216,17 @@ class DocSetReader:
         scan = PandasScan(dfs)
         return DocSet(self._context, scan)
 
-    def opensearch(self, os_client_args: dict, index_name: str, query: Optional[Dict] = None) -> DocSet:
+    @requires_modules("opensearchpy", extra="opensearch")
+    @context_params
+    def opensearch(
+        self,
+        os_client_args: dict,
+        index_name: str,
+        query: Optional[Dict] = None,
+        reconstruct_document: bool = False,
+        query_kwargs: dict[str, Any] = {},
+        **kwargs,
+    ) -> DocSet:
         """
         Reads the content of an OpenSearch index into a DocSet.
 
@@ -203,8 +235,14 @@ class DocSetReader:
                 See more information at https://opensearch.org/docs/latest/clients/python-low-level/
             index_name: Index name to write to in the OpenSearch instance
             query: (Optional) Query to perform on the index. Note that this must be specified in the OpenSearch
-            Query DSL as a dictionary. Otherwise, it defaults to a full scan of the table. See more information at
-            https://opensearch.org/docs/latest/query-dsl/
+                Query DSL as a dictionary. Otherwise, it defaults to a full scan of the table. See more information at
+                https://opensearch.org/docs/latest/query-dsl/
+            reconstruct_document: Used to decide whether the returned DocSet comprises reconstructed documents,
+                i.e. by collecting all elements belong to a single parent document (parent_id). This requires OpenSearch
+                to be an index of docset.explode() type. Default to false.
+            query_kwargs: (Optional) Parameters to configure the underlying OpenSearch search query.
+            **kwargs: (Optional) kwargs to pass undefined parameters around.
+
         Example:
             The following shows how to write to data into a OpenSearch Index, and read it back into a DocSet.
 
@@ -251,13 +289,18 @@ class DocSetReader:
 
         client_params = OpenSearchReaderClientParams(os_client_args=os_client_args)
         query_params = (
-            OpenSearchReaderQueryParams(index_name=index_name, query=query)
+            OpenSearchReaderQueryParams(
+                index_name=index_name, query=query, reconstruct_document=reconstruct_document, kwargs=query_kwargs
+            )
             if query is not None
-            else OpenSearchReaderQueryParams(index_name=index_name)
+            else OpenSearchReaderQueryParams(
+                index_name=index_name, reconstruct_document=reconstruct_document, kwargs=query_kwargs
+            )
         )
         osr = OpenSearchReader(client_params=client_params, query_params=query_params)
         return DocSet(self._context, osr)
 
+    @requires_modules("duckdb", extra="duckdb")
     def duckdb(
         self, db_url: str, table_name: str, create_hnsw_table: Optional[str] = None, query: Optional[str] = None
     ) -> DocSet:
@@ -268,9 +311,9 @@ class DocSetReader:
             db_url: The URL of the DuckDB database.
             table_name: The table name to read the data from
             create_hnsw_table: (Optional) SQL query to add an HNSW index to the DuckDB before conducting a read.
-            More information is available at https://duckdb.org/docs/extensions/vss
+                More information is available at https://duckdb.org/docs/extensions/vss
             query: (Optional) SQL query to read from the table. If not specified, the read will perform
-            a full scan of the table
+                a full scan of the table
 
         Example:
             The following shows how to write to data into a DuckDB database and get it back as a DocSet.
@@ -311,6 +354,7 @@ class DocSetReader:
         ddbr = DuckDBReader(client_params=client_params, query_params=query_params)
         return DocSet(self._context, ddbr)
 
+    @requires_modules("pinecone", extra="pinecone")
     def pinecone(self, index_name: str, api_key: str, namespace: str = "", query: Optional[Dict] = None) -> DocSet:
         """
         Reads the content of a Pinecone database index into a DocSet.
@@ -320,11 +364,11 @@ class DocSetReader:
             api_key: Pinecone service API Key. Defaults to None (will use the environment
                     variable PINECONE_API_KEY).
             namespace: Namespace withing the pinecone index to ingest into. See
-            https://docs.pinecone.io/guides/indexes/use-namespaces for more information.
-            Defaults to "", which is the default namespace
+                https://docs.pinecone.io/guides/indexes/use-namespaces for more information.
+                Defaults to "", which is the default namespace
             query: (Optional) Dictionary of parameters to pass into the pinecone `index.query()` method.
-            If not specified, will default to a full scan of the index.
-            See more information at https://docs.pinecone.io/guides/data/query-data
+                If not specified, will default to a full scan of the index.
+                See more information at https://docs.pinecone.io/guides/data/query-data
 
         Example:
             The following shows how to write to data into a Pinecone index and read it back as a DocSet.
@@ -379,8 +423,15 @@ class DocSetReader:
         pr = PineconeReader(client_params=client_params, query_params=query_params)
         return DocSet(self._context, pr)
 
+    @requires_modules("elasticsearch", extra="elasticsearch")
     def elasticsearch(
-        self, url: str, index_name: str, es_client_args: dict = {}, query: Optional[Dict] = None, **kwargs
+        self,
+        url: str,
+        index_name: str,
+        es_client_args: dict = {},
+        query: Optional[Dict] = None,
+        keep_alive: str = "1m",
+        **kwargs,
     ) -> DocSet:
         """
         Reads the content of an Elasticsearch index into a DocSet.
@@ -392,18 +443,19 @@ class DocSetReader:
             es_client_args: Authentication arguments to be specified (if needed). See more information at
                 https://elasticsearch-py.readthedocs.io/en/v8.14.0/api/elasticsearch.html
             query: (Optional) Query to perform on the index. Note that this must be specified in the Elasticsearch
-            Query DSL as a dictionary. Otherwise, it defaults to a full scan of the table.
-            See more information at
-            https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
-            kwargs: (Optional) Parameters to pass in to the underlying Elasticsearch search query.
-            See more information at
-            https://elasticsearch-py.readthedocs.io/en/v8.14.0/api/elasticsearch.html#elasticsearch.Elasticsearch.search
+                Query DSL as a dictionary. Otherwise, it defaults to a full scan of the table.
+                See more information at
+                https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
+            keep_alive: (Optional) Keep alive time for the search context. Defaults to 1 minute if not specified
+            kwargs: (Optional) Parameters to configure the underlying Elasticsearch search query.
+                See more information at
+                https://elasticsearch-py.readthedocs.io/en/v8.14.0/api/elasticsearch.html#elasticsearch.Elasticsearch.search
         Example:
             The following shows how to write to data into a Elasticsearch Index, and read it back into a DocSet.
 
             .. code-block:: python
 
-                url = "http://localhost:9201"
+                url = "http://localhost:9200"
                 index_name = "test_index-read"
                 wait_for_completion = "wait_for"
                 model_name = "sentence-transformers/all-MiniLM-L6-v2"
@@ -442,26 +494,27 @@ class DocSetReader:
 
         client_params = ElasticsearchReaderClientParams(url=url, es_client_args=es_client_args)
         query_params = (
-            ElasticsearchReaderQueryParams(index_name=index_name, query=query, kwargs=kwargs)
+            ElasticsearchReaderQueryParams(index_name=index_name, query=query, keep_alive=keep_alive, kwargs=kwargs)
             if query is not None
-            else ElasticsearchReaderQueryParams(index_name=index_name, kwargs=kwargs)
+            else ElasticsearchReaderQueryParams(index_name=index_name, keep_alive=keep_alive, kwargs=kwargs)
         )
 
         esr = ElasticsearchReader(client_params=client_params, query_params=query_params)
         return DocSet(self._context, esr)
 
+    @requires_modules("weaviate", extra="weaviate")
     def weaviate(self, wv_client_args: dict, collection_name: str, **kwargs) -> DocSet:
         """
         Reads the content of a Weaviate collection into a DocSet.
 
         Args:
             wv_client_args: Keyword parameters that are passed to the weaviate client constructor. See more information
-            at
-            https://weaviate.io/developers/weaviate/client-libraries/python#python-client-v4-explicit-connection
+                at
+                https://weaviate.io/developers/weaviate/client-libraries/python#python-client-v4-explicit-connection
             collection_name: The name of the Weaviate collection into which to load this DocSet.
             kwargs: (Optional) Search queries to pass into Weaviate. Note each keyword method argument
-            must have its parameters specified as a dictionary. Will default to a full scan if not specified.
-            See more information below  and at https://weaviate.io/developers/weaviate/search
+                must have its parameters specified as a dictionary. Will default to a full scan if not specified.
+                See more information below  and at https://weaviate.io/developers/weaviate/search
         Example:
             The following shows how to write to data into a Weaviate collection, and read it back into a DocSet.
 
@@ -544,4 +597,31 @@ class DocSetReader:
         client_params = WeaviateReaderClientParams(**wv_client_args)
         query_params = WeaviateReaderQueryParams(collection_name=collection_name, query_kwargs=kwargs)
         wr = WeaviateReader(client_params=client_params, query_params=query_params)
+        return DocSet(self._context, wr)
+
+    @requires_modules("qdrant_client", extra="qdrant")
+    def qdrant(self, client_params: dict, query_params: dict, **kwargs) -> DocSet:
+        """
+        Reads the contents of a Qdrant collection into a DocSet.
+
+        Args:
+            client_params: Parameters that are passed to the Qdrant client constructor.
+            See more information at
+            https://python-client.qdrant.tech/qdrant_client.qdrant_client
+            query_params: Parameters that are passed into the qdrant_client.QdrantClient.query_points method.
+            See more information at
+            https://python-client.qdrant.tech/_modules/qdrant_client/qdrant_client#QdrantClient.query_points
+            kwargs: Keyword arguments to pass to the underlying execution engine.
+        """
+        from sycamore.connectors.qdrant import (
+            QdrantReader,
+            QdrantReaderClientParams,
+            QdrantReaderQueryParams,
+        )
+
+        wr = QdrantReader(
+            client_params=QdrantReaderClientParams(**client_params),
+            query_params=QdrantReaderQueryParams(query_params=query_params),
+            **kwargs,
+        )
         return DocSet(self._context, wr)

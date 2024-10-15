@@ -3,9 +3,8 @@ import re
 import functools
 import unicodedata
 
-from ray.data import ActorPoolStrategy
-
 from sycamore.data import Document
+from sycamore.data.document import DocumentPropertyTypes
 from sycamore.functions.simhash import shinglesCalc, shinglesDist
 from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import Map, FlatMap
@@ -84,7 +83,7 @@ class SketchUniquify(SingleThreadUser, NonGPUUser, FlatMap):
 
     def __init__(self, child: Node, threshold: float = 0.4, **kwargs) -> None:
         # must run on 1 instance to get a global view
-        kwargs["compute"] = ActorPoolStrategy(size=1)
+        kwargs["parallelism"] = 1
         super().__init__(child, f=SketchUniquify.Predicate, constructor_args=[threshold], **kwargs)
 
     class Predicate:
@@ -137,7 +136,7 @@ class SketchDebug(SingleThreadUser, NonGPUUser, FlatMap):
     """
 
     def __init__(self, child: Node, threshold: float = 0.4, **kwargs) -> None:
-        kwargs["compute"] = ActorPoolStrategy(size=1)
+        kwargs["parallelism"] = 1
         super().__init__(child, f=SketchDebug.Predicate, constructor_args=[threshold], **kwargs)
         self.threshold = threshold
 
@@ -156,7 +155,10 @@ class SketchDebug(SingleThreadUser, NonGPUUser, FlatMap):
             self.total += 1
             docSketch = doc.shingles
             docText = str(doc.text_representation)
-            docLoc = "%s:%s" % (doc.properties.get("path", "NoPath"), doc.properties.get("page_number", "NoPage"))
+            docLoc = "%s:%s" % (
+                doc.properties.get("path", "NoPath"),
+                doc.properties.get(DocumentPropertyTypes.PAGE_NUMBER, "NoPage"),
+            )
             if docSketch:
                 for ii, prevSketch in enumerate(self.seenSketches):
                     dist = shinglesDist(docSketch, prevSketch)

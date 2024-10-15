@@ -27,7 +27,7 @@ class RegexReplace(SingleThreadUser, NonGPUUser, Map):
     Example:
         .. code-block:: python
 
-            rr = RegexReplace(child=node, spec=[(r"\s+", " "), (r"^ ", "")])
+            rr = RegexReplace(child=node, spec=[(r"\\s+", " "), (r"^ ", "")])
             dataset = rr.execute()
     """
 

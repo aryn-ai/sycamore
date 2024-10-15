@@ -9,7 +9,7 @@ from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.transforms.partition import HtmlPartitioner
 
 
-def test_html_to_opensearch():
+def test_html_to_opensearch(exec_mode):
     os_client_args = {
         "hosts": [{"host": "localhost", "port": 9200}],
         "http_compress": True,
@@ -54,7 +54,7 @@ def test_html_to_opensearch():
         tmp_manifest.flush()
         manifest_path = tmp_manifest.name
 
-        context = sycamore.init()
+        context = sycamore.init(exec_mode=exec_mode)
         ds = (
             context.read.binary(
                 base_path, binary_format="html", metadata_provider=JsonManifestMetadataProvider(manifest_path)

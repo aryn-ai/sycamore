@@ -1,9 +1,10 @@
-from typing import Any, Optional
+from typing import Any, Optional, TYPE_CHECKING
 
 from sycamore.plan_nodes import Node, Transform
 from sycamore.data import Document
 
-from ray.data import Dataset
+if TYPE_CHECKING:
+    from ray.data import Dataset
 
 
 class Sort(Transform):
@@ -30,17 +31,30 @@ class Sort(Transform):
         ds = ds.drop_columns(["key"])
         return ds
 
+    def local_execute(self, all_docs: list[Document]) -> list[Document]:
+        def get_sort_key(doc, field, default_val):
+            field_value = doc.field_to_value(field)
+            if field_value is not None:
+                return field_value
+            if default_val is None:
+                raise ValueError("default_value cannot be None")
+            return default_val
+
+        sorted_docs = sorted(
+            all_docs, key=lambda doc: get_sort_key(doc, self._field, self._default_val), reverse=self._descending
+        )
+        return sorted_docs
+
     def make_map_fn_sort(self):
         def ray_callable(input_dict: dict[str, Any]) -> dict[str, Any]:
             doc = Document.from_row(input_dict)
 
-            try:
-                val = doc.field_to_value(self._field)
+            val = doc.field_to_value(self._field)
 
-            except Exception as e:
+            if val is None:
                 if self._default_val is None:
                     exception_string = f'Field "{self._field}" not present in Document and default value not provided.'
-                    raise Exception(exception_string) from e
+                    raise Exception(exception_string)
                 else:
                     val = self._default_val
 

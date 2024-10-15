@@ -22,7 +22,7 @@ def test_to_pinecone():
     assert (
         api_key is not None and len(api_key) != 0
     ), "Missing api key: either provide it as an argument or set the PINECONE_API_KEY env variable."
-    pc = PineconeGRPC(api_key=api_key)
+    pc = PineconeGRPC(api_key=api_key, source_tag="Aryn")
     tokenizer = HuggingFaceTokenizer(model_name)
 
     ctx = sycamore.init()

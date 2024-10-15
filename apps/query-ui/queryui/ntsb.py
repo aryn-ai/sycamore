@@ -171,23 +171,6 @@ PLANNER_EXAMPLE_SCHEMA = OpenSearchSchema(
 PLANNER_EXAMPLES: List[PlannerExample] = [
     PlannerExample(
         schema=PLANNER_EXAMPLE_SCHEMA,
-<<<<<<< HEAD
-        plan=[
-            {
-                "operatorName": "QueryDatabase",
-                "description": "Get all the incident reports",
-                "index": PLANNER_EXAMPLE_INDEX,
-                "node_id": 0,
-                "query": {
-                    "bool": {
-                        "must": [
-                            {
-                                "range": {
-                                    "properties.entity.dateTime": {
-                                        "gte": "2023-01-01T00:00:00",
-                                        "lte": "2023-12-31T23:59:59",
-                                        "format": "strict_date_optional_time",
-=======
         plan=LogicalPlan(
             query="List the incidents in Georgia in 2023.",
             result_node=0,
@@ -206,7 +189,6 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
                                             "lte": "2023-12-31T23:59:59",
                                             "format": "strict_date_optional_time",
                                         }
->>>>>>> main
                                     }
                                 },
                                 {"match": {"properties.entity.location": "Georgia"}},
@@ -219,15 +201,6 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
     ),
     PlannerExample(
         schema=PLANNER_EXAMPLE_SCHEMA,
-<<<<<<< HEAD
-        plan=[
-            {
-                "operatorName": "QueryDatabase",
-                "description": "Get all the incident reports",
-                "index": PLANNER_EXAMPLE_INDEX,
-                "node_id": 0,
-                "query": {"match": {"properties.entity.aircraft": "Piper"}},
-=======
         plan=LogicalPlan(
             query="Show the incidents involving Piper aircraft.",
             result_node=0,
@@ -238,21 +211,11 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
                     node_id=0,
                     query={"match": {"properties.entity.aircraft": "Piper"}},
                 ),
->>>>>>> main
             },
         ),
     ),
     PlannerExample(
         schema=PLANNER_EXAMPLE_SCHEMA,
-<<<<<<< HEAD
-        plan=[
-            {
-                "operatorName": "QueryDatabase",
-                "description": "Get all the incident reports in clear weather",
-                "index": PLANNER_EXAMPLE_INDEX,
-                "node_id": 0,
-                "query": {"match": {"properties.entity.conditions": "VMC"}},
-=======
         plan=LogicalPlan(
             query="How many incidents happened in clear weather?",
             result_node=1,
@@ -269,21 +232,11 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
                     inputs=[0],
                     node_id=1,
                 ),
->>>>>>> main
             },
         ),
     ),
     PlannerExample(
         schema=PLANNER_EXAMPLE_SCHEMA,
-<<<<<<< HEAD
-        plan=[
-            {
-                "operatorName": "QueryDatabase",
-                "description": "Get all the incident reports in California",
-                "index": PLANNER_EXAMPLE_INDEX,
-                "query": {"match": {"properties.entity.location": "California"}},
-                "node_id": 0,
-=======
         plan=LogicalPlan(
             query="What types of aircrafts were involved in accidents in California?",
             result_node=1,
@@ -305,28 +258,11 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
                     inputs=[0],
                     node_id=1,
                 ),
->>>>>>> main
             },
         ),
     ),
     PlannerExample(
         schema=PLANNER_EXAMPLE_SCHEMA,
-<<<<<<< HEAD
-        plan=[
-            {
-                "operatorName": "QueryDatabase",
-                "description": "Get all the incident reports in California in 2023",
-                "index": PLANNER_EXAMPLE_INDEX,
-                "query": {
-                    "bool": {
-                        "must": [
-                            {
-                                "range": {
-                                    "properties.entity.dateTime": {
-                                        "gte": "2023-01-01T00:00:00",
-                                        "lte": "2023-12-31T23:59:59",
-                                        "format": "strict_date_optional_time",
-=======
         plan=LogicalPlan(
             query="Which aircraft accidents in California in 2023 occurred when the wind was stronger than 4 knots?",
             result_node=1,
@@ -344,7 +280,6 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
                                             "lte": "2023-12-31T23:59:59",
                                             "format": "strict_date_optional_time",
                                         }
->>>>>>> main
                                     }
                                 },
                                 {"match": {"properties.entity.location": "California"}},
@@ -365,15 +300,6 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
     ),
     PlannerExample(
         schema=PLANNER_EXAMPLE_SCHEMA,
-<<<<<<< HEAD
-        plan=[
-            {
-                "operatorName": "QueryDatabase",
-                "description": "Get all the incident reports",
-                "index": PLANNER_EXAMPLE_INDEX,
-                "node_id": 0,
-                "query": {"match_all": {}},
-=======
         plan=LogicalPlan(
             query="Which three aircraft types were involved in the most accidents?",
             result_node=1,
@@ -395,21 +321,11 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
                     inputs=[0],
                     node_id=1,
                 ),
->>>>>>> main
             },
         ),
     ),
     PlannerExample(
         schema=PLANNER_EXAMPLE_SCHEMA,
-<<<<<<< HEAD
-        plan=[
-            {
-                "operatorName": "QueryVectorDatabase",
-                "description": "Get incident reports mentioning pilot training",
-                "index": PLANNER_EXAMPLE_INDEX,
-                "query_phrase": "pilot training",
-                "node_id": 0,
-=======
         plan=LogicalPlan(
             query="Show some incidents where pilot training was mentioned as a cause",
             result_node=0,
@@ -420,21 +336,11 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
                     query_phrase="pilot training",
                     node_id=0,
                 ),
->>>>>>> main
             },
         ),
     ),
     PlannerExample(
         schema=PLANNER_EXAMPLE_SCHEMA,
-<<<<<<< HEAD
-        plan=[
-            {
-                "operatorName": "QueryDatabase",
-                "description": "Get all the incident reports involving a Cessna 172 aircraft",
-                "index": PLANNER_EXAMPLE_INDEX,
-                "query": {"match": {"properties.entity.aircraft": "Cessna 172"}},
-                "node_id": 0,
-=======
         plan=LogicalPlan(
             query="Show all incidents involving a Cessna 172 aircraft",
             result_node=0,
@@ -445,7 +351,6 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
                     query={"match": {"properties.entity.aircraft": "Cessna 172"}},
                     node_id=0,
                 ),
->>>>>>> main
             },
         ),
     ),

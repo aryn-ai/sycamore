@@ -30,9 +30,7 @@ class SimilarityScorer(ABC):
         ignore_doc_structure: Ignore Document model (Document->Elements) in a DocSet
     """
 
-    def __init__(
-        self, ignore_element_sources: Optional[list[DocumentSource]] = None, ignore_doc_structure: bool = False
-    ):
+    def __init__(self, ignore_element_sources: Optional[list[str]] = None, ignore_doc_structure: bool = False):
         if ignore_element_sources is None:
             ignore_element_sources = [DocumentSource.DOCUMENT_RECONSTRUCTION_RETRIEVAL]
         self._ignore_element_sources = ignore_element_sources

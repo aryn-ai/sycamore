@@ -108,6 +108,7 @@ class HuggingFaceTransformersSimilarityScorer(SimilarityScorer):
         max_tokens: Max tokens to use for tokenization, default is 512.
         device: Device (e.g., "cpu" or "cuda") on which to perform embedding.
         ignore_doc_structure: Ignore Document model (Document->Elements) in a DocSet
+        ignore_element_sources: Ignore elements that belong to a certain DocumentSource type.
 
     Example:
         .. code-block:: python
@@ -136,7 +137,7 @@ class HuggingFaceTransformersSimilarityScorer(SimilarityScorer):
         max_tokens: int = 512,
         device: Optional[str] = None,
         ignore_doc_structure: bool = False,
-        ignore_element_sources: Optional[list[DocumentSource]] = None,
+        ignore_element_sources: Optional[list[str]] = None,
     ):
         super().__init__(ignore_element_sources=ignore_element_sources, ignore_doc_structure=ignore_doc_structure)
         self.device = choose_device(device)

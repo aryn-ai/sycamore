@@ -60,14 +60,7 @@ class RelationshipExtractor(GraphRelationshipExtractor):
             res = await asyncio.gather(*tasks)
             return res
 
-        loop = asyncio.get_event_loop()
-        if loop.is_closed():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
-        # Run the coroutine in the existing loop
-        res = loop.run_until_complete(gather_api_calls())
-        # res = asyncio.run(gather_api_calls())
+        res = asyncio.run(gather_api_calls())
 
         for i, section in enumerate(doc.children):
             for label, relations in res[i].items():
@@ -116,7 +109,7 @@ class RelationshipExtractor(GraphRelationshipExtractor):
             serialized.append(safe_cloudpickle(entity))
         return serialized
 
-    async def _deserialize_relationships(self):
+    def _deserialize_relationships(self):
         from sycamore.utils.pickle_pydantic import safe_cloudunpickle
 
         deserialized = []

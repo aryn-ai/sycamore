@@ -47,7 +47,6 @@ class SimilarityScorer(ABC):
 
         result: list[Element] = list()
         for element in document.elements:
-            assert element.element_index is not None, "generating similarity score requires element_index"
             if (
                 element.properties.get(DocumentPropertyTypes.SOURCE, "") not in self._ignore_element_sources
                 and element.text_representation
@@ -59,13 +58,17 @@ class SimilarityScorer(ABC):
         if self._ignore_doc_structure:
             document.properties[score_property_name] = score
             return document
-        assert element.element_index is not None, "populating similarity score requires the element's index"
         element.properties[score_property_name] = score
 
         doc_score = document.properties.get(score_property_name, float("-inf"))
         if score > doc_score:
             document.properties[score_property_name] = score
-            document.properties[f"{score_property_name}_source_element_index"] = element.element_index
+            source = element.element_index
+            if source is None:
+                # note: this is for backwards compatibility with older versions of sycamore
+                logger.warning("No element_index found, please update your index to trace document similarity scores.")
+                source = f"Unknown"
+            document.properties[f"{score_property_name}_source_element_index"] = source
         return document
 
     def generate_similarity_scores(

@@ -299,10 +299,25 @@ def openai_deserializer(kwargs):
 
 
 class OpenAI(LLM):
+    """An LLM interface to OpenAI models.
+
+    Args:
+        model_name: The name of the OpenAI model to use. This can be an instance of OpenAIModels, an instance of
+            OpenAIModel, or a string. If a string is provided, it must be the name of the model.
+        api_key: The API key to use for the OpenAI client. If not provided, the key will be read from the
+            OPENAI_API_KEY environment variable.
+        client_wrapper: An instance of OpenAIClientWrapper to use for the OpenAI client. If not provided, a new
+            instance will be created using the provided parameters.
+        params: An instance of OpenAIClientParameters to use for the OpenAI client. If not provided, a new instance
+            will be created using the provided parameters.
+        cache: An instance of Cache to use for caching responses. If not provided, no caching will be used.
+        **kwargs: Additional parameters to pass to the OpenAI client.
+    """
+
     def __init__(
         self,
         model_name: Union[OpenAIModels, OpenAIModel, str],
-        api_key=None,
+        api_key: Optional[str] = None,
         client_wrapper: Optional[OpenAIClientWrapper] = None,
         params: Optional[OpenAIClientParameters] = None,
         cache: Optional[Cache] = None,
@@ -350,41 +365,15 @@ class OpenAI(LLM):
         return self.model.is_chat
 
     def _get_cache_key(self, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
+        """Override _get_cache_key to include response_format param."""
         assert self._cache
+        llm_kwargs = llm_kwargs.copy() if llm_kwargs else {}
+        response_format = (llm_kwargs or {}).get("response_format")
+        if inspect.isclass(response_format) and issubclass(response_format, pydantic.BaseModel):
+            llm_kwargs["response_format"] = type_to_response_format_param(response_format)
         combined = {"prompt_kwargs": prompt_kwargs, "llm_kwargs": llm_kwargs, "model_name": self.model.name}
         data = pickle.dumps(combined)
         return self._cache.get_hash_context(data).hexdigest()
-
-    def _cache_get(self, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
-        if (llm_kwargs or {}).get("temperature", 0) != 0 or not self._cache:
-            # Never cache when temperature setting is nonzero.
-            return (None, None)
-
-        response_format = (llm_kwargs or {}).get("response_format")
-        if inspect.isclass(response_format) and issubclass(response_format, pydantic.BaseModel):
-            assert llm_kwargs
-            llm_kwargs["response_format"] = type_to_response_format_param(response_format)
-
-        key = self._get_cache_key(prompt_kwargs, llm_kwargs)
-        hit = self._cache.get(key)
-        if hit:
-            assert (
-                hit.get("prompt_kwargs") == prompt_kwargs
-                and hit.get("llm_kwargs") == llm_kwargs
-                and hit.get("model_name") == self.model.name
-            ), f"""
-            Found cache content mismatch:
-            key={key}
-            prompt_kwargs={prompt_kwargs}, cached={hit.get("prompt_kwargs")}
-            llm_kwargs={llm_kwargs}, cached={hit.get("llm_kwargs")}
-            model_name={self.model.name}, cached={hit.get("model_name")}"""
-            return (key, hit.get("result"))
-        return (key, None)
-
-    def _cache_set(self, key, result):
-        if key is None or not self._cache:
-            return
-        self._cache.set(key, result)
 
     def _get_generate_kwargs(self, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> dict:
         kwargs = {

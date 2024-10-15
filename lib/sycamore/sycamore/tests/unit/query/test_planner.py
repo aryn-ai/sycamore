@@ -5,6 +5,7 @@ from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.query_database import QueryDatabase
 from sycamore.query.planner import LlmPlanner
+from sycamore.query.schema import OpenSearchSchema, OpenSearchSchemaField
 
 
 @pytest.fixture
@@ -23,12 +24,13 @@ def mock_llm_client():
 
 
 @pytest.fixture
-def mock_schema():
-    schema = {
-        "incidentId": ("string", {"A1234, B1234, C1234"}),
-        "date": ("string", {"2022-01-01", "2024-02-10"}),
-    }
-    return schema
+def mock_schema() -> OpenSearchSchema:
+    return OpenSearchSchema(
+        fields={
+            "incidentId": OpenSearchSchemaField(field_type="string", examples=["A1234, B1234, C1234"]),
+            "date": OpenSearchSchemaField(field_type="string", examples=["2022-01-01", "2024-02-10"]),
+        }
+    )
 
 
 def test_generate_system_prompt(mock_schema):

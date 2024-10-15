@@ -1,6 +1,8 @@
 import logging
 import typing
-from typing import Dict, Set, Tuple
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel
 
 from sycamore.transforms.query import OpenSearchQueryExecutor
 from sycamore.data import OpenSearchQuery
@@ -9,8 +11,26 @@ from sycamore.utils.nested import dotted_lookup
 if typing.TYPE_CHECKING:
     from opensearchpy.client.indices import IndicesClient
 
-OpenSearchSchema = Dict[str, Tuple[str, Set[str]]]
-"""Represents a mapping from field name to field type and a set of example values."""
+
+class OpenSearchSchemaField(BaseModel):
+    """Represents a field in an OpenSearch schema."""
+
+    field_type: str
+    """The type of the field."""
+
+    description: Optional[str] = None
+    """A natural language description of the field."""
+
+    examples: Optional[List[Any]] = None
+    """A list of example values for the field."""
+
+
+class OpenSearchSchema(BaseModel):
+    """Represents the schema of an OpenSearch index."""
+
+    fields: Dict[str, OpenSearchSchemaField]
+    """A mapping from field name to field type and example values."""
+
 
 logger = logging.getLogger(__name__)
 
@@ -40,8 +60,14 @@ class OpenSearchSchemaFetcher:
         query["index"] = self._index
         query["query"] = {"query": {"match_all": {}}, "size": self.NUM_EXAMPLES}
         random_sample = self._query_executor.query(query)["result"]["hits"]["hits"]
-        result: OpenSearchSchema = {}
-        result["text_representation"] = ("<class 'str'>", {"Can be assumed to have all other details"})
+
+        result = OpenSearchSchema(
+            fields={
+                "text_representation": OpenSearchSchemaField(
+                    field_type="<class 'str'>", description="Can be assumed to have all other details"
+                )
+            }
+        )
 
         # Get type and example values for each field.
         for key in schema[self._index]["mappings"].keys():
@@ -78,7 +104,7 @@ class OpenSearchSchemaFetcher:
                         samples.add(str(sample_value))
                 if len(samples) > 0:
                     logger.debug(f"  Got samples for {key} of type {sample_type}")
-                    result[key] = (str(sample_type), {str(example) for example in samples})
+                    result.fields[key] = OpenSearchSchemaField(field_type=str(sample_type), examples=list(samples))
                 else:
                     logger.debug(f"  No samples for {key}; ignoring key")
             except KeyError:

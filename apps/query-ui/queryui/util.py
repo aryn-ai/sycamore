@@ -2,7 +2,7 @@ import base64
 import json
 import os
 import pickle
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, List, Set, Tuple
 
 import boto3
 import requests
@@ -14,11 +14,12 @@ from sycamore.data import MetadataDocument
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.planner import PlannerExample
+from sycamore.query.schema import OpenSearchSchema
 
 from queryui.configuration import get_sycamore_query_client
 
 
-def get_schema(_client: SycamoreQueryClient, index: str) -> Dict[str, Tuple[str, Set[str]]]:
+def get_schema(_client: SycamoreQueryClient, index: str) -> OpenSearchSchema:
     """Return the OpenSearch schema for the given index."""
     return _client.get_opensearch_schema(index)
 

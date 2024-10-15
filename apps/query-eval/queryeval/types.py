@@ -65,5 +65,5 @@ class QueryEvalResultsFile(BaseModel):
     """Represents the format of the query eval results file."""
 
     config: QueryEvalConfig
-    data_schema: OpenSearchSchema
+    data_schema: Optional[OpenSearchSchema] = None
     results: Optional[List[QueryEvalResult]] = None

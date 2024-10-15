@@ -1,8 +1,20 @@
+import hashlib
 from typing import cast
+import boto3
+import json
 from sycamore.data.document import Document
 from sycamore.data.element import TableElement
+from sycamore.data.table import Table
 from sycamore.evaluation.tables.benchmark_scans import TableEvalDoc
+from sycamore.transforms import extract_table
 from sycamore.transforms.table_structure.extract import TableStructureExtractor
+
+from PIL import Image
+import numpy as np
+import re
+
+from textractor import Textractor
+from textractor.textractor import TextractFeatures
 
 
 class ExtractTableFromImage:
@@ -26,3 +38,101 @@ class ExtractTableFromImage:
 
     def __call__(self, docs: list[Document]) -> list[Document]:
         return self.extract_table(docs)
+
+class PaddleTableStructureExtractor(TableStructureExtractor):
+
+    def extract(self, element: TableElement, doc_image: Image.Image) -> TableElement:
+        from paddleocr import PPStructure
+        engine = PPStructure(lang='en', layout=False)
+        result = engine(np.array(doc_image))
+        for elt in result:
+            if elt['type'] == 'table':
+                table_pattern = r"<table[^>]*>.*?</table>"
+                table_str = re.findall(table_pattern, elt['res']["html"], re.DOTALL)[0]
+                element.table = Table.from_html(table_str)
+                return element
+        raise RuntimeError(f"Did not find a table: results: {result}")
+
+
+class TextractTableStructureExtractor(TableStructureExtractor):
+
+    S3_BUCKET = 'henry-textract'
+    CACHE_PREFIX = 'cache/'
+
+    @staticmethod
+    def _response_to_table_element(resp) -> TableElement:
+        tables = resp.tables
+        if len(tables) == 0:
+            print(resp)
+            # If no table, make a null 1-cell table
+            table = Table.from_html("<table><tr><td /></tr></table>")
+        else:
+            table = Table.from_html(resp.tables[0].to_html())
+        return TableElement(table=table)
+
+    def extract(self, element: TableElement, doc_image: Image.Image) -> TableElement:
+        import hashlib
+        import boto3
+        from textractor.parsers import response_parser
+        from botocore.exceptions import ClientError
+
+        # Cache lookup
+        hasher = hashlib.sha1()
+        hasher.update(doc_image.tobytes())
+        key = hasher.hexdigest()
+        s3 = boto3.client("s3")
+        try:
+            response = s3.get_object(Bucket = self.S3_BUCKET, Key = self.CACHE_PREFIX + key)
+            parsed_response = response_parser.parse(json.loads(response['Body'].read()))
+            return self._response_to_table_element(parsed_response)
+        except ClientError as e:
+            if e.response['Error']['Code'] != 'NoSuchKey':
+                raise e
+
+        # Cache miss
+        from textractor import Textractor
+        from textractor.data.constants import TextractFeatures
+
+        extractor = Textractor(profile_name='admin')
+        doc = extractor.analyze_document(doc_image, TextractFeatures.TABLES)
+        s3.put_object(Body=json.dumps(doc.response), Bucket=self.S3_BUCKET, Key = self.CACHE_PREFIX + key)
+        return self._response_to_table_element(doc)
+
+
+class FlorenceTableStructureExtractor(TableStructureExtractor):
+
+    MODEL_ID = "ucsahin/Florence-2-large-TableDetection"
+    MODEL_ID = "microsoft/Florence-2-large-ft"
+
+    def __init__(self):
+        from transformers import AutoProcessor, AutoModelForCausalLM
+
+        self._model = AutoModelForCausalLM.from_pretrained(
+            FlorenceTableStructureExtractor.MODEL_ID,
+            trust_remote_code = True,
+            device_map = "cuda",
+        )
+        self._processor = AutoProcessor.from_pretrained(
+            FlorenceTableStructureExtractor.MODEL_ID,
+            trust_remote_code = True,
+        )
+
+    def extract(self, element: TableElement, doc_image: Image.Image) -> TableElement:
+        prompt = "How many columns are in this table?"
+        inputs = self._processor(text=prompt, images=doc_image, return_tensors="pt")
+        gen_ids = self._model.generate(
+            input_ids = inputs['input_ids'].cuda(),
+            pixel_values = inputs['pixel_values'].cuda(),
+            num_beams = 3,
+        )
+        gen_text = self._processor.batch_decode(gen_ids, skip_special_tokens = False)[0]
+        print(f">> {gen_text}")
+        parsed_answer = self._processor.post_process_generation(gen_text, task=prompt, image_size=(doc_image.width, doc_image.height))
+        print(f">>>> {parsed_answer}\n")
+        if "<table" in gen_text:
+            table_pattern = r"<table[^>]*>.*?</table>"
+            table_str = re.findall(table_pattern, gen_text, re.DOTALL)[0]
+            element.table = Table.from_html(table_str)
+        else:
+            element.table = Table.from_html("<table><tr><td /></tr></table>")
+        return element

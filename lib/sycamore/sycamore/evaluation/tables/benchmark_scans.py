@@ -2,6 +2,7 @@ from typing import Iterable, Optional
 import io
 import re
 import json
+import random
 
 from datasets import load_dataset
 from datasets.load import IterableDataset
@@ -198,6 +199,21 @@ class FinTabNetS3Scan(TableEvalScan):
             tk["bbox"] = tk["bbox"].translate_self(-left, -top).to_relative_self(ed.bbox.width, ed.bbox.height)
         return ed
 
+    @staticmethod
+    def _limit(n):
+        i = 0
+        def limit_predicate(doc):
+            nonlocal i
+            i += 1
+            return i < n or n == -1
+        return limit_predicate
+
+    @staticmethod
+    def _sample(factor):
+        def sample_predicate(doc):
+            return random.random() < factor
+        return sample_predicate
+
     def execute(self, **kwargs) -> Dataset:
         pass
 
@@ -208,9 +224,77 @@ class FinTabNetS3Scan(TableEvalScan):
         annotations_response = s3.get_object(
             Bucket=FinTabNetS3Scan.FINTABNET_S3_BUCKET, Key=FinTabNetS3Scan.FINTABNET_ANNOTATIONS_KEY
         )
-        json_stream = map(json.loads, annotations_response["Body"].iter_lines())
+        limit = kwargs.get('limit', -1)
+        sample_factor = kwargs.get('sample_factor', 1)
+
+        lines_stream = annotations_response['Body'].iter_lines()
+        sample_stream = filter(FinTabNetS3Scan._sample(sample_factor), lines_stream)
+        limited_stream = filter(FinTabNetS3Scan._limit(limit), sample_stream)
+        json_stream = map(json.loads, limited_stream)
         json_object_stream = map(lambda o: o[0], json_stream)
         document_stream = map(FinTabNetS3Scan._json_object_to_document, json_object_stream)
         imaged_stream = map(FinTabNetS3Scan._load_images(s3), document_stream)
         scaled_stream = map(FinTabNetS3Scan._scaling, imaged_stream)
         yield from scaled_stream
+
+
+class CohereTabNetS3Scan(TableEvalScan):
+    COHERETABNET_S3_BUCKET = "aryn-datasets-us-east-1"
+    COHERETABNET_ANNOTATIONS_KEY = "coheretabnet/annotations.jsonl"
+    COHERETABNET_PDF_PREFIX = "coheretabnet/pdf/"
+
+    @staticmethod
+    def _row_to_doc(row) -> Document:
+        table = Table.from_html(row['html'])
+        bbox = BoundingBox(*row['table_bbox'])
+        left, top = bbox.x1, bbox.y1
+        tokens = []
+        for cell in row['cells']:
+            bb = BoundingBox(*cell['bbox']).translate(-left, -top).to_relative(bbox.width, bbox.height)
+            tokens.append({
+                "text": cell["text"].strip(),
+                "bbox": bb,
+            })
+        path = CohereTabNetS3Scan.COHERETABNET_PDF_PREFIX + row['pdf_page']
+        ed = TableEvalDoc()
+        ed.gt_table = table
+        ed.bbox = bbox
+        ed.properties['tokens'] = tokens
+        ed.properties['path'] = path
+        return ed
+
+    @staticmethod
+    def _load_images(s3):
+
+        def inner_load_image(doc):
+            pdf_key = doc.properties["path"]
+            object = s3.get_object(Bucket=CohereTabNetS3Scan.COHERETABNET_S3_BUCKET, Key=pdf_key)
+            byteses = object["Body"].read()
+            images = pdf2image.convert_from_bytes(byteses)
+            ed = TableEvalDoc(doc)
+            ed.image = images[0].crop(tuple([int(coord) for coord in ed.bbox.coordinates]))
+            return ed
+
+        return inner_load_image
+
+    def local_process(self, **kwargs) -> Iterable[Document]:
+        import boto3
+
+        s3 = boto3.client("s3")
+        annotations_response = s3.get_object(
+            Bucket = CohereTabNetS3Scan.COHERETABNET_S3_BUCKET,
+            Key = CohereTabNetS3Scan.COHERETABNET_ANNOTATIONS_KEY
+        )
+        limit = kwargs.get('limit', -1)
+        sample_factor = kwargs.get('sample_factor', 1)
+
+        lines_stream = annotations_response['Body'].iter_lines()
+        sample_stream = filter(FinTabNetS3Scan._sample(sample_factor), lines_stream)
+        limited_stream = filter(FinTabNetS3Scan._limit(limit), sample_stream)
+        json_stream = map(json.loads, limited_stream)
+        document_stream = map(CohereTabNetS3Scan._row_to_doc, json_stream)
+        imaged_stream = map(CohereTabNetS3Scan._load_images(s3), document_stream)
+        yield from imaged_stream
+
+    def execute(self, **kwargs) -> "Dataset":
+        pass

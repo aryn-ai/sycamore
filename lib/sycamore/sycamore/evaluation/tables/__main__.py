@@ -3,15 +3,20 @@ from argparse import ArgumentParser
 from ray.data import ActorPoolStrategy
 import sycamore
 from sycamore.context import ExecMode
-from sycamore.evaluation.tables.extractors import ExtractTableFromImage
+from sycamore.evaluation.tables.extractors import ExtractTableFromImage, FlorenceTableStructureExtractor, PaddleTableStructureExtractor, TextractTableStructureExtractor
 from sycamore.evaluation.tables.table_metrics import TEDSMetric, apply_metric
 from sycamore.transforms.table_structure.extract import TableTransformerStructureExtractor
 
-from .benchmark_scans import FinTabNetS3Scan, PubTabNetScan, TableEvalDoc
+from .benchmark_scans import CohereTabNetS3Scan, FinTabNetS3Scan, PubTabNetScan, TableEvalDoc
 
-SCANS = {"pubtabnet": PubTabNetScan, "fintabnet": FinTabNetS3Scan}
+SCANS = {"pubtabnet": PubTabNetScan, "fintabnet": FinTabNetS3Scan, "coheretabnet": CohereTabNetS3Scan}
 
-EXTRACTORS = {"tabletransformer": (TableTransformerStructureExtractor, ActorPoolStrategy(size=1), {"device": "mps"})}
+EXTRACTORS = {
+    "tabletransformer": (TableTransformerStructureExtractor, ActorPoolStrategy(size=1), {"device": "cuda:0"}),
+    "paddleocr": (PaddleTableStructureExtractor, None, {}),
+    "textract": (TextractTableStructureExtractor, None, {}),
+    "florence": (FlorenceTableStructureExtractor, None, {}),
+}
 
 
 def local_aggregate(docs, *agg_fns):
@@ -26,6 +31,7 @@ parser = ArgumentParser()
 parser.add_argument("dataset", choices=list(SCANS.keys()), help="dataset to evaluate")
 parser.add_argument("extractor", choices=list(EXTRACTORS.keys()), help="TableStructureExtractor to evaluate")
 parser.add_argument("--debug", action="store_true")
+parser.add_argument("-l", "--limit", default=-1, type=int, required=False)
 args = parser.parse_args()
 print(args)
 
@@ -42,10 +48,13 @@ local_ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
 #     sc = sc.limit(10)
 
 docs = []
-docgenerator = iter(SCANS[args.dataset]().local_process())
+docgenerator = iter(SCANS[args.dataset]().local_process(limit=args.limit))
 if args.debug:
     for _ in range(10):
-        docs.append(next(docgenerator))
+        try:
+            docs.append(next(docgenerator))
+        except StopIteration:
+            break
 else:
     for doc in docgenerator:
         docs.append(doc)

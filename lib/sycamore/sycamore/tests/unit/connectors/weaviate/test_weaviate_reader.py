@@ -5,6 +5,7 @@ from sycamore.connectors.weaviate.weaviate_reader import (
     WeaviateReaderClient,
     WeaviateReaderQueryResponse,
 )
+from sycamore.data.document import DocumentSource
 
 from weaviate.classes.query import Rerank, MetadataQuery
 from sycamore.connectors.common import compare_docs
@@ -127,7 +128,7 @@ class TestWeaviateQueryResponse:
         doc = Document(
             {
                 "doc_id": "id",
-                "properties": {"field": "value", "nested": {"object": "value"}},
+                "properties": {"field": "value", "nested": {"object": "value"}, "_doc_source": DocumentSource.DB_QUERY},
                 "type": "text",
                 "text_representation": "my first document",
             }
@@ -145,7 +146,15 @@ class TestWeaviateQueryResponse:
             collection_name=cn,
         )
         returned_doc = WeaviateReaderQueryResponse.to_docs(record, wtp_a)[0]
-        doc = Document({"doc_id": "id", "text_representation": "helloworld", "embedding": [0.4] * 19})
+        print(returned_doc)
+        doc = Document(
+            {
+                "doc_id": "id",
+                "text_representation": "helloworld",
+                "properties": {"_doc_source": DocumentSource.DB_QUERY},
+                "embedding": [0.4] * 19,
+            }
+        )
         assert compare_docs(doc, returned_doc)
 
     def test_to_doc_with_list_types(self):
@@ -168,6 +177,7 @@ class TestWeaviateQueryResponse:
                 "doc_id": "id",
                 "text_representation": "my second document",
                 "bbox": (0.1, 1.2, 2.3, 3.4),
+                "properties": {"_doc_source": DocumentSource.DB_QUERY},
                 "shingles": [1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4],
                 "embedding": [0.4] * 19,
             }

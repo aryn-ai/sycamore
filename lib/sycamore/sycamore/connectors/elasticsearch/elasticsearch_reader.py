@@ -1,5 +1,6 @@
 from sycamore.data import Document
 from sycamore.connectors.base_reader import BaseDBReader
+from sycamore.data.document import DocumentPropertyTypes, DocumentSource
 from sycamore.utils.import_utils import requires_modules
 from dataclasses import dataclass, field
 import typing
@@ -83,6 +84,7 @@ class ElasticsearchReaderQueryResponse(BaseDBReader.QueryResponse):
             doc = Document(
                 {"doc_id": doc_id, "embedding": data["_source"].get("embeddings"), **data["_source"].get("properties")}
             )
+            doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
             result.append(doc)
         return result
 

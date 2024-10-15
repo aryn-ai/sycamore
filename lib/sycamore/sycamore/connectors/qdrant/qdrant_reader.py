@@ -1,5 +1,6 @@
 from sycamore.data import Document
-
+from sycamore.data.document import DocumentPropertyTypes, DocumentSource
+from sycamore.connectors.common import unflatten_data
 from sycamore.connectors.base_reader import BaseDBReader
 from sycamore.utils.import_utils import requires_modules
 from dataclasses import dataclass, asdict
@@ -81,7 +82,10 @@ class QdrantReaderQueryResponse(BaseDBReader.QueryResponse):
                     vector = list(point.vector.values())[0]
             else:
                 vector = point.vector
-            doc = Document({"doc_id": point.id, "embedding": vector} | (point.payload or {}))
+            doc = Document(
+                {"doc_id": point.id, "embedding": vector} | (unflatten_data(dict(point.payload), "__") or {})
+            )
+            doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
             result.append(doc)
         return result
 

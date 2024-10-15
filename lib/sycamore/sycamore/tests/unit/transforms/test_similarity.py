@@ -83,6 +83,34 @@ class TestSimilarityScorer:
         result.sort(key=lambda doc: doc.properties.get(score_property_name, float("-inf")), reverse=True)
         assert [doc.doc_id for doc in result] == [2, 1, 3, 5, 4]
 
+    def test_transformers_similarity_scorer_no_element_id(self):
+
+        similarity_scorer = HuggingFaceTransformersSimilarityScorer(RERANKER_MODEL)
+        score_property_name = "similarity_score"
+        query = "this is a cat"
+
+        dicts = [
+            {
+                "doc_id": 1,
+                "elements": [{"text_representation": "here is an animal that meows", "properties": {}}],
+            },
+            {
+                "doc_id": 2,
+                "elements": [
+                    {"properties": {}, "text_representation": "this is a cat"},
+                    {"properties": {"_element_index": 1}, "text_representation": "here is an animal that moos"},
+                ],
+            },
+        ]
+        docs = [Document(item) for item in dicts]
+        result = similarity_scorer.generate_similarity_scores(
+            docs, query=query, score_property_name=score_property_name
+        )
+        result.sort(key=lambda doc: doc.properties.get(score_property_name, float("-inf")), reverse=True)
+        assert [doc.doc_id for doc in result] == [2, 1]
+
+        assert f"{score_property_name}_source_element_index" not in result[0].properties
+
 
 class TestSimilarityTransform:
 

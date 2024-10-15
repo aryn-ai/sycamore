@@ -5,12 +5,13 @@
 
 import os
 import tempfile
-from typing import Annotated, Any, Dict, List, Optional
+from typing import Annotated, Any, List, Optional
 
 from fastapi import FastAPI, Path
 from pydantic import BaseModel
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
+from sycamore.query.schema import OpenSearchSchema
 
 import queryserver.util as util
 
@@ -24,25 +25,12 @@ LLM_CACHE_PATH = os.getenv("QUERYSERVER_LLM_CACHE_PATH", os.path.join(tempfile.g
 sqclient = SycamoreQueryClient(s3_cache_path=LLM_CACHE_PATH, cache_dir=CACHE_PATH)
 
 
-class IndexSchemaField(BaseModel):
-    """Represents a single field in an index schema."""
-
-    field_type: str
-    examples: Optional[List[str]]
-
-
-class IndexSchema(BaseModel):
-    """Represents the schema for a given index."""
-
-    fields: Dict[str, IndexSchemaField] = {}
-
-
 class Index(BaseModel):
     """Represents an index that can be queried."""
 
     index: str
     description: Optional[str] = None
-    index_schema: IndexSchema
+    index_schema: OpenSearchSchema
 
 
 class Query(BaseModel):
@@ -59,14 +47,9 @@ class QueryResult(BaseModel):
     result: Any
 
 
-def get_index_schema(index: str) -> IndexSchema:
+def get_index_schema(index: str) -> OpenSearchSchema:
     """Get the schema for the given index."""
-
-    index_schema = IndexSchema()
-    schema = sqclient.get_opensearch_schema(index)
-    for field in schema:
-        index_schema.fields[field] = IndexSchemaField(field_type=schema[field][0], examples=list(schema[field][1]))
-    return index_schema
+    return sqclient.get_opensearch_schema(index)
 
 
 @app.get("/v1/indices")
@@ -76,10 +59,7 @@ async def list_indices() -> List[Index]:
     retval = []
     indices = util.get_opensearch_indices()
     for index in indices:
-        index_schema = IndexSchema()
-        schema = sqclient.get_opensearch_schema(index)
-        for field in schema:
-            index_schema.fields[field] = IndexSchemaField(field_type=schema[field][0], examples=list(schema[field][1]))
+        index_schema = sqclient.get_opensearch_schema(index)
         retval.append(Index(index=index, index_schema=index_schema))
     return retval
 

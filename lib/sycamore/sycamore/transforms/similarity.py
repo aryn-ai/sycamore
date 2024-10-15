@@ -30,9 +30,7 @@ class SimilarityScorer(ABC):
         ignore_doc_structure: Ignore Document model (Document->Elements) in a DocSet
     """
 
-    def __init__(
-        self, ignore_element_sources: Optional[list[DocumentSource]] = None, ignore_doc_structure: bool = False
-    ):
+    def __init__(self, ignore_element_sources: Optional[list[str]] = None, ignore_doc_structure: bool = False):
         if ignore_element_sources is None:
             ignore_element_sources = [DocumentSource.DOCUMENT_RECONSTRUCTION_RETRIEVAL]
         self._ignore_element_sources = ignore_element_sources
@@ -47,7 +45,6 @@ class SimilarityScorer(ABC):
 
         result: list[Element] = list()
         for element in document.elements:
-            assert element.element_index is not None, "generating similarity score requires element_index"
             if (
                 element.properties.get(DocumentPropertyTypes.SOURCE, "") not in self._ignore_element_sources
                 and element.text_representation
@@ -59,13 +56,16 @@ class SimilarityScorer(ABC):
         if self._ignore_doc_structure:
             document.properties[score_property_name] = score
             return document
-        assert element.element_index is not None, "populating similarity score requires the element's index"
         element.properties[score_property_name] = score
 
         doc_score = document.properties.get(score_property_name, float("-inf"))
         if score > doc_score:
             document.properties[score_property_name] = score
-            document.properties[f"{score_property_name}_source_element_index"] = element.element_index
+            if element.element_index is None:
+                # note: this is for backwards compatibility with older versions of sycamore
+                logger.warning("No element_index found, please update your index to trace document similarity scores.")
+            else:
+                document.properties[f"{score_property_name}_source_element_index"] = element.element_index
         return document
 
     def generate_similarity_scores(
@@ -108,6 +108,7 @@ class HuggingFaceTransformersSimilarityScorer(SimilarityScorer):
         max_tokens: Max tokens to use for tokenization, default is 512.
         device: Device (e.g., "cpu" or "cuda") on which to perform embedding.
         ignore_doc_structure: Ignore Document model (Document->Elements) in a DocSet
+        ignore_element_sources: Ignore elements that belong to a certain DocumentSource type.
 
     Example:
         .. code-block:: python
@@ -136,7 +137,7 @@ class HuggingFaceTransformersSimilarityScorer(SimilarityScorer):
         max_tokens: int = 512,
         device: Optional[str] = None,
         ignore_doc_structure: bool = False,
-        ignore_element_sources: Optional[list[DocumentSource]] = None,
+        ignore_element_sources: Optional[list[str]] = None,
     ):
         super().__init__(ignore_element_sources=ignore_element_sources, ignore_doc_structure=ignore_doc_structure)
         self.device = choose_device(device)

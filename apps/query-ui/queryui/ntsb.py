@@ -9,6 +9,7 @@ from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDa
 from sycamore.query.operators.llm_filter import LlmFilter
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.top_k import TopK
+from sycamore.query.schema import OpenSearchSchema, OpenSearchSchemaField
 
 
 # Example queries shown as part of the welcome message.
@@ -41,101 +42,129 @@ answer questions. You can also provide links to relevant documents and data sour
 PLANNER_EXAMPLE_INDEX = "const_ntsb"
 
 # The example schema used for the Planner query examples.
-PLANNER_EXAMPLE_SCHEMA = {
-    "text_representation": ("str", {"Can be assumed to have all other details"}),
-    "properties.entity.dateTime": (
-        "str",
-        {
-            "2023-01-12T11:00:00",
-            "2023-01-11T18:09:00",
-            "2023-01-10T16:43:00",
-            "2023-01-28T19:02:00",
-            "2023-01-12T13:00:00",
-        },
-    ),
-    "properties.entity.dateAndTime": (
-        "str",
-        {
-            "January 28, 2023 19:02:00",
-            "January 10, 2023 16:43:00",
-            "January 11, 2023 18:09:00",
-            "January 12, 2023 13:00:00",
-            "January 12, 2023 11:00:00",
-        },
-    ),
-    "properties.entity.lowestCeiling": (
-        "str",
-        {"Broken 3800 ft AGL", "Broken 6500 ft AGL", "Overcast 500 ft AGL", "Overcast 1800 ft AGL"},
-    ),
-    "properties.entity.aircraftDamage": ("str", {"Substantial", "None", "Destroyed"}),
-    "properties.entity.conditions": ("str", {"Instrument (IMC)", "IMC", "VMC", "Visual (VMC)"}),
-    "properties.entity.departureAirport": (
-        "str",
-        {
-            "Somerville, Tennessee",
-            "Colorado Springs, Colorado (FLY)",
-            "Yelm; Washington",
-            "Winchester, Virginia (OKV)",
-            "San Diego, California (KMYF)",
-        },
-    ),
-    "properties.entity.accidentNumber": (
-        "str",
-        {"CEN23FA095", "ERA2BLAT1I", "WPR23LA088", "ERA23FA108", "WPR23LA089"},
-    ),
-    "properties.entity.windSpeed": (
-        "str",
-        {"", "10 knots", "7 knots", "knots", "19 knots gusting to 22 knots"},
-    ),
-    "properties.entity.day": ("str", {"2023-01-12", "2023-01-10", "2023-01-20", "2023-01-11", "2023-01-28"}),
-    "properties.entity.destinationAirport": (
-        "str",
-        {
-            "Somerville, Tennessee",
-            "Yelm; Washington",
-            "Agua Caliente Springs, California",
-            "Liberal, Kansas (LBL)",
-            "Alabaster, Alabama (EET)",
-        },
-    ),
-    "properties.entity.location": (
-        "str",
-        {
-            "Hooker, Oklahoma",
-            "Somerville, Tennessee",
-            "Yelm; Washington",
-            "Agua Caliente Springs, California",
-            "Dayton, Virginia",
-        },
-    ),
-    "properties.entity.operator": (
-        "str",
-        {"On file", "First Team Pilot Training LLC", "file On", "Anderson Aviation LLC", "Flying W Ranch"},
-    ),
-    "properties.entity.temperature": ("str", {"18'C /-2'C", "15.8C", "13'C", "2C / -3C"}),
-    "properties.entity.visibility": ("str", {"", "miles", "0.5 miles", "7 miles", "10 miles"}),
-    "properties.entity.aircraft": (
-        "str",
-        {"Piper PA-32R-301", "Beech 95-C55", "Cessna 172", "Piper PA-28-160", "Cessna 180K"},
-    ),
-    "properties.entity.conditionOfLight": ("str", {"", "Night/dark", "Night", "Day", "Dusk"}),
-    "properties.entity.windDirection": ("str", {"", "190°", "200", "2005", "040°"}),
-    "properties.entity.lowestCloudCondition": (
-        "str",
-        {"", "Broken 3800 ft AGL", "Overcast 500 ft AGL", "Clear", "Overcast 200 ft AGL"},
-    ),
-    "properties.entity.injuries": ("str", {"Minor", "Fatal", "None", "3 None", "2 None"}),
-    "properties.entity.flightConductedUnder": (
-        "str",
-        {
-            "Part 91: General aviation Instructional",
-            "Part 135: Air taxi & commuter Non-scheduled",
-            "Part 91: General aviation Personal",
-            "Part 135: Air taxi & commuter Scheduled",
-            "Part 91: General aviation Business",
-        },
-    ),
-}
+PLANNER_EXAMPLE_SCHEMA = OpenSearchSchema(
+    fields={
+        "text_representation": OpenSearchSchemaField(
+            field_type="str", description="Can be assumed to have all other details"
+        ),
+        "properties.entity.dateTime": OpenSearchSchemaField(
+            field_type="str",
+            examples=[
+                "2023-01-12T11:00:00",
+                "2023-01-11T18:09:00",
+                "2023-01-10T16:43:00",
+                "2023-01-28T19:02:00",
+                "2023-01-12T13:00:00",
+            ],
+        ),
+        "properties.entity.dateAndTime": OpenSearchSchemaField(
+            field_type="str",
+            examples=[
+                "January 28, 2023 19:02:00",
+                "January 10, 2023 16:43:00",
+                "January 11, 2023 18:09:00",
+                "January 12, 2023 13:00:00",
+                "January 12, 2023 11:00:00",
+            ],
+        ),
+        "properties.entity.lowestCeiling": OpenSearchSchemaField(
+            field_type="str",
+            examples=["Broken 3800 ft AGL", "Broken 6500 ft AGL", "Overcast 500 ft AGL", "Overcast 1800 ft AGL"],
+        ),
+        "properties.entity.aircraftDamage": OpenSearchSchemaField(
+            field_type="str",
+            examples=["Substantial", "None", "Destroyed"],
+        ),
+        "properties.entity.conditions": OpenSearchSchemaField(
+            field_type="str",
+            examples=["Instrument (IMC)", "IMC", "VMC", "Visual (VMC)"],
+        ),
+        "properties.entity.departureAirport": OpenSearchSchemaField(
+            field_type="str",
+            examples=[
+                "Somerville, Tennessee",
+                "Colorado Springs, Colorado (FLY)",
+                "Yelm; Washington",
+                "Winchester, Virginia (OKV)",
+                "San Diego, California (KMYF)",
+            ],
+        ),
+        "properties.entity.accidentNumber": OpenSearchSchemaField(
+            field_type="str",
+            examples=["CEN23FA095", "ERA2BLAT1I", "WPR23LA088", "ERA23FA108", "WPR23LA089"],
+        ),
+        "properties.entity.windSpeed": OpenSearchSchemaField(
+            field_type="str",
+            examples=["", "10 knots", "7 knots", "knots", "19 knots gusting to 22 knots"],
+        ),
+        "properties.entity.day": OpenSearchSchemaField(
+            field_type="str",
+            examples=["2023-01-12", "2023-01-10", "2023-01-20", "2023-01-11", "2023-01-28"],
+        ),
+        "properties.entity.destinationAirport": OpenSearchSchemaField(
+            field_type="str",
+            examples=[
+                "Somerville, Tennessee",
+                "Yelm; Washington",
+                "Agua Caliente Springs, California",
+                "Liberal, Kansas (LBL)",
+                "Alabaster, Alabama (EET)",
+            ],
+        ),
+        "properties.entity.location": OpenSearchSchemaField(
+            field_type="str",
+            examples=[
+                "Hooker, Oklahoma",
+                "Somerville, Tennessee",
+                "Yelm; Washington",
+                "Agua Caliente Springs, California",
+                "Dayton, Virginia",
+            ],
+        ),
+        "properties.entity.operator": OpenSearchSchemaField(
+            field_type="str",
+            examples=["On file", "First Team Pilot Training LLC", "file On", "Anderson Aviation LLC", "Flying W Ranch"],
+        ),
+        "properties.entity.temperature": OpenSearchSchemaField(
+            field_type="str",
+            examples=["18'C /-2'C", "15.8C", "13'C", "2C / -3C"],
+        ),
+        "properties.entity.visibility": OpenSearchSchemaField(
+            field_type="str",
+            examples=["", "miles", "0.5 miles", "7 miles", "10 miles"],
+        ),
+        "properties.entity.aircraft": OpenSearchSchemaField(
+            field_type="str",
+            examples=["Piper PA-32R-301", "Beech 95-C55", "Cessna 172", "Piper PA-28-160", "Cessna 180K"],
+        ),
+        "properties.entity.conditionOfLight": OpenSearchSchemaField(
+            field_type="str",
+            examples=["", "Night/dark", "Night", "Day", "Dusk"],
+        ),
+        "properties.entity.windDirection": OpenSearchSchemaField(
+            field_type="str",
+            examples=["", "190°", "200", "2005", "040°"],
+        ),
+        "properties.entity.lowestCloudCondition": OpenSearchSchemaField(
+            field_type="str",
+            examples=["", "Broken 3800 ft AGL", "Overcast 500 ft AGL", "Clear", "Overcast 200 ft AGL"],
+        ),
+        "properties.entity.injuries": OpenSearchSchemaField(
+            field_type="str",
+            examples=["Minor", "Fatal", "None", "3 None", "2 None"],
+        ),
+        "properties.entity.flightConductedUnder": OpenSearchSchemaField(
+            field_type="str",
+            examples=[
+                "Part 91: General aviation Instructional",
+                "Part 135: Air taxi & commuter Non-scheduled",
+                "Part 91: General aviation Personal",
+                "Part 135: Air taxi & commuter Scheduled",
+                "Part 91: General aviation Business",
+            ],
+        ),
+    }
+)
 
 # The following to be replaced by config file.
 # https://github.com/aryn-ai/sycamore/pull/843

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Callable, Iterator, Union, Iterable, Tuple, Any, Dict
+from sycamore.data import Document
 import json
 import string
 import random
@@ -29,8 +30,8 @@ def generate_random_string(length=8):
     return "".join(random.choice(characters) for _ in range(length))
 
 
-def filter_doc(obj, include):
-    return {k: v for k, v in obj.items() if k in include}
+def filter_doc(doc: Document, include):
+    return {k: v for k, v in doc.items() if k in include}
 
 
 def check_dictionary_compatibility(dict1: dict[Any, Any], dict2: dict[Any, Any], ignore: list[str] = []):

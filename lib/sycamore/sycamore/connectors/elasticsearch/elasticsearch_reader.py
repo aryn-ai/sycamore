@@ -19,7 +19,7 @@ class ElasticsearchReaderClientParams(BaseDBReader.ClientParams):
 class ElasticsearchReaderQueryParams(BaseDBReader.QueryParams):
     index_name: str
     query: Dict = field(default_factory=lambda: {"match_all": {}})
-    keep_alive = "1m"
+    keep_alive: str = "1m"
     kwargs: Dict = field(default_factory=lambda: {})
 
 
@@ -41,7 +41,9 @@ class ElasticsearchReaderClient(BaseDBReader.Client):
             query_params, ElasticsearchReaderQueryParams
         ), f"Wrong kind of query parameters found: {query_params}"
         no_specification = ["query", "pit", "search_after", "index_name"]
-        assert all(no_specification) not in query_params.kwargs
+        assert (
+            all(no_specification) not in query_params.kwargs
+        ), "Please do not specify the following parameters: " + ", ".join(no_specification)
         if not query_params.kwargs.get("track_total_hits"):
             query_params.kwargs["track_total_hits"] = False
         if not query_params.kwargs.get("sort"):

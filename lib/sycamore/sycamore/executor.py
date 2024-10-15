@@ -9,6 +9,9 @@ from sycamore.data import Document
 from sycamore.plan_nodes import Node
 
 
+logger = logging.getLogger(__name__)
+
+
 def _ray_logging_setup():
     # The commented out lines allow for easier testing that logging is working correctly since
     # they will emit information at the start.
@@ -57,6 +60,17 @@ def sycamore_ray_init(**ray_args) -> None:
     ray.init(**ray_args)
 
 
+def visit_parallelism(n: Node):
+    assert isinstance(n, Node)
+    if n.parallelism is None:
+        n.resource_args.pop("compute", None)
+    else:
+        from ray.data import ActorPoolStrategy
+
+        assert n.parallelism > 0
+        n.resource_args["compute"] = ActorPoolStrategy(size=n.parallelism)
+
+
 class Execution:
     def __init__(self, context: Context):
         self._context = context
@@ -69,6 +83,7 @@ class Execution:
             ray_args = self._context.ray_args or {}
             sycamore_ray_init(**ray_args)
 
+        plan = plan.traverse(visit=visit_parallelism)
         return plan.execute(**kwargs)
 
     def _apply_rules(self, plan: Node) -> Node:
@@ -124,15 +139,28 @@ class Execution:
     def recursive_execute(self, n: Node) -> list[Document]:
         from sycamore.materialize import Materialize
 
+        def get_name(f):
+            if hasattr(f, "_name"):
+                return f._name  # handle the case of basemap transforms
+
+            if hasattr(f, "__name__"):
+                return f.__name__
+
+            return f.__class__.__name__
+
         if len(n.children) == 0:
             assert hasattr(n, "local_source"), f"Source {n} needs a local_source method"
+            logger.info(f"Executing source {get_name(n)}")
             return n.local_source()
         if isinstance(n, Materialize) and n._will_be_source():
+            logger.info(f"Reading from materialized source {get_name(n)}")
             return n.local_source()
         if len(n.children) == 1:
             assert hasattr(n, "local_execute"), f"Transform {n.__class__.__name__} needs a local_execute method"
             assert n.children[0] is not None
-            return n.local_execute(self.recursive_execute(n.children[0]))
+            d = self.recursive_execute(n.children[0])
+            logger.info(f"Executing node {get_name(n)}")
+            return n.local_execute(d)
 
         assert f"Unable to handle node {n} with multiple children"
         return []

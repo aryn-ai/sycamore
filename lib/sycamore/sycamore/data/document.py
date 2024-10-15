@@ -1,10 +1,23 @@
 from collections import UserDict
 import json
+from enum import Enum
 from typing import Any, Optional
 import uuid
 
 from sycamore.data import BoundingBox, Element
 from sycamore.data.element import create_element
+
+
+class DocumentSource(Enum):
+    UNKNOWN = "UNKNOWN"
+    DB_QUERY = "DB_QUERY"
+    DOCUMENT_RECONSTRUCTION_RETRIEVAL = "DOCUMENT_RECONSTRUCTION_RETRIEVAL"
+    DOCUMENT_RECONSTRUCTION_PARENT = "DOCUMENT_RECONSTRUCTION_PARENT"
+
+
+class DocumentPropertyTypes:
+    SOURCE: str = "_doc_source"
+    PAGE_NUMBER: str = "page_number"
 
 
 class Document(UserDict):
@@ -189,6 +202,7 @@ class Document(UserDict):
     @staticmethod
     def from_row(row: dict[str, bytes]) -> "Document":
         """Unserialize a Ray row back into a Document."""
+
         return Document.deserialize(row["doc"])
 
     def to_row(self) -> dict[str, bytes]:

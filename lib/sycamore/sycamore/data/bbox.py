@@ -85,10 +85,10 @@ class BoundingBox(ABC):
         return self.x1 <= other.x1 and self.x2 >= other.x2 and self.y1 <= other.y1 and self.y2 >= other.y2
 
     def intersect(self, other: "BoundingBox") -> "BoundingBox":
-        x1 = max(self.x1, other.x1)
-        x2 = min(self.x2, other.x2)
-        y1 = max(self.y1, other.y1)
-        y2 = min(self.y2, other.y2)
+        x1 = self.x1 if self.x1 > other.x1 else other.x1
+        x2 = self.x2 if self.x2 < other.x2 else other.x2
+        y1 = self.y1 if self.y1 > other.y1 else other.y1
+        y2 = self.y2 if self.y2 < other.y2 else other.y2
 
         if x1 >= x2 or y1 >= y2:
             return EMPTY_BBOX

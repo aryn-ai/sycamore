@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Union
 
-from sycamore.data.document import Document, HierarchicalDocument
+from sycamore.data.document import Document, HierarchicalDocument, DocumentPropertyTypes
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 
@@ -32,7 +32,7 @@ class StructureByImages(DocumentStructure):
                 {
                     "type": "Section-header",
                     "bbox": (0, 0, 0, 0),
-                    "properties": {"score": 1, "page_number": 1},
+                    "properties": {"score": 1, DocumentPropertyTypes.PAGE_NUMBER: 1},
                     "text_representation": "Document",
                     "binary_representation": b"Front Page",
                     "relationships": {},
@@ -78,7 +78,7 @@ class StructureBySection(DocumentStructure):
                 {
                     "type": "Section-header",
                     "bbox": (0, 0, 0, 0),
-                    "properties": {"score": 1, "page_number": 1},
+                    "properties": {"score": 1, DocumentPropertyTypes.PAGE_NUMBER: 1},
                     "text_representation": "Front Page",
                     "binary_representation": b"Front Page",
                 }
@@ -164,7 +164,7 @@ class StructureByDocument(DocumentStructure):
             {
                 "type": "Section-header",
                 "bbox": (0, 0, 0, 0),
-                "properties": {"score": 1, "page_number": 1},
+                "properties": {"score": 1, DocumentPropertyTypes.PAGE_NUMBER: 1},
                 "text_representation": "Document",
                 "binary_representation": b"Front Page",
                 "relationships": {},
@@ -249,10 +249,9 @@ class ExtractTextSummaries(ExtractSummary):
             sec_sum = f"-----SECTION TITLE: {section.text_representation.strip()}-----\n"
             summary_list.append(sec_sum)
             for element in section.children:
-                assert element.type is not None
-                assert element.text_representation is not None
-                elem_sum = f"---Element Type: {element.type.strip()}---\n{element.text_representation.strip()}\n"
-                summary_list.append(elem_sum)
+                if element.type and element.text_representation:
+                    elem_sum = f"---Element Type: {element.type.strip()}---\n{element.text_representation.strip()}\n"
+                    summary_list.append(elem_sum)
             section.data["summary"] = "".join(summary_list)
         return doc
 

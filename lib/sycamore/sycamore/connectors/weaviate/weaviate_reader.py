@@ -1,11 +1,11 @@
 from sycamore.data import Document
 from sycamore.connectors.common import unflatten_data
 from sycamore.connectors.base_reader import BaseDBReader
+from sycamore.data.document import DocumentPropertyTypes, DocumentSource
 from sycamore.utils.import_utils import requires_modules
 from dataclasses import dataclass
 import typing
 from typing import Optional, Dict, Any
-from dataclasses import asdict
 
 
 if typing.TYPE_CHECKING:
@@ -44,7 +44,7 @@ class WeaviateReaderClient(BaseDBReader.Client):
         from weaviate import WeaviateClient
 
         assert isinstance(params, WeaviateReaderClientParams)
-        client = WeaviateClient(**asdict(params))
+        client = WeaviateClient(**params.__dict__)
         return WeaviateReaderClient(client)
 
     def read_records(self, query_params: BaseDBReader.QueryParams) -> "WeaviateReaderQueryResponse":
@@ -92,6 +92,7 @@ class WeaviateReaderQueryResponse(BaseDBReader.QueryResponse):
                 | unflatten_data(dict(object.properties), "__")
                 | {"doc_id": str(object.uuid)}
             )  # type: ignore
+            doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
             result.append(doc)
         return result
 

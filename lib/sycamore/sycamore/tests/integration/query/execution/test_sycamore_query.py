@@ -76,7 +76,7 @@ class TestSycamoreQuery:
             "were there any environmentally caused incidents?",
             query_integration_test_index,
             schema,
-            natural_language_response=True,
+            natural_language_response=False,
         )
         assert len(plan.nodes) == 2
         assert isinstance(plan.nodes[0], QueryVectorDatabase)

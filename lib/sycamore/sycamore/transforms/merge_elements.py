@@ -497,6 +497,9 @@ class TableMerger(ElementMerger):
         if not isinstance(elt1, TableElement) or not isinstance(elt2, TableElement):
             raise TypeError("Both elements must be of type TableElement to perform merging.")
         # Combine the cells, adjusting the row indices for the second table
+        if elt1.table is None or elt2.table is None:
+            raise ValueError("Both elements must have a table to perform merging.")
+
         offset_row = elt1.table.num_rows
         merged_cells = elt1.table.cells + [
             TableCell(

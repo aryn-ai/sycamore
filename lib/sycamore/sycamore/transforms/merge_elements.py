@@ -434,7 +434,7 @@ class TableMerger(ElementMerger):
             if the second table is a continuation of the first with 100% certainty. Check either of the following:\
             1. Column headers: Must be near identical in terms of text(the ordering/text may contain minor errors \
             because of OCR quality) in both tables. If the headers are almost the same check the number of columns,\
-                 they should be roughly the same.\
+                 they should be roughly the same. \
             2. Missing headers: If the header/columns in the second table are missing, then the first row in the
             second table should logically be in continutaion of the last row in the first table.\
             Respond with only 'true' or 'false' based on your certainty that the second table is a continuation. \
@@ -486,12 +486,12 @@ class TableMerger(ElementMerger):
 
         return document
 
-    def should_merge(self, element1: TableElement, element2: TableElement) -> bool:
+    def should_merge(self, element1: Element, element2: Element) -> bool:
         if "table_continuation" in element2["properties"]:
             return "true" in element2["properties"]["table_continuation"].lower()
         return False
 
-    def merge(self, elt1: TableElement, elt2: TableElement) -> TableElement:
+    def merge(self, elt1: Element, elt2: Element) -> Element:
 
         # Combine the cells, adjusting the row indices for the second table
         offset_row = elt1.table.num_rows
@@ -547,6 +547,18 @@ class TableMerger(ElementMerger):
                 properties["page_numbers"] = properties.get("page_numbers", list())
                 properties["page_numbers"] = list(set(properties["page_numbers"] + [v]))
 
+        # TO-DO: Currently bbox points to first table bbox, and other bboxs are removed in
+        # this process, potential fix can be to have a list of bboxs, and change label
+        # of bbox after first as "table_continuation"
+        if elt1.bbox is None or elt2.bbox is None:
+            new_elt.bbox = elt1.bbox or elt2.bbox
+        else:
+            new_elt.bbox = BoundingBox(
+                elt1.bbox.x1,
+                elt1.bbox.y1,
+                elt1.bbox.x2,
+                elt1.bbox.y2,
+            )
         new_elt.properties = properties
 
         return new_elt
@@ -586,10 +598,10 @@ class TableMerger(ElementMerger):
         llm_results = llm_query_agent.execute_query(document)
         return llm_results
 
-    def preprocess_element(self, elem: TableElement) -> TableElement:
+    def preprocess_element(self, elem: Element) -> Element:
         return elem
 
-    def postprocess_element(self, elem: TableElement) -> TableElement:
+    def postprocess_element(self, elem: Element) -> Element:
         return elem
 
 

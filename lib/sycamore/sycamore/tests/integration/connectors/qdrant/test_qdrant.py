@@ -46,13 +46,7 @@ def test_qdrant():
         {"collection_name": collection_name, "limit": 100},
     ).take_all()
 
-    assert len(out_docs) == len(docs)
-    assert all(
-        compare_docs(original, plumbed)
-        for original, plumbed in zip(
-            sorted(docs, key=lambda d: d.doc_id or ""), sorted(out_docs, key=lambda d: d.doc_id or "")
-        )
-    )
+    compare_connector_docs(docs, out_docs)
 
 
 def test_qdrant_named_vector():
@@ -108,10 +102,4 @@ def test_qdrant_named_vector():
         {"collection_name": collection_name, "limit": 100, "using": vector_name},
     ).take_all()
 
-    assert len(out_docs) == len(docs)
-    assert all(
-        compare_docs(original, plumbed)
-        for original, plumbed in zip(
-            sorted(docs, key=lambda d: d.doc_id or ""), sorted(out_docs, key=lambda d: d.doc_id or "")
-        )
-    )
+    compare_connector_docs(docs, out_docs)

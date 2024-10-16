@@ -23,7 +23,6 @@ from sycamore import Context, ExecMode
 from sycamore.context import OperationTypes
 from sycamore.llms import LLM, get_llm, MODELS
 from sycamore.llms.openai import OpenAI, OpenAIModels
-from sycamore.llms.bedrock import BedrockModels
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.transforms.query import OpenSearchQueryExecutor
 from sycamore.transforms.similarity import HuggingFaceTransformersSimilarityScorer

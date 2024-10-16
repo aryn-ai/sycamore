@@ -34,7 +34,7 @@ console = Console()
 @click.option("--dry-run", help="Dry run - do not run any stages", is_flag=True)
 @click.option("--doc-limit", help="Limit number of docs in result set", type=int)
 @click.option("--overwrite", help="Overwrite existing results file", is_flag=True)
-@click.option("--llm", help="LLM model name", type=click.Choice(MODELS.keys()))
+@click.option("--llm", help="LLM model name", type=click.Choice(list(MODELS.keys())))
 @click.option(
     "--raw-output", help="Output should be a raw DocSet, rather than natural language", is_flag=True, default=False
 )

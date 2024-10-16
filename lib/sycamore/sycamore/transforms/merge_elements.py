@@ -12,6 +12,7 @@ from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
 from sycamore.transforms.llm_query import LLMTextQueryAgent
 from sycamore.llms import LLM
+from sycamore.utils.bbox_sort import bbox_sort_document
 
 
 class ElementMerger(ABC):
@@ -481,6 +482,8 @@ class TableMerger(ElementMerger):
                 new_table_elements.append(element)
         other_elements.extend(new_table_elements)
         document.elements = other_elements
+        bbox_sort_document(document)
+
         return document
 
     def should_merge(self, element1: TableElement, element2: TableElement) -> bool:

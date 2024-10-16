@@ -21,4 +21,5 @@ __all__ = [
     "OpenSearchQuery",
     "OpenSearchQueryResult",
     "Table",
+    "TableCell",
 ]

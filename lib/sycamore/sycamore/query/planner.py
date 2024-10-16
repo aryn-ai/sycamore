@@ -3,8 +3,6 @@ import logging
 import typing
 from typing import Any, List, Optional, Tuple, Type
 
-import copy
-
 from sycamore.llms.llms import LLM
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.query.logical_plan import LogicalPlan, Node
@@ -128,17 +126,18 @@ def postprocess_plan(plan: Any, llm_client: LLM) -> Any:
         new_op = QueryDatabase.model_validate(
             {
                 "node_id": op.node_id,
+                "node_type": "QueryDatabase",
                 "description": modified_description,
-                "index": op.index
+                "index": op.index,
             }
         )
 
-        if "opensearch_filter" in new_op:
-            new_op.query = new_op.opensearch_filter
+        if op.opensearch_filter:
+            new_op.query = op.opensearch_filter
         else:
             new_op.query = {"match_all": {}}
 
-        plan.nodes[0] = new_op
+        plan.replace_node(0, new_op)
 
         # Add an LLM Filter as the second operator
         llm_op_description = postprocess_llm_helper(
@@ -163,18 +162,21 @@ def postprocess_plan(plan: Any, llm_client: LLM) -> Any:
                 """,
             llm_client,
         )
-        llm_op = LlmFilter.model_validate({
-            "node_id": 1,
-            "description": llm_op_description,
-            "inputs": [0],
-            "field": "text_representation",
-            "question": llm_op_question,
-        }
+        llm_op = LlmFilter.model_validate(
+            {
+                "node_id": 1,
+                "node_type": "LlmFilter",
+                "description": llm_op_description,
+                "inputs": [0],
+                "field": "text_representation",
+                "question": llm_op_question,
+            }
         )
 
         plan.insert_node(1, llm_op)
 
     return plan
+
 
 @dataclass
 class PlannerExample:
@@ -603,11 +605,9 @@ class LlmPlanner:
     def plan(self, question: str) -> LogicalPlan:
         """Given a question from the user, generate a logical query plan."""
         llm_prompt, llm_plan = self.generate_from_llm(question)
-        print("---- the plan returned by the LLM")
-        print(llm_plan)
         try:
             plan = process_json_plan(llm_plan)
-        #    plan = postprocess_plan(plan, self._llm_client)
+            plan = postprocess_plan(plan, self._llm_client)
         except Exception as e:
             logging.error(f"Error processing LLM-generated query plan: {e}\nPlan is:\n{llm_plan}")
             raise

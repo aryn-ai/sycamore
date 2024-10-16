@@ -15,7 +15,6 @@ from sycamore.transforms.partition import UnstructuredPdfPartitioner
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.tests.config import TEST_DIR
 import time
-import logging
 
 
 @pytest.fixture()
@@ -41,8 +40,8 @@ def wv_client_args():
                 grpc_port=grpc_port,
                 grpc_secure=False,
             ),
-            "client": client,
         }
+        client.collections.delete("TestCollection")
 
 
 def test_weaviate_read(wv_client_args):
@@ -78,8 +77,7 @@ def test_weaviate_read(wv_client_args):
     }
 
     ctx = sycamore.init()
-    client = wv_client_args["client"]
-    wv_client_args.pop("client")
+
     docs = (
         ctx.read.binary(paths, binary_format="pdf")
         .partition(partitioner=UnstructuredPdfPartitioner())

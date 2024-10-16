@@ -4,7 +4,7 @@ from collections import defaultdict
 import re
 
 
-from sycamore.data import Document, Element, BoundingBox, Table
+from sycamore.data import Document, Element, BoundingBox, Table, TableElement, TableCell
 from sycamore.data.document import DocumentPropertyTypes
 from sycamore.plan_nodes import SingleThreadUser, NonGPUUser, Node
 from sycamore.functions.tokenizer import Tokenizer
@@ -429,12 +429,13 @@ class TableMerger(ElementMerger):
 
             llm = OpenAI(OpenAIModels.GPT_4O, api_key = '')
 
-            prompt = "Analyze two CSV tables that may be parts of a single table split across pages. Determine if the second table\
-                      is a continuation of the first with 100% certainty. Check either of the following:\
-            1. Column headers: Must be near identical in terms of text(the ordering/text may contain minor errors because of OCR quality)\
-               in both tables. If the headers are almost the same check the number of columns, they should be roughly the same.\
-            2. Missing headers: If the header/columns in the second table are missing, then the first row in the second table should logically\
-               be in continutaion of the last row in the first table.\
+            prompt = "Analyze two CSV tables that may be parts of a single table split across pages. Determine\
+            if the second table is a continuation of the first with 100% certainty. Check either of the following:\
+            1. Column headers: Must be near identical in terms of text(the ordering/text may contain minor errors \
+            because of OCR quality) in both tables. If the headers are almost the same check the number of columns,\
+                 they should be roughly the same.\
+            2. Missing headers: If the header/columns in the second table are missing, then the first row in the
+            second table should logically be in continutaion of the last row in the first table.\
             Respond with only 'true' or 'false' based on your certainty that the second table is a continuation. \
             Certainty is determined if either of the two conditions is true."
 
@@ -454,7 +455,7 @@ class TableMerger(ElementMerger):
         llm_prompt: Optional[str] = None,
         llm: Optional[LLM] = None,
         *args,
-        **kwargs
+        **kwargs,
     ):
         self.regex_pattern = regex_pattern
         self.llm_prompt = llm_prompt
@@ -482,15 +483,42 @@ class TableMerger(ElementMerger):
         document.elements = other_elements
         return document
 
-    def should_merge(self, element1: Element, element2: Element) -> bool:
+    def should_merge(self, element1: TableElement, element2: TableElement) -> bool:
         if "table_continuation" in element2["properties"]:
             return "true" in element2["properties"]["table_continuation"].lower()
         return False
 
-    def merge(self, elt1: Element, elt2: Element) -> Element:
+    def merge(self, elt1: TableElement, elt2: TableElement) -> TableElement:
 
-        new_elt = Element()
-        new_elt.type = "table"
+        # Combine the cells, adjusting the row indices for the second table
+        offset_row = elt1.table.num_rows
+        merged_cells = elt1.table.cells + [
+            TableCell(
+                content=cell.content,
+                rows=[r + offset_row for r in cell.rows],
+                cols=cell.cols,
+                is_header=cell.is_header,
+                bbox=cell.bbox,
+                properties=cell.properties,
+            )
+            for cell in elt2.table.cells
+        ]
+
+        # Create a new Table object with merged cells
+        merged_table = Table(cells=merged_cells)
+
+        title1 = elt1.data["properties"].get("title", "") or ""
+        title2 = elt2.data["properties"].get("title", "") or ""
+        merged_title = f"{title1} / {title2}".strip(" / ")
+        # Create a new TableElement with the merged table and combined metadata
+        new_elt = TableElement(
+            title=merged_title if merged_title else None,
+            columns=elt1.columns if elt1.columns else elt2.columns,
+            rows=elt1.rows + elt2.rows if elt1.rows and elt2.rows else None,
+            table=merged_table,
+            tokens=elt1.tokens + elt2.tokens if elt1.tokens and elt2.tokens else None,
+        )
+
         # Merge binary representations by concatenation
         if elt1.binary_representation is None or elt2.binary_representation is None:
             new_elt.binary_representation = elt1.binary_representation or elt2.binary_representation
@@ -530,7 +558,7 @@ class TableMerger(ElementMerger):
                 continue
             elif ele.type in ["Text", "Title", "Page-header", "Section-header", "Caption"]:
                 if ele.text_representation is not None:
-                    text_rep = ele.text_representation.strip().lower()
+                    text_rep = ele.text_representation.strip()
                 if text_rep == "":
                     continue
                 if re.search(self.regex_pattern, text_rep):
@@ -541,19 +569,24 @@ class TableMerger(ElementMerger):
         for ele in elements:
             if ele.type == "table" and isinstance(ele["table"], Table):
                 ele.text_representation = dic[ele["properties"]["page_number"]] + ele.text_representation
-                ele["properties"]["table_header"] = dic[ele["properties"]["page_number"]]
-
+                if ele["properties"]["title"]:
+                    ele["properties"]["title"] = (
+                        ele["properties"]["title"] + "\n" + dic[ele["properties"]["page_number"]]
+                    )
+                else:
+                    ele["properties"]["title"] = dic[ele["properties"]["page_number"]]
         return elements
 
     def process_llm_query(self, document):
+        # TO-DO: Add async llm query
         llm_query_agent = LLMTextQueryAgent(prompt=self.llm_prompt, element_type="table", llm=self.llm, table_cont=True)
         llm_results = llm_query_agent.execute_query(document)
         return llm_results
 
-    def preprocess_element(self, elem: Element) -> Element:
+    def preprocess_element(self, elem: TableElement) -> TableElement:
         return elem
 
-    def postprocess_element(self, elem: Element) -> Element:
+    def postprocess_element(self, elem: TableElement) -> TableElement:
         return elem
 
 

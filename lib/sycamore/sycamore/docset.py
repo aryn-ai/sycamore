@@ -1140,7 +1140,6 @@ class DocSet:
         query: str,
         score_property_name: str = "_rerank_score",
         limit: Optional[int] = None,
-        **kwargs,
     ) -> "DocSet":
         """
         Sort a DocSet given a scoring class.
@@ -1158,7 +1157,7 @@ class DocSet:
         else:
             plan = self.plan
         similarity_scored = ScoreSimilarity(
-            plan, similarity_scorer=similarity_scorer, query=query, score_property_name=score_property_name, **kwargs
+            plan, similarity_scorer=similarity_scorer, query=query, score_property_name=score_property_name
         )
         return DocSet(
             self.context,

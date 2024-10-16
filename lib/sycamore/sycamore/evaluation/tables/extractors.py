@@ -43,7 +43,21 @@ class PaddleTableStructureExtractor(TableStructureExtractor):
 
     def extract(self, element: TableElement, doc_image: Image.Image) -> TableElement:
         from paddleocr import PPStructure
-        engine = PPStructure(lang='en', layout=False)
+        engine = PPStructure(lang='en', layout=False, show_log=False)
+        result = engine(np.array(doc_image))
+        for elt in result:
+            if elt['type'] == 'table':
+                table_pattern = r"<table[^>]*>.*?</table>"
+                table_str = re.findall(table_pattern, elt['res']["html"], re.DOTALL)[0]
+                element.table = Table.from_html(table_str)
+                return element
+        raise RuntimeError(f"Did not find a table: results: {result}")
+
+class PaddleV2TableStructureExtractor(TableStructureExtractor):
+
+    def extract(self, element: TableElement, doc_image: Image.Image) -> TableElement:
+        from paddleocr import PPStructure
+        engine = PPStructure(recovery=True, structure_version="PP-StructureV2", layout=False, return_ocr_result_in_table=True, show_log=False)
         result = engine(np.array(doc_image))
         for elt in result:
             if elt['type'] == 'table':

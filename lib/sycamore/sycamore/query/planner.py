@@ -98,51 +98,53 @@ def postprocess_llm_helper(user_message: str, llm_client: LLM) -> str:
     return chat_completion
 
 
-def postprocess_plan(llm_plan: Any, llm_client: LLM) -> Any:
-    """Given the query plan provided by the LLM, postprocess it using a set of rules
+def postprocess_plan(plan: Any, llm_client: LLM) -> Any:
+    """Given the LogicalPlan query plan provided by the LLM, postprocess it using a set of rules
     that modify the plan for optimizing or other purposes."""
-
-    if isinstance(llm_plan, str):
-        postprocessed_plan = extract_json(llm_plan)
-    else:
-        postprocessed_plan = copy.deepcopy(llm_plan)
 
     # Rule 1: If the plan has a vector search in the beginning followed by a count or nothing or extract_entity,
     # we replace that by removing the vector search and adding an LLM Filter before the count
 
-    if postprocessed_plan[0]["operatorName"] == "QueryVectorDatabase" and (
-        len(postprocessed_plan) == 1 or postprocessed_plan[1]["operatorName"] in ["Count", "LlmExtractEntity"]
+    if plan.nodes[0].node_type == "QueryVectorDatabase" and (
+        len(plan.nodes) == 1 or plan.nodes[1].node_type in ["Count", "LlmExtractEntity"]
     ):
         # If the first operator has an "opensearch_filter", we will convert it to a QueryDatabase with
         #        that opensearch_filter as "query"
         # If not, we do a QueryDatabase with "match_all" instead
-        op = postprocessed_plan[0]
+        op = plan.nodes[0]
 
         modified_description = postprocess_llm_helper(
             f"""
                     The following is the description of a Python function. I am modifying the function code
-                    to remove any functionality that has to do with "{op['query_phrase']}".
-                    Return only the modified description.
-                    {op['description']}""",
+                    to remove any functionality that specifically has to do with "{op.query_phrase}", thereby 
+                    generalizing the description to be more flexible.
+                    Return only the modified description. Do not make assumptions
+                    about the intent of the question that are not explicitly specified.
+                    {op.description}
+                    """,
             llm_client,
         )
 
-        new_op = copy.deepcopy(op)
-        new_op["operatorName"] = "QueryDatabase"
-        new_op["description"] = modified_description
+        new_op = QueryDatabase.model_validate(
+            {
+                "node_id": op.node_id,
+                "description": modified_description,
+                "index": op.index
+            }
+        )
 
         if "opensearch_filter" in new_op:
-            new_op["query"] = new_op.pop("opensearch_filter")
+            new_op.query = new_op.opensearch_filter
         else:
-            new_op["query"] = {"match_all": {}}
+            new_op.query = {"match_all": {}}
 
-        postprocessed_plan[0] = new_op
+        plan.nodes[0] = new_op
 
         # Add an LLM Filter as the second operator
         llm_op_description = postprocess_llm_helper(
             f"""
                 Generate a one-line description for a python function whose goal is to filter the input
-                records based on whether they contain {op['query_phrase']}.
+                records based on whether they contain {op.query_phrase}.
                 Here are two example outputs: 
                 (1) Filter to records involving wildfires.
                 (2) Filter to records that occured in Northwest USA.
@@ -152,7 +154,7 @@ def postprocess_plan(llm_plan: Any, llm_client: LLM) -> Any:
         llm_op_question = postprocess_llm_helper(
             f"""
                 Generate a one-line true/false question that is appropriate to check whether an input document
-                satisfies {op['query_phrase']}. Keep it as generic and short as possible. Do not make assumptions
+                satisfies {op.query_phrase}. Keep it as generic and short as possible. Do not make assumptions
                 about the intent of the question that are not explicitly specified.
 
                 Here are two examples:
@@ -161,25 +163,18 @@ def postprocess_plan(llm_plan: Any, llm_client: LLM) -> Any:
                 """,
             llm_client,
         )
-        llm_op = {
-            "operatorName": "LlmFilter",
+        llm_op = LlmFilter.model_validate({
             "node_id": 1,
             "description": llm_op_description,
-            "input": [0],
+            "inputs": [0],
             "field": "text_representation",
             "question": llm_op_question,
         }
-        postprocessed_plan.insert(1, llm_op)
+        )
 
-        # shift the node ids for later operators, and modify the "inputs"
-        for step in postprocessed_plan[2:]:
-            step["node_id"] += 1
-            step["input"] = [x + 1 for x in step["input"]]
+        plan.insert_node(1, llm_op)
 
-    print(postprocessed_plan)
-
-    return postprocessed_plan
-
+    return plan
 
 @dataclass
 class PlannerExample:
@@ -608,8 +603,11 @@ class LlmPlanner:
     def plan(self, question: str) -> LogicalPlan:
         """Given a question from the user, generate a logical query plan."""
         llm_prompt, llm_plan = self.generate_from_llm(question)
+        print("---- the plan returned by the LLM")
+        print(llm_plan)
         try:
             plan = process_json_plan(llm_plan)
+        #    plan = postprocess_plan(plan, self._llm_client)
         except Exception as e:
             logging.error(f"Error processing LLM-generated query plan: {e}\nPlan is:\n{llm_plan}")
             raise

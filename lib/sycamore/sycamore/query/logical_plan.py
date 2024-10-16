@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from enum import Enum
 from functools import wraps
 import json
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any, Dict, List, MutableMapping, Optional
 from hashlib import sha256
 
 from pydantic import (
@@ -185,7 +185,7 @@ class LogicalPlan(BaseModel):
     query: str
     """The query that the plan is for."""
 
-    nodes: Mapping[int, SerializeAsAny[Node]]
+    nodes: MutableMapping[int, SerializeAsAny[Node]]
     """A mapping of node IDs to nodes in the query plan."""
 
     result_node: int
@@ -249,7 +249,7 @@ class LogicalPlan(BaseModel):
 
         # for any other node that has old_node in its _input_nodes, replace with node
         for node in self.nodes.values():
-            if old_node in node._input_nodes:
+            if node._input_nodes and old_node in node._input_nodes:
                 node._input_nodes = [new_node if x == old_node else x for x in node._input_nodes]
 
         # update the nodes array

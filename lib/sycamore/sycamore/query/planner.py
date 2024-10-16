@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-import json
 import logging
 import typing
 from typing import Any, List, Optional, Tuple, Type
@@ -19,7 +18,7 @@ from sycamore.query.operators.sort import Sort
 from sycamore.query.operators.summarize_data import SummarizeData
 from sycamore.query.operators.top_k import TopK
 from sycamore.query.operators.limit import Limit
-from sycamore.query.schema import OpenSearchSchema
+from sycamore.query.schema import OpenSearchSchema, OpenSearchSchemaField
 from sycamore.utils.extract_json import extract_json
 
 if typing.TYPE_CHECKING:
@@ -191,26 +190,42 @@ class PlannerExample:
 
 
 # Example schema and planner examples for the NTSB and financial datasets.
-EXAMPLE_NTSB_SCHEMA = {
-    "properties.path": ("str", {"/docs/incident1.pdf", "/docs/incident2.pdf", "/docs/incident3.pdf"}),
-    "properties.entity.date": ("date", {"2023-07-01", "2024-09-01"}),
-    "properties.entity.accidentNumber": ("str", {"1234", "5678", "91011"}),
-    "properties.entity.location": ("str", {"Atlanta, Georgia", "Miami, Florida", "San Diego, California"}),
-    "properties.entity.aircraft": ("str", {"Cessna", "Boeing", "Airbus"}),
-    "properties.entity.city": ("str", {"Atlanta", "Savannah", "Augusta"}),
-    "text_representation": ("str", {"Can be assumed to have all other details"}),
-}
+EXAMPLE_NTSB_SCHEMA = OpenSearchSchema(
+    fields={
+        "properties.path": OpenSearchSchemaField(
+            field_type="str", examples=["/docs/incident1.pdf", "/docs/incident2.pdf", "/docs/incident3.pdf"]
+        ),
+        "properties.entity.date": OpenSearchSchemaField(field_type="date", examples=["2023-07-01", "2024-09-01"]),
+        "properties.entity.accidentNumber": OpenSearchSchemaField(field_type="str", examples=["1234", "5678", "91011"]),
+        "properties.entity.location": OpenSearchSchemaField(
+            field_type="str", examples=["Atlanta, Georgia", "Miami, Florida", "San Diego, California"]
+        ),
+        "properties.entity.aircraft": OpenSearchSchemaField(field_type="str", examples=["Cessna", "Boeing", "Airbus"]),
+        "properties.entity.city": OpenSearchSchemaField(field_type="str", examples=["Atlanta", "Savannah", "Augusta"]),
+        "text_representation": OpenSearchSchemaField(
+            field_type="str", examples=["Can be assumed to have all other details"]
+        ),
+    }
+)
 
-EXAMPLE_FINANCIAL_SCHEMA = {
-    "properties.path": ("str", {"doc1.pdf", "doc2.pdf", "doc3.pdf"}),
-    "properties.entity.date": ("str", {"2022-01-01", "2022-12-31", "2023-01-01"}),
-    "properties.entity.revenue": ("float", {"1000000.0", "2000000.0", "3000000.0"}),
-    "properties.entity.firmName": (
-        "str",
-        {"Dewey, Cheatem, and Howe", "Saul Goodman & Associates", "Wolfram & Hart"},
-    ),
-    "text_representation": ("str", {"Can be assumed to have all other details"}),
-}
+EXAMPLE_FINANCIAL_SCHEMA = OpenSearchSchema(
+    fields={
+        "properties.path": OpenSearchSchemaField(field_type="str", examples=["doc1.pdf", "doc2.pdf", "doc3.pdf"]),
+        "properties.entity.date": OpenSearchSchemaField(
+            field_type="str", examples=["2022-01-01", "2022-12-31", "2023-01-01"]
+        ),
+        "properties.entity.revenue": OpenSearchSchemaField(
+            field_type="float", examples=["1000000.0", "2000000.0", "3000000.0"]
+        ),
+        "properties.entity.firmName": OpenSearchSchemaField(
+            field_type="str",
+            examples=["Dewey, Cheatem, and Howe", "Saul Goodman & Associates", "Wolfram & Hart"],
+        ),
+        "text_representation": OpenSearchSchemaField(
+            field_type="str", examples=["Can be assumed to have all other details"]
+        ),
+    }
+)
 
 PLANNER_EXAMPLES: List[PlannerExample] = [
     PlannerExample(
@@ -490,13 +505,7 @@ class LlmPlanner:
 
     def make_schema_prompt(self, schema: OpenSearchSchema) -> str:
         """Generate the prompt fragment for the provided schema."""
-        return json.dumps(
-            {
-                field: f"{field_type} (e.g., {', '.join({str(e) for e in examples})})"
-                for field, (field_type, examples) in schema.items()
-            },
-            indent=2,
-        )
+        return schema.model_dump_json(indent=2)
 
     def make_examples_prompt(self) -> str:
         """Generate the prompt fragment for the query examples."""

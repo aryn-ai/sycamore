@@ -9,6 +9,7 @@ import sycamore
 from sycamore import DocSet, Context
 from sycamore.context import OperationTypes, ExecMode
 from sycamore.data import Document, Element
+from sycamore.llms import LLM
 from sycamore.llms.prompts.default_prompts import (
     LlmClusterEntityAssignGroupsMessagesPrompt,
     LlmClusterEntityFormGroupsMessagesPrompt,
@@ -28,16 +29,14 @@ from sycamore.transforms import (
     ExtractProperties,
     Query,
 )
-
-from sycamore.llms import LLM
+from sycamore.transforms import Filter
 from sycamore.transforms.base import get_name_from_callable
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor
-from sycamore.transforms import Filter
+from sycamore.transforms.query import QueryExecutor
 from sycamore.transforms.similarity import SimilarityScorer
 from sycamore.transforms.sort import Sort
 from sycamore.transforms.summarize import LLMElementTextSummarizer
-from sycamore.transforms.query import QueryExecutor
 
 
 class MockLLM(LLM):

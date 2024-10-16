@@ -31,8 +31,8 @@ def generate_code(client: SycamoreQueryClient, plan: LogicalPlan) -> str:
 def show_schema(_client: SycamoreQueryClient, index: str):
     schema = util.get_schema(_client, index)
     table_data = []
-    for key, values in schema.items():
-        table_data.append([key] + list(values))
+    for field_name, field in schema.fields.items():
+        table_data.append([field_name] + list(field.examples or []))
     with st.expander(f"Schema for index `[{index}]`"):
         st.dataframe(table_data)
 

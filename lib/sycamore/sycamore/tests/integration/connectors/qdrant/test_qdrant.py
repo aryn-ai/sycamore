@@ -1,6 +1,6 @@
 import uuid
 import sycamore
-from sycamore.connectors.common import compare_docs
+from sycamore.tests.integration.connectors.common import compare_connector_docs
 from sycamore.functions.tokenizer import HuggingFaceTokenizer
 from sycamore.transforms import COALESCE_WHITESPACE
 from sycamore.transforms.merge_elements import MarkedMerger
@@ -98,13 +98,7 @@ def test_qdrant_named_vector():
         {"collection_name": collection_name, "limit": 100},
     ).take_all()
 
-    assert len(out_docs) == len(docs)
-    assert all(
-        compare_docs(original, plumbed)
-        for original, plumbed in zip(
-            sorted(docs, key=lambda d: d.doc_id or ""), sorted(out_docs, key=lambda d: d.doc_id or "")
-        )
-    )
+    compare_connector_docs(docs, out_docs)
 
     out_docs = ctx.read.qdrant(
         {

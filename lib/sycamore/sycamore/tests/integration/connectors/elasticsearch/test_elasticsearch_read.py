@@ -6,7 +6,7 @@ from sycamore.transforms.merge_elements import MarkedMerger
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.tests.config import TEST_DIR
-from sycamore.connectors.common import compare_docs
+from sycamore.tests.integration.connectors.common import compare_connector_docs
 from elasticsearch import Elasticsearch
 
 
@@ -42,11 +42,5 @@ def test_to_elasticsearch():
     query_docs = ctx.read.elasticsearch(url=url, index_name=index_name, query=query_params).take_all()
     with Elasticsearch(url) as es_client:
         es_client.indices.delete(index=index_name)
-    assert len(out_docs) == len(docs)
     assert len(query_docs) == 1  # exactly one doc should be returned
-    assert all(
-        compare_docs(original, plumbed)
-        for original, plumbed in zip(
-            sorted(docs, key=lambda d: d.doc_id or ""), sorted(out_docs, key=lambda d: d.doc_id or "")
-        )
-    )
+    compare_connector_docs(docs, out_docs)

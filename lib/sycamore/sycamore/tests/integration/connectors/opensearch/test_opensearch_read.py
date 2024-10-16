@@ -4,7 +4,7 @@ import pytest
 from opensearchpy import OpenSearch
 
 import sycamore
-from sycamore.connectors.common import compare_docs
+from sycamore.tests.integration.connectors.common import compare_connector_docs
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 
@@ -98,10 +98,8 @@ class TestOpenSearchRead:
 
         with OpenSearch(**TestOpenSearchRead.OS_CLIENT_ARGS) as os_client:
             os_client.indices.delete(TestOpenSearchRead.INDEX)
-        assert len(original_materialized) == len(retrieved_materialized)
         assert len(query_materialized) == 1  # exactly one doc should be returned
-        for original, retrieved in zip(original_materialized, retrieved_materialized):
-            assert compare_docs(original, retrieved)
+        compare_connector_docs(original_materialized, retrieved_materialized)
 
         assert len(retrieved_materialized_reconstructed) == 1
         doc = retrieved_materialized_reconstructed[0]

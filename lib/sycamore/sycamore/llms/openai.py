@@ -363,8 +363,10 @@ class OpenAI(LLM):
     def is_chat_mode(self):
         return self.model.is_chat
 
-    def _convert_response_format(self, llm_kwargs: Dict) -> Dict:
+    def _convert_response_format(self, llm_kwargs: Optional[Dict]) -> Optional[Dict]:
         """Convert the response_format parameter to the appropriate OpenAI format."""
+        if llm_kwargs is None:
+            return None
         response_format = llm_kwargs.get("response_format")
         if response_format is None:
             return llm_kwargs
@@ -400,7 +402,7 @@ class OpenAI(LLM):
             return False
 
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
-        llm_kwargs = self._convert_response_format(llm_kwargs) if llm_kwargs else None
+        llm_kwargs = self._convert_response_format(llm_kwargs)
         key, ret = self._cache_get(prompt_kwargs, llm_kwargs)
         if ret is not None:
             return ret

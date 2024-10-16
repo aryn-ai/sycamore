@@ -117,6 +117,12 @@ class QueryEvalDriver:
         else:
             self.data_schema = self.client.get_opensearch_schema(self.config.config.index)
 
+        # Use examples from the results file, or input file. Priority is given to the input file.
+        if results.examples:
+            self.examples = results.examples
+        if self.config.examples:
+            self.examples = self.config.examples
+
     @staticmethod
     def read_input_file(input_file_path: str) -> QueryEvalInputFile:
         """Read the given input file."""
@@ -143,7 +149,10 @@ class QueryEvalDriver:
         assert self.config.config and self.config.config.results_file
 
         results_file_obj = QueryEvalResultsFile(
-            config=self.config.config, data_schema=self.data_schema, results=list(self.results_map.values())
+            config=self.config.config,
+            data_schema=self.data_schema,
+            results=list(self.results_map.values()),
+            examples=self.examples,
         )
 
         with open(self.config.config.results_file, "w", encoding="utf8") as results_file:
@@ -188,6 +197,7 @@ class QueryEvalDriver:
                 query.query,
                 self.config.config.index,
                 self.data_schema,
+                examples=self.examples or None,
                 natural_language_response=self.config.config.natural_language_response or False,
             )
             t2 = time.time()

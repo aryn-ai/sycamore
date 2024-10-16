@@ -493,6 +493,9 @@ class TableMerger(ElementMerger):
 
     def merge(self, elt1: Element, elt2: Element) -> Element:
 
+        # Check if both elements are TableElements
+        if not isinstance(elt1, TableElement) or not isinstance(elt2, TableElement):
+            raise TypeError("Both elements must be of type TableElement to perform merging.")
         # Combine the cells, adjusting the row indices for the second table
         offset_row = elt1.table.num_rows
         merged_cells = elt1.table.cells + [

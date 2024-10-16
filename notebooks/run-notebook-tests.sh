@@ -1,6 +1,5 @@
 #!/bin/bash
 main() {
-    set -e
     config
     cd notebooks
     if [[ "$1" == --fast ]]; then
@@ -74,20 +73,21 @@ test_notebooks() {
         echo "Starting test on $i as written"
         echo "-------------------------------------------------------------------------"
 
-        time poetry run pytest --nbmake --nbmake-timeout=600 $i
+        time poetry run pytest --nbmake --nbmake-timeout=600 $i || exit 1
 
         if [[ $(grep -c sycamore.EXEC_LOCAL $i) -ge 1 ]]; then
             sed -e 's/sycamore.EXEC_LOCAL/sycamore.EXEC_RAY/' <$i >ray-variant-$i
             echo "-------------------------------------------------------------------------"
             echo "Starting test on $i with EXEC_RAY"
             echo "-------------------------------------------------------------------------"
-            time poetry run pytest --nbmake --nbmake-timeout=600 ray-variant-$i
+            time poetry run pytest --nbmake --nbmake-timeout=600 ray-variant-$i || exit 1
             rm ray-variant-$i
         fi
     done
 }
 
 check_coverage() {
+    echo "Verifying coverage of all notebooks..."
     ls *.ipynb | grep -v '^ray-variant-' >/tmp/notebooks.list
     (
         for i in "${FAST_NOTEBOOKS[@]}" "${SLOW_NOTEBOOKS[@]}" "${EXCLUDE_NOTEBOOKS[@]}"; do
@@ -105,6 +105,7 @@ check_coverage() {
         exit 1
     fi
     rm /tmp/notebooks.list /tmp/notebooks.unlisted
+    echo "All notebooks are classified as fast, slow or excluded."
 }
 
 main "$@"

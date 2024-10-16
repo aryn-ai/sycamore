@@ -15,6 +15,7 @@ class QueryEvalConfig(BaseModel):
     config_file: Optional[str] = None
     results_file: Optional[str] = None
     log_file: Optional[str] = None
+    llm: Optional[str] = None
     index: Optional[str] = None
     query_cache_path: Optional[str] = None
     llm_cache_path: Optional[str] = None

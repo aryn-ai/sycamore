@@ -175,7 +175,7 @@ def query_data_source(query: str, index: str) -> Tuple[Any, Optional[Any], Optio
         return do_rag_query(query, index), None, None
     else:
         sqclient = SycamoreQueryClient(
-            s3_cache_path=st.session_state.llm_cache_dir,
+            llm_cache_dir=st.session_state.llm_cache_dir,
             trace_dir=st.session_state.trace_dir,
             cache_dir=st.session_state.cache_dir,
             sycamore_exec_mode=ExecMode.LOCAL if st.session_state.local_mode else ExecMode.RAY,

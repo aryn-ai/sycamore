@@ -17,6 +17,7 @@ import click
 from rich.console import Console
 
 
+from sycamore.llms import MODELS
 from queryeval.driver import QueryEvalDriver
 
 
@@ -33,6 +34,7 @@ console = Console()
 @click.option("--dry-run", help="Dry run - do not run any stages", is_flag=True)
 @click.option("--doc-limit", help="Limit number of docs in result set", type=int)
 @click.option("--overwrite", help="Overwrite existing results file", is_flag=True)
+@click.option("--llm", help="LLM model name", type=click.Choice(MODELS.keys()))
 @click.option(
     "--raw-output", help="Output should be a raw DocSet, rather than natural language", is_flag=True, default=False
 )
@@ -48,6 +50,7 @@ def cli(
     dry_run: bool,
     doc_limit: Optional[int],
     overwrite: bool,
+    llm: Optional[str],
     raw_output: bool,
 ):
     ctx.ensure_object(dict)
@@ -61,6 +64,7 @@ def cli(
         natural_language_response=not raw_output,
         log_file=logfile,
         doc_limit=doc_limit,
+        llm=llm,
         overwrite=overwrite,
     )
     ctx.obj["driver"] = driver

@@ -40,6 +40,7 @@ class QueryEvalDriver:
         natural_language_response: If True, return the response in natural language format. Otherwise,
             return the raw DocSet results.
         doc_limit: Limit the number of documents in each result set to this number.
+        llm: LLM model name to use.
         overwrite: If True, overwrite the results file if it already exists.
     """
 
@@ -54,6 +55,7 @@ class QueryEvalDriver:
         dry_run: bool = False,
         natural_language_response: bool = True,
         doc_limit: Optional[int] = None,
+        llm: Optional[str] = None,
         overwrite: bool = False,
     ):
         console.print(":moon: Sycamore Query Eval Driver starting")
@@ -76,6 +78,7 @@ class QueryEvalDriver:
             self.config.config.natural_language_response or natural_language_response
         )
         self.config.config.doc_limit = self.config.config.doc_limit or doc_limit
+        self.config.config.llm = self.config.config.llm or llm
         self.config.config.overwrite = self.config.config.overwrite or overwrite
 
         # Configure logging.
@@ -106,7 +109,7 @@ class QueryEvalDriver:
 
         # Set up Sycamore Query Client.
         self.client = SycamoreQueryClient(
-            s3_cache_path=self.config.config.llm_cache_path, cache_dir=self.config.config.query_cache_path
+            llm_cache_dir=self.config.config.llm_cache_path, cache_dir=self.config.config.query_cache_path, llm=self.config.config.llm
         )
 
         # Use schema from the results file, input file, or OpenSearch, in that order.

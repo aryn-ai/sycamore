@@ -12,7 +12,7 @@
 import argparse
 import json
 import logging
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple, Union
 import os
 import uuid
 import structlog
@@ -21,7 +21,9 @@ import yaml
 import sycamore
 from sycamore import Context, ExecMode
 from sycamore.context import OperationTypes
+from sycamore.llms import LLM, get_llm, MODELS
 from sycamore.llms.openai import OpenAI, OpenAIModels
+from sycamore.llms.bedrock import BedrockModels
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.transforms.query import OpenSearchQueryExecutor
 from sycamore.transforms.similarity import HuggingFaceTransformersSimilarityScorer
@@ -97,21 +99,21 @@ class SycamoreQueryClient:
 
     Args:
         context (optional): a configured Sycamore Context. A fresh one is created if not provided.
-        s3_cache_path (optional): S3 path to use for LLM result caching.
+        llm_cache_dir (optional): Directory to use for LLM result caching.
         os_config (optional): OpenSearch configuration. Defaults to DEFAULT_OS_CONFIG.
         os_client_args (optional): OpenSearch client arguments. Defaults to DEFAULT_OS_CLIENT_ARGS.
         trace_dir (optional): Directory to write query execution trace.
         cache_dir (optional): Directory to use for caching intermediate query results.
 
     Notes:
-        If you override the context, you cannot override the s3_cache_path or os_client_args; you need
+        If you override the context, you cannot override the llm_cache_dir, os_client_args, or llm; you need
         to pass those in via the context paramaters, i.e. sycamore.init(params={...})
 
         To override os_client_args, set params["opensearch"]["os_client_args"]. You are likely to also need
         params["opensearch"]["text_embedder"] = SycamoreQueryClient.default_text_embedder() or another
         embedder of your choice.
 
-        To override the cache path, you need to override the llm, for example:
+        To override the LLM or cache path, you need to override the llm, for example:
         from sycamore.utils.cache import cache_from_path
         params["default"]["llm"] = OpenAI(OpenAIModels.GPT_40.value, cache=cache_from_path("/example/path"))
     """
@@ -120,16 +122,17 @@ class SycamoreQueryClient:
     def __init__(
         self,
         context: Optional[Context] = None,
-        s3_cache_path: Optional[str] = None,
+        llm_cache_dir: Optional[str] = None,
         os_config: dict = DEFAULT_OS_CONFIG,
         os_client_args: Optional[dict] = None,
         trace_dir: Optional[str] = None,
         cache_dir: Optional[str] = None,
         sycamore_exec_mode: ExecMode = ExecMode.RAY,
+        llm: Optional[Union[LLM, str]] = None,
     ):
         from opensearchpy import OpenSearch
 
-        self.s3_cache_path = s3_cache_path
+        self.llm_cache_dir = llm_cache_dir
         self.os_config = os_config
         self.trace_dir = trace_dir
         self.cache_dir = cache_dir
@@ -138,13 +141,16 @@ class SycamoreQueryClient:
         # TODO: remove these assertions and simplify the code to get all customization via the
         # context.
         if context and os_client_args:
-            raise AssertionError("setting os_client_args requires context==None. See Notes in class documentation.")
+            raise AssertionError("Setting os_client_args requires context==None. See Notes in class documentation.")
 
-        if context and s3_cache_path:
-            raise AssertionError("setting s3_cache_path requires context==None. See Notes in class documentation.")
+        if context and llm_cache_dir:
+            raise AssertionError("Setting llm_cache_dir requires context==None. See Notes in class documentation.")
+
+        if context and llm:
+            raise AssertionError("Setting llm requires context==None. See Notes in class documentation.")
 
         os_client_args = os_client_args or DEFAULT_OS_CLIENT_ARGS
-        self.context = context or self._get_default_context(s3_cache_path, os_client_args, sycamore_exec_mode)
+        self.context = context or self._get_default_context(llm_cache_dir, os_client_args, sycamore_exec_mode, llm)
 
         assert self.context.params, "Could not find required params in Context"
         self.os_client_args = self.context.params.get("opensearch", {}).get("os_client_args", os_client_args)
@@ -188,7 +194,7 @@ class SycamoreQueryClient:
         """
         llm_client = self.context.params.get("default", {}).get("llm")
         if not llm_client:
-            llm_client = OpenAI(OpenAIModels.GPT_4O.value, cache=cache_from_path(self.s3_cache_path))
+            llm_client = OpenAI(OpenAIModels.GPT_4O.value, cache=cache_from_path(self.llm_cache_dir))
         planner = LlmPlanner(
             index,
             data_schema=schema,
@@ -245,18 +251,33 @@ class SycamoreQueryClient:
         return SentenceTransformerEmbedder(batch_size=100, model_name="sentence-transformers/all-MiniLM-L6-v2")
 
     @staticmethod
-    def _get_default_context(s3_cache_path, os_client_args, sycamore_exec_mode) -> Context:
+    def _get_default_context(
+        llm_cache_dir: Optional[str],
+        os_client_args: Optional[dict],
+        sycamore_exec_mode: ExecMode,
+        llm: Optional[Union[str, LLM]],
+    ) -> Context:
+
+        llm_instance: Optional[LLM] = None
+        if llm is not None:
+            if isinstance(llm, str):
+                llm_instance = get_llm(llm)(cache=cache_from_path(llm_cache_dir))
+            elif isinstance(llm, LLM):
+                llm_instance = llm
+            else:
+                raise ValueError(f"Invalid LLM type: {type(llm)}")
+
         context_params = {
-            "default": {"llm": OpenAI(OpenAIModels.GPT_4O.value, cache=cache_from_path(s3_cache_path))},
+            "default": {"llm": llm_instance or OpenAI(OpenAIModels.GPT_4O.value, cache=cache_from_path(llm_cache_dir))},
             "opensearch": {
                 "os_client_args": os_client_args,
                 "text_embedder": SycamoreQueryClient.default_text_embedder(),
             },
             OperationTypes.BINARY_CLASSIFIER: {
-                "llm": OpenAI(OpenAIModels.GPT_4O_MINI.value, cache=cache_from_path(s3_cache_path))
+                "llm": llm_instance or OpenAI(OpenAIModels.GPT_4O_MINI.value, cache=cache_from_path(llm_cache_dir))
             },
             OperationTypes.INFORMATION_EXTRACTOR: {
-                "llm": OpenAI(OpenAIModels.GPT_4O_MINI.value, cache=cache_from_path(s3_cache_path))
+                "llm": llm_instance or OpenAI(OpenAIModels.GPT_4O_MINI.value, cache=cache_from_path(llm_cache_dir))
             },
             OperationTypes.TEXT_SIMILARITY: {"similarity_scorer": HuggingFaceTransformersSimilarityScorer()},
         }
@@ -307,13 +328,7 @@ def main():
     parser.add_argument("--show-indices", action="store_true", help="Show all indices")
     parser.add_argument("--index", type=str, help="Index name")
     parser.add_argument("--schema-file", type=str, help="Schema file")
-
-    parser.add_argument(
-        "--s3-cache-path",
-        type=str,
-        help="LLM cache path",
-        default=None,
-    )
+    parser.add_argument("--llm-cache-dir", type=str, help="Directory to write LLM cache.", default=None)
     parser.add_argument(
         "--raw-data-response", action="store_true", help="Return raw data instead of natural language response."
     )
@@ -327,6 +342,7 @@ def main():
     parser.add_argument("--cache-dir", help="Directory to use for query execution cache.")
     parser.add_argument("--dump-traces", action="store_true", help="Dump traces from the execution.")
     parser.add_argument("--log-level", type=str, help="Log level", default="WARN")
+    parser.add_argument("--llm", type=str, help="LLM model name", choices=MODELS.keys())
     args = parser.parse_args()
 
     if args.trace_dir:
@@ -347,7 +363,9 @@ def main():
         # Make cache_dir absolute.
         args.cache_dir = os.path.abspath(args.cache_dir)
 
-    client = SycamoreQueryClient(s3_cache_path=args.s3_cache_path, trace_dir=args.trace_dir, cache_dir=args.cache_dir)
+    client = SycamoreQueryClient(
+        llm_cache_dir=args.llm_cache_dir, trace_dir=args.trace_dir, cache_dir=args.cache_dir, llm=args.llm
+    )
 
     # Show indices and exit.
     if args.show_indices:

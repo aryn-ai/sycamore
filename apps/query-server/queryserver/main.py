@@ -22,7 +22,7 @@ app = FastAPI()
 CACHE_PATH = os.getenv("QUERYSERVER_CACHE_PATH", os.path.join(tempfile.gettempdir(), "queryserver_cache"))
 LLM_CACHE_PATH = os.getenv("QUERYSERVER_LLM_CACHE_PATH", os.path.join(tempfile.gettempdir(), "queryserver_llm_cache"))
 
-sqclient = SycamoreQueryClient(s3_cache_path=LLM_CACHE_PATH, cache_dir=CACHE_PATH)
+sqclient = SycamoreQueryClient(llm_cache_dir=LLM_CACHE_PATH, cache_dir=CACHE_PATH)
 
 
 class Index(BaseModel):

@@ -36,6 +36,37 @@ def test_bedrock(mock_boto3_client):
 
 
 @patch("boto3.client")
+def test_bedrock_system_role(mock_boto3_client):
+    mock_boto3_client.return_value.invoke_model.return_value.get.return_value.read.return_value = (
+        '{"content": [{"text": "Here is your result: 56"}]}'
+    )
+
+    client = Bedrock(BedrockModels.CLAUDE_3_5_SONNET)
+    assert client.is_chat_mode()
+    assert client._model_name == BedrockModels.CLAUDE_3_5_SONNET.value.name
+
+    result = client.generate(
+        prompt_kwargs={
+            "messages": [
+                {"role": "system", "content": "You are a DM for a game of D&D."},
+                {"role": "user", "content": "Roll 4d20 and tell me the final sum."},
+            ]
+        }
+    )
+    assert result == "Here is your result: 56"
+
+    assert mock_boto3_client.call_args.kwargs["service_name"] == "bedrock-runtime"
+    assert json.loads(mock_boto3_client.return_value.invoke_model.call_args.kwargs["body"]) == {
+        "messages": [
+            {"role": "user", "content": "You are a DM for a game of D&D.\nRoll 4d20 and tell me the final sum."}
+        ],
+        "max_tokens": DEFAULT_MAX_TOKENS,
+        "anthropic_version": DEFAULT_ANTHROPIC_VERSION,
+        "temperature": 0,
+    }
+
+
+@patch("boto3.client")
 def test_bedrock_with_llm_kwargs(mock_boto3_client):
     mock_boto3_client.return_value.invoke_model.return_value.get.return_value.read.return_value = (
         '{"content": [{"text": "Here is your result: 56"}]}'

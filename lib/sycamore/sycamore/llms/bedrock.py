@@ -1,14 +1,38 @@
+from dataclasses import dataclass
+from enum import Enum
 import boto3
 import json
-from sycamore.utils.cache import Cache
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 
 from sycamore.llms.llms import LLM
+from sycamore.utils.cache import Cache
 
-DEFAULT_BEDROCK_MODEL = "anthropic.claude-3-5-sonnet-20240620-v1:0"
 DEFAULT_MAX_TOKENS = 1000
 DEFAULT_ANTHROPIC_VERSION = "bedrock-2023-05-31"
+
+
+@dataclass
+class BedrockModel:
+    name: str
+    is_chat: bool = False
+
+
+class BedrockModels(Enum):
+    """Represents available Bedrock models."""
+
+    # Note that the models available on a given Bedrock account may vary.
+    CLAUDE_3_HAIKU = BedrockModel(name="anthropic.claude-3-haiku-20240307-v1:0", is_chat=True)
+    CLAUDE_3_SONNET = BedrockModel(name="anthropic.claude-3-sonnet-20240229-v1:0", is_chat=True)
+    CLAUDE_3_OPUS = BedrockModel(name="anthropic.claude-3-opus-20240229-v1:0", is_chat=True)
+    CLAUDE_3_5_SONNET = BedrockModel(name="anthropic.claude-3-5-sonnet-20240620-v1:0", is_chat=True)
+
+    @classmethod
+    def from_name(cls, name: str):
+        for m in iter(cls):
+            if m.value.name == name:
+                return m
+        return None
 
 
 class Bedrock(LLM):
@@ -21,11 +45,16 @@ class Bedrock(LLM):
 
     def __init__(
         self,
-        model_name: str = DEFAULT_BEDROCK_MODEL,
+        model_name: Union[BedrockModels, str],
         cache: Optional[Cache] = None,
     ):
+        if isinstance(model_name, BedrockModels):
+            self.model = model_name.value
+        elif isinstance(model_name, str):
+            self.model = BedrockModel(name=model_name)
+
         self._client = boto3.client(service_name="bedrock-runtime")
-        super().__init__(model_name, cache)
+        super().__init__(self.model.name, cache)
 
     def is_chat_mode(self) -> bool:
         """Returns True if the LLM is in chat mode, False otherwise."""
@@ -33,6 +62,7 @@ class Bedrock(LLM):
 
     def _get_generate_kwargs(self, prompt_kwargs: Dict, llm_kwargs: Optional[Dict] = None) -> Dict:
         kwargs = {
+            "temperature": 0,
             **(llm_kwargs or {}),
         }
         if self._model_name.startswith("anthropic."):
@@ -56,7 +86,7 @@ class Bedrock(LLM):
         kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
         body = json.dumps(kwargs)
         response = self._client.invoke_model(
-            body=body, modelId=self._model_name, accept="application/json", contentType="application/json"
+            body=body, modelId=self.model.name, accept="application/json", contentType="application/json"
         )
         response_body = json.loads(response.get("body").read())
         ret = response_body.get("content", {})[0].get("text", "")
@@ -64,7 +94,7 @@ class Bedrock(LLM):
             "result": ret,
             "prompt_kwargs": prompt_kwargs,
             "llm_kwargs": llm_kwargs,
-            "model_name": self._model_name,
+            "model_name": self.model.name,
         }
         self._cache_set(key, value)
         return ret

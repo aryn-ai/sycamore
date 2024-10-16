@@ -2,7 +2,7 @@ import json
 from unittest.mock import patch
 import tempfile
 
-from sycamore.llms import Bedrock
+from sycamore.llms import Bedrock, BedrockModels
 from sycamore.llms.bedrock import DEFAULT_ANTHROPIC_VERSION, DEFAULT_MAX_TOKENS
 from sycamore.utils.cache import DiskCache
 
@@ -13,9 +13,9 @@ def test_bedrock(mock_boto3_client):
         '{"content": [{"text": "Here is your result: 56"}]}'
     )
 
-    client = Bedrock(model_name="anthropic.test-model")
+    client = Bedrock(BedrockModels.CLAUDE_3_5_SONNET)
     assert client.is_chat_mode()
-    assert client._model_name == "anthropic.test-model"
+    assert client._model_name == BedrockModels.CLAUDE_3_5_SONNET.value.name
 
     result = client.generate(
         prompt_kwargs={
@@ -40,9 +40,9 @@ def test_bedrock_with_llm_kwargs(mock_boto3_client):
         '{"content": [{"text": "Here is your result: 56"}]}'
     )
 
-    client = Bedrock(model_name="anthropic.test-model")
+    client = Bedrock(BedrockModels.CLAUDE_3_5_SONNET)
     assert client.is_chat_mode()
-    assert client._model_name == "anthropic.test-model"
+    assert client._model_name == BedrockModels.CLAUDE_3_5_SONNET.value.name
 
     result = client.generate(
         prompt_kwargs={
@@ -74,9 +74,9 @@ def test_bedrock_with_cache(mock_boto3_client):
         assert cache.cache_hits == 0
         assert cache.total_accesses == 0
 
-        client = Bedrock(model_name="anthropic.test-model", cache=cache)
+        client = Bedrock(BedrockModels.CLAUDE_3_5_SONNET, cache=cache)
         assert client.is_chat_mode()
-        assert client._model_name == "anthropic.test-model"
+        assert client._model_name == BedrockModels.CLAUDE_3_5_SONNET.value.name
 
         result = client.generate(
             prompt_kwargs={

@@ -263,9 +263,9 @@ class QueryEvalDriver:
         else:
             plan_diff = _query.expected_plan.compare(result.plan)
             if len(plan_diff) == 0:
-                console.print("[green]\U00002714 Plan correct")
+                console.print("[green]✔ Plan mismatch")
             else:
-                console.print("[red]:x: Plan incorrect")
+                console.print("[red]:x: Plan match")
                 for i, diff in enumerate(plan_diff):
                     console.print(f"[{i}]. Diff type: {diff.diff_type.value}")
 

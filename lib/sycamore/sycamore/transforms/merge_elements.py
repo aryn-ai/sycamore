@@ -1,13 +1,18 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any, Dict, Pattern, Optional
+from collections import defaultdict
+import re
 
 
-from sycamore.data import Document, Element, BoundingBox
+from sycamore.data import Document, Element, BoundingBox, Table, TableElement, TableCell
 from sycamore.data.document import DocumentPropertyTypes
 from sycamore.plan_nodes import SingleThreadUser, NonGPUUser, Node
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
+from sycamore.transforms.llm_query import LLMTextQueryAgent
+from sycamore.llms import LLM
+from sycamore.utils.bbox_sort import bbox_sort_document
 
 
 class ElementMerger(ABC):
@@ -410,6 +415,200 @@ class MarkedMerger(ElementMerger):
 
         document.elements = merged
         return document
+
+
+class TableMerger(ElementMerger):
+    """
+    The ``Table merger`` handles 3 operations
+    1. If a text element (Caption, Section-header, Text...) contains the regex pattern anywhere in a page
+     it is attached to the text_representation of the table on the page.
+    2. LLMQuery is used for adding a table_continuation property to table elements. Is the table is
+     a continuation from a previous table the property is stored as true, else false.
+    3. After LLMQuery, table elements which are continuations are merged as one element.
+    Example:
+         .. code-block:: python
+
+            llm = OpenAI(OpenAIModels.GPT_4O, api_key = '')
+
+            prompt = "Analyze two CSV tables that may be parts of a single table split across pages. Determine\
+            if the second table is a continuation of the first with 100% certainty. Check either of the following:\
+            1. Column headers: Must be near identical in terms of text(the ordering/text may contain minor errors \
+            because of OCR quality) in both tables. If the headers are almost the same check the number of columns,\
+                 they should be roughly the same. \
+            2. Missing headers: If the header/columns in the second table are missing, then the first row in the
+            second table should logically be in continutaion of the last row in the first table.\
+            Respond with only 'true' or 'false' based on your certainty that the second table is a continuation. \
+            Certainty is determined if either of the two conditions is true."
+
+            regex_pattern = r"table \d+"
+
+            merger = TableMerger(llm_prompt = prompt, llm=llm)
+
+            context = sycamore.init()
+            pdf_docset = context.read.binary(paths, binary_format="pdf", regex_pattern= regex_pattern)
+                .partition(partitioner=ArynPartitioner())
+                .merge(merger=merger)
+    """
+
+    def __init__(
+        self,
+        regex_pattern: Optional[Pattern] = None,
+        llm_prompt: Optional[str] = None,
+        llm: Optional[LLM] = None,
+        *args,
+        **kwargs,
+    ):
+        self.regex_pattern = regex_pattern
+        self.llm_prompt = llm_prompt
+        self.llm = llm
+
+    def merge_elements(self, document: Document) -> Document:
+
+        table_elements = [ele for ele in document.elements if ele.type == "table"]
+        if len(table_elements) < 1:
+            return document
+        if self.regex_pattern:
+            document.elements = self.customTableHeaderAdditionFilter(document.elements)
+        if not self.llm_prompt or len(table_elements) < 2:
+            return document
+        document = self.process_llm_query(document)
+        table_elements = [ele for ele in document.elements if ele.type == "table"]
+        other_elements = [ele for ele in document.elements if ele.type != "table"]
+        new_table_elements = [table_elements[0]]
+        for element in table_elements[1:]:
+            if self.should_merge(new_table_elements[-1], element):
+                new_table_elements[-1] = self.merge(new_table_elements[-1], element)
+            else:
+                new_table_elements.append(element)
+        other_elements.extend(new_table_elements)
+        document.elements = other_elements
+        bbox_sort_document(document)
+
+        return document
+
+    def should_merge(self, element1: Element, element2: Element) -> bool:
+        if "table_continuation" in element2["properties"]:
+            return "true" in element2["properties"]["table_continuation"].lower()
+        return False
+
+    def merge(self, elt1: Element, elt2: Element) -> Element:
+
+        # Check if both elements are TableElements
+        if not isinstance(elt1, TableElement) or not isinstance(elt2, TableElement):
+            raise TypeError("Both elements must be of type TableElement to perform merging.")
+        # Combine the cells, adjusting the row indices for the second table
+        if elt1.table is None or elt2.table is None:
+            raise ValueError("Both elements must have a table to perform merging.")
+
+        offset_row = elt1.table.num_rows
+        merged_cells = elt1.table.cells + [
+            TableCell(
+                content=cell.content,
+                rows=[r + offset_row for r in cell.rows],
+                cols=cell.cols,
+                is_header=cell.is_header,
+                bbox=cell.bbox,
+                properties=cell.properties,
+            )
+            for cell in elt2.table.cells
+        ]
+
+        # Create a new Table object with merged cells
+        merged_table = Table(cells=merged_cells)
+
+        title1 = elt1.data["properties"].get("title", "") or ""
+        title2 = elt2.data["properties"].get("title", "") or ""
+        merged_title = f"{title1} / {title2}".strip(" / ")
+        # Create a new TableElement with the merged table and combined metadata
+        new_elt = TableElement(
+            title=merged_title if merged_title else None,
+            columns=elt1.columns if elt1.columns else elt2.columns,
+            rows=elt1.rows + elt2.rows if elt1.rows and elt2.rows else None,
+            table=merged_table,
+            tokens=elt1.tokens + elt2.tokens if elt1.tokens and elt2.tokens else None,
+        )
+
+        # Merge binary representations by concatenation
+        if elt1.binary_representation is None or elt2.binary_representation is None:
+            new_elt.binary_representation = elt1.binary_representation or elt2.binary_representation
+        else:
+            new_elt.binary_representation = elt1.binary_representation + elt2.binary_representation
+        # Merge text representations by concatenation with a newline
+        if elt1.text_representation is None or elt2.text_representation is None:
+            new_elt.text_representation = elt1.text_representation or elt2.text_representation
+        else:
+            new_elt.text_representation = elt1.text_representation + "\n" + elt2.text_representation
+        # Merge properties by taking the union of the keys
+        properties = new_elt.properties
+        for k, v in elt1.properties.items():
+            properties[k] = v
+            if k == DocumentPropertyTypes.PAGE_NUMBER:
+                properties["page_numbers"] = properties.get("page_numbers", list())
+                properties["page_numbers"] = list(set(properties["page_numbers"] + [v]))
+        for k, v in elt2.properties.items():
+            if properties.get(k) is None:
+                properties[k] = v
+            # if a page number exists, add it to the set of page numbers for this new element
+            if k == DocumentPropertyTypes.PAGE_NUMBER:
+                properties["page_numbers"] = properties.get("page_numbers", list())
+                properties["page_numbers"] = list(set(properties["page_numbers"] + [v]))
+
+        # TO-DO: Currently bbox points to first table bbox, and other bboxs are removed in
+        # this process, potential fix can be to have a list of bboxs, and change label
+        # of bbox after first as "table_continuation"
+        if elt1.bbox is None or elt2.bbox is None:
+            new_elt.bbox = elt1.bbox or elt2.bbox
+        else:
+            new_elt.bbox = BoundingBox(
+                elt1.bbox.x1,
+                elt1.bbox.y1,
+                elt1.bbox.x2,
+                elt1.bbox.y2,
+            )
+        new_elt.properties = properties
+
+        return new_elt
+
+    def customTableHeaderAdditionFilter(self, elements):
+
+        dic = defaultdict(str)
+
+        # First pass: capture headers
+        for ele in elements:
+            if ele.type in ["table", "Image", "Formula"]:
+                continue
+            elif ele.type in ["Text", "Title", "Page-header", "Section-header", "Caption"]:
+                if ele.text_representation is not None:
+                    text_rep = ele.text_representation.strip()
+                if text_rep == "":
+                    continue
+                if re.search(self.regex_pattern, text_rep):
+                    dic[ele["properties"]["page_number"]] = text_rep + " "
+
+        # Second pass: update table elements with headers, done in separate loops since
+        # table headers can be within table elements as well or after them
+        for ele in elements:
+            if ele.type == "table" and isinstance(ele["table"], Table):
+                ele.text_representation = dic[ele["properties"]["page_number"]] + ele.text_representation
+                if ele["properties"]["title"]:
+                    ele["properties"]["title"] = (
+                        ele["properties"]["title"] + "\n" + dic[ele["properties"]["page_number"]]
+                    )
+                else:
+                    ele["properties"]["title"] = dic[ele["properties"]["page_number"]]
+        return elements
+
+    def process_llm_query(self, document):
+        # TO-DO: Add async llm query
+        llm_query_agent = LLMTextQueryAgent(prompt=self.llm_prompt, element_type="table", llm=self.llm, table_cont=True)
+        llm_results = llm_query_agent.execute_query(document)
+        return llm_results
+
+    def preprocess_element(self, elem: Element) -> Element:
+        return elem
+
+    def postprocess_element(self, elem: Element) -> Element:
+        return elem
 
 
 class Merge(SingleThreadUser, NonGPUUser, Map):

@@ -2,10 +2,9 @@ import functools
 import inspect
 import logging
 import os
-import pickle
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional, TypedDict, Union, cast, TYPE_CHECKING
+from typing import Any, Dict, Optional, TypedDict, Union, cast, TYPE_CHECKING
 
 from openai import AzureOpenAI as AzureOpenAIClient
 from openai import AsyncAzureOpenAI as AsyncAzureOpenAIClient
@@ -364,16 +363,16 @@ class OpenAI(LLM):
     def is_chat_mode(self):
         return self.model.is_chat
 
-    def _get_cache_key(self, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
-        """Override _get_cache_key to include response_format param."""
-        assert self._cache
-        llm_kwargs = llm_kwargs.copy() if llm_kwargs else {}
-        response_format = (llm_kwargs or {}).get("response_format")
+    def _convert_response_format(self, llm_kwargs: Dict) -> Dict:
+        """Convert the response_format parameter to the appropriate OpenAI format."""
+        response_format = llm_kwargs.get("response_format")
+        if response_format is None:
+            return llm_kwargs
         if inspect.isclass(response_format) and issubclass(response_format, pydantic.BaseModel):
-            llm_kwargs["response_format"] = type_to_response_format_param(response_format)
-        combined = {"prompt_kwargs": prompt_kwargs, "llm_kwargs": llm_kwargs, "model_name": self.model.name}
-        data = pickle.dumps(combined)
-        return self._cache.get_hash_context(data).hexdigest()
+            retval = llm_kwargs.copy()
+            retval["response_format"] = type_to_response_format_param(response_format)
+            return retval
+        return llm_kwargs
 
     def _get_generate_kwargs(self, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> dict:
         kwargs = {
@@ -401,6 +400,7 @@ class OpenAI(LLM):
             return False
 
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
+        llm_kwargs = self._convert_response_format(llm_kwargs) if llm_kwargs else None
         key, ret = self._cache_get(prompt_kwargs, llm_kwargs)
         if ret is not None:
             return ret

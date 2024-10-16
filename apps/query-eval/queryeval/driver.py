@@ -255,12 +255,30 @@ class QueryEvalDriver:
             console.print("[yellow]:point_right: Dry run: skipping eval")
             return result
 
-        if not result.result:
-            console.print("[yellow]:point_right: No result available - skipping eval")
-            return result
+        # Evalute query plans
+        if not _query.expected_plan:
+            console.print("[yellow]:construction: No expected query plan found, skipping.. ")
+        elif not result.plan:
+            console.print("[yellow]:construction: No computed query plan found, skipping.. ")
+        else:
+            plan_diff = _query.expected_plan.compare(result.plan)
+            if len(plan_diff) == 0:
+                console.print("[green]✔ Plan mismatch")
+            else:
+                console.print("[red]:x: Plan match")
+                for i, diff in enumerate(plan_diff):
+                    console.print(f"[{i}]. Diff type: {diff.diff_type.value}")
 
-        # TODO: Implement this.
-        console.print("[yellow]:construction: Eval not yet implemented")
+                    if diff.message:
+                        console.print(f"Info: {diff.message}")
+                    console.print(f"Expected node: {diff.node_a!r}")
+                    console.print(f"Actual node: [red]{diff.node_b!r}")
+                    console.print()
+
+        # Evaluate result
+        if not result.result:
+            console.print("[yellow] No query execution result available, skipping..", style="italic")
+
         return result
 
     def plan_all(self):

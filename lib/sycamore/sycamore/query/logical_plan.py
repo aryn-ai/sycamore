@@ -67,7 +67,7 @@ class Node(BaseModel):
     node_id: int
     """A unique integer ID representing this node."""
 
-    description: Optional[str] = None
+    description: Optional[str] = Field(None, json_schema_extra={"exclude_from_comparison": True})
     """A detailed description of why this operator was chosen for this query plan."""
 
     inputs: List[int] = []

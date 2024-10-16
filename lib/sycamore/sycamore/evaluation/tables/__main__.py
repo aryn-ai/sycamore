@@ -3,7 +3,7 @@ from argparse import ArgumentParser
 from ray.data import ActorPoolStrategy
 import sycamore
 from sycamore.context import ExecMode
-from sycamore.evaluation.tables.extractors import ExtractTableFromImage, FlorenceTableStructureExtractor, PaddleTableStructureExtractor, TextractTableStructureExtractor
+from sycamore.evaluation.tables.extractors import ExtractTableFromImage, FlorenceTableStructureExtractor, PaddleTableStructureExtractor, TextractTableStructureExtractor, PaddleV2TableStructureExtractor
 from sycamore.evaluation.tables.table_metrics import TEDSMetric, apply_metric
 from sycamore.transforms.table_structure.extract import TableTransformerStructureExtractor
 
@@ -14,6 +14,7 @@ SCANS = {"pubtabnet": PubTabNetScan, "fintabnet": FinTabNetS3Scan, "coheretabnet
 EXTRACTORS = {
     "tabletransformer": (TableTransformerStructureExtractor, ActorPoolStrategy(size=1), {"device": "cuda:0"}),
     "paddleocr": (PaddleTableStructureExtractor, None, {}),
+    "paddlev2": (PaddleV2TableStructureExtractor, None, {}),
     "textract": (TextractTableStructureExtractor, None, {}),
     "florence": (FlorenceTableStructureExtractor, None, {}),
 }

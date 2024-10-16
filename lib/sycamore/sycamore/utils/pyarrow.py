@@ -22,7 +22,34 @@ def infer_fs(path: str) -> Tuple[FileSystem, str]:
     from pyarrow import fs
 
     (fs, root) = fs.FileSystem.from_uri(str(path))
+
+    fs = maybe_use_anonymous_s3_fs(fs, root)
+
     return (fs, root)
+
+
+def maybe_use_anonymous_s3_fs(fs: FileSystem, root: str) -> FileSystem:
+    from pyarrow.fs import S3FileSystem
+
+    if not isinstance(fs, S3FileSystem):
+        return fs
+
+    try:
+        fs.get_file_info(root)
+        return fs
+    except OSError as e:
+        logger.warning(f"Got error {e} trying to get file info on {root}, trying again in anonymous mode")
+
+    new_fs = S3FileSystem(anonymous=True)
+    try:
+        new_fs.get_file_info(root)
+        return new_fs
+    except OSError as e:
+        logger.warning(
+            f"Got error {e} trying to get file info on {root} in anonymous mode. Using previous, non-working fs"
+        )
+
+    return fs
 
 
 def cross_check_infer_fs(filesystem: Optional[FileSystem], path: str) -> Tuple[FileSystem, str]:

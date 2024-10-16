@@ -31,6 +31,7 @@ def test_bedrock(mock_boto3_client):
         "messages": [{"role": "user", "content": "Roll 4d20 and tell me the final sum."}],
         "max_tokens": DEFAULT_MAX_TOKENS,
         "anthropic_version": DEFAULT_ANTHROPIC_VERSION,
+        "temperature": 0,
     }
 
 
@@ -59,6 +60,7 @@ def test_bedrock_with_llm_kwargs(mock_boto3_client):
         "messages": [{"role": "user", "content": "Roll 4d20 and tell me the final sum."}],
         "max_tokens": 100,
         "anthropic_version": "v1",
+        "temperature": 0,
     }
 
 
@@ -95,6 +97,7 @@ def test_bedrock_with_cache(mock_boto3_client):
             "messages": [{"role": "user", "content": "Roll 4d20 and tell me the final sum."}],
             "max_tokens": DEFAULT_MAX_TOKENS,
             "anthropic_version": DEFAULT_ANTHROPIC_VERSION,
+            "temperature": 0,
         }
 
         result = client.generate(

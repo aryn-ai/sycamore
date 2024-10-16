@@ -30,6 +30,7 @@ class QueryEvalQuery(BaseModel):
 
     query: str
     expected: Optional[Union[str, List[Dict[str, Any]]]] = None
+    expected_plan: Optional[LogicalPlan] = None
     plan: Optional[LogicalPlan] = None
 
 

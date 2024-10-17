@@ -667,7 +667,7 @@ class HeaderAugmenterMerger(ElementMerger):
             else:
                 new_elements.append(element)
         document.elements = [self.postprocess_element(e) for e in new_elements]
-        # document.elements = [e for e in new_elements if e.type not in ["Section-header", "Title"]]
+        document.elements = [e for e in new_elements if e.type not in ["Section-header", "Title"]]
         return document
 
     def should_merge(self, element1: Element, element2: Element) -> bool:

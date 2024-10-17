@@ -271,6 +271,7 @@ class QueryEvalDriver:
             if len(plan_diff) == 0:
                 console.print("[green]✔ Plan match")
                 metrics.plan_similarity = 1.0
+                metrics.plan_diff_count = 0
             else:
                 console.print("[red]:x: Plan mismatch")
                 for i, diff in enumerate(plan_diff):
@@ -281,9 +282,10 @@ class QueryEvalDriver:
                     console.print(f"Expected node: {diff.node_a!r}")
                     console.print(f"Actual node: [red]{diff.node_b!r}")
                     console.print()
-                metrics.plan_similarity = (len(_query.expected_plan.nodes) - len(plan_diff)) / len(
-                    _query.expected_plan.nodes
+                metrics.plan_similarity = max(
+                    0.0, (len(_query.expected_plan.nodes) - len(plan_diff)) / len(_query.expected_plan.nodes)
                 )
+                metrics.plan_diff_count = len(plan_diff)
 
         # Evaluate result
         if not result.result:
@@ -331,6 +333,9 @@ class QueryEvalDriver:
             self.results_map
         )
         console.print(f"Avg. plan correctness: {average_plan_correctness}")
+        console.print(
+            f"Avg. plan diff count: {sum(result.metrics.plan_diff_count for result in self.results_map.values()) / len(self.results_map)}"
+        )
 
         # TODO: Query execution metrics
         console.print("Query result correctness: not implemented")

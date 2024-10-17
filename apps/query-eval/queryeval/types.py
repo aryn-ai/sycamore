@@ -49,6 +49,7 @@ class QueryEvalMetrics(BaseModel):
 
     plan_generation_time: Optional[float] = None
     plan_similarity: Optional[float] = None
+    plan_diff_count: Optional[int] = None
     query_time: Optional[float] = None
     correctness_score: Optional[float] = None
     similarity_score: Optional[float] = None

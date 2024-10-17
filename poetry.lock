@@ -8624,7 +8624,7 @@ typing = ["mypy (>=1.4)", "rich", "twisted"]
 
 [[package]]
 name = "sycamore-ai"
-version = "0.1.23"
+version = "0.1.24"
 description = "Sycamore is an LLM-powered semantic data preparation system for building search applications."
 optional = false
 python-versions = ">=3.9,<3.13"
@@ -10297,4 +10297,4 @@ docs = ["furo", "myst-parser", "sphinx"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.9.7 || >3.9.7,<3.13"
-content-hash = "bbc21b184cb479cca63ff694791ae10b2d15a9b811b85aa9680aa55aa67120e2"
+content-hash = "edc8d38f857824674749488dfde97a6d7ab57f2005c5fbf983900c26d970a49c"

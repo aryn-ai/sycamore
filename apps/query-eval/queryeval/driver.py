@@ -320,7 +320,7 @@ class QueryEvalDriver:
                 result.error = f"Error running query: {tb}"
         self.write_results_file()
         console.print(":tada: Done!")
-    
+
     def print_metrics_summary(self):
         """Summarize metrics."""
         # Plan metrics
@@ -333,7 +333,7 @@ class QueryEvalDriver:
         console.print(f"Avg. plan correctness: {average_plan_correctness}")
 
         # TODO: Query execution metrics
-        console.print(f"Query result correctness: not implemented")
+        console.print("Query result correctness: not implemented")
 
     def eval_all(self):
         """Run the eval stage."""

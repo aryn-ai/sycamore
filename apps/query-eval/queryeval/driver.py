@@ -334,8 +334,8 @@ class QueryEvalDriver:
         )
         console.print(f"Avg. plan correctness: {average_plan_correctness}")
         console.print(
-            f"Avg. plan diff count: {sum(result.metrics.plan_diff_count for result in self.results_map.values()) 
-                                     / len(self.results_map)}"
+            "Avg. plan diff count: "
+            f"{sum(result.metrics.plan_diff_count for result in self.results_map.values()) / len(self.results_map)}"
         )
 
         # TODO: Query execution metrics

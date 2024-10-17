@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import pickle
-from typing import Optional, Tuple
-
+from PIL import Image
+from typing import Any, Optional, Tuple
 from sycamore.utils.cache import Cache
 
 
@@ -21,6 +21,10 @@ class LLM(ABC):
     def is_chat_mode(self) -> bool:
         """Returns True if the LLM is in chat mode, False otherwise."""
         pass
+
+    def format_image(self, image: Image.Image) -> dict[str, Any]:
+        """Returns a dictionary containing the specified image suitable for use in an LLM message."""
+        raise NotImplementedError("This LLM does not support images.")
 
     async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
         """Generates a response from the LLM for the given prompt and LLM parameters asynchronously."""

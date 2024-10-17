@@ -6,6 +6,7 @@ class DummyLLMClient:
     def generate(prompt_kwargs, llm_kwargs):
         return "Dummy response from an LLM Client"
 
+
 def vector_search_filter_plan_single_operator():
     json_plan = {
         "query": "List all incidents involving Piper Aircrafts in California",
@@ -110,7 +111,7 @@ def test_postprocess_plan():
 
         if index in [0, 1]:
             assert len(modified_plan.nodes) == 4
-        else: 
+        else:
             assert len(modified_plan.nodes) == 2
 
         assert modified_plan.nodes[0].node_type == "QueryDatabase"

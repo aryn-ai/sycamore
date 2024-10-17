@@ -267,7 +267,10 @@ class LogicalPlan(BaseModel):
         as the input to it.
         """
         assert node_id > 0, f"Node ID must be greater than 0, got {node_id}"
-        assert len(self.nodes) == node_id or len(self.nodes[node_id].inputs) == 1, f"Current node at {node_id} must have exactly one input, or there should be only one operator"
+        assert (
+            len(self.nodes) == node_id or len(self.nodes[node_id].inputs) == 1
+        ), f"""Current node at {node_id} 
+                                                must have exactly one input, or there should be only one operator"""
 
         if len(self.nodes) == node_id:
             new_node._input_nodes = [self.nodes[self.result_node]]

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from enum import Enum
 import boto3
 import json
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional, Union
 
 
 from sycamore.llms.llms import LLM
@@ -60,6 +60,23 @@ class Bedrock(LLM):
         """Returns True if the LLM is in chat mode, False otherwise."""
         return True
 
+    def _rewrite_system_messages(self, messages: Optional[List[Dict]]) -> Optional[List[Dict]]:
+        # Anthropic models don't accept messages with "role" set to "system", and
+        # requires alternation between "user" and "assistant" roles. So, we rewrite
+        # the messages to fold all "system" messages into the "user" role.
+        if not messages:
+            return messages
+        orig_messages = messages.copy()
+        cur_system_message = ""
+        for i, message in enumerate(orig_messages):
+            if message.get("role") == "system":
+                cur_system_message += message.get("content", "")
+            else:
+                if cur_system_message:
+                    messages[i]["content"] = cur_system_message + "\n" + message.get("content", "")
+                    cur_system_message = ""
+        return [m for m in messages if m.get("role") != "system"]
+
     def _get_generate_kwargs(self, prompt_kwargs: Dict, llm_kwargs: Optional[Dict] = None) -> Dict:
         kwargs = {
             "temperature": 0,
@@ -74,6 +91,8 @@ class Bedrock(LLM):
             kwargs.update({"messages": [{"role": "user", "content": f"{prompt}"}]})
         elif "messages" in prompt_kwargs:
             kwargs.update({"messages": prompt_kwargs["messages"]})
+            if self._model_name.startswith("anthropic."):
+                kwargs["messages"] = self._rewrite_system_messages(kwargs["messages"])
         else:
             raise ValueError("Either prompt or messages must be present in prompt_kwargs.")
         return kwargs

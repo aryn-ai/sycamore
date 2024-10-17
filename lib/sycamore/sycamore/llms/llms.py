@@ -26,6 +26,9 @@ class LLM(ABC):
         """Generates a response from the LLM for the given prompt and LLM parameters asynchronously."""
         raise NotImplementedError("This LLM does not support asynchronous generation.")
 
+    def __str__(self):
+        return f"{self.__class__.__name__}({self._model_name})"
+
     def _get_cache_key(self, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
         """Return a cache key for the given prompt and LLM parameters."""
         assert self._cache

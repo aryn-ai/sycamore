@@ -2,8 +2,8 @@ from sycamore.data.document import DocumentPropertyTypes, DocumentSource
 from sycamore.connectors.common import compare_docs
 
 
-def compare_connector_docs(gt_docs, returned_docs):
-    assert len(returned_docs) == len(gt_docs)
+def compare_connector_docs(gt_docs, returned_docs, parent_offset=0):
+    assert len(gt_docs) == (len(returned_docs) + parent_offset)
     for doc in gt_docs:
         doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
     assert all(

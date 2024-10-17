@@ -57,9 +57,8 @@ def test_pinecone_read():
         index_name=index_name, api_key=api_key, query=query_params, namespace=namespace
     ).take_all()
     pc.Index(index_name).delete(namespace=namespace, delete_all=True)
-    assert len(docs) == (len(out_docs) + 1)  # parent doc is removed while writing
     assert len(query_docs) == 1  # exactly one doc should be returned
-    compare_connector_docs(docs, out_docs)
+    compare_connector_docs(docs, out_docs, parent_offset=1)
 
 
 def wait_for_write_completion(client: PineconeGRPC, index_name: str, namespace: str, doc_id: str):

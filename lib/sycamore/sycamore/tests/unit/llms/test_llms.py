@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from sycamore.llms import OpenAI, OpenAIModels, Bedrock, BedrockModels, get_llm, MODELS
 from sycamore.llms.prompts import EntityExtractorFewShotGuidancePrompt, EntityExtractorZeroShotGuidancePrompt
 
@@ -22,6 +24,7 @@ def test_model_list():
     assert "bedrock." + BedrockModels.CLAUDE_3_5_SONNET.value.name in MODELS
 
 
-def test_get_llm():
+@patch("boto3.client")
+def test_get_llm(mock_boto3_client):
     assert isinstance(get_llm("openai." + OpenAIModels.TEXT_DAVINCI.value.name)(), OpenAI)
     assert isinstance(get_llm("bedrock." + BedrockModels.CLAUDE_3_5_SONNET.value.name)(), Bedrock)

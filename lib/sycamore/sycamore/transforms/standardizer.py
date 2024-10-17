@@ -283,3 +283,19 @@ class StandardizeProperty(Map):
         **kwargs,
     ):
         super().__init__(child, f=standardizer.standardize, args=path, kwargs=kwargs)
+
+class IgnoreErrors(standardizer)
+
+   """
+    A class for applying the behavior of a standardizer to log errors and continue when encountering null values.
+
+    This class allows for the execution of standardization logic not to fail when encountering null key:value pairs. It will
+    instead log a warning stating what key:value pairs in what documents were missing.
+    """
+    
+    def ignore_errors(doc, standardizer, key_path: list[str]):
+        try:
+            doc = standardizer.standardize(doc, key_path=key_path)
+        except:
+            print(f"Key {key_path} not found in document: {doc}")
+        return doc

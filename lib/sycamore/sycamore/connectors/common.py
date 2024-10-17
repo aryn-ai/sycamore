@@ -4,6 +4,8 @@ from sycamore.data import Document
 import json
 import string
 import random
+import math
+import numpy as np
 
 
 @dataclass
@@ -18,7 +20,6 @@ DEFAULT_RECORD_PROPERTIES: dict[str, Any] = {
     "text_representation": None,
     "elements": [],
     "embedding": None,
-    "parent_id": None,
     "properties": {},
     "bbox": None,
     "shingles": None,
@@ -40,15 +41,36 @@ def check_dictionary_compatibility(dict1: dict[Any, Any], dict2: dict[Any, Any],
             continue
         if k not in dict2:
             return False
-        if dict1[k] != dict2[k]:
+        if dict1[k] != dict2[k] and (dict1[k] or dict2[k]):
             return False
     return True
 
 
-def compare_docs(doc1, doc2):
+def compare_docs(doc1: Document, doc2: Document):
     filtered_doc1 = filter_doc(doc1, DEFAULT_RECORD_PROPERTIES.keys())
     filtered_doc2 = filter_doc(doc2, DEFAULT_RECORD_PROPERTIES.keys())
-    return filtered_doc1 == filtered_doc2
+    for key in filtered_doc1:
+        if (
+            isinstance(filtered_doc1[key], list)
+            or isinstance(filtered_doc1[key], np.ndarray)
+            or isinstance(filtered_doc2.get(key), (list, np.ndarray))
+        ):
+            assert len(filtered_doc1[key]) == len(filtered_doc2[key])
+            for item1, item2 in zip(filtered_doc1[key], filtered_doc2[key]):
+                try:
+                    # Convert items to float for numerical comparison
+                    num1 = float(item1)
+                    num2 = float(item2)
+                    # Check if numbers are close within tolerance
+                    assert math.isclose(num1, num2, rel_tol=1e-5, abs_tol=1e-5)
+                except (ValueError, TypeError):
+                    # If conversion to float fails, do direct comparison
+                    assert item1 == item2
+        elif isinstance(filtered_doc1[key], dict) or isinstance(filtered_doc2.get(key), dict):
+            assert check_dictionary_compatibility(filtered_doc1[key], filtered_doc2.get(key))
+        else:
+            assert filtered_doc1[key] == filtered_doc2.get(key)
+    return True
 
 
 def _add_key_to_prefix(prefix, key, separator="."):

@@ -1,6 +1,6 @@
 from dataclasses import dataclass, asdict
 import typing
-from typing import Optional, TypedDict, Union
+from typing import Optional, TypedDict, Union, Any
 from sycamore.utils import batched
 from typing_extensions import TypeGuard
 
@@ -119,10 +119,10 @@ class PineconeWriterRecord(BaseDBWriter.Record):
         else:
             id = f"{document.parent_id}#{document.doc_id}"
         values = document.embedding
-        metadata = {
+        metadata: dict[str, Any] = {
             "type": document.type,
             "text_representation": document.text_representation,
-            "bbox": document.bbox.to_dict() if document.bbox else None,
+            "bbox": document.bbox.to_list() if document.bbox else None,
             "shingles": [str(s) for s in document.shingles] if document.shingles else None,
         }
         sparse_vector = None

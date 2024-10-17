@@ -65,12 +65,19 @@ class PineconeReaderQueryResponse(BaseDBReader.QueryResponse):
         assert isinstance(self, PineconeReaderQueryResponse)
         result = []
         for data in self.output:
-            doc_id = data.id.split("#")[1] if len(data.id.split("#")) > 1 else data.id
+            if len(id := data.id.split("#")) > 1:
+                parent_id = id[0]
+                doc_id = id[1]
+            else:
+                parent_id = None
+                doc_id = data.id
             if data.sparse_vector:
                 term_frequency = dict(zip(data.sparse_vector.indices, data.sparse_vector.values))
                 data.metadata["properties.term_frequency"] = term_frequency
             metadata = data.metadata if data.metadata else {}
-            doc = Document({"doc_id": doc_id, "embedding": data.values} | unflatten_data(metadata))
+            doc = Document(
+                {"doc_id": doc_id, "embedding": data.values, "parent_id": parent_id} | unflatten_data(metadata)
+            )
             doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
             result.append(doc)
         return result

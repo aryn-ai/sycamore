@@ -20,6 +20,7 @@ DEFAULT_RECORD_PROPERTIES: dict[str, Any] = {
     "text_representation": None,
     "elements": [],
     "embedding": None,
+    "parent_id": None,
     "properties": {},
     "bbox": None,
     "shingles": None,

@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Union
 from PIL import Image
 
 from sycamore.llms.llms import LLM
+from sycamore.llms.prompts.default_prompts import SimplePrompt
 from sycamore.utils.cache import Cache
 from sycamore.utils.image_utils import base64_data
 
@@ -107,13 +108,20 @@ class Bedrock(LLM):
 
         if "prompt" in prompt_kwargs:
             prompt = prompt_kwargs.get("prompt")
-            kwargs.update({"messages": [{"role": "user", "content": f"{prompt}"}]})
+
+            if isinstance(prompt, SimplePrompt):
+                kwargs.update({"messages": prompt.as_messages(prompt_kwargs)})
+            else:
+                kwargs.update({"messages": [{"role": "user", "content": f"{prompt}"}]})
+
         elif "messages" in prompt_kwargs:
             kwargs.update({"messages": prompt_kwargs["messages"]})
-            if self._model_name.startswith("anthropic."):
-                kwargs["messages"] = self._rewrite_system_messages(kwargs["messages"])
         else:
             raise ValueError("Either prompt or messages must be present in prompt_kwargs.")
+
+        if self._model_name.startswith("anthropic."):
+            kwargs["messages"] = self._rewrite_system_messages(kwargs["messages"])
+
         return kwargs
 
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:

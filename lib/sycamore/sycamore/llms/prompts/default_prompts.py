@@ -1,6 +1,6 @@
 import logging
 from abc import ABC
-from typing import Optional, Type
+from typing import Any, Optional, Type
 
 logger = logging.getLogger(__name__)
 
@@ -10,18 +10,19 @@ class SimplePrompt(ABC):
     user: Optional[str] = None
     var_name: str = "answer"
 
-    """
-    Using this method assumes that the system and user prompts are populated with any placeholder values. Or the 
-    caller is responsible for processing the messages after.
-    """
-
-    def as_messages(self) -> list[dict]:
+    def as_messages(self, prompt_kwargs: Optional[dict[str, Any]] = None) -> list[dict]:
         messages = []
         if self.system is not None:
-            messages.append({"role": "system", "content": self.system})
+            system = self.system
+            if prompt_kwargs is not None:
+                system = self.system.format(**prompt_kwargs)
+            messages.append({"role": "system", "content": system})
 
         if self.user is not None:
-            messages.append({"role": "user", "content": self.user})
+            user = self.user
+            if prompt_kwargs is not None:
+                user = self.user.format(**prompt_kwargs)
+            messages.append({"role": "user", "content": user})
         return messages
 
     def __eq__(self, other):

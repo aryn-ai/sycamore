@@ -2,11 +2,13 @@ from dataclasses import dataclass
 from enum import Enum
 import boto3
 import json
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
+from PIL import Image
 
 from sycamore.llms.llms import LLM
 from sycamore.utils.cache import Cache
+from sycamore.utils.image_utils import base64_data
 
 DEFAULT_MAX_TOKENS = 1000
 DEFAULT_ANTHROPIC_VERSION = "bedrock-2023-05-31"
@@ -48,6 +50,8 @@ class Bedrock(LLM):
         model_name: Union[BedrockModels, str],
         cache: Optional[Cache] = None,
     ):
+        self.model_name = model_name
+
         if isinstance(model_name, BedrockModels):
             self.model = model_name.value
         elif isinstance(model_name, str):
@@ -56,9 +60,19 @@ class Bedrock(LLM):
         self._client = boto3.client(service_name="bedrock-runtime")
         super().__init__(self.model.name, cache)
 
+    def __reduce__(self):
+        def deserializer(kwargs):
+            return Bedrock(**kwargs)
+
+        kwargs = {"model_name": self.model_name, "cache": self._cache}
+        return deserializer, (kwargs,)
+
     def is_chat_mode(self) -> bool:
         """Returns True if the LLM is in chat mode, False otherwise."""
         return True
+
+    def format_image(self, image: Image.Image) -> dict[str, Any]:
+        return {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": base64_data(image)}}
 
     def _rewrite_system_messages(self, messages: Optional[List[Dict]]) -> Optional[List[Dict]]:
         # Anthropic models don't accept messages with "role" set to "system", and

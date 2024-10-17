@@ -72,7 +72,12 @@ class Bedrock(LLM):
         return True
 
     def format_image(self, image: Image.Image) -> dict[str, Any]:
-        return {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": base64_data(image)}}
+        if self.model.name.startswith("anthropic."):
+            return {
+                "type": "image",
+                "source": {"type": "base64", "media_type": "image/png", "data": base64_data(image)},
+            }
+        raise NotImplementedError("Images not supported for non-Anthropic Bedrock models.")
 
     def _rewrite_system_messages(self, messages: Optional[List[Dict]]) -> Optional[List[Dict]]:
         # Anthropic models don't accept messages with "role" set to "system", and

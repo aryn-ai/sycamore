@@ -188,14 +188,14 @@ class OpenAIEmbedder(Embedder):
             text_to_embed = [
                 self.pre_process_document(doc).replace("\n", " ")
                 for doc in batch
-                if doc.text_representation is not None
+                if doc.text_representation is not None and len(doc.text_representation.strip()) != 0
             ]
 
             embeddings = self._client.embeddings.create(model=self.model_name, input=text_to_embed).data
 
             i = 0
             for doc in batch:
-                if doc.text_representation is not None:
+                if doc.text_representation is not None and len(doc.text_representation.strip()) != 0:
                     doc.embedding = embeddings[i].embedding
                     i += 1
 

@@ -11,7 +11,7 @@
 #      data/ntsb-queries.yaml \
 #      run
 
-from typing import Optional
+from typing import Optional, Tuple
 
 import click
 from rich.console import Console
@@ -52,7 +52,7 @@ def cli(
     doc_limit: Optional[int],
     overwrite: bool,
     llm: Optional[str],
-    tags: Optional[str],
+    tags: Optional[Tuple[str]],
     raw_output: bool,
 ):
     ctx.ensure_object(dict)
@@ -68,7 +68,7 @@ def cli(
         doc_limit=doc_limit,
         llm=llm,
         overwrite=overwrite,
-        tags=list(tags),
+        tags=list(tags) if tags else None,
     )
     ctx.obj["driver"] = driver
 

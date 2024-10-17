@@ -6,6 +6,26 @@ class DummyLLMClient:
     def generate(prompt_kwargs, llm_kwargs):
         return "Dummy response from an LLM Client"
 
+def vector_search_filter_plan_single_operator():
+    json_plan = {
+        "query": "List all incidents involving Piper Aircrafts in California",
+        "nodes": {
+            "0": {
+                "node_type": "QueryVectorDatabase",
+                "node_id": 0,
+                "description": "Get all the airplane incidents in California",
+                "index": "ntsb",
+                "inputs": [],
+                "query_phrase": "Get all the airplane incidents",
+                "opensearch_filter": {"match": {"properties.entity.location": "California"}},
+            }
+        },
+        "result_node": 0,
+        "llm_prompt": None,
+        "llm_plan": None,
+    }
+    return LogicalPlan.model_validate(json_plan)
+
 
 def vector_search_filter_plan_with_opensearch_filter():
     json_plan = {
@@ -79,20 +99,24 @@ def test_postprocess_plan():
 
     plan1 = vector_search_filter_plan_with_opensearch_filter()
     plan2 = vector_search_filter_plan_without_opensearch_filter()
+    plan3 = vector_search_filter_plan_single_operator()
 
-    for index, plan in enumerate([plan1, plan2]):
+    for index, plan in enumerate([plan1, plan2, plan3]):
         print(plan.nodes)
         copy_plan = plan.model_copy()
         modified_plan = postprocess_plan(copy_plan, llm_client)
 
         print(modified_plan.nodes)
 
-        assert len(modified_plan.nodes) == 4
+        if index in [0, 1]:
+            assert len(modified_plan.nodes) == 4
+        else: 
+            assert len(modified_plan.nodes) == 2
 
         assert modified_plan.nodes[0].node_type == "QueryDatabase"
-        if index == 0:
+        if index in [0, 2]:
             assert "match" in modified_plan.nodes[0].query
-        else:
+        elif index == 1:
             assert "match_all" in modified_plan.nodes[0].query
 
         assert modified_plan.nodes[1].node_type == "LlmFilter"

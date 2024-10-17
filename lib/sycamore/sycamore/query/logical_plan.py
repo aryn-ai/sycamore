@@ -262,25 +262,31 @@ class LogicalPlan(BaseModel):
         Also, the input arrays of the affected nodes are updated.
 
         Precondition: node_id must be greater than 0, and the current node at node_id must have exactly one input.
+
+        If there is no current node at node_id (i.e., the new node is being "appended"), we use the current result node
+        as the input to it.
         """
         assert node_id > 0, f"Node ID must be greater than 0, got {node_id}"
-        assert len(self.nodes[node_id].inputs) == 1, f"Current node at {node_id} must have exactly one input"
+        assert len(self.nodes) == node_id or len(self.nodes[node_id].inputs) == 1, f"Current node at {node_id} must have exactly one input, or there should be only one operator"
 
-        # Add the input node for the new node
-        new_node._input_nodes = self.nodes[node_id]._input_nodes
+        if len(self.nodes) == node_id:
+            new_node._input_nodes = [self.nodes[self.result_node]]
+        else:
+            # Add the input node for the new node
+            new_node._input_nodes = self.nodes[node_id]._input_nodes
 
-        # Shift all nodes that are after the current node_id to the right
-        for nid in sorted(self.nodes.keys(), reverse=True):
-            if nid >= node_id:
-                self.nodes[nid].node_id += 1
-                self.nodes[nid].inputs = [x + 1 for x in self.nodes[nid].inputs]
-                self.nodes[nid + 1] = self.nodes[nid]
+            # Shift all nodes that are after the current node_id to the right
+            for nid in sorted(self.nodes.keys(), reverse=True):
+                if nid >= node_id:
+                    self.nodes[nid].node_id += 1
+                    self.nodes[nid].inputs = [x + 1 for x in self.nodes[nid].inputs]
+                    self.nodes[nid + 1] = self.nodes[nid]
+
+            # Modify the _input_nodes for self.nodes[node_id+1]
+            self.nodes[node_id + 1]._input_nodes = [new_node]
 
         # Insert the new node at the specified node_id
         self.nodes[node_id] = new_node
-
-        # Modify the _input_nodes for self.nodes[node_id+1]
-        self.nodes[node_id + 1]._input_nodes = [new_node]
 
         # Modify the terminal node in the plan
         self.result_node += 1

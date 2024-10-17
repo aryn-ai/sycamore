@@ -104,7 +104,7 @@ def postprocess_plan(plan: Any, llm_client: LLM) -> Any:
     # we replace that by removing the vector search and adding an LLM Filter before the count
 
     if plan.nodes[0].node_type == "QueryVectorDatabase" and (
-        len(plan.nodes) == 1 or plan.nodes[1].node_type in ["Count", "LlmExtractEntity"]
+        len(plan.nodes) == 1 or plan.nodes[1].node_type in ["Count", "LlmExtractEntity", "SummarizeData"]
     ):
         # If the first operator has an "opensearch_filter", we will convert it to a QueryDatabase with
         #        that opensearch_filter as "query"

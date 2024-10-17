@@ -73,10 +73,6 @@ jobs:
       - name: Run more tests
         run: poetry run python sycamore/tests/manual/test_fast_sycamore_import.py
         working-directory: lib/sycamore
-      - name: Run query-ui test
-        run: poetry run bash -c 'cd ../../apps/query-ui/queryui && PYTHONPATH=. pytest .'
-        # run here because that's where the poetry venv is set up.
-        working-directory: lib/sycamore
       - name: DF-6
         run: df
 

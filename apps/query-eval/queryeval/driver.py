@@ -260,6 +260,7 @@ class QueryEvalDriver:
             console.print("[yellow]:point_right: Dry run: skipping eval")
             return result
 
+        metrics = result.metrics or QueryEvalMetrics()
         # Evalute query plans
         if not _query.expected_plan:
             console.print("[yellow]:construction: No expected query plan found, skipping.. ")
@@ -268,9 +269,10 @@ class QueryEvalDriver:
         else:
             plan_diff = _query.expected_plan.compare(result.plan)
             if len(plan_diff) == 0:
-                console.print("[green]✔ Plan mismatch")
+                console.print("[green]✔ Plan match")
+                metrics.plan_similarity = 1.0
             else:
-                console.print("[red]:x: Plan match")
+                console.print("[red]:x: Plan mismatch")
                 for i, diff in enumerate(plan_diff):
                     console.print(f"[{i}]. Diff type: {diff.diff_type.value}")
 
@@ -279,10 +281,15 @@ class QueryEvalDriver:
                     console.print(f"Expected node: {diff.node_a!r}")
                     console.print(f"Actual node: [red]{diff.node_b!r}")
                     console.print()
+                metrics.plan_similarity = (len(_query.expected_plan.nodes) - len(plan_diff)) / len(
+                    _query.expected_plan.nodes
+                )
 
         # Evaluate result
         if not result.result:
             console.print("[yellow] No query execution result available, skipping..", style="italic")
+
+        result.metrics = metrics
 
         return result
 
@@ -313,6 +320,20 @@ class QueryEvalDriver:
                 result.error = f"Error running query: {tb}"
         self.write_results_file()
         console.print(":tada: Done!")
+    
+    def print_metrics_summary(self):
+        """Summarize metrics."""
+        # Plan metrics
+        console.rule("Evaluation summary")
+        plan_correct = sum(1 for result in self.results_map.values() if result.metrics.plan_similarity == 1.0)
+        console.print(f"Plans correct: {plan_correct}/{len(self.results_map)}")
+        average_plan_correctness = sum(result.metrics.plan_similarity for result in self.results_map.values()) / len(
+            self.results_map
+        )
+        console.print(f"Avg. plan correctness: {average_plan_correctness}")
+
+        # TODO: Query execution metrics
+        console.print(f"Query result correctness: not implemented")
 
     def eval_all(self):
         """Run the eval stage."""
@@ -326,6 +347,8 @@ class QueryEvalDriver:
                 console.print(f"[red]Error running eval: {tb}")
                 result.error = f"Error running eval: {tb}"
         self.write_results_file()
+        self.print_metrics_summary()
+
         console.print(":tada: Done!")
 
     def run(self):

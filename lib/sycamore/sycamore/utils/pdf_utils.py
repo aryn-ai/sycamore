@@ -93,6 +93,20 @@ def filter_elements_by_page(elements: list[Element], page_numbers: list[int]) ->
 
 
 def select_pages(page_selection: list[Union[int, list[int]]]) -> Callable[[Document], Document]:
+    """
+    Returns a function that selects pages from a PDF document based on a list of page selections.
+    Each selection can be a single page number or a range of page numbers. Page numbers are 1-indexed.
+
+    Examples:
+       [1,2,3] pages 1, 2, and 3
+       [[1,3], 5] pages 1, 2, 3, and 5
+       [[1,3], [5,7] pages 1, 2, 3, and 5, 6, 7
+       [2, 1, [4, 6]] pages 2, 1, 4, 5, 6, in that order
+
+    Args:
+       page_selection: A list of page numbers or page ranges to select. Page numbers are 1-indexed.
+
+    """
 
     def select_pages_fn(doc: Document) -> Document:
         if doc.binary_representation is None:

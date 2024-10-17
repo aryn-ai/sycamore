@@ -109,7 +109,9 @@ class QueryEvalDriver:
 
         # Set up Sycamore Query Client.
         self.client = SycamoreQueryClient(
-            llm_cache_dir=self.config.config.llm_cache_path, cache_dir=self.config.config.query_cache_path, llm=self.config.config.llm
+            llm_cache_dir=self.config.config.llm_cache_path,
+            cache_dir=self.config.config.query_cache_path,
+            llm=self.config.config.llm,
         )
 
         # Use schema from the results file, input file, or OpenSearch, in that order.

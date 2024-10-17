@@ -116,6 +116,7 @@ class Materialize(UnaryNode):
             fs.get_file_info(str(self._root))
             self._fs = fs
             self._fshelper = _PyArrowFsHelper(self._fs)
+            logger.info(f"Successfully read path {self._root} with anonymous S3")
             return
         except OSError as e:
             logging.warning(

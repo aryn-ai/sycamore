@@ -43,6 +43,7 @@ def maybe_use_anonymous_s3_fs(fs: FileSystem, root: str) -> FileSystem:
     new_fs = S3FileSystem(anonymous=True)
     try:
         new_fs.get_file_info(root)
+        logger.info(f"Successfully read path {root} with anonymous S3")
         return new_fs
     except OSError as e:
         logger.warning(

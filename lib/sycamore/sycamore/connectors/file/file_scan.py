@@ -150,7 +150,6 @@ class FileScan(Scan):
                 for info in filesystem.get_file_info(FileSelector(path, recursive=True)):
                     documents.extend(self.process_file(info))
         return documents
->>>>>>> main
 
 
 class BinaryScan(FileScan):

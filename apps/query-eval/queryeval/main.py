@@ -35,6 +35,7 @@ console = Console()
 @click.option("--doc-limit", help="Limit number of docs in result set", type=int)
 @click.option("--overwrite", help="Overwrite existing results file", is_flag=True)
 @click.option("--llm", help="LLM model name", type=click.Choice(list(MODELS.keys())))
+@click.option("--tags", help="Filter queries by the given tags", multiple=True)
 @click.option(
     "--raw-output", help="Output should be a raw DocSet, rather than natural language", is_flag=True, default=False
 )
@@ -51,6 +52,7 @@ def cli(
     doc_limit: Optional[int],
     overwrite: bool,
     llm: Optional[str],
+    tags: Optional[str],
     raw_output: bool,
 ):
     ctx.ensure_object(dict)
@@ -66,6 +68,7 @@ def cli(
         doc_limit=doc_limit,
         llm=llm,
         overwrite=overwrite,
+        tags=list(tags),
     )
     ctx.obj["driver"] = driver
 

@@ -42,6 +42,7 @@ class QueryEvalDriver:
         doc_limit: Limit the number of documents in each result set to this number.
         llm: LLM model name to use.
         overwrite: If True, overwrite the results file if it already exists.
+        tags: List of tags to filter queries by. If empty, all queries will be run.
     """
 
     def __init__(
@@ -57,6 +58,7 @@ class QueryEvalDriver:
         doc_limit: Optional[int] = None,
         llm: Optional[str] = None,
         overwrite: bool = False,
+        tags: Optional[List[str]] = None,
     ):
         console.print(":moon: Sycamore Query Eval Driver starting")
         console.print(f"Reading input file: [green]{input_file_path}")
@@ -80,6 +82,9 @@ class QueryEvalDriver:
         self.config.config.doc_limit = self.config.config.doc_limit or doc_limit
         self.config.config.llm = self.config.config.llm or llm
         self.config.config.overwrite = self.config.config.overwrite or overwrite
+        self.config.config.tags = self.config.config.tags or tags
+        if self.config.config.tags:
+            console.print(f":label:  Filtering queries by tags: {self.config.config.tags}")
 
         # Configure logging.
         if self.config.config.log_file:
@@ -123,6 +128,7 @@ class QueryEvalDriver:
             self.data_schema = self.client.get_opensearch_schema(self.config.config.index)
 
         # Use examples from the results file, or input file. Priority is given to the input file.
+        self.examples = None
         if results.examples:
             self.examples = results.examples
         if self.config.examples:
@@ -146,11 +152,11 @@ class QueryEvalDriver:
             return QueryEvalResultsFile(config=QueryEvalConfig(), results=[])
 
     def write_results_file(self):
+        """Write the results to the results file."""
         if self.config.config.dry_run:
             console.print("[yellow]:point_right: Dry run: skipping writing results file")
             return
 
-        """Write the results to the results file."""
         assert self.config.config and self.config.config.results_file
 
         results_file_obj = QueryEvalResultsFile(
@@ -184,6 +190,14 @@ class QueryEvalDriver:
 
     def do_plan(self, query: QueryEvalQuery, result: QueryEvalResult) -> QueryEvalResult:
         """Generate or return an existing query plan."""
+        if self.config.config:
+            if self.config.config.dry_run:
+                console.print("[yellow]:point_right: Dry run: skipping plan generation")
+                return result
+            elif self.config.config.tags and not (set(self.config.config.tags or []) & set(query.tags or [])):
+                console.print("[yellow]:point_right: Skipping query due to tag mismatch")
+                return result
+
         if result.plan:
             # Use existing result plan.
             console.print("[blue]:point_right: Using existing query plan from results file")
@@ -191,8 +205,6 @@ class QueryEvalDriver:
             # Use plan from input file.
             result.plan = query.plan
             console.print("[blue]:point_right: Using existing query plan from input file")
-        elif self.config.config and self.config.config.dry_run:
-            console.print("[yellow]:point_right: Dry run: skipping plan generation")
         else:
             # Generate a plan.
             assert self.config.config
@@ -215,16 +227,20 @@ class QueryEvalDriver:
             plan.llm_prompt = None
             result.plan = plan
             result.error = None
-            console.print(f"[green]:clock: Generated query plan in {result.metrics.plan_generation_time:.2f} seconds")
+            console.print(f"[green]:clock1: Generated query plan in {result.metrics.plan_generation_time:.2f} seconds")
             console.print(result.plan)
 
         return result
 
-    def do_query(self, _query: QueryEvalQuery, result: QueryEvalResult) -> QueryEvalResult:
+    def do_query(self, query: QueryEvalQuery, result: QueryEvalResult) -> QueryEvalResult:
         """Run query plan."""
-        if self.config.config and self.config.config.dry_run:
-            console.print("[yellow]:point_right: Dry run: skipping query execution")
-            return result
+        if self.config.config:
+            if self.config.config.dry_run:
+                console.print("[yellow]:point_right: Dry run: skipping query execution")
+                return result
+            elif not (set(self.config.config.tags or []) & set(query.tags or [])):
+                console.print("[yellow]:point_right: Skipping query due to tag mismatch")
+                return result
 
         if not result.plan:
             console.print("[red]:heavy_exclamation_mark: No plan available - skipping query execution")
@@ -250,23 +266,27 @@ class QueryEvalDriver:
         assert result.metrics
         result.metrics.query_time = t2 - t1
 
-        console.print(f"[green]:clock: Executed query in {result.metrics.query_time:.2f} seconds")
+        console.print(f"[green]:clock9: Executed query in {result.metrics.query_time:.2f} seconds")
         console.print(f":white_check_mark: Result: {result.result}")
         return result
 
-    def do_eval(self, _query: QueryEvalQuery, result: QueryEvalResult) -> QueryEvalResult:
+    def do_eval(self, query: QueryEvalQuery, result: QueryEvalResult) -> QueryEvalResult:
         """Run query evaluation."""
-        if self.config.config and self.config.config.dry_run:
-            console.print("[yellow]:point_right: Dry run: skipping eval")
-            return result
+        if self.config.config:
+            if self.config.config.dry_run:
+                console.print("[yellow]:point_right: Dry run: skipping eval")
+                return result
+            elif not (set(self.config.config.tags or []) & set(query.tags or [])):
+                console.print("[yellow]:point_right: Skipping query due to tag mismatch")
+                return result
 
         # Evalute query plans
-        if not _query.expected_plan:
+        if not query.expected_plan:
             console.print("[yellow]:construction: No expected query plan found, skipping.. ")
         elif not result.plan:
             console.print("[yellow]:construction: No computed query plan found, skipping.. ")
         else:
-            plan_diff = _query.expected_plan.compare(result.plan)
+            plan_diff = query.expected_plan.compare(result.plan)
             if len(plan_diff) == 0:
                 console.print("[green]✔ Plan mismatch")
             else:

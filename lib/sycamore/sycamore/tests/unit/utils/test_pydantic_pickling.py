@@ -4,7 +4,7 @@ from sycamore.utils.pickle_pydantic import safe_cloudpickle, safe_cloudunpickle
 from pydantic import BaseModel, Field
 
 
-def test_pydantic_picklng():
+def test_pydantic_picklng() -> None:
     class BoardMember(BaseModel):
         name: str
         votes_for: Optional[int]

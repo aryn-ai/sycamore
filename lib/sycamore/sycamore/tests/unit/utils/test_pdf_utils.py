@@ -105,6 +105,17 @@ def test_select_pdf_pages_invalid_pages():
             select_pdf_pages(infile, bytes_out, [1, 3, 100])
 
 
+def test_select_pdf_pages_existing_reader():
+    path = TEST_DIR / "resources/data/pdfs/Ray.pdf"
+
+    bytes_out = BytesIO()
+    with PdfReader(path) as reader:
+        select_pdf_pages(reader, bytes_out, [1, 2, 4])
+    bytes_out.seek(0)
+    out_reader = PdfReader(bytes_out)
+    assert len(out_reader.pages) == 3
+
+
 def test_filter_elements_by_page():
     elements = [
         Element(properties={"page_number": 1}),

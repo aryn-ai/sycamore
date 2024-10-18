@@ -1,6 +1,7 @@
 from io import BytesIO
+from contextlib import nullcontext
 import logging
-from typing import BinaryIO, Callable, Union
+from typing import Any, BinaryIO, Callable, cast, Union
 from PIL import Image
 
 from pypdf import PdfReader, PdfWriter
@@ -42,7 +43,6 @@ def flatten_selected_pages(
     page_list = []
     present_pages = set()
     remapped_pages = {}
-    new_page = 1
     for selection in selected_pages:
         if isinstance(selection, int):
             selection = [selection, selection]
@@ -61,19 +61,22 @@ def flatten_selected_pages(
                 present_pages.add(page_num)
                 page_list.append(page_num)
 
-                if page_num != new_page:
-                    remapped_pages[new_page] = page_num
-
-                new_page = new_page + 1
+                if page_num != len(page_list):
+                    remapped_pages[len(page_list)] = page_num
 
         else:
             raise ValueError("Page selection must either be an integer or a 2-element list [integer, integer]")
     return (page_list, remapped_pages)
 
 
-def select_pdf_pages(input: BinaryIO, out: BinaryIO, page_list: list[int]) -> None:
-    input.seek(0)
-    with PdfReader(input) as pdf_reader, PdfWriter() as pdf_writer:
+def select_pdf_pages(input: Union[BinaryIO, PdfReader], out: BinaryIO, page_list: list[int]) -> None:
+    if isinstance(input, PdfReader):
+        read_cm: Any = nullcontext(input)  # Caller is responsible for cleaning up.
+    else:
+        input.seek(0)
+        read_cm = PdfReader(input)
+
+    with read_cm as pdf_reader, PdfWriter() as pdf_writer:
         for page_num in page_list:
             pdf_writer.add_page(pdf_reader.pages[page_num - 1])
         pdf_writer.write_stream(out)  # see pypdf issue #2905
@@ -85,9 +88,9 @@ def filter_elements_by_page(elements: list[Element], page_numbers: list[int]) ->
     new_elements = []
     for element in elements:
         page_number = element.properties.get("page_number")
-        if page_number is not None and page_number in page_map:
+        if (new_number := page_map.get(cast(int, page_number))) is not None:
             # renumber pages so the elements reference the pages in the new document.
-            element.properties["page_number"] = page_map[page_number]
+            element.properties["page_number"] = new_number
             new_elements.append(element)
     return new_elements
 
@@ -113,15 +116,14 @@ def select_pages(page_selection: list[Union[int, list[int]]]) -> Callable[[Docum
             logging.warning("No binary_representation found in doc {doc.doc_id}. Skipping page selection.")
             return doc
 
+        outstream = BytesIO()
+
         with PdfReader(BytesIO(doc.binary_representation)) as reader:
             page_count = len(reader.pages)
+            page_list, remapped_pages = flatten_selected_pages(page_selection, page_count)
+            select_pdf_pages(reader, outstream, page_list=page_list)
 
-        page_list, remapped_pages = flatten_selected_pages(page_selection, page_count)
-
-        outstream = BytesIO()
-        select_pdf_pages(BytesIO(doc.binary_representation), outstream, page_list=page_list)
         doc.binary_representation = outstream.getvalue()
-
         doc.properties["remapped_pages"] = remapped_pages
         new_elements = filter_elements_by_page(doc.elements, page_list)
         doc.elements = new_elements

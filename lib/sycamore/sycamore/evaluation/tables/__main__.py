@@ -1,5 +1,5 @@
 from argparse import ArgumentParser
-
+from tqdm import tqdm
 from ray.data import ActorPoolStrategy
 import sycamore
 from sycamore.context import ExecMode
@@ -8,6 +8,7 @@ from sycamore.evaluation.tables.table_metrics import TEDSMetric, apply_metric
 from sycamore.transforms.table_structure.extract import TableTransformerStructureExtractor
 
 from .benchmark_scans import CohereTabNetS3Scan, FinTabNetS3Scan, PubTabNetScan, TableEvalDoc
+from time import time
 
 SCANS = {"pubtabnet": PubTabNetScan, "fintabnet": FinTabNetS3Scan, "coheretabnet": CohereTabNetS3Scan}
 
@@ -51,15 +52,19 @@ local_ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
 docs = []
 docgenerator = iter(SCANS[args.dataset]().local_process(limit=args.limit))
 if args.debug:
-    for _ in range(10):
+    if args.limit == -1:
+        args.limit = 10
+    for _ in tqdm(range(args.limit), desc="Loading documents"):
         try:
             docs.append(next(docgenerator))
         except StopIteration:
             break
 else:
-    for doc in docgenerator:
+    for doc in tqdm(docgenerator, desc="Loading documents"):
         docs.append(doc)
+print(f"Loaded {len(docs)} documents")
 
+start = time()
 extractor, actorpool, kwargs = EXTRACTORS[args.extractor]
 extracted = local_ctx.read.document(docs).map_batch(ExtractTableFromImage(extractor(**kwargs)))
 measured = extracted
@@ -79,3 +84,4 @@ if args.debug:
 aggs = local_aggregate(measured.take_all(), *[m.to_aggregate_fn(in_ray=False) for m in metrics])
 print("=" * 80)
 print(aggs)
+print(f"Time spent for extraction and metrics calculation: {time() - start} seconds.")

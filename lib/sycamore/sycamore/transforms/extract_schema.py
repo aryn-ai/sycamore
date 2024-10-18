@@ -111,6 +111,14 @@ class LLMSchemaExtractor(SchemaExtractor):
 
 
 class OpenAISchemaExtractor(LLMSchemaExtractor):
+    """Alias for LLMSchemaExtractor for OpenAI models.
+
+    Retained for backward compatibility.
+
+    .. deprecated:: 0.1.25
+    Use LLMSchemaExtractor instead.
+    """
+
     pass
 
 
@@ -224,6 +232,14 @@ class ExtractSchema(Map):
 
 
 class OpenAIPropertyExtractor(LLMPropertyExtractor):
+    """Alias for LLMPropertyExtractor for OpenAI models.
+
+    Retained for backward compatibility.
+
+    .. deprecated:: 0.1.25
+    Use LLMPropertyExtractor instead.
+    """
+
     pass
 
 

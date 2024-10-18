@@ -273,9 +273,9 @@ class TestGreedySectionMerger:
                 {
                     "type": "table",
                     "text_representation": "<table><tr><th /></tr></table>",
-                    "table": Table.from_html("<table><tr><th /></tr></table>")
-                }
-            ]
+                    "table": Table.from_html("<table><tr><th /></tr></table>"),
+                },
+            ],
         }
     )
 

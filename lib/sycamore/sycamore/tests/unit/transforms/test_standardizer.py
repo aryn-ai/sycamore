@@ -251,10 +251,10 @@ class TestIgnoreErrors(unittest.TestCase):
         key_path = ["event", "dateTime"]
         expected_output = {"event": {"dateTime": ""}}
         self.assertEqual(ignore_errors(doc, standardizer, key_path), expected_output)
-
- def test_ignore_errors_key_missing(self):
+        
+    def test_ignore_errors_key_missing(self):
         # Test with a document that has no key:value.
-
+    
         standardizer = DateTimeStandardizer()
         doc = {"event": {"coolKey": ""}}
         key_path = ["nonExistentKey"]

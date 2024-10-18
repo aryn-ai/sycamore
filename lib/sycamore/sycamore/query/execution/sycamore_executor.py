@@ -247,6 +247,9 @@ class SycamoreExecutor:
 # {description}
 {code}
 """
+
+        result += "print(result)"
+
         return result
 
     def _write_query_plan_to_trace_dir(self, plan: LogicalPlan, query_id: str):

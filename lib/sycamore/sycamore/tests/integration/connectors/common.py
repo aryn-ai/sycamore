@@ -15,15 +15,6 @@ def compare_connector_docs(gt_docs: list[Document], returned_docs: list[Document
     returned_ids = set(returned_dict.keys())
     missing_from_returned = gt_ids - returned_ids
     extra_in_returned = returned_ids - gt_ids
-    with open("missing_from_returned.txt", "w") as f:
-        f.write("\n".join(missing_from_returned))
-        f.write("CHECKER")
-        f.write(str(len(missing_from_returned)))
-        f.write("YO")
-        f.write("\n".join(extra_in_returned))
-        f.write("YO2")
-        f.write(str(len(gt_ids.intersection(returned_ids))))
-        f.write("YO3")
     assert len(extra_in_returned) == 0
     # Compare all matched documents
     assert all(compare_docs(gt_dict[doc_id], returned_dict[doc_id]) for doc_id in gt_ids.intersection(returned_ids))

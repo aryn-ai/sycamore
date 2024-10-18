@@ -3,7 +3,7 @@ import base64
 from collections import defaultdict
 import hashlib
 import io
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Type
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.data import HierarchicalDocument
@@ -43,7 +43,7 @@ class EntityExtractor(GraphEntityExtractor):
     def __init__(
         self,
         llm: LLM,
-        entities: list[BaseModel],
+        entities: List[Type[BaseModel]],
         prompt: str = GraphEntityExtractorPrompt.user,
         split_calls: bool = False,
     ):

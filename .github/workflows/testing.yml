@@ -102,7 +102,7 @@ jobs:
         run: make install_rps
         working-directory: lib/remote-processors
       - name: Run Tests
-        run: poetry run pytest -n auto remote_processors/test/unit/
+        run: poetry run pytest remote_processors/test/unit/
         working-directory: lib/remote-processors
 
   integ-tests:

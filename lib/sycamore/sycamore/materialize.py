@@ -70,11 +70,11 @@ class Materialize(UnaryNode):
             self._clean_root = True
         elif isinstance(path, dict):
             assert "root" in path, "Need to specify root in materialize(path={})"
-            self._root = Path(path["root"])
             if "fs" in path:
                 self._fs = path["fs"]
+                self._root = Path(path["root"])
             else:
-                (self._fs, self._root) = self.infer_fs(str(self._root))
+                (self._fs, self._root) = self.infer_fs(str(path["root"]))
             self._fshelper = _PyArrowFsHelper(self._fs)
             self._doc_to_name = path.get("name", self.doc_to_name)
             self._doc_to_binary = path.get("tobin", Document.serialize)

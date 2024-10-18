@@ -121,7 +121,7 @@ class QdrantWriterRecord(BaseDBWriter.Record):
             "type": document.type,
             "parent_id": document.parent_id,
             "text_representation": document.text_representation,
-            "bbox": document.bbox.to_list() if document.bbox else None,
+            "bbox": document.bbox.to_dict() if document.bbox else None,
             "shingles": document.shingles or None,
             "properties": document.properties,
         }

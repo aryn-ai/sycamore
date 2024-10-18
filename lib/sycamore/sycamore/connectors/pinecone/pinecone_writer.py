@@ -122,7 +122,7 @@ class PineconeWriterRecord(BaseDBWriter.Record):
         metadata: dict[str, Any] = {
             "type": document.type,
             "text_representation": document.text_representation,
-            "bbox": document.bbox.to_list() if document.bbox else None,
+            "bbox": document.bbox.to_dict() if document.bbox else None,
             "shingles": [str(s) for s in document.shingles] if document.shingles else None,
         }
         sparse_vector = None

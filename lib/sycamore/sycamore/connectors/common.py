@@ -51,11 +51,7 @@ def compare_docs(doc1: Document, doc2: Document):
     filtered_doc1 = filter_doc(doc1, DEFAULT_RECORD_PROPERTIES.keys())
     filtered_doc2 = filter_doc(doc2, DEFAULT_RECORD_PROPERTIES.keys())
     for key in filtered_doc1:
-        if (
-            isinstance(filtered_doc1[key], list)
-            or isinstance(filtered_doc1[key], np.ndarray)
-            or isinstance(filtered_doc2.get(key), (list, np.ndarray))
-        ):
+        if isinstance(filtered_doc1[key], (list, np.ndarray)) or isinstance(filtered_doc2.get(key), (list, np.ndarray)):
             assert len(filtered_doc1[key]) == len(filtered_doc2[key])
             for item1, item2 in zip(filtered_doc1[key], filtered_doc2[key]):
                 try:
@@ -135,7 +131,7 @@ def unflatten_data(data: dict[Any, Any], separator: str = ".") -> dict[Any, Any]
                     # Trailing backslash, treat it as literal backslash
                     current += "\\"
                     i += 1
-            elif i + len(separator) < len(key) and key[i : i + len(separator)] == separator:
+            elif key[i : i + len(separator)] == separator:
                 # Found separator
                 parts.append(current)
                 current = ""

@@ -89,6 +89,7 @@ class QdrantReaderQueryResponse(BaseDBReader.QueryResponse):
                 | (unflatten_data(point.payload, "__") if point.payload else {})
             )
             doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
+            doc.bbox = doc.bbox.values() if doc.bbox else []
             result.append(doc)
         return result
 

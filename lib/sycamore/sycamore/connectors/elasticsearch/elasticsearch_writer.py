@@ -25,7 +25,7 @@ class ElasticsearchWriterTargetParams(BaseDBWriter.TargetParams):
     mappings: dict[str, Any] = field(
         default_factory=lambda: {
             "properties": {
-                "embeddings": {
+                "embedding": {
                     "type": "dense_vector",
                     "dims": 384,
                     "index": True,
@@ -89,7 +89,7 @@ class ElasticsearchWriterClient(BaseDBWriter.Client):
                         "_index": target_params.index_name,
                         "_id": r.doc_id,
                         "properties": r.properties,
-                        "embeddings": r.embedding,
+                        "embedding": r.embedding,
                         "parent_id": r.parent_id,
                     }
 

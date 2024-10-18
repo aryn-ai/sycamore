@@ -75,7 +75,9 @@ class QdrantReaderQueryResponse(BaseDBReader.QueryResponse):
             if isinstance(point.vector, dict):
                 # https://api.qdrant.tech/api-reference/search/query-points#request.body.using
                 vector_name = query_params.query_params.get("using")
-                if vector_name:
+                if not point.vector:
+                    vector = None
+                elif vector_name:
                     vector = point.vector.get(vector_name)
                 else:
                     # Get the first vector if no vector name is provided

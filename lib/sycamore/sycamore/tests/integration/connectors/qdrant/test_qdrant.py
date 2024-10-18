@@ -43,7 +43,7 @@ def test_qdrant():
         {
             "url": qdrant_url,
         },
-        {"collection_name": collection_name, "limit": 100},
+        {"collection_name": collection_name, "limit": 100, "with_vectors": True},
     ).take_all()
 
     compare_connector_docs(docs, out_docs)
@@ -89,7 +89,7 @@ def test_qdrant_named_vector():
         },
         # Not specifying the vector name
         # Should be handled by getting the first available vector
-        {"collection_name": collection_name, "limit": 100},
+        {"collection_name": collection_name, "limit": 100, "with_vectors": True},
     ).take_all()
 
     compare_connector_docs(docs, out_docs)
@@ -99,7 +99,7 @@ def test_qdrant_named_vector():
             "url": qdrant_url,
         },
         # Specify the vector name
-        {"collection_name": collection_name, "limit": 100, "using": vector_name},
+        {"collection_name": collection_name, "limit": 100, "using": vector_name, "with_vectors": True},
     ).take_all()
 
     compare_connector_docs(docs, out_docs)

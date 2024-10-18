@@ -82,7 +82,12 @@ class ElasticsearchReaderQueryResponse(BaseDBReader.QueryResponse):
         for data in self.output:
             doc_id = data["_id"]
             doc = Document(
-                {"doc_id": doc_id, "embedding": data["_source"].get("embeddings"), **data["_source"].get("properties")}
+                {
+                    "doc_id": doc_id,
+                    "parent_id": data["_source"].get("parent_id"),
+                    "embedding": data["_source"].get("embeddings"),
+                    **data["_source"].get("properties"),
+                }
             )
             doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
             result.append(doc)

@@ -1,4 +1,4 @@
-from typing import Union, Type
+from typing import Union
 from remote_processors.processors import RequestProcessor, ResponseProcessor
 
 
@@ -7,7 +7,7 @@ class ProcessorRegistry:
     easy lookup and use during pipeline configuration
     """
 
-    def __init__(self) -> None:
+    def __init__(self):
         """Collects the processors by looking at the subclasses of RequestProcessor and ResponseProcessor.
         Note that this only loads processor classes imported (or in files imported) by lib/processors/__init__.py
 
@@ -19,11 +19,11 @@ class ProcessorRegistry:
         if len(names) < len(all_subclasses):
             raise DuplicatedProcessorNameError(all_subclasses)
 
-        self._request_processors: dict[str, Type[RequestProcessor]] = {
-            c.get_class_name(): c for c in RequestProcessor.__subclasses__()  # type: ignore
+        self._request_processors: dict[str, type[RequestProcessor]] = {
+            c.get_class_name(): c for c in RequestProcessor.__subclasses__()
         }
-        self._response_processors: dict[str, Type[ResponseProcessor]] = {
-            c.get_class_name(): c for c in RequestProcessor.__subclasses__()  # type: ignore
+        self._response_processors: dict[str, type[ResponseProcessor]] = {
+            c.get_class_name(): c for c in ResponseProcessor.__subclasses__()
         }
 
     def get_processor(self, name: str) -> Union[type[RequestProcessor], type[ResponseProcessor], None]:

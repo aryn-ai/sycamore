@@ -616,7 +616,7 @@ class HeaderAugmenterMerger(ElementMerger):
     The ``HeaderAugmenterMerger`` groups together different elements in a Document and enhances the text
     representation of the elements by adding the preceeding section-header/title.
 
-    - It merges elements ("Text", "List-item", "Caption", "Footnote", "Formula", "Page-footer", "Page-header").
+    - It merges certain elements like ("Text", "List-item", "Caption", "Footnote", "Formula", "Page-footer", "Page-header").
     - It merges consectuive ("Section-header", "Title") elements.
     - It adds the preceeding section-header/title to the text representation of the elements (including tables/images).
     """
@@ -666,8 +666,9 @@ class HeaderAugmenterMerger(ElementMerger):
                 new_elements[-1] = self.merge(new_elements[-1], element)
             else:
                 new_elements.append(element)
-        document.elements = [self.postprocess_element(e) for e in new_elements]
-        document.elements = [e for e in new_elements if e.type not in ["Section-header", "Title"]]
+        document.elements = [
+            self.postprocess_element(e) for e in new_elements if e.type not in ["Section-header", "Title"]
+        ]
         return document
 
     def should_merge(self, element1: Element, element2: Element) -> bool:
@@ -680,7 +681,7 @@ class HeaderAugmenterMerger(ElementMerger):
         ):
             return False
 
-        # DO NOT MERGE across pages
+        # Conditionally prevent merging across pages
         if (
             not self.merge_across_pages
             and element1.properties[DocumentPropertyTypes.PAGE_NUMBER]
@@ -710,7 +711,7 @@ class HeaderAugmenterMerger(ElementMerger):
         if (element1 is not None) and (element1.type in small) and (element2 is not None) and (element2.type in small):
             return True
 
-        # Add header to next element
+        # Add header to next element (images, tables)
         if element2.type not in ["Section-header", "Title"]:
             element2.data["_header"] = element1.data["_header"]
             if element2.text_representation:
@@ -722,7 +723,7 @@ class HeaderAugmenterMerger(ElementMerger):
 
     def merge(self, elt1: Element, elt2: Element) -> Element:
         """Merge two elements; the new element's fields will be set as:
-            - type: "Section-header" , "MergedText"
+            - type: "Section-header", "MergedText"
             - binary_representation: elt1.binary_representation + elt2.binary_representation
             - text_representation: elt1.text_representation + elt2.text_representation
             - bbox: the minimal bbox that contains both elt1's and elt2's bboxes
@@ -731,11 +732,11 @@ class HeaderAugmenterMerger(ElementMerger):
             note: if any input field is None we take the other element's field without merge logic
 
         Args:
-            element1 (Tuple[Element, int]): the first element (and number of tokens in it)
-            element2 (Tuple[Element, int]): the second element (and number of tokens in it)
+            element1 (Element): the first element (numbers of tokens in it is stored by `preprocess_element` as element1["token_count"])
+            element2 (Element): the second element (numbers of tokens in it is stored by `preprocess_element` as element2["token_count"])
 
         Returns:
-            Tuple[Element, int]: a new merged element from the inputs (and number of tokens in it)
+            Element: a new merged element from the inputs (and number of tokens in it)
         """
 
         tok1 = elt1.data["token_count"]
@@ -754,11 +755,12 @@ class HeaderAugmenterMerger(ElementMerger):
             new_elt.binary_representation = elt1.binary_representation + elt2.binary_representation
 
         # Merge text representations by concatenation with a newline
-
         new_elt_text_representation = "\n".join(filter(None, [elt1.text_representation, elt2.text_representation]))
         new_elt.text_representation = new_elt_text_representation if new_elt_text_representation else None
-        # new_elt.text_representation = elt1.text_representation + "\n" + elt2.text_representation
-        new_elt.data["token_count"] = tok1 + 1 + tok2
+        if elt1.text_representation is None or elt2.text_representation is None:
+            new_elt.data["token_count"] = tok1 + tok2
+        else:
+            new_elt.data["token_count"] = tok1 + 1 + tok2
 
         # Merge bbox by taking the coords that make the largest box
         if elt1.bbox is None and elt2.bbox is None:

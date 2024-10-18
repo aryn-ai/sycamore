@@ -294,9 +294,12 @@ class GreedySectionMerger(ElementMerger):
             elif new_elt.type == "Section-header+table":
                 # text rep = header text + table html
                 if hasattr(elt2, "table") and elt2.table:
-                    if elt1.text_representation:
+                    if elt1.text_representation is not None:
                         new_elt.text_representation = elt1.text_representation + "\n" + elt2.table.to_html()
                         new_elt.data["token_count"] = tok1 + 1 + tok2
+                    else:
+                        new_elt.text_representation = elt2.table.to_html()
+                        new_elt.data["token_count"] = tok2
                 else:
                     new_elt.text_representation = elt1.text_representation
                     new_elt.data["token_count"] = tok1

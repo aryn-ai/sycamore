@@ -76,7 +76,9 @@ class PineconeReaderQueryResponse(BaseDBReader.QueryResponse):
                 data.metadata["properties.term_frequency"] = term_frequency
             metadata = data.metadata if data.metadata else {}
             doc_dict = {"doc_id": doc_id, "embedding": data.values, "parent_id": parent_id} | unflatten_data(metadata)
-            doc_dict["bbox"] = bbox.values() if (bbox := doc_dict.get("bbox")) else []
+            doc_dict["bbox"] = (
+                [bbox["x1"], bbox["y1"], bbox["x2"], bbox["y2"]] if (bbox := doc_dict.get("bbox")) else []
+            )
             doc = Document(doc_dict)
             doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
             result.append(doc)

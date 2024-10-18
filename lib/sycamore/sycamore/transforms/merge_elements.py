@@ -653,7 +653,7 @@ class HeaderAugmenterMerger(ElementMerger):
         firstHeader = False
         for element in document.elements:
             if element.type in ["Section-header", "Title"]:
-                fristHeader = True
+                firstHeader = True
                 element.data["_header"] = element.text_representation
             else:
                 if not firstHeader:

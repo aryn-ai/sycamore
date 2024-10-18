@@ -84,12 +84,12 @@ class QdrantReaderQueryResponse(BaseDBReader.QueryResponse):
                     vector = list(point.vector.values())[0]
             else:
                 vector = point.vector
-            doc = Document(
-                {"doc_id": point.id, "embedding": vector}
-                | (unflatten_data(point.payload, "__") if point.payload else {})
+            doc_dict = (
+                {"doc_id": point.id, "embedding": vector} | unflatten_data(point.payload, "__") if point.payload else {}
             )
+            doc_dict["bbox"] = bbox.values() if (bbox := doc_dict.get("bbox")) else []
+            doc = Document(doc_dict)
             doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
-            doc.bbox = doc.bbox.values() if doc.bbox else []
             result.append(doc)
         return result
 

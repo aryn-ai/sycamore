@@ -63,7 +63,7 @@ def compare_docs(doc1: Document, doc2: Document):
                 except (ValueError, TypeError):
                     # If conversion to float fails, do direct comparison
                     assert item1 == item2
-        elif isinstance(filtered_doc1[key], dict) or isinstance(filtered_doc2.get(key), dict):
+        elif isinstance(filtered_doc1[key], dict) and isinstance(filtered_doc2.get(key), dict):
             assert check_dictionary_compatibility(filtered_doc1[key], filtered_doc2.get(key))
         else:
             assert filtered_doc1[key] == filtered_doc2.get(key)

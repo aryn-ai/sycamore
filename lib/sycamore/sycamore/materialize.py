@@ -97,7 +97,7 @@ class Materialize(UnaryNode):
 
         self._maybe_anonymous()
 
-    def _maybe_anonymous(self):
+    def _maybe_anonymous(self) -> None:
         if self._root is None:
             return
         from pyarrow.fs import S3FileSystem

@@ -5,7 +5,7 @@ from sycamore.connectors.qdrant.qdrant_reader import (
     QdrantReaderQueryParams,
     QdrantReaderQueryResponse,
 )
-from sycamore.data.document import Document
+from sycamore.data.document import Document, DocumentSource
 
 
 class QdrantReturnObject(object):
@@ -84,7 +84,7 @@ class TestQdrantQueryResponse:
         doc = Document(
             {
                 "doc_id": "0e14ade4-7f2a-490e-844b-f063c92bdfbb",
-                "properties": {"field": "value", "nested": {"object": "value"}},
+                "properties": {"field": "value", "nested": {"object": "value"}, "_doc_source": DocumentSource.DB_QUERY},
                 "type": "text",
                 "text_representation": "my first document",
                 "embedding": [0.1, 0.2, 0.3],

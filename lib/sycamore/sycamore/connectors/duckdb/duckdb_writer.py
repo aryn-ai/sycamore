@@ -25,6 +25,7 @@ class DuckDBWriterTargetParams(BaseDBWriter.TargetParams):
     schema: Dict[str, str] = field(
         default_factory=lambda: {
             "doc_id": "VARCHAR",
+            "parent_id": "VARCHAR",
             "embedding": "FLOAT",
             "properties": "MAP(VARCHAR, VARCHAR)",
             "text_representation": "VARCHAR",
@@ -73,10 +74,11 @@ class DuckDBClient(BaseDBWriter.Client):
         ), f"Wrong kind of target parameters found: {target_params}"
         dict_params = asdict(target_params)
         N = target_params.batch_size * 1024  # Around 1 MB
-        headers = ["doc_id", "embedding", "properties", "text_representation", "bbox", "shingles", "type"]
+        headers = ["doc_id", "parent_id", "embedding", "properties", "text_representation", "bbox", "shingles", "type"]
         schema = pa.schema(
             [
                 ("doc_id", pa.string()),
+                ("parent_id", pa.string()),
                 ("embedding", pa.list_(pa.float32())),
                 ("properties", pa.map_(pa.string(), pa.string())),
                 ("text_representation", pa.string()),
@@ -100,6 +102,7 @@ class DuckDBClient(BaseDBWriter.Client):
         for r in records:
             # Append the new data to the batch
             batch_data["doc_id"].append(r.doc_id)
+            batch_data["parent_id"].append(r.parent_id)
             batch_data["embedding"].append(r.embedding)
             batch_data["properties"].append(convert_to_str_dict(r.properties) if r.properties else {})
             batch_data["text_representation"].append(r.text_representation)
@@ -126,6 +129,7 @@ class DuckDBClient(BaseDBWriter.Client):
                 embedding_size = schema.get("embedding") + "[" + str(dict_params.get("dimensions")) + "]"
                 client.sql(
                     f"""CREATE TABLE {dict_params.get('table_name')} (doc_id {schema.get('doc_id')},
+                     parent_id {schema.get('parent_id')},
                       embedding {embedding_size}, properties {schema.get('properties')},
                       text_representation {schema.get('text_representation')}, bbox {schema.get('bbox')},
                       shingles {schema.get('shingles')}, type {schema.get('type')})"""
@@ -168,6 +172,7 @@ class DuckDBClient(BaseDBWriter.Client):
 @dataclass
 class DuckDBDocumentRecord(BaseDBWriter.Record):
     doc_id: str
+    parent_id: Optional[str] = None
     embedding: Optional[list[float]] = None
     properties: Optional[dict[str, Any]] = None
     text_representation: Optional[str] = None
@@ -183,6 +188,7 @@ class DuckDBDocumentRecord(BaseDBWriter.Record):
             raise ValueError(f"Cannot write documents without a doc_id. Found {document}")
         return DuckDBDocumentRecord(
             doc_id=doc_id,
+            parent_id=document.parent_id,
             properties=document.properties,
             type=document.type,
             text_representation=document.text_representation,

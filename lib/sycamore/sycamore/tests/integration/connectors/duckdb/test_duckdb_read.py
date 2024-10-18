@@ -7,7 +7,7 @@ from sycamore.transforms.merge_elements import MarkedMerger
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.tests.config import TEST_DIR
-from sycamore.connectors.common import compare_docs
+from sycamore.tests.integration.connectors.common import compare_connector_docs
 
 
 def test_duckdb_read():
@@ -41,11 +41,5 @@ def test_duckdb_read():
         os.unlink(db_url)
     except Exception as e:
         print(f"Error deleting {db_url}: {e}")
-    assert len(out_docs) == len(docs)
     assert len(query_docs) == 1  # exactly one doc should be returned
-    assert all(
-        compare_docs(original, plumbed)
-        for original, plumbed in zip(
-            sorted(docs, key=lambda d: d.doc_id or ""), sorted(out_docs, key=lambda d: d.doc_id or "")
-        )
-    )
+    compare_connector_docs(docs, out_docs)

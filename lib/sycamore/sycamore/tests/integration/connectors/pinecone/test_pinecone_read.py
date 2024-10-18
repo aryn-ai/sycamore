@@ -1,4 +1,4 @@
-from sycamore.connectors.common import compare_docs
+from sycamore.tests.integration.connectors.common import compare_connector_docs
 from pinecone import ServerlessSpec
 from sycamore.connectors.common import generate_random_string
 
@@ -57,14 +57,8 @@ def test_pinecone_read():
         index_name=index_name, api_key=api_key, query=query_params, namespace=namespace
     ).take_all()
     pc.Index(index_name).delete(namespace=namespace, delete_all=True)
-    assert len(docs) == (len(out_docs) + 1)  # parent doc is removed while writing
     assert len(query_docs) == 1  # exactly one doc should be returned
-    assert all(
-        compare_docs(original, plumbed)
-        for original, plumbed in zip(
-            sorted(docs, key=lambda d: d.doc_id or ""), sorted(out_docs, key=lambda d: d.doc_id or "")
-        )
-    )
+    compare_connector_docs(docs, out_docs, parent_offset=1)
 
 
 def wait_for_write_completion(client: PineconeGRPC, index_name: str, namespace: str, doc_id: str):

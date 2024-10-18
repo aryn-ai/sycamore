@@ -23,7 +23,7 @@ class ProcessorRegistry:
             c.get_class_name(): c for c in RequestProcessor.__subclasses__()  # type: ignore
         }
         self._response_processors: dict[str, Type[ResponseProcessor]] = {
-             c.get_class_name(): c for c in RequestProcessor.__subclasses__()  # type: ignore
+            c.get_class_name(): c for c in RequestProcessor.__subclasses__()  # type: ignore
         }
 
     def get_processor(self, name: str) -> Union[type[RequestProcessor], type[ResponseProcessor], None]:

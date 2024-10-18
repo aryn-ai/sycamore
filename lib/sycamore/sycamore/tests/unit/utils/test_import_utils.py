@@ -1,4 +1,4 @@
-from typing import assert_type
+from typing_extensions import assert_type
 from sycamore.utils.import_utils import requires_modules
 
 

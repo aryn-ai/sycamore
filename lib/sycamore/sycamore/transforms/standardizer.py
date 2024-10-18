@@ -298,7 +298,7 @@ def ignore_errors(doc, standardizer, key_path: list[str]):
     Example:
         .. code-block:: python
 
-            docset.map(lambda doc: IgnoreErrors.ignore_errors(doc, DateTimeStandardizer, ["properties", "entity", "dateAndTime"])
+            docset.map(lambda doc: ignore_errors(doc, DateTimeStandardizer, ["properties", "entity", "dateAndTime"])
     """
     
     try:

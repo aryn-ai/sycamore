@@ -287,7 +287,7 @@ class StandardizeProperty(Map):
     ):
         super().__init__(child, f=standardizer.standardize, args=path, kwargs=kwargs)
 
-def ignore_errors(doc, standardizer, key_path: list[str]):
+def ignore_errors(doc: Document, standardizer: Standardizer, key_path: list[str]) -> Document:
    
     """
     A class for applying the behavior of a standardizer to log errors and continue when encountering null values.

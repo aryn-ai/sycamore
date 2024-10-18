@@ -172,6 +172,7 @@ class QueryNodeTrace:
         self.trace_dir = trace_dir
         self.node_id = node_id
         self.df = None
+        self.num_files = 0
         self.readdata()
 
     def readfile(self, f):
@@ -230,6 +231,7 @@ class QueryNodeTrace:
         for filename in os.listdir(directory):
             f = os.path.join(directory, filename)
             if os.path.isfile(f):
+                self.num_files += 1
                 newdoc = self.readfile(f)
                 if newdoc:
                     docs.append(newdoc)
@@ -250,10 +252,13 @@ class QueryNodeTrace:
 
     def show(self, node):
         """Render the trace data."""
-        st.subheader(f"Node {self.node_id}")
+        st.subheader(f"Node {self.node_id} - {node.node_type if node else 'n/a'}")
         st.markdown(f"*Description: {node.description if node else 'n/a'}*")
         if self.df is None or not len(self.df):
-            st.write(":green[Cache hit - node execution skipped!]")
+            if self.num_files > 0:
+                st.write(":green[Cache hit - node execution skipped!]")
+            else:
+                st.write(f":green[Node type {node.node_type} does not produce document traces]")
             return
 
         all_columns = list(self.df.columns)

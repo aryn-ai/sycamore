@@ -1,9 +1,9 @@
 from sycamore.data import Document
 from sycamore.transforms.standardizer import (
-    USStateStandardizer, 
-    StandardizeProperty, 
-    DateTimeStandardizer, 
-    ignore_errors
+    USStateStandardizer,
+    StandardizeProperty,
+    DateTimeStandardizer,
+    ignore_errors,
 )
 import unittest
 from datetime import date, datetime
@@ -246,6 +246,7 @@ class TestDateTimeStandardizer(unittest.TestCase):
         }
         self.assertEqual(self.standardizer.standardize(doc, key_path), expected_output)
 
+
 class TestIgnoreErrors(unittest.TestCase):
 
     def test_ignore_errors_value_missing(self):
@@ -256,14 +257,12 @@ class TestIgnoreErrors(unittest.TestCase):
         key_path = ["event", "dateTime"]
         expected_output = {"event": {"dateTime": ""}}
         self.assertEqual(ignore_errors(doc, standardizer, key_path), expected_output)
-        
+
     def test_ignore_errors_key_missing(self):
         # Test with a document that has no key:value.
-    
+
         standardizer = DateTimeStandardizer()
         doc = {"event": {"coolKey": ""}}
         key_path = ["nonExistentKey"]
         expected_output = {"event": {"coolKey": ""}}
         self.assertEqual(ignore_errors(doc, standardizer, key_path), expected_output)
-
-

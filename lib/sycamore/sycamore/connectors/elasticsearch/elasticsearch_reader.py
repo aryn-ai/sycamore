@@ -85,7 +85,7 @@ class ElasticsearchReaderQueryResponse(BaseDBReader.QueryResponse):
                 {
                     "doc_id": doc_id,
                     "parent_id": data["_source"].get("parent_id"),
-                    "embedding": data["_source"].get("embeddings"),
+                    "embedding": data["_source"].get("embedding"),
                     **data["_source"].get("properties"),
                 }
             )

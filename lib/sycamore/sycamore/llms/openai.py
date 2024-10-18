@@ -4,6 +4,7 @@ import logging
 import os
 from dataclasses import dataclass
 from enum import Enum
+from PIL import Image
 from typing import Any, Dict, Optional, TypedDict, Union, cast, TYPE_CHECKING
 
 from openai import AzureOpenAI as AzureOpenAIClient
@@ -21,6 +22,7 @@ from sycamore.llms.guidance import execute_with_guidance
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts import SimplePrompt
 from sycamore.utils.cache import Cache
+from sycamore.utils.image_utils import base64_data_url
 
 if TYPE_CHECKING:
     from guidance.models import Model
@@ -362,6 +364,9 @@ class OpenAI(LLM):
 
     def is_chat_mode(self):
         return self.model.is_chat
+
+    def format_image(self, image: Image.Image) -> dict[str, Any]:
+        return {"type": "image_url", "image_url": {"url": base64_data_url(image)}}
 
     def _convert_response_format(self, llm_kwargs: Optional[Dict]) -> Optional[Dict]:
         """Convert the response_format parameter to the appropriate OpenAI format."""

@@ -1,4 +1,4 @@
-import pytest
+import pickle
 
 from sycamore.connectors.weaviate.weaviate_writer import (
     CollectionConfigCreate,
@@ -10,29 +10,12 @@ from sycamore.connectors.weaviate.weaviate_writer import (
     WeaviateWriterTargetParams,
 )
 from sycamore.data.document import Document
+from sycamore.tests.config import TEST_DIR
 import weaviate
 from weaviate.classes.config import Property, ReferenceProperty
 from weaviate.client import ConnectionParams
 from weaviate.collections.classes.config import Configure, DataType
 from weaviate.exceptions import WeaviateInvalidInputError
-
-
-@pytest.fixture(scope="module")
-def embedded_client():
-#    port = 8078
-#    grpc_port = 50059
-
-    client = weaviate.connect_to_embedded(
-        version="1.26.1",
-#        headers={"X-OpenAI-Api-Key": openai_api_key},
-    )
-
-#    client = weaviate.WeaviateClient(
-#        embedded_options=weaviate.embedded.EmbeddedOptions(version="1.24.0", port=port, grpc_port=grpc_port)
-#    )
-    yield client
-    with client:
-        client.collections.delete_all()
 
 
 def collection_params_a(collection_name: str):
@@ -82,14 +65,12 @@ class TestWeaviateTargetParams:
         assert not wtp_a.compatible_with(wtp_b)
         assert not wtp_b.compatible_with(wtp_a)
 
-    @pytest.mark.skip("This test is not working as expected")
-    def test_target_params_compat_through_weaviate_object(self, embedded_client):
+    def test_target_params_compat_through_weaviate_object(self):
         cn = "TestNumber3"
         cp = collection_params_a(cn)
         wtp_a = WeaviateWriterTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
-        wcl = WeaviateWriterClient(embedded_client)
-        wcl.create_target_idempotent(wtp_a)
-        wtp_b = wcl.get_existing_target_params(wtp_a)
+        with open(TEST_DIR / "resources/objects/weaviate/collection_params_b.pickle", "rb") as f:
+            wtp_b = pickle.load(f)
         assert wtp_a.compatible_with(wtp_b)
 
 
@@ -128,14 +109,9 @@ class TestWeaviateClient:
         client.create_target_idempotent(wtp_a)
         wcl.collections.create.assert_called_once()
 
-    @pytest.mark.skip("This test is not working as expected")
-    def test_create_target_from_target(self, mocker, embedded_client):
-        cn = "TestNumber5"
-        cp = collection_params_a(cn)
-        wtp_a = WeaviateWriterTargetParams(name=cn, collection_config=CollectionConfigCreate(**cp))
-        real_client = WeaviateWriterClient(embedded_client)
-        real_client.create_target_idempotent(wtp_a)
-        wtp_b = real_client.get_existing_target_params(wtp_a)
+    def test_create_target_from_target(self, mocker):
+        with open(TEST_DIR / "resources/objects/weaviate/collection_params_b.pickle", "rb") as f:
+            wtp_b = pickle.load(f)
 
         fake_inner_client = TestWeaviateClient.mock_client(mocker)
         fake_inner_client.collections.create_from_config = mocker.Mock()

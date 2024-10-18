@@ -1,5 +1,3 @@
-import pytest
-
 from sycamore.connectors.weaviate.weaviate_reader import (
     WeaviateReaderQueryParams,
     WeaviateReaderClient,
@@ -15,18 +13,6 @@ from weaviate.collections.query import _QueryCollection
 
 class WeaviateReturnObject(object):
     pass
-
-
-@pytest.fixture(scope="module")
-def embedded_client():
-    port = 8078
-    grpc_port = 50059
-    client = weaviate.WeaviateClient(
-        embedded_options=weaviate.embedded.EmbeddedOptions(version="1.24.0", port=port, grpc_port=grpc_port)
-    )
-    yield client
-    with client:
-        client.collections.delete_all()
 
 
 class TestWeaviateClient:

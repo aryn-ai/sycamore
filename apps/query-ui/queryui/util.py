@@ -172,8 +172,6 @@ class QueryNodeTrace:
         self.trace_dir = trace_dir
         self.node_id = node_id
         self.df = None
-        self.total_files = 0
-        self.total_docs = 0
         self.readdata()
 
     def readfile(self, f):
@@ -232,12 +230,10 @@ class QueryNodeTrace:
         for filename in os.listdir(directory):
             f = os.path.join(directory, filename)
             if os.path.isfile(f):
-                self.total_files += 1
                 newdoc = self.readfile(f)
                 if newdoc:
                     docs.append(newdoc)
 
-        self.total_docs = len(docs)
         # Only keep parent docs if there are child docs in the list.
         parent_docs = [x for x in docs if x.get("parent_id") is None]
         if len(parent_docs) > 0:
@@ -257,14 +253,13 @@ class QueryNodeTrace:
         st.subheader(f"Node {self.node_id}")
         st.markdown(f"*Description: {node.description if node else 'n/a'}*")
         if self.df is None or not len(self.df):
-            st.write(f":red[0] doc results (filtered from {self.total_files} files and {self.total_docs} total docs)")
-            st.write("No data.")
+            st.write(":green[Cache hit - node execution skipped!]")
             return
 
         all_columns = list(self.df.columns)
         column_order = [c for c in self.COLUMNS if c in all_columns]
         column_order += [c for c in all_columns if c not in column_order]
-        st.write(f"**{len(self.df)} doc results** (filtered from {self.total_files} files and {self.total_docs} total docs)")
+        st.write(f"**{len(self.df)} documents**")
         st.dataframe(self.df, column_order=column_order)
 
 

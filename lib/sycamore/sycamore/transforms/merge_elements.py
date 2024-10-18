@@ -616,7 +616,7 @@ class HeaderAugmenterMerger(ElementMerger):
     The ``HeaderAugmenterMerger`` groups together different elements in a Document and enhances the text
     representation of the elements by adding the preceeding section-header/title.
 
-    - It merges elements ("Text", "List-item", "Caption", "Footnote", "Formula" , "Page-footer", "Page-header").
+    - It merges elements ("Text", "List-item", "Caption", "Footnote", "Formula", "Page-footer", "Page-header").
     - It merges consectuive ("Section-header", "Title") elements.
     - It adds the preceeding section-header/title to the text representation of the elements (including tables/images).
     """
@@ -650,13 +650,13 @@ class HeaderAugmenterMerger(ElementMerger):
         if len(document.elements) < 2:
             return document
 
-        firstHeader = False
+        first_header = False
         for element in document.elements:
             if element.type in ["Section-header", "Title"]:
-                firstHeader = True
+                first_header = True
                 element.data["_header"] = element.text_representation
             else:
-                if not firstHeader:
+                if not first_header:
                     element.data["_header"] = None
 
         to_merge = [self.preprocess_element(e) for e in document.elements]
@@ -688,7 +688,10 @@ class HeaderAugmenterMerger(ElementMerger):
         ):
             return False
 
-        if element1.data["token_count"] + 1 + element2.data["token_count"] > self.max_tokens:
+        if element1.data["token_count"] + 1 + element2.data["token_count"] > self.max_tokens and element2.type not in [
+            "Section-header",
+            "Title",
+        ]:
             # Add header to next element
             element2["_header"] = element1["_header"]
             if element1.data["_header"]:

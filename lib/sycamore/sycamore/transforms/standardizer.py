@@ -292,8 +292,8 @@ def ignore_errors(doc: Document, standardizer: Standardizer, key_path: list[str]
     """
     A class for applying the behavior of a standardizer to log errors and continue when encountering null values.
 
-    This class allows for the execution of standardization logic not to fail when encountering null key:value pairs. It will
-    instead log a warning stating what key:value pairs in what documents were missing.
+    This class allows for the execution of standardization logic not to fail when encountering null key:value pairs. 
+    It will instead log a warning stating what key:value pairs in what documents were missing.
 
     Example:
         .. code-block:: python

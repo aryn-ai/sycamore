@@ -9,6 +9,7 @@ from structlog.contextvars import clear_contextvars, bind_contextvars
 from sycamore import Context
 from sycamore.materialize_config import MaterializeSourceMode
 from sycamore.query.logical_plan import LogicalPlan, Node
+from sycamore.query.result import SycamoreQueryResult
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.basic_filter import BasicFilter
 from sycamore.query.operators.limit import Limit
@@ -81,11 +82,15 @@ class SycamoreExecutor:
         self.node_id_to_code: Dict[int, str] = {}
         self.imports: List[str] = []
 
-    def process_node(self, logical_node: Node, query_id: str, is_result_node: Optional[bool] = False) -> Any:
+    def process_node(
+        self, logical_node: Node, result: SycamoreQueryResult, is_result_node: Optional[bool] = False
+    ) -> Any:
         """Process the given node. Recursively processes dependencies first."""
 
-        bind_contextvars(logical_node=logical_node)
+        query_id = result.query_id
+
         # This is lifted up here to avoid serialization issues with Ray.
+        bind_contextvars(logical_node=logical_node)
 
         if logical_node.node_id in self.processed:
             log.info("Already processed")
@@ -93,20 +98,17 @@ class SycamoreExecutor:
         log.info("Executing dependencies")
         inputs: List[Any] = []
 
-        if self.trace_dir and not self.dry_run:
-            trace_dir = os.path.join(self.trace_dir, query_id, str(logical_node.node_id))
-            os.makedirs(trace_dir, exist_ok=True)
-        else:
-            trace_dir = None
-
         if self.cache_dir and not self.dry_run:
             cache_dir = os.path.join(self.cache_dir, logical_node.cache_key())
+            if not hasattr(result, "trace_dirs") or not result.trace_dirs:
+                result.trace_dirs = {}
+            result.trace_dirs[logical_node.node_id] = cache_dir
             os.makedirs(cache_dir, exist_ok=True)
         else:
             cache_dir = None
 
         # Process inputs.
-        inputs = [self.process_node(n, query_id) for n in logical_node.input_nodes()]
+        inputs = [self.process_node(n, result) for n in logical_node.input_nodes()]
 
         # refresh context as nested execution overrides it
         bind_contextvars(logical_node=logical_node)
@@ -209,19 +211,15 @@ class SycamoreExecutor:
         self.node_id_to_code[logical_node.node_id] = code
         self.node_id_to_node[logical_node.node_id] = logical_node
 
-        result = "visited"
         if not self.codegen_mode and not self.dry_run:
-            result = operation.execute()
-            if cache_dir and hasattr(result, "materialize"):
+            operation_result = operation.execute()
+            if cache_dir and hasattr(operation_result, "materialize"):
                 log.info("Caching node execution", cache_dir=cache_dir)
-                result = result.materialize(cache_dir, source_mode=MaterializeSourceMode.USE_STORED)
-            if trace_dir and hasattr(result, "materialize"):
-                log.info("Materializing result", trace_dir=trace_dir)
-                result = result.materialize(trace_dir, source_mode=MaterializeSourceMode.RECOMPUTE)
+                operation_result = operation_result.materialize(cache_dir, source_mode=MaterializeSourceMode.USE_STORED)
 
-        self.processed[logical_node.node_id] = result
-        log.info("Executed node", result=str(result))
-        return result
+        self.processed[logical_node.node_id] = operation_result
+        log.info("Executed node", result=str(operation_result))
+        return operation_result
 
     def get_code_string(self):
         """Return the generated python code as a string."""
@@ -249,14 +247,7 @@ class SycamoreExecutor:
 """
         return result
 
-    def _write_query_plan_to_trace_dir(self, plan: LogicalPlan, query_id: str):
-        assert self.trace_dir is not None, "Writing query_plan requires trace_dir to be set"
-        path = os.path.join(self.trace_dir, query_id, "metadata")
-        os.makedirs(path, exist_ok=True)
-        with open(os.path.join(path, "query_plan.json"), "w", encoding="utf-8") as f:
-            f.write(plan.model_dump_json())
-
-    def execute(self, plan: LogicalPlan, query_id: Optional[str] = None) -> Any:
+    def execute(self, plan: LogicalPlan, query_id: Optional[str] = None) -> SycamoreQueryResult:
         """Execute a logical plan using Sycamore."""
 
         try:
@@ -264,12 +255,10 @@ class SycamoreExecutor:
                 query_id = str(uuid.uuid4())
             bind_contextvars(query_id=query_id)
 
-            log.info("Writing query plan to trace dir")
-            if self.trace_dir:
-                self._write_query_plan_to_trace_dir(plan, query_id)
+            result = SycamoreQueryResult(query_id=query_id, plan=plan, result=None)
 
             log.info("Executing query")
-            result = self.process_node(plan.nodes[plan.result_node], query_id, is_result_node=True)
+            query_result = self.process_node(plan.nodes[plan.result_node], result, is_result_node=True)
 
             if self.dry_run:
                 code = self.get_code_string()
@@ -286,8 +275,12 @@ class SycamoreExecutor:
                     print("Exception occurred:")
                     traceback.print_exc()
                     raise e
-                return global_context.get(self.OUTPUT_VAR_NAME)
 
+                return_value = global_context.get(self.OUTPUT_VAR_NAME)
+                assert isinstance(return_value, SycamoreQueryResult)
+                return return_value
+
+            result.result = query_result
             return result
         finally:
             clear_contextvars()

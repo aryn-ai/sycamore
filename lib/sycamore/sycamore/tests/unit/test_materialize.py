@@ -516,3 +516,15 @@ class TestErrorChecking(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             with pytest.raises(ValueError):
                 ds.materialize(path=tmpdir).materialize(path=tmpdir).execute()
+
+
+def test_s3_infer_filesystem():
+    from sycamore.materialize import Materialize
+    from pyarrow.fs import S3FileSystem
+    from pathlib import Path
+
+    ctx = sycamore.init()
+    m = Materialize(None, ctx, path={"root": "s3://test-example/a/path"})
+    assert isinstance(m._fs, S3FileSystem)
+    assert isinstance(m._root, Path)
+    assert str(m._root) == "test-example/a/path"

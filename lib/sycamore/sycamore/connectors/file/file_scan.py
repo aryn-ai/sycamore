@@ -84,8 +84,15 @@ class FileScan(Scan):
         **resource_args,
     ):
         super().__init__(**resource_args)
+        assert len(paths) > 0
+        if isinstance(paths, str):
+            paths = [paths]
+        assert isinstance(paths, list)
         self._paths = paths
         self._filesystem = filesystem
+        if self._filesystem is None:
+            self._try_infer_fs()
+
         assert parallelism is None, "Use override_num_blocks; remove parameter after 2025-03-01"
         self.override_num_blocks = override_num_blocks
 
@@ -94,6 +101,28 @@ class FileScan(Scan):
             return self._paths.startswith("s3:")
         else:
             return all(path.startswith("s3:") for path in self._paths)
+
+    def _try_infer_fs(self):
+        from sycamore.utils.pyarrow import infer_fs
+
+        common_fs = None
+        new_paths = []
+        for p in self._paths:
+            (fs, root) = infer_fs(p)
+            new_paths.append(root)
+            if common_fs is None:
+                common_fs = fs
+            if not isinstance(fs, common_fs.__class__):
+                logger.warning(
+                    f"Different paths infer multiple filesystems. {self._paths[0]}"
+                    + f"  gives {common_fs.__class__.__name__} and {p} gives"
+                    + f" {fs.__class__.__name__}.  Using no fs and hoping."
+                )
+                return
+
+        assert common_fs is not None
+        self._filesystem = common_fs
+        self._paths = new_paths
 
     @abstractmethod
     def process_file(self, file_info: FileInfo) -> list[Document]:
@@ -155,7 +184,6 @@ class BinaryScan(FileScan):
             filesystem=filesystem,
             **resource_args,
         )
-        self._paths = paths
         self._binary_format = binary_format
         self._metadata_provider = metadata_provider
         self._filter_paths_by_extension = filter_paths_by_extension

@@ -70,11 +70,11 @@ class Materialize(UnaryNode):
             self._clean_root = True
         elif isinstance(path, dict):
             assert "root" in path, "Need to specify root in materialize(path={})"
-            self._root = Path(path["root"])
             if "fs" in path:
                 self._fs = path["fs"]
+                self._root = Path(path["root"])
             else:
-                (self._fs, self._root) = self.infer_fs(str(self._root))
+                (self._fs, self._root) = self.infer_fs(str(path["root"]))
             self._fshelper = _PyArrowFsHelper(self._fs)
             self._doc_to_name = path.get("name", self.doc_to_name)
             self._doc_to_binary = path.get("tobin", Document.serialize)
@@ -97,7 +97,7 @@ class Materialize(UnaryNode):
 
         self._maybe_anonymous()
 
-    def _maybe_anonymous(self):
+    def _maybe_anonymous(self) -> None:
         if self._root is None:
             return
         from pyarrow.fs import S3FileSystem
@@ -116,6 +116,7 @@ class Materialize(UnaryNode):
             fs.get_file_info(str(self._root))
             self._fs = fs
             self._fshelper = _PyArrowFsHelper(self._fs)
+            logger.info(f"Successfully read path {self._root} with anonymous S3")
             return
         except OSError as e:
             logging.warning(

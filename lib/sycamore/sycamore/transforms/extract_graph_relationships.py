@@ -1,22 +1,23 @@
 from abc import ABC, abstractmethod
+import asyncio
 import base64
 from collections import defaultdict
 from enum import Enum
 import hashlib
+import json
 import io
+import logging
+from typing import Dict, Any, List, Type
+import uuid
+
 from PIL import Image
-from typing import Dict, Any, List
+from pydantic import BaseModel, create_model
+
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.data import HierarchicalDocument
 from sycamore.llms import LLM
 from sycamore.llms.prompts import GraphRelationshipExtractorPrompt
-from pydantic import BaseModel, create_model
-import asyncio
-
-import json
-import uuid
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ class RelationshipExtractor(GraphRelationshipExtractor):
     def __init__(
         self,
         llm: LLM,
-        relationships: list[BaseModel],
+        relationships: List[Type[BaseModel]],
         prompt: str = GraphRelationshipExtractorPrompt.user,
         split_calls: bool = False,
     ):

@@ -2,13 +2,14 @@ import pytest
 import ray.data
 
 import sycamore
-from sycamore.data import Document
+from sycamore.data import Document, Table
 from sycamore.transforms.merge_elements import (
     GreedyTextElementMerger,
     Merge,
     GreedySectionMerger,
     HeaderAugmenterMerger,
 )
+
 from sycamore.functions.tokenizer import HuggingFaceTokenizer
 from sycamore.plan_nodes import Node
 
@@ -262,6 +263,28 @@ class TestGreedySectionMerger:
         }
     )
 
+    doc2 = Document(
+        {
+            "doc_id": "doc_id",
+            "type": "pdf",
+            "text_representation": "text",
+            "binary_representation": None,
+            "parent_id": None,
+            "properties": {"path": "/docs/foo.txt", "title": "bar"},
+            "elements": [
+                {
+                    "type": "Section-header",
+                    "text_representation": "",
+                },
+                {
+                    "type": "table",
+                    "text_representation": "<table><tr><th /></tr></table>",
+                    "table": Table.from_html("<table><tr><th /></tr></table>"),
+                },
+            ],
+        }
+    )
+
     def test_merge_elements(self):
         tokenizer = HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2")
         merger = GreedySectionMerger(tokenizer, 1200, merge_across_pages=False)
@@ -363,7 +386,14 @@ class TestGreedySectionMerger:
         with pytest.raises(ValueError):
             sycamore.init().read.document([self.doc]).map(GreedySectionMerger(tokenizer, 120, merge_across_pages=False))
 
+    def test_merge_empty_text_works(self):
 
+        tokenizer = HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2")
+        merger = GreedySectionMerger(tokenizer, 1200, merge_across_pages=False)
+        new_doc = merger.merge_elements(self.doc2)
+        assert new_doc.elements[0].text_representation is not None
+        
+        
 class TestHeaderAugmenterMerger:
 
     doc = Document(

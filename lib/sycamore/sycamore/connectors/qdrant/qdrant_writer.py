@@ -119,6 +119,7 @@ class QdrantWriterRecord(BaseDBWriter.Record):
 
         payload = {
             "type": document.type,
+            "parent_id": document.parent_id,
             "text_representation": document.text_representation,
             "bbox": document.bbox.to_dict() if document.bbox else None,
             "shingles": document.shingles or None,

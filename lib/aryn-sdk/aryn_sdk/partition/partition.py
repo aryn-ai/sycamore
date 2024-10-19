@@ -107,7 +107,7 @@ def partition_file(
 
     _logger.debug(f"{options_str}")
 
-    # Work around hanging behavior when vcrpy is recording...
+    # Workaround for vcr.  See https://github.com/aryn-ai/sycamore/issues/958
     stream = True
     if "vcr" in sys.modules:
         ul3 = sys.modules.get("urllib3")

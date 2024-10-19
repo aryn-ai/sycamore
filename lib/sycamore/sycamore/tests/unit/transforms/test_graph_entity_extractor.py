@@ -1,7 +1,7 @@
 from typing import Optional
 from pydantic import BaseModel
 import sycamore
-from sycamore.data.document import Document
+from sycamore.data.document import Document, HierarchicalDocument
 from sycamore.data.element import Element
 from sycamore.llms.llms import LLM
 from sycamore.reader import DocSetReader
@@ -74,7 +74,7 @@ class TestGraphExtractor:
             }
             """
 
-    def test_entity_extractor(self):
+    def test_entity_extractor(self) -> None:
         context = sycamore.init()
         reader = DocSetReader(context)
         ds = reader.document(self.docs)
@@ -83,10 +83,10 @@ class TestGraphExtractor:
             name: str
 
         llm = self.MockLLM()
-        ds = ds.extract_document_structure(structure=StructureBySection).extract_graph_entities(
+        ds = ds.extract_document_structure(structure=StructureBySection()).extract_graph_entities(
             [EntityExtractor(llm=llm, entities=[Company])]
         )
-        docs = ds.take_all()
+        docs = [HierarchicalDocument(doc.data) for doc in ds.take_all()]
 
         for doc in docs:
             for section in doc.children:

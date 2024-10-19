@@ -216,6 +216,7 @@ class WeaviateWriterDocumentRecord(BaseDBWriter.Record):
             "properties": document.properties,
             "type": document.type,
             "text_representation": document.text_representation,
+            "parent_id": document.parent_id,
             "bbox": document.bbox.coordinates if document.bbox else None,
             "shingles": document.shingles,
         }

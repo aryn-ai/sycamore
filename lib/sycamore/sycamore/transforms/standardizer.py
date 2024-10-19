@@ -8,6 +8,10 @@ from sycamore.plan_nodes import Node
 from sycamore.data import Document
 from sycamore.transforms.map import Map
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class Standardizer(ABC):
     """
@@ -283,3 +287,25 @@ class StandardizeProperty(Map):
         **kwargs,
     ):
         super().__init__(child, f=standardizer.standardize, args=path, kwargs=kwargs)
+
+
+def ignore_errors(doc: Document, standardizer: Standardizer, key_path: list[str]) -> Document:
+    """
+    A class for applying the behavior of a standardizer to log errors and continue when encountering null values.
+
+    This class allows for the execution of standardization logic not to fail when encountering null key:value pairs.
+    It will instead log a warning stating what key:value pairs in what documents were missing.
+
+    Example:
+        .. code-block:: python
+
+            docset.map(lambda doc: ignore_errors(doc, DateTimeStandardizer, ["properties", "entity", "dateAndTime"])
+    """
+
+    try:
+        doc = standardizer.standardize(doc, key_path=key_path)
+    except KeyError:
+        logger.warn(f"Key {key_path} not found in document: {doc}")
+    except Exception as e:
+        logger.error(e)
+    return doc

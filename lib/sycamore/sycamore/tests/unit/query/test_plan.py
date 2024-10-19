@@ -234,6 +234,13 @@ def test_compare_plans_diff_llm_filter_string(llm_filter_plan):
     assert len(diff) == 0
 
 
+def test_compare_plans_diff_description(llm_filter_plan):
+    llm_filter_plan_modified = LogicalPlan(**llm_filter_plan.model_dump())
+    llm_filter_plan_modified.nodes[1].description = "this is another question"
+    diff = llm_filter_plan.compare(llm_filter_plan_modified)
+    assert len(diff) == 0
+
+
 def test_compare_plans_data_changed(llm_filter_plan):
     llm_filter_plan_modified = LogicalPlan(**llm_filter_plan.model_dump())
     llm_filter_plan_modified.nodes[1].field = "different_field"

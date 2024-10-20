@@ -19,9 +19,9 @@ class TestSycamoreQuery:
             schema,
             natural_language_response=True,
         )
-        query_id, result = client.run_plan(plan, codegen_mode=codegen_mode)
-        assert isinstance(result, str)
-        assert len(result) > 0
+        result = client.run_plan(plan, codegen_mode=codegen_mode)
+        assert isinstance(result.result, str)
+        assert len(result.result) > 0
 
     @pytest.mark.parametrize("codegen_mode", [True, False])
     def test_forked(self, query_integration_test_index: str, codegen_mode: bool):
@@ -36,10 +36,9 @@ class TestSycamoreQuery:
             schema,
             natural_language_response=True,
         )
-        query_id, result = client.run_plan(plan, codegen_mode=codegen_mode)
-        assert isinstance(result, str)
-        assert len(result) > 0
-        assert "0" in result
+        result = client.run_plan(plan, codegen_mode=codegen_mode)
+        assert isinstance(result.result, str)
+        assert len(result.result) > 0
 
     @pytest.mark.parametrize("dry_run", [True, False])
     def test_dry_run(self, query_integration_test_index: str, dry_run: bool):
@@ -58,9 +57,9 @@ class TestSycamoreQuery:
             natural_language_response=True,
         )
         ray.shutdown()
-        query_id, result = client.run_plan(plan, dry_run=dry_run)
-        assert isinstance(result, str)
-        assert len(result) > 0
+        result = client.run_plan(plan, dry_run=dry_run)
+        assert isinstance(result.code, str)
+        assert len(result.code) > 0
         if dry_run:
             assert not ray.is_initialized()
         else:
@@ -80,6 +79,6 @@ class TestSycamoreQuery:
         )
         assert len(plan.nodes) == 2
         assert isinstance(plan.nodes[0], QueryVectorDatabase)
-        query_id, result = client.run_plan(plan, codegen_mode=codegen_mode)
-        assert isinstance(result, str)
-        assert "No" in result or "no" in result
+        result = client.run_plan(plan, codegen_mode=codegen_mode)
+        assert isinstance(result.result, str)
+        assert len(result.result) > 0

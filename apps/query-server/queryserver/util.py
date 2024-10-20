@@ -6,6 +6,7 @@ import ray
 from sycamore.executor import _ray_logging_setup
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
+from sycamore.query.result import SycamoreQueryResult
 from sycamore.query.schema import OpenSearchSchema
 
 
@@ -30,7 +31,7 @@ def generate_plan(_client: SycamoreQueryClient, query: str, index: str, examples
     return _client.generate_plan(query, index, get_schema(_client, index), examples=examples)
 
 
-def run_plan(_client: SycamoreQueryClient, plan: LogicalPlan) -> Tuple[str, Any]:
+def run_plan(_client: SycamoreQueryClient, plan: LogicalPlan) -> SycamoreQueryResult:
     return _client.run_plan(plan)
 
 

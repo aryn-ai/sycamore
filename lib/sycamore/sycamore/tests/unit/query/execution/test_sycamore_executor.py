@@ -9,6 +9,7 @@ from sycamore.query.execution.sycamore_executor import SycamoreExecutor
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.query_database import QueryDatabase
+from sycamore.query.result import SycamoreQueryResult
 
 
 @pytest.fixture
@@ -46,8 +47,13 @@ def test_run_plan(test_count_docs_query_plan, mock_sycamore_docsetreader, mock_o
         )
 
         executor = SycamoreExecutor(context)
-        result = executor.execute(test_count_docs_query_plan)
-        assert result == mock_opensearch_num_docs
+        result = executor.execute(test_count_docs_query_plan, query_id="test_query_id")
+        expected = SycamoreQueryResult(
+            plan=test_count_docs_query_plan,
+            result=mock_opensearch_num_docs,
+            query_id="test_query_id",
+        )
+        assert result == expected
 
 
 def test_run_plan_with_caching(test_count_docs_query_plan, mock_sycamore_docsetreader, mock_opensearch_num_docs):
@@ -72,8 +78,14 @@ def test_run_plan_with_caching(test_count_docs_query_plan, mock_sycamore_docsetr
 
             # First run should populate cache.
             executor = SycamoreExecutor(context, cache_dir=temp_dir)
-            result = executor.execute(test_count_docs_query_plan)
-            assert result == mock_opensearch_num_docs
+            result = executor.execute(test_count_docs_query_plan, query_id="test_query_id")
+            expected = SycamoreQueryResult(
+                plan=test_count_docs_query_plan,
+                result=mock_opensearch_num_docs,
+                query_id="test_query_id",
+                trace_dirs=result.trace_dirs,
+            )
+            assert result == expected
 
             # Check that a directory was created for each node.
             cache_dirs = [
@@ -84,8 +96,8 @@ def test_run_plan_with_caching(test_count_docs_query_plan, mock_sycamore_docsetr
 
             # Second run should use the cache.
             executor = SycamoreExecutor(context, cache_dir=temp_dir)
-            result = executor.execute(test_count_docs_query_plan)
-            assert result == mock_opensearch_num_docs
+            result = executor.execute(test_count_docs_query_plan, query_id="test_query_id")
+            assert result == expected
 
             # No new directories should have been created.
             existing_dirs = [os.path.join(temp_dir, x) for x in os.listdir(temp_dir)]

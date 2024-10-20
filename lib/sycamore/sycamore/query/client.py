@@ -35,7 +35,6 @@ from sycamore.query.result import SycamoreQueryResult
 from sycamore.query.schema import OpenSearchSchema, OpenSearchSchemaFetcher
 
 
-from pydantic import BaseModel
 from rich.console import Console
 
 
@@ -299,6 +298,7 @@ def main():
     parser.add_argument("--show-schema", action="store_true", help="Show schema extracted from index.")
     parser.add_argument("--show-prompt", action="store_true", help="Show planner LLM prompt.")
     parser.add_argument("--show-plan", action="store_true", help="Show generated query plan.")
+    parser.add_argument("--show-code", action="store_true", help="Show generated Python code.")
     parser.add_argument("--plan-only", action="store_true", help="Only generate and show query plan.")
     parser.add_argument("--dry-run", action="store_true", help="Generate and show query plan and execution code")
     parser.add_argument("--codegen-mode", action="store_true", help="Execute through codegen")
@@ -377,12 +377,17 @@ def main():
 
     result = client.run_plan(plan, args.dry_run, args.codegen_mode)
 
-    console.rule(f"Query result [{result.query_id}]")
-    console.rule("Result")
-    console.print(result.to_str(limit=args.limit))
+    if args.dry_run or (args.codegen_mode and args.show_code):
+        console.rule("Generated code")
+        console.print(result.code)
+
+    if not args.dry_run:
+        console.rule("Query result")
+        console.print(result.to_str(limit=args.limit))
+        if args.dump_traces:
+            client.dump_traces(result, limit=args.limit)
+
     console.rule()
-    if args.dump_traces:
-        client.dump_traces(result, limit=args.limit)
 
 
 if __name__ == "__main__":

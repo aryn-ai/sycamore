@@ -1,12 +1,10 @@
 import io
-import json
 from typing import Any, Dict, Optional
 
 from pydantic import BaseModel
 
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore import DocSet
-from sycamore.data import MetadataDocument
 
 
 class SycamoreQueryResult(BaseModel):
@@ -22,6 +20,9 @@ class SycamoreQueryResult(BaseModel):
     """The result of the query operation. Depending on the query, this could be a list of documents,
     a single document, a string, an integer, etc.
     """
+
+    code: Optional[str] = None
+    """The Python code corresponding to the query plan."""
 
     trace_dirs: Optional[Dict[int, Optional[str]]] = None
     """A mapping from node ID to the directory where execution traces

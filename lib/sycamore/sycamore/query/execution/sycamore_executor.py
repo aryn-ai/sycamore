@@ -211,6 +211,7 @@ class SycamoreExecutor:
         self.node_id_to_code[logical_node.node_id] = code
         self.node_id_to_node[logical_node.node_id] = logical_node
 
+        operation_result = "visited"
         if not self.codegen_mode and not self.dry_run:
             operation_result = operation.execute()
             if cache_dir and hasattr(operation_result, "materialize"):
@@ -262,10 +263,12 @@ class SycamoreExecutor:
 
             if self.dry_run:
                 code = self.get_code_string()
-                return code
+                result.code = code
+                return result
 
             if self.codegen_mode:
                 code = self.get_code_string()
+                result.code = code
                 global_context: dict[str, Any] = {"context": self.context}
                 try:
                     # pylint: disable=exec-used
@@ -277,8 +280,8 @@ class SycamoreExecutor:
                     raise e
 
                 return_value = global_context.get(self.OUTPUT_VAR_NAME)
-                assert isinstance(return_value, SycamoreQueryResult)
-                return return_value
+                result.result = return_value
+                return result
 
             result.result = query_result
             return result

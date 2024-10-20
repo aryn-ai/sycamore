@@ -19,8 +19,9 @@ PLANNER_EXAMPLES = ntsb.PLANNER_EXAMPLES
 
 
 def generate_code(client: SycamoreQueryClient, plan: LogicalPlan) -> str:
-    _, code = client.run_plan(plan, dry_run=True)
-    return code
+    result = client.run_plan(plan, dry_run=True)
+    assert result.code is not None
+    return result.code
 
 
 def show_schema(_client: SycamoreQueryClient, index: str):
@@ -52,16 +53,12 @@ def show_code(code: str):
             if code_locals and "result" in code_locals:
                 st.subheader("Result", divider="rainbow")
                 st.success(code_locals["result"])
-            if st.session_state.trace_dir:
-                st.subheader("Traces", divider="blue")
-                util.show_query_traces(st.session_state.trace_dir, st.session_state.query_id)
 
 
 def run_query():
     """Run the given query."""
     client = get_sycamore_query_client(
         llm_cache_dir=st.session_state.llm_cache_dir,
-        trace_dir=st.session_state.trace_dir,
         cache_dir=st.session_state.cache_dir,
         exec_mode=ExecMode.LOCAL if st.session_state.local_mode else ExecMode.RAY,
     )
@@ -79,18 +76,18 @@ def run_query():
     if not st.session_state.plan_only:
         with st.spinner("Running query..."):
             t1 = time.time()
-            st.session_state.query_id, result = util.run_plan(client, plan)
+            result = util.run_plan(client, plan)
             t2 = time.time()
             st.write(f"Ran query in :blue[{t2 - t1:.2f}] seconds.")
 
-            result_str = util.result_to_string(result)
-        st.write(f"Query ID: `{st.session_state.query_id}`\n")
+            result_str = util.result_to_string(result.result)
+        st.write(f"Query ID: `{result.query_id}`\n")
         st.subheader("Result", divider="rainbow")
         st.markdown(result_str, unsafe_allow_html=True)
 
-        if st.session_state.trace_dir:
+        if result.trace_dirs:
             with st.expander("Query trace"):
-                util.show_query_traces(st.session_state.trace_dir, st.session_state.query_id)
+                util.show_query_traces(result)
 
 
 def main():
@@ -116,9 +113,6 @@ def main():
     if "local_mode" not in st.session_state:
         st.session_state.local_mode = args.local_mode
 
-    if "trace_dir" not in st.session_state:
-        st.session_state.trace_dir = args.trace_dir
-
     if not args.local_mode:
         sycamore_ray_init(address="auto")
     client = get_sycamore_query_client(exec_mode=ExecMode.LOCAL if args.local_mode else ExecMode.RAY)
@@ -126,7 +120,6 @@ def main():
     st.title("Sycamore Query")
     st.write(f"Query cache dir: `{st.session_state.cache_dir}`")
     st.write(f"LLM cache dir: `{st.session_state.llm_cache_dir}`")
-    st.write(f"Trace dir: `{st.session_state.trace_dir}`")
 
     if not args.index:
         with st.spinner("Loading indices..."):

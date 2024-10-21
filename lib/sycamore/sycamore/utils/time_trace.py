@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 # Windows lacks resource, so...
 try:
     import resource
+
     try:
         resource_type = resource.RUSAGE_THREAD  # type: ignore
     except AttributeError:
@@ -27,9 +28,9 @@ try:
     getrusage = resource.getrusage
 except ImportError:
     resource_type = 0
-    getrusage = lambda x: _ZeroRU()
 
-tester = lambda x: _ZeroRU()
+    def getrusage(t: int):
+        return _ZeroRU()
 
 
 class TimeTraceData:

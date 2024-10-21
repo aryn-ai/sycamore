@@ -42,7 +42,9 @@ def main():
     argparser.add_argument(
         "--index", help="OpenSearch index name to use. If specified, only this index will be queried."
     )
-    argparser.add_argument("--cache-dir", type=str, help="Query execution cache dir.")
+    argparser.add_argument(
+        "--cache-dir", type=str, default="cache_dir", help="Query execution cache dir. Defaults to ./query_cache."
+    )
     argparser.add_argument(
         "--llm-cache-dir", type=str, default="llm_cache", help="LLM query cache dir. Defaults to ./llm_cache."
     )

@@ -788,7 +788,7 @@ def extract_ocr(
                 continue
             if elem.type == "Picture" and not ocr_images:
                 continue
-            cropped_image = crop_to_bbox(image, elem.bbox)
+            cropped_image = crop_to_bbox(image, elem.bbox, padding=0)
             if 0 in cropped_image.size:
                 elem.text_representation = ""
                 continue

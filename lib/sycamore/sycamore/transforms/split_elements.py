@@ -1,11 +1,12 @@
 from typing import Optional
-
-
+import logging
 from sycamore.data import Document, Element
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
+
+logger = logging.getLogger(__name__)
 
 
 class SplitElements(SingleThreadUser, NonGPUUser, Map):
@@ -34,12 +35,18 @@ class SplitElements(SingleThreadUser, NonGPUUser, Map):
     def split_doc(parent: Document, tokenizer: Tokenizer, max: int) -> Document:
         result = []
         for elem in parent.elements:
+            # Ensure the _header does not take up more than a third of the tokens
+            # Also avoid max resursive depth error
+            if elem.get("_header") and len(tokenizer.tokenize(elem["_header"])) / max > 0.33:
+                logger.warning(f"Token limit exceeded, dropping _header: {elem['_header']}")
+                del elem["_header"]
             result.extend(SplitElements.split_one(elem, tokenizer, max))
         parent.elements = result
         return parent
 
     @staticmethod
     def split_one(elem: Element, tokenizer: Tokenizer, max: int) -> list[Element]:
+
         txt = elem.text_representation
         if not txt:
             return [elem]
@@ -96,7 +103,10 @@ class SplitElements(SingleThreadUser, NonGPUUser, Map):
         ment = elem.copy()
         elem.text_representation = one
         elem.binary_representation = bytes(one, "utf-8")
-        ment.text_representation = two
+        if elem.get("_header"):
+            ment.text_representation = ment["_header"] + "\n" + two
+        else:
+            ment.text_representation = two
         ment.binary_representation = bytes(two, "utf-8")
         aa = SplitElements.split_one(elem, tokenizer, max)
         bb = SplitElements.split_one(ment, tokenizer, max)

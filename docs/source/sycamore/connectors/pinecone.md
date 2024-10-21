@@ -10,7 +10,7 @@ To write a Docset to a Pinecone index from Sycamore, use the DocSet `docset.writ
 
 - index_name: Name of the pinecone index to ingest into, is a required parameter.
 - index_spec: Cloud parameters needed by pinecone to create your index. See [here](https://docs.pinecone.io/guides/indexes/create-an-index) for additional information. Defaults to None, which assumes the index already exists, and will not modify an existing index if provided.
-- namespace: Namespace withing the pinecone index to ingest into. See [here](https://docs.pinecone.io/guides/indexes/use-namespaces) for additional information. Defaults to "", which is the default namespace.
+- namespace: Namespace within the pinecone index to ingest into. See [here](https://docs.pinecone.io/guides/indexes/use-namespaces) for additional information. Defaults to "", which is the default namespace.
 - dimensions: Dimensionality of dense vectors in your index. Defaults to None, which assumes the index already exists, and will not modify an existing index if provided.
 - distance_metric: Distance metric used for nearest-neighbor search in your index. Defaults to "cosine", but will not modify an already-existing index.
 - api_key: Pinecone service API Key. Defaults to None (will use the environment variable PINECONE_API_KEY).
@@ -31,7 +31,7 @@ Note that the writer forces execution of all transforms before it, so would norm
 
 ## Reading from Pinecone
 
-Reading from a Pinecone index takes in the `index_name`, `namespace`, and `api_key` arguments, with the same specification and defaults as above. It also takes in the folowing argument:
+Reading from a Pinecone index takes in the `index_name`, `namespace`, and `api_key` arguments, with the same specification and defaults as above. It also takes in the following argument:
 
 - query: (Optional) Dictionary of parameters to pass into the pinecone `index.query()` method. If not specified, will default
 to a full scan of the index.

@@ -26,6 +26,10 @@ def _pre_process_document(document: Document) -> str:
     return document.text_representation if document.text_representation is not None else ""
 
 
+def _text_representation_is_empty(doc: Document) -> bool:
+    return doc.text_representation is None or doc.text_representation.strip() == ""
+
+
 class Embedder(ABC):
     def __init__(
         self,
@@ -188,14 +192,14 @@ class OpenAIEmbedder(Embedder):
             text_to_embed = [
                 self.pre_process_document(doc).replace("\n", " ")
                 for doc in batch
-                if doc.text_representation is not None
+                if not _text_representation_is_empty(doc)
             ]
 
             embeddings = self._client.embeddings.create(model=self.model_name, input=text_to_embed).data
 
             i = 0
             for doc in batch:
-                if doc.text_representation is not None:
+                if not _text_representation_is_empty(doc):
                     doc.embedding = embeddings[i].embedding
                     i += 1
 
@@ -272,7 +276,7 @@ class BedrockEmbedder(Embedder):
         client = boto3.client("bedrock-runtime")
 
         for doc in doc_batch:
-            if doc.text_representation is not None:
+            if not _text_representation_is_empty(doc):
                 doc.embedding = self._generate_embedding(client, self.pre_process_document(doc))
         return doc_batch
 

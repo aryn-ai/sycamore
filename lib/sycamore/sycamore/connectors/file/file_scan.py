@@ -1,11 +1,14 @@
 import json
 from abc import ABC, abstractmethod
+from io import BytesIO
+
 import boto3
 import mimetypes
 from typing import Any, Optional, Union, Tuple, Callable, TYPE_CHECKING
 import uuid
 import logging
 
+from pyarrow._fs import FileInfo
 from pyarrow.fs import FileSystem, FileSelector
 from sycamore.data import Document
 from sycamore.plan_nodes import Scan
@@ -76,19 +79,77 @@ class FileScan(Scan):
         paths: Union[str, list[str]],
         *,
         filesystem: Optional[FileSystem] = None,
-        parallelism: Optional[int] = None,
+        parallelism: Optional[str] = None,
+        override_num_blocks: Optional[int] = None,
         **resource_args,
     ):
         super().__init__(**resource_args)
+        assert len(paths) > 0
+        if isinstance(paths, str):
+            paths = [paths]
+        assert isinstance(paths, list)
         self._paths = paths
         self._filesystem = filesystem
-        self.parallelism = parallelism
+        if self._filesystem is None:
+            self._try_infer_fs()
+
+        assert parallelism is None, "Use override_num_blocks; remove parameter after 2025-03-01"
+        self.override_num_blocks = override_num_blocks
 
     def _is_s3_scheme(self) -> bool:
         if isinstance(self._paths, str):
             return self._paths.startswith("s3:")
         else:
             return all(path.startswith("s3:") for path in self._paths)
+
+    def _try_infer_fs(self):
+        from sycamore.utils.pyarrow import infer_fs
+
+        common_fs = None
+        new_paths = []
+        for p in self._paths:
+            (fs, root) = infer_fs(p)
+            new_paths.append(root)
+            if common_fs is None:
+                common_fs = fs
+            if not isinstance(fs, common_fs.__class__):
+                logger.warning(
+                    f"Different paths infer multiple filesystems. {self._paths[0]}"
+                    + f"  gives {common_fs.__class__.__name__} and {p} gives"
+                    + f" {fs.__class__.__name__}.  Using no fs and hoping."
+                )
+                return
+
+        assert common_fs is not None
+        self._filesystem = common_fs
+        self._paths = new_paths
+
+    @abstractmethod
+    def process_file(self, file_info: FileInfo) -> list[Document]:
+        pass
+
+    def local_source(self, **kwargs) -> list[Document]:
+        if isinstance(self._paths, str):
+            paths = [self._paths]
+        else:
+            paths = self._paths
+
+        documents = []
+
+        for orig_path in paths:
+            from sycamore.utils.pyarrow import cross_check_infer_fs
+
+            (filesystem, path) = cross_check_infer_fs(self._filesystem, orig_path)
+            if self._filesystem is None:
+                self._filesystem = filesystem
+
+            path_info = filesystem.get_file_info(path)
+            if path_info.is_file:
+                documents.extend(self.process_file(path_info))
+            else:
+                for info in filesystem.get_file_info(FileSelector(path, recursive=True)):
+                    documents.extend(self.process_file(info))
+        return documents
 
 
 class BinaryScan(FileScan):
@@ -109,14 +170,20 @@ class BinaryScan(FileScan):
         paths: Union[str, list[str]],
         *,
         binary_format: str,
-        parallelism: Optional[int] = None,
+        parallelism: Optional[str] = None,
+        override_num_blocks: Optional[int] = None,
         filesystem: Optional[FileSystem] = None,
         metadata_provider: Optional[FileMetadataProvider] = None,
         filter_paths_by_extension: bool = True,
         **resource_args,
     ):
-        super().__init__(paths, parallelism=parallelism, filesystem=filesystem, **resource_args)
-        self._paths = paths
+        super().__init__(
+            paths,
+            parallelism=parallelism,
+            override_num_blocks=override_num_blocks,
+            filesystem=filesystem,
+            **resource_args,
+        )
         self._binary_format = binary_format
         self._metadata_provider = metadata_provider
         self._filter_paths_by_extension = filter_paths_by_extension
@@ -157,58 +224,35 @@ class BinaryScan(FileScan):
             self._paths,
             include_paths=True,
             filesystem=self._filesystem,
-            override_num_blocks=self.parallelism if self.parallelism is not None else -1,
+            override_num_blocks=self.override_num_blocks,
             ray_remote_args=self.resource_args,
             file_extensions=file_extensions,
         )
 
         return files.map(self._to_document, **self.resource_args)
 
-    def local_source(self, **kwargs) -> list[Document]:
-        if isinstance(self._paths, str):
-            paths = [self._paths]
-        else:
-            paths = self._paths
+    def process_file(self, info) -> list[Document]:
+        if not info.is_file:
+            return []
+        if self._filter_paths_by_extension and not info.path.endswith(self.format()):
+            return []
 
-        documents = []
+        assert self._filesystem
+        with self._filesystem.open_input_file(info.path) as file:
+            binary_data = file.read()
 
-        def process_file(info):
-            if not info.is_file:
-                return
-            if self._filter_paths_by_extension and not info.path.endswith(self.format()):
-                return
-
-            with self._filesystem.open_input_file(info.path) as file:
-                binary_data = file.read()
-
-            document = Document()
-            document.doc_id = str(uuid.uuid1())
-            document.type = self._binary_format
-            document.binary_representation = binary_data
-            document.properties["path"] = info.path
-            if "filetype" not in document.properties and self._binary_format is not None:
-                document.properties["filetype"] = self._file_mime_type()
-            if self._is_s3_scheme():
-                document.properties["path"] = "s3://" + info.path
-            if self._metadata_provider:
-                document.properties.update(self._metadata_provider.get_metadata(info.path))
-
-            documents.append(document)
-
-        for orig_path in paths:
-            from sycamore.utils.pyarrow import cross_check_infer_fs
-
-            (filesystem, path) = cross_check_infer_fs(self._filesystem, orig_path)
-            if self._filesystem is None:
-                self._filesystem = filesystem
-
-            path_info = filesystem.get_file_info(path)
-            if path_info.is_file:
-                process_file(path_info)
-            else:
-                for info in filesystem.get_file_info(FileSelector(path, recursive=True)):
-                    process_file(info)
-        return documents
+        document = Document()
+        document.doc_id = str(uuid.uuid1())
+        document.type = self._binary_format
+        document.binary_representation = binary_data
+        document.properties["path"] = info.path
+        if "filetype" not in document.properties and self._binary_format is not None:
+            document.properties["filetype"] = self._file_mime_type()
+        if self._is_s3_scheme():
+            document.properties["path"] = "s3://" + info.path
+        if self._metadata_provider:
+            document.properties.update(self._metadata_provider.get_metadata(info.path))
+        return [document]
 
     def format(self):
         return self._binary_format
@@ -220,14 +264,21 @@ class JsonScan(FileScan):
         paths: Union[str, list[str]],
         *,
         properties: Optional[Union[str, list[str]]] = None,
-        parallelism: Optional[int] = None,
+        parallelism: Optional[str] = None,
+        override_num_blocks: Optional[int] = None,
         filesystem: Optional[FileSystem] = None,
         metadata_provider: Optional[FileMetadataProvider] = None,
         document_body_field: Optional[str] = None,
         doc_extractor: Optional[Callable] = None,
         **resource_args,
     ):
-        super().__init__(paths, parallelism=parallelism, filesystem=filesystem, **resource_args)
+        super().__init__(
+            paths,
+            parallelism=parallelism,
+            override_num_blocks=override_num_blocks,
+            filesystem=filesystem,
+            **resource_args,
+        )
         self._properties = properties
         self._metadata_provider = metadata_provider
         self._document_body_field = document_body_field
@@ -281,12 +332,34 @@ class JsonScan(FileScan):
             self._paths,
             include_paths=True,
             filesystem=self._filesystem,
-            parallelism=self.parallelism if self.parallelism is not None else -1,
+            override_num_blocks=self.override_num_blocks,
             ray_remote_args=self.resource_args,
         )
 
         doc_extractor = self._doc_extractor if self._doc_extractor else self._to_document
         return json_dataset.flat_map(doc_extractor, **self.resource_args)
+
+    def process_file(self, info: FileInfo) -> list[Document]:
+        documents: list[Document] = []
+        if not info.is_file:
+            return documents
+
+        assert self._filesystem
+        with self._filesystem.open_input_file(info.path) as file:
+            import pyarrow.json as pyjson
+            import pyarrow
+
+            buffer: pyarrow.lib.Buffer = file.read_buffer()
+            table = pyjson.read_json(BytesIO(buffer))
+            rows = table.to_pylist()
+            for row in rows:
+                row["path"] = info.path
+            if self._doc_extractor:
+                docs = [Document(self._doc_extractor(row)[0]) for row in rows]
+            else:
+                docs = [Document(self._to_document(row)[0]) for row in rows]
+            documents.extend(docs)
+        return documents
 
     def format(self):
         return "json"
@@ -297,11 +370,18 @@ class JsonDocumentScan(FileScan):
         self,
         paths: Union[str, list[str]],
         *,
-        parallelism: Optional[int] = None,
+        parallelism: Optional[str] = None,
+        override_num_blocks: Optional[int] = None,
         filesystem: Optional[FileSystem] = None,
         **resource_args,
     ):
-        super().__init__(paths, parallelism=parallelism, filesystem=filesystem, **resource_args)
+        super().__init__(
+            paths,
+            parallelism=parallelism,
+            override_num_blocks=override_num_blocks,
+            filesystem=filesystem,
+            **resource_args,
+        )
 
     @staticmethod
     def json_as_document(json: dict[str, Any]) -> list[dict[str, Any]]:
@@ -316,10 +396,27 @@ class JsonDocumentScan(FileScan):
             self._paths,
             include_paths=True,
             filesystem=self._filesystem,
-            parallelism=self.parallelism if self.parallelism is not None else -1,
+            override_num_blocks=self.override_num_blocks,
             ray_remote_args=self.resource_args,
         )
         return ds.flat_map(self.json_as_document, **self.resource_args)
+
+    def process_file(self, info: FileInfo) -> list[Document]:
+        documents: list[Document] = []
+        if not info.is_file:
+            return documents
+
+        assert self._filesystem
+        with self._filesystem.open_input_file(info.path) as file:
+            import pyarrow.json as pyjson
+            import pyarrow
+
+            buffer: pyarrow.lib.Buffer = file.read_buffer()
+            table = pyjson.read_json(BytesIO(buffer))
+            rows = table.to_pylist()
+            docs = [Document(row) for row in rows]
+            documents.extend(docs)
+        return documents
 
     def format(self):
         return "jsonl"

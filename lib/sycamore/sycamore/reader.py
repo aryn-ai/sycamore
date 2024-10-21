@@ -42,7 +42,11 @@ class DocSetReader:
         self,
         paths: Union[str, list[str]],
         binary_format: str,
-        parallelism: Optional[int] = None,
+        parallelism: Optional[str] = None,
+        # consider removing override_num_blocks unless we find a good case where specifying it
+        # helps. Specifying override_num_blocks=4 in metadata-extraction.py was causing slowness
+        # and hangs in eric@aryn.ai's experience.
+        override_num_blocks: Optional[int] = None,
         filesystem: Optional[FileSystem] = None,
         metadata_provider: Optional[FileMetadataProvider] = None,
         **kwargs,
@@ -53,8 +57,8 @@ class DocSetReader:
         Args:
             paths: Paths to the Binary file
             binary_format:  Binary file format to read from
-            parallelism: (Optional) Override the number of output blocks from all read tasks. Defaults to
-                -1 if not specified
+            override_num_blocks: (Optional) Override the number of output blocks from all read
+                tasks.  You probably don't want to specify this.
             filesystem: (Optional) The PyArrow filesystem to read from. By default is selected based on the
                 scheme of the paths passed in
             kwargs: (Optional) Arguments to passed into the underlying execution engine
@@ -68,12 +72,13 @@ class DocSetReader:
             # Initializng sycamore which also initializes Ray underneath
             context = sycamore.init()
             # Creating a DocSet
-            docset = context.read.binary(paths, parallelism=1, binary_format="pdf")
+            docset = context.read.binary(paths, binary_format="pdf")
         """
         scan = BinaryScan(
             paths,
             binary_format=binary_format,
             parallelism=parallelism,
+            override_num_blocks=override_num_blocks,
             filesystem=filesystem,
             metadata_provider=metadata_provider,
             **kwargs,
@@ -85,7 +90,8 @@ class DocSetReader:
         self,
         metadata_provider: FileMetadataProvider,
         binary_format: str,
-        parallelism: Optional[int] = None,
+        parallelism: Optional[str] = None,
+        override_num_blocks: Optional[int] = None,
         filesystem: Optional[FileSystem] = None,
         **kwargs,
     ) -> DocSet:
@@ -95,8 +101,8 @@ class DocSetReader:
         Args:
             metadata_provider: Metadata provider for each file, with the manifest being used as the paths to read from
             binary_format:  Binary file format to read from
-            parallelism: (Optional) Override the number of output blocks from all read tasks. Defaults to
-                -1 if not specified
+            override_num_blocks: (Optional) Override the number of output blocks from all read
+                tasks.  You probably don't want to specify this.
             filesystem: (Optional) The PyArrow filesystem to read from. By default is selected based on the scheme
                 of the paths passed in
             kwargs: (Optional) Arguments to passed into the underlying execution engine
@@ -124,6 +130,7 @@ class DocSetReader:
             paths,
             binary_format=binary_format,
             parallelism=parallelism,
+            override_num_blocks=override_num_blocks,
             filesystem=filesystem,
             metadata_provider=metadata_provider,
             **kwargs,

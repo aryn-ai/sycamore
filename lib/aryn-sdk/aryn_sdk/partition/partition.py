@@ -107,9 +107,19 @@ def partition_file(
 
     _logger.debug(f"{options_str}")
 
+    # Workaround for vcr.  See https://github.com/aryn-ai/sycamore/issues/958
+    stream = True
+    if "vcr" in sys.modules:
+        ul3 = sys.modules.get("urllib3")
+        if ul3:
+            # Look for tell-tale patched method...
+            mod = ul3.connectionpool.is_connection_dropped.__module__
+            if "mock" in mod:
+                stream = False
+
     files: Mapping = {"options": options_str.encode("utf-8"), "pdf": file}
     http_header = {"Authorization": "Bearer {}".format(aryn_config.api_key())}
-    resp = requests.post(aps_url, files=files, headers=http_header, stream=True, verify=ssl_verify)
+    resp = requests.post(aps_url, files=files, headers=http_header, stream=stream, verify=ssl_verify)
 
     if resp.status_code != 200:
         raise requests.exceptions.HTTPError(

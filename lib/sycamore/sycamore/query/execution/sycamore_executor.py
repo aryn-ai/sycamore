@@ -204,7 +204,7 @@ class SycamoreExecutor:
         else:
             raise ValueError(f"Unsupported node type: {str(logical_node)}")
 
-        code, imports = operation.script(output_var=(self.OUTPUT_VAR_NAME if not is_result_node else None))
+        code, imports = operation.script(output_var=(self.OUTPUT_VAR_NAME if is_result_node else None))
         self.imports += imports
         self.node_id_to_code[logical_node.node_id] = code
         self.node_id_to_node[logical_node.node_id] = logical_node
@@ -247,6 +247,9 @@ class SycamoreExecutor:
 # {description}
 {code}
 """
+
+        result += "print(result)"
+
         return result
 
     def _write_query_plan_to_trace_dir(self, plan: LogicalPlan, query_id: str):

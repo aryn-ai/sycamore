@@ -1005,9 +1005,8 @@ class DocSet:
                 # todo: move data extraction and validation to entity extractor
                 return int(re.findall(r"\d+", doc.properties[new_field])[0]) >= threshold
 
-            if similarity_query or similarity_scorer:
+            if similarity_query is not None:
                 assert similarity_scorer is not None, "Similarity sorting requires a scorer"
-                assert similarity_query is not None, "Similarity sorting requires a string query"
                 score_property_name = f"{field}_similarity_score"
                 doc = similarity_scorer.generate_similarity_scores(
                     doc_batch=[doc], query=similarity_query, score_property_name=score_property_name
@@ -1141,7 +1140,6 @@ class DocSet:
         query: str,
         score_property_name: str = "_rerank_score",
         limit: Optional[int] = None,
-        **kwargs,
     ) -> "DocSet":
         """
         Sort a DocSet given a scoring class.
@@ -1159,7 +1157,7 @@ class DocSet:
         else:
             plan = self.plan
         similarity_scored = ScoreSimilarity(
-            plan, similarity_scorer=similarity_scorer, query=query, score_property_name=score_property_name, **kwargs
+            plan, similarity_scorer=similarity_scorer, query=query, score_property_name=score_property_name
         )
         return DocSet(
             self.context,

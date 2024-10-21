@@ -1,16 +1,12 @@
 import pytest
 from unittest import mock
-from elasticsearch import Elasticsearch
 from sycamore.data.document import Document
-from sycamore.connectors.base_writer import BaseDBWriter
 
 from sycamore.connectors.elasticsearch.elasticsearch_writer import (
     ElasticsearchWriterClient,
     ElasticsearchWriterClientParams,
     ElasticsearchWriterTargetParams,
     ElasticsearchWriterDocumentRecord,
-    ElasticsearchDocumentWriter,
-    _narrow_list_of_doc_records,
 )
 
 

@@ -1,13 +1,11 @@
 import pytest
 from unittest import mock
 from sycamore.data import Document
-from sycamore.connectors.base_reader import BaseDBReader
 from sycamore.connectors.pinecone.pinecone_reader import (
     PineconeReaderClient,
     PineconeReaderClientParams,
     PineconeReaderQueryParams,
     PineconeReaderQueryResponse,
-    PineconeReader,
 )
 
 

@@ -1,7 +1,6 @@
 import pytest
 from unittest import mock
 from sycamore.data.document import Document
-from sycamore.connectors.base_writer import BaseDBWriter
 
 from sycamore.connectors.pinecone.pinecone_writer import (
     PineconeWriterClient,

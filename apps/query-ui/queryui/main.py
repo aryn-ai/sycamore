@@ -46,9 +46,6 @@ def main():
     argparser.add_argument(
         "--llm-cache-dir", type=str, default="llm_cache", help="LLM query cache dir. Defaults to ./llm_cache."
     )
-    argparser.add_argument(
-        "--trace-dir", type=str, default="traces", help="Directory to store query traces. Defaults to ./traces."
-    )
     args = argparser.parse_args()
 
     if args.chat:
@@ -76,13 +73,6 @@ def main():
         else:
             llm_cache_dir = args.llm_cache_dir
         cmdline_args.extend(["--llm-cache-dir", llm_cache_dir])
-
-    if args.trace_dir:
-        if not args.llm_cache_dir.startswith("s3://"):
-            trace_dir = os.path.abspath(args.trace_dir)
-        else:
-            trace_dir = args.trace_dir
-        cmdline_args.extend(["--trace-dir", trace_dir])
 
     if args.exec_mode == "ray":
         ray_init()

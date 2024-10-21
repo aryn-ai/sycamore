@@ -15,6 +15,7 @@ from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.planner import PlannerExample
 from sycamore.query.schema import OpenSearchSchema
+from sycamore.query.result import SycamoreQueryResult
 
 from queryui.configuration import get_sycamore_query_client
 
@@ -29,7 +30,7 @@ def generate_plan(_client: SycamoreQueryClient, query: str, index: str, examples
     return _client.generate_plan(query, index, get_schema(_client, index), examples=examples)
 
 
-def run_plan(_client: SycamoreQueryClient, plan: LogicalPlan) -> Tuple[str, Any]:
+def run_plan(_client: SycamoreQueryClient, plan: LogicalPlan) -> SycamoreQueryResult:
     """Run the given plan."""
     return _client.run_plan(plan)
 
@@ -168,8 +169,8 @@ class QueryNodeTrace:
         "text_representation",
     ]
 
-    def __init__(self, trace_dir: str, node_id: str):
-        self.trace_dir = trace_dir
+    def __init__(self, result: SycamoreQueryResult, node_id: int):
+        self.result = result
         self.node_id = node_id
         self.df = None
         self.num_files = 0
@@ -219,8 +220,12 @@ class QueryNodeTrace:
             return row
 
     def readdata(self):
-        """Read the trace data."""
-        directory = os.path.join(self.trace_dir, self.node_id)
+        """Read the trace data for this node."""
+
+        if self.node_id not in self.result.trace_dirs:
+            return
+
+        directory = self.result.trace_dirs[self.node_id]
         docs = []
 
         # We need to read all of the individual docs to ensure we get all of the parent
@@ -271,19 +276,11 @@ class QueryNodeTrace:
 class QueryTrace:
     """Helper class used to read and display query traces."""
 
-    def __init__(self, trace_dir: str):
-        self.trace_dir = trace_dir
+    def __init__(self, result: SycamoreQueryResult):
         self.node_traces = []
-        self.query_plan = self._get_query_plan(self.trace_dir)
-        for dir in sorted(os.listdir(self.trace_dir)):
-            if "metadata" not in dir:
-                self.node_traces += [QueryNodeTrace(trace_dir, dir)]
-
-    def _get_query_plan(self, trace_dir: str):
-        metadata_dir = os.path.join(trace_dir, "metadata")
-        if os.path.isfile(os.path.join(trace_dir, "metadata", "query_plan.json")):
-            return LogicalPlan.parse_file(os.path.join(metadata_dir, "query_plan.json"))
-        return None
+        self.query_plan = result.plan
+        for node_id in sorted(result.plan.nodes.keys()):
+            self.node_traces += [QueryNodeTrace(result, node_id)]
 
     def show(self):
         tab1, tab2 = st.tabs(["Node data", "Query plan"])
@@ -299,7 +296,6 @@ class QueryTrace:
 
 
 @st.fragment
-def show_query_traces(trace_dir: str, query_id: str):
-    """Show the query traces in the given trace_dir."""
-    trace_dir = os.path.join(trace_dir, query_id)
-    QueryTrace(trace_dir).show()
+def show_query_traces(result: SycamoreQueryResult):
+    """Show the query traces for the given query result."""
+    QueryTrace(result).show()

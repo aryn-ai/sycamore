@@ -3,7 +3,13 @@ import ray.data
 
 import sycamore
 from sycamore.data import Document, Table
-from sycamore.transforms.merge_elements import GreedyTextElementMerger, Merge, GreedySectionMerger
+from sycamore.transforms.merge_elements import (
+    GreedyTextElementMerger,
+    Merge,
+    GreedySectionMerger,
+    HeaderAugmenterMerger,
+)
+
 from sycamore.functions.tokenizer import HuggingFaceTokenizer
 from sycamore.plan_nodes import Node
 
@@ -386,3 +392,129 @@ class TestGreedySectionMerger:
         merger = GreedySectionMerger(tokenizer, 1200, merge_across_pages=False)
         new_doc = merger.merge_elements(self.doc2)
         assert new_doc.elements[0].text_representation is not None
+
+
+class TestHeaderAugmenterMerger:
+
+    doc = Document(
+        {
+            "doc_id": "doc_id",
+            "type": "pdf",
+            "text_representation": "text",
+            "binary_representation": None,
+            "parent_id": None,
+            "properties": {"path": "/docs/foo.txt", "title": "bar"},
+            "elements": [
+                {
+                    "type": "Section-header",
+                    "text_representation": "section1",
+                    "properties": {"filetype": "text/plain", "page_number": 1},
+                },
+                {
+                    "type": "Section-header",
+                    "text_representation": "section1.1",
+                    "properties": {"filetype": "text/plain", "page_number": 1},
+                },
+                {
+                    "type": "Text",
+                    "text_representation": "text1 on page 1",
+                    "properties": {"filetype": "text/plain", "page_number": 1},
+                },
+                {
+                    "type": "Table",
+                    "text_representation": "table1 on page 2",
+                    "properties": {"filetype": "text/plain", "page_number": 2},
+                },
+                {
+                    "type": "Title",
+                    "text_representation": "title1 on page 2",
+                    "properties": {"filetype": "text/plain", "page_number": 2},
+                },
+                {
+                    "type": "Section-header",
+                    "text_representation": "section2 on page 2",
+                    "properties": {"filetype": "text/plain", "page_number": 2},
+                },
+                {
+                    "type": "Text",
+                    "text_representation": "text2 on page 2",
+                    "properties": {"filetype": "text/plain", "page_number": 2},
+                },
+                {
+                    "type": "Text",
+                    "text_representation": "text3 on page 2",
+                    "properties": {"filetype": "text/plain", "page_number": 2},
+                },
+                {
+                    "type": "Text",
+                    "text_representation": "text4 on page 3",
+                    "properties": {"filetype": "text/plain", "page_number": 3},
+                },
+                {},
+            ],
+        }
+    )
+
+    def test_merge_elements(self):
+        tokenizer = HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2")
+        merger = HeaderAugmenterMerger(tokenizer, 1200, merge_across_pages=True)
+
+        new_doc = merger.merge_elements(self.doc)
+        assert len(new_doc.elements) == 4
+        e = new_doc.elements[0]
+        assert e.type == "Text"
+        assert e.text_representation == ("section1\nsection1.1\ntext1 on page 1")
+        assert e.properties == {
+            "filetype": "text/plain",
+            "page_number": 1,
+        }
+        assert e["_header"] == "section1\nsection1.1"
+
+        e = new_doc.elements[1]
+        assert e.type == "table"
+        assert e.text_representation == ("section1\nsection1.1\ntable1 on page 2")
+        assert e.properties == {
+            "filetype": "text/plain",
+            "page_number": 2,
+            "title": None,
+            "columns": None,
+            "rows": None,
+        }
+        assert e["_header"] == "section1\nsection1.1"
+
+        e = new_doc.elements[2]
+        assert e.type == "Text"
+        assert e.text_representation == (
+            "title1 on page 2\nsection2 on page 2\ntext2 on page 2\ntext3 on page 2\ntext4 on page 3"
+        )
+        assert e.properties == {
+            "filetype": "text/plain",
+            "page_number": 2,
+            "page_numbers": [2, 3],
+        }
+        assert e["_header"] == "title1 on page 2\nsection2 on page 2"
+
+    def test_merge_elements_via_execute(self, mocker):
+        node = mocker.Mock(spec=Node)
+        input_dataset = ray.data.from_items([{"doc": self.doc.serialize()}])
+        execute = mocker.patch.object(node, "execute")
+        execute.return_value = input_dataset
+        tokenizer = HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2")
+        merger = HeaderAugmenterMerger(tokenizer, 120, merge_across_pages=True)
+        merge = Merge(node, merger)
+        output_dataset = merge.execute()
+        output_dataset.show()
+
+    def test_docset_augmented(self):
+        ray.shutdown()
+
+        context = sycamore.init()
+        tokenizer = HuggingFaceTokenizer("sentence-transformers/all-MiniLM-L6-v2")
+        context.read.document([self.doc]).merge(HeaderAugmenterMerger(tokenizer, 120, merge_across_pages=True)).show()
+
+        # Verify that GreedyTextElementMerger can't be an argument for map.
+        # We may want to change this in the future.
+        with pytest.raises(ValueError):
+            sycamore.init().read.document([self.doc]).map(
+                HeaderAugmenterMerger(tokenizer, 120, merge_across_pages=True)
+            )

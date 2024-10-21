@@ -1,5 +1,6 @@
 import pytest
 
+from sycamore import DocSet
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.operators.query_database import QueryVectorDatabase
 
@@ -58,11 +59,13 @@ class TestSycamoreQuery:
         )
         ray.shutdown()
         result = client.run_plan(plan, dry_run=dry_run)
-        assert isinstance(result.code, str)
-        assert len(result.code) > 0
         if dry_run:
+            assert isinstance(result.code, str)
+            assert len(result.code) > 0
             assert not ray.is_initialized()
         else:
+            assert isinstance(result.result, str)
+            assert len(result.result) > 0
             assert ray.is_initialized()
 
     @pytest.mark.parametrize("codegen_mode", [True, False])
@@ -75,7 +78,7 @@ class TestSycamoreQuery:
             "were there any environmentally caused incidents?",
             query_integration_test_index,
             schema,
-            natural_language_response=False,
+            natural_language_response=True,
         )
         assert len(plan.nodes) == 2
         assert isinstance(plan.nodes[0], QueryVectorDatabase)

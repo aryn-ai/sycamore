@@ -1,3 +1,4 @@
+import logging
 import os
 import traceback
 import uuid
@@ -269,6 +270,7 @@ class SycamoreExecutor:
             if self.codegen_mode:
                 code = self.get_code_string()
                 result.code = code
+                print(f"MDW: CODE IS:\n{code}\n")
                 global_context: dict[str, Any] = {"context": self.context}
                 try:
                     # pylint: disable=exec-used

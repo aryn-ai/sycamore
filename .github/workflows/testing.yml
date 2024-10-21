@@ -68,14 +68,10 @@ jobs:
       - name: DF-5
         run: df
       - name: Run tests
-        run: poetry run pytest sycamore/tests/unit/
+        run: poetry run pytest -n auto sycamore/tests/unit/
         working-directory: lib/sycamore
       - name: Run more tests
         run: poetry run python sycamore/tests/manual/test_fast_sycamore_import.py
-        working-directory: lib/sycamore
-      - name: Run query-ui test
-        run: poetry run bash -c 'cd ../../apps/query-ui/queryui && PYTHONPATH=. pytest .'
-        # run here because that's where the poetry venv is set up.
         working-directory: lib/sycamore
       - name: DF-6
         run: df
@@ -108,6 +104,45 @@ jobs:
       - name: Run Tests
         run: poetry run pytest remote_processors/test/unit/
         working-directory: lib/remote-processors
+
+  notebook-tests-fast:
+    runs-on: integ-test-runner2
+    strategy:
+      matrix:
+        python-version: ["3.9"]
+    services:
+      opensearch:
+        image: opensearchproject/opensearch:2.10.0
+        env:
+          discovery.type: "single-node"
+        ports:
+          - 9200:9200
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install poetry
+        run: pipx install poetry
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "poetry"
+      - name: Install sycamore
+        run: poetry install --all-extras
+      - name: Download nltk packages
+        run: poetry run python -m nltk.downloader punkt averaged_perceptron_tagger
+      - name: Update Apt
+        run: sudo apt-get update
+      - name: Install poppler and tesseract
+        run: sudo apt-get install -y poppler-utils tesseract-ocr
+      - name: Configure AWS Credentials via OIDC provider.
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: us-east-1
+          role-to-assume: arn:aws:iam::237550789389:role/aryn-github-integ
+      - name: Run Notebook tests
+        run: ./notebooks/run-notebook-tests.sh --fast
 
   integ-tests:
     runs-on: integ-test-runner2
@@ -179,5 +214,42 @@ jobs:
         run: sudo chmod -R 777 /neo4j/import
       - name: Run Integ tests
         run: poetry run pytest lib/sycamore/sycamore/tests/integration
+
+  notebook-tests-slow:
+    runs-on: integ-test-runner2
+    strategy:
+      matrix:
+        python-version: ["3.9"]
+    services:
+      opensearch:
+        image: opensearchproject/opensearch:2.10.0
+        env:
+          discovery.type: "single-node"
+        ports:
+          - 9200:9200
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install poetry
+        run: pipx install poetry
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "poetry"
+      - name: Install sycamore
+        run: poetry install --all-extras
+      - name: Download nltk packages
+        run: poetry run python -m nltk.downloader punkt averaged_perceptron_tagger
+      - name: Update Apt
+        run: sudo apt-get update
+      - name: Install poppler and tesseract
+        run: sudo apt-get install -y poppler-utils tesseract-ocr
+      - name: Configure AWS Credentials via OIDC provider.
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: us-east-1
+          role-to-assume: arn:aws:iam::237550789389:role/aryn-github-integ
       - name: Run Notebook tests
-        run: poetry run pytest --nbmake --nbmake-timeout=600 notebooks/default-prep-script.ipynb notebooks/jupyter_dev_example.ipynb notebooks/metadata-extraction.ipynb notebooks/sycamore_demo.ipynb notebooks/tutorial.ipynb
+        run: ./notebooks/run-notebook-tests.sh --slow

@@ -50,7 +50,17 @@ def image_to_bytes(image: Image.Image, format: Optional[str] = None) -> bytes:
     return iobuf.getvalue()
 
 
-def base64_data_url(image: Image.Image) -> str:
+def base64_data(image: Image.Image, format="PNG") -> str:
+    """Returns the image encoded as a base64 string.
+
+    Args:
+       image: A PIL image.
+    """
+
+    return base64.b64encode(image_to_bytes(image, format)).decode("utf-8")
+
+
+def base64_data_url(image: Image.Image, format="PNG") -> str:
     """Returns the image encoded as a png data url
 
     More info on data urls can be found at https://en.wikipedia.org/wiki/Data_URI_scheme
@@ -58,9 +68,7 @@ def base64_data_url(image: Image.Image) -> str:
     Args:
        image: A PIL image.
     """
-
-    encoded_image = image_to_bytes(image, "PNG")
-    return f"data:image/png/;base64,{base64.b64encode(encoded_image).decode('utf-8')}"
+    return f"data:image/png/;base64,{base64_data(image, format)}"
 
 
 def image_page_filename_fn(doc: Document) -> str:

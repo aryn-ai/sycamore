@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sycamore-ai"
-version = "0.1.24"
+version = "0.1.25"
 description = "Sycamore is an LLM-powered semantic data preparation system for building search applications."
 authors = ["aryn.ai <opensource@aryn.ai>"]
 readme = "README.md"
@@ -89,6 +89,7 @@ python-pptx = {version = "^0.6.22", optional = true }
 flake8 = "4.0.1"
 pytest = "7.4.0" # See poetry-lock/pyproject.toml
 pytest-mock = "^3.11"
+pytest-xdist = "^3.6.1"
 
 [tool.poetry.group.dev.dependencies]
 sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }

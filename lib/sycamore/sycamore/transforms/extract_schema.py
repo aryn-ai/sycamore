@@ -42,7 +42,7 @@ class PropertyExtractor(ABC):
         pass
 
 
-class OpenAISchemaExtractor(SchemaExtractor):
+class LLMSchemaExtractor(SchemaExtractor):
     """
     OpenAISchema uses one of OpenAI's language model (LLM) for schema extraction,
     given a suggested entity type to be extracted.
@@ -110,7 +110,19 @@ class OpenAISchemaExtractor(SchemaExtractor):
         return entities
 
 
-class OpenAIPropertyExtractor(PropertyExtractor):
+class OpenAISchemaExtractor(LLMSchemaExtractor):
+    """Alias for LLMSchemaExtractor for OpenAI models.
+
+    Retained for backward compatibility.
+
+    .. deprecated:: 0.1.25
+    Use LLMSchemaExtractor instead.
+    """
+
+    pass
+
+
+class LLMPropertyExtractor(PropertyExtractor):
     """
     OpenAISchema uses one of OpenAI's language model (LLM) to extract actual property values once
     a schema has been detected or provided.
@@ -217,6 +229,18 @@ class ExtractSchema(Map):
 
     def __init__(self, child: Node, schema_extractor: SchemaExtractor, **resource_args):
         super().__init__(child, f=schema_extractor.extract_schema, **resource_args)
+
+
+class OpenAIPropertyExtractor(LLMPropertyExtractor):
+    """Alias for LLMPropertyExtractor for OpenAI models.
+
+    Retained for backward compatibility.
+
+    .. deprecated:: 0.1.25
+    Use LLMPropertyExtractor instead.
+    """
+
+    pass
 
 
 class ExtractBatchSchema(Map):

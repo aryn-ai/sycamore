@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.schema import OpenSearchSchema
+from sycamore.query.planner import PlannerExample
 
 
 class QueryEvalConfig(BaseModel):
@@ -15,6 +16,7 @@ class QueryEvalConfig(BaseModel):
     config_file: Optional[str] = None
     results_file: Optional[str] = None
     log_file: Optional[str] = None
+    llm: Optional[str] = None
     index: Optional[str] = None
     query_cache_path: Optional[str] = None
     llm_cache_path: Optional[str] = None
@@ -22,6 +24,7 @@ class QueryEvalConfig(BaseModel):
     natural_language_response: Optional[bool] = True
     doc_limit: Optional[int] = None
     overwrite: Optional[bool] = False
+    tags: Optional[List[str]] = None
 
 
 class QueryEvalQuery(BaseModel):
@@ -29,7 +32,10 @@ class QueryEvalQuery(BaseModel):
 
     query: str
     expected: Optional[Union[str, List[Dict[str, Any]]]] = None
+    expected_plan: Optional[LogicalPlan] = None
     plan: Optional[LogicalPlan] = None
+    tags: Optional[List[str]] = None
+    notes: Optional[str] = None
 
 
 class QueryEvalInputFile(BaseModel):
@@ -37,6 +43,7 @@ class QueryEvalInputFile(BaseModel):
 
     config: Optional[QueryEvalConfig] = None
     data_schema: Optional[OpenSearchSchema] = None
+    examples: Optional[List[PlannerExample]] = None
     queries: List[QueryEvalQuery]
 
 
@@ -45,6 +52,7 @@ class QueryEvalMetrics(BaseModel):
 
     plan_generation_time: Optional[float] = None
     plan_similarity: Optional[float] = None
+    plan_diff_count: Optional[int] = None
     query_time: Optional[float] = None
     correctness_score: Optional[float] = None
     similarity_score: Optional[float] = None
@@ -59,6 +67,7 @@ class QueryEvalResult(BaseModel):
     result: Optional[Union[str, List[Dict[str, Any]]]] = None
     error: Optional[str] = None
     metrics: Optional[QueryEvalMetrics] = None
+    notes: Optional[str] = None
 
 
 class QueryEvalResultsFile(BaseModel):
@@ -66,4 +75,5 @@ class QueryEvalResultsFile(BaseModel):
 
     config: QueryEvalConfig
     data_schema: Optional[OpenSearchSchema] = None
+    examples: Optional[List[PlannerExample]] = None
     results: Optional[List[QueryEvalResult]] = None

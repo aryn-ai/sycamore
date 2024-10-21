@@ -80,7 +80,7 @@ def show_code(client: SycamoreQueryClient, code: str):
 def run_query():
     """Run the given query."""
     client = get_sycamore_query_client(
-        s3_cache_path=st.session_state.llm_cache_dir,
+        llm_cache_dir=st.session_state.llm_cache_dir,
         trace_dir=st.session_state.trace_dir,
         cache_dir=st.session_state.cache_dir,
         exec_mode=ExecMode.LOCAL if st.session_state.local_mode else ExecMode.RAY,

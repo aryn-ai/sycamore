@@ -92,6 +92,9 @@ class WeaviateReaderQueryResponse(BaseDBReader.QueryResponse):
                 | unflatten_data(dict(object.properties), "__")
                 | {"doc_id": str(object.uuid)}
             )  # type: ignore
+            doc.properties["parent_id"] = str(doc.properties.get("parent_id", "")).replace("-", "")
+            doc.properties["element_id"] = str(doc.properties.get("element_id", "")).replace("-", "")
+            doc.parent_id = str(doc.get("parent_id", ""))
             doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
             result.append(doc)
         return result

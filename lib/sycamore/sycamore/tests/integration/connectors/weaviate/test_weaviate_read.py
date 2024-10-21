@@ -1,6 +1,6 @@
 import pytest
 
-from sycamore.connectors.common import compare_docs
+from sycamore.tests.integration.connectors.common import compare_connector_docs
 import weaviate
 from weaviate.classes.config import Property, ReferenceProperty
 from weaviate.classes.query import Filter
@@ -101,10 +101,4 @@ def test_weaviate_read(wv_client_args):
         wv_client_args=wv_client_args, collection_name=collection, fetch_objects=fetch_object_dict
     ).take_all()
     assert len(query_docs) == 1  # exactly one doc should be returned
-    assert len(out_docs) == len(docs)
-    assert all(
-        compare_docs(original, plumbed)
-        for original, plumbed in zip(
-            sorted(docs, key=lambda d: d.doc_id or ""), sorted(out_docs, key=lambda d: d.doc_id or "")
-        )
-    )
+    compare_connector_docs(docs, out_docs)

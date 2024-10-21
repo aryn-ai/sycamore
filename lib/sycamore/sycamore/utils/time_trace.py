@@ -1,7 +1,6 @@
 import os
 import time
 import struct
-import resource
 import threading
 import functools
 import logging
@@ -16,6 +15,21 @@ else:
 
 
 logger = logging.getLogger(__name__)
+
+
+# Windows lacks resource, so...
+try:
+    import resource
+    try:
+        resource_type = resource.RUSAGE_THREAD  # type: ignore
+    except AttributeError:
+        resource_type = resource.RUSAGE_SELF
+    getrusage = resource.getrusage
+except ImportError:
+    resource_type = 0
+    getrusage = lambda x: _ZeroRU()
+
+tester = lambda x: _ZeroRU()
 
 
 class TimeTraceData:
@@ -40,18 +54,13 @@ class TimeTraceData:
 
 
 class InMemoryTimeTrace:
-    try:
-        resource_type = resource.RUSAGE_THREAD  # type: ignore
-    except AttributeError:
-        resource_type = resource.RUSAGE_SELF
-
     def __init__(self):
         self.t0 = time.time_ns()
-        self.r0 = resource.getrusage(self.resource_type)
+        self.r0 = getrusage(resource_type)
 
     def measure(self):
         t1 = time.time_ns()
-        r1 = resource.getrusage(self.resource_type)
+        r1 = getrusage(resource_type)
         r0 = self.r0
         user = int((r1.ru_utime - r0.ru_utime) * 1.0e9)
         sys = int((r1.ru_stime - r0.ru_stime) * 1.0e9)
@@ -63,11 +72,6 @@ class InMemoryTimeTrace:
 
 class TimeTrace:
     fd = -1
-
-    try:
-        resource_type = resource.RUSAGE_THREAD  # type: ignore
-    except AttributeError:
-        resource_type = resource.RUSAGE_SELF
 
     def __init__(self, name: str):
         self.name = name.encode()
@@ -144,6 +148,7 @@ class _ZeroRU:
     def __init__(self):
         self.ru_utime = 0
         self.ru_stime = 0
+        self.ru_maxrss = 0
 
 
 class LogTime:

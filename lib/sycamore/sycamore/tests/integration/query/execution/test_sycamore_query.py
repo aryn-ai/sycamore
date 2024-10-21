@@ -1,6 +1,5 @@
 import pytest
 
-from sycamore import DocSet
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.operators.query_database import QueryVectorDatabase
 

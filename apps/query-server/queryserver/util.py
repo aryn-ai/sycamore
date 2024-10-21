@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Optional, Set, Tuple
+from typing import Any, Optional, Set
 
 import ray
 

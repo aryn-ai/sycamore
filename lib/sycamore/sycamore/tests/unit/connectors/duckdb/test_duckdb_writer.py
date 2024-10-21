@@ -116,12 +116,6 @@ def test_duckdb_writer_target_params_compatible_with():
     assert not params1.compatible_with(params7)
 
 
-def test_duckdb_writer_get_existing_target_params_no_db(mock_duckdb, target_params):
-    client = DuckDBClient(DuckDBWriterClientParams())
-    with pytest.raises(ValueError):
-        client.get_existing_target_params(target_params)
-
-
 def test_duckdb_writer_get_existing_target_params_table_not_exist(mock_duckdb, target_params):
     client = DuckDBClient(DuckDBWriterClientParams())
     mock_duckdb.sql.side_effect = Exception("Table does not exist")

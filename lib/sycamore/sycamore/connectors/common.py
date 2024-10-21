@@ -6,6 +6,8 @@ import string
 import random
 import math
 import numpy as np
+import pyarrow as pa
+import re
 
 
 @dataclass
@@ -298,3 +300,30 @@ def _make_type_filter(types: list[type]) -> Callable[[Any], bool]:
         return not isinstance(x, tuple(types))
 
     return _type_filter
+
+
+def _get_pyarrow_type(key: str, dtype: str) -> pa.DataType:
+    if dtype == ("VARCHAR"):
+        return pa.string()
+    elif dtype == ("DOUBLE"):
+        return pa.float64()
+    elif dtype == ("BIGINT"):
+        return pa.int64()
+    elif dtype.startswith("MAP"):
+        match = re.match(r"MAP\((.+),\s*(.+)\)", dtype)
+        if not match:
+            raise ValueError(f"Invalid MAP type format: {dtype}")
+        key_type, value_type = match.groups()
+        pa_key_type = _get_pyarrow_type(key, key_type)
+        pa_value_type = _get_pyarrow_type(key, value_type)
+        return pa.map_(pa_key_type, pa_value_type)
+    elif dtype == "VARCHAR[]":
+        return pa.list_(pa.string())
+    elif dtype == "DOUBLE[]" or key == "embedding":  # embedding is a list of floats with a fixed dimension
+        return pa.list_(pa.float64())
+    elif dtype == "BIGINT[]":
+        return pa.list_(pa.int64())
+    elif dtype == "FLOAT":
+        return pa.float32()
+    else:
+        raise ValueError(f"Unsupported pyarrow datatype: {dtype}")

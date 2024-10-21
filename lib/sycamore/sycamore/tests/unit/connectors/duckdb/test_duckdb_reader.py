@@ -22,9 +22,10 @@ def mock_duckdb_connection():
 
 def test_duckdb_reader_client_from_client_params(mock_duckdb_connection):
     params = DuckDBReaderClientParams(db_url="test_db")
-    client = DuckDBReaderClient.from_client_params(params)
-    assert isinstance(client, DuckDBReaderClient)
-    mock_duckdb_connection.connect.assert_called_once_with(database="test_db", read_only=True)
+    with mock.patch("duckdb.connect", return_value=mock_duckdb_connection) as mock_connect:
+        client = DuckDBReaderClient.from_client_params(params)
+        assert isinstance(client, DuckDBReaderClient)
+        mock_connect.assert_called_once_with(database="test_db", read_only=True)
 
 
 def test_duckdb_reader_client_read_records(mock_duckdb_connection):
@@ -77,7 +78,7 @@ def test_duckdb_reader_client_check_target_presence_not_found(mock_duckdb_connec
 
 def test_duckdb_reader_query_response_to_docs():
     mock_output = mock.Mock()
-    mock_output.df.return_value.to_dict.return_value = [{"properties": '{"key": "value"}', "embedding": 0.0}]
+    mock_output.df.return_value.to_dict.return_value = [{"properties": {"key": "value"}, "embedding": 0.0}]
     response = DuckDBReaderQueryResponse(output=mock_output)
     query_params = DuckDBReaderQueryParams(table_name="test_table", query=None, create_hnsw_table=None)
     docs = response.to_docs(query_params)

@@ -1,14 +1,15 @@
 from dataclasses import dataclass, asdict, field
-from typing import Optional, Any, Dict
+from typing import Optional, Any
 from typing_extensions import TypeGuard
+
+import pyarrow as pa
+import logging
+import duckdb
 
 from sycamore.data.document import Document
 from sycamore.connectors.base_writer import BaseDBWriter
-from sycamore.connectors.common import convert_to_str_dict
 from sycamore.utils.import_utils import requires_modules
-
-import pyarrow as pa
-import os
+from sycamore.connectors.common import convert_to_str_dict, _get_pyarrow_type
 
 
 @dataclass
@@ -22,7 +23,7 @@ class DuckDBWriterTargetParams(BaseDBWriter.TargetParams):
     db_url: Optional[str] = "tmp.db"
     table_name: Optional[str] = "default_table"
     batch_size: int = 1000
-    schema: Dict[str, str] = field(
+    schema: dict[str, str] = field(
         default_factory=lambda: {
             "doc_id": "VARCHAR",
             "parent_id": "VARCHAR",
@@ -74,23 +75,21 @@ class DuckDBClient(BaseDBWriter.Client):
         ), f"Wrong kind of target parameters found: {target_params}"
         dict_params = asdict(target_params)
         N = target_params.batch_size * 1024  # Around 1 MB
-        headers = ["doc_id", "parent_id", "embedding", "properties", "text_representation", "bbox", "shingles", "type"]
-        schema = pa.schema(
-            [
-                ("doc_id", pa.string()),
-                ("parent_id", pa.string()),
-                ("embedding", pa.list_(pa.float32())),
-                ("properties", pa.map_(pa.string(), pa.string())),
-                ("text_representation", pa.string()),
-                ("bbox", pa.list_(pa.float32())),
-                ("shingles", pa.list_(pa.int64())),
-                ("type", pa.string()),
-            ]
-        )
+
+        # Validate schema and create pyarrow schema
+        headers = []
+        pa_fields = []
+        for key, dtype in target_params.schema.items():
+            headers.append(key)
+            try:
+                pa_dtype = _get_pyarrow_type(key, dtype)
+                pa_fields.append((key, pa_dtype))
+            except Exception as e:
+                raise ValueError(f"Invalid schema attribute or datatype for {key}: {e}")
+
+        schema = pa.schema(pa_fields)
 
         def write_batch(batch_data: dict):
-            import duckdb
-
             pa_table = pa.Table.from_pydict(batch_data, schema=schema)  # noqa
             client = duckdb.connect(str(dict_params.get("db_url")))
             client.sql(f"INSERT INTO {dict_params.get('table_name')} SELECT * FROM pa_table")
@@ -100,42 +99,37 @@ class DuckDBClient(BaseDBWriter.Client):
         batch_data: dict[str, list[Any]] = {key: [] for key in headers}
 
         for r in records:
-            # Append the new data to the batch
-            batch_data["doc_id"].append(r.doc_id)
-            batch_data["parent_id"].append(r.parent_id)
-            batch_data["embedding"].append(r.embedding)
-            batch_data["properties"].append(convert_to_str_dict(r.properties) if r.properties else {})
-            batch_data["text_representation"].append(r.text_representation)
-            batch_data["bbox"].append(r.bbox)
-            batch_data["shingles"].append(r.shingles)
-            batch_data["type"].append(r.type)
+            for key in headers:
+                value = getattr(r, key, None)
+                if isinstance(value, dict) and value:
+                    value = convert_to_str_dict(value)
+                batch_data[key].append(value)
 
             # If we've reached the batch size, write to the database
             if batch_data.__sizeof__() >= N:
                 write_batch(batch_data)
         # Write any remaining records
-        if len(batch_data["doc_id"]) > 0:
+        if len(batch_data[headers[0]]) > 0:
             write_batch(batch_data)
 
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
-        import duckdb
-
         assert isinstance(target_params, DuckDBWriterTargetParams)
         dict_params = asdict(target_params)
         schema = dict_params.get("schema")
+        if not target_params.db_url:
+            raise ValueError(f"Must provide valid disk location. Location Specified: {target_params.db_url}")
         client = duckdb.connect(str(dict_params.get("db_url")))
         try:
             if schema:
-                embedding_size = schema.get("embedding") + "[" + str(dict_params.get("dimensions")) + "]"
-                client.sql(
-                    f"""CREATE TABLE {dict_params.get('table_name')} (doc_id {schema.get('doc_id')},
-                     parent_id {schema.get('parent_id')},
-                      embedding {embedding_size}, properties {schema.get('properties')},
-                      text_representation {schema.get('text_representation')}, bbox {schema.get('bbox')},
-                      shingles {schema.get('shingles')}, type {schema.get('type')})"""
-                )
+                columns = []
+                for key, dtype in schema.items():
+                    if key == "embedding":
+                        dtype += f"[{dict_params.get('dimensions')}]"
+                    columns.append(f"{key} {dtype}")
+                columns_str = ", ".join(columns)
+                client.sql(f"CREATE TABLE {dict_params.get('table_name')} ({columns_str})")
             else:
-                print(
+                logging.warning(
                     f"""Error creating table {dict_params.get('table_name')}
                     in database {dict_params.get('db_url')}: no schema provided"""
                 )
@@ -143,20 +137,16 @@ class DuckDBClient(BaseDBWriter.Client):
             return
 
     def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> "DuckDBWriterTargetParams":
-        import duckdb
-
         assert isinstance(target_params, DuckDBWriterTargetParams)
         dict_params = asdict(target_params)
         schema = target_params.schema
-        if not target_params.db_url or not os.path.exists(target_params.db_url):
-            raise ValueError(f"Must provide valid disk location. Location Specified: {target_params.db_url}")
         if target_params.db_url and target_params.table_name:
             client = duckdb.connect(str(dict_params.get("db_url")))
             try:
                 table = client.sql(f"SELECT * FROM {target_params.table_name}")
-                schema = dict(zip(table.columns, [repr(i) for i in table.dtypes]))
+                schema = dict(zip(table.columns, [str(i) for i in table.dtypes]))
             except Exception as e:
-                print(
+                logging.warning(
                     f"""Table {dict_params.get('table_name')}
                     does not exist in database {dict_params.get('table_name')}: {e}"""
                 )

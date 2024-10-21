@@ -11,6 +11,8 @@ import streamlit as st
 
 import queryui.util as util
 
+from sycamore.query.result import SycamoreQueryResult
+
 
 # The agent LLM needs a prompt that understands how to render MDX output with the appropriate
 # set of JSX components. This prompt should be appended to the system prompt to ensure
@@ -106,12 +108,12 @@ class ChatMessageExtra:
 class ChatMessageTraces(ChatMessageExtra):
     """A ChatMessageExtra subclass for showing query traces."""
 
-    def __init__(self, name: str, query_id: str):
+    def __init__(self, name: str, result: SycamoreQueryResult):
         super().__init__(name)
-        self.query_id = query_id
+        self.result = result
 
     def show(self):
-        util.show_query_traces(st.session_state.trace_dir, self.query_id)
+        util.show_query_traces(self.result)
 
 
 class ChatMessage:

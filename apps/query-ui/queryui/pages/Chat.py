@@ -4,7 +4,8 @@
 import argparse
 import json
 import os
-from typing import Any, List, Optional, Tuple
+import traceback
+from typing import List, Union
 
 from queryui.chat import ChatMessage, ChatMessageExtra, ChatMessageTraces, MDX_SYSTEM_PROMPT
 import queryui.util as util
@@ -20,6 +21,7 @@ from sycamore import ExecMode
 from sycamore.executor import sycamore_ray_init
 from sycamore.transforms.query import OpenSearchQueryExecutor
 from sycamore.query.client import SycamoreQueryClient
+from sycamore.query.result import SycamoreQueryResult
 
 # The OpenAI model used for the chat agent.
 openai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
@@ -165,18 +167,17 @@ def do_rag_query(query: str, index: str) -> str:
     return rag_result
 
 
-def query_data_source(query: str, index: str) -> Tuple[Any, Optional[Any], Optional[str]]:
+def query_data_source(query: str, index: str) -> Union[SycamoreQueryResult, str]:
     """Run a Sycamore or RAG query.
 
     Returns a tuple of (query_result, query_plan, query_id).
     """
 
     if st.session_state.rag_only:
-        return do_rag_query(query, index), None, None
+        return do_rag_query(query, index)
     else:
         sqclient = SycamoreQueryClient(
             llm_cache_dir=st.session_state.llm_cache_dir,
-            trace_dir=st.session_state.trace_dir,
             cache_dir=st.session_state.cache_dir,
             sycamore_exec_mode=ExecMode.LOCAL if st.session_state.local_mode else ExecMode.RAY,
         )
@@ -189,9 +190,9 @@ def query_data_source(query: str, index: str) -> Tuple[Any, Optional[Any], Optio
                 st.write(plan)
         with st.spinner("Running Sycamore query..."):
             print("Running plan...")
-            query_id, result = util.run_plan(sqclient, plan)
-            print(f"Ran query ID: {query_id}")
-        return result, plan, query_id
+            result = util.run_plan(sqclient, plan)
+            print(f"Ran query ID: {result.query_id}")
+        return result
 
 
 def show_messages():
@@ -215,8 +216,7 @@ def do_query():
     user_message.show()
 
     assistant_message = None
-    query_plan = None
-    query_id = None
+    query_result = None
     tool_response_str = None
     with st.chat_message("assistant"):
         # We loop here because tool calls require re-invoking the LLM.
@@ -242,14 +242,14 @@ def do_query():
                 tool_call_id = tool_calls[0].id
                 tool_function_name = tool_calls[0].function.name
                 tool_response_str = ""
-                query_plan = None
-                query_id = None
+                query_result = None
                 # Try to catch any errors that might corrupt the message history here.
                 try:
                     tool_args = json.loads(tool_calls[0].function.arguments)
                     if tool_function_name == "queryDataSource":
                         tool_query = tool_args["query"]
-                        tool_response, query_plan, query_id = query_data_source(tool_query, st.session_state.index)
+                        query_result = query_data_source(tool_query, st.session_state.index)
+                        tool_response = query_result.result
                     else:
                         tool_response = f"Unknown tool: {tool_function_name}"
 
@@ -258,21 +258,18 @@ def do_query():
                             # We got a straight string response from the query plan, which means we can
                             # feed it back to the LLM directly.
                             tool_response_str = tool_response
-                        elif isinstance(tool_response, sycamore.docset.DocSet):
-                            # We got a DocSet.
-                            # Note that this can be slow because the .take()
-                            # actually runs the query.
+                        elif isinstance(tool_response, sycamore.DocSet):
+                            # We got a DocSet result.
                             tool_response_str = util.docset_to_string(tool_response, html=False)
                         else:
                             # Fall back to string representation.
                             tool_response_str = str(tool_response)
                         if not tool_response_str:
                             tool_response_str = "No results found for your query."
-                except Exception as e:
+                except Exception as e:  # pylint: disable=broad-except
                     st.error(f"Error running Sycamore query: {e}")
                     print(f"Error running Sycamore query: {e}")
                     # Print stack trace.
-                    import traceback
 
                     traceback.print_exc()
                     tool_response_str = f"There was an error running your query: {e}"
@@ -293,14 +290,14 @@ def do_query():
             else:
                 # No function call was made.
                 assistant_message.show_content()
-                if query_plan:
-                    assistant_message.before_extras.append(ChatMessageExtra("Query plan", query_plan))
+                if query_result:
+                    assistant_message.before_extras.append(ChatMessageExtra("Query plan", query_result.plan))
                 if tool_response_str:
                     assistant_message.before_extras.append(
                         ChatMessageExtra("Sycamore query result", f"```{tool_response_str}```")
                     )
-                if query_id:
-                    cmt = ChatMessageTraces("Query trace", query_id)
+                if query_result:
+                    cmt = ChatMessageTraces("Query trace", query_result)
                     with st.expander("Query trace"):
                         cmt.show()
                     assistant_message.after_extras.append(cmt)

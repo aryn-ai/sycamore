@@ -92,7 +92,11 @@ def summarize_data(
                     doc.text_representation[:NUM_TEXT_CHARS_GENERATE] if doc.text_representation is not None else None
                 )
 
-                text += json.dumps(props_dict, indent=2) + "\n"
+                for key, value in props_dict.items():
+                    try:
+                        text += json.dumps(props_dict, indent=2) + "\n"
+                    except TypeError:
+                        text += f"{key}: {value}\n"
 
         else:
             text += str(result_data) + "\n"

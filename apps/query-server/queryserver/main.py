@@ -5,12 +5,13 @@
 
 import os
 import tempfile
-from typing import Annotated, Any, List, Optional
+from typing import Annotated, List, Optional
 
 from fastapi import FastAPI, Path
 from pydantic import BaseModel
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
+from sycamore.query.result import SycamoreQueryResult
 from sycamore.query.schema import OpenSearchSchema
 
 import queryserver.util as util
@@ -38,13 +39,6 @@ class Query(BaseModel):
 
     query: str
     index: str
-
-
-class QueryResult(BaseModel):
-    """Represents the result of a query operation."""
-
-    plan: LogicalPlan
-    result: Any
 
 
 def get_index_schema(index: str) -> OpenSearchSchema:
@@ -83,17 +77,15 @@ async def generate_plan(query: Query) -> LogicalPlan:
 
 
 @app.post("/v1/plan/run")
-async def run_plan(plan: LogicalPlan) -> QueryResult:
+async def run_plan(plan: LogicalPlan) -> SycamoreQueryResult:
     """Run the provided query plan."""
 
-    _, result = sqclient.run_plan(plan)
-    return QueryResult(plan=plan, result=result)
+    return sqclient.run_plan(plan)
 
 
 @app.post("/v1/query")
-async def run_query(query: Query) -> QueryResult:
+async def run_query(query: Query) -> SycamoreQueryResult:
     """Generate a plan for the given query, run it, and return the result."""
 
     plan = sqclient.generate_plan(query.query, query.index, util.get_schema(sqclient, query.index))
-    _, result = sqclient.run_plan(plan)
-    return QueryResult(plan=plan, result=result)
+    return sqclient.run_plan(plan)

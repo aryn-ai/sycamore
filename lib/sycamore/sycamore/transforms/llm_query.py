@@ -104,8 +104,17 @@ class LLMTextQueryAgent:
                     .render(doc=object)
                 )
             else:
+                object_name = "ELEMENT" if isinstance(object, Element) else "DOCUMENT"
                 if objectPrev and objectPrev.text_representation:
-                    prompt = self._prompt + "\n" + objectPrev.text_representation + "\n\n" + object.text_representation
+                    prompt = (
+                        self._prompt
+                        + "\n"
+                        + f"{object_name} 1: \n\n"
+                        + objectPrev.text_representation
+                        + "\n\n"
+                        + f"{object_name} 2: \n"
+                        + object.text_representation
+                    )
                 else:
                     prompt = self._prompt + "\n" + object.text_representation
             prompt_kwargs = {"prompt": prompt}

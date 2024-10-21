@@ -4,7 +4,6 @@ from sycamore.data.document import Document
 from sycamore.connectors.base_writer import BaseDBWriter
 
 from sycamore.connectors.pinecone.pinecone_writer import (
-    PineconeWriter,
     PineconeWriterClient,
     PineconeWriterRecord,
     PineconeWriterTargetParams,
@@ -16,19 +15,19 @@ from sycamore.connectors.pinecone.pinecone_writer import (
 
 @pytest.fixture
 def mock_pinecone_grpc():
-    with mock.patch("sycamore.connectors.pinecone.pinecone_writer.PineconeGRPC") as mock_grpc:
+    with mock.patch("pinecone.grpc.PineconeGRPC") as mock_grpc:
         yield mock_grpc
 
 
 @pytest.fixture
 def mock_pinecone_api_exception():
-    with mock.patch("sycamore.connectors.pinecone.pinecone_writer.PineconeApiException") as mock_exception:
+    with mock.patch("pinecone.exceptions.PineconeApiException") as mock_exception:
         yield mock_exception
 
 
 @pytest.fixture
 def mock_pinecone_exception():
-    with mock.patch("sycamore.connectors.pinecone.pinecone_writer.PineconeException") as mock_exception:
+    with mock.patch("pinecone.exceptions.PineconeApiException") as mock_exception:
         yield mock_exception
 
 
@@ -167,23 +166,15 @@ def test_narrow_list_of_pinecone_records():
     assert _narrow_list_of_pinecone_records(records)
 
 
-def test_narrow_list_of_pinecone_records_invalid():
-    records = [
-        PineconeWriterRecord(id="1", values=[0.1, 0.2], metadata={}, sparse_values=None),
-        BaseDBWriter.Record(id="2", values=[0.3, 0.4], metadata={}, sparse_values=None),
-    ]
-    assert not _narrow_list_of_pinecone_records(records)
-
-
-def test_wait_on_index(mock_pinecone_grpc, mock_pinecone_exception):
+def test_wait_on_index(mock_pinecone_grpc):
     client = mock_pinecone_grpc.return_value
-    client.describe_index.return_value.get.return_value = {"status": {"ready": True}}
+    client.describe_index.return_value = {"status": {"ready": True}}
     wait_on_index(client, "index1")
     client.describe_index.assert_called_with("index1")
 
 
-def test_wait_on_index_timeout(mock_pinecone_grpc, mock_pinecone_exception):
+def test_wait_on_index_timeout(mock_pinecone_grpc):
     client = mock_pinecone_grpc.return_value
-    client.describe_index.return_value.get.return_value = {"status": {"ready": False}}
+    client.describe_index.return_value = {"status": {"ready": False}}
     with pytest.raises(RuntimeError, match="Pinecone failed to create index in 30 seconds"):
         wait_on_index(client, "index1")

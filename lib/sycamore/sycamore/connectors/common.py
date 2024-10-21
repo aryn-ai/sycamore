@@ -40,7 +40,7 @@ def filter_doc(doc: Document, include):
 
 def check_dictionary_compatibility(dict1: dict[Any, Any], dict2: dict[Any, Any], ignore: list[str] = []):
     for k in dict1:
-        if not dict1.get(k) or (ignore and any(val in k for val in ignore)):
+        if not dict1.get(k) or (ignore and any(k in ignore_value for ignore_value in ignore)):
             continue
         if k not in dict2:
             return False

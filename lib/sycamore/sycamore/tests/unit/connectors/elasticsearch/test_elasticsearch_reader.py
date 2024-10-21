@@ -41,7 +41,10 @@ def test_elasticsearch_reader_client_from_client_params(client_params):
 def test_elasticsearch_reader_client_read_records(mock_elasticsearch_client, query_params):
     mock_elasticsearch_client.open_point_in_time.return_value = {"id": "test_pit_id"}
     mock_elasticsearch_client.search.side_effect = [
-        {"hits": {"hits": [{"_id": "1", "_source": {"properties": {}}}], "pit_id": "test_pit_id"}},
+        {
+            "hits": {"hits": [{"_id": "1", "_source": {"properties": {}}, "sort": {"_shard_doc": "desc"}}]},
+            "pit_id": "test_pit_id",
+        },
         {"hits": {"hits": []}, "pit_id": "test_pit_id"},
     ]
 

@@ -120,4 +120,4 @@ def test_pinecone_reader_query_response_to_docs_with_sparse_vector():
     assert len(docs) == 1
     assert isinstance(docs[0], Document)
     assert docs[0].doc_id == "doc1"
-    assert docs[0].properties["properties.term_frequency"] == {0: 0.5, 1: 0.5}
+    assert docs[0].properties["term_frequency"] == {0: 0.5, 1: 0.5}

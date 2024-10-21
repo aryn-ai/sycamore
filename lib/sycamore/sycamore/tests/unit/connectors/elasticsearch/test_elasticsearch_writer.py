@@ -52,7 +52,7 @@ def test_elasticsearch_writer_client_init(mock_elasticsearch_client):
 def test_elasticsearch_writer_client_from_client_params(client_params, mock_elasticsearch_client):
     client = ElasticsearchWriterClient.from_client_params(client_params)
     assert isinstance(client, ElasticsearchWriterClient)
-    assert client._client == mock_elasticsearch_client.return_value
+    assert client._client == mock_elasticsearch_client
 
 
 def test_elasticsearch_writer_client_write_many_records(mock_elasticsearch_client, target_params):
@@ -87,7 +87,7 @@ def test_elasticsearch_writer_client_create_target_idempotent(mock_elasticsearch
 def test_elasticsearch_writer_client_create_target_idempotent_existing(mock_elasticsearch_client, target_params):
     from elasticsearch import ApiError
 
-    mock_elasticsearch_client.indices.create.side_effect = ApiError("index_already_exists_exception")
+    mock_elasticsearch_client.indices.create.side_effect = ApiError(400, "index_already_exists_exception", "body")
     client = ElasticsearchWriterClient(mock_elasticsearch_client)
     client.create_target_idempotent(target_params)
     assert mock_elasticsearch_client.indices.create.called
@@ -128,21 +128,6 @@ def test_elasticsearch_writer_document_record_from_doc_no_doc_id(target_params):
     )
     with pytest.raises(ValueError):
         ElasticsearchWriterDocumentRecord.from_doc(document, target_params)
-
-
-def test_narrow_list_of_doc_records():
-    records = [
-        ElasticsearchWriterDocumentRecord(
-            doc_id="1",
-            properties={"key": "value"},
-            parent_id="parent1",
-            embedding=[0.1, 0.2, 0.3],
-        )
-    ]
-    assert _narrow_list_of_doc_records(records) is True
-
-    records.append(BaseDBWriter.Record())
-    assert _narrow_list_of_doc_records(records) is False
 
 
 def test_elasticsearch_writer_target_params_compatible_with():

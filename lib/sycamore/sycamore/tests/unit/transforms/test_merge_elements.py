@@ -392,8 +392,8 @@ class TestGreedySectionMerger:
         merger = GreedySectionMerger(tokenizer, 1200, merge_across_pages=False)
         new_doc = merger.merge_elements(self.doc2)
         assert new_doc.elements[0].text_representation is not None
-        
-        
+
+
 class TestHeaderAugmenterMerger:
 
     doc = Document(
@@ -505,7 +505,7 @@ class TestHeaderAugmenterMerger:
         output_dataset = merge.execute()
         output_dataset.show()
 
-    def test_docset_greedy(self):
+    def test_docset_augmented(self):
         ray.shutdown()
 
         context = sycamore.init()

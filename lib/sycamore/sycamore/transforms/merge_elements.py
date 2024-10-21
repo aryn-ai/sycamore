@@ -619,7 +619,7 @@ class HeaderAugmenterMerger(ElementMerger):
     The ``HeaderAugmenterMerger`` groups together different elements in a Document and enhances the text
     representation of the elements by adding the preceeding section-header/title.
 
-    - It merges certain elements like ("Text", "List-item", "Caption", "Footnote", "Formula", "Page-footer", "Page-header").
+    - It merges certain elements ("Text", "List-item", "Caption", "Footnote", "Formula", "Page-footer", "Page-header").
     - It merges consectuive ("Section-header", "Title") elements.
     - It adds the preceeding section-header/title to the text representation of the elements (including tables/images).
     """
@@ -653,14 +653,9 @@ class HeaderAugmenterMerger(ElementMerger):
         if len(document.elements) < 2:
             return document
 
-        first_header = False
         for element in document.elements:
             if element.type in ["Section-header", "Title"]:
-                first_header = True
                 element.data["_header"] = element.text_representation
-            else:
-                if not first_header:
-                    element.data["_header"] = None
 
         to_merge = [self.preprocess_element(e) for e in document.elements]
         new_elements = [to_merge[0]]
@@ -710,8 +705,13 @@ class HeaderAugmenterMerger(ElementMerger):
             return True
 
         # MERGE adjacent 'text' elements
-        small = {"Text", "List-item", "Caption", "Footnote", "Formula", "Page-footer", "Page-header"}
-        if (element1 is not None) and (element1.type in small) and (element2 is not None) and (element2.type in small):
+        text_like = {"Text", "List-item", "Caption", "Footnote", "Formula", "Page-footer", "Page-header", "Section"}
+        if (
+            (element1 is not None)
+            and (element1.type in text_like)
+            and (element2 is not None)
+            and (element2.type in text_like)
+        ):
             return True
 
         # Add header to next element (images, tables)
@@ -726,7 +726,7 @@ class HeaderAugmenterMerger(ElementMerger):
 
     def merge(self, elt1: Element, elt2: Element) -> Element:
         """Merge two elements; the new element's fields will be set as:
-            - type: "Section-header", "MergedText"
+            - type: "Section-header", "Text"
             - binary_representation: elt1.binary_representation + elt2.binary_representation
             - text_representation: elt1.text_representation + elt2.text_representation
             - bbox: the minimal bbox that contains both elt1's and elt2's bboxes
@@ -735,8 +735,10 @@ class HeaderAugmenterMerger(ElementMerger):
             note: if any input field is None we take the other element's field without merge logic
 
         Args:
-            element1 (Element): the first element (numbers of tokens in it is stored by `preprocess_element` as element1["token_count"])
-            element2 (Element): the second element (numbers of tokens in it is stored by `preprocess_element` as element2["token_count"])
+            element1 (Element): the first element (numbers of tokens in it is stored by `preprocess_element`
+                                as element1["token_count"])
+            element2 (Element): the second element (numbers of tokens in it is stored by `preprocess_element`
+                                as element2["token_count"])
 
         Returns:
             Element: a new merged element from the inputs (and number of tokens in it)
@@ -771,11 +773,12 @@ class HeaderAugmenterMerger(ElementMerger):
         elif elt1.bbox is None or elt2.bbox is None:
             new_elt.bbox = elt1.bbox or elt2.bbox
         else:
+            # TO-DO: Make bbox work across pages
             new_elt.bbox = BoundingBox(
-                elt1.bbox.x1,
-                elt1.bbox.y1,
-                elt1.bbox.x2,
-                elt1.bbox.y2,
+                min(elt1.bbox.x1, elt2.bbox.x1),
+                min(elt1.bbox.y1, elt2.bbox.y1),
+                max(elt1.bbox.x2, elt2.bbox.x2),
+                max(elt1.bbox.y2, elt2.bbox.y2),
             )
 
         # Merge properties by taking the union of the keys

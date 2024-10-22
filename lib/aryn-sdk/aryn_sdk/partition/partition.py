@@ -178,7 +178,7 @@ def _json_options(
 ) -> str:
     # isn't type-checking fun
     options: dict[str, Union[float, bool, str, list[Union[list[int], int]]]] = dict()
-    if threshold:
+    if threshold is not None:
         options["threshold"] = threshold
     if use_ocr:
         options["use_ocr"] = use_ocr

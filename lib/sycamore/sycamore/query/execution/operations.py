@@ -68,7 +68,7 @@ def summarize_data(
     Provides an English response to a question given relevant information.
 
     Args:
-        llm: LLM ti use for summarization.
+        llm: LLM to use for summarization.
         question: Question to answer.
         result_description: Description of each of the inputs in result_data.
         result_data: List of inputs.

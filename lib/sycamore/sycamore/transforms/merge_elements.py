@@ -24,13 +24,11 @@ class ElementMerger(ABC):
     def merge(self, element1: Element, element2: Element) -> Element:
         pass
 
-    @abstractmethod
     def preprocess_element(self, element: Element) -> Element:
-        pass
+        return element
 
-    @abstractmethod
     def postprocess_element(self, element: Element) -> Element:
-        pass
+        return element
 
     @timetrace("mergeElem")
     def merge_elements(self, document: Document) -> Document:
@@ -443,7 +441,7 @@ class TableMerger(ElementMerger):
             Respond with only 'true' or 'false' based on your certainty that the second table is a continuation. \
             Certainty is determined if either of the two conditions is true."
 
-            regex_pattern = r"table \d+"
+            regex_pattern = r"table \\d+"
 
             merger = TableMerger(llm_prompt = prompt, llm=llm)
 
@@ -481,8 +479,10 @@ class TableMerger(ElementMerger):
         for element in table_elements[1:]:
             if self.should_merge(new_table_elements[-1], element):
                 new_table_elements[-1] = self.merge(new_table_elements[-1], element)
+                new_table_elements[-1]["properties"]["table_continuation"] = True
             else:
                 new_table_elements.append(element)
+                new_table_elements[-1]["properties"]["table_continuation"] = False
         other_elements.extend(new_table_elements)
         document.elements = other_elements
         bbox_sort_document(document)
@@ -606,12 +606,6 @@ class TableMerger(ElementMerger):
         llm_query_agent = LLMTextQueryAgent(prompt=self.llm_prompt, element_type="table", llm=self.llm, table_cont=True)
         llm_results = llm_query_agent.execute_query(document)
         return llm_results
-
-    def preprocess_element(self, elem: Element) -> Element:
-        return elem
-
-    def postprocess_element(self, elem: Element) -> Element:
-        return elem
 
 
 class HeaderAugmenterMerger(ElementMerger):

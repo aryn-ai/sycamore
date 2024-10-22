@@ -31,7 +31,7 @@ class LLMImageSummarizer:
             context = sycamore.init()
             doc = context.read.binary(paths=paths, binary_format="pdf")\
                               .partition(partitioner=SycamorePartitioner(extract_images=True))\
-                              .transform(SummarizeImages(summarizer=LLMImageSummarizer(llm=llm)))\
+                              .transform(SummarizeImages, summarizer=LLMImageSummarizer(llm=llm))\
                               .show()
     """
 

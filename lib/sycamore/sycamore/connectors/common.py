@@ -6,6 +6,8 @@ import string
 import random
 import math
 import numpy as np
+import pyarrow as pa
+import re
 
 
 @dataclass
@@ -36,9 +38,14 @@ def filter_doc(doc: Document, include):
     return {k: v for k, v in doc.items() if k in include}
 
 
-def check_dictionary_compatibility(dict1: dict[Any, Any], dict2: dict[Any, Any], ignore: list[str] = []):
+def check_dictionary_compatibility(dict1: dict[Any, Any], dict2: dict[Any, Any], ignore_list: list[str] = []):
     for k in dict1:
-        if not dict1.get(k) or (ignore and any(val in k for val in ignore)):
+        if not dict1.get(k) or (
+            ignore_list
+            and any(
+                (ignore_value in k and any(k in dict2_k for dict2_k in dict2.keys())) for ignore_value in ignore_list
+            )
+        ):  # skip if ignored key and if it exists in dict2
             continue
         if k not in dict2:
             return False
@@ -298,3 +305,30 @@ def _make_type_filter(types: list[type]) -> Callable[[Any], bool]:
         return not isinstance(x, tuple(types))
 
     return _type_filter
+
+
+def _get_pyarrow_type(key: str, dtype: str) -> pa.DataType:
+    if dtype == ("VARCHAR"):
+        return pa.string()
+    elif dtype == ("DOUBLE"):
+        return pa.float64()
+    elif dtype == ("BIGINT"):
+        return pa.int64()
+    elif dtype.startswith("MAP"):
+        match = re.match(r"MAP\((.+),\s*(.+)\)", dtype)
+        if not match:
+            raise ValueError(f"Invalid MAP type format: {dtype}")
+        key_type, value_type = match.groups()
+        pa_key_type = _get_pyarrow_type(key, key_type)
+        pa_value_type = _get_pyarrow_type(key, value_type)
+        return pa.map_(pa_key_type, pa_value_type)
+    elif dtype == "VARCHAR[]":
+        return pa.list_(pa.string())
+    elif dtype == "DOUBLE[]" or key == "embedding":  # embedding is a list of floats with a fixed dimension
+        return pa.list_(pa.float64())
+    elif dtype == "BIGINT[]":
+        return pa.list_(pa.int64())
+    elif dtype == "FLOAT":
+        return pa.float32()
+    else:
+        raise ValueError(f"Unsupported pyarrow datatype: {dtype}")

@@ -3,7 +3,7 @@ from typing import Callable, Dict, List, Any, Optional
 import pytest
 
 import sycamore
-from sycamore.data import Document
+from sycamore.data import Document, Element
 from sycamore.docset import DocSet
 from sycamore.functions.basic_filters import MatchFilter, RangeFilter
 from sycamore.llms import LLM
@@ -14,6 +14,8 @@ from sycamore.llms.prompts.default_prompts import (
 from sycamore.query.execution.operations import (
     summarize_data,
     math_operation,
+    _get_text_for_summarize_data,
+    NUM_DOCS_GENERATE,
 )
 
 
@@ -66,7 +68,7 @@ class TestOperations:
                 doc_data = {key: docs_info[key][i] for key in keys}
                 doc_list.append(Document(**doc_data))
 
-            context = sycamore.init()
+            context = sycamore.init(exec_mode=sycamore.ExecMode.LOCAL)
             return context.read.document(doc_list)
 
         return _generate
@@ -74,8 +76,21 @@ class TestOperations:
     @pytest.fixture
     def words_and_ids_docset(self, generate_docset) -> DocSet:
         texts = {
-            "text_representation": ["submarine", None, "awesome", True, "unSubtle", "Sub", "sunny", "", 4],
-            "doc_id": [1, 3, 5, 9, 3, 2, 4, 6, 7],
+            "text_representation": ["submarine", None, "awesome", "unSubtle", "Sub", "sunny", "", "four"],
+            "elements": [
+                [
+                    Element({"text_representation": "doc 1: element 1"}),
+                    Element({"text_representation": "doc 1: element 2"}),
+                ],
+                [Element({"text_representation": "doc 3: element 1"})],
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ],
+            "doc_id": [1, 3, 5, 3, 2, 4, 6, 7],
         }
         return generate_docset(texts)
 
@@ -86,12 +101,54 @@ class TestOperations:
         )
 
     # LLM Generate
-    def test_summarize_data(words_and_ids_docset):
+    def test_summarize_data(self, words_and_ids_docset):
         response = summarize_data(llm=MockLLM(), question="", result_description="", result_data=[""])
         assert response == ""
 
         response = summarize_data(llm=MockLLM(), question="", result_description="", result_data=[words_and_ids_docset])
         assert response == ""
+
+    def test_get_text_for_summarize_data_docset(self, words_and_ids_docset):
+        response = _get_text_for_summarize_data(
+            result_description="List of unique cities",
+            result_data=[words_and_ids_docset],
+            use_elements=False,
+            num_elements=10,
+        )
+        expected = "Data description: List of unique cities\nInput 1:\n"
+        for i, doc in enumerate(words_and_ids_docset.take(NUM_DOCS_GENERATE)):
+            expected += f"Document {i}:\n"
+            expected += f"Text contents:\n{doc.text_representation or ''}\n\n"
+
+        assert response == expected
+
+    @pytest.mark.parametrize("num_elements", [1, None])
+    def test_get_text_for_summarize_data_docset_with_elements(self, words_and_ids_docset, num_elements):
+        response = _get_text_for_summarize_data(
+            result_description="List of unique cities",
+            result_data=[words_and_ids_docset],
+            use_elements=True,
+            num_elements=num_elements,
+        )
+        expected = "Data description: List of unique cities\nInput 1:\n"
+        for i, doc in enumerate(words_and_ids_docset.take(NUM_DOCS_GENERATE)):
+            expected += f"Document {i}:\n"
+            expected += "Text contents:\n"
+            for e in doc.elements[: (num_elements or NUM_DOCS_GENERATE)]:
+                expected += f"{e.text_representation or ''}\n"
+            expected += "\n\n"
+
+        assert response == expected
+
+    def test_get_text_for_summarize_data_non_docset(self, words_and_ids_docset):
+        response = _get_text_for_summarize_data(
+            result_description="Count of unique cities", result_data=[20], use_elements=False, num_elements=5
+        )
+        assert response == "Data description: Count of unique cities\nInput 1:\n[20]\n"
+        response = _get_text_for_summarize_data(
+            result_description="Count of unique cities", result_data=[20], use_elements=True, num_elements=5
+        )
+        assert response == "Data description: Count of unique cities\nInput 1:\n[20]\n"
 
     # Math
     def test_math(self):
@@ -120,7 +177,7 @@ class TestOperations:
             filtered_texts.append(doc.text_representation)
         assert filtered_texts == ["submarine", "unSubtle", "Sub"]
 
-    def test_match_filter_string_case_sensititve(self, words_and_ids_docset):
+    def test_match_filter_string_case_sensitive(self, words_and_ids_docset):
 
         query = "sub"
         filtered_docset = words_and_ids_docset.filter(
@@ -149,12 +206,12 @@ class TestOperations:
         start = 5
         filtered_docset = words_and_ids_docset.filter(f=RangeFilter(field="doc_id", start=start, end=None))
 
-        assert filtered_docset.count() == 4
+        assert filtered_docset.count() == 3
 
         filtered_ids = []
         for doc in filtered_docset.take():
             filtered_ids.append(doc.doc_id)
-        assert filtered_ids == [5, 9, 6, 7]
+        assert filtered_ids == [5, 6, 7]
 
         end = 5
         filtered_docset = words_and_ids_docset.filter(f=RangeFilter(field="doc_id", start=None, end=end))

@@ -164,6 +164,7 @@ def test_summarize_data():
             question=logical_node.question,
             result_description=logical_node.description,
             result_data=[load_node],
+            use_elements=True,
             **sycamore_operator.get_execute_args(),
         )
 

@@ -22,7 +22,6 @@ class OCRModel:
 class ExtractOCRFromImage:
 
     def __init__(self, model: "OCRModel"):
-        # model_dict = {"paddle": PaddleOCR(), "easy": EasyOCR(), "tesseract": Tesseract(), "legacy": LegacyOCR()}
         self._model = model
 
     def apply_model(self, docs: list[Document]) -> list[Document]:
@@ -211,11 +210,4 @@ class RapidOCR(OCRModel):
         return ans if result and result[0] and (ans := " ".join(value[1] for value in result[0])) else ""
 
     def get_boxes(self, image: Image.Image) -> list[Union[dict[str, Any], list]]:
-        # from rapidocr_onnxruntime import RapidOCR as OriginalRapidOCR
-
-        # self.reader = OriginalRapidOCR()
-        # bytearray = BytesIO()
-        # image.save(bytearray, format="PNG")
-        # result = self.reader(bytearray.getvalue())
-        # return [value[0] for value in result[0]] if result and result[0] else ""
         return []

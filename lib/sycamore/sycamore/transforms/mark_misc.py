@@ -93,7 +93,8 @@ class MarkBreakByTokens(SingleThreadUser, NonGPUUser, Map):
         .. code-block:: python
 
             source_node = ...
-            marker = MarkBreakByTokens(child=source_node, limit=512)
+            tokenizer = OpenAITokenizer("text-embedding-3-small")
+            marker = MarkBreakByTokens(child=source_node, tokenizer=tokenizer, limit=512)
             dataset = marker.execute()
     """
 

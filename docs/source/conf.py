@@ -42,5 +42,5 @@ html_favicon = "images/favicon.ico"
 html_theme_options = {
     "source_repository": "https://github.com/aryn-ai/sycamore",
     "source_branch": "main",
-    "source_directory": "docs/",
+    "source_directory": "docs/source",
 }

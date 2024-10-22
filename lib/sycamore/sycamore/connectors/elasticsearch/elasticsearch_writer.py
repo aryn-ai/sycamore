@@ -81,6 +81,8 @@ class ElasticsearchWriterClient(BaseDBWriter.Client):
 
         assert isinstance(target_params, ElasticsearchWriterTargetParams)
         assert _narrow_list_of_doc_records(records), f"Found a bad record in {records}"
+        if not records:
+            return
         with self._client:
 
             def bulk_action_generator():

@@ -50,26 +50,6 @@ services:
       - SSL_HOSTNAME=rps
     # will probably want to add a config bind mount when rps->sycamore merge
 
-  importer:
-    image: arynai/sycamore-importer:${SYCAMORE_VERSION}
-    ports:
-      - 127.0.0.1:${RAY_CONSOLE_PORT}:8265 # note, not working right now
-    volumes:
-      - crawl_data:/app/.scrapy
-    environment:
-      - OPENAI_API_KEY
-      # a bucket prefix like s3://example or s3://example/prefix/bits
-      # textract uploaded files will be under the prefix
-      # recommend setting lifecycle rules on the bucket to delete old documents
-      - SYCAMORE_TEXTRACT_PREFIX
-      # to get the next 4 environment variables:
-      # % aws sso login
-      # % eval "$(aws configure export-credentials --format env)"
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
-      - AWS_SESSION_TOKEN
-      - AWS_CREDENTIAL_EXPIRATION
-
   jupyter:
     image: arynai/sycamore-jupyter:${JUPYTER_VERSION}
     ports:
@@ -80,15 +60,57 @@ services:
       - type: bind
         source: ${JUPYTER_BIND_DIR}
         target: /app/work/bind_dir
+# example of how to configure a sycamore checkout to map into the jupyter notebook so that a more recent version
+# of sycamore will be present.
+#      - type: bind
+#        source: /home/eric/projects/sycamore-main
+#        target: /app/sycamore.git
     environment:
       - OPENAI_API_KEY
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
       - AWS_SESSION_TOKEN
       - AWS_CREDENTIAL_EXPIRATION
+      - JUPYTER_S3_BUCKET
+      - JUPYTER_S3_PREFIX
+      - JUPYTER_CONFIG_RESET # set this to 'yes' to reset the configuration
       - SSL # Set to 1 if you want self-signed certificates
 
 ### Optional profiles below here
+
+  reset:
+    profiles: ['reset']
+    image: ubuntu
+    volumes:
+      - opensearch_data:/tmp/opensearch_data
+      - crawl_data:/tmp/crawl_data
+    command: /bin/sh -c 'echo size-before && du -s /tmp/* && rm -rf /tmp/opensearch_data/* /tmp/crawl_data/* && chown 1000:1000 /tmp/crawl_data && echo size-after && du -s /tmp/*'
+
+  fixuser:
+    profiles: ['fixuser']
+    image: ubuntu
+    volumes:
+      - crawl_data:/tmp/crawl_data
+    command: /bin/sh -c 'echo "starting chown..." && chown -R 1000:1000 /tmp/crawl_data && echo "chown successful"'
+
+  # Note: If you run
+  # aws s3 cp s3://aryn-public/query-ui-cache/ntsb-2024-09-11/cache.db apps/query-ui/cache_dir
+  # before starting the container, it will make the queries
+  # "How many accidents in WA" and "How many accidents in washington" significantly faster since
+  # it will skip calling the LLM on the input data.
+  query-ui:
+    # TODO: look into https://www.joyfulbikeshedding.com/blog/2021-03-15-docker-and-the-host-filesystem-owner-matching-problem.html
+    # as another solution to the uid/gid problem.
+    profiles: ['query-ui']
+    image: arynai/sycamore-query-ui:${QUERY_UI_VERSION}
+    ports:
+      - 127.0.0.1:${QUERY_UI_PORT}:8501
+    volumes:
+      - type: bind
+        source: apps/query-ui/cache_dir
+        target: /app/work/cache_dir
+    environment:
+      - OPENAI_API_KEY
 
   sycamore_crawler_http_sort_one:
     profiles: ['sort-one']
@@ -122,20 +144,27 @@ services:
       - AWS_CREDENTIAL_EXPIRATION
     command: -h
 
-  reset:
-    profiles: ['reset']
-    image: ubuntu
+  importer:
+    profiles: ['deprecated_importer']
+    image: arynai/sycamore-importer:${SYCAMORE_VERSION}
+    ports:
+      - 127.0.0.1:${RAY_CONSOLE_PORT}:8265 # note, not working right now
     volumes:
-      - opensearch_data:/tmp/opensearch_data
-      - crawl_data:/tmp/crawl_data
-    command: /bin/sh -c 'echo size-before && du -s /tmp/* && rm -rf /tmp/opensearch_data/* /tmp/crawl_data/* && chown 1000:1000 /tmp/crawl_data && echo size-after && du -s /tmp/*'
+      - crawl_data:/app/.scrapy
+    environment:
+      - OPENAI_API_KEY
+      # a bucket prefix like s3://example or s3://example/prefix/bits
+      # textract uploaded files will be under the prefix
+      # recommend setting lifecycle rules on the bucket to delete old documents
+      - SYCAMORE_TEXTRACT_PREFIX
+      # to get the next 4 environment variables:
+      # % aws sso login
+      # % eval "$(aws configure export-credentials --format env)"
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_SESSION_TOKEN
+      - AWS_CREDENTIAL_EXPIRATION
 
-  fixuser:
-    profiles: ['fixuser']
-    image: ubuntu
-    volumes:
-      - crawl_data:/tmp/crawl_data
-    command: /bin/sh -c 'echo "starting chown..." && chown -R 1000:1000 /tmp/crawl_data && echo "chown successful"'
 
 volumes:
   opensearch_data:

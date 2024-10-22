@@ -42,7 +42,7 @@ class PropertyExtractor(ABC):
         pass
 
 
-class OpenAISchemaExtractor(SchemaExtractor):
+class LLMSchemaExtractor(SchemaExtractor):
     """
     OpenAISchema uses one of OpenAI's language model (LLM) for schema extraction,
     given a suggested entity type to be extracted.
@@ -110,7 +110,19 @@ class OpenAISchemaExtractor(SchemaExtractor):
         return entities
 
 
-class OpenAIPropertyExtractor(PropertyExtractor):
+class OpenAISchemaExtractor(LLMSchemaExtractor):
+    """Alias for LLMSchemaExtractor for OpenAI models.
+
+    Retained for backward compatibility.
+
+    .. deprecated:: 0.1.25
+    Use LLMSchemaExtractor instead.
+    """
+
+    pass
+
+
+class LLMPropertyExtractor(PropertyExtractor):
     """
     OpenAISchema uses one of OpenAI's language model (LLM) to extract actual property values once
     a schema has been detected or provided.
@@ -156,7 +168,10 @@ class OpenAIPropertyExtractor(PropertyExtractor):
         except (json.JSONDecodeError, AttributeError):
             answer = entities
 
-        document.properties.update({"entity": answer})
+        if "entity" in document.properties:
+            document.properties["entity"].update(answer)
+        else:
+            document.properties.update({"entity": answer})
 
         return document
 
@@ -216,6 +231,18 @@ class ExtractSchema(Map):
         super().__init__(child, f=schema_extractor.extract_schema, **resource_args)
 
 
+class OpenAIPropertyExtractor(LLMPropertyExtractor):
+    """Alias for LLMPropertyExtractor for OpenAI models.
+
+    Retained for backward compatibility.
+
+    .. deprecated:: 0.1.25
+    Use LLMPropertyExtractor instead.
+    """
+
+    pass
+
+
 class ExtractBatchSchema(Map):
     """
     ExtractBatchSchema is a transformation class for extracting a schema from a dataset using an SchemaExtractor.
@@ -243,10 +270,8 @@ class ExtractBatchSchema(Map):
     """
 
     def __init__(self, child: Node, schema_extractor: SchemaExtractor, **resource_args):
-        from ray.data import ActorPoolStrategy
-
         # Must run on a single instance so that the cached calculation of the schema works
-        resource_args["compute"] = ActorPoolStrategy(size=1)
+        resource_args["parallelism"] = 1
         # super().__init__(child, f=lambda d: d, **resource_args)
         super().__init__(child, f=ExtractBatchSchema.Extract, constructor_args=[schema_extractor], **resource_args)
 

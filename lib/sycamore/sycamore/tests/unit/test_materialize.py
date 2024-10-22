@@ -255,13 +255,40 @@ class TestAutoMaterialize(unittest.TestCase):
             files = [f for f in Path(tmpdir).rglob("*")]
             assert len([f for f in files if "-dup" in str(f)]) == 4 + 4
             test4_files = [f for f in files if ".test4" in str(f)]
-            logging.error(f"ERIC {test4_files}")
             assert len(test4_files) == 2 * (3 + 1 + 3 + 2)
 
             a._path["clean"] = True
             ds.execute()
             files = [f for f in Path(tmpdir).rglob("*")]
             assert len([f for f in files if ".test4" in str(f)]) == 3 + 1 + 3 + 2
+
+    def test_source_mode(self):
+        class NumCalls:
+            x = 0
+
+        # Note: This only makes sense in local mode, as the count is not thread safe
+        def inc_counter(doc):
+            NumCalls.x += 1
+            return doc
+
+        def check(a, docs):
+            ctx = sycamore.init(exec_mode=ExecMode.LOCAL, rewrite_rules=[a])
+            ds = ctx.read.document(docs).map(inc_counter)
+            ds.execute()
+            ds.filter(lambda d: d.doc_id != "doc_2").execute()
+
+        docs = make_docs(3)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            a = AutoMaterialize(tmpdir, source_mode=sycamore.MATERIALIZE_USE_STORED)
+            check(a, docs)
+            assert NumCalls.x == 3
+
+        NumCalls.x = 0
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            a = AutoMaterialize(tmpdir, source_mode=sycamore.MATERIALIZE_RECOMPUTE)
+            check(a, docs)
+            assert NumCalls.x == 6
 
 
 def any_id(d):
@@ -441,6 +468,46 @@ class TestClearMaterialize(unittest.TestCase):
     def test_no_clear_non_local(self):
         self.maybe_clear_non_local(False)
 
+    def test_clear_matching(self):
+        ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            ds = (
+                ctx.read.document(make_docs(3))
+                .map(noop_fn)
+                .materialize(path=tmpdir + "/a")
+                .materialize(path=tmpdir + "/b")
+                .materialize(path=tmpdir + "/b2")
+            )
+            ds.execute()
+            assert Path(f"{tmpdir}/a/materialize.success").exists()
+            assert Path(f"{tmpdir}/b/materialize.success").exists()
+            assert Path(f"{tmpdir}/b2/materialize.success").exists()
+
+            # not matching removes nothing
+            ds.clear_materialize("c*")
+            assert Path(f"{tmpdir}/a/materialize.success").exists()
+            assert Path(f"{tmpdir}/b/materialize.success").exists()
+            assert Path(f"{tmpdir}/b2/materialize.success").exists()
+
+            # match exact
+            ds.clear_materialize("a")
+            assert not Path(f"{tmpdir}/a/materialize.success").exists()
+            assert Path(f"{tmpdir}/b/materialize.success").exists()
+            assert Path(f"{tmpdir}/b2/materialize.success").exists()
+
+            # match exact with path
+            ds.clear_materialize(Path(tmpdir) / "b")
+            assert not Path(f"{tmpdir}/a/materialize.success").exists()
+            assert not Path(f"{tmpdir}/b/materialize.success").exists()
+            assert Path(f"{tmpdir}/b2/materialize.success").exists()
+
+            # match multiple, and as a path
+            ds.execute()
+            ds.clear_materialize(Path(tempfile.gettempdir()) / "*/b*")
+            assert Path(f"{tmpdir}/a/materialize.success").exists()
+            assert not Path(f"{tmpdir}/b/materialize.success").exists()
+            assert not Path(f"{tmpdir}/b2/materialize.success").exists()
+
 
 class TestErrorChecking(unittest.TestCase):
     def test_duplicate_root(self):
@@ -449,3 +516,15 @@ class TestErrorChecking(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             with pytest.raises(ValueError):
                 ds.materialize(path=tmpdir).materialize(path=tmpdir).execute()
+
+
+def test_s3_infer_filesystem():
+    from sycamore.materialize import Materialize
+    from pyarrow.fs import S3FileSystem
+    from pathlib import Path
+
+    ctx = sycamore.init()
+    m = Materialize(None, ctx, path={"root": "s3://test-example/a/path"})
+    assert isinstance(m._fs, S3FileSystem)
+    assert isinstance(m._root, Path)
+    assert str(m._root) == "test-example/a/path"

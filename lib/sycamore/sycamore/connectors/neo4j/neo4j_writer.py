@@ -295,9 +295,9 @@ class Neo4jWriteCSV(MapBatch, Write):
                 for property_key, property_value in value["properties"].items():
                     if property_key not in include_relationships:
                         if isinstance(property_value, list) or isinstance(property_value, dict):
-                            node[property_key] = json.dumps(property_value)
+                            rel[property_key] = json.dumps(property_value)
                         else:
-                            node[property_key] = property_value
+                            rel[property_key] = property_value
                 relationships[value["START_LABEL"]][value["END_LABEL"]].append(rel)
         return nodes, relationships
 

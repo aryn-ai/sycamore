@@ -54,7 +54,7 @@ def draw_with_boxes(
 
          .. code-block:: python
 
-            from arynsdk.partition import partition_file, draw_with_boxes
+            from aryn_sdk.partition import partition_file, draw_with_boxes
 
             with open("my-favorite-pdf.pdf", "rb") as f:
                 data = partition_file(
@@ -79,20 +79,21 @@ def draw_with_boxes(
         if "page_number" in element["properties"]:
             im = images[element["properties"]["page_number"] - 1]
             _draw_box_on_image(im, element)
-            if draw_table_cells and element.get("type") == "table":
-                for cell in element.get("table", {}).get("cells", []):
-                    _draw_box_on_image(
-                        im,
-                        element={
-                            "type": "",
-                            "bbox": (
-                                cell["bbox"]["x1"],
-                                cell["bbox"]["y1"],
-                                cell["bbox"]["x2"],
-                                cell["bbox"]["y2"],
-                            ),
-                        },
-                    )
+            if draw_table_cells and element.get("type") == "table" and (table_object := element.get("table")):
+                for cell in table_object.get("cells", []):
+                    if cell and (bbox := cell.get("bbox")):
+                        _draw_box_on_image(
+                            im,
+                            element={
+                                "type": "",
+                                "bbox": (
+                                    bbox["x1"],
+                                    bbox["y1"],
+                                    bbox["x2"],
+                                    bbox["y2"],
+                                ),
+                            },
+                        )
     return images
 
 

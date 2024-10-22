@@ -1,9 +1,7 @@
-import hashlib
-import json
 from typing import Optional
 from pydantic import BaseModel
 import sycamore
-from sycamore.data.document import Document
+from sycamore.data.document import Document, HierarchicalDocument
 from sycamore.data.element import Element
 from sycamore.llms.llms import LLM
 from sycamore.reader import DocSetReader
@@ -82,8 +80,8 @@ class TestGraphRelationshipExtractor:
         def __init__(self):
             super().__init__(model_name="mock_model")
 
-        def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
-            pass
+        def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
+            return ""
 
         def is_chat_mode(self):
             return True
@@ -96,7 +94,7 @@ class TestGraphRelationshipExtractor:
             }
             """
 
-    def test_relationship_extractor(self):
+    def test_relationship_extractor(self) -> None:
         context = sycamore.init()
         reader = DocSetReader(context)
         ds = reader.document(self.docs)
@@ -109,16 +107,19 @@ class TestGraphRelationshipExtractor:
             end: Company
 
         ds = (
-            ds.extract_document_structure(structure=StructureBySection)
+            ds.extract_document_structure(structure=StructureBySection())
             .extract_graph_entities([EntityExtractor(self.MockEntityLLM(), [Company])])
             .extract_graph_relationships([RelationshipExtractor(self.MockRelationshipLLM(), [Competes])])
         )
-        docs = ds.take_all()
+        docs = [HierarchicalDocument(doc.data) for doc in ds.take_all()]
 
         for doc in docs:
             for section in doc.children:
-                for node in section["properties"]["nodes"]["Company"].values():
+                nodes = section["properties"]["nodes"]["Company"]
+                for node in nodes.values():
                     if node["properties"]["name"] == "Google":
-                        start_hash = hashlib.sha256(json.dumps({"name": "Microsoft"}).encode()).hexdigest()
-                        hashes = set(relation.get("START_HASH", None) for relation in node["relationships"].values())
-                        assert start_hash in hashes
+                        relation_names = set(
+                            f"""{relation["START_LABEL"]}_{relation["END_LABEL"]}"""
+                            for relation in node["relationships"].values()
+                        )
+                        assert "Company_Company" in relation_names

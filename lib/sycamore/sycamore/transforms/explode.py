@@ -9,7 +9,7 @@ from sycamore.utils.time_trace import timetrace
 class Explode(SingleThreadUser, NonGPUUser, FlatMap):
     """
     The Explode transform converts the elements of each document into top-level documents. For example, if you explode a
-    DocSet with a single document containing two elements, the resulting DocSet will have three documents – the original
+    DocSet with a single document containing two elements, the resulting DocSet will have three documents - the original
     plus a new Document for each of the elements.
 
     Args:
@@ -34,6 +34,7 @@ class Explode(SingleThreadUser, NonGPUUser, FlatMap):
             return Explode.explode_hierarchical(parent)
         if isinstance(parent, Document):
             return Explode.explode_default(parent)
+        raise ValueError(f"Unsupported document type: {type(parent)}")
 
     @staticmethod
     @timetrace("explode")

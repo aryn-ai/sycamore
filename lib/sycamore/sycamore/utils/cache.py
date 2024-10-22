@@ -1,6 +1,7 @@
 from __future__ import annotations
 import hashlib
 import json
+from pathlib import Path
 import time
 from tempfile import SpooledTemporaryFile
 from typing import Any, Optional, Union, BinaryIO
@@ -18,13 +19,19 @@ class HashContext:
     This is a wrapper class for the hash context as Python/mypy/IDE does not like accessing _Hash from hashlib
     """
 
-    def __init__(self, algorithm="sha256"):
-        self.hash_obj = hashlib.new(algorithm)
+    def __init__(self, /, algorithm: str = "sha256", copy_from=None) -> None:
+        if copy_from:
+            self.hash_obj = copy_from.hash_obj.copy()
+        else:
+            self.hash_obj = hashlib.new(algorithm, usedforsecurity=False)
 
-    def update(self, data: bytes):
+    def copy(self) -> HashContext:
+        return HashContext(copy_from=self)
+
+    def update(self, data: bytes) -> None:
         self.hash_obj.update(data)
 
-    def hexdigest(self):
+    def hexdigest(self) -> str:
         return self.hash_obj.hexdigest()
 
 
@@ -151,3 +158,18 @@ class S3Cache(Cache):
         kwargs = {"s3_path": self._s3_path, "freshness_in_seconds": self._freshness_in_seconds}
 
         return s3_cache_deserializer, (kwargs,)
+
+
+def cache_from_path(path: Optional[str]) -> Optional[Cache]:
+    if path is None:
+        return None
+    if path.startswith("s3://"):
+        return S3Cache(path)
+    if path.startswith("/"):
+        return DiskCache(path)
+    if Path(path).is_dir():
+        return DiskCache(path)
+
+    raise ValueError(
+        f"Unable to interpret {path} as path for cache. Expected s3://, /... or a directory path that exists"
+    )

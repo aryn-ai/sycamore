@@ -1,4 +1,5 @@
-from typing import BinaryIO, Optional, Union
+from os import PathLike
+from typing import BinaryIO, Literal, Optional, Union
 from collections.abc import Mapping
 from aryn_sdk.config import ArynConfig
 import requests
@@ -21,10 +22,10 @@ _logger.addHandler(logging.StreamHandler(sys.stderr))
 
 
 def partition_file(
-    file: BinaryIO,
+    file: Union[BinaryIO, str, PathLike],
     aryn_api_key: Optional[str] = None,
-    aryn_config: ArynConfig = ArynConfig(),
-    threshold: Optional[float] = None,
+    aryn_config: Optional[ArynConfig] = None,
+    threshold: Optional[Union[float, Literal["auto"]]] = None,
     use_ocr: bool = False,
     ocr_images: bool = False,
     extract_table_structure: bool = False,
@@ -32,17 +33,19 @@ def partition_file(
     selected_pages: Optional[list[Union[list[int], int]]] = None,
     aps_url: str = APS_URL,
     ssl_verify: bool = True,
+    output_format: Optional[str] = None,
 ) -> dict:
     """
     Sends file to the Aryn Partitioning Service and returns a dict of its document structure and text
 
     Args:
-        file: open pdf file to partition
+        file: pdf file to partition
         aryn_api_key: aryn api key, provided as a string
         aryn_config: ArynConfig object, used for finding an api key.
             If aryn_api_key is set it will override this.
             default: The default ArynConfig looks in the env var ARYN_API_KEY and the file ~/.aryn/config.yaml
-        threshold:  value in [0.0 .. 1.0] to specify the cutoff for detecting bounding boxes.
+        threshold:  value in to specify the cutoff for detecting bounding boxes. Must be set to "auto" or
+            a floating point value between 0.0 and 1.0.
             default: None (APS will choose)
         use_ocr: extract text using an OCR model instead of extracting embedded text in PDF.
             default: False
@@ -57,9 +60,12 @@ def partition_file(
         aps_url: url of the Aryn Partitioning Service endpoint.
             default: "https://api.aryn.cloud/v1/document/partition"
         ssl_verify: verify ssl certificates. In databricks, set this to False to fix ssl imcompatibilities.
+        output_format: controls output representation; can be set to markdown.
+            default: None (JSON elements)
 
     Returns:
-        A dictionary containing "status" and "elements"
+        A dictionary containing "status" and "elements".
+        If output_format is markdown, dictionary of "status" and "markdown".
 
     Example:
          .. code-block:: python
@@ -77,10 +83,17 @@ def partition_file(
             elements = data['elements']
     """
 
+    # If you hand me a path for the file, read it in instead of trying to send the path
+    if isinstance(file, (str, PathLike)):
+        with open(file, "rb") as f:
+            file = io.BytesIO(f.read())
+
     if aryn_api_key is not None:
         if aryn_config is not None:
             _logger.warning("Both aryn_api_key and aryn_config were provided. Using aryn_api_key")
         aryn_config = ArynConfig(aryn_api_key=aryn_api_key)
+    if aryn_config is None:
+        aryn_config = ArynConfig()
 
     options_str = _json_options(
         threshold=threshold,
@@ -89,13 +102,24 @@ def partition_file(
         extract_table_structure=extract_table_structure,
         extract_images=extract_images,
         selected_pages=selected_pages,
+        output_format=output_format,
     )
 
     _logger.debug(f"{options_str}")
 
+    # Workaround for vcr.  See https://github.com/aryn-ai/sycamore/issues/958
+    stream = True
+    if "vcr" in sys.modules:
+        ul3 = sys.modules.get("urllib3")
+        if ul3:
+            # Look for tell-tale patched method...
+            mod = ul3.connectionpool.is_connection_dropped.__module__
+            if "mock" in mod:
+                stream = False
+
     files: Mapping = {"options": options_str.encode("utf-8"), "pdf": file}
     http_header = {"Authorization": "Bearer {}".format(aryn_config.api_key())}
-    resp = requests.post(aps_url, files=files, headers=http_header, stream=True, verify=ssl_verify)
+    resp = requests.post(aps_url, files=files, headers=http_header, stream=stream, verify=ssl_verify)
 
     if resp.status_code != 200:
         raise requests.exceptions.HTTPError(
@@ -144,12 +168,13 @@ def partition_file(
 
 
 def _json_options(
-    threshold: Optional[float] = None,
+    threshold: Optional[Union[float, Literal["auto"]]] = None,
     use_ocr: bool = False,
     ocr_images: bool = False,
     extract_table_structure: bool = False,
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
+    output_format: Optional[str] = None,
 ) -> str:
     # isn't type-checking fun
     options: dict[str, Union[float, bool, str, list[Union[list[int], int]]]] = dict()
@@ -165,6 +190,8 @@ def _json_options(
         options["extract_table_structure"] = extract_table_structure
     if selected_pages:
         options["selected_pages"] = selected_pages
+    if output_format:
+        options["output_format"] = output_format
 
     options["source"] = "aryn-sdk"
 

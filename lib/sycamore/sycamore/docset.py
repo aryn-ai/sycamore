@@ -4,6 +4,7 @@ from pathlib import Path
 import pprint
 import sys
 from typing import Callable, Optional, Any, Iterable, Type, Union, TYPE_CHECKING
+import re
 
 from sycamore.context import Context, context_params, OperationTypes
 from sycamore.data import Document, Element, MetadataDocument
@@ -16,12 +17,13 @@ from sycamore.llms.prompts.default_prompts import (
 from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.augment_text import TextAugmentor
 from sycamore.transforms.embed import Embedder
-from sycamore.transforms import DocumentStructure
+from sycamore.transforms import DocumentStructure, Sort
 from sycamore.transforms.extract_entity import EntityExtractor, OpenAIEntityExtractor
 from sycamore.transforms.extract_graph_entities import GraphEntityExtractor
 from sycamore.transforms.extract_graph_relationships import GraphRelationshipExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
 from sycamore.transforms.partition import Partitioner
+from sycamore.transforms.similarity import SimilarityScorer
 from sycamore.transforms.resolve_graph_entities import EntityResolver, ResolveEntities
 from sycamore.transforms.summarize import Summarizer
 from sycamore.transforms.llm_query import LLMTextQueryAgent
@@ -441,10 +443,9 @@ class DocSet:
                     .explode()
 
         """
-        from sycamore.transforms.extract_document_structure import ExtractDocumentStructure, ExtractSummaries
+        from sycamore.transforms.extract_document_structure import ExtractDocumentStructure
 
         document_structure = ExtractDocumentStructure(self.plan, structure=structure, **kwargs)
-        document_structure = ExtractSummaries(document_structure)
         return DocSet(self.context, document_structure)
 
     def extract_entity(self, entity_extractor: EntityExtractor, **kwargs) -> "DocSet":
@@ -634,13 +635,16 @@ class DocSet:
 
         return DocSet(self.context, relationships)
 
-    def resolve_graph_entities(self, resolvers: list[EntityResolver] = [], **kwargs) -> "DocSet":
+    def resolve_graph_entities(
+        self, resolvers: list[EntityResolver] = [], resolve_duplicates=True, **kwargs
+    ) -> "DocSet":
         """
         Resolves graph entities across documents so that duplicate entities can be resolved
         to the same entity based off criteria of EntityResolver objects.
 
         Args:
             resolvers: A list of EntityResolvers that are used to determine what entities are duplicates
+            resolve_duplicates: If exact duplicate entities and relationships should be merged. Defaults to true
 
         Example:
             .. code-block:: python
@@ -650,7 +654,7 @@ class DocSet:
                     .extract_document_structure(...)
                     .extract_graph_entities(...)
                     .extract_graph_relationships(...)
-                    .resolve_graph_entities(resolvers=[TODO: Implement Resolvers])
+                    .resolve_graph_entities(resolvers=[], resolve_duplicates=False)
                     .explode()
                 )
                 ds.write.neo4j(...)
@@ -659,13 +663,13 @@ class DocSet:
 
         class Wrapper(Node):
             def __init__(self, dataset):
+                super().__init__(children=[])
                 self._ds = dataset
-                self.children = []
 
             def execute(self, **kwargs):
                 return self._ds
 
-        entity_resolver = ResolveEntities(resolvers=resolvers)
+        entity_resolver = ResolveEntities(resolvers=resolvers, resolve_duplicates=resolve_duplicates)
         entities = entity_resolver.resolve(self)  # resolve entities
         entities_clean = CleanTempNodes(Wrapper(entities))  # cleanup temp objects
         return DocSet(self.context, entities_clean)
@@ -765,6 +769,25 @@ class DocSet:
         merged = Merge(self.plan, merger=merger, **kwargs)
         return DocSet(self.context, merged)
 
+    def markdown(self, **kwargs) -> "DocSet":
+        """
+        Modifies Document to have a single Element containing the Markdown
+        representation of all the original elements.
+
+        Example:
+            .. code-block:: python
+
+               context = sycamore.init()
+               ds = context.read.binary(paths, binary_format="pdf")
+                   .partition(partitioner=ArynPartitioner())
+                   .markdown()
+                   .explode()
+        """
+        from sycamore.transforms.markdown import Markdown
+
+        plan = Markdown(self.plan, **kwargs)
+        return DocSet(self.context, plan)
+
     def regex_replace(self, spec: list[tuple[str, str]], **kwargs) -> "DocSet":
         """
         Performs regular expression replacement (using re.sub()) on the
@@ -777,7 +800,7 @@ class DocSet:
                ds = context.read.binary(paths, binary_format="pdf")
                    .partition(partitioner=ArynPartitioner())
                    .regex_replace(COALESCE_WHITESPACE)
-                   .regex_replace([(r"\d+", "1313"), (r"old", "new")])
+                   .regex_replace([(r"\\d+", "1313"), (r"old", "new")])
                    .explode()
         """
         from sycamore.transforms import RegexReplace
@@ -858,6 +881,7 @@ class DocSet:
         Args:
             f: The function to apply to each document.
 
+        See the :class:`~sycamore.transforms.map.Map` documentation for advanced features.
         """
         from sycamore.transforms import Map
 
@@ -870,6 +894,8 @@ class DocSet:
 
         Args:
             f: The function to apply to each document.
+
+        See the :class:`~sycamore.transforms.map.FlatMap` documentation for advanced features.
 
         Example:
              .. code-block:: python
@@ -889,7 +915,7 @@ class DocSet:
         flat_map = FlatMap(self.plan, f=f, **resource_args)
         return DocSet(self.context, flat_map)
 
-    def filter(self, f: Callable[[Document], bool], **resource_args) -> "DocSet":
+    def filter(self, f: Callable[[Document], bool], **kwargs) -> "DocSet":
         """
         Applies the Filter transform on the Docset.
 
@@ -912,7 +938,7 @@ class DocSet:
         """
         from sycamore.transforms import Filter
 
-        filtered = Filter(self.plan, f=f, **resource_args)
+        filtered = Filter(self.plan, f=f, **kwargs)
         return DocSet(self.context, filtered)
 
     def filter_elements(self, f: Callable[[Element], bool], **resource_args) -> "DocSet":
@@ -931,6 +957,7 @@ class DocSet:
         return self.map(process_doc, **resource_args)
 
     @context_params(OperationTypes.BINARY_CLASSIFIER)
+    @context_params(OperationTypes.TEXT_SIMILARITY)
     def llm_filter(
         self,
         llm: LLM,
@@ -938,6 +965,10 @@ class DocSet:
         prompt: Union[list[dict], str],
         field: str = "text_representation",
         threshold: int = 3,
+        keep_none: bool = False,
+        use_elements: bool = False,
+        similarity_query: Optional[str] = None,
+        similarity_scorer: Optional[SimilarityScorer] = None,
         **resource_args,
     ) -> "DocSet":
         """
@@ -949,29 +980,54 @@ class DocSet:
             new_field: The field that will be added to the DocSet with the outputs.
             prompt: LLM prompt.
             field: Document field to filter based on.
-            threshold: Cutoff that determines whether or not to keep document.
+            threshold:  If the value of the computed result is an integer value greater than or equal to this threshold,
+                        the document will be kept.
+            keep_none:  keep records with a None value for the provided field to filter on.
+                        Warning: using this might hide data corruption issues.
+            use_elements: use contents of a document's elements to filter as opposed to document level contents.
+            similarity_query: query string to compute similarity against. Also requires a 'similarity_scorer'.
+            similarity_scorer: scorer used to generate similarity scores used in element sorting.
+                        Also requires a 'similarity_query'.
             **resource_args
 
         Returns:
             A filtered DocSet.
         """
-
-        def threshold_filter(doc: Document, threshold) -> bool:
-            try:
-                return_value = int(doc.properties[new_field]) >= threshold
-            except Exception:
-                # accounts for llm output errors
-                return_value = False
-
-            return return_value
-
-        docset = self.filter(lambda doc: doc.field_to_value(field) is not None and doc.field_to_value(field) != "None")
-
         entity_extractor = OpenAIEntityExtractor(
             entity_name=new_field, llm=llm, use_elements=False, prompt=prompt, field=field
         )
-        docset = docset.extract_entity(entity_extractor=entity_extractor)
-        docset = docset.filter(lambda doc: threshold_filter(doc, threshold), **resource_args)
+
+        def threshold_filter(doc: Document, threshold) -> bool:
+            if not use_elements:
+                if doc.field_to_value(field) is None:
+                    return keep_none
+                doc = entity_extractor.extract_entity(doc)
+                # todo: move data extraction and validation to entity extractor
+                return int(re.findall(r"\d+", doc.properties[new_field])[0]) >= threshold
+
+            if similarity_query is not None:
+                assert similarity_scorer is not None, "Similarity sorting requires a scorer"
+                score_property_name = f"{field}_similarity_score"
+                doc = similarity_scorer.generate_similarity_scores(
+                    doc_batch=[doc], query=similarity_query, score_property_name=score_property_name
+                )[0]
+                doc.elements.sort(key=lambda e: e.properties.get(score_property_name, float("-inf")), reverse=True)
+            evaluated_elements = 0
+            for element in doc.elements:
+                e_doc = Document(element.data)
+                if e_doc.field_to_value(field) is None:
+                    continue
+                e_doc = entity_extractor.extract_entity(e_doc)
+                element.properties[new_field] = e_doc.properties[new_field]
+                # todo: move data extraction and validation to entity extractor
+                if int(re.findall(r"\d+", element.properties[new_field])[0]) >= threshold:
+                    return True
+                evaluated_elements += 1
+            if evaluated_elements == 0:  # no elements found for property
+                return keep_none
+            return False
+
+        docset = self.filter(lambda doc: threshold_filter(doc, threshold), **resource_args)
 
         return docset
 
@@ -987,6 +1043,8 @@ class DocSet:
         """
         The map_batch transform is similar to map, except that it processes a list of documents and returns a list of
         documents. map_batch is ideal for transformations that get performance benefits from batching.
+
+        See the :class:`~sycamore.transforms.map.MapBatch` documentation for advanced features.
 
         Example:
              .. code-block:: python
@@ -1075,6 +1133,39 @@ class DocSet:
         query = Query(self.plan, query_executor, **resource_args)
         return DocSet(self.context, query)
 
+    @context_params(OperationTypes.TEXT_SIMILARITY)
+    def rerank(
+        self,
+        similarity_scorer: SimilarityScorer,
+        query: str,
+        score_property_name: str = "_rerank_score",
+        limit: Optional[int] = None,
+    ) -> "DocSet":
+        """
+        Sort a DocSet given a scoring class.
+
+        Args:
+            similarity_scorer: An instance of an SimilarityScorer class that executes the scoring function.
+            query: The query string to compute similarity against.
+            score_property_name: The name of the key where the score will be stored in document.properties
+            limit: Limit scoring and sorting to fixed size.
+        """
+        from sycamore.transforms import ScoreSimilarity, Limit
+
+        if limit:
+            plan = Limit(self.plan, limit)
+        else:
+            plan = self.plan
+        similarity_scored = ScoreSimilarity(
+            plan, similarity_scorer=similarity_scorer, query=query, score_property_name=score_property_name
+        )
+        return DocSet(
+            self.context,
+            Sort(
+                similarity_scored, descending=True, field=f"properties.{score_property_name}", default_val=float("-inf")
+            ),
+        )
+
     def sort(self, descending: bool, field: str, default_val: Optional[Any] = None) -> "DocSet":
         """
         Sort DocSet by specified field.
@@ -1135,7 +1226,7 @@ class DocSet:
     @context_params(OperationTypes.INFORMATION_EXTRACTOR)
     def top_k(
         self,
-        llm: LLM,
+        llm: Optional[LLM],
         field: str,
         k: Optional[int],
         descending: bool = True,
@@ -1179,7 +1270,7 @@ class DocSet:
         return docset
 
     @context_params(OperationTypes.INFORMATION_EXTRACTOR)
-    def llm_cluster_entity(self, llm: LLM, instruction: str, field: str) -> "DocSet":
+    def llm_cluster_entity(self, llm: LLM, instruction: str, field: str, **kwargs) -> "DocSet":
         """
         Normalizes a particular field of a DocSet. Identifies and assigns each document to a "group".
 
@@ -1196,7 +1287,9 @@ class DocSet:
         """
 
         docset = self
-        text = ", ".join([doc.field_to_value(field) for doc in docset.take_all()])
+        # Not all documents will have a value for the given field, so we filter those out.
+        field_values = [doc.field_to_value(field) for doc in docset.take_all()]
+        text = ", ".join([str(v) for v in field_values if v is not None])
 
         # sets message
         messages = LlmClusterEntityFormGroupsMessagesPrompt(
@@ -1351,9 +1444,13 @@ class DocSet:
 
         return DocSet(self.context, Materialize(self.plan, self.context, path=path, source_mode=source_mode))
 
-    def clear_materialize(self, *, clear_non_local=False) -> None:
+    def clear_materialize(self, path: Optional[Union[Path, str]] = None, *, clear_non_local=False) -> None:
         """
         Deletes all of the materialized files referenced by the docset.
+
+        path will use PurePath.match to check if the specified path matches against
+        the directory used for each materialize transform. Only matching directories
+        will be cleared.
 
         Set clear_non_local=True to clear non-local filesystems. Note filesystems like
         NFS/CIFS will count as local.  pyarrow.fs.SubTreeFileSystem is treated as non_local.
@@ -1361,7 +1458,7 @@ class DocSet:
 
         from sycamore.materialize import clear_materialize
 
-        clear_materialize(self.plan, clear_non_local)
+        clear_materialize(self.plan, path=path, clear_non_local=clear_non_local)
 
     def execute(self, **kwargs) -> None:
         """

@@ -57,7 +57,7 @@ class DocSetWriter:
                 https://opensearch.org/docs/latest/api-reference/index-apis/create-index/
             execute: Execute the pipeline and write to opensearch on adding this operator. If false,
                 will return a new docset with the write in the plan
-            kwargs: Arguments to pass to the underlying execution engine
+            kwargs: Keyword arguments to pass to the underlying execution engine
 
         Example:
             The following code shows how to read a pdf dataset into a ``DocSet`` and write it out to a
@@ -149,13 +149,7 @@ class DocSetWriter:
         # doesn't execute automatically, and instead you need to say something
         # like docset.write.opensearch().execute(), allowing sensible writes
         # to multiple locations and post-write operations.
-        osds = DocSet(self.context, os)
-        if execute:
-            # If execute, force execution
-            osds.execute()
-            return None
-        else:
-            return osds
+        return self._maybe_execute(os, execute)
 
     @requires_modules(["weaviate", "weaviate.collections.classes.config"], extra="weaviate")
     def weaviate(
@@ -287,13 +281,7 @@ class DocSetWriter:
             wv_docs, client_params, target_params, name="weaviate_write_references", **kwargs
         )
 
-        wvds = DocSet(self.context, wv_refs)
-        if execute:
-            # If execute, force execution
-            wvds.execute()
-            return None
-        else:
-            return wvds
+        return self._maybe_execute(wv_refs, execute)
 
     @requires_modules("pinecone", extra="pinecone")
     def pinecone(
@@ -380,13 +368,7 @@ class DocSetWriter:
         )
 
         pc = PineconeWriter(self.plan, client_params=pcp, target_params=ptp, name="pinecone_write", **kwargs)
-        pcds = DocSet(self.context, pc)
-        if execute:
-            # If execute, force execution
-            pcds.execute()
-            return None
-        else:
-            return pcds
+        return self._maybe_execute(pc, execute)
 
     @requires_modules("duckdb", extra="duckdb")
     def duckdb(
@@ -458,9 +440,7 @@ class DocSetWriter:
                 if v is not None
             }  # type: ignore
         )
-        from ray.data import ActorPoolStrategy
-
-        kwargs["compute"] = ActorPoolStrategy(size=1)
+        kwargs["parallelism"] = 1
         ddb = DuckDBWriter(
             self.plan,
             client_params=client_params,
@@ -468,12 +448,7 @@ class DocSetWriter:
             name="duckdb_write_documents",
             **kwargs,
         )
-        ddbds = DocSet(self.context, ddb)
-        if execute:
-            ddbds.execute()
-            return None
-        else:
-            return ddbds
+        return self._maybe_execute(ddb, execute)
 
     @requires_modules("elasticsearch", extra="elasticsearch")
     def elasticsearch(
@@ -508,7 +483,7 @@ class DocSetWriter:
 
             .. code-block:: python
 
-                url = "http://localhost:9201"
+                url = "http://localhost:9200"
                 index_name = "test-index"
                 model_name = "sentence-transformers/all-MiniLM-L6-v2"
                 paths = str(TEST_DIR / "resources/data/pdfs/")
@@ -554,13 +529,7 @@ class DocSetWriter:
         es_docs = ElasticsearchDocumentWriter(
             self.plan, client_params, target_params, name="elastic_document_writer", **kwargs
         )
-        esds = DocSet(self.context, es_docs)
-        if execute:
-            # If execute, force execution
-            esds.execute()
-            return None
-        else:
-            return esds
+        return self._maybe_execute(es_docs, execute)
 
     @requires_modules("neo4j", extra="neo4j")
     def neo4j(
@@ -583,31 +552,42 @@ class DocSetWriter:
                 necessary client arguments below
             auth: Authentication arguments to be specified. See more information at
                 https://neo4j.com/docs/api/python-driver/current/api.html#auth-ref
-            database: database to write to in Neo4j. By default in the neo4j community addition, new databases
-                cannot be instantiated so you must use "neo4j". If using enterprise edition, ensure the database exists.
-            import_dir: the import directory that neo4j uses. You can specify where to mount this volume when you launch
+            import_dir: The import directory that neo4j uses. You can specify where to mount this volume when you launch
                 your neo4j docker container.
+            database: Database to write to in Neo4j. By default in the neo4j community addition, new databases
+                cannot be instantiated so you must use "neo4j". If using enterprise edition, ensure the database exists.
+            use_auradb: Set to true if you are using neo4j's serverless implementation called AuraDB. Defaults to false.
+            s3_session: An AWS S3 Session. This must be passed in if use_auradb is set to true. This is used as a public
+                csv proxy to securly upload your files into AuraDB. Defaults to None.
+
         Example:
-            The following code shows how to write to a neo4j database
+            The following code shows how to write to a neo4j database.
 
             ..code-block::python
-            URI = "neo4j://localhost:7687"
-            AUTH = ("neo4j", "xxxxx")
-
-            metadata = [GraphMetadata(nodeKey='company',nodeLabel='Company',relLabel='FILED_BY'),
-                        GraphMetadata(nodeKey='gics_sector',nodeLabel='Sector',relLabel='IN_SECTOR'),
-                        GraphMetadata(nodeKey='doc_type',nodeLabel='Document Type',relLabel='IS_TYPE'),
-                        GraphMetadata(nodeKey='doc_period',nodeLabel='Year',relLabel='FILED_DURING'),
-                        ]
-
             ds = (
                 ctx.read.manifest(...)
                 .partition(...)
-                .extract_graph_structure([MetadataExtractor(metadata=metadata)])
+                .extract_document_structure(...)
+                .extract_graph_entities(...)
+                .extract_graph_relationships(...)
+                .resolve_graph_entities(...)
                 .explode()
             )
 
-            ds.write.neo4j(uri=URI,auth=AUTH,database="neo4j",import_dir="/home/admin/neo4j/import")
+            URI = "neo4j+s://<AURADB_INSTANCE_ID>.databases.neo4j.io"
+            AUTH = ("neo4j", "sample_password")
+            DATABASE = "neo4j
+            IMPORT_DIR = "/tmp/neo4j"
+            S3_SESSION = boto3.session.Session()
+
+            ds.write.neo4j(
+                uri=URI,
+                auth=AUTH,
+                database=DATABASE,
+                import_dir=IMPORT_DIR,
+                use_auradb=True,
+                s3_session=S3_SESSION
+            )
             .. code-block:: python
         """
         import os
@@ -681,6 +661,93 @@ class DocSetWriter:
 
         return None
 
+    @requires_modules("qdrant_client", extra="qdrant")
+    def qdrant(
+        self,
+        client_params: dict,
+        collection_params: dict,
+        vector_name: Optional[str] = None,
+        execute: bool = True,
+        **kwargs,
+    ) -> Optional["DocSet"]:
+        """Writes the content of the DocSet into a Qdrant collection
+
+        Args:
+            client_params: Parameters that are passed to the Qdrant client constructor.
+                            See more information at
+                            https://python-client.qdrant.tech/qdrant_client.qdrant_client
+            collection_params: Parameters that are passed into the qdrant_client.QdrantClient.create_collection method.
+                            See more information at
+                            https://python-client.qdrant.tech/_modules/qdrant_client/qdrant_client#QdrantClient.create_collection
+            vector_name: The name of the vector in the Qdrant collection. Defaults to None.
+            execute: Execute the pipeline and write to Qdrant on adding this operator. If False,
+                    will return a DocSet with this write in the plan. Defaults to True.
+            kwargs: Arguments to pass to the underlying execution engine
+
+        Example:
+            The following code shows how to read a pdf dataset into a ``DocSet`` and write it out to a
+            Qdrant collection called `"sycamore_collection"`.
+
+            .. code-block:: python
+                model_name = "sentence-transformers/all-MiniLM-L6-v2"
+
+                davinci_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value, api_key=os.environ["OPENAI_API_KEY"])
+                tokenizer = HuggingFaceTokenizer(model_name)
+
+                ctx = sycamore.init()
+
+                ds = (
+                    ctx.read.binary(paths, binary_format="pdf")
+                    .partition(partitioner=SycamorePartitioner(extract_table_structure=True, extract_images=True))
+                    .regex_replace(COALESCE_WHITESPACE)
+                    .extract_entity(
+                        entity_extractor=OpenAIEntityExtractor(
+                            "title", llm=davinci_llm, prompt_template=title_template
+                        )
+                    )
+                    .mark_bbox_preset(tokenizer=tokenizer)
+                    .merge(merger=MarkedMerger())
+                    .spread_properties(["path", "title"])
+                    .split_elements(tokenizer=tokenizer, max_tokens=512)
+                    .explode()
+                    .embed(embedder=SentenceTransformerEmbedder(model_name=model_name, batch_size=100))
+                    .term_frequency(tokenizer=tokenizer, with_token_ids=True)
+                    .sketch(window=17)
+                )
+
+                ds.write.qdrant(
+                    {
+                        "location": "http://localhost:6333",
+                    },
+                    {
+                        "collection_name": "sycamore_collection",
+                        "vectors_config": {
+                            "size": 384,
+                            "distance": "Cosine",
+                        },
+                    },
+                )
+        """
+        from sycamore.connectors.qdrant import (
+            QdrantWriter,
+            QdrantWriterClientParams,
+            QdrantWriterTargetParams,
+        )
+
+        qw = QdrantWriter(
+            self.plan,
+            client_params=QdrantWriterClientParams(**client_params),
+            target_params=QdrantWriterTargetParams(collection_params=collection_params, vector_name=vector_name),
+            name="qdrant_write",
+            **kwargs,
+        )
+        pcds = DocSet(self.context, qw)
+        if execute:
+            pcds.execute()
+            return None
+        else:
+            return pcds
+
     def files(
         self,
         path: str,
@@ -709,9 +776,7 @@ class DocSetWriter:
             doc_to_bytes_fn=doc_to_bytes_fn,
             **resource_args,
         )
-        file_writer = Execution(self.context)._apply_rules(file_writer)
-        file_writer.execute()
-        file_writer.traverse(visit=lambda n: n.finalize())
+        self._maybe_execute(file_writer, True)
 
     def json(
         self,
@@ -731,6 +796,13 @@ class DocSetWriter:
         """
 
         node: Node = JsonWriter(self.plan, path, filesystem=filesystem, **resource_args)
-        node = Execution(self.context)._apply_rules(node)
-        node.execute()
-        node.traverse(visit=lambda n: n.finalize())
+
+        self._maybe_execute(node, True)
+
+    def _maybe_execute(self, node: Node, execute: bool) -> Optional[DocSet]:
+        ds = DocSet(self.context, node)
+        if not execute:
+            return ds
+
+        ds.execute()
+        return None

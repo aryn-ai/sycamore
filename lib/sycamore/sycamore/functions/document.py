@@ -1,5 +1,7 @@
 from io import BytesIO
 from typing import Optional
+
+from sycamore.data.document import DocumentPropertyTypes
 from sycamore.data.element import TableElement
 
 import pdf2image
@@ -46,7 +48,7 @@ def split_and_convert_to_image(doc: Document) -> list[Document]:
     elements_by_page: dict[int, list[Element]] = {}
 
     for e in doc.elements:
-        page_number = e.properties["page_number"]
+        page_number = e.properties[DocumentPropertyTypes.PAGE_NUMBER]
         elements_by_page.setdefault(page_number, []).append(e)
 
     new_docs = []
@@ -54,7 +56,9 @@ def split_and_convert_to_image(doc: Document) -> list[Document]:
         elements = elements_by_page.get(page + 1, [])
         new_doc = Document(binary_representation=image.tobytes(), elements=elements)
         new_doc.properties.update(doc.properties)
-        new_doc.properties.update({"size": list(image.size), "mode": image.mode, "page_number": page + 1})
+        new_doc.properties.update(
+            {"size": list(image.size), "mode": image.mode, DocumentPropertyTypes.PAGE_NUMBER: page + 1}
+        )
         new_docs.append(new_doc)
     return new_docs
 

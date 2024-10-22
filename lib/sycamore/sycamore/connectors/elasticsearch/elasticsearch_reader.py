@@ -1,5 +1,6 @@
 from sycamore.data import Document
 from sycamore.connectors.base_reader import BaseDBReader
+from sycamore.data.document import DocumentPropertyTypes, DocumentSource
 from sycamore.utils.import_utils import requires_modules
 from dataclasses import dataclass, field
 import typing
@@ -19,7 +20,7 @@ class ElasticsearchReaderClientParams(BaseDBReader.ClientParams):
 class ElasticsearchReaderQueryParams(BaseDBReader.QueryParams):
     index_name: str
     query: Dict = field(default_factory=lambda: {"match_all": {}})
-    keep_alive = "1m"
+    keep_alive: str = "1m"
     kwargs: Dict = field(default_factory=lambda: {})
 
 
@@ -41,7 +42,9 @@ class ElasticsearchReaderClient(BaseDBReader.Client):
             query_params, ElasticsearchReaderQueryParams
         ), f"Wrong kind of query parameters found: {query_params}"
         no_specification = ["query", "pit", "search_after", "index_name"]
-        assert all(no_specification) not in query_params.kwargs
+        assert (
+            all(no_specification) not in query_params.kwargs
+        ), "Please do not specify the following parameters: " + ", ".join(no_specification)
         if not query_params.kwargs.get("track_total_hits"):
             query_params.kwargs["track_total_hits"] = False
         if not query_params.kwargs.get("sort"):
@@ -79,8 +82,14 @@ class ElasticsearchReaderQueryResponse(BaseDBReader.QueryResponse):
         for data in self.output:
             doc_id = data["_id"]
             doc = Document(
-                {"doc_id": doc_id, "embedding": data["_source"].get("embeddings"), **data["_source"].get("properties")}
+                {
+                    "doc_id": doc_id,
+                    "parent_id": data["_source"].get("parent_id"),
+                    "embedding": data["_source"].get("embedding"),
+                    **data["_source"].get("properties"),
+                }
             )
+            doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
             result.append(doc)
         return result
 

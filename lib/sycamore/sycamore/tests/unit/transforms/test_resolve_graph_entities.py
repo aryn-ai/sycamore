@@ -1,7 +1,7 @@
 from typing import Optional
 from pydantic import BaseModel
 import sycamore
-from sycamore.data.document import Document
+from sycamore.data.document import Document, HierarchicalDocument
 from sycamore.data.element import Element
 from sycamore.llms.llms import LLM
 from sycamore.reader import DocSetReader
@@ -20,7 +20,7 @@ class TestResolveGraphEntities:
             {
                 "doc_id": "1",
                 "type": "pdf",
-                "properties": {"company": "3M", "sector": "Industrial", "doctype": "10K"},
+                "properties": {},
                 "elements": [
                     Element(
                         {
@@ -93,7 +93,7 @@ class TestResolveGraphEntities:
             }
             """
 
-    def test_resolve_entities(self):
+    def test_resolve_entities(self) -> None:
         context = sycamore.init()
         reader = DocSetReader(context)
         ds = reader.document(self.docs)
@@ -106,12 +106,12 @@ class TestResolveGraphEntities:
             end: Company
 
         ds = (
-            ds.extract_document_structure(structure=StructureBySection)
+            ds.extract_document_structure(structure=StructureBySection())
             .extract_graph_entities([EntityExtractor(self.MockEntityLLM(), [Company])])
             .extract_graph_relationships([RelationshipExtractor(self.MockRelationshipLLM(), [Competes])])
-            .resolve_graph_entities(resolvers=[])
+            .resolve_graph_entities(resolvers=[], resolve_duplicates=True)
         )
-        docs = ds.take_all()
+        docs = [HierarchicalDocument(doc.data) for doc in ds.take_all()]
 
         for doc in docs:
             if doc.data.get("EXTRACTED_NODES", False) is True:

@@ -7,7 +7,7 @@ from typing import List, Dict
 
 class AssignDocProperties(SingleThreadUser, NonGPUUser, Map):
     """
-    The AssignDocProperties transform is used to copy properties from first element pf a specific type
+    The AssignDocProperties transform is used to copy properties from first element of a specific type
     to the parent document. This allows for the consolidation of key attributes at the document level.
 
     Args:
@@ -32,9 +32,14 @@ class AssignDocProperties(SingleThreadUser, NonGPUUser, Map):
         assert property_name is not None
         for e in parent.elements:
             if e.type == element_type and property_name in e.properties.keys():
-                property = e.properties.get(property_name)
-                assert isinstance(property, Dict), f"Expected Dict, got {type(property).__name__}"
-                parent.properties["entity"] = property
+                prop = e.properties.get(property_name)
+                assert isinstance(
+                    prop, Dict
+                ), f"property {property_name}, expected Dict, got {type(prop).__name__}: {str(prop)}"
+                if "entity" in parent.properties:
+                    parent.properties["entity"].update(prop)
+                else:
+                    parent.properties["entity"] = prop
                 break
 
         return parent

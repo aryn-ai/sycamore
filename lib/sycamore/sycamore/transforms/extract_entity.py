@@ -13,10 +13,11 @@ from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
 
 
-def element_list_formatter(elements: list[Element]) -> str:
+def element_list_formatter(elements: list[Element], field: str = "text_representation") -> str:
     query = ""
     for i in range(len(elements)):
-        query += f"ELEMENT {i + 1}: {elements[i].text_representation}\n"
+        value = str(elements[i].field_to_value(field))
+        query += f"ELEMENT {i + 1}: {value}\n"
     return query
 
 
@@ -68,10 +69,10 @@ class OpenAIEntityExtractor(EntityExtractor):
         llm: Optional[LLM] = None,
         prompt_template: Optional[str] = None,
         num_of_elements: int = 10,
-        prompt_formatter: Callable[[list[Element]], str] = element_list_formatter,
+        prompt_formatter: Callable[[list[Element], str], str] = element_list_formatter,
         use_elements: Optional[bool] = True,
-        prompt: Optional[Union[list[dict], str]] = [],
-        field: Optional[str] = None,
+        prompt: Optional[Union[list[dict], str]] = None,
+        field: str = "text_representation",
     ):
         super().__init__(entity_name)
         self._llm = llm
@@ -89,10 +90,7 @@ class OpenAIEntityExtractor(EntityExtractor):
     ) -> Document:
         self._llm = llm or self._llm
         if self._use_elements:
-            if self._prompt_template:
-                entities = self._handle_few_shot_prompting(document)
-            else:
-                entities = self._handle_zero_shot_prompting(document)
+            entities = self._handle_element_prompting(document)
         else:
             if self._prompt is None:
                 raise Exception("prompt must be specified if use_elements is False")
@@ -102,33 +100,27 @@ class OpenAIEntityExtractor(EntityExtractor):
 
         return document
 
-    def _handle_few_shot_prompting(self, document: Document) -> Any:
+    def _handle_element_prompting(self, document: Document) -> Any:
         assert self._llm is not None
         sub_elements = [document.elements[i] for i in range((min(self._num_of_elements, len(document.elements))))]
-
-        prompt = EntityExtractorFewShotGuidancePrompt()
-
-        entities = self._llm.generate(
-            prompt_kwargs={
-                "prompt": prompt,
-                "entity": self._entity_name,
-                "examples": self._prompt_template,
-                "query": self._prompt_formatter(sub_elements),
-            }
-        )
-        return entities
-
-    def _handle_zero_shot_prompting(self, document: Document) -> Any:
-        assert self._llm is not None
-        sub_elements = [document.elements[i] for i in range((min(self._num_of_elements, len(document.elements))))]
-
-        prompt = EntityExtractorZeroShotGuidancePrompt()
-
-        entities = self._llm.generate(
-            prompt_kwargs={"prompt": prompt, "entity": self._entity_name, "query": self._prompt_formatter(sub_elements)}
-        )
-
-        return entities
+        content = self._prompt_formatter(sub_elements, self._field)
+        if self._prompt is None:
+            prompt: Any = None
+            if self._prompt_template:
+                prompt = EntityExtractorFewShotGuidancePrompt()
+            else:
+                prompt = EntityExtractorZeroShotGuidancePrompt()
+            entities = self._llm.generate(
+                prompt_kwargs={
+                    "prompt": prompt,
+                    "entity": self._entity_name,
+                    "query": content,
+                    "examples": self._prompt_template,
+                }
+            )
+            return entities
+        else:
+            return self._get_entities(content)
 
     def _handle_document_field_prompting(self, document: Document) -> Any:
         assert self._llm is not None
@@ -137,15 +129,18 @@ class OpenAIEntityExtractor(EntityExtractor):
 
         value = str(document.field_to_value(self._field))
 
-        if isinstance(self._prompt, str):
-            self._prompt += value
-            response = self._llm.generate(prompt_kwargs={"prompt": self._prompt}, llm_kwargs={})
-        else:
-            if self._prompt is None:
-                self._prompt = []
-            self._prompt.append({"role": "user", "content": value})
-            response = self._llm.generate(prompt_kwargs={"messages": self._prompt}, llm_kwargs={})
+        return self._get_entities(value)
 
+    def _get_entities(self, content: str, prompt: Optional[Union[list[dict], str]] = None):
+        assert self._llm is not None
+        prompt = prompt or self._prompt
+        assert prompt is not None, "No prompt found for entity extraction"
+        if isinstance(self._prompt, str):
+            prompt = self._prompt + content
+            response = self._llm.generate(prompt_kwargs={"prompt": prompt}, llm_kwargs={})
+        else:
+            messages = (self._prompt or []) + [{"role": "user", "content": content}]
+            response = self._llm.generate(prompt_kwargs={"messages": messages}, llm_kwargs={})
         return response
 
 

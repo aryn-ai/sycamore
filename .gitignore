@@ -34,6 +34,17 @@ apps/jupyter/bind_dir/redirect.html
 .venv
 lib/remote-processors/remote_processors/*pb2*
 poetry.toml
+dist/
 lib/aryn-sdk/dist/
+lib/sycamore/dist/
 luna_traces/
 traces/
+apps/jupyter/bind_dir/poetry_cache
+apps/query-ui/cache_dir
+docs/build
+cache
+notebooks/default-prep-data
+.python-version
+apps/timetrace/ttviz
+notebooks/pc-tutorial
+notebooks/tmp

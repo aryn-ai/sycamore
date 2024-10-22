@@ -1,6 +1,5 @@
 from typing import Any, Callable, Iterable, Optional
 
-
 from sycamore.data import Document
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base import BaseMapTransform, get_name_from_callable
@@ -20,6 +19,13 @@ class Map(BaseMapTransform):
 
     # option 2:
     docset.map(f, args=my_args, kwargs=my_kwargs)
+
+    If f is a class type, when using ray execution, the class will be mapped to an agent that
+    will be instantiated a fixed number of times. By default that will be once, but you can
+    change that with:
+        .. code-block:: python
+
+           ctx.map(ExampleClass, parallelism=num_instances)
 
     Example:
          .. code-block:: python
@@ -71,6 +77,8 @@ class FlatMap(BaseMapTransform):
     """
     FlatMap is a transformation class for applying a callable function to each document in a dataset and flattening
     the resulting list of documents.
+
+    See :class:`Map` for additional arguments that can be specified and the option for the type of f.
 
     Example:
          .. code-block:: python
@@ -126,6 +134,8 @@ class MapBatch(BaseMapTransform):
     """
     The MapBatch transform is similar to Map, except that it processes a list of documents and returns a list of
     documents. MapBatches is ideal for transformations that get performance benefits from batching.
+
+    See :class:`Map` for additional arguments that can be specified and the option for the type of f.
 
     Example:
          .. code-block:: python

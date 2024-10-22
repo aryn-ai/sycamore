@@ -78,7 +78,7 @@ Takes the format `[x1, y1, x2, y2]` where each coordinate is given as the propor
       "page_number": 1-indexed page number the element occurs on }
 ```
 
-The `score` is the number used to determine whether to keep the element based on the `threshold`. Elements with a confidence score higher than the threshold will be kept as the model is "confident" in its prediction for this element whereas elements with a confidence score lower than this threshold will be removed, as the model is less confident in its prediction for this element.
+The `score` is the model's "confidence" in its prediction for that particular bounding box. By default, we automatically select bounding boxes to achieve good coverage with high prediction accuracy, but the user can control this by using the `threshold` parameter (defaults to "auto"). If the user specifies a numeric value between 0 and 1, only Elements with a confidence score higher than the specified threshold value will be kept.
 
 ### Text Representation
 
@@ -93,5 +93,14 @@ Text elements contain ‘\n’ when the text includes a line return.
 When `extract_images` is set to True, Images include a `binary_representation` tag which contains a base64 encoded ppm image file of the pdf cropped to the bounds of the detected image. When `extract_images` is false, the bounding box of the Image is still returned.
 
 ```text
-"binary_representaion": base64 encoded ppm image file of the pdf cropped to the image
+"binary_representation": base64 encoded ppm image file of the pdf cropped to the image
+```
+
+## Markdown Format
+
+If the request to the Aryn Partitioning Service has the `output_format` option set to `markdown`, a successful response will look like this:
+
+```text
+{ "status": ...,
+  "markdown": "# Title\ndolorem ipsum, quia dolor sit amet consectetur..." }
 ```

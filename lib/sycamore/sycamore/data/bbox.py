@@ -1,5 +1,6 @@
 from abc import ABC
 from collections.abc import Iterable
+import logging
 
 
 class BoundingBox(ABC):
@@ -17,6 +18,9 @@ class BoundingBox(ABC):
         self.y1 = y1
         self.x2 = x2
         self.y2 = y2
+        # TODO: Make this as an assertion and fix any bugs in TableTransformers that violate it
+        if x1 > x2 or y1 > y2:
+            logging.warning(f"x1 ({x1}) must be <= x2 ({x2}) and y1 ({y1}) must be <= y2 ({y2})")
 
     def __eq__(self, other):
         if type(other) is not type(self):
@@ -81,12 +85,12 @@ class BoundingBox(ABC):
         return self.x1 <= other.x1 and self.x2 >= other.x2 and self.y1 <= other.y1 and self.y2 >= other.y2
 
     def intersect(self, other: "BoundingBox") -> "BoundingBox":
-        x1 = max(self.x1, other.x1)
-        x2 = min(self.x2, other.x2)
-        y1 = max(self.y1, other.y1)
-        y2 = min(self.y2, other.y2)
+        x1 = self.x1 if self.x1 > other.x1 else other.x1
+        x2 = self.x2 if self.x2 < other.x2 else other.x2
+        y1 = self.y1 if self.y1 > other.y1 else other.y1
+        y2 = self.y2 if self.y2 < other.y2 else other.y2
 
-        if x1 > x2 or y1 > y2:
+        if x1 >= x2 or y1 >= y2:
             return EMPTY_BBOX
 
         return BoundingBox(x1, y1, x2, y2)
@@ -161,7 +165,7 @@ class BoundingBox(ABC):
         return self
 
     def is_empty(self):
-        return self.x1 >= self.x2 and self.y1 >= self.y2
+        return self.x1 >= self.x2 or self.y1 >= self.y2
 
     def __repr__(self):
         return f"BoundingBox({self.x1}, {self.y1}, {self.x2}, {self.y2})"

@@ -1,4 +1,4 @@
-# Process and load data into an OpenSearch hybrid search index
+# Loading OpenSearch with Sycamore
 
 This tutorial provides a walkthrough of how to use Sycamore to extract, enrich, transform, and create vector embeddings from a PDF dataset in S3 and load it into OpenSearch. The way in which you run ETL on these document is critical for the end quality of your application, and you can easily use Sycamore to facilitate this. The example below shows a few transforms Sycamore can do in a pipeline, and how to use LLMs to extract information.
 
@@ -6,7 +6,7 @@ In this example, we will be using PDF documents from the [Sort Benchmark](http:/
 
 ## Steps
 
-1. Install Sycamore using pip using [these instructions](../sycamore/get_started.rst)
+1. Install Sycamore using pip using [these instructions](/sycamore/get_started)
 
 2. Create a Python script and import Sycamore. In the following code snippet, we are initializing Sycamore and creating a DocSet by reading all the files from a local path.
 

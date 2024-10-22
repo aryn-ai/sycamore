@@ -1,6 +1,6 @@
 import logging
 from abc import ABC
-from typing import Optional, Type
+from typing import Any, Optional, Type
 
 logger = logging.getLogger(__name__)
 
@@ -10,18 +10,19 @@ class SimplePrompt(ABC):
     user: Optional[str] = None
     var_name: str = "answer"
 
-    """
-    Using this method assumes that the system and user prompts are populated with any placeholder values. Or the 
-    caller is responsible for processing the messages after.
-    """
-
-    def as_messages(self) -> list[dict]:
+    def as_messages(self, prompt_kwargs: Optional[dict[str, Any]] = None) -> list[dict]:
         messages = []
         if self.system is not None:
-            messages.append({"role": "system", "content": self.system})
+            system = self.system
+            if prompt_kwargs is not None:
+                system = self.system.format(**prompt_kwargs)
+            messages.append({"role": "system", "content": system})
 
         if self.user is not None:
-            messages.append({"role": "user", "content": self.user})
+            user = self.user
+            if prompt_kwargs is not None:
+                user = self.user.format(**prompt_kwargs)
+            messages.append({"role": "user", "content": user})
         return messages
 
     def __eq__(self, other):
@@ -92,6 +93,62 @@ class TaskIdentifierZeroShotGuidancePrompt(SimplePrompt):
     {task_descriptions}
     Question: {question}
     """
+
+
+class GraphEntityExtractorPrompt(SimplePrompt):
+    user = """
+    -Instructions-
+    You are a information extraction system.
+
+    You will be given a sequence of data in different formats(text, table, Section-header) in order.
+    Your job is to extract entities from the text input that match the entity schemas provided. Each entity
+    and property extracted should directly reference part of the text input provided.
+    """
+
+
+class GraphRelationshipExtractorPrompt(SimplePrompt):
+    user = """
+    -Goal-
+    You are a helpful information extraction system.
+
+    You will be given a sequence of data in different formats(text, table, Section-header) in order.
+    Your job is to extract relationships that map between entities that have already been extracted from this text.
+
+    """
+
+
+class ExtractTablePropertiesPrompt(SimplePrompt):
+    user = """
+            You are given a text string where columns are separated by comma representing either a single column, 
+            or a multi-column table each new line is a new row.
+            Instructions:
+            1. Parse the table and return a flattened JSON object representing the key-value pairs of properties 
+            defined in the table.
+            2. Do not return nested objects, keep the dictionary only 1 level deep. The only valid value types 
+            are numbers, strings, and lists.
+            3. If you find multiple fields defined in a row, feel free to split them into separate properties.
+            4. Use camelCase for the key names.
+            5. For fields where the values are in standard measurement units like miles, 
+            nautical miles, knots, or celsius, include the unit in the key name and only set the
+            numeric value as the value.
+              - "Wind Speed: 9 knots" should become "windSpeedInKnots": 9
+              - "Temperature: 3°C" should become "temperatureInC": 3
+            6. Ensure that key names are enclosed in double quotes.
+            7. return only the json object between ``` 
+            """
+
+
+class ExtractTablePropertiesTablePrompt(SimplePrompt):
+    user = """
+            You are given a text string where columns are separated by comma representing either a single column, 
+            or multi-column table each new line is a new row.
+            Instructions:
+            1. Parse the table and make decision if key, value pair information can be extracted from it.
+            2. if the table contains multiple cell value corresponding to one key, the key, value pair for such table 
+            cant be extracted.
+            3. return True if table cant be parsed as key value pair.
+            4. return only True or False nothing should be added in the response.
+            """
 
 
 class EntityExtractorMessagesPrompt(SimplePrompt):

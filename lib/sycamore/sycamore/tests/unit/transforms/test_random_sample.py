@@ -8,6 +8,8 @@ from sycamore.data import Document
 
 
 class TestRandomSample:
+    exec_mode = sycamore.EXEC_LOCAL
+
     @pytest.fixture()
     def docs(self) -> list[Document]:
         print("Generating docs")
@@ -18,7 +20,7 @@ class TestRandomSample:
 
     @pytest.fixture()
     def docset(self, docs: list[Document]) -> DocSet:
-        context = sycamore.init()
+        context = sycamore.init(exec_mode=self.exec_mode)
         return context.read.document(docs)
 
     def test_empty_sample(self, docset: DocSet):

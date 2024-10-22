@@ -2,6 +2,7 @@ import functools
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, Optional, Union, List
+import inspect
 
 from sycamore.plan_nodes import Node, NodeTraverse
 
@@ -16,6 +17,7 @@ class OperationTypes(Enum):
     DEFAULT = "default"
     BINARY_CLASSIFIER = "binary_classifier"
     INFORMATION_EXTRACTOR = "information_extractor"
+    TEXT_SIMILARITY = "text_similarity"
 
 
 def _default_rewrite_rules():
@@ -43,7 +45,7 @@ class Context:
     """
     Define parameters for global usage
     """
-    params: Optional[dict[str, Any]] = None
+    params: dict[str, Any] = field(default_factory=dict)
 
     @property
     def read(self):
@@ -83,6 +85,8 @@ def get_val_from_context(
 def context_params(*names):
     """
     Applies kwargs from the context to a function call. Requires 'context': Context, to be an argument to the method.
+
+    There is a fair bit of complexity regarding arg management but the comments should be clear.
     """
 
     def decorator(func: Callable) -> Callable:
@@ -91,26 +95,46 @@ def context_params(*names):
             self = args[0] if len(args) > 0 else {}
             ctx = kwargs.get("context", getattr(self, "context", getattr(self, "_context", None)))
             if ctx and ctx.params:
-                new_kwargs = {}
-                new_kwargs.update(ctx.params.get("default", {}))
+
+                """
+                Create argument candidates 'candidate_kwargs' from the Context
+                """
+                candidate_kwargs = {}
+                candidate_kwargs.update(ctx.params.get("default", {}))
                 qual_name = func.__qualname__  # e.g. 'DocSetWriter.opensearch'
-                function_name_wo_class = qual_name.split(".")[-1]
-                new_kwargs.update(ctx.params.get(function_name_wo_class, {}))
-                new_kwargs.update(ctx.params.get(qual_name, {}))
-
+                function_name_wo_class = qual_name.split(".")[-1]  # e.g. 'opensearch'
+                candidate_kwargs.update(ctx.params.get(function_name_wo_class, {}))
+                candidate_kwargs.update(ctx.params.get(qual_name, {}))
                 for i in names:
-                    new_kwargs.update(ctx.params.get(i, {}))
-                new_kwargs.update(kwargs)
+                    candidate_kwargs.update(ctx.params.get(i, {}))
 
                 """
-                If positional args are provided, we want to pop those keys from new_kwargs that have been deduced 
-                from context
+                If positional args are provided, we want to pop those keys from candidate_kwargs
                 """
-                signature = func.__code__.co_varnames[: func.__code__.co_argcount]
+                sig = inspect.signature(func)
+                signature = list(sig.parameters.keys())
                 for param in signature[: len(args)]:
-                    if param == "self":
-                        continue
-                    new_kwargs.pop(param)
+                    candidate_kwargs.pop(param, None)
+
+                """
+                If the function doesn't accept arbitrary kwargs, we don't want to use candidate_kwargs that aren't in 
+                the function signature.
+                """
+                new_kwargs = {}
+                accepts_kwargs = any(param.kind == param.VAR_KEYWORD for param in sig.parameters.values())
+
+                if accepts_kwargs:
+                    new_kwargs = candidate_kwargs
+                else:
+                    for param in signature[len(args) :]:  # arguments that haven't been passed as positional args
+                        candidate_val = candidate_kwargs.get(param)
+                        if candidate_val:
+                            new_kwargs[param] = candidate_val
+
+                """
+                Put in user provided kwargs (either through decorator param or function call)
+                """
+                new_kwargs.update(kwargs)
 
                 return func(*args, **new_kwargs)
             else:

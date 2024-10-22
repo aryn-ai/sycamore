@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sycamore-ai"
-version = "0.1.19"
+version = "0.1.25"
 description = "Sycamore is an LLM-powered semantic data preparation system for building search applications."
 authors = ["aryn.ai <opensource@aryn.ai>"]
 readme = "README.md"
@@ -13,11 +13,11 @@ packages = [{ include = "sycamore" }]
 "Documentation" = "https://sycamore.readthedocs.io"
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.12"
+python = ">=3.9,<3.13"
 
 pandas = "^2.1.1"
 pdf2image = "^1.16.3"
-ray = { extras = ["default"], version = "^2.20.0" }
+ray = { extras = ["default"], version = "^2.36.0" }
 
 pyarrow = "^14.0.2"
 numpy = "<2.0.0"
@@ -35,6 +35,7 @@ diskcache = "^5.6.3"
 overrides = "^7.7.0"
 structlog = "^24.2.0"
 setuptools = ">70.0.0"
+dateparser = "^1.2.0"
 
 
 jinja2 = "^3.1"
@@ -43,6 +44,8 @@ fsspec = "2024.2.0" # See poetry-lock/pyproject.toml
 aiohttp = "^3.9.2"
 fasteners = "^0.19"
 pydantic = "^2.8.2"
+
+typing-extensions = "^4.12.2"
 
 #Evaluation dependencies
 apted = { version = "^1.0.3", optional = true }
@@ -59,15 +62,17 @@ pypdf = "^4.3.0"
 
 # Connector dependencies
 elasticsearch = { version = "8.14.0", optional = true}
-duckdb = { version = "1.0.0", optional = true }
+duckdb = { version = "^1.1.1", optional = true }
 neo4j = { version = "^5.21.0", optional = true }
 opensearch-py = { version = "^2.3.1", optional = true }
 pinecone-client = { version = "^4.1.0", extras = ["grpc"], optional = true }
 pinecone-text = { version = "^0.9.0", optional = true }
 weaviate-client = { version = ">=4.6.1,<4.7", optional = true } # typechecking fails with 4.7
+qdrant-client = { version = "^1.11.2", optional = true }
 
 # Local inference dependencies
 easyocr = { version = "^1.7.1", optional = true }
+paddleocr = { version = "^2.8.1", optional = true }
 pdfminer-six = { version = "20221105", optional = true }
 pytesseract = { version = "^0.3.10", optional = true }
 sentence-transformers = { version = "^3.0.1", optional = true }
@@ -80,11 +85,11 @@ transformers = { version = "^4.43.1", optional = true }
 unstructured = { version = "0.10.20", optional = true }
 python-pptx = {version = "^0.6.22", optional = true }
 
-
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"
 pytest = "7.4.0" # See poetry-lock/pyproject.toml
 pytest-mock = "^3.11"
+pytest-xdist = "^3.6.1"
 
 [tool.poetry.group.dev.dependencies]
 sycamore-poetry-lock = { path = "../../lib/poetry-lock", develop = true }
@@ -116,10 +121,12 @@ neo4j = ["neo4j"]
 opensearch = ["opensearch-py"]
 pinecone = ["pinecone-client", "pinecone-text"]
 weaviate = ["weaviate-client"]
+qdrant = ["qdrant-client"]
 
 # Partitioner extras
 local-inference = [
   "easyocr",
+  "paddleocr",
   "pdfminer-six",
   "pytesseract",
   "sentence-transformers",

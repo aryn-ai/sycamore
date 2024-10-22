@@ -7,6 +7,7 @@ from sycamore.transforms.map import Map, FlatMap, MapBatch
 from sycamore.transforms.partition import Partition, Partitioner
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.regex_replace import COALESCE_WHITESPACE, RegexReplace
+from sycamore.transforms.similarity import ScoreSimilarity
 from sycamore.transforms.sketcher import Sketcher, SketchUniquify, SketchDebug
 from sycamore.transforms.spread_properties import SpreadProperties
 from sycamore.transforms.assign_doc_properties import AssignDocProperties
@@ -20,7 +21,7 @@ from sycamore.transforms.bbox_merge import (
 from sycamore.transforms.extract_table_properties import ExtractTableProperties
 
 from sycamore.transforms.standardizer import (
-    LocationStandardizer,
+    USStateStandardizer,
     Standardizer,
     StandardizeProperty,
     DateTimeStandardizer,
@@ -90,11 +91,12 @@ __all__ = [
     "Sort",
     "LLMQuery",
     "AssignDocProperties",
-    "LocationStandardizer",
+    "USStateStandardizer",
     "Standardizer",
     "DateTimeStandardizer",
     "StandardizeProperty",
     "ExtractTableProperties",
     "GroupByCount",
     "DatasetScan",
+    "ScoreSimilarity",
 ]

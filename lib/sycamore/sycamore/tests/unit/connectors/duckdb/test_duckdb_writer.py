@@ -109,11 +109,11 @@ def test_duckdb_writer_target_params_compatible_with():
     params5 = DuckDBWriterTargetParams(dimensions=128, table_name="different_table")
     assert not params1.compatible_with(params5)
 
-    params6 = DuckDBWriterTargetParams(dimensions=128, batch_size=2000)
-    assert not params1.compatible_with(params6)
-
     params7 = DuckDBWriterTargetParams(dimensions=128, schema={"doc_id": "VARCHAR", "embedding": "FLOAT[128]"})
     assert not params1.compatible_with(params7)
+
+    params8 = DuckDBWriterTargetParams(dimensions=128, schema={"doc_id": "VARCHAR", "embedding": "FLOAT"})
+    assert params8.compatible_with(params7)
 
 
 def test_duckdb_writer_get_existing_target_params_table_not_exist(mock_duckdb, target_params):

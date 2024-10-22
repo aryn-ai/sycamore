@@ -45,8 +45,6 @@ class DuckDBWriterTargetParams(BaseDBWriter.TargetParams):
             return False
         if self.table_name != other.table_name:
             return False
-        if self.batch_size != other.batch_size:
-            return False
         if other.schema and self.schema:
             if (
                 "embedding" in other.schema

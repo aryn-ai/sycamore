@@ -38,9 +38,14 @@ def filter_doc(doc: Document, include):
     return {k: v for k, v in doc.items() if k in include}
 
 
-def check_dictionary_compatibility(dict1: dict[Any, Any], dict2: dict[Any, Any], ignore: list[str] = []):
+def check_dictionary_compatibility(dict1: dict[Any, Any], dict2: dict[Any, Any], ignore_list: list[str] = []):
     for k in dict1:
-        if not dict1.get(k) or (ignore and any(k in ignore_value for ignore_value in ignore)):
+        if not dict1.get(k) or (
+            ignore_list
+            and any(
+                (ignore_value in k and any(k in dict2_k for dict2_k in dict2.keys())) for ignore_value in ignore_list
+            )
+        ):  # skip if ignored key and if it exists in dict2
             continue
         if k not in dict2:
             return False

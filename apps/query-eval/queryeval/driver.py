@@ -188,13 +188,16 @@ class QueryEvalDriver:
         self.results_map[query.query] = result
         return result
 
+    def _check_tags_match(self, query):
+        return set(self.config.config.tags or []) != set(query.tags or [])
+
     def do_plan(self, query: QueryEvalQuery, result: QueryEvalResult) -> QueryEvalResult:
         """Generate or return an existing query plan."""
         if self.config.config:
             if self.config.config.dry_run:
                 console.print("[yellow]:point_right: Dry run: skipping plan generation")
                 return result
-            elif self.config.config.tags and not (set(self.config.config.tags or []) & set(query.tags or [])):
+            elif not self._check_tags_match(query):
                 console.print("[yellow]:point_right: Skipping query due to tag mismatch")
                 return result
 
@@ -238,7 +241,7 @@ class QueryEvalDriver:
             if self.config.config.dry_run:
                 console.print("[yellow]:point_right: Dry run: skipping query execution")
                 return result
-            elif not (set(self.config.config.tags or []) & set(query.tags or [])):
+            elif not self._check_tags_match(query):
                 console.print("[yellow]:point_right: Skipping query due to tag mismatch")
                 return result
 

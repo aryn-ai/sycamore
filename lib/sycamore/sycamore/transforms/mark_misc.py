@@ -131,8 +131,7 @@ class MarkBBoxPreset(SingleThreadUser, NonGPUUser, Map):
     @staticmethod
     @timetrace("markBBoxPreset")
     def mark_bbox_preset(parent: Document, tokenizer: Tokenizer, token_limit: int) -> Document:
-        from sycamore.transforms.bbox_merge import MarkDropHeaderFooter, SortByPageBbox
-        from sycamore.transforms.bbox_merge import MarkBreakByColumn
+        from sycamore.transforms.bbox_merge import MarkDropHeaderFooter, SortByPageBbox, MarkBreakByColumn
 
         SortByPageBbox.sort_by_page_bbox(parent)
         MarkDropTiny.mark_drop_tiny(parent, 2)

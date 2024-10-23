@@ -383,17 +383,14 @@ class ArynPDFPartitioner:
         self._init_model()
 
         LogTime("partition_start", point=True)
-        with tempfile.NamedTemporaryFile(prefix="detr-pdf-input-") as pdffile:
+        # We use NamedTemporaryFile just for the file name.  On Windows,
+        # if we use the opened file, we can't open it a second time.
+        pdffile = tempfile.NamedTemporaryFile(prefix="detr-pdf-input-", delete=False)
+        try:
+            pdffile.file.close()
             with LogTime("write_pdf"):
-                file_hash = Cache.get_hash_context_file(pdffile.name)
-                data = file.read()
-                data_len = len(data)
-                pdffile.write(data)
-                del data
-                pdffile.flush()
+                file_hash = Cache.copy_and_hash_file(file, pdffile.name)
                 logger.info(f"Wrote {pdffile.name}")
-            stat = os.stat(pdffile.name)
-            assert stat.st_size == data_len
             return self._partition_pdf_batched_named(
                 pdffile.name,
                 file_hash.hexdigest(),
@@ -409,6 +406,8 @@ class ArynPDFPartitioner:
                 use_cache,
                 text_extraction_options,
             )
+        finally:
+            os.unlink(pdffile.name)
 
     def _partition_pdf_batched_named(
         self,

@@ -81,6 +81,35 @@ class Cache:
             hash_ctx.update(file_buffer)
         return hash_ctx
 
+    @staticmethod
+    def copy_and_hash_file(src, dest, hash_ctx: Optional[HashContext] = None) -> HashContext:
+        if not hash_ctx:
+            hash_ctx = HashContext()
+        to_close = []
+        if isinstance(src, (str, Path)):
+            src = open(src, "rb")
+            to_close.append(src)
+        else:
+            src.seek(0)
+        if isinstance(dest, (str, Path)):
+            dest = open(dest, "wb")
+            to_close.append(dest)
+
+        chunk = 262144  # 256kB
+        with memoryview(bytearray(chunk)) as buf:
+            while (got := src.readinto(buf)) > 0:
+                if got >= chunk:
+                    hash_ctx.update(buf)
+                    dest.write(buf)
+                else:
+                    with buf[:got] as part:
+                        hash_ctx.update(part)
+                        dest.write(part)
+
+        for f in to_close:
+            f.close()
+        return hash_ctx
+
 
 class DiskCache(Cache):
     def __init__(self, cache_loc: str):

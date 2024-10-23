@@ -189,7 +189,9 @@ class QueryEvalDriver:
         return result
 
     def _check_tags_match(self, query):
-        return set(self.config.config.tags or []) == set(query.tags or [])
+        if not self.config.config or not self.config.config.tags:
+            return True
+        return set(self.config.config.tags) == set(query.tags or [])
 
     def do_plan(self, query: QueryEvalQuery, result: QueryEvalResult) -> QueryEvalResult:
         """Generate or return an existing query plan."""

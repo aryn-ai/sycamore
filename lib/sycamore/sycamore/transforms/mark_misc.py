@@ -141,7 +141,7 @@ class MarkBboxPreset(SingleThreadUser, NonGPUUser, Map):
 
         SortByPageBbox.sort_by_page_bbox(parent)
         MarkDropTiny.mark_drop_tiny(parent, 2)
-        MarkDropHeaderFooter.mark_drop_header_and_footer(parent, 0.05, 0.05)
+        MarkDropHeaderFooter.mark_drop_header_and_footer(parent, 0.05, 0.95)
         MarkBreakPage.mark_break_page(parent)
         MarkBreakByColumn.mark_break_by_column(parent)
         MarkBreakByTokens.mark_break_by_tokens(parent, tokenizer, token_limit)

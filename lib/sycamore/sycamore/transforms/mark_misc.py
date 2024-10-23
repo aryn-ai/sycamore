@@ -125,6 +125,7 @@ class MarkBboxPreset(SingleThreadUser, NonGPUUser, Map):
     """
     See DocSet.mark_bbox_preset for details.
     """
+
     def __init__(self, child: Node, tokenizer: Tokenizer, token_limit: int = 512, **resource_args):
         super().__init__(child, f=MarkBboxPreset.mark_bbox_preset, args=[tokenizer, token_limit], **resource_args)
 
@@ -139,5 +140,3 @@ class MarkBboxPreset(SingleThreadUser, NonGPUUser, Map):
         MarkBreakByColumn.mark_break_by_column(parent)
         MarkBreakByTokens.mark_break_by_tokens(parent, tokenizer, token_limit)
         return parent
-
-        

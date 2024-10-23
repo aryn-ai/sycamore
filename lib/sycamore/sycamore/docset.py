@@ -764,7 +764,6 @@ class DocSet:
         preset = MarkBboxPreset(self.plan, tokenizer, token_limit, **kwargs)
         return DocSet(self.context, preset)
 
-
     def merge(self, merger: ElementMerger, **kwargs) -> "DocSet":
         """
         Applies merge operation on each list of elements of the Docset

@@ -132,7 +132,7 @@ class MarkBboxPreset(SingleThreadUser, NonGPUUser, Map):
         super().__init__(child, f=MarkBboxPreset.mark_bbox_preset, args=[tokenizer, token_limit], **resource_args)
 
     @staticmethod
-    def mark_bbox_preset(parent: Document, tokenizer: Optional[Tokenizer] = None, token_limit: int = 512) -> Document:
+    def mark_bbox_preset(parent: Document, tokenizer: Optional[Tokenizer], token_limit: int = 512) -> Document:
         from sycamore.transforms.bbox_merge import MarkDropHeaderFooter, SortByPageBbox, MarkBreakByColumn
         from sycamore.functions.tokenizer import OpenAITokenizer
 

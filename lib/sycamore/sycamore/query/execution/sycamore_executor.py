@@ -88,10 +88,7 @@ class SycamoreExecutor:
         """Process the given node. Recursively processes dependencies first."""
 
         query_id = result.query_id
-
-        # This is lifted up here to avoid serialization issues with Ray.
         bind_contextvars(logical_node=logical_node)
-
         if logical_node.node_id in self.processed:
             log.info("Already processed")
             return self.processed[logical_node.node_id]

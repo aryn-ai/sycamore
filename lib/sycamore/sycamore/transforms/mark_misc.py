@@ -116,3 +116,28 @@ class MarkBreakByTokens(SingleThreadUser, NonGPUUser, Map):
                 toks = 0
             toks += n
         return parent
+
+
+###############################################################################
+
+
+class MarkBBoxPreset(SingleThreadUser, NonGPUUser, Map):
+    """
+    See DocSet.mark_bbox_preset for details.
+    """
+    def __init__(self, child: Node, tokenizer: Tokenizer, token_limit: int = 512, **resource_args):
+        super().__init__(child, f=MarkBBoxPreset.mark_bbox_preset, args=[tokenizer, token_limit], **resource_args)
+
+    def mark_bbox_preset(parent: Document, tokenizer: Tokenizer, token_limit: int) -> Document:
+        from sycamore.transforms.bbox_merge import MarkDropHeaderFooter, SortByPageBbox
+        from sycamore.transforms.bbox_merge import MarkBreakByColumn
+
+        SortByPageBbox.sort_by_page_bbox(parent)
+        MarkDropTiny.mark_drop_tiny(parent, 2)
+        MarkDropHeaderFooter.mark_drop_header_and_footer(parent, 0.05, 0.05)
+        MarkBreakPage.mark_break_page(parent)
+        MarkBreakByColumn.mark_break_by_column(parent)
+        MarkBreakByTokens.mark_break_by_tokens(parent, tokenizer, token_limit)
+        return parent
+
+        

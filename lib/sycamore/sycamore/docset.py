@@ -723,30 +723,58 @@ class DocSet:
     def mark_bbox_preset(self, tokenizer: Tokenizer, token_limit: int = 512, **kwargs) -> "DocSet":
         """
         Convenience composition of:
-            SortByPageBbox
-            MarkDropTiny minimum=2
-            MarkDropHeaderFooter top=0.05 bottom=0.05
-            MarkBreakPage
-            MarkBreakByColumn
-            MarkBreakByTokens limit=512
-        Meant to work in concert with MarkedMerger.
-        """
-        from sycamore.transforms import (
-            SortByPageBbox,
-            MarkDropTiny,
-            MarkDropHeaderFooter,
-            MarkBreakPage,
-            MarkBreakByColumn,
-            MarkBreakByTokens,
-        )
 
-        plan0 = SortByPageBbox(self.plan, **kwargs)
-        plan1 = MarkDropTiny(plan0, 2, **kwargs)
-        plan2 = MarkDropHeaderFooter(plan1, 0.05, 0.05, **kwargs)
-        plan3 = MarkBreakPage(plan2, **kwargs)
-        plan4 = MarkBreakByColumn(plan3, **kwargs)
-        plan5 = MarkBreakByTokens(plan4, tokenizer, token_limit, **kwargs)
-        return DocSet(self.context, plan5)
+        |    SortByPageBbox
+        |    MarkDropTiny minimum=2
+        |    MarkDropHeaderFooter top=0.05 bottom=0.05
+        |    MarkBreakPage
+        |    MarkBreakByColumn
+        |    MarkBreakByTokens limit=512
+
+        Meant to work in concert with MarkedMerger.
+
+        Use this method like so:
+
+        .. code-block:: python
+
+            context = sycamore.init()
+            token_limit = 512
+            paths = ["path/to/pdf1.pdf", "path/to/pdf2.pdf"]
+
+            (context.read.binary(paths, binary_format="pdf")
+                .partition(partitioner=ArynPartitioner())
+                .mark_bbox_preset(tokenizer, token_limit)
+                .merge(merger=MarkedMerger())
+                .split_elements(tokenizer, token_limit)
+                .show())
+
+        If you want to compose your own marking, note that ``mark_bbox_preset`` could have been equivalently written as:
+
+        .. code-block:: python
+
+            def mark_bbox_preset(self, tokenizer: Tokenizer, token_limit: int = 512, **kwargs) -> "DocSet":
+                from sycamore.transforms import (
+                    SortByPageBbox,
+                    MarkDropTiny,
+                    MarkDropHeaderFooter,
+                    MarkBreakPage,
+                    MarkBreakByColumn,
+                    MarkBreakByTokens,
+                )
+
+                plan0 = SortByPageBbox(self.plan, **kwargs)
+                plan1 = MarkDropTiny(plan0, 2, **kwargs)
+                plan2 = MarkDropHeaderFooter(plan1, 0.05, 0.05, **kwargs)
+                plan3 = MarkBreakPage(plan2, **kwargs)
+                plan4 = MarkBreakByColumn(plan3, **kwargs)
+                plan5 = MarkBreakByTokens(plan4, tokenizer, token_limit, **kwargs)
+                return DocSet(self.context, plan5)
+        """
+        from sycamore.transforms.mark_misc import MarkBBoxPreset
+
+        preset = MarkBBoxPreset(self.plan, tokenizer, token_limit, **kwargs)
+        return DocSet(self.context, preset)
+
 
     def merge(self, merger: ElementMerger, **kwargs) -> "DocSet":
         """

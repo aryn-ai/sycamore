@@ -752,12 +752,12 @@ class DocSet:
 
         .. code-block:: python
 
-            (docset.transform(cls=SortByPageBbox, minimum=2)
-                .transform(cls=MarkDropTiny, minimum=2)
-                .transform(cls=MarkDropHeaderFooter, top=0.05, bottom=0.05)
-                .transform(cls=MarkBreakPage)
-                .transform(cls=MarkBreakByColumn)
-                .transform(cls=MarkBreakByTokens, tokenizer=tokenizer, limit=token_limit))
+            (docset.transform(SortByPageBbox, minimum=2)
+                .transform(MarkDropTiny, minimum=2)
+                .transform(MarkDropHeaderFooter, top=0.05, bottom=0.05)
+                .transform(MarkBreakPage)
+                .transform(MarkBreakByColumn)
+                .transform(MarkBreakByTokens, tokenizer=tokenizer, limit=token_limit))
         """
         from sycamore.transforms.mark_misc import MarkBboxPreset
 

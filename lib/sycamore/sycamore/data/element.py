@@ -23,6 +23,16 @@ class Element(UserDict):
             self.data["properties"] = {}
 
     @property
+    def element_index(self) -> Optional[int]:
+        """A unique identifier for the element within a Document. Represents an order within the document"""
+        return self.data.get("properties", {}).get("_element_index")
+
+    @element_index.setter
+    def element_index(self, value: int) -> None:
+        """Set the unique identifier of the element within a Document."""
+        self.data["properties"]["_element_index"] = value
+
+    @property
     def type(self) -> Optional[str]:
         return self.data.get("type")
 
@@ -78,6 +88,21 @@ class Element(UserDict):
             "properties": {k: str(v) for k, v in self.properties.items()},
         }
         return json.dumps(d, indent=2)
+
+    def field_to_value(self, field: str) -> Any:
+        """
+        Extracts the value for a particular element field.
+
+        Args:
+            field: The field in dotted notation to indicate nesting, e.g. properties.schema
+
+        Returns:
+            The value associated with the document field.
+            Returns None if field does not exist in document.
+        """
+        from sycamore.utils.nested import dotted_lookup
+
+        return dotted_lookup(self, field)
 
 
 class ImageElement(Element):
@@ -159,8 +184,6 @@ class TableElement(Element):
         self.data["properties"]["rows"] = rows
         self.data["table"] = table
         self.data["tokens"] = tokens
-        if self.data["table"]:
-            self.data["text_representation"] = self.data["table"].to_csv()
 
     @property
     def rows(self) -> Optional[list[Any]]:
@@ -191,10 +214,7 @@ class TableElement(Element):
     @table.setter
     def table(self, value: Optional[Table]) -> None:
         self.data["table"] = value
-        if value is not None:
-            self.data["text_representation"] = self.data["table"].to_csv()
-        else:
-            self.data["text_representation"] = None
+        self.data["text_representation"] = None  # Invalidate cache
 
     @property
     def tokens(self) -> Optional[list[dict[str, Any]]]:
@@ -204,8 +224,21 @@ class TableElement(Element):
     def tokens(self, tokens: list[dict[str, Any]]) -> None:
         self.data["tokens"] = tokens
 
+    @property
+    def text_representation(self) -> Optional[str]:
+        tr = self.data.get("text_representation")
+        if not isinstance(tr, str) and (tbl := self.data.get("table")):
+            tr = tbl.to_csv()
+            self.data["text_representation"] = tr
+        return tr
 
-def create_element(**kwargs) -> Element:
+    @text_representation.setter
+    def text_representation(self, text_representation: str) -> None:
+        self.data["text_representation"] = text_representation
+
+
+def create_element(element_index: Optional[int] = None, **kwargs) -> Element:
+    element: Element
     if "type" in kwargs and kwargs["type"].lower() == "table":
         if "properties" in kwargs:
             props = kwargs["properties"]
@@ -216,7 +249,7 @@ def create_element(**kwargs) -> Element:
             table = Table.from_dict(kwargs["table"])
             kwargs["table"] = table
 
-        return TableElement(**kwargs)
+        element = TableElement(**kwargs)
 
     elif "type" in kwargs and kwargs["type"].lower() in {"picture", "image", "figure"}:
         if "properties" in kwargs:
@@ -225,7 +258,10 @@ def create_element(**kwargs) -> Element:
             kwargs["image_mode"] = props.get("image_mode")
             kwargs["image_format"] = props.get("image_format")
 
-        return ImageElement(**kwargs)
+        element = ImageElement(**kwargs)
 
     else:
-        return Element(**kwargs)
+        element = Element(**kwargs)
+    if element_index is not None:
+        element.element_index = element_index
+    return element

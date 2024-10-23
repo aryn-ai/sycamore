@@ -1,4 +1,7 @@
+from typing import Optional
+
 from sycamore.data import Document
+from sycamore.data.document import DocumentPropertyTypes
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
 from sycamore.transforms import Map
@@ -65,9 +68,9 @@ class MarkBreakPage(SingleThreadUser, NonGPUUser, Map):
     @timetrace("markBreakPage")
     def mark_break_page(parent: Document) -> Document:
         if len(parent.elements) > 1:
-            last = parent.elements[0].properties["page_number"]
+            last = parent.elements[0].properties[DocumentPropertyTypes.PAGE_NUMBER]
             for elem in parent.elements:
-                page = elem.properties["page_number"]
+                page = elem.properties[DocumentPropertyTypes.PAGE_NUMBER]
                 if page != last:
                     elem.data["_break"] = True  # mark for later
                     last = page
@@ -92,7 +95,8 @@ class MarkBreakByTokens(SingleThreadUser, NonGPUUser, Map):
         .. code-block:: python
 
             source_node = ...
-            marker = MarkBreakByTokens(child=source_node, limit=512)
+            tokenizer = OpenAITokenizer("text-embedding-3-small")
+            marker = MarkBreakByTokens(child=source_node, tokenizer=tokenizer, limit=512)
             dataset = marker.execute()
     """
 
@@ -113,4 +117,32 @@ class MarkBreakByTokens(SingleThreadUser, NonGPUUser, Map):
                 elem.data["_break"] = True
                 toks = 0
             toks += n
+        return parent
+
+
+###############################################################################
+
+
+class MarkBboxPreset(SingleThreadUser, NonGPUUser, Map):
+    """
+    See DocSet.mark_bbox_preset for details.
+    """
+
+    def __init__(self, child: Node, tokenizer: Tokenizer, token_limit: int = 512, **resource_args):
+        super().__init__(child, f=MarkBboxPreset.mark_bbox_preset, args=[tokenizer, token_limit], **resource_args)
+
+    @staticmethod
+    def mark_bbox_preset(parent: Document, tokenizer: Optional[Tokenizer], token_limit: int = 512) -> Document:
+        from sycamore.transforms.bbox_merge import MarkDropHeaderFooter, SortByPageBbox, MarkBreakByColumn
+        from sycamore.functions.tokenizer import OpenAITokenizer
+
+        if not tokenizer:
+            tokenizer = OpenAITokenizer("text-embedding-3-small")
+
+        SortByPageBbox.sort_by_page_bbox(parent)
+        MarkDropTiny.mark_drop_tiny(parent, 2)
+        MarkDropHeaderFooter.mark_drop_header_and_footer(parent, 0.05, 0.05)
+        MarkBreakPage.mark_break_page(parent)
+        MarkBreakByColumn.mark_break_by_column(parent)
+        MarkBreakByTokens.mark_break_by_tokens(parent, tokenizer, token_limit)
         return parent

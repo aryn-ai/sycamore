@@ -2,7 +2,7 @@ from pydantic import BaseModel
 import sycamore
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.tests.config import TEST_DIR
-from sycamore.transforms.partition import SycamorePartitioner
+from sycamore.transforms.partition import ArynPartitioner
 from sycamore.transforms.extract_document_structure import StructureBySection
 from sycamore.transforms.extract_graph_entities import EntityExtractor
 from sycamore.transforms.extract_graph_relationships import RelationshipExtractor
@@ -39,7 +39,7 @@ def test_to_neo4j():
     ds = (
         context.read.binary(path, binary_format="pdf")
         .partition(
-            partitioner=SycamorePartitioner(extract_table_structure=True, use_ocr=True, extract_images=True),
+            partitioner=ArynPartitioner(extract_table_structure=True, use_ocr=True, extract_images=True),
             num_gpus=0.2,
         )
         .extract_document_structure(structure=StructureBySection)
@@ -48,7 +48,6 @@ def test_to_neo4j():
         .resolve_graph_entities(resolvers=[])
         .explode()
     )
-
     ds.write.neo4j(uri=URI, auth=AUTH, database=DATABASE, import_dir="/neo4j/import")
 
     from neo4j import GraphDatabase

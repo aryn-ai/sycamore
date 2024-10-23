@@ -42,26 +42,25 @@ class PropertyExtractor(ABC):
         pass
 
 
-class OpenAISchemaExtractor(SchemaExtractor):
+class LLMSchemaExtractor(SchemaExtractor):
     """
-    OpenAISchema uses one of OpenAI's language model (LLM) for schema extraction,
-    given a suggested entity type to be extracted.
+    The LLMSchemaExtractor uses the specified LLM object to extract a schema.
 
     Args:
         entity_name: A natural-language name of the class to be extracted (e.g. `Corporation`)
-        llm: An instance of an OpenAI language model for text processing.
+        llm: An instance of an LLM for text processing.
         num_of_elements: The number of elements to consider for schema extraction. Default is 10.
         prompt_formatter: A callable function to format prompts based on document elements.
 
     Example:
         .. code-block:: python
 
-            openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
-            schema_extractor=OpenAISchemaExtractor("Corporation", llm=openai, num_of_elements=35)
+            openai = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
+            schema_extractor=LLMSchemaExtractor("Corporation", llm=openai, num_of_elements=35)
 
             context = sycamore.init()
             pdf_docset = context.read.binary(paths, binary_format="pdf")
-                .partition(partitioner=UnstructuredPdfPartitioner())
+                .partition(partitioner=ArynPartitioner())
                 .extract_schema(schema_extractor=schema_extractor)
     """
 
@@ -110,21 +109,42 @@ class OpenAISchemaExtractor(SchemaExtractor):
         return entities
 
 
-class OpenAIPropertyExtractor(PropertyExtractor):
+class OpenAISchemaExtractor(LLMSchemaExtractor):
+    """Alias for LLMSchemaExtractor for OpenAI models.
+
+    Retained for backward compatibility.
+
+    .. deprecated:: 0.1.25
+    Use LLMSchemaExtractor instead.
     """
-    OpenAISchema uses one of OpenAI's language model (LLM) to extract actual property values once
+
+    pass
+
+
+class LLMPropertyExtractor(PropertyExtractor):
+    """
+    The LLMPropertyExtractor uses an LLM to extract actual property values once
     a schema has been detected or provided.
 
     Args:
-        llm: An instance of an OpenAI language model for text processing.
+        llm: An instance of an LLM for text processing.
+        schema_name: An optional natural-language name of the class to be extracted (e.g. `Corporation`)
+            If not provided, will use the _schema_class property added by extract_schema.
+        schema: An optional JSON-encoded schema to be used for property extraction.
+            If not provided, will use the _schema property added by extract_schema.
         num_of_elements: The number of elements to consider for property extraction. Default is 10.
         prompt_formatter: A callable function to format prompts based on document elements.
 
     Example:
         .. code-block:: python
 
+            schema_name = "AircraftIncident"
+            schema = {"location": "string", "aircraft": "string", "date_and_time": "string"}
+
             openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
-            property_extractor = OpenAIPropertyExtractor(llm=openai, num_of_elements=35)
+            property_extractor = LLMPropertyExtractor(
+                llm=openai, schema_name=schema_name, schema=schema, num_of_elements=35
+            )
 
             docs_with_schema = ...
             docs_with_schema = docs_with_schema.extract_properties(property_extractor=property_extractor)
@@ -132,7 +152,6 @@ class OpenAIPropertyExtractor(PropertyExtractor):
 
     def __init__(
         self,
-        # properties: list[str],
         llm: LLM,
         schema_name: Optional[str] = None,
         schema: Optional[dict[str, str]] = None,
@@ -219,6 +238,18 @@ class ExtractSchema(Map):
         super().__init__(child, f=schema_extractor.extract_schema, **resource_args)
 
 
+class OpenAIPropertyExtractor(LLMPropertyExtractor):
+    """Alias for LLMPropertyExtractor for OpenAI models.
+
+    Retained for backward compatibility.
+
+    .. deprecated:: 0.1.25
+    Use LLMPropertyExtractor instead.
+    """
+
+    pass
+
+
 class ExtractBatchSchema(Map):
     """
     ExtractBatchSchema is a transformation class for extracting a schema from a dataset using an SchemaExtractor.
@@ -246,10 +277,8 @@ class ExtractBatchSchema(Map):
     """
 
     def __init__(self, child: Node, schema_extractor: SchemaExtractor, **resource_args):
-        from ray.data import ActorPoolStrategy
-
         # Must run on a single instance so that the cached calculation of the schema works
-        resource_args["compute"] = ActorPoolStrategy(size=1)
+        resource_args["parallelism"] = 1
         # super().__init__(child, f=lambda d: d, **resource_args)
         super().__init__(child, f=ExtractBatchSchema.Extract, constructor_args=[schema_extractor], **resource_args)
 

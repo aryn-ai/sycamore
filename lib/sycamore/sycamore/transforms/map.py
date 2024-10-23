@@ -1,6 +1,5 @@
 from typing import Any, Callable, Iterable, Optional
 
-
 from sycamore.data import Document
 from sycamore.plan_nodes import Node
 from sycamore.transforms.base import BaseMapTransform, get_name_from_callable
@@ -26,9 +25,7 @@ class Map(BaseMapTransform):
     change that with:
         .. code-block:: python
 
-           from ray.data import ActorPoolStrategy
-
-           ctx.map(ExampleClass, compute=ActorPoolStrategy(size=num_actors))
+           ctx.map(ExampleClass, parallelism=num_instances)
 
     Example:
          .. code-block:: python

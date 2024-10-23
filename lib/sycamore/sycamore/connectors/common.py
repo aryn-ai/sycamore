@@ -1,8 +1,13 @@
 from dataclasses import dataclass
 from typing import Callable, Iterator, Union, Iterable, Tuple, Any, Dict
+from sycamore.data import Document
 import json
 import string
 import random
+import math
+import numpy as np
+import pyarrow as pa
+import re
 
 
 @dataclass
@@ -29,25 +34,47 @@ def generate_random_string(length=8):
     return "".join(random.choice(characters) for _ in range(length))
 
 
-def filter_doc(obj, include):
-    return {k: v for k, v in obj.__dict__.items() if k in include}
+def filter_doc(doc: Document, include):
+    return {k: v for k, v in doc.items() if k in include}
 
 
-def check_dictionary_compatibility(dict1: dict[Any, Any], dict2: dict[Any, Any], ignore: list[str] = []):
+def check_dictionary_compatibility(dict1: dict[Any, Any], dict2: dict[Any, Any], ignore_list: list[str] = []):
     for k in dict1:
-        if ignore and any(val in k for val in ignore):
+        if not dict1.get(k) or (
+            ignore_list
+            and any(
+                (ignore_value in k and any(k in dict2_k for dict2_k in dict2.keys())) for ignore_value in ignore_list
+            )
+        ):  # skip if ignored key and if it exists in dict2
             continue
         if k not in dict2:
             return False
-        if dict1[k] != dict2[k]:
+        if dict1[k] != dict2[k] and (dict1[k] or dict2[k]):
             return False
     return True
 
 
-def compare_docs(doc1, doc2):
+def compare_docs(doc1: Document, doc2: Document):
     filtered_doc1 = filter_doc(doc1, DEFAULT_RECORD_PROPERTIES.keys())
     filtered_doc2 = filter_doc(doc2, DEFAULT_RECORD_PROPERTIES.keys())
-    return filtered_doc1 == filtered_doc2
+    for key in filtered_doc1:
+        if isinstance(filtered_doc1[key], (list, np.ndarray)) or isinstance(filtered_doc2.get(key), (list, np.ndarray)):
+            assert len(filtered_doc1[key]) == len(filtered_doc2[key])
+            for item1, item2 in zip(filtered_doc1[key], filtered_doc2[key]):
+                try:
+                    # Convert items to float for numerical comparison
+                    num1 = float(item1)
+                    num2 = float(item2)
+                    # Check if numbers are close within tolerance
+                    assert math.isclose(num1, num2, rel_tol=1e-5, abs_tol=1e-5)
+                except (ValueError, TypeError):
+                    # If conversion to float fails, do direct comparison
+                    assert item1 == item2
+        elif isinstance(filtered_doc1[key], dict) and isinstance(filtered_doc2.get(key), dict):
+            assert check_dictionary_compatibility(filtered_doc1[key], filtered_doc2.get(key))
+        else:
+            assert filtered_doc1[key] == filtered_doc2.get(key)
+    return True
 
 
 def _add_key_to_prefix(prefix, key, separator="."):
@@ -88,49 +115,86 @@ def flatten_data(
     return items
 
 
-def unflatten_data(data: dict[str, Any], separator: str = ".") -> dict[Any, Any]:
-    result: dict[Any, Any] = {}
+def unflatten_data(data: dict[Any, Any], separator: str = ".") -> dict[Any, Any]:
+    """
+    Unflattens a dictionary with keys that contain separators into a nested dictionary. The separator can be escaped,
+    and if there are integer keys in the path, the result will be a list instead of a dictionary.
+    """
 
-    def parse_key(key: str) -> list:
-        # Handle escaped separator
+    def split_key(key: str, separator: str = ".") -> list[str]:
+        """
+        Splits the key by separator (which can be multiple characters), respecting escaped separators.
+        """
         parts = []
         current = ""
-        escape = False
-        for char in key:
-            if escape:
-                if char == separator:
-                    current += separator
+        i = 0
+        while i < len(key):
+            if key[i] == "\\":
+                # Escape character
+                if i + 1 < len(key):
+                    current += key[i + 1]
+                    i += 2
                 else:
-                    current += "\\" + char
-                escape = False
-            elif char == "\\":
-                escape = True
-            elif char == separator:
+                    # Trailing backslash, treat it as literal backslash
+                    current += "\\"
+                    i += 1
+            elif key[i : i + len(separator)] == separator:
+                # Found separator
                 parts.append(current)
                 current = ""
+                i += len(separator)
             else:
-                current += char
+                current += key[i]
+                i += 1
         parts.append(current)
         return parts
 
-    for key, value in data.items():
-        parts = parse_key(key)
+    result: dict[Any, Any] = {}
+    for flat_key, value in data.items():
+        parts = split_key(flat_key, separator)
         current = result
         for i, part in enumerate(parts):
-            part_key: Union[str, int] = int(part) if part.isdigit() else part
-            is_last = i == len(parts) - 1
-            if is_last:
-                current[part_key] = value
-            else:
-                next_part_is_digit = parts[i + 1].isdigit() if i + 1 < len(parts) else False
-                if part_key not in current:
-                    current[part_key] = [] if next_part_is_digit else {}
-                current = current[part_key]
-                # If current is a list and the next part is a digit, ensure proper length
-                if isinstance(current, list):
-                    if next_part_is_digit and len(current) <= int(parts[i + 1]):
-                        current.extend("" for _ in range(int(parts[i + 1]) - len(current) + 1))
+            # Determine whether the key part is an integer (for list indices)
+            key: Union[str, int]
+            try:
+                key = int(part)
+            except ValueError:
+                key = part
 
+            is_last = i == len(parts) - 1
+
+            if is_last:
+                # Set the value at the deepest level
+                if isinstance(current, list):
+                    # Ensure the list is big enough
+                    while len(current) <= key:
+                        current.append("")
+                    current[key] = value
+                else:
+                    current[key] = value
+            else:
+                # Determine the type of the next part
+                next_part = parts[i + 1]
+
+                # Check if the next part is an index (integer)
+                try:
+                    int(next_part)
+                    next_is_index = True
+                except ValueError:
+                    next_is_index = False
+
+                # Initialize containers as needed
+                if isinstance(current, list):
+                    # Ensure the list is big enough
+                    while len(current) <= key:
+                        current.append("")
+                    if current[key] == "" or current[key] is None:
+                        current[key] = [] if next_is_index else {}
+                    current = current[key]
+                else:
+                    if key not in current:
+                        current[key] = [] if next_is_index else {}
+                    current = current[key]
     return result
 
 
@@ -241,3 +305,30 @@ def _make_type_filter(types: list[type]) -> Callable[[Any], bool]:
         return not isinstance(x, tuple(types))
 
     return _type_filter
+
+
+def _get_pyarrow_type(key: str, dtype: str) -> pa.DataType:
+    if dtype == ("VARCHAR"):
+        return pa.string()
+    elif dtype == ("DOUBLE"):
+        return pa.float64()
+    elif dtype == ("BIGINT"):
+        return pa.int64()
+    elif dtype.startswith("MAP"):
+        match = re.match(r"MAP\((.+),\s*(.+)\)", dtype)
+        if not match:
+            raise ValueError(f"Invalid MAP type format: {dtype}")
+        key_type, value_type = match.groups()
+        pa_key_type = _get_pyarrow_type(key, key_type)
+        pa_value_type = _get_pyarrow_type(key, value_type)
+        return pa.map_(pa_key_type, pa_value_type)
+    elif dtype == "VARCHAR[]":
+        return pa.list_(pa.string())
+    elif dtype == "DOUBLE[]" or key == "embedding":  # embedding is a list of floats with a fixed dimension
+        return pa.list_(pa.float64())
+    elif dtype == "BIGINT[]":
+        return pa.list_(pa.int64())
+    elif dtype == "FLOAT":
+        return pa.float32()
+    else:
+        raise ValueError(f"Unsupported pyarrow datatype: {dtype}")

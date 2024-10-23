@@ -1,34 +1,35 @@
-from sycamore.context import Context
+from typing import Optional
 
+from sycamore import ExecMode
 from sycamore.query.client import SycamoreQueryClient
 
-import logging
-
-logging.basicConfig(level=logging.INFO)
-
-
 """
-If you want to use custom LLMs (or just a custom context in general, you can create a file called custom_client.py
-and overload 
-    code:
-        def get_custom_sycamore_query_client(llm, s3_cache_path, os_client_args, trace_dir, **kwargs) -> Context:
+If you want to use custom LLMs or a custom context to override opensearch parameters, edit the
+get_sycamore_query_client function below.
+
+For example, you can write:
+    context = sycamore.init(params={
+        "default": {"llm": OpenAI(OpenAIModels.GPT_4O.value, cache=cache_from_path(llm_cache_dir))},
+        "opensearch": {"os_client_args": get_opensearch_client_args(),
+                       "text_embedder": SycamoreQueryClient.default_text_embedder()}
+    })
+    return SycamoreQueryClient(context=context, trace_dir=trace_dir)
+
+Note that if you include keys in your configuration, it is safer to write:
+    import mycompany_configuration
+    return mycompany_configuration.get_sycamore_query_client(llm_cache_dir, trace_dir)
+
+We require you to edit this file so that if the arguments to get_sycamore_query_client change you
+will get a merge conflict.
 """
 
 
-def get_default_sycamore_query_client(
-    llm=None, s3_cache_path=None, os_client_args=None, trace_dir=None, **kwargs
-) -> Context:
-    return SycamoreQueryClient(s3_cache_path=s3_cache_path, os_client_args=os_client_args, trace_dir=trace_dir)
-
-
-def get_sycamore_query_client(**kwargs) -> Context:
-    try:
-        import custom_client
-
-        get_sycamore_query_client_impl = custom_client.get_custom_sycamore_query_client
-        logging.info("Using custom `get_custom_sycamore_query_client(..)` from custom_client")
-    except (ImportError, AttributeError):
-        logging.info("Using default `get_sycamore_query_client(..)`")
-        get_sycamore_query_client_impl = get_default_sycamore_query_client
-
-    return get_sycamore_query_client_impl(**kwargs)
+def get_sycamore_query_client(
+    llm_cache_dir: Optional[str] = None,
+    trace_dir: Optional[str] = None,
+    cache_dir: Optional[str] = None,
+    exec_mode: ExecMode = ExecMode.RAY,
+) -> SycamoreQueryClient:
+    return SycamoreQueryClient(
+        llm_cache_dir=llm_cache_dir, trace_dir=trace_dir, cache_dir=cache_dir, sycamore_exec_mode=exec_mode
+    )

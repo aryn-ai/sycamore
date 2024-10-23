@@ -1,6 +1,10 @@
+import logging
+
 from unittest.mock import MagicMock
 
-from sycamore.query.schema import OpenSearchSchemaFetcher
+from sycamore.query.schema import OpenSearchSchemaFetcher, OpenSearchSchemaField
+
+logging.getLogger("sycamore.query.schema").setLevel(logging.DEBUG)
 
 
 def test_opensearch_schema():
@@ -39,6 +43,24 @@ def test_opensearch_schema():
                         "colors": {"type": "array", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}}
                     },
                 },
+                "properties.entity.airspeed": {
+                    "full_name": "properties.entity.airspeed",
+                    "mapping": {
+                        "airspeed": {"type": "array", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}}
+                    },
+                },
+                "properties.entity.weird": {
+                    "full_name": "properties.entity.weird",
+                    "mapping": {
+                        "weird": {"type": "array", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}}
+                    },
+                },
+                "properties.happiness": {
+                    "full_name": "properties.happiness",
+                    "mapping": {
+                        "happiness": {"type": "array", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}}
+                    },
+                },
             }
         }
     }
@@ -52,7 +74,8 @@ def test_opensearch_schema():
                     {
                         "_source": {
                             "properties": {
-                                "entity": {"day": "2021-01-01", "aircraft": "Boeing 747", "colors": ["red", "blue"]}
+                                "entity": {"day": "2021-01-01", "aircraft": "Boeing 747", "colors": ["red", "blue"]},
+                                "happiness": "yes",
                             }
                         }
                     },
@@ -73,6 +96,16 @@ def test_opensearch_schema():
         }
     }
 
+    # Verify we can handle schemas where int and float are both used
+    airspeeds = [500, 37.5, 300, 217.11]
+    for i in airspeeds:
+        mock_random_sample["result"]["hits"]["hits"].append({"_source": {"properties": {"entity": {"airspeed": i}}}})
+
+    # Verify we tolerate schemas where the types are incompatible
+    weird = [True, 500, "alphabetical"]
+    for i in weird:
+        mock_random_sample["result"]["hits"]["hits"].append({"_source": {"properties": {"entity": {"weird": i}}}})
+
     # this is asserting we only take OpenSearchSchemaFetcher.NUM_EXAMPLE_VALUES examples
     for i in range(0, OpenSearchSchemaFetcher.NUM_EXAMPLE_VALUES + 5):
         mock_random_sample["result"]["hits"]["hits"] += [{"_source": {"properties": {"entity": {"test_prop": str(i)}}}}]
@@ -81,20 +114,25 @@ def test_opensearch_schema():
 
     fetcher = OpenSearchSchemaFetcher(mock_client, "test_index", mock_query_executor)
     got = fetcher.get_schema()
-    assert "text_representation" in got
-    assert got["text_representation"] == ("<class 'str'>", {"Can be assumed to have all other details"})
-    assert "properties.entity.day" in got
-    assert got["properties.entity.day"] == ("<class 'str'>", {"2021-01-01", "2021-01-02"})
-    assert "properties.entity.aircraft" in got
-    assert got["properties.entity.aircraft"] == ("<class 'str'>", {"Boeing 747", "Airbus A380"})
-    assert "properties.entity.weather" in got
-    assert got["properties.entity.weather"] == ("<class 'str'>", {"Sunny"})
-    assert "properties.entity.colors" in got
-    assert got["properties.entity.colors"] == ("<class 'list'>", {str(["red", "blue"]), str([])})
-    assert "properties.entity.test_prop" in got
-    assert got["properties.entity.test_prop"] == (
-        "<class 'str'>",
-        set([str(i) for i in range(OpenSearchSchemaFetcher.NUM_EXAMPLE_VALUES)]),
+    assert got.fields["text_representation"] == OpenSearchSchemaField(
+        field_type="<class 'str'>", description="Can be assumed to have all other details"
     )
-
-    assert "properties.entity.location" not in got
+    assert got.fields["properties.entity.day"].field_type == "<class 'str'>"
+    assert set(got.fields["properties.entity.day"].examples) == {"2021-01-01", "2021-01-02"}
+    assert got.fields["properties.entity.aircraft"].field_type == "<class 'str'>"
+    assert set(got.fields["properties.entity.aircraft"].examples) == {"Boeing 747", "Airbus A380"}
+    assert got.fields["properties.entity.weather"] == OpenSearchSchemaField(
+        field_type="<class 'str'>", examples=["Sunny"]
+    )
+    assert got.fields["properties.entity.colors"].field_type == "<class 'list'>"
+    assert set(got.fields["properties.entity.colors"].examples) == {"['red', 'blue']", "[]"}
+    assert got.fields["properties.entity.test_prop"].field_type == "<class 'str'>"
+    assert set(got.fields["properties.entity.test_prop"].examples) == {
+        str(i) for i in range(OpenSearchSchemaFetcher.NUM_EXAMPLE_VALUES)
+    }
+    assert got.fields["properties.entity.airspeed"].field_type == "<class 'float'>"
+    assert set(got.fields["properties.entity.airspeed"].examples) == {str(a) for a in airspeeds}
+    assert got.fields["properties.entity.weird"].field_type == "<class 'bool'>"
+    assert set(got.fields["properties.entity.weird"].examples) == {str(w) for w in weird}
+    assert got.fields["properties.happiness"] == OpenSearchSchemaField(field_type="<class 'str'>", examples=["yes"])
+    assert "properties.entity.location" not in got.fields

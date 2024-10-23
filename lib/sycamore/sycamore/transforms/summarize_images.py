@@ -3,41 +3,37 @@ from typing import Any, Optional
 from PIL import Image
 
 from sycamore.data import Document, ImageElement
-from sycamore.llms.openai import OpenAI, OpenAIClientWrapper, OpenAIModels
+from sycamore.llms.openai import LLM, OpenAI, OpenAIClientWrapper, OpenAIModels
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
-from sycamore.utils.image_utils import base64_data_url
 from sycamore.utils.extract_json import extract_json
 from sycamore.utils.time_trace import timetrace
 
 
-class OpenAIImageSummarizer:
-    """Image Summarizer that uses OpenAI GPT-4 Turbo to summarize the specified image.
+class LLMImageSummarizer:
+    """Image Summarizer that uses an LLM to summarize the specified image.
 
-    The image is passed to OpenAI along with a text prompt and optionally the text elements
+    The image is passed to the LLM along with a text prompt and optionally the text elements
     immediately preceding and following the image.
 
     Args:
-       openai_model: The OpenAI instance to use. If not set, one will be created.
-       client_wrapper: The OpenAIClientWrapper to use when creating an OpenAI instance.
-           Not used if openai_model is set.
+       llm: The LLM to use.
        prompt: The prompt to use to pass to the model, as a string.
        include_context: Whether to include the immediately preceding and following text elements as context.
 
     Example:
          The following code demonstrates how to partition a pdf DocSet and summarize the images it contains.
-         This version uses the default prompt and disables passing additional text context.
+         This version uses a Claude model via Bedrock. 
 
          .. code-block:: python
-
+            llm = Bedrock(BedrockModels.CLAUDE_3_5_SONNET)
+    
             context = sycamore.init()
             doc = context.read.binary(paths=paths, binary_format="pdf")\
                               .partition(partitioner=SycamorePartitioner(extract_images=True))\
-                              .transform(SummarizeImages(summarizer=OpenAIImageSummarizer(include_context=False)))\
+                              .transform(SummarizeImages, summarizer=LLMImageSummarizer(llm=llm))\
                               .show()
     """
-
-    model = OpenAIModels.GPT_4O
 
     DEFAULT_PROMPT = """You are given an image from a PDF document along with with some snippets of text preceding
             and following the image on the page. Based on this context, please decide whether the image is a
@@ -65,18 +61,8 @@ class OpenAIImageSummarizer:
             In all cases return only JSON and check your work.
             """
 
-    def __init__(
-        self,
-        openai_model: Optional[OpenAI] = None,
-        client_wrapper: Optional[OpenAIClientWrapper] = None,
-        prompt: Optional[str] = None,
-        include_context: bool = True,
-    ):
-        if openai_model is not None:
-            self.openai = openai_model
-        else:
-            self.openai = OpenAI(model_name=self.model, client_wrapper=client_wrapper)
-
+    def __init__(self, llm: LLM, prompt: Optional[str] = None, include_context: bool = True):
+        self.llm = llm
         if prompt is None:
             prompt = self.DEFAULT_PROMPT
         self.prompt = prompt
@@ -86,23 +72,26 @@ class OpenAIImageSummarizer:
     def summarize_image(
         self, image: Image.Image, preceding_context: Optional[str] = None, following_context: Optional[str] = None
     ):
-        messages: list[dict[str, Any]] = [
-            {"role": "user", "content": self.prompt},
-        ]
+        text = self.prompt
 
         if self.include_context and preceding_context is not None:
-            messages.append({"role": "user", "content": "The text preceding the image is {}".format(preceding_context)})
-
-        messages.append(
-            {"role": "user", "content": [{"type": "image_url", "image_url": {"url": base64_data_url(image)}}]}
-        )
+            text += f"\n The text preceding the image is {preceding_context}"
 
         if self.include_context and following_context is not None:
-            messages.append({"role": "user", "content": "The text preceding the image is {}".format(following_context)})
+            text += f"\nThe text following the image is {following_context}"
+
+        content = [
+            {"type": "text", "text": text},
+            self.llm.format_image(image),
+        ]
+
+        messages: list[dict[str, Any]] = [
+            {"role": "user", "content": content},
+        ]
 
         prompt_kwargs = {"messages": messages}
 
-        raw_answer = self.openai.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
+        raw_answer = self.llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
         return extract_json(raw_answer)
 
     def summarize_all_images(self, doc: Document) -> Document:
@@ -132,6 +121,34 @@ class OpenAIImageSummarizer:
             element.properties["summary"] = json_summary
             element.text_representation = json_summary["summary"]
         return doc
+
+
+class OpenAIImageSummarizer(LLMImageSummarizer):
+    """Implementation of the LLMImageSummarizer for OpenAI models.
+
+    Args:
+       openai_model: The OpenAI instance to use. If not set, one will be created.
+       client_wrapper: The OpenAIClientWrapper to use when creating an OpenAI instance.
+           Not used if openai_model is set.
+       prompt: The prompt to use to pass to the model, as a string.
+       include_context: Whether to include the immediately preceding and following text elements as context.
+    """
+
+    model = OpenAIModels.GPT_4O
+
+    def __init__(
+        self,
+        openai_model: Optional[OpenAI] = None,
+        client_wrapper: Optional[OpenAIClientWrapper] = None,
+        prompt: Optional[str] = None,
+        include_context: bool = True,
+    ):
+        if openai_model is not None:
+            openai = openai_model
+        else:
+            openai = OpenAI(model_name=self.model, client_wrapper=client_wrapper)
+
+        super().__init__(llm=openai, prompt=prompt, include_context=include_context)
 
 
 class SummarizeImages(Map):

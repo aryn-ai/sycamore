@@ -4,6 +4,7 @@ from pathlib import Path
 import pprint
 import sys
 from typing import Callable, Optional, Any, Iterable, Type, Union, TYPE_CHECKING
+import re
 
 from sycamore.context import Context, context_params, OperationTypes
 from sycamore.data import Document, Element, MetadataDocument
@@ -16,12 +17,13 @@ from sycamore.llms.prompts.default_prompts import (
 from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.augment_text import TextAugmentor
 from sycamore.transforms.embed import Embedder
-from sycamore.transforms import DocumentStructure
+from sycamore.transforms import DocumentStructure, Sort
 from sycamore.transforms.extract_entity import EntityExtractor, OpenAIEntityExtractor
 from sycamore.transforms.extract_graph_entities import GraphEntityExtractor
 from sycamore.transforms.extract_graph_relationships import GraphRelationshipExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
 from sycamore.transforms.partition import Partitioner
+from sycamore.transforms.similarity import SimilarityScorer
 from sycamore.transforms.resolve_graph_entities import EntityResolver, ResolveEntities
 from sycamore.transforms.summarize import Summarizer
 from sycamore.transforms.llm_query import LLMTextQueryAgent
@@ -661,8 +663,8 @@ class DocSet:
 
         class Wrapper(Node):
             def __init__(self, dataset):
+                super().__init__(children=[])
                 self._ds = dataset
-                self.children = []
 
             def execute(self, **kwargs):
                 return self._ds
@@ -721,30 +723,46 @@ class DocSet:
     def mark_bbox_preset(self, tokenizer: Tokenizer, token_limit: int = 512, **kwargs) -> "DocSet":
         """
         Convenience composition of:
-            SortByPageBbox
-            MarkDropTiny minimum=2
-            MarkDropHeaderFooter top=0.05 bottom=0.05
-            MarkBreakPage
-            MarkBreakByColumn
-            MarkBreakByTokens limit=512
-        Meant to work in concert with MarkedMerger.
-        """
-        from sycamore.transforms import (
-            SortByPageBbox,
-            MarkDropTiny,
-            MarkDropHeaderFooter,
-            MarkBreakPage,
-            MarkBreakByColumn,
-            MarkBreakByTokens,
-        )
 
-        plan0 = SortByPageBbox(self.plan, **kwargs)
-        plan1 = MarkDropTiny(plan0, 2, **kwargs)
-        plan2 = MarkDropHeaderFooter(plan1, 0.05, 0.05, **kwargs)
-        plan3 = MarkBreakPage(plan2, **kwargs)
-        plan4 = MarkBreakByColumn(plan3, **kwargs)
-        plan5 = MarkBreakByTokens(plan4, tokenizer, token_limit, **kwargs)
-        return DocSet(self.context, plan5)
+        |    SortByPageBbox
+        |    MarkDropTiny minimum=2
+        |    MarkDropHeaderFooter top=0.05 bottom=0.05
+        |    MarkBreakPage
+        |    MarkBreakByColumn
+        |    MarkBreakByTokens limit=512
+
+        Meant to work in concert with MarkedMerger.
+
+        Use this method like so:
+
+        .. code-block:: python
+
+            context = sycamore.init()
+            token_limit = 512
+            paths = ["path/to/pdf1.pdf", "path/to/pdf2.pdf"]
+
+            (context.read.binary(paths, binary_format="pdf")
+                .partition(partitioner=ArynPartitioner())
+                .mark_bbox_preset(tokenizer, token_limit)
+                .merge(merger=MarkedMerger())
+                .split_elements(tokenizer, token_limit)
+                .show())
+
+        If you want to compose your own marking, note that ``docset.mark_bbox_preset(...)`` is equivalent to:
+
+        .. code-block:: python
+
+            (docset.transform(SortByPageBbox)
+                .transform(MarkDropTiny, minimum=2)
+                .transform(MarkDropHeaderFooter, top=0.05, bottom=0.05)
+                .transform(MarkBreakPage)
+                .transform(MarkBreakByColumn)
+                .transform(MarkBreakByTokens, tokenizer=tokenizer, limit=token_limit))
+        """
+        from sycamore.transforms.mark_misc import MarkBboxPreset
+
+        preset = MarkBboxPreset(self.plan, tokenizer, token_limit, **kwargs)
+        return DocSet(self.context, preset)
 
     def merge(self, merger: ElementMerger, **kwargs) -> "DocSet":
         """
@@ -798,7 +816,7 @@ class DocSet:
                ds = context.read.binary(paths, binary_format="pdf")
                    .partition(partitioner=ArynPartitioner())
                    .regex_replace(COALESCE_WHITESPACE)
-                   .regex_replace([(r"\d+", "1313"), (r"old", "new")])
+                   .regex_replace([(r"\\d+", "1313"), (r"old", "new")])
                    .explode()
         """
         from sycamore.transforms import RegexReplace
@@ -955,6 +973,7 @@ class DocSet:
         return self.map(process_doc, **resource_args)
 
     @context_params(OperationTypes.BINARY_CLASSIFIER)
+    @context_params(OperationTypes.TEXT_SIMILARITY)
     def llm_filter(
         self,
         llm: LLM,
@@ -962,6 +981,10 @@ class DocSet:
         prompt: Union[list[dict], str],
         field: str = "text_representation",
         threshold: int = 3,
+        keep_none: bool = False,
+        use_elements: bool = False,
+        similarity_query: Optional[str] = None,
+        similarity_scorer: Optional[SimilarityScorer] = None,
         **resource_args,
     ) -> "DocSet":
         """
@@ -973,29 +996,54 @@ class DocSet:
             new_field: The field that will be added to the DocSet with the outputs.
             prompt: LLM prompt.
             field: Document field to filter based on.
-            threshold: Cutoff that determines whether or not to keep document.
+            threshold:  If the value of the computed result is an integer value greater than or equal to this threshold,
+                        the document will be kept.
+            keep_none:  keep records with a None value for the provided field to filter on.
+                        Warning: using this might hide data corruption issues.
+            use_elements: use contents of a document's elements to filter as opposed to document level contents.
+            similarity_query: query string to compute similarity against. Also requires a 'similarity_scorer'.
+            similarity_scorer: scorer used to generate similarity scores used in element sorting.
+                        Also requires a 'similarity_query'.
             **resource_args
 
         Returns:
             A filtered DocSet.
         """
-
-        def threshold_filter(doc: Document, threshold) -> bool:
-            try:
-                return_value = int(doc.properties[new_field]) >= threshold
-            except Exception:
-                # accounts for llm output errors
-                return_value = False
-
-            return return_value
-
-        docset = self.filter(lambda doc: doc.field_to_value(field) is not None and doc.field_to_value(field) != "None")
-
         entity_extractor = OpenAIEntityExtractor(
             entity_name=new_field, llm=llm, use_elements=False, prompt=prompt, field=field
         )
-        docset = docset.extract_entity(entity_extractor=entity_extractor)
-        docset = docset.filter(lambda doc: threshold_filter(doc, threshold), **resource_args)
+
+        def threshold_filter(doc: Document, threshold) -> bool:
+            if not use_elements:
+                if doc.field_to_value(field) is None:
+                    return keep_none
+                doc = entity_extractor.extract_entity(doc)
+                # todo: move data extraction and validation to entity extractor
+                return int(re.findall(r"\d+", doc.properties[new_field])[0]) >= threshold
+
+            if similarity_query is not None:
+                assert similarity_scorer is not None, "Similarity sorting requires a scorer"
+                score_property_name = f"{field}_similarity_score"
+                doc = similarity_scorer.generate_similarity_scores(
+                    doc_batch=[doc], query=similarity_query, score_property_name=score_property_name
+                )[0]
+                doc.elements.sort(key=lambda e: e.properties.get(score_property_name, float("-inf")), reverse=True)
+            evaluated_elements = 0
+            for element in doc.elements:
+                e_doc = Document(element.data)
+                if e_doc.field_to_value(field) is None:
+                    continue
+                e_doc = entity_extractor.extract_entity(e_doc)
+                element.properties[new_field] = e_doc.properties[new_field]
+                # todo: move data extraction and validation to entity extractor
+                if int(re.findall(r"\d+", element.properties[new_field])[0]) >= threshold:
+                    return True
+                evaluated_elements += 1
+            if evaluated_elements == 0:  # no elements found for property
+                return keep_none
+            return False
+
+        docset = self.filter(lambda doc: threshold_filter(doc, threshold), **resource_args)
 
         return docset
 
@@ -1100,6 +1148,39 @@ class DocSet:
 
         query = Query(self.plan, query_executor, **resource_args)
         return DocSet(self.context, query)
+
+    @context_params(OperationTypes.TEXT_SIMILARITY)
+    def rerank(
+        self,
+        similarity_scorer: SimilarityScorer,
+        query: str,
+        score_property_name: str = "_rerank_score",
+        limit: Optional[int] = None,
+    ) -> "DocSet":
+        """
+        Sort a DocSet given a scoring class.
+
+        Args:
+            similarity_scorer: An instance of an SimilarityScorer class that executes the scoring function.
+            query: The query string to compute similarity against.
+            score_property_name: The name of the key where the score will be stored in document.properties
+            limit: Limit scoring and sorting to fixed size.
+        """
+        from sycamore.transforms import ScoreSimilarity, Limit
+
+        if limit:
+            plan = Limit(self.plan, limit)
+        else:
+            plan = self.plan
+        similarity_scored = ScoreSimilarity(
+            plan, similarity_scorer=similarity_scorer, query=query, score_property_name=score_property_name
+        )
+        return DocSet(
+            self.context,
+            Sort(
+                similarity_scored, descending=True, field=f"properties.{score_property_name}", default_val=float("-inf")
+            ),
+        )
 
     def sort(self, descending: bool, field: str, default_val: Optional[Any] = None) -> "DocSet":
         """
@@ -1222,7 +1303,9 @@ class DocSet:
         """
 
         docset = self
-        text = ", ".join([doc.field_to_value(field) for doc in docset.take_all()])
+        # Not all documents will have a value for the given field, so we filter those out.
+        field_values = [doc.field_to_value(field) for doc in docset.take_all()]
+        text = ", ".join([str(v) for v in field_values if v is not None])
 
         # sets message
         messages = LlmClusterEntityFormGroupsMessagesPrompt(

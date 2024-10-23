@@ -262,6 +262,34 @@ class TestAutoMaterialize(unittest.TestCase):
             files = [f for f in Path(tmpdir).rglob("*")]
             assert len([f for f in files if ".test4" in str(f)]) == 3 + 1 + 3 + 2
 
+    def test_source_mode(self):
+        class NumCalls:
+            x = 0
+
+        # Note: This only makes sense in local mode, as the count is not thread safe
+        def inc_counter(doc):
+            NumCalls.x += 1
+            return doc
+
+        def check(a, docs):
+            ctx = sycamore.init(exec_mode=ExecMode.LOCAL, rewrite_rules=[a])
+            ds = ctx.read.document(docs).map(inc_counter)
+            ds.execute()
+            ds.filter(lambda d: d.doc_id != "doc_2").execute()
+
+        docs = make_docs(3)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            a = AutoMaterialize(tmpdir, source_mode=sycamore.MATERIALIZE_USE_STORED)
+            check(a, docs)
+            assert NumCalls.x == 3
+
+        NumCalls.x = 0
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            a = AutoMaterialize(tmpdir, source_mode=sycamore.MATERIALIZE_RECOMPUTE)
+            check(a, docs)
+            assert NumCalls.x == 6
+
 
 def any_id(d):
     if isinstance(d, MetadataDocument):
@@ -488,3 +516,15 @@ class TestErrorChecking(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             with pytest.raises(ValueError):
                 ds.materialize(path=tmpdir).materialize(path=tmpdir).execute()
+
+
+def test_s3_infer_filesystem():
+    from sycamore.materialize import Materialize
+    from pyarrow.fs import S3FileSystem
+    from pathlib import Path
+
+    ctx = sycamore.init()
+    m = Materialize(None, ctx, path={"root": "s3://test-example/a/path"})
+    assert isinstance(m._fs, S3FileSystem)
+    assert isinstance(m._root, Path)
+    assert str(m._root) == "test-example/a/path"

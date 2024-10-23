@@ -1,4 +1,5 @@
 from sycamore.data import Document, Element
+from sycamore.data.document import DocumentPropertyTypes
 from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import Map
 from sycamore.utils.markdown import elements_to_markdown
@@ -30,7 +31,7 @@ def make_markdown(doc: Document) -> Document:
     text = elements_to_markdown(elems)
     pageset: set[int] = set()
     for elem in elems:
-        pn = elem.properties.get("page_number")
+        pn = elem.properties.get(DocumentPropertyTypes.PAGE_NUMBER)
         if pn is not None:
             pageset.add(pn)
     pages = sorted(pageset)
@@ -42,7 +43,7 @@ def make_markdown(doc: Document) -> Document:
                 "type": "Text",
                 "bbox": (0.0, 0.0, 1.0, 1.0),  # best guess
                 "properties": {
-                    "page_number": pages[0],
+                    DocumentPropertyTypes.PAGE_NUMBER: pages[0],
                     "page_numbers": pages,
                 },
                 "text_representation": text,

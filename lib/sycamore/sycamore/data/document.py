@@ -7,6 +7,18 @@ from sycamore.data import BoundingBox, Element
 from sycamore.data.element import create_element
 
 
+class DocumentSource:
+    UNKNOWN = "UNKNOWN"
+    DB_QUERY = "DB_QUERY"
+    DOCUMENT_RECONSTRUCTION_RETRIEVAL = "DOCUMENT_RECONSTRUCTION_RETRIEVAL"
+    DOCUMENT_RECONSTRUCTION_PARENT = "DOCUMENT_RECONSTRUCTION_PARENT"
+
+
+class DocumentPropertyTypes:
+    SOURCE: str = "_doc_source"
+    PAGE_NUMBER: str = "page_number"
+
+
 class Document(UserDict):
     """
     A Document is a generic representation of an unstructured document in a format like PDF, HTML. Though different
@@ -189,6 +201,7 @@ class Document(UserDict):
     @staticmethod
     def from_row(row: dict[str, bytes]) -> "Document":
         """Unserialize a Ray row back into a Document."""
+
         return Document.deserialize(row["doc"])
 
     def to_row(self) -> dict[str, bytes]:
@@ -225,15 +238,9 @@ class Document(UserDict):
             The value associated with the document field.
             Returns None if field does not exist in document.
         """
-        fields = field.split(".")
-        value = self.get(fields[0], None)
-        if len(fields) > 1:
-            for f in fields[1:]:
-                if isinstance(value, dict):
-                    value = value.get(f, None)
-                else:
-                    return None
-        return value
+        from sycamore.utils.nested import dotted_lookup
+
+        return dotted_lookup(self, field)
 
 
 class MetadataDocument(Document):

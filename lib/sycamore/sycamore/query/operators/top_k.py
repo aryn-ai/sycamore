@@ -1,9 +1,11 @@
 from typing import Optional
 
-from sycamore.query.operators.logical_operator import LogicalOperator
+from pydantic import Field
+
+from sycamore.query.logical_plan import Node
 
 
-class TopK(LogicalOperator):
+class TopK(Node):
     """Finds the top K frequent occurences of values for a particular field.
 
     Returns a database with ONLY 2 FIELDS: "properties.key" (which corresponds to unique values of
@@ -17,8 +19,8 @@ class TopK(LogicalOperator):
     primary_field: Optional[str] = None
     """A database field that is required to be unique when counting the top K occurences of *field*."""
 
-    K: int
-    """The number of top frequency occurences to look for (e.g. top 2 most common, K=2)."""
+    K: Optional[int] = None
+    """The number of top frequency occurences to look for (e.g. top 2 most common, K=2). Use None for all results."""
 
     descending: bool = False
     """If True, will return the top K most common occurrences. If False, will return the top K
@@ -30,7 +32,7 @@ class TopK(LogicalOperator):
     (SHOULD BE FALSE if *field* is a string field with a bounded number of possible values, or
     is not a string), simple database operations will be used."""
 
-    llm_cluster_instruction: Optional[str] = None
+    llm_cluster_instruction: Optional[str] = Field(default=None, json_schema_extra={"exclude_from_comparison": True})
     """An instruction of what the groups should be about if llm_cluster is True. E.g. if the
     purpose of this operation is to find the top 2 most frequent cities, llm_cluster_instruction
     could be 'Form groups of different food'"""

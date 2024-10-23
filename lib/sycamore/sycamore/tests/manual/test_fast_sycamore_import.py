@@ -26,6 +26,7 @@ optional_modules = [
     "pdfminer",
     "pytesseract",
     "sentence-transformers",
+    "qdrant-client",
 ]
 
 

@@ -1,7 +1,9 @@
 Sycamore APIs
 =============
 
-This is the API reference for Sycamore, and it contains the functions you can use when writing Sycamore scripts to process data. If you are interested in contributing new transforms to the Sycamore project, please visit the Low-Level Transforms section in the API docs.
+This is the API reference for Sycamore, and it contains the functions you can use when writing
+Sycamore scripts to process or query data. If you are interested in contributing new transforms
+to the Sycamore project, please visit the Low-Level Transforms section in the API docs.
 
 .. toctree::
     :maxdepth: 1
@@ -15,4 +17,5 @@ This is the API reference for Sycamore, and it contains the functions you can us
     ./APIs/document.rst
     ./APIs/functions.rst
     ./APIs/node.rst
+    ./APIs/query.rst
     ./APIs/low_level_transforms.rst

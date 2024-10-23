@@ -54,7 +54,7 @@ With this you can run Weaviate with a simple `docker compose up`.
 
 To write a DocSet to a Weaviate Collection from Sycamore, use the `docset.write.weaviate(...)` function. The Weaviate writer takes the following arguments:
 
-- `wv_client_args`: A dictionary of arguments to pass to the Weaviate client constructor, as in an [explicit conection](https://weaviate.io/developers/weaviate/client-libraries/python#python-client-v4-explicit-connection).
+- `wv_client_args`: A dictionary of arguments to pass to the Weaviate client constructor, as in an [explicit connection](https://weaviate.io/developers/weaviate/client-libraries/python#python-client-v4-explicit-connection).
 - `collection_name`: The name of the collection to write to.
 - `collection_config`: (optional) A dictionary of keyword parameters passed to the Weaviate client's [`collection.create(...)`](https://weaviate.io/developers/weaviate/client-libraries/python#instantiate-a-collection) method. A name specified here must match the `collection_name` argument.
 - `flatten_properties`: (optional, default=`False`) Whether to flatten nested property objects during the write. Weaviate can store flattened and nested properties, but will only filter and aggregate top-level properties, meaning they need to be flattened.

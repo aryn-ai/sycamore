@@ -17,6 +17,7 @@ class OperationTypes(Enum):
     DEFAULT = "default"
     BINARY_CLASSIFIER = "binary_classifier"
     INFORMATION_EXTRACTOR = "information_extractor"
+    TEXT_SIMILARITY = "text_similarity"
 
 
 def _default_rewrite_rules():

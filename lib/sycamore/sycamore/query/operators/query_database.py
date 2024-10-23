@@ -1,9 +1,11 @@
 from typing import Dict, Optional
 
-from sycamore.query.operators.logical_operator import LogicalOperator
+from pydantic import Field
+
+from sycamore.query.logical_plan import Node
 
 
-class QueryDatabase(LogicalOperator):
+class QueryDatabase(Node):
     """Queries OpenSearch for data from a specified index."""
 
     index: str
@@ -12,8 +14,9 @@ class QueryDatabase(LogicalOperator):
     query: Optional[Dict] = None
     """A query in OpenSearch Query DSL format. This can be used to perform full-text queries,
     term-level queries for specific fields, and more. Here is an example of a query that
-    retrieves all documents that have a properties.entity.location field containing the word
-    "Georgia" and an isoDateTime field between July 1, 2023, and September 30, 2024:
+    retrieves all documents where the "properties.path" field matches the wildcard
+    expression "/path/to/data/*.pdf", and that have a properties.entity.location field containing
+    the word "Georgia" and an isoDateTime field between July 1, 2023, and September 30, 2024.
 
     {
         "query": {
@@ -30,6 +33,7 @@ class QueryDatabase(LogicalOperator):
                     },
                     {
                         "match": {
+                            "properties.path.keyword": "/path/to/data/*.pdf",
                             "properties.entity.location": "Georgia"
                         }
                     }
@@ -38,13 +42,16 @@ class QueryDatabase(LogicalOperator):
         }
     }
 
+    Use the ".keyword" subfield for "properties.path", as this field represents the filename of the
+    original document, and is generally accessed as a keyword field.
+
     The full range of OpenSearch Query DSL parameters are supported.
     Whenever possible, use the query parameter to filter data at the source, as this is more
     efficient than filtering data in subsequent data filtering operators.
     """
 
 
-class QueryVectorDatabase(LogicalOperator):
+class QueryVectorDatabase(Node):
     """Vector search to load records that are similar to a given query string. Returns the top k records
     according to the vector similarity between the query string and record's text content.
     Use this if you need to filter on a field that can't suffice with an exact match, but also isn't complex enough to
@@ -65,7 +72,7 @@ class QueryVectorDatabase(LogicalOperator):
     index: str
     """The index to load data from."""
 
-    query_phrase: str
+    query_phrase: str = Field(..., json_schema_extra={"exclude_from_comparison": True})
     """The string to convert to a vector and perform vector search"""
 
     opensearch_filter: Optional[Dict] = None

@@ -1,7 +1,9 @@
-from sycamore.query.operators.logical_operator import LogicalOperator
+from pydantic import Field
+
+from sycamore.query.logical_plan import Node
 
 
-class LlmFilter(LogicalOperator):
+class LlmFilter(Node):
     """LlmFilter uses a Large Language Model (LLM) to filter database records based on the
     value of a field. This operation is useful when the filtering to be performed is complex
     and cannot be expressed either as a OpenSearch query (for QueryDatabase), vector query (QueryVectorDatabase)
@@ -24,7 +26,7 @@ class LlmFilter(LogicalOperator):
     field: str
     """The name of the field to filter based on."""
 
-    question: str
+    question: str = Field(..., json_schema_extra={"exclude_from_comparison": True})
     """The predicate to filter on. This is a yes/no question in natural language that the LLM will
     use to filter the data. The question should be phrased in a way that the LLM can understand
     and answer. For example, "Is this event a natural disaster?" or "Did this event occur

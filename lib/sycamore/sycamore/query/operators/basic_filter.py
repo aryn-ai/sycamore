@@ -1,9 +1,9 @@
 from typing import Any, Optional
 
-from sycamore.query.operators.logical_operator import LogicalOperator
+from sycamore.query.logical_plan import Node
 
 
-class BasicFilter(LogicalOperator):
+class BasicFilter(Node):
     """Filter data based on a simple range or match filter.
 
     Whenever possible, use the `query' parameter to the QueryDatabase operation to filter

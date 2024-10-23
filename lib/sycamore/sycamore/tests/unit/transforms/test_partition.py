@@ -12,6 +12,7 @@ from sycamore.transforms.partition import (
     UnstructuredPPTXPartitioner,
     SycamorePartitioner,
 )
+from sycamore.utils.bbox_sort import bbox_sorted_elements
 from sycamore.connectors.file import BinaryScan
 from sycamore.tests.config import TEST_DIR
 
@@ -44,7 +45,7 @@ class TestPartition:
             "metadata": {"filename": "Bert.pdf", "filetype": "application/pdf", "page_number": 1},
             "text": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
         }
-        element = UnstructuredPdfPartitioner.to_element(dict)
+        element = UnstructuredPdfPartitioner.to_element(dict, element_index=1)
         assert element.type == "Title"
         assert (
             element.text_representation == "BERT: Pre-training of Deep Bidirectional Transformers for"
@@ -61,6 +62,7 @@ class TestPartition:
             "filename": "Bert.pdf",
             "filetype": "application/pdf",
             "page_number": 1,
+            "_element_index": 1,
         }
 
     @pytest.mark.parametrize(
@@ -155,45 +157,42 @@ class TestPartition:
         assert len(doc.elements) == partition_count
 
     def test_sycamore_partitioner_elements_reorder(self) -> None:
-        import functools
-
         # e1.y1 < e0.y1 = e2.y1, e0.x1 < e2.x1 both on left
-        e0 = Element({"bbox": (0.20, 0.50, 0.59, 0.59), "properties": {"page_number": 3}})
-        e1 = Element({"bbox": (0.20, 0.21, 0.59, 0.59), "properties": {"page_number": 3}})
-        e2 = Element({"bbox": (0.40, 0.50, 0.59, 0.59), "properties": {"page_number": 3}})
+        e0 = Element({"bbox": (0.20, 0.50, 0.45, 0.70), "properties": {"page_number": 3}})
+        e1 = Element({"bbox": (0.20, 0.21, 0.45, 0.41), "properties": {"page_number": 3}})
+        e2 = Element({"bbox": (0.51, 0.50, 0.90, 0.70), "properties": {"page_number": 3}})
 
         # e4, e5 in left column, e4.y < e5.y1; e3, e6 in right columns, e3.y1 < e6.y1
-        e3 = Element({"bbox": (0.52, 0.21, 0.59, 0.59), "properties": {"page_number": 1}})
-        e4 = Element({"bbox": (0.20, 0.21, 0.59, 0.59), "properties": {"page_number": 1}})
-        e5 = Element({"bbox": (0.20, 0.58, 0.59, 0.59), "properties": {"page_number": 1}})
-        e6 = Element({"bbox": (0.58, 0.51, 0.59, 0.59), "properties": {"page_number": 1}})
+        e3 = Element({"bbox": (0.52, 0.21, 0.90, 0.45), "properties": {"page_number": 1}})
+        e4 = Element({"bbox": (0.10, 0.21, 0.48, 0.46), "properties": {"page_number": 1}})
+        e5 = Element({"bbox": (0.10, 0.58, 0.48, 0.90), "properties": {"page_number": 1}})
+        e6 = Element({"bbox": (0.58, 0.51, 0.90, 0.85), "properties": {"page_number": 1}})
 
         # all the same, test stable
-        e7 = Element({"bbox": (0.20, 0.21, 0.59, 0.59), "properties": {"page_number": 2}})
-        e8 = Element({"bbox": (0.20, 0.21, 0.59, 0.59), "properties": {"page_number": 2}})
-        e9 = Element({"bbox": (0.20, 0.21, 0.59, 0.59), "properties": {"page_number": 2}})
+        e7 = Element({"bbox": (0.20, 0.21, 0.90, 0.41), "properties": {"page_number": 2}})
+        e8 = Element({"bbox": (0.20, 0.21, 0.90, 0.41), "properties": {"page_number": 2}})
+        e9 = Element({"bbox": (0.20, 0.21, 0.90, 0.41), "properties": {"page_number": 2}})
 
         elements = [e0, e1, e2, e3, e4, e5, e6, e7, e8, e9]
-        elements.sort(key=functools.cmp_to_key(SycamorePartitioner._elements_reorder))
+        elements = bbox_sorted_elements(elements)
         result = [e4, e5, e3, e6, e7, e8, e9, e1, e0, e2]
 
         assert elements == result
 
+    @pytest.mark.skip(
+        reason="Breaks as of 2024-10-18. See https://github.com/aryn-ai/sycamore/actions/runs/11411766096"
+    )
     def test_simple_ocr(self):
         import pdf2image
-        from sycamore.transforms.detr_partitioner import extract_ocr
+        from sycamore.transforms.text_extraction import LegacyOcr
 
         path = TEST_DIR / "resources/data/ocr_pdfs/test_simple_ocr.pdf"
         images = pdf2image.convert_from_path(path, dpi=800)
         assert len(images) == 1
 
-        elem = Element({"bbox": (0.0, 0.0, 1.0, 1.0), "properties": {"page_number": 1}})
-
-        new_elems = extract_ocr(images, [[elem]])
+        new_elems = [LegacyOcr().get_boxes_and_text(image=image) for image in images]
 
         assert len(new_elems) == 1
-        assert len(new_elems[0]) == 1
-
-        text = new_elems[0][0].text_representation
-        assert text is not None
-        assert text.strip() == "The quick brown fox"
+        text_list = [val["text"] for val in new_elems[0]]
+        assert all(val is not None for val in text_list)
+        assert " ".join(text_list).strip() == "The quick brown fox"

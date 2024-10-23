@@ -4,7 +4,6 @@ import math
 import time
 import uuid
 from sycamore.data import Document
-from ray.data import ActorPoolStrategy
 
 
 def make_docs(num):
@@ -23,7 +22,7 @@ def test_map_class_parallelism():
     class AgentMark:
         def __init__(self):
             self.id = uuid.uuid4()
-            logging.error("Start AgentMark {self.id}")
+            logging.error(f"Start AgentMark {self.id}")
 
         def __call__(self, d):
             logging.error(f"Call AgentMark {self.id} on {d.doc_id}")
@@ -33,7 +32,7 @@ def test_map_class_parallelism():
 
     num_actors = 4
     num_docs = 20
-    docs = ctx.read.document(make_docs(num_docs)).map(AgentMark, compute=ActorPoolStrategy(size=num_actors)).take()
+    docs = ctx.read.document(make_docs(num_docs)).map(AgentMark, parallelism=num_actors).take()
 
     count = {}
     for d in docs:

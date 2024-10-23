@@ -2,6 +2,7 @@ from typing import Optional
 
 
 from sycamore.data import Document, Element
+from sycamore.data.document import DocumentPropertyTypes
 from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import TimeTrace, timetrace
@@ -26,9 +27,9 @@ def getBboxLeftTop(elem: Element):
 def getPageTopLeft(elem: Element):
     bbox = elem.data.get("bbox")
     if bbox is None:
-        return (elem.properties["page_number"], 0.0, 0.0)
+        return (elem.properties[DocumentPropertyTypes.PAGE_NUMBER], 0.0, 0.0)
     else:
-        return (elem.properties["page_number"], bbox[1], bbox[0])
+        return (elem.properties[DocumentPropertyTypes.PAGE_NUMBER], bbox[1], bbox[0])
 
 
 def getRow(elem: Element, elements: list[Element]) -> list[Element]:
@@ -41,7 +42,7 @@ def getRow(elem: Element, elements: list[Element]) -> list[Element]:
     top = bbox[1]
     right = bbox[2]
     bottom = bbox[3]
-    page = elem.properties["page_number"]
+    page = elem.properties[DocumentPropertyTypes.PAGE_NUMBER]
 
     # !!! assuming elements are sorted by y-values
     n = len(elements)
@@ -51,7 +52,7 @@ def getRow(elem: Element, elements: list[Element]) -> list[Element]:
     while beg < end:
         mid = beg + ((end - beg) // 2)
         melem = elements[mid]
-        mpage = melem.properties["page_number"]
+        mpage = melem.properties[DocumentPropertyTypes.PAGE_NUMBER]
         if mpage < page:
             beg = mid + 1
             idx = mid

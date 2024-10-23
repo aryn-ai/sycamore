@@ -144,6 +144,7 @@ def test_vector_query_database():
         mock_docset_reader_impl.opensearch.assert_called_once_with(
             index_name=context.params["opensearch"]["index_name"],
             query={"query": {"knn": {"embedding": {"vector": embedding, "k": 500, "filter": os_filter}}}},
+            reconstruct_document=True,
         )
 
 
@@ -163,6 +164,7 @@ def test_summarize_data():
             question=logical_node.question,
             result_description=logical_node.description,
             result_data=[load_node],
+            use_elements=True,
             **sycamore_operator.get_execute_args(),
         )
 
@@ -188,6 +190,7 @@ def test_llm_filter():
             prompt=ANY,
             field=logical_node.field,
             name=str(logical_node.node_id),
+            use_elements=False,
         )
 
         assert result == return_doc_set
@@ -314,7 +317,7 @@ def test_llm_extract_entity():
         # assert OpenAIEntityExtractor called with expected arguments
         MockOpenAIEntityExtractor.assert_called_once_with(
             entity_name=logical_node.new_field,
-            use_elements=False,
+            use_elements=True,
             prompt=ANY,
             field=logical_node.field,
         )

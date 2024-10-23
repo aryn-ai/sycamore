@@ -1,7 +1,7 @@
-from sycamore.query.operators.logical_operator import LogicalOperator
+from sycamore.query.logical_plan import Node
 
 
-class FieldIn(LogicalOperator):
+class FieldIn(Node):
     """Joins two databases based on a particular field.
 
     Values of *field_one* from

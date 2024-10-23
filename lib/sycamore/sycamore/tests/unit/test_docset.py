@@ -1,13 +1,15 @@
 import random
 import string
 from typing import Callable, Optional
+from unittest.mock import MagicMock
 
 import pytest
 
 import sycamore
 from sycamore import DocSet, Context
-from sycamore.context import OperationTypes
+from sycamore.context import OperationTypes, ExecMode
 from sycamore.data import Document, Element
+from sycamore.llms import LLM
 from sycamore.llms.prompts.default_prompts import (
     LlmClusterEntityAssignGroupsMessagesPrompt,
     LlmClusterEntityFormGroupsMessagesPrompt,
@@ -27,15 +29,14 @@ from sycamore.transforms import (
     ExtractProperties,
     Query,
 )
-
-from sycamore.llms import LLM
+from sycamore.transforms import Filter
 from sycamore.transforms.base import get_name_from_callable
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor
-from sycamore.transforms import Filter
+from sycamore.transforms.query import QueryExecutor
+from sycamore.transforms.similarity import SimilarityScorer
 from sycamore.transforms.sort import Sort
 from sycamore.transforms.summarize import LLMElementTextSummarizer
-from sycamore.transforms.query import QueryExecutor
 
 
 class MockLLM(LLM):
@@ -44,9 +45,9 @@ class MockLLM(LLM):
 
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
         if prompt_kwargs == {"messages": [{"role": "user", "content": "test1"}]} and llm_kwargs == {}:
-            return 4
+            return "4"
         elif prompt_kwargs == {"messages": [{"role": "user", "content": "test2"}]} and llm_kwargs == {}:
-            return 2
+            return "2"
 
         elif (
             prompt_kwargs["messages"]
@@ -73,6 +74,15 @@ class MockLLM(LLM):
 
     def is_chat_mode(self):
         return True
+
+
+class TestSimilarityScorer(SimilarityScorer):
+
+    def score(self, inputs: list[tuple[str, str]]) -> list[float]:
+        results = []
+        for _, content in inputs:
+            results += [1.0 if content == "test2" else 0.0]
+        return results
 
 
 class TestDocSet:
@@ -208,6 +218,12 @@ class TestDocSet:
         context = mocker.Mock(spec=Context)
         docset = DocSet(context, None)
         docset = docset.sort(None, None)
+        assert isinstance(docset.lineage(), Sort)
+
+    def test_rerank(self, mocker):
+        docset = DocSet(Context(), None)
+        similarity_scorer = mocker.Mock(spec=SimilarityScorer)
+        docset = docset.rerank(similarity_scorer, "")
         assert isinstance(docset.lineage(), Sort)
 
     def test_extract_schema(self, mocker):
@@ -364,10 +380,137 @@ class TestDocSet:
         docset = context.read.document(docs)
         assert docset.count_distinct("doc_id") == 9
 
-    def test_llm_filter(self):
+    def test_llm_filter_with_doc_structure(self):
+        doc_list = [
+            Document(
+                doc_id="doc_1",
+                elements=[
+                    Element(text_representation="test1"),  # llm_filter result = 4
+                    Element(text_representation="test1"),  # llm_filter result = 4
+                ],
+            ),
+            Document(
+                doc_id="doc_2",
+                elements=[
+                    Element(text_representation="test2"),  # llm_filter result = 2,
+                    Element(text_representation="test1"),  # llm_filter result = 4
+                ],
+            ),
+            Document(
+                doc_id="doc_3",
+                elements=[
+                    Element(text_representation="test2"),  # llm_filter result = 2
+                ],
+            ),
+            Document(doc_id="doc_4", text_representation="empty elements, maybe an exploded doc", elements=[]),
+        ]
+        mock_llm = MockLLM()
+        mock_llm.generate = MagicMock(wraps=mock_llm.generate)
+        context = sycamore.init(params={OperationTypes.BINARY_CLASSIFIER: {"llm": mock_llm}}, exec_mode=ExecMode.LOCAL)
+        docset = context.read.document(doc_list)
+        new_field = "_autogen_LLMFilterOutput"
 
+        filtered_docset = docset.llm_filter(
+            new_field=new_field, prompt=[], field="text_representation", threshold=4, use_elements=True
+        )
+
+        taken = filtered_docset.take()
+        assert len(taken) == 2
+        assert taken[0].doc_id == "doc_1"
+        assert taken[1].doc_id == "doc_2"
+        assert mock_llm.generate.call_count == 4
+
+        filtered_docset = docset.llm_filter(
+            new_field=new_field, prompt=[], field="text_representation", threshold=2, use_elements=True
+        )
+
+        taken = filtered_docset.take()
+        assert mock_llm.generate.call_count == (4 + 3)
+        assert len(taken) == 3
+        assert taken[0].doc_id == "doc_1"
+        assert taken[1].doc_id == "doc_2"
+        assert taken[2].doc_id == "doc_3"
+
+    def test_llm_filter_with_doc_structure_with_similarity_sorting(self):
+        doc_list = [
+            Document(
+                doc_id="doc_1",
+                elements=[
+                    Element(properties={"_element_index": 1}, text_representation="test1"),  # llm_filter result = 4
+                    Element(properties={"_element_index": 2}, text_representation="test1"),  # llm_filter result = 4
+                ],
+            ),
+            Document(
+                doc_id="doc_2",
+                elements=[
+                    Element(properties={"_element_index": 4}, text_representation="test2"),  # llm_filter result = 2,
+                    Element(properties={"_element_index": 9}, text_representation="test1"),  # llm_filter result = 4
+                ],
+            ),
+            Document(
+                doc_id="doc_3",
+                elements=[
+                    Element(properties={"_element_index": 1}, text_representation="test2"),  # llm_filter result = 2
+                ],
+            ),
+            Document(doc_id="doc_4", text_representation="empty elements, maybe an exploded doc", elements=[]),
+        ]
+        mock_llm = MockLLM()
+        similarity_scorer = TestSimilarityScorer()
+        mock_llm.generate = MagicMock(wraps=mock_llm.generate)
+        context = sycamore.init(
+            params={
+                OperationTypes.BINARY_CLASSIFIER: {"llm": mock_llm},
+                OperationTypes.TEXT_SIMILARITY: {"similarity_scorer": similarity_scorer},
+            },
+            exec_mode=ExecMode.LOCAL,
+        )
+        docset = context.read.document(doc_list)
+        new_field = "_autogen_LLMFilterOutput"
+
+        filtered_docset = docset.llm_filter(
+            new_field=new_field,
+            prompt=[],
+            field="text_representation",
+            threshold=4,
+            use_elements=True,
+            similarity_scorer=similarity_scorer,
+            similarity_query="this is an unused query because unit test",
+        )
+
+        """
+        "test2" elements will be in front, resulting in 2 llm calls for doc_2 (first element threshold miss), 
+        1 each for other 2.
+        """
+        taken = filtered_docset.take()
+        assert len(taken) == 2
+        assert taken[0].doc_id == "doc_1"
+        assert taken[1].doc_id == "doc_2"
+        assert mock_llm.generate.call_count == 4
+
+        filtered_docset = docset.llm_filter(
+            new_field=new_field,
+            prompt=[],
+            field="text_representation",
+            threshold=2,
+            use_elements=True,
+            similarity_scorer=similarity_scorer,
+            similarity_query="this is an unused query because unit test",
+        )
+
+        """
+        "test2" elements will be in front, resulting in 1 llm calls for doc_2 (threshold matches), 1 for other 2
+        """
+        taken = filtered_docset.take()
+        assert mock_llm.generate.call_count == (4 + 3)
+        assert len(taken) == 3
+        assert taken[0].doc_id == "doc_1"
+        assert taken[1].doc_id == "doc_2"
+        assert taken[2].doc_id == "doc_3"
+
+    def test_llm_filter(self):
         doc_list = [Document(text_representation="test1"), Document(text_representation="test2")]
-        context = sycamore.init(params={OperationTypes.BINARY_CLASSIFIER: {"llm": MockLLM()}})
+        context = sycamore.init(params={OperationTypes.BINARY_CLASSIFIER: {"llm": MockLLM()}}, exec_mode=ExecMode.LOCAL)
         docset = context.read.document(doc_list)
         new_field = "_autogen_LLMFilterOutput"
 
@@ -388,8 +531,21 @@ class TestDocSet:
             elif doc.text_representation == "test2":
                 assert int(doc.properties[new_field]) == 2
 
-    def test_groupby_count(self, fruits_docset):
+    def test_llm_filter_with_keep_none(self):
+        doc_list = [Document(text_representation="test1"), Document(text_representation="test2")]
+        context = sycamore.init(params={OperationTypes.BINARY_CLASSIFIER: {"llm": MockLLM()}}, exec_mode=ExecMode.LOCAL)
+        docset = context.read.document(doc_list)
+        new_field = "_autogen_LLMFilterOutput"
 
+        filtered_docset = docset.llm_filter(
+            new_field=new_field, prompt=[], field="missing_field", threshold=5, keep_none=True
+        ).take()
+
+        assert len(filtered_docset) == 2
+        assert filtered_docset[0].text_representation == "test1"
+        assert filtered_docset[1].text_representation == "test2"
+
+    def test_groupby_count(self, fruits_docset):
         grouped_docset = fruits_docset.groupby_count(field="text_representation")
         assert grouped_docset.count() == 3
         for doc in grouped_docset.take():

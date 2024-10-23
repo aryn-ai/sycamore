@@ -12,12 +12,12 @@ from sycamore.llms.prompts import ExtractTablePropertiesPrompt, ExtractTableProp
 
 class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
     """
-    The ExtractKeyValuePair transform extracts the key value from tables and add it as properties to it,
-    it only deals with table one level deep.
+    The ExtractTableProperties transform extracts key-value pairs from tables and adds them as
+    properties to the table. It only processes tables that are one level deep.
 
     Args:
-        child: The source node or component that provides the hierarchical documents to be exploded.
-        resource_args: Additional resource-related arguments that can be passed to the explosion operation.
+        child: The source node or component that provides the hierarchical documents for extracting table property.
+        resource_args: Additional resource-related arguments that can be passed to the extract operation.
 
     Example:
         .. code-block:: python

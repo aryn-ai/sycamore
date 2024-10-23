@@ -8,11 +8,16 @@ from sycamore.plan_nodes import Node
 from sycamore.data import Document
 from sycamore.transforms.map import Map
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class Standardizer(ABC):
     """
     An abstract base class for implementing standardizers, which are responsible for
     transforming specific fields within a document according to certain rules.
+
     """
 
     @abstractmethod
@@ -51,6 +56,16 @@ class USStateStandardizer(Standardizer):
     """
     A standardizer for transforming US state abbreviations in text to their full state names.
     Transforms substrings matching a state abbreviation to the full state name.
+
+    Example:
+        .. code-block:: python
+
+            source_docset = ...  # Define a source node or component that provides hierarchical documents.
+            transformed_docset = source_docset.map(
+                lambda doc: USStateStandardizer.standardize(
+                    doc,
+                    key_path = ["path","to","location"]))
+
     """
 
     state_abbreviations = {
@@ -157,6 +172,16 @@ class USStateStandardizer(Standardizer):
 class DateTimeStandardizer(Standardizer):
     """
     A standardizer for transforming date and time strings into a consistent format.
+
+
+    Example:
+        .. code-block:: python
+
+            source_docset = ...  # Define a source node or component that provides hierarchical documents.
+            transformed_docset = source_docset.map(
+                lambda doc: USStateStandardizer.standardize(
+                    doc,
+                    key_path = ["path","to","datetime"]))
     """
 
     DEFAULT_FORMAT = "%B %d, %Y %H:%M:%S%Z"
@@ -178,6 +203,7 @@ class DateTimeStandardizer(Standardizer):
             ValueError: If the input string cannot be parsed into a valid date-time.
             RuntimeError: For any other unexpected errors during the processing.
         """
+        assert raw_dateTime is not None, "raw_dateTime is None"
         try:
             raw_dateTime = raw_dateTime.strip()
             raw_dateTime = raw_dateTime.replace("Local", "")
@@ -232,6 +258,8 @@ class DateTimeStandardizer(Standardizer):
         target_key = key_path[-1]
         if target_key not in current.keys():
             raise KeyError(f"Key {target_key} not found in the dictionary among {current.keys()}")
+        if current[target_key] is None:
+            raise KeyError(f"Key {target_key} has value None")
 
         parsed = DateTimeStandardizer.fixer(current[target_key])
         rendered = parsed.strftime(date_format or DateTimeStandardizer.DEFAULT_FORMAT)
@@ -259,3 +287,25 @@ class StandardizeProperty(Map):
         **kwargs,
     ):
         super().__init__(child, f=standardizer.standardize, args=path, kwargs=kwargs)
+
+
+def ignore_errors(doc: Document, standardizer: Standardizer, key_path: list[str]) -> Document:
+    """
+    A class for applying the behavior of a standardizer to log errors and continue when encountering null values.
+
+    This class allows for the execution of standardization logic not to fail when encountering null key:value pairs.
+    It will instead log a warning stating what key:value pairs in what documents were missing.
+
+    Example:
+        .. code-block:: python
+
+            docset.map(lambda doc: ignore_errors(doc, DateTimeStandardizer, ["properties", "entity", "dateAndTime"])
+    """
+
+    try:
+        doc = standardizer.standardize(doc, key_path=key_path)
+    except KeyError:
+        logger.warn(f"Key {key_path} not found in document: {doc}")
+    except Exception as e:
+        logger.error(e)
+    return doc

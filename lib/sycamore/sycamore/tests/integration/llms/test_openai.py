@@ -159,8 +159,10 @@ def test_cached_openai_pydantic_model(tmp_path: Path):
     llm_kwargs_cached = {"response_format": type_to_response_format_param(Statement)}
 
     # populate cache
-    key_GPT_4O_MINI, _res = llm_GPT_4O_MINI._cache_get(prompt_kwargs, llm_kwargs)
+    # pylint: disable=protected-access
+    key_GPT_4O_MINI, _ = llm_GPT_4O_MINI._cache_get(prompt_kwargs, llm_kwargs_cached)
     res_GPT_4O_MINI = llm_GPT_4O_MINI.generate(prompt_kwargs=prompt_kwargs, llm_kwargs=llm_kwargs)
+    assert key_GPT_4O_MINI is not None
     # check cache
     assert cache.get(key_GPT_4O_MINI).get("result") == res_GPT_4O_MINI
     assert cache.get(key_GPT_4O_MINI).get("prompt_kwargs") == prompt_kwargs

@@ -1,4 +1,5 @@
 from unittest.mock import Mock
+import random
 
 from opensearchpy import OpenSearch, RequestError, ConnectionError
 import pytest
@@ -176,7 +177,7 @@ class TestOpenSearchReaderQueryResponse:
             },
             {"text_representation": "this is a parent doc", "parent_id": None, "doc_id": "doc_1"},
         ]
-        hits = [{"_source": record} for record in records]
+        hits = [{"_source": record, "_score": random.random()} for record in records]
         query_response = OpenSearchReaderQueryResponse(hits)
         query_params = OpenSearchReaderQueryParams(index_name="some index")
         docs = query_response.to_docs(query_params)
@@ -186,6 +187,7 @@ class TestOpenSearchReaderQueryResponse:
         for i in range(len(docs)):
             assert docs[i].parent_id == records[i]["parent_id"]
             assert docs[i].text_representation == records[i]["text_representation"]
+            assert "score" in docs[i].properties
 
     def test_to_docs_reconstruct_require_client(self):
         query_response = OpenSearchReaderQueryResponse([])

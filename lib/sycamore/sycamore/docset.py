@@ -748,27 +748,16 @@ class DocSet:
                 .split_elements(tokenizer, token_limit)
                 .show())
 
-        If you want to compose your own marking, note that ``mark_bbox_preset`` could have been equivalently written as:
+        If you want to compose your own marking, note that ``docset.mark_bbox_preset(...)`` is equivalent to:
 
         .. code-block:: python
 
-            def mark_bbox_preset(self, tokenizer: Tokenizer, token_limit: int = 512, **kwargs) -> "DocSet":
-                from sycamore.transforms import (
-                    SortByPageBbox,
-                    MarkDropTiny,
-                    MarkDropHeaderFooter,
-                    MarkBreakPage,
-                    MarkBreakByColumn,
-                    MarkBreakByTokens,
-                )
-
-                plan0 = SortByPageBbox(self.plan, **kwargs)
-                plan1 = MarkDropTiny(plan0, 2, **kwargs)
-                plan2 = MarkDropHeaderFooter(plan1, 0.05, 0.05, **kwargs)
-                plan3 = MarkBreakPage(plan2, **kwargs)
-                plan4 = MarkBreakByColumn(plan3, **kwargs)
-                plan5 = MarkBreakByTokens(plan4, tokenizer, token_limit, **kwargs)
-                return DocSet(self.context, plan5)
+            (docset.transform(cls=SortByPageBbox, minimum=2)
+                .transform(cls=MarkDropTiny, minimum=2)
+                .transform(cls=MarkDropHeaderFooter, top=0.05, bottom=0.05)
+                .transform(cls=MarkBreakPage)
+                .transform(cls=MarkBreakByColumn)
+                .transform(cls=MarkBreakByTokens, tokenizer=tokenizer, limit=token_limit))
         """
         from sycamore.transforms.mark_misc import MarkBBoxPreset
 

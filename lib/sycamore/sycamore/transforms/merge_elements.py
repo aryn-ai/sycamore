@@ -689,9 +689,9 @@ class HeaderAugmenterMerger(ElementMerger):
             element2["_header"] = element1.get("_header")
             if element1.get("_header"):
                 if element2.text_representation:
-                    element2.text_representation = element1.get("_header") + "\n" + element2.text_representation
+                    element2.text_representation = element1["_header"] + "\n" + element2.text_representation
                 else:
-                    element2.text_representation = element1.get("_header")
+                    element2.text_representation = element1["_header"]
             return False
 
         # Merge consecutive section headers/titles and save as a section-header element

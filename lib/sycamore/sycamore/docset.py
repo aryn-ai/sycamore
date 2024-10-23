@@ -759,9 +759,9 @@ class DocSet:
                 .transform(cls=MarkBreakByColumn)
                 .transform(cls=MarkBreakByTokens, tokenizer=tokenizer, limit=token_limit))
         """
-        from sycamore.transforms.mark_misc import MarkBBoxPreset
+        from sycamore.transforms.mark_misc import MarkBboxPreset
 
-        preset = MarkBBoxPreset(self.plan, tokenizer, token_limit, **kwargs)
+        preset = MarkBboxPreset(self.plan, tokenizer, token_limit, **kwargs)
         return DocSet(self.context, preset)
 
 

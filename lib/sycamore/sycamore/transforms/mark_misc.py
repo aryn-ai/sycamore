@@ -121,15 +121,14 @@ class MarkBreakByTokens(SingleThreadUser, NonGPUUser, Map):
 ###############################################################################
 
 
-class MarkBBoxPreset(SingleThreadUser, NonGPUUser, Map):
+class MarkBboxPreset(SingleThreadUser, NonGPUUser, Map):
     """
     See DocSet.mark_bbox_preset for details.
     """
     def __init__(self, child: Node, tokenizer: Tokenizer, token_limit: int = 512, **resource_args):
-        super().__init__(child, f=MarkBBoxPreset.mark_bbox_preset, args=[tokenizer, token_limit], **resource_args)
+        super().__init__(child, f=MarkBboxPreset.mark_bbox_preset, args=[tokenizer, token_limit], **resource_args)
 
     @staticmethod
-    @timetrace("markBBoxPreset")
     def mark_bbox_preset(parent: Document, tokenizer: Tokenizer, token_limit: int) -> Document:
         from sycamore.transforms.bbox_merge import MarkDropHeaderFooter, SortByPageBbox, MarkBreakByColumn
 

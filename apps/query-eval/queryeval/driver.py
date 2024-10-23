@@ -258,9 +258,9 @@ class QueryEvalDriver:
         elif isinstance(query_result.result, DocSet):
             assert self.config.config
             if self.config.config.doc_limit:
-                query_result.result = query_result.take(self.config.config.doc_limit)
+                query_result.result = query_result.result.take(self.config.config.doc_limit)
             else:
-                query_result.result = query_result.take_all()
+                query_result.result = query_result.result.take_all()
             t2 = time.time()
             result.result = self.format_docset(query_result.result)
         else:

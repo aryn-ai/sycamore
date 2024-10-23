@@ -614,7 +614,7 @@ class HeaderAugmenterMerger(ElementMerger):
     representation of the elements by adding the preceeding section-header/title.
 
     - It merges certain elements ("Text", "List-item", "Caption", "Footnote", "Formula", "Page-footer", "Page-header").
-    - It merges consectuive ("Section-header", "Title") elements.
+    - It merges consecutive ("Section-header", "Title") elements.
     - It adds the preceeding section-header/title to the text representation of the elements (including tables/images).
     """
 
@@ -686,12 +686,12 @@ class HeaderAugmenterMerger(ElementMerger):
             "Title",
         ]:
             # Add header to next element
-            element2["_header"] = element1["_header"]
-            if element1.data["_header"]:
+            element2["_header"] = element1.get("_header")
+            if element1.get("_header"):
                 if element2.text_representation:
-                    element2.text_representation = element1.data["_header"] + "\n" + element2.text_representation
+                    element2.text_representation = element1["_header"] + "\n" + element2.text_representation
                 else:
-                    element2.text_representation = element1.data["_header"]
+                    element2.text_representation = element1["_header"]
             return False
 
         # Merge consecutive section headers/titles and save as a section-header element
@@ -710,7 +710,7 @@ class HeaderAugmenterMerger(ElementMerger):
 
         # Add header to next element (images, tables)
         if element2.type not in ["Section-header", "Title"]:
-            element2.data["_header"] = element1.data["_header"]
+            element2.data["_header"] = element1.get("_header")
             if element2.text_representation:
                 if element2.data["_header"]:
                     element2.text_representation = element2.data["_header"] + "\n" + element2.text_representation
@@ -737,7 +737,6 @@ class HeaderAugmenterMerger(ElementMerger):
         Returns:
             Element: a new merged element from the inputs (and number of tokens in it)
         """
-
         tok1 = elt1.data["token_count"]
         tok2 = elt2.data["token_count"]
         new_elt = Element()
@@ -767,7 +766,7 @@ class HeaderAugmenterMerger(ElementMerger):
         elif elt1.bbox is None or elt2.bbox is None:
             new_elt.bbox = elt1.bbox or elt2.bbox
         else:
-            # TO-DO: Make bbox work across pages
+            # TODO: Make bbox work across pages
             new_elt.bbox = BoundingBox(
                 min(elt1.bbox.x1, elt2.bbox.x1),
                 min(elt1.bbox.y1, elt2.bbox.y1),
@@ -790,13 +789,12 @@ class HeaderAugmenterMerger(ElementMerger):
                 properties["page_numbers"] = properties.get("page_numbers", list())
                 properties["page_numbers"] = list(set(properties["page_numbers"] + [v]))
         if elt1.type in ["Section-header", "Title"] and elt2.type in ["Section-header", "Title"]:
-            if elt1.data["_header"] is None or elt2.data["_header"] is None:
-                new_elt.data["_header"] = elt1.data["_header"] or elt2.data["_header"]
+            if elt1.get("_header") is None or elt2.get("_header") is None:
+                new_elt.data["_header"] = elt1.get("_header") or elt2.get("_header")
             else:
                 new_elt.data["_header"] = elt1.data["_header"] + "\n" + elt2.data["_header"]
         else:
-
-            new_elt.data["_header"] = elt1.data["_header"]
+            new_elt.data["_header"] = elt1.get("_header")
         new_elt.properties = properties
 
         return new_elt

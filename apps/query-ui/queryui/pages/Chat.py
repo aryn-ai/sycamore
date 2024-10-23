@@ -248,8 +248,12 @@ def do_query():
                     tool_args = json.loads(tool_calls[0].function.arguments)
                     if tool_function_name == "queryDataSource":
                         tool_query = tool_args["query"]
-                        query_result = query_data_source(tool_query, st.session_state.index)
-                        tool_response = query_result.result
+                        raw_result = query_data_source(tool_query, st.session_state.index)
+                        if isinstance(raw_result, SycamoreQueryResult):
+                            query_result = raw_result     
+                            tool_response = query_result.result
+                        else:
+                            tool_response = raw_result
                     else:
                         tool_response = f"Unknown tool: {tool_function_name}"
 

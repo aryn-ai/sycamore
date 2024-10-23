@@ -135,7 +135,7 @@ class MarkBboxPreset(SingleThreadUser, NonGPUUser, Map):
     def mark_bbox_preset(parent: Document, tokenizer: Optional[Tokenizer] = None, token_limit: int = 512) -> Document:
         from sycamore.transforms.bbox_merge import MarkDropHeaderFooter, SortByPageBbox, MarkBreakByColumn
         from sycamore.functions.tokenizer import OpenAITokenizer
-        
+
         if not tokenizer:
             tokenizer = OpenAITokenizer("text-embedding-3-small")
 

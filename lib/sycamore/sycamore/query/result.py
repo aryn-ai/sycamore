@@ -7,6 +7,16 @@ from sycamore.query.logical_plan import LogicalPlan
 from sycamore import DocSet
 
 
+class NodeExecution(BaseModel):
+    """Represents the execution of a node in a query plan, including metrics and debug info."""
+
+    node_id: int
+    """The ID of the node in the query plan."""
+
+    trace_dir: Optional[str] = None
+    """The directory where the trace for this node is stored."""
+
+
 class SycamoreQueryResult(BaseModel):
     """Represents a result from a Sycamore Query operation."""
 
@@ -24,9 +34,8 @@ class SycamoreQueryResult(BaseModel):
     code: Optional[str] = None
     """The Python code corresponding to the query plan."""
 
-    trace_dirs: Optional[Dict[int, Optional[str]]] = None
-    """A mapping from node ID to the directory where execution traces
-    for that node in the query plan can be found."""
+    execution: Optional[Dict[int, NodeExecution]] = None
+    """A mapping from node ID to the NodeExecution object for that node."""
 
     def to_str(self, limit: int = 100) -> str:
         """Convert a query result to a string.

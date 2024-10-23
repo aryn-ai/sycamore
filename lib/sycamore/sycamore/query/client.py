@@ -229,11 +229,11 @@ class SycamoreQueryClient:
         return self.run_plan(plan, dry_run=dry_run, codegen_mode=codegen_mode)
 
     def dump_traces(self, result: SycamoreQueryResult, limit: int = 5):
-        if not result.trace_dirs:
+        if not result.execution:
             console.print("[red]No traces found.")
             return
-        for node_id in sorted(result.trace_dirs.keys()):
-            trace_dir = result.trace_dirs[node_id]
+        for node_id in sorted(result.execution.keys()):
+            trace_dir = result.execution[node_id].trace_dir
             console.rule(f"Trace for node {node_id}")
             console.print(f"Trace directory: {trace_dir}")
             try:

@@ -222,17 +222,19 @@ class QueryNodeTrace:
     def readdata(self):
         """Read the trace data for this node."""
 
-        if self.node_id not in self.result.trace_dirs:
+        if self.node_id not in self.result.execution:
             return
 
-        directory = self.result.trace_dirs[self.node_id]
-        docs = []
+        directory = self.result.execution[self.node_id].trace_dir
+        if not directory:
+            return
 
         # We need to read all of the individual docs to ensure we get all of the parent
         # docs. With a very large number of docs, we are likely to blow out memory doing
         # this. Unfortunately there's no easy way to tell up-front that a given stage in
         # the pipeline has a mix of parent and child docs, unless we do two passes.
         # Just a heads up that with a larger number of docs, we may need to revisit this.
+        docs = []
         for filename in os.listdir(directory):
             f = os.path.join(directory, filename)
             if os.path.isfile(f):

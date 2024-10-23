@@ -2,10 +2,13 @@
 
 import argparse
 import time
+import io
 
 import queryui.util as util
 from queryui.configuration import get_sycamore_query_client
 import queryui.ntsb as ntsb
+
+from contextlib import redirect_stdout
 
 import streamlit as st
 from streamlit_ace import st_ace
@@ -14,6 +17,8 @@ from sycamore import ExecMode
 from sycamore.executor import sycamore_ray_init
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
+
+from typing import Any
 
 PLANNER_EXAMPLES = ntsb.PLANNER_EXAMPLES
 
@@ -34,20 +39,33 @@ def show_schema(_client: SycamoreQueryClient, index: str):
 
 
 @st.fragment
-def show_code(code: str):
+def show_code(client: SycamoreQueryClient, code: str):
+    st.session_state.code = code
+
     with st.expander("View code"):
         code = st_ace(
-            value=code,
-            key="python",
+            value=st.session_state.code,
+            key=f"python_{hash(st.session_state.query)}",
             language="python",
             min_lines=20,
         )
+
         execute_button = st.button("Execute Code")
         if execute_button:
             code_locals: dict = {}
             try:
                 with st.spinner("Executing code..."):
-                    exec(code, globals(), code_locals)
+                    global_context: dict[str, Any] = {"context": client.context}
+                    f = io.StringIO()
+                    with redirect_stdout(f):
+                        exec(code, global_context)
+                    result_str = f.getvalue()
+                    print("Printing out the results...")
+                    print(result_str)
+                    print("Done printing out the results...")
+                st.subheader("Result", divider="rainbow")
+                st.markdown(result_str, unsafe_allow_html=True)
+                # exec(code, global_context)
             except Exception as e:
                 st.exception(e)
             if code_locals and "result" in code_locals:
@@ -71,7 +89,7 @@ def run_query():
         st.write(plan.model_dump(serialize_as_any=True))
 
     code = generate_code(client, plan)
-    show_code(code)
+    show_code(client, code)
 
     if not st.session_state.plan_only:
         with st.spinner("Running query..."):
@@ -85,9 +103,8 @@ def run_query():
         st.subheader("Result", divider="rainbow")
         st.markdown(result_str, unsafe_allow_html=True)
 
-        if result.trace_dirs:
-            with st.expander("Query trace"):
-                util.show_query_traces(result)
+        with st.expander("Query trace"):
+            util.show_query_traces(result)
 
 
 def main():

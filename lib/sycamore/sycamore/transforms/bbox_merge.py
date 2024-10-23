@@ -152,7 +152,7 @@ class MarkDropHeaderFooter(SingleThreadUser, NonGPUUser, Map):
     """
 
     def __init__(self, child: Node, top: float = 0.05, bottom: Optional[float] = None, **resource_args):
-        super().__init__(child, f=MarkDropHeaderFooter.mark_drop_header_and_footer, args=[bottom, top], **resource_args)
+        super().__init__(child, f=MarkDropHeaderFooter.mark_drop_header_and_footer, args=[top, bottom], **resource_args)
 
     @staticmethod
     @timetrace("markHeadFoot")

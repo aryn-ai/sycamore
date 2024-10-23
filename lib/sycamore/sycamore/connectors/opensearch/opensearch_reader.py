@@ -89,6 +89,7 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
                     }
                 )
                 doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
+                doc.properties["score"] = data["_score"]
                 result.append(doc)
         else:
             assert (

@@ -197,6 +197,7 @@ class SycamoreSummarizeData(SycamoreOperator):
             result_description=description,
             result_data=self.inputs,
             context=self.context,
+            use_elements=True,
             **self.get_execute_args(),
         )
         return result
@@ -219,6 +220,7 @@ class SycamoreSummarizeData(SycamoreOperator):
     result_description='{description}',
     result_data=[{logical_deps_str}],
     context=context,
+    use_elements=True,
     **{get_str_for_dict(self.get_execute_args())},
 )
 """

@@ -752,7 +752,7 @@ class DocSet:
 
         .. code-block:: python
 
-            (docset.transform(SortByPageBbox, minimum=2)
+            (docset.transform(SortByPageBbox)
                 .transform(MarkDropTiny, minimum=2)
                 .transform(MarkDropHeaderFooter, top=0.05, bottom=0.05)
                 .transform(MarkBreakPage)

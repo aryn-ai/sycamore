@@ -104,7 +104,9 @@ DEFAULT_STRUCTURE_CLASS_THRESHOLDS = {
 }
 
 
-def objects_to_table(objects, tokens, structure_class_thresholds=DEFAULT_STRUCTURE_CLASS_THRESHOLDS) -> Optional[Table]:
+def objects_to_table(
+    objects, tokens, structure_class_thresholds=DEFAULT_STRUCTURE_CLASS_THRESHOLDS, union_tokens=False
+) -> Optional[Table]:
     structures = objects_to_structures(objects, tokens=tokens, class_thresholds=structure_class_thresholds)
 
     if len(structures) == 0:
@@ -123,7 +125,7 @@ def objects_to_table(objects, tokens, structure_class_thresholds=DEFAULT_STRUCTU
         )
         return Table(table_cells)
 
-    cells, _ = structure_to_cells(structures, tokens=tokens)
+    cells, _ = structure_to_cells(structures, tokens=tokens, union_tokens=union_tokens)
 
     table_cells = []
     for cell in cells:
@@ -747,6 +749,90 @@ def align_supercells(supercells, rows, columns):
     return aligned_supercells
 
 
+def union_dropped_tokens_with_cells(cells, dropped_tokens, rows, columns):
+    """
+    For each token that was dropped, determine which cell it intersects with and add the text to that cell.
+    If the token does not intersect with any existing cell, create a new cell. Determine the new row and column by
+    checking for intersection with any previous one and creating a new one if necessary.
+    """
+    for token in dropped_tokens:
+        token_rect = BoundingBox(*token["bbox"])
+        cell_intersect = False
+        for cell in cells:  # first check and add the token text to the cell it intersects with
+            cell_rect = BoundingBox(*cell["bbox"])
+            if cell_rect.intersect(token_rect).area > 0:
+                cell["cell text"] = cell.get("cell text", "") + extract_text_from_spans([token])
+                cell_intersect = True
+                break
+        if not cell_intersect:  # if not, create a new table cell
+            token_rows = []
+            token_columns = []
+            for row_idx, row in enumerate(rows):  # find or create the row for the token
+                row_rect = BoundingBox(*row["bbox"])
+                if row_rect.intersect(token_rect).area > 0:
+                    token_rows.append(row_idx)
+                elif row_rect.y2 < token_rect.y1:
+                    if row_idx < len(rows) - 1 and rows[row_idx + 1]["bbox"][1] > token_rect.y2:
+                        new_row = BoundingBox(row_rect.x1, row_rect.y2, row_rect.x2, rows[row_idx + 1]["bbox"][1])
+                        rows.insert(row_idx + 1, {"bbox": new_row.to_list()})
+                        for cell in cells:
+                            cell_row_nums = cell["row_nums"]
+                            if (
+                                row_idx in cell_row_nums and row_idx + 1 in cell_row_nums
+                            ):  # if the cell spans the 2 rows increase the span
+                                cell_row_nums.append(max(cell_row_nums) + 1)
+                            else:
+                                for idx, row_num in enumerate(cell_row_nums):
+                                    if row_num > row_idx:
+                                        cell_row_nums[idx] += 1
+                        token_rows.append(row_idx + 1)
+                        break
+            for col_idx, col in enumerate(columns):  # find or create the row for the token
+                col_rect = BoundingBox(*col["bbox"])
+                if col_rect.intersect(token_rect).area > 0:
+                    token_columns.append(col_idx)
+                elif col_rect.x2 < token_rect.x1:
+                    if col_idx < len(columns) - 1 and columns[col_idx + 1]["bbox"][0] > token_rect.x2:
+                        new_col = BoundingBox(col_rect.x2, col_rect.y1, columns[col_idx + 1]["bbox"][0], col_rect.y2)
+                        columns.insert(col_idx + 1, {"bbox": new_col.to_list()})
+                        for cell in cells:
+                            cell_column_nums = cell["column_nums"]
+                            if (
+                                col_idx in cell_column_nums and col_idx + 1 in cell_column_nums
+                            ):  # if the cell spans the 2 rows increase the span
+                                cell_column_nums.append(max(cell_column_nums) + 1)
+                            else:
+                                for idx, col_num in enumerate(cell_column_nums):
+                                    if col_num > col_idx:
+                                        cell_column_nums[idx] += 1
+
+                        token_columns.append(col_idx + 1)
+                        break
+            if not token_rows:
+                token_rows.append(len(rows))
+                prev_row = BoundingBox(*rows[-1]["bbox"])
+                rows.append({"bbox": [prev_row.x1, prev_row.y2, prev_row.x2, 2 * prev_row.y2 - prev_row.y1]})
+            if not token_columns:
+                token_columns.append(len(columns))
+                prev_col = BoundingBox(*columns[-1]["bbox"])
+                columns.append({"bbox": [prev_col.x2, prev_col.y1, 2 * prev_col.x2 - prev_col.x1, prev_col.y2]})
+            row_rect = BoundingBox.from_union(BoundingBox(*rows[row_num]["bbox"]) for row_num in token_rows)
+            column_rect = BoundingBox.from_union(
+                BoundingBox(*columns[column_num]["bbox"]) for column_num in token_columns
+            )
+
+            cell_rect = row_rect.intersect(column_rect)
+            cell = {
+                "bbox": cell_rect.to_list(),
+                "column_nums": token_columns,
+                "row_nums": token_rows,
+                "column header": False,
+                "cell text": token["text"],
+            }
+            cells.append(cell)
+    return cells
+
+
 def nms_supercells(supercells):
     """
     A NMS scheme for supercells that first attempts to shrink supercells to
@@ -868,7 +954,10 @@ def objects_to_structures(objects, tokens, class_thresholds):
     # Process the rows and columns into a complete segmented table
     columns = align_columns(columns, table["row_column_bbox"])
     rows = align_rows(rows, table["row_column_bbox"])
-
+    if not rows:  # if no rows detected, create a single row comprising the whole table
+        rows = [{"bbox": table["row_column_bbox"]}]
+    if not columns:
+        columns = [{"bbox": table["row_column_bbox"]}]
     structure["rows"] = rows
     structure["columns"] = columns
     structure["column headers"] = column_headers
@@ -880,7 +969,7 @@ def objects_to_structures(objects, tokens, class_thresholds):
     return structure
 
 
-def structure_to_cells(table_structure, tokens):
+def structure_to_cells(table_structure, tokens, union_tokens):
     """
     Assuming the row, column, spanning cell, and header bounding boxes have
     been refined into a set of consistent table structures, process these
@@ -985,7 +1074,7 @@ def structure_to_cells(table_structure, tokens):
         cell_rect = column_rect.intersect(row_rect)
         cell["bbox"] = cell_rect.to_list()
 
-    span_nums_by_cell, _, _ = slot_into_containers(
+    span_nums_by_cell, package_assignments, _ = slot_into_containers(
         cells, tokens, overlap_threshold=0.001, unique_assignment=True, forced_assignment=False
     )
 
@@ -1045,7 +1134,11 @@ def structure_to_cells(table_structure, tokens):
         cell_rect = row_rect.intersect(column_rect)
         if cell_rect.area > 0:
             cell["bbox"] = cell_rect.to_list()
-
+    if union_tokens:
+        dropped_tokens = [
+            token for token, package_assignment in zip(tokens, package_assignments) if not package_assignment
+        ]
+        cells = union_dropped_tokens_with_cells(cells, dropped_tokens, rows, columns)
     return cells, confidence_score
 
 

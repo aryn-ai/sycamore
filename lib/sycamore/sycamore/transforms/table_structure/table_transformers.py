@@ -954,7 +954,10 @@ def objects_to_structures(objects, tokens, class_thresholds):
     # Process the rows and columns into a complete segmented table
     columns = align_columns(columns, table["row_column_bbox"])
     rows = align_rows(rows, table["row_column_bbox"])
-
+    if not rows:  # if no rows detected, create a single row comprising the whole table
+        rows = [{"bbox": table["row_column_bbox"]}]
+    if not columns:
+        columns = [{"bbox": table["row_column_bbox"]}]
     structure["rows"] = rows
     structure["columns"] = columns
     structure["column headers"] = column_headers

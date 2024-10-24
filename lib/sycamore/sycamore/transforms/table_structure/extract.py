@@ -102,7 +102,7 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
 
     @timetrace("tblExtr")
     @requires_modules(["torch", "torchvision"], extra="local-inference")
-    def extract(self, element: TableElement, doc_image: Image.Image) -> TableElement:
+    def extract(self, element: TableElement, doc_image: Image.Image, union_tokens=False) -> TableElement:
         """Extracts the table structure from the specified element using a TableTransformer model.
 
         Takes a TableElement containing a bounding box, for example from the SycamorePartitioner,
@@ -165,7 +165,7 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
 
         # Convert the raw objects to our internal table representation. This involves multiple
         # phases of postprocessing.
-        table = table_transformers.objects_to_table(objects, tokens)
+        table = table_transformers.objects_to_table(objects, tokens, union_tokens=union_tokens)
 
         if table is None:
             element.table = None

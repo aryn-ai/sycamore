@@ -3,7 +3,7 @@ File Formats Supported
 
 You can input the following file formats to the Aryn Partitioning Service for partitioning and segmenting:
 
--  .pdf
+- .pdf
 - .docx
 - .doc
 - .pptx

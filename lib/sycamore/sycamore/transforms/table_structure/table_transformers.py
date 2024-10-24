@@ -755,6 +755,8 @@ def union_dropped_tokens_with_cells(cells, dropped_tokens, rows, columns):
     If the token does not intersect with any existing cell, create a new cell. Determine the new row and column by
     checking for intersection with any previous one and creating a new one if necessary.
     """
+    if not rows or not columns:
+        return cells
     for token in dropped_tokens:
         token_rect = BoundingBox(*token["bbox"])
         cell_intersect = False
@@ -954,9 +956,13 @@ def objects_to_structures(objects, tokens, class_thresholds):
     # Process the rows and columns into a complete segmented table
     columns = align_columns(columns, table["row_column_bbox"])
     rows = align_rows(rows, table["row_column_bbox"])
-    if not rows:  # if no rows detected, create a single row comprising the whole table
+    if (
+        not rows and row_rect.y1 < row_rect.y2 and column_rect.x1 < column_rect.x2
+    ):  # if no rows detected, create a single row comprising the whole table
         rows = [{"bbox": table["row_column_bbox"]}]
-    if not columns:
+    if (
+        not columns and row_rect.y1 < row_rect.y2 and column_rect.x1 < column_rect.x2
+    ):  # if no columns detected, create a single column comprising the whole table
         columns = [{"bbox": table["row_column_bbox"]}]
     structure["rows"] = rows
     structure["columns"] = columns

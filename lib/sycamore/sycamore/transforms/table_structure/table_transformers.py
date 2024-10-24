@@ -752,8 +752,8 @@ def align_supercells(supercells, rows, columns):
 def union_dropped_tokens_with_cells(cells, dropped_tokens, rows, columns):
     """
     For each token that was dropped, determine which cell it intersects with and add the text to that cell.
-    If the token does not intersect with any existing cell, create a new cell. Determine the new row and column by checking for
-    intersection with any previous one and creating a new one if necessary.
+    If the token does not intersect with any existing cell, create a new cell. Determine the new row and column by
+    checking for intersection with any previous one and creating a new one if necessary.
     """
     for token in dropped_tokens:
         token_rect = BoundingBox(*token["bbox"])

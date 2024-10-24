@@ -1,7 +1,7 @@
 File Formats Supported 
 =========================
 
-The Aryn Partitioning Service can partition and segment the following file formats:
+You can input the following file formats to the Aryn Partitioning Service for partitioning and segmenting:
 
 -  .pdf
 - .docx

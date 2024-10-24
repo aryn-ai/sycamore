@@ -11,6 +11,7 @@ If you'd like to experiment with the service, you can use the UI in the `Aryn Pl
 
    ./get_started.md
    ./installation-instructions.rst
+   ./file-formats.md
    ./accessing_the_partitioning_service.rst
    ./specifying_options.rst
    ./get_started_Image_Extraction.md

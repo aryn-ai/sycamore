@@ -21,7 +21,7 @@ from pypdf import PdfReader
 from sycamore.data import Element, BoundingBox, ImageElement, TableElement
 from sycamore.data.document import DocumentPropertyTypes
 from sycamore.data.element import create_element
-from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR, TableStructureExtractor
+from sycamore.transforms.table_structure.extract import DEFAULT_TABLE_STRUCTURE_EXTRACTOR
 from sycamore.utils import choose_device
 from sycamore.utils.bbox_sort import bbox_sort_page
 from sycamore.utils.cache import Cache

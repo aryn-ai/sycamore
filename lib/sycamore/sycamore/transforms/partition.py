@@ -396,8 +396,9 @@ class ArynPartitioner(Partitioner):
              is True. The default is the TableTransformerStructureExtractor.
              Ignored when local mode is false.
         table_extractor_options: Dictionary of options that are sent to the TableExtractor implementation. Currently
-            supports union_tokens, which is a boolean that controls whether to union OCR / PDFMiner tokens in the table cells.
-            By default it is False.
+            supports union_tokens, which is a boolean that controls whether to union OCR / PDFMiner tokens 
+            in the table cells.
+            default: {"union_tokens": False}
         extract_images: If true, crops each region identified as an image and attaches it to the associated
              ImageElement. This can later be fed into the SummarizeImages transform.
             default: False

@@ -1072,9 +1072,19 @@ def structure_to_cells(table_structure, tokens, union_tokens):
                             new_row = BoundingBox(row_rect.x1, row_rect.y2, row_rect.x2, rows[row_idx + 1]["bbox"][1])
                             rows.insert(row_idx + 1, {"bbox": new_row.to_list()})
                             for cell in cells:
-                                for idx, row_num in enumerate(cell["row_nums"]):
-                                    if row_num > row_idx:
-                                        cell["row_nums"][idx] += 1
+                                cell_row_nums = cell["row_nums"]
+                                if (
+                                    row_idx in cell_row_nums and row_idx + 1 in cell_row_nums
+                                ):  # if the cell spans the 2 rows increase the span
+                                    for idx, row_num in enumerate(range(len(cell_row_nums), 0, -1)):
+                                        cell_row_nums[idx] += 1
+                                        if row_num <= (row_idx + 1):
+                                            cell_row_nums.insert(idx, row_idx + 1)
+                                            break
+                                else:
+                                    for idx, row_num in enumerate(cell_row_nums):
+                                        if row_num > row_idx:
+                                            cell_row_nums[idx] += 1
                             token_rows.append(row_idx + 1)
                             break
                 for col_idx, col in enumerate(columns):  # find or create the row for the token
@@ -1088,17 +1098,28 @@ def structure_to_cells(table_structure, tokens, union_tokens):
                             )
                             columns.insert(col_idx + 1, {"bbox": new_col.to_list()})
                             for cell in cells:
-                                for idx, col_num in enumerate(cell["column_nums"]):
-                                    if col_num > col_idx:
-                                        cell["column_nums"][idx] += 1
+                                cell_column_nums = cell["column_nums"]
+                                if (
+                                    col_idx in cell_column_nums and col_idx + 1 in cell_column_nums
+                                ):  # if the cell spans the 2 rows increase the span
+                                    for idx, col_num in enumerate(range(len(cell_column_nums), 0, -1)):
+                                        cell_column_nums[idx] += 1
+                                        if col_num <= (col_idx + 1):
+                                            cell_column_nums.insert(idx, col_idx + 1)
+                                            break
+                                else:
+                                    for idx, col_num in enumerate(cell_column_nums):
+                                        if col_num > col_idx:
+                                            cell_column_nums[idx] += 1
+
                             token_columns.append(col_idx + 1)
                             break
                 if not token_rows:
-                    token_rows.append(len(rows) + 1)
+                    token_rows.append(len(rows))
                     prev_row = BoundingBox(*rows[-1]["bbox"])
                     rows.append({"bbox": [prev_row.x1, prev_row.y2, prev_row.x2, 2 * prev_row.y2 - prev_row.y1]})
                 if not token_columns:
-                    token_columns.append(len(columns) + 1)
+                    token_columns.append(len(columns))
                     prev_col = BoundingBox(*columns[-1]["bbox"])
                     columns.append({"bbox": [prev_col.x2, prev_col.y1, 2 * prev_col.x2 - prev_col.x1, prev_col.y2]})
                 row_rect = BoundingBox.from_union(BoundingBox(*rows[row_num]["bbox"]) for row_num in token_rows)

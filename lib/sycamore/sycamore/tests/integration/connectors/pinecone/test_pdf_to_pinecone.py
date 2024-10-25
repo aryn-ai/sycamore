@@ -16,7 +16,6 @@ def test_to_pinecone():
     spec = ServerlessSpec(cloud="aws", region="us-east-1")
     index_name = "test-index-write"
     namespace = f"{generate_random_string().lower()}"
-    namespace = "test_write"
     model_name = "sentence-transformers/all-MiniLM-L6-v2"
     paths = str(TEST_DIR / "resources/data/pdfs/Transformer.pdf")
     api_key = os.environ.get("PINECONE_API_KEY", "")
@@ -41,4 +40,4 @@ def test_to_pinecone():
         .sketch(window=17)
     )
     ds.write.pinecone(index_name=index_name, namespace=namespace, dimensions=384, index_spec=spec)
-    # pc.Index(index_name).delete(namespace=namespace, delete_all=True)
+    pc.Index(index_name).delete(namespace=namespace, delete_all=True)

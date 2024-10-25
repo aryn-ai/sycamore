@@ -21,7 +21,6 @@ def test_pinecone_read():
     index_name = "test-index-read"
     model_name = "sentence-transformers/all-MiniLM-L6-v2"
     namespace = f"{generate_random_string().lower()}"
-    namespace = "test_read"
     paths = str(TEST_DIR / "resources/data/pdfs/Transformer.pdf")
     api_key = os.environ.get("PINECONE_API_KEY", "")
     assert (

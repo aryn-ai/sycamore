@@ -44,7 +44,7 @@ class RemoveVectorSearchForAnalytics(LogicalPlanProcessor):
         self.llm = llm
 
     def __call__(self, plan: LogicalPlan) -> LogicalPlan:
-        logging.info("Executing DefaultLogicalPlanProcessor")
+        logging.info("Executing RemoveVectorSearchForAnalytics processor")
 
         # Rule: If the plan has a vector search in the beginning followed by a count or nothing or extract_entity,
         # we replace that by removing the vector search and adding an LLM Filter before the count

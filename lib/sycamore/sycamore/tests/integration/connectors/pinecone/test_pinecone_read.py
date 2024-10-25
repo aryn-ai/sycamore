@@ -21,6 +21,7 @@ def test_pinecone_read():
     index_name = "test-index-read"
     model_name = "sentence-transformers/all-MiniLM-L6-v2"
     namespace = f"{generate_random_string().lower()}"
+    namespace = "test_read"
     paths = str(TEST_DIR / "resources/data/pdfs/Transformer.pdf")
     api_key = os.environ.get("PINECONE_API_KEY", "")
     assert (
@@ -77,3 +78,4 @@ def wait_for_write_completion(client: PineconeGRPC, index_name: str, namespace: 
             # NotFoundException means the last document has not been entered yet.
             pass
         time.sleep(1)
+    raise TimeoutError(f"Document {doc_id} not found after {timeout} seconds.")

@@ -77,3 +77,4 @@ def wait_for_write_completion(client: PineconeGRPC, index_name: str, namespace: 
             # NotFoundException means the last document has not been entered yet.
             pass
         time.sleep(1)
+    raise TimeoutError(f"Document {doc_id} not found after {timeout} seconds.")

@@ -604,6 +604,11 @@ def align_headers(headers, rows) -> list[dict[str, list]]:
             min_row_overlap = max(row["bbox"][1], header["bbox"][1])
             max_row_overlap = min(row["bbox"][3], header["bbox"][3])
             overlap_height = max_row_overlap - min_row_overlap
+            if row_height == 0:
+                if overlap_height == header["bbox"][3] - header["bbox"][1]:
+                    # Then the 0-height row is inside the header
+                    header_row_nums.append(row_num)
+                continue
             if overlap_height / row_height >= 0.5:
                 header_row_nums.append(row_num)
 

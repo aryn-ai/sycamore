@@ -189,7 +189,9 @@ class QueryEvalDriver:
         return result
 
     def _check_tags_match(self, query):
-        return set(self.config.config.tags or []) == set(query.tags or [])
+        if not self.config.config or not self.config.config.tags:
+            return True
+        return set(self.config.config.tags) == set(query.tags or [])
 
     def do_plan(self, query: QueryEvalQuery, result: QueryEvalResult) -> QueryEvalResult:
         """Generate or return an existing query plan."""
@@ -251,20 +253,20 @@ class QueryEvalDriver:
 
         t1 = time.time()
         result.error = None
-        _, query_result = self.client.run_plan(result.plan)
-        if isinstance(query_result, str):
-            result.result = query_result
+        query_result = self.client.run_plan(result.plan)
+        if isinstance(query_result.result, str):
+            result.result = query_result.result
             t2 = time.time()
-        elif isinstance(query_result, DocSet):
+        elif isinstance(query_result.result, DocSet):
             assert self.config.config
             if self.config.config.doc_limit:
-                query_result = query_result.take(self.config.config.doc_limit)
+                query_result.result = query_result.result.take(self.config.config.doc_limit)
             else:
-                query_result = query_result.take_all()
+                query_result.result = query_result.result.take_all()
             t2 = time.time()
-            result.result = self.format_docset(query_result)
+            result.result = self.format_docset(query_result.result)
         else:
-            result.result = str(query_result)
+            result.result = str(query_result.result)
             t2 = time.time()
         assert result.metrics
         result.metrics.query_time = t2 - t1

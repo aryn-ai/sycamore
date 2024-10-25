@@ -15,6 +15,7 @@ from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.planner import PlannerExample
 from sycamore.query.schema import OpenSearchSchema
+from sycamore.query.result import SycamoreQueryResult
 
 from queryui.configuration import get_sycamore_query_client
 
@@ -29,7 +30,7 @@ def generate_plan(_client: SycamoreQueryClient, query: str, index: str, examples
     return _client.generate_plan(query, index, get_schema(_client, index), examples=examples)
 
 
-def run_plan(_client: SycamoreQueryClient, plan: LogicalPlan) -> Tuple[str, Any]:
+def run_plan(_client: SycamoreQueryClient, plan: LogicalPlan) -> SycamoreQueryResult:
     """Run the given plan."""
     return _client.run_plan(plan)
 
@@ -168,10 +169,11 @@ class QueryNodeTrace:
         "text_representation",
     ]
 
-    def __init__(self, trace_dir: str, node_id: str):
-        self.trace_dir = trace_dir
+    def __init__(self, result: SycamoreQueryResult, node_id: int):
+        self.result = result
         self.node_id = node_id
         self.df = None
+        self.num_files = 0
         self.readdata()
 
     def readfile(self, f):
@@ -218,29 +220,36 @@ class QueryNodeTrace:
             return row
 
     def readdata(self):
-        """Read the trace data."""
-        directory = os.path.join(self.trace_dir, self.node_id)
-        docs = []
+        """Read the trace data for this node."""
+
+        if self.node_id not in self.result.execution:
+            return
+
+        directory = self.result.execution[self.node_id].trace_dir
+        if not directory:
+            return
 
         # We need to read all of the individual docs to ensure we get all of the parent
         # docs. With a very large number of docs, we are likely to blow out memory doing
         # this. Unfortunately there's no easy way to tell up-front that a given stage in
         # the pipeline has a mix of parent and child docs, unless we do two passes.
         # Just a heads up that with a larger number of docs, we may need to revisit this.
+        docs = []
         for filename in os.listdir(directory):
             f = os.path.join(directory, filename)
             if os.path.isfile(f):
+                self.num_files += 1
                 newdoc = self.readfile(f)
                 if newdoc:
                     docs.append(newdoc)
 
         # Only keep parent docs if there are child docs in the list.
         parent_docs = [x for x in docs if x.get("parent_id") is None]
-        if parent_docs:
+        if len(parent_docs) > 0:
             docs = parent_docs
 
         # Transpose data to a dict where each key is a column, and each value is a list of rows.
-        if docs:
+        if len(docs) > 0:
             all_keys = {k for d in docs for k in d.keys()}
             data = {col: [] for col in all_keys}
             for row in docs:
@@ -250,36 +259,30 @@ class QueryNodeTrace:
 
     def show(self, node):
         """Render the trace data."""
-        st.subheader(f"Node {self.node_id}")
+        st.subheader(f"Node {self.node_id} - {node.node_type if node else 'n/a'}")
         st.markdown(f"*Description: {node.description if node else 'n/a'}*")
         if self.df is None or not len(self.df):
-            st.write(":red[0] documents")
-            st.write("No data.")
+            if self.num_files > 0:
+                st.write(":green[Cache hit - node execution skipped!]")
+            else:
+                st.write(f":green[Node type {node.node_type} does not produce document traces]")
             return
 
         all_columns = list(self.df.columns)
         column_order = [c for c in self.COLUMNS if c in all_columns]
         column_order += [c for c in all_columns if c not in column_order]
-        st.write(f"**{len(self.df)}** documents")
+        st.write(f"**{len(self.df)} documents**")
         st.dataframe(self.df, column_order=column_order)
 
 
 class QueryTrace:
     """Helper class used to read and display query traces."""
 
-    def __init__(self, trace_dir: str):
-        self.trace_dir = trace_dir
+    def __init__(self, result: SycamoreQueryResult):
         self.node_traces = []
-        self.query_plan = self._get_query_plan(self.trace_dir)
-        for dir in sorted(os.listdir(self.trace_dir)):
-            if "metadata" not in dir:
-                self.node_traces += [QueryNodeTrace(trace_dir, dir)]
-
-    def _get_query_plan(self, trace_dir: str):
-        metadata_dir = os.path.join(trace_dir, "metadata")
-        if os.path.isfile(os.path.join(trace_dir, "metadata", "query_plan.json")):
-            return LogicalPlan.parse_file(os.path.join(metadata_dir, "query_plan.json"))
-        return None
+        self.query_plan = result.plan
+        for node_id in sorted(result.plan.nodes.keys()):
+            self.node_traces += [QueryNodeTrace(result, node_id)]
 
     def show(self):
         tab1, tab2 = st.tabs(["Node data", "Query plan"])
@@ -295,7 +298,6 @@ class QueryTrace:
 
 
 @st.fragment
-def show_query_traces(trace_dir: str, query_id: str):
-    """Show the query traces in the given trace_dir."""
-    trace_dir = os.path.join(trace_dir, query_id)
-    QueryTrace(trace_dir).show()
+def show_query_traces(result: SycamoreQueryResult):
+    """Show the query traces for the given query result."""
+    QueryTrace(result).show()

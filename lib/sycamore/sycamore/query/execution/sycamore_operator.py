@@ -159,7 +159,7 @@ os_query["query"]["knn"]["embedding"]["filter"] = {self.logical_node.opensearch_
     index_name='{self.logical_node.index}', 
     query=os_query,
     reconstruct_document=True
-).rerank(query={self.logical_node.query_phrase})
+).rerank(query='{self.logical_node.query_phrase}')
 """
         return (
             result,

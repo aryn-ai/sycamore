@@ -26,10 +26,7 @@ will get a merge conflict.
 
 def get_sycamore_query_client(
     llm_cache_dir: Optional[str] = None,
-    trace_dir: Optional[str] = None,
     cache_dir: Optional[str] = None,
     exec_mode: ExecMode = ExecMode.RAY,
 ) -> SycamoreQueryClient:
-    return SycamoreQueryClient(
-        llm_cache_dir=llm_cache_dir, trace_dir=trace_dir, cache_dir=cache_dir, sycamore_exec_mode=exec_mode
-    )
+    return SycamoreQueryClient(llm_cache_dir=llm_cache_dir, cache_dir=cache_dir, sycamore_exec_mode=exec_mode)

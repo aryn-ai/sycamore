@@ -297,5 +297,6 @@ class QueryTrace:
 @st.fragment
 def show_query_traces(trace_dir: str, query_id: str):
     """Show the query traces in the given trace_dir."""
+    print(f"MDW: Showing query traces for {trace_dir} {query_id}")
     trace_dir = os.path.join(trace_dir, query_id)
     QueryTrace(trace_dir).show()

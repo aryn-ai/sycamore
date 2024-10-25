@@ -342,6 +342,9 @@ def main():
     parser.add_argument("--dump-traces", action="store_true", help="Dump traces from the execution.")
     parser.add_argument("--log-level", type=str, help="Log level", default="WARN")
     parser.add_argument("--llm", type=str, help="LLM model name", choices=MODELS.keys())
+    parser.add_argument(
+        "--exec-mode", type=str, choices=["ray", "local"], default="ray", help="Configure Sycamore execution mode."
+    )
     args = parser.parse_args()
 
     if args.trace_dir:
@@ -363,7 +366,11 @@ def main():
         args.cache_dir = os.path.abspath(args.cache_dir)
 
     client = SycamoreQueryClient(
-        llm_cache_dir=args.llm_cache_dir, trace_dir=args.trace_dir, cache_dir=args.cache_dir, llm=args.llm
+        llm_cache_dir=args.llm_cache_dir,
+        trace_dir=args.trace_dir,
+        cache_dir=args.cache_dir,
+        llm=args.llm,
+        sycamore_exec_mode=ExecMode.RAY if args.exec_mode == "ray" else ExecMode.LOCAL,
     )
 
     # Show indices and exit.

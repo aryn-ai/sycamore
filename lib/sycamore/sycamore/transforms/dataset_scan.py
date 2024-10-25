@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 from sycamore.plan_nodes import Scan
+from sycamore.data import Document
 
 if TYPE_CHECKING:
     from ray.data import Dataset
@@ -19,3 +20,6 @@ class DatasetScan(Scan):
 
     def format(self):
         return "dataset"
+
+    def __str__(self):
+        return f"DatasetScan({self._dataset})"

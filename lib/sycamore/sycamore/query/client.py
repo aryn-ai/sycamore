@@ -10,11 +10,10 @@
 # Use --help for more options.
 
 import argparse
-import json
 import logging
 import os
 import uuid
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Union
 
 import structlog
 import yaml
@@ -28,6 +27,7 @@ from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.query.execution.sycamore_executor import SycamoreExecutor
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.planner import LlmPlanner, PlannerExample
+from sycamore.query.result import SycamoreQueryResult
 from sycamore.query.schema import OpenSearchSchema, OpenSearchSchemaFetcher
 from sycamore.query.strategy import DefaultQueryPlanStrategy, QueryPlanStrategy
 from sycamore.transforms.embed import SentenceTransformerEmbedder
@@ -100,7 +100,6 @@ class SycamoreQueryClient:
         llm_cache_dir (optional): Directory to use for LLM result caching.
         os_config (optional): OpenSearch configuration. Defaults to DEFAULT_OS_CONFIG.
         os_client_args (optional): OpenSearch client arguments. Defaults to DEFAULT_OS_CLIENT_ARGS.
-        trace_dir (optional): Directory to write query execution trace.
         cache_dir (optional): Directory to use for caching intermediate query results.
         llm (optional): LLM implementation to use for planning and execution.
         query_plan_strategy (optional): Strategy to use for planning, can be used to balance cost vs speed.
@@ -125,7 +124,6 @@ class SycamoreQueryClient:
         llm_cache_dir: Optional[str] = None,
         os_config: dict = DEFAULT_OS_CONFIG,
         os_client_args: Optional[dict] = None,
-        trace_dir: Optional[str] = None,
         cache_dir: Optional[str] = None,
         sycamore_exec_mode: ExecMode = ExecMode.RAY,
         llm: Optional[Union[LLM, str]] = None,
@@ -135,7 +133,6 @@ class SycamoreQueryClient:
 
         self.llm_cache_dir = llm_cache_dir
         self.os_config = os_config
-        self.trace_dir = trace_dir
         self.cache_dir = cache_dir
         self.sycamore_exec_mode = sycamore_exec_mode
         self.query_plan_strategy = query_plan_strategy
@@ -210,19 +207,17 @@ class SycamoreQueryClient:
         plan = planner.plan(query)
         return plan
 
-    def run_plan(self, plan: LogicalPlan, dry_run=False, codegen_mode=False) -> Tuple[str, Any]:
-        assert self.context is not None, "Running a plan requires a configured Context"
+    def run_plan(self, plan: LogicalPlan, dry_run=False, codegen_mode=False) -> SycamoreQueryResult:
         """Run the given logical query plan and return a tuple of the query ID and result."""
+        assert self.context is not None, "Running a plan requires a configured Context"
         executor = SycamoreExecutor(
             context=self.context,
             cache_dir=self.cache_dir,
-            trace_dir=self.trace_dir,
             dry_run=dry_run,
             codegen_mode=codegen_mode,
         )
         query_id = str(uuid.uuid4())
-        result = executor.execute(plan, query_id)
-        return query_id, result
+        return executor.execute(plan, query_id)
 
     def query(
         self,
@@ -234,20 +229,26 @@ class SycamoreQueryClient:
         """Run a query against the given index."""
         schema = self.get_opensearch_schema(index)
         plan = self.generate_plan(query, index, schema)
-        _, result = self.run_plan(plan, dry_run=dry_run, codegen_mode=codegen_mode)
-        return result
+        return self.run_plan(plan, dry_run=dry_run, codegen_mode=codegen_mode)
 
-    @staticmethod
-    def dump_traces(logfile: str, query_id: Optional[str] = None):
-        """Dump traces from the given logfile."""
-        with open(logfile, "r", encoding="utf-8") as f:
-            for line in f:
-                try:
-                    entry = json.loads(line)
-                    if "query_id" in entry and (not query_id or entry["query_id"] == query_id):
-                        console.print(entry)
-                except json.JSONDecodeError:
-                    console.print(line)
+    def dump_traces(self, result: SycamoreQueryResult, limit: int = 5):
+        if not result.execution:
+            console.print("[red]No traces found.")
+            return
+        for node_id in sorted(result.execution.keys()):
+            trace_dir = result.execution[node_id].trace_dir
+            console.rule(f"Trace for node {node_id}")
+            console.print(f"Trace directory: {trace_dir}")
+            try:
+                cached_results = self.context.read.materialize(trace_dir)
+                total_results = cached_results.count()
+                if limit > total_results:
+                    limit = total_results
+                console.print(f"[yellow]Showing {limit} out of {total_results} results.")
+                cached_results.show(limit=limit, show_elements=False)
+            except Exception as e:
+                console.print(f"[red]Error reading trace: {e}")
+            console.rule()
 
     @staticmethod
     def default_text_embedder():
@@ -286,44 +287,6 @@ class SycamoreQueryClient:
         }
         return sycamore.init(params=context_params, exec_mode=sycamore_exec_mode)
 
-    @staticmethod
-    def result_to_str(result: Any, max_docs: int = 100, max_chars_per_doc: int = 2500) -> str:
-        """Convert a query result to a string.
-
-        Args:
-            result: The result to convert.
-            max_docs: The maximum number of documents to include in the result.
-            max_chars_per_doc: The maximum number of characters to include in each document.
-        """
-        if isinstance(result, str):
-            return result
-        elif isinstance(result, sycamore.docset.DocSet):
-            BASE_PROPS = [
-                "filename",
-                "filetype",
-                "page_number",
-                "page_numbers",
-                "links",
-                "element_id",
-                "parent_id",
-                "_schema",
-                "_schema_class",
-                "entity",
-            ]
-            retval = ""
-            for doc in result.take(max_docs):
-                if isinstance(doc, sycamore.data.MetadataDocument):
-                    continue
-                props_dict = doc.properties.get("entity", {})
-                props_dict.update({p: doc.properties[p] for p in set(doc.properties) - set(BASE_PROPS)})
-                props_dict["text_representation"] = (
-                    doc.text_representation[:max_chars_per_doc] if doc.text_representation is not None else None
-                )
-                retval += json.dumps(props_dict, indent=2) + "\n"
-            return retval
-        else:
-            return str(result)
-
 
 def main():
     parser = argparse.ArgumentParser(description="Run a Sycamore query against an index.")
@@ -338,37 +301,24 @@ def main():
     parser.add_argument("--show-schema", action="store_true", help="Show schema extracted from index.")
     parser.add_argument("--show-prompt", action="store_true", help="Show planner LLM prompt.")
     parser.add_argument("--show-plan", action="store_true", help="Show generated query plan.")
+    parser.add_argument("--show-code", action="store_true", help="Show generated Python code.")
     parser.add_argument("--plan-only", action="store_true", help="Only generate and show query plan.")
     parser.add_argument("--dry-run", action="store_true", help="Generate and show query plan and execution code")
     parser.add_argument("--codegen-mode", action="store_true", help="Execute through codegen")
-    parser.add_argument("--trace-dir", help="Directory to write query execution trace.")
     parser.add_argument("--cache-dir", help="Directory to use for query execution cache.")
     parser.add_argument("--dump-traces", action="store_true", help="Dump traces from the execution.")
+    parser.add_argument("--limit", type=int, help="Limit number of results shown", default=None)
     parser.add_argument("--log-level", type=str, help="Log level", default="WARN")
     parser.add_argument("--llm", type=str, help="LLM model name", choices=MODELS.keys())
     args = parser.parse_args()
 
-    if args.trace_dir:
-        os.makedirs(os.path.abspath(args.trace_dir), exist_ok=True)
-        logfile = f"{os.path.abspath(args.trace_dir)}/sycamore.log"
-        configure_logging(logfile, log_level=logging.INFO)
-    else:
-        configure_logging(log_level=args.log_level)
-
-    if args.dump_traces and not args.trace_dir:
-        parser.error("--dump-traces requires --trace-dir")
-
-    if args.trace_dir:
-        # Make trace_dir absolute.
-        args.trace_dir = os.path.abspath(args.trace_dir)
+    configure_logging(log_level=args.log_level)
 
     if args.cache_dir:
         # Make cache_dir absolute.
         args.cache_dir = os.path.abspath(args.cache_dir)
 
-    client = SycamoreQueryClient(
-        llm_cache_dir=args.llm_cache_dir, trace_dir=args.trace_dir, cache_dir=args.cache_dir, llm=args.llm
-    )
+    client = SycamoreQueryClient(llm_cache_dir=args.llm_cache_dir, cache_dir=args.cache_dir, llm=args.llm)
 
     # Show indices and exit.
     if args.show_indices:
@@ -428,14 +378,19 @@ def main():
     if args.plan_only:
         return
 
-    query_id, result = client.run_plan(plan, args.dry_run, args.codegen_mode)
+    result = client.run_plan(plan, args.dry_run, args.codegen_mode)
 
-    console.rule(f"Query result [{query_id}]")
-    console.print(client.result_to_str(result))
+    if args.dry_run or (args.codegen_mode and args.show_code):
+        console.rule("Generated code")
+        console.print(result.code)
 
-    if args.dump_traces:
-        console.rule(f"Execution traces from {args.trace_dir}/sycamore.log")
-        client.dump_traces(os.path.join(os.path.abspath(args.trace_dir), "sycamore.log"), query_id)
+    if not args.dry_run:
+        console.rule("Query result")
+        console.print(result.to_str(limit=args.limit))
+        if args.dump_traces:
+            client.dump_traces(result, limit=args.limit)
+
+    console.rule()
 
 
 if __name__ == "__main__":

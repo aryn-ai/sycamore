@@ -153,6 +153,7 @@ class ArynPDFPartitioner:
         per_element_ocr=True,
         extract_table_structure=False,
         table_structure_extractor=None,
+        table_extractor_options: dict = {},
         extract_images=False,
         batch_size: int = 1,
         use_partitioning_service=True,
@@ -191,6 +192,7 @@ class ArynPDFPartitioner:
                 per_element_ocr=per_element_ocr,
                 extract_table_structure=extract_table_structure,
                 table_structure_extractor=table_structure_extractor,
+                table_extractor_options=table_extractor_options,
                 extract_images=extract_images,
                 batch_size=batch_size,
                 use_cache=use_cache,
@@ -376,6 +378,7 @@ class ArynPDFPartitioner:
         per_element_ocr: bool = True,
         extract_table_structure: bool = False,
         table_structure_extractor=None,
+        table_extractor_options: dict = {},
         extract_images: bool = False,
         batch_size: int = 1,
         use_cache=False,
@@ -405,6 +408,7 @@ class ArynPDFPartitioner:
                 per_element_ocr,
                 extract_table_structure,
                 table_structure_extractor,
+                table_extractor_options,
                 extract_images,
                 batch_size,
                 use_cache,
@@ -422,6 +426,7 @@ class ArynPDFPartitioner:
         per_element_ocr: bool = True,
         extract_table_structure=False,
         table_structure_extractor=None,
+        table_extractor_options: dict = {},
         extract_images=False,
         batch_size: int = 1,
         use_cache=False,
@@ -463,6 +468,7 @@ class ArynPDFPartitioner:
                 per_element_ocr=per_element_ocr,
                 extract_table_structure=extract_table_structure,
                 table_structure_extractor=table_structure_extractor,
+                table_extractor_options=table_extractor_options,
                 extract_images=extract_images,
                 use_cache=use_cache,
             )
@@ -488,13 +494,14 @@ class ArynPDFPartitioner:
         threshold: float,
         text_extractor: TextExtractor,
         extractor_inputs: Any,
-        use_ocr,
-        ocr_images,
-        ocr_model,
-        per_element_ocr,
-        extract_table_structure,
+        use_ocr: bool,
+        ocr_images: bool,
+        ocr_model: Union[str, OcrModel],
+        per_element_ocr: bool,
+        extract_table_structure: bool,
         table_structure_extractor,
-        extract_images,
+        table_extractor_options: dict,
+        extract_images: bool,
         use_cache,
     ) -> Any:
         with LogTime("infer"):
@@ -535,7 +542,7 @@ class ArynPDFPartitioner:
                     image = batch[i]
                     for element in page_elements:
                         if isinstance(element, TableElement):
-                            table_structure_extractor.extract(element, image)
+                            table_structure_extractor.extract(element, image, **table_extractor_options)
 
         if extract_images:
             with LogTime("extract_images_batch"):
@@ -599,9 +606,10 @@ class ArynPDFPartitioner:
         self,
         batch: list[Image.Image],
         deformable_layout: Any,
-        extract_table_structure,
+        extract_table_structure: bool,
         table_structure_extractor,
-        extract_images,
+        table_extractor_options: dict,
+        extract_images: bool,
     ) -> Any:
         if extract_table_structure:
             with LogTime("extract_table_structure_batch"):
@@ -611,7 +619,7 @@ class ArynPDFPartitioner:
                     image = batch[i]
                     for element in page_elements:
                         if isinstance(element, TableElement):
-                            table_structure_extractor.extract(element, image)
+                            table_structure_extractor.extract(element, image, **table_extractor_options)
 
         if extract_images:
             with LogTime("extract_images_batch"):

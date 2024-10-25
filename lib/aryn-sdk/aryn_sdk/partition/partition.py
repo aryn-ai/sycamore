@@ -54,7 +54,7 @@ def partition_file(
             default: False
         extract_table_structure: extract tables and their structural content.
             default: False
-        enhance_table: If table extraction is enabled, attempt to enhance the table structure with merging in tokens from text extraction.
+        enhance_table: If table extraction is enabled, attempt to enhance the table structure by merging in tokens from text extraction.
             default: False
         extract_images: extract image contents.
             default: False

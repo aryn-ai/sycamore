@@ -11,32 +11,30 @@
 
 import argparse
 import logging
-from typing import Any, List, Optional, Union
 import os
 import uuid
+from typing import Any, List, Optional, Union
+
 import structlog
 import yaml
+from rich.console import Console
 
 import sycamore
 from sycamore import Context, ExecMode
 from sycamore.context import OperationTypes
 from sycamore.llms import LLM, get_llm, MODELS
 from sycamore.llms.openai import OpenAI, OpenAIModels
-from sycamore.transforms.embed import SentenceTransformerEmbedder
-from sycamore.transforms.query import OpenSearchQueryExecutor
-from sycamore.transforms.similarity import HuggingFaceTransformersSimilarityScorer
-from sycamore.utils.cache import cache_from_path
-from sycamore.utils.import_utils import requires_modules
-
 from sycamore.query.execution.sycamore_executor import SycamoreExecutor
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.planner import LlmPlanner, PlannerExample
 from sycamore.query.result import SycamoreQueryResult
 from sycamore.query.schema import OpenSearchSchema, OpenSearchSchemaFetcher
-
-
-from rich.console import Console
-
+from sycamore.query.strategy import DefaultQueryPlanStrategy, QueryPlanStrategy
+from sycamore.transforms.embed import SentenceTransformerEmbedder
+from sycamore.transforms.query import OpenSearchQueryExecutor
+from sycamore.transforms.similarity import HuggingFaceTransformersSimilarityScorer
+from sycamore.utils.cache import cache_from_path
+from sycamore.utils.import_utils import requires_modules
 
 console = Console()
 
@@ -103,6 +101,8 @@ class SycamoreQueryClient:
         os_config (optional): OpenSearch configuration. Defaults to DEFAULT_OS_CONFIG.
         os_client_args (optional): OpenSearch client arguments. Defaults to DEFAULT_OS_CLIENT_ARGS.
         cache_dir (optional): Directory to use for caching intermediate query results.
+        llm (optional): LLM implementation to use for planning and execution.
+        query_plan_strategy (optional): Strategy to use for planning, can be used to balance cost vs speed.
 
     Notes:
         If you override the context, you cannot override the llm_cache_dir, os_client_args, or llm; you need
@@ -127,6 +127,7 @@ class SycamoreQueryClient:
         cache_dir: Optional[str] = None,
         sycamore_exec_mode: ExecMode = ExecMode.RAY,
         llm: Optional[Union[LLM, str]] = None,
+        query_plan_strategy: Optional[QueryPlanStrategy] = None,
     ):
         from opensearchpy import OpenSearch
 
@@ -134,6 +135,7 @@ class SycamoreQueryClient:
         self.os_config = os_config
         self.cache_dir = cache_dir
         self.sycamore_exec_mode = sycamore_exec_mode
+        self.query_plan_strategy = query_plan_strategy
 
         # TODO: remove these assertions and simplify the code to get all customization via the
         # context.
@@ -198,6 +200,7 @@ class SycamoreQueryClient:
             os_config=self.os_config,
             os_client=self._os_client,
             llm_client=llm_client,
+            strategy=self.query_plan_strategy or DefaultQueryPlanStrategy(llm_client),
             examples=examples,
             natural_language_response=natural_language_response,
         )

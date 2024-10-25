@@ -1,5 +1,5 @@
 from os import PathLike
-from typing import BinaryIO, Literal, Optional, Union
+from typing import BinaryIO, Literal, Optional, Union, Any
 from collections.abc import Mapping
 from aryn_sdk.config import ArynConfig
 import requests
@@ -29,6 +29,7 @@ def partition_file(
     use_ocr: bool = False,
     ocr_images: bool = False,
     extract_table_structure: bool = False,
+    table_extraction_options: dict[str, Any] = {},
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
     aps_url: str = APS_URL,
@@ -53,6 +54,11 @@ def partition_file(
             default: False
         extract_table_structure: extract tables and their structural content.
             default: False
+        table_extraction_options: Specify options for table extraction, currently only supports boolean
+            'include_additional_text': if table extraction is enabled, attempt to enhance the table
+            structure by merging in tokens from text extraction. This can be useful for tables with missing
+            or misaligned text, and is False by default.
+            default: {}
         extract_images: extract image contents.
             default: False
         selected_pages: list of individual pages (1-indexed) from the pdf to partition
@@ -100,6 +106,7 @@ def partition_file(
         use_ocr=use_ocr,
         ocr_images=ocr_images,
         extract_table_structure=extract_table_structure,
+        table_extraction_options=table_extraction_options,
         extract_images=extract_images,
         selected_pages=selected_pages,
         output_format=output_format,
@@ -172,12 +179,13 @@ def _json_options(
     use_ocr: bool = False,
     ocr_images: bool = False,
     extract_table_structure: bool = False,
+    table_extraction_options: dict[str, Any] = {},
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
     output_format: Optional[str] = None,
 ) -> str:
     # isn't type-checking fun
-    options: dict[str, Union[float, bool, str, list[Union[list[int], int]]]] = dict()
+    options: dict[str, Union[float, bool, str, list[Union[list[int], int]], dict[str, Any]]] = dict()
     if threshold is not None:
         options["threshold"] = threshold
     if use_ocr:
@@ -188,6 +196,8 @@ def _json_options(
         options["extract_images"] = extract_images
     if extract_table_structure:
         options["extract_table_structure"] = extract_table_structure
+    if table_extraction_options:
+        options["table_extraction_options"] = table_extraction_options
     if selected_pages:
         options["selected_pages"] = selected_pages
     if output_format:

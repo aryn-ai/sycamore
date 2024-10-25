@@ -29,6 +29,7 @@ def partition_file(
     use_ocr: bool = False,
     ocr_images: bool = False,
     extract_table_structure: bool = False,
+    enhance_table: bool = False,
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
     aps_url: str = APS_URL,
@@ -52,6 +53,8 @@ def partition_file(
         ocr_images: attempt to use OCR to generate a text representation of detected images.
             default: False
         extract_table_structure: extract tables and their structural content.
+            default: False
+        enhance_table: If table extraction is enabled, attempt to enhance the table structure with merging in tokens from text extraction.
             default: False
         extract_images: extract image contents.
             default: False
@@ -100,6 +103,7 @@ def partition_file(
         use_ocr=use_ocr,
         ocr_images=ocr_images,
         extract_table_structure=extract_table_structure,
+        enhance_table=enhance_table,
         extract_images=extract_images,
         selected_pages=selected_pages,
         output_format=output_format,
@@ -172,6 +176,7 @@ def _json_options(
     use_ocr: bool = False,
     ocr_images: bool = False,
     extract_table_structure: bool = False,
+    enhance_table: bool = False,
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
     output_format: Optional[str] = None,
@@ -188,6 +193,8 @@ def _json_options(
         options["extract_images"] = extract_images
     if extract_table_structure:
         options["extract_table_structure"] = extract_table_structure
+    if enhance_table:
+        options["enhance_table"] = enhance_table
     if selected_pages:
         options["selected_pages"] = selected_pages
     if output_format:

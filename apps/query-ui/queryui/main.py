@@ -52,7 +52,7 @@ def main():
     argparser.add_argument(
         "--llm-cache-dir", type=str, default="llm_cache", help="LLM query cache dir. Defaults to ./llm_cache."
     )
-    args = argparser.parse_args()
+    args, pytest_args = argparser.parse_known_args()
 
     if args.chat:
         if args.test:

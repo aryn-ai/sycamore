@@ -22,7 +22,7 @@ boto3 = "^1.28.70"
 # http deps; make sure these are present in root pyproject.toml
 [tool.poetry.group.crawler_http.dependencies]
 scrapy = "^2.11"
-cryptography = "^42.0.3"
+cryptography = "^43.0.1"
 
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"

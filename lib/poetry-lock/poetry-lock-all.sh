@@ -35,6 +35,9 @@ for i in ${tomls}; do
         cd $(dirname "$i")
         poetry lock --no-update || exit 1
         poetry install 2>&1 | tee /tmp/poetry-install.out || exit 1
-        perl -ne 'print qq{$1 = "$2"\n} if /Downgrading (\S+) \((\S+) ->/o;' </tmp/poetry-install.out
+        perl -ne 'print qq{$1 = "$2"\n} if /Downgrading (\S+) \((\S+) ->/o;' </tmp/poetry-install.out >/tmp/downgraded
+        cat /tmp/downgraded
+        [[ $(wc -l </tmp/downgraded) -eq 0 ]] || exit 1
     ) || exit 1
 done
+echo "SUCCESS"

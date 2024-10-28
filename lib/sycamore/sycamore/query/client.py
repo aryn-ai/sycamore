@@ -310,6 +310,9 @@ def main():
     parser.add_argument("--limit", type=int, help="Limit number of results shown", default=None)
     parser.add_argument("--log-level", type=str, help="Log level", default="WARN")
     parser.add_argument("--llm", type=str, help="LLM model name", choices=MODELS.keys())
+    parser.add_argument(
+        "--exec-mode", type=str, choices=["ray", "local"], default="ray", help="Configure Sycamore execution mode."
+    )
     args = parser.parse_args()
 
     configure_logging(log_level=args.log_level)
@@ -318,7 +321,12 @@ def main():
         # Make cache_dir absolute.
         args.cache_dir = os.path.abspath(args.cache_dir)
 
-    client = SycamoreQueryClient(llm_cache_dir=args.llm_cache_dir, cache_dir=args.cache_dir, llm=args.llm)
+    client = SycamoreQueryClient(
+        llm_cache_dir=args.llm_cache_dir,
+        cache_dir=args.cache_dir,
+        llm=args.llm,
+        sycamore_exec_mode=ExecMode.RAY if args.exec_mode == "ray" else ExecMode.LOCAL,
+    )
 
     # Show indices and exit.
     if args.show_indices:

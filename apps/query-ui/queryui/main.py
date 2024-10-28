@@ -8,6 +8,7 @@ import argparse
 import logging
 import os
 import subprocess
+import sys
 import time
 
 import ray
@@ -17,11 +18,13 @@ from sycamore.executor import _ray_logging_setup
 
 def ray_init(**ray_args):
     """Used to initialize Ray before running the Streamlit app."""
+
+    os.environ["RAY_SCHEDULER_EVENTS"] = "0"
     if ray.is_initialized():
         return
 
     if "logging_level" not in ray_args:
-        ray_args.update({"logging_level": logging.INFO})
+        ray_args.update({"logging_level": logging.WARNING})
     if "runtime_env" not in ray_args:
         ray_args["runtime_env"] = {}
     if "worker_process_setup_hook" not in ray_args["runtime_env"]:
@@ -39,6 +42,7 @@ def main():
         "--exec-mode", type=str, choices=["ray", "local"], default="ray", help="Configure Sycamore execution mode."
     )
     argparser.add_argument("--chat", action="store_true", help="Only show the chat demo pane.")
+    argparser.add_argument("--test", action="store_true", help="Only run the integration test.")
     argparser.add_argument(
         "--index", help="OpenSearch index name to use. If specified, only this index will be queried."
     )
@@ -48,12 +52,14 @@ def main():
     argparser.add_argument(
         "--llm-cache-dir", type=str, default="llm_cache", help="LLM query cache dir. Defaults to ./llm_cache."
     )
-    args = argparser.parse_args()
+    args, pytest_args = argparser.parse_known_args()
 
     if args.chat:
-        cmdline = ["python", "-m", "streamlit", "run", "queryui/pages/Chat.py"]
+        if args.test:
+            raise ValueError("Cannot use --test and --chat at the same time.")
+        cmdline = ["python", "-m", "streamlit", "run", "queryui/pages/Chat.py", "--"]
     else:
-        cmdline = ["python", "-m", "streamlit", "run", "queryui/Sycamore_Query.py"]
+        cmdline = ["python", "-m", "streamlit", "run", "queryui/Sycamore_Query.py", "--"]
 
     cmdline_args = []
 
@@ -78,13 +84,22 @@ def main():
 
     if args.exec_mode == "ray":
         ray_init()
+
     elif args.exec_mode == "local":
         cmdline_args.extend(["--local-mode"])
+
+    if args.test:
+        cmdline = ["pytest"] + pytest_args
+        ret = subprocess.run(cmdline, check=True)
+        sys.exit(ret.returncode)
+
     while True:
         print("Starting streamlit process...", flush=True)
         # Streamlit requires the -- separator to separate streamlit arguments from script arguments.
-        ret = subprocess.run(cmdline + ["--"] + cmdline_args, check=True)
+        ret = subprocess.run(cmdline + cmdline_args, check=True)
         print(f"Subprocess exited {ret}", flush=True)
+        if args.test:
+            break
 
 
 if __name__ == "__main__":

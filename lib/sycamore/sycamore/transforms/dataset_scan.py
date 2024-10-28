@@ -19,3 +19,6 @@ class DatasetScan(Scan):
 
     def format(self):
         return "dataset"
+
+    def __str__(self):
+        return f"DatasetScan({self._dataset})"

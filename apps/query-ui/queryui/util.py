@@ -222,6 +222,9 @@ class QueryNodeTrace:
     def readdata(self):
         """Read the trace data for this node."""
 
+        if not self.result.execution:
+            return
+
         if self.node_id not in self.result.execution:
             return
 

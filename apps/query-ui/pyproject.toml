@@ -11,6 +11,7 @@ sycamore-ai = { path = "../../lib/sycamore", develop = true, extras = ["opensear
 streamlit = "^1.36.0"
 streamlit-ace = "^0.1.1"
 marko = "^2.1.2"
+pytest = "7.4.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.4"

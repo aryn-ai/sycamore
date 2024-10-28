@@ -194,6 +194,48 @@ typing-extensions = ">=4.9.0"
 hub = ["huggingface-hub"]
 
 [[package]]
+name = "albucore"
+version = "0.0.13"
+description = "A high-performance image processing library designed to optimize and extend the Albumentations library with specialized functions for advanced image transformations. Perfect for developers working in computer vision who require efficient and scalable image augmentation."
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "albucore-0.0.13-py3-none-any.whl", hash = "sha256:5a00c931ff80149726b80ad0c4c0a8327048463f14cbdf0ca5ff34a051700a84"},
+    {file = "albucore-0.0.13.tar.gz", hash = "sha256:c36d0af878e06f6e97e7882731c5d29243e38c21caec2005ee420fe85db4a7bc"},
+]
+
+[package.dependencies]
+numpy = ">=1.24.4,<2"
+opencv-python-headless = ">=4.9.0.80"
+tomli = ">=2.0.1"
+typing-extensions = ">=4.9.0"
+
+[[package]]
+name = "albumentations"
+version = "1.4.10"
+description = "An efficient library for image augmentation, providing extensive transformations to support machine learning and computer vision tasks."
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "albumentations-1.4.10-py3-none-any.whl", hash = "sha256:157d252f1a46e3d8d2970553a8eaace39540c90b0395981b4def8660bb933948"},
+    {file = "albumentations-1.4.10.tar.gz", hash = "sha256:739e96afcd1065b3804a6d621b2a95dfec560010a83a2e55c39ba307bdd59f41"},
+]
+
+[package.dependencies]
+albucore = ">=0.0.11"
+numpy = ">=1.24.4,<2"
+opencv-python-headless = ">=4.9.0.80"
+pydantic = ">=2.7.0"
+PyYAML = "*"
+scikit-image = ">=0.21.0"
+scikit-learn = ">=1.3.2"
+scipy = ">=1.10.0"
+typing-extensions = ">=4.9.0"
+
+[package.extras]
+hub = ["huggingface-hub"]
+
+[[package]]
 name = "altair"
 version = "5.4.1"
 description = "Vega-Altair: A declarative statistical visualization library for Python."
@@ -8866,4 +8908,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.9.7 || >3.9.7,<3.13"
-content-hash = "998adb79c5711a358e7e7f75d5f93ba682d5cb04925c37b3713a1195d9cbf1fd"
+content-hash = "4cd81de8378eec739584b62c1e30e583dde637087b7ea400c0bfb204c32335cc"

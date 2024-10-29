@@ -7,7 +7,6 @@ from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from typing import Any, BinaryIO, Literal, Union, Optional
 from pathlib import Path
-import pwd
 from itertools import repeat
 
 import requests
@@ -35,7 +34,7 @@ from sycamore.transforms.text_extraction import TextExtractor, OcrModel, get_tex
 from sycamore.transforms.text_extraction.pdf_miner import PdfMinerExtractor
 
 logger = logging.getLogger(__name__)
-_DETR_LOCK_FILE = f"{pwd.getpwuid(os.getuid()).pw_dir}/.cache/Aryn-Detr.lock"
+_DETR_LOCK_FILE = f"{Path.home()}/.cache/Aryn-Detr.lock"
 _VERSION = "0.2024.07.24"
 
 
@@ -387,17 +386,14 @@ class ArynPDFPartitioner:
         self._init_model()
 
         LogTime("partition_start", point=True)
-        with tempfile.NamedTemporaryFile(prefix="detr-pdf-input-") as pdffile:
+        # We use NamedTemporaryFile just for the file name.  On Windows,
+        # if we use the opened file, we can't open it a second time.
+        pdffile = tempfile.NamedTemporaryFile(prefix="detr-pdf-input-", delete=False)
+        try:
+            pdffile.file.close()
             with LogTime("write_pdf"):
-                file_hash = Cache.get_hash_context_file(pdffile.name)
-                data = file.read()
-                data_len = len(data)
-                pdffile.write(data)
-                del data
-                pdffile.flush()
+                file_hash = Cache.copy_and_hash_file(file, pdffile.name)
                 logger.info(f"Wrote {pdffile.name}")
-            stat = os.stat(pdffile.name)
-            assert stat.st_size == data_len
             return self._partition_pdf_batched_named(
                 pdffile.name,
                 file_hash.hexdigest(),
@@ -414,6 +410,8 @@ class ArynPDFPartitioner:
                 use_cache,
                 text_extraction_options,
             )
+        finally:
+            os.unlink(pdffile.name)
 
     def _partition_pdf_batched_named(
         self,

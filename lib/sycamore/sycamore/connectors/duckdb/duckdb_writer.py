@@ -57,7 +57,7 @@ class DuckDBClient(BaseDBWriter.Client):
     @requires_modules("duckdb", extra="duckdb")
     def __init__(self, client_params: DuckDBWriterClientParams):
         if not client_params.db_url:
-            raise ValueError(f"Must provide valid disk location. Location Specified: {client_params.db_url}")
+            raise ValueError(f"Must provide valid database url. Location Specified: {client_params.db_url}")
         self._client = duckdb.connect(database=client_params.db_url)
 
     @classmethod
@@ -126,8 +126,8 @@ class DuckDBClient(BaseDBWriter.Client):
                     f"""Error creating table {dict_params.get('table_name')}
                     in database {dict_params.get('db_url')}: no schema provided"""
                 )
-        except Exception:
-            logging.info(f"Table {dict_params.get('table_name')} already exists")
+        except Exception as e:
+            logging.debug(f"Table {dict_params.get('table_name')} could not be created: {e}")
 
     def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> "DuckDBWriterTargetParams":
         assert isinstance(target_params, DuckDBWriterTargetParams)

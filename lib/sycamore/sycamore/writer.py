@@ -374,7 +374,7 @@ class DocSetWriter:
     def duckdb(
         self,
         dimensions: int,
-        db_url: Optional[str] = None,
+        db_url: str = "tmp.db",
         table_name: Optional[str] = None,
         batch_size: Optional[int] = None,
         schema: Optional[dict[str, str]] = None,
@@ -426,12 +426,11 @@ class DocSetWriter:
             DuckDBWriterTargetParams,
         )
 
-        client_params = DuckDBWriterClientParams()
+        client_params = DuckDBWriterClientParams(db_url=db_url)
         target_params = DuckDBWriterTargetParams(
             **{
                 k: v
                 for k, v in {
-                    "db_url": db_url,
                     "table_name": table_name,
                     "batch_size": batch_size,
                     "schema": schema,

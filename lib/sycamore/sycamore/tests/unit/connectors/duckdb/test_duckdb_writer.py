@@ -26,7 +26,7 @@ def target_params():
 
 @pytest.fixture
 def client_params():
-    return DuckDBWriterClientParams()
+    return DuckDBWriterClientParams(db_url="test.db")
 
 
 @pytest.fixture
@@ -58,21 +58,21 @@ def test_duckdb_client_from_client_params(client_params):
     assert isinstance(client, DuckDBClient)
 
 
-def test_duckdb_writer_create_target_idempotent(mock_duckdb, target_params):
-    client = DuckDBClient(DuckDBWriterClientParams())
+def test_duckdb_writer_create_target_idempotent(mock_duckdb, client_params, target_params):
+    client = DuckDBClient(client_params)
     client.create_target_idempotent(target_params)
     mock_duckdb.sql.assert_called_once()
 
 
-def test_duckdb_writer_write_many_records(mock_duckdb, target_params, document):
-    client = DuckDBClient(DuckDBWriterClientParams())
+def test_duckdb_writer_write_many_records(mock_duckdb, client_params, target_params, document):
+    client = DuckDBClient(client_params)
     records = [DuckDBDocumentRecord.from_doc(document, target_params)]
     client.write_many_records(records, target_params)
     assert mock_duckdb.sql.call_count > 0
 
 
-def test_duckdb_writer_get_existing_target_params(mock_duckdb, target_params):
-    client = DuckDBClient(DuckDBWriterClientParams())
+def test_duckdb_writer_get_existing_target_params(mock_duckdb, client_params, target_params):
+    client = DuckDBClient(client_params)
     mock_duckdb.sql.return_value = mock.Mock(columns=["doc_id"], dtypes=["VARCHAR"])
     params = client.get_existing_target_params(target_params)
     assert params.schema == {"doc_id": "VARCHAR"}
@@ -103,9 +103,6 @@ def test_duckdb_writer_target_params_compatible_with():
     params3 = DuckDBWriterTargetParams(dimensions=64)
     assert not params1.compatible_with(params3)
 
-    params4 = DuckDBWriterTargetParams(dimensions=128, db_url="different.db")
-    assert not params1.compatible_with(params4)
-
     params5 = DuckDBWriterTargetParams(dimensions=128, table_name="different_table")
     assert not params1.compatible_with(params5)
 
@@ -116,21 +113,21 @@ def test_duckdb_writer_target_params_compatible_with():
     assert params8.compatible_with(params7)
 
 
-def test_duckdb_writer_get_existing_target_params_table_not_exist(mock_duckdb, target_params):
-    client = DuckDBClient(DuckDBWriterClientParams())
+def test_duckdb_writer_get_existing_target_params_table_not_exist(mock_duckdb, client_params, target_params):
+    client = DuckDBClient(client_params)
     mock_duckdb.sql.side_effect = Exception("Table does not exist")
     params = client.get_existing_target_params(target_params)
     assert params.schema == target_params.schema
 
 
-def test_duckdb_writer_write_many_records_empty(mock_duckdb, target_params):
-    client = DuckDBClient(DuckDBWriterClientParams())
+def test_duckdb_writer_write_many_records_empty(mock_duckdb, client_params, target_params):
+    client = DuckDBClient(client_params)
     client.write_many_records([], target_params)
     assert mock_duckdb.sql.call_count == 0
 
 
-def test_duckdb_writer_write_many_records_invalid_record(mock_duckdb, target_params, document):
-    client = DuckDBClient(DuckDBWriterClientParams())
+def test_duckdb_writer_write_many_records_invalid_record(mock_duckdb, client_params, target_params, document):
+    client = DuckDBClient(client_params)
     invalid_record = mock.Mock(spec=BaseDBWriter.Record)
     with pytest.raises(AssertionError):
         client.write_many_records([invalid_record], target_params)
@@ -151,8 +148,8 @@ def test_duckdb_document_record_from_doc_no_doc_id(target_params):
         DuckDBDocumentRecord.from_doc(document, target_params)
 
 
-def test_duckdb_writer_create_target_idempotent_no_schema(mock_duckdb, target_params):
-    client = DuckDBClient(DuckDBWriterClientParams())
+def test_duckdb_writer_create_target_idempotent_no_schema(mock_duckdb, client_params, target_params):
+    client = DuckDBClient(client_params)
     target_params.schema = None
     client.create_target_idempotent(target_params)
     assert mock_duckdb.sql.call_count == 0

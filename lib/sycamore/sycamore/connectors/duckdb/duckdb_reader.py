@@ -58,6 +58,9 @@ class DuckDBReaderClient(BaseDBReader.Client):
         except Exception:
             return False
 
+    def close(self):
+        self._client.close()
+
 
 @dataclass
 class DuckDBReaderQueryResponse(BaseDBReader.QueryResponse):

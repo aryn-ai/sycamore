@@ -14,13 +14,12 @@ from sycamore.connectors.common import convert_to_str_dict, _get_pyarrow_type
 
 @dataclass
 class DuckDBWriterClientParams(BaseDBWriter.ClientParams):
-    pass
+    db_url: str
 
 
 @dataclass
 class DuckDBWriterTargetParams(BaseDBWriter.TargetParams):
     dimensions: int
-    db_url: Optional[str] = "tmp.db"
     table_name: Optional[str] = "default_table"
     batch_size: int = 1000
     schema: dict[str, str] = field(
@@ -41,8 +40,6 @@ class DuckDBWriterTargetParams(BaseDBWriter.TargetParams):
             return False
         if self.dimensions != other.dimensions:
             return False
-        if self.db_url != other.db_url:
-            return False
         if self.table_name != other.table_name:
             return False
         if other.schema and self.schema:
@@ -59,7 +56,9 @@ class DuckDBWriterTargetParams(BaseDBWriter.TargetParams):
 class DuckDBClient(BaseDBWriter.Client):
     @requires_modules("duckdb", extra="duckdb")
     def __init__(self, client_params: DuckDBWriterClientParams):
-        pass
+        if not client_params.db_url:
+            raise ValueError(f"Must provide valid database url. Location Specified: {client_params.db_url}")
+        self._client = duckdb.connect(database=client_params.db_url)
 
     @classmethod
     def from_client_params(cls, params: BaseDBWriter.ClientParams) -> "DuckDBClient":
@@ -89,8 +88,7 @@ class DuckDBClient(BaseDBWriter.Client):
 
         def write_batch(batch_data: dict):
             pa_table = pa.Table.from_pydict(batch_data, schema=schema)  # noqa
-            client = duckdb.connect(str(dict_params.get("db_url")))
-            client.sql(f"INSERT INTO {dict_params.get('table_name')} SELECT * FROM pa_table")
+            self._client.sql(f"INSERT INTO {dict_params.get('table_name')} SELECT * FROM pa_table")
             for key in batch_data:
                 batch_data[key].clear()
 
@@ -114,9 +112,6 @@ class DuckDBClient(BaseDBWriter.Client):
         assert isinstance(target_params, DuckDBWriterTargetParams)
         dict_params = asdict(target_params)
         schema = dict_params.get("schema")
-        if not target_params.db_url:
-            raise ValueError(f"Must provide valid disk location. Location Specified: {target_params.db_url}")
-        client = duckdb.connect(str(dict_params.get("db_url")))
         try:
             if schema:
                 columns = []
@@ -125,23 +120,22 @@ class DuckDBClient(BaseDBWriter.Client):
                         dtype += f"[{dict_params.get('dimensions')}]"
                     columns.append(f"{key} {dtype}")
                 columns_str = ", ".join(columns)
-                client.sql(f"CREATE TABLE {dict_params.get('table_name')} ({columns_str})")
+                self._client.sql(f"CREATE TABLE {dict_params.get('table_name')} ({columns_str})")
             else:
                 logging.warning(
                     f"""Error creating table {dict_params.get('table_name')}
                     in database {dict_params.get('db_url')}: no schema provided"""
                 )
-        except Exception:
-            return
+        except Exception as e:
+            logging.debug(f"Table {dict_params.get('table_name')} could not be created: {e}")
 
     def get_existing_target_params(self, target_params: BaseDBWriter.TargetParams) -> "DuckDBWriterTargetParams":
         assert isinstance(target_params, DuckDBWriterTargetParams)
         dict_params = asdict(target_params)
         schema = target_params.schema
-        if target_params.db_url and target_params.table_name:
-            client = duckdb.connect(str(dict_params.get("db_url")))
+        if target_params.table_name:
             try:
-                table = client.sql(f"SELECT * FROM {target_params.table_name}")
+                table = self._client.sql(f"SELECT * FROM {target_params.table_name}")
                 schema = dict(zip(table.columns, [str(i) for i in table.dtypes]))
             except Exception as e:
                 logging.warning(
@@ -150,11 +144,13 @@ class DuckDBClient(BaseDBWriter.Client):
                 )
         return DuckDBWriterTargetParams(
             dimensions=target_params.dimensions,
-            db_url=target_params.db_url,
             table_name=target_params.table_name,
             batch_size=target_params.batch_size,
             schema=schema,
         )
+
+    def close(self):
+        self._client.close()
 
 
 @dataclass

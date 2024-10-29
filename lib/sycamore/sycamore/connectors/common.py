@@ -217,6 +217,9 @@ def convert_to_str_dict(data: dict[str, Any]) -> dict[str, str]:
 def convert_from_str_dict(data: dict[str, str]) -> dict[str, Any]:
     result: Dict[str, Any] = {}
     for key, value in data.items():
+        if not isinstance(value, str):
+            result[key] = value
+            continue
         if value == "":
             result[key] = None
         elif value.lower() == "true":

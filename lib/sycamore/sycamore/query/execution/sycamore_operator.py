@@ -143,11 +143,13 @@ class SycamoreQueryVectorDatabase(SycamoreOperator):
         os_query = get_knn_query(query_phrase=self.logical_node.query_phrase, context=self.context)
         if self.logical_node.opensearch_filter:
             os_query["query"]["knn"]["embedding"]["filter"] = self.logical_node.opensearch_filter
-# XXX XXX XXX MDW 21 Oct 2024 - Disable .rerank() for the Luna demo since it seems to hurt performance a lot.
-#        result = self.context.read.opensearch(
-#            index_name=self.logical_node.index, query=os_query, reconstruct_document=True
-#        ).rerank(query=self.logical_node.query_phrase)
-        result = self.context.read.opensearch(index_name=self.logical_node.index, query=os_query, reconstruct_document=True)
+        # XXX XXX XXX MDW 21 Oct 2024 - Disable .rerank() for the Luna demo since it seems to hurt performance a lot.
+        #        result = self.context.read.opensearch(
+        #            index_name=self.logical_node.index, query=os_query, reconstruct_document=True
+        #        ).rerank(query=self.logical_node.query_phrase)
+        result = self.context.read.opensearch(
+            index_name=self.logical_node.index, query=os_query, reconstruct_document=True
+        )
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:

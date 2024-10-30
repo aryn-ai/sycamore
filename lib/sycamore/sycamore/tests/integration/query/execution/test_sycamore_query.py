@@ -80,7 +80,7 @@ class TestSycamoreQuery:
             "give me some wind related incidents",
             query_integration_test_index,
             schema,
-            natural_language_response=True,
+            natural_language_response=False,
         )
         assert len(plan.nodes) == 1
         assert isinstance(plan.nodes[0], QueryVectorDatabase)

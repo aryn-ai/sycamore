@@ -431,3 +431,17 @@ class TestOpenSearchUtils:
 
         assert get_knn_query(query_phrase="test", k=1000, text_embedder=embedder) == expected_query
         embedder.generate_text_embedding.assert_called_with("test")
+
+        # default
+        expected_query = {"query": {"knn": {"embedding": {"vector": embedding, "k": 500}}}}
+        assert get_knn_query(query_phrase="test", context=context) == expected_query
+        embedder.generate_text_embedding.assert_called_with("test")
+
+        # min_score
+        expected_query = {"query": {"knn": {"embedding": {"vector": embedding, "min_score": 0.5}}}}
+        assert get_knn_query(query_phrase="test", min_score=0.5, context=context) == expected_query
+        embedder.generate_text_embedding.assert_called_with("test")
+
+    def test_get_knn_query_validation(self):
+        with pytest.raises(ValueError, match="Only one of `k` or `min_score` should be populated"):
+            get_knn_query(Mock(spec=Embedder), query_phrase="test", k=10, min_score=0.5)

@@ -189,7 +189,9 @@ class QueryEvalDriver:
         return result
 
     def _check_tags_match(self, query):
-        return set(self.config.config.tags or []) == set(query.tags or [])
+        if not self.config.config or not self.config.config.tags:
+            return True
+        return set(self.config.config.tags) == set(query.tags or [])
 
     def do_plan(self, query: QueryEvalQuery, result: QueryEvalResult) -> QueryEvalResult:
         """Generate or return an existing query plan."""
@@ -254,13 +256,17 @@ class QueryEvalDriver:
         query_result = self.client.run_plan(result.plan)
         if isinstance(query_result.result, str):
             result.result = query_result.result
+        query_result = self.client.run_plan(result.plan)
+        if isinstance(query_result.result, str):
+            result.result = query_result.result
             t2 = time.time()
+        elif isinstance(query_result.result, DocSet):
         elif isinstance(query_result.result, DocSet):
             assert self.config.config
             if self.config.config.doc_limit:
-                query_result.result = query_result.take(self.config.config.doc_limit)
+                query_result.result = query_result.result.take(self.config.config.doc_limit)
             else:
-                query_result.result = query_result.take_all()
+                query_result.result = query_result.result.take_all()
             t2 = time.time()
             result.result = self.format_docset(query_result.result)
         else:
@@ -279,7 +285,7 @@ class QueryEvalDriver:
             if self.config.config.dry_run:
                 console.print("[yellow]:point_right: Dry run: skipping eval")
                 return result
-            elif not (set(self.config.config.tags or []) & set(query.tags or [])):
+            elif not self._check_tags_match(query):
                 console.print("[yellow]:point_right: Skipping query due to tag mismatch")
                 return result
 

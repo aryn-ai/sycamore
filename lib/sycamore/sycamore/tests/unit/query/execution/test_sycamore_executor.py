@@ -83,7 +83,7 @@ def test_run_plan_with_caching(test_count_docs_query_plan, mock_sycamore_docsetr
                 plan=test_count_docs_query_plan,
                 result=mock_opensearch_num_docs,
                 query_id="test_query_id",
-                trace_dirs=result.trace_dirs,
+                execution=result.execution,
             )
             assert result == expected
 

@@ -152,15 +152,17 @@ class MarkDropHeaderFooter(SingleThreadUser, NonGPUUser, Map):
     """
 
     def __init__(self, child: Node, top: float = 0.05, bottom: Optional[float] = None, **resource_args):
-        if bottom is None:
-            bottom = top
-        lo = top
-        hi = 1.0 - bottom
-        super().__init__(child, f=MarkDropHeaderFooter.mark_drop_header_and_footer, args=[lo, hi], **resource_args)
+        super().__init__(child, f=MarkDropHeaderFooter.mark_drop_header_and_footer, args=[top, bottom], **resource_args)
 
     @staticmethod
     @timetrace("markHeadFoot")
-    def mark_drop_header_and_footer(parent: Document, lo: float, hi: float) -> Document:
+    def mark_drop_header_and_footer(parent: Document, top: float = 0.05, bottom: Optional[float] = None) -> Document:
+        if bottom is None:
+            bottom = top
+
+        lo = top
+        hi = 1.0 - bottom
+
         for elem in parent.elements:
             bbox = elem.data.get("bbox")
             if (bbox is not None) and ((bbox[1] > hi) or (bbox[3] < lo)):

@@ -103,9 +103,8 @@ def run_query():
         st.subheader("Result", divider="rainbow")
         st.markdown(result_str, unsafe_allow_html=True)
 
-        if result.trace_dirs:
-            with st.expander("Query trace"):
-                util.show_query_traces(result)
+        with st.expander("Query trace"):
+            util.show_query_traces(result)
 
 
 def main():

@@ -9,7 +9,7 @@ from structlog.contextvars import clear_contextvars, bind_contextvars
 from sycamore import Context
 from sycamore.materialize_config import MaterializeSourceMode
 from sycamore.query.logical_plan import LogicalPlan, Node
-from sycamore.query.result import SycamoreQueryResult
+from sycamore.query.result import SycamoreQueryResult, NodeExecution
 from sycamore.query.operators.count import Count
 from sycamore.query.operators.basic_filter import BasicFilter
 from sycamore.query.operators.limit import Limit
@@ -88,10 +88,7 @@ class SycamoreExecutor:
         """Process the given node. Recursively processes dependencies first."""
 
         query_id = result.query_id
-
-        # This is lifted up here to avoid serialization issues with Ray.
         bind_contextvars(logical_node=logical_node)
-
         if logical_node.node_id in self.processed:
             log.info("Already processed")
             return self.processed[logical_node.node_id]
@@ -100,9 +97,12 @@ class SycamoreExecutor:
 
         if self.cache_dir and not self.dry_run:
             cache_dir = os.path.join(self.cache_dir, logical_node.cache_key())
-            if not hasattr(result, "trace_dirs") or not result.trace_dirs:
-                result.trace_dirs = {}
-            result.trace_dirs[logical_node.node_id] = cache_dir
+            if result.execution is None:
+                result.execution = {}
+            if logical_node.node_id not in result.execution:
+                result.execution[logical_node.node_id] = NodeExecution(
+                    node_id=logical_node.node_id, trace_dir=cache_dir
+                )
             os.makedirs(cache_dir, exist_ok=True)
         else:
             cache_dir = None

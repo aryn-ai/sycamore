@@ -250,7 +250,7 @@ def do_query():
                         tool_query = tool_args["query"]
                         raw_result = query_data_source(tool_query, st.session_state.index)
                         if isinstance(raw_result, SycamoreQueryResult):
-                            query_result = raw_result     
+                            query_result = raw_result
                             tool_response = query_result.result
                         else:
                             tool_response = raw_result

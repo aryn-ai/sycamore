@@ -12,7 +12,7 @@ For processing PDFs, Sycamore leverages the [Aryn Partitioning Service](https://
 
 The Aryn Partitioning Service takes PDFs and returns the partitioned output in JSON, and you can use Sycamore for additional data extraction, enrichment, transforms, cleaning, and loading into downstream databases. You can choose the LLMs to use with these transforms.
 
-Sycamore reliably loads your vector databases and hybrid search engines, including as OpenSearch, ElasticSearch, Pinecone, DuckDB and Weaviate, with higher quality data. 
+Sycamore reliably loads your vector databases and hybrid search engines, including as OpenSearch, ElasticSearch, Pinecone, DuckDB, Qdrant and Weaviate, with higher quality data. 
 
 The Sycamore framework is built around a scalable and robust abstraction for document processing called a DocSet, and includes powerful high-level transformations in Python for data processing, enrichment, and cleaning. DocSets also encapsulate scalable data processing techniques removing the undifferentiated heavy lifting of reliably loading chunks. DocSets' functional programming approach allows you to rapidly customize and experiment with your chunking for better quality RAG results.
 
@@ -41,7 +41,7 @@ Sycamore provides connectors to vector databases via Python extras. To install a
 
 ```pip install sycamore-ai[duckdb]```
 
-Supported connectors include `duckdb`, `elasticsearch`, `opensearch`, `pinecone`, and `weaviate`.
+Supported connectors include `duckdb`, `elasticsearch`, `opensearch`, `pinecone`, `qdrant`, and `weaviate`.
 
 To use the Aryn Partitioning Service, [sign-up for free here](https://www.aryn.ai/get-started) and use the API key.
 

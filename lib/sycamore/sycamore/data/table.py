@@ -332,8 +332,6 @@ class Table:
             index=None,
             columns=flattened_header if max_header_prefix_row >= 0 else None,
         )
-        assert self.column_headers == flattened_header
-        # self.column_headers = flattened_header if max_header_prefix_row >= 0 else []
         return df
 
     def to_csv(self, **kwargs) -> str:

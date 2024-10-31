@@ -113,7 +113,31 @@ class Table:
         self.caption = caption
         self.num_rows = max(max(c.rows) for c in self.cells) + 1
         self.num_cols = max(max(c.cols) for c in self.cells) + 1
-        self.column_headers = column_headers
+
+        if column_headers is not None:
+            self.column_headers = column_headers
+        else:
+            header_rows = sorted(set((row_num for cell in self.cells for row_num in cell.rows if cell.is_header)))
+
+            max_header_prefix_row = -1
+            for i in range(len(header_rows)):
+                if header_rows[i] != i:
+                    break
+                max_header_prefix_row = i
+
+            header_array = np.empty([max_header_prefix_row + 1, self.num_cols], dtype="object")
+            if len(self.cells) > 0:
+                for cell in self.cells:
+                    if cell.is_header and cell.rows[0] <= max_header_prefix_row:
+                        for col in cell.cols:
+                            header_array[cell.rows[0], col] = cell.content
+                        for row in cell.rows[1:]:
+                            for col in cell.cols:
+                                header_array[row, col] = ""
+
+            self.column_headers = []
+            for npcol in header_array.transpose():
+                self.column_headers.append(" | ".join(OrderedDict.fromkeys((c for c in npcol if c not in [None, ""]))))
 
     def __eq__(self, other):
         if type(other) is not type(self):
@@ -308,7 +332,8 @@ class Table:
             index=None,
             columns=flattened_header if max_header_prefix_row >= 0 else None,
         )
-        self.column_headers = flattened_header if max_header_prefix_row >= 0 else []
+        assert self.column_headers == flattened_header
+        # self.column_headers = flattened_header if max_header_prefix_row >= 0 else []
         return df
 
     def to_csv(self, **kwargs) -> str:

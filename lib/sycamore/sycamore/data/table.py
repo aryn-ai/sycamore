@@ -117,27 +117,7 @@ class Table:
         if column_headers is not None:
             self.column_headers = column_headers
         else:
-            header_rows = sorted(set((row_num for cell in self.cells for row_num in cell.rows if cell.is_header)))
-
-            max_header_prefix_row = -1
-            for i in range(len(header_rows)):
-                if header_rows[i] != i:
-                    break
-                max_header_prefix_row = i
-
-            header_array = np.empty([max_header_prefix_row + 1, self.num_cols], dtype="object")
-            if len(self.cells) > 0:
-                for cell in self.cells:
-                    if cell.is_header and cell.rows[0] <= max_header_prefix_row:
-                        for col in cell.cols:
-                            header_array[cell.rows[0], col] = cell.content
-                        for row in cell.rows[1:]:
-                            for col in cell.cols:
-                                header_array[row, col] = ""
-
-            self.column_headers = []
-            for npcol in header_array.transpose():
-                self.column_headers.append(" | ".join(OrderedDict.fromkeys((c for c in npcol if c not in [None, ""]))))
+            self.column_headers = self.to_pandas(column_header=True)
 
     def __eq__(self, other):
         if type(other) is not type(self):
@@ -275,7 +255,7 @@ class Table:
     # we speculate that duplication may create confusion, so we default to only displaying a cells
     # content for the first row/column for which it is applicable. The exception is for header rows,
     # where we duplicate values to each columnn to ensure that every column has a fully qualified header.
-    def to_pandas(self) -> DataFrame:
+    def to_pandas(self, column_header: Optional[bool] = False) -> Union[DataFrame, list]:
         """Returns this table as a Pandas DataFrame.
 
         For example, Suppose a cell spans row 2-3 and columns 4-5.
@@ -313,12 +293,13 @@ class Table:
                             table_array[row, col] = ""
 
                 else:
-                    for row in cell.rows:
-                        for col in cell.cols:
-                            if row == cell.rows[0] and col == cell.cols[0]:
-                                table_array[row, col] = cell.content
-                            else:
-                                table_array[row, col] = ""
+                    if not column_header:
+                        for row in cell.rows:
+                            for col in cell.cols:
+                                if row == cell.rows[0] and col == cell.cols[0]:
+                                    table_array[row, col] = cell.content
+                                else:
+                                    table_array[row, col] = ""
 
         header = table_array[: max_header_prefix_row + 1, :]
 
@@ -326,7 +307,8 @@ class Table:
 
         for npcol in header.transpose():
             flattened_header.append(" | ".join(OrderedDict.fromkeys((c for c in npcol if c not in [None, ""]))))
-
+        if column_header:
+            return flattened_header
         df = DataFrame(
             table_array[max_header_prefix_row + 1 :, :],
             index=None,

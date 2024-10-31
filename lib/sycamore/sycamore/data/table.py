@@ -117,7 +117,7 @@ class Table:
         if column_headers is not None:
             self.column_headers = column_headers
         else:
-            self.column_headers = self.to_pandas(column_header=True)
+            self.column_headers = self.to_pandas(column_header_only=True)
 
     def __eq__(self, other):
         if type(other) is not type(self):
@@ -255,7 +255,7 @@ class Table:
     # we speculate that duplication may create confusion, so we default to only displaying a cells
     # content for the first row/column for which it is applicable. The exception is for header rows,
     # where we duplicate values to each columnn to ensure that every column has a fully qualified header.
-    def to_pandas(self, column_header: Optional[bool] = False) -> Union[DataFrame, List[str]]:
+    def to_pandas(self, column_header_only: bool = False) -> Union[DataFrame, List[str]]:
         """Returns this table as a Pandas DataFrame.
 
         For example, Suppose a cell spans row 2-3 and columns 4-5.
@@ -293,7 +293,7 @@ class Table:
                             table_array[row, col] = ""
 
                 else:
-                    if not column_header:
+                    if not column_header_only:
                         for row in cell.rows:
                             for col in cell.cols:
                                 if row == cell.rows[0] and col == cell.cols[0]:
@@ -307,7 +307,7 @@ class Table:
 
         for npcol in header.transpose():
             flattened_header.append(" | ".join(OrderedDict.fromkeys((c for c in npcol if c not in [None, ""]))))
-        if column_header:
+        if column_header_only:
             return flattened_header
         df = DataFrame(
             table_array[max_header_prefix_row + 1 :, :],
@@ -329,7 +329,7 @@ class Table:
 
         pandas_kwargs = {"index": False, "header": has_header}
         pandas_kwargs.update(kwargs)
-        df = self.to_pandas(column_header=False)
+        df = self.to_pandas(column_header_only=False)
         assert isinstance(df, DataFrame), "Expected `to_pandas` to return a DataFrame"
         return df.to_csv(**pandas_kwargs)
 

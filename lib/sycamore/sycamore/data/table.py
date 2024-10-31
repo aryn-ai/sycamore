@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from typing import Any, Optional, TypeVar, Union
+from typing import Any, Optional, TypeVar, Union, List
 import xml.etree.ElementTree as ET
 
 from bs4 import BeautifulSoup, Tag
@@ -255,7 +255,7 @@ class Table:
     # we speculate that duplication may create confusion, so we default to only displaying a cells
     # content for the first row/column for which it is applicable. The exception is for header rows,
     # where we duplicate values to each columnn to ensure that every column has a fully qualified header.
-    def to_pandas(self, column_header: Optional[bool] = False) -> Union[DataFrame, list]:
+    def to_pandas(self, column_header: Optional[bool] = False) -> Union[DataFrame, List[str]]:
         """Returns this table as a Pandas DataFrame.
 
         For example, Suppose a cell spans row 2-3 and columns 4-5.
@@ -329,7 +329,9 @@ class Table:
 
         pandas_kwargs = {"index": False, "header": has_header}
         pandas_kwargs.update(kwargs)
-        return self.to_pandas().to_csv(**pandas_kwargs)
+        df = self.to_pandas(column_header=False)
+        assert isinstance(df, DataFrame), "Expected `to_pandas` to return a DataFrame"
+        return df.to_csv(**pandas_kwargs)
 
     def to_html(self, pretty=False, wrap_in_html=False, style=DEFAULT_HTML_STYLE):
         """Converts this table to an HTML string.

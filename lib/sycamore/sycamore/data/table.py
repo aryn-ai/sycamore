@@ -99,7 +99,9 @@ class Table:
     are lossy, since, for instance, CSV does not natively support spanning cells.
     """
 
-    def __init__(self, cells: list[TableCell], caption: Optional[str] = None):
+    def __init__(
+        self, cells: list[TableCell], caption: Optional[str] = None, column_headers: Optional[list[str]] = None
+    ):
         """Creates a new Table.
 
         Args:
@@ -111,6 +113,7 @@ class Table:
         self.caption = caption
         self.num_rows = max(max(c.rows) for c in self.cells) + 1
         self.num_cols = max(max(c.cols) for c in self.cells) + 1
+        self.column_headers = column_headers
 
     def __eq__(self, other):
         if type(other) is not type(self):
@@ -305,6 +308,7 @@ class Table:
             index=None,
             columns=flattened_header if max_header_prefix_row >= 0 else None,
         )
+        self.column_headers = flattened_header if max_header_prefix_row >= 0 else []
         return df
 
     def to_csv(self, **kwargs) -> str:

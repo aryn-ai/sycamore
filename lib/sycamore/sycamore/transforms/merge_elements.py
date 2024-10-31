@@ -517,7 +517,7 @@ class TableMerger(ElementMerger):
         ]
 
         # Create a new Table object with merged cells
-        merged_table = Table(cells=merged_cells)
+        merged_table = Table(cells=merged_cells, column_headers=elt1.table.column_headers)
 
         title1 = elt1.data["properties"].get("title", "") or ""
         title2 = elt2.data["properties"].get("title", "") or ""

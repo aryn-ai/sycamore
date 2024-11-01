@@ -264,12 +264,13 @@ class QueryEvalDriver:
             else:
                 query_result.result = query_result.result.take_all()
             t2 = time.time()
-            result.result = self.format_docset(query_result.result)
+            result.result = [doc.data for doc in query_result.result]
         else:
             result.result = str(query_result.result)
             t2 = time.time()
         assert result.metrics
         result.metrics.query_time = t2 - t1
+        result.retrieved_docs = query_result.retrieved_docs()
 
         console.print(f"[green]:clock9: Executed query in {result.metrics.query_time:.2f} seconds")
         console.print(f":white_check_mark: Result: {result.result}")

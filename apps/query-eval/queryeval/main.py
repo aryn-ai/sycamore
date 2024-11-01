@@ -11,6 +11,7 @@
 #      data/ntsb-queries.yaml \
 #      run
 
+import tempfile
 from typing import Optional, Tuple
 
 import click
@@ -56,6 +57,11 @@ def cli(
     raw_output: bool,
 ):
     ctx.ensure_object(dict)
+
+    if not query_cache_path:
+        query_cache_path = tempfile.mkdtemp()
+    console.print(f"[yellow]Using query cache path: {query_cache_path}")
+
     driver = QueryEvalDriver(
         input_file_path=config_file,
         index=index,

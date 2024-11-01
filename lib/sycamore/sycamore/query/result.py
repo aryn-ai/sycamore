@@ -72,12 +72,15 @@ class SycamoreQueryResult(BaseModel):
             if self.execution is not None and node_id in self.execution:
                 node_trace_dir = self.execution[node_id].trace_dir
                 if node_trace_dir:
-                    mds = context.read.materialize(node_trace_dir).filter(
-                        lambda doc: doc.properties.get("path") is not None
-                    )
-                    keep = mds.filter(lambda doc: doc.properties.get("path") is not None)
-                    if keep.count() > 0:
-                        return {doc.properties.get("path") for doc in keep.take_all()}
+                    try:
+                        mds = context.read.materialize(node_trace_dir)
+                        keep = mds.filter(lambda doc: doc.properties.get("path") is not None)
+                        if keep.count() > 0:
+                            return {doc.properties.get("path") for doc in keep.take_all()}
+                    except ValueError:
+                        # This can happen if the materialize directory is empty.
+                        # Ignore and move onto the next node.
+                        pass
 
             # Walk up the tree.
             node = self.plan.nodes[node_id]

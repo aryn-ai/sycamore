@@ -16,6 +16,7 @@ from queryeval.types import (
     QueryEvalResult,
     QueryEvalResultsFile,
 )
+from sycamore.data import Document
 from sycamore.docset import DocSet
 from sycamore.query.client import SycamoreQueryClient, configure_logging
 
@@ -170,11 +171,15 @@ class QueryEvalDriver:
             results_file.write(to_yaml_str(results_file_obj))
         console.print(f":white_check_mark: Wrote {len(self.results_map)} results to {self.config.config.results_file}")
 
-    def format_docset(self, docset: DocSet) -> List[Dict[str, Any]]:
-        """Convert a DocSet query result to a list of dicts."""
+    def format_doclist(self, doclist: List[Document]) -> List[Dict[str, Any]]:
+        """Convert a document list query result to a list of dicts."""
         results = []
-        for doc in docset.take_all():
-            results.append(doc.data)
+        for doc in doclist:
+            if hasattr(doc, "data"):
+                if hasattr(doc.data, "model_dump"):
+                    results.append(doc.data.model_dump())
+                else:
+                    results.append(doc.data)
         return results
 
     def get_result(self, query: QueryEvalQuery) -> Optional[QueryEvalResult]:
@@ -267,7 +272,7 @@ class QueryEvalDriver:
             else:
                 query_result.result = query_result.result.take_all()
             t2 = time.time()
-            result.result = [doc.data.model_dump() for doc in query_result.result]
+            result.result = self.format_doclist(query_result.result)
         else:
             result.result = str(query_result.result)
             t2 = time.time()

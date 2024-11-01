@@ -13,7 +13,7 @@ import argparse
 import logging
 import os
 import uuid
-from typing import Any, List, Optional, Union
+from typing import List, Optional, Union
 
 import structlog
 import yaml
@@ -225,7 +225,7 @@ class SycamoreQueryClient:
         index: str,
         dry_run: bool = False,
         codegen_mode: bool = False,
-    ) -> Any:
+    ) -> SycamoreQueryResult:
         """Run a query against the given index."""
         schema = self.get_opensearch_schema(index)
         plan = self.generate_plan(query, index, schema)

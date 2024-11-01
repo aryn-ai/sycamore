@@ -16,6 +16,7 @@ from queryeval.types import (
     QueryEvalResult,
     QueryEvalResultsFile,
 )
+from sycamore.data import Document
 from sycamore.docset import DocSet
 from sycamore.query.client import SycamoreQueryClient, configure_logging
 
@@ -88,7 +89,7 @@ class QueryEvalDriver:
 
         # Configure logging.
         if self.config.config.log_file:
-            os.makedirs(os.path.dirname(self.config.config.log_file), exist_ok=True)
+            os.makedirs(os.path.dirname(os.path.abspath(self.config.config.log_file)), exist_ok=True)
         configure_logging(logfile=self.config.config.log_file, log_level=logging.INFO)
 
         if not self.config.config.index:
@@ -96,10 +97,16 @@ class QueryEvalDriver:
         if not self.config.config.results_file:
             raise ValueError("Results file must be specified")
 
-        console.print(f"Writing results to: {self.config.config.results_file}")
-        os.makedirs(os.path.dirname(self.config.config.results_file), exist_ok=True)
+        if self.config.config.results_file:
+            console.print(f"Writing results to: {self.config.config.results_file}")
+            os.makedirs(os.path.dirname(os.path.abspath(self.config.config.results_file)), exist_ok=True)
+
         # Read results file if it exists.
-        if not self.config.config.overwrite and os.path.exists(self.config.config.results_file):
+        if (
+            not self.config.config.overwrite
+            and self.config.config.results_file
+            and os.path.exists(self.config.config.results_file)
+        ):
             results = self.read_results_file(self.config.config.results_file)
             console.print(
                 f":white_check_mark: Read {len(results.results or [])} "
@@ -170,11 +177,15 @@ class QueryEvalDriver:
             results_file.write(to_yaml_str(results_file_obj))
         console.print(f":white_check_mark: Wrote {len(self.results_map)} results to {self.config.config.results_file}")
 
-    def format_docset(self, docset: DocSet) -> List[Dict[str, Any]]:
-        """Convert a DocSet query result to a list of dicts."""
+    def format_doclist(self, doclist: List[Document]) -> List[Dict[str, Any]]:
+        """Convert a document list query result to a list of dicts."""
         results = []
-        for doc in docset.take_all():
-            results.append(doc.data)
+        for doc in doclist:
+            if hasattr(doc, "data"):
+                if hasattr(doc.data, "model_dump"):
+                    results.append(doc.data.model_dump())
+                else:
+                    results.append(doc.data)
         return results
 
     def get_result(self, query: QueryEvalQuery) -> Optional[QueryEvalResult]:
@@ -267,12 +278,16 @@ class QueryEvalDriver:
             else:
                 query_result.result = query_result.result.take_all()
             t2 = time.time()
-            result.result = self.format_docset(query_result.result)
+            result.result = self.format_doclist(query_result.result)
         else:
             result.result = str(query_result.result)
             t2 = time.time()
         assert result.metrics
         result.metrics.query_time = t2 - t1
+        try:
+            result.retrieved_docs = query_result.retrieved_docs()
+        except Exception:
+            result.retrieved_docs = None
 
         console.print(f"[green]:clock9: Executed query in {result.metrics.query_time:.2f} seconds")
         console.print(f":white_check_mark: Result: {result.result}")

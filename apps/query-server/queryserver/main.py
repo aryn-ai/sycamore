@@ -5,7 +5,7 @@
 
 import os
 import tempfile
-from typing import Annotated, List, Optional
+from typing import Annotated, Any, List, Optional, Set
 
 from fastapi import FastAPI, Path
 from pydantic import BaseModel
@@ -41,9 +41,12 @@ class Query(BaseModel):
     index: str
 
 
-def get_index_schema(index: str) -> OpenSearchSchema:
-    """Get the schema for the given index."""
-    return sqclient.get_opensearch_schema(index)
+class QueryResult(BaseModel):
+    """Result of a query."""
+
+    plan: LogicalPlan
+    result: Any
+    retrieved_docs: Set[str]
 
 
 @app.get("/v1/indices")
@@ -53,7 +56,7 @@ async def list_indices() -> List[Index]:
     retval = []
     indices = util.get_opensearch_indices()
     for index in indices:
-        index_schema = sqclient.get_opensearch_schema(index)
+        index_schema = util.get_schema(sqclient, index)
         retval.append(Index(index=index, index_schema=index_schema))
     return retval
 
@@ -64,7 +67,7 @@ async def get_index(
 ) -> Index:
     """Return details on the given index."""
 
-    schema = get_index_schema(index)
+    schema = util.get_schema(sqclient, index)
     return Index(index=index, index_schema=schema)
 
 
@@ -84,8 +87,9 @@ async def run_plan(plan: LogicalPlan) -> SycamoreQueryResult:
 
 
 @app.post("/v1/query")
-async def run_query(query: Query) -> SycamoreQueryResult:
+async def run_query(query: Query) -> QueryResult:
     """Generate a plan for the given query, run it, and return the result."""
 
     plan = sqclient.generate_plan(query.query, query.index, util.get_schema(sqclient, query.index))
-    return sqclient.run_plan(plan)
+    sqresult = sqclient.run_plan(plan)
+    return QueryResult(plan=sqresult.plan, result=sqresult.result, retrieved_docs=sqresult.retrieved_docs())

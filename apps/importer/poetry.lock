@@ -4875,7 +4875,6 @@ develop = true
 [package.dependencies]
 fsspec = "2024.2.0"
 guidance = "0.1.14"
-idna = "3.10"
 ipython = "8.18.1"
 jinja2 = ">=3.1.4"
 matplotlib = "3.9.0"
@@ -4888,7 +4887,6 @@ ray = "2.36.0"
 scipy = "1.13.1"
 scrapy = ">=2.11.2"
 weaviate-client = "4.6.4"
-zope-interface = "7.1.0"
 
 [package.source]
 type = "directory"

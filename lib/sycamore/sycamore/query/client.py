@@ -13,7 +13,7 @@ import argparse
 import logging
 import os
 import uuid
-from typing import Any, List, Optional, Union
+from typing import List, Optional, Union
 
 import structlog
 import yaml

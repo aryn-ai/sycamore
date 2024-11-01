@@ -6,7 +6,6 @@ from pydantic import BaseModel
 import sycamore
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore import DocSet
-from sycamore.transforms.dataset_scan import DatasetScan
 
 
 class NodeExecution(BaseModel):

@@ -256,6 +256,9 @@ class QueryEvalDriver:
         query_result = self.client.run_plan(result.plan)
         if isinstance(query_result.result, str):
             result.result = query_result.result
+        query_result = self.client.run_plan(result.plan)
+        if isinstance(query_result.result, str):
+            result.result = query_result.result
             t2 = time.time()
         elif isinstance(query_result.result, DocSet):
             assert self.config.config
@@ -264,7 +267,7 @@ class QueryEvalDriver:
             else:
                 query_result.result = query_result.result.take_all()
             t2 = time.time()
-            result.result = [doc.data for doc in query_result.result]
+            result.result = [doc.data.model_dump() for doc in query_result.result]
         else:
             result.result = str(query_result.result)
             t2 = time.time()

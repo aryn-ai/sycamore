@@ -1,3 +1,4 @@
+<a name="readme-top"></a>
 ![SycamoreLogoFinal.svg](https://raw.githubusercontent.com/aryn-ai/sycamore/main/docs/source/images/sycamore_logo.svg)
 
 [![PyPI](https://img.shields.io/pypi/v/sycamore-ai)](https://pypi.org/project/sycamore-ai/)
@@ -56,3 +57,19 @@ To use the Aryn Partitioning Service, [sign-up for free here](https://www.aryn.a
 ## Contributing
 
 Check out our [Contributing Guide](https://github.com/aryn-ai/sycamore/blob/main/CONTRIBUTING.md) for more information about how to contribute to Sycamore and set up your environment for development.
+
+## Contributors
+
+<a href="https://github.com/aryn-ai/sycamore/graphs/contributors">
+  <img alt="contributors" src="https://contrib.rocks/image?repo=aryn-ai/sycamore"/>
+</a>
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=aryn-ai/sycamore&type=Date)](https://star-history.com/#aryn-ai/sycamore&Date)
+
+<p align="right" style="font-size: 14px; color: #555; margin-top: 20px;">
+    <a href="#readme-top" style="text-decoration: none; color: #007bff; font-weight: bold;">
+        ↑ Back to Top ↑
+    </a>
+</p>

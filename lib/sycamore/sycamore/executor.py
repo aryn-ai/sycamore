@@ -109,7 +109,7 @@ class Execution:
             for d in self.recursive_execute(plan):
                 yield d
         else:
-            assert False
+            raise ValueError(f"Unknown execution mode {self._exec_mode}")
 
         plan.traverse(visit=lambda n: n.finalize())
 

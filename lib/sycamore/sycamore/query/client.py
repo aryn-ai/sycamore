@@ -225,7 +225,7 @@ class SycamoreQueryClient:
         index: str,
         dry_run: bool = False,
         codegen_mode: bool = False,
-    ) -> Any:
+    ) -> SycamoreQueryResult:
         """Run a query against the given index."""
         schema = self.get_opensearch_schema(index)
         plan = self.generate_plan(query, index, schema)

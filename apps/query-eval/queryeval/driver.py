@@ -89,7 +89,7 @@ class QueryEvalDriver:
 
         # Configure logging.
         if self.config.config.log_file:
-            os.makedirs(os.path.dirname(self.config.config.log_file), exist_ok=True)
+            os.makedirs(os.path.dirname(os.path.abspath(self.config.config.log_file)), exist_ok=True)
         configure_logging(logfile=self.config.config.log_file, log_level=logging.INFO)
 
         if not self.config.config.index:
@@ -97,10 +97,16 @@ class QueryEvalDriver:
         if not self.config.config.results_file:
             raise ValueError("Results file must be specified")
 
-        console.print(f"Writing results to: {self.config.config.results_file}")
-        os.makedirs(os.path.dirname(self.config.config.results_file), exist_ok=True)
+        if self.config.config.results_file:
+            console.print(f"Writing results to: {self.config.config.results_file}")
+            os.makedirs(os.path.dirname(os.path.abspath(self.config.config.results_file)), exist_ok=True)
+
         # Read results file if it exists.
-        if not self.config.config.overwrite and os.path.exists(self.config.config.results_file):
+        if (
+            not self.config.config.overwrite
+            and self.config.config.results_file
+            and os.path.exists(self.config.config.results_file)
+        ):
             results = self.read_results_file(self.config.config.results_file)
             console.print(
                 f":white_check_mark: Read {len(results.results or [])} "
@@ -278,7 +284,10 @@ class QueryEvalDriver:
             t2 = time.time()
         assert result.metrics
         result.metrics.query_time = t2 - t1
-        result.retrieved_docs = query_result.retrieved_docs()
+        try:
+            result.retrieved_docs = query_result.retrieved_docs()
+        except Exception:
+            result.retrieved_docs = None
 
         console.print(f"[green]:clock9: Executed query in {result.metrics.query_time:.2f} seconds")
         console.print(f":white_check_mark: Result: {result.result}")

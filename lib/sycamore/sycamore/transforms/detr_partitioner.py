@@ -38,12 +38,6 @@ _DETR_LOCK_FILE = f"{Path.home()}/.cache/Aryn-Detr.lock"
 _VERSION = "0.2024.07.24"
 
 
-def _batchify(iterable, n=1):
-    length = len(iterable)
-    for i in range(0, length, n):
-        yield iterable[i : min(i + n, length)]
-
-
 ARYN_DETR_MODEL = "Aryn/deformable-detr-DocLayNet"
 DEFAULT_ARYN_PARTITIONER_ADDRESS = "https://api.aryn.cloud/v1/document/partition"
 _TEN_MINUTES = 600

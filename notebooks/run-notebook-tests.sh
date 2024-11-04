@@ -101,7 +101,7 @@ test_notebooks() {
 
 check_coverage() {
     echo "Verifying coverage of all notebooks..."
-    find . -name '*.ipynb' | grep -v '^./ray-variant-' >/tmp/notebooks.list
+    find . -name '*.ipynb' | sed 's|^\./||' | grep -v '^ray-variant-' > /tmp/notebooks.list
     (
         for i in "${FAST_NOTEBOOKS[@]}" "${SLOW_NOTEBOOKS[@]}" "${DOCPREP_NOTEBOOKS[@]}" "${EXCLUDE_NOTEBOOKS[@]}"; do
             echo "$i"

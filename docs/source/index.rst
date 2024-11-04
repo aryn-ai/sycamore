@@ -1,12 +1,20 @@
 Welcome to Sycamore!
 ================
-Aryn is an LLM-powered data preparation, processing, and analytics system for complex, unstructured documents like PDFs, HTML, presentations, and more. With Aryn, you can prepare data for GenAI and RAG applications, power high-quality document processing workflows, and run analytics on large document collections with natural language. It includes three components: Aryn DocParse, Aryn DocPrep, and Sycamore. For Aryn DocParse and Aryn DocPrep, please visit the `Aryn DocParse documentation <https://docs.aryn.ai>`_.
-
 Sycamore is a document processing engine covered under the Apache v2.0 license. It's built for complex unstructured data, such as documents, presentations, transcripts, embedded tables, and internal knowledge repositories. Sycamore provides a declarative dataflow abstraction called a DocSet to make manipulating unstructured documents easy and scalable. It’s similar in style to Apache Spark and Pandas, but for collections of unstructured documents. DocSets can be used not only for extracting, enriching, summarizing, and cleaning unstructured data, but also for running powerful analytics on these datasets.
 
 Sycamore uses LLM-powered transforms, and you can choose the model to leverage. It can handle complex documents with embedded tables, figures, graphs, and other infographics. For ETL use cases, Sycamore reliably generates vector embeddings with the model of your choice, and loads vector databases and search engines like Pinecone, OpenSearch, Weaviate, Elasticsearch, Qdrant and more.
 
+For Aryn DocParse and Aryn DocPrep, please visit the `Aryn DocParse documentation <https://docs.aryn.ai>`_.
+
 .. image:: images/ArynArchitecture_APS+Sycamorev2.png
+
+**Key Features**
+
+* **Developer-focused reliable and flexible document processing engine with Sycamore.** Similar to Apache Spark, but for handling and processing unstructured document collections at scale. Easily process document collections using sophisticated data transforms and LLMs, while maintaining overall document lineage using Sycamore’s DocSet abstraction. Create better chunks and extract higher quality metadata, leading to 30% better recall and 2x better accuracy on real-world use cases.
+
+* **Scalable, fault-tolerant, and reliable loading of vector DBs and search indexes.** Generate vector embeddings using your choice of model, easily build knowledge graphs, and other output formats from your unstructured data. Targets include leading engines like Elasticsearch, OpenSearch, Weaviate, Pinecone, DuckDB, Qdrant and more. Aryn can seamlessly handle millions of documents.
+
+* **Plug-and-Play LLMs.** Use different LLMs for entity extraction, vector embedding, and post-processing steps.
 
 Getting Started
 --------------------

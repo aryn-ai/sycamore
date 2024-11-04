@@ -11,8 +11,10 @@ from sycamore.utils.bbox_sort import (
 )
 
 
-def mkElem(left: float, top: float, right: float, bot: float, page: Optional[int] = None) -> Element:
-    d: dict[str, Any] = {"bbox": (left, top, right, bot)}
+def mkElem(
+    left: float, top: float, right: float, bot: float, page: Optional[int] = None, type: str = "Text"
+) -> Element:
+    d: dict[str, Any] = {"bbox": (left, top, right, bot), "type": type}
     if page is not None:
         d["properties"] = {"page_number": page}
     return Element(d)
@@ -116,6 +118,23 @@ def test_document_basic() -> None:
     answer = [e3, e2, e5, e4, e1, e0]
     assert doc.elements == answer
     assert_element_index_sorted(doc.elements)
+
+
+def test_page_footer() -> None:
+    # e1, e2 in left  column, e1.top < e2.top
+    # e0, e3 in right column, e0.top < e3.top
+    # e4 full width, at top
+    # e5 in left column, but page-footer
+    e0 = mkElem(0.52, 0.21, 0.90, 0.45)
+    e1 = mkElem(0.10, 0.21, 0.48, 0.46)
+    e2 = mkElem(0.10, 0.58, 0.48, 0.90)
+    e3 = mkElem(0.58, 0.51, 0.90, 0.85)
+    e4 = mkElem(0.15, 0.10, 0.85, 0.15)
+    e5 = mkElem(0.10, 0.95, 0.48, 1.0, type="Page-footer")
+    elems = [e0, e1, e2, e3, e4, e5]
+    bbox_sort_page(elems)
+    answer = [e4, e1, e2, e0, e3, e5]
+    assert elems == answer
 
 
 def assert_element_index_sorted(elements: list[Element]):

@@ -55,7 +55,7 @@ def col_tag(elem: Element) -> Optional[str]:
         left = bbox[0]
         right = bbox[2]
         width = right - left
-        if width > 0.6:
+        if width > 0.6 or elem.type == "Page-footer":
             return "full"
         elif (width < 0.1) or (width >= 0.45):
             return None

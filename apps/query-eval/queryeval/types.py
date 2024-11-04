@@ -33,6 +33,7 @@ class QueryEvalQuery(BaseModel):
     query: str
     expected: Optional[Union[str, List[Dict[str, Any]]]] = None
     expected_plan: Optional[LogicalPlan] = None
+    expected_docs: Optional[Set[str]] = None
     plan: Optional[LogicalPlan] = None
     tags: Optional[List[str]] = None
     notes: Optional[str] = None
@@ -50,10 +51,18 @@ class QueryEvalInputFile(BaseModel):
 class QueryEvalMetrics(BaseModel):
     """Represents metrics associated with a result."""
 
+    # Plan metrics
     plan_generation_time: Optional[float] = None
     plan_similarity: Optional[float] = None
     plan_diff_count: Optional[int] = None
+
+    # Documenet retrieval metrics
+    doc_retrieval_recall: Optional[float] = None
+
+    # Performance metrics
     query_time: Optional[float] = None
+
+    # String answer metrics
     correctness_score: Optional[float] = None
     similarity_score: Optional[float] = None
 

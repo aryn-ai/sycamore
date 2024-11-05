@@ -8,7 +8,7 @@ RERANKER_MODEL = "cross-encoder/ms-marco-MiniLM-L-2-v2"
 
 
 def test_rerank_docset():
-    similarity_scorer = HuggingFaceTransformersSimilarityScorer(RERANKER_MODEL)
+    similarity_scorer = HuggingFaceTransformersSimilarityScorer(RERANKER_MODEL, batch_size=5)
     score_property_name = "similarity_score"
     dicts = [
         {
@@ -54,7 +54,7 @@ def test_rerank_docset():
     ]
     docs = [Document(item) for item in dicts]
 
-    context = sycamore.init(exec_mode=ExecMode.LOCAL)
+    context = sycamore.init() # exec_mode=ExecMode.LOCAL)
     doc_set = context.read.document(docs).rerank(
         similarity_scorer=similarity_scorer, query="is this a cat?", score_property_name=score_property_name, limit=5
     )

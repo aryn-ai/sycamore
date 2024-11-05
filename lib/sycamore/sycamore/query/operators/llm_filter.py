@@ -1,5 +1,6 @@
 from pydantic import Field
 
+from sycamore import DocSet
 from sycamore.query.logical_plan import Node
 
 
@@ -31,3 +32,11 @@ class LlmFilter(Node):
     use to filter the data. The question should be phrased in a way that the LLM can understand
     and answer. For example, "Is this event a natural disaster?" or "Did this event occur
     outside the United States?"."""
+
+    @property
+    def input_types(self) -> set[type]:
+        return {DocSet}
+
+    @property
+    def output_type(self) -> type:
+        return DocSet

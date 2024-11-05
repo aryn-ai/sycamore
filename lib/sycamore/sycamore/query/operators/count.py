@@ -1,5 +1,6 @@
 from typing import Optional
 
+from sycamore import DocSet
 from sycamore.query.logical_plan import Node
 
 
@@ -19,3 +20,11 @@ class Count(Node):
     """If specified, returns the count of distinct values of this field in the input.
     If unspecified, returns the count of all input records.
     """
+
+    @property
+    def input_types(self) -> set[type]:
+        return {DocSet}
+
+    @property
+    def output_type(self) -> type:
+        return int

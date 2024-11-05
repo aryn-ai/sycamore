@@ -1,3 +1,4 @@
+from sycamore import DocSet
 from sycamore.query.logical_plan import Node
 
 
@@ -25,3 +26,11 @@ class FieldIn(Node):
 
     field_two: str
     """The field name in the second database to join on."""
+
+    @property
+    def input_types(self) -> set[type]:
+        return {DocSet}
+
+    @property
+    def output_type(self) -> type:
+        return DocSet

@@ -2,6 +2,7 @@ from typing import Optional
 
 from pydantic import Field
 
+from sycamore import DocSet
 from sycamore.query.logical_plan import Node
 
 
@@ -36,3 +37,11 @@ class TopK(Node):
     """An instruction of what the groups should be about if llm_cluster is True. E.g. if the
     purpose of this operation is to find the top 2 most frequent cities, llm_cluster_instruction
     could be 'Form groups of different food'"""
+
+    @property
+    def input_types(self) -> set[type]:
+        return {DocSet}
+
+    @property
+    def output_type(self) -> type:
+        return DocSet

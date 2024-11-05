@@ -37,6 +37,31 @@ class LogicalPlanProcessor:
         return plan
 
 
+class DefaultPlanValidator(LogicalPlanProcessor):
+    """
+    Performs a sequence of checks on the LogicalPlan to ensure it is valid and can be executed. These include:
+    1. Type validation: ensure inputs to nodes are of valid types (e.g. DocSet, int, None, etc.)
+    """
+
+    def __call__(self, plan: LogicalPlan) -> LogicalPlan:
+        logging.info("Executing DefaultPlanValidator processor")
+
+        # type validation
+        type_errors: list[str] = []
+        for node_id, node in plan.nodes.items():
+            for input_node in node.input_nodes():
+                if not any(issubclass(input_node.output_type, input_type) for input_type in node.input_types):
+                    type_errors += [
+                        f"Node {node_id} ({node.node_type}): Invalid input type {input_node.output_type} "
+                        f"from input {input_node.node_id} ({input_node.node_type}). "
+                        f"Supported types: {node.input_types}"
+                    ]
+        if type_errors:
+            errors_message = "\n".join(type_errors)
+            raise TypeError(f"Invalid plan: \n{errors_message}")
+        return plan
+
+
 class RemoveVectorSearchForAnalytics(LogicalPlanProcessor):
 
     def __init__(self, llm: LLM) -> None:
@@ -133,7 +158,7 @@ class RemoveVectorSearchForAnalytics(LogicalPlanProcessor):
         ]
 
         prompt_kwargs = {"messages": messages}
-        chat_completion = self.llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0, "seed": 42})
+        chat_completion = self.llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0})
         return chat_completion
 
 

@@ -330,6 +330,22 @@ class QueryEvalDriver:
                 )
                 metrics.plan_diff_count = len(plan_diff)
 
+        # Evaluate doc retrieval
+        if not query.expected_docs:
+            console.print("[yellow]:construction: No expected document list found, skipping.. ")
+        elif not result.retrieved_docs:
+            console.print("[yellow]:construction: No computed document list found, skipping.. ")
+        else:
+            if query.expected_docs.issubset(result.retrieved_docs):
+                console.print("[green]✔ Documents retrieved match")
+            else:
+                console.print("[red]:x: Document retrieval mismatch")
+                console.print(f"Missing docs: {query.expected_docs - result.retrieved_docs})")
+            metrics.doc_retrieval_recall = len(result.retrieved_docs & query.expected_docs) / len(query.expected_docs)
+            metrics.doc_retrieval_precision = len(result.retrieved_docs & query.expected_docs) / len(
+                result.retrieved_docs
+            )
+
         # Evaluate result
         if not result.result:
             console.print("[yellow] No query execution result available, skipping..", style="italic")
@@ -368,19 +384,41 @@ class QueryEvalDriver:
 
     def print_metrics_summary(self):
         """Summarize metrics."""
-        # Plan metrics
         console.rule("Evaluation summary")
+
+        # Plan metrics
         plan_correct = sum(1 for result in self.results_map.values() if result.metrics.plan_similarity == 1.0)
         console.print(f"Plans correct: {plan_correct}/{len(self.results_map)}")
-        average_plan_correctness = sum(result.metrics.plan_similarity for result in self.results_map.values()) / len(
-            self.results_map
-        )
+        average_plan_correctness = sum(
+            result.metrics.plan_similarity for result in self.results_map.values() if result.metrics.plan_similarity
+        ) / len(self.results_map)
         console.print(f"Avg. plan correctness: {average_plan_correctness}")
         console.print(
             "Avg. plan diff count: "
-            f"{sum(result.metrics.plan_diff_count for result in self.results_map.values()) / len(self.results_map)}"
+            + str(
+                sum(
+                    result.metrics.plan_diff_count
+                    for result in self.results_map.values()
+                    if result.metrics.plan_diff_count
+                )
+                / len(self.results_map)
+            )
         )
-
+        # Evaluate doc retrieval
+        correct_retrievals = sum(
+            1 for result in self.results_map.values() if result.metrics.doc_retrieval_recall == 1.0
+        )
+        expected_retrievals = sum(1 for result in self.results_map.values() if result.query.expected_docs)
+        average_precision = (
+            sum(
+                result.metrics.doc_retrieval_precision
+                for result in self.results_map.values()
+                if result.metrics.doc_retrieval_precision
+            )
+            / expected_retrievals
+        )
+        console.print(f"Successful doc retrievals: {correct_retrievals}/{expected_retrievals}")
+        console.print(f"Average precision: {average_precision}")
         # TODO: Query execution metrics
         console.print("Query result correctness: not implemented")
 

@@ -1,4 +1,3 @@
-from abc import abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from functools import wraps
@@ -79,16 +78,14 @@ class Node(BaseModel):
     _input_nodes: Optional[List["Node"]] = None
 
     @property
-    @abstractmethod
     def input_types(self) -> set[type]:
         """The type of the input to this operator."""
-        pass
+        raise NotImplementedError("Node class doesn't implement input_types")
 
     @property
-    @abstractmethod
     def output_type(self) -> type:
         """The type of the output of this operator."""
-        pass
+        raise NotImplementedError("Node class doesn't implement output_type")
 
     def input_nodes(self) -> List["Node"]:
         """Returns the nodes that this node depends on."""

@@ -133,7 +133,7 @@ class RemoveVectorSearchForAnalytics(LogicalPlanProcessor):
         ]
 
         prompt_kwargs = {"messages": messages}
-        chat_completion = self.llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0, "seed": 42})
+        chat_completion = self.llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0})
         return chat_completion
 
 

@@ -395,7 +395,14 @@ class QueryEvalDriver:
         console.print(f"Avg. plan correctness: {average_plan_correctness}")
         console.print(
             "Avg. plan diff count: "
-            f"{sum(result.metrics.plan_diff_count for result in self.results_map.values() if result.metrics.plan_diff_count) / len(self.results_map)}"
+            + str(
+                sum(
+                    result.metrics.plan_diff_count
+                    for result in self.results_map.values()
+                    if result.metrics.plan_diff_count
+                )
+                / len(self.results_map)
+            )
         )
         # Evaluate doc retrieval
         correct_retrievals = sum(

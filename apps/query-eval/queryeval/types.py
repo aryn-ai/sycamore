@@ -58,6 +58,7 @@ class QueryEvalMetrics(BaseModel):
 
     # Documenet retrieval metrics
     doc_retrieval_recall: Optional[float] = None
+    doc_retrieval_precision: Optional[float] = None
 
     # Performance metrics
     query_time: Optional[float] = None

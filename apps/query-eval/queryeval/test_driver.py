@@ -1,6 +1,8 @@
 import pytest
 from unittest.mock import MagicMock, patch
 
+from sycamore.query.schema import OpenSearchSchema, OpenSearchSchemaField
+
 from queryeval.driver import QueryEvalDriver
 from queryeval.types import (
     QueryEvalQuery,
@@ -14,7 +16,13 @@ from sycamore.query.logical_plan import LogicalPlan, Node
 @pytest.fixture
 def mock_client():
     client = MagicMock()
-    client.get_opensearch_schema.return_value = {"field1": "text", "field2": "keyword"}
+    schema = OpenSearchSchema(
+        fields={
+            "field1": OpenSearchSchemaField(field_type="<class 'str'>", description="text"),
+            "field2": OpenSearchSchemaField(field_type="<class 'str'>", description="keyword"),
+        }
+    )
+    client.get_opensearch_schema.return_value = schema
     return client
 
 
@@ -29,6 +37,7 @@ def test_input_file(tmp_path):
     input_file.write_text(
         """
 config:
+
   index: test-index
   results_file: test-results.yaml
 queries:
@@ -78,6 +87,7 @@ def test_driver_do_query(test_input_file, mock_client, mock_plan):
         mock_client.run_plan.return_value = mock_query_result
 
         result = driver.do_query(query, result)
+        driver.eval_all()  # we are only asserting that this runs
         assert result.result == "test result"
 
 

@@ -358,7 +358,7 @@ class OpenAI(LLM):
     # recreate the client on the other end.
     def __reduce__(self):
 
-        kwargs = {"client_wrapper": self.client_wrapper, "model_name": self._model_name, "cache": self._cache}
+        kwargs = {"client_wrapper": self.client_wrapper, "model_name": self.model, "cache": self._cache}
 
         return openai_deserializer, (kwargs,)
 

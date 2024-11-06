@@ -1,4 +1,6 @@
 from pathlib import Path
+import pickle
+import pytest
 
 from sycamore.llms import OpenAI, OpenAIModels, OpenAIClientWrapper
 from sycamore.llms.openai import OpenAIModel, OpenAIClientType
@@ -190,9 +192,11 @@ def test_openai_defaults_guidance_instruct():
     assert len(res) > 0
 
 
-def test_azure_defaults_guidance_chat():
-    llm = OpenAI(
-        # Note this deployment name is different from the official model name, which has a '.'
+@pytest.fixture(scope="module")
+def azure_llm():
+    # Note this deployment name is different from the official model name, which has a '.'
+
+    return OpenAI(
         OpenAIModel("gpt-35-turbo", is_chat=True),
         client_wrapper=OpenAIClientWrapper(
             client_type=OpenAIClientType.AZURE,
@@ -201,22 +205,20 @@ def test_azure_defaults_guidance_chat():
         ),
     )
 
+
+def test_azure_defaults_guidance_chat(azure_llm):
     prompt_kwargs = {"prompt": TestPrompt()}
-    res = llm.generate(prompt_kwargs=prompt_kwargs)
+    res = azure_llm.generate(prompt_kwargs=prompt_kwargs)
     assert len(res) > 0
 
 
-def test_azure_defaults_guidance_instruct():
-    llm = OpenAI(
-        # Note this deployment name is different from the official model name, which has a '.'
-        OpenAIModel("gpt-35-turbo-instruct", is_chat=False),
-        client_wrapper=OpenAIClientWrapper(
-            client_type=OpenAIClientType.AZURE,
-            azure_endpoint="https://aryn.openai.azure.com",
-            api_version="2024-02-15-preview",
-        ),
-    )
-
+def test_azure_defaults_guidance_instruct(azure_llm):
     prompt_kwargs = {"prompt": TestPrompt()}
-    res = llm.generate(prompt_kwargs=prompt_kwargs)
+    res = azure_llm.generate(prompt_kwargs=prompt_kwargs)
     assert len(res) > 0
+
+
+def test_azure_pickle(azure_llm):
+    pickled = pickle.dumps(azure_llm)
+    _ = pickle.loads(pickled)
+    assert True

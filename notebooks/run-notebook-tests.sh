@@ -21,8 +21,11 @@ main() {
     elif [[ "$1" == --slow ]]; then
         echo "Testing slow notebooks..."
         test_notebooks "${SLOW_NOTEBOOKS[@]}"
+    elif [[ "$1" == --docprep ]]; then
+        echo "Testing DocPrep notebooks..."
+        test_notebooks "${DOCPREP_NOTEBOOKS[@]}"
     else
-        echo "Usage: $0 {--fast,--slow}"
+        echo "Usage: $0 {--fast,--slow,--docprep}"
         exit 1
     fi
     exit 0
@@ -43,6 +46,16 @@ config() {
         sycamore_demo.ipynb # O(n^2) from re-show/take
         tutorial.ipynb # aryn partitioner on entire sort benchmark
         VisualizePartitioner.ipynb
+    )
+    DOCPREP_NOTEBOOKS=(
+        docprep/minilm-l6-v2_greedy-section-merger_duckdb.ipynb
+        docprep/minilm-l6-v2_greedy-section-merger_opensearch.ipynb
+        docprep/minilm-l6-v2_greedy-text-element-merger_duckdb.ipynb
+        docprep/minilm-l6-v2_marked-merger_duckdb.ipynb
+        docprep/text-embedding-3-small_greedy-section-merger_duckdb.ipynb
+        docprep/text-embedding-3-small_greedy-section-merger_pinecone.ipynb
+        docprep/text-embedding-3-small_greedy-text-element-merger_opensearch.ipynb
+        docprep/text-embedding-3-small_marked-merger_pinecone.ipynb
     )
     EXCLUDE_NOTEBOOKS=(
         # No good reason for exclusion, just what was
@@ -88,9 +101,9 @@ test_notebooks() {
 
 check_coverage() {
     echo "Verifying coverage of all notebooks..."
-    ls *.ipynb | grep -v '^ray-variant-' >/tmp/notebooks.list
+    find . -name '*.ipynb' | sed 's|^\./||' | grep -v '^ray-variant-' > /tmp/notebooks.list
     (
-        for i in "${FAST_NOTEBOOKS[@]}" "${SLOW_NOTEBOOKS[@]}" "${EXCLUDE_NOTEBOOKS[@]}"; do
+        for i in "${FAST_NOTEBOOKS[@]}" "${SLOW_NOTEBOOKS[@]}" "${DOCPREP_NOTEBOOKS[@]}" "${EXCLUDE_NOTEBOOKS[@]}"; do
             echo "$i"
         done
     ) >>/tmp/notebooks.list
@@ -99,14 +112,16 @@ check_coverage() {
         echo "ERROR: some notebooks are unlisted."
         echo "   Add them to FAST_NOTEBOOKS for fast tests that block commits,"
         echo "   SLOW_NOTEBOOKS for slower tests that do not block commits,"
+        echo "   DOCPREP_NOTEBOOKS for DocPrep  tests,"
         echo "   or EXCLUDE_NOTEBOOKS for notebooks that should not be automatically tested."
-        echo "   Missing noteboos:"
+        echo "   Missing notebooks:"
         sed 's/^      1 //' /tmp/notebooks.unlisted
         exit 1
     fi
     rm /tmp/notebooks.list /tmp/notebooks.unlisted
-    echo "All notebooks are classified as fast, slow or excluded."
+    echo "All notebooks are classified as fast, slow, docprep, or excluded."
 }
+
 
 main "$@"
 exit 1

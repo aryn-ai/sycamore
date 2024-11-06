@@ -1,6 +1,8 @@
 import pytest
 from unittest.mock import MagicMock, patch
 
+from sycamore.query.schema import OpenSearchSchema, OpenSearchSchemaField
+
 from queryeval.driver import QueryEvalDriver
 from queryeval.types import (
     QueryEvalQuery,
@@ -14,7 +16,13 @@ from sycamore.query.logical_plan import LogicalPlan, Node
 @pytest.fixture
 def mock_client():
     client = MagicMock()
-    client.get_opensearch_schema.return_value = {"field1": "text", "field2": "keyword"}
+    schema = OpenSearchSchema(
+        fields={
+            "field1": OpenSearchSchemaField(field_type="<class 'str'>", description="text"),
+            "field2": OpenSearchSchemaField(field_type="<class 'str'>", description="keyword"),
+        }
+    )
+    client.get_opensearch_schema.return_value = schema
     return client
 
 
@@ -29,11 +37,13 @@ def test_input_file(tmp_path):
     input_file.write_text(
         """
 config:
+
   index: test-index
   results_file: test-results.yaml
 queries:
   - query: "test query 1"
     tags: ["test"]
+    expected_docs: ["doc1.pdf", "doc2.pdf"]
   - query: "test query 2"
 """
     )
@@ -46,8 +56,10 @@ def test_driver_init(test_input_file, mock_client):
 
         assert driver.config.config.index == "test-index"
         assert driver.config.config.doc_limit == 10
-        assert driver.config.config.tags == ["test"]
-        assert len(driver.config.queries) == 2
+        assert driver.config.queries[0].tags == ["test"]
+        assert driver.config.queries[1].tags is None
+        assert driver.config.queries[0].expected_docs == {"doc1.pdf", "doc2.pdf"}
+        assert driver.config.queries[1].expected_docs is None
 
 
 def test_driver_do_plan(test_input_file, mock_client, mock_plan):
@@ -75,15 +87,23 @@ def test_driver_do_query(test_input_file, mock_client, mock_plan):
         mock_client.run_plan.return_value = mock_query_result
 
         result = driver.do_query(query, result)
+        driver.eval_all()  # we are only asserting that this runs
         assert result.result == "test result"
 
 
 def test_driver_do_eval(test_input_file, mock_client, mock_plan):
     with patch("queryeval.driver.SycamoreQueryClient", return_value=mock_client):
         driver = QueryEvalDriver(input_file_path=test_input_file)
-
-        query = QueryEvalQuery(query="test query", expected_plan=mock_plan)
-        result = QueryEvalResult(query=query, plan=mock_plan)
+        expected_docs = {"doc1.pdf", "doc2.pdf"}
+        query = QueryEvalQuery(query="test query", expected_plan=mock_plan, expected_docs=expected_docs)
+        result = QueryEvalResult(query=query, plan=mock_plan, retrieved_docs=expected_docs)
 
         result = driver.do_eval(query, result)
         assert result.metrics.plan_similarity == 1.0
+        assert result.metrics.doc_retrieval_recall == 1.0
+
+        result = QueryEvalResult(query=query, plan=mock_plan, retrieved_docs={"doc1.pdf"})
+
+        result = driver.do_eval(query, result)
+        assert result.metrics.plan_similarity == 1.0
+        assert result.metrics.doc_retrieval_recall == 0.5

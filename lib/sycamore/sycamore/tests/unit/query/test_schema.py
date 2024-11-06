@@ -131,6 +131,17 @@ def test_opensearch_schema():
                             }
                         }
                     },
+                    {
+                        "_source": {
+                            "properties": {
+                                "entity": {
+                                    "day": "2021-01-02",
+                                    "aircraft": "Flight b741",
+                                    "airspeed": 74.1,
+                                }
+                            }
+                        }
+                    },
                 ]
             }
         }
@@ -150,7 +161,7 @@ def test_opensearch_schema():
     assert got.fields["properties.entity.day"].field_type == "<class 'str'>"
     assert set(got.fields["properties.entity.day"].examples) == {"2021-01-01", "2021-01-02"}
     assert got.fields["properties.entity.aircraft"].field_type == "<class 'str'>"
-    assert set(got.fields["properties.entity.aircraft"].examples) == {"Boeing 747", "Airbus A380"}
+    assert set(got.fields["properties.entity.aircraft"].examples) == {"Boeing 747", "Airbus A380", "Flight b741"}
     assert got.fields["properties.entity.weather"] == OpenSearchSchemaField(
         field_type="<class 'str'>", examples=["Sunny"]
     )
@@ -166,7 +177,7 @@ def test_opensearch_schema():
 
     # Ints get promoted to floats when there is a mix of sample values.
     assert got.fields["properties.entity.airspeed"].field_type == "<class 'float'>"
-    assert set(got.fields["properties.entity.airspeed"].examples) == {"41.5", "42", "48"}
+    assert set(got.fields["properties.entity.airspeed"].examples) == {"41.5", "42", "48", "74.1"}
 
     # Ints stay ints when there is no mix.
     assert got.fields["properties.entity.count"].field_type == "<class 'int'>"

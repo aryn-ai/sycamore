@@ -419,7 +419,6 @@ class ArynPartitioner(Partitioner):
              either pdfminer or OCR. Currently supports the 'object_type' property for pdfminer,
              which can be set to 'boxes' or 'lines' to control the granularity of output.
         source: The application that is using the partitioner. This is used for logging purposes.
-            default: "sycamore"
     Example:
          The following shows an example of using the ArynPartitioner to partition a PDF and extract
          both table structure and image
@@ -454,7 +453,7 @@ class ArynPartitioner(Partitioner):
         cache: Optional[Cache] = None,
         output_format: Optional[str] = None,
         text_extraction_options: dict[str, Any] = {},
-        source: str = "sycamore",
+        source: str = "",
     ):
         if use_partitioning_service:
             device = "cpu"

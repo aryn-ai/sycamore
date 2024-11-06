@@ -80,7 +80,7 @@ class OpenSearchSchemaFetcher:
             try:
                 logger.debug(f"  Attempting to get samples for key {key}")
                 samples: set[str] = set()
-                sample_type = None
+                sample_type: Optional[type] = None
                 for sample in random_sample:
                     if len(samples) >= self.NUM_EXAMPLE_VALUES:
                         break
@@ -90,16 +90,30 @@ class OpenSearchSchemaFetcher:
                             sample_type = type(sample_value)
                         else:
                             t = type(sample_value)
-                            if str(t) != str(sample_type):
-                                if str(t) == "<class 'int'>" and str(sample_type) == "<class 'float'>":
-                                    pass  # compatible
-                                elif str(sample_type) == "<class 'int'>" and str(t) == "<class 'float'>":
-                                    sample_type = t  # upgrade
-                                else:
-                                    logger.warning(
-                                        "Got multiple sample types for key"
-                                        + f" {key}: {sample_type} and {t}. Keeping the former"
-                                    )
+
+                            # Need to check for compatibility between the sample type and the previously
+                            # seen type, and possibly upgrade the sample type.
+                            if sample_type == int and t == float:
+                                # Upgrade from int to float.
+                                sample_type = t
+                            elif sample_type == float and t == int:
+                                # No need to change.
+                                pass
+                            elif sample_type == list and t != list:
+                                # Upgrade from singleton to list.
+                                sample_value = [sample_value]
+                            elif sample_type != list and t == list:
+                                # Need to upgrade our sample type to match the new list type.
+                                sample_type = t
+                                samples = {str([x]) for x in samples}
+                            elif sample_type != t:
+                                # We have an incompatible type, so promote it to string.
+                                logger.warning(
+                                    "Got multiple sample types for schema field"
+                                    + f" {key}: {sample_type} and {t}. Promoting to str."
+                                )
+                                sample_type = str
+                                samples = {str(x) for x in samples}
 
                         samples.add(str(sample_value))
                 if len(samples) > 0:

@@ -38,7 +38,7 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
         """
         stack: list[str] = []
         json_start = None
-        json_str = None
+        json_str = ""
 
         for i, char in enumerate(input_string):
             if char == "{":
@@ -73,9 +73,9 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
 
         prompt_llm = prompt_LLM or ExtractTablePropertiesPrompt().user
         query_agent = LLMTextQueryAgent(prompt=prompt_llm, llm=llm, output_property=property_name, element_type="table")
-        doc = query_agent.execute_query(parent)
+        query_agent.execute_query(parent)
 
-        for ele in doc.elements:
+        for ele in parent.elements:
             if ele.type == "table" and property_name in ele.properties.keys():
                 if ele.properties.get("keyValueTable", False) != "True":
                     del ele.properties[property_name]
@@ -91,4 +91,4 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
                     ele.properties[property_name] = keyValue
                 else:
                     raise ValueError(f"Extracted JSON string is not a dictionary: {keyValue}")
-        return doc
+        return parent

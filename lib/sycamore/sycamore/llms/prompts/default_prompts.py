@@ -140,15 +140,15 @@ class ExtractTablePropertiesPrompt(SimplePrompt):
 
 class ExtractTablePropertiesTablePrompt(SimplePrompt):
     user = """
-            You are given a text string where columns are separated by comma representing either a single column, 
+    You are given a text string where columns are separated by comma representing either a single column, 
             or multi-column table each new line is a new row.
             Instructions:
-            1. Parse the table and make decision if key, value pair information can be extracted from it.
-            2. if the table contains multiple cell value corresponding to one key, the key, value pair for such table 
-            cant be extracted.
-            3. return True if table cant be parsed as key value pair.
-            4. return only True or False nothing should be added in the response.
-            """
+            1. Parse the table to determine if key, value pair information can be extracted from it.
+            2. If the table contains multiple cell value corresponding to one key, the key, value pair for such table 
+            can be extracted.
+            3. Return True if table can be parsed as key value pair.
+            4. Return only True or False nothing should be added in the response.
+    """
 
 
 class EntityExtractorMessagesPrompt(SimplePrompt):

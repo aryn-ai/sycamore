@@ -38,6 +38,7 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
         """
         stack: list[str] = []
         json_start = None
+        json_str = None
 
         for i, char in enumerate(input_string):
             if char == "{":
@@ -68,7 +69,7 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
         query_agent = LLMTextQueryAgent(
             prompt=prompt_find_table, llm=llm, output_property="keyValueTable", element_type="table"
         )
-        doc = query_agent.execute_query(parent)
+        query_agent.execute_query(parent)
 
         prompt_llm = prompt_LLM or ExtractTablePropertiesPrompt().user
         query_agent = LLMTextQueryAgent(prompt=prompt_llm, llm=llm, output_property=property_name, element_type="table")

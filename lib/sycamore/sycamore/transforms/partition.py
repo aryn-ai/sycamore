@@ -418,6 +418,7 @@ class ArynPartitioner(Partitioner):
         text_extraction_options: Dict of options that are sent to the TextExtractor implementation,
              either pdfminer or OCR. Currently supports the 'object_type' property for pdfminer,
              which can be set to 'boxes' or 'lines' to control the granularity of output.
+        source: The application that is using the partitioner. This is used for logging purposes.
     Example:
          The following shows an example of using the ArynPartitioner to partition a PDF and extract
          both table structure and image
@@ -452,6 +453,7 @@ class ArynPartitioner(Partitioner):
         cache: Optional[Cache] = None,
         output_format: Optional[str] = None,
         text_extraction_options: dict[str, Any] = {},
+        source: str = "",
     ):
         if use_partitioning_service:
             device = "cpu"
@@ -491,6 +493,7 @@ class ArynPartitioner(Partitioner):
         self._cache = cache
         self._pages_per_call = pages_per_call
         self._text_extraction_options = text_extraction_options
+        self._source = source
 
     @timetrace("SycamorePdf")
     def partition(self, document: Document) -> Document:
@@ -519,6 +522,7 @@ class ArynPartitioner(Partitioner):
                 pages_per_call=self._pages_per_call,
                 output_format=self._output_format,
                 text_extraction_options=self._text_extraction_options,
+                source=self._source,
             )
         except Exception as e:
             path = document.properties["path"]

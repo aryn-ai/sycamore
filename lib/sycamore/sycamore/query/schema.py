@@ -81,6 +81,7 @@ class OpenSearchSchemaFetcher:
                 logger.debug(f"  Attempting to get samples for key {key}")
                 samples: set[str] = set()
                 sample_type: Optional[type] = None
+                warnings: Dict[str, bool] = {}
                 for sample in random_sample:
                     if len(samples) >= self.NUM_EXAMPLE_VALUES:
                         break
@@ -108,10 +109,12 @@ class OpenSearchSchemaFetcher:
                                 samples = {str([x]) for x in samples}
                             elif sample_type != t:
                                 # We have an incompatible type, so promote it to string.
-                                logger.warning(
-                                    "Got multiple sample types for schema field"
-                                    + f" {key}: {sample_type} and {t}. Promoting to str."
-                                )
+                                if key not in warnings:
+                                    logger.warning(
+                                        "Got multiple sample types for schema field"
+                                        + f" {key}: {sample_type} and {t}. Promoting to str."
+                                    )
+                                    warnings[key] = True
                                 sample_type = str
                                 samples = {str(x) for x in samples}
 

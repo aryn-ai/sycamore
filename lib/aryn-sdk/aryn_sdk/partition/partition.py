@@ -13,8 +13,8 @@ from PIL import Image
 import base64
 import io
 
-# URL for Aryn Partitioning Service (APS)
-APS_URL = "https://api.aryn.cloud/v1/document/partition"
+# URL for Aryn DocParse
+ARYN_DOCPARSE_URL = "https://api.aryn.cloud/v1/document/partition"
 
 _logger = logging.getLogger(__name__)
 _logger.setLevel(logging.INFO)
@@ -32,22 +32,26 @@ def partition_file(
     table_extraction_options: dict[str, Any] = {},
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
-    aps_url: str = APS_URL,
+    chunking_options: Optional[dict[str, Any]] = None,
+    aps_url: Optional[str] = None,  # deprecated in favor of docparse_url
+    docparse_url: Optional[str] = None,
     ssl_verify: bool = True,
     output_format: Optional[str] = None,
 ) -> dict:
     """
-    Sends file to the Aryn Partitioning Service and returns a dict of its document structure and text
+    Sends file to Aryn DocParse and returns a dict of its document structure and text
 
     Args:
-        file: pdf file to partition
-        aryn_api_key: aryn api key, provided as a string
+        file: (pdf, docx, doc, jpg, or png, etc.) file to partition
+            (see all supported file types at https://docs.aryn.ai/docparse/formats_supported)
+        aryn_api_key: Aryn api key, provided as a string
+            You can get a key here: https://www.aryn.ai/get-started
         aryn_config: ArynConfig object, used for finding an api key.
             If aryn_api_key is set it will override this.
             default: The default ArynConfig looks in the env var ARYN_API_KEY and the file ~/.aryn/config.yaml
-        threshold:  value in to specify the cutoff for detecting bounding boxes. Must be set to "auto" or
+        threshold: specify the cutoff for detecting bounding boxes. Must be set to "auto" or
             a floating point value between 0.0 and 1.0.
-            default: None (APS will choose)
+            default: None (Aryn DocParse will choose)
         use_ocr: extract text using an OCR model instead of extracting embedded text in PDF.
             default: False
         ocr_images: attempt to use OCR to generate a text representation of detected images.
@@ -59,19 +63,31 @@ def partition_file(
             structure by merging in tokens from text extraction. This can be useful for tables with missing
             or misaligned text, and is False by default.
             default: {}
-        extract_images: extract image contents.
+        extract_images: extract image contents in ppm format, base64 encoded.
             default: False
         selected_pages: list of individual pages (1-indexed) from the pdf to partition
             default: None
-        aps_url: url of the Aryn Partitioning Service endpoint.
-            default: "https://api.aryn.cloud/v1/document/partition"
+        chunking_options: Specify options for chunking the document.
+            You can use the default the chunking options by setting this to {}.
+            Here is an example set of chunking options:
+            {
+                'merging_strategy': 'header_augmenter',
+                'tokenizer': 'openai_tokenizer',
+                'tokenizer_options': {'model_name': 'text-embedding-3-small'},
+                'max_tokens': 512,
+                'merge_across_pages': True
+            }
+            default: None
+        aps_url: url of the Aryn DocParse endpoint.
+            Left in for backwards compatibility. Use docparse_url instead.
+        docparse_url: url of the Aryn DocParse endpoint.
         ssl_verify: verify ssl certificates. In databricks, set this to False to fix ssl imcompatibilities.
-        output_format: controls output representation; can be set to markdown.
+        output_format: controls output representation; can be set to "markdown" or "json"
             default: None (JSON elements)
 
     Returns:
-        A dictionary containing "status" and "elements".
-        If output_format is markdown, dictionary of "status" and "markdown".
+        A dictionary containing "status", "elements", and possibly "error"
+        If output_format is "markdown" then it returns a dictionary of "status", "markdown", and possibly "error"
 
     Example:
          .. code-block:: python
@@ -81,7 +97,7 @@ def partition_file(
             with open("my-favorite-pdf.pdf", "rb") as f:
                 data = partition_file(
                     f,
-                    aryn_api_key="MY-ARYN-TOKEN",
+                    aryn_api_key="MY-ARYN-API-KEY",
                     use_ocr=True,
                     extract_table_structure=True,
                     extract_images=True
@@ -101,6 +117,17 @@ def partition_file(
     if aryn_config is None:
         aryn_config = ArynConfig()
 
+    if aps_url is not None:
+        if docparse_url is not None:
+            logging.warning(
+                '"aps_url" and "docparse_url" parameters were both set. "aps_url" is deprecated. Using "docparse_url".'
+            )
+        else:
+            logging.warning('"aps_url" parameter is deprecated. Use "docparse_url" instead')
+            docparse_url = aps_url
+    if docparse_url is None:
+        docparse_url = ARYN_DOCPARSE_URL
+
     options_str = _json_options(
         threshold=threshold,
         use_ocr=use_ocr,
@@ -110,6 +137,7 @@ def partition_file(
         extract_images=extract_images,
         selected_pages=selected_pages,
         output_format=output_format,
+        chunking_options=chunking_options,
     )
 
     _logger.debug(f"{options_str}")
@@ -126,7 +154,7 @@ def partition_file(
 
     files: Mapping = {"options": options_str.encode("utf-8"), "pdf": file}
     http_header = {"Authorization": "Bearer {}".format(aryn_config.api_key())}
-    resp = requests.post(aps_url, files=files, headers=http_header, stream=stream, verify=ssl_verify)
+    resp = requests.post(docparse_url, files=files, headers=http_header, stream=stream, verify=ssl_verify)
 
     if resp.status_code != 200:
         raise requests.exceptions.HTTPError(
@@ -183,6 +211,7 @@ def _json_options(
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
     output_format: Optional[str] = None,
+    chunking_options: Optional[dict[str, Any]] = None,
 ) -> str:
     # isn't type-checking fun
     options: dict[str, Union[float, bool, str, list[Union[list[int], int]], dict[str, Any]]] = dict()
@@ -202,6 +231,8 @@ def _json_options(
         options["selected_pages"] = selected_pages
     if output_format:
         options["output_format"] = output_format
+    if chunking_options is not None:
+        options["chunking_options"] = chunking_options
 
     options["source"] = "aryn-sdk"
 

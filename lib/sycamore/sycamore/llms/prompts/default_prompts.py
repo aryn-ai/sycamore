@@ -119,35 +119,33 @@ class GraphRelationshipExtractorPrompt(SimplePrompt):
 
 class ExtractTablePropertiesPrompt(SimplePrompt):
     user = """
-            You are given a text string where columns are separated by comma representing either a single column, 
+            You are given a text string where columns are separated by comma representing either a single column,
             or a multi-column table each new line is a new row.
             Instructions:
-            1. Parse the table and return a flattened JSON object representing the key-value pairs of properties 
+            1. Parse the table and return a flattened JSON object representing the key-value pairs of properties
             defined in the table.
-            2. Do not return nested objects, keep the dictionary only 1 level deep. The only valid value types 
+            2. Do not return nested objects, keep the dictionary only 1 level deep. The only valid value types
             are numbers, strings, and lists.
             3. If you find multiple fields defined in a row, feel free to split them into separate properties.
             4. Use camelCase for the key names.
-            5. For fields where the values are in standard measurement units like miles, 
+            5. For fields where the values are in standard measurement units like miles,
             nautical miles, knots, or celsius, include the unit in the key name and only set the
             numeric value as the value.
               - "Wind Speed: 9 knots" should become "windSpeedInKnots": 9
               - "Temperature: 3°C" should become "temperatureInC": 3
             6. Ensure that key names are enclosed in double quotes.
-            7. return only the json object between ``` 
+            7. return only the json object between ```
             """
 
 
 class ExtractTablePropertiesTablePrompt(SimplePrompt):
     user = """
-    You are given a text string where columns are separated by comma representing either a single column, 
-            or multi-column table each new line is a new row.
+    You are given a table represented as CSV (comma-separated values),
             Instructions:
-            1. Parse the table to determine if key, value pair information can be extracted from it.
-            2. If the table contains multiple cell value corresponding to one key, the key, value pair for such table 
-            can be extracted.
-            3. Return True if table can be parsed as key value pair.
-            4. Return only True or False nothing should be added in the response.
+            1. Parse the table to determine if key-value pair information can be extracted from it.
+            2. A key cell may correspond to multiple value cells.
+            3. Return True if the table can be parsed as key-value pairs.
+            4. Return only True or False nothing should be added into the response.
     """
 
 

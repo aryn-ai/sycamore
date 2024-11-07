@@ -119,12 +119,12 @@ class GraphRelationshipExtractorPrompt(SimplePrompt):
 
 class ExtractTablePropertiesPrompt(SimplePrompt):
     user = """
-            You are given a text string where columns are separated by comma representing either a single column,
+            You are given a text string represented as CSV  (comma-separated values) where columns are separated by commas representing either a single column,
             or a multi-column table each new line is a new row.
             Instructions:
             1. Parse the table and return a flattened JSON object representing the key-value pairs of properties
             defined in the table.
-            2. Do not return nested objects, keep the dictionary only 1 level deep. The only valid value types
+            2. Do not return nested objects; keep the dictionary only 1 level deep. The only valid value types
             are numbers, strings, and lists.
             3. If you find multiple fields defined in a row, feel free to split them into separate properties.
             4. Use camelCase for the key names.
@@ -145,7 +145,7 @@ class ExtractTablePropertiesTablePrompt(SimplePrompt):
             1. Parse the table to determine if key-value pair information can be extracted from it.
             2. A key cell may correspond to multiple value cells.
             3. Return True if the table can be parsed as key-value pairs.
-            4. Return only True or False nothing should be added into the response.
+            4. Return only True or False; nothing should be added into the response.
     """
 
 

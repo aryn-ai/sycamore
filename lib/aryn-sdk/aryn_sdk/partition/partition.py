@@ -33,8 +33,8 @@ def partition_file(
     extract_images: bool = False,
     selected_pages: Optional[list[Union[list[int], int]]] = None,
     chunking_options: Optional[dict[str, Any]] = None,
-    aps_url: Optional[str] = None,  # for backwards compatibility
-    docparse_url: str = ARYN_DOCPARSE_URL,
+    aps_url: Optional[str] = None,  # deprecated in favor of docparse_url
+    docparse_url: Optional[str] = None,
     ssl_verify: bool = True,
     output_format: Optional[str] = None,
 ) -> dict:
@@ -81,7 +81,6 @@ def partition_file(
         aps_url: url of the Aryn DocParse endpoint.
             Left in for backwards compatibility. Use docparse_url instead.
         docparse_url: url of the Aryn DocParse endpoint.
-            default: "https://api.aryn.cloud/v1/document/partition"
         ssl_verify: verify ssl certificates. In databricks, set this to False to fix ssl imcompatibilities.
         output_format: controls output representation; can be set to "markdown" or "json"
             default: None (JSON elements)
@@ -118,7 +117,16 @@ def partition_file(
     if aryn_config is None:
         aryn_config = ArynConfig()
 
-    docparse_url = aps_url or docparse_url  # For backwards compatibility
+    if aps_url is not None:
+        if docparse_url is not None:
+            logging.warning(
+                '"aps_url" and "docparse_url" parameters were both set. "aps_url" is deprecated. Using "docparse_url".'
+            )
+        else:
+            logging.warning('"aps_url" parameter is deprecated. Use "docparse_url" instead')
+            docparse_url = aps_url
+    if docparse_url is None:
+        docparse_url = ARYN_DOCPARSE_URL
 
     options_str = _json_options(
         threshold=threshold,

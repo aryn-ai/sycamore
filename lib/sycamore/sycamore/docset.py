@@ -349,10 +349,9 @@ class DocSet:
         Example:
          .. code-block:: python
 
-            augmentor = FStringTextAugmentor(sentences = [
-                "This pertains to the part {doc.properties['part_name']}.",
-                "{doc.text_representation}"
-            ])
+            augmentor = UDFTextAugmentor(
+                lambda doc: f"This pertains to the part {doc.properties['part_name']}.\n{doc.text_representation}"
+            )
             entity_extractor = OpenAIEntityExtractor("part_name",
                                         llm=openai_llm,
                                         prompt_template=part_name_template)

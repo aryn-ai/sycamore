@@ -26,7 +26,7 @@ def import_modules(modules: Union[str, list[str]], extra: Optional[str] = None):
     if len(missing) > 0:
         msg = f"Unable to locate modules: {missing}."
         if extra is not None:
-            msg += f" Please install using `pip install sycamore-ai[{extra}]`"
+            msg += f' Please install using `pip install "sycamore-ai[{extra}]"`'
         else:
             msg += f" Please install using `pip install {','.join(missing)}`"
 

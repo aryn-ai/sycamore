@@ -102,7 +102,7 @@ class SycamoreQueryResult(BaseModel):
 
             # Walk up the tree.
             node = self.plan.nodes[node_id]
-            retval = OrderedDict()
+            retval: OrderedDict = OrderedDict()
             for input_node_id in node.inputs:
                 for path in get_source_docs(context, input_node_id):
                     retval[path] = None  # Using None as a placeholder value

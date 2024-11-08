@@ -79,7 +79,7 @@ class Node(BaseModel):
 
     @property
     def input_types(self) -> set[type]:
-        """The type of the input to this operator."""
+        """The types of the input to this operator."""
         raise NotImplementedError("Node class doesn't implement input_types")
 
     @property

@@ -87,8 +87,8 @@ class SycamoreQueryResult(BaseModel):
                     try:
                         mds = context.read.materialize(node_trace_dir)
                         keep = mds.filter(lambda doc: doc.properties.get("path") is not None)
-                        if keep.count() > 0:
-                            results = keep.take_all()
+                        results = keep.take_all()
+                        if len(results) > 0:
                             for prop in sort_by_properties:
                                 results = sorted(
                                     results, key=lambda doc: doc.properties.get(prop, float("-inf")), reverse=True

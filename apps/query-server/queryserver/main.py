@@ -46,7 +46,7 @@ class QueryResult(BaseModel):
 
     plan: LogicalPlan
     result: Any
-    retrieved_docs: Set[str]
+    retrieved_docs: list[str]
 
 
 @app.get("/v1/indices")

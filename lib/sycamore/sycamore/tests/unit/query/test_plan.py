@@ -13,6 +13,14 @@ class DummyOperator(Node):
     dummy: Optional[str] = None
     """A dummy field for testing purposes."""
 
+    @property
+    def input_types(self) -> set[type]:
+        return {str}
+
+    @property
+    def output_type(self) -> type:
+        return str
+
 
 def test_node_serialize_deserialize():
     node = DummyOperator(node_id=1, description="Test node", dummy="Dummy value")

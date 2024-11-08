@@ -9,6 +9,7 @@ from sycamore.query.strategy import (
     VectorSearchOnlyStrategy,
     DefaultQueryPlanStrategy,
     ALL_OPERATORS,
+    DefaultPlanValidator,
 )
 
 
@@ -167,3 +168,34 @@ class TestRemoveVectorSearchForAnalytics(unittest.TestCase):
             assert modified_plan.nodes[1].node_id == 1
             assert modified_plan.nodes[1].field == "text_representation"
             assert modified_plan.nodes[1].inputs[0] == 0
+
+
+class TestDefaultPlanValidator(unittest.TestCase):
+
+    processor = DefaultPlanValidator()
+
+    def test_input_type_mismatch(self):
+        json_plan = {
+            "query": "How many incidents involving Piper Aircrafts",
+            "nodes": {
+                "0": {
+                    "node_type": "QueryVectorDatabase",
+                    "node_id": 0,
+                    "description": "Get all the airplane incidents involving Piper Aircrafts",
+                    "index": "ntsb",
+                    "inputs": [],
+                    "query_phrase": "piper aircrafts",
+                },
+                "1": {
+                    "node_type": "Math",
+                    "description": "Count the number of incidents",
+                    "node_id": 1,
+                    "operation": "add",
+                    "inputs": [0],
+                },
+            },
+            "result_node": 2,
+        }
+        plan = LogicalPlan.model_validate(json_plan)
+        with self.assertRaises(TypeError):
+            self.processor(plan)

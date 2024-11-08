@@ -14,6 +14,8 @@ from pydantic import (
     field_serializer,
 )
 
+from sycamore import DocSet
+
 
 def exclude_from_comparison(func):
     @wraps(func)
@@ -79,13 +81,13 @@ class Node(BaseModel):
 
     @property
     def input_types(self) -> set[type]:
-        """The types of the input to this operator."""
-        raise NotImplementedError("Node class doesn't implement input_types")
+        """The types of the input to this operator. Default operations accept DocSets"""
+        return {DocSet}
 
     @property
     def output_type(self) -> type:
-        """The type of the output of this operator."""
-        raise NotImplementedError("Node class doesn't implement output_type")
+        """The type of the output to this operator. Default operations return a DocSet"""
+        return DocSet
 
     def input_nodes(self) -> List["Node"]:
         """Returns the nodes that this node depends on."""

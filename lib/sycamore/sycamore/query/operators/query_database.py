@@ -113,7 +113,3 @@ class QueryVectorDatabase(Node):
     @property
     def input_types(self) -> set[type]:
         return set()
-
-    @property
-    def output_type(self) -> type:
-        return DocSet

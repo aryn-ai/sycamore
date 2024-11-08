@@ -5,7 +5,7 @@
 
 import os
 import tempfile
-from typing import Annotated, Any, List, Optional, Set
+from typing import Annotated, Any, List, Optional
 
 from fastapi import FastAPI, Path
 from pydantic import BaseModel

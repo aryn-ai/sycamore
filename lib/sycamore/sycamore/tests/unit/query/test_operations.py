@@ -5,6 +5,7 @@ import pytest
 import sycamore
 from sycamore.data import Document, Element
 from sycamore.docset import DocSet
+from sycamore.functions import CharacterTokenizer
 from sycamore.functions.basic_filters import MatchFilter, RangeFilter
 from sycamore.llms import LLM
 from sycamore.llms.prompts.default_prompts import (
@@ -122,6 +123,39 @@ class TestOperations:
 
         assert response == expected
 
+    def test_get_text_for_summarize_data_docset_with_token_limit(self, words_and_ids_docset):
+        response = _get_text_for_summarize_data(
+            result_description="List of unique cities",
+            result_data=[words_and_ids_docset],
+            use_elements=False,
+            num_elements=10,
+            tokenizer=CharacterTokenizer(),
+            max_tokens=150,  # description + text of 2 documents (manually calculated)
+        )
+
+        expected = "Data description: List of unique cities\nInput 1:\n"
+        docs = words_and_ids_docset.take()
+        for i, doc in enumerate(docs[:2]):
+            expected += f"Document {i}:\n"
+            expected += f"Text contents:\n{doc.text_representation or ''}\n\n"
+
+        assert response == expected
+
+        # 1 more char allows another doc
+        response_3_docs = _get_text_for_summarize_data(
+            result_description="List of unique cities",
+            result_data=[words_and_ids_docset],
+            use_elements=False,
+            num_elements=10,
+            tokenizer=CharacterTokenizer(),
+            max_tokens=151,  # description + text of 3 documents (manually calculated)
+        )
+
+        expected_3_docs = expected + "Document 2:\n"
+        expected_3_docs += f"Text contents:\n{docs[2].text_representation or ''}\n\n"
+
+        assert response_3_docs == expected_3_docs
+
     @pytest.mark.parametrize("num_elements", [1, None])
     def test_get_text_for_summarize_data_docset_with_elements(self, words_and_ids_docset, num_elements):
         response = _get_text_for_summarize_data(
@@ -130,6 +164,7 @@ class TestOperations:
             use_elements=True,
             num_elements=num_elements,
         )
+
         expected = "Data description: List of unique cities\nInput 1:\n"
         for i, doc in enumerate(words_and_ids_docset.take(NUM_DOCS_GENERATE)):
             expected += f"Document {i}:\n"

@@ -4,6 +4,7 @@ from typing import Any, List, Union, Optional
 from sycamore import DocSet
 from sycamore.context import context_params, Context
 from sycamore.data import MetadataDocument
+from sycamore.functions import CharacterTokenizer, Tokenizer
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts.default_prompts import (
     SummarizeDataMessagesPrompt,
@@ -61,21 +62,26 @@ def summarize_data(
     result_data: List[Any],
     use_elements: bool = False,
     num_elements: int = 5,
+    max_tokens: int = 120 * 1000,
+    tokenizer: Tokenizer = CharacterTokenizer(),
     context: Optional[Context] = None,
     **kwargs,
 ) -> str:
     """
-    Provides an English response to a question given relevant information.
+    Provides an English response to a question given relevant information. Uses a default maximum for 120k characters,
+    that should loosely translate to 30k tokens (1 token ~= 4 chars).
 
     Args:
         llm: LLM to use for summarization.
         question: Question to answer.
         result_description: Description of each of the inputs in result_data.
         result_data: List of inputs.
-        use_elements: use text contents from document.elements instead of document.text_representation.
-        num_elements: number of elements whose text to use from each document.
+        use_elements: Use text contents from document.elements instead of document.text_representation.
+        num_elements: Number of elements whose text to use from each document.
+        max_tokens: Maximum number of tokens allowed in the summary to send to the LLM.
+        tokenizer: Tokenizer to use for counting against max_tokens.
         context: Optional Context object to get default parameters from.
-        **kwargs
+        **kwargs: Additional keyword arguments.
 
     Returns:
         Conversational response to question.
@@ -85,6 +91,8 @@ def summarize_data(
         result_data=result_data,
         use_elements=use_elements,
         num_elements=num_elements,
+        max_tokens=max_tokens,
+        tokenizer=tokenizer,
         **kwargs,
     )
     messages = SummarizeDataMessagesPrompt(question=question, text=text).as_messages()
@@ -98,9 +106,17 @@ def summarize_data(
 
 
 def _get_text_for_summarize_data(
-    result_description: str, result_data: List[Any], use_elements: bool, num_elements: int, **kwargs
+    result_description: str,
+    result_data: List[Any],
+    use_elements: bool,
+    num_elements: int,
+    max_tokens: Optional[int] = None,
+    tokenizer: Optional[Tokenizer] = None,
+    **kwargs,
 ) -> str:
     text = f"Data description: {result_description}\n"
+    if (max_tokens is not None and tokenizer is None) or (max_tokens is None and tokenizer is not None):
+        raise ValueError("Both max_tokens and tokenizer must be provided together.")
 
     for i, result in enumerate(result_data):
         text += f"Input {i + 1}:\n"
@@ -128,6 +144,10 @@ def _get_text_for_summarize_data(
                         doc_text_representation += (element.text_representation or "") + "\n"
                 doc_text += f"Text contents:\n{doc_text_representation}\n"
 
+                if tokenizer is not None and max_tokens is not None:  # for mypy
+                    total_token_count = len(tokenizer.tokenize(text + doc_text))
+                    if total_token_count > max_tokens:
+                        break
                 text += doc_text + "\n"
         else:
             text += str(result_data) + "\n"

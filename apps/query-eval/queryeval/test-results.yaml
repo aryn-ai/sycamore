@@ -1,5 +1,5 @@
 config:
-  config_file: /private/var/folders/rd/5lfl86jj2yb3gn2zwwgqjgrc0000gn/T/pytest-of-vinayakthapliyal/pytest-108/test_driver_do_query0/test_input.yaml
+  config_file: /private/var/folders/rd/5lfl86jj2yb3gn2zwwgqjgrc0000gn/T/pytest-of-vinayakthapliyal/pytest-110/test_driver_do_query0/test_input.yaml
   doc_limit: null
   dry_run: false
   index: test-index

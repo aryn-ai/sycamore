@@ -336,15 +336,15 @@ class QueryEvalDriver:
         elif not result.retrieved_docs:
             console.print("[yellow]:construction: No computed document list found, skipping.. ")
         else:
-            if query.expected_docs.issubset(result.retrieved_docs):
-                console.print("[green]✔ Documents retrieved match")
+            expected_doc_set = set(query.expected_docs)
+            retrieved_doc_set = set(result.retrieved_docs)
+            if expected_doc_set.issubset(retrieved_doc_set):
+                console.print("[green]✔ Documents retrieved include expected docs")
             else:
-                console.print("[red]:x: Document retrieval mismatch")
-                console.print(f"Missing docs: {query.expected_docs - result.retrieved_docs})")
-            metrics.doc_retrieval_recall = len(result.retrieved_docs & query.expected_docs) / len(query.expected_docs)
-            metrics.doc_retrieval_precision = len(result.retrieved_docs & query.expected_docs) / len(
-                result.retrieved_docs
-            )
+                console.print("[red]:x: Documents retrieved don't include all expected docs")
+                console.print(f"Missing docs: {expected_doc_set - retrieved_doc_set})")
+            metrics.doc_retrieval_recall = len(retrieved_doc_set & expected_doc_set) / len(expected_doc_set)
+            metrics.doc_retrieval_precision = len(retrieved_doc_set & expected_doc_set) / len(result.retrieved_docs)
 
         # Evaluate result
         if not result.result:

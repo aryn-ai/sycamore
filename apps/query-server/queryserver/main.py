@@ -5,7 +5,7 @@
 
 import os
 import tempfile
-from typing import Annotated, Any, List, Optional, Set
+from typing import Annotated, Any, List, Optional
 
 from fastapi import FastAPI, Path
 from pydantic import BaseModel
@@ -46,7 +46,7 @@ class QueryResult(BaseModel):
 
     plan: LogicalPlan
     result: Any
-    retrieved_docs: Set[str]
+    retrieved_docs: list[str]
 
 
 @app.get("/v1/indices")

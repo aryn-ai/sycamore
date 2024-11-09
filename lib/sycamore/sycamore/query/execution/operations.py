@@ -1,6 +1,8 @@
 import math
 from typing import Any, List, Union, Optional
 
+import structlog
+
 from sycamore import DocSet
 from sycamore.context import context_params, Context
 from sycamore.data import MetadataDocument
@@ -9,6 +11,8 @@ from sycamore.llms.llms import LLM
 from sycamore.llms.prompts.default_prompts import (
     SummarizeDataMessagesPrompt,
 )
+
+log = structlog.get_logger(__name__)
 
 BASE_PROPS = [
     "filename",
@@ -147,6 +151,10 @@ def _get_text_for_summarize_data(
                 if tokenizer is not None and max_tokens is not None:  # for mypy
                     total_token_count = len(tokenizer.tokenize(text + doc_text))
                     if total_token_count > max_tokens:
+                        log.warn(
+                            "Unable to add all text from to the LLM summary request due to token limit."
+                            f" Sending text from {i + 1} docs."
+                        )
                         break
                 text += doc_text + "\n"
         else:

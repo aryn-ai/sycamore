@@ -3,11 +3,15 @@ import logging
 import os
 import time
 import traceback
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from pydantic_yaml import to_yaml_str
 from rich.console import Console
+from sycamore.data import Document
+from sycamore.docset import DocSet
+from sycamore.query.client import SycamoreQueryClient, configure_logging
 from yaml import safe_load
+
 from queryeval.types import (
     QueryEvalConfig,
     QueryEvalInputFile,
@@ -15,11 +19,9 @@ from queryeval.types import (
     QueryEvalQuery,
     QueryEvalResult,
     QueryEvalResultsFile,
+    DocumentSummary,
+    DocSetSummary,
 )
-from sycamore.data import Document
-from sycamore.docset import DocSet
-from sycamore.query.client import SycamoreQueryClient, configure_logging
-
 
 console = Console()
 
@@ -177,7 +179,7 @@ class QueryEvalDriver:
             results_file.write(to_yaml_str(results_file_obj))
         console.print(f":white_check_mark: Wrote {len(self.results_map)} results to {self.config.config.results_file}")
 
-    def format_doclist(self, doclist: List[Document]) -> List[Dict[str, Any]]:
+    def format_doclist(self, doclist: List[Document]) -> DocSetSummary:
         """Convert a document list query result to a list of dicts."""
         results = []
         for doc in doclist:
@@ -185,8 +187,8 @@ class QueryEvalDriver:
                 if hasattr(doc.data, "model_dump"):
                     results.append(doc.data.model_dump())
                 else:
-                    results.append(doc.data)
-        return results
+                    results.append(DocumentSummary(doc_id=doc.doc_id, path=doc.properties.get("path")))
+        return DocSetSummary(documents=results)
 
     def get_result(self, query: QueryEvalQuery) -> Optional[QueryEvalResult]:
         """Get the existing result for the query, or return a new result object."""

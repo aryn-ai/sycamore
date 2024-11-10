@@ -68,6 +68,19 @@ class QueryEvalMetrics(BaseModel):
     similarity_score: Optional[float] = None
 
 
+class DocumentSummary(BaseModel):
+    """Represents a writeable Document for serialization."""
+
+    doc_id: Optional[str] = None
+    path: Optional[str] = None
+
+
+class DocSetSummary(BaseModel):
+    """Represents a writeable DocSet for serialization."""
+
+    docs: list[Any] = []
+
+
 class QueryEvalResult(BaseModel):
     """Represents a single result for running a query."""
 

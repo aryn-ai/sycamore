@@ -69,7 +69,7 @@ class QueryEvalMetrics(BaseModel):
 
 
 class DocumentSummary(BaseModel):
-    """Represents a writeable Document for serialization."""
+    """Represents a serializable Document summary."""
 
     doc_id: Optional[str] = None
     text_representation: Optional[str] = None
@@ -77,7 +77,7 @@ class DocumentSummary(BaseModel):
 
 
 class DocSetSummary(BaseModel):
-    """Represents a writeable DocSet for serialization."""
+    """Represents a serializable DocSet."""
 
     docs: list[Any] = []
 

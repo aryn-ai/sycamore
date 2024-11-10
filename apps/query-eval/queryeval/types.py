@@ -72,6 +72,7 @@ class DocumentSummary(BaseModel):
     """Represents a writeable Document for serialization."""
 
     doc_id: Optional[str] = None
+    text_representation: Optional[str] = None
     path: Optional[str] = None
 
 
@@ -87,7 +88,7 @@ class QueryEvalResult(BaseModel):
     timestamp: Optional[str] = None
     query: QueryEvalQuery
     plan: Optional[LogicalPlan] = None
-    result: Optional[Union[str, List[Dict[str, Any]]]] = None
+    result: Optional[Union[str, DocSetSummary]] = None
     error: Optional[str] = None
     metrics: Optional[QueryEvalMetrics] = None
     notes: Optional[str] = None

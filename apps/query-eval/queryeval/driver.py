@@ -187,8 +187,14 @@ class QueryEvalDriver:
                 if hasattr(doc.data, "model_dump"):
                     results.append(doc.data.model_dump())
                 else:
-                    results.append(DocumentSummary(doc_id=doc.doc_id, path=doc.properties.get("path")))
-        return DocSetSummary(documents=results)
+                    results.append(
+                        DocumentSummary(
+                            doc_id=doc.doc_id,
+                            path=doc.properties.get("path"),
+                            text_representation=doc.text_representation,
+                        )
+                    )
+        return DocSetSummary(docs=results)
 
     def get_result(self, query: QueryEvalQuery) -> Optional[QueryEvalResult]:
         """Get the existing result for the query, or return a new result object."""

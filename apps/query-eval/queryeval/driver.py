@@ -136,6 +136,8 @@ class QueryEvalDriver:
         else:
             self.data_schema = self.client.get_opensearch_schema(self.config.config.index)
 
+        console.print(f"Data schema:\n{self.data_schema}")
+
         # Use examples from the results file, or input file. Priority is given to the input file.
         self.examples = None
         if results.examples:
@@ -239,7 +241,7 @@ class QueryEvalDriver:
                 self.config.config.index,
                 self.data_schema,
                 examples=self.examples or None,
-                natural_language_response=self.config.config.natural_language_response or False,
+                natural_language_response=self.config.config.natural_language_response or True,
             )
             t2 = time.time()
             assert result.metrics
@@ -366,6 +368,11 @@ class QueryEvalDriver:
         """Run the plan stage. All queries without existing plans will have new plans generated."""
         for index, query in enumerate(self.config.queries):
             try:
+                if not self._check_tags_match(query):
+                    console.print(
+                        f"[yellow]:point_right: Skipping query [{index+1}/{len(self.config.queries)}] due to tag mismatch"
+                    )
+                    continue
                 console.rule(f"Planning query [{index+1}/{len(self.config.queries)}]: {query.query}")
                 result = self.get_result(query)
                 result = self.do_plan(query, result)
@@ -380,6 +387,11 @@ class QueryEvalDriver:
         """Run the query stage."""
         for index, query in enumerate(self.config.queries):
             try:
+                if not self._check_tags_match(query):
+                    console.print(
+                        f"[yellow]:point_right: Skipping query [{index+1}/{len(self.config.queries)}] due to tag mismatch"
+                    )
+                    continue
                 console.rule(f"Running query [{index+1}/{len(self.config.queries)}]: {query.query}")
                 result = self.get_result(query)
                 result = self.do_query(query, result)
@@ -434,6 +446,11 @@ class QueryEvalDriver:
         """Run the eval stage."""
         for index, query in enumerate(self.config.queries):
             try:
+                if not self._check_tags_match(query):
+                    console.print(
+                        f"[yellow]:point_right: Skipping query [{index+1}/{len(self.config.queries)}] due to tag mismatch"
+                    )
+                    continue
                 console.rule(f"Evaluating query [{index+1}/{len(self.config.queries)}]: {query.query}")
                 result = self.get_result(query)
                 result = self.do_eval(query, result)
@@ -449,8 +466,13 @@ class QueryEvalDriver:
     def run(self):
         """Run all stages."""
         for index, query in enumerate(self.config.queries):
-            console.rule(f"Running [{index+1}/{len(self.config.queries)}]: {query.query}")
             try:
+                if not self._check_tags_match(query):
+                    console.print(
+                        f"[yellow]:point_right: Skipping query [{index+1}/{len(self.config.queries)}] due to tag mismatch"
+                    )
+                    continue
+                console.rule(f"Running [{index+1}/{len(self.config.queries)}]: {query.query}")
                 result = self.get_result(query)
                 result = self.do_plan(query, result)
                 result = self.do_query(query, result)

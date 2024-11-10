@@ -68,13 +68,27 @@ class QueryEvalMetrics(BaseModel):
     similarity_score: Optional[float] = None
 
 
+class DocumentSummary(BaseModel):
+    """Represents a serializable Document summary."""
+
+    doc_id: Optional[str] = None
+    text_representation: Optional[str] = None
+    path: Optional[str] = None
+
+
+class DocSetSummary(BaseModel):
+    """Represents a serializable DocSet."""
+
+    docs: list[Any] = []
+
+
 class QueryEvalResult(BaseModel):
     """Represents a single result for running a query."""
 
     timestamp: Optional[str] = None
     query: QueryEvalQuery
     plan: Optional[LogicalPlan] = None
-    result: Optional[Union[str, List[Dict[str, Any]]]] = None
+    result: Optional[Union[str, DocSetSummary]] = None
     error: Optional[str] = None
     metrics: Optional[QueryEvalMetrics] = None
     notes: Optional[str] = None

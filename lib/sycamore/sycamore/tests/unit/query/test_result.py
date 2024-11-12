@@ -146,7 +146,5 @@ def test_get_source_docs_complex(fake_docset_with_scores, fake_docset_2):
         )
         retrieved_docs = result.retrieved_docs()
 
-    print(f"\nMDW: retrieved_docs is {retrieved_docs}")
-
     assert mock_context.read.materialize.call_count == 2
     assert retrieved_docs == ["path2.txt", "path1.txt", "path4.txt", "path3.txt", "path5.txt", "path6.txt"]

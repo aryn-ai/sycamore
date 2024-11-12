@@ -22,7 +22,3 @@ class LlmExtractEntity(Node):
 
     new_field_type: str
     """The type of the new field, e.g. int or string."""
-
-    discrete: bool = False
-    """True if the new field has a known finite number of possible values (e.g. number, letter,
-    continent, color). False otherwise (e.g., for any free text outputs)."""

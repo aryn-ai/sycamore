@@ -222,7 +222,6 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
                     field="text_representation",
                     new_field="pilot",
                     new_field_type="str",
-                    discrete=True,
                     inputs=[0],
                 ),
                 2: TopK(

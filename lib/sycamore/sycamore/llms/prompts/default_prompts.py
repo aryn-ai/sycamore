@@ -154,20 +154,17 @@ class EntityExtractorMessagesPrompt(SimplePrompt):
         super().__init__()
         self.system = (
             "You are a helpful entity extractor that creates a new field in a "
-            "database from your response to a question on an existing field. "
+            "database based on the value of an existing field. "
         )
 
         if discrete:
-            self.user = (
-                f"The format of your response should be {format}. "
-                "Use standard convention to determine the style of your response. Do not include any abbreviations. "
-                "The following sentence should be valid: The answer to the "
-                'question based on the existing field is "your response". Your response should ONLY '
-                "contain the answer. If you are not able to extract the new field given the "
-                "information, respond with None. "
-                f"Question: {question} Use the value of the database field "
-                f'"{field}" to answer the question: '
-            )
+            self.user = f"""Below, you will be given a database field value and a question.
+            Your job is to provide the answer to the question based on the value provided.
+            Your response should ONLY contain the answer to the question. If you are not able
+            to extract the new field given the information, respond with "None". The type
+            of your response should be "{format}".
+            Field value: {field}\n
+            Answer the question "{question}":"""
         else:
             self.user = (
                 f"Include as much relevant detail as "

@@ -533,6 +533,22 @@ def test_table_from_dict_missing():
     assert actual == expected
 
 
+def test_table_to_dict_from_dict():
+    table_cells = [
+        TableCell(content="multi head", rows=[0, 1], cols=[0, 1], is_header=True),
+        TableCell(content="head2_1", rows=[0], cols=[2], is_header=True),
+        TableCell(content="head2_2", rows=[1], cols=[2], is_header=True),
+        TableCell(content="1", rows=[2], cols=[0], is_header=False),
+        TableCell(content="2", rows=[2], cols=[1], is_header=False),
+    ]
+
+    expected = Table(table_cells)
+    table_dict = expected.to_dict()
+
+    actual = Table.from_dict(table_dict)
+    assert actual == expected
+
+
 @pytest.mark.parametrize("test_case", test_cases)
 def test_from_html(test_case):
     actual = Table.from_html(html_str=test_case.canonical_html())

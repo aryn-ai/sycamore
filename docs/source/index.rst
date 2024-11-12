@@ -40,7 +40,7 @@ Support for vector databases can be installed using extras. For example,
 
 will install Sycamore with OpenSearch support. You can find a list of supported connectors :doc:`here </sycamore/connectors>`.
 
-By default, Sycamore works with Aryn DocParse to process PDFs. you can `sign-up here for free <https://www.aryn.ai/get-started>`_ to get an API Key. To install support for local partitioning and embedding models, you can install Sycamore with the ``local-inference`` extra:
+By default, Sycamore works with Aryn DocParse to process documents. you can `sign-up here for free <https://www.aryn.ai/get-started>`_ to get an API Key. To install support for local partitioning and embedding models, you can install Sycamore with the ``local-inference`` extra:
 
 .. code-block:: python
 

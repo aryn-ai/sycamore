@@ -22,7 +22,7 @@ Connectors for vector databases can be installed via extras. For example,
 
 will install Sycamore with OpenSearch support. You can find a list of supported connectors :doc:`here </sycamore/connectors>`.
 
-By default, Sycamore works with Aryn DocParse to process PDFs. To run inference locally, install the `local-inference` extra as follows:
+By default, Sycamore works with Aryn DocParse to process documents. To run inference locally, install the `local-inference` extra as follows:
 
 .. code-block:: python
 
@@ -30,7 +30,7 @@ By default, Sycamore works with Aryn DocParse to process PDFs. To run inference 
 
 ..
 
-Next, you can set the proper API keys for related services, like Aryn DocParse for processing PDFs (`sign-up here <https://www.aryn.ai/get-started>`_ for free) or OpenAI to use GPT with Sycamore's LLM-based transforms.
+Next, you can set the proper API keys for related services, like Aryn DocParse for processing documents (`sign-up here <https://www.aryn.ai/get-started>`_ for free) or OpenAI to use GPT with Sycamore's LLM-based transforms.
 
 Now, that you have installed Sycamore, you see it in action using the example Jupyter notebooks. Many of these examples load a vector database in the last step of the processing pipeline, but you can edit the notebook to write the data to a different target database or out to a file. `Visit the Sycamore GitHub <https://github.com/aryn-ai/sycamore/tree/main/notebooks>`_ for the sample notebooks.
 

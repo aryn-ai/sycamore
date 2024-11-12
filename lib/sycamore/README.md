@@ -20,7 +20,7 @@ The Sycamore framework is built around a scalable and robust abstraction for doc
 
 ## Features
 
-- Integrated with [Aryn Aryn DocParse](https://docs.aryn.ai/quickstart), using a [state-of-the art vision AI model](https://huggingface.co/Aryn/deformable-detr-DocLayNet) for segmentation and preserving the semantic structure of documents
+- Integrated with [Aryn DocParse](https://docs.aryn.ai/quickstart), using a [state-of-the art vision AI model](https://huggingface.co/Aryn/deformable-detr-DocLayNet) for segmentation and preserving the semantic structure of documents
 - DocSet abstraction to scalably and reliably transform and manipulate unstructured documents
 - High-quality table extraction, OCR, visual summarization, LLM-powered UDFs, and other performant Python data transforms
 - Quickly create vector embeddings using your choice of AI model

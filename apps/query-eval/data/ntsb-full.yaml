@@ -1,5 +1,8 @@
 # This file contains a query-eval config for evaluating Sycamore Query against
 # the NTSB incident dataset.
+#
+# The queries are from the 100 NTSB reports in s3://aryn-public/ntsb_reports as of
+# 2024-11-11, which cover portions of June, July, August, and September 2024.
 
 config:
   index: const_ntsb
@@ -328,83 +331,256 @@ examples:
 
 ##########################################################################################
 # Queries
+#
 ##########################################################################################
 
 queries:
 
-  - query: "List all of the environmentally caused incidents."
-    # Need ground truth answer.
-    expected: "Here is a list of environmentally caused incidents:"
+  - query: "How many incidents were there?"
+    expected: "100"
+    tags:
+      - verified_ground_truth
 
-  - query: "How many ice related incidents were there in Alaska?"
-    # Need ground truth answer.
-    expected: "There are N ice related incidents in Alaska."
+  - query: "How many incidents were there in Illinois?"
+    expected: "7"
+    tags:
+      - verified_ground_truth
 
-  - query: "How many incidents were in the last three days of January 2023 in Washington?"
-    # Need ground truth answer.
-    expected: "There were N incidents in the last three days of January 2023 in Washington."
+  - query: "How many incidents were there in Hawaii?"
+    expected: "0"
+    tags:
+      - verified_ground_truth
 
-  - query: "How many engine related incidents were there in CA in 2023?"
+  - query: "How many incidents were there by state?"
+    expected: |
+      Florida: 10
+      Wisconsin: 8
+      Texas: 8
+      Illinois: 7
+      New York: 6
+      Colorado: 5
+      Nebraska: 4
+      North Carolina: 4
+      Kansas: 3
+      Missouri: 3
+      Michigan: 3
+      Oklahoma: 3
+      Minnesota: 3
+      Louisiana: 3
+      South Carolina: 3
+      Georgia: 3
+      Alabama: 2
+      New Hampshire: 2
+      Arkansas: 2
+      Mississippi: 2
+      Virginia: 2
+      Indiana: 2
+      Massachusetts: 1
+      Delaware: 1
+      Maine: 1
+      West Virginia: 1
+      Kentucky: 1
+      Maryland: 1
+      Washington: 1
+      New Jersey: 1
+      Ohio: 1
+      South Dakota: 1
+      Utah: 1
+      Tennessee: 1
+    tags:
+      - verified_ground_truth
+
+  - query: "How many incidents involved student pilots?"
     # Need ground truth answer.
-    expected: "There were N engine related incidents in CA in 2023."
+    expected: "XXX"
+    tags:
+      - need_ground_truth
+
+  - query: "How many incidents involved a wind speed over 10 knots?"
+    expected: "16"
+    tags:
+      - verified_ground_truth
+
+  - query: "What types of aircraft were involved in accidents in Texas?"
+    expected: |
+      FLIGHT DESIGN GMBH CTSW
+      Zenith Aircraft Company STOL CH 750
+      Piper PA-38-112
+      Cessna 172R
+      AMERICAN AIR RACING INC LANCAIR IVP
+      AIR TRACTOR INC AT-802
+      Stinson VULTEE V-77
+      AIR TRACTOR INC AT-402
+    tags:
+      - verified_ground_truth
+
+  - query: "What was the breakdown of incidents by month?"
+    expected: |
+      June 2024: 42
+      July 2024: 36
+      August 2024: 17
+      September 2024: 5
+    tags:
+      - verified_ground_truth
+
+  - query: "What was the breakdown of incidents by month, expressed as MM/YY?"
+    expected: |
+      06/24: 42
+      07/24: 36
+      08/24: 17
+      09/24: 5
+    tags:
+      - verified_ground_truth
+
+  - query: "What was the aircraft type with the most incidents?"
+    expected: "Cessna 172"
+    tags:
+      - verified_ground_truth
+
+  - query: "What was the breakdown of incident types by aircraft manufacturer?"
+    expected: |
+      Aero Commander: 1
+      Aeronca: 2
+      Air tractor Inc: 4
+      Airbus: 2
+      American Air Racing Inc: 1
+      AARBC Inc DBA Lindstrand: 2
+      Aviat Aircraft Inc: 1
+      Avipro: 1
+      Beech: 5
+      Bell: 1
+      Boeing: 2
+      Bucker: 1
+      BURKHART GROB FLUGZEUGBAU: 1
+      Canadian Light Acft Sales & Svc: 1
+      Cirrus Design Corp: 2
+      Construzzioni Aeronautiche Tecn: 1
+      Corella Neil: 1
+      Cessna: 24
+      Diamond Aircraft Ind Inc: 1
+      Evektor-Aerotechnik: 1
+      Evolution Aircraft Inc: 1
+      Esqual: 1
+      Flight Design GmbH: 1
+      Grumman Acft Eng Corp: 1
+      Gulfstream American Corp: 1
+      Hughes: 1
+      Jonker Sailplanes (Pty) Ltd: 1
+      Just Aircraft: 1
+      Lake Aircraft Company: 1
+      LET Aircraft Industries: 1
+      Mooney: 1
+      Pipisteel Italia Srl: 1
+      Piper: 14
+      Progressive Aerodyne: 3
+      Quicksilver: 1
+      Rans: 1
+      Raytheon Aircraft Company: 1
+      Robert L Staton Javron Inc: 1
+      Robinson Helicopter Company: 2
+      Schweizer: 1
+      Skystar: 1
+      Stinson: 1
+      Textron Aviation Inc: 1
+      Unknown: 1
+      Vans: 3
+      Zenith Aircraft Company: 2
+    tags:
+      - verified_ground_truth
+
+  - query: "Which incidents occurred in July involving birds?"
+    expected: |
+      194630.pdf
+      194715.pdf
+    tags:
+      - verified_ground_truth
 
   - query: "How many Piper aircrafts were involved in accidents?"
-    expected: "21"
+    expected: "14"
+    tags:
+      - verified_ground_truth
 
-  - query: "How many incidents occurred in the summer months of 2023 which involved birds?"
-    # Need ground truth answer.
-    expected: "There were N incidents that occurred in the summer months of 2023 which involved birds."
+  - query: "How many incidents involved substantial damage?"
+    expected: "94"
+    tags:
+      - verified_ground_truth
+
+  - query: "What fraction of incidents involved substantial damage?"
+    expected: "0.94"
+    tags:
+      - verified_ground_truth
+
+  - query: "How many incidents were due to engine problems?"
+    expected: "63"
+    tags:
+      - verified_ground_truth
 
   - query: "What fraction of incidents that resulted in substantial damage were due to engine problems?"
-    # Need ground truth answer.
-    expected: "0.6"
+    expected: "0.52"
+    tags:
+      - verified_ground_truth
 
-  - query: "What fraction of environmentally caused incidents were due to fires in the past 5 years?"
-    # Need ground truth answer.
-    expected: "0.043"
+  - query: "How many environmentally caused incidents were there?"
+    expected: "XXX - Could be 21"
+    tags:
+      - need_ground_truth
 
-  - query: "How many more environmentally caused incidents were there compared to human errors?"
-    # Check ground truth answer.
-    expected: "16"
+  - query: "How many incidents were caused by human error?"
+    expected: "XXX - Could be 90"
+    tags:
+      - need_ground_truth
 
-  - query: "What planes (by company) were involved in incidents in California?"
-    expected: "Cessna and Piper planes were involved in incidents in California."
+  - query: "How many incidents were caused by human error that did not involve environmental factors?"
+    expected: "XXX - Could be 84"
+    tags:
+      - need_ground_truth
 
-  - query: "What was the most prevalent cause of incidents in 2023 with 2+ serious injuries?"
-    expected: "unknown cause"
+  - query: "How many more incidents were caused by human error compared to environmental causes?"
+    expected: "XXX - Could be 69"
+    tags:
+      - need_ground_truth
 
-  - query: "Of all the incidents related to icy conditions on the tarmac, what were the top three types of failures?"
-    expected: "'snow berm', 'impact to ground', and 'wet/dense snow'."
-
-  - query: "Which states in the Midwest were most affected by aviation incidents in 2023?"
-    expected: "Nebraska"
-
-  - query: "How many locations did incidents in the first 5 days of January 2023 occur in?"
-    expected: "10"
-
-  - query: "How many incidents happened due to environmental issues?"
-    expected: "15"
-
-  - query: "How many types of planes did incidents in the first 5 days of January 2023 occur in?"
-    expected: "5"
-
-  - query: "How many U.S. States did incidents in the first 5 days of January 2023 occur in?"
+  - query: "How many incidents had 2+ serious injuries?"
     expected: "3"
+    tags:
+      - verified_ground_truth
 
-  - query: "How many incidents occurred in the first 5 days of January 2023?"
-    expected: "There were 100 incidents."
+  - query: "What were the top three causes of incidents with serious injuries?"
+    expected: |
+      passenger non-compliance: 1
+      pilot error: 10
+      environmental factors: 3
+    tags:
+      - need_ground_truth
 
-  - query: "What fraction of all incidents resulted in substantial damage?"
-    expected: "0.4"
+  - query: "Which states in the Midwest were most affected by aviation incidents in July 2024?"
+    expected: |
+      Illinois: 4
+      Nebraska: 3
+      Wisconsin: 3
+      Missouri: 2
+      Michigan: 2
+      Minnesota: 2
+      Kansas: 1
+    tags:
+      - need_ground_truth
 
-  - query: "How many more incidents happened in California compared to Florida?"
-    expected: "10"
+  - query: "How many documents have 194 in the pathname?"
+    expected: "91"
+    tags:
+      - verified_ground_truth
 
-  - query: "How many incidents resulted in 2+ serious injuries?"
-    expected: "5"
+  - query: "How many incidents occurred in the first 10 days of July 2024?"
+    expected: "11"
+    tags:
+      - mdw
 
-  - query: "Was northern or Southern California more affected by airplane incidents?"
-    expected: "Northern California"
+  - query: "How many states did incidents in the first 10 days of July 2024 occur in?"
+    expected: "9"
+    tags:
+      - mdw
 
-  - query: "How many Piper aircrafts were involved in accidents?"
-    expected: "5"
+  - query: "How many more incidents happened in Florida compared to Oklahoma?"
+    expected: "7"
+    tags:
+      - verified_ground_truth

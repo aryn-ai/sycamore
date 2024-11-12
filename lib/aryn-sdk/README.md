@@ -6,9 +6,9 @@
 
 `aryn-sdk` is a simple client library for interacting with Aryn cloud services.
 
-## Aryn Partitioning Service
+## Aryn DocParse
 
-Partition pdf files with the Aryn Partitioning Service (APS) through `aryn-sdk`:
+Partition pdf files with Aryn DocParse through `aryn-sdk`:
 
 ```python
 from aryn_sdk.partition import partition_file

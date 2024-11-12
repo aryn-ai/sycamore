@@ -371,7 +371,7 @@ class ArynPartitioner(Partitioner):
              the default ARYN_DETR_MODEL unless you are testing a custom model.
              Ignored when local mode is false
         threshold: The threshold to use for accepting the model's predicted bounding boxes. When using
-             the Aryn Partitioning Service, this defaults to "auto", where the service will automatically
+             Aryn DocParse, this defaults to "auto", where the service will automatically
              find the best predictions. You can override this or set it locally by specifying a numerical
              threshold between 0 and 1. A lower value will include more objects, but may have overlaps,
              while a higher value will reduce the number of overlaps, but may miss legitimate objects.
@@ -385,10 +385,10 @@ class ArynPartitioner(Partitioner):
             Tesseract for text and EasyOCR for tables. If you choose paddle make sure to install
             paddlepaddle or paddlepaddle-gpu depending on whether you have a CPU or GPU. Further details are found
             at: https://www.paddlepaddle.org.cn/documentation/docs/en/install/index_en.html. Note: this
-            will be ignored for the Aryn Partitioning Service, which uses its own OCR implementation.
+            will be ignored for Aryn DocParse, which uses its own OCR implementation.
             default: "easyocr"
         per_element_ocr: If true, will run OCR on each element individually instead of the entire page. Note: this
-            will be ignored for the Aryn Partitioning Service, which uses its own OCR implementation.
+            will be ignored for Aryn DocParse, which uses its own OCR implementation.
             default: True
         extract_table_structure: If true, runs a separate table extraction model to extract cells from
              regions of the document identified as tables.
@@ -474,7 +474,7 @@ class ArynPartitioner(Partitioner):
                 self._threshold = DEFAULT_LOCAL_THRESHOLD
         else:
             if not isinstance(threshold, float) and not use_partitioning_service:
-                raise ValueError("Auto threshold is only supported with the Aryn Partitioning Service.")
+                raise ValueError("Auto threshold is only supported with the Aryn DocParse.")
             self._threshold = threshold
 
         self._use_ocr = use_ocr

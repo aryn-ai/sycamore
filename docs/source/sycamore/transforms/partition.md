@@ -19,7 +19,7 @@ There are several options you can use in the Aryn Partitioner for table extracti
 
 Parameters:
 
-* ```use_partitioning_service```: If ```True```, the partitioner uses the *Aryn  Partitioning Service*. Defaults to ```True```.
+* ```use_partitioning_service```: If ```True```, the partitioner uses the *Aryn  DocParse* (formerly known as the Aryn Partitioning Service). Defaults to ```True```.
 * ```model_name_or_path```: The HuggingFace coordinates or model local path. It defaults to ```SYCAMORE_DETR_MODEL```, and you should only change it if you are testing a custom model. Ignored when ```use_partitioning_service``` is ```True```.
 * ``threshold``: This represents the threshold for accepting the model’s predicted bounding boxes. It defaults to “auto”, where the service uses a processing method to find the best prediction for each possible bounding box. This is the recommended setting. However, you can override this by specifying a numerical threshold between 0 and 1. If you specify a numerical threshold, only bounding boxes with confidence scores higher than the threshold will be returned (instead of using the processing method described above). A lower value will include more objects, but may have overlaps, while a higher value will reduce the number of overlaps, but may miss legitimate objects. If you do set the threshold manually, we recommend starting with a value of 0.32.
 * ```use_ocr```: If ```True```, the partitioner uses OCR to extract text from the PDF. It defaults to ```False```, where the partitioner attempts to directly extract the text from the underlying PDF in the bounding box. It currently uses Tesseract for extraction.

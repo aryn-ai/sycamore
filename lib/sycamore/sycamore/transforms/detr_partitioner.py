@@ -176,7 +176,7 @@ class ArynPDFPartitioner:
             )
         else:
             if isinstance(threshold, str):
-                raise ValueError("Auto threshold is only supported with the Aryn Partitioning Service.")
+                raise ValueError("Auto threshold is only supported with Aryn DocParse.")
 
             temp = self._partition_pdf_batched(
                 file=file,

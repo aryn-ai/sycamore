@@ -2,7 +2,7 @@
 
 ## Aryn Partitioner
 
-The Aryn Partitioner is the recommended way to process PDF documents in Sycamore, and it uses a state-of-the-art, open source deep learning AI model trained on 80k+ enterprise documents. By default, it's configured to use the [Aryn Partitioning Service](https://sycamore.readthedocs.io/en/stable/aryn_cloud/aryn_partitioning_service.html), and you will need to set your API key. You can sign-up for free [here](https://www.aryn.ai/get-started) to get an API key for the service.
+The Aryn Partitioner is the recommended way to process PDF documents in Sycamore, and it uses a state-of-the-art, open source deep learning AI model trained on 80k+ enterprise documents. By default, it's configured to use the [Aryn DocParse](https://docs.aryn.ai/quickstart), and you will need to set your API key. You can sign-up for free [here](https://www.aryn.ai/get-started) to get an API key for the service.
 
 
 ## LLM-based Transforms

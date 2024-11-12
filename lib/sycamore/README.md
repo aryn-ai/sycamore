@@ -10,7 +10,7 @@ Sycamore is an open source, AI-powered document processing engine for ETL, RAG, 
 
 For processing PDFs, Sycamore leverages [Aryn DocParse](https://www.aryn.ai/post/announcing-the-aryn-partitioning-service) (formerly known as the Aryn Partitioning Service), a serverless, GPU-powered API for segmenting and labeling documents, doing OCR, extracting tables and images, and more. It levereages Aryn's state-of-the-art, [open source deep learning DETR AI model](https://huggingface.co/Aryn/deformable-detr-DocLayNet) trained on 80k+ enterprise documents, and it can lead to 6x more accurate data chunking and 2x improved recall on hybrid search or RAG when compared to alternate systems. You can [sign-up for free here](http://www.aryn.ai/get-started), or choose to run the Aryn Partitioner locally.
 
-Aryn DocParse takes PDFs and returns the partitioned output in JSON, and you can use Sycamore for additional data extraction, enrichment, transforms, cleaning, and loading into downstream databases. You can choose the LLMs to use with these transforms.
+Aryn DocParse takes [documents](https://docs.aryn.ai/docparse/formats_supported) and returns the partitioned output in JSON, and you can use Sycamore for additional data extraction, enrichment, transforms, cleaning, and loading into downstream databases. You can choose the LLMs to use with these transforms.
 
 Sycamore reliably loads your vector databases and hybrid search engines, including as OpenSearch, ElasticSearch, Pinecone, DuckDB and Weaviate, with higher quality data. 
 
@@ -43,7 +43,7 @@ Sycamore provides connectors to vector databases via Python extras. To install a
 
 Supported connectors include `duckdb`, `elasticsearch`, `opensearch`, `pinecone`, and `weaviate`.
 
-To use the Aryn DocParse, [sign-up for free here](https://www.aryn.ai/get-started) and use the API key.
+To use Aryn DocParse, [sign-up for free here](https://www.aryn.ai/get-started) and use the API key.
 
 ## Resources
 

@@ -474,7 +474,7 @@ class ArynPartitioner(Partitioner):
                 self._threshold = DEFAULT_LOCAL_THRESHOLD
         else:
             if not isinstance(threshold, float) and not use_partitioning_service:
-                raise ValueError("Auto threshold is only supported with the Aryn DocParse.")
+                raise ValueError("Auto threshold is only supported with Aryn DocParse.")
             self._threshold = threshold
 
         self._use_ocr = use_ocr

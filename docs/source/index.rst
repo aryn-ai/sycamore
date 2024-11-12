@@ -54,7 +54,7 @@ By default, Sycamore works with Aryn DocParse to process PDFs. you can `sign-up 
 
 More Resources
 --------------------
-- Visit the Aryn DocParse and DocPrep Documentation: https://docs.aryn.ai/introduction
+- Visit Aryn DocParse and DocPrep Documentation: https://docs.aryn.ai/introduction
 - Join the Aryn / Sycamore Slack workspace: https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg
 - Watch the intro video to Aryn DocParse (formerly known as the Aryn Partitioning Service): https://www.aryn.ai/?name=ArynPartitioningService_Intro
 - Sign up for Aryn DocParse: https://aryn.ai/get-started

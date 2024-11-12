@@ -369,9 +369,7 @@ class QueryEvalDriver:
         for index, query in enumerate(self.config.queries):
             try:
                 if not self._check_tags_match(query):
-                    console.print(
-                        f"[yellow]:point_right: Skipping query [{index+1}/{len(self.config.queries)}] due to tag mismatch"
-                    )
+                    console.print("[yellow]:point_right: Skipping query due to tag mismatch")
                     continue
                 console.rule(f"Planning query [{index+1}/{len(self.config.queries)}]: {query.query}")
                 result = self.get_result(query)
@@ -388,9 +386,7 @@ class QueryEvalDriver:
         for index, query in enumerate(self.config.queries):
             try:
                 if not self._check_tags_match(query):
-                    console.print(
-                        f"[yellow]:point_right: Skipping query [{index+1}/{len(self.config.queries)}] due to tag mismatch"
-                    )
+                    console.print("[yellow]:point_right: Skipping query due to tag mismatch")
                     continue
                 console.rule(f"Running query [{index+1}/{len(self.config.queries)}]: {query.query}")
                 result = self.get_result(query)
@@ -447,9 +443,7 @@ class QueryEvalDriver:
         for index, query in enumerate(self.config.queries):
             try:
                 if not self._check_tags_match(query):
-                    console.print(
-                        f"[yellow]:point_right: Skipping query [{index+1}/{len(self.config.queries)}] due to tag mismatch"
-                    )
+                    console.print("[yellow]:point_right: Skipping query due to tag mismatch")
                     continue
                 console.rule(f"Evaluating query [{index+1}/{len(self.config.queries)}]: {query.query}")
                 result = self.get_result(query)
@@ -468,9 +462,7 @@ class QueryEvalDriver:
         for index, query in enumerate(self.config.queries):
             try:
                 if not self._check_tags_match(query):
-                    console.print(
-                        f"[yellow]:point_right: Skipping query [{index+1}/{len(self.config.queries)}] due to tag mismatch"
-                    )
+                    console.print("[yellow]:point_right: Skipping query due to tag mismatch")
                     continue
                 console.rule(f"Running [{index+1}/{len(self.config.queries)}]: {query.query}")
                 result = self.get_result(query)

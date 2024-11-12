@@ -54,7 +54,7 @@ def main():
         except Exception as e:
             print(f"Error fetching report {mkey}: {e}")
 
-    print(f"Wrote {count} reports to {args.destination}") 
+    print(f"Wrote {count} reports to {args.destination}")
 
 
 if __name__ == "__main__":

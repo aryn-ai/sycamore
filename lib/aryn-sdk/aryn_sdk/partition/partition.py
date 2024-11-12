@@ -78,9 +78,9 @@ def partition_file(
                 'merge_across_pages': True
             }
             default: None
-        aps_url: url of the Aryn DocParse endpoint.
+        aps_url: url of Aryn DocParse endpoint.
             Left in for backwards compatibility. Use docparse_url instead.
-        docparse_url: url of the Aryn DocParse endpoint.
+        docparse_url: url of Aryn DocParse endpoint.
         ssl_verify: verify ssl certificates. In databricks, set this to False to fix ssl imcompatibilities.
         output_format: controls output representation; can be set to "markdown" or "json"
             default: None (JSON elements)

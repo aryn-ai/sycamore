@@ -40,7 +40,7 @@ Support for vector databases can be installed using extras. For example,
 
 will install Sycamore with OpenSearch support. You can find a list of supported connectors :doc:`here </sycamore/connectors>`.
 
-By default, Sycamore works with the Aryn Partitioning Service to process PDFs. you can `sign-up here for free <https://www.aryn.ai/get-started>`_ to get an API Key. To install support for local partitioning and embedding models, you can install Sycamore with the ``local-inference`` extra:
+By default, Sycamore works with Aryn DocParse to process documents. You can `sign-up here for free <https://www.aryn.ai/get-started>`_ to get an API Key. To install support for local partitioning and embedding models, you can install Sycamore with the ``local-inference`` extra:
 
 .. code-block:: python
 
@@ -54,11 +54,12 @@ By default, Sycamore works with the Aryn Partitioning Service to process PDFs. y
 
 More Resources
 --------------------
-- Visit the Aryn DocParse and DocPrep Documentation: https://docs.aryn.ai/introduction
+- Visit Aryn DocParse and DocPrep Documentation: https://docs.aryn.ai/introduction
 - Join the Aryn / Sycamore Slack workspace: https://join.slack.com/t/sycamore-ulj8912/shared_invite/zt-23sv0yhgy-MywV5dkVQ~F98Aoejo48Jg
-- Watch the intro video to the Aryn Partitioning Service: https://www.aryn.ai/?name=ArynPartitioningService_Intro
-- Sign up for the Aryn Partitioning Service: https://aryn.ai/get-started
-- Use the Aryn Playground to experiment with the Partitioning Service: https://play.aryn.cloud/partitioning
+- Watch the intro video to Aryn DocParse (formerly known as the Aryn Partitioning Service): https://www.aryn.ai/?name=ArynPartitioningService_Intro
+- Watch the intro video to Aryn DocPrep: https://www.youtube.com/watch?v=OMjLQ_0bSgU
+- Sign up for Aryn DocParse: https://aryn.ai/get-started
+- Use the Aryn Playground to experiment with DocParse: https://play.aryn.cloud/partitioning
 - View the Sycamore GitHub: https://github.com/aryn-ai/sycamore
 
 .. toctree::

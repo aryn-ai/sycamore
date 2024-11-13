@@ -111,7 +111,7 @@ jobs:
         working-directory: lib/remote-processors
 
   notebook-tests-fast:
-    runs-on: integ-test-runner2
+    runs-on: blacksmith-8vcpu-ubuntu-2204
     strategy:
       matrix:
         python-version: ["3.9"]
@@ -150,7 +150,7 @@ jobs:
         run: ./notebooks/run-notebook-tests.sh --fast
 
   integ-tests:
-    runs-on: integ-test-runner2
+    runs-on: blacksmith-8vcpu-ubuntu-2204
     strategy:
       matrix:
         python-version: ["3.9"]
@@ -221,7 +221,7 @@ jobs:
         run: poetry run pytest lib/sycamore/sycamore/tests/integration
 
   notebook-tests-slow:
-    runs-on: integ-test-runner2
+    runs-on: blacksmith-8vcpu-ubuntu-2204
     strategy:
       matrix:
         python-version: ["3.9"]
@@ -260,7 +260,7 @@ jobs:
         run: ./notebooks/run-notebook-tests.sh --slow
 
   notebook-tests-docprep:
-    runs-on: integ-test-runner2
+    runs-on: blacksmith-8vcpu-ubuntu-2204
     strategy:
       matrix:
         python-version: ["3.9"]

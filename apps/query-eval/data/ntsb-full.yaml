@@ -389,12 +389,14 @@ queries:
       Tennessee: 1
     tags:
       - verified_ground_truth
+      - need_to_check
 
   - query: "How many incidents involved student pilots?"
     # Need ground truth answer.
     expected: "XXX"
     tags:
       - need_ground_truth
+      - need_to_check
 
   - query: "How many incidents involved a wind speed over 10 knots?"
     expected: "16"
@@ -413,6 +415,7 @@ queries:
       AIR TRACTOR INC AT-402
     tags:
       - verified_ground_truth
+      - need_to_check
 
   - query: "What was the breakdown of incidents by month?"
     expected: |
@@ -487,6 +490,7 @@ queries:
       Zenith Aircraft Company: 2
     tags:
       - verified_ground_truth
+      - need_to_check
 
   - query: "Which incidents occurred in July involving birds?"
     expected: |

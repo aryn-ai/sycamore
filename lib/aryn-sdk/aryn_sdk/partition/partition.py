@@ -71,7 +71,7 @@ def partition_file(
             You can use the default the chunking options by setting this to {}.
             Here is an example set of chunking options:
             {
-                'merging_strategy': 'header_augmenter',
+                'strategy': 'context_rich',
                 'tokenizer': 'openai_tokenizer',
                 'tokenizer_options': {'model_name': 'text-embedding-3-small'},
                 'max_tokens': 512,

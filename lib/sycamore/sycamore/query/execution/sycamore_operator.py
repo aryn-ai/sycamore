@@ -448,11 +448,8 @@ class SycamoreLlmExtractEntity(SycamoreOperator):
         new_field = logical_node.new_field
         field = logical_node.field
         fmt = logical_node.new_field_type
-        discrete = logical_node.discrete
 
-        prompt = EntityExtractorMessagesPrompt(
-            question=question, field=field, format=fmt, discrete=discrete
-        ).as_messages()
+        prompt = EntityExtractorMessagesPrompt(question=question, field=field, format=fmt, discrete=True).as_messages()
 
         entity_extractor = OpenAIEntityExtractor(
             entity_name=new_field,
@@ -470,7 +467,6 @@ class SycamoreLlmExtractEntity(SycamoreOperator):
         new_field = logical_node.new_field
         field = logical_node.field
         fmt = logical_node.new_field_type
-        discrete = logical_node.discrete
         assert len(logical_node.inputs) == 1
 
         input_str = input_var or get_var_name(logical_node.input_nodes()[0])
@@ -478,7 +474,7 @@ class SycamoreLlmExtractEntity(SycamoreOperator):
 
         result = f"""
 prompt = EntityExtractorMessagesPrompt(
-    question='{question}', field='{field}', format='{fmt}', discrete={discrete}
+    question='{question}', field='{field}', format='{fmt}', discrete=True
 ).as_messages()
 
 entity_extractor = OpenAIEntityExtractor(

@@ -75,6 +75,7 @@ config() {
         sycamore-tutorial-intermediate-etl.ipynb # timeout
         unpickle_query.ipynb # looking for uncommitted file
         weaviate-writer.ipynb # path not set to files
+        aryn-opensearch-bedrock-rag-example.ipynb
     )
 }
 

@@ -22,11 +22,14 @@ logger = logging.getLogger(__name__)
 class JSONEncodeWithUserDict(json.JSONEncoder):
     def default(self, obj):
         from sycamore.data.bbox import BoundingBox
+        from sycamore.data.table import Table
 
         if isinstance(obj, UserDict):
             return obj.data
         elif isinstance(obj, BoundingBox):
             return {"x1": obj.x1, "y1": obj.y1, "x2": obj.x2, "y2": obj.y2}
+        elif isinstance(obj, Table):
+            return obj.to_dict()
         elif isinstance(obj, bytes):
             import base64
 

@@ -2,6 +2,7 @@ from typing import Dict, Optional
 
 from pydantic import Field
 
+from sycamore import DocSet
 from sycamore.query.logical_plan import Node
 
 
@@ -49,6 +50,14 @@ class QueryDatabase(Node):
     Whenever possible, use the query parameter to filter data at the source, as this is more
     efficient than filtering data in subsequent data filtering operators.
     """
+
+    @property
+    def input_types(self) -> set[type]:
+        return set()
+
+    @property
+    def output_type(self) -> type:
+        return DocSet
 
 
 class QueryVectorDatabase(Node):
@@ -100,3 +109,7 @@ class QueryVectorDatabase(Node):
 
     The full range of OpenSearch Query DSL parameters for a filter query are supported.
     """
+
+    @property
+    def input_types(self) -> set[type]:
+        return set()

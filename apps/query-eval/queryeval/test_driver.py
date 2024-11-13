@@ -58,7 +58,7 @@ def test_driver_init(test_input_file, mock_client):
         assert driver.config.config.doc_limit == 10
         assert driver.config.queries[0].tags == ["test"]
         assert driver.config.queries[1].tags is None
-        assert driver.config.queries[0].expected_docs == {"doc1.pdf", "doc2.pdf"}
+        assert driver.config.queries[0].expected_docs == ["doc1.pdf", "doc2.pdf"]
         assert driver.config.queries[1].expected_docs is None
 
 

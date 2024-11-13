@@ -19,3 +19,7 @@ class Count(Node):
     """If specified, returns the count of distinct values of this field in the input.
     If unspecified, returns the count of all input records.
     """
+
+    @property
+    def output_type(self) -> type:
+        return int

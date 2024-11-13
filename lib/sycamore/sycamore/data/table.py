@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from typing import Any, Optional, TypeVar, Union, List
+from typing import Any, Optional, TypeVar, Union, List, Sequence
 import xml.etree.ElementTree as ET
 
 from bs4 import BeautifulSoup, Tag
@@ -72,6 +72,24 @@ class TableCell:
 
         return TableCell(**kwargs)
 
+    def to_dict(self) -> dict[str, Any]:
+        dict_obj: dict[str, Union[Sequence[object], bool, dict]] = {
+            "content": self.content,
+            "rows": self.rows,
+            "cols": self.cols,
+        }
+
+        if self.is_header:
+            dict_obj["is_header"] = self.is_header
+
+        if self.bbox:
+            dict_obj["bbox"] = self.bbox.to_dict()
+
+        if self.properties:
+            dict_obj["properties"] = self.properties
+
+        return dict_obj
+
 
 DEFAULT_HTML_STYLE = """
 table, th, td {
@@ -142,8 +160,9 @@ class Table:
 
         cells = [TableCell.from_dict(c) for c in dict_obj["cells"]]
         caption = dict_obj["caption"] if "caption" in dict_obj else None
+        col_headers = dict_obj["column_headers"] if "column_headers" in dict_obj else None
 
-        ret = Table(cells, caption)
+        ret = Table(cells, caption, col_headers)
 
         if "num_rows" in dict_obj:
             assert ret.num_rows == dict_obj["num_rows"]
@@ -152,6 +171,18 @@ class Table:
             assert ret.num_cols == dict_obj["num_cols"]
 
         return ret
+
+    def to_dict(self) -> dict[str, Any]:
+        """Converts the table to a dict representation."""
+        d: dict[str, Union[list[dict[str, Any]], str, list[str], int]] = dict()
+        d["cells"] = [c.to_dict() for c in self.cells]
+        if self.caption is not None:
+            d["caption"] = self.caption
+        if hasattr(self, "column_headers") and self.column_headers is not None:
+            d["column_headers"] = self.column_headers
+        d["num_rows"] = self.num_rows
+        d["num_cols"] = self.num_cols
+        return d
 
     # TODO: There are likely edge cases where this will break or lose information. Nested or non-contiguous
     # headers are one likely source of issues. We also don't support missing closing tags (which are allowed in

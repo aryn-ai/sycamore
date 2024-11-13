@@ -44,7 +44,7 @@ class OpenSearchReaderClient(BaseDBReader.Client):
         ), f"Wrong kind of query parameters found: {query_params}"
         assert "index" not in query_params.kwargs and "body" not in query_params.kwargs
         if "scroll" not in query_params.kwargs:
-            query_params.kwargs["scroll"] = "1m"
+            query_params.kwargs["scroll"] = "10m"
         if "size" not in query_params.query and "size" not in query_params.kwargs:
             query_params.kwargs["size"] = 200
         logging.debug(f"OpenSearch query on {query_params.index_name}: {query_params.query}")

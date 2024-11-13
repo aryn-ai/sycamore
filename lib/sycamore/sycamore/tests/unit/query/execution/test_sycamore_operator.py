@@ -301,7 +301,7 @@ def test_llm_extract_entity():
         doc_set.extract_entity.return_value = return_doc_set
 
         logical_node = LlmExtractEntity(
-            node_id=0, question="who?", field="properties.counter", new_field="new", new_field_type="str", discrete=True
+            node_id=0, question="who?", field="properties.counter", new_field="new", new_field_type="str"
         )
         sycamore_operator = SycamoreLlmExtractEntity(context, logical_node, query_id="test", inputs=[doc_set])
         result = sycamore_operator.execute()
@@ -311,7 +311,7 @@ def test_llm_extract_entity():
             question=logical_node.question,
             field=logical_node.field,
             format=logical_node.new_field_type,
-            discrete=logical_node.discrete,
+            discrete=True,
         )
 
         # assert OpenAIEntityExtractor called with expected arguments

@@ -1,5 +1,6 @@
 import io
-from typing import Any, Dict, Optional, Set
+from collections import OrderedDict
+from typing import Any, Dict, Optional
 
 from pydantic import BaseModel
 
@@ -54,7 +55,7 @@ class SycamoreQueryResult(BaseModel):
         else:
             return str(self.result)
 
-    def retrieved_docs(self) -> Set[str]:
+    def retrieved_docs(self) -> list[str]:
         """Return a set of Document paths for the documents retrieved by the query."""
 
         context = sycamore.init()
@@ -67,16 +68,33 @@ class SycamoreQueryResult(BaseModel):
         # plan tree, collecting the set of documents from each node that has a trace directory
         # and which contain documents with "path" properties.
 
-        def get_source_docs(context: sycamore.Context, node_id: int) -> Set[str]:
-            """Helper function to recursively retrieve the source document paths for a given node."""
+        def get_source_docs(context: sycamore.Context, node_id: int, sort_by_properties=None) -> list[str]:
+            """Helper function to recursively retrieve the source document paths for a given node.
+
+            Args:
+                context: The Sycamore context used to read and materialize documents.
+                node_id: The ID of the node in the query plan, typically the result node if you want docs for the query.
+                sort_by_properties: A list of properties to sort the documents by. defaults: ["score", "_rerank_score"].
+
+            Returns:
+                A list of unique document paths sorted by the specified properties.
+            """
+            if sort_by_properties is None:
+                sort_by_properties = ["score", "_rerank_score"]
             if self.execution is not None and node_id in self.execution:
                 node_trace_dir = self.execution[node_id].trace_dir
                 if node_trace_dir:
                     try:
                         mds = context.read.materialize(node_trace_dir)
                         keep = mds.filter(lambda doc: doc.properties.get("path") is not None)
-                        if keep.count() > 0:
-                            return {doc.properties.get("path") for doc in keep.take_all()}
+                        results = keep.take_all()
+                        if len(results) > 0:
+                            for prop in sort_by_properties:
+                                results = sorted(
+                                    results, key=lambda doc: doc.properties.get(prop, float("-inf")), reverse=True
+                                )
+                            unique_paths = OrderedDict((doc.properties.get("path"), None) for doc in results)
+                            return list(unique_paths.keys())
                     except ValueError:
                         # This can happen if the materialize directory is empty.
                         # Ignore and move onto the next node.
@@ -84,9 +102,10 @@ class SycamoreQueryResult(BaseModel):
 
             # Walk up the tree.
             node = self.plan.nodes[node_id]
-            retval: Set[str] = set()
+            retval: OrderedDict = OrderedDict()
             for input_node_id in node.inputs:
-                retval = retval.union(get_source_docs(context, input_node_id))
-            return retval
+                for path in get_source_docs(context, input_node_id):
+                    retval[path] = None  # Using None as a placeholder value
+            return list(retval.keys())
 
         return get_source_docs(context, self.plan.result_node)

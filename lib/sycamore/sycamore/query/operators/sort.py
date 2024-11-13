@@ -16,4 +16,3 @@ class Sort(Node):
     """The name of the database field to sort based on."""
 
     default_value: Any
-    """The default value to use for the field in case it is not present in a particular record."""

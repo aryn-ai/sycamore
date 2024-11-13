@@ -1,7 +1,7 @@
 # This module defines types used for the config, input, and output
 # files for the Sycamore Query evaluator.
 
-from typing import Any, Dict, List, Optional, Union, Set
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel
 
@@ -33,7 +33,7 @@ class QueryEvalQuery(BaseModel):
     query: str
     expected: Optional[Union[str, List[Dict[str, Any]]]] = None
     expected_plan: Optional[LogicalPlan] = None
-    expected_docs: Optional[Set[str]] = None
+    expected_docs: Optional[list[str]] = None
     plan: Optional[LogicalPlan] = None
     tags: Optional[List[str]] = None
     notes: Optional[str] = None
@@ -68,17 +68,31 @@ class QueryEvalMetrics(BaseModel):
     similarity_score: Optional[float] = None
 
 
+class DocumentSummary(BaseModel):
+    """Represents a serializable Document summary."""
+
+    doc_id: Optional[str] = None
+    text_representation: Optional[str] = None
+    path: Optional[str] = None
+
+
+class DocSetSummary(BaseModel):
+    """Represents a serializable DocSet."""
+
+    docs: list[Any] = []
+
+
 class QueryEvalResult(BaseModel):
     """Represents a single result for running a query."""
 
     timestamp: Optional[str] = None
     query: QueryEvalQuery
     plan: Optional[LogicalPlan] = None
-    result: Optional[Union[str, List[Dict[str, Any]]]] = None
+    result: Optional[Union[str, DocSetSummary]] = None
     error: Optional[str] = None
     metrics: Optional[QueryEvalMetrics] = None
     notes: Optional[str] = None
-    retrieved_docs: Optional[Set[str]] = None
+    retrieved_docs: Optional[list[str]] = None
 
 
 class QueryEvalResultsFile(BaseModel):

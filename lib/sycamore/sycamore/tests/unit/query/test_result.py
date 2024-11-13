@@ -12,13 +12,14 @@ from sycamore.query.operators.math import Math
 
 
 @pytest.fixture
-def fake_docset():
-    """Return a docset with some fake documents."""
+def fake_docset_with_scores():
+    """Return a docset with some fake documents with ranking scores."""
     doc_dicts = [
-        {"doc_id": 1, "properties": {"path": "path1.txt"}},
-        {"doc_id": 2, "properties": {"path": "path2.txt"}},
-        {"doc_id": 3, "properties": {"path": "path3.txt"}},
-        {"doc_id": 4, "properties": {}},
+        {"doc_id": 1, "properties": {"path": "path1.txt", "_rerank_score": 1, "score": 10}},
+        {"doc_id": 2, "properties": {"path": "path2.txt", "_rerank_score": 5}},
+        {"doc_id": 3, "properties": {"path": "path3.txt", "score": 3}},
+        {"doc_id": 4, "properties": {"path": "path4.txt", "score": 9}},
+        {"doc_id": 5, "properties": {"score": 4}},
     ]
     context = sycamore.init()
     docset = context.read.document([Document(d) for d in doc_dicts])
@@ -39,7 +40,7 @@ def fake_docset_2():
     return docset
 
 
-def test_get_source_docs(fake_docset):
+def test_get_source_docs(fake_docset_with_scores):
     """Test that get_source_docs returns the correct set of documents."""
 
     plan = LogicalPlan(
@@ -68,7 +69,7 @@ def test_get_source_docs(fake_docset):
 
     def mock_materialize_result(trace_dir):
         if trace_dir == "test_trace_dir_1":
-            return fake_docset
+            return fake_docset_with_scores
         else:
             return None
 
@@ -82,10 +83,10 @@ def test_get_source_docs(fake_docset):
         )
         retrieved_docs = result.retrieved_docs()
 
-    assert retrieved_docs == {"path1.txt", "path2.txt", "path3.txt"}
+    assert ["path2.txt", "path1.txt", "path4.txt", "path3.txt"] == retrieved_docs
 
 
-def test_get_source_docs_complex(fake_docset, fake_docset_2):
+def test_get_source_docs_complex(fake_docset_with_scores, fake_docset_2):
     """Test that get_source_docs returns the correct set of documents for a complex query plan."""
 
     plan = LogicalPlan(
@@ -129,7 +130,7 @@ def test_get_source_docs_complex(fake_docset, fake_docset_2):
 
     def mock_materialize_result(trace_dir):
         if trace_dir == "test_trace_dir_1":
-            return fake_docset
+            return fake_docset_with_scores
         elif trace_dir == "test_trace_dir_3":
             return fake_docset_2
         else:
@@ -145,7 +146,5 @@ def test_get_source_docs_complex(fake_docset, fake_docset_2):
         )
         retrieved_docs = result.retrieved_docs()
 
-    print(f"\nMDW: retrieved_docs is {retrieved_docs}")
-
     assert mock_context.read.materialize.call_count == 2
-    assert retrieved_docs == {"path1.txt", "path2.txt", "path3.txt", "path5.txt", "path6.txt"}
+    assert retrieved_docs == ["path2.txt", "path1.txt", "path4.txt", "path3.txt", "path5.txt", "path6.txt"]

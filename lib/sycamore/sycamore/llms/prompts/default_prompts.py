@@ -119,36 +119,34 @@ class GraphRelationshipExtractorPrompt(SimplePrompt):
 
 class ExtractTablePropertiesPrompt(SimplePrompt):
     user = """
-            You are given a text string where columns are separated by comma representing either a single column, 
+            You are given a text string represented as CSV  (comma-separated values) where columns are separated by commas representing either a single column,
             or a multi-column table each new line is a new row.
             Instructions:
-            1. Parse the table and return a flattened JSON object representing the key-value pairs of properties 
+            1. Parse the table and return a flattened JSON object representing the key-value pairs of properties
             defined in the table.
-            2. Do not return nested objects, keep the dictionary only 1 level deep. The only valid value types 
+            2. Do not return nested objects; keep the dictionary only 1 level deep. The only valid value types
             are numbers, strings, and lists.
             3. If you find multiple fields defined in a row, feel free to split them into separate properties.
             4. Use camelCase for the key names.
-            5. For fields where the values are in standard measurement units like miles, 
+            5. For fields where the values are in standard measurement units like miles,
             nautical miles, knots, or celsius, include the unit in the key name and only set the
             numeric value as the value.
               - "Wind Speed: 9 knots" should become "windSpeedInKnots": 9
               - "Temperature: 3°C" should become "temperatureInC": 3
             6. Ensure that key names are enclosed in double quotes.
-            7. return only the json object between ``` 
+            7. return only the json object between ```
             """
 
 
 class ExtractTablePropertiesTablePrompt(SimplePrompt):
     user = """
-            You are given a text string where columns are separated by comma representing either a single column, 
-            or multi-column table each new line is a new row.
+    You are given a table represented as CSV (comma-separated values),
             Instructions:
-            1. Parse the table and make decision if key, value pair information can be extracted from it.
-            2. if the table contains multiple cell value corresponding to one key, the key, value pair for such table 
-            cant be extracted.
-            3. return True if table cant be parsed as key value pair.
-            4. return only True or False nothing should be added in the response.
-            """
+            1. Parse the table to determine if key-value pair information can be extracted from it.
+            2. A key cell may correspond to multiple value cells.
+            3. Return True if the table can be parsed as key-value pairs.
+            4. Return only True or False; nothing should be added into the response.
+    """
 
 
 class EntityExtractorMessagesPrompt(SimplePrompt):
@@ -156,20 +154,17 @@ class EntityExtractorMessagesPrompt(SimplePrompt):
         super().__init__()
         self.system = (
             "You are a helpful entity extractor that creates a new field in a "
-            "database from your response to a question on an existing field. "
+            "database based on the value of an existing field. "
         )
 
         if discrete:
-            self.user = (
-                f"The format of your response should be {format}. "
-                "Use standard convention to determine the style of your response. Do not include any abbreviations. "
-                "The following sentence should be valid: The answer to the "
-                'question based on the existing field is "your response". Your response should ONLY '
-                "contain the answer. If you are not able to extract the new field given the "
-                "information, respond with None. "
-                f"Question: {question} Use the value of the database field "
-                f'"{field}" to answer the question: '
-            )
+            self.user = f"""Below, you will be given a database field value and a question.
+            Your job is to provide the answer to the question based on the value provided.
+            Your response should ONLY contain the answer to the question. If you are not able
+            to extract the new field given the information, respond with "None". The type
+            of your response should be "{format}".
+            Field value: {field}\n
+            Answer the question "{question}":"""
         else:
             self.user = (
                 f"Include as much relevant detail as "

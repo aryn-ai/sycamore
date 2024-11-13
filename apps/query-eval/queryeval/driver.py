@@ -3,11 +3,15 @@ import logging
 import os
 import time
 import traceback
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from pydantic_yaml import to_yaml_str
 from rich.console import Console
+from sycamore.data import Document
+from sycamore.docset import DocSet
+from sycamore.query.client import SycamoreQueryClient, configure_logging
 from yaml import safe_load
+
 from queryeval.types import (
     QueryEvalConfig,
     QueryEvalInputFile,
@@ -15,11 +19,9 @@ from queryeval.types import (
     QueryEvalQuery,
     QueryEvalResult,
     QueryEvalResultsFile,
+    DocumentSummary,
+    DocSetSummary,
 )
-from sycamore.data import Document
-from sycamore.docset import DocSet
-from sycamore.query.client import SycamoreQueryClient, configure_logging
-
 
 console = Console()
 
@@ -134,6 +136,8 @@ class QueryEvalDriver:
         else:
             self.data_schema = self.client.get_opensearch_schema(self.config.config.index)
 
+        console.print(f"Data schema:\n{self.data_schema}")
+
         # Use examples from the results file, or input file. Priority is given to the input file.
         self.examples = None
         if results.examples:
@@ -177,7 +181,7 @@ class QueryEvalDriver:
             results_file.write(to_yaml_str(results_file_obj))
         console.print(f":white_check_mark: Wrote {len(self.results_map)} results to {self.config.config.results_file}")
 
-    def format_doclist(self, doclist: List[Document]) -> List[Dict[str, Any]]:
+    def format_doclist(self, doclist: List[Document]) -> DocSetSummary:
         """Convert a document list query result to a list of dicts."""
         results = []
         for doc in doclist:
@@ -185,8 +189,14 @@ class QueryEvalDriver:
                 if hasattr(doc.data, "model_dump"):
                     results.append(doc.data.model_dump())
                 else:
-                    results.append(doc.data)
-        return results
+                    results.append(
+                        DocumentSummary(
+                            doc_id=doc.doc_id,
+                            path=doc.properties.get("path"),
+                            text_representation=doc.text_representation,
+                        )
+                    )
+        return DocSetSummary(docs=results)
 
     def get_result(self, query: QueryEvalQuery) -> Optional[QueryEvalResult]:
         """Get the existing result for the query, or return a new result object."""
@@ -231,7 +241,7 @@ class QueryEvalDriver:
                 self.config.config.index,
                 self.data_schema,
                 examples=self.examples or None,
-                natural_language_response=self.config.config.natural_language_response or False,
+                natural_language_response=self.config.config.natural_language_response or True,
             )
             t2 = time.time()
             assert result.metrics
@@ -336,15 +346,15 @@ class QueryEvalDriver:
         elif not result.retrieved_docs:
             console.print("[yellow]:construction: No computed document list found, skipping.. ")
         else:
-            if query.expected_docs.issubset(result.retrieved_docs):
-                console.print("[green]✔ Documents retrieved match")
+            expected_doc_set = set(query.expected_docs)
+            retrieved_doc_set = set(result.retrieved_docs)
+            if expected_doc_set.issubset(retrieved_doc_set):
+                console.print("[green]✔ Documents retrieved include expected docs")
             else:
-                console.print("[red]:x: Document retrieval mismatch")
-                console.print(f"Missing docs: {query.expected_docs - result.retrieved_docs})")
-            metrics.doc_retrieval_recall = len(result.retrieved_docs & query.expected_docs) / len(query.expected_docs)
-            metrics.doc_retrieval_precision = len(result.retrieved_docs & query.expected_docs) / len(
-                result.retrieved_docs
-            )
+                console.print("[red]:x: Documents retrieved don't include all expected docs")
+                console.print(f"Missing docs: {expected_doc_set - retrieved_doc_set})")
+            metrics.doc_retrieval_recall = len(retrieved_doc_set & expected_doc_set) / len(expected_doc_set)
+            metrics.doc_retrieval_precision = len(retrieved_doc_set & expected_doc_set) / len(result.retrieved_docs)
 
         # Evaluate result
         if not result.result:
@@ -358,6 +368,9 @@ class QueryEvalDriver:
         """Run the plan stage. All queries without existing plans will have new plans generated."""
         for index, query in enumerate(self.config.queries):
             try:
+                if not self._check_tags_match(query):
+                    console.print("[yellow]:point_right: Skipping query due to tag mismatch")
+                    continue
                 console.rule(f"Planning query [{index+1}/{len(self.config.queries)}]: {query.query}")
                 result = self.get_result(query)
                 result = self.do_plan(query, result)
@@ -372,6 +385,9 @@ class QueryEvalDriver:
         """Run the query stage."""
         for index, query in enumerate(self.config.queries):
             try:
+                if not self._check_tags_match(query):
+                    console.print("[yellow]:point_right: Skipping query due to tag mismatch")
+                    continue
                 console.rule(f"Running query [{index+1}/{len(self.config.queries)}]: {query.query}")
                 result = self.get_result(query)
                 result = self.do_query(query, result)
@@ -426,6 +442,9 @@ class QueryEvalDriver:
         """Run the eval stage."""
         for index, query in enumerate(self.config.queries):
             try:
+                if not self._check_tags_match(query):
+                    console.print("[yellow]:point_right: Skipping query due to tag mismatch")
+                    continue
                 console.rule(f"Evaluating query [{index+1}/{len(self.config.queries)}]: {query.query}")
                 result = self.get_result(query)
                 result = self.do_eval(query, result)
@@ -441,8 +460,11 @@ class QueryEvalDriver:
     def run(self):
         """Run all stages."""
         for index, query in enumerate(self.config.queries):
-            console.rule(f"Running [{index+1}/{len(self.config.queries)}]: {query.query}")
             try:
+                if not self._check_tags_match(query):
+                    console.print("[yellow]:point_right: Skipping query due to tag mismatch")
+                    continue
+                console.rule(f"Running [{index+1}/{len(self.config.queries)}]: {query.query}")
                 result = self.get_result(query)
                 result = self.do_plan(query, result)
                 result = self.do_query(query, result)

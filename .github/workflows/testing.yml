@@ -29,7 +29,7 @@ permissions:
 
 jobs:
   sycamore-unit-tests:
-    runs-on: blacksmith-8vcpu-ubuntu-2204
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12"]
@@ -52,7 +52,7 @@ jobs:
       - name: Install poetry
         run: pipx install poetry
       - name: Set up Python ${{ matrix.python-version }}
-        uses: useblacksmith/setup-python@v6
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
           cache: "poetry"

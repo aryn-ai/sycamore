@@ -76,7 +76,7 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
             img_list.append((image, size, mode))
 
         for idx, ele in enumerate(parent.elements):
-            if ele.type == "table":
+            if ele is not None and ele.type == "table" and ele.bbox is not None:
                 image, size, mode = img_list[ele.properties["page_number"] - 1]  # output of APS is one indexed
                 bbox = ele.bbox.coordinates
                 img = image.crop((bbox[0] * size[0], bbox[1] * size[1], bbox[2] * size[0], bbox[3] * size[1]))
@@ -92,7 +92,7 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
                 ]
                 prompt_kwargs = {"messages": messages}
                 raw_answer = llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
-                parsed_json = ExtractTableProperties.extract_parent_json(raw_answer)
-                if parsed_json:
-                    ele.properties[property_name] = json.loads(parsed_json)
+            parsed_json = ExtractTableProperties.extract_parent_json(raw_answer)
+            if parsed_json:
+                ele.properties[property_name] = json.loads(parsed_json)
         return parent

@@ -116,6 +116,7 @@ class GraphRelationshipExtractorPrompt(SimplePrompt):
 
     """
 
+
 class ExtractTablePropertiesPrompt(SimplePrompt):
     user = """
         You are given a text string represented as a CSV (comma-separated values) and an image of a table.
@@ -158,6 +159,7 @@ class ExtractTablePropertiesPrompt(SimplePrompt):
 
             return False
             """
+
 
 class EntityExtractorMessagesPrompt(SimplePrompt):
     def __init__(self, question: str, field: str, format: Optional[str], discrete: bool = False):

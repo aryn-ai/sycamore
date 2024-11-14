@@ -81,7 +81,10 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
                 bbox = ele.bbox.coordinates
                 img = image.crop((bbox[0] * size[0], bbox[1] * size[1], bbox[2] * size[0], bbox[3] * size[1]))
                 content = [
-                    {"type": "text", "text": prompt_LLM if prompt_LLM is not None else ExtractTablePropertiesPrompt.user},
+                    {
+                        "type": "text",
+                        "text": prompt_LLM if prompt_LLM is not None else ExtractTablePropertiesPrompt.user,
+                    },
                     llm.format_image(img),
                 ]
                 messages = [

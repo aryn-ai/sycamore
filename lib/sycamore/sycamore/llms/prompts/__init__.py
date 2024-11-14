@@ -12,7 +12,6 @@ from sycamore.llms.prompts.default_prompts import (
     TaskIdentifierZeroShotGuidancePrompt,
     GraphEntityExtractorPrompt,
     GraphRelationshipExtractorPrompt,
-    ExtractTablePropertiesTablePrompt,
     ExtractTablePropertiesPrompt,
 )
 from sycamore.llms.prompts.default_prompts import _deprecated_prompts
@@ -26,7 +25,6 @@ prompts = [
     "PropertiesZeroShotGuidancePrompt",
     "GraphEntityExtractorPrompt",
     "GraphRelationshipExtractorPrompt",
-    "ExtractTablePropertiesTablePrompt",
     "ExtractTablePropertiesPrompt",
 ] + list(_deprecated_prompts.keys())
 

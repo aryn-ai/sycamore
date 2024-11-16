@@ -119,34 +119,46 @@ class GraphRelationshipExtractorPrompt(SimplePrompt):
 
 class ExtractTablePropertiesPrompt(SimplePrompt):
     user = """
-            You are given a text string represented as CSV  (comma-separated values) where columns are separated by commas representing either a single column,
-            or a multi-column table each new line is a new row.
-            Instructions:
-            1. Parse the table and return a flattened JSON object representing the key-value pairs of properties
-            defined in the table.
-            2. Do not return nested objects; keep the dictionary only 1 level deep. The only valid value types
-            are numbers, strings, and lists.
-            3. If you find multiple fields defined in a row, feel free to split them into separate properties.
-            4. Use camelCase for the key names.
-            5. For fields where the values are in standard measurement units like miles,
-            nautical miles, knots, or celsius, include the unit in the key name and only set the
-            numeric value as the value.
-              - "Wind Speed: 9 knots" should become "windSpeedInKnots": 9
-              - "Temperature: 3°C" should become "temperatureInC": 3
-            6. Ensure that key names are enclosed in double quotes.
-            7. return only the json object between ```
+        You are given a text string represented as a CSV (comma-separated values) and an image of a table.
+
+        Instructions:
+            Check if the table contains key-value pairs. A key-value pair table is a table where data is structured as key-value pairs. Generally, the first column contains the key and the second column contains the value. However, key-value pairs can also appear in other formats.
+            If there is a one-to-one mapping between two cells, even if the relationship is not direct, they should be considered key-value pairs.
+            If the table is a key-value pair table, return its key-value pairs as a JSON object.
+            If the table is not a key-value pair table, return False.
+            Parse the table, check the image, and return a flattened JSON object representing the key-value pairs from the table. The extracted key-value pairs should be formatted as a JSON object.
+            Do not return nested objects; keep the dictionary only one level deep. The only valid value types are numbers, strings, None, and lists.
+            Use camelCase for the key names.
+            For fields where the values are in standard measurement units like miles, nautical miles, knots, or Celsius, include the unit in the key name and only set the numeric value as the value:
+
+                "Wind Speed: 9 knots" should become "windSpeedInKnots": 9
+                "Temperature: 3°C" should become "temperatureInC": 3
+                Ensure that key names are enclosed in double quotes.
+
+            Return only the JSON object between ``` if the table is a key-value pair table; otherwise, return False.
+
+        example of a key-value pair table:
+            |---------------------------------|------------------|
+            | header 1                        | header 2         |
+            |---------------------------------|------------------|
+            | NEW FIRE ALARM SYSTEMS          | $272 TWO HOURS   |
+            | NEW SPRINKLER SYSTEMS           | $408 THREE HOURS |
+            | NEW GASEOUS SUPPRESSION SYSTEMS | $272 TWO HOURS   |
+            |---------------------------------|------------------|
+
+            return ```{"NEW FIRE ALARM SYSTEMS": "$272 TWO HOURS", "NEW SPRINKLER SYSTEMS": "$408 THREE HOURS", "NEW GASEOUS SUPPRESSION SYSTEMS": "$272 TWO HOURS"}```
+
+        example of a table which is not key-value pair table:
+            |---------------------------------|------------------|------------------|
+            | header 1                        | header 2         | header 3         |
+            |---------------------------------|------------------|------------------|
+            | NEW FIRE ALARM SYSTEMS          | $272 TWO HOURS   | $2752 ONE HOUR   |
+            | NEW SPRINKLER SYSTEMS           | $408 THREE HOURS | $128 FIVE HOURS  |
+            | NEW GASEOUS SUPPRESSION SYSTEMS | $272 TWO HOURS   | $652 TEN HOURS   |
+            |---------------------------------|------------------|------------------|
+
+            return False
             """
-
-
-class ExtractTablePropertiesTablePrompt(SimplePrompt):
-    user = """
-    You are given a table represented as CSV (comma-separated values),
-            Instructions:
-            1. Parse the table to determine if key-value pair information can be extracted from it.
-            2. A key cell may correspond to multiple value cells.
-            3. Return True if the table can be parsed as key-value pairs.
-            4. Return only True or False; nothing should be added into the response.
-    """
 
 
 class EntityExtractorMessagesPrompt(SimplePrompt):

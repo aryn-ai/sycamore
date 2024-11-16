@@ -6,7 +6,7 @@ on:
 
 jobs:
   integ-test:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-8vcpu-ubuntu-2204
     strategy:
       matrix:
         python-version: [ "3.9", "3.10", "3.11", "3.12" ]
@@ -33,13 +33,13 @@ jobs:
           ref: ${{ github.event.client_payload.ref }}
           token: ${{ secrets.SUBMODULE_ACCESS }}
       - name: Setup Java 17
-        uses: actions/setup-java@v1
+        uses: useblacksmith/setup-java@v5
         with:
           java-version: 17
       - name: Install Poetry
         run: pipx install poetry
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: useblacksmith/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'poetry'

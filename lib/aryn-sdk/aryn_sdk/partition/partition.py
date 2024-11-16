@@ -71,7 +71,7 @@ def partition_file(
             You can use the default the chunking options by setting this to {}.
             Here is an example set of chunking options:
             {
-                'merging_strategy': 'header_augmenter',
+                'strategy': 'context_rich',
                 'tokenizer': 'openai_tokenizer',
                 'tokenizer_options': {'model_name': 'text-embedding-3-small'},
                 'max_tokens': 512,
@@ -361,7 +361,7 @@ def convert_image_element(
     Example:
          .. code-block:: python
 
-            from aryn_sdk.partition import partition_file, convert_image
+            from aryn_sdk.partition import partition_file, convert_image_element
 
             with open("my-favorite-pdf.pdf", "rb") as f:
                 data = partition_file(
@@ -370,13 +370,13 @@ def convert_image_element(
                 )
             image_elts = [e for e in data['elements'] if e['type'] == 'Image']
 
-            pil_img = convert_image(image_elts[0])
-            jpg_bytes = convert_image(image_elts[1], format='JPEG')
-            png_str = convert_image(image_elts[2], format="PNG", b64encode=True)
+            pil_img = convert_image_element(image_elts[0])
+            jpg_bytes = convert_image_element(image_elts[1], format='JPEG')
+            png_str = convert_image_element(image_elts[2], format="PNG", b64encode=True)
 
     """
     if b64encode and format == "PIL":
-        raise ValueError("b64encode was True but formate was PIL. Cannot b64-encode a PIL Image")
+        raise ValueError("b64encode was True but format was PIL. Cannot b64-encode a PIL Image")
 
     if elem.get("type") != "Image":
         return None

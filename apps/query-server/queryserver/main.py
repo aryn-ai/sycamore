@@ -154,7 +154,7 @@ async def run_query_stream(query: Query) -> EventSourceResponse:
             plan.llm_prompt = None
             yield {
                 "event": "plan",
-                "data": plan.model_dump(),
+                "data": plan.model_dump_json(),
             }
             await asyncio.sleep(0.1)
             logger.info("Running plan")

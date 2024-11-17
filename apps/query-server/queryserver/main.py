@@ -8,7 +8,7 @@ import logging
 import os
 import tempfile
 import time
-from typing import Annotated, Any, List, Optional
+from typing import Annotated, Any, List, Optional, Union
 
 from fastapi import FastAPI, Path
 from pydantic import BaseModel
@@ -206,7 +206,7 @@ async def run_query_stream(query: Query) -> EventSourceResponse:
 
 
 @app.post("/v1/query", response_model=None)
-async def run_query(query: Query) -> EventSourceResponse | QueryResult:
+async def run_query(query: Query) -> Union[EventSourceResponse, QueryResult]:
     """Run the given query.
 
     If the `stream` parameter is set to true, the result will be streamed back to the client as a series of SSE events.

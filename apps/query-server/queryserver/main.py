@@ -135,7 +135,6 @@ def doc_to_json(doc: Document) -> Optional[dict[str, Any]]:
     return props_dict
 
 
-
 async def run_query_stream(query: Query) -> EventSourceResponse:
     """Streaming version of run_query. Returns a stream of results as they are generated."""
 

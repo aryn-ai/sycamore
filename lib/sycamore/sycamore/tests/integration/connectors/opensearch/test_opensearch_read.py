@@ -77,6 +77,9 @@ class TestOpenSearchRead:
             .take_all()
         )
 
+        client = OpenSearch(**TestOpenSearchRead.OS_CLIENT_ARGS)
+        client.indices.refresh(index=TestOpenSearchRead.INDEX)
+
         kwargs = {'use_refs': True}
 
         retrieved_docs = context.read.opensearch(
@@ -115,6 +118,10 @@ class TestOpenSearchRead:
         for i in range(len(doc.elements) - 1):
             assert doc.elements[i].element_index < doc.elements[i + 1].element_index
 
+        # Clean up
+        client.delete_by_query(index=TestOpenSearchRead.INDEX, body={"query": {"match_all": {}}})
+        client.indices.refresh(index=TestOpenSearchRead.INDEX)
+
     def test_ingest_and_count(self, setup_index, exec_mode):
         """
         Validates data is readable from OpenSearch, and that we can rebuild processed Sycamore documents.
@@ -139,15 +146,18 @@ class TestOpenSearchRead:
 
         client.indices.refresh(index=TestOpenSearchRead.INDEX)
 
-        use_refs = False
+        use_refs = True
         kwargs = {'use_refs': use_refs}
 
         query = {"query": {"match_all": {}}}
+        expected = client.count(index=TestOpenSearchRead.INDEX, body=query)["count"]
+
         ds1 = context.read.opensearch(
             os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS, index_name=TestOpenSearchRead.INDEX, query=query, **kwargs
-        ).take_all()
+        ).count()  # take_all()
 
-        print(f"ExecMode: {exec_mode}, count: {len(ds1)}")
+        # print(f"ExecMode: {exec_mode}, count: {len(ds1)}")
+        print(f"ExecMode: {exec_mode}, count: {ds1}")
 
         ds2 = context.read.opensearch(
             os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
@@ -155,10 +165,13 @@ class TestOpenSearchRead:
             query=query,
             reconstruct_document=True,
             **kwargs
-        ).take_all()  # count()
+        ).count()
 
-        print(f"ExecMode: {exec_mode}, count2: {len(ds2)}")
+        print(f"ExecMode: {exec_mode}, count2: {ds2}")
+        
+        assert ds2 == 1
+        assert ds1 == expected
 
-        assert len(ds2) == 1
-        assert len(ds1) == 580
-
+        # Clean up
+        client.delete_by_query(index=TestOpenSearchRead.INDEX, body={"query": {"match_all": {}}})
+        client.indices.refresh(index=TestOpenSearchRead.INDEX)

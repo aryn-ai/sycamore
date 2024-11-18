@@ -68,6 +68,9 @@ class OpenSearchReaderClient(BaseDBReader.Client):
                 response = self._client.scroll(scroll_id=scroll_id, scroll=query_params.kwargs["scroll"])
         finally:
             self._client.clear_scroll(scroll_id=scroll_id)
+
+        logging.debug(f"Got {len(result)} records")
+
         return OpenSearchReaderQueryResponse(result, self._client)
 
     def check_target_presence(self, query_params: BaseDBReader.QueryParams):
@@ -178,6 +181,8 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
             # sort elements per doc
             for doc in result:
                 doc.elements.sort(key=lambda e: e.element_index if e.element_index is not None else float("inf"))
+
+        logging.debug(f"Returning {len(result)} documents")
 
         return result
 
@@ -381,12 +386,10 @@ class OpenSearchMaterializedDataset(MaterializedDataset):
     ) -> typing.Iterable[typing.Dict[str, typing.Any]]:
         os_client = OpenSearchReaderClient.from_client_params(self.os_client_params)._client
 
-        os_docs = []
         for row in super().iter_rows():
             os_doc = OpenSearchDocument.deserialize(row["doc"])
             index_name = os_doc.index_name
-            os_docs.append(os_doc)
-            docs = self.to_docs(os_client, index_name, os_docs, self.os_query_params.reconstruct_document)
+            docs = self.to_docs(os_client, index_name, [os_doc], self.os_query_params.reconstruct_document)
             for doc in docs:
-                print(f"Yielding doc: {doc}")
+                # print(f"Yielding doc {counter}: {doc}")
                 yield {"doc": doc.serialize()}

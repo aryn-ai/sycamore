@@ -169,7 +169,7 @@ async def run_query_stream(query: Query) -> EventSourceResponse:
                 logger.info("Got DocSet result")
                 for doc in sqresult.result.take_all():
                     rendered = doc_to_json(doc)
-                    logger.info(f"Doc: {rendered}")
+                    logger.debug(f"Doc: {rendered}")
                     if rendered is not None:
                         num_results += 1
                         yield {
@@ -241,10 +241,9 @@ async def run_query(query: Query) -> Union[EventSourceResponse, QueryResult]:
     query_result = QueryResult(query_id=sqresult.query_id, plan=returned_plan, result=[], retrieved_docs=[])
 
     if isinstance(sqresult.result, DocSet):
-        logger.info("Got DocSet result")
         for doc in sqresult.result.take_all():
             rendered = doc_to_json(doc)
-            logger.info(f"Doc: {rendered}")
+            logger.debug(f"Doc: {rendered}")
             if rendered is not None:
                 query_result.result.append(rendered)
     else:

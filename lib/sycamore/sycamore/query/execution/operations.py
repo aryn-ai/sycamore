@@ -27,7 +27,6 @@ BASE_PROPS = [
     "entity",
 ]
 
-NUM_DOCS_GENERATE = 60
 NUM_TEXT_CHARS_GENERATE = 2500
 
 
@@ -127,12 +126,18 @@ def _get_text_for_summarize_data(
 
         # consolidates relevant properties to give to LLM
         if isinstance(result, DocSet):
-            for i, doc in enumerate(result.take(NUM_DOCS_GENERATE, **kwargs)):
+            done = False
+            # For query result caching in the executor, we need to consume the documents
+            # so that the materialized data is complete, even if they are not all included
+            # in the input prompt to the LLM.
+            for di, doc in enumerate(result.take_all()):
                 if isinstance(doc, MetadataDocument):
+                    continue
+                if done:
                     continue
                 props_dict = doc.properties.get("entity", {})
                 props_dict.update({p: doc.properties[p] for p in set(doc.properties) - set(BASE_PROPS)})
-                doc_text = f"Document {i}:\n"
+                doc_text = f"Document {di}:\n"
                 for k, v in props_dict.items():
                     doc_text += f"{k}: {v}\n"
 
@@ -153,9 +158,9 @@ def _get_text_for_summarize_data(
                     if total_token_count > max_tokens:
                         log.warn(
                             "Unable to add all text from to the LLM summary request due to token limit."
-                            f" Sending text from {i + 1} docs."
+                            f" Sending text from {di + 1} docs."
                         )
-                        break
+                        done = True
                 text += doc_text + "\n"
         else:
             text += str(result_data) + "\n"

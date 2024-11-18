@@ -1,6 +1,6 @@
 import sycamore
 from sycamore.data import Document
-from sycamore.transforms.embed import Embedder, BedrockEmbedder, OpenAIEmbedder
+from sycamore.transforms.embed import Embedder, BedrockEmbedder, OpenAIEmbedder, SentenceTransformerEmbedder
 
 passages = [
     (
@@ -46,6 +46,8 @@ def check_embedder(embedder: Embedder, expected_dim: int):
             assert doc.embedding is not None
             assert len(doc.embedding) == expected_dim
 
+def test_sentencetransformer_embedding():
+    check_embedder(embedder=SentenceTransformerEmbedder(model_name="thenlper/gte-small", batch_size=100), expected_dim=384)
 
 def test_openai_embedding():
     check_embedder(embedder=OpenAIEmbedder(), expected_dim=1536)
@@ -72,7 +74,8 @@ def test_openai_embedding_batches():
     context = sycamore.init()
     doc_set = context.read.document(docs)
 
-    embedded_doc_set = doc_set.embed(embedder=OpenAIEmbedder(model_batch_size=3))
+    embedder = SentenceTransformerEmbedder(model_name="thenlper/gte-small", batch_size=100)
+    embedded_doc_set = doc_set.embed(embedder=embedder)  # OpenAIEmbedder(model_batch_size=3))
 
     new_docs = embedded_doc_set.take()
 

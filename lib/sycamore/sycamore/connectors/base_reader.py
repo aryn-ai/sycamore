@@ -3,6 +3,9 @@ from typing import TYPE_CHECKING
 
 from abc import ABC, abstractmethod
 
+from ray.data.dataset import MaterializedDataset
+
+# from sycamore.connectors.opensearch.opensearch_dataset import OpenSearchMaterializedDataset
 from sycamore.data.document import Document
 from sycamore.plan_nodes import Scan
 from sycamore.utils.time_trace import TimeTrace
@@ -34,7 +37,7 @@ class BaseDBReader(Scan):
     # Type param for the objects that are read from the db
     class QueryResponse(ABC):
         @abstractmethod
-        def to_docs(self, query_params: "BaseDBReader.QueryParams") -> list[Document]:
+        def to_docs(self, query_params: "BaseDBReader.QueryParams", use_refs: bool = False) -> list[Document]:
             pass
 
     # Type param for the object used to estabilish the read target
@@ -58,6 +61,7 @@ class BaseDBReader(Scan):
         super().__init__(**kwargs)
         self._client_params = client_params
         self._query_params = query_params
+        self._use_refs = kwargs.get('use_refs', False)
 
     def read_docs(self) -> list[Document]:
         try:
@@ -66,7 +70,7 @@ class BaseDBReader(Scan):
             if not client.check_target_presence(self._query_params):
                 raise ValueError("Target is not present\n" f"Parameters: {self._query_params}\n")
             records = client.read_records(query_params=self._query_params)
-            docs = records.to_docs(query_params=self._query_params)
+            docs = records.to_docs(query_params=self._query_params, use_refs=self._use_refs)
         except Exception as e:
             raise ValueError(f"Error reading from target: {e}")
         finally:
@@ -80,10 +84,16 @@ class BaseDBReader(Scan):
         from ray.data import from_items
 
         with TimeTrace("Reader"):
-            return from_items(items=[{"doc": doc.serialize()} for doc in self.read_docs()])
+            ds: MaterializedDataset = from_items(items=[{"doc": doc.serialize()} for doc in self.read_docs()])
+            if self._use_refs:
+                return self.read_datasource(ds)
+            return ds
 
     def local_source(self) -> list[Document]:
         return self.read_docs()
 
     def format(self):
         return "reader"
+
+    def read_datasource(self, ds: "Dataset") -> "Dataset":
+        pass

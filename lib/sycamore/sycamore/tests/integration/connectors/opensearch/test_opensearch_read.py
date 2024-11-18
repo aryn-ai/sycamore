@@ -1,13 +1,17 @@
+import os
 import time
 
 import pytest
 from opensearchpy import OpenSearch
 
 import sycamore
+from sycamore.connectors.opensearch.opensearch_reader import OpenSearchReaderClient, \
+    OpenSearchReaderClientParams
 from sycamore.tests.integration.connectors.common import compare_connector_docs
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 
+os_admin_password = os.getenv("OS_ADMIN_PASSWORD", "admin")
 
 @pytest.fixture(scope="class")
 def setup_index():
@@ -45,7 +49,7 @@ class TestOpenSearchRead:
     OS_CLIENT_ARGS = {
         "hosts": [{"host": "localhost", "port": 9200}],
         "http_compress": True,
-        "http_auth": ("admin", "admin"),
+        "http_auth": ("admin", os_admin_password),
         "use_ssl": True,
         "verify_certs": False,
         "ssl_assert_hostname": False,
@@ -73,19 +77,22 @@ class TestOpenSearchRead:
             .take_all()
         )
 
+        kwargs = {'use_refs': True}
+
         retrieved_docs = context.read.opensearch(
-            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS, index_name=TestOpenSearchRead.INDEX
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS, index_name=TestOpenSearchRead.INDEX, **kwargs
         )
         target_doc_id = original_docs[-1].doc_id if original_docs[-1].doc_id else ""
         query = {"query": {"term": {"_id": target_doc_id}}}
         query_docs = context.read.opensearch(
-            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS, index_name=TestOpenSearchRead.INDEX, query=query
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS, index_name=TestOpenSearchRead.INDEX, query=query, **kwargs
         )
 
         retrieved_docs_reconstructed = context.read.opensearch(
             os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
             index_name=TestOpenSearchRead.INDEX,
             reconstruct_document=True,
+            **kwargs
         )
         original_materialized = sorted(original_docs, key=lambda d: d.doc_id)
 
@@ -107,3 +114,51 @@ class TestOpenSearchRead:
 
         for i in range(len(doc.elements) - 1):
             assert doc.elements[i].element_index < doc.elements[i + 1].element_index
+
+    def test_ingest_and_count(self, setup_index, exec_mode):
+        """
+        Validates data is readable from OpenSearch, and that we can rebuild processed Sycamore documents.
+        """
+
+        client = OpenSearch(**TestOpenSearchRead.OS_CLIENT_ARGS)
+
+        path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
+        context = sycamore.init(exec_mode=exec_mode)
+        original_docs = (
+            context.read.binary(path, binary_format="pdf")
+            .partition(partitioner=UnstructuredPdfPartitioner())
+            .explode()
+            .write.opensearch(
+                os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+                index_name=TestOpenSearchRead.INDEX,
+                index_settings=TestOpenSearchRead.INDEX_SETTINGS,
+                execute=False,
+            )
+            .take_all()
+        )
+
+        client.indices.refresh(index=TestOpenSearchRead.INDEX)
+
+        use_refs = False
+        kwargs = {'use_refs': use_refs}
+
+        query = {"query": {"match_all": {}}}
+        ds1 = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS, index_name=TestOpenSearchRead.INDEX, query=query, **kwargs
+        ).take_all()
+
+        print(f"ExecMode: {exec_mode}, count: {len(ds1)}")
+
+        ds2 = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+            index_name=TestOpenSearchRead.INDEX,
+            query=query,
+            reconstruct_document=True,
+            **kwargs
+        ).take_all()  # count()
+
+        print(f"ExecMode: {exec_mode}, count2: {len(ds2)}")
+
+        assert len(ds2) == 1
+        assert len(ds1) == 580
+

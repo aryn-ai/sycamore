@@ -297,7 +297,7 @@ class DocSetReader:
                 index_name=index_name, reconstruct_document=reconstruct_document, kwargs=query_kwargs
             )
         )
-        osr = OpenSearchReader(client_params=client_params, query_params=query_params)
+        osr = OpenSearchReader(client_params=client_params, query_params=query_params, **kwargs)
         return DocSet(self._context, osr)
 
     @requires_modules("duckdb", extra="duckdb")

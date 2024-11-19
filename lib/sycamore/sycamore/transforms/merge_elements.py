@@ -380,6 +380,7 @@ class MarkedMerger(ElementMerger):
                 continue
             if elem.data.get("_break"):
                 ee = Element()
+                ee.type = "Text"
                 ee.binary_representation = bin
                 ee.text_representation = text
                 ee.properties = props
@@ -408,6 +409,7 @@ class MarkedMerger(ElementMerger):
 
         if text:
             ee = Element()
+            ee.type = "Text"
             ee.binary_representation = bin
             ee.text_representation = text
             ee.properties = props

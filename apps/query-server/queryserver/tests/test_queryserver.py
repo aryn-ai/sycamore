@@ -73,10 +73,14 @@ def test_generate_plan_with_plan(test_client):
 def test_query_with_no_query_or_plan(test_client):
     response = test_client.post("/v1/query", json={})
     assert response.status_code == 422
+    response = test_client.post("/v1/query", json={"stream": True})
+    assert response.status_code == 422
 
 
 def test_query_with_query_and_plan(test_client):
     response = test_client.post("/v1/query", json={"query": "test query", "plan": "test plan"})
+    assert response.status_code == 422
+    response = test_client.post("/v1/query", json={"query": "test query", "plan": "test plan", "stream": True})
     assert response.status_code == 422
 
 

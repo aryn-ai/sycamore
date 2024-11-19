@@ -11,7 +11,7 @@ import time
 from typing import Annotated, Any, List, Optional, Union
 
 from fastapi import FastAPI, Path
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from sse_starlette.sse import EventSourceResponse
 from sycamore import DocSet
 from sycamore.data import Document, MetadataDocument
@@ -19,6 +19,8 @@ from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.schema import OpenSearchSchema
 
+# This is the uvicorn general logger, the error name is misleading.
+# https://github.com/encode/uvicorn/issues/562
 logger = logging.getLogger("uvicorn.error")
 
 
@@ -58,6 +60,14 @@ class Query(BaseModel):
 
     stream: bool = False
     """If true, query results will be streamed back to the client as they are generated."""
+
+    @model_validator(mode="after")
+    def check_not_both_query_and_plan(self):
+        if self.query is not None and self.plan is not None:
+            raise ValueError("query and plan cannot both be specified")
+        if self.query is None and self.plan is None:
+            raise ValueError("one of query or plan is required")
+        return self
 
 
 class QueryResult(BaseModel):
@@ -115,7 +125,9 @@ async def generate_plan(query: Query) -> LogicalPlan:
 
 
 def doc_to_json(doc: Document) -> Optional[dict[str, Any]]:
-    """Render a Document as a JSON object. Returns None for MetadataDocuments."""
+    """Render a Document as a JSON object. Only external properties and truncated text_representation
+    are included. Returns None for MetadataDocuments."""
+
     NUM_TEXT_CHARS_GENERATE = 1024
 
     if isinstance(doc, MetadataDocument):
@@ -123,12 +135,9 @@ def doc_to_json(doc: Document) -> Optional[dict[str, Any]]:
 
     props_dict = {}
     props_dict.update(doc.properties)
-    if "_schema" in props_dict:
-        del props_dict["_schema"]
-    if "_schema_class" in props_dict:
-        del props_dict["_schema_class"]
-    if "_doc_source" in props_dict:
-        del props_dict["_doc_source"]
+    props_dict.pop("_schema", None)
+    props_dict.pop("_schema_class", None)
+    props_dict.pop("_doc_source", None)
     props_dict["text_representation"] = (
         doc.text_representation[:NUM_TEXT_CHARS_GENERATE] if doc.text_representation is not None else None
     )
@@ -140,17 +149,19 @@ async def run_query_stream(query: Query) -> EventSourceResponse:
 
     async def query_runner():
         try:
-            logger.info(f"Generating plan for {query.index}: {query.query}")
-            yield {
-                "event": "status",
-                "data": "Generating plan",
-            }
-            await asyncio.sleep(0.1)
-            plan = sqclient.generate_plan(query.query, query.index, sqclient.get_opensearch_schema(query.index))
-            logger.info(f"Generated plan: {plan}")
-            # Don't want to return these through the API.
-            plan.llm_plan = None
-            plan.llm_prompt = None
+            plan = query.plan
+            if plan is None:
+                logger.info(f"Generating plan for {query.index}: {query.query}")
+                yield {
+                    "event": "status",
+                    "data": "Generating plan",
+                }
+                await asyncio.sleep(0.1)
+                plan = sqclient.generate_plan(query.query, query.index, sqclient.get_opensearch_schema(query.index))
+                logger.info(f"Generated plan: {plan}")
+                # Don't want to return these through the API.
+                plan.llm_plan = None
+                plan.llm_prompt = None
             yield {
                 "event": "plan",
                 "data": plan.model_dump_json(),
@@ -214,11 +225,6 @@ async def run_query(query: Query) -> Union[EventSourceResponse, QueryResult]:
     """
 
     logger.info(f"Running query: {query}")
-
-    if query.query is None and query.plan is None:
-        raise ValueError("query or plan is required")
-    if query.query is not None and query.plan is not None:
-        raise ValueError("query and plan cannot both be specified")
 
     if query.stream:
         return await run_query_stream(query)

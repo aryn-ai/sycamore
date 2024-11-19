@@ -162,6 +162,7 @@ def _get_text_for_summarize_data(
                             f" Sending text from {di + 1} docs."
                         )
                         done = True
+                        continue
                 text += doc_text + "\n"
         else:
             text += str(result_data) + "\n"

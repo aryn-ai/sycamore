@@ -165,7 +165,12 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         structure_id2label = self.structure_model.config.id2label
         structure_id2label[len(structure_id2label)] = "no object"
 
+        # print(outputs)
+
         objects = table_transformers.outputs_to_objects(outputs, cropped_image.size, structure_id2label)
+        import json
+        with open("tableout.json", "a") as f:
+            json.dump(objects, f, indent=2)
 
         # Convert the raw objects to our internal table representation. This involves multiple
         # phases of postprocessing.

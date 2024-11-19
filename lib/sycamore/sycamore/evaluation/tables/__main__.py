@@ -3,7 +3,7 @@ from tqdm import tqdm
 from ray.data import ActorPoolStrategy
 import sycamore
 from sycamore.context import ExecMode
-from sycamore.evaluation.tables.extractors import ExtractTableFromImage, FlorenceTableStructureExtractor, PaddleTableStructureExtractor, TextractTableStructureExtractor, PaddleV2TableStructureExtractor
+from sycamore.evaluation.tables.extractors import ExtractTableFromImage, FlorenceTableStructureExtractor, HomemadeTableTransformerTableStructureExtractor, PaddleTableStructureExtractor, TextractTableStructureExtractor, PaddleV2TableStructureExtractor
 from sycamore.evaluation.tables.table_metrics import TEDSMetric, apply_metric
 from sycamore.transforms.table_structure.extract import TableTransformerStructureExtractor
 
@@ -18,6 +18,7 @@ EXTRACTORS = {
     "paddlev2": (PaddleV2TableStructureExtractor, None, {}),
     "textract": (TextractTableStructureExtractor, None, {}),
     "florence": (FlorenceTableStructureExtractor, None, {}),
+    "homemade": (HomemadeTableTransformerTableStructureExtractor, ActorPoolStrategy(size=1), {"device": "cuda:0"}),
 }
 
 
@@ -34,12 +35,13 @@ parser.add_argument("dataset", choices=list(SCANS.keys()), help="dataset to eval
 parser.add_argument("extractor", choices=list(EXTRACTORS.keys()), help="TableStructureExtractor to evaluate")
 parser.add_argument("--debug", action="store_true")
 parser.add_argument("-l", "--limit", default=-1, type=int, required=False)
+parser.add_argument("--noreal", action="store_true")
 args = parser.parse_args()
 print(args)
 
 metrics = [
     TEDSMetric(structure_only=True),
-    TEDSMetric(structure_only=False),
+    # TEDSMetric(structure_only=False),
 ]
 
 local_ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
@@ -72,7 +74,7 @@ for m in metrics:
     measured = measured.map(apply_metric(m))
 
 if args.debug:
-    doc = measured.take(1)[0]
+    doc = measured.take(2)[1]
     ed = TableEvalDoc(doc.data)
     del ed["image"]
     del ed.properties["tokens"]
@@ -80,6 +82,8 @@ if args.debug:
     print(ed.pred_table.to_html())
     print(ed.data)
 
+if args.noreal:
+    exit()
 # aggs = measured.plan.execute().aggregate(*[m.to_aggregate_fn() for m in metrics])
 aggs = local_aggregate(measured.take_all(), *[m.to_aggregate_fn(in_ray=False) for m in metrics])
 print("=" * 80)

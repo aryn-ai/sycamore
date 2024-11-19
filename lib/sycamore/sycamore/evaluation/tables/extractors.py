@@ -7,7 +7,7 @@ from sycamore.data.element import TableElement
 from sycamore.data.table import Table
 from sycamore.evaluation.tables.benchmark_scans import TableEvalDoc
 from sycamore.transforms import extract_table
-from sycamore.transforms.table_structure.extract import TableStructureExtractor
+from sycamore.transforms.table_structure.extract import TableStructureExtractor, TableTransformerStructureExtractor
 
 from PIL import Image
 import numpy as np
@@ -15,6 +15,7 @@ import re
 
 from textractor import Textractor
 from textractor.textractor import TextractFeatures
+from transformers.models.deformable_detr.modeling_deformable_detr import DeformableDetrForObjectDetection
 
 
 class ExtractTableFromImage:
@@ -38,6 +39,11 @@ class ExtractTableFromImage:
 
     def __call__(self, docs: list[Document]) -> list[Document]:
         return self.extract_table(docs)
+
+class HomemadeTableTransformerTableStructureExtractor(TableTransformerStructureExtractor):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.structure_model = DeformableDetrForObjectDetection.from_pretrained("/home/ubuntu/sycamore/tatr_real_3").to(self._get_device())
 
 class PaddleTableStructureExtractor(TableStructureExtractor):
 

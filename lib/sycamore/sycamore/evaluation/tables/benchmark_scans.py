@@ -3,6 +3,9 @@ import io
 import re
 import json
 import random
+from pathlib import Path
+import xml.etree.ElementTree as ET
+import logging
 
 from datasets import load_dataset
 from datasets.load import IterableDataset
@@ -298,3 +301,60 @@ class CohereTabNetS3Scan(TableEvalScan):
 
     def execute(self, **kwargs) -> "Dataset":
         pass
+
+class IcdarFileScan(TableEvalScan):
+    LOCAL_PATH = "/home/ubuntu/datasets/icdar/ICDAR-2013.c-Structure"
+
+    @staticmethod
+    def _read_pascal_voc(xml_file: Path, class_map={
+        "table": 0,
+        "table column": 1,
+        "table column header": 3,
+        "table projected row header": 4,
+        "table row": 2,
+        "table spanning cell": 5, "no object": 6
+    }):
+        try:
+            tree = ET.parse(xml_file)
+        except ET.ParseError as e:
+            logging.error(f"Error parsing {xml_file}")
+            raise e
+        root = tree.getroot()
+
+        bboxes = []
+        labels = []
+
+        for object_ in root.iter("object"):
+            ymin, xmin, ymax, xmax = None, None, None, None
+
+            label = object_.find("name").text
+            # TODO: Fix typos in the data, not code
+            try:
+                label = int(label)
+            except:
+                label = int(class_map[label])
+
+            for box in object_.findall("bndbox"):
+                ymin = float(box.find("ymin").text)
+                xmin = float(box.find("xmin").text)
+                ymax = float(box.find("ymax").text)
+                xmax = float(box.find("xmax").text)
+
+            bbox = [xmin, ymin, xmax, ymax]  # PASCAL VOC
+
+            bboxes.append(bbox)
+            labels.append(label)
+
+        return xml_file, bboxes, labels
+
+    @staticmethod
+    def _read_words_json(xml_file):
+        json_file = Path(str(xml_file).replace(".xml", "_words.json").replace("test", "words"))
+        with open(json_file, "r") as f:
+            words = json.load(f)
+
+
+    def local_process(self, **kwargs):
+        test_path = Path(IcdarFileScan.LOCAL_PATH) / "test"
+        f_iterator = test_path.iterdir()
+        fileboxesandlabels = map(IcdarFileScan._read_pascal_voc, f_iterator)

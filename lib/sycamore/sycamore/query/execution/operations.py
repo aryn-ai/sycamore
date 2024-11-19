@@ -27,6 +27,7 @@ BASE_PROPS = [
     "entity",
 ]
 
+NUM_DOCS_GENERATE = 60
 NUM_TEXT_CHARS_GENERATE = 2500
 
 

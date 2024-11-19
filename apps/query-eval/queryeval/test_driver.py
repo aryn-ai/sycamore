@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 from sycamore.query.schema import OpenSearchSchema, OpenSearchSchemaField
 
 from queryeval.driver import QueryEvalDriver
-from queryeval.types import (
+from queryeval.queryeval_types import (
     QueryEvalQuery,
     QueryEvalResult,
     QueryEvalMetrics,

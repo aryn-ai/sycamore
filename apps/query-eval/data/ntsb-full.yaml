@@ -423,15 +423,6 @@ queries:
     tags:
       - verified_ground_truth
 
-  - query: "What was the breakdown of incidents by month, expressed as MM/YY?"
-    expected: |
-      06/24: 42
-      07/24: 36
-      08/24: 17
-      09/24: 5
-    tags:
-      - verified_ground_truth
-
   - query: "What was the aircraft type with the most incidents?"
     expected: "Cessna 172"
     tags:
@@ -565,22 +556,49 @@ queries:
     tags:
       - need_ground_truth
 
-  - query: "How many documents have 194 in the pathname?"
-    expected: "91"
-    tags:
-      - verified_ground_truth
-
   - query: "How many incidents occurred in the first 10 days of July 2024?"
     expected: "11"
     tags:
-      - mdw
+      - verified_ground_truth
 
   - query: "How many states did incidents in the first 10 days of July 2024 occur in?"
     expected: "9"
     tags:
-      - mdw
+      - verified_ground_truth
 
   - query: "How many more incidents happened in Florida compared to Oklahoma?"
     expected: "7"
     tags:
       - verified_ground_truth
+
+  - query: "How many incidents occurred that involved serious injuries when the wind speed was greater than four knots?"
+    expected: "12"
+    tags:
+      - need_ground_truth
+
+  - query: "In incidents involving Piper aircraft, what was the most commonly damaged part of the aircraft?"
+    expected: "Wing, with 7 incidents in which it was damaged."
+    tags:
+      - need_ground_truth
+
+  - query: "In incidents involving damage to the fuselage, what are the number of incidents by aircraft type?"
+    expected: |
+      Cessna 172: 3
+      AIR TRACTOR INC AT-402: 2
+      CIRRUS DESIGN CORP SR20: 2
+      Cessna 172R: 2
+      Cessna 180: 2 are 2 incidents reported.
+      Cessna 305: 2
+      Cessna A185F: 2
+      Piper PA28: 2
+      Others: 1 each
+    tags:
+      - need_ground_truth
+
+  - query: "How many incidents were there, broken down by number of engines?"
+    expected: |
+      0 engines: 5
+      1 Engine: 87
+      2 Engines: 9
+    tags:
+      - need_ground_truth

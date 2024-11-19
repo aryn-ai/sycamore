@@ -74,6 +74,7 @@ class DocumentSummary(BaseModel):
     doc_id: Optional[str] = None
     text_representation: Optional[str] = None
     path: Optional[str] = None
+    properties: Optional[Dict[str, Any]] = None
 
 
 class DocSetSummary(BaseModel):

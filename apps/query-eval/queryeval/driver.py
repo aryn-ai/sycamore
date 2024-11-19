@@ -12,7 +12,7 @@ from sycamore.docset import DocSet
 from sycamore.query.client import SycamoreQueryClient, configure_logging
 from yaml import safe_load
 
-from queryeval.types import (
+from queryeval.queryeval_types import (
     QueryEvalConfig,
     QueryEvalInputFile,
     QueryEvalMetrics,
@@ -189,11 +189,26 @@ class QueryEvalDriver:
                 if hasattr(doc.data, "model_dump"):
                     results.append(doc.data.model_dump())
                 else:
+                    BASE_PROPS = [
+                        "filename",
+                        "filetype",
+                        "page_number",
+                        "page_numbers",
+                        "links",
+                        "element_id",
+                        "parent_id",
+                        "_schema",
+                        "_schema_class",
+                        "entity",
+                    ]
+                    props_dict = doc.properties.get("entity", {})
+                    props_dict.update({p: doc.properties[p] for p in set(doc.properties) - set(BASE_PROPS)})
                     results.append(
                         DocumentSummary(
                             doc_id=doc.doc_id,
                             path=doc.properties.get("path"),
                             text_representation=doc.text_representation,
+                            properties=props_dict,
                         )
                     )
         return DocSetSummary(docs=results)
@@ -212,7 +227,9 @@ class QueryEvalDriver:
     def _check_tags_match(self, query):
         if not self.config.config or not self.config.config.tags:
             return True
-        return set(self.config.config.tags) == set(query.tags or [])
+        if not query.tags:
+            return False
+        return len(set.intersection(set(self.config.config.tags), set(query.tags or []))) > 0
 
     def do_plan(self, query: QueryEvalQuery, result: QueryEvalResult) -> QueryEvalResult:
         """Generate or return an existing query plan."""

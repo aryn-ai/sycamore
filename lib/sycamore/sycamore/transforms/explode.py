@@ -40,11 +40,11 @@ class Explode(SingleThreadUser, NonGPUUser, FlatMap):
     @timetrace("explode")
     def explode_default(parent: Document) -> list[Document]:
         documents: list[Document] = [parent]
-        import uuid
+        import nanoid
 
         for i, element in enumerate(parent.elements):
             cur = Document(element.data)
-            cur.doc_id = str(uuid.uuid4())
+            cur.doc_id = "aryn:c-" + nanoid.generate()
             cur.parent_id = parent.doc_id
             if isinstance(element, TableElement):
                 cur.text_representation = element.text_representation

@@ -14,6 +14,7 @@ from pydantic import BaseModel, create_model
 
 import json
 import uuid
+import nanoid
 import logging
 
 logger = logging.getLogger(__name__)
@@ -83,7 +84,7 @@ class EntityExtractor(GraphEntityExtractor):
                     if hash not in nodes[label]:
                         node = {
                             "type": "extracted",
-                            "doc_id": str(uuid.uuid4()),
+                            "doc_id": "aryn:e-" + nanoid.generate(),
                             "properties": {},
                             "label": label,
                             "relationships": {},

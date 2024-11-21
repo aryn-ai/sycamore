@@ -9,7 +9,7 @@ import json
 import logging
 from pathlib import Path
 import posixpath
-import uuid
+import nanoid
 from typing import Callable, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -48,7 +48,7 @@ def default_filename(doc: Document, extension: Optional[str] = None) -> str:
         extension: An optional extension that will be appended to the name following a '.'.
     """
     if doc.doc_id is None:
-        base_name = str(uuid.uuid4())
+        base_name = "aryn:d-" + nanoid.generate()
     else:
         base_name = str(doc.doc_id)
 

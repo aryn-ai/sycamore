@@ -34,6 +34,8 @@ class TextExtractor:
                     obj_bbox.y2 / height,
                 )
                 text.text_representation = obj_text
+                if "font_size" in obj:
+                    text.properties['font_size'] = obj["font_size"]
                 texts.append(text)
         return texts
 

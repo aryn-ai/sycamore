@@ -170,9 +170,13 @@ class PaddleOcr(OcrModel):
         image.save(bytearray, format="BMP")
         result = self.reader.ocr(bytearray.getvalue(), rec=True, det=True, cls=False)
         if result and result[0]:
-            text_values = [value[1][0] for value in result[0]]
-            return " ".join(text_values)
-        return ""
+            text_values = []
+            font_sizes = []
+            for value in result[0]:
+                text_values.append(value[1][0])
+                font_sizes.append(value[0][3][1] - value[0][0][1])
+            return " ".join(text_values), sum(font_sizes)/len(font_sizes)
+        return "", 0
 
     def set_slicing_parameters(self, image_width, image_height) -> dict[str, Any]:
         slicing_params = {}

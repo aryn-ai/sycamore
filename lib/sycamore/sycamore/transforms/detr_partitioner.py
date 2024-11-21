@@ -124,16 +124,23 @@ class ArynPDFPartitioner:
             if matched:
                 matches = []
                 full_text = []
+                font_sizes = []
                 for m in matched:
                     matches.append(m)
                     if m.text_representation:
                         full_text.append(m.text_representation)
-
+                        try:
+                            if m.properties.get("font_size"):
+                                font_sizes.append(m.properties.get("font_size"))
+                            else:
+                                print(m)
+                        except Exception as e:
+                            print(e)
                 if isinstance(i, TableElement):
                     i.tokens = [{"text": elem.text_representation, "bbox": elem.bbox} for elem in matches]
 
                 i.data["text_representation"] = " ".join(full_text)
-
+                i.properties['font_size'] = sum(font_sizes) / len(font_sizes)
         return inferred + unmatched
 
     def partition_pdf(
@@ -157,6 +164,7 @@ class ArynPDFPartitioner:
         output_format: Optional[str] = None,
         text_extraction_options: dict[str, Any] = {},
         source: str = "",
+        promote_title: bool = False,
     ) -> list[Element]:
         if use_partitioning_service:
             assert aryn_api_key != ""
@@ -199,6 +207,9 @@ class ArynPDFPartitioner:
                 for ele in r:
                     ele.properties[DocumentPropertyTypes.PAGE_NUMBER] = i + 1
                     page.append(ele)
+                if promote_title:
+                    from sycamore.utils.pdf_utils import promote_sectionheader_to_title
+                    promote_sectionheader_to_title(page)
                 bbox_sort_page(page)
                 elements.extend(page)
             if output_format == "markdown":
@@ -811,6 +822,6 @@ def extract_ocr(
                     tokens.append(token)
                 elem.tokens = tokens
             else:
-                elem.text_representation = ocr_model_obj.get_text(cropped_image)
+                elem.text_representation, elem.properties['font_size'] = ocr_model_obj.get_text(cropped_image)
 
     return elements

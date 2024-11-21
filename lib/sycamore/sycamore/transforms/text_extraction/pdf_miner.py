@@ -5,6 +5,7 @@ from pathlib import Path
 from sycamore.utils.import_utils import requires_modules
 from sycamore.utils.time_trace import timetrace
 from sycamore.transforms.text_extraction.text_extractor import TextExtractor
+from pdfminer.layout import LTTextLine
 import logging
 
 if TYPE_CHECKING:
@@ -87,6 +88,18 @@ class PdfMinerExtractor(TextExtractor):
                 logger.info("Cache Miss for PDFMiner. Storing the result to the cache.")
                 pdf_miner_cache.set(hash_key, pages)
             return pages
+    
+    @staticmethod
+    def _parse_obj(objs):
+        font_size_list = []
+        def traverse(objs):
+            for obj in objs:
+                if isinstance(obj, Iterable):
+                    traverse(obj)
+                elif hasattr(obj, 'fontname'):
+                    font_size_list.append(obj.size)
+        traverse(objs)
+        return sum(font_size_list)/ len(font_size_list)
 
     @timetrace("PdfMinerPageEx")
     def extract_page(self, page: Optional[Union["PDFPage", "Image"]]) -> list[Element]:
@@ -103,6 +116,7 @@ class PdfMinerExtractor(TextExtractor):
                 {
                     "bbox": BoundingBox(x1, y1, x2, y2),
                     "text": obj.get_text(),
+                    "font_size": self._parse_obj(obj),
                 }
             )
 

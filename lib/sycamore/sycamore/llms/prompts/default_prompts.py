@@ -126,6 +126,7 @@ class ExtractTablePropertiesPrompt(SimplePrompt):
             If there is a one-to-one mapping between two cells, even if the relationship is not direct, they should be considered key-value pairs.
             If the table is a key-value pair table, return its key-value pairs as a JSON object.
             If the table is not a key-value pair table, return False.
+            Use camelCase for the key names in the JSON object.
             Parse the CSV table, check the image, and return a flattened JSON object representing the key-value pairs from the table. The extracted key-value pairs should be formatted as a JSON object.
             Do not return nested objects; keep the dictionary only one level deep. The only valid value types are numbers, strings, None, and lists.
             A table can have multiple or all null values for a key. In such cases, return a JSON object with the specified key set to null for all rows in the table.

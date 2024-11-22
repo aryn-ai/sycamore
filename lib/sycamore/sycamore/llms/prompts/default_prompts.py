@@ -126,9 +126,9 @@ class ExtractTablePropertiesPrompt(SimplePrompt):
             If there is a one-to-one mapping between two cells, even if the relationship is not direct, they should be considered key-value pairs.
             If the table is a key-value pair table, return its key-value pairs as a JSON object.
             If the table is not a key-value pair table, return False.
-            Parse the table, check the image, and return a flattened JSON object representing the key-value pairs from the table. The extracted key-value pairs should be formatted as a JSON object.
+            Parse the CSV table, check the image, and return a flattened JSON object representing the key-value pairs from the table. The extracted key-value pairs should be formatted as a JSON object.
             Do not return nested objects; keep the dictionary only one level deep. The only valid value types are numbers, strings, None, and lists.
-            Use camelCase for the key names.
+            A table can have multiple or all null values for a key. In such cases, return a JSON object with the specified key set to null for all rows in the table.
             For fields where the values are in standard measurement units like miles, nautical miles, knots, or Celsius, include the unit in the key name and only set the numeric value as the value:
 
                 "Wind Speed: 9 knots" should become "windSpeedInKnots": 9
@@ -158,6 +158,16 @@ class ExtractTablePropertiesPrompt(SimplePrompt):
             |---------------------------------|------------------|------------------|
 
             return False
+        
+        example of a key value table containing null walues 
+            |---------------------------------|---------------------|
+            | header 1 :                      | header 2: 'value2'  |
+            | header 3 :                      | header 4 :          |
+            | header 5 :                      | header 6:           |
+            |---------------------------------|---------------------|
+
+            return ```{"header1": null, "header2": "value2", "header3": null, "header4": null, "header5": null, "header6": null}```
+
             """
 
 

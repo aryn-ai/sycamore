@@ -66,9 +66,9 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
         This method is used to extract key/value pairs from tables, using the LLM,
         and populate them as a property of that element.
         """
-        doc1 = split_and_convert_to_image(parent)
+        image_doc = split_and_convert_to_image(parent)
         img_list = []
-        for img in doc1:
+        for img in image_doc:
             # print(img['properties'])
             size = tuple(img.properties["size"])
             mode = img.properties["mode"]
@@ -76,6 +76,7 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
             img_list.append((image, size, mode))
 
         for idx, ele in enumerate(parent.elements):
+            raw_answer = ""
             if ele is not None and ele.type == "table" and ele.bbox is not None:
                 image, size, mode = img_list[ele.properties["page_number"] - 1]  # output of APS is one indexed
                 bbox = ele.bbox.coordinates
@@ -83,7 +84,11 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
                 content = [
                     {
                         "type": "text",
-                        "text": prompt_LLM if prompt_LLM is not None else ExtractTablePropertiesPrompt.user,
+                        "text": (
+                            prompt_LLM
+                            if prompt_LLM is not None
+                            else ExtractTablePropertiesPrompt.user + f"\n CSV: {ele.text_representation}"
+                        ),
                     },
                     llm.format_image(img),
                 ]

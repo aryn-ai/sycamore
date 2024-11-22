@@ -68,7 +68,7 @@ class Document(UserDict):
 
     def update_lineage_id(self):
         """Update the lineage ID with a new identifier"""
-        self.data["lineage_id"] = nanoid.generate()
+        self.data["lineage_id"] = nanoid36()
 
     @property
     def type(self) -> Optional[str]:
@@ -504,5 +504,12 @@ class OpenSearchQueryResult(Document):
         return OpenSearchQueryResult(loads(raw))
 
 
-def mkdocid() -> str:
-    return "aryn:d-" + nanoid.generate()
+def nanoid36() -> str:
+    """
+    Free of punctuation and uppercase; still as good as UUID4.
+    """
+    return nanoid.generate("0123456789abcdefghijklmnopqrstuvwxyz", 24)
+
+
+def mkdocid(code: str = "d") -> str:
+    return f"aryn:{code}-{nanoid36()}"

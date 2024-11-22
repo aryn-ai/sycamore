@@ -5,13 +5,13 @@ from io import BytesIO
 import boto3
 import mimetypes
 from typing import Any, Optional, Union, Tuple, Callable, TYPE_CHECKING
-import uuid
 import logging
 
 from pyarrow._fs import FileInfo
 from pyarrow.fs import FileSystem, FileSelector
 from sycamore.data import Document
 from sycamore.plan_nodes import Scan
+from sycamore.data.document import mkdocid
 from sycamore.utils.time_trace import timetrace
 
 if TYPE_CHECKING:
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 def _set_id(doc: dict[str, Any]) -> dict[str, Any]:
-    doc["doc_id"] = str(uuid.uuid1())
+    doc["doc_id"] = mkdocid()
     return doc
 
 
@@ -156,7 +156,7 @@ class BinaryScan(FileScan):
     """Scan data file into raw bytes
 
     For each file, BinaryScan creates one Document in the form of
-    {"doc_id": uuid,
+    {"doc_id": nanoid,
      "content": {"binary": xxx, "text": None},
       "properties": {"path": xxx}, "filetype": yyy}.
 
@@ -192,7 +192,7 @@ class BinaryScan(FileScan):
     def _to_document(self, dict: dict[str, Any]) -> dict[str, bytes]:
         document = Document()
 
-        document.doc_id = str(uuid.uuid1())
+        document.doc_id = mkdocid("f")
         document.type = self._binary_format
         document.binary_representation = dict["bytes"]
 
@@ -242,7 +242,7 @@ class BinaryScan(FileScan):
             binary_data = file.read()
 
         document = Document()
-        document.doc_id = str(uuid.uuid1())
+        document.doc_id = mkdocid("f")
         document.type = self._binary_format
         document.binary_representation = binary_data
         document.properties["path"] = info.path
@@ -287,7 +287,7 @@ class JsonScan(FileScan):
     def _to_document(self, json_dict: dict[str, Any]) -> list[dict[str, Any]]:
         document = Document()
 
-        document.doc_id = str(uuid.uuid1())
+        document.doc_id = mkdocid()
         document.type = "json"
 
         if self._document_body_field is not None:

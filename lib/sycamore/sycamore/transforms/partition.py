@@ -456,8 +456,6 @@ class ArynPartitioner(Partitioner):
         text_extraction_options: dict[str, Any] = {},
         source: str = "",
         promote_title: bool = False,
-
-        
     ):
         if use_partitioning_service:
             device = "cpu"
@@ -528,8 +526,7 @@ class ArynPartitioner(Partitioner):
                 output_format=self._output_format,
                 text_extraction_options=self._text_extraction_options,
                 source=self._source,
-                promote_title = self._promote_title,
-
+                promote_title=self._promote_title,
             )
         except Exception as e:
             path = document.properties["path"]

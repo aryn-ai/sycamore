@@ -131,11 +131,14 @@ class ArynPDFPartitioner:
                         full_text.append(m.text_representation)
                         if m.properties.get("font_size") is not None:
                             font_sizes.append(m.properties.get("font_size"))
-                i.properties['font_size'] = 0
+                if isinstance(i, TableElement):
+                    i.tokens = [{"text": elem.text_representation, "bbox": elem.bbox} for elem in matches]
+                i.text_representation = " ".join(full_text)
+                i.properties["font_size"] = 0
                 if len(font_sizes) > 0:
                     font_sizes_filtered = [size for size in font_sizes if size is not None]
                     if len(font_sizes_filtered) > 0:
-                        i.properties['font_size'] = sum(font_sizes_filtered) / len(font_sizes_filtered)
+                        i.properties["font_size"] = sum(font_sizes_filtered) / len(font_sizes_filtered)
         return inferred + unmatched
 
     def partition_pdf(
@@ -204,6 +207,7 @@ class ArynPDFPartitioner:
                     page.append(ele)
                 if promote_title:
                     from sycamore.utils.pdf_utils import promote_sectionheader_to_title
+
                     promote_sectionheader_to_title(page)
                 bbox_sort_page(page)
                 elements.extend(page)
@@ -817,6 +821,6 @@ def extract_ocr(
                     tokens.append(token)
                 elem.tokens = tokens
             else:
-                elem.text_representation, elem.properties['font_size'] = ocr_model_obj.get_text(cropped_image)
+                elem.text_representation, elem.properties["font_size"] = ocr_model_obj.get_text(cropped_image)
 
     return elements

@@ -35,7 +35,7 @@ class TextExtractor:
                 )
                 text.text_representation = obj_text
                 if "font_size" in obj:
-                    text.properties['font_size'] = obj["font_size"]
+                    text.properties["font_size"] = obj["font_size"]
                 texts.append(text)
         return texts
 

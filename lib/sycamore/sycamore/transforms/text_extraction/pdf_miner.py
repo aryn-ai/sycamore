@@ -87,18 +87,20 @@ class PdfMinerExtractor(TextExtractor):
                 logger.info("Cache Miss for PDFMiner. Storing the result to the cache.")
                 pdf_miner_cache.set(hash_key, pages)
             return pages
-    
+
     @staticmethod
     def _parse_obj(objs):
         font_size_list = []
+
         def traverse(objs):
             for obj in objs:
                 if isinstance(obj, Iterable):
                     traverse(obj)
-                elif hasattr(obj, 'fontname'):
+                elif hasattr(obj, "fontname"):
                     font_size_list.append(obj.size)
+
         traverse(objs)
-        return sum(font_size_list)/ len(font_size_list)
+        return sum(font_size_list) / len(font_size_list)
 
     @timetrace("PdfMinerPageEx")
     def extract_page(self, page: Optional[Union["PDFPage", "Image"]]) -> list[Element]:

@@ -83,7 +83,8 @@ class EasyOcr(OcrModel):
             out_list.append(text)
             font_sizes.append(res[0][2][1] - res[0][0][1])
         val = " ".join(out_list)
-        return val, sum(font_sizes) / len(font_sizes)
+        avg_font_size = sum(font_sizes) / len(font_sizes) if font_sizes else 0.0
+        return val, avg_font_size
 
     def get_boxes_and_text(self, image: Image.Image) -> list[dict[str, Any]]:
         image_bytes = BytesIO()
@@ -176,7 +177,8 @@ class PaddleOcr(OcrModel):
             for value in result[0]:
                 text_values.append(value[1][0])
                 font_sizes.append(value[0][3][1] - value[0][0][1])
-            return " ".join(text_values), sum(font_sizes) / len(font_sizes)
+            avg_font_size = sum(font_sizes) / len(font_sizes) if font_sizes else 0.0
+            return " ".join(text_values), avg_font_size
         return "", 0
 
     def set_slicing_parameters(self, image_width, image_height) -> dict[str, Any]:

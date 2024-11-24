@@ -133,7 +133,8 @@ class ArynPDFPartitioner:
                             font_sizes.append(m.properties.get("font_size"))
                 if isinstance(i, TableElement):
                     i.tokens = [{"text": elem.text_representation, "bbox": elem.bbox} for elem in matches]
-                i.text_representation = " ".join(full_text)
+                
+                i.data["text_representation"] = " ".join(full_text)
                 i.properties["font_size"] = 0
                 if len(font_sizes) > 0:
                     font_sizes_filtered = [size for size in font_sizes if size is not None]

@@ -129,21 +129,13 @@ class ArynPDFPartitioner:
                     matches.append(m)
                     if m.text_representation:
                         full_text.append(m.text_representation)
-                        try:
-                            if m.properties.get("font_size"):
-                                font_sizes.append(m.properties.get("font_size"))
-                            else:
-                                print(m)
-                        except Exception as e:
-                            print(e)
-                if isinstance(i, TableElement):
-                    i.tokens = [{"text": elem.text_representation, "bbox": elem.bbox} for elem in matches]
-
-                i.data["text_representation"] = " ".join(full_text)
+                        if m.properties.get("font_size") is not None:
+                            font_sizes.append(m.properties.get("font_size"))
+                i.properties['font_size'] = 0
                 if len(font_sizes) > 0:
-                    i.properties['font_size'] = sum(font_sizes) / len(font_sizes)
-                else:
-                    i.properties['font_size'] = 0
+                    font_sizes_filtered = [size for size in font_sizes if size is not None]
+                    if len(font_sizes_filtered) > 0:
+                        i.properties['font_size'] = sum(font_sizes_filtered) / len(font_sizes_filtered)
         return inferred + unmatched
 
     def partition_pdf(

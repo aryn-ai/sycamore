@@ -5,7 +5,6 @@ from pathlib import Path
 from sycamore.utils.import_utils import requires_modules
 from sycamore.utils.time_trace import timetrace
 from sycamore.transforms.text_extraction.text_extractor import TextExtractor
-from pdfminer.layout import LTTextLine
 import logging
 
 if TYPE_CHECKING:
@@ -91,6 +90,7 @@ class PdfMinerExtractor(TextExtractor):
     
     @staticmethod
     def _parse_obj(objs):
+        from pdfminer.layout import LTTextLine
         font_size_list = []
         def traverse(objs):
             for obj in objs:

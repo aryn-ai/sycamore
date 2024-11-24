@@ -90,7 +90,6 @@ class PdfMinerExtractor(TextExtractor):
     
     @staticmethod
     def _parse_obj(objs):
-        from pdfminer.layout import LTTextLine
         font_size_list = []
         def traverse(objs):
             for obj in objs:

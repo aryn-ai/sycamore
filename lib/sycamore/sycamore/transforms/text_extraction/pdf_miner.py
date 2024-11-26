@@ -88,6 +88,19 @@ class PdfMinerExtractor(TextExtractor):
                 pdf_miner_cache.set(hash_key, pages)
             return pages
 
+    def _get_font_size(self, objs) -> float:
+        font_size_list = []
+
+        def traverse(objs):
+            for obj in objs:
+                if isinstance(obj, Iterable):
+                    traverse(obj)
+                elif hasattr(obj, "fontname"):
+                    font_size_list.append(obj.size)
+
+        traverse(objs)
+        return sum(font_size_list) / len(font_size_list)
+
     @timetrace("PdfMinerPageEx")
     def extract_page(self, page: Optional[Union["PDFPage", "Image"]]) -> list[Element]:
         from pdfminer.pdfpage import PDFPage
@@ -103,6 +116,7 @@ class PdfMinerExtractor(TextExtractor):
                 {
                     "bbox": BoundingBox(x1, y1, x2, y2),
                     "text": obj.get_text(),
+                    "font_size": self._get_font_size(obj),
                 }
             )
 

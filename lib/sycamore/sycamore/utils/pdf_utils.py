@@ -162,3 +162,21 @@ def display_page_and_table_properties(some_pages: list[Document]):
                 print("Element Type: ", e.type)
                 print("Element Properties: ", json.dumps(e.properties, indent=2, default=str))
                 display(HTML(e.text_representation))
+
+
+def promote_title(elements: list[Element], title_candidate_elements=["Section-header", "Caption"]) -> list[Element]:
+    section_header_big_font = 0
+    section_header = None
+    for ele in elements:
+        if ele.properties["page_number"] != 1:
+            continue
+        if ele.type == "Title":
+            return elements
+        else:
+            font_size = ele.properties.get("font_size", None)
+            if ele.type in title_candidate_elements and font_size and font_size > section_header_big_font:
+                section_header_big_font = font_size
+                section_header = ele
+    if section_header:
+        section_header.type = "Title"
+    return elements

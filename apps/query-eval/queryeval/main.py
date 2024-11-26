@@ -20,11 +20,10 @@ from rich.console import Console
 
 from sycamore.llms import MODELS
 from queryeval.driver import QueryEvalDriver
+import nltk
 
 
 console = Console()
-
-import nltk
 
 try:
     nltk.data.find("tokenizers/punkt_tab")

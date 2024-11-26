@@ -1,5 +1,4 @@
 import string
-import pytest
 import random
 import unittest
 
@@ -14,7 +13,7 @@ class TestSort(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.exec_mode = ExecMode.LOCAL
-    
+
     def docs(self) -> list[Document]:
         doc_list = [
             # text_representation is random 6 letter strings
@@ -56,7 +55,7 @@ class TestSort(unittest.TestCase):
             assert doc_list[i].properties.get("even", 0) >= doc_list[i - 1].properties.get("even", 0)
 
         assert len(doc_list) == self.NUM_DOCS / 2
-            
+
         sorted_docset = self.docset().sort(False, "properties.even", 0)
         doc_list = sorted_docset.take_all()
 
@@ -70,7 +69,7 @@ class TestSort(unittest.TestCase):
             MetadataDocument(),
             Document(text_representation="C"),
             MetadataDocument(),
-            Document(text_representation=None)
+            Document(text_representation=None),
         ]
 
         context = sycamore.init(exec_mode=self.exec_mode)
@@ -82,7 +81,6 @@ class TestSort(unittest.TestCase):
         assert sorted_doc_list[0].text_representation == "B"
         assert sorted_doc_list[1].text_representation == "C"
         assert sorted_doc_list[2].text_representation == "Z"
-        
 
         sorted_docset = docset.sort(False, "text_representation", "A")
         sorted_doc_list = sorted_docset.take_all(include_metadata=True)
@@ -102,7 +100,5 @@ class TestSort(unittest.TestCase):
         assert sorted_doc_list[1].text_representation == "C"
         assert sorted_doc_list[2].text_representation == "B"
         for i in range(3):
-            d = sorted_doc_list[i+3]
+            d = sorted_doc_list[i + 3]
             assert isinstance(d, MetadataDocument) or d.text_representation is None
-
-        

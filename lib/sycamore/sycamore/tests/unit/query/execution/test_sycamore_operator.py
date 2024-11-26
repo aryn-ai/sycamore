@@ -331,20 +331,23 @@ def test_llm_extract_entity():
 
 
 def test_sort():
-    context = sycamore.init()
-    doc_set = Mock(spec=DocSet)
-    return_doc_set = Mock(spec=DocSet)
-    doc_set.sort.return_value = return_doc_set
-    logical_node = Sort(node_id=0, descending=True, field="properties.counter", default_value=0)
-    sycamore_operator = SycamoreSort(context, logical_node, query_id="test", inputs=[doc_set])
-    result = sycamore_operator.execute()
+    Sort(node_id=0, descending=True, field="no-default-value")
 
-    doc_set.sort.assert_called_once_with(
-        descending=logical_node.descending,
-        field=logical_node.field,
-        default_val=logical_node.default_value,
-    )
-    assert result == return_doc_set
+    for default_value in [None, 0]:
+        context = sycamore.init()
+        doc_set = Mock(spec=DocSet)
+        return_doc_set = Mock(spec=DocSet)
+        doc_set.sort.return_value = return_doc_set
+        logical_node = Sort(node_id=0, descending=True, field="properties.counter", default_value=default_value)
+        sycamore_operator = SycamoreSort(context, logical_node, query_id="test", inputs=[doc_set])
+        result = sycamore_operator.execute()
+
+        doc_set.sort.assert_called_once_with(
+            descending=logical_node.descending,
+            field=logical_node.field,
+            default_val=logical_node.default_value,
+        )
+        assert result == return_doc_set
 
 
 def test_top_k():

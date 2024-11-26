@@ -209,7 +209,7 @@ class ArynPDFPartitioner:
                         find_title(page, title_candidate_elements)
                     else:
                         find_title(page)
-                    bbox_sort_page(page)
+                bbox_sort_page(page)
                 elements.extend(page)
             if output_format == "markdown":
                 md = elements_to_markdown(elements)

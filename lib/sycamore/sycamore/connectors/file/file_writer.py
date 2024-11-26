@@ -1,5 +1,4 @@
-from sycamore.data import Document
-from sycamore.data.document import mkdocid
+from sycamore.data import Document, mkdocid
 from sycamore.plan_nodes import Node, Write
 
 from pyarrow.fs import FileSystem

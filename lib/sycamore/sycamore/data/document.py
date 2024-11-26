@@ -1,10 +1,10 @@
 from collections import UserDict
 import json
 from typing import Any, Optional
-import nanoid
 
 from sycamore.data import BoundingBox, Element
 from sycamore.data.element import create_element
+from sycamore.data.docid import mkdocid, nanoid36
 
 
 class DocumentSource:
@@ -502,14 +502,3 @@ class OpenSearchQueryResult(Document):
         from pickle import loads
 
         return OpenSearchQueryResult(loads(raw))
-
-
-def nanoid36() -> str:
-    """
-    Free of punctuation and uppercase; still as good as UUID4.
-    """
-    return nanoid.generate("0123456789abcdefghijklmnopqrstuvwxyz", 24)
-
-
-def mkdocid(code: str = "d") -> str:
-    return f"aryn:{code}-{nanoid36()}"

@@ -99,7 +99,7 @@ class TestWeaviateQueryResponse:
     def test_to_doc_flattened(self):
         cn = "TestToDocFlattened"
         wro = WeaviateReturnObject()
-        wro.uuid = "id"
+        wro.uuid = "00000000-0000-0000-0000-000000000000"
         wro.properties = {
             "properties__field": "value",
             "properties__nested__object": "value",
@@ -113,7 +113,7 @@ class TestWeaviateQueryResponse:
         returned_doc = WeaviateReaderQueryResponse.to_docs(record, wtp_a)[0]
         doc = Document(
             {
-                "doc_id": "id",
+                "doc_id": "aryn:d-00000000000000000000000",
                 "properties": {"field": "value", "nested": {"object": "value"}, "_doc_source": DocumentSource.DB_QUERY},
                 "type": "text",
                 "text_representation": "my first document",
@@ -124,7 +124,7 @@ class TestWeaviateQueryResponse:
     def test_to_doc_with_embeddings(self):
         cn = "TestToDocEmbedding"
         wro = WeaviateReturnObject()
-        wro.uuid = "id"
+        wro.uuid = "00000000-0000-0000-0000-000000000000"
         wro.properties = {"text_representation": "helloworld"}
         wro.vector = {"embedding": [0.4] * 19}
         record = WeaviateReaderQueryResponse(collection=[wro])
@@ -135,7 +135,7 @@ class TestWeaviateQueryResponse:
         print(returned_doc)
         doc = Document(
             {
-                "doc_id": "id",
+                "doc_id": "aryn:d-00000000000000000000000",
                 "text_representation": "helloworld",
                 "properties": {"_doc_source": DocumentSource.DB_QUERY},
                 "embedding": [0.4] * 19,
@@ -146,7 +146,7 @@ class TestWeaviateQueryResponse:
     def test_to_doc_with_list_types(self):
         cn = "TestToDocEmbeddingAndList"
         wro = WeaviateReturnObject()
-        wro.uuid = "id"
+        wro.uuid = "00000000-0000-0000-0000-000000000000"
         wro.properties = {
             "text_representation": "my second document",
             "bbox": (0.1, 1.2, 2.3, 3.4),
@@ -160,7 +160,7 @@ class TestWeaviateQueryResponse:
         returned_doc = WeaviateReaderQueryResponse.to_docs(record, wtp_a)[0]
         doc = Document(
             {
-                "doc_id": "id",
+                "doc_id": "aryn:d-00000000000000000000000",
                 "text_representation": "my second document",
                 "bbox": (0.1, 1.2, 2.3, 3.4),
                 "properties": {"_doc_source": DocumentSource.DB_QUERY},

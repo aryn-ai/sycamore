@@ -1190,9 +1190,14 @@ class DocSet:
             field: Document field in relation to Document using dotted notation, e.g. properties.filetype
             default_val: Default value to use if field does not exist in Document
         """
-        from sycamore.transforms import Sort
+        from sycamore.transforms.sort import Sort, DropIfMissingField
 
-        return DocSet(self.context, Sort(self.plan, descending, field, default_val))
+        plan = self.plan
+        if default_val is None:
+            import logging
+            logging.warning("Default value is none. Adding explicit filter step to work around ray issues")
+            plan = DropIfMissingField(plan, field)
+        return DocSet(self.context, Sort(plan, descending, field, default_val))
 
     def groupby_count(self, field: str, unique_field: Optional[str] = None, **kwargs) -> "DocSet":
         """

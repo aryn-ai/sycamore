@@ -184,8 +184,6 @@ def test_promote_title_with_section_header_as_title_candidate():
     ]
 
     result = promote_title(elements)
-    print(result)
-    print(gt_elements)
     assert result == gt_elements
 
 

@@ -164,7 +164,7 @@ def display_page_and_table_properties(some_pages: list[Document]):
                 display(HTML(e.text_representation))
 
 
-def find_title(elements: list[Element], candidate_elements=["Section-header", "Caption"]) -> list[Element]:
+def find_title(elements: list[Element], title_candidate_elements=["Section-header", "Caption"]) -> list[Element]:
     section_header_big_font = 0
     section_header = None
     for ele in elements:
@@ -174,7 +174,7 @@ def find_title(elements: list[Element], candidate_elements=["Section-header", "C
             return elements
         else:
             font_size = ele.properties.get("font_size", None)
-            if ele.type in candidate_elements and font_size and font_size > section_header_big_font:
+            if ele.type in title_candidate_elements and font_size and font_size > section_header_big_font:
                 section_header_big_font = font_size
                 section_header = ele
     if section_header:

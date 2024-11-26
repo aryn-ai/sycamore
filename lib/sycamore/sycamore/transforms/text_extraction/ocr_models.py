@@ -145,7 +145,7 @@ class LegacyOcr(OcrModel):
 
     def get_text(self, image: Image.Image) -> tuple[str, Optional[float]]:
         # font size calculation is not supported for tesseract
-        return self.tesseract.get_text(image)[0], None
+        return self.tesseract.get_text(image)
 
     def get_boxes_and_text(self, image: Image.Image) -> list[dict[str, Any]]:
         return self.easy_ocr.get_boxes_and_text(image)

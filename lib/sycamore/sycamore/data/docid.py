@@ -51,7 +51,7 @@ def nanoid36_to_uuid(id: str) -> str:
 
 def uuid_to_nanoid36(uu: str) -> str:
     """
-    Reverse operation for docid_to_uuid().
+    Reverse operation for docid_to_uuid().  See RFC 9562 for details.
     """
     nybbles = str_to_list(uu, alpha16)
     nybbles[16:17] = []  # remove variant

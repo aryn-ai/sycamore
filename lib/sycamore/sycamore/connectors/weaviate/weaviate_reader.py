@@ -87,15 +87,10 @@ class WeaviateReaderQueryResponse(BaseDBReader.QueryResponse):
         assert isinstance(self, WeaviateReaderQueryResponse)
         result = []
         for object in self.collection:
-            props = dict(object.properties)
-            if props.get("parent_id"):
-                typ = "c"  # chunk type has parent
-            else:
-                typ = "f"  # file type has no parent
             doc = Document(
                 (object.vector if hasattr(object, "vector") else {})
-                | unflatten_data(props, "__")
-                | {"doc_id": uuid_to_docid(str(object.uuid), typ)}
+                | unflatten_data(dict(object.properties), "__")
+                | {"doc_id": uuid_to_docid(str(object.uuid))}
             )  # type: ignore
             doc.properties["parent_id"] = str(doc.properties.get("parent_id", "")).replace("-", "")
             doc.properties["element_id"] = str(doc.properties.get("element_id", "")).replace("-", "")

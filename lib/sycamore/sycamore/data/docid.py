@@ -5,6 +5,7 @@ import nanoid
 # Alphabets for encodings...
 alpha36 = "0123456789abcdefghijklmnopqrstuvwxyz"
 alpha16 = "0123456789abcdef"
+types = "dfce"  # document, file, chunk, entity
 
 docid_nanoid_chars = 23  # 36^23 is a bit less than 2^119 (~15 bytes)
 
@@ -26,38 +27,47 @@ def mkdocid(code: str = "d") -> str:
 def docid_to_uuid(id: Optional[str]) -> Optional[str]:
     if not id or not id.startswith("aryn:"):
         return id
-    left, right = id.split("-", 1)
-    return nanoid36_to_uuid(right)
+    typ, val = id[5:].split("-", 1)
+    try:
+        extra = types.index(typ)
+    except ValueError:
+        extra = 0
+    return nanoid36_to_uuid(val, extra)
 
 
-def uuid_to_docid(uu: Optional[str], code: str = "d") -> Optional[str]:
+def uuid_to_docid(uu: Optional[str], code: Optional[str] = None) -> Optional[str]:
     if not uu:
         return uu
-    id = uuid_to_nanoid36(uu)
+    id, extra = uuid_to_nanoid36(uu)
+    if not code:
+        code = types[extra]
     return f"aryn:{code}-{id}"
 
 
-def nanoid36_to_uuid(id: str) -> str:
+def nanoid36_to_uuid(id: str, extra: int = 0) -> str:
     """
     Invertable conversion of docid to UUID for application that need UUID.
     See RFC 9562 for details.
     """
     x = str_to_bignum(id, alpha36)
     nybbles = bignum_to_nybbles(x, 30)  # 30 is ceil(119 / 4); nybble is 4 bits
-    nybbles[12:12] = [4]  # insert indicator of version 4
-    nybbles[16:16] = [8]  # insert indicator of variant OSF DCE
+    ver = 4
+    var = 8 | (extra & 7)
+    nybbles[12:12] = [ver]  # insert indicator of version 4
+    nybbles[16:16] = [var]  # insert indicator of variant OSF DCE
     return nybbles_to_uuid(nybbles)
 
 
-def uuid_to_nanoid36(uu: str) -> str:
+def uuid_to_nanoid36(uu: str) -> tuple[str, int]:
     """
     Reverse operation for docid_to_uuid().  See RFC 9562 for details.
     """
     nybbles = str_to_list(uu, alpha16)
-    nybbles[16:17] = []  # remove variant
-    nybbles[12:13] = []  # remove version
+    extra = nybbles[16] & 7
+    nybbles[16:17] = []  # remove variant indicator
+    nybbles[12:13] = []  # remove version indicator
     x = nybbles_to_bignum(nybbles)
-    return bignum_to_str(x, alpha36, docid_nanoid_chars)
+    return bignum_to_str(x, alpha36, docid_nanoid_chars), extra
 
 
 def str_to_bignum(s: str, alpha: str) -> int:

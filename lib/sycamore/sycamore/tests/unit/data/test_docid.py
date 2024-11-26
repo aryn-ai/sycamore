@@ -44,6 +44,17 @@ def test_zero():
     assert docid_to_uuid(id) == "00000000-0000-4000-8000-000000000000"
 
 
+def test_types():
+    dd = "aryn:d-00000000000000000000000"
+    ff = "aryn:f-00000000000000000000000"
+    cc = "aryn:c-00000000000000000000000"
+    ee = "aryn:e-00000000000000000000000"
+    assert uuid_to_docid(docid_to_uuid(dd)) == dd
+    assert uuid_to_docid(docid_to_uuid(ff)) == ff
+    assert uuid_to_docid(docid_to_uuid(cc)) == cc
+    assert uuid_to_docid(docid_to_uuid(ee)) == ee
+
+
 def test_noconvert():
     assert docid_to_uuid(None) is None
     assert docid_to_uuid("e6797018-dff6") == "e6797018-dff6"

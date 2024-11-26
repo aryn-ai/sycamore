@@ -135,11 +135,7 @@ class ArynPDFPartitioner:
                     i.tokens = [{"text": elem.text_representation, "bbox": elem.bbox} for elem in matches]
 
                 i.data["text_representation"] = " ".join(full_text)
-                i.properties["font_size"] = 0
-                if len(font_sizes) > 0:
-                    font_sizes_filtered = [size for size in font_sizes if size is not None]
-                    if len(font_sizes_filtered) > 0:
-                        i.properties["font_size"] = sum(font_sizes_filtered) / len(font_sizes_filtered)
+                i.properties["font_size"] = sum(font_sizes) / len(font_sizes) if font_sizes else 0.0
         return inferred + unmatched
 
     def partition_pdf(

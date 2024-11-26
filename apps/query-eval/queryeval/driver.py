@@ -572,7 +572,6 @@ class QueryEvalDriver:
                 tb = traceback.format_exc()
                 console.print(f"[red]Error: {tb}")
                 result.error = f"Error: {tb}"
-            break
         self.write_results_file()
         self.print_metrics_summary()
         console.print(":tada: Done!")

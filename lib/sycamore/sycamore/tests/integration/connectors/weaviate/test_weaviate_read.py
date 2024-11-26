@@ -97,8 +97,8 @@ def test_weaviate_read(wv_client_args):
     )
     out_docs = ctx.read.weaviate(wv_client_args=wv_client_args, collection_name=collection).take_all()
     target_doc_id = docs[-1].doc_id if docs[-1].doc_id else ""
-    target_doc_id = docid_to_uuid(target_doc_id)
-    fetch_object_dict = {"filters": Filter.by_id().equal(target_doc_id)}
+    target_doc_uuid = docid_to_uuid(target_doc_id)
+    fetch_object_dict = {"filters": Filter.by_id().equal(target_doc_uuid)}
     query_docs = ctx.read.weaviate(
         wv_client_args=wv_client_args, collection_name=collection, fetch_objects=fetch_object_dict
     ).take_all()

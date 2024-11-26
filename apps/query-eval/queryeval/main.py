@@ -24,6 +24,16 @@ from queryeval.driver import QueryEvalDriver
 
 console = Console()
 
+import nltk
+
+try:
+    nltk.data.find("tokenizers/punkt_tab")
+    console.print("The 'punkt_tab' tokenizer data is already downloaded.")
+except LookupError:
+    console.print("The 'punkt_tab' tokenizer data is not found. Downloading now...")
+    nltk.download("punkt_tab")
+    console.print("The 'punkt_tab' tokenizer data has been downloaded.")
+
 
 @click.group()
 @click.argument("config-file", type=click.Path(exists=True))
@@ -38,7 +48,10 @@ console = Console()
 @click.option("--llm", help="LLM model name", type=click.Choice(list(MODELS.keys())))
 @click.option("--tags", help="Filter queries by the given tags", multiple=True)
 @click.option(
-    "--raw-output", help="Output should be a raw DocSet, rather than natural language", is_flag=True, default=False
+    "--raw-output",
+    help="Output should be a raw DocSet, rather than natural language",
+    is_flag=True,
+    default=False,
 )
 @click.pass_context
 def cli(

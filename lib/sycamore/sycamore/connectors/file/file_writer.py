@@ -1,4 +1,4 @@
-from sycamore.data import Document
+from sycamore.data import Document, mkdocid
 from sycamore.plan_nodes import Node, Write
 
 from pyarrow.fs import FileSystem
@@ -9,7 +9,6 @@ import json
 import logging
 from pathlib import Path
 import posixpath
-import uuid
 from typing import Callable, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -48,7 +47,7 @@ def default_filename(doc: Document, extension: Optional[str] = None) -> str:
         extension: An optional extension that will be appended to the name following a '.'.
     """
     if doc.doc_id is None:
-        base_name = str(uuid.uuid4())
+        base_name = mkdocid()
     else:
         base_name = str(doc.doc_id)
 

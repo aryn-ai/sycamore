@@ -294,9 +294,6 @@ class QueryEvalDriver:
         query_result = self.client.run_plan(result.plan)
         if isinstance(query_result.result, str):
             result.result = query_result.result
-        query_result = self.client.run_plan(result.plan)
-        if isinstance(query_result.result, str):
-            result.result = query_result.result
             t2 = time.time()
         elif isinstance(query_result.result, DocSet):
             assert self.config.config

@@ -203,12 +203,12 @@ class ArynPDFPartitioner:
                     ele.properties[DocumentPropertyTypes.PAGE_NUMBER] = i + 1
                     page.append(ele)
                 if output_label_options.get("promote_title", False):
-                    from sycamore.utils.pdf_utils import find_title
+                    from sycamore.utils.pdf_utils import promote_title
 
                     if title_candidate_elements := output_label_options.get("title_candidate_elements"):
-                        find_title(page, title_candidate_elements)
+                        promote_title(page, title_candidate_elements)
                     else:
-                        find_title(page)
+                        promote_title(page)
                 bbox_sort_page(page)
                 elements.extend(page)
             if output_format == "markdown":

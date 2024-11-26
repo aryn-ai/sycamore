@@ -164,7 +164,7 @@ def display_page_and_table_properties(some_pages: list[Document]):
                 display(HTML(e.text_representation))
 
 
-def find_title(elements: list[Element], title_candidate_elements=["Section-header", "Caption"]) -> list[Element]:
+def promote_title(elements: list[Element], title_candidate_elements=["Section-header", "Caption"]) -> list[Element]:
     section_header_big_font = 0
     section_header = None
     for ele in elements:

@@ -83,7 +83,7 @@ class EasyOcr(OcrModel):
             out_list.append(text)
             font_sizes.append(res[0][2][1] - res[0][0][1])
         val = " ".join(out_list)
-        avg_font_size = sum(font_sizes) / len(font_sizes) if font_sizes else 0.0
+        avg_font_size = sum(font_sizes) / len(font_sizes) if font_sizes else None
         return val, avg_font_size
 
     def get_boxes_and_text(self, image: Image.Image) -> list[dict[str, Any]]:

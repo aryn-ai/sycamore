@@ -1195,7 +1195,7 @@ class DocSet:
         plan = self.plan
         if default_val is None:
             import logging
-            logging.warning("Default value is none. Adding explicit filter step to work around ray issues")
+            logging.warning("Default value is none. Adding explicit filter step to drop documents missing the key. This includes any metadata.documents.")
             plan = DropIfMissingField(plan, field)
         return DocSet(self.context, Sort(plan, descending, field, default_val))
 

@@ -9,9 +9,8 @@ import logging
 
 from pyarrow._fs import FileInfo
 from pyarrow.fs import FileSystem, FileSelector
-from sycamore.data import Document
+from sycamore.data import Document, mkdocid
 from sycamore.plan_nodes import Scan
-from sycamore.data.document import mkdocid
 from sycamore.utils.time_trace import timetrace
 
 if TYPE_CHECKING:

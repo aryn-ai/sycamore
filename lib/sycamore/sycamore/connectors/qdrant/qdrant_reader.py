@@ -1,10 +1,10 @@
-from sycamore.data import Document
+from sycamore.data import Document, uuid_to_docid
 from sycamore.data.document import DocumentPropertyTypes, DocumentSource
 from sycamore.connectors.common import unflatten_data
 from sycamore.connectors.base_reader import BaseDBReader
 from sycamore.utils.import_utils import requires_modules
 from dataclasses import dataclass, asdict
-from typing import Optional, Dict, TYPE_CHECKING
+from typing import Optional, Dict, Union, TYPE_CHECKING
 
 
 if TYPE_CHECKING:
@@ -84,8 +84,12 @@ class QdrantReaderQueryResponse(BaseDBReader.QueryResponse):
                     vector = list(point.vector.values())[0]
             else:
                 vector = point.vector
+            if isinstance(point.id, str):
+                id: Union[str, int, None] = uuid_to_docid(point.id)
+            else:
+                id = point.id
             doc_dict = (
-                {"doc_id": point.id, "embedding": vector} | unflatten_data(point.payload, "__") if point.payload else {}
+                {"doc_id": id, "embedding": vector} | unflatten_data(point.payload, "__") if point.payload else {}
             )
             doc_dict["bbox"] = (
                 [bbox["x1"], bbox["y1"], bbox["x2"], bbox["y2"]] if (bbox := doc_dict.get("bbox")) else []

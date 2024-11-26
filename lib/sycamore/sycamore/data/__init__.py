@@ -8,6 +8,13 @@ from sycamore.data.document import (
     OpenSearchQuery,
     OpenSearchQueryResult,
 )
+from sycamore.data.docid import (
+    docid_nanoid_chars,
+    docid_to_uuid,
+    mkdocid,
+    nanoid36,
+    uuid_to_docid,
+)
 
 
 __all__ = [
@@ -22,4 +29,9 @@ __all__ = [
     "OpenSearchQueryResult",
     "Table",
     "TableCell",
+    "docid_nanoid_chars",
+    "docid_to_uuid",
+    "mkdocid",
+    "nanoid36",
+    "uuid_to_docid",
 ]

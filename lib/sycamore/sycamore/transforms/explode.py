@@ -1,6 +1,5 @@
 from typing import Union
-from sycamore.data import Document, HierarchicalDocument
-from sycamore.data.document import mkdocid
+from sycamore.data import Document, HierarchicalDocument, mkdocid
 from sycamore.data.element import TableElement
 from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import FlatMap

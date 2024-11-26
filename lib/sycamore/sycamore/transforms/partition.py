@@ -419,7 +419,10 @@ class ArynPartitioner(Partitioner):
              either pdfminer or OCR. Currently supports the 'object_type' property for pdfminer,
              which can be set to 'boxes' or 'lines' to control the granularity of output.
         source: The application that is using the partitioner. This is used for logging purposes.
-        promote_title: If true, will promote the section header to a title if no title is found.
+        output_label_options: A dictionary of options for controlling output labels. Currently, 
+        it supports the contains_title option, which is a boolean that determines whether a title should
+        be added to partitioned elements when the title is missing.    
+
     Example:
          The following shows an example of using the ArynPartitioner to partition a PDF and extract
          both table structure and image
@@ -455,7 +458,7 @@ class ArynPartitioner(Partitioner):
         output_format: Optional[str] = None,
         text_extraction_options: dict[str, Any] = {},
         source: str = "",
-        promote_title: bool = False,
+        output_label_options: dict[str, Any] = {},
     ):
         if use_partitioning_service:
             device = "cpu"
@@ -496,7 +499,7 @@ class ArynPartitioner(Partitioner):
         self._pages_per_call = pages_per_call
         self._text_extraction_options = text_extraction_options
         self._source = source
-        self._promote_title = promote_title
+        self.output_label_options = output_label_options
 
     @timetrace("SycamorePdf")
     def partition(self, document: Document) -> Document:
@@ -526,7 +529,7 @@ class ArynPartitioner(Partitioner):
                 output_format=self._output_format,
                 text_extraction_options=self._text_extraction_options,
                 source=self._source,
-                promote_title=self._promote_title,
+                output_label_options=self.output_label_options,
             )
         except Exception as e:
             path = document.properties["path"]

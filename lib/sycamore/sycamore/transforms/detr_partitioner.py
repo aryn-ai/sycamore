@@ -129,8 +129,8 @@ class ArynPDFPartitioner:
                     matches.append(m)
                     if m.text_representation:
                         full_text.append(m.text_representation)
-                        if m.properties.get("font_size") is not None:
-                            font_sizes.append(m.properties.get("font_size"))
+                        if font_size := m.properties.get("font_size"):
+                            font_sizes.append(font_size)
                 if isinstance(i, TableElement):
                     i.tokens = [{"text": elem.text_representation, "bbox": elem.bbox} for elem in matches]
 
@@ -163,7 +163,7 @@ class ArynPDFPartitioner:
         output_format: Optional[str] = None,
         text_extraction_options: dict[str, Any] = {},
         source: str = "",
-        promote_title: bool = False,
+        output_label_options: dict[str, Any] = {},
     ) -> list[Element]:
         if use_partitioning_service:
             assert aryn_api_key != ""
@@ -206,10 +206,10 @@ class ArynPDFPartitioner:
                 for ele in r:
                     ele.properties[DocumentPropertyTypes.PAGE_NUMBER] = i + 1
                     page.append(ele)
-                if promote_title:
-                    from sycamore.utils.pdf_utils import promote_sectionheader_to_title
+                if output_label_options.get("contains_title", False):
+                    from sycamore.utils.pdf_utils import find_title
 
-                    promote_sectionheader_to_title(page)
+                    find_title(page)
                 bbox_sort_page(page)
                 elements.extend(page)
             if output_format == "markdown":

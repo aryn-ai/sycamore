@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class OcrModel(TextExtractor):
 
     @abstractmethod
-    def get_text(self, image: Image.Image) -> tuple[str, float]:
+    def get_text(self, image: Image.Image) -> tuple[str, Optional[float]]:
         pass
 
     @abstractmethod
@@ -72,7 +72,7 @@ class EasyOcr(OcrModel):
 
         self.reader = easyocr.Reader(lang_list=lang_list, **kwargs)
 
-    def get_text(self, image: Image.Image) -> tuple[str, float]:
+    def get_text(self, image: Image.Image) -> tuple[str, Optional[float]]:
         image_bytes = BytesIO()
         image.save(image_bytes, format="BMP")
         raw_results = self.reader.readtext(image_bytes.getvalue())
@@ -111,9 +111,10 @@ class Tesseract(OcrModel):
 
         self.pytesseract = pytesseract
 
-    def get_text(self, image: Image.Image) -> tuple[str, float]:
+    def get_text(self, image: Image.Image) -> tuple[str, Optional[float]]:
         val = self.pytesseract.image_to_string(image)
-        return val, 0.0
+        # font size calculation is not supported for tesseract
+        return val, None
 
     def get_boxes_and_text(self, image: Image.Image) -> list[dict[str, Any]]:
         output_list = []
@@ -142,8 +143,9 @@ class LegacyOcr(OcrModel):
         self.tesseract = Tesseract()
         self.easy_ocr = EasyOcr()
 
-    def get_text(self, image: Image.Image) -> tuple[str, float]:
-        return self.tesseract.get_text(image), 0.0
+    def get_text(self, image: Image.Image) -> tuple[str, Optional[float]]:
+        # font size calculation is not supported for tesseract
+        return self.tesseract.get_text(image)[0], None
 
     def get_boxes_and_text(self, image: Image.Image) -> list[dict[str, Any]]:
         return self.easy_ocr.get_boxes_and_text(image)
@@ -167,7 +169,7 @@ class PaddleOcr(OcrModel):
         self.reader = PaddleOCR(lang=self.language, use_gpu=self.use_gpu)
         self.slice_kwargs = slice_kwargs
 
-    def get_text(self, image: Image.Image) -> tuple[str, float]:
+    def get_text(self, image: Image.Image) -> tuple[str, Optional[float]]:
         bytearray = BytesIO()
         image.save(bytearray, format="BMP")
         result = self.reader.ocr(bytearray.getvalue(), rec=True, det=True, cls=False)
@@ -177,9 +179,9 @@ class PaddleOcr(OcrModel):
             for value in result[0]:
                 text_values.append(value[1][0])
                 font_sizes.append(value[0][3][1] - value[0][0][1])
-            avg_font_size = sum(font_sizes) / len(font_sizes) if font_sizes else 0.0
+            avg_font_size = sum(font_sizes) / len(font_sizes) if font_sizes else None
             return " ".join(text_values), avg_font_size
-        return "", 0
+        return "", None
 
     def set_slicing_parameters(self, image_width, image_height) -> dict[str, Any]:
         slicing_params = {}

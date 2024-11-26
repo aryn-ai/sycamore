@@ -169,6 +169,14 @@ class QueryEvalDriver:
         if self.config.examples:
             self.examples = self.config.examples
 
+        # Define scorers.
+        self.bleu_scorer = BleuScore()
+        self.rouge_scorer = RougeScore()
+        self.semantic_similarity_scorer = SemanticSimilarity()
+        self.semantic_similarity_scorer.embeddings = LangchainEmbeddingsWrapper(
+            HuggingfaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        )
+
     @staticmethod
     def read_input_file(input_file_path: str) -> QueryEvalInputFile:
         """Read the given input file."""
@@ -345,9 +353,6 @@ class QueryEvalDriver:
         self,
         query: QueryEvalQuery,
         result: QueryEvalResult,
-        bleu_scorer: BleuScore,
-        rouge_scorer: RougeScore,
-        semantic_similarity_scorer: SemanticSimilarity,
     ) -> QueryEvalResult:
         """Run query evaluation."""
         if self.config.config:
@@ -419,9 +424,9 @@ class QueryEvalDriver:
                 scores = asyncio.run(
                     compute_string_metrics(
                         sample,
-                        rouge_scorer,
-                        bleu_scorer,
-                        semantic_similarity_scorer,
+                        self.rouge_scorer,
+                        self.bleu_scorer,
+                        self.semantic_similarity_scorer,
                     )
                 )
                 metrics.bleu_score = scores["bleu"]
@@ -551,13 +556,6 @@ class QueryEvalDriver:
 
     def run(self):
         """Run all stages."""
-        # Define scorers
-        bleu_scorer = BleuScore()
-        rouge_scorer = RougeScore()
-        semantic_similarity_scorer = SemanticSimilarity()
-        semantic_similarity_scorer.embeddings = LangchainEmbeddingsWrapper(
-            HuggingfaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-        )
         for index, query in enumerate(self.config.queries):
             try:
                 if not self._check_tags_match(query):
@@ -567,7 +565,7 @@ class QueryEvalDriver:
                 result = self.get_result(query)
                 result = self.do_plan(query, result)
                 result = self.do_query(query, result)
-                result = self.do_eval(query, result, bleu_scorer, rouge_scorer, semantic_similarity_scorer)
+                result = self.do_eval(query, result)
             except Exception:
                 tb = traceback.format_exc()
                 console.print(f"[red]Error: {tb}")

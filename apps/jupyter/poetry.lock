@@ -3714,6 +3714,17 @@ files = [
 typing-extensions = {version = ">=4.1.0", markers = "python_version < \"3.12\""}
 
 [[package]]
+name = "nanoid"
+version = "2.0.0"
+description = "A tiny, secure, URL-friendly, unique string ID generator for Python"
+optional = false
+python-versions = "*"
+files = [
+    {file = "nanoid-2.0.0-py3-none-any.whl", hash = "sha256:90aefa650e328cffb0893bbd4c236cfd44c48bc1f2d0b525ecc53c3187b653bb"},
+    {file = "nanoid-2.0.0.tar.gz", hash = "sha256:5a80cad5e9c6e9ae3a41fa2fb34ae189f7cb420b2a5d8f82bd9d23466e4efa68"},
+]
+
+[[package]]
 name = "nbclient"
 version = "0.6.8"
 description = "A client library for executing notebooks. Formerly nbconvert's ExecutePreprocessor."
@@ -5789,7 +5800,7 @@ typing = ["mypy (>=1.4)", "rich", "twisted"]
 
 [[package]]
 name = "sycamore-ai"
-version = "0.1.26"
+version = "0.1.27"
 description = "Sycamore is an LLM-powered semantic data preparation system for building search applications."
 optional = false
 python-versions = ">=3.9,<3.13"
@@ -5809,6 +5820,7 @@ fasteners = "^0.19"
 fsspec = "2024.2.0"
 guidance = "0.1.14"
 jinja2 = "^3.1"
+nanoid = "^2.0.0"
 numpy = "<2.0.0"
 openai = "^1.40.2"
 opensearch-py = {version = "^2.3.1", optional = true}

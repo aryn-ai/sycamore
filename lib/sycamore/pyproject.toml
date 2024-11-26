@@ -84,6 +84,7 @@ transformers = { version = "^4.43.1", optional = true }
 # Legacy partitioner dependencies
 unstructured = { version = "0.10.20", optional = true }
 python-pptx = {version = "^0.6.22", optional = true }
+nanoid = "^2.0.0"
 
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"

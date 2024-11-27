@@ -31,16 +31,16 @@ from ragas.embeddings.base import HuggingfaceEmbeddings, LangchainEmbeddingsWrap
 console = Console()
 
 
-async def compute_string_metrics(
+def compute_string_metrics(
     sample: SingleTurnSample,
     rouge_scorer: RougeScore,
     bleu_scorer: BleuScore,
     semantic_similarity_scorer: SemanticSimilarity,
 ):
     return {
-        "rouge": await rouge_scorer.single_turn_ascore(sample),
-        "bleu": await bleu_scorer.single_turn_ascore(sample),
-        "semantic_similarity": await semantic_similarity_scorer.single_turn_ascore(sample),
+        "rouge": asyncio.run(rouge_scorer.single_turn_ascore(sample)),
+        "bleu": asyncio.run(bleu_scorer.single_turn_ascore(sample)),
+        "semantic_similarity": asyncio.run(semantic_similarity_scorer.single_turn_ascore(sample)),
     }
 
 
@@ -414,13 +414,11 @@ class QueryEvalDriver:
                     response=result.result,
                     reference=query.expected,
                 )
-                scores = asyncio.run(
-                    compute_string_metrics(
-                        sample,
-                        self.rouge_scorer,
-                        self.bleu_scorer,
-                        self.semantic_similarity_scorer,
-                    )
+                scores = compute_string_metrics(
+                    sample,
+                    self.rouge_scorer,
+                    self.bleu_scorer,
+                    self.semantic_similarity_scorer,
                 )
                 metrics.bleu_score = scores["bleu"]
                 metrics.rouge_score = scores["rouge"]

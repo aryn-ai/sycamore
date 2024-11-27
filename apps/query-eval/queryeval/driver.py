@@ -23,7 +23,37 @@ from queryeval.queryeval_types import (
     DocSetSummary,
 )
 
+import asyncio
+from ragas.dataset_schema import SingleTurnSample
+from ragas.metrics import BleuScore, RougeScore, SemanticSimilarity
+from ragas.embeddings.base import HuggingfaceEmbeddings, LangchainEmbeddingsWrapper
+
 console = Console()
+
+
+def compute_text_metrics(
+    sample: SingleTurnSample,
+    rouge_scorer: RougeScore,
+    bleu_scorer: BleuScore,
+    semantic_similarity_scorer: SemanticSimilarity,
+):
+    d = {}
+    try:
+        d["rouge"] = asyncio.run(rouge_scorer.single_turn_ascore(sample))
+    except Exception:
+        tb = traceback.format_exc()
+        console.print(f"[red]Error computing ROUGE score: {tb}")
+    try:
+        d["bleu"] = asyncio.run(bleu_scorer.single_turn_ascore(sample))
+    except Exception:
+        tb = traceback.format_exc()
+        console.print(f"[red]Error computing BLEU score: {tb}")
+    try:
+        d["semantic_similarity"] = asyncio.run(semantic_similarity_scorer.single_turn_ascore(sample))
+    except Exception:
+        tb = traceback.format_exc()
+        console.print(f"[red]Error computing semantic similarity score: {tb}")
+    return d
 
 
 class QueryEvalDriver:
@@ -91,7 +121,10 @@ class QueryEvalDriver:
 
         # Configure logging.
         if self.config.config.log_file:
-            os.makedirs(os.path.dirname(os.path.abspath(self.config.config.log_file)), exist_ok=True)
+            os.makedirs(
+                os.path.dirname(os.path.abspath(self.config.config.log_file)),
+                exist_ok=True,
+            )
         configure_logging(logfile=self.config.config.log_file, log_level=logging.INFO)
 
         if not self.config.config.index:
@@ -101,7 +134,10 @@ class QueryEvalDriver:
 
         if self.config.config.results_file:
             console.print(f"Writing results to: {self.config.config.results_file}")
-            os.makedirs(os.path.dirname(os.path.abspath(self.config.config.results_file)), exist_ok=True)
+            os.makedirs(
+                os.path.dirname(os.path.abspath(self.config.config.results_file)),
+                exist_ok=True,
+            )
 
         # Read results file if it exists.
         if (
@@ -144,6 +180,14 @@ class QueryEvalDriver:
             self.examples = results.examples
         if self.config.examples:
             self.examples = self.config.examples
+
+        # Define scorers.
+        self.bleu_scorer = BleuScore()
+        self.rouge_scorer = RougeScore()
+        self.semantic_similarity_scorer = SemanticSimilarity()
+        self.semantic_similarity_scorer.embeddings = LangchainEmbeddingsWrapper(
+            HuggingfaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        )
 
     @staticmethod
     def read_input_file(input_file_path: str) -> QueryEvalInputFile:
@@ -317,18 +361,9 @@ class QueryEvalDriver:
         console.print(f":white_check_mark: Result: {result.result}")
         return result
 
-    def do_eval(self, query: QueryEvalQuery, result: QueryEvalResult) -> QueryEvalResult:
-        """Run query evaluation."""
-        if self.config.config:
-            if self.config.config.dry_run:
-                console.print("[yellow]:point_right: Dry run: skipping eval")
-                return result
-            elif not self._check_tags_match(query):
-                console.print("[yellow]:point_right: Skipping query due to tag mismatch")
-                return result
-
-        metrics = result.metrics or QueryEvalMetrics()
-        # Evalute query plans
+    def get_query_plan_metrics(
+        self, query: QueryEvalQuery, result: QueryEvalResult, metrics: QueryEvalMetrics
+    ) -> QueryEvalMetrics:
         if not query.expected_plan:
             console.print("[yellow]:construction: No expected query plan found, skipping.. ")
         elif not result.plan:
@@ -350,11 +385,15 @@ class QueryEvalDriver:
                     console.print(f"Actual node: [red]{diff.node_b!r}")
                     console.print()
                 metrics.plan_similarity = max(
-                    0.0, (len(query.expected_plan.nodes) - len(plan_diff)) / len(query.expected_plan.nodes)
+                    0.0,
+                    (len(query.expected_plan.nodes) - len(plan_diff)) / len(query.expected_plan.nodes),
                 )
                 metrics.plan_diff_count = len(plan_diff)
+        return metrics
 
-        # Evaluate doc retrieval
+    def get_retrieval_metrics(
+        self, query: QueryEvalQuery, result: QueryEvalResult, metrics: QueryEvalMetrics
+    ) -> QueryEvalMetrics:
         if not query.expected_docs:
             console.print("[yellow]:construction: No expected document list found, skipping.. ")
         elif not result.retrieved_docs:
@@ -368,11 +407,65 @@ class QueryEvalDriver:
                 console.print("[red]:x: Documents retrieved don't include all expected docs")
                 console.print(f"Missing docs: {expected_doc_set - retrieved_doc_set})")
             metrics.doc_retrieval_recall = len(retrieved_doc_set & expected_doc_set) / len(expected_doc_set)
-            metrics.doc_retrieval_precision = len(retrieved_doc_set & expected_doc_set) / len(result.retrieved_docs)
+            metrics.doc_retrieval_precision = len(retrieved_doc_set & expected_doc_set) / len(retrieved_doc_set)
+        return metrics
 
-        # Evaluate result
-        if not result.result:
-            console.print("[yellow] No query execution result available, skipping..", style="italic")
+    def get_answer_metrics(
+        self, query: QueryEvalQuery, result: QueryEvalResult, metrics: QueryEvalMetrics
+    ) -> QueryEvalMetrics:
+        if not query.expected:
+            console.print("[yellow]:construction: No expected response found, skipping.. ")
+        elif not result.result:
+            console.print(
+                "[yellow] No query execution result available, skipping..",
+                style="italic",
+            )
+        else:
+            if isinstance(query.expected, str) and isinstance(result.result, str):
+                sample = SingleTurnSample(
+                    response=result.result,
+                    reference=query.expected,
+                )
+                scores = compute_text_metrics(
+                    sample,
+                    self.rouge_scorer,
+                    self.bleu_scorer,
+                    self.semantic_similarity_scorer,
+                )
+                metrics.bleu_score = scores.get("bleu", None)
+                metrics.rouge_score = scores.get("rouge", None)
+                metrics.similarity_score = scores.get("semantic_similarity", None)
+                console.print("[green]✔ String metrics computed.")
+            elif isinstance(query.expected, str) and isinstance(result.result, DocSetSummary):
+                pass
+            else:
+                console.print("[red]:x: Unsupported expected/response type, skipping.. ")
+        return metrics
+
+    def do_eval(
+        self,
+        query: QueryEvalQuery,
+        result: QueryEvalResult,
+    ) -> QueryEvalResult:
+        """Run query evaluation."""
+        if self.config.config:
+            if self.config.config.dry_run:
+                console.print("[yellow]:point_right: Dry run: skipping eval")
+                return result
+            elif not self._check_tags_match(query):
+                console.print("[yellow]:point_right: Skipping query due to tag mismatch")
+                return result
+
+        metrics = result.metrics or QueryEvalMetrics()
+
+        # Evalute query plans
+        metrics = self.get_query_plan_metrics(query, result, metrics)
+
+        # Evaluate doc retrieval
+        metrics = self.get_retrieval_metrics(query, result, metrics)
+
+        # Evaluate string metrics
+        metrics = self.get_answer_metrics(query, result, metrics)
 
         result.metrics = metrics
 
@@ -434,6 +527,7 @@ class QueryEvalDriver:
                 / len(self.results_map)
             )
         )
+
         # Evaluate doc retrieval
         correct_retrievals = sum(
             1 for result in self.results_map.values() if result.metrics.doc_retrieval_recall == 1.0
@@ -446,9 +540,27 @@ class QueryEvalDriver:
                 if result.metrics.doc_retrieval_precision
             )
             / expected_retrievals
+            if expected_retrievals
+            else 0
         )
         console.print(f"Successful doc retrievals: {correct_retrievals}/{expected_retrievals}")
         console.print(f"Average precision: {average_precision}")
+
+        # String metrics
+        bleu_scores = [result.metrics.bleu_score for result in self.results_map.values() if result.metrics.bleu_score]
+        rouge_scores = [
+            result.metrics.rouge_score for result in self.results_map.values() if result.metrics.rouge_score
+        ]
+        similarity_scores = [
+            result.metrics.similarity_score for result in self.results_map.values() if result.metrics.similarity_score
+        ]
+        avg_bleu_score = sum(bleu_scores) / len(bleu_scores) if bleu_scores else 0
+        avg_rouge_score = sum(rouge_scores) / len(rouge_scores) if rouge_scores else 0
+        avg_similarity_score = sum(similarity_scores) / len(similarity_scores) if similarity_scores else 0
+        console.print(f"Avg. BLEU score: {avg_bleu_score}")
+        console.print(f"Avg. ROUGE score: {avg_rouge_score}")
+        console.print(f"Avg. Semantic similarity score: {avg_similarity_score}")
+
         # TODO: Query execution metrics
         console.print("Query result correctness: not implemented")
 
@@ -488,4 +600,5 @@ class QueryEvalDriver:
                 console.print(f"[red]Error: {tb}")
                 result.error = f"Error: {tb}"
         self.write_results_file()
+        self.print_metrics_summary()
         console.print(":tada: Done!")

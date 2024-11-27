@@ -64,7 +64,8 @@ class QueryEvalMetrics(BaseModel):
     query_time: Optional[float] = None
 
     # String answer metrics
-    correctness_score: Optional[float] = None
+    bleu_score: Optional[float] = None
+    rouge_score: Optional[float] = None
     similarity_score: Optional[float] = None
 
 

@@ -84,7 +84,6 @@ class TestSimilarityScorer:
         assert [doc.doc_id for doc in result] == [2, 1, 3, 5, 4]
 
     def test_transformers_similarity_scorer_no_element_id(self):
-
         similarity_scorer = HuggingFaceTransformersSimilarityScorer(RERANKER_MODEL)
         score_property_name = "similarity_score"
         query = "this is a cat"
@@ -113,7 +112,6 @@ class TestSimilarityScorer:
 
 
 class TestSimilarityTransform:
-
     def test_transformers_score_similarity(self, mocker):
         node = mocker.Mock(spec=Node)
         similarity_scorer = HuggingFaceTransformersSimilarityScorer(RERANKER_MODEL, ignore_doc_structure=True)
@@ -122,15 +120,13 @@ class TestSimilarityTransform:
             {"doc_id": 1, "text_representation": "Members of a strike at Yale University.", "embedding": None},
             {"doc_id": 2, "text_representation": "A woman is speaking at a podium outdoors.", "embedding": None},
         ]
+        docs = [Document(d) for d in dicts]
         input_dataset = ray.data.from_items([{"doc": Document(doc_dict).serialize()} for doc_dict in dicts])
         execute = mocker.patch.object(node, "execute")
         execute.return_value = input_dataset
-        input_dataset.show()
-        output_dataset = score_similarity.execute()
-        taken = output_dataset.take_all()
+        taken = score_similarity.local_execute(docs)
 
-        for d in taken:
-            doc = Document.from_row(d)
+        for doc in taken:
             if isinstance(doc, MetadataDocument):
                 continue
             assert float(doc.properties.get("_similarity_score"))

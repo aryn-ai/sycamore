@@ -3,7 +3,7 @@ import logging
 import os
 import time
 import traceback
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from pydantic_yaml import to_yaml_str
 from rich.console import Console
@@ -349,22 +349,9 @@ class QueryEvalDriver:
         console.print(f":white_check_mark: Result: {result.result}")
         return result
 
-    def do_eval(
-        self,
-        query: QueryEvalQuery,
-        result: QueryEvalResult,
-    ) -> QueryEvalResult:
-        """Run query evaluation."""
-        if self.config.config:
-            if self.config.config.dry_run:
-                console.print("[yellow]:point_right: Dry run: skipping eval")
-                return result
-            elif not self._check_tags_match(query):
-                console.print("[yellow]:point_right: Skipping query due to tag mismatch")
-                return result
-
-        metrics = result.metrics or QueryEvalMetrics()
-        # Evalute query plans
+    def get_query_plan_metrics(
+        self, query: QueryEvalQuery, result: QueryEvalResult, metrics: QueryEvalMetrics
+    ) -> QueryEvalMetrics:
         if not query.expected_plan:
             console.print("[yellow]:construction: No expected query plan found, skipping.. ")
         elif not result.plan:
@@ -390,8 +377,11 @@ class QueryEvalDriver:
                     (len(query.expected_plan.nodes) - len(plan_diff)) / len(query.expected_plan.nodes),
                 )
                 metrics.plan_diff_count = len(plan_diff)
+        return metrics
 
-        # Evaluate doc retrieval
+    def get_retrieval_metrics(
+        self, query: QueryEvalQuery, result: QueryEvalResult, metrics: QueryEvalMetrics
+    ) -> QueryEvalMetrics:
         if not query.expected_docs:
             console.print("[yellow]:construction: No expected document list found, skipping.. ")
         elif not result.retrieved_docs:
@@ -406,8 +396,11 @@ class QueryEvalDriver:
                 console.print(f"Missing docs: {expected_doc_set - retrieved_doc_set})")
             metrics.doc_retrieval_recall = len(retrieved_doc_set & expected_doc_set) / len(expected_doc_set)
             metrics.doc_retrieval_precision = len(retrieved_doc_set & expected_doc_set) / len(retrieved_doc_set)
+        return metrics
 
-        # Evaluate string metrics
+    def get_string_metrics(
+        self, query: QueryEvalQuery, result: QueryEvalResult, metrics: QueryEvalMetrics
+    ) -> QueryEvalMetrics:
         if not query.expected:
             console.print("[yellow]:construction: No expected response found, skipping.. ")
         elif not result.result:
@@ -437,6 +430,32 @@ class QueryEvalDriver:
                 pass
             else:
                 console.print("[red]:x: Unsupported expected/response type, skipping.. ")
+        return metrics
+
+    def do_eval(
+        self,
+        query: QueryEvalQuery,
+        result: QueryEvalResult,
+    ) -> QueryEvalResult:
+        """Run query evaluation."""
+        if self.config.config:
+            if self.config.config.dry_run:
+                console.print("[yellow]:point_right: Dry run: skipping eval")
+                return result
+            elif not self._check_tags_match(query):
+                console.print("[yellow]:point_right: Skipping query due to tag mismatch")
+                return result
+
+        metrics = result.metrics or QueryEvalMetrics()
+
+        # Evalute query plans
+        metrics = self.get_query_plan_metrics(query, result, metrics)
+
+        # Evaluate doc retrieval
+        metrics = self.get_retrieval_metrics(query, result, metrics)
+
+        # Evaluate string metrics
+        metrics = self.get_string_metrics(query, result, metrics)
 
         result.metrics = metrics
 

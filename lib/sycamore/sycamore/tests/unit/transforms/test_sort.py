@@ -85,6 +85,8 @@ class TestSort(unittest.TestCase):
         sorted_docset = docset.sort(False, "text_representation", "A")
         sorted_doc_list = sorted_docset.take_all(include_metadata=True)
 
+        # Two MetadataDocuments and the Document with text_representation is None from doc_list
+        # All get the same key, so they can be in any order
         for i in range(3):
             d = sorted_doc_list[i]
             assert isinstance(d, MetadataDocument) or d.text_representation is None

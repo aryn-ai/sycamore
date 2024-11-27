@@ -331,6 +331,8 @@ def test_llm_extract_entity():
 
 
 def test_sort():
+    # Verify that we can create a sort node without specifying a default value and pydantic won't
+    # throw an assertion.
     Sort(node_id=0, descending=True, field="no-default-value")
 
     for default_value in [None, 0]:

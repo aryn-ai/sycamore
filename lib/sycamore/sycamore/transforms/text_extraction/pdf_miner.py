@@ -117,7 +117,7 @@ class PdfMinerExtractor(TextExtractor):
                 {
                     "bbox": BoundingBox(x1, y1, x2, y2),
                     "text": obj.get_text(),
-                    "font_size": self._get_font_size(obj),
+                    "font_size": PdfMinerExtractor._get_font_size(obj),
                 }
             )
 

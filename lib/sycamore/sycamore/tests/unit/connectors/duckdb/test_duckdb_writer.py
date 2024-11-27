@@ -1,3 +1,4 @@
+import os
 import pytest
 from unittest import mock
 from sycamore.connectors.duckdb.duckdb_writer import (
@@ -26,7 +27,8 @@ def target_params():
 
 @pytest.fixture
 def client_params():
-    return DuckDBWriterClientParams(db_url="test.db")
+    os.makedirs("tmp", exist_ok=True)
+    return DuckDBWriterClientParams(db_url="tmp/test.db")
 
 
 @pytest.fixture

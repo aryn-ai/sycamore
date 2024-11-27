@@ -1,3 +1,4 @@
+import os
 import pytest
 from unittest import mock
 from sycamore.data import Document
@@ -21,11 +22,12 @@ def mock_duckdb_connection():
 
 
 def test_duckdb_reader_client_from_client_params(mock_duckdb_connection):
-    params = DuckDBReaderClientParams(db_url="test_db")
+    os.makedirs("tmp", exist_ok=True)
+    params = DuckDBReaderClientParams(db_url="tmp/test_db")
     with mock.patch("duckdb.connect", return_value=mock_duckdb_connection) as mock_connect:
         client = DuckDBReaderClient.from_client_params(params)
         assert isinstance(client, DuckDBReaderClient)
-        mock_connect.assert_called_once_with(database="test_db", read_only=True)
+        mock_connect.assert_called_once_with(database="tmp/test_db", read_only=True)
 
 
 def test_duckdb_reader_client_read_records(mock_duckdb_connection):

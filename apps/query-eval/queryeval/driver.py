@@ -31,17 +31,29 @@ from ragas.embeddings.base import HuggingfaceEmbeddings, LangchainEmbeddingsWrap
 console = Console()
 
 
-def compute_string_metrics(
+def compute_text_metrics(
     sample: SingleTurnSample,
     rouge_scorer: RougeScore,
     bleu_scorer: BleuScore,
     semantic_similarity_scorer: SemanticSimilarity,
 ):
-    return {
-        "rouge": asyncio.run(rouge_scorer.single_turn_ascore(sample)),
-        "bleu": asyncio.run(bleu_scorer.single_turn_ascore(sample)),
-        "semantic_similarity": asyncio.run(semantic_similarity_scorer.single_turn_ascore(sample)),
-    }
+    d = {}
+    try:
+        d["rouge"] = asyncio.run(rouge_scorer.single_turn_ascore(sample))
+    except Exception:
+        tb = traceback.format_exc()
+        console.print(f"[red]Error computing ROUGE score: {tb}")
+    try:
+        d["bleu"] = asyncio.run(bleu_scorer.single_turn_ascore(sample))
+    except Exception:
+        tb = traceback.format_exc()
+        console.print(f"[red]Error computing BLEU score: {tb}")
+    try:
+        d["semantic_similarity"] = asyncio.run(semantic_similarity_scorer.single_turn_ascore(sample))
+    except Exception:
+        tb = traceback.format_exc()
+        console.print(f"[red]Error computing semantic similarity score: {tb}")
+    return d
 
 
 class QueryEvalDriver:
@@ -398,7 +410,7 @@ class QueryEvalDriver:
             metrics.doc_retrieval_precision = len(retrieved_doc_set & expected_doc_set) / len(retrieved_doc_set)
         return metrics
 
-    def get_string_metrics(
+    def get_answer_metrics(
         self, query: QueryEvalQuery, result: QueryEvalResult, metrics: QueryEvalMetrics
     ) -> QueryEvalMetrics:
         if not query.expected:
@@ -414,15 +426,15 @@ class QueryEvalDriver:
                     response=result.result,
                     reference=query.expected,
                 )
-                scores = compute_string_metrics(
+                scores = compute_text_metrics(
                     sample,
                     self.rouge_scorer,
                     self.bleu_scorer,
                     self.semantic_similarity_scorer,
                 )
-                metrics.bleu_score = scores["bleu"]
-                metrics.rouge_score = scores["rouge"]
-                metrics.similarity_score = scores["semantic_similarity"]
+                metrics.bleu_score = scores.get("bleu", None)
+                metrics.rouge_score = scores.get("rouge", None)
+                metrics.similarity_score = scores.get("semantic_similarity", None)
                 console.print("[green]✔ String metrics computed.")
             elif isinstance(query.expected, str) and isinstance(result.result, DocSetSummary):
                 pass
@@ -453,7 +465,7 @@ class QueryEvalDriver:
         metrics = self.get_retrieval_metrics(query, result, metrics)
 
         # Evaluate string metrics
-        metrics = self.get_string_metrics(query, result, metrics)
+        metrics = self.get_answer_metrics(query, result, metrics)
 
         result.metrics = metrics
 

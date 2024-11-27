@@ -88,7 +88,8 @@ class PdfMinerExtractor(TextExtractor):
                 pdf_miner_cache.set(hash_key, pages)
             return pages
 
-    def _get_font_size(self, objs) -> float:
+    @staticmethod
+    def _get_font_size(objs) -> float:
         font_size_list = []
 
         def traverse(objs):
@@ -116,7 +117,7 @@ class PdfMinerExtractor(TextExtractor):
                 {
                     "bbox": BoundingBox(x1, y1, x2, y2),
                     "text": obj.get_text(),
-                    "font_size": self._get_font_size(obj),
+                    "font_size": PdfMinerExtractor._get_font_size(obj),
                 }
             )
 

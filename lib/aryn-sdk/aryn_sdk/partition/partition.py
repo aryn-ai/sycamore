@@ -37,6 +37,7 @@ def partition_file(
     docparse_url: Optional[str] = None,
     ssl_verify: bool = True,
     output_format: Optional[str] = None,
+    output_label_options: dict[str, Any] = {},
 ) -> dict:
     """
     Sends file to Aryn DocParse and returns a dict of its document structure and text
@@ -84,6 +85,10 @@ def partition_file(
         ssl_verify: verify ssl certificates. In databricks, set this to False to fix ssl imcompatibilities.
         output_format: controls output representation; can be set to "markdown" or "json"
             default: None (JSON elements)
+        output_label_options: A dictionary for configuring output label behavior. It supports two options:
+        promote_title, a boolean that specifies whether to add a title to partitioned elements if one is missing, and
+            title_candidate_elements, a list of strings representing labels for potential titles.
+            default: {"promote_title": True ,  "title_candidate_elements":["Section-header", "Caption"]}
 
     Returns:
         A dictionary containing "status", "elements", and possibly "error"
@@ -138,6 +143,7 @@ def partition_file(
         selected_pages=selected_pages,
         output_format=output_format,
         chunking_options=chunking_options,
+        output_label_options=output_label_options,
     )
 
     _logger.debug(f"{options_str}")
@@ -212,6 +218,7 @@ def _json_options(
     selected_pages: Optional[list[Union[list[int], int]]] = None,
     output_format: Optional[str] = None,
     chunking_options: Optional[dict[str, Any]] = None,
+    output_label_options: Optional[dict[str, Any]] = None,
 ) -> str:
     # isn't type-checking fun
     options: dict[str, Union[float, bool, str, list[Union[list[int], int]], dict[str, Any]]] = dict()
@@ -233,6 +240,8 @@ def _json_options(
         options["output_format"] = output_format
     if chunking_options is not None:
         options["chunking_options"] = chunking_options
+    if output_label_options:
+        options["output_label_options"] = output_label_options
 
     options["source"] = "aryn-sdk"
 

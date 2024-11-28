@@ -27,6 +27,9 @@ import asyncio
 from ragas.dataset_schema import SingleTurnSample
 from ragas.metrics import BleuScore, RougeScore, SemanticSimilarity
 from ragas.embeddings.base import HuggingfaceEmbeddings, LangchainEmbeddingsWrapper
+from ragas.metrics._factual_correctness import FactualCorrectness
+from langchain_openai.chat_models import ChatOpenAI
+from ragas.llms import LangchainLLMWrapper
 
 console = Console()
 
@@ -36,6 +39,7 @@ def compute_text_metrics(
     rouge_scorer: RougeScore,
     bleu_scorer: BleuScore,
     semantic_similarity_scorer: SemanticSimilarity,
+    correctness_scorer: FactualCorrectness,
 ):
     d = {}
     try:
@@ -53,6 +57,11 @@ def compute_text_metrics(
     except Exception:
         tb = traceback.format_exc()
         console.print(f"[red]Error computing semantic similarity score: {tb}")
+    try:
+        d["correctness"] = asyncio.run(correctness_scorer.single_turn_ascore(sample))
+    except Exception:
+        tb = traceback.format_exc()
+        console.print(f"[red]Error computing correctness score: {tb}")
     return d
 
 
@@ -188,6 +197,8 @@ class QueryEvalDriver:
         self.semantic_similarity_scorer.embeddings = LangchainEmbeddingsWrapper(
             HuggingfaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
         )
+        self.correctness_scorer = FactualCorrectness()
+        self.correctness_scorer.llm = LangchainLLMWrapper(ChatOpenAI(model="gpt-4o"))
 
     @staticmethod
     def read_input_file(input_file_path: str) -> QueryEvalInputFile:
@@ -431,11 +442,13 @@ class QueryEvalDriver:
                     self.rouge_scorer,
                     self.bleu_scorer,
                     self.semantic_similarity_scorer,
+                    self.correctness_scorer,
                 )
                 metrics.bleu_score = scores.get("bleu", None)
                 metrics.rouge_score = scores.get("rouge", None)
                 metrics.similarity_score = scores.get("semantic_similarity", None)
-                console.print("[green]✔ String metrics computed.")
+                metrics.correctness_score = scores.get("correctness", None)
+                console.print("[green]✔ Text metrics computed.")
             elif isinstance(query.expected, str) and isinstance(result.result, DocSetSummary):
                 pass
             else:
@@ -464,7 +477,7 @@ class QueryEvalDriver:
         # Evaluate doc retrieval
         metrics = self.get_retrieval_metrics(query, result, metrics)
 
-        # Evaluate string metrics
+        # Evaluate text metrics
         metrics = self.get_answer_metrics(query, result, metrics)
 
         result.metrics = metrics
@@ -546,7 +559,7 @@ class QueryEvalDriver:
         console.print(f"Successful doc retrievals: {correct_retrievals}/{expected_retrievals}")
         console.print(f"Average precision: {average_precision}")
 
-        # String metrics
+        # Text metrics
         bleu_scores = [result.metrics.bleu_score for result in self.results_map.values() if result.metrics.bleu_score]
         rouge_scores = [
             result.metrics.rouge_score for result in self.results_map.values() if result.metrics.rouge_score
@@ -554,12 +567,17 @@ class QueryEvalDriver:
         similarity_scores = [
             result.metrics.similarity_score for result in self.results_map.values() if result.metrics.similarity_score
         ]
+        correctness_scores = [
+            result.metrics.correctness_score for result in self.results_map.values() if result.metrics.correctness_score
+        ]
         avg_bleu_score = sum(bleu_scores) / len(bleu_scores) if bleu_scores else 0
         avg_rouge_score = sum(rouge_scores) / len(rouge_scores) if rouge_scores else 0
         avg_similarity_score = sum(similarity_scores) / len(similarity_scores) if similarity_scores else 0
+        avg_correctness_score = sum(correctness_scores) / len(correctness_scores) if correctness_scores else 0
         console.print(f"Avg. BLEU score: {avg_bleu_score}")
         console.print(f"Avg. ROUGE score: {avg_rouge_score}")
         console.print(f"Avg. Semantic similarity score: {avg_similarity_score}")
+        console.print(f"Avg. Correctness score: {avg_correctness_score}")
 
         # TODO: Query execution metrics
         console.print("Query result correctness: not implemented")

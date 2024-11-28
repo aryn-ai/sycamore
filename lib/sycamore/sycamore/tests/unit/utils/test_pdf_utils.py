@@ -9,6 +9,7 @@ from sycamore.utils.pdf_utils import (
     filter_elements_by_page,
     select_pdf_pages,
     select_pages,
+    promote_title,
 )
 from sycamore.tests.config import TEST_DIR
 
@@ -156,3 +157,48 @@ def test_select_pages():
     assert new_doc.binary_representation is not None
     assert len(new_doc.binary_representation) < len(doc.binary_representation)
     assert all(e.properties["page_number"] in [1, 2, 4] for e in new_doc.elements)
+
+
+def test_promote_title_with_title_element():
+    elements = [
+        Element(type="Title", properties={"page_number": 1}),
+        Element(type="Section-header", properties={"page_number": 2}),
+        Element(type="Caption", properties={"page_number": 2}),
+    ]
+
+    result = promote_title(elements)
+
+    assert result == elements
+
+
+def test_promote_title_with_section_header_as_title_candidate():
+    elements = [
+        Element(type="Section-header", properties={"page_number": 1, "font_size": 12}),
+        Element(type="Section-header", properties={"page_number": 2, "font_size": 14}),
+        Element(type="Caption", properties={"page_number": 2, "font_size": 16}),
+    ]
+    gt_elements = [
+        Element(type="Title", properties={"page_number": 1, "font_size": 12}),
+        Element(type="Section-header", properties={"page_number": 2, "font_size": 14}),
+        Element(type="Caption", properties={"page_number": 2, "font_size": 16}),
+    ]
+
+    result = promote_title(elements)
+    assert result == gt_elements
+
+
+def test_promote_title_with_caption_as_title_candidate():
+    elements = [
+        Element(type="Caption", properties={"page_number": 1, "font_size": 12}),
+        Element(type="Section-header", properties={"page_number": 2, "font_size": 14}),
+        Element(type="Caption", properties={"page_number": 2, "font_size": 16}),
+    ]
+    gt_elements = [
+        Element(type="Title", properties={"page_number": 1, "font_size": 12}),
+        Element(type="Section-header", properties={"page_number": 2, "font_size": 14}),
+        Element(type="Caption", properties={"page_number": 2, "font_size": 16}),
+    ]
+
+    result = promote_title(elements)
+
+    assert result == gt_elements

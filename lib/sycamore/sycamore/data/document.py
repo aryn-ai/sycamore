@@ -1,10 +1,10 @@
 from collections import UserDict
 import json
 from typing import Any, Optional
-import uuid
 
 from sycamore.data import BoundingBox, Element
 from sycamore.data.element import create_element
+from sycamore.data.docid import mkdocid, nanoid36
 
 
 class DocumentSource:
@@ -68,7 +68,7 @@ class Document(UserDict):
 
     def update_lineage_id(self):
         """Update the lineage ID with a new identifier"""
-        self.data["lineage_id"] = str(uuid.uuid4())
+        self.data["lineage_id"] = nanoid36()
 
     @property
     def type(self) -> Optional[str]:
@@ -254,7 +254,7 @@ class MetadataDocument(Document):
         if "lineage_links" in self.metadata:
             assert len(self.metadata["lineage_links"]["from_ids"]) > 0
 
-        self.data["doc_id"] = str(uuid.uuid4())
+        self.data["doc_id"] = mkdocid()
         del self.data["lineage_id"]
         del self.data["elements"]
         del self.data["properties"]
@@ -333,7 +333,7 @@ class HierarchicalDocument(Document):
     def __init__(self, document=None, **kwargs):
         super().__init__(document)
 
-        self.doc_id = self.data.get("doc_id", str(uuid.uuid4()))
+        self.doc_id = self.data.get("doc_id", mkdocid())
         self.children = self.data.get("children", [])
         if self.data.get("type", None) == "table":
             table_csv = self.data.get("table").to_csv() if self.data.get("table") else ""

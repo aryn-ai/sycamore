@@ -69,7 +69,7 @@ class TestArynPDFPartitioner:
         s = ArynPDFPartitioner("Aryn/deformable-detr-DocLayNet")
         ocr = Mock(spec=OcrModel)
         dummy_text = "mocked ocr text"
-        ocr.get_text.return_value = dummy_text
+        ocr.get_text.return_value = (dummy_text, 7)
         d = check_partition(
             s, TEST_DIR / "resources/data/pdfs/visit_aryn.pdf", use_ocr=True, use_cache=False, ocr_model=ocr
         )

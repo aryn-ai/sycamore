@@ -419,6 +419,10 @@ class ArynPartitioner(Partitioner):
              either pdfminer or OCR. Currently supports the 'object_type' property for pdfminer,
              which can be set to 'boxes' or 'lines' to control the granularity of output.
         source: The application that is using the partitioner. This is used for logging purposes.
+        output_label_options: A dictionary for configuring output label behavior. It supports two options: 
+        promote_title, a boolean that specifies whether to add a title to partitioned elements if one is missing, and
+            title_candidate_elements, a list of strings representing labels for potential titles.
+            default: {"promote_title": True ,  "title_candidate_elements":["Section-header", "Caption"]}
     Example:
          The following shows an example of using the ArynPartitioner to partition a PDF and extract
          both table structure and image
@@ -454,6 +458,7 @@ class ArynPartitioner(Partitioner):
         output_format: Optional[str] = None,
         text_extraction_options: dict[str, Any] = {},
         source: str = "",
+        output_label_options: dict[str, Any] = {},
     ):
         if use_partitioning_service:
             device = "cpu"
@@ -494,6 +499,7 @@ class ArynPartitioner(Partitioner):
         self._pages_per_call = pages_per_call
         self._text_extraction_options = text_extraction_options
         self._source = source
+        self.output_label_options = output_label_options
 
     @timetrace("SycamorePdf")
     def partition(self, document: Document) -> Document:
@@ -523,6 +529,7 @@ class ArynPartitioner(Partitioner):
                 output_format=self._output_format,
                 text_extraction_options=self._text_extraction_options,
                 source=self._source,
+                output_label_options=self.output_label_options,
             )
         except Exception as e:
             path = document.properties["path"]

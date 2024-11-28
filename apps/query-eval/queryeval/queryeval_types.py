@@ -67,6 +67,7 @@ class QueryEvalMetrics(BaseModel):
     bleu_score: Optional[float] = None
     rouge_score: Optional[float] = None
     similarity_score: Optional[float] = None
+    correctness_score: Optional[float] = None
 
 
 class DocumentSummary(BaseModel):

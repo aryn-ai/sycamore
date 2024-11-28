@@ -44,7 +44,7 @@ class Map(BaseMapTransform):
     @staticmethod
     def wrap(f: Any) -> Callable[[list[Document]], list[Document]]:
         if isinstance(f, type):
-            # mypy doesn't understand the dynamic class inheritence.
+            # mypy doesn't understand the dynamic class inheritance.
             class _Wrap(f):  # type: ignore[valid-type,misc]
                 def __init__(self, *args, **kwargs):
                     super().__init__(*args, **kwargs)

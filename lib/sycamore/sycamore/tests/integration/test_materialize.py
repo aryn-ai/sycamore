@@ -1,3 +1,4 @@
+from pathlib import Path
 import tempfile
 import unittest
 
@@ -28,6 +29,13 @@ class TestIntegration(unittest.TestCase):
                 .take_all()
             )
             print(out)
+
+    def test_empty_matdir(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            t = Path(tmpdir)
+            (t / "materialize.success").touch()
+            out = sycamore.init().read.materialize(path=tmpdir).take_all()
+            assert len(out) == 0
 
     def make_docs(self):
         properties = get_ntsb_properties()

@@ -171,14 +171,18 @@ class Materialize(UnaryNode):
                 from ray.data import read_binary_files
 
                 try:
-                    files = read_binary_files(self._root, filesystem=self._fs, file_extensions=["pickle"], partition_filter=partition_filter, shuffle=shuffle)
+                    files = read_binary_files(self._root, filesystem=self._fs, file_extensions=["pickle"])
 
                     return files.flat_map(self._ray_to_document)
                 except ValueError as e:
                     if "No input files found to read with the following file extensions" not in str(e):
                         raise
-                logger.warning(f"Unable to find any .pickle files in {self._root}, but either there is a materialize.success or this is a start node.")
+                logger.warning(
+                    f"Unable to find any .pickle files in {self._root}, but either"
+                    " there is a materialize.success or this is a start node."
+                )
                 from ray.data import from_items
+
                 return from_items(items=[])
 
         self._executed_child = True

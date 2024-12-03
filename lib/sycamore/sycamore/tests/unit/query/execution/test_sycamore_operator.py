@@ -97,7 +97,7 @@ def test_query_database_with_query(mock_sycamore_docsetreader, mock_opensearch_n
         assert result.plan._query_params.query == {"query": os_query_plan}
 
 
-def test_vector_query_database():
+def test_vector_query_database_with_rerank():
     with patch("sycamore.reader.DocSetReader") as mock_docset_reader_class:
         embedder = Mock(spec=Embedder)
         embedding = [0.1, 0.2]
@@ -137,7 +137,9 @@ def test_vector_query_database():
             query_phrase="question",
             opensearch_filter=os_filter,
         )
-        sycamore_operator = SycamoreQueryVectorDatabase(context=context, logical_node=logical_node, query_id="test")
+        sycamore_operator = SycamoreQueryVectorDatabase(
+            context=context, logical_node=logical_node, query_id="test", rerank=True
+        )
         sycamore_operator.execute()
 
         # Assert request
@@ -146,6 +148,7 @@ def test_vector_query_database():
             query={"query": {"knn": {"embedding": {"vector": embedding, "k": 500, "filter": os_filter}}}},
             reconstruct_document=True,
         )
+        mock_docset.rerank.assert_called_once()
 
 
 def test_summarize_data():

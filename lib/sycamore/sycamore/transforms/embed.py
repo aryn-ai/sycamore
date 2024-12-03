@@ -177,6 +177,14 @@ class OpenAIEmbedder(Embedder):
         self._client: Optional[OpenAIClient] = None
         self.model_name = model_name
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state["_client"] = None
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+
     def generate_embeddings(self, doc_batch: list[Document]) -> list[Document]:
         # TODO: Add some input validation here.
         # The OpenAI docs are quite vague on acceptable values for model_batch_size.

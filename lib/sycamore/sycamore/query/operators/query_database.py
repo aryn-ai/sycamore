@@ -79,6 +79,9 @@ class QueryVectorDatabase(Node):
 
     Do not use QueryVectorDatabase for questions that which require all results that match a criteria, even if it is a
     similarity criteria, e.g. "What incidents involved tigers in 2022" as that requires all possible records that match.
+
+    Since vector search is approximate, QueryVectorDatabase must always be followed by an LLMFilter to ensure that the
+    final results are accurate.
     """
 
     index: str

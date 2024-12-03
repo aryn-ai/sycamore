@@ -42,7 +42,8 @@ guidelines when generating a plan:
         6. The first step of each plan MUST be a **QueryDatabase** or **QueryVectorDatabase" operation. 
             Whenever possible, include all possible filtering operations in the first step.
            That is, you should strive to construct an OpenSearch query that filters the data as
-           much as possible, reducing the need for further query operations.
+           much as possible, reducing the need for further query operations. If using a QueryVectorDatabase, always
+              follow it with an LlmFilter operation to ensure the final results are accurate.
 """
 
 # Variants on the last step in the query plan, based on whether the user has requested raw data
@@ -299,7 +300,7 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
     PlannerExample(
         schema=EXAMPLE_NTSB_SCHEMA,
         plan=LogicalPlan(
-            query="Show me some sample incidents relating to water causes",
+            query="Show me some incidents relating to water causes",
             result_node=0,
             nodes={
                 0: QueryVectorDatabase(

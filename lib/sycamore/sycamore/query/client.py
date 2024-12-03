@@ -200,7 +200,7 @@ class SycamoreQueryClient:
             os_config=self.os_config,
             os_client=self._os_client,
             llm_client=llm_client,
-            strategy=self.query_plan_strategy or DefaultQueryPlanStrategy(llm_client),
+            strategy=self.query_plan_strategy or DefaultQueryPlanStrategy(),
             examples=examples,
             natural_language_response=natural_language_response,
         )

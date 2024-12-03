@@ -181,10 +181,7 @@ class DefaultQueryPlanStrategy(QueryPlanStrategy):
     Default strategy that uses all available tools and optimizes result correctness.
     """
 
-    def __init__(self, llm: LLM, additional_post_processors: Optional[list[LogicalPlanProcessor]] = None) -> None:
-        post_processors: list[LogicalPlanProcessor] = [RemoveVectorSearchForAnalytics(llm)]
-        if additional_post_processors:
-            post_processors.extend(additional_post_processors)
+    def __init__(self, post_processors: Optional[list[LogicalPlanProcessor]] = None) -> None:
         super().__init__(ALL_OPERATORS, post_processors)
 
 

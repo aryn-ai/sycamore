@@ -24,11 +24,10 @@ class DummyLLMClient(LLM):
 class TestStrategies(unittest.TestCase):
     def test_default(self):
         processor = RemoveVectorSearchForAnalytics(DummyLLMClient("test_model"))
-        strategy = DefaultQueryPlanStrategy(llm=DummyLLMClient("test"), additional_post_processors=[processor])
+        strategy = DefaultQueryPlanStrategy(post_processors=[processor])
 
-        assert len(strategy.post_processors) == 2
+        assert len(strategy.post_processors) == 1
         assert isinstance(strategy.post_processors[0], RemoveVectorSearchForAnalytics)
-        assert isinstance(strategy.post_processors[1], RemoveVectorSearchForAnalytics)
         assert strategy.operators == ALL_OPERATORS
 
     def test_vector_search_only(self):

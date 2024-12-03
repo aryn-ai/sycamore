@@ -32,8 +32,16 @@ class QueryDatabase(Node):
                             }
                         }
                     },
-                    {"match": {"properties.entity.accidentNumber.keyword": "*K1234N*"}},
-                    {"match_phrase": {"properties.entity.location": "Georgia"}}
+                    {
+                        "match": {
+                            "properties.path.keyword": "/path/to/data/*.pdf"
+                        }
+                    },
+                    {
+                        "match_phrase": {
+                            "properties.entity.location": "Georgia"
+                        }
+                    }
                 ]
             }
         }
@@ -64,8 +72,8 @@ class QueryVectorDatabase(Node):
     according to the vector similarity between the query string and record's text content.
 
     You should only use QueryVectorDatabase for the following query types:
-    1. "Is there *any* <record> similar to <query>?" - yes or no questions about inclusion of any record
-    2. "Give me *some* <record>s similar to <query>" - sample selection of records similar to a query
+    1. "Is there *any* <record> similar to <query>?" - yes or no questions about inclusion of any record.
+    2. "Give me *some* <record>s similar to <query>" - sample selection of records similar to a query.
 
     Important: Unless the query is asking for any or some records, DO NOT use QueryVectorDatabase.
 

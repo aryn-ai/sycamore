@@ -171,9 +171,13 @@ class Materialize(UnaryNode):
                 from ray.data import read_binary_files
 
                 try:
+
+                    def _ray_to_document(dict: dict[str, Any]) -> list[dict[str, bytes]]:
+                        return [{"doc": dict["bytes"]}]
+
                     files = read_binary_files(self._root, filesystem=self._fs, file_extensions=["pickle"])
 
-                    return files.flat_map(self._ray_to_document)
+                    return files.flat_map(_ray_to_document)
                 except ValueError as e:
                     if "No input files found to read with the following file extensions" not in str(e):
                         raise
@@ -215,9 +219,6 @@ class Materialize(UnaryNode):
                 return
 
         raise ValueError(f"Materialize root {self._orig_path} has no .pickle files")
-
-    def _ray_to_document(self, dict: dict[str, Any]) -> dict[str, bytes]:
-        return {"doc": dict["bytes"]}
 
     def _will_be_source(self) -> bool:
         if len(self.children) == 0:
@@ -289,6 +290,9 @@ class Materialize(UnaryNode):
         assert isinstance(bin, bytes), f"tobin function returned {type(bin)} not bytes"
         assert self._root is not None
         name = self._doc_to_name(doc, bin)
+        assert isinstance(name, str) or isinstance(
+            name, Path
+        ), f"doc_to_name function turned docid {doc.doc_id} into {name} -- should be string or Path"
         path = self._root / name
 
         if self._clean_root and self._fshelper.file_exists(path):

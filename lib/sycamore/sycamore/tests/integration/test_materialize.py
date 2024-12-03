@@ -13,6 +13,25 @@ from sycamore.data import Document
 
 
 class TestIntegration(unittest.TestCase):
+    def test_reread(self):
+        with tempfile.TemporaryDirectory() as tmpdir_s:
+            tmpdir = Path(tmpdir_s)
+            docs = self.make_docs()[0:5]
+            for i, d in enumerate(docs):
+                d.doc_id = f"doc{i}.pickle"
+            ctx = sycamore.init()
+            ds = ctx.read.document(docs)
+            mat = ds.materialize(
+                path={"root": tmpdir, "name": lambda d, _: d.doc_id}, source_mode=sycamore.MATERIALIZE_USE_STORED
+            )
+            docs_first = mat.take_all()
+            assert len(docs) == len(docs_first)
+            docs_second = mat.take_all()
+            assert len(docs) == len(docs_second)
+            (tmpdir / docs[0].doc_id).unlink()
+            docs_third = mat.take_all()
+            assert len(docs) == len(docs_third) + 1
+
     def test_groupby_materialize(self):
         """
         When running the groupby_count, ray will cause re-execution of earlier stages. An earlier version of

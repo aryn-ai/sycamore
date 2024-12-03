@@ -119,14 +119,8 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
                     node_id=0,
                     description="Get all the incident reports",
                     index="ntsb",
-                ),
-                1: LlmFilter(
-                    node_id=1,
-                    description="Filter to only include incidents in Georgia",
-                    question="Did this incident occur in Georgia?",
-                    field="properties.entity.location",
-                    inputs=[0],
-                ),
+                    query={"match_phrase": {"properties.entity.location": "Georgia"}},
+                )
             },
         ),
     ),
@@ -155,7 +149,7 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
         schema=EXAMPLE_NTSB_SCHEMA,
         plan=LogicalPlan(
             query="""Show incidents between July 1, 2023 and September 1, 2024 with an accident
- .         number containing 'K1234N' that occurred in Georgia.""",
+ .         number containing 'K1234N' that occurred in New Mexico.""",
             result_node=0,
             nodes={
                 0: QueryDatabase(
@@ -175,7 +169,7 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
                                     }
                                 },
                                 {"match": {"properties.entity.accidentNumber.keyword": "*K1234N*"}},
-                                {"match": {"properties.entity.location": "Georgia"}},
+                                {"match_phrase": {"properties.entity.location": "New Mexico"}},
                             ]
                         }
                     },
@@ -193,7 +187,7 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
                     node_id=0,
                     description="Get all the incident reports involving Cessna aircrafts",
                     index="ntsb",
-                    query={"match": {"properties.entity.aircraft": "Cessna"}},
+                    query={"match_phrase": {"properties.entity.aircraft": "Cessna"}},
                 ),
                 1: Count(
                     node_id=1,
@@ -288,10 +282,39 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
             nodes={
                 0: QueryVectorDatabase(
                     node_id=0,
-                    description="Get all the incidents relating to sudden weather changes",
+                    description="Get some incidents relating to sudden weather changes",
                     index="ntsb",
                     query_phrase="sudden weather changes",
-                )
+                ),
+                1: LlmFilter(
+                    node_id=1,
+                    description="Filter to only include incidents caused due to sudden weather changes",
+                    question="Did this incident occur due to sudden weather changes?",
+                    field="text_representation",
+                    inputs=[0],
+                ),
+            },
+        ),
+    ),
+    PlannerExample(
+        schema=EXAMPLE_NTSB_SCHEMA,
+        plan=LogicalPlan(
+            query="Show me some sample incidents relating to water causes",
+            result_node=0,
+            nodes={
+                0: QueryVectorDatabase(
+                    node_id=0,
+                    description="Get some incidents relating to water causes",
+                    index="ntsb",
+                    query_phrase="water causes",
+                ),
+                1: LlmFilter(
+                    node_id=1,
+                    description="Filter to only include incidents that occur due to water causes",
+                    question="Did this incident occur because of water causes",
+                    field="text_representation",
+                    inputs=[0],
+                ),
             },
         ),
     ),

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import datetime
 from enum import Enum
 import boto3
 import json
@@ -124,18 +125,34 @@ class Bedrock(LLM):
 
         return kwargs
 
-    def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
+    def generate_metadata(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> dict:
         key, ret = self._cache_get(prompt_kwargs, llm_kwargs)
-        if ret is not None:
+        if isinstance(ret, dict):
             return ret
 
         kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
         body = json.dumps(kwargs)
+        start = datetime.datetime.now()
         response = self._client.invoke_model(
             body=body, modelId=self.model.name, accept="application/json", contentType="application/json"
         )
+        wall_latency = datetime.datetime.now() - start
+
+        md = response["ResponseMetadata"]
+        assert md["HTTPStatusCode"] == 200, f"Request failed {md['HTTPStatusCode']}"
+        hdrs = md["HTTPHeaders"]
+        server_latency = datetime.timedelta(milliseconds=int(hdrs["x-amzn-bedrock-invocation-latency"]))
+        in_tokens = int(hdrs["x-amzn-bedrock-input-token-count"])
+        out_tokens = int(hdrs["x-amzn-bedrock-output-token-count"])
         response_body = json.loads(response.get("body").read())
-        ret = response_body.get("content", {})[0].get("text", "")
+        output = response_body.get("content", {})[0].get("text", "")
+        ret = {
+            "output": output,
+            "wall_latency": wall_latency,
+            "server_latency": server_latency,
+            "in_tokens": in_tokens,
+            "out_tokens": out_tokens,
+        }
         value = {
             "result": ret,
             "prompt_kwargs": prompt_kwargs,
@@ -144,3 +161,7 @@ class Bedrock(LLM):
         }
         self._cache_set(key, value)
         return ret
+
+    def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
+        d = self.generate_metadata(prompt_kwargs=prompt_kwargs, llm_kwargs=llm_kwargs)
+        return d["output"]

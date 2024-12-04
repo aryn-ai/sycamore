@@ -49,3 +49,35 @@ def test_map_class_parallelism():
         print(f"Actor {a} got {count[a]} items")
         assert count[a] >= min_count
         assert count[a] <= max_count
+
+
+def test_map_metadata() -> None:
+    dicts = [
+        {"index": 1, "doc": "Members of a strike at Yale University."},
+        {"index": 2, "doc": "A woman is speaking at a podium outdoors."},
+    ]
+    in_docs = [Document(d) for d in dicts]
+
+    def inject_metadata(d):
+        from sycamore.data.metadata import add_metadata
+
+        idx = d["index"]
+        for i in range(idx):
+            add_metadata(index=idx, value=i)
+        return d
+
+    docs = (
+        sycamore.init(exec_mode=sycamore.EXEC_RAY)
+        .read.document(in_docs)
+        .map(inject_metadata)
+        .take_all(include_metadata=True)
+    )
+
+    inject_md = [d for d in docs if "metadata" in d and "index" in d.metadata]
+    assert len(inject_md) == 3
+    assert inject_md[0].metadata["index"] == 1
+    assert inject_md[0].metadata["value"] == 0
+    assert inject_md[1].metadata["index"] == 2
+    assert inject_md[1].metadata["value"] == 0
+    assert inject_md[2].metadata["index"] == 2
+    assert inject_md[2].metadata["value"] == 1

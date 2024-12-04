@@ -392,8 +392,8 @@ class TestDocSet:
             Document(
                 doc_id="doc_2",
                 elements=[
-                    Element(text_representation="test2"),  # llm_filter result = 2,
-                    Element(text_representation="test1"),  # llm_filter result = 4
+                    Element(text_representation="test2", element_index=1),  # llm_filter result = 2,
+                    Element(text_representation="test1", element_index=2),  # llm_filter result = 4
                 ],
             ),
             Document(
@@ -419,6 +419,12 @@ class TestDocSet:
         assert taken[0].doc_id == "doc_1"
         assert taken[1].doc_id == "doc_2"
         assert mock_llm.generate.call_count == 4
+
+        # doc level field checks
+        assert taken[0].properties[new_field] == 4
+        assert taken[1].properties[new_field] == 4
+        assert taken[0].properties[new_field + "_source_element_index"] is None  # no index
+        assert taken[1].properties[new_field + "_source_element_index"] == 2
 
         filtered_docset = docset.llm_filter(
             new_field=new_field, prompt=[], field="text_representation", threshold=2, use_elements=True

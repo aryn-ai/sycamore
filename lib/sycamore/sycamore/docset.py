@@ -1034,8 +1034,15 @@ class DocSet:
                     continue
                 e_doc = entity_extractor.extract_entity(e_doc)
                 element.properties[new_field] = e_doc.properties[new_field]
+
                 # todo: move data extraction and validation to entity extractor
-                if int(re.findall(r"\d+", element.properties[new_field])[0]) >= threshold:
+                score = int(re.findall(r"\d+", element.properties[new_field])[0])
+                # we're storing the element_index of the element that provides the highest match score for a document.
+                doc_source_field_name = f"{new_field}_source_element_index"
+                if score >= doc.get(doc_source_field_name, 0):
+                    doc.properties[f"{new_field}"] = score
+                    doc.properties[f"{new_field}_source_element_index"] = element.element_index
+                if score >= threshold:
                     return True
                 evaluated_elements += 1
             if evaluated_elements == 0:  # no elements found for property

@@ -192,7 +192,16 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
 
 
 class DeformableTableStructureExtractor(TableTransformerStructureExtractor):
+    """A TableStructureExtractor implementation that uses the Deformable DETR model."""
+
     def __init__(self, model: str, device=None):
+        """
+        Creates a TableTransformerStructureExtractor
+
+        Args:
+          model: The HuggingFace URL or local path for the DeformableDETR model to use.
+        """
+
         super().__init__(model, device)
 
     def _init_structure_model(self):
@@ -203,6 +212,18 @@ class DeformableTableStructureExtractor(TableTransformerStructureExtractor):
     def extract(
         self, element: TableElement, doc_image: Image.Image, union_tokens=False, apply_thresholds=True
     ) -> TableElement:
+        """Extracts the table structure from the specified element using a DeformableDETR model.
+
+        Takes a TableElement containing a bounding box, for example from the SycamorePartitioner,
+        and populates the table property with information about the cells.
+
+        Args:
+          element: A TableElement. The bounding box must be non-null.
+          doc_image: A PIL object containing an image of the Document page containing the element.
+               Used for bounding box calculations.
+          union_tokens: Make sure that ocr/pdfminer tokens are _all_ included in the table.
+          apply_thresholds: Apply class thresholds to the objects output by the model.
+        """
         # Literally just call the super but change the default for apply_thresholds
         return super().extract(element, doc_image, union_tokens, apply_thresholds)
 

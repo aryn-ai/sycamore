@@ -12,7 +12,7 @@ _DETR_LOCK_FILE = f"{Path.home()}/.cache/Aryn-Detr.lock"
 
 
 @requires_modules("transformers", "local_inference")
-def load_deformable_detr(model_name_or_path) -> "DeformableDetrForObjectDetection":
+def load_deformable_detr(model_name_or_path, device) -> "DeformableDetrForObjectDetection":
     """Load deformable detr without getting concurrency issues in
     jit-ing the deformable attention kernel.
 
@@ -29,5 +29,5 @@ def load_deformable_detr(model_name_or_path) -> "DeformableDetrForObjectDetectio
 
         LogTime("loading_model", point=True)
         with LogTime("loading_model", log_start=True):
-            model = DeformableDetrForObjectDetection.from_pretrained(model_name_or_path)
+            model = DeformableDetrForObjectDetection.from_pretrained(model_name_or_path).to(device)
     return model

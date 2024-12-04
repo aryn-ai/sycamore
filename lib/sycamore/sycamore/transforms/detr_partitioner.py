@@ -684,7 +684,7 @@ class DeformableDetr(SycamoreObjectDetection):
         from sycamore.utils.model_load import load_deformable_detr
 
         self.processor = AutoImageProcessor.from_pretrained(model_name_or_path)
-        self.model = load_deformable_detr(model_name_or_path).to(self._get_device())
+        self.model = load_deformable_detr(model_name_or_path, self._get_device())
 
     # Note: We wrap this in a function so that we can execute on both the leader and the workers
     # to account for heterogeneous systems. Currently, if you pass in an explicit device parameter

@@ -207,7 +207,7 @@ class DeformableTableStructureExtractor(TableTransformerStructureExtractor):
     def _init_structure_model(self):
         from sycamore.utils.model_load import load_deformable_detr
 
-        self.structure_model = load_deformable_detr(self.model).to(self._get_device())
+        self.structure_model = load_deformable_detr(self.model, self._get_device())
 
     def extract(
         self, element: TableElement, doc_image: Image.Image, union_tokens=False, apply_thresholds=True

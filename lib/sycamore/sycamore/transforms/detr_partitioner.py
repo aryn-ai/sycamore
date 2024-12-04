@@ -6,7 +6,6 @@ import tracemalloc
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from typing import Any, BinaryIO, Literal, Union, Optional
-from pathlib import Path
 from itertools import repeat
 
 import requests
@@ -33,7 +32,6 @@ from sycamore.transforms.text_extraction import TextExtractor, OcrModel, get_tex
 from sycamore.transforms.text_extraction.pdf_miner import PdfMinerExtractor
 
 logger = logging.getLogger(__name__)
-_DETR_LOCK_FILE = f"{Path.home()}/.cache/Aryn-Detr.lock"
 _VERSION = "0.2024.07.24"
 
 

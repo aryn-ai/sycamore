@@ -137,7 +137,6 @@ class Bedrock(LLM):
             body=body, modelId=self.model.name, accept="application/json", contentType="application/json"
         )
         wall_latency = datetime.datetime.now() - start
-
         md = response["ResponseMetadata"]
         assert md["HTTPStatusCode"] == 200, f"Request failed {md['HTTPStatusCode']}"
         hdrs = md["HTTPHeaders"]

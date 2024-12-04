@@ -14,7 +14,7 @@ _DETR_LOCK_FILE = f"{Path.home()}/.cache/Aryn-Detr.lock"
 @requires_modules("transformers", "local_inference")
 def load_deformable_detr(model_name_or_path, device) -> "DeformableDetrForObjectDetection":
     """Load deformable detr without getting concurrency issues in
-    jit-ing the deformable attention kernel.
+    jitc-ing the deformable attention kernel.
 
     Refactored out of:
     https://github.com/aryn-ai/sycamore/blob/7e6b62639ce9b8f63d56cb35a32837d1c97e711e/lib/sycamore/sycamore/transforms/detr_partitioner.py#L686

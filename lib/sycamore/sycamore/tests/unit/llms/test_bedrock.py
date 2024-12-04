@@ -7,10 +7,32 @@ from sycamore.llms.bedrock import DEFAULT_ANTHROPIC_VERSION, DEFAULT_MAX_TOKENS
 from sycamore.utils.cache import DiskCache
 
 
+class BedrockBody:
+    def __init__(self, body):
+        self.body = body
+
+    def read(self):
+        return self.body
+
+
+def bedrock_reply(body):
+    return {
+        "ResponseMetadata": {
+            "HTTPStatusCode": 200,
+            "HTTPHeaders": {
+                "x-amzn-bedrock-invocation-latency": 1111,
+                "x-amzn-bedrock-input-token-count": 30,
+                "x-amzn-bedrock-output-token-count": 50,
+            },
+        },
+        "body": BedrockBody(body),
+    }
+
+
 @patch("boto3.client")
-def test_bedrock(mock_boto3_client):
-    mock_boto3_client.return_value.invoke_model.return_value.get.return_value.read.return_value = (
-        '{"content": [{"text": "Here is your result: 56"}]}'
+def test_bedrock_simple(mock_boto3_client):
+    mock_boto3_client.return_value.invoke_model.return_value = bedrock_reply(
+        '{ "content": [{"text": "Here is your result: 56"}]}'
     )
 
     client = Bedrock(BedrockModels.CLAUDE_3_5_SONNET)
@@ -37,7 +59,7 @@ def test_bedrock(mock_boto3_client):
 
 @patch("boto3.client")
 def test_bedrock_system_role(mock_boto3_client):
-    mock_boto3_client.return_value.invoke_model.return_value.get.return_value.read.return_value = (
+    mock_boto3_client.return_value.invoke_model.return_value = bedrock_reply(
         '{"content": [{"text": "Here is your result: 56"}]}'
     )
 
@@ -68,7 +90,7 @@ def test_bedrock_system_role(mock_boto3_client):
 
 @patch("boto3.client")
 def test_bedrock_with_llm_kwargs(mock_boto3_client):
-    mock_boto3_client.return_value.invoke_model.return_value.get.return_value.read.return_value = (
+    mock_boto3_client.return_value.invoke_model.return_value = bedrock_reply(
         '{"content": [{"text": "Here is your result: 56"}]}'
     )
 
@@ -97,7 +119,7 @@ def test_bedrock_with_llm_kwargs(mock_boto3_client):
 
 @patch("boto3.client")
 def test_bedrock_with_cache(mock_boto3_client):
-    mock_boto3_client.return_value.invoke_model.return_value.get.return_value.read.return_value = (
+    mock_boto3_client.return_value.invoke_model.return_value = bedrock_reply(
         '{"content": [{"text": "Here is your result: 56"}]}'
     )
 

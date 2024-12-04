@@ -14,7 +14,6 @@ import json
 from tenacity import retry, retry_if_exception, wait_exponential, stop_after_delay
 import base64
 from PIL import Image
-import fasteners
 from pypdf import PdfReader
 
 from sycamore.data import Element, BoundingBox, ImageElement, TableElement
@@ -683,18 +682,11 @@ class DeformableDetr(SycamoreObjectDetection):
         self._model_name_or_path = model_name_or_path
         self.cache = cache
 
-        from sycamore.utils.pytorch_dir import get_pytorch_build_directory
+        from transformers import AutoImageProcessor
+        from sycamore.utils.model_load import load_deformable_detr
 
-        with fasteners.InterProcessLock(_DETR_LOCK_FILE):
-            lockfile = Path(get_pytorch_build_directory("MultiScaleDeformableAttention", False)) / "lock"
-            lockfile.unlink(missing_ok=True)
-
-            from transformers import AutoImageProcessor, DeformableDetrForObjectDetection
-
-            LogTime("loading_model", point=True)
-            with LogTime("load_model", log_start=True):
-                self.processor = AutoImageProcessor.from_pretrained(model_name_or_path)
-                self.model = DeformableDetrForObjectDetection.from_pretrained(model_name_or_path).to(self._get_device())
+        self.processor = AutoImageProcessor.from_pretrained(model_name_or_path)
+        self.model = load_deformable_detr(model_name_or_path).to(self._get_device())
 
     # Note: We wrap this in a function so that we can execute on both the leader and the workers
     # to account for heterogeneous systems. Currently, if you pass in an explicit device parameter

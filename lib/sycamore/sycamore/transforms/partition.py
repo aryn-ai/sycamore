@@ -427,7 +427,7 @@ class ArynPartitioner(Partitioner):
                 a title.
             Here is an example set of output label options:
                 {"promote_title": True, "title_candidate_elements": ["Section-header", "Caption"]}
-            default: None (no elements are promoted to titles)
+            default: None (no element is promoted to "Title")
     Example:
          The following shows an example of using the ArynPartitioner to partition a PDF and extract
          both table structure and image

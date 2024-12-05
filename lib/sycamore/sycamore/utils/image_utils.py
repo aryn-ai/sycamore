@@ -3,6 +3,7 @@ from io import BytesIO
 from packaging.version import InvalidVersion, Version
 from pathlib import Path
 from typing import Any, Callable, Optional, TypeVar, Union
+import logging
 import PIL
 from PIL import Image, ImageDraw, ImageFont
 from sycamore.data import Document
@@ -198,7 +199,11 @@ def try_draw_boxes(
         font = ImageFont.load_default()
 
     for i, box in enumerate(boxes):
-        raw_coords = coord_fn(box)
+        try:
+            raw_coords = coord_fn(box)
+        except:
+            logging.warn(f"Could not extract bbox coords from {box}")
+            continue
 
         # If the coordinates are all less than or equal to 1.0, then we treat them
         # as relative coordinates, and we convert them to absolute coordinates.

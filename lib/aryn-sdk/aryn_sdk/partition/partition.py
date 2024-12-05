@@ -87,13 +87,13 @@ def partition_file(
             default: None (JSON elements)
         output_label_options: A dictionary for configuring output label behavior. It supports two options:
             promote_title, a boolean specifying whether to pick the largest element by font size on the first page
-                from among the elements that are of a type specified in title_candidate_elements and promote it to
-                type Title if there is no element on the first page of type Title already.
+                from among the elements on that page that have one of the types specified in title_candidate_elements
+                and promote it to type "Title" if there is no element on the first page of type "Title" already.
             title_candidate_elements, a list of strings representing the label types allowed to be promoted to
                 a title.
             Here is an example set of output label options:
                 {"promote_title": True, "title_candidate_elements": ["Section-header", "Caption"]}
-            default: None (no elements are promoted to titles)
+            default: None (no element is promoted to "Title")
 
 
     Returns:

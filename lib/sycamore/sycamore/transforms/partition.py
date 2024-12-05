@@ -419,10 +419,15 @@ class ArynPartitioner(Partitioner):
              either pdfminer or OCR. Currently supports the 'object_type' property for pdfminer,
              which can be set to 'boxes' or 'lines' to control the granularity of output.
         source: The application that is using the partitioner. This is used for logging purposes.
-        output_label_options: A dictionary for configuring output label behavior. It supports two options: 
-        promote_title, a boolean that specifies whether to add a title to partitioned elements if one is missing, and
-            title_candidate_elements, a list of strings representing labels for potential titles.
-            default: {"promote_title": True ,  "title_candidate_elements":["Section-header", "Caption"]}
+        output_label_options: A dictionary for configuring output label behavior. It supports two options:
+            promote_title, a boolean specifying whether to pick the largest element by font size on the first page
+                from among the elements that are of a type specified in title_candidate_elements and promote it to
+                type Title if there is no element on the first page of type Title already.
+            title_candidate_elements, a list of strings representing the label types allowed to be promoted to
+                a title.
+            Here is an example set of output label options:
+                {"promote_title": True, "title_candidate_elements": ["Section-header", "Caption"]}
+            default: None (no elements are promoted to titles)
     Example:
          The following shows an example of using the ArynPartitioner to partition a PDF and extract
          both table structure and image

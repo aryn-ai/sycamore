@@ -5,6 +5,7 @@ from sycamore.transforms.standardizer import (
     DateTimeStandardizer,
     ignore_errors,
 )
+import pytest
 import unittest
 from datetime import date, datetime
 
@@ -266,3 +267,36 @@ class TestIgnoreErrors(unittest.TestCase):
         key_path = ["nonExistentKey"]
         expected_output = {"event": {"coolKey": ""}}
         self.assertEqual(ignore_errors(doc, standardizer, key_path), expected_output)
+
+
+@pytest.mark.parametrize(
+    "raw, want",
+    [
+        ("March 17, 2023, 14.25 Local", "2023-03-17 14:25:00"),
+        ("March 17, 2023, 14.25", "2023-03-17 14:25:00"),
+        ("March 17, 2023 14:25:00", "2023-03-17 14:25:00"),
+        ("17 March 2023 14:25", "2023-03-17 14:25:00"),
+        ("2023-07-15 10.30.00", "2023-07-15 10:30:00"),
+        ("15/07/2023 10.30.00", "2023-07-15 10:30:00"),
+        ("2023-07-15 10.30.00 Local", "2023-07-15 10:30:00"),
+        ("2023-07-15 10.30.00PDT", "2023-07-15 10:30:00-07:00"),
+        ("2024/6/01 23:59:59 PDT", "2024-06-01 23:59:59-07:00"),
+        ("2024/12/04 15:25:39 PST", "2024-12-04 15:25:39-08:00"),
+        ("03/02/1995 0815 CST", "1995-03-02 08:15:00-06:00"),
+        ("03/02/1995 081500 CST", "1995-03-02 08:15:00-06:00"),
+        ("3/2/95 0815", "1995-03-02 08:15:00"),
+        ("1995-03-02 0815 CST", "1995-03-02 08:15:00-06:00"),
+        ("1995-03-02 081500 CST", "1995-03-02 08:15:00-06:00"),
+        ("4/30/1970 10:15:00 JST", "1970-04-30 10:15:00+09:00"),
+        ("1/2/2034 12:13:14 GMT", "2034-01-02 12:13:14+00:00"),
+        ("2034-01-02T12:13:14+00:00", "2034-01-02 12:13:14+00:00"),
+        ("April 1, 1999 1259", "fail"),
+    ],
+)
+def test_date_fixer(raw, want):
+    try:
+        dt = DateTimeStandardizer.fixer(raw)
+        s = dt.isoformat(sep=" ", timespec="seconds")
+    except ValueError:
+        s = "fail"
+    assert s == want

@@ -201,7 +201,7 @@ def try_draw_boxes(
     for i, box in enumerate(boxes):
         try:
             raw_coords = coord_fn(box)
-        except:
+        except Exception:
             logging.warn(f"Could not extract bbox coords from {box}")
             continue
 

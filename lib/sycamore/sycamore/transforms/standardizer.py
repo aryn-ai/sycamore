@@ -185,6 +185,11 @@ class DateTimeStandardizer(Standardizer):
     """
 
     DEFAULT_FORMAT = "%B %d, %Y %H:%M:%S%Z"
+
+    # Regexes for military time stuff below.  Example matching strings:
+    # clock: 8:00 12:30 23:59:59
+    # year: 1970-04-30 1999-12 12/5/2024 12/2000 4/30/70
+    # digitpair: 0800 235959
     clock_re = re.compile(r"\d:[0-5]\d")
     year_re = re.compile(r"([12]\d\d\d-)|(/[12]\d\d\d)|(\d/[0-3]?\d/\d)")
     digitpair_re = re.compile(r"([0-2]\d)([0-5]\d)(\d\d)?")
@@ -208,11 +213,10 @@ class DateTimeStandardizer(Standardizer):
         """
         assert raw_dateTime is not None, "raw_dateTime is None"
         try:
-            raw_dateTime = DateTimeStandardizer.preprocess(raw_dateTime)
+            raw_dateTime = DateTimeStandardizer.fix_military(raw_dateTime)
             raw_dateTime = raw_dateTime.replace("Local", "")
             raw_dateTime = raw_dateTime.replace("local", "")
             raw_dateTime = raw_dateTime.replace(".", ":")
-            logging.error(f"FIXME {raw_dateTime}")
             parsed = dateparser.parse(raw_dateTime)
             if not parsed:
                 raise ValueError(f"Invalid date format: {raw_dateTime}")
@@ -227,7 +231,7 @@ class DateTimeStandardizer(Standardizer):
             raise RuntimeError(f"Unexpected error occurred while processing: {raw_dateTime}") from e
 
     @staticmethod
-    def preprocess(raw: str) -> str:
+    def fix_military(raw: str) -> str:
         # Fix up military clock time with just digits (0800)
         raw = raw.strip()
         tokens = raw.split()

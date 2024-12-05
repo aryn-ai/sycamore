@@ -86,9 +86,12 @@ def partition_file(
         output_format: controls output representation; can be set to "markdown" or "json"
             default: None (JSON elements)
         output_label_options: A dictionary for configuring output label behavior. It supports two options:
-        promote_title, a boolean that specifies whether to add a title to partitioned elements if one is missing, and
+            promote_title, a boolean specifying whether to add a title to partitioned elements if one is missing, and
             title_candidate_elements, a list of strings representing labels for potential titles.
-            default: {"promote_title": True ,  "title_candidate_elements":["Section-header", "Caption"]}
+            Here is an example set of output label options:
+                {"promote_title": True, "title_candidate_elements": ["Section-header", "Caption"]}
+            default: None (no elements are promoted to titles)
+
 
     Returns:
         A dictionary containing "status", "elements", and possibly "error"

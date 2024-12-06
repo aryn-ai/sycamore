@@ -172,7 +172,7 @@ class PaddleOcr(OcrModel):
     def get_text(self, image: Image.Image) -> tuple[str, Optional[float]]:
         bytearray = BytesIO()
         image.save(bytearray, format="BMP")
-        result = self.reader.ocr(bytearray.getvalue(), rec=True, det=True, cls=False)
+        result = self.reader.ocr(bytearray.getvalue(), rec=True, det=True, cls=False, bin=True)
         if result and result[0]:
             text_values = []
             font_sizes = []

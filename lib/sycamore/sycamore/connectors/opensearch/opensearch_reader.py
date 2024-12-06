@@ -1,3 +1,4 @@
+import copy
 import logging
 
 from sycamore.data import Document, Element
@@ -47,6 +48,9 @@ class OpenSearchReaderClient(BaseDBReader.Client):
         if "size" not in query_params.query and "size" not in query_params.kwargs:
             query_params.kwargs["size"] = 200
         result = []
+        # We only fetch the minimum required fields for full document retrieval/reconstruction
+        if query_params.reconstruct_document:
+           query_params.kwargs["_source_includes"] = "doc_id,parent_id,properties"
         # No pagination needed for knn queries
         if "query" in query_params.query and "knn" in query_params.query["query"]:
             response = self._client.search(
@@ -148,6 +152,8 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
 
             # Batched retrieval of all elements belong to unique docs
             doc_ids = list(unique_docs.keys())
+            # We can't safely exclude embeddings since we might need them for 'rerank', e.g.
+            # We will need the Planner to determine that and pass that info to the reader.
             all_elements_for_docs = self._get_all_elements_for_doc_ids(doc_ids, query_params.index_name)
 
             """
@@ -183,7 +189,6 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
         """
         batch_size = 100
         page_size = 500
-
         all_elements = []
         for i in range(0, len(doc_ids), batch_size):
             doc_ids_batch = doc_ids[i : i + batch_size]

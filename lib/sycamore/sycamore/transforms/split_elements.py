@@ -121,9 +121,7 @@ class SplitElements(SingleThreadUser, NonGPUUser, Map):
         ment = elem.copy()
         elem.text_representation = one
         elem.binary_representation = bytes(one, "utf-8")
-        if elem.type == "table":
-            if not isinstance(elem, TableElement) or elem.table is None:
-                raise ValueError("Element must be tableElement/ have table to perform splitting.")
+        if elem.type == "table" and isinstance(elem, TableElement) and elem.table is not None:
             if elem.table.column_headers:
                 two = ", ".join(elem.table.column_headers) + "\n" + two
             if elem.data["properties"].get("title"):

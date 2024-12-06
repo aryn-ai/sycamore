@@ -88,4 +88,3 @@ class TestSycamoreQuery:
         assert isinstance(result.result, DocSet)
         docs = result.result.take_all()
         assert len(docs) > 0
-

@@ -22,6 +22,7 @@ log = logging.getLogger(__name__)
 
 OS_ADMIN_PASSWORD = os.getenv("OS_ADMIN_PASSWORD", "admin")
 
+
 @dataclass
 class OpenSearchWriterClientParams(BaseDBWriter.ClientParams):
     hosts: list[HostAndPort] = field(default_factory=lambda: [HostAndPort(host="localhost", port=9200)])

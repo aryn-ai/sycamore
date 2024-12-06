@@ -11,6 +11,7 @@ from sycamore.transforms.partition import HtmlPartitioner
 
 OS_ADMIN_PASSWORD = os.getenv("OS_ADMIN_PASSWORD", "admin")
 
+
 def test_html_to_opensearch(exec_mode):
     os_client_args = {
         "hosts": [{"host": "localhost", "port": 9200}],

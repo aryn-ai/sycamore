@@ -18,6 +18,7 @@ from sycamore.utils.cache import S3Cache
 
 OS_ADMIN_PASSWORD = os.getenv("OS_ADMIN_PASSWORD", "admin")
 
+
 def test_pdf_to_opensearch_with_llm_caching():
     os_client_args = {
         "hosts": [{"host": "localhost", "port": 9200}],

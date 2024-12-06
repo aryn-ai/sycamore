@@ -11,6 +11,7 @@ from sycamore.transforms.partition import UnstructuredPdfPartitioner
 
 OS_ADMIN_PASSWORD = os.getenv("OS_ADMIN_PASSWORD", "admin")
 
+
 @pytest.fixture(scope="class")
 def setup_index():
     client = OpenSearch(**TestOpenSearchRead.OS_CLIENT_ARGS)

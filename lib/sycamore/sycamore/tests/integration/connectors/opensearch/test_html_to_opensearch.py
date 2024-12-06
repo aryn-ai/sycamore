@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 
 from opensearchpy import OpenSearch
@@ -8,12 +9,13 @@ from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.embed import SentenceTransformerEmbedder
 from sycamore.transforms.partition import HtmlPartitioner
 
+OS_ADMIN_PASSWORD = os.getenv("OS_ADMIN_PASSWORD", "admin")
 
 def test_html_to_opensearch(exec_mode):
     os_client_args = {
         "hosts": [{"host": "localhost", "port": 9200}],
         "http_compress": True,
-        "http_auth": ("admin", "admin"),
+        "http_auth": ("admin", OS_ADMIN_PASSWORD),
         "use_ssl": True,
         "verify_certs": False,
         "ssl_assert_hostname": False,

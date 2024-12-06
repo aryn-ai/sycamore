@@ -1,3 +1,4 @@
+import os
 from dataclasses import asdict, dataclass, field
 import logging
 import typing
@@ -19,12 +20,13 @@ if typing.TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+OS_ADMIN_PASSWORD = os.getenv("OS_ADMIN_PASSWORD", "admin")
 
 @dataclass
 class OpenSearchWriterClientParams(BaseDBWriter.ClientParams):
     hosts: list[HostAndPort] = field(default_factory=lambda: [HostAndPort(host="localhost", port=9200)])
     http_compress: bool = True
-    http_auth: tuple[str, str] = ("admin", "admin")
+    http_auth: tuple[str, str] = ("admin", OS_ADMIN_PASSWORD)
     use_ssl: bool = True
     verify_certs: bool = True
     ssl_assert_hostname: bool = True

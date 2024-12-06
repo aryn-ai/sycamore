@@ -1,3 +1,4 @@
+import os
 import time
 
 import pytest
@@ -8,6 +9,7 @@ from sycamore.tests.integration.connectors.common import compare_connector_docs
 from sycamore.tests.config import TEST_DIR
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 
+OS_ADMIN_PASSWORD = os.getenv("OS_ADMIN_PASSWORD", "admin")
 
 @pytest.fixture(scope="class")
 def setup_index():
@@ -45,7 +47,7 @@ class TestOpenSearchRead:
     OS_CLIENT_ARGS = {
         "hosts": [{"host": "localhost", "port": 9200}],
         "http_compress": True,
-        "http_auth": ("admin", "admin"),
+        "http_auth": ("admin", OS_ADMIN_PASSWORD),
         "use_ssl": True,
         "verify_certs": False,
         "ssl_assert_hostname": False,

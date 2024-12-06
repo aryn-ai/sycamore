@@ -1,3 +1,4 @@
+import os
 import pytest
 from opensearchpy import OpenSearch
 
@@ -9,11 +10,12 @@ from sycamore.transforms.merge_elements import GreedyTextElementMerger
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 
 QUERY_INTEGRATION_TEST_INDEX_NAME = "sycamore_query_ntsb_integration_tests"
+OS_ADMIN_PASSWORD = os.getenv("OS_ADMIN_PASSWORD", "admin")
 
 OS_CLIENT_ARGS = {
     "hosts": [{"host": "localhost", "port": 9200}],
     "http_compress": True,
-    "http_auth": ("admin", "admin"),
+    "http_auth": ("admin", OS_ADMIN_PASSWORD),
     "use_ssl": True,
     "verify_certs": False,
     "ssl_assert_hostname": False,

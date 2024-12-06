@@ -49,7 +49,8 @@ class OpenSearchReaderClient(BaseDBReader.Client):
         result = []
         # No pagination needed for knn queries
         if "query" in query_params.query and "knn" in query_params.query["query"]:
-            response = self._client.search(index=query_params.index_name, body=query_params.query, **query_params.kwargs)
+            response = self._client.search(index=query_params.index_name, body=query_params.query,
+                                           **query_params.kwargs)
             hits = response["hits"]["hits"]
             if hits:
                 for hit in hits:
@@ -57,7 +58,8 @@ class OpenSearchReaderClient(BaseDBReader.Client):
         else:
             if "scroll" not in query_params.kwargs:
                 query_params.kwargs["scroll"] = "10m"
-            response = self._client.search(index=query_params.index_name, body=query_params.query, **query_params.kwargs)
+            response = self._client.search(index=query_params.index_name, body=query_params.query,
+                                           **query_params.kwargs)
             scroll_id = response["_scroll_id"]
             try:
                 while True:

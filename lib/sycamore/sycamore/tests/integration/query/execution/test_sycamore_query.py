@@ -82,7 +82,9 @@ class TestSycamoreQuery:
             schema,
             natural_language_response=False,
         )
-        assert len(plan.nodes) == 1
+        assert len(plan.nodes) == 2
         assert isinstance(plan.nodes[0], QueryVectorDatabase)
         result = client.run_plan(plan, codegen_mode=codegen_mode)
         assert isinstance(result.result, DocSet)
+        docs = result.result.take_all()
+        assert len(docs) > 0

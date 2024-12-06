@@ -43,25 +43,37 @@ class OpenSearchReaderClient(BaseDBReader.Client):
             query_params, OpenSearchReaderQueryParams
         ), f"Wrong kind of query parameters found: {query_params}"
         assert "index" not in query_params.kwargs and "body" not in query_params.kwargs
-        if "scroll" not in query_params.kwargs:
-            query_params.kwargs["scroll"] = "10m"
+        logging.debug(f"OpenSearch query on {query_params.index_name}: {query_params.query}")
         if "size" not in query_params.query and "size" not in query_params.kwargs:
             query_params.kwargs["size"] = 200
-        logging.debug(f"OpenSearch query on {query_params.index_name}: {query_params.query}")
-        response = self._client.search(index=query_params.index_name, body=query_params.query, **query_params.kwargs)
-        scroll_id = response["_scroll_id"]
         result = []
-        try:
-            while True:
-                hits = response["hits"]["hits"]
+        # No pagination needed for knn queries
+        if "query" in query_params.query and "knn" in query_params.query["query"]:
+            response = self._client.search(
+                index=query_params.index_name, body=query_params.query, **query_params.kwargs
+            )
+            hits = response["hits"]["hits"]
+            if hits:
                 for hit in hits:
                     result += [hit]
+        else:
+            if "scroll" not in query_params.kwargs:
+                query_params.kwargs["scroll"] = "10m"
+            response = self._client.search(
+                index=query_params.index_name, body=query_params.query, **query_params.kwargs
+            )
+            scroll_id = response["_scroll_id"]
+            try:
+                while True:
+                    hits = response["hits"]["hits"]
+                    if not hits:
+                        break
+                    for hit in hits:
+                        result += [hit]
 
-                if not hits:
-                    break
-                response = self._client.scroll(scroll_id=scroll_id, scroll=query_params.kwargs["scroll"])
-        finally:
-            self._client.clear_scroll(scroll_id=scroll_id)
+                    response = self._client.scroll(scroll_id=scroll_id, scroll=query_params.kwargs["scroll"])
+            finally:
+                self._client.clear_scroll(scroll_id=scroll_id)
         return OpenSearchReaderQueryResponse(result, self._client)
 
     def check_target_presence(self, query_params: BaseDBReader.QueryParams):

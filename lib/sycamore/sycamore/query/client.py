@@ -38,12 +38,13 @@ from sycamore.utils.import_utils import requires_modules
 
 console = Console()
 
+OS_ADMIN_PASSWORD = os.getenv("OS_ADMIN_PASSWORD", "admin")
 
 DEFAULT_OS_CONFIG = {"search_pipeline": "hybrid_pipeline"}
 DEFAULT_OS_CLIENT_ARGS = {
     "hosts": [{"host": os.getenv("OPENSEARCH_HOST", "localhost"), "port": os.getenv("OPENSEARCH_PORT", 9200)}],
     "http_compress": True,
-    "http_auth": ("admin", "admin"),
+    "http_auth": ("admin", OS_ADMIN_PASSWORD),
     "use_ssl": True,
     "verify_certs": False,
     "ssl_assert_hostname": False,

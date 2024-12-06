@@ -16,12 +16,14 @@ from sycamore.transforms.merge_elements import GreedyTextElementMerger
 from sycamore.transforms.partition import UnstructuredPdfPartitioner
 from sycamore.utils.cache import S3Cache
 
+OS_ADMIN_PASSWORD = os.getenv("OS_ADMIN_PASSWORD", "admin")
+
 
 def test_pdf_to_opensearch_with_llm_caching():
     os_client_args = {
         "hosts": [{"host": "localhost", "port": 9200}],
         "http_compress": True,
-        "http_auth": ("admin", "admin"),
+        "http_auth": ("admin", OS_ADMIN_PASSWORD),
         "use_ssl": True,
         "verify_certs": False,
         "ssl_assert_hostname": False,

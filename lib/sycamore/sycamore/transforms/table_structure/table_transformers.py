@@ -119,6 +119,10 @@ def objects_to_table(
         if not tokens:
             return None
 
+        bb = BoundingBox(*tokens[0]["bbox"])
+        for t in tokens[1:]:
+            bb.union_self(BoundingBox(*t["bbox"]))
+
         table_cells = []
         table_cells.append(
             TableCell(
@@ -126,6 +130,7 @@ def objects_to_table(
                 cols=[0],
                 is_header=False,
                 content="\n".join(token["text"] for token in tokens),
+                bbox=bb,
             )
         )
         return Table(table_cells)
@@ -156,6 +161,10 @@ def objects_to_table(
         if not tokens:
             return None
 
+        bb = BoundingBox(*tokens[0]["bbox"])
+        for t in tokens[1:]:
+            bb.union_self(BoundingBox(*t["bbox"]))
+
         table_cells = []
         table_cells.append(
             TableCell(
@@ -163,6 +172,7 @@ def objects_to_table(
                 cols=[0],
                 is_header=False,
                 content="\n".join(token["text"] for token in tokens),
+                bbox=bb,
             )
         )
 

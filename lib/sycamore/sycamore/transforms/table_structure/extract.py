@@ -174,6 +174,8 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
 
         # Convert the raw objects to our internal table representation. This involves multiple
         # phases of postprocessing.
+        element.properties["backup_tokens"] = tokens
+        element.properties["object"] = objects
         table = table_transformers.objects_to_table(objects, tokens, union_tokens=union_tokens)
 
         if table is None:

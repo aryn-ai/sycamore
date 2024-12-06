@@ -128,7 +128,7 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
                     }
                 )
                 doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
-                # assert doc.doc_id, "Retrieved invalid doc with missing doc_id"
+                assert doc.doc_id, "Retrieved invalid doc with missing doc_id"
                 if not doc.parent_id:
                     # Always use retrieved doc as the unique parent doc - override any empty parent doc created below
                     unique_docs[doc.doc_id] = doc

@@ -1,9 +1,9 @@
-import copy
 import logging
 
 from sycamore.data import Document, Element
 from sycamore.connectors.base_reader import BaseDBReader
 from sycamore.data.document import DocumentPropertyTypes, DocumentSource
+from sycamore.utils.cache import Cache
 from sycamore.utils.import_utils import requires_modules
 from dataclasses import dataclass, field
 import typing
@@ -24,6 +24,7 @@ class OpenSearchReaderQueryParams(BaseDBReader.QueryParams):
     query: Dict = field(default_factory=lambda: {"query": {"match_all": {}}})
     kwargs: Dict = field(default_factory=lambda: {})
     reconstruct_document: bool = False
+    document_cache: Cache = None  # For caching reconstructed documents
 
 
 class OpenSearchReaderClient(BaseDBReader.Client):
@@ -50,7 +51,7 @@ class OpenSearchReaderClient(BaseDBReader.Client):
         result = []
         # We only fetch the minimum required fields for full document retrieval/reconstruction
         if query_params.reconstruct_document:
-           query_params.kwargs["_source_includes"] = "doc_id,parent_id,properties"
+            query_params.kwargs["_source_includes"] = "doc_id,parent_id,properties"
         # No pagination needed for knn queries
         if "query" in query_params.query and "knn" in query_params.query["query"]:
             response = self._client.search(
@@ -97,6 +98,7 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
     def to_docs(self, query_params: "BaseDBReader.QueryParams") -> list[Document]:
         assert isinstance(query_params, OpenSearchReaderQueryParams)
         result: list[Document] = []
+        index_name = query_params.index_name
         if not query_params.reconstruct_document:
             for data in self.output:
                 doc = Document(
@@ -121,6 +123,7 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
             # Get unique documents
             unique_docs: dict[str, Document] = {}
             query_result_elements_per_doc: dict[str, set[str]] = {}
+            cached_docs = {}
             for data in self.output:
                 doc = Document(
                     {
@@ -130,9 +133,21 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
                 doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
                 assert doc.doc_id, "Retrieved invalid doc with missing doc_id"
                 if not doc.parent_id:
+                    if query_params.document_cache is not None:
+                        cached_doc = query_params.document_cache.get(f"{index_name}:{doc.doc_id}")
+                        if cached_doc:
+                            doc = cached_doc
+                            cached_docs[doc.doc_id] = doc
                     # Always use retrieved doc as the unique parent doc - override any empty parent doc created below
                     unique_docs[doc.doc_id] = doc
                 else:
+                    if query_params.document_cache is not None:
+                        cached_doc = query_params.document_cache.get(f"{index_name}:{doc.parent_id}")
+                        if cached_doc:
+                            doc = cached_doc
+                            cached_docs[doc.parent_id] = doc
+                            unique_docs[doc.parent_id] = doc
+                            continue
                     # Create empty parent documents if no parent document was in result set
                     unique_docs[doc.parent_id] = unique_docs.get(
                         doc.parent_id,
@@ -151,7 +166,9 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
                     query_result_elements_per_doc[doc.parent_id] = elements
 
             # Batched retrieval of all elements belong to unique docs
-            doc_ids = list(unique_docs.keys())
+            # doc_ids = list(unique_docs.keys())
+            doc_ids = [d for d in list(unique_docs.keys()) if d not in list(cached_docs.keys())]
+
             # We can't safely exclude embeddings since we might need them for 'rerank', e.g.
             # We will need the Planner to determine that and pass that info to the reader.
             all_elements_for_docs = self._get_all_elements_for_doc_ids(doc_ids, query_params.index_name)
@@ -178,7 +195,10 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
 
             # sort elements per doc
             for doc in result:
-                doc.elements.sort(key=lambda e: e.element_index if e.element_index is not None else float("inf"))
+                if doc.doc_id not in cached_docs:
+                    doc.elements.sort(key=lambda e: e.element_index if e.element_index is not None else float("inf"))
+                    if query_params.document_cache is not None:
+                        query_params.document_cache.set(f"{index_name}:{doc.doc_id}", doc)
 
         return result
 

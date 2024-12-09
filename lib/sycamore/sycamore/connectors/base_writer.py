@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import logging
 
 from abc import ABC, abstractmethod
 from typing import Callable
@@ -8,6 +9,7 @@ from sycamore.plan_nodes import Node, Write
 from sycamore.transforms.map import MapBatch
 from sycamore.utils.time_trace import TimeTrace
 
+logger = logging.getLogger(__name__)
 
 class BaseDBWriter(MapBatch, Write):
 
@@ -80,6 +82,9 @@ class BaseDBWriter(MapBatch, Write):
             records = [self.Record.from_doc(d, created_target_params) for d in docs if self._filter(d)]
             client.write_many_records(records, self._target_params)
         except Exception as e:
+            import traceback
+            tb = traceback.format_exc()
+            logger.warning(f"Error writing records to target:\n{tb}")
             raise ValueError(f"Error writing to target: {e}")
         finally:
             client.close()

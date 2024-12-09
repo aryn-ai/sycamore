@@ -6,7 +6,7 @@ from sycamore.utils.import_utils import requires_modules
 
 from sycamore.data.document import Document
 from sycamore.connectors.base_writer import BaseDBWriter
-from sycamore.connectors.common import flatten_data, check_dictionary_compatibility
+from sycamore.connectors.common import flatten_data, check_dictionary_compatibility, drop_types
 
 if typing.TYPE_CHECKING:
     from elasticsearch import Elasticsearch
@@ -90,7 +90,7 @@ class ElasticsearchWriterClient(BaseDBWriter.Client):
                     yield {
                         "_index": target_params.index_name,
                         "_id": r.doc_id,
-                        "properties": r.properties,
+                        "properties": drop_types(r.properties),
                         "embedding": r.embedding,
                         "parent_id": r.parent_id,
                     }

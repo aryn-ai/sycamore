@@ -174,7 +174,8 @@ class LLMPropertyExtractor(PropertyExtractor):
             answer = extract_json(payload)
         except (json.JSONDecodeError, AttributeError):
             answer = entities
-
+        if answer == "None":
+            answer = {}
         if "entity" in document.properties:
             document.properties["entity"].update(answer)
         else:

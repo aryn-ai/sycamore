@@ -11,6 +11,7 @@ from sycamore.utils.time_trace import TimeTrace
 
 logger = logging.getLogger(__name__)
 
+
 class BaseDBWriter(MapBatch, Write):
 
     # Type param for the client
@@ -83,6 +84,7 @@ class BaseDBWriter(MapBatch, Write):
             client.write_many_records(records, self._target_params)
         except Exception as e:
             import traceback
+
             tb = traceback.format_exc()
             logger.warning(f"Error writing records to target:\n{tb}")
             raise ValueError(f"Error writing to target: {e}")

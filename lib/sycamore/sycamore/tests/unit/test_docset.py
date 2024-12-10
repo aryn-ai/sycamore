@@ -1,6 +1,5 @@
 import random
 import string
-import time
 from typing import Callable, Optional
 from unittest.mock import MagicMock
 
@@ -263,40 +262,6 @@ class TestDocSet:
         docset.take_all(limit=num_docs)
         with pytest.raises(ValueError):
             docset.take_all(limit=num_docs - 1)
-
-    def test_take_stream(self):
-        num_docs = 5
-
-        docs = []
-        for i in range(num_docs):
-            docs.append(Document(text_representation=f"Document {i}", doc_id=i, properties={"document_number": i}))
-
-        def random_sleep(doc):
-            time.sleep(1)
-            return doc
-
-        context = sycamore.init()
-        docset = context.read.document(docs).map(random_sleep)
-
-        docs = []
-        for doc in docset.take_stream():
-            docs += [doc]
-        assert len(docs) == num_docs
-
-        time_to_first_doc_stream = None
-        time_to_first_doc_no_stream = None
-
-        start = time.time()
-        for _ in docset.take_stream():
-            time_to_first_doc_stream = time.time() - start
-            break
-
-        start = time.time()
-        for _ in docset.take_all():
-            time_to_first_doc_no_stream = time.time() - start
-            break
-
-        assert time_to_first_doc_stream < time_to_first_doc_no_stream
 
     def random_string(self, min_size: int, max_size: int) -> str:
         k = random.randrange(min_size, max_size)

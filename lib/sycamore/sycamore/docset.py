@@ -243,6 +243,19 @@ class DocSet:
 
         return docs
 
+    def take_stream(self, include_metadata: bool = False, **kwargs) -> Iterable[Document]:
+        """
+        Returns a stream of all rows in this DocSet.
+
+        Args:
+            include_metadata: False [default] will filter out all MetadataDocuments from the result.
+        """
+        from sycamore import Execution
+
+        for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
+            if include_metadata or not isinstance(doc, MetadataDocument):
+                yield doc
+
     def limit(self, limit: int = 20, **kwargs) -> "DocSet":
         """
         Applies the Limit transforms on the Docset.

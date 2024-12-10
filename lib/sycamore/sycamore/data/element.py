@@ -239,7 +239,13 @@ class TableElement(Element):
 
 def create_element(element_index: Optional[int] = None, **kwargs) -> Element:
     element: Element
-    if "type" in kwargs and kwargs["type"].lower() == "table":
+    type = kwargs.get("type")
+    if isinstance(type, str):
+        type = type.lower()
+    else:
+        type = ""
+    
+    if type == "table":
         if "properties" in kwargs:
             props = kwargs["properties"]
             kwargs["title"] = props.get("title")
@@ -251,7 +257,7 @@ def create_element(element_index: Optional[int] = None, **kwargs) -> Element:
 
         element = TableElement(**kwargs)
 
-    elif "type" in kwargs and kwargs["type"].lower() in {"picture", "image", "figure"}:
+    elif type in {"picture", "image", "figure"}:
         if "properties" in kwargs:
             props = kwargs["properties"]
             kwargs["image_size"] = props.get("image_size")

@@ -244,7 +244,7 @@ def create_element(element_index: Optional[int] = None, **kwargs) -> Element:
         type = type.lower()
     else:
         type = ""
-    
+
     if type == "table":
         if "properties" in kwargs:
             props = kwargs["properties"]

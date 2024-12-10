@@ -243,7 +243,7 @@ class DocSet:
 
         return docs
 
-    def take_streaming(self, include_metadata: bool = False, **kwargs) -> Iterable[Document]:
+    def take_stream(self, include_metadata: bool = False, **kwargs) -> Iterable[Document]:
         """
         Returns a stream of all rows in this DocSet.
 

@@ -264,7 +264,7 @@ class TestDocSet:
         with pytest.raises(ValueError):
             docset.take_all(limit=num_docs - 1)
 
-    def test_take_streaming(self):
+    def test_take_stream(self):
         num_docs = 5
 
         docs = []
@@ -279,7 +279,7 @@ class TestDocSet:
         docset = context.read.document(docs).map(random_sleep)
 
         docs = []
-        for doc in docset.take_streaming():
+        for doc in docset.take_stream():
             docs += [doc]
         assert len(docs) == num_docs
 
@@ -287,7 +287,7 @@ class TestDocSet:
         time_to_first_doc_no_stream = None
 
         start = time.time()
-        for _ in docset.take_streaming():
+        for _ in docset.take_stream():
             time_to_first_doc_stream = time.time() - start
             break
 

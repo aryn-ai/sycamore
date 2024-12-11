@@ -19,11 +19,7 @@ def test_take_stream():
 
     """
     import os
-
-    num_cpus = os.cpu_count()
-    if num_cpus <= 2:
-        print("This test is not valid with parallelism 1, skipping")
-        return
+    assert os.cpu_count() >= 2, "This test cannot run on machines with a single CPU"
 
     num_docs = 20
     docs = []
@@ -39,7 +35,6 @@ def test_take_stream():
 
     start = time.time()
     for _ in docset.take_stream():
-        print(f"Time to first doc: {(time.time() - start)}")
         assert (
             time.time() - start
         ) < num_docs, "Time to first doc should be lesser than num_doc seconds, which is the max delay"

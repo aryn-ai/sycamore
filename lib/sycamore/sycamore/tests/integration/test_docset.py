@@ -19,6 +19,7 @@ def test_take_stream():
 
     """
     import os
+
     assert os.cpu_count() >= 2, "This test cannot run on machines with a single CPU"
 
     num_docs = 20

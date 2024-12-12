@@ -123,7 +123,6 @@ class TestOpenSearchRead:
 
         print(f"Using cache dir: {cache_dir}")
 
-        # doc_cache = cache_from_path(cache_dir)
         def doc_reconstructor(index_name: str, doc_id: str) -> Document:
             prefix = f"doc-{doc_id}"
             found = None

@@ -1,4 +1,5 @@
 import os
+import tempfile
 import time
 from tempfile import tempdir
 from uuid import uuid4
@@ -115,13 +116,11 @@ class TestOpenSearchRead:
         for i in range(len(doc.elements) - 1):
             assert doc.elements[i].element_index < doc.elements[i + 1].element_index
 
-    def test_ingest_and_read_via_docid_reconstructor(self, setup_index, exec_mode):
+    def _test_ingest_and_read_via_docid_reconstructor(self, setup_index, exec_mode, cache_dir):
         """
         Validates data is readable from OpenSearch, and that we can rebuild processed Sycamore documents.
         """
 
-        test_id = str(uuid4())
-        cache_dir = f"/tmp/{test_id}/doc_store_cache"
         print(f"Using cache dir: {cache_dir}")
         # doc_cache = cache_from_path(cache_dir)
         def doc_reconstructor(index_name: str, doc_id: str) -> Document:
@@ -197,3 +196,7 @@ class TestOpenSearchRead:
             os_client.indices.delete(TestOpenSearchRead.INDEX)
             os_client.indices.create(TestOpenSearchRead.INDEX, **TestOpenSearchRead.INDEX_SETTINGS)
             os_client.indices.refresh(TestOpenSearchRead.INDEX)
+
+    def test_ingest_and_read_via_docid_reconstructor(self, setup_index, exec_mode):
+        with tempfile.TemporaryDirectory() as cache_dir:
+            self._test_ingest_and_read_via_docid_reconstructor(setup_index, exec_mode, cache_dir)

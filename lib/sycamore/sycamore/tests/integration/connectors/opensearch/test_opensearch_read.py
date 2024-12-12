@@ -122,6 +122,7 @@ class TestOpenSearchRead:
         """
 
         print(f"Using cache dir: {cache_dir}")
+
         # doc_cache = cache_from_path(cache_dir)
         def doc_reconstructor(index_name: str, doc_id: str) -> Document:
             prefix = f"doc-{doc_id}"
@@ -133,6 +134,7 @@ class TestOpenSearchRead:
                     break
             assert found, "Doc not found in cache"
             import pickle
+
             data = pickle.load(open(f"{cache_dir}/{found}", "rb"))
             return Document(**data)
 
@@ -179,7 +181,7 @@ class TestOpenSearchRead:
         query_materialized = query_docs.take_all()
         retrieved_materialized_reconstructed = sorted(retrieved_docs_reconstructed.take_all(), key=lambda d: d.doc_id)
 
-        #with OpenSearch(**TestOpenSearchRead.OS_CLIENT_ARGS) as os_client:
+        # with OpenSearch(**TestOpenSearchRead.OS_CLIENT_ARGS) as os_client:
         #    os_client.indices.delete(TestOpenSearchRead.INDEX)
         assert len(query_materialized) == 1  # exactly one doc should be returned
         compare_connector_docs(original_materialized, retrieved_materialized)

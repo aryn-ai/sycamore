@@ -23,6 +23,7 @@ class OpenSearchReaderQueryParams(BaseDBReader.QueryParams):
     query: Dict = field(default_factory=lambda: {"query": {"match_all": {}}})
     kwargs: Dict = field(default_factory=lambda: {})
     reconstruct_document: bool = False
+    doc_reconstructor: typing.Optional[typing.Callable[[str, str], Document]] = None
 
 
 class OpenSearchReaderClient(BaseDBReader.Client):
@@ -47,6 +48,10 @@ class OpenSearchReaderClient(BaseDBReader.Client):
         if "size" not in query_params.query and "size" not in query_params.kwargs:
             query_params.kwargs["size"] = 200
         result = []
+        if query_params.reconstruct_document:
+            query_params.kwargs["_source_includes"] = ["doc_id", "parent_id", "properties"]
+        if query_params.doc_reconstructor is not None:
+            query_params.kwargs["_source_includes"] = ["parent_id"]
         # No pagination needed for knn queries
         if "query" in query_params.query and "knn" in query_params.query["query"]:
             response = self._client.search(
@@ -93,7 +98,17 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
     def to_docs(self, query_params: "BaseDBReader.QueryParams") -> list[Document]:
         assert isinstance(query_params, OpenSearchReaderQueryParams)
         result: list[Document] = []
-        if not query_params.reconstruct_document:
+        if query_params.doc_reconstructor is not None:
+            logging.info("Using DocID to Document reconstructor")
+            unique = set()
+            for data in self.output:
+                doc_id = data["_source"]["parent_id"] or data["_id"]
+                if doc_id not in unique:
+                    # The reconstructor may or may not fetch the document from a cache
+                    # We assume it is capable of fetching the document from the source in the event of a cache miss
+                    result.append(query_params.doc_reconstructor(query_params.index_name, doc_id))
+                    unique.add(doc_id)
+        elif not query_params.reconstruct_document:
             for data in self.output:
                 doc = Document(
                     {

@@ -224,6 +224,7 @@ class DocSetReader:
         index_name: str,
         query: Optional[Dict] = None,
         reconstruct_document: bool = False,
+        doc_reconstructor: Optional[Callable[[str, str], Document]] = None,
         query_kwargs: dict[str, Any] = {},
         **kwargs,
     ) -> DocSet:
@@ -290,11 +291,15 @@ class DocSetReader:
         client_params = OpenSearchReaderClientParams(os_client_args=os_client_args)
         query_params = (
             OpenSearchReaderQueryParams(
-                index_name=index_name, query=query, reconstruct_document=reconstruct_document, kwargs=query_kwargs
+                index_name=index_name, query=query, reconstruct_document=reconstruct_document,
+                doc_reconstructor=doc_reconstructor,
+                kwargs=query_kwargs
             )
             if query is not None
             else OpenSearchReaderQueryParams(
-                index_name=index_name, reconstruct_document=reconstruct_document, kwargs=query_kwargs
+                index_name=index_name, reconstruct_document=reconstruct_document,
+                doc_reconstructor=doc_reconstructor,
+                kwargs=query_kwargs
             )
         )
         osr = OpenSearchReader(client_params=client_params, query_params=query_params)

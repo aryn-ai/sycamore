@@ -225,7 +225,7 @@ class DocSetReader:
         query: Optional[Dict] = None,
         reconstruct_document: bool = False,
         doc_reconstructor: Optional[Callable[[str, str], Document]] = None,
-        query_kwargs: dict[str, Any] = {},
+        query_kwargs=None,
         **kwargs,
     ) -> DocSet:
         """
@@ -282,6 +282,8 @@ class DocSetReader:
                     os_client_args=OS_CLIENT_ARGS, index_name=INDEX, query=query
                 )
         """
+        if query_kwargs is None:
+            query_kwargs = {}
         from sycamore.connectors.opensearch import (
             OpenSearchReader,
             OpenSearchReaderClientParams,

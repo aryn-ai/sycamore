@@ -1,5 +1,6 @@
 import os
 import time
+from tempfile import tempdir
 from uuid import uuid4
 
 import pytest
@@ -152,6 +153,9 @@ class TestOpenSearchRead:
             .take_all()
         )
 
+        with OpenSearch(**TestOpenSearchRead.OS_CLIENT_ARGS) as os_client:
+            os_client.indices.refresh(TestOpenSearchRead.INDEX)
+
         retrieved_docs = context.read.opensearch(
             os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS, index_name=TestOpenSearchRead.INDEX
         )
@@ -176,8 +180,8 @@ class TestOpenSearchRead:
         query_materialized = query_docs.take_all()
         retrieved_materialized_reconstructed = sorted(retrieved_docs_reconstructed.take_all(), key=lambda d: d.doc_id)
 
-        with OpenSearch(**TestOpenSearchRead.OS_CLIENT_ARGS) as os_client:
-            os_client.indices.delete(TestOpenSearchRead.INDEX)
+        #with OpenSearch(**TestOpenSearchRead.OS_CLIENT_ARGS) as os_client:
+        #    os_client.indices.delete(TestOpenSearchRead.INDEX)
         assert len(query_materialized) == 1  # exactly one doc should be returned
         compare_connector_docs(original_materialized, retrieved_materialized)
 
@@ -187,3 +191,9 @@ class TestOpenSearchRead:
 
         for i in range(len(doc.elements) - 1):
             assert doc.elements[i].element_index < doc.elements[i + 1].element_index
+
+        # Clean slate between Execution Modes
+        with OpenSearch(**TestOpenSearchRead.OS_CLIENT_ARGS) as os_client:
+            os_client.indices.delete(TestOpenSearchRead.INDEX)
+            os_client.indices.create(TestOpenSearchRead.INDEX, **TestOpenSearchRead.INDEX_SETTINGS)
+            os_client.indices.refresh(TestOpenSearchRead.INDEX)

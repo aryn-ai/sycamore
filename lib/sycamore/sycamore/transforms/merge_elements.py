@@ -423,11 +423,15 @@ class MarkedMerger(ElementMerger):
 class TableMerger(ElementMerger):
     """
     The ``Table merger`` handles 3 operations
+
     1. If a text element (Caption, Section-header, Text...) contains the regex pattern anywhere in a page
-     it is attached to the text_representation of the table on the page.
-    2. LLMQuery is used for adding a table_continuation property to table elements. Is the table is
-     a continuation from a previous table the property is stored as true, else false.
+    it is attached to the text_representation of the table on the page.
+
+    2. LLMQuery is used for adding a table_continuation property to table elements. If the table is
+    a continuation from a previous table the property is stored as true, else false.
+
     3. After LLMQuery, table elements which are continuations are merged as one element.
+
     Example:
          .. code-block:: python
 

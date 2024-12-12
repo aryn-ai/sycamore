@@ -45,7 +45,10 @@ class SplitElements(SingleThreadUser, NonGPUUser, Map):
         return parent
 
     @staticmethod
-    def split_one(elem: Element, tokenizer: Tokenizer, max: int) -> list[Element]:
+    def split_one(elem: Element, tokenizer: Tokenizer, max: int, depth: int = 0) -> list[Element]:
+        if depth > 10:
+            logger.warning(f"Max split depth exceeded, truncating at element: {elem}")
+            return [elem]
 
         txt = elem.text_representation
         if not txt:
@@ -131,7 +134,7 @@ class SplitElements(SingleThreadUser, NonGPUUser, Map):
         else:
             ment.text_representation = two
         ment.binary_representation = bytes(two, "utf-8")
-        aa = SplitElements.split_one(elem, tokenizer, max)
-        bb = SplitElements.split_one(ment, tokenizer, max)
+        aa = SplitElements.split_one(elem, tokenizer, max, depth + 1)
+        bb = SplitElements.split_one(ment, tokenizer, max, depth + 1)
         aa.extend(bb)
         return aa

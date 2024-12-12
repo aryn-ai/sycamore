@@ -46,8 +46,8 @@ class SplitElements(SingleThreadUser, NonGPUUser, Map):
 
     @staticmethod
     def split_one(elem: Element, tokenizer: Tokenizer, max: int, depth: int = 0) -> list[Element]:
-        if depth > 10:
-            logger.warning(f"Max split depth exceeded, truncating at element: {elem}")
+        if depth > 20:
+            logger.warning(f"Max split depth exceeded, truncating splitting")
             return [elem]
 
         txt = elem.text_representation

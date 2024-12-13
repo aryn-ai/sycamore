@@ -33,7 +33,6 @@ from sycamore.transforms.merge_elements import ElementMerger
 from sycamore.utils.extract_json import extract_json
 from sycamore.transforms.query import QueryExecutor, Query
 from sycamore.materialize_config import MaterializeSourceMode
-from sycamore.functions.tokenizer import Tokenizer
 
 if TYPE_CHECKING:
     from sycamore.writer import DocSetWriter
@@ -1058,7 +1057,7 @@ class DocSet:
                     element.properties[new_field] = e_doc.properties[new_field]
                     # todo: move data extraction and validation to entity extractor
                     score = int(re.findall(r"\d+", element.properties[new_field])[0])
-                    # we're storing the element_index of the element that provides the highest match score for a document.
+                    # storing the element_index of the element(s) that provides the highest match score for a document.
                     doc_source_field_name = f"{new_field}_source_element_index"
                     if score >= doc.get(doc_source_field_name, 0):
                         doc.properties[f"{new_field}"] = score
@@ -1077,7 +1076,7 @@ class DocSet:
 
                     # todo: move data extraction and validation to entity extractor
                     score = int(re.findall(r"\d+", element.properties[new_field])[0])
-                    # we're storing the element_index of the element that provides the highest match score for a document.
+                    # storing the element_index of the element that provides the highest match score for a document.
                     doc_source_field_name = f"{new_field}_source_element_index"
                     if score >= doc.get(doc_source_field_name, 0):
                         doc.properties[f"{new_field}"] = score

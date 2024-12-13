@@ -31,11 +31,11 @@ class SimilarityScorer(ABC):
     """
 
     def __init__(
-            self,
-            ignore_element_sources: Optional[list[str]] = None,
-            ignore_doc_structure: bool = False,
-            batch_size: Optional[int] = None,
-            device: Optional[str] = None,
+        self,
+        ignore_element_sources: Optional[list[str]] = None,
+        ignore_doc_structure: bool = False,
+        batch_size: Optional[int] = None,
+        device: Optional[str] = None,
     ):
         if ignore_element_sources is None:
             ignore_element_sources = [DocumentSource.DOCUMENT_RECONSTRUCTION_RETRIEVAL]
@@ -148,7 +148,12 @@ class HuggingFaceTransformersSimilarityScorer(SimilarityScorer):
         ignore_doc_structure: bool = False,
         ignore_element_sources: Optional[list[str]] = None,
     ):
-        super().__init__(ignore_element_sources=ignore_element_sources, ignore_doc_structure=ignore_doc_structure, batch_size=batch_size, device=device)
+        super().__init__(
+            ignore_element_sources=ignore_element_sources,
+            ignore_doc_structure=ignore_doc_structure,
+            batch_size=batch_size,
+            device=device,
+        )
         # self.device = choose_device(device)
         self.model_name = model_name
         self.model_batch_size = model_batch_size
@@ -164,6 +169,7 @@ class HuggingFaceTransformersSimilarityScorer(SimilarityScorer):
     @timetrace("TransformersSimilarity")
     def score(self, inputs: list[tuple[str, str]]) -> list[float]:
         import torch
+
         print(f"GPU: {torch.cuda.is_available()}")
         if not self._model or not self._tokenizer:
             logger.info(f"Initializing transformers model: {self.model_name}")

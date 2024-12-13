@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 import pprint
 import sys
+import copy
 from typing import Callable, Optional, Any, Iterable, Type, Union, TYPE_CHECKING
 import re
 
@@ -32,6 +33,7 @@ from sycamore.transforms.merge_elements import ElementMerger
 from sycamore.utils.extract_json import extract_json
 from sycamore.transforms.query import QueryExecutor, Query
 from sycamore.materialize_config import MaterializeSourceMode
+from sycamore.functions.tokenizer import Tokenizer
 
 if TYPE_CHECKING:
     from sycamore.writer import DocSetWriter
@@ -984,6 +986,8 @@ class DocSet:
         use_elements: bool = False,
         similarity_query: Optional[str] = None,
         similarity_scorer: Optional[SimilarityScorer] = None,
+        max_tokens: Optional[int] = 512,
+        tokenizer: Optional[Tokenizer] = None,
         **resource_args,
     ) -> "DocSet":
         """
@@ -1028,23 +1032,59 @@ class DocSet:
                 )[0]
                 doc.elements.sort(key=lambda e: e.properties.get(score_property_name, float("-inf")), reverse=True)
             evaluated_elements = 0
-            for element in doc.elements:
-                e_doc = Document(element.data)
-                if e_doc.field_to_value(field) is None:
-                    continue
-                e_doc = entity_extractor.extract_entity(e_doc)
-                element.properties[new_field] = e_doc.properties[new_field]
 
-                # todo: move data extraction and validation to entity extractor
-                score = int(re.findall(r"\d+", element.properties[new_field])[0])
-                # we're storing the element_index of the element that provides the highest match score for a document.
-                doc_source_field_name = f"{new_field}_source_element_index"
-                if score >= doc.get(doc_source_field_name, 0):
-                    doc.properties[f"{new_field}"] = score
-                    doc.properties[f"{new_field}_source_element_index"] = element.element_index
-                if score >= threshold:
-                    return True
-                evaluated_elements += 1
+            if tokenizer and max_tokens and field == "text_representation":
+                ind = 0
+                while ind < len(doc.elements):
+                    combined_text = ""
+                    window_indices = []
+                    current_tokens = 0
+                    for element in doc.elements[ind:]:
+                        txt = element.text_representation
+                        if not txt:
+                            ind += 1
+                            continue
+                        element_tokens = len(tokenizer.tokenize(txt))
+                        if current_tokens + element_tokens > max_tokens and current_tokens != 0:
+                            break
+                        combined_text += element[field] + " "
+                        window_indices.append(element.element_index)
+                        current_tokens += element_tokens
+                        ind += 1
+                    dummy_element = copy.deepcopy(element)
+                    dummy_element[field] = combined_text
+                    e_doc = Document(dummy_element.data)
+                    e_doc = entity_extractor.extract_entity(e_doc)
+                    element.properties[new_field] = e_doc.properties[new_field]
+                    # todo: move data extraction and validation to entity extractor
+                    score = int(re.findall(r"\d+", element.properties[new_field])[0])
+                    # we're storing the element_index of the element that provides the highest match score for a document.
+                    doc_source_field_name = f"{new_field}_source_element_index"
+                    if score >= doc.get(doc_source_field_name, 0):
+                        doc.properties[f"{new_field}"] = score
+                        doc.properties[f"{new_field}_source_element_index"] = window_indices
+                    if score >= threshold:
+                        return True
+                    evaluated_elements += 1
+
+            else:
+                for element in doc.elements:
+                    e_doc = Document(element.data)
+                    if e_doc.field_to_value(field) is None:
+                        continue
+                    e_doc = entity_extractor.extract_entity(e_doc)
+                    element.properties[new_field] = e_doc.properties[new_field]
+
+                    # todo: move data extraction and validation to entity extractor
+                    score = int(re.findall(r"\d+", element.properties[new_field])[0])
+                    # we're storing the element_index of the element that provides the highest match score for a document.
+                    doc_source_field_name = f"{new_field}_source_element_index"
+                    if score >= doc.get(doc_source_field_name, 0):
+                        doc.properties[f"{new_field}"] = score
+                        doc.properties[f"{new_field}_source_element_index"] = element.element_index
+                    if score >= threshold:
+                        return True
+                    evaluated_elements += 1
             if evaluated_elements == 0:  # no elements found for property
                 return keep_none
             return False

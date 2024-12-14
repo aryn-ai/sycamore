@@ -1032,32 +1032,39 @@ class DocSet:
                 doc.elements.sort(key=lambda e: e.properties.get(score_property_name, float("-inf")), reverse=True)
             evaluated_elements = 0
 
-            if tokenizer and max_tokens and field == "text_representation":
+            if tokenizer and max_tokens:
                 ind = 0
                 while ind < len(doc.elements):
                     combined_text = ""
-                    window_indices = []
+                    window_indices = set()
                     current_tokens = 0
                     for element in doc.elements[ind:]:
-                        txt = element.text_representation
+                        txt = element.field_to_value(field)
                         if not txt:
                             ind += 1
+                            window_indices.add(element.element_index)
                             continue
                         element_tokens = len(tokenizer.tokenize(txt))
                         if current_tokens + element_tokens > max_tokens and current_tokens != 0:
                             break
-                        combined_text += element[field] + " "
-                        window_indices.append(element.element_index)
+                        if "type" in element:
+                            combined_text += f"Element type: {element['type']}\n"
+                        if "page_number" in element["properties"]:
+                            combined_text += f"Page_number: {element['properties']['page_number']}\n"
+                        if "element_index" in element["properties"]:
+                            combined_text += f"Element_index: {element['properties']['_element_index']}\n"
+                        combined_text += f"Text: {element[field]}\n"
+                        window_indices.add(element.element_index)
                         current_tokens += element_tokens
                         ind += 1
                     dummy_element = copy.deepcopy(element)
                     dummy_element[field] = combined_text
                     e_doc = Document(dummy_element.data)
                     e_doc = entity_extractor.extract_entity(e_doc)
-                    element.properties[new_field] = e_doc.properties[new_field]
-                    # todo: move data extraction and validation to entity extractor
-                    score = int(re.findall(r"\d+", element.properties[new_field])[0])
-                    # storing the element_index of the element(s) that provides the highest match score for a document.
+                    score = int(re.findall(r"\d+", e_doc.properties[new_field])[0])
+                    for i in range(0, len(window_indices)):
+                        doc.elements[ind - i - 1]["properties"][f"{new_field}"] = score
+                        doc.elements[ind - i - 1]["properties"][f"{new_field}_source_element_index"] = window_indices
                     doc_source_field_name = f"{new_field}_source_element_index"
                     if score >= doc.get(doc_source_field_name, 0):
                         doc.properties[f"{new_field}"] = score
@@ -1073,7 +1080,6 @@ class DocSet:
                         continue
                     e_doc = entity_extractor.extract_entity(e_doc)
                     element.properties[new_field] = e_doc.properties[new_field]
-
                     # todo: move data extraction and validation to entity extractor
                     score = int(re.findall(r"\d+", element.properties[new_field])[0])
                     # storing the element_index of the element that provides the highest match score for a document.

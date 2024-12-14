@@ -44,7 +44,20 @@ class MockLLM(LLM):
         super().__init__(model_name="mock_model")
 
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
-        if prompt_kwargs == {"messages": [{"role": "user", "content": "test1"}]} and llm_kwargs == {}:
+        if (
+            "first short element" in prompt_kwargs["messages"][0]["content"]
+            and "second longer element with more words" in prompt_kwargs["messages"][0]["content"]
+            and llm_kwargs == {}
+        ):
+            return "4"
+        elif "third element" in prompt_kwargs["messages"][0]["content"] and llm_kwargs == {}:
+            return "2"
+        elif (
+            "very long element with many words that might exceed token limit" in prompt_kwargs["messages"][0]["content"]
+            and llm_kwargs == {}
+        ):
+            return "5"
+        elif prompt_kwargs == {"messages": [{"role": "user", "content": "test1"}]} and llm_kwargs == {}:
             return "4"
         elif prompt_kwargs == {"messages": [{"role": "user", "content": "test2"}]} and llm_kwargs == {}:
             return "2"
@@ -485,7 +498,7 @@ class TestDocSet:
         )
 
         """
-        "test2" elements will be in front, resulting in 2 llm calls for doc_2 (first element threshold miss), 
+        "test2" elements will be in front, resulting in 2 llm calls for doc_2 (first element threshold miss),
         1 each for other 2.
         """
         taken = filtered_docset.take()
@@ -550,6 +563,76 @@ class TestDocSet:
         assert len(filtered_docset) == 2
         assert filtered_docset[0].text_representation == "test1"
         assert filtered_docset[1].text_representation == "test2"
+
+    def test_llm_filter_with_tokenizer_and_max_tokens(self):
+        # Create a mock tokenizer that simply counts tokens
+        class MockTokenizer:
+            def tokenize(self, text):
+                return text.split()  # Simple tokenization by splitting on whitespace
+
+        doc_list = [
+            Document(
+                doc_id="doc_1",
+                elements=[
+                    Element(
+                        properties={"_element_index": 0}, text_representation="first short element"
+                    ),  # llm_filter result = 4
+                    Element(properties={"_element_index": 1}, text_representation=None),
+                    Element(
+                        properties={"_element_index": 2}, text_representation="second longer element with more words"
+                    ),
+                ],
+            ),
+            Document(
+                doc_id="doc_2",
+                elements=[
+                    Element(
+                        properties={"_element_index": 1}, text_representation="third element"
+                    ),  # llm_filter result = 2
+                    Element(
+                        properties={"_element_index": 2},
+                        text_representation="very long element with many words that might exceed token limit",
+                    ),  # llm_filter result = 5
+                ],
+            ),
+        ]
+        mock_llm = MockLLM()
+        mock_tokenizer = MockTokenizer()
+        mock_llm.generate = MagicMock(wraps=mock_llm.generate)
+
+        context = sycamore.init(params={OperationTypes.BINARY_CLASSIFIER: {"llm": mock_llm}}, exec_mode=ExecMode.LOCAL)
+        docset = context.read.document(doc_list)
+        new_field = "_autogen_LLMFilterOutput"
+
+        filtered_docset = docset.llm_filter(
+            new_field=new_field,
+            prompt=[],
+            field="text_representation",
+            threshold=3,
+            use_elements=True,
+            tokenizer=mock_tokenizer,
+            max_tokens=10,  # Low token limit to test windowing
+        )
+
+        taken = filtered_docset.take()
+
+        assert len(taken) == 2
+        assert taken[0].doc_id == "doc_1"
+        assert mock_llm.generate.call_count == 3
+
+        # Check the properties of the filtered document
+        assert taken[0].properties[new_field] == 4
+        assert taken[1].properties[new_field] == 5
+        assert taken[0].elements[0]["properties"]["_autogen_LLMFilterOutput_source_element_index"] == {0, 1, 2}
+        assert taken[0].elements[1]["properties"]["_autogen_LLMFilterOutput_source_element_index"] == {0, 1, 2}
+        assert taken[0].elements[2]["properties"]["_autogen_LLMFilterOutput_source_element_index"] == {0, 1, 2}
+        assert taken[1].elements[0]["properties"]["_autogen_LLMFilterOutput_source_element_index"] == {1}
+        assert taken[1].elements[1]["properties"]["_autogen_LLMFilterOutput_source_element_index"] == {2}
+        assert taken[0].elements[0]["properties"]["_autogen_LLMFilterOutput"] == 4
+        assert taken[0].elements[1]["properties"]["_autogen_LLMFilterOutput"] == 4
+        assert taken[0].elements[2]["properties"]["_autogen_LLMFilterOutput"] == 4
+        assert taken[1].elements[0]["properties"]["_autogen_LLMFilterOutput"] == 2
+        assert taken[1].elements[1]["properties"]["_autogen_LLMFilterOutput"] == 5
 
     def test_groupby_count(self, fruits_docset):
         grouped_docset = fruits_docset.groupby_count(field="text_representation")

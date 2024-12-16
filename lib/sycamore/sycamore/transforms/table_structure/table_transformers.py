@@ -76,11 +76,22 @@ def rescale_bboxes(out_bbox, size):
 
 
 def outputs_to_objects(outputs, img_size, id2label):
-    m = outputs.logits.softmax(-1).max(-1)
+    if hasattr(outputs, "logits"):
+        m = outputs.logits.softmax(-1).max(-1)
+        # print("pred logits sum >>>", outputs.logits.sum())
+    else:
+        m = outputs['pred_logits'].softmax(-1).max(-1)
+        # print("pred logits sum >>>", outputs['pred_logits'].sum())
     pred_labels = list(m.indices.detach().cpu().numpy())[0]
     pred_scores = list(m.values.detach().cpu().numpy())[0]
-    pred_bboxes = outputs["pred_boxes"].detach().cpu()[0]
+    if hasattr(outputs, "pred_boxes"):
+        pred_bboxes = outputs.pred_boxes.detach().cpu()[0]
+    else:
+        pred_bboxes = outputs["pred_boxes"].detach().cpu()[0]
+    # print("pred boxes sum >>>", outputs['pred_boxes'].sum())
     pred_bboxes = [elem.tolist() for elem in rescale_bboxes(pred_bboxes, img_size)]
+
+    pred_bboxes, pred_scores, pred_labels = apply_class_thresholds(pred_bboxes, pred_labels, pred_scores, id2label, DEFAULT_STRUCTURE_CLASS_THRESHOLDS)
 
     objects = []
     for label, score, bbox in zip(pred_labels, pred_scores, pred_bboxes):
@@ -813,9 +824,10 @@ def objects_to_structures(objects, tokens, class_thresholds):
     if len(tables) == 0:
         return {}
     if len(tables) > 1:
+        tables.sort(key=lambda x: x["score"], reverse=True)
         import logging
 
-        logging.warning("Got multiple tables in document. Using only the first one")
+        logging.warning("Got multiple tables in document. Using only the highest-scoring one.")
 
     table = tables[0]
     structure = {}

@@ -92,18 +92,8 @@ def rescale_bboxes(out_bbox, size):
     return b
 
 
-<<<<<<< HEAD
-def outputs_to_objects(outputs, img_size, id2label):
-    if hasattr(outputs, "logits"):
-        m = outputs.logits.softmax(-1).max(-1)
-        # print("pred logits sum >>>", outputs.logits.sum())
-    else:
-        m = outputs['pred_logits'].softmax(-1).max(-1)
-        # print("pred logits sum >>>", outputs['pred_logits'].sum())
-=======
 def outputs_to_objects(outputs, img_size, id2label, apply_thresholds: bool = False):
     m = outputs.logits.softmax(-1).max(-1)
->>>>>>> ee1f80c73914e70695b7cf4957b8b61e7cbbfd6a
     pred_labels = list(m.indices.detach().cpu().numpy())[0]
     pred_scores = list(m.values.detach().cpu().numpy())[0]
     if hasattr(outputs, "pred_boxes"):
@@ -113,14 +103,10 @@ def outputs_to_objects(outputs, img_size, id2label, apply_thresholds: bool = Fal
     # print("pred boxes sum >>>", outputs['pred_boxes'].sum())
     pred_bboxes = [elem.tolist() for elem in rescale_bboxes(pred_bboxes, img_size)]
 
-<<<<<<< HEAD
-    pred_bboxes, pred_scores, pred_labels = apply_class_thresholds(pred_bboxes, pred_labels, pred_scores, id2label, DEFAULT_STRUCTURE_CLASS_THRESHOLDS)
-=======
     if apply_thresholds:
         pred_bboxes, pred_scores, pred_labels = apply_class_thresholds_or_take_best(
             pred_bboxes, pred_labels, pred_scores, id2label, DEFAULT_STRUCTURE_CLASS_THRESHOLDS
         )
->>>>>>> ee1f80c73914e70695b7cf4957b8b61e7cbbfd6a
 
     objects = []
     for label, score, bbox in zip(pred_labels, pred_scores, pred_bboxes):
@@ -958,17 +944,10 @@ def objects_to_structures(objects, tokens, class_thresholds):
     if len(tables) == 0:
         return {}
     if len(tables) > 1:
-<<<<<<< HEAD
-        tables.sort(key=lambda x: x["score"], reverse=True)
-        import logging
-
-        logging.warning("Got multiple tables in document. Using only the highest-scoring one.")
-=======
         tables.sort(key=lambda x: BoundingBox(*x["bbox"]).area, reverse=True)
         import logging
 
         logging.warning("Got multiple tables in document. Using only the biggest one")
->>>>>>> ee1f80c73914e70695b7cf4957b8b61e7cbbfd6a
 
     table = tables[0]
     structure = {}

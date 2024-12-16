@@ -55,7 +55,7 @@ def apply_class_thresholds(bboxes, labels, scores, class_names, class_thresholds
 
 def apply_class_thresholds_or_take_best(bboxes, labels, scores, class_names, class_thresholds, epsilon=0.05):
     """
-    Filter out bounding boxes whose confidence is belor the confidence threshold for its
+    Filter out bounding boxes whose confidence is below the confidence threshold for its
     associated class threshold, defining the threshold as whichever is lower between what
     is written in the class_thresholds dict and the highest score for the class minus epsilon
     """

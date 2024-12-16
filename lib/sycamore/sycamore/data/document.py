@@ -1,11 +1,7 @@
-import pickle
 from collections import UserDict
 import json
-from io import BytesIO
 from typing import Any, Optional
 import uuid
-
-import torch
 
 from sycamore.data import BoundingBox, Element
 from sycamore.data.element import create_element
@@ -21,41 +17,6 @@ class DocumentSource:
 class DocumentPropertyTypes:
     SOURCE: str = "_doc_source"
     PAGE_NUMBER: str = "page_number"
-
-
-"""
-https://github.com/pytorch/pytorch/issues/16797
-
-DocSets generated from context.read.document(...) on GPU fail to load on CPU.
-"""
-
-
-def fix(map_loc):
-    # Closure rather than a lambda to preserve map_loc
-    return lambda b: torch.load(BytesIO(b), map_location=map_loc)
-
-
-class MappedUnpickler(pickle.Unpickler):
-    # https://github.com/pytorch/pytorch/issues/16797#issuecomment-633423219
-
-    def __init__(self, *args, map_location="cpu", **kwargs):
-        self._map_location = map_location
-        super().__init__(*args, **kwargs)
-
-    def find_class(self, module, name):
-        if module == "torch.storage" and name == "_load_from_bytes":
-            return fix(self._map_location)
-        else:
-            return super().find_class(module, name)
-
-
-def mapped_loads(s, map_location="cpu"):
-    bs = BytesIO(s)
-    unpickler = MappedUnpickler(bs, map_location=map_location)
-    return unpickler.load()
-
-
-""" """
 
 
 class Document(UserDict):
@@ -227,8 +188,9 @@ class Document(UserDict):
     @staticmethod
     def deserialize(raw: bytes) -> "Document":
         """Unserialize from bytes to a Document."""
+        from pickle import loads
 
-        data = mapped_loads(raw)
+        data = loads(raw)
         if "metadata" in data:
             return MetadataDocument(data)
         elif "children" in data:

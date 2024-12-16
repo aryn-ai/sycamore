@@ -189,15 +189,8 @@ class HuggingFaceTransformersSimilarityScorer(SimilarityScorer):
                 tokenized = self._tokenizer(
                     input_batch, padding=True, truncation=True, return_tensors="pt", max_length=self.max_tokens
                 ).to(self.device)
-                scores.extend(
-                    (
-                        self._model(**tokenized, return_dict=True)
-                        .logits.view(
-                            -1,
-                        )
-                        .float()
-                    )
-                )
+                score = self._model(**tokenized, return_dict=True).logits.view(-1).float()
+                scores.extend([float(f) for f in score])
             return scores
 
 

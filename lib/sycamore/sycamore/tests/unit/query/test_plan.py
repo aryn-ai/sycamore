@@ -13,6 +13,14 @@ class DummyOperator(Node):
     dummy: Optional[str] = None
     """A dummy field for testing purposes."""
 
+    @property
+    def input_types(self) -> set[type]:
+        return {str}
+
+    @property
+    def output_type(self) -> type:
+        return str
+
 
 def test_node_serialize_deserialize():
     node = DummyOperator(node_id=1, description="Test node", dummy="Dummy value")
@@ -230,6 +238,13 @@ def test_compare_plans(llm_filter_plan, vector_search_filter_plan):
 def test_compare_plans_diff_llm_filter_string(llm_filter_plan):
     llm_filter_plan_modified = LogicalPlan(**llm_filter_plan.model_dump())
     llm_filter_plan_modified.nodes[1].question = "this is another question"
+    diff = llm_filter_plan.compare(llm_filter_plan_modified)
+    assert len(diff) == 0
+
+
+def test_compare_plans_diff_description(llm_filter_plan):
+    llm_filter_plan_modified = LogicalPlan(**llm_filter_plan.model_dump())
+    llm_filter_plan_modified.nodes[1].description = "this is another question"
     diff = llm_filter_plan.compare(llm_filter_plan_modified)
     assert len(diff) == 0
 

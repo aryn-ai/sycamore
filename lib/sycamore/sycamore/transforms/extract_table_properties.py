@@ -5,9 +5,10 @@ from sycamore.data import Document
 from sycamore.plan_nodes import Node, SingleThreadUser, NonGPUUser
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
-from sycamore.transforms.llm_query import LLMTextQueryAgent
 from sycamore.llms import LLM
-from sycamore.llms.prompts import ExtractTablePropertiesPrompt, ExtractTablePropertiesTablePrompt
+from sycamore.llms.prompts import ExtractTablePropertiesPrompt
+from PIL import Image
+from sycamore.functions.document import split_and_convert_to_image
 
 
 class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
@@ -38,6 +39,7 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
         """
         stack: list[str] = []
         json_start = None
+        json_str = ""
 
         for i, char in enumerate(input_string):
             if char == "{":
@@ -64,30 +66,38 @@ class ExtractTableProperties(SingleThreadUser, NonGPUUser, Map):
         This method is used to extract key/value pairs from tables, using the LLM,
         and populate them as a property of that element.
         """
-        prompt_find_table = prompt_find_table or ExtractTablePropertiesTablePrompt().user
-        query_agent = LLMTextQueryAgent(
-            prompt=prompt_find_table, llm=llm, output_property="keyValueTable", element_type="table"
-        )
-        doc = query_agent.execute_query(parent)
+        image_doc = split_and_convert_to_image(parent)
+        img_list = []
+        for img in image_doc:
+            # print(img['properties'])
+            size = tuple(img.properties["size"])
+            mode = img.properties["mode"]
+            image = Image.frombytes(mode=mode, size=size, data=img.binary_representation)
+            img_list.append((image, size, mode))
 
-        prompt_llm = prompt_LLM or ExtractTablePropertiesPrompt().user
-        query_agent = LLMTextQueryAgent(prompt=prompt_llm, llm=llm, output_property=property_name, element_type="table")
-        doc = query_agent.execute_query(parent)
-
-        for ele in doc.elements:
-            if ele.type == "table" and property_name in ele.properties.keys():
-                if ele.properties.get("keyValueTable", False) != "True":
-                    del ele.properties[property_name]
-                    continue
-                jsonstring_llm = ele.properties.get(property_name)
-                assert isinstance(
-                    jsonstring_llm, str
-                ), f"Expected string, got {type(jsonstring_llm).__name__}: {jsonstring_llm}"
-                json_string = ExtractTableProperties.extract_parent_json(jsonstring_llm)
-                assert isinstance(json_string, str)
-                keyValue = json.loads(json_string)
-                if isinstance(keyValue, dict):
-                    ele.properties[property_name] = keyValue
-                else:
-                    raise ValueError(f"Extracted JSON string is not a dictionary: {keyValue}")
-        return doc
+        for idx, ele in enumerate(parent.elements):
+            raw_answer = ""
+            if ele is not None and ele.type == "table" and ele.bbox is not None:
+                image, size, mode = img_list[ele.properties["page_number"] - 1]  # output of APS is one indexed
+                bbox = ele.bbox.coordinates
+                img = image.crop((bbox[0] * size[0], bbox[1] * size[1], bbox[2] * size[0], bbox[3] * size[1]))
+                content = [
+                    {
+                        "type": "text",
+                        "text": (
+                            prompt_LLM
+                            if prompt_LLM is not None
+                            else ExtractTablePropertiesPrompt.user + f"\n CSV: {ele.text_representation}"
+                        ),
+                    },
+                    llm.format_image(img),
+                ]
+                messages = [
+                    {"role": "user", "content": content},
+                ]
+                prompt_kwargs = {"messages": messages}
+                raw_answer = llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
+            parsed_json = ExtractTableProperties.extract_parent_json(raw_answer)
+            if parsed_json:
+                ele.properties[property_name] = json.loads(parsed_json)
+        return parent

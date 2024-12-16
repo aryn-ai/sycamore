@@ -46,6 +46,15 @@ class TestFileScan:
         assert set(doc.properties.keys()) == set(["props", "path"])
         assert doc.properties["props"] == "propValue"
 
+    def test_json_scan_local(self):
+        paths = str(TEST_DIR / "resources/data/json/example.json")
+        scan = JsonScan(paths, properties="props")
+        ds = scan.local_source()
+        doc = Document.from_row(ds[0])
+
+        assert set(doc.properties.keys()) == set(["props", "path"])
+        assert doc.properties["props"] == "propValue"
+
     def test_json_scan_all_props(self):
         paths = str(TEST_DIR / "resources/data/json/example.json")
         scan = JsonScan(paths)
@@ -53,6 +62,17 @@ class TestFileScan:
         raw_doc = ds.take(1)[0]
 
         doc = Document.from_row(raw_doc)
+
+        assert set(doc.properties.keys()) == set(["web-app", "props", "path"])
+        assert doc.properties["props"] == "propValue"
+        assert isinstance(doc.properties["web-app"], dict)
+
+    def test_json_scan_all_props_local(self):
+        paths = str(TEST_DIR / "resources/data/json/example.json")
+        scan = JsonScan(paths)
+        ds = scan.local_source()
+
+        doc = Document.from_row(ds[0])
 
         assert set(doc.properties.keys()) == set(["web-app", "props", "path"])
         assert doc.properties["props"] == "propValue"

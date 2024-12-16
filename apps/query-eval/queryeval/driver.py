@@ -3,24 +3,66 @@ import logging
 import os
 import time
 import traceback
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from pydantic_yaml import to_yaml_str
 from rich.console import Console
+from sycamore.data import Document
+from sycamore.docset import DocSet
+from sycamore.query.client import SycamoreQueryClient, configure_logging
 from yaml import safe_load
-from queryeval.types import (
+
+from queryeval.queryeval_types import (
     QueryEvalConfig,
     QueryEvalInputFile,
     QueryEvalMetrics,
     QueryEvalQuery,
     QueryEvalResult,
     QueryEvalResultsFile,
+    DocumentSummary,
+    DocSetSummary,
 )
-from sycamore.docset import DocSet
-from sycamore.query.client import SycamoreQueryClient, configure_logging
 
+import asyncio
+from ragas.dataset_schema import SingleTurnSample
+from ragas.metrics import BleuScore, RougeScore, SemanticSimilarity
+from ragas.embeddings.base import HuggingfaceEmbeddings, LangchainEmbeddingsWrapper
+from ragas.metrics._factual_correctness import FactualCorrectness
+from langchain_openai.chat_models import ChatOpenAI
+from ragas.llms import LangchainLLMWrapper
 
 console = Console()
+
+
+def compute_text_metrics(
+    sample: SingleTurnSample,
+    rouge_scorer: RougeScore,
+    bleu_scorer: BleuScore,
+    semantic_similarity_scorer: SemanticSimilarity,
+    correctness_scorer: FactualCorrectness,
+):
+    d = {}
+    try:
+        d["rouge"] = asyncio.run(rouge_scorer.single_turn_ascore(sample))
+    except Exception:
+        tb = traceback.format_exc()
+        console.print(f"[red]Error computing ROUGE score: {tb}")
+    try:
+        d["bleu"] = asyncio.run(bleu_scorer.single_turn_ascore(sample))
+    except Exception:
+        tb = traceback.format_exc()
+        console.print(f"[red]Error computing BLEU score: {tb}")
+    try:
+        d["semantic_similarity"] = asyncio.run(semantic_similarity_scorer.single_turn_ascore(sample))
+    except Exception:
+        tb = traceback.format_exc()
+        console.print(f"[red]Error computing semantic similarity score: {tb}")
+    try:
+        d["correctness"] = asyncio.run(correctness_scorer.single_turn_ascore(sample))
+    except Exception:
+        tb = traceback.format_exc()
+        console.print(f"[red]Error computing correctness score: {tb}")
+    return d
 
 
 class QueryEvalDriver:
@@ -40,7 +82,9 @@ class QueryEvalDriver:
         natural_language_response: If True, return the response in natural language format. Otherwise,
             return the raw DocSet results.
         doc_limit: Limit the number of documents in each result set to this number.
+        llm: LLM model name to use.
         overwrite: If True, overwrite the results file if it already exists.
+        tags: List of tags to filter queries by. If empty, all queries will be run.
     """
 
     def __init__(
@@ -54,7 +98,9 @@ class QueryEvalDriver:
         dry_run: bool = False,
         natural_language_response: bool = True,
         doc_limit: Optional[int] = None,
+        llm: Optional[str] = None,
         overwrite: bool = False,
+        tags: Optional[List[str]] = None,
     ):
         console.print(":moon: Sycamore Query Eval Driver starting")
         console.print(f"Reading input file: [green]{input_file_path}")
@@ -76,11 +122,18 @@ class QueryEvalDriver:
             self.config.config.natural_language_response or natural_language_response
         )
         self.config.config.doc_limit = self.config.config.doc_limit or doc_limit
+        self.config.config.llm = self.config.config.llm or llm
         self.config.config.overwrite = self.config.config.overwrite or overwrite
+        self.config.config.tags = self.config.config.tags or tags
+        if self.config.config.tags:
+            console.print(f":label:  Filtering queries by tags: {self.config.config.tags}")
 
         # Configure logging.
         if self.config.config.log_file:
-            os.makedirs(os.path.dirname(self.config.config.log_file), exist_ok=True)
+            os.makedirs(
+                os.path.dirname(os.path.abspath(self.config.config.log_file)),
+                exist_ok=True,
+            )
         configure_logging(logfile=self.config.config.log_file, log_level=logging.INFO)
 
         if not self.config.config.index:
@@ -88,10 +141,19 @@ class QueryEvalDriver:
         if not self.config.config.results_file:
             raise ValueError("Results file must be specified")
 
-        console.print(f"Writing results to: {self.config.config.results_file}")
-        os.makedirs(os.path.dirname(self.config.config.results_file), exist_ok=True)
+        if self.config.config.results_file:
+            console.print(f"Writing results to: {self.config.config.results_file}")
+            os.makedirs(
+                os.path.dirname(os.path.abspath(self.config.config.results_file)),
+                exist_ok=True,
+            )
+
         # Read results file if it exists.
-        if not self.config.config.overwrite and os.path.exists(self.config.config.results_file):
+        if (
+            not self.config.config.overwrite
+            and self.config.config.results_file
+            and os.path.exists(self.config.config.results_file)
+        ):
             results = self.read_results_file(self.config.config.results_file)
             console.print(
                 f":white_check_mark: Read {len(results.results or [])} "
@@ -106,7 +168,9 @@ class QueryEvalDriver:
 
         # Set up Sycamore Query Client.
         self.client = SycamoreQueryClient(
-            s3_cache_path=self.config.config.llm_cache_path, cache_dir=self.config.config.query_cache_path
+            llm_cache_dir=self.config.config.llm_cache_path,
+            cache_dir=self.config.config.query_cache_path,
+            llm=self.config.config.llm,
         )
 
         # Use schema from the results file, input file, or OpenSearch, in that order.
@@ -116,6 +180,25 @@ class QueryEvalDriver:
             self.data_schema = self.config.data_schema
         else:
             self.data_schema = self.client.get_opensearch_schema(self.config.config.index)
+
+        console.print(f"Data schema:\n{self.data_schema}")
+
+        # Use examples from the results file, or input file. Priority is given to the input file.
+        self.examples = None
+        if results.examples:
+            self.examples = results.examples
+        if self.config.examples:
+            self.examples = self.config.examples
+
+        # Define scorers.
+        self.bleu_scorer = BleuScore()
+        self.rouge_scorer = RougeScore()
+        self.semantic_similarity_scorer = SemanticSimilarity()
+        self.semantic_similarity_scorer.embeddings = LangchainEmbeddingsWrapper(
+            HuggingfaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        )
+        self.correctness_scorer = FactualCorrectness()
+        self.correctness_scorer.llm = LangchainLLMWrapper(ChatOpenAI(model="gpt-4o"))
 
     @staticmethod
     def read_input_file(input_file_path: str) -> QueryEvalInputFile:
@@ -135,27 +218,55 @@ class QueryEvalDriver:
             return QueryEvalResultsFile(config=QueryEvalConfig(), results=[])
 
     def write_results_file(self):
+        """Write the results to the results file."""
         if self.config.config.dry_run:
             console.print("[yellow]:point_right: Dry run: skipping writing results file")
             return
 
-        """Write the results to the results file."""
         assert self.config.config and self.config.config.results_file
 
         results_file_obj = QueryEvalResultsFile(
-            config=self.config.config, data_schema=self.data_schema, results=list(self.results_map.values())
+            config=self.config.config,
+            data_schema=self.data_schema,
+            results=list(self.results_map.values()),
+            examples=self.examples,
         )
 
         with open(self.config.config.results_file, "w", encoding="utf8") as results_file:
             results_file.write(to_yaml_str(results_file_obj))
         console.print(f":white_check_mark: Wrote {len(self.results_map)} results to {self.config.config.results_file}")
 
-    def format_docset(self, docset: DocSet) -> List[Dict[str, Any]]:
-        """Convert a DocSet query result to a list of dicts."""
+    def format_doclist(self, doclist: List[Document]) -> DocSetSummary:
+        """Convert a document list query result to a list of dicts."""
         results = []
-        for doc in docset.take_all():
-            results.append(doc.data)
-        return results
+        for doc in doclist:
+            if hasattr(doc, "data"):
+                if hasattr(doc.data, "model_dump"):
+                    results.append(doc.data.model_dump())
+                else:
+                    BASE_PROPS = [
+                        "filename",
+                        "filetype",
+                        "page_number",
+                        "page_numbers",
+                        "links",
+                        "element_id",
+                        "parent_id",
+                        "_schema",
+                        "_schema_class",
+                        "entity",
+                    ]
+                    props_dict = doc.properties.get("entity", {})
+                    props_dict.update({p: doc.properties[p] for p in set(doc.properties) - set(BASE_PROPS)})
+                    results.append(
+                        DocumentSummary(
+                            doc_id=doc.doc_id,
+                            path=doc.properties.get("path"),
+                            text_representation=doc.text_representation,
+                            properties=props_dict,
+                        )
+                    )
+        return DocSetSummary(docs=results)
 
     def get_result(self, query: QueryEvalQuery) -> Optional[QueryEvalResult]:
         """Get the existing result for the query, or return a new result object."""
@@ -168,8 +279,23 @@ class QueryEvalDriver:
         self.results_map[query.query] = result
         return result
 
+    def _check_tags_match(self, query):
+        if not self.config.config or not self.config.config.tags:
+            return True
+        if not query.tags:
+            return False
+        return len(set.intersection(set(self.config.config.tags), set(query.tags or []))) > 0
+
     def do_plan(self, query: QueryEvalQuery, result: QueryEvalResult) -> QueryEvalResult:
         """Generate or return an existing query plan."""
+        if self.config.config:
+            if self.config.config.dry_run:
+                console.print("[yellow]:point_right: Dry run: skipping plan generation")
+                return result
+            elif not self._check_tags_match(query):
+                console.print("[yellow]:point_right: Skipping query due to tag mismatch")
+                return result
+
         if result.plan:
             # Use existing result plan.
             console.print("[blue]:point_right: Using existing query plan from results file")
@@ -177,8 +303,6 @@ class QueryEvalDriver:
             # Use plan from input file.
             result.plan = query.plan
             console.print("[blue]:point_right: Using existing query plan from input file")
-        elif self.config.config and self.config.config.dry_run:
-            console.print("[yellow]:point_right: Dry run: skipping plan generation")
         else:
             # Generate a plan.
             assert self.config.config
@@ -188,7 +312,8 @@ class QueryEvalDriver:
                 query.query,
                 self.config.config.index,
                 self.data_schema,
-                natural_language_response=self.config.config.natural_language_response or False,
+                examples=self.examples or None,
+                natural_language_response=self.config.config.natural_language_response or True,
             )
             t2 = time.time()
             assert result.metrics
@@ -200,16 +325,20 @@ class QueryEvalDriver:
             plan.llm_prompt = None
             result.plan = plan
             result.error = None
-            console.print(f"[green]:clock: Generated query plan in {result.metrics.plan_generation_time:.2f} seconds")
+            console.print(f"[green]:clock1: Generated query plan in {result.metrics.plan_generation_time:.2f} seconds")
             console.print(result.plan)
 
         return result
 
-    def do_query(self, _query: QueryEvalQuery, result: QueryEvalResult) -> QueryEvalResult:
+    def do_query(self, query: QueryEvalQuery, result: QueryEvalResult) -> QueryEvalResult:
         """Run query plan."""
-        if self.config.config and self.config.config.dry_run:
-            console.print("[yellow]:point_right: Dry run: skipping query execution")
-            return result
+        if self.config.config:
+            if self.config.config.dry_run:
+                console.print("[yellow]:point_right: Dry run: skipping query execution")
+                return result
+            elif not self._check_tags_match(query):
+                console.print("[yellow]:point_right: Skipping query due to tag mismatch")
+                return result
 
         if not result.plan:
             console.print("[red]:heavy_exclamation_mark: No plan available - skipping query execution")
@@ -217,46 +346,151 @@ class QueryEvalDriver:
 
         t1 = time.time()
         result.error = None
-        _, query_result = self.client.run_plan(result.plan)
-        if isinstance(query_result, str):
-            result.result = query_result
+        query_result = self.client.run_plan(result.plan)
+        if isinstance(query_result.result, str):
+            result.result = query_result.result
             t2 = time.time()
-        elif isinstance(query_result, DocSet):
+        elif isinstance(query_result.result, DocSet):
             assert self.config.config
             if self.config.config.doc_limit:
-                query_result = query_result.take(self.config.config.doc_limit)
+                query_result.result = query_result.result.take(self.config.config.doc_limit)
             else:
-                query_result = query_result.take_all()
+                query_result.result = query_result.result.take_all()
             t2 = time.time()
-            result.result = self.format_docset(query_result)
+            result.result = self.format_doclist(query_result.result)
         else:
-            result.result = str(query_result)
+            result.result = str(query_result.result)
             t2 = time.time()
         assert result.metrics
         result.metrics.query_time = t2 - t1
+        try:
+            result.retrieved_docs = query_result.retrieved_docs()
+        except Exception:
+            result.retrieved_docs = None
 
-        console.print(f"[green]:clock: Executed query in {result.metrics.query_time:.2f} seconds")
+        console.print(f"[green]:clock9: Executed query in {result.metrics.query_time:.2f} seconds")
         console.print(f":white_check_mark: Result: {result.result}")
         return result
 
-    def do_eval(self, _query: QueryEvalQuery, result: QueryEvalResult) -> QueryEvalResult:
+    def get_query_plan_metrics(
+        self, query: QueryEvalQuery, result: QueryEvalResult, metrics: QueryEvalMetrics
+    ) -> QueryEvalMetrics:
+        if not query.expected_plan:
+            console.print("[yellow]:construction: No expected query plan found, skipping.. ")
+        elif not result.plan:
+            console.print("[yellow]:construction: No computed query plan found, skipping.. ")
+        else:
+            plan_diff = query.expected_plan.compare(result.plan)
+            if len(plan_diff) == 0:
+                console.print("[green]✔ Plan match")
+                metrics.plan_similarity = 1.0
+                metrics.plan_diff_count = 0
+            else:
+                console.print("[red]:x: Plan mismatch")
+                for i, diff in enumerate(plan_diff):
+                    console.print(f"[{i}]. Diff type: {diff.diff_type.value}")
+
+                    if diff.message:
+                        console.print(f"Info: {diff.message}")
+                    console.print(f"Expected node: {diff.node_a!r}")
+                    console.print(f"Actual node: [red]{diff.node_b!r}")
+                    console.print()
+                metrics.plan_similarity = max(
+                    0.0,
+                    (len(query.expected_plan.nodes) - len(plan_diff)) / len(query.expected_plan.nodes),
+                )
+                metrics.plan_diff_count = len(plan_diff)
+        return metrics
+
+    def get_retrieval_metrics(
+        self, query: QueryEvalQuery, result: QueryEvalResult, metrics: QueryEvalMetrics
+    ) -> QueryEvalMetrics:
+        if not query.expected_docs:
+            console.print("[yellow]:construction: No expected document list found, skipping.. ")
+        elif not result.retrieved_docs:
+            console.print("[yellow]:construction: No computed document list found, skipping.. ")
+        else:
+            expected_doc_set = set(query.expected_docs)
+            retrieved_doc_set = set(result.retrieved_docs)
+            if expected_doc_set.issubset(retrieved_doc_set):
+                console.print("[green]✔ Documents retrieved include expected docs")
+            else:
+                console.print("[red]:x: Documents retrieved don't include all expected docs")
+                console.print(f"Missing docs: {expected_doc_set - retrieved_doc_set})")
+            metrics.doc_retrieval_recall = len(retrieved_doc_set & expected_doc_set) / len(expected_doc_set)
+            metrics.doc_retrieval_precision = len(retrieved_doc_set & expected_doc_set) / len(retrieved_doc_set)
+        return metrics
+
+    def get_answer_metrics(
+        self, query: QueryEvalQuery, result: QueryEvalResult, metrics: QueryEvalMetrics
+    ) -> QueryEvalMetrics:
+        if not query.expected:
+            console.print("[yellow]:construction: No expected response found, skipping.. ")
+        elif not result.result:
+            console.print(
+                "[yellow] No query execution result available, skipping..",
+                style="italic",
+            )
+        else:
+            if isinstance(query.expected, str) and isinstance(result.result, str):
+                sample = SingleTurnSample(
+                    response=result.result,
+                    reference=query.expected,
+                )
+                scores = compute_text_metrics(
+                    sample,
+                    self.rouge_scorer,
+                    self.bleu_scorer,
+                    self.semantic_similarity_scorer,
+                    self.correctness_scorer,
+                )
+                metrics.bleu_score = scores.get("bleu", None)
+                metrics.rouge_score = scores.get("rouge", None)
+                metrics.similarity_score = scores.get("semantic_similarity", None)
+                metrics.correctness_score = scores.get("correctness", None)
+                console.print("[green]✔ Text metrics computed.")
+            elif isinstance(query.expected, str) and isinstance(result.result, DocSetSummary):
+                pass
+            else:
+                console.print("[red]:x: Unsupported expected/response type, skipping.. ")
+        return metrics
+
+    def do_eval(
+        self,
+        query: QueryEvalQuery,
+        result: QueryEvalResult,
+    ) -> QueryEvalResult:
         """Run query evaluation."""
-        if self.config.config and self.config.config.dry_run:
-            console.print("[yellow]:point_right: Dry run: skipping eval")
-            return result
+        if self.config.config:
+            if self.config.config.dry_run:
+                console.print("[yellow]:point_right: Dry run: skipping eval")
+                return result
+            elif not self._check_tags_match(query):
+                console.print("[yellow]:point_right: Skipping query due to tag mismatch")
+                return result
 
-        if not result.result:
-            console.print("[yellow]:point_right: No result available - skipping eval")
-            return result
+        metrics = result.metrics or QueryEvalMetrics()
 
-        # TODO: Implement this.
-        console.print("[yellow]:construction: Eval not yet implemented")
+        # Evalute query plans
+        metrics = self.get_query_plan_metrics(query, result, metrics)
+
+        # Evaluate doc retrieval
+        metrics = self.get_retrieval_metrics(query, result, metrics)
+
+        # Evaluate text metrics
+        metrics = self.get_answer_metrics(query, result, metrics)
+
+        result.metrics = metrics
+
         return result
 
     def plan_all(self):
         """Run the plan stage. All queries without existing plans will have new plans generated."""
         for index, query in enumerate(self.config.queries):
             try:
+                if not self._check_tags_match(query):
+                    console.print("[yellow]:point_right: Skipping query due to tag mismatch")
+                    continue
                 console.rule(f"Planning query [{index+1}/{len(self.config.queries)}]: {query.query}")
                 result = self.get_result(query)
                 result = self.do_plan(query, result)
@@ -271,6 +505,9 @@ class QueryEvalDriver:
         """Run the query stage."""
         for index, query in enumerate(self.config.queries):
             try:
+                if not self._check_tags_match(query):
+                    console.print("[yellow]:point_right: Skipping query due to tag mismatch")
+                    continue
                 console.rule(f"Running query [{index+1}/{len(self.config.queries)}]: {query.query}")
                 result = self.get_result(query)
                 result = self.do_query(query, result)
@@ -281,10 +518,77 @@ class QueryEvalDriver:
         self.write_results_file()
         console.print(":tada: Done!")
 
+    def print_metrics_summary(self):
+        """Summarize metrics."""
+        console.rule("Evaluation summary")
+
+        # Plan metrics
+        plan_correct = sum(1 for result in self.results_map.values() if result.metrics.plan_similarity == 1.0)
+        console.print(f"Plans correct: {plan_correct}/{len(self.results_map)}")
+        average_plan_correctness = sum(
+            result.metrics.plan_similarity for result in self.results_map.values() if result.metrics.plan_similarity
+        ) / len(self.results_map)
+        console.print(f"Avg. plan correctness: {average_plan_correctness}")
+        console.print(
+            "Avg. plan diff count: "
+            + str(
+                sum(
+                    result.metrics.plan_diff_count
+                    for result in self.results_map.values()
+                    if result.metrics.plan_diff_count
+                )
+                / len(self.results_map)
+            )
+        )
+
+        # Evaluate doc retrieval
+        correct_retrievals = sum(
+            1 for result in self.results_map.values() if result.metrics.doc_retrieval_recall == 1.0
+        )
+        expected_retrievals = sum(1 for result in self.results_map.values() if result.query.expected_docs)
+        average_precision = (
+            sum(
+                result.metrics.doc_retrieval_precision
+                for result in self.results_map.values()
+                if result.metrics.doc_retrieval_precision
+            )
+            / expected_retrievals
+            if expected_retrievals
+            else 0
+        )
+        console.print(f"Successful doc retrievals: {correct_retrievals}/{expected_retrievals}")
+        console.print(f"Average precision: {average_precision}")
+
+        # Text metrics
+        bleu_scores = [result.metrics.bleu_score for result in self.results_map.values() if result.metrics.bleu_score]
+        rouge_scores = [
+            result.metrics.rouge_score for result in self.results_map.values() if result.metrics.rouge_score
+        ]
+        similarity_scores = [
+            result.metrics.similarity_score for result in self.results_map.values() if result.metrics.similarity_score
+        ]
+        correctness_scores = [
+            result.metrics.correctness_score for result in self.results_map.values() if result.metrics.correctness_score
+        ]
+        avg_bleu_score = sum(bleu_scores) / len(bleu_scores) if bleu_scores else 0
+        avg_rouge_score = sum(rouge_scores) / len(rouge_scores) if rouge_scores else 0
+        avg_similarity_score = sum(similarity_scores) / len(similarity_scores) if similarity_scores else 0
+        avg_correctness_score = sum(correctness_scores) / len(correctness_scores) if correctness_scores else 0
+        console.print(f"Avg. BLEU score: {avg_bleu_score}")
+        console.print(f"Avg. ROUGE score: {avg_rouge_score}")
+        console.print(f"Avg. Semantic similarity score: {avg_similarity_score}")
+        console.print(f"Avg. Correctness score: {avg_correctness_score}")
+
+        # TODO: Query execution metrics
+        console.print("Query result correctness: not implemented")
+
     def eval_all(self):
         """Run the eval stage."""
         for index, query in enumerate(self.config.queries):
             try:
+                if not self._check_tags_match(query):
+                    console.print("[yellow]:point_right: Skipping query due to tag mismatch")
+                    continue
                 console.rule(f"Evaluating query [{index+1}/{len(self.config.queries)}]: {query.query}")
                 result = self.get_result(query)
                 result = self.do_eval(query, result)
@@ -293,13 +597,18 @@ class QueryEvalDriver:
                 console.print(f"[red]Error running eval: {tb}")
                 result.error = f"Error running eval: {tb}"
         self.write_results_file()
+        self.print_metrics_summary()
+
         console.print(":tada: Done!")
 
     def run(self):
         """Run all stages."""
         for index, query in enumerate(self.config.queries):
-            console.rule(f"Running [{index+1}/{len(self.config.queries)}]: {query.query}")
             try:
+                if not self._check_tags_match(query):
+                    console.print("[yellow]:point_right: Skipping query due to tag mismatch")
+                    continue
+                console.rule(f"Running [{index+1}/{len(self.config.queries)}]: {query.query}")
                 result = self.get_result(query)
                 result = self.do_plan(query, result)
                 result = self.do_query(query, result)
@@ -309,4 +618,5 @@ class QueryEvalDriver:
                 console.print(f"[red]Error: {tb}")
                 result.error = f"Error: {tb}"
         self.write_results_file()
+        self.print_metrics_summary()
         console.print(":tada: Done!")

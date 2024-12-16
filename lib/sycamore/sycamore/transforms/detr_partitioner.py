@@ -6,8 +6,6 @@ import tracemalloc
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from typing import Any, BinaryIO, Literal, Union, Optional
-from pathlib import Path
-import pwd
 from itertools import repeat
 
 import requests
@@ -15,7 +13,6 @@ import json
 from tenacity import retry, retry_if_exception, wait_exponential, stop_after_delay
 import base64
 from PIL import Image
-import fasteners
 from pypdf import PdfReader
 
 from sycamore.data import Element, BoundingBox, ImageElement, TableElement
@@ -35,14 +32,7 @@ from sycamore.transforms.text_extraction import TextExtractor, OcrModel, get_tex
 from sycamore.transforms.text_extraction.pdf_miner import PdfMinerExtractor
 
 logger = logging.getLogger(__name__)
-_DETR_LOCK_FILE = f"{pwd.getpwuid(os.getuid()).pw_dir}/.cache/Aryn-Detr.lock"
 _VERSION = "0.2024.07.24"
-
-
-def _batchify(iterable, n=1):
-    length = len(iterable)
-    for i in range(0, length, n):
-        yield iterable[i : min(i + n, length)]
 
 
 ARYN_DETR_MODEL = "Aryn/deformable-detr-DocLayNet"
@@ -131,16 +121,18 @@ class ArynPDFPartitioner:
             if matched:
                 matches = []
                 full_text = []
+                font_sizes = []
                 for m in matched:
                     matches.append(m)
                     if m.text_representation:
                         full_text.append(m.text_representation)
-
+                        if font_size := m.properties.get("font_size"):
+                            font_sizes.append(font_size)
                 if isinstance(i, TableElement):
                     i.tokens = [{"text": elem.text_representation, "bbox": elem.bbox} for elem in matches]
 
                 i.data["text_representation"] = " ".join(full_text)
-
+                i.properties["font_size"] = sum(font_sizes) / len(font_sizes) if font_sizes else None
         return inferred + unmatched
 
     def partition_pdf(
@@ -153,6 +145,7 @@ class ArynPDFPartitioner:
         per_element_ocr=True,
         extract_table_structure=False,
         table_structure_extractor=None,
+        table_extractor_options: dict = {},
         extract_images=False,
         batch_size: int = 1,
         use_partitioning_service=True,
@@ -162,6 +155,8 @@ class ArynPDFPartitioner:
         pages_per_call: int = -1,
         output_format: Optional[str] = None,
         text_extraction_options: dict[str, Any] = {},
+        source: str = "",
+        output_label_options: dict[str, Any] = {},
     ) -> list[Element]:
         if use_partitioning_service:
             assert aryn_api_key != ""
@@ -177,10 +172,11 @@ class ArynPDFPartitioner:
                 extract_images=extract_images,
                 pages_per_call=pages_per_call,
                 output_format=output_format,
+                source=source,
             )
         else:
             if isinstance(threshold, str):
-                raise ValueError("Auto threshold is only supported with the Aryn Partitioning Service.")
+                raise ValueError("Auto threshold is only supported with Aryn DocParse.")
 
             temp = self._partition_pdf_batched(
                 file=file,
@@ -191,6 +187,7 @@ class ArynPDFPartitioner:
                 per_element_ocr=per_element_ocr,
                 extract_table_structure=extract_table_structure,
                 table_structure_extractor=table_structure_extractor,
+                table_extractor_options=table_extractor_options,
                 extract_images=extract_images,
                 batch_size=batch_size,
                 use_cache=use_cache,
@@ -202,6 +199,13 @@ class ArynPDFPartitioner:
                 for ele in r:
                     ele.properties[DocumentPropertyTypes.PAGE_NUMBER] = i + 1
                     page.append(ele)
+                if output_label_options.get("promote_title", False):
+                    from sycamore.utils.pdf_utils import promote_title
+
+                    if title_candidate_elements := output_label_options.get("title_candidate_elements"):
+                        promote_title(page, title_candidate_elements)
+                    else:
+                        promote_title(page)
                 bbox_sort_page(page)
                 elements.extend(page)
             if output_format == "markdown":
@@ -226,6 +230,7 @@ class ArynPDFPartitioner:
         extract_images: bool = False,
         selected_pages: list = [],
         output_format: Optional[str] = None,
+        source: str = "",
     ) -> list[Element]:
         file.seek(0)
         options = {
@@ -235,7 +240,7 @@ class ArynPDFPartitioner:
             "extract_table_structure": extract_table_structure,
             "extract_images": extract_images,
             "selected_pages": selected_pages,
-            "source": "sycamore",
+            "source": f"sycamore-{source}" if source else "sycamore",
         }
         if output_format:
             options["output_format"] = output_format
@@ -338,6 +343,7 @@ class ArynPDFPartitioner:
         extract_images: bool = False,
         pages_per_call: int = -1,
         output_format: Optional[str] = None,
+        source: str = "",
     ) -> list[Element]:
         page_count = get_page_count(file)
 
@@ -359,6 +365,7 @@ class ArynPDFPartitioner:
                     extract_images=extract_images,
                     selected_pages=[[low, min(high, page_count)]],
                     output_format=output_format,
+                    source=source,
                 )
             )
             low = high + 1
@@ -376,6 +383,7 @@ class ArynPDFPartitioner:
         per_element_ocr: bool = True,
         extract_table_structure: bool = False,
         table_structure_extractor=None,
+        table_extractor_options: dict = {},
         extract_images: bool = False,
         batch_size: int = 1,
         use_cache=False,
@@ -384,17 +392,14 @@ class ArynPDFPartitioner:
         self._init_model()
 
         LogTime("partition_start", point=True)
-        with tempfile.NamedTemporaryFile(prefix="detr-pdf-input-") as pdffile:
+        # We use NamedTemporaryFile just for the file name.  On Windows,
+        # if we use the opened file, we can't open it a second time.
+        pdffile = tempfile.NamedTemporaryFile(prefix="detr-pdf-input-", delete=False)
+        try:
+            pdffile.file.close()
             with LogTime("write_pdf"):
-                file_hash = Cache.get_hash_context_file(pdffile.name)
-                data = file.read()
-                data_len = len(data)
-                pdffile.write(data)
-                del data
-                pdffile.flush()
+                file_hash = Cache.copy_and_hash_file(file, pdffile.name)
                 logger.info(f"Wrote {pdffile.name}")
-            stat = os.stat(pdffile.name)
-            assert stat.st_size == data_len
             return self._partition_pdf_batched_named(
                 pdffile.name,
                 file_hash.hexdigest(),
@@ -405,11 +410,14 @@ class ArynPDFPartitioner:
                 per_element_ocr,
                 extract_table_structure,
                 table_structure_extractor,
+                table_extractor_options,
                 extract_images,
                 batch_size,
                 use_cache,
                 text_extraction_options,
             )
+        finally:
+            os.unlink(pdffile.name)
 
     def _partition_pdf_batched_named(
         self,
@@ -422,6 +430,7 @@ class ArynPDFPartitioner:
         per_element_ocr: bool = True,
         extract_table_structure=False,
         table_structure_extractor=None,
+        table_extractor_options: dict = {},
         extract_images=False,
         batch_size: int = 1,
         use_cache=False,
@@ -463,6 +472,7 @@ class ArynPDFPartitioner:
                 per_element_ocr=per_element_ocr,
                 extract_table_structure=extract_table_structure,
                 table_structure_extractor=table_structure_extractor,
+                table_extractor_options=table_extractor_options,
                 extract_images=extract_images,
                 use_cache=use_cache,
             )
@@ -488,13 +498,14 @@ class ArynPDFPartitioner:
         threshold: float,
         text_extractor: TextExtractor,
         extractor_inputs: Any,
-        use_ocr,
-        ocr_images,
-        ocr_model,
-        per_element_ocr,
-        extract_table_structure,
+        use_ocr: bool,
+        ocr_images: bool,
+        ocr_model: Union[str, OcrModel],
+        per_element_ocr: bool,
+        extract_table_structure: bool,
         table_structure_extractor,
-        extract_images,
+        table_extractor_options: dict,
+        extract_images: bool,
         use_cache,
     ) -> Any:
         with LogTime("infer"):
@@ -535,7 +546,7 @@ class ArynPDFPartitioner:
                     image = batch[i]
                     for element in page_elements:
                         if isinstance(element, TableElement):
-                            table_structure_extractor.extract(element, image)
+                            table_structure_extractor.extract(element, image, **table_extractor_options)
 
         if extract_images:
             with LogTime("extract_images_batch"):
@@ -599,9 +610,10 @@ class ArynPDFPartitioner:
         self,
         batch: list[Image.Image],
         deformable_layout: Any,
-        extract_table_structure,
+        extract_table_structure: bool,
         table_structure_extractor,
-        extract_images,
+        table_extractor_options: dict,
+        extract_images: bool,
     ) -> Any:
         if extract_table_structure:
             with LogTime("extract_table_structure_batch"):
@@ -611,7 +623,7 @@ class ArynPDFPartitioner:
                     image = batch[i]
                     for element in page_elements:
                         if isinstance(element, TableElement):
-                            table_structure_extractor.extract(element, image)
+                            table_structure_extractor.extract(element, image, **table_extractor_options)
 
         if extract_images:
             with LogTime("extract_images_batch"):
@@ -668,18 +680,11 @@ class DeformableDetr(SycamoreObjectDetection):
         self._model_name_or_path = model_name_or_path
         self.cache = cache
 
-        from sycamore.utils.pytorch_dir import get_pytorch_build_directory
+        from transformers import AutoImageProcessor
+        from sycamore.utils.model_load import load_deformable_detr
 
-        with fasteners.InterProcessLock(_DETR_LOCK_FILE):
-            lockfile = Path(get_pytorch_build_directory("MultiScaleDeformableAttention", False)) / "lock"
-            lockfile.unlink(missing_ok=True)
-
-            from transformers import AutoImageProcessor, DeformableDetrForObjectDetection
-
-            LogTime("loading_model", point=True)
-            with LogTime("load_model", log_start=True):
-                self.processor = AutoImageProcessor.from_pretrained(model_name_or_path)
-                self.model = DeformableDetrForObjectDetection.from_pretrained(model_name_or_path).to(self._get_device())
+        self.processor = AutoImageProcessor.from_pretrained(model_name_or_path)
+        self.model = load_deformable_detr(model_name_or_path, self._get_device())
 
     # Note: We wrap this in a function so that we can execute on both the leader and the workers
     # to account for heterogeneous systems. Currently, if you pass in an explicit device parameter
@@ -788,7 +793,7 @@ def extract_ocr(
                 continue
             if elem.type == "Picture" and not ocr_images:
                 continue
-            cropped_image = crop_to_bbox(image, elem.bbox)
+            cropped_image = crop_to_bbox(image, elem.bbox, padding=0)
             if 0 in cropped_image.size:
                 elem.text_representation = ""
                 continue
@@ -806,6 +811,6 @@ def extract_ocr(
                     tokens.append(token)
                 elem.tokens = tokens
             else:
-                elem.text_representation = ocr_model_obj.get_text(cropped_image)
+                elem.text_representation, elem.properties["font_size"] = ocr_model_obj.get_text(cropped_image)
 
     return elements

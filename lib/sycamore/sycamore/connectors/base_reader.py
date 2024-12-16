@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 class BaseDBReader(Scan):
 
     # Type param for the client
-    class Client(ABC):
+    class Client:
         @classmethod
         @abstractmethod
         def from_client_params(cls, params: "BaseDBReader.ClientParams") -> "BaseDBReader.Client":
@@ -26,6 +26,9 @@ class BaseDBReader(Scan):
 
         @abstractmethod
         def check_target_presence(self, query_params: "BaseDBReader.QueryParams") -> bool:
+            pass
+
+        def close(self):
             pass
 
     # Type param for the objects that are read from the db
@@ -57,12 +60,17 @@ class BaseDBReader(Scan):
         self._query_params = query_params
 
     def read_docs(self) -> list[Document]:
-        client = self.Client.from_client_params(self._client_params)
+        try:
+            client = self.Client.from_client_params(self._client_params)
 
-        if not client.check_target_presence(self._query_params):
-            raise ValueError("Target is not present\n" f"Parameters: {self._query_params}\n")
-        records = client.read_records(query_params=self._query_params)
-        docs = records.to_docs(query_params=self._query_params)
+            if not client.check_target_presence(self._query_params):
+                raise ValueError("Target is not present\n" f"Parameters: {self._query_params}\n")
+            records = client.read_records(query_params=self._query_params)
+            docs = records.to_docs(query_params=self._query_params)
+        except Exception as e:
+            raise ValueError(f"Error reading from target: {e}")
+        finally:
+            client.close()
         return docs
 
     def execute(self, **kwargs) -> "Dataset":

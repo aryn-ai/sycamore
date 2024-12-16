@@ -7,10 +7,13 @@ packages = [{include = "queryui"}]
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.9.7 || >3.9.7,<3.13"
+ray = { extras = ["default"], version = "^2.36.0" }
 sycamore-ai = { path = "../../lib/sycamore", develop = true, extras = ["opensearch", "local-inference"] }
 streamlit = "^1.36.0"
 streamlit-ace = "^0.1.1"
 marko = "^2.1.2"
+pytest = "7.4.0"
+boto3 = "^1.28.70"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.4"

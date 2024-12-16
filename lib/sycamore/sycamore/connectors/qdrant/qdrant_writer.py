@@ -3,6 +3,7 @@ import typing
 from typing import Any, Optional, Union
 from typing_extensions import TypeGuard
 
+from sycamore.data.docid import docid_to_uuid
 from sycamore.data.document import Document
 from sycamore.connectors.base_writer import BaseDBWriter
 from sycamore.utils.import_utils import requires_modules
@@ -119,13 +120,16 @@ class QdrantWriterRecord(BaseDBWriter.Record):
 
         payload = {
             "type": document.type,
+            "parent_id": document.parent_id,
             "text_representation": document.text_representation,
             "bbox": document.bbox.to_dict() if document.bbox else None,
             "shingles": document.shingles or None,
             "properties": document.properties,
         }
 
-        return QdrantWriterRecord(document.doc_id, vector, payload)
+        id = docid_to_uuid(document.doc_id)
+        assert id is not None
+        return QdrantWriterRecord(id, vector, payload)
 
 
 def _narrow_list_of_qdrant_records(records: list[BaseDBWriter.Record]) -> TypeGuard[list[QdrantWriterRecord]]:

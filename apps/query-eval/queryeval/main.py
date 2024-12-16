@@ -11,16 +11,27 @@
 #      data/ntsb-queries.yaml \
 #      run
 
-from typing import Optional
+import tempfile
+from typing import Optional, Tuple
 
 import click
 from rich.console import Console
 
 
+from sycamore.llms import MODELS
 from queryeval.driver import QueryEvalDriver
+import nltk
 
 
 console = Console()
+
+try:
+    nltk.data.find("tokenizers/punkt_tab")
+    console.print("The 'punkt_tab' tokenizer data is already downloaded.")
+except LookupError:
+    console.print("The 'punkt_tab' tokenizer data is not found. Downloading now...")
+    nltk.download("punkt_tab")
+    console.print("The 'punkt_tab' tokenizer data has been downloaded.")
 
 
 @click.group()
@@ -33,8 +44,13 @@ console = Console()
 @click.option("--dry-run", help="Dry run - do not run any stages", is_flag=True)
 @click.option("--doc-limit", help="Limit number of docs in result set", type=int)
 @click.option("--overwrite", help="Overwrite existing results file", is_flag=True)
+@click.option("--llm", help="LLM model name", type=click.Choice(list(MODELS.keys())))
+@click.option("--tags", help="Filter queries by the given tags", multiple=True)
 @click.option(
-    "--raw-output", help="Output should be a raw DocSet, rather than natural language", is_flag=True, default=False
+    "--raw-output",
+    help="Output should be a raw DocSet, rather than natural language",
+    is_flag=True,
+    default=False,
 )
 @click.pass_context
 def cli(
@@ -48,9 +64,16 @@ def cli(
     dry_run: bool,
     doc_limit: Optional[int],
     overwrite: bool,
+    llm: Optional[str],
+    tags: Optional[Tuple[str]],
     raw_output: bool,
 ):
     ctx.ensure_object(dict)
+
+    if not query_cache_path:
+        query_cache_path = tempfile.mkdtemp()
+    console.print(f"[yellow]Using query cache path: {query_cache_path}")
+
     driver = QueryEvalDriver(
         input_file_path=config_file,
         index=index,
@@ -61,7 +84,9 @@ def cli(
         natural_language_response=not raw_output,
         log_file=logfile,
         doc_limit=doc_limit,
+        llm=llm,
         overwrite=overwrite,
+        tags=list(tags) if tags else None,
     )
     ctx.obj["driver"] = driver
 

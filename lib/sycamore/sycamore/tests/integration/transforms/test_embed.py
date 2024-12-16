@@ -20,6 +20,7 @@ passages = [
         " and Lincoln ended up running the store by himself.[60] Although the economy was booming, the business"
         " struggled and went into debt, causing Lincoln to sell his share."
     ),
+    (""),
 ]
 
 
@@ -41,8 +42,9 @@ def check_embedder(embedder: Embedder, expected_dim: int):
     assert len(new_docs) == len(docs)
 
     for doc in new_docs:
-        assert doc.embedding is not None
-        assert len(doc.embedding) == expected_dim
+        if doc.text_representation != "":
+            assert doc.embedding is not None
+            assert len(doc.embedding) == expected_dim
 
 
 def test_openai_embedding():

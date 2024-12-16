@@ -3,10 +3,10 @@ import base64
 from collections import defaultdict
 import hashlib
 import io
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Type
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
-from sycamore.data import HierarchicalDocument
+from sycamore.data import HierarchicalDocument, mkdocid
 from sycamore.llms import LLM
 from sycamore.llms.prompts import GraphEntityExtractorPrompt
 from PIL import Image
@@ -43,7 +43,7 @@ class EntityExtractor(GraphEntityExtractor):
     def __init__(
         self,
         llm: LLM,
-        entities: list[BaseModel],
+        entities: List[Type[BaseModel]],
         prompt: str = GraphEntityExtractorPrompt.user,
         split_calls: bool = False,
     ):
@@ -83,7 +83,7 @@ class EntityExtractor(GraphEntityExtractor):
                     if hash not in nodes[label]:
                         node = {
                             "type": "extracted",
-                            "doc_id": str(uuid.uuid4()),
+                            "doc_id": mkdocid("e"),
                             "properties": {},
                             "label": label,
                             "relationships": {},

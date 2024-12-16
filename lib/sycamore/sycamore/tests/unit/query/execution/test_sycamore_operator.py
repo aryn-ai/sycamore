@@ -97,6 +97,60 @@ def test_query_database_with_query(mock_sycamore_docsetreader, mock_opensearch_n
         assert result.plan._query_params.query == {"query": os_query_plan}
 
 
+def test_vector_query_database_with_rerank():
+    with patch("sycamore.reader.DocSetReader") as mock_docset_reader_class:
+        embedder = Mock(spec=Embedder)
+        embedding = [0.1, 0.2]
+        embedder.generate_text_embedding.return_value = embedding
+
+        mock_docset = Mock(spec=DocSet)
+        mock_docset.count.return_value = 5
+
+        mock_docset_reader_impl = Mock()
+        mock_docset_reader_class.return_value = mock_docset_reader_impl
+
+        mock_docset_reader_impl.opensearch.return_value = mock_docset
+
+        context = sycamore.init(
+            params={
+                "opensearch": {
+                    "os_client_args": {
+                        "hosts": [{"host": "localhost", "port": 9200}],
+                        "http_compress": True,
+                        "http_auth": ("admin", "admin"),
+                        "use_ssl": True,
+                        "verify_certs": False,
+                        "ssl_assert_hostname": False,
+                        "ssl_show_warn": False,
+                        "timeout": 120,
+                    },
+                    "index_name": "test_index",
+                    "text_embedder": embedder,
+                }
+            }
+        )
+        os_filter = {"filterKey": {"nestedKey": "some value"}}
+        logical_node = QueryVectorDatabase(
+            node_id=0,
+            description="Load data",
+            index=context.params["opensearch"]["index_name"],
+            query_phrase="question",
+            opensearch_filter=os_filter,
+        )
+        sycamore_operator = SycamoreQueryVectorDatabase(
+            context=context, logical_node=logical_node, query_id="test", rerank=True
+        )
+        sycamore_operator.execute()
+
+        # Assert request
+        mock_docset_reader_impl.opensearch.assert_called_once_with(
+            index_name=context.params["opensearch"]["index_name"],
+            query={"query": {"knn": {"embedding": {"vector": embedding, "k": 500, "filter": os_filter}}}},
+            reconstruct_document=True,
+        )
+        mock_docset.rerank.assert_called_once()
+
+
 def test_vector_query_database():
     with patch("sycamore.reader.DocSetReader") as mock_docset_reader_class:
         embedder = Mock(spec=Embedder)
@@ -146,6 +200,7 @@ def test_vector_query_database():
             query={"query": {"knn": {"embedding": {"vector": embedding, "k": 500, "filter": os_filter}}}},
             reconstruct_document=True,
         )
+        mock_docset.rerank.assert_not_called()
 
 
 def test_summarize_data():
@@ -164,6 +219,7 @@ def test_summarize_data():
             question=logical_node.question,
             result_description=logical_node.description,
             result_data=[load_node],
+            use_elements=True,
             **sycamore_operator.get_execute_args(),
         )
 
@@ -300,7 +356,7 @@ def test_llm_extract_entity():
         doc_set.extract_entity.return_value = return_doc_set
 
         logical_node = LlmExtractEntity(
-            node_id=0, question="who?", field="properties.counter", new_field="new", new_field_type="str", discrete=True
+            node_id=0, question="who?", field="properties.counter", new_field="new", new_field_type="str"
         )
         sycamore_operator = SycamoreLlmExtractEntity(context, logical_node, query_id="test", inputs=[doc_set])
         result = sycamore_operator.execute()
@@ -310,7 +366,7 @@ def test_llm_extract_entity():
             question=logical_node.question,
             field=logical_node.field,
             format=logical_node.new_field_type,
-            discrete=logical_node.discrete,
+            discrete=True,
         )
 
         # assert OpenAIEntityExtractor called with expected arguments
@@ -330,20 +386,25 @@ def test_llm_extract_entity():
 
 
 def test_sort():
-    context = sycamore.init()
-    doc_set = Mock(spec=DocSet)
-    return_doc_set = Mock(spec=DocSet)
-    doc_set.sort.return_value = return_doc_set
-    logical_node = Sort(node_id=0, descending=True, field="properties.counter", default_value=0)
-    sycamore_operator = SycamoreSort(context, logical_node, query_id="test", inputs=[doc_set])
-    result = sycamore_operator.execute()
+    # Verify that we can create a sort node without specifying a default value and pydantic won't
+    # throw an assertion.
+    Sort(node_id=0, descending=True, field="no-default-value")
 
-    doc_set.sort.assert_called_once_with(
-        descending=logical_node.descending,
-        field=logical_node.field,
-        default_val=logical_node.default_value,
-    )
-    assert result == return_doc_set
+    for default_value in [None, 0]:
+        context = sycamore.init()
+        doc_set = Mock(spec=DocSet)
+        return_doc_set = Mock(spec=DocSet)
+        doc_set.sort.return_value = return_doc_set
+        logical_node = Sort(node_id=0, descending=True, field="properties.counter", default_value=default_value)
+        sycamore_operator = SycamoreSort(context, logical_node, query_id="test", inputs=[doc_set])
+        result = sycamore_operator.execute()
+
+        doc_set.sort.assert_called_once_with(
+            descending=logical_node.descending,
+            field=logical_node.field,
+            default_val=logical_node.default_value,
+        )
+        assert result == return_doc_set
 
 
 def test_top_k():

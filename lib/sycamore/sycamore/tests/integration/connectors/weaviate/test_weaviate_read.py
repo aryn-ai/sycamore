@@ -1,6 +1,6 @@
 import pytest
 
-from sycamore.connectors.common import compare_docs
+from sycamore.tests.integration.connectors.common import compare_connector_docs
 import weaviate
 from weaviate.classes.config import Property, ReferenceProperty
 from weaviate.classes.query import Filter
@@ -8,6 +8,7 @@ from weaviate.client import ConnectionParams
 from weaviate.collections.classes.config import Configure, DataType
 
 import sycamore
+from sycamore.data.docid import docid_to_uuid
 from sycamore.functions.tokenizer import HuggingFaceTokenizer
 from sycamore.transforms import COALESCE_WHITESPACE
 from sycamore.transforms.merge_elements import MarkedMerger
@@ -96,15 +97,10 @@ def test_weaviate_read(wv_client_args):
     )
     out_docs = ctx.read.weaviate(wv_client_args=wv_client_args, collection_name=collection).take_all()
     target_doc_id = docs[-1].doc_id if docs[-1].doc_id else ""
-    fetch_object_dict = {"filters": Filter.by_id().equal(target_doc_id)}
+    target_doc_uuid = docid_to_uuid(target_doc_id)
+    fetch_object_dict = {"filters": Filter.by_id().equal(target_doc_uuid)}
     query_docs = ctx.read.weaviate(
         wv_client_args=wv_client_args, collection_name=collection, fetch_objects=fetch_object_dict
     ).take_all()
     assert len(query_docs) == 1  # exactly one doc should be returned
-    assert len(out_docs) == len(docs)
-    assert all(
-        compare_docs(original, plumbed)
-        for original, plumbed in zip(
-            sorted(docs, key=lambda d: d.doc_id or ""), sorted(out_docs, key=lambda d: d.doc_id or "")
-        )
-    )
+    compare_connector_docs(docs, out_docs)

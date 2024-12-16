@@ -2,6 +2,7 @@ from typing import Dict, Optional
 
 from pydantic import Field
 
+from sycamore import DocSet
 from sycamore.query.logical_plan import Node
 
 
@@ -33,7 +34,11 @@ class QueryDatabase(Node):
                     },
                     {
                         "match": {
-                            "properties.path.keyword": "/path/to/data/*.pdf",
+                            "properties.path.keyword": "/path/to/data/*.pdf"
+                        }
+                    },
+                    {
+                        "match_phrase": {
                             "properties.entity.location": "Georgia"
                         }
                     }
@@ -48,25 +53,35 @@ class QueryDatabase(Node):
     The full range of OpenSearch Query DSL parameters are supported.
     Whenever possible, use the query parameter to filter data at the source, as this is more
     efficient than filtering data in subsequent data filtering operators.
+    
+    If filtering on a proper noun, e.g. "New York", use "match_phrase" instead of "match". 
+    If filtering on a phrase that doesn't have exact spellings or forms, e.g. "Color" or "Colour", prefer "match".
     """
+
+    @property
+    def input_types(self) -> set[type]:
+        return set()
+
+    @property
+    def output_type(self) -> type:
+        return DocSet
 
 
 class QueryVectorDatabase(Node):
     """Vector search to load records that are similar to a given query string. Returns the top k records
     according to the vector similarity between the query string and record's text content.
-    Use this if you need to filter on a field that can't suffice with an exact match, but also isn't complex enough to
-    require a llm_filter, i.e. a record level LLM call.
 
-    Here are some instructions about using QueryVectorDatabase instead of QueryDatabase:
-    1. Use QueryVectorDatabase if the query plan uses an LLM operator (LLMFilter or LLMExtractEntity),
-        and the final answer doesn't require you to scan the full dataset (e.g. find me an instance of a transcript
-        that talked about AI).
-    2. Use QueryVectorDatabase for RAG-style questions where you need to retrieve a set of candidate records where the
-        answer might exist.
-    3. Do not use QueryVectorDatabase when examining each record is essential (e.g. did all transcripts talk about AI?).
-    4. Do not use QueryVectorDatabase where you need to potentially return large datasets (e.g. give me all transcripts
-        that talked about AI).
+    You should only use QueryVectorDatabase for the following query types:
+    1. "Is there *any* <record> similar to <query>?" - yes or no questions about inclusion of any record.
+    2. "Give me *some* <record>s similar to <query>" - sample selection of records similar to a query.
 
+    Important: Unless the query is asking for any or some records, DO NOT use QueryVectorDatabase.
+
+    Do not use QueryVectorDatabase for questions that which require all results that match a criteria, even if it is a
+    similarity criteria, e.g. "What incidents involved tigers in 2022" as that requires all possible records that match.
+
+    Since vector search is approximate, QueryVectorDatabase must always be followed by an LLMFilter to ensure that the
+    final results are accurate.
     """
 
     index: str
@@ -100,3 +115,7 @@ class QueryVectorDatabase(Node):
 
     The full range of OpenSearch Query DSL parameters for a filter query are supported.
     """
+
+    @property
+    def input_types(self) -> set[type]:
+        return set()

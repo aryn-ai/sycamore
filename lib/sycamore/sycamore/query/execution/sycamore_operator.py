@@ -128,8 +128,10 @@ class SycamoreQueryVectorDatabase(SycamoreOperator):
         logical_node: QueryVectorDatabase,
         query_id: str,
         trace_dir: Optional[str] = None,
+        rerank: bool = False,
     ) -> None:
         super().__init__(context=context, logical_node=logical_node, query_id=query_id, trace_dir=trace_dir)
+        self.rerank = rerank
 
     def execute(self) -> Any:
         assert isinstance(self.logical_node, QueryVectorDatabase)
@@ -145,7 +147,9 @@ class SycamoreQueryVectorDatabase(SycamoreOperator):
             os_query["query"]["knn"]["embedding"]["filter"] = self.logical_node.opensearch_filter
         result = self.context.read.opensearch(
             index_name=self.logical_node.index, query=os_query, reconstruct_document=True
-        ).rerank(query=self.logical_node.query_phrase)
+        )
+        if self.rerank:
+            result = result.rerank(query=self.logical_node.query_phrase)
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:
@@ -159,7 +163,7 @@ os_query["query"]["knn"]["embedding"]["filter"] = {self.logical_node.opensearch_
     index_name='{self.logical_node.index}', 
     query=os_query,
     reconstruct_document=True
-).rerank(query={self.logical_node.query_phrase})
+).rerank(query='{self.logical_node.query_phrase}')
 """
         return (
             result,
@@ -195,6 +199,7 @@ class SycamoreSummarizeData(SycamoreOperator):
             result_description=description,
             result_data=self.inputs,
             context=self.context,
+            use_elements=True,
             **self.get_execute_args(),
         )
         return result
@@ -217,6 +222,7 @@ class SycamoreSummarizeData(SycamoreOperator):
     result_description='{description}',
     result_data=[{logical_deps_str}],
     context=context,
+    use_elements=True,
     **{get_str_for_dict(self.get_execute_args())},
 )
 """
@@ -446,11 +452,8 @@ class SycamoreLlmExtractEntity(SycamoreOperator):
         new_field = logical_node.new_field
         field = logical_node.field
         fmt = logical_node.new_field_type
-        discrete = logical_node.discrete
 
-        prompt = EntityExtractorMessagesPrompt(
-            question=question, field=field, format=fmt, discrete=discrete
-        ).as_messages()
+        prompt = EntityExtractorMessagesPrompt(question=question, field=field, format=fmt, discrete=True).as_messages()
 
         entity_extractor = OpenAIEntityExtractor(
             entity_name=new_field,
@@ -468,7 +471,6 @@ class SycamoreLlmExtractEntity(SycamoreOperator):
         new_field = logical_node.new_field
         field = logical_node.field
         fmt = logical_node.new_field_type
-        discrete = logical_node.discrete
         assert len(logical_node.inputs) == 1
 
         input_str = input_var or get_var_name(logical_node.input_nodes()[0])
@@ -476,7 +478,7 @@ class SycamoreLlmExtractEntity(SycamoreOperator):
 
         result = f"""
 prompt = EntityExtractorMessagesPrompt(
-    question='{question}', field='{field}', format='{fmt}', discrete={discrete}
+    question='{question}', field='{field}', format='{fmt}', discrete=True
 ).as_messages()
 
 entity_extractor = OpenAIEntityExtractor(

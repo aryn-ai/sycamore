@@ -76,7 +76,7 @@ def main():
     argparser.add_argument("--oshost", default=None, help="OpenSearch host")
     argparser.add_argument("--osport", default=9200, help="OpenSearch port")
     argparser.add_argument("--index", default="const_ntsb", help="OpenSearch index name")
-    argparser.add_argument("--source", default="s3://aryn-public/ntsb/", help="Source data path")
+    argparser.add_argument("--source", default="s3://aryn-public/ntsb_reports/", help="Source data path")
     argparser.add_argument("--limit", default=None, type=int, help="Limit the number of documents to process")
     args = argparser.parse_args()
 

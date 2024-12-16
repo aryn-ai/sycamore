@@ -5,6 +5,7 @@ from typing import Optional, Union, Any
 from sycamore.connectors.common import drop_types, flatten_data
 from typing_extensions import TypeAlias, TypeGuard
 
+from sycamore.data.docid import docid_to_uuid
 from sycamore.data.document import Document
 from sycamore.connectors.base_writer import BaseDBWriter
 from sycamore.utils.import_utils import requires_modules
@@ -209,13 +210,14 @@ class WeaviateWriterDocumentRecord(BaseDBWriter.Record):
     @classmethod
     def from_doc(cls, document: Document, target_params: BaseDBWriter.TargetParams) -> "WeaviateWriterDocumentRecord":
         assert isinstance(target_params, WeaviateWriterTargetParams)
-        uuid = document.doc_id
+        uuid = docid_to_uuid(document.doc_id)
         if uuid is None:
             raise ValueError(f"Cannot write documents without a doc_id. Found {document}")
         properties = {
             "properties": document.properties,
             "type": document.type,
             "text_representation": document.text_representation,
+            "parent_id": document.parent_id,
             "bbox": document.bbox.coordinates if document.bbox else None,
             "shingles": document.shingles,
         }
@@ -245,9 +247,9 @@ class WeaviateCrossReferenceRecord(BaseDBWriter.Record):
     @classmethod
     def from_doc(cls, document: Document, target_params: BaseDBWriter.TargetParams) -> "WeaviateCrossReferenceRecord":
         assert isinstance(target_params, WeaviateWriterTargetParams)
-        from_uuid = document.doc_id
+        from_uuid = docid_to_uuid(document.doc_id)
         assert from_uuid is not None, f"Found a document with no doc_id: {document}"
-        to_uuid = document.parent_id
+        to_uuid = docid_to_uuid(document.parent_id)
         from_prop = "parent"
         return WeaviateCrossReferenceRecord(from_uuid=from_uuid, to=to_uuid, from_property=from_prop)
 

@@ -53,6 +53,23 @@ def apply_class_thresholds(bboxes, labels, scores, class_names, class_thresholds
     return bboxes, scores, labels
 
 
+def apply_class_thresholds_or_take_best(bboxes, labels, scores, class_names, class_thresholds, epsilon=0.05):
+    """
+    Filter out bounding boxes whose confidence is belor the confidence threshold for its
+    associated class threshold, defining the threshold as whichever is lower between what
+    is written in the class_thresholds dict and the highest score for the class minus epsilon
+    """
+    new_class_thresholds = {k: v for k, v in class_thresholds.items()}
+    max_row_score = max(sc for (sc, lbl) in zip(scores, labels) if class_names[lbl] == "table row")
+    max_col_score = max(sc for (sc, lbl) in zip(scores, labels) if class_names[lbl] == "table column")
+    if max_row_score - epsilon < class_thresholds["table row"]:
+        new_class_thresholds["table row"] = max_row_score - epsilon
+    if max_col_score - epsilon < class_thresholds["table column"]:
+        new_class_thresholds["table column"] = max_col_score - epsilon
+    new_class_thresholds["table"] = 0.0
+    return apply_class_thresholds(bboxes, labels, scores, class_names, new_class_thresholds)
+
+
 def iob(coords1, coords2) -> float:
     return BoundingBox(*coords1).iob(BoundingBox(*coords2))
 
@@ -75,6 +92,7 @@ def rescale_bboxes(out_bbox, size):
     return b
 
 
+<<<<<<< HEAD
 def outputs_to_objects(outputs, img_size, id2label):
     if hasattr(outputs, "logits"):
         m = outputs.logits.softmax(-1).max(-1)
@@ -82,6 +100,10 @@ def outputs_to_objects(outputs, img_size, id2label):
     else:
         m = outputs['pred_logits'].softmax(-1).max(-1)
         # print("pred logits sum >>>", outputs['pred_logits'].sum())
+=======
+def outputs_to_objects(outputs, img_size, id2label, apply_thresholds: bool = False):
+    m = outputs.logits.softmax(-1).max(-1)
+>>>>>>> ee1f80c73914e70695b7cf4957b8b61e7cbbfd6a
     pred_labels = list(m.indices.detach().cpu().numpy())[0]
     pred_scores = list(m.values.detach().cpu().numpy())[0]
     if hasattr(outputs, "pred_boxes"):
@@ -91,7 +113,14 @@ def outputs_to_objects(outputs, img_size, id2label):
     # print("pred boxes sum >>>", outputs['pred_boxes'].sum())
     pred_bboxes = [elem.tolist() for elem in rescale_bboxes(pred_bboxes, img_size)]
 
+<<<<<<< HEAD
     pred_bboxes, pred_scores, pred_labels = apply_class_thresholds(pred_bboxes, pred_labels, pred_scores, id2label, DEFAULT_STRUCTURE_CLASS_THRESHOLDS)
+=======
+    if apply_thresholds:
+        pred_bboxes, pred_scores, pred_labels = apply_class_thresholds_or_take_best(
+            pred_bboxes, pred_labels, pred_scores, id2label, DEFAULT_STRUCTURE_CLASS_THRESHOLDS
+        )
+>>>>>>> ee1f80c73914e70695b7cf4957b8b61e7cbbfd6a
 
     objects = []
     for label, score, bbox in zip(pred_labels, pred_scores, pred_bboxes):
@@ -115,7 +144,9 @@ DEFAULT_STRUCTURE_CLASS_THRESHOLDS = {
 }
 
 
-def objects_to_table(objects, tokens, structure_class_thresholds=DEFAULT_STRUCTURE_CLASS_THRESHOLDS) -> Optional[Table]:
+def objects_to_table(
+    objects, tokens, structure_class_thresholds=DEFAULT_STRUCTURE_CLASS_THRESHOLDS, union_tokens=False
+) -> Optional[Table]:
     structures = objects_to_structures(objects, tokens=tokens, class_thresholds=structure_class_thresholds)
 
     if len(structures) == 0:
@@ -134,7 +165,7 @@ def objects_to_table(objects, tokens, structure_class_thresholds=DEFAULT_STRUCTU
         )
         return Table(table_cells)
 
-    cells, _ = structure_to_cells(structures, tokens=tokens)
+    cells, _ = structure_to_cells(structures, tokens=tokens, union_tokens=union_tokens)
 
     table_cells = []
     for cell in cells:
@@ -281,20 +312,32 @@ def slot_into_containers(
             # If the container starts after the package ends, break
             if not _early_exit_vertical and container["bbox"][0] > package["bbox"][2]:
                 if len(match_scores) == 0:
-                    match_scores.append({"container": container, "container_num": container_num, "score": 0})
+                    match_scores.append(
+                        {"container": container, "container_num": container_num, "score": 0, "score_2": 0}
+                    )
                 break
             elif _early_exit_vertical and container["bbox"][1] > package["bbox"][3]:
                 if len(match_scores) == 0:
-                    match_scores.append({"container": container, "container_num": container_num, "score": 0})
+                    match_scores.append(
+                        {"container": container, "container_num": container_num, "score": 0, "score_2": 0}
+                    )
                 break
             container_rect = BoundingBox(*container["bbox"])
             intersect_area = container_rect.intersect(package_rect).area
             overlap_fraction = intersect_area / package_area
-            match_scores.append({"container": container, "container_num": container_num, "score": overlap_fraction})
+            opposite_overlap_fraction = intersect_area / (container_rect.area or 1)
+            match_scores.append(
+                {
+                    "container": container,
+                    "container_num": container_num,
+                    "score": overlap_fraction,
+                    "score_2": opposite_overlap_fraction,
+                }
+            )
 
         # Don't sort if you don't have to
         if unique_assignment:
-            sorted_match_scores = [max(match_scores, key=lambda x: x["score"])]
+            sorted_match_scores = [max(match_scores, key=lambda x: (x["score"], x["score_2"]))]
         else:
             sorted_match_scores = sort_objects_by_score(match_scores)
 
@@ -324,7 +367,7 @@ def sort_objects_by_score(objects, reverse=True):
         sign = -1
     else:
         sign = 1
-    return sorted(objects, key=lambda k: sign * k["score"])
+    return sorted(objects, key=lambda k: (sign * k["score"], sign * k.get("score_2", 0)))
 
 
 def remove_objects_without_content(page_spans, objects):
@@ -613,6 +656,11 @@ def align_headers(headers, rows) -> list[dict[str, list]]:
             min_row_overlap = max(row["bbox"][1], header["bbox"][1])
             max_row_overlap = min(row["bbox"][3], header["bbox"][3])
             overlap_height = max_row_overlap - min_row_overlap
+            if row_height == 0:
+                if overlap_height == header["bbox"][3] - header["bbox"][1]:
+                    # Then the 0-height row is inside the header
+                    header_row_nums.append(row_num)
+                continue
             if overlap_height / row_height >= 0.5:
                 header_row_nums.append(row_num)
 
@@ -758,6 +806,92 @@ def align_supercells(supercells, rows, columns):
     return aligned_supercells
 
 
+def union_dropped_tokens_with_cells(cells, dropped_tokens, rows, columns):
+    """
+    For each token that was dropped, determine which cell it intersects with and add the text to that cell.
+    If the token does not intersect with any existing cell, create a new cell. Determine the new row and column by
+    checking for intersection with any previous one and creating a new one if necessary.
+    """
+    if not rows or not columns:
+        return cells
+    for token in dropped_tokens:
+        token_rect = BoundingBox(*token["bbox"])
+        cell_intersect = False
+        for cell in cells:  # first check and add the token text to the cell it intersects with
+            cell_rect = BoundingBox(*cell["bbox"])
+            if cell_rect.intersect(token_rect).area > 0:
+                cell["cell text"] = cell.get("cell text", "") + extract_text_from_spans([token])
+                cell_intersect = True
+                break
+        if not cell_intersect:  # if not, create a new table cell
+            token_rows = []
+            token_columns = []
+            for row_idx, row in enumerate(rows):  # find or create the row for the token
+                row_rect = BoundingBox(*row["bbox"])
+                if row_rect.intersect(token_rect).area > 0:
+                    token_rows.append(row_idx)
+                elif row_rect.y2 < token_rect.y1:
+                    if row_idx < len(rows) - 1 and rows[row_idx + 1]["bbox"][1] > token_rect.y2:
+                        new_row = BoundingBox(row_rect.x1, row_rect.y2, row_rect.x2, rows[row_idx + 1]["bbox"][1])
+                        rows.insert(row_idx + 1, {"bbox": new_row.to_list()})
+                        for cell in cells:
+                            cell_row_nums = cell["row_nums"]
+                            if (
+                                row_idx in cell_row_nums and row_idx + 1 in cell_row_nums
+                            ):  # if the cell spans the 2 rows increase the span
+                                cell_row_nums.append(max(cell_row_nums) + 1)
+                            else:
+                                for idx, row_num in enumerate(cell_row_nums):
+                                    if row_num > row_idx:
+                                        cell_row_nums[idx] += 1
+                        token_rows.append(row_idx + 1)
+                        break
+            for col_idx, col in enumerate(columns):  # find or create the row for the token
+                col_rect = BoundingBox(*col["bbox"])
+                if col_rect.intersect(token_rect).area > 0:
+                    token_columns.append(col_idx)
+                elif col_rect.x2 < token_rect.x1:
+                    if col_idx < len(columns) - 1 and columns[col_idx + 1]["bbox"][0] > token_rect.x2:
+                        new_col = BoundingBox(col_rect.x2, col_rect.y1, columns[col_idx + 1]["bbox"][0], col_rect.y2)
+                        columns.insert(col_idx + 1, {"bbox": new_col.to_list()})
+                        for cell in cells:
+                            cell_column_nums = cell["column_nums"]
+                            if (
+                                col_idx in cell_column_nums and col_idx + 1 in cell_column_nums
+                            ):  # if the cell spans the 2 rows increase the span
+                                cell_column_nums.append(max(cell_column_nums) + 1)
+                            else:
+                                for idx, col_num in enumerate(cell_column_nums):
+                                    if col_num > col_idx:
+                                        cell_column_nums[idx] += 1
+
+                        token_columns.append(col_idx + 1)
+                        break
+            if not token_rows:
+                token_rows.append(len(rows))
+                prev_row = BoundingBox(*rows[-1]["bbox"])
+                rows.append({"bbox": [prev_row.x1, prev_row.y2, prev_row.x2, 2 * prev_row.y2 - prev_row.y1]})
+            if not token_columns:
+                token_columns.append(len(columns))
+                prev_col = BoundingBox(*columns[-1]["bbox"])
+                columns.append({"bbox": [prev_col.x2, prev_col.y1, 2 * prev_col.x2 - prev_col.x1, prev_col.y2]})
+            row_rect = BoundingBox.from_union(BoundingBox(*rows[row_num]["bbox"]) for row_num in token_rows)
+            column_rect = BoundingBox.from_union(
+                BoundingBox(*columns[column_num]["bbox"]) for column_num in token_columns
+            )
+
+            cell_rect = row_rect.intersect(column_rect)
+            cell = {
+                "bbox": cell_rect.to_list(),
+                "column_nums": token_columns,
+                "row_nums": token_rows,
+                "column header": False,
+                "cell text": token["text"],
+            }
+            cells.append(cell)
+    return cells
+
+
 def nms_supercells(supercells):
     """
     A NMS scheme for supercells that first attempts to shrink supercells to
@@ -824,10 +958,17 @@ def objects_to_structures(objects, tokens, class_thresholds):
     if len(tables) == 0:
         return {}
     if len(tables) > 1:
+<<<<<<< HEAD
         tables.sort(key=lambda x: x["score"], reverse=True)
         import logging
 
         logging.warning("Got multiple tables in document. Using only the highest-scoring one.")
+=======
+        tables.sort(key=lambda x: BoundingBox(*x["bbox"]).area, reverse=True)
+        import logging
+
+        logging.warning("Got multiple tables in document. Using only the biggest one")
+>>>>>>> ee1f80c73914e70695b7cf4957b8b61e7cbbfd6a
 
     table = tables[0]
     structure = {}
@@ -880,7 +1021,14 @@ def objects_to_structures(objects, tokens, class_thresholds):
     # Process the rows and columns into a complete segmented table
     columns = align_columns(columns, table["row_column_bbox"])
     rows = align_rows(rows, table["row_column_bbox"])
-
+    if (
+        not rows and row_rect.y1 < row_rect.y2 and column_rect.x1 < column_rect.x2
+    ):  # if no rows detected, create a single row comprising the whole table
+        rows = [{"bbox": table["row_column_bbox"]}]
+    if (
+        not columns and row_rect.y1 < row_rect.y2 and column_rect.x1 < column_rect.x2
+    ):  # if no columns detected, create a single column comprising the whole table
+        columns = [{"bbox": table["row_column_bbox"]}]
     structure["rows"] = rows
     structure["columns"] = columns
     structure["column headers"] = column_headers
@@ -892,7 +1040,7 @@ def objects_to_structures(objects, tokens, class_thresholds):
     return structure
 
 
-def structure_to_cells(table_structure, tokens):
+def structure_to_cells(table_structure, tokens, union_tokens):
     """
     Assuming the row, column, spanning cell, and header bounding boxes have
     been refined into a set of consistent table structures, process these
@@ -997,7 +1145,7 @@ def structure_to_cells(table_structure, tokens):
         cell_rect = column_rect.intersect(row_rect)
         cell["bbox"] = cell_rect.to_list()
 
-    span_nums_by_cell, _, _ = slot_into_containers(
+    span_nums_by_cell, package_assignments, _ = slot_into_containers(
         cells, tokens, overlap_threshold=0.001, unique_assignment=True, forced_assignment=False
     )
 
@@ -1057,7 +1205,11 @@ def structure_to_cells(table_structure, tokens):
         cell_rect = row_rect.intersect(column_rect)
         if cell_rect.area > 0:
             cell["bbox"] = cell_rect.to_list()
-
+    if union_tokens:
+        dropped_tokens = [
+            token for token, package_assignment in zip(tokens, package_assignments) if not package_assignment
+        ]
+        cells = union_dropped_tokens_with_cells(cells, dropped_tokens, rows, columns)
     return cells, confidence_score
 
 

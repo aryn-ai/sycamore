@@ -11,7 +11,7 @@ on:
 # specific.
 jobs:
   mypy:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     steps:
       - name: DF-1
         run: df -h
@@ -29,7 +29,7 @@ jobs:
         run: df -h
       - name: Install poetry
         run: pipx install poetry
-      - uses: actions/setup-python@v4
+      - uses: useblacksmith/setup-python@v6
         with:
           python-version: '3.9'
           cache: 'poetry'
@@ -45,13 +45,13 @@ jobs:
           poetry run mypy --install-types --non-interactive .
 
   lint:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install poetry
         run: pipx install poetry
-      - uses: actions/setup-python@v4
+      - uses: useblacksmith/setup-python@v6
         with:
           python-version: '3.9'
           cache: 'poetry'

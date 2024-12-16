@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from typing import Any, Optional, TypeVar, Union
+from typing import Any, Optional, TypeVar, Union, List, Sequence
 import xml.etree.ElementTree as ET
 
 from bs4 import BeautifulSoup, Tag
@@ -72,6 +72,24 @@ class TableCell:
 
         return TableCell(**kwargs)
 
+    def to_dict(self) -> dict[str, Any]:
+        dict_obj: dict[str, Union[Sequence[object], bool, dict]] = {
+            "content": self.content,
+            "rows": self.rows,
+            "cols": self.cols,
+        }
+
+        if self.is_header:
+            dict_obj["is_header"] = self.is_header
+
+        if self.bbox:
+            dict_obj["bbox"] = self.bbox.to_dict()
+
+        if self.properties:
+            dict_obj["properties"] = self.properties
+
+        return dict_obj
+
 
 DEFAULT_HTML_STYLE = """
 table, th, td {
@@ -99,7 +117,9 @@ class Table:
     are lossy, since, for instance, CSV does not natively support spanning cells.
     """
 
-    def __init__(self, cells: list[TableCell], caption: Optional[str] = None):
+    def __init__(
+        self, cells: list[TableCell], caption: Optional[str] = None, column_headers: Optional[list[str]] = None
+    ):
         """Creates a new Table.
 
         Args:
@@ -111,6 +131,11 @@ class Table:
         self.caption = caption
         self.num_rows = max(max(c.rows) for c in self.cells) + 1
         self.num_cols = max(max(c.cols) for c in self.cells) + 1
+
+        if column_headers is not None:
+            self.column_headers = column_headers
+        else:
+            self.column_headers = self.to_pandas(column_header_only=True)
 
     def __eq__(self, other):
         if type(other) is not type(self):
@@ -135,8 +160,9 @@ class Table:
 
         cells = [TableCell.from_dict(c) for c in dict_obj["cells"]]
         caption = dict_obj["caption"] if "caption" in dict_obj else None
+        col_headers = dict_obj["column_headers"] if "column_headers" in dict_obj else None
 
-        ret = Table(cells, caption)
+        ret = Table(cells, caption, col_headers)
 
         if "num_rows" in dict_obj:
             assert ret.num_rows == dict_obj["num_rows"]
@@ -145,6 +171,18 @@ class Table:
             assert ret.num_cols == dict_obj["num_cols"]
 
         return ret
+
+    def to_dict(self) -> dict[str, Any]:
+        """Converts the table to a dict representation."""
+        d: dict[str, Union[list[dict[str, Any]], str, list[str], int]] = dict()
+        d["cells"] = [c.to_dict() for c in self.cells]
+        if self.caption is not None:
+            d["caption"] = self.caption
+        if hasattr(self, "column_headers") and self.column_headers is not None:
+            d["column_headers"] = self.column_headers
+        d["num_rows"] = self.num_rows
+        d["num_cols"] = self.num_cols
+        return d
 
     # TODO: There are likely edge cases where this will break or lose information. Nested or non-contiguous
     # headers are one likely source of issues. We also don't support missing closing tags (which are allowed in
@@ -248,7 +286,7 @@ class Table:
     # we speculate that duplication may create confusion, so we default to only displaying a cells
     # content for the first row/column for which it is applicable. The exception is for header rows,
     # where we duplicate values to each columnn to ensure that every column has a fully qualified header.
-    def to_pandas(self) -> DataFrame:
+    def to_pandas(self, column_header_only: bool = False) -> Union[DataFrame, List[str]]:
         """Returns this table as a Pandas DataFrame.
 
         For example, Suppose a cell spans row 2-3 and columns 4-5.
@@ -286,12 +324,13 @@ class Table:
                             table_array[row, col] = ""
 
                 else:
-                    for row in cell.rows:
-                        for col in cell.cols:
-                            if row == cell.rows[0] and col == cell.cols[0]:
-                                table_array[row, col] = cell.content
-                            else:
-                                table_array[row, col] = ""
+                    if not column_header_only:
+                        for row in cell.rows:
+                            for col in cell.cols:
+                                if row == cell.rows[0] and col == cell.cols[0]:
+                                    table_array[row, col] = cell.content
+                                else:
+                                    table_array[row, col] = ""
 
         header = table_array[: max_header_prefix_row + 1, :]
 
@@ -299,7 +338,8 @@ class Table:
 
         for npcol in header.transpose():
             flattened_header.append(" | ".join(OrderedDict.fromkeys((c for c in npcol if c not in [None, ""]))))
-
+        if column_header_only:
+            return flattened_header
         df = DataFrame(
             table_array[max_header_prefix_row + 1 :, :],
             index=None,
@@ -320,7 +360,9 @@ class Table:
 
         pandas_kwargs = {"index": False, "header": has_header}
         pandas_kwargs.update(kwargs)
-        return self.to_pandas().to_csv(**pandas_kwargs)
+        df = self.to_pandas(column_header_only=False)
+        assert isinstance(df, DataFrame), "Expected `to_pandas` to return a DataFrame"
+        return df.to_csv(**pandas_kwargs)
 
     def to_html(self, pretty=False, wrap_in_html=False, style=DEFAULT_HTML_STYLE):
         """Converts this table to an HTML string.

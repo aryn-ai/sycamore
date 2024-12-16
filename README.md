@@ -1,3 +1,4 @@
+<a name="readme-top"></a>
 ![SycamoreLogoFinal.svg](https://raw.githubusercontent.com/aryn-ai/sycamore/main/docs/source/images/sycamore_logo.svg)
 
 [![PyPI](https://img.shields.io/pypi/v/sycamore-ai)](https://pypi.org/project/sycamore-ai/)
@@ -8,11 +9,11 @@
 
 Sycamore is an open source, AI-powered document processing engine for ETL, RAG, LLM-based applications, and analytics on unstructured data. Sycamore can partition and enrich a wide range of document types including reports, presentations, transcripts, manuals, and more. It can analyze and chunk complex documents such as PDFs and images with embedded tables, figures, graphs, and other infographics. Check out an [example notebook](https://github.com/aryn-ai/sycamore/blob/main/notebooks/sycamore-tutorial-intermediate-etl.ipynb).
 
-For processing PDFs, Sycamore leverages the [Aryn Partitioning Service](https://www.aryn.ai/post/announcing-the-aryn-partitioning-service), a serverless, GPU-powered API for segmenting and labeling documents, doing OCR, extracting tables and images, and more. It leverages Aryn's state-of-the-art, [open source deep learning DETR AI model](https://huggingface.co/Aryn/deformable-detr-DocLayNet) trained on 80k+ enterprise documents, and it can lead to 6x more accurate data chunking and 2x improved recall on hybrid search or RAG when compared to alternate systems. You can [sign-up for free here](http://www.aryn.ai/get-started), or choose to run the Aryn Partitioner locally.
+For processing documents, Sycamore leverages [Aryn DocParse](https://www.aryn.ai/post/announcing-the-aryn-partitioning-service) (formerly known as the Aryn Partitioning Service), a serverless, GPU-powered API for segmenting and labeling documents, doing OCR, extracting tables and images, and more. It leverages Aryn's state-of-the-art, [open source deep learning DETR AI model](https://huggingface.co/Aryn/deformable-detr-DocLayNet) trained on 80k+ enterprise documents, and it can lead to 6x more accurate data chunking and 2x improved recall on hybrid search or RAG when compared to alternate systems. You can [sign-up for free here](http://www.aryn.ai/get-started), or choose to run the Aryn Partitioner locally.
 
-The Aryn Partitioning Service takes PDFs and returns the partitioned output in JSON, and you can use Sycamore for additional data extraction, enrichment, transforms, cleaning, and loading into downstream databases. You can choose the LLMs to use with these transforms.
+Aryn DocParse takes [documents](https://docs.aryn.ai/docparse/formats_supported) and returns the partitioned output in JSON, and you can use Sycamore for additional data extraction, enrichment, transforms, cleaning, and loading into downstream databases. You can choose the LLMs to use with these transforms.
 
-Sycamore reliably loads your vector databases and hybrid search engines, including as OpenSearch, ElasticSearch, Pinecone, DuckDB and Weaviate, with higher quality data. 
+Sycamore reliably loads your vector databases and hybrid search engines, including as OpenSearch, ElasticSearch, Pinecone, DuckDB, Qdrant and Weaviate, with higher quality data. 
 
 The Sycamore framework is built around a scalable and robust abstraction for document processing called a DocSet, and includes powerful high-level transformations in Python for data processing, enrichment, and cleaning. DocSets also encapsulate scalable data processing techniques removing the undifferentiated heavy lifting of reliably loading chunks. DocSets' functional programming approach allows you to rapidly customize and experiment with your chunking for better quality RAG results.
 
@@ -20,7 +21,7 @@ The Sycamore framework is built around a scalable and robust abstraction for doc
 
 ## Features
 
-- Integrated with the [Aryn Partitioning Service](https://sycamore.readthedocs.io/en/stable/aryn_cloud/aryn_partitioning_service.html), using a [state-of-the art vision AI model](https://huggingface.co/Aryn/deformable-detr-DocLayNet) for segmentation and preserving the semantic structure of documents
+- Integrated with [Aryn DocParse](https://sycamore.readthedocs.io/en/stable/aryn_cloud/aryn_partitioning_service.html), using a [state-of-the art vision AI model](https://huggingface.co/Aryn/deformable-detr-DocLayNet) for segmentation and preserving the semantic structure of documents
 - DocSet abstraction to scalably and reliably transform and manipulate unstructured documents
 - High-quality table extraction, OCR, visual summarization, LLM-powered UDFs, and other performant Python data transforms
 - Quickly create vector embeddings using your choice of AI model
@@ -29,7 +30,7 @@ The Sycamore framework is built around a scalable and robust abstraction for doc
 
 ## Demo
 
-[Introduction to the Aryn Partitioning Service](https://www.aryn.ai/?name=ArynPartitioningService_Intro)
+[Introduction to Aryn DocParse (formerly known as the Aryn Partitioning Service)](https://www.aryn.ai/?name=ArynPartitioningService_Intro)
 
 ## Get Started
 
@@ -41,9 +42,9 @@ Sycamore provides connectors to vector databases via Python extras. To install a
 
 ```pip install sycamore-ai[duckdb]```
 
-Supported connectors include `duckdb`, `elasticsearch`, `opensearch`, `pinecone`, and `weaviate`.
+Supported connectors include `duckdb`, `elasticsearch`, `opensearch`, `pinecone`, `qdrant`, and `weaviate`.
 
-To use the Aryn Partitioning Service, [sign-up for free here](https://www.aryn.ai/get-started) and use the API key.
+To use Aryn DocParse, [sign-up for free here](https://www.aryn.ai/get-started) and use the API key.
 
 ## Resources
 
@@ -56,3 +57,19 @@ To use the Aryn Partitioning Service, [sign-up for free here](https://www.aryn.a
 ## Contributing
 
 Check out our [Contributing Guide](https://github.com/aryn-ai/sycamore/blob/main/CONTRIBUTING.md) for more information about how to contribute to Sycamore and set up your environment for development.
+
+## Contributors
+
+<a href="https://github.com/aryn-ai/sycamore/graphs/contributors">
+  <img alt="contributors" src="https://contrib.rocks/image?repo=aryn-ai/sycamore"/>
+</a>
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=aryn-ai/sycamore&type=Date)](https://star-history.com/#aryn-ai/sycamore&Date)
+
+<p align="right" style="font-size: 14px; color: #555; margin-top: 20px;">
+    <a href="#readme-top" style="text-decoration: none; color: #007bff; font-weight: bold;">
+        ↑ Back to Top ↑
+    </a>
+</p>

@@ -1,6 +1,6 @@
 import logging
 from abc import ABC
-from typing import Optional, Type
+from typing import Any, Optional, Type
 
 logger = logging.getLogger(__name__)
 
@@ -10,18 +10,19 @@ class SimplePrompt(ABC):
     user: Optional[str] = None
     var_name: str = "answer"
 
-    """
-    Using this method assumes that the system and user prompts are populated with any placeholder values. Or the 
-    caller is responsible for processing the messages after.
-    """
-
-    def as_messages(self) -> list[dict]:
+    def as_messages(self, prompt_kwargs: Optional[dict[str, Any]] = None) -> list[dict]:
         messages = []
         if self.system is not None:
-            messages.append({"role": "system", "content": self.system})
+            system = self.system
+            if prompt_kwargs is not None:
+                system = self.system.format(**prompt_kwargs)
+            messages.append({"role": "system", "content": system})
 
         if self.user is not None:
-            messages.append({"role": "user", "content": self.user})
+            user = self.user
+            if prompt_kwargs is not None:
+                user = self.user.format(**prompt_kwargs)
+            messages.append({"role": "user", "content": user})
         return messages
 
     def __eq__(self, other):
@@ -118,35 +119,56 @@ class GraphRelationshipExtractorPrompt(SimplePrompt):
 
 class ExtractTablePropertiesPrompt(SimplePrompt):
     user = """
-            You are given a text string where columns are separated by comma representing either a single column, 
-            or a multi-column table each new line is a new row.
-            Instructions:
-            1. Parse the table and return a flattened JSON object representing the key-value pairs of properties 
-            defined in the table.
-            2. Do not return nested objects, keep the dictionary only 1 level deep. The only valid value types 
-            are numbers, strings, and lists.
-            3. If you find multiple fields defined in a row, feel free to split them into separate properties.
-            4. Use camelCase for the key names.
-            5. For fields where the values are in standard measurement units like miles, 
-            nautical miles, knots, or celsius, include the unit in the key name and only set the
-            numeric value as the value.
-              - "Wind Speed: 9 knots" should become "windSpeedInKnots": 9
-              - "Temperature: 3°C" should become "temperatureInC": 3
-            6. Ensure that key names are enclosed in double quotes.
-            7. return only the json object between ``` 
-            """
+        You are given a text string represented as a CSV (comma-separated values) and an image of a table.
 
+        Instructions:
+            Check if the table contains key-value pairs. A key-value pair table is a table where data is structured as key-value pairs. Generally, the first column contains the key and the second column contains the value. However, key-value pairs can also appear in other formats.
+            If there is a one-to-one mapping between two cells, even if the relationship is not direct, they should be considered key-value pairs.
+            If the table is a key-value pair table, return its key-value pairs as a JSON object.
+            If the table is not a key-value pair table, return False.
+            Use camelCase for the key names in the JSON object.
+            Parse the CSV table, check the image, and return a flattened JSON object representing the key-value pairs from the table. The extracted key-value pairs should be formatted as a JSON object.
+            Do not return nested objects; keep the dictionary only one level deep. The only valid value types are numbers, strings, None, and lists.
+            A table can have multiple or all null values for a key. In such cases, return a JSON object with the specified key set to null for all rows in the table.
+            For fields where the values are in standard measurement units like miles, nautical miles, knots, or Celsius, include the unit in the key name and only set the numeric value as the value:
 
-class ExtractTablePropertiesTablePrompt(SimplePrompt):
-    user = """
-            You are given a text string where columns are separated by comma representing either a single column, 
-            or multi-column table each new line is a new row.
-            Instructions:
-            1. Parse the table and make decision if key, value pair information can be extracted from it.
-            2. if the table contains multiple cell value corresponding to one key, the key, value pair for such table 
-            cant be extracted.
-            3. return True if table cant be parsed as key value pair.
-            4. return only True or False nothing should be added in the response.
+                "Wind Speed: 9 knots" should become "windSpeedInKnots": 9
+                "Temperature: 3°C" should become "temperatureInC": 3
+                Ensure that key names are enclosed in double quotes.
+
+            Return only the JSON object between ``` if the table is a key-value pair table; otherwise, return False.
+
+        example of a key-value pair table:
+            |---------------------------------|------------------|
+            | header 1                        | header 2         |
+            |---------------------------------|------------------|
+            | NEW FIRE ALARM SYSTEMS          | $272 TWO HOURS   |
+            | NEW SPRINKLER SYSTEMS           | $408 THREE HOURS |
+            | NEW GASEOUS SUPPRESSION SYSTEMS | $272 TWO HOURS   |
+            |---------------------------------|------------------|
+
+            return ```{"NEW FIRE ALARM SYSTEMS": "$272 TWO HOURS", "NEW SPRINKLER SYSTEMS": "$408 THREE HOURS", "NEW GASEOUS SUPPRESSION SYSTEMS": "$272 TWO HOURS"}```
+
+        example of a table which is not key-value pair table:
+            |---------------------------------|------------------|------------------|
+            | header 1                        | header 2         | header 3         |
+            |---------------------------------|------------------|------------------|
+            | NEW FIRE ALARM SYSTEMS          | $272 TWO HOURS   | $2752 ONE HOUR   |
+            | NEW SPRINKLER SYSTEMS           | $408 THREE HOURS | $128 FIVE HOURS  |
+            | NEW GASEOUS SUPPRESSION SYSTEMS | $272 TWO HOURS   | $652 TEN HOURS   |
+            |---------------------------------|------------------|------------------|
+
+            return False
+        
+        example of a key value table containing null walues 
+            |---------------------------------|---------------------|
+            | header 1 :                      | header 2: 'value2'  |
+            | header 3 :                      | header 4 :          |
+            | header 5 :                      | header 6:           |
+            |---------------------------------|---------------------|
+
+            return ```{"header1": null, "header2": "value2", "header3": null, "header4": null, "header5": null, "header6": null}```
+
             """
 
 
@@ -155,20 +177,17 @@ class EntityExtractorMessagesPrompt(SimplePrompt):
         super().__init__()
         self.system = (
             "You are a helpful entity extractor that creates a new field in a "
-            "database from your response to a question on an existing field. "
+            "database based on the value of an existing field. "
         )
 
         if discrete:
-            self.user = (
-                f"The format of your response should be {format}. "
-                "Use standard convention to determine the style of your response. Do not include any abbreviations. "
-                "The following sentence should be valid: The answer to the "
-                'question based on the existing field is "your response". Your response should ONLY '
-                "contain the answer. If you are not able to extract the new field given the "
-                "information, respond with None. "
-                f"Question: {question} Use the value of the database field "
-                f'"{field}" to answer the question: '
-            )
+            self.user = f"""Below, you will be given a database field value and a question.
+            Your job is to provide the answer to the question based on the value provided.
+            Your response should ONLY contain the answer to the question. If you are not able
+            to extract the new field given the information, respond with "None". The type
+            of your response should be "{format}".
+            Field value: {field}\n
+            Answer the question "{question}":"""
         else:
             self.user = (
                 f"Include as much relevant detail as "

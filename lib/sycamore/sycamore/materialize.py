@@ -70,11 +70,11 @@ class Materialize(UnaryNode):
             self._clean_root = True
         elif isinstance(path, dict):
             assert "root" in path, "Need to specify root in materialize(path={})"
-            self._root = Path(path["root"])
             if "fs" in path:
                 self._fs = path["fs"]
+                self._root = Path(path["root"])
             else:
-                (self._fs, self._root) = self.infer_fs(str(self._root))
+                (self._fs, self._root) = self.infer_fs(str(path["root"]))
             self._fshelper = _PyArrowFsHelper(self._fs)
             self._doc_to_name = path.get("name", self.doc_to_name)
             self._doc_to_binary = path.get("tobin", Document.serialize)
@@ -97,7 +97,7 @@ class Materialize(UnaryNode):
 
         self._maybe_anonymous()
 
-    def _maybe_anonymous(self):
+    def _maybe_anonymous(self) -> None:
         if self._root is None:
             return
         from pyarrow.fs import S3FileSystem
@@ -116,6 +116,7 @@ class Materialize(UnaryNode):
             fs.get_file_info(str(self._root))
             self._fs = fs
             self._fshelper = _PyArrowFsHelper(self._fs)
+            logger.info(f"Successfully read path {self._root} with anonymous S3")
             return
         except OSError as e:
             logging.warning(
@@ -169,9 +170,24 @@ class Materialize(UnaryNode):
 
                 from ray.data import read_binary_files
 
-                files = read_binary_files(self._root, filesystem=self._fs, file_extensions=["pickle"])
+                try:
 
-                return files.map(self._ray_to_document)
+                    def _ray_to_document(dict: dict[str, Any]) -> list[dict[str, bytes]]:
+                        return [{"doc": dict["bytes"]}]
+
+                    files = read_binary_files(self._root, filesystem=self._fs, file_extensions=["pickle"])
+
+                    return files.flat_map(_ray_to_document)
+                except ValueError as e:
+                    if "No input files found to read with the following file extensions" not in str(e):
+                        raise
+                logger.warning(
+                    f"Unable to find any .pickle files in {self._root}, but either"
+                    " there is a materialize.success or this is a start node."
+                )
+                from ray.data import from_items
+
+                return from_items(items=[])
 
         self._executed_child = True
         # right now, no validation happens, so save data in parallel. Once we support validation
@@ -203,9 +219,6 @@ class Materialize(UnaryNode):
                 return
 
         raise ValueError(f"Materialize root {self._orig_path} has no .pickle files")
-
-    def _ray_to_document(self, dict: dict[str, Any]) -> dict[str, bytes]:
-        return {"doc": dict["bytes"]}
 
     def _will_be_source(self) -> bool:
         if len(self.children) == 0:
@@ -277,6 +290,9 @@ class Materialize(UnaryNode):
         assert isinstance(bin, bytes), f"tobin function returned {type(bin)} not bytes"
         assert self._root is not None
         name = self._doc_to_name(doc, bin)
+        assert isinstance(name, str) or isinstance(
+            name, Path
+        ), f"doc_to_name function turned docid {doc.doc_id} into {name} -- should be string or Path"
         path = self._root / name
 
         if self._clean_root and self._fshelper.file_exists(path):

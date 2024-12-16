@@ -25,13 +25,14 @@ class ElasticsearchWriterTargetParams(BaseDBWriter.TargetParams):
     mappings: dict[str, Any] = field(
         default_factory=lambda: {
             "properties": {
-                "embeddings": {
+                "embedding": {
                     "type": "dense_vector",
                     "dims": 384,
                     "index": True,
                     "similarity": "cosine",
                 },
                 "properties": {"type": "object"},
+                "parent_id": {"type": "text"},
             }
         }
     )
@@ -80,6 +81,8 @@ class ElasticsearchWriterClient(BaseDBWriter.Client):
 
         assert isinstance(target_params, ElasticsearchWriterTargetParams)
         assert _narrow_list_of_doc_records(records), f"Found a bad record in {records}"
+        if not records:
+            return
         with self._client:
 
             def bulk_action_generator():
@@ -88,7 +91,8 @@ class ElasticsearchWriterClient(BaseDBWriter.Client):
                         "_index": target_params.index_name,
                         "_id": r.doc_id,
                         "properties": r.properties,
-                        "embeddings": r.embeddings,
+                        "embedding": r.embedding,
+                        "parent_id": r.parent_id,
                     }
 
             for success, info in parallel_bulk(
@@ -129,7 +133,8 @@ class ElasticsearchWriterClient(BaseDBWriter.Client):
 class ElasticsearchWriterDocumentRecord(BaseDBWriter.Record):
     doc_id: str
     properties: dict
-    embeddings: Optional[list[float]]
+    parent_id: Optional[str]
+    embedding: Optional[list[float]]
 
     @classmethod
     def from_doc(
@@ -137,7 +142,6 @@ class ElasticsearchWriterDocumentRecord(BaseDBWriter.Record):
     ) -> "ElasticsearchWriterDocumentRecord":
         assert isinstance(target_params, ElasticsearchWriterTargetParams)
         doc_id = document.doc_id
-        embedding = document.embedding
         if doc_id is None:
             raise ValueError(f"Cannot write documents without a doc_id. Found {document}")
         properties = {
@@ -147,7 +151,9 @@ class ElasticsearchWriterDocumentRecord(BaseDBWriter.Record):
             "bbox": document.bbox.coordinates if document.bbox else None,
             "shingles": document.shingles,
         }
-        return ElasticsearchWriterDocumentRecord(doc_id=doc_id, properties=properties, embeddings=embedding)
+        return ElasticsearchWriterDocumentRecord(
+            doc_id=doc_id, parent_id=document.parent_id, properties=properties, embedding=document.embedding
+        )
 
 
 def _narrow_list_of_doc_records(

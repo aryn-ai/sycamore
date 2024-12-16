@@ -5,7 +5,8 @@ from sycamore.connectors.qdrant.qdrant_reader import (
     QdrantReaderQueryParams,
     QdrantReaderQueryResponse,
 )
-from sycamore.data.document import Document
+from sycamore.data.docid import uuid_to_docid
+from sycamore.data.document import Document, DocumentSource
 
 
 class QdrantReturnObject(object):
@@ -66,8 +67,10 @@ class TestQdrantQueryResponse:
         assert len(doc_list) == 0
 
     def test_point_to_doc(self):
+        uu = "0e14ade4-7f2a-490e-844b-f063c92bdfbb"
+        id = uuid_to_docid(uu)
         point = models.ScoredPoint(
-            id="0e14ade4-7f2a-490e-844b-f063c92bdfbb",
+            id=uu,
             vector=[0.1, 0.2, 0.3],
             payload={
                 "properties__field": "value",
@@ -83,8 +86,8 @@ class TestQdrantQueryResponse:
         returned_doc = QdrantReaderQueryResponse.to_docs(record, query_params)[0]
         doc = Document(
             {
-                "doc_id": "0e14ade4-7f2a-490e-844b-f063c92bdfbb",
-                "properties": {"field": "value", "nested": {"object": "value"}},
+                "doc_id": id,
+                "properties": {"field": "value", "nested": {"object": "value"}, "_doc_source": DocumentSource.DB_QUERY},
                 "type": "text",
                 "text_representation": "my first document",
                 "embedding": [0.1, 0.2, 0.3],

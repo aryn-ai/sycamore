@@ -1,4 +1,5 @@
 from unittest.mock import Mock
+import random
 
 from opensearchpy import OpenSearch, RequestError, ConnectionError
 import pytest
@@ -176,7 +177,7 @@ class TestOpenSearchReaderQueryResponse:
             },
             {"text_representation": "this is a parent doc", "parent_id": None, "doc_id": "doc_1"},
         ]
-        hits = [{"_source": record} for record in records]
+        hits = [{"_source": record, "_score": random.random()} for record in records]
         query_response = OpenSearchReaderQueryResponse(hits)
         query_params = OpenSearchReaderQueryParams(index_name="some index")
         docs = query_response.to_docs(query_params)
@@ -186,6 +187,7 @@ class TestOpenSearchReaderQueryResponse:
         for i in range(len(docs)):
             assert docs[i].parent_id == records[i]["parent_id"]
             assert docs[i].text_representation == records[i]["text_representation"]
+            assert "score" in docs[i].properties
 
     def test_to_docs_reconstruct_require_client(self):
         query_response = OpenSearchReaderQueryResponse([])
@@ -429,3 +431,17 @@ class TestOpenSearchUtils:
 
         assert get_knn_query(query_phrase="test", k=1000, text_embedder=embedder) == expected_query
         embedder.generate_text_embedding.assert_called_with("test")
+
+        # default
+        expected_query = {"query": {"knn": {"embedding": {"vector": embedding, "k": 500}}}}
+        assert get_knn_query(query_phrase="test", context=context) == expected_query
+        embedder.generate_text_embedding.assert_called_with("test")
+
+        # min_score
+        expected_query = {"query": {"knn": {"embedding": {"vector": embedding, "min_score": 0.5}}}}
+        assert get_knn_query(query_phrase="test", min_score=0.5, context=context) == expected_query
+        embedder.generate_text_embedding.assert_called_with("test")
+
+    def test_get_knn_query_validation(self):
+        with pytest.raises(ValueError, match="Only one of `k` or `min_score` should be populated"):
+            get_knn_query(Mock(spec=Embedder), query_phrase="test", k=10, min_score=0.5)

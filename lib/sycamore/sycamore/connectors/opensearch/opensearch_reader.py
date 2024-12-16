@@ -44,7 +44,7 @@ class OpenSearchReaderClient(BaseDBReader.Client):
         ), f"Wrong kind of query parameters found: {query_params}"
         assert "index" not in query_params.kwargs and "body" not in query_params.kwargs
         if "scroll" not in query_params.kwargs:
-            query_params.kwargs["scroll"] = "1m"
+            query_params.kwargs["scroll"] = "10m"
         if "size" not in query_params.query and "size" not in query_params.kwargs:
             query_params.kwargs["size"] = 200
         logging.debug(f"OpenSearch query on {query_params.index_name}: {query_params.query}")
@@ -88,6 +88,8 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
                         **data.get("_source", {}),
                     }
                 )
+                doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
+                doc.properties["score"] = data["_score"]
                 result.append(doc)
         else:
             assert (
@@ -167,8 +169,8 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
         """
         Returns all records in OpenSearch belonging to a list of Document ids (element.parent_id)
         """
-        batch_size = 1000
-        page_size = 1000
+        batch_size = 100
+        page_size = 500
 
         all_elements = []
         for i in range(0, len(doc_ids), batch_size):

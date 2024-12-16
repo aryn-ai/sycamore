@@ -1,5 +1,8 @@
 import pytest
 
+from sycamore import DocSet
+from sycamore.query.strategy import QueryPlanStrategy
+
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.operators.query_database import QueryVectorDatabase
 
@@ -19,9 +22,9 @@ class TestSycamoreQuery:
             schema,
             natural_language_response=True,
         )
-        query_id, result = client.run_plan(plan, codegen_mode=codegen_mode)
-        assert isinstance(result, str)
-        assert len(result) > 0
+        result = client.run_plan(plan, codegen_mode=codegen_mode)
+        assert isinstance(result.result, str)
+        assert len(result.result) > 0
 
     @pytest.mark.parametrize("codegen_mode", [True, False])
     def test_forked(self, query_integration_test_index: str, codegen_mode: bool):
@@ -36,10 +39,9 @@ class TestSycamoreQuery:
             schema,
             natural_language_response=True,
         )
-        query_id, result = client.run_plan(plan, codegen_mode=codegen_mode)
-        assert isinstance(result, str)
-        assert len(result) > 0
-        assert "0" in result
+        result = client.run_plan(plan, codegen_mode=codegen_mode)
+        assert isinstance(result.result, str)
+        assert len(result.result) > 0
 
     @pytest.mark.parametrize("dry_run", [True, False])
     def test_dry_run(self, query_integration_test_index: str, dry_run: bool):
@@ -58,28 +60,29 @@ class TestSycamoreQuery:
             natural_language_response=True,
         )
         ray.shutdown()
-        query_id, result = client.run_plan(plan, dry_run=dry_run)
-        assert isinstance(result, str)
-        assert len(result) > 0
+        result = client.run_plan(plan, dry_run=dry_run)
         if dry_run:
+            assert isinstance(result.code, str)
+            assert len(result.code) > 0
             assert not ray.is_initialized()
         else:
+            assert isinstance(result.result, str)
+            assert len(result.result) > 0
             assert ray.is_initialized()
 
     @pytest.mark.parametrize("codegen_mode", [True, False])
     def test_vector_search(self, query_integration_test_index: str, codegen_mode: bool):
         """ """
 
-        client = SycamoreQueryClient()
+        client = SycamoreQueryClient(query_plan_strategy=QueryPlanStrategy())
         schema = client.get_opensearch_schema(query_integration_test_index)
         plan = client.generate_plan(
-            "were there any environmentally caused incidents?",
+            "give me some wind related incidents",
             query_integration_test_index,
             schema,
             natural_language_response=False,
         )
-        assert len(plan.nodes) == 2
+        assert len(plan.nodes) == 1
         assert isinstance(plan.nodes[0], QueryVectorDatabase)
-        query_id, result = client.run_plan(plan, codegen_mode=codegen_mode)
-        assert isinstance(result, str)
-        assert "No" in result or "no" in result
+        result = client.run_plan(plan, codegen_mode=codegen_mode)
+        assert isinstance(result.result, DocSet)

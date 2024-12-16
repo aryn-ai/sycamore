@@ -1,4 +1,7 @@
-from sycamore.connectors.common import convert_to_str_dict, drop_types, flatten_data, unflatten_data
+from sycamore.connectors.common import convert_to_str_dict, drop_types, flatten_data, unflatten_data, compare_docs
+from sycamore.data import Document
+import numpy as np
+import pytest
 
 
 def test_flatten_data_happy():
@@ -157,3 +160,100 @@ def test_irregular_numeric_sequence():
     unflattened = unflatten_data(data)
     assert isinstance(unflattened, dict)
     assert unflattened == {"a": ["zero", "", "two"]}
+
+
+def test_compare_docs_identical():
+    doc1 = Document(
+        doc_id="1",
+        type="type1",
+        text_representation="text",
+        embedding=np.array([0.1, 0.2]),
+        parent_id="0",
+        properties={"key": "value"},
+        bbox=[0, 0, 1, 1],
+        shingles=["shingle1"],
+    )
+    doc2 = Document(
+        doc_id="1",
+        type="type1",
+        text_representation="text",
+        embedding=np.array([0.1, 0.2]),
+        parent_id="0",
+        properties={"key": "value"},
+        bbox=[0, 0, 1, 1],
+        shingles=["shingle1"],
+    )
+    assert compare_docs(doc1, doc2)
+
+
+def test_compare_docs_empty_dictionary():
+    doc1 = Document(
+        doc_id="1",
+        type="type1",
+        text_representation="text",
+        embedding=np.array([0.1, 0.2]),
+        parent_id="0",
+        properties={"key": []},
+        bbox=[0, 0, 1, 1],
+        shingles=["shingle1"],
+    )
+    doc2 = Document(
+        doc_id="1",
+        type="type1",
+        text_representation="text",
+        embedding=np.array([0.1, 0.2]),
+        parent_id="0",
+        properties={},
+        bbox=[0, 0, 1, 1],
+        shingles=["shingle1"],
+    )
+    assert compare_docs(doc1, doc2)
+
+
+def test_compare_docs_close_values():
+    doc1 = Document(
+        doc_id="1",
+        type="type1",
+        text_representation="text",
+        embedding=np.array([0.1, 0.2]),
+        parent_id="0",
+        properties={"key": "value"},
+        bbox=[0, 0, 1, 1],
+        shingles=["shingle1"],
+    )
+    doc2 = Document(
+        doc_id="1",
+        type="type1",
+        text_representation="text",
+        embedding=np.array([0.10000001, 0.2]),
+        parent_id="0",
+        properties={"key": "value"},
+        bbox=[0, 0, 1, 1],
+        shingles=["shingle1"],
+    )
+    assert compare_docs(doc1, doc2)
+
+
+def test_compare_docs_different_shingles():
+    doc1 = Document(
+        doc_id="1",
+        type="type1",
+        text_representation="text",
+        embedding=np.array([0.1, 0.2]),
+        parent_id="0",
+        properties={"key": "value"},
+        bbox=[0, 0, 1, 1],
+        shingles=["shingle1"],
+    )
+    doc2 = Document(
+        doc_id="1",
+        type="type1",
+        text_representation="text",
+        embedding=np.array([0.1, 0.2]),
+        parent_id="0",
+        properties={"key": "value"},
+        bbox=[0, 0, 1, 1],
+        shingles=["shingle2"],
+    )
+    with pytest.raises(AssertionError):
+        compare_docs(doc1, doc2)

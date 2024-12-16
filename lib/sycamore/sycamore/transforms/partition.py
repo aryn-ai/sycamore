@@ -371,7 +371,7 @@ class ArynPartitioner(Partitioner):
              the default ARYN_DETR_MODEL unless you are testing a custom model.
              Ignored when local mode is false
         threshold: The threshold to use for accepting the model's predicted bounding boxes. When using
-             the Aryn Partitioning Service, this defaults to "auto", where the service will automatically
+             Aryn DocParse, this defaults to "auto", where the service will automatically
              find the best predictions. You can override this or set it locally by specifying a numerical
              threshold between 0 and 1. A lower value will include more objects, but may have overlaps,
              while a higher value will reduce the number of overlaps, but may miss legitimate objects.
@@ -385,16 +385,20 @@ class ArynPartitioner(Partitioner):
             Tesseract for text and EasyOCR for tables. If you choose paddle make sure to install
             paddlepaddle or paddlepaddle-gpu depending on whether you have a CPU or GPU. Further details are found
             at: https://www.paddlepaddle.org.cn/documentation/docs/en/install/index_en.html. Note: this
-            will be ignored for the Aryn Partitioning Service, which uses its own OCR implementation.
+            will be ignored for Aryn DocParse, which uses its own OCR implementation.
             default: "easyocr"
         per_element_ocr: If true, will run OCR on each element individually instead of the entire page. Note: this
-            will be ignored for the Aryn Partitioning Service, which uses its own OCR implementation.
+            will be ignored for Aryn DocParse, which uses its own OCR implementation.
             default: True
         extract_table_structure: If true, runs a separate table extraction model to extract cells from
              regions of the document identified as tables.
         table_structure_extractor: The table extraction implementaion to use when extract_table_structure
              is True. The default is the TableTransformerStructureExtractor.
              Ignored when local mode is false.
+        table_extractor_options: Dictionary of options that are sent to the TableExtractor implementation. Currently
+            supports union_tokens, which is a boolean that controls whether to union OCR / PDFMiner tokens 
+            in the table cells.
+            default: {"union_tokens": False}
         extract_images: If true, crops each region identified as an image and attaches it to the associated
              ImageElement. This can later be fed into the SummarizeImages transform.
             default: False
@@ -414,6 +418,11 @@ class ArynPartitioner(Partitioner):
         text_extraction_options: Dict of options that are sent to the TextExtractor implementation,
              either pdfminer or OCR. Currently supports the 'object_type' property for pdfminer,
              which can be set to 'boxes' or 'lines' to control the granularity of output.
+        source: The application that is using the partitioner. This is used for logging purposes.
+        output_label_options: A dictionary for configuring output label behavior. It supports two options: 
+        promote_title, a boolean that specifies whether to add a title to partitioned elements if one is missing, and
+            title_candidate_elements, a list of strings representing labels for potential titles.
+            default: {"promote_title": True ,  "title_candidate_elements":["Section-header", "Caption"]}
     Example:
          The following shows an example of using the ArynPartitioner to partition a PDF and extract
          both table structure and image
@@ -436,6 +445,7 @@ class ArynPartitioner(Partitioner):
         per_element_ocr: bool = True,
         extract_table_structure: bool = False,
         table_structure_extractor: Optional[TableStructureExtractor] = None,
+        table_extractor_options: dict[str, Any] = {},
         extract_images: bool = False,
         device=None,
         batch_size: int = 1,
@@ -447,6 +457,8 @@ class ArynPartitioner(Partitioner):
         cache: Optional[Cache] = None,
         output_format: Optional[str] = None,
         text_extraction_options: dict[str, Any] = {},
+        source: str = "",
+        output_label_options: dict[str, Any] = {},
     ):
         if use_partitioning_service:
             device = "cpu"
@@ -467,7 +479,7 @@ class ArynPartitioner(Partitioner):
                 self._threshold = DEFAULT_LOCAL_THRESHOLD
         else:
             if not isinstance(threshold, float) and not use_partitioning_service:
-                raise ValueError("Auto threshold is only supported with the Aryn Partitioning Service.")
+                raise ValueError("Auto threshold is only supported with Aryn DocParse.")
             self._threshold = threshold
 
         self._use_ocr = use_ocr
@@ -476,6 +488,7 @@ class ArynPartitioner(Partitioner):
         self._per_element_ocr = per_element_ocr
         self._extract_table_structure = extract_table_structure
         self._table_structure_extractor = table_structure_extractor
+        self._table_extractor_options = table_extractor_options
         self._extract_images = extract_images
         self._output_format = output_format
         self._batch_size = batch_size
@@ -485,6 +498,8 @@ class ArynPartitioner(Partitioner):
         self._cache = cache
         self._pages_per_call = pages_per_call
         self._text_extraction_options = text_extraction_options
+        self._source = source
+        self.output_label_options = output_label_options
 
     @timetrace("SycamorePdf")
     def partition(self, document: Document) -> Document:
@@ -503,6 +518,7 @@ class ArynPartitioner(Partitioner):
                 ocr_model=self._ocr_model,
                 extract_table_structure=self._extract_table_structure,
                 table_structure_extractor=self._table_structure_extractor,
+                table_extractor_options=self._table_extractor_options,
                 extract_images=self._extract_images,
                 batch_size=self._batch_size,
                 use_partitioning_service=self._use_partitioning_service,
@@ -512,6 +528,8 @@ class ArynPartitioner(Partitioner):
                 pages_per_call=self._pages_per_call,
                 output_format=self._output_format,
                 text_extraction_options=self._text_extraction_options,
+                source=self._source,
+                output_label_options=self.output_label_options,
             )
         except Exception as e:
             path = document.properties["path"]

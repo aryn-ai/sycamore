@@ -12,7 +12,7 @@ from sycamore.utils.time_trace import TimeTrace
 class BaseDBWriter(MapBatch, Write):
 
     # Type param for the client
-    class Client(ABC):
+    class Client:
         @classmethod
         @abstractmethod
         def from_client_params(cls, params: "BaseDBWriter.ClientParams") -> "BaseDBWriter.Client":
@@ -28,6 +28,9 @@ class BaseDBWriter(MapBatch, Write):
 
         @abstractmethod
         def get_existing_target_params(self, target_params: "BaseDBWriter.TargetParams") -> "BaseDBWriter.TargetParams":
+            pass
+
+        def close(self):
             pass
 
     # Type param for the objects to write to the db
@@ -64,17 +67,22 @@ class BaseDBWriter(MapBatch, Write):
         self._target_params = target_params
 
     def write_docs(self, docs: list[Document]) -> list[Document]:
-        client = self.Client.from_client_params(self._client_params)
-        client.create_target_idempotent(self._target_params)
-        created_target_params = client.get_existing_target_params(self._target_params)
-        if not self._target_params.compatible_with(created_target_params):
-            raise ValueError(
-                "Found mismatching target parameters in script and destination\n"
-                f"Script: {self._target_params}\n"
-                f"Destination: {created_target_params}\n"
-            )
-        records = [self.Record.from_doc(d, created_target_params) for d in docs if self._filter(d)]
-        client.write_many_records(records, self._target_params)
+        try:
+            client = self.Client.from_client_params(self._client_params)
+            client.create_target_idempotent(self._target_params)
+            created_target_params = client.get_existing_target_params(self._target_params)
+            if not self._target_params.compatible_with(created_target_params):
+                raise ValueError(
+                    "Found mismatching target parameters in script and destination\n"
+                    f"Script: {self._target_params}\n"
+                    f"Destination: {created_target_params}\n"
+                )
+            records = [self.Record.from_doc(d, created_target_params) for d in docs if self._filter(d)]
+            client.write_many_records(records, self._target_params)
+        except Exception as e:
+            raise ValueError(f"Error writing to target: {e}")
+        finally:
+            client.close()
         return docs
 
     def _write_docs_tt(self, docs: list[Document]) -> list[Document]:

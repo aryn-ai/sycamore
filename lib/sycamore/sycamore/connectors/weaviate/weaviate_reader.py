@@ -1,4 +1,4 @@
-from sycamore.data import Document
+from sycamore.data import Document, uuid_to_docid
 from sycamore.connectors.common import unflatten_data
 from sycamore.connectors.base_reader import BaseDBReader
 from sycamore.data.document import DocumentPropertyTypes, DocumentSource
@@ -90,8 +90,11 @@ class WeaviateReaderQueryResponse(BaseDBReader.QueryResponse):
             doc = Document(
                 (object.vector if hasattr(object, "vector") else {})
                 | unflatten_data(dict(object.properties), "__")
-                | {"doc_id": str(object.uuid)}
+                | {"doc_id": uuid_to_docid(str(object.uuid))}
             )  # type: ignore
+            doc.properties["parent_id"] = str(doc.properties.get("parent_id", "")).replace("-", "")
+            doc.properties["element_id"] = str(doc.properties.get("element_id", "")).replace("-", "")
+            doc.parent_id = str(doc.get("parent_id", ""))
             doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
             result.append(doc)
         return result

@@ -104,9 +104,16 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
             t["block_num"] = 0
         return tokens
 
+    def _init_structure_model(self):
+        from transformers import TableTransformerForObjectDetection
+
+        self.structure_model = TableTransformerForObjectDetection.from_pretrained(self.model).to(self._get_device())
+
     @timetrace("tblExtr")
     @requires_modules(["torch", "torchvision"], extra="local-inference")
-    def extract(self, element: TableElement, doc_image: Image.Image) -> TableElement:
+    def extract(
+        self, element: TableElement, doc_image: Image.Image, union_tokens=False, apply_thresholds=False
+    ) -> TableElement:
         """Extracts the table structure from the specified element using a TableTransformer model.
 
         Takes a TableElement containing a bounding box, for example from the SycamorePartitioner,
@@ -116,6 +123,8 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
           element: A TableElement. The bounding box must be non-null.
           doc_image: A PIL object containing an image of the Document page containing the element.
                Used for bounding box calculations.
+          union_tokens: Make sure that ocr/pdfminer tokens are _all_ included in the table.
+          apply_thresholds: Apply class thresholds to the objects output by the model.
         """
 
         # We need a bounding box to be able to do anything.
@@ -127,9 +136,7 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         width, height = doc_image.size
 
         if self.structure_model is None:
-            from transformers import TableTransformerForObjectDetection
-
-            self.structure_model = TableTransformerForObjectDetection.from_pretrained(self.model).to(self._get_device())
+            self._init_structure_model()
         assert self.structure_model is not None  # For typechecking
 
         # Crop the image to encompass just the table + some padding.
@@ -166,11 +173,13 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         if "no object" not in structure_id2label.keys():
             structure_id2label[len(structure_id2label)] = "no object"
 
-        objects = table_transformers.outputs_to_objects(outputs, cropped_image.size, structure_id2label)
+        objects = table_transformers.outputs_to_objects(
+            outputs, cropped_image.size, structure_id2label, apply_thresholds=apply_thresholds
+        )
 
         # Convert the raw objects to our internal table representation. This involves multiple
         # phases of postprocessing.
-        table = table_transformers.objects_to_table(objects, tokens)
+        table = table_transformers.objects_to_table(objects, tokens, union_tokens=union_tokens)
 
         if table is None:
             element.table = None
@@ -185,6 +194,46 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
 
         element.table = table
         return element
+
+
+class DeformableTableStructureExtractor(TableTransformerStructureExtractor):
+    """A TableStructureExtractor implementation that uses the Deformable DETR model."""
+
+    def __init__(self, model: str, device=None):
+        """
+        Creates a TableTransformerStructureExtractor
+
+        Args:
+          model: The HuggingFace URL or local path for the DeformableDETR model to use.
+        """
+
+        super().__init__(model, device)
+
+    def _init_structure_model(self):
+        from sycamore.utils.model_load import load_deformable_detr
+
+        self.structure_model = load_deformable_detr(self.model, self._get_device())
+
+    def _get_device(self) -> str:
+        return choose_device(self.device, detr=True)
+
+    def extract(
+        self, element: TableElement, doc_image: Image.Image, union_tokens=False, apply_thresholds=True
+    ) -> TableElement:
+        """Extracts the table structure from the specified element using a DeformableDETR model.
+
+        Takes a TableElement containing a bounding box, for example from the SycamorePartitioner,
+        and populates the table property with information about the cells.
+
+        Args:
+          element: A TableElement. The bounding box must be non-null.
+          doc_image: A PIL object containing an image of the Document page containing the element.
+               Used for bounding box calculations.
+          union_tokens: Make sure that ocr/pdfminer tokens are _all_ included in the table.
+          apply_thresholds: Apply class thresholds to the objects output by the model.
+        """
+        # Literally just call the super but change the default for apply_thresholds
+        return super().extract(element, doc_image, union_tokens, apply_thresholds)
 
 
 DEFAULT_TABLE_STRUCTURE_EXTRACTOR = TableTransformerStructureExtractor

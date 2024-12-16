@@ -1,10 +1,9 @@
-import pytest
-
 from sycamore.connectors.weaviate.weaviate_reader import (
     WeaviateReaderQueryParams,
     WeaviateReaderClient,
     WeaviateReaderQueryResponse,
 )
+from sycamore.data.document import DocumentSource
 
 from weaviate.classes.query import Rerank, MetadataQuery
 from sycamore.connectors.common import compare_docs
@@ -15,18 +14,6 @@ from weaviate.collections.query import _QueryCollection
 
 class WeaviateReturnObject(object):
     pass
-
-
-@pytest.fixture(scope="module")
-def embedded_client():
-    port = 8078
-    grpc_port = 50059
-    client = weaviate.WeaviateClient(
-        embedded_options=weaviate.embedded.EmbeddedOptions(version="1.24.0", port=port, grpc_port=grpc_port)
-    )
-    yield client
-    with client:
-        client.collections.delete_all()
 
 
 class TestWeaviateClient:
@@ -112,7 +99,7 @@ class TestWeaviateQueryResponse:
     def test_to_doc_flattened(self):
         cn = "TestToDocFlattened"
         wro = WeaviateReturnObject()
-        wro.uuid = "id"
+        wro.uuid = "00000000-0000-0000-0000-000000000000"
         wro.properties = {
             "properties__field": "value",
             "properties__nested__object": "value",
@@ -126,8 +113,8 @@ class TestWeaviateQueryResponse:
         returned_doc = WeaviateReaderQueryResponse.to_docs(record, wtp_a)[0]
         doc = Document(
             {
-                "doc_id": "id",
-                "properties": {"field": "value", "nested": {"object": "value"}},
+                "doc_id": "aryn:d-00000000000000000000000",
+                "properties": {"field": "value", "nested": {"object": "value"}, "_doc_source": DocumentSource.DB_QUERY},
                 "type": "text",
                 "text_representation": "my first document",
             }
@@ -137,7 +124,7 @@ class TestWeaviateQueryResponse:
     def test_to_doc_with_embeddings(self):
         cn = "TestToDocEmbedding"
         wro = WeaviateReturnObject()
-        wro.uuid = "id"
+        wro.uuid = "00000000-0000-0000-0000-000000000000"
         wro.properties = {"text_representation": "helloworld"}
         wro.vector = {"embedding": [0.4] * 19}
         record = WeaviateReaderQueryResponse(collection=[wro])
@@ -145,13 +132,21 @@ class TestWeaviateQueryResponse:
             collection_name=cn,
         )
         returned_doc = WeaviateReaderQueryResponse.to_docs(record, wtp_a)[0]
-        doc = Document({"doc_id": "id", "text_representation": "helloworld", "embedding": [0.4] * 19})
+        print(returned_doc)
+        doc = Document(
+            {
+                "doc_id": "aryn:d-00000000000000000000000",
+                "text_representation": "helloworld",
+                "properties": {"_doc_source": DocumentSource.DB_QUERY},
+                "embedding": [0.4] * 19,
+            }
+        )
         assert compare_docs(doc, returned_doc)
 
     def test_to_doc_with_list_types(self):
         cn = "TestToDocEmbeddingAndList"
         wro = WeaviateReturnObject()
-        wro.uuid = "id"
+        wro.uuid = "00000000-0000-0000-0000-000000000000"
         wro.properties = {
             "text_representation": "my second document",
             "bbox": (0.1, 1.2, 2.3, 3.4),
@@ -165,9 +160,10 @@ class TestWeaviateQueryResponse:
         returned_doc = WeaviateReaderQueryResponse.to_docs(record, wtp_a)[0]
         doc = Document(
             {
-                "doc_id": "id",
+                "doc_id": "aryn:d-00000000000000000000000",
                 "text_representation": "my second document",
                 "bbox": (0.1, 1.2, 2.3, 3.4),
+                "properties": {"_doc_source": DocumentSource.DB_QUERY},
                 "shingles": [1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4],
                 "embedding": [0.4] * 19,
             }

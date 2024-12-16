@@ -26,6 +26,10 @@ def _pre_process_document(document: Document) -> str:
     return document.text_representation if document.text_representation is not None else ""
 
 
+def _text_representation_is_empty(doc: Document) -> bool:
+    return doc.text_representation is None or doc.text_representation.strip() == ""
+
+
 class Embedder(ABC):
     def __init__(
         self,
@@ -173,6 +177,14 @@ class OpenAIEmbedder(Embedder):
         self._client: Optional[OpenAIClient] = None
         self.model_name = model_name
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state["_client"] = None
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+
     def generate_embeddings(self, doc_batch: list[Document]) -> list[Document]:
         # TODO: Add some input validation here.
         # The OpenAI docs are quite vague on acceptable values for model_batch_size.
@@ -188,14 +200,14 @@ class OpenAIEmbedder(Embedder):
             text_to_embed = [
                 self.pre_process_document(doc).replace("\n", " ")
                 for doc in batch
-                if doc.text_representation is not None
+                if not _text_representation_is_empty(doc)
             ]
 
             embeddings = self._client.embeddings.create(model=self.model_name, input=text_to_embed).data
 
             i = 0
             for doc in batch:
-                if doc.text_representation is not None:
+                if not _text_representation_is_empty(doc):
                     doc.embedding = embeddings[i].embedding
                     i += 1
 
@@ -272,7 +284,7 @@ class BedrockEmbedder(Embedder):
         client = boto3.client("bedrock-runtime")
 
         for doc in doc_batch:
-            if doc.text_representation is not None:
+            if not _text_representation_is_empty(doc):
                 doc.embedding = self._generate_embedding(client, self.pre_process_document(doc))
         return doc_batch
 

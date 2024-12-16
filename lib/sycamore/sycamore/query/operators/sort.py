@@ -15,5 +15,5 @@ class Sort(Node):
     field: str
     """The name of the database field to sort based on."""
 
-    default_value: Any
-    """The default value to use for the field in case it is not present in a particular record."""
+    default_value: Any = None
+    """The default value used when sorting if a document is missing the specified field."""

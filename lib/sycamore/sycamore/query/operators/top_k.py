@@ -19,8 +19,8 @@ class TopK(Node):
     primary_field: Optional[str] = None
     """A database field that is required to be unique when counting the top K occurences of *field*."""
 
-    K: int
-    """The number of top frequency occurences to look for (e.g. top 2 most common, K=2)."""
+    K: Optional[int] = None
+    """The number of top frequency occurences to look for (e.g. top 2 most common, K=2). Use None for all results."""
 
     descending: bool = False
     """If True, will return the top K most common occurrences. If False, will return the top K

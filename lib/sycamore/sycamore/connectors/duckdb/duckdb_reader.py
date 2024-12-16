@@ -1,4 +1,5 @@
 from sycamore.data import Document
+from sycamore.data.document import DocumentPropertyTypes, DocumentSource
 
 from dataclasses import dataclass
 import typing
@@ -57,6 +58,9 @@ class DuckDBReaderClient(BaseDBReader.Client):
         except Exception:
             return False
 
+    def close(self):
+        self._client.close()
+
 
 @dataclass
 class DuckDBReaderQueryResponse(BaseDBReader.QueryResponse):
@@ -73,7 +77,9 @@ class DuckDBReaderQueryResponse(BaseDBReader.QueryResponse):
                 object["properties"] = convert_from_str_dict(val)
             if isinstance(object["embedding"], float):
                 object["embedding"] = []
-            result.append(Document(object))
+            doc = Document(object)
+            doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
+            result.append(doc)
         return result
 
 

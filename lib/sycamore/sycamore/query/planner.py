@@ -1,44 +1,26 @@
-from dataclasses import dataclass
 import logging
 import typing
+from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple, Type
-
 
 from sycamore.llms.llms import LLM
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.query.logical_plan import LogicalPlan, Node
-from sycamore.query.operators.count import Count
-from sycamore.query.operators.llm_filter import LlmFilter
 from sycamore.query.operators.basic_filter import BasicFilter
-from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
-from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDatabase
-from sycamore.query.operators.math import Math
-from sycamore.query.operators.sort import Sort
-from sycamore.query.operators.summarize_data import SummarizeData
-from sycamore.query.operators.top_k import TopK
+from sycamore.query.operators.count import Count
 from sycamore.query.operators.limit import Limit
+from sycamore.query.operators.llm_extract_entity import LlmExtractEntity
+from sycamore.query.operators.llm_filter import LlmFilter
+from sycamore.query.operators.math import Math
+from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDatabase
+from sycamore.query.operators.sort import Sort
+from sycamore.query.operators.top_k import TopK
 from sycamore.query.schema import OpenSearchSchema, OpenSearchSchemaField
+from sycamore.query.strategy import QueryPlanStrategy, ALL_OPERATORS
 from sycamore.utils.extract_json import extract_json
 
 if typing.TYPE_CHECKING:
     from opensearchpy import OpenSearch
-
-
-# All operators that are allowed for construction of a query plan.
-# If a class is not in this list, it will not be used.
-OPERATORS: List[Type[Node]] = [
-    QueryDatabase,
-    QueryVectorDatabase,
-    BasicFilter,
-    LlmFilter,
-    LlmExtractEntity,
-    Count,
-    SummarizeData,
-    Math,
-    Sort,
-    TopK,
-    Limit,
-]
 
 
 # This is the base prompt for the planner.
@@ -57,11 +39,11 @@ guidelines when generating a plan:
             "properties.key" or "properties.count"; you can only reference one of those fields.
             Other than those, DO NOT USE ANY OTHER FIELD NAMES.
         5. If an optional field does not have a value in the query plan, return null in its place.
-        6. The first step of each plan MUST be a **QueryDatabase** or **QueryVectorDatabase" operation that returns a 
-           database. Whenever possible, include all possible filtering operations in the QueryDatabase step.
+        6. The first step of each plan MUST be a **QueryDatabase** or **QueryVectorDatabase" operation. 
+            Whenever possible, include all possible filtering operations in the first step.
            That is, you should strive to construct an OpenSearch query that filters the data as
-           much as possible, reducing the need for further query operations. Use a QueryVectorDatabase step instead of
-           an LLMFilter if the query looks reasonable.
+           much as possible, reducing the need for further query operations. If using a QueryVectorDatabase, always
+              follow it with an LlmFilter operation to ensure the final results are accurate.
 """
 
 # Variants on the last step in the query plan, based on whether the user has requested raw data
@@ -138,14 +120,8 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
                     node_id=0,
                     description="Get all the incident reports",
                     index="ntsb",
-                ),
-                1: LlmFilter(
-                    node_id=1,
-                    description="Filter to only include incidents in Georgia",
-                    question="Did this incident occur in Georgia?",
-                    field="properties.entity.location",
-                    inputs=[0],
-                ),
+                    query={"match_phrase": {"properties.entity.location": "Georgia"}},
+                )
             },
         ),
     ),
@@ -174,7 +150,7 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
         schema=EXAMPLE_NTSB_SCHEMA,
         plan=LogicalPlan(
             query="""Show incidents between July 1, 2023 and September 1, 2024 with an accident
- .         number containing 'K1234N' that occurred in Georgia.""",
+ .         number containing 'K1234N' that occurred in New Mexico.""",
             result_node=0,
             nodes={
                 0: QueryDatabase(
@@ -194,7 +170,7 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
                                     }
                                 },
                                 {"match": {"properties.entity.accidentNumber.keyword": "*K1234N*"}},
-                                {"match": {"properties.entity.location": "Georgia"}},
+                                {"match_phrase": {"properties.entity.location": "New Mexico"}},
                             ]
                         }
                     },
@@ -212,7 +188,7 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
                     node_id=0,
                     description="Get all the incident reports involving Cessna aircrafts",
                     index="ntsb",
-                    query={"match": {"properties.entity.aircraft": "Cessna"}},
+                    query={"match_phrase": {"properties.entity.aircraft": "Cessna"}},
                 ),
                 1: Count(
                     node_id=1,
@@ -241,7 +217,6 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
                     field="text_representation",
                     new_field="pilot",
                     new_field_type="str",
-                    discrete=True,
                     inputs=[0],
                 ),
                 2: TopK(
@@ -308,10 +283,39 @@ PLANNER_EXAMPLES: List[PlannerExample] = [
             nodes={
                 0: QueryVectorDatabase(
                     node_id=0,
-                    description="Get all the incidents relating to sudden weather changes",
+                    description="Get some incidents relating to sudden weather changes",
                     index="ntsb",
                     query_phrase="sudden weather changes",
-                )
+                ),
+                1: LlmFilter(
+                    node_id=1,
+                    description="Filter to only include incidents caused due to sudden weather changes",
+                    question="Did this incident occur due to sudden weather changes?",
+                    field="text_representation",
+                    inputs=[0],
+                ),
+            },
+        ),
+    ),
+    PlannerExample(
+        schema=EXAMPLE_NTSB_SCHEMA,
+        plan=LogicalPlan(
+            query="Show me some incidents relating to water causes",
+            result_node=0,
+            nodes={
+                0: QueryVectorDatabase(
+                    node_id=0,
+                    description="Get some incidents relating to water causes",
+                    index="ntsb",
+                    query_phrase="water causes",
+                ),
+                1: LlmFilter(
+                    node_id=1,
+                    description="Filter to only include incidents that occur due to water causes",
+                    question="Did this incident occur because of water causes",
+                    field="text_representation",
+                    inputs=[0],
+                ),
             },
         ),
     ),
@@ -364,7 +368,7 @@ class LlmPlanner:
         data_schema: A dictionary mapping field names to their types.
         os_config: The OpenSearch configuration.
         os_client: The OpenSearch client.
-        operators: A list of operators to use in the query plan.
+        strategy: Strategy to use for planning, can be used to balance cost vs speed.
         llm_client: The LLM client.
         examples: Query examples to assist the LLM planner in few-shot learning.
             You may override this to customize the few-shot examples provided to the planner.
@@ -378,7 +382,7 @@ class LlmPlanner:
         data_schema: OpenSearchSchema,
         os_config: dict[str, str],
         os_client: "OpenSearch",
-        operators: Optional[List[Type[Node]]] = None,
+        strategy: QueryPlanStrategy = QueryPlanStrategy(ALL_OPERATORS, []),
         llm_client: Optional[LLM] = None,
         examples: Optional[List[PlannerExample]] = None,
         natural_language_response: bool = False,
@@ -386,7 +390,7 @@ class LlmPlanner:
         super().__init__()
         self._index = index
         self._data_schema = data_schema
-        self._operators = operators if operators else OPERATORS
+        self._strategy = strategy
         self._os_config = os_config
         self._os_client = os_client
         self._llm_client = llm_client or OpenAI(OpenAIModels.GPT_4O.value)
@@ -461,7 +465,7 @@ class LlmPlanner:
 
         OPERATORS:
         """
-        for operator in self._operators:
+        for operator in self._strategy.operators:
             prompt += self.make_operator_prompt(operator)
 
         # Data schema.
@@ -500,9 +504,7 @@ class LlmPlanner:
         ]
 
         prompt_kwargs = {"messages": messages}
-        chat_completion = self._llm_client.generate(
-            prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0, "seed": 42}
-        )
+        chat_completion = self._llm_client.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={"temperature": 0})
         return prompt_kwargs, chat_completion
 
     def plan(self, question: str) -> LogicalPlan:
@@ -510,6 +512,8 @@ class LlmPlanner:
         llm_prompt, llm_plan = self.generate_from_llm(question)
         try:
             plan = process_json_plan(llm_plan)
+            for processor in self._strategy.post_processors:
+                plan = processor(plan)
         except Exception as e:
             logging.error(f"Error processing LLM-generated query plan: {e}\nPlan is:\n{llm_plan}")
             raise

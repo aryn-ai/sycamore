@@ -1,0 +1,74 @@
+config:
+  config_file: /private/var/folders/rd/5lfl86jj2yb3gn2zwwgqjgrc0000gn/T/pytest-of-vinayakthapliyal/pytest-110/test_driver_do_query0/test_input.yaml
+  doc_limit: null
+  dry_run: false
+  index: test-index
+  llm: null
+  llm_cache_path: null
+  log_file: null
+  natural_language_response: true
+  overwrite: false
+  query_cache_path: null
+  results_file: test-results.yaml
+  tags: null
+data_schema:
+  fields:
+    field1:
+      description: text
+      examples: null
+      field_type: <class 'str'>
+    field2:
+      description: keyword
+      examples: null
+      field_type: <class 'str'>
+examples: null
+results:
+- error: null
+  metrics:
+    correctness_score: null
+    doc_retrieval_precision: null
+    doc_retrieval_recall: null
+    plan_diff_count: null
+    plan_generation_time: null
+    plan_similarity: null
+    query_time: null
+    similarity_score: null
+  notes: null
+  plan: null
+  query:
+    expected: null
+    expected_docs:
+    - doc1.pdf
+    - doc2.pdf
+    expected_plan: null
+    notes: null
+    plan: null
+    query: test query 1
+    tags:
+    - test
+  result: null
+  retrieved_docs: null
+  timestamp: '2024-11-05T02:46:16.861230+00:00'
+- error: null
+  metrics:
+    correctness_score: null
+    doc_retrieval_precision: null
+    doc_retrieval_recall: null
+    plan_diff_count: null
+    plan_generation_time: null
+    plan_similarity: null
+    query_time: null
+    similarity_score: null
+  notes: null
+  plan: null
+  query:
+    expected: null
+    expected_docs: null
+    expected_plan: null
+    notes: null
+    plan: null
+    query: test query 2
+    tags: null
+  result: null
+  retrieved_docs: null
+  timestamp: '2024-11-05T02:46:16.861896+00:00'

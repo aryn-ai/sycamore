@@ -349,10 +349,9 @@ class DocSet:
         Example:
          .. code-block:: python
 
-            augmentor = FStringTextAugmentor(sentences = [
-                "This pertains to the part {doc.properties['part_name']}.",
-                "{doc.text_representation}"
-            ])
+            augmentor = UDFTextAugmentor(
+                lambda doc: f"This pertains to the part {doc.properties['part_name']}.\n{doc.text_representation}"
+            )
             entity_extractor = OpenAIEntityExtractor("part_name",
                                         llm=openai_llm,
                                         prompt_template=part_name_template)
@@ -723,30 +722,46 @@ class DocSet:
     def mark_bbox_preset(self, tokenizer: Tokenizer, token_limit: int = 512, **kwargs) -> "DocSet":
         """
         Convenience composition of:
-            SortByPageBbox
-            MarkDropTiny minimum=2
-            MarkDropHeaderFooter top=0.05 bottom=0.05
-            MarkBreakPage
-            MarkBreakByColumn
-            MarkBreakByTokens limit=512
-        Meant to work in concert with MarkedMerger.
-        """
-        from sycamore.transforms import (
-            SortByPageBbox,
-            MarkDropTiny,
-            MarkDropHeaderFooter,
-            MarkBreakPage,
-            MarkBreakByColumn,
-            MarkBreakByTokens,
-        )
 
-        plan0 = SortByPageBbox(self.plan, **kwargs)
-        plan1 = MarkDropTiny(plan0, 2, **kwargs)
-        plan2 = MarkDropHeaderFooter(plan1, 0.05, 0.05, **kwargs)
-        plan3 = MarkBreakPage(plan2, **kwargs)
-        plan4 = MarkBreakByColumn(plan3, **kwargs)
-        plan5 = MarkBreakByTokens(plan4, tokenizer, token_limit, **kwargs)
-        return DocSet(self.context, plan5)
+        |    SortByPageBbox
+        |    MarkDropTiny minimum=2
+        |    MarkDropHeaderFooter top=0.05 bottom=0.05
+        |    MarkBreakPage
+        |    MarkBreakByColumn
+        |    MarkBreakByTokens limit=512
+
+        Meant to work in concert with MarkedMerger.
+
+        Use this method like so:
+
+        .. code-block:: python
+
+            context = sycamore.init()
+            token_limit = 512
+            paths = ["path/to/pdf1.pdf", "path/to/pdf2.pdf"]
+
+            (context.read.binary(paths, binary_format="pdf")
+                .partition(partitioner=ArynPartitioner())
+                .mark_bbox_preset(tokenizer, token_limit)
+                .merge(merger=MarkedMerger())
+                .split_elements(tokenizer, token_limit)
+                .show())
+
+        If you want to compose your own marking, note that ``docset.mark_bbox_preset(...)`` is equivalent to:
+
+        .. code-block:: python
+
+            (docset.transform(SortByPageBbox)
+                .transform(MarkDropTiny, minimum=2)
+                .transform(MarkDropHeaderFooter, top=0.05, bottom=0.05)
+                .transform(MarkBreakPage)
+                .transform(MarkBreakByColumn)
+                .transform(MarkBreakByTokens, tokenizer=tokenizer, limit=token_limit))
+        """
+        from sycamore.transforms.mark_misc import MarkBboxPreset
+
+        preset = MarkBboxPreset(self.plan, tokenizer, token_limit, **kwargs)
+        return DocSet(self.context, preset)
 
     def merge(self, merger: ElementMerger, **kwargs) -> "DocSet":
         """
@@ -1140,7 +1155,6 @@ class DocSet:
         query: str,
         score_property_name: str = "_rerank_score",
         limit: Optional[int] = None,
-        **kwargs,
     ) -> "DocSet":
         """
         Sort a DocSet given a scoring class.
@@ -1158,7 +1172,7 @@ class DocSet:
         else:
             plan = self.plan
         similarity_scored = ScoreSimilarity(
-            plan, similarity_scorer=similarity_scorer, query=query, score_property_name=score_property_name, **kwargs
+            plan, similarity_scorer=similarity_scorer, query=query, score_property_name=score_property_name
         )
         return DocSet(
             self.context,
@@ -1176,9 +1190,18 @@ class DocSet:
             field: Document field in relation to Document using dotted notation, e.g. properties.filetype
             default_val: Default value to use if field does not exist in Document
         """
-        from sycamore.transforms import Sort
+        from sycamore.transforms.sort import Sort, DropIfMissingField
 
-        return DocSet(self.context, Sort(self.plan, descending, field, default_val))
+        plan = self.plan
+        if default_val is None:
+            import logging
+
+            logging.warning(
+                "Default value is none. Adding explicit filter step to drop documents missing the key."
+                " This includes any metadata.documents."
+            )
+            plan = DropIfMissingField(plan, field)
+        return DocSet(self.context, Sort(plan, descending, field, default_val))
 
     def groupby_count(self, field: str, unique_field: Optional[str] = None, **kwargs) -> "DocSet":
         """

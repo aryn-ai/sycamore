@@ -1,4 +1,4 @@
-from sycamore.data import Document
+from sycamore.data import Document, mkdocid
 from sycamore.plan_nodes import Node, Write
 
 from pyarrow.fs import FileSystem
@@ -9,7 +9,6 @@ import json
 import logging
 from pathlib import Path
 import posixpath
-import uuid
 from typing import Callable, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -22,11 +21,14 @@ logger = logging.getLogger(__name__)
 class JSONEncodeWithUserDict(json.JSONEncoder):
     def default(self, obj):
         from sycamore.data.bbox import BoundingBox
+        from sycamore.data.table import Table
 
         if isinstance(obj, UserDict):
             return obj.data
         elif isinstance(obj, BoundingBox):
             return {"x1": obj.x1, "y1": obj.y1, "x2": obj.x2, "y2": obj.y2}
+        elif isinstance(obj, Table):
+            return obj.to_dict()
         elif isinstance(obj, bytes):
             import base64
 
@@ -45,7 +47,7 @@ def default_filename(doc: Document, extension: Optional[str] = None) -> str:
         extension: An optional extension that will be appended to the name following a '.'.
     """
     if doc.doc_id is None:
-        base_name = str(uuid.uuid4())
+        base_name = mkdocid()
     else:
         base_name = str(doc.doc_id)
 

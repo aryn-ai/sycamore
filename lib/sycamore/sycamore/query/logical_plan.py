@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from enum import Enum
 from functools import wraps
 import json
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any, Dict, List, MutableMapping, Optional
 from hashlib import sha256
 
 from pydantic import (
@@ -13,6 +13,8 @@ from pydantic import (
     model_validator,
     field_serializer,
 )
+
+from sycamore import DocSet
 
 
 def exclude_from_comparison(func):
@@ -67,7 +69,7 @@ class Node(BaseModel):
     node_id: int
     """A unique integer ID representing this node."""
 
-    description: Optional[str] = None
+    description: Optional[str] = Field(None, json_schema_extra={"exclude_from_comparison": True})
     """A detailed description of why this operator was chosen for this query plan."""
 
     inputs: List[int] = []
@@ -76,6 +78,16 @@ class Node(BaseModel):
     # The nodes that this node depends on. This should be populated externally
     # when a LogicalPlan is created.
     _input_nodes: Optional[List["Node"]] = None
+
+    @property
+    def input_types(self) -> set[type]:
+        """The types of the input to this operator. Default operations accept DocSets"""
+        return {DocSet}
+
+    @property
+    def output_type(self) -> type:
+        """The type of the output to this operator. Default operations return a DocSet"""
+        return DocSet
 
     def input_nodes(self) -> List["Node"]:
         """Returns the nodes that this node depends on."""
@@ -185,7 +197,7 @@ class LogicalPlan(BaseModel):
     query: str
     """The query that the plan is for."""
 
-    nodes: Mapping[int, SerializeAsAny[Node]]
+    nodes: MutableMapping[int, SerializeAsAny[Node]]
     """A mapping of node IDs to nodes in the query plan."""
 
     result_node: int
@@ -233,6 +245,67 @@ class LogicalPlan(BaseModel):
         assert 0 in self.nodes, "Plan a requires at least 1 node with ID [0]"
         assert 0 in other.nodes, "Plan b requires at least 1 node with ID [0]"
         return compare_graphs(self, other, self.nodes[0].node_id, other.nodes[0].node_id, set(), set())
+
+    def replace_node(self, node_id: int, new_node: Node) -> None:
+        """
+        Replace the existing node at node_id with "new_node".
+        """
+
+        # sanity check -- we can't create "new_node" without node_id, so we should have already set that properly
+        old_node = self.nodes[node_id]
+        assert new_node.node_id == old_node.node_id
+
+        # borrow _input_nodes and inputs from the old node
+        new_node.inputs = old_node.inputs
+        new_node._input_nodes = old_node._input_nodes
+
+        # for any other node that has old_node in its _input_nodes, replace with node
+        for node in self.nodes.values():
+            if node._input_nodes and old_node in node._input_nodes:
+                node._input_nodes = [new_node if x == old_node else x for x in node._input_nodes]
+
+        # update the nodes array
+        self.nodes[node_id] = new_node
+
+    def insert_node(self, node_id: int, new_node: Node) -> None:
+        """
+        Insert a node into the plan at the specified node_id.
+        Any nodes that depend on the current node_id are shifted to the right, and their node_ids are incremented.
+        Also, the input arrays of the affected nodes are updated.
+
+        Precondition: node_id must be greater than 0, and the current node at node_id must have exactly one input.
+
+        If there is no current node at node_id (i.e., the new node is being "appended"), we use the current result node
+        as the input to it.
+        """
+        assert node_id > 0, f"Node ID must be greater than 0, got {node_id}"
+        assert (
+            len(self.nodes) == node_id or len(self.nodes[node_id].inputs) == 1
+        ), f"""Current node at {node_id} 
+                                                must have exactly one input, or there should be only one operator"""
+
+        if len(self.nodes) == node_id:
+            new_node._input_nodes = [self.nodes[self.result_node]]
+        else:
+            # Add the input node for the new node
+            new_node._input_nodes = self.nodes[node_id]._input_nodes
+
+            # Shift all nodes that are after the current node_id to the right
+            for nid in sorted(self.nodes.keys(), reverse=True):
+                if nid >= node_id:
+                    self.nodes[nid].node_id += 1
+                    self.nodes[nid].inputs = [x + 1 for x in self.nodes[nid].inputs]
+                    self.nodes[nid + 1] = self.nodes[nid]
+
+            # Modify the _input_nodes for self.nodes[node_id+1]
+            self.nodes[node_id + 1]._input_nodes = [new_node]
+
+        # Insert the new node at the specified node_id
+        self.nodes[node_id] = new_node
+
+        # Modify the terminal node in the plan
+        self.result_node += 1
+        return
 
 
 def compare_graphs(

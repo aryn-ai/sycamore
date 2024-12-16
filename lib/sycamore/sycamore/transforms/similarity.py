@@ -170,7 +170,6 @@ class HuggingFaceTransformersSimilarityScorer(SimilarityScorer):
     def score(self, inputs: list[tuple[str, str]]) -> list[float]:
         import torch
 
-        print(f"GPU: {torch.cuda.is_available()}")
         if not self._model or not self._tokenizer:
             logger.info(f"Initializing transformers model: {self.model_name}")
             from transformers import AutoModelForSequenceClassification, AutoTokenizer

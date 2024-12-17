@@ -1,6 +1,6 @@
 import logging
 
-from sycamore.connectors.doc_reconstruct import OpenSearchDocumentReconstructor
+from sycamore.connectors.doc_reconstruct import DocumentReconstructor
 from sycamore.data import Document, Element
 from sycamore.connectors.base_reader import BaseDBReader
 from sycamore.data.document import DocumentPropertyTypes, DocumentSource
@@ -21,10 +21,10 @@ class OpenSearchReaderClientParams(BaseDBReader.ClientParams):
 @dataclass
 class OpenSearchReaderQueryParams(BaseDBReader.QueryParams):
     index_name: str
-    query: Dict = field(default_factory=lambda: {"query": {"match_all": {}}})
+    query: Dict
     kwargs: Dict = field(default_factory=lambda: {})
     reconstruct_document: bool = False
-    doc_reconstructor: Optional[OpenSearchDocumentReconstructor] = None
+    doc_reconstructor: Optional[DocumentReconstructor] = None
 
 
 class OpenSearchReaderClient(BaseDBReader.Client):

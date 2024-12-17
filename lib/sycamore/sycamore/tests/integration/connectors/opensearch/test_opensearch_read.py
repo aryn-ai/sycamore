@@ -7,7 +7,7 @@ from opensearchpy import OpenSearch
 
 import sycamore
 from sycamore import EXEC_LOCAL
-from sycamore.connectors.doc_reconstruct import OpenSearchDocumentReconstructor
+from sycamore.connectors.doc_reconstruct import DocumentReconstructor
 from sycamore.data import Document
 from sycamore.tests.integration.connectors.common import compare_connector_docs
 from sycamore.tests.config import TEST_DIR
@@ -118,7 +118,6 @@ class TestOpenSearchRead:
         query_materialized = query_docs.take_all()
         retrieved_materialized_reconstructed = sorted(retrieved_docs_reconstructed.take_all(), key=lambda d: d.doc_id)
 
-        # with OpenSearch(**TestOpenSearchRead.OS_CLIENT_ARGS) as os_client:
         os_client.indices.delete(TestOpenSearchRead.INDEX)
         assert len(query_materialized) == 1  # exactly one doc should be returned
         compare_connector_docs(original_materialized, retrieved_materialized)
@@ -148,6 +147,7 @@ class TestOpenSearchRead:
 
         context = sycamore.init(exec_mode=EXEC_LOCAL)
         hidden = str(uuid.uuid4())
+        # make sure we read from pickle files -- this part won't be written into opensearch.
         dicts = [
             {
                 "doc_id": "1",
@@ -222,17 +222,18 @@ class TestOpenSearchRead:
                 os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
                 index_name=TestOpenSearchRead.INDEX,
                 reconstruct_document=True,
-                doc_reconstructor=OpenSearchDocumentReconstructor(TestOpenSearchRead.INDEX, doc_reconstructor),
+                doc_reconstructor=DocumentReconstructor(TestOpenSearchRead.INDEX, doc_reconstructor),
             )
-            .filter(lambda doc: doc.doc_id == "1")
+            # .filter(lambda doc: doc.doc_id == "1")
             .take_all()
         )
 
-        assert len(retrieved_docs_reconstructed) == 1
-        assert retrieved_docs_reconstructed[0].data["hidden"] == hidden
+        assert len(retrieved_docs_reconstructed) == 6
+        retrieved_sorted = sorted(retrieved_docs_reconstructed, key=lambda d: d.doc_id)
+        assert retrieved_sorted[0].data["hidden"] == hidden
+        assert docs == retrieved_sorted
 
         # Clean slate between Execution Modes
-        # with OpenSearch(**TestOpenSearchRead.OS_CLIENT_ARGS) as os_client:
         os_client.indices.delete(TestOpenSearchRead.INDEX)
         os_client.indices.create(TestOpenSearchRead.INDEX, **TestOpenSearchRead.INDEX_SETTINGS)
         os_client.indices.refresh(TestOpenSearchRead.INDEX)

@@ -1,10 +1,11 @@
-from typing import Optional, Union, Callable, Dict, Any
+from typing import Optional, Union, Callable, Dict
 from pathlib import Path
 
 from pandas import DataFrame
 from pyarrow import Table
 from pyarrow.filesystem import FileSystem
 
+from sycamore.connectors.doc_reconstruct import DocumentReconstructor
 from sycamore.context import context_params
 from sycamore.plan_nodes import Node
 from sycamore import Context, DocSet
@@ -224,7 +225,7 @@ class DocSetReader:
         index_name: str,
         query: Optional[Dict] = None,
         reconstruct_document: bool = False,
-        doc_reconstructor: Optional[Callable[[str, str], Document]] = None,
+        doc_reconstructor: Optional[DocumentReconstructor] = None,
         query_kwargs=None,
         **kwargs,
     ) -> DocSet:
@@ -241,6 +242,7 @@ class DocSetReader:
             reconstruct_document: Used to decide whether the returned DocSet comprises reconstructed documents,
                 i.e. by collecting all elements belong to a single parent document (parent_id). This requires OpenSearch
                 to be an index of docset.explode() type. Default to false.
+            doc_reconstructor: (Optional) A custom document reconstructor to use when reconstructing documents.
             query_kwargs: (Optional) Parameters to configure the underlying OpenSearch search query.
             **kwargs: (Optional) kwargs to pass undefined parameters around.
 
@@ -291,22 +293,17 @@ class DocSetReader:
         )
 
         client_params = OpenSearchReaderClientParams(os_client_args=os_client_args)
-        query_params = (
-            OpenSearchReaderQueryParams(
-                index_name=index_name,
-                query=query,
-                reconstruct_document=reconstruct_document,
-                doc_reconstructor=doc_reconstructor,
-                kwargs=query_kwargs,
-            )
-            if query is not None
-            else OpenSearchReaderQueryParams(
-                index_name=index_name,
-                reconstruct_document=reconstruct_document,
-                doc_reconstructor=doc_reconstructor,
-                kwargs=query_kwargs,
-            )
+        if query is None:
+            query = {"query": {"match_all": {}}}
+
+        query_params = OpenSearchReaderQueryParams(
+            index_name=index_name,
+            query=query,
+            reconstruct_document=reconstruct_document,
+            doc_reconstructor=doc_reconstructor,
+            kwargs=query_kwargs,
         )
+
         osr = OpenSearchReader(client_params=client_params, query_params=query_params)
         return DocSet(self._context, osr)
 

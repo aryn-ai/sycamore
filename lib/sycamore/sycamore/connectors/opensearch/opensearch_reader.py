@@ -1,12 +1,13 @@
 import logging
 
+from sycamore.connectors.doc_reconstruct import OpenSearchDocumentReconstructor
 from sycamore.data import Document, Element
 from sycamore.connectors.base_reader import BaseDBReader
 from sycamore.data.document import DocumentPropertyTypes, DocumentSource
 from sycamore.utils.import_utils import requires_modules
 from dataclasses import dataclass, field
 import typing
-from typing import Dict
+from typing import Dict, Optional
 
 if typing.TYPE_CHECKING:
     from opensearchpy import OpenSearch
@@ -23,7 +24,7 @@ class OpenSearchReaderQueryParams(BaseDBReader.QueryParams):
     query: Dict = field(default_factory=lambda: {"query": {"match_all": {}}})
     kwargs: Dict = field(default_factory=lambda: {})
     reconstruct_document: bool = False
-    doc_reconstructor: typing.Optional[typing.Callable[[str, str], Document]] = None
+    doc_reconstructor: Optional[OpenSearchDocumentReconstructor] = None
 
 
 class OpenSearchReaderClient(BaseDBReader.Client):
@@ -51,7 +52,7 @@ class OpenSearchReaderClient(BaseDBReader.Client):
         if query_params.reconstruct_document:
             query_params.kwargs["_source_includes"] = ["doc_id", "parent_id", "properties"]
         if query_params.doc_reconstructor is not None:
-            query_params.kwargs["_source_includes"] = ["parent_id"]
+            query_params.kwargs["_source_includes"] = query_params.doc_reconstructor.get_required_source_fields()
         # No pagination needed for knn queries
         if "query" in query_params.query and "knn" in query_params.query["query"]:
             response = self._client.search(
@@ -102,11 +103,9 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
             logging.info("Using DocID to Document reconstructor")
             unique = set()
             for data in self.output:
-                doc_id = data["_source"]["parent_id"] or data["_id"]
+                doc_id = query_params.doc_reconstructor.get_doc_id(data)
                 if doc_id not in unique:
-                    # The reconstructor may or may not fetch the document from a cache
-                    # We assume it is capable of fetching the document from the source in the event of a cache miss
-                    result.append(query_params.doc_reconstructor(query_params.index_name, doc_id))
+                    result.append(query_params.doc_reconstructor.reconstruct(data))
                     unique.add(doc_id)
         elif not query_params.reconstruct_document:
             for data in self.output:

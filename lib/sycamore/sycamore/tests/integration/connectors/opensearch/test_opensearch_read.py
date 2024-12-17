@@ -8,6 +8,7 @@ import pytest
 from opensearchpy import OpenSearch
 
 import sycamore
+from sycamore import EXEC_LOCAL
 from sycamore.data import Document
 from sycamore.tests.integration.connectors.common import compare_connector_docs
 from sycamore.tests.config import TEST_DIR
@@ -116,7 +117,7 @@ class TestOpenSearchRead:
         for i in range(len(doc.elements) - 1):
             assert doc.elements[i].element_index < doc.elements[i + 1].element_index
 
-    def _test_ingest_and_read_via_docid_reconstructor(self, setup_index, exec_mode, cache_dir):
+    def _test_ingest_and_read_via_docid_reconstructor(self, setup_index, cache_dir):
         """
         Validates data is readable from OpenSearch, and that we can rebuild processed Sycamore documents.
         """
@@ -124,25 +125,20 @@ class TestOpenSearchRead:
         print(f"Using cache dir: {cache_dir}")
 
         def doc_reconstructor(index_name: str, doc_id: str) -> Document:
-            prefix = f"doc-{doc_id}"
-            found = None
-            files = os.listdir(cache_dir)
-            for f in files:
-                if f.startswith(prefix):
-                    found = f
-                    break
-            assert found, "Doc not found in cache"
             import pickle
 
-            data = pickle.load(open(f"{cache_dir}/{found}", "rb"))
+            data = pickle.load(open(f"{cache_dir}/{TestOpenSearchRead.INDEX}-{doc_id}", "rb"))
             return Document(**data)
 
+        def doc_to_name(doc: Document, bin: bytes) -> str:
+            return f"{TestOpenSearchRead.INDEX}-{doc.doc_id}"
+
         path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
-        context = sycamore.init(exec_mode=exec_mode)
+        context = sycamore.init(exec_mode=EXEC_LOCAL)
         original_docs = (
             context.read.binary(path, binary_format="pdf")
             .partition(partitioner=UnstructuredPdfPartitioner())
-            .materialize(cache_dir)
+            .materialize(path={"root": cache_dir, "name": doc_to_name})
             .explode()
             .write.opensearch(
                 os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
@@ -198,6 +194,6 @@ class TestOpenSearchRead:
             os_client.indices.create(TestOpenSearchRead.INDEX, **TestOpenSearchRead.INDEX_SETTINGS)
             os_client.indices.refresh(TestOpenSearchRead.INDEX)
 
-    def test_ingest_and_read_via_docid_reconstructor(self, setup_index, exec_mode):
+    def test_ingest_and_read_via_docid_reconstructor(self, setup_index):
         with tempfile.TemporaryDirectory() as cache_dir:
-            self._test_ingest_and_read_via_docid_reconstructor(setup_index, exec_mode, cache_dir)
+            self._test_ingest_and_read_via_docid_reconstructor(setup_index, cache_dir)

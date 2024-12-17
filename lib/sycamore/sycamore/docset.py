@@ -1034,7 +1034,10 @@ class DocSet:
                     return keep_none
                 doc = entity_extractor.extract_entity(doc)
                 # todo: move data extraction and validation to entity extractor
-                return int(re.findall(r"\d+", doc.properties[new_field])[0]) >= threshold
+                try:
+                    return int(re.findall(r"\d+", doc.properties[new_field])[0]) >= threshold
+                except IndexError:
+                    return False
 
             if similarity_query is not None:
                 assert similarity_scorer is not None, "Similarity sorting requires a scorer"
@@ -1094,7 +1097,10 @@ class DocSet:
                     e_doc = entity_extractor.extract_entity(e_doc)
                     element.properties[new_field] = e_doc.properties[new_field]
                     # todo: move data extraction and validation to entity extractor
-                    score = int(re.findall(r"\d+", element.properties[new_field])[0])
+                    try:
+                        score = int(re.findall(r"\d+", element.properties[new_field])[0])
+                    except IndexError as e:
+                        continue
                     # storing the element_index of the element that provides the highest match score for a document.
                     doc_source_field_name = f"{new_field}_source_element_index"
                     if score >= doc.get(doc_source_field_name, 0):

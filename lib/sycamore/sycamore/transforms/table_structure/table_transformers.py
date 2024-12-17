@@ -53,6 +53,23 @@ def apply_class_thresholds(bboxes, labels, scores, class_names, class_thresholds
     return bboxes, scores, labels
 
 
+def apply_class_thresholds_or_take_best(bboxes, labels, scores, class_names, class_thresholds, epsilon=0.05):
+    """
+    Filter out bounding boxes whose confidence is below the confidence threshold for its
+    associated class threshold, defining the threshold as whichever is lower between what
+    is written in the class_thresholds dict and the highest score for the class minus epsilon
+    """
+    new_class_thresholds = {k: v for k, v in class_thresholds.items()}
+    max_row_score = max(sc for (sc, lbl) in zip(scores, labels) if class_names[lbl] == "table row")
+    max_col_score = max(sc for (sc, lbl) in zip(scores, labels) if class_names[lbl] == "table column")
+    if max_row_score - epsilon < class_thresholds["table row"]:
+        new_class_thresholds["table row"] = max_row_score - epsilon
+    if max_col_score - epsilon < class_thresholds["table column"]:
+        new_class_thresholds["table column"] = max_col_score - epsilon
+    new_class_thresholds["table"] = 0.0
+    return apply_class_thresholds(bboxes, labels, scores, class_names, new_class_thresholds)
+
+
 def iob(coords1, coords2) -> float:
     return BoundingBox(*coords1).iob(BoundingBox(*coords2))
 
@@ -83,7 +100,7 @@ def outputs_to_objects(outputs, img_size, id2label, apply_thresholds: bool = Fal
     pred_bboxes = [elem.tolist() for elem in rescale_bboxes(pred_bboxes, img_size)]
 
     if apply_thresholds:
-        pred_bboxes, pred_scores, pred_labels = apply_class_thresholds(
+        pred_bboxes, pred_scores, pred_labels = apply_class_thresholds_or_take_best(
             pred_bboxes, pred_labels, pred_scores, id2label, DEFAULT_STRUCTURE_CLASS_THRESHOLDS
         )
 
@@ -277,20 +294,32 @@ def slot_into_containers(
             # If the container starts after the package ends, break
             if not _early_exit_vertical and container["bbox"][0] > package["bbox"][2]:
                 if len(match_scores) == 0:
-                    match_scores.append({"container": container, "container_num": container_num, "score": 0})
+                    match_scores.append(
+                        {"container": container, "container_num": container_num, "score": 0, "score_2": 0}
+                    )
                 break
             elif _early_exit_vertical and container["bbox"][1] > package["bbox"][3]:
                 if len(match_scores) == 0:
-                    match_scores.append({"container": container, "container_num": container_num, "score": 0})
+                    match_scores.append(
+                        {"container": container, "container_num": container_num, "score": 0, "score_2": 0}
+                    )
                 break
             container_rect = BoundingBox(*container["bbox"])
             intersect_area = container_rect.intersect(package_rect).area
             overlap_fraction = intersect_area / package_area
-            match_scores.append({"container": container, "container_num": container_num, "score": overlap_fraction})
+            opposite_overlap_fraction = intersect_area / (container_rect.area or 1)
+            match_scores.append(
+                {
+                    "container": container,
+                    "container_num": container_num,
+                    "score": overlap_fraction,
+                    "score_2": opposite_overlap_fraction,
+                }
+            )
 
         # Don't sort if you don't have to
         if unique_assignment:
-            sorted_match_scores = [max(match_scores, key=lambda x: x["score"])]
+            sorted_match_scores = [max(match_scores, key=lambda x: (x["score"], x["score_2"]))]
         else:
             sorted_match_scores = sort_objects_by_score(match_scores)
 
@@ -320,7 +349,7 @@ def sort_objects_by_score(objects, reverse=True):
         sign = -1
     else:
         sign = 1
-    return sorted(objects, key=lambda k: sign * k["score"])
+    return sorted(objects, key=lambda k: (sign * k["score"], sign * k.get("score_2", 0)))
 
 
 def remove_objects_without_content(page_spans, objects):
@@ -911,10 +940,10 @@ def objects_to_structures(objects, tokens, class_thresholds):
     if len(tables) == 0:
         return {}
     if len(tables) > 1:
-        tables.sort(key=lambda x: x["score"], reverse=True)
+        tables.sort(key=lambda x: BoundingBox(*x["bbox"]).area, reverse=True)
         import logging
 
-        logging.warning("Got multiple tables in document. Using only the highest-scoring one")
+        logging.warning("Got multiple tables in document. Using only the biggest one")
 
     table = tables[0]
     structure = {}

@@ -116,7 +116,7 @@ class TestSimilarityTransform:
 
     def test_transformers_score_similarity(self, mocker):
         node = mocker.Mock(spec=Node)
-        similarity_scorer = HuggingFaceTransformersSimilarityScorer(RERANKER_MODEL, ignore_doc_structure=True)
+        similarity_scorer = HuggingFaceTransformersSimilarityScorer(RERANKER_MODEL, ignore_doc_structure=True, batch_size=1, device="cpu")
         score_similarity = ScoreSimilarity(node, similarity_scorer=similarity_scorer, query="Is this a cat?")
         dicts = [
             {"doc_id": 1, "text_representation": "Members of a strike at Yale University.", "embedding": None},

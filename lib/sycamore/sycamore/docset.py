@@ -3,9 +3,7 @@ import logging
 from pathlib import Path
 import pprint
 import sys
-import copy
 from typing import Callable, Optional, Any, Iterable, Type, Union, TYPE_CHECKING
-import re
 
 from sycamore.context import Context, context_params, OperationTypes
 from sycamore.data import Document, Element, MetadataDocument
@@ -996,9 +994,10 @@ class DocSet:
         threshold: int = 3,
         keep_none: bool = False,
         use_elements: bool = False,
+        # TODO: merge similarity_query into similarity_scorer object.
         similarity_query: Optional[str] = None,
         similarity_scorer: Optional[SimilarityScorer] = None,
-        max_tokens: Optional[int] = 512,
+        max_tokens: int = 512,
         tokenizer: Optional[Tokenizer] = None,
         **resource_args,
     ) -> "DocSet":
@@ -1028,88 +1027,51 @@ class DocSet:
             entity_name=new_field, llm=llm, use_elements=False, prompt=prompt, field=field
         )
 
-        def threshold_filter(doc: Document, threshold) -> bool:
-            if not use_elements:
-                if doc.field_to_value(field) is None:
-                    return keep_none
-                doc = entity_extractor.extract_entity(doc)
-                # todo: move data extraction and validation to entity extractor
-                return int(re.findall(r"\d+", doc.properties[new_field])[0]) >= threshold
+        if not use_elements:
+            from sycamore.transforms.llm_filter import document_threshold_llm_filter
 
-            if similarity_query is not None:
-                assert similarity_scorer is not None, "Similarity sorting requires a scorer"
-                score_property_name = f"{field}_similarity_score"
-                doc = similarity_scorer.generate_similarity_scores(
-                    doc_batch=[doc], query=similarity_query, score_property_name=score_property_name
-                )[0]
-                doc.elements.sort(key=lambda e: e.properties.get(score_property_name, float("-inf")), reverse=True)
-            evaluated_elements = 0
+            def f(doc):
+                return document_threshold_llm_filter(
+                    doc, field=field, entity_extractor=entity_extractor, threshold=threshold, keep_none=keep_none
+                )
 
-            if tokenizer and max_tokens:
-                ind = 0
-                while ind < len(doc.elements):
-                    combined_text = ""
-                    window_indices = set()
-                    current_tokens = 0
-                    for element in doc.elements[ind:]:
-                        txt = element.field_to_value(field)
-                        if not txt:
-                            ind += 1
-                            window_indices.add(element.element_index)
-                            continue
-                        element_tokens = len(tokenizer.tokenize(txt))
-                        if current_tokens + element_tokens > max_tokens and current_tokens != 0:
-                            break
-                        if "type" in element:
-                            combined_text += f"Element type: {element['type']}\n"
-                        if "page_number" in element["properties"]:
-                            combined_text += f"Page_number: {element['properties']['page_number']}\n"
-                        if "element_index" in element["properties"]:
-                            combined_text += f"Element_index: {element['properties']['_element_index']}\n"
-                        combined_text += f"Text: {element[field]}\n"
-                        window_indices.add(element.element_index)
-                        current_tokens += element_tokens
-                        ind += 1
-                    dummy_element = copy.deepcopy(element)
-                    dummy_element[field] = combined_text
-                    e_doc = Document(dummy_element.data)
-                    e_doc = entity_extractor.extract_entity(e_doc)
-                    score = int(re.findall(r"\d+", e_doc.properties[new_field])[0])
-                    for i in range(0, len(window_indices)):
-                        doc.elements[ind - i - 1]["properties"][f"{new_field}"] = score
-                        doc.elements[ind - i - 1]["properties"][f"{new_field}_source_element_index"] = window_indices
-                    doc_source_field_name = f"{new_field}_source_element_index"
-                    if score >= doc.get(doc_source_field_name, 0):
-                        doc.properties[f"{new_field}"] = score
-                        doc.properties[f"{new_field}_source_element_index"] = window_indices
-                    if score >= threshold:
-                        return True
-                    evaluated_elements += 1
+            return self.filter(f, **resource_args)
 
-            else:
-                for element in doc.elements:
-                    e_doc = Document(element.data)
-                    if e_doc.field_to_value(field) is None:
-                        continue
-                    e_doc = entity_extractor.extract_entity(e_doc)
-                    element.properties[new_field] = e_doc.properties[new_field]
-                    # todo: move data extraction and validation to entity extractor
-                    score = int(re.findall(r"\d+", element.properties[new_field])[0])
-                    # storing the element_index of the element that provides the highest match score for a document.
-                    doc_source_field_name = f"{new_field}_source_element_index"
-                    if score >= doc.get(doc_source_field_name, 0):
-                        doc.properties[f"{new_field}"] = score
-                        doc.properties[f"{new_field}_source_element_index"] = element.element_index
-                    if score >= threshold:
-                        return True
-                    evaluated_elements += 1
-            if evaluated_elements == 0:  # no elements found for property
-                return keep_none
-            return False
+        from sycamore.transforms.llm_filter import (
+            make_element_sorter_fn,
+            tokenized_threshold_llm_filter,
+            untokenized_threshold_llm_filter,
+        )
 
-        docset = self.filter(lambda doc: threshold_filter(doc, threshold), **resource_args)
+        element_sorter = make_element_sorter_fn(field, similarity_query, similarity_scorer)
 
-        return docset
+        if tokenizer is not None:
+
+            def g(doc):
+                return tokenized_threshold_llm_filter(
+                    doc,
+                    field=field,
+                    entity_extractor=entity_extractor,
+                    threshold=threshold,
+                    keep_none=keep_none,
+                    element_sorter=element_sorter,
+                    max_tokens=max_tokens,
+                    tokenizer=tokenizer,
+                )
+
+            return self.filter(g, **resource_args)
+
+        def h(doc):
+            return untokenized_threshold_llm_filter(
+                doc,
+                field=field,
+                entity_extractor=entity_extractor,
+                threshold=threshold,
+                keep_none=keep_none,
+                element_sorter=element_sorter,
+            )
+
+        return self.filter(h, **resource_args)
 
     def map_batch(
         self,

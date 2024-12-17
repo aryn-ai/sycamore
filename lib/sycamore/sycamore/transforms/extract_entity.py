@@ -31,6 +31,10 @@ class EntityExtractor(ABC):
     ) -> Document:
         pass
 
+    def property(self):
+        """The name of the property added by calling extract_entity"""
+        return self._entity_name
+
 
 class OpenAIEntityExtractor(EntityExtractor):
     """

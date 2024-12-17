@@ -235,7 +235,7 @@ class TestDocSet:
 
     def test_rerank(self, mocker):
         docset = DocSet(Context(), None)
-        similarity_scorer = mocker.Mock(spec=SimilarityScorer)
+        similarity_scorer = mocker.Mock(spec=SimilarityScorer, batch_size=1, device="cpu")
         docset = docset.rerank(similarity_scorer, "")
         assert isinstance(docset.lineage(), Sort)
 

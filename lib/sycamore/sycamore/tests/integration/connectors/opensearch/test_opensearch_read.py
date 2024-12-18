@@ -1,4 +1,5 @@
 import os
+import tempfile
 import time
 
 import pytest
@@ -110,3 +111,87 @@ class TestOpenSearchRead:
 
         for i in range(len(doc.elements) - 1):
             assert doc.elements[i].element_index < doc.elements[i + 1].element_index
+
+    def test_ingest_and_read_from_cache(self, setup_index, exec_mode):
+        """
+        Validates data is readable from OpenSearch, and that we can rebuild processed Sycamore documents.
+        """
+
+        path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
+        context = sycamore.init(exec_mode=exec_mode)
+        original_docs = (
+            context.read.binary(path, binary_format="pdf")
+            .partition(partitioner=UnstructuredPdfPartitioner())
+            .explode()
+            .write.opensearch(
+                os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+                index_name=TestOpenSearchRead.INDEX,
+                index_settings=TestOpenSearchRead.INDEX_SETTINGS,
+                execute=False,
+            )
+            .take_all()
+        )
+
+        retrieved_docs = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS, index_name=TestOpenSearchRead.INDEX
+        )
+        target_doc_id = original_docs[-1].doc_id if original_docs[-1].doc_id else ""
+        query = {"query": {"term": {"_id": target_doc_id}}}
+        query_docs = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS, index_name=TestOpenSearchRead.INDEX, query=query
+        )
+
+        kwargs = {"document_cache_dir": os.path.join(tempfile.gettempdir(), "opensearch_reconstruct_documents")}
+        retrieved_docs_reconstructed = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+            index_name=TestOpenSearchRead.INDEX,
+            reconstruct_document=True,
+            **kwargs
+        )
+        original_materialized = sorted(original_docs, key=lambda d: d.doc_id)
+
+        # hack to allow opensearch time to index the data. Without this it's possible we try to query the index before
+        # all the records are available
+        time.sleep(1)
+        retrieved_materialized = sorted(retrieved_docs.take_all(), key=lambda d: d.doc_id)
+        query_materialized = query_docs.take_all()
+        retrieved_materialized_reconstructed = sorted(retrieved_docs_reconstructed.take_all(), key=lambda d: d.doc_id)
+        parent_id = retrieved_materialized_reconstructed[0].doc_id
+
+        with OpenSearch(**TestOpenSearchRead.OS_CLIENT_ARGS) as os_client:
+            os_client.indices.delete(TestOpenSearchRead.INDEX)
+            os_client.indices.create(TestOpenSearchRead.INDEX, **TestOpenSearchRead.INDEX_SETTINGS)
+            # We only need a parent doc in the index to test the cache
+            os_client.index(index=TestOpenSearchRead.INDEX, id=parent_id, body={"doc_id": parent_id})
+            os_client.indices.refresh(TestOpenSearchRead.INDEX)
+
+        retrieved_docs_reconstructed_from_cache = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+            index_name=TestOpenSearchRead.INDEX,
+            reconstruct_document=True,
+            **kwargs
+        )
+        retrieved_materialized_reconstructed_from_cache = sorted(
+            retrieved_docs_reconstructed_from_cache.take_all(), key=lambda d: d.doc_id
+        )
+
+        assert len(query_materialized) == 1  # exactly one doc should be returned
+        compare_connector_docs(original_materialized, retrieved_materialized)
+
+        assert len(retrieved_materialized_reconstructed) == 1
+        doc = retrieved_materialized_reconstructed[0]
+        assert len(doc.elements) == len(retrieved_materialized) - 1  # drop the document parent record
+
+        for i in range(len(doc.elements) - 1):
+            assert doc.elements[i].element_index < doc.elements[i + 1].element_index
+
+        assert len(retrieved_materialized_reconstructed_from_cache) == 1
+        doc = retrieved_materialized_reconstructed_from_cache[0]
+        for i in range(len(doc.elements) - 1):
+            assert doc.elements[i].element_index < doc.elements[i + 1].element_index
+
+        # Clean slate between Execution Modes
+        with OpenSearch(**TestOpenSearchRead.OS_CLIENT_ARGS) as os_client:
+            os_client.indices.delete(TestOpenSearchRead.INDEX)
+            os_client.indices.create(TestOpenSearchRead.INDEX, **TestOpenSearchRead.INDEX_SETTINGS)
+            os_client.indices.refresh(TestOpenSearchRead.INDEX)

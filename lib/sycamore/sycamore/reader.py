@@ -1,4 +1,4 @@
-from typing import Optional, Union, Callable, Dict, Any
+from typing import Optional, Union, Callable, Dict
 from pathlib import Path
 
 from pandas import DataFrame
@@ -11,6 +11,7 @@ from sycamore import Context, DocSet
 from sycamore.data import Document
 from sycamore.connectors.file import ArrowScan, BinaryScan, DocScan, PandasScan, JsonScan, JsonDocumentScan
 from sycamore.connectors.file.file_scan import FileMetadataProvider
+from sycamore.utils.cache import cache_from_path
 from sycamore.utils.import_utils import requires_modules
 
 
@@ -224,7 +225,7 @@ class DocSetReader:
         index_name: str,
         query: Optional[Dict] = None,
         reconstruct_document: bool = False,
-        query_kwargs: dict[str, Any] = {},
+        query_kwargs=None,
         **kwargs,
     ) -> DocSet:
         """
@@ -287,14 +288,26 @@ class DocSetReader:
             OpenSearchReaderQueryParams,
         )
 
+        if query_kwargs is None:
+            query_kwargs = {}
+
+        document_cache_dir = kwargs.get("document_cache_dir", None)
+        document_cache = cache_from_path(document_cache_dir) if document_cache_dir else None
         client_params = OpenSearchReaderClientParams(os_client_args=os_client_args)
         query_params = (
             OpenSearchReaderQueryParams(
-                index_name=index_name, query=query, reconstruct_document=reconstruct_document, kwargs=query_kwargs
+                index_name=index_name,
+                query=query,
+                reconstruct_document=reconstruct_document,
+                document_cache=document_cache,
+                kwargs=query_kwargs,
             )
             if query is not None
             else OpenSearchReaderQueryParams(
-                index_name=index_name, reconstruct_document=reconstruct_document, kwargs=query_kwargs
+                index_name=index_name,
+                reconstruct_document=reconstruct_document,
+                document_cache=document_cache,
+                kwargs=query_kwargs,
             )
         )
         osr = OpenSearchReader(client_params=client_params, query_params=query_params)

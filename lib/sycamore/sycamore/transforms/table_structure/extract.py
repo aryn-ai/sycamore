@@ -73,7 +73,7 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
 
     DEFAULT_TTAR_MODEL = "microsoft/table-structure-recognition-v1.1-all"
 
-    def __init__(self, model: str = DEFAULT_TTAR_MODEL, device=None):
+    def __init__(self, model: str = DEFAULT_TTAR_MODEL, device=None, eager_load=False):
         """
         Creates a TableTransformerStructureExtractor
 
@@ -84,6 +84,10 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
         self.model = model
         self.device = device
         self.structure_model = None
+        if eager_load:
+            from transformers import TableTransformerForObjectDetection
+
+            self.structure_model = TableTransformerForObjectDetection.from_pretrained(self.model).to(self._get_device())
 
     def _get_device(self) -> str:
         return choose_device(self.device)
@@ -166,7 +170,8 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
             outputs = self.structure_model(pixel_values)
 
         structure_id2label = self.structure_model.config.id2label
-        structure_id2label[len(structure_id2label)] = "no object"
+        if "no object" not in structure_id2label.keys():
+            structure_id2label[len(structure_id2label)] = "no object"
 
         objects = table_transformers.outputs_to_objects(
             outputs, cropped_image.size, structure_id2label, apply_thresholds=apply_thresholds
@@ -205,9 +210,12 @@ class DeformableTableStructureExtractor(TableTransformerStructureExtractor):
         super().__init__(model, device)
 
     def _init_structure_model(self):
-        from transformers import DeformableDetrForObjectDetection
+        from sycamore.utils.model_load import load_deformable_detr
 
-        self.structure_model = DeformableDetrForObjectDetection.from_pretrained(self.model).to(self._get_device())
+        self.structure_model = load_deformable_detr(self.model, self._get_device())
+
+    def _get_device(self) -> str:
+        return choose_device(self.device, detr=True)
 
     def extract(
         self, element: TableElement, doc_image: Image.Image, union_tokens=False, apply_thresholds=True

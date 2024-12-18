@@ -18,7 +18,7 @@ class Summarizer(ABC):
 
 class LLMElementTextSummarizer(Summarizer):
     """
-    LLMElementTextSummarizer uses a specified LLM) to summarize text data within elements of a document.
+    LLMElementTextSummarizer uses a specified LLM to summarize text data within elements of a document.
 
     Args:
         llm: An instance of an LLM class to use for text summarization.

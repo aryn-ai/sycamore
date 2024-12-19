@@ -1,12 +1,13 @@
 import logging
 
+from sycamore.connectors.doc_reconstruct import DocumentReconstructor
 from sycamore.data import Document, Element
 from sycamore.connectors.base_reader import BaseDBReader
 from sycamore.data.document import DocumentPropertyTypes, DocumentSource
 from sycamore.utils.import_utils import requires_modules
 from dataclasses import dataclass, field
 import typing
-from typing import Dict
+from typing import Dict, Optional
 
 if typing.TYPE_CHECKING:
     from opensearchpy import OpenSearch
@@ -20,9 +21,10 @@ class OpenSearchReaderClientParams(BaseDBReader.ClientParams):
 @dataclass
 class OpenSearchReaderQueryParams(BaseDBReader.QueryParams):
     index_name: str
-    query: Dict = field(default_factory=lambda: {"query": {"match_all": {}}})
+    query: Dict
     kwargs: Dict = field(default_factory=lambda: {})
     reconstruct_document: bool = False
+    doc_reconstructor: Optional[DocumentReconstructor] = None
 
 
 class OpenSearchReaderClient(BaseDBReader.Client):
@@ -47,6 +49,10 @@ class OpenSearchReaderClient(BaseDBReader.Client):
         if "size" not in query_params.query and "size" not in query_params.kwargs:
             query_params.kwargs["size"] = 200
         result = []
+        if query_params.reconstruct_document:
+            query_params.kwargs["_source_includes"] = ["doc_id", "parent_id", "properties"]
+        if query_params.doc_reconstructor is not None:
+            query_params.kwargs["_source_includes"] = query_params.doc_reconstructor.get_required_source_fields()
         # No pagination needed for knn queries
         if "query" in query_params.query and "knn" in query_params.query["query"]:
             response = self._client.search(
@@ -93,7 +99,15 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
     def to_docs(self, query_params: "BaseDBReader.QueryParams") -> list[Document]:
         assert isinstance(query_params, OpenSearchReaderQueryParams)
         result: list[Document] = []
-        if not query_params.reconstruct_document:
+        if query_params.doc_reconstructor is not None:
+            logging.info("Using DocID to Document reconstructor")
+            unique = set()
+            for data in self.output:
+                doc_id = query_params.doc_reconstructor.get_doc_id(data)
+                if doc_id not in unique:
+                    result.append(query_params.doc_reconstructor.reconstruct(data))
+                    unique.add(doc_id)
+        elif not query_params.reconstruct_document:
             for data in self.output:
                 doc = Document(
                     {

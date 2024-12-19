@@ -1038,10 +1038,10 @@ class DocSet:
             return self.filter(f, **resource_args)
 
         from sycamore.transforms.llm_filter import (
-            make_element_sorter_fn,
             tokenized_threshold_llm_filter,
             untokenized_threshold_llm_filter,
         )
+        from sycamore.utils.similarity import make_element_sorter_fn
 
         element_sorter = make_element_sorter_fn(field, similarity_query, similarity_scorer)
 

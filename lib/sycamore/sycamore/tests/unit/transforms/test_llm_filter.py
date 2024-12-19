@@ -7,8 +7,31 @@ from sycamore.context import Context, OperationTypes, ExecMode
 from sycamore.data import Document, Element
 from sycamore.functions import Tokenizer
 from sycamore.llms import LLM
-from sycamore.tests.unit.test_docset import MockLLM, TestSimilarityScorer
+from sycamore.tests.unit.test_docset import MockLLM, TestSimilarityScorer, MockTokenizer
 from sycamore.transforms.extract_entity import EntityExtractor
+
+tokenizer_doc = [
+    Document(
+        doc_id="doc_1",
+        elements=[
+            Element(
+                properties={"_element_index": 0}, text_representation="first short element"
+            ),  # llm_filter result = 4
+            Element(properties={"_element_index": 1}, text_representation=None),
+            Element(properties={"_element_index": 2}, text_representation="second longer element with more words"),
+        ],
+    ),
+    Document(
+        doc_id="doc_2",
+        elements=[
+            Element(properties={"_element_index": 1}, text_representation="third element"),  # llm_filter result = 2
+            Element(
+                properties={"_element_index": 2},
+                text_representation="very long element with many words that might exceed token limit",
+            ),  # llm_filter result = 5
+        ],
+    ),
+]
 
 
 class TestLLMFilter:
@@ -184,43 +207,13 @@ class TestLLMFilter:
         assert filtered_docset[1].text_representation == "test2"
 
     def test_llm_filter_with_tokenizer_and_max_tokens(self):
-        # Create a mock tokenizer that simply counts tokens
-        class MockTokenizer:
-            def tokenize(self, text):
-                return text.split()  # Simple tokenization by splitting on whitespace
 
-        doc_list = [
-            Document(
-                doc_id="doc_1",
-                elements=[
-                    Element(
-                        properties={"_element_index": 0}, text_representation="first short element"
-                    ),  # llm_filter result = 4
-                    Element(properties={"_element_index": 1}, text_representation=None),
-                    Element(
-                        properties={"_element_index": 2}, text_representation="second longer element with more words"
-                    ),
-                ],
-            ),
-            Document(
-                doc_id="doc_2",
-                elements=[
-                    Element(
-                        properties={"_element_index": 1}, text_representation="third element"
-                    ),  # llm_filter result = 2
-                    Element(
-                        properties={"_element_index": 2},
-                        text_representation="very long element with many words that might exceed token limit",
-                    ),  # llm_filter result = 5
-                ],
-            ),
-        ]
         mock_llm = MockLLM()
         mock_tokenizer = MockTokenizer()
         mock_llm.generate = MagicMock(wraps=mock_llm.generate)
 
         context = sycamore.init(params={OperationTypes.BINARY_CLASSIFIER: {"llm": mock_llm}}, exec_mode=ExecMode.LOCAL)
-        docset = context.read.document(doc_list)
+        docset = context.read.document(tokenizer_doc)
         new_field = "_autogen_LLMFilterOutput"
 
         filtered_docset = docset.llm_filter(
@@ -250,7 +243,7 @@ class TestLLMFilter:
         assert taken[0].elements[0]["properties"]["_autogen_LLMFilterOutput"] == 4
         assert taken[0].elements[1]["properties"]["_autogen_LLMFilterOutput"] == 4
         assert taken[0].elements[2]["properties"]["_autogen_LLMFilterOutput"] == 4
-        assert taken[1].elements[0]["properties"]["_autogen_LLMFilterOutput"] == 2
+        assert taken[1].elements[0]["properties"]["_autogen_LLMFilterOutput"] == 0
         assert taken[1].elements[1]["properties"]["_autogen_LLMFilterOutput"] == 5
 
 

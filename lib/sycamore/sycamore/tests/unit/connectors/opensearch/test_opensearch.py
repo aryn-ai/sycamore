@@ -18,7 +18,7 @@ from sycamore.connectors.opensearch.utils import get_knn_query
 from sycamore.data.document import Document, DocumentPropertyTypes, DocumentSource
 from sycamore.transforms import Embedder
 
-MATCH_ALL_QUERY = {"query": {"match_all": {}}}
+MATCH_ALL_QUERY: dict = {"query": {"match_all": {}}}
 
 
 class TestOpenSearchTargetParams:

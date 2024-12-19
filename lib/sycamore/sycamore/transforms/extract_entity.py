@@ -14,6 +14,7 @@ from sycamore.utils.time_trace import timetrace
 from sycamore.functions.tokenizer import Tokenizer
 from sycamore.transforms.similarity import SimilarityScorer
 from sycamore.utils.similarity import make_element_sorter_fn
+from sycamore.utils.llm_utils import merge_elements
 
 
 def element_list_formatter(elements: list[Element], field: str = "text_representation") -> str:
@@ -148,28 +149,9 @@ class OpenAIEntityExtractor(EntityExtractor):
         assert self._tokenizer is not None
         ind = 0
         while ind < len(document.elements):
-            combined_text = ""
-            window_indices = set()
-            current_tokens = 0
-            for element in document.elements[ind:]:
-                txt = element.field_to_value(self._field)
-                if not txt:
-                    ind += 1
-                    window_indices.add(element.element_index)
-                    continue
-                element_tokens = len(self._tokenizer.tokenize(txt))
-                if current_tokens + element_tokens > self._max_tokens and current_tokens != 0:
-                    break
-                if "type" in element:
-                    combined_text += f"Element type: {element['type']}\n"
-                if "page_number" in element["properties"]:
-                    combined_text += f"Page_number: {element['properties']['page_number']}\n"
-                if "_element_index" in element["properties"]:
-                    combined_text += f"Element_index: {element['properties']['_element_index']}\n"
-                combined_text += f"Text: {txt}\n"
-                window_indices.add(element.element_index)
-                current_tokens += element_tokens
-                ind += 1
+            ind, combined_text, window_indices = merge_elements(
+                ind, document.elements, self._field, self._tokenizer, self._max_tokens
+            )
             entity = self._get_entities(combined_text)
             for i in range(0, len(window_indices)):
                 document.elements[ind - i - 1]["properties"][f"{self._entity_name}"] = entity

@@ -1,6 +1,7 @@
 from typing import Optional
 from sycamore.transforms.similarity import SimilarityScorer
 
+
 def make_element_sorter_fn(field: str, similarity_query: Optional[str], similarity_scorer: Optional[SimilarityScorer]):
     assert not (
         (similarity_query is None) ^ (similarity_scorer is None)

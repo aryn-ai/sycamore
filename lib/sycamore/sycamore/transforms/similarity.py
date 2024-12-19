@@ -7,7 +7,7 @@ from sycamore.utils.import_utils import requires_modules
 
 from sycamore.data import Document, Element
 from sycamore.plan_nodes import Node
-from sycamore.transforms import MapBatch
+from sycamore.transforms.map import MapBatch
 from sycamore.utils import choose_device
 from sycamore.utils.time_trace import timetrace
 

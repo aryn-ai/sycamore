@@ -5,6 +5,8 @@ import pprint
 import sys
 from typing import Callable, Optional, Any, Iterable, Type, Union, TYPE_CHECKING
 
+from ray.data.aggregate import AggregateFn
+
 from sycamore.context import Context, context_params, OperationTypes
 from sycamore.data import Document, Element, MetadataDocument
 from sycamore.functions.tokenizer import Tokenizer
@@ -15,6 +17,7 @@ from sycamore.llms.prompts.default_prompts import (
 )
 from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.augment_text import TextAugmentor
+from sycamore.transforms.clustering import KMeans
 from sycamore.transforms.embed import Embedder
 from sycamore.transforms import DocumentStructure, Sort
 from sycamore.transforms.extract_entity import EntityExtractor, OpenAIEntityExtractor
@@ -914,6 +917,18 @@ class DocSet:
 
         mapping = Map(self.plan, f=f, **resource_args)
         return DocSet(self.context, mapping)
+
+    def kmeans(self, K: int, iterations: int, epsilon: float = 1e-4):
+        # TODO, if there is no embedding column, raise exception
+        def init_embedding(row):
+            doc = Document.from_row(row)
+            return {"vector": doc.embedding, "cluster": -1}
+
+        embeddings = self.plan.execute().map(init_embedding).materialize()
+        initial_centroids = KMeans.init(embeddings, K)
+        centroids = KMeans.update(embeddings, initial_centroids, iterations, epsilon)
+        del embeddings
+        return centroids
 
     def flat_map(self, f: Callable[[Document], list[Document]], **resource_args) -> "DocSet":
         """

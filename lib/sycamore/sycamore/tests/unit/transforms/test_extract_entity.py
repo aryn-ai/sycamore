@@ -190,7 +190,6 @@ class TestEntityExtraction:
         entity_docset = docset.extract_entity(
             entity_extractor=entity_extractor,
         )
-        entity_docset.show()
         taken = entity_docset.take()
         assert len(taken) == 4
         assert len(taken[0].elements) == 2
@@ -225,13 +224,9 @@ class TestEntityExtraction:
         entity_docset = docset.extract_entity(
             entity_extractor=entity_extractor,
         )
-        entity_docset.show()
         taken = entity_docset.take()
-        for ele in taken:
-            print(ele.properties)
         assert taken[0].properties[f"{new_field}_source_element_index"] == {0, 1, 2}
         assert taken[1].properties[f"{new_field}_source_element_index"] == {2}
-        print(taken[0].properties[new_field])
         assert taken[0].properties[new_field] == "4"
         assert taken[1].properties[new_field] == "5"
         assert taken[0].elements[0]["properties"]["_autogen_LLMExtractEntityOutput_source_element_index"] == {0, 1, 2}

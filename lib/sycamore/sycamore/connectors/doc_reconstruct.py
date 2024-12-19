@@ -14,5 +14,5 @@ class DocumentReconstructor:
     def get_doc_id(self, data: dict) -> str:
         return data["_source"]["parent_id"] or data["_id"]
 
-    def reconstruct(self, data) -> Document:
+    def reconstruct(self, data: dict) -> Document:
         return self.reconstruct_fn(self.index_name, self.get_doc_id(data))

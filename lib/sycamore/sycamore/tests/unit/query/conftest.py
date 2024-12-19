@@ -36,7 +36,7 @@ class MockDocSetReader(DocSetReader):
         query_params = (
             OpenSearchReaderQueryParams(index_name=index_name, query=query)
             if query is not None
-            else OpenSearchReaderQueryParams(index_name=index_name)
+            else OpenSearchReaderQueryParams(index_name=index_name, query={"query": {"match_all": {}}})
         )
         mock_osr = MockOpenSearchReader(client_params=client_params, query_params=query_params)
         return DocSet(self._context, mock_osr)

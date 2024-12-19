@@ -217,16 +217,12 @@ class TestOpenSearchRead:
         # refresh should have made all ingested docs immediately available for search
         assert actual_count == expected_count, f"Expected {expected_count} documents, found {actual_count}"
 
-        retrieved_docs_reconstructed = (
-            context.read.opensearch(
-                os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
-                index_name=TestOpenSearchRead.INDEX,
-                reconstruct_document=True,
-                doc_reconstructor=DocumentReconstructor(TestOpenSearchRead.INDEX, doc_reconstructor),
-            )
-            # .filter(lambda doc: doc.doc_id == "1")
-            .take_all()
-        )
+        retrieved_docs_reconstructed = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+            index_name=TestOpenSearchRead.INDEX,
+            reconstruct_document=True,
+            doc_reconstructor=DocumentReconstructor(TestOpenSearchRead.INDEX, doc_reconstructor),
+        ).take_all()
 
         assert len(retrieved_docs_reconstructed) == 6
         retrieved_sorted = sorted(retrieved_docs_reconstructed, key=lambda d: d.doc_id)

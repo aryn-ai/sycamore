@@ -194,12 +194,12 @@ class ExtractPropertiesFromSchemaPrompt(SimplePrompt):
 
 
 class PropertiesZeroShotGuidancePrompt(SimplePrompt):
-    def __init__(self, entity: str, properties: Any, text: str):
+    def __init__(self):
         super().__init__()
 
         self.system = "You are a helpful property extractor. You only return JSON."
 
-        self.user = f"""You are given a few text elements of a document. Extract JSON representing one entity of
+        self.user = """You are given a few text elements of a document. Extract JSON representing one entity of
         class {entity} from the document. The class only has properties {properties}. Using
         this context, FIND, FORMAT, and RETURN the JSON representing one {entity}.
         Only return JSON as part of your answer. If no entity is in the text, return "None".

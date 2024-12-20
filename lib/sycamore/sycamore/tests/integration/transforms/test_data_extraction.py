@@ -6,7 +6,7 @@ from sycamore.llms import OpenAI, OpenAIModels
 from sycamore.transforms.extract_schema import LLMPropertyExtractor
 
 
-def test_extract_properties_from_schema():
+def get_docs():
     docs = [
         Document(
             {
@@ -23,6 +23,27 @@ def test_extract_properties_from_schema():
             }
         ),
     ]
+    return docs
+
+
+def test_extract_properties_from_dict_schema():
+    docs = get_docs()[:1]  # only validate first doc because of technique reliability
+    schema = {"name": "str", "age": "int", "date": "str", "from_location": "str"}
+    property_extractor = LLMPropertyExtractor(OpenAI(OpenAIModels.GPT_4O), schema=schema, schema_name="entity")
+
+    ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
+    docs = ctx.read.document(docs)
+    docs = docs.extract_properties(property_extractor)
+
+    taken = docs.take_all()
+
+    assert taken[0].properties["entity"]["name"] == "Vinayak"
+    assert taken[0].properties["entity"]["age"] == 74
+    assert "Honolulu" in taken[0].properties["entity"]["from_location"]
+
+
+def test_extract_properties_from_schema():
+    docs = get_docs()
 
     schema = Schema(
         fields=[

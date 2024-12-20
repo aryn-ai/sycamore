@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Any, Optional, Tuple
+from typing import Callable, Any, Optional, Tuple, Union
 import json
 
 from sycamore.data import Element, Document
@@ -156,7 +156,7 @@ class LLMPropertyExtractor(PropertyExtractor):
         self,
         llm: LLM,
         schema_name: Optional[str] = None,
-        schema: Optional[Tuple[dict[str, str], Schema]] = None,
+        schema: Optional[Union[dict[str, str], Schema]] = None,
         num_of_elements: int = 10,
         prompt_formatter: Callable[[list[Element]], str] = element_list_formatter,
     ):
@@ -192,9 +192,9 @@ class LLMPropertyExtractor(PropertyExtractor):
             text = self._prompt_formatter(
                 [document.elements[i] for i in range((min(self._num_of_elements, len(document.elements))))]
             )
-
         if isinstance(self._schema, Schema):
             prompt = ExtractPropertiesFromSchemaPrompt(schema=self._schema, text=text)
+            entities = self._llm.generate(prompt_kwargs={"prompt": prompt})
         else:
             schema = self._schema or document.properties.get("_schema")
             assert schema is not None, "Schema must be provided or detected before extracting properties."
@@ -202,9 +202,11 @@ class LLMPropertyExtractor(PropertyExtractor):
             schema_name = self._schema_name or document.properties.get("_schema_class")
             assert schema_name is not None, "Schema name must be provided or detected before extracting properties."
 
-            prompt = PropertiesZeroShotGuidancePrompt(entity=schema_name, properties=schema, text=text)
+            prompt = PropertiesZeroShotGuidancePrompt()
 
-        entities = self._llm.generate(prompt_kwargs={"prompt": prompt})
+            entities = self._llm.generate(
+                prompt_kwargs={"prompt": prompt, "entity": schema_name, "properties": schema, "text": text}
+            )
         return entities
 
 

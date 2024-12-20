@@ -7,11 +7,13 @@ class SchemaField(BaseModel):
     """Represents a field in a DocSet schema."""
 
     name: str
+    """The name of the field."""
 
     field_type: str
     """The type of the field."""
 
     default: Optional[Any] = None
+    """The default value for the field."""
 
     description: Optional[str] = None
     """A natural language description of the field."""

@@ -1,13 +1,15 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Any, Optional
+from typing import Callable, Any, Optional, Tuple
 import json
 
 from sycamore.data import Element, Document
+from sycamore.schema import Schema
 from sycamore.llms import LLM
 from sycamore.llms.prompts import (
     SchemaZeroShotGuidancePrompt,
     PropertiesZeroShotGuidancePrompt,
 )
+from sycamore.llms.prompts.default_prompts import ExtractPropertiesFromSchemaPrompt
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.utils.extract_json import extract_json
@@ -130,7 +132,7 @@ class LLMPropertyExtractor(PropertyExtractor):
         llm: An instance of an LLM for text processing.
         schema_name: An optional natural-language name of the class to be extracted (e.g. `Corporation`)
             If not provided, will use the _schema_class property added by extract_schema.
-        schema: An optional JSON-encoded schema to be used for property extraction.
+        schema: An optional JSON-encoded schema, or Schema object to be used for property extraction.
             If not provided, will use the _schema property added by extract_schema.
         num_of_elements: The number of elements to consider for property extraction. Default is 10.
         prompt_formatter: A callable function to format prompts based on document elements.
@@ -154,7 +156,7 @@ class LLMPropertyExtractor(PropertyExtractor):
         self,
         llm: LLM,
         schema_name: Optional[str] = None,
-        schema: Optional[dict[str, str]] = None,
+        schema: Optional[Tuple[dict[str, str], Schema]] = None,
         num_of_elements: int = 10,
         prompt_formatter: Callable[[list[Element]], str] = element_list_formatter,
     ):
@@ -191,21 +193,18 @@ class LLMPropertyExtractor(PropertyExtractor):
                 [document.elements[i] for i in range((min(self._num_of_elements, len(document.elements))))]
             )
 
-        prompt = PropertiesZeroShotGuidancePrompt()
-
-        if self._schema_name is not None:
-            schema_name = self._schema_name
+        if isinstance(self._schema, Schema):
+            prompt = ExtractPropertiesFromSchemaPrompt(schema=self._schema, text=text)
         else:
-            schema_name = document.properties["_schema_class"]
+            schema = self._schema or document.properties.get("_schema")
+            assert schema is not None, "Schema must be provided or detected before extracting properties."
 
-        if self._schema is not None:
-            schema = self._schema
-        else:
-            schema = document.properties["_schema"]
+            schema_name = self._schema_name or document.properties.get("_schema_class")
+            assert schema_name is not None, "Schema name must be provided or detected before extracting properties."
 
-        entities = self._llm.generate(
-            prompt_kwargs={"prompt": prompt, "entity": schema_name, "properties": schema, "query": text}
-        )
+            prompt = PropertiesZeroShotGuidancePrompt(entity=schema_name, properties=schema, text=text)
+
+        entities = self._llm.generate(prompt_kwargs={"prompt": prompt})
         return entities
 
 

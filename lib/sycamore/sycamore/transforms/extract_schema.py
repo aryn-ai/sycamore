@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Any, Optional, Tuple, Union
+from typing import Callable, Any, Optional, Union
 import json
 
 from sycamore.data import Element, Document

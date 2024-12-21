@@ -47,6 +47,7 @@ class Embedder(ABC):
         model_batch_size: Optional[int] = None,
         pre_process_document: Optional[Callable[[Union[Document, Element]], str]] = None,
         device: Optional[str] = None,
+        client: Optional[OpenAIClient] = None,
     ):
         self.model_name = model_name
         self.batch_size = batch_size
@@ -55,20 +56,23 @@ class Embedder(ABC):
 
         # Set default model batch sizes based on embedder type
         if model_batch_size is None:
-            if isinstance(self._client, AzureOpenAIClient) and embedder_type == EmbedderType.OPENAI:
-                self.model_batch_size = 16  # OpenAI's maximum batch size
-            elif embedder_type == EmbedderType.BEDROCK:
+            if embedder_type == EmbedderType.BEDROCK:
                 self.model_batch_size = 1  # Bedrock only supports single inputs
+            elif embedder_type == EmbedderType.OPENAI and isinstance(client, AzureOpenAIClient):
+                self.model_batch_size = 16  # For AzureOpenAIClient
             else:
                 self.model_batch_size = 100  # Default for other embedders
+
         else:
             # Enforce maximum batch sizes for specific embedders
-            if embedder_type == EmbedderType.OPENAI and model_batch_size > 16:
-                logger.warning(f"Reducing batch size from {model_batch_size} to 16 (OpenAI's maximum)")
-                self.model_batch_size = 16
-            elif embedder_type == EmbedderType.BEDROCK and model_batch_size > 1:
+            if embedder_type == EmbedderType.BEDROCK and model_batch_size > 1:
                 logger.warning(f"Reducing batch size from {model_batch_size} to 1 (Bedrock's maximum)")
                 self.model_batch_size = 1
+            elif (
+                embedder_type == EmbedderType.OPENAI and isinstance(client, AzureOpenAIClient) and model_batch_size > 16
+            ):
+                logger.warning(f"Reducing batch size from {model_batch_size} to 16 (AzureOpenAIClient's maximum)")
+                self.model_batch_size = 16
             else:
                 self.model_batch_size = model_batch_size
 
@@ -215,16 +219,6 @@ class OpenAIEmbedder(Embedder):
         if isinstance(model_name, OpenAIEmbeddingModels):
             model_name = model_name.value
 
-        super().__init__(
-            model_name=model_name,
-            embedder_type=EmbedderType.OPENAI,
-            batch_size=batch_size,
-            model_batch_size=model_batch_size,
-            pre_process_document=pre_process_document,
-            device="cpu",
-        )
-
-        # TODO Standardize with OpenAI LLM
         if client_wrapper is None:
             if params is not None:
                 client_wrapper = params
@@ -239,6 +233,16 @@ class OpenAIEmbedder(Embedder):
         self.client_wrapper = client_wrapper
         self._client: Optional[OpenAIClient] = None
         self.model_name = model_name
+
+        super().__init__(
+            model_name=model_name,
+            embedder_type=EmbedderType.OPENAI,
+            batch_size=batch_size,
+            model_batch_size=model_batch_size,
+            pre_process_document=pre_process_document,
+            device="cpu",
+            client=client_wrapper.get_client(),
+        )
 
     def __getstate__(self):
         state = self.__dict__.copy()

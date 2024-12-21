@@ -11,24 +11,15 @@ from sycamore.llms.llms import LLM
 from sycamore.llms.prompts.default_prompts import (
     SummarizeDataMessagesPrompt,
 )
+from sycamore.transforms.summarize import (
+    NUM_TEXT_CHARS_GENERATE,
+    DocumentSummarizer,
+    collapse,
+    QuestionAnsweringSummarizer,
+    BASE_PROPS,
+)
 
 log = structlog.get_logger(__name__)
-
-BASE_PROPS = [
-    "filename",
-    "filetype",
-    "page_number",
-    "page_numbers",
-    "links",
-    "element_id",
-    "parent_id",
-    "_schema",
-    "_schema_class",
-    "entity",
-]
-
-NUM_DOCS_GENERATE = 60
-NUM_TEXT_CHARS_GENERATE = 2500
 
 
 def math_operation(val1: int, val2: int, operator: str) -> Union[int, float]:
@@ -165,6 +156,38 @@ def _get_text_for_summarize_data(
                         continue
                 text += doc_text + "\n"
         else:
-            text += str(result_data) + "\n"
+            text += str(result) + "\n"
 
     return text
+
+
+@context_params
+def summarize_map_reduce(
+    llm: LLM,
+    question: str,
+    result_description: str,
+    result_data: List[Any],
+    use_elements: bool = False,
+    num_elements: int = 5,
+    max_tokens: int = 10 * 1000,
+    tokenizer: Tokenizer = CharacterTokenizer(),
+) -> str:
+    """ """
+    text = f"Data description: {result_description}\n"
+    for i, result in enumerate(result_data):
+        if isinstance(result, DocSet):
+            docs = (
+                result.filter(lambda d: isinstance(d, MetadataDocument) is False)
+                .summarize(
+                    summarizer=DocumentSummarizer(llm, question)
+                )  # document-level summarization can be parallelized (per DocSet)
+                .take_all()
+            )
+            for doc in docs:
+                text += doc.properties["summary"] + "\n"
+
+        else:
+            text += str(result) + "\n"
+
+    final_summary = collapse(text, max_tokens, tokenizer, QuestionAnsweringSummarizer(llm, question))
+    return final_summary

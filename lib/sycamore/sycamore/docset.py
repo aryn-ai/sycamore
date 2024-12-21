@@ -125,6 +125,9 @@ class DocSet:
                     for i, e in enumerate(document.data["elements"]):
                         if e.get("text_representation") is not None:
                             e["text_representation"] = _truncate(e["text_representation"])
+                        if e.get("embedding") is not None:
+                            embedding_length = len(e.embedding)
+                            e.data["embedding"] = f"<{embedding_length} floats>"
 
             pprint.pp(document, stream=stream)
 

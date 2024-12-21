@@ -202,10 +202,13 @@ class LLMPropertyExtractor(PropertyExtractor):
             schema_name = self._schema_name or document.properties.get("_schema_class")
             assert schema_name is not None, "Schema name must be provided or detected before extracting properties."
 
-            prompt = PropertiesZeroShotGuidancePrompt()
-
             entities = self._llm.generate(
-                prompt_kwargs={"prompt": prompt, "entity": schema_name, "properties": schema, "text": text}
+                prompt_kwargs={
+                    "prompt": PropertiesZeroShotGuidancePrompt(),
+                    "entity": schema_name,
+                    "properties": schema,
+                    "text": text,
+                }
             )
         return entities
 

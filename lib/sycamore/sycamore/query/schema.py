@@ -13,7 +13,7 @@ if typing.TYPE_CHECKING:
 
 
 class OpenSearchSchemaField(BaseModel):
-    """Represents a field in an OpenSearch schema."""
+    """DEPRECATED: Migrating to docset.SchemaField."""
 
     field_type: str
     """The type of the field."""
@@ -26,7 +26,7 @@ class OpenSearchSchemaField(BaseModel):
 
 
 class OpenSearchSchema(BaseModel):
-    """Represents the schema of an OpenSearch index."""
+    """DEPRECATED: Migrating to docset.Schema."""
 
     fields: Dict[str, OpenSearchSchemaField]
     """A mapping from field name to field type and example values."""

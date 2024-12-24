@@ -4,6 +4,8 @@ import logging
 import typing
 from typing import Any, Optional
 from typing_extensions import TypeGuard
+import random
+import time
 
 from sycamore.data import Document
 from sycamore.connectors.base_writer import BaseDBWriter
@@ -21,6 +23,8 @@ if typing.TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 OS_ADMIN_PASSWORD = os.getenv("OS_ADMIN_PASSWORD", "admin")
+MAX_RETRIES = 5  # Number of times to retry a failed request
+INITIAL_BACKOFF = 1  # Initial backoff time in seconds
 
 
 @dataclass
@@ -105,10 +109,35 @@ class OpenSearchWriterClient(BaseDBWriter.Client):
             target_params, OpenSearchWriterTargetParams
         ), f"Provided target_params was not of type OpenSearchWriterTargetParams:\n{target_params}"
         assert _narrow_list_of_os_records(records), f"A provided record was not of type OpenSearchRecord:\n{records}"
+        retry_count = 0
 
-        for success, info in parallel_bulk(self._client, [asdict(r) for r in records]):
-            if not success:
-                log.error("A Document failed to upload", info)
+        for success, item in parallel_bulk(
+            self._client,
+            (asdict(r) for r in records),
+            raise_on_error=False,
+            raise_on_exception=False,
+            thread_count=1,
+            chunk_size=100,
+        ):
+            if not success and item["index"]["status"] == 429:
+                if retry_count >= MAX_RETRIES:
+                    msg = f"Max retries ({MAX_RETRIES}) exceeded"
+                    log.error(msg)
+                    raise Exception(msg)
+
+                # Calculate backoff time with exponential increase and jitter
+                backoff = INITIAL_BACKOFF * (2**retry_count)
+                jitter = random.uniform(0, 0.1 * backoff)
+                sleep_time = backoff + jitter
+
+                log.warning(f"Received 429, backing off for {sleep_time:.2f} seconds")
+                time.sleep(sleep_time)
+
+                retry_count += 1
+            else:
+                msg = f"Failed to upload document: {item}"
+                log.error(msg)
+                raise Exception(msg)
 
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
         from opensearchpy.exceptions import RequestError

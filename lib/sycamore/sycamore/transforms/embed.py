@@ -3,7 +3,6 @@ import logging
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any, Optional, Callable, Union, List
-import logging
 
 from openai import OpenAI as OpenAIClient
 from openai import AzureOpenAI as AzureOpenAIClient

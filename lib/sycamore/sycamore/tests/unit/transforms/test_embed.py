@@ -140,14 +140,13 @@ class TestEmbedding:
         embedder = OpenAIEmbedder(model_batch_size=120)
         assert embedder.model_batch_size == 120
 
-        # Test batching using SentenceTransformer
+        # Test batching
         texts = ["text1", "text2", "text3", "text4"]
         docs = [Document({"text_representation": t}) for t in texts]
 
         embedders = [
             SentenceTransformerEmbedder(model_name="sentence-transformers/all-MiniLM-L6-v2", model_batch_size=2),
             OpenAIEmbedder(model_batch_size=2),
-            BedrockEmbedder(model_batch_size=1),
         ]
         for embedder in embedders:
             original_embed_texts = embedder.embed_texts

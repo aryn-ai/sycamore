@@ -96,6 +96,13 @@ class DocSet:
             amount_truncated = len(s) - truncate_length
             return s[:truncate_length] + f" <{amount_truncated} chars>"
 
+        def _format_embedding(embedding):
+            """Format the embedding to display its length."""
+            if embedding is not None:
+                embedding_length = len(embedding)
+                return f"<{embedding_length} floats>"
+            return None
+
         for document in documents:
             if not show_elements:
                 num_elems = len(document.elements)
@@ -112,8 +119,7 @@ class DocSet:
                 document.text_representation = _truncate(document.text_representation)
 
             if not show_embedding and document.embedding is not None:
-                embedding_length = len(document.embedding)
-                document.data["embedding"] = f"<{embedding_length} floats>"
+                document.data["embedding"] = _format_embedding(document.embedding)
 
             if show_elements and "elements" in document.data:
                 if not show_binary:
@@ -126,9 +132,7 @@ class DocSet:
                         if e.get("text_representation") is not None:
                             e["text_representation"] = _truncate(e["text_representation"])
                         if e.get("embedding") is not None:
-                            embedding_length = len(e.embedding)
-                            e.data["embedding"] = f"<{embedding_length} floats>"
-
+                            e.data["embedding"] = _format_embedding(e.embedding)
             pprint.pp(document, stream=stream)
 
     def count(self, include_metadata=False, **kwargs) -> int:

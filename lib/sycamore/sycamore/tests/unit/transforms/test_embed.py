@@ -101,7 +101,7 @@ class TestEmbedding:
                 "doc_id": 1,
                 "text_representation": texts[0] if use_documents else None,
                 "embedding": None,
-                "elements": elements if use_elements else {},
+                "elements": elements if use_elements else [],
             },
             {"doc_id": 2, "text_representation": texts[1] if use_documents else None, "embedding": None},
         ]
@@ -144,15 +144,19 @@ class TestEmbedding:
         texts = ["text1", "text2", "text3", "text4"]
         docs = [Document({"text_representation": t}) for t in texts]
 
-        embedder = SentenceTransformerEmbedder(model_name="sentence-transformers/all-MiniLM-L6-v2", model_batch_size=2)
+        embedders = [
+            SentenceTransformerEmbedder(model_name="sentence-transformers/all-MiniLM-L6-v2", model_batch_size=2),
+            OpenAIEmbedder(model_batch_size=2),
+            BedrockEmbedder(model_batch_size=1),
+        ]
+        for embedder in embedders:
+            original_embed_texts = embedder.embed_texts
 
-        original_embed_texts = embedder.embed_texts
+            def mock_embed_texts(text_batch):
+                assert len(text_batch) <= 2, "All batches should be size 2 or smaller"
+                return original_embed_texts(text_batch)
 
-        def mock_embed_texts(text_batch):
-            assert len(text_batch) <= 2, "All batches should be size 2 or smaller"
-            return original_embed_texts(text_batch)
+            embedder.embed_texts = mock_embed_texts
 
-        embedder.embed_texts = mock_embed_texts
-
-        embedded_docs = embedder(docs)
-        assert len(embedded_docs) == len(texts), "All texts should be processed"
+            embedded_docs = embedder(docs)
+            assert len(embedded_docs) == len(texts), "All texts should be processed"

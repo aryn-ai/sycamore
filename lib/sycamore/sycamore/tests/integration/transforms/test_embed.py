@@ -31,7 +31,7 @@ def check_embedder(embedder: Embedder, expected_dim: int, use_documents: bool = 
                 "doc_id": f"doc_{i}",
                 "type": "test",
                 "text_representation": passage if use_documents else None,
-                "elements": [Element({"_element_index": 0, "text_representation": passage}) if use_elements else {}],
+                "elements": [Element({"_element_index": 0, "text_representation": passage})] if use_elements else [],
                 "properties": {},
             }
         )
@@ -91,13 +91,11 @@ def check_openai_embedding_batches(use_documents: bool = False, use_elements: bo
                 "doc_id": f"doc_{i}",
                 "type": "test",
                 "text_representation": f"Document text for passage {i}" if use_documents else None,
-                "elements": [
-                    Element(
-                        {"_element_index": 0, "text_representation": f"Element text for passage {i}"}
-                        if use_elements
-                        else {}
-                    )
-                ],
+                "elements": (
+                    [Element({"_element_index": 0, "text_representation": f"Element text for passage {i}"})]
+                    if use_elements
+                    else []
+                ),
                 "properties": {},
             }
         )

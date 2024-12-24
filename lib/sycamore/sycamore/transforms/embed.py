@@ -3,7 +3,7 @@ import logging
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any, Optional, Callable, Union, List
-from collections import defaultdict
+import logging
 
 from openai import OpenAI as OpenAIClient
 from openai import AzureOpenAI as AzureOpenAIClient
@@ -87,11 +87,15 @@ class Embedder(ABC):
 
     @staticmethod
     def clamp_batch_size(batch_size, max_and_default=None):
-        assert batch_size >= 1, f"bad batch size {batch_size} <1"
+        if batch_size < 1:
+            raise ValueError(f"Batch size must be at least 1, got {batch_size}")
         if max_and_default is None:
             return batch_size
         if batch_size > max_and_default:
-            print(f"bad batch size {batch_size} > {max_and_default}\n Reducing to {max_and_default}.")
+            logging.warning(
+                f"Requested batch size {batch_size} exceeds maximum {max_and_default}. "
+                f"Reducing to {max_and_default}."
+            )
             return max_and_default
         return batch_size
 

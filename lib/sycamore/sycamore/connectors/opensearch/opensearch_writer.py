@@ -54,6 +54,14 @@ class OpenSearchWriterTargetParams(BaseDBWriter.TargetParams):
             }
         }
     )
+    insert_settings: dict[str, Any] = field(
+        default_factory=lambda: {
+            "raise_on_error": False,
+            "raise_on_exception": False,
+            "chunk_size": 100,
+            "thread_count": 3,
+        }
+    )
 
     def compatible_with(self, other: "BaseDBWriter.TargetParams") -> bool:
         """
@@ -111,33 +119,27 @@ class OpenSearchWriterClient(BaseDBWriter.Client):
         assert _narrow_list_of_os_records(records), f"A provided record was not of type OpenSearchRecord:\n{records}"
         retry_count = 0
 
-        for success, item in parallel_bulk(
-            self._client,
-            (asdict(r) for r in records),
-            raise_on_error=False,
-            raise_on_exception=False,
-            thread_count=1,
-            chunk_size=100,
-        ):
-            if not success and item["index"]["status"] == 429:
-                if retry_count >= MAX_RETRIES:
-                    msg = f"Max retries ({MAX_RETRIES}) exceeded"
+        for success, item in parallel_bulk(self._client, (asdict(r) for r in records), **target_params.insert_settings):
+            if not success:
+                if item["index"]["status"] == 429:
+                    if retry_count >= MAX_RETRIES:
+                        msg = f"Max retries ({MAX_RETRIES}) exceeded"
+                        log.error(msg)
+                        raise Exception(msg)
+
+                    # Calculate backoff time with exponential increase and jitter
+                    backoff = INITIAL_BACKOFF * (2**retry_count)
+                    jitter = random.uniform(0, 0.1 * backoff)
+                    sleep_time = backoff + jitter
+
+                    log.warning(f"Received 429, backing off for {sleep_time:.2f} seconds")
+                    time.sleep(sleep_time)
+
+                    retry_count += 1
+                else:
+                    msg = f"Failed to upload document: {item}"
                     log.error(msg)
                     raise Exception(msg)
-
-                # Calculate backoff time with exponential increase and jitter
-                backoff = INITIAL_BACKOFF * (2**retry_count)
-                jitter = random.uniform(0, 0.1 * backoff)
-                sleep_time = backoff + jitter
-
-                log.warning(f"Received 429, backing off for {sleep_time:.2f} seconds")
-                time.sleep(sleep_time)
-
-                retry_count += 1
-            else:
-                msg = f"Failed to upload document: {item}"
-                log.error(msg)
-                raise Exception(msg)
 
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
         from opensearchpy.exceptions import RequestError

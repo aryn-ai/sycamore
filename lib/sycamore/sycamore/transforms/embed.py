@@ -198,7 +198,7 @@ class OpenAIEmbedder(Embedder):
 
         for batch in batched(doc_batch, self.model_batch_size):
             text_to_embed = [
-                self.pre_process_document(doc).replace("\n", " ")
+                self.pre_process_document(doc)
                 for doc in batch
                 if not _text_representation_is_empty(doc)
             ]

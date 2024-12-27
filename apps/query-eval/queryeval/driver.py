@@ -198,7 +198,6 @@ class QueryEvalDriver:
         self.rouge_scorer = RougeScore()
         self.semantic_similarity_scorer = SemanticSimilarity()
         self.semantic_similarity_scorer.embeddings = LangchainEmbeddingsWrapper(
-            # HuggingfaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
             OpenAIEmbeddings(model="text-embedding-3-small")
         )
         self.correctness_scorer = FactualCorrectness()

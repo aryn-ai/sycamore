@@ -703,7 +703,7 @@ class DocSet:
             .. code-block:: python
 
                 openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
-                property_extractor = OpenAIPropertyExtractor(OpenaAIPropertyExtrator(llm=openai_llm))
+                property_extractor = OpenAIPropertyExtractor(OpenAIPropertyExtractor(llm=openai_llm))
 
                 context = sycamore.init()
 

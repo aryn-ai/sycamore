@@ -98,10 +98,9 @@ class DocSet:
 
         def _format_embedding(embedding):
             """Format the embedding to display its length."""
-            if embedding is not None:
-                embedding_length = len(embedding)
-                return f"<{embedding_length} floats>"
-            return None
+            if embedding is None:
+                return None
+            return f"<{len(embedding)} floats>"
 
         for document in documents:
             if not show_elements:

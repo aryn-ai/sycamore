@@ -152,7 +152,7 @@ class TestEmbedding:
             original_embed_texts = embedder.embed_texts
 
             def mock_embed_texts(text_batch):
-                assert len(text_batch) <= 2, "All batches should be size 2 or smaller"
+                assert len(text_batch) == 2, "All batches should be size 2"
                 return original_embed_texts(text_batch)
 
             embedder.embed_texts = mock_embed_texts

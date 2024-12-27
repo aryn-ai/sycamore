@@ -1,4 +1,3 @@
-import sycamore
 from sycamore.data import Document, Element
 from sycamore.transforms.embed import Embedder, BedrockEmbedder, OpenAIEmbedder, SentenceTransformerEmbedder
 
@@ -46,11 +45,15 @@ def check_embedder(embedder: Embedder, expected_dim: int, use_documents: bool = 
             if doc.text_representation != "":
                 assert doc.embedding is not None
                 assert len(doc.embedding) == expected_dim
+            else:
+                assert doc.embedding is None
         if use_elements:
             for element in doc.elements:
                 if element.text_representation != "":
                     assert element.embedding is not None
                     assert len(element.embedding) == expected_dim
+                else:
+                    assert element.embedding is None
 
 
 def test_sentencetransformer_embedding():
@@ -73,53 +76,8 @@ def test_sentencetransformer_embedding():
 
 
 def test_openai_embedding():
-    check_embedder(embedder=OpenAIEmbedder(), expected_dim=1536, use_documents=True)
-    check_embedder(embedder=OpenAIEmbedder(), expected_dim=1536, use_elements=True)
     check_embedder(embedder=OpenAIEmbedder(), expected_dim=1536, use_elements=True, use_documents=True)
 
 
 def test_bedrock_embedding():
-    check_embedder(embedder=BedrockEmbedder(), expected_dim=1536, use_documents=True)
-    check_embedder(embedder=BedrockEmbedder(), expected_dim=1536, use_elements=True)
     check_embedder(embedder=BedrockEmbedder(), expected_dim=1536, use_elements=True, use_documents=True)
-
-
-def check_openai_embedding_batches(use_documents: bool = False, use_elements: bool = False):
-    docs = [
-        Document(
-            {
-                "doc_id": f"doc_{i}",
-                "type": "test",
-                "text_representation": f"Document text for passage {i}" if use_documents else None,
-                "elements": (
-                    [Element({"_element_index": 0, "text_representation": f"Element text for passage {i}"})]
-                    if use_elements
-                    else []
-                ),
-                "properties": {},
-            }
-        )
-        for i in range(5)
-    ]
-
-    context = sycamore.init()
-    doc_set = context.read.document(docs)
-    embedder = OpenAIEmbedder(model_batch_size=3)
-    embedded_doc_set = doc_set.embed(embedder=embedder)
-
-    new_docs = embedded_doc_set.take()
-
-    assert len(new_docs) == len(docs)
-
-    for doc in new_docs:
-        if use_documents:
-            assert len(doc.embedding) == 1536
-        if use_elements:
-            for element in doc.elements:
-                assert len(element.embedding) == 1536
-
-
-def test_openai_embedding_batches():
-    check_openai_embedding_batches(use_documents=True)
-    check_openai_embedding_batches(use_elements=True)
-    check_openai_embedding_batches(use_elements=True, use_documents=True)

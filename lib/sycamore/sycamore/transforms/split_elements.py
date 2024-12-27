@@ -45,7 +45,10 @@ class SplitElements(SingleThreadUser, NonGPUUser, Map):
         return parent
 
     @staticmethod
-    def split_one(elem: Element, tokenizer: Tokenizer, max: int) -> list[Element]:
+    def split_one(elem: Element, tokenizer: Tokenizer, max: int, depth: int = 0) -> list[Element]:
+        if depth > 20:
+            logger.warning("Max split depth exceeded, truncating the splitting")
+            return [elem]
 
         txt = elem.text_representation
         if not txt:
@@ -121,9 +124,7 @@ class SplitElements(SingleThreadUser, NonGPUUser, Map):
         ment = elem.copy()
         elem.text_representation = one
         elem.binary_representation = bytes(one, "utf-8")
-        if elem.type == "table":
-            if not isinstance(elem, TableElement) or elem.table is None:
-                raise ValueError("Element must be tableElement/ have table to perform splitting.")
+        if elem.type == "table" and isinstance(elem, TableElement) and elem.table is not None:
             if elem.table.column_headers:
                 two = ", ".join(elem.table.column_headers) + "\n" + two
             if elem.data["properties"].get("title"):
@@ -133,7 +134,7 @@ class SplitElements(SingleThreadUser, NonGPUUser, Map):
         else:
             ment.text_representation = two
         ment.binary_representation = bytes(two, "utf-8")
-        aa = SplitElements.split_one(elem, tokenizer, max)
-        bb = SplitElements.split_one(ment, tokenizer, max)
+        aa = SplitElements.split_one(elem, tokenizer, max, depth + 1)
+        bb = SplitElements.split_one(ment, tokenizer, max, depth + 1)
         aa.extend(bb)
         return aa

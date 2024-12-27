@@ -11,6 +11,10 @@ from sycamore.llms.prompts import (
 from sycamore.plan_nodes import Node
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
+from sycamore.functions.tokenizer import Tokenizer
+from sycamore.transforms.similarity import SimilarityScorer
+from sycamore.utils.similarity import make_element_sorter_fn
+from sycamore.utils.llm_utils import merge_elements
 
 
 def element_list_formatter(elements: list[Element], field: str = "text_representation") -> str:
@@ -30,6 +34,10 @@ class EntityExtractor(ABC):
         self, document: Document, context: Optional[Context] = None, llm: Optional[LLM] = None
     ) -> Document:
         pass
+
+    def property(self):
+        """The name of the property added by calling extract_entity"""
+        return self._entity_name
 
 
 class OpenAIEntityExtractor(EntityExtractor):
@@ -73,8 +81,13 @@ class OpenAIEntityExtractor(EntityExtractor):
         use_elements: Optional[bool] = True,
         prompt: Optional[Union[list[dict], str]] = None,
         field: str = "text_representation",
+        max_tokens: int = 512,
+        tokenizer: Optional[Tokenizer] = None,
+        similarity_query: Optional[str] = None,
+        similarity_scorer: Optional[SimilarityScorer] = None,
     ):
         super().__init__(entity_name)
+        self._entity_name = entity_name
         self._llm = llm
         self._num_of_elements = num_of_elements
         self._prompt_template = prompt_template
@@ -82,6 +95,10 @@ class OpenAIEntityExtractor(EntityExtractor):
         self._use_elements = use_elements
         self._prompt = prompt
         self._field = field
+        self._max_tokens = max_tokens
+        self._tokenizer = tokenizer
+        self._similarity_query = similarity_query
+        self._similarity_scorer = similarity_scorer
 
     @context_params(OperationTypes.INFORMATION_EXTRACTOR)
     @timetrace("OaExtract")
@@ -90,7 +107,13 @@ class OpenAIEntityExtractor(EntityExtractor):
     ) -> Document:
         self._llm = llm or self._llm
         if self._use_elements:
-            entities = self._handle_element_prompting(document)
+            element_sorter = make_element_sorter_fn(self._field, self._similarity_query, self._similarity_scorer)
+            element_sorter(document)
+            if self._tokenizer is not None:
+                entities, window_indices = self._handle_element_chunking(document)
+                document.properties[f"{self._entity_name}_source_element_index"] = window_indices
+            else:
+                entities = self._handle_element_prompting(document)
         else:
             if self._prompt is None:
                 raise Exception("prompt must be specified if use_elements is False")
@@ -121,6 +144,23 @@ class OpenAIEntityExtractor(EntityExtractor):
             return entities
         else:
             return self._get_entities(content)
+
+    def _handle_element_chunking(self, document: Document) -> Any:
+        assert self._tokenizer is not None
+        ind = 0
+        while ind < len(document.elements):
+            ind, combined_text, window_indices = merge_elements(
+                ind, document.elements, self._field, self._tokenizer, self._max_tokens
+            )
+            entity = self._get_entities(combined_text)
+            for i in range(0, len(window_indices)):
+                document.elements[ind - i - 1]["properties"][f"{self._entity_name}"] = entity
+                document.elements[ind - i - 1]["properties"][
+                    f"{self._entity_name}_source_element_index"
+                ] = window_indices
+            if entity != "None":
+                return entity, window_indices
+        return "None", None
 
     def _handle_document_field_prompting(self, document: Document) -> Any:
         assert self._llm is not None

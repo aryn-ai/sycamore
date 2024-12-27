@@ -110,3 +110,16 @@ def test_cached_bedrock_different_models(tmp_path: Path):
     # check for difference with model change
     assert key_HAIKU != key_SONNET
     assert res_HAIKU != res_SONNET
+
+
+def test_metadata():
+    llm = Bedrock(BedrockModels.CLAUDE_3_HAIKU)
+    prompt_kwargs = {"prompt": "Write a limerick about large language models."}
+
+    res = llm.generate_metadata(prompt_kwargs=prompt_kwargs, llm_kwargs={})
+
+    assert "output" in res
+    assert "wall_latency" in res
+    assert "server_latency" in res
+    assert "in_tokens" in res
+    assert "out_tokens" in res

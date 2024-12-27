@@ -40,7 +40,11 @@ class LLM(ABC):
         data = pickle.dumps(combined)
         return self._cache.get_hash_context(data).hexdigest()
 
-    def _cache_get(self, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Tuple[Optional[str], Optional[str]]:
+    # TODO fix cache_get and cache_set to have more consistent typing on the value.
+    # cache_set takes a value which is a dictionary and has a bunch of required values
+    # so that cache_get can verify the return value. cache_set then reaches inside that
+    # dictionary for its return value.
+    def _cache_get(self, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> Tuple[Optional[str], Any]:
         """Get a cached result for the given prompt and LLM parameters. Returns the cache key
         and the cached result if found, otherwise returns None for both."""
         if (llm_kwargs or {}).get("temperature", 0) != 0 or not self._cache:

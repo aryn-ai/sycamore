@@ -177,6 +177,14 @@ class OpenAIEmbedder(Embedder):
         self._client: Optional[OpenAIClient] = None
         self.model_name = model_name
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state["_client"] = None
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+
     def generate_embeddings(self, doc_batch: list[Document]) -> list[Document]:
         # TODO: Add some input validation here.
         # The OpenAI docs are quite vague on acceptable values for model_batch_size.
@@ -189,11 +197,7 @@ class OpenAIEmbedder(Embedder):
             self.model_batch_size = 16
 
         for batch in batched(doc_batch, self.model_batch_size):
-            text_to_embed = [
-                self.pre_process_document(doc).replace("\n", " ")
-                for doc in batch
-                if not _text_representation_is_empty(doc)
-            ]
+            text_to_embed = [self.pre_process_document(doc) for doc in batch if not _text_representation_is_empty(doc)]
 
             embeddings = self._client.embeddings.create(model=self.model_name, input=text_to_embed).data
 

@@ -18,6 +18,8 @@ from sycamore.connectors.opensearch.utils import get_knn_query
 from sycamore.data.document import Document, DocumentPropertyTypes, DocumentSource
 from sycamore.transforms import Embedder
 
+MATCH_ALL_QUERY: dict = {"query": {"match_all": {}}}
+
 
 class TestOpenSearchTargetParams:
 
@@ -179,7 +181,7 @@ class TestOpenSearchReaderQueryResponse:
         ]
         hits = [{"_source": record, "_score": random.random()} for record in records]
         query_response = OpenSearchReaderQueryResponse(hits)
-        query_params = OpenSearchReaderQueryParams(index_name="some index")
+        query_params = OpenSearchReaderQueryParams(index_name="some index", query=MATCH_ALL_QUERY)
         docs = query_response.to_docs(query_params)
 
         assert len(docs) == 2
@@ -191,7 +193,9 @@ class TestOpenSearchReaderQueryResponse:
 
     def test_to_docs_reconstruct_require_client(self):
         query_response = OpenSearchReaderQueryResponse([])
-        query_params = OpenSearchReaderQueryParams(index_name="some index", reconstruct_document=True)
+        query_params = OpenSearchReaderQueryParams(
+            index_name="some index", query=MATCH_ALL_QUERY, reconstruct_document=True
+        )
         with pytest.raises(AssertionError):
             query_response.to_docs(query_params)
 
@@ -244,7 +248,9 @@ class TestOpenSearchReaderQueryResponse:
         ]
         client.search.return_value = return_val
         query_response = OpenSearchReaderQueryResponse(hits, client=client)
-        query_params = OpenSearchReaderQueryParams(index_name="some index", reconstruct_document=True)
+        query_params = OpenSearchReaderQueryParams(
+            index_name="some index", query=MATCH_ALL_QUERY, reconstruct_document=True
+        )
         docs = query_response.to_docs(query_params)
 
         assert len(docs) == 4
@@ -314,7 +320,9 @@ class TestOpenSearchReaderQueryResponse:
         hits = [{"_source": record} for record in records]
         client.search.return_value = {"hits": {"hits": [hit for hit in hits if hit["_source"].get("parent_id")]}}
         query_response = OpenSearchReaderQueryResponse(hits, client=client)
-        query_params = OpenSearchReaderQueryParams(index_name="some index", reconstruct_document=True)
+        query_params = OpenSearchReaderQueryParams(
+            index_name="some index", query=MATCH_ALL_QUERY, reconstruct_document=True
+        )
         docs = query_response.to_docs(query_params)
 
         assert len(docs) == 3

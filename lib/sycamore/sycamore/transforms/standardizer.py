@@ -186,6 +186,14 @@ class DateTimeStandardizer(Standardizer):
 
     DEFAULT_FORMAT = "%B %d, %Y %H:%M:%S%Z"
 
+    # Regexes for military time stuff below.  Example matching strings:
+    # clock: 8:00 12:30 23:59:59
+    # year: 1970-04-30 1999-12 12/5/2024 12/2000 4/30/70
+    # digitpair: 0800 235959
+    clock_re = re.compile(r"\d:[0-5]\d")
+    year_re = re.compile(r"([12]\d\d\d-)|(/[12]\d\d\d)|(\d/[0-3]?\d/\d)")
+    digitpair_re = re.compile(r"([0-2]\d)([0-5]\d)(\d\d)?")
+
     @staticmethod
     def fixer(raw_dateTime: str) -> datetime:
         """
@@ -205,7 +213,7 @@ class DateTimeStandardizer(Standardizer):
         """
         assert raw_dateTime is not None, "raw_dateTime is None"
         try:
-            raw_dateTime = raw_dateTime.strip()
+            raw_dateTime = DateTimeStandardizer.fix_military(raw_dateTime)
             raw_dateTime = raw_dateTime.replace("Local", "")
             raw_dateTime = raw_dateTime.replace("local", "")
             raw_dateTime = raw_dateTime.replace(".", ":")
@@ -221,6 +229,35 @@ class DateTimeStandardizer(Standardizer):
         except Exception as e:
             # Handle any other exceptions
             raise RuntimeError(f"Unexpected error occurred while processing: {raw_dateTime}") from e
+
+    @staticmethod
+    def fix_military(raw: str) -> str:
+        # Fix up military clock time with just digits (0800)
+        raw = raw.strip()
+        tokens = raw.split()
+        saw_clock = 0
+        saw_year = 0
+        saw_digits = 0
+        for token in tokens:
+            if DateTimeStandardizer.clock_re.search(token):
+                saw_clock += 1
+            elif DateTimeStandardizer.year_re.search(token):
+                saw_year += 1
+            elif DateTimeStandardizer.digitpair_re.fullmatch(token):
+                saw_digits += 1
+        # If unsure there's exactly one military clock time, bail out.
+        # Note that numbers like 2024 could be times or years.
+        if (saw_clock > 0) or (saw_year == 0) or (saw_digits != 1):
+            return raw
+        pieces: list[str] = []
+        for token in tokens:
+            if match := DateTimeStandardizer.digitpair_re.fullmatch(token):
+                clock = ":".join([x for x in match.groups() if x])
+                before = token[: match.start(0)]
+                after = token[match.end(0) :]
+                token = before + clock + after
+            pieces.append(token)
+        return " ".join(pieces)
 
     @staticmethod
     def standardize(
@@ -305,7 +342,7 @@ def ignore_errors(doc: Document, standardizer: Standardizer, key_path: list[str]
     try:
         doc = standardizer.standardize(doc, key_path=key_path)
     except KeyError:
-        logger.warn(f"Key {key_path} not found in document: {doc}")
+        logger.warning(f"Key {key_path} not found in document: {doc}")
     except Exception as e:
         logger.error(e)
     return doc

@@ -3,6 +3,7 @@ from typing import List
 import pytest
 import ray.data
 
+import sycamore
 from sycamore.data import Document
 from sycamore.plan_nodes import Node
 from sycamore.transforms import Map, FlatMap, MapBatch
@@ -67,6 +68,37 @@ class TestMapping:
         print(dicts)
         assert dicts[0]["index"] == 2
         assert dicts[1]["index"] == 3
+
+    def test_map_metadata(self) -> None:
+        dicts = [
+            {"index": 1, "doc": "Members of a strike at Yale University."},
+            {"index": 2, "doc": "A woman is speaking at a podium outdoors."},
+        ]
+        in_docs = [Document(d) for d in dicts]
+
+        def inject_metadata(d):
+            from sycamore.data.metadata import add_metadata
+
+            idx = d["index"]
+            for i in range(idx):
+                add_metadata(index=idx, value=i)
+            return d
+
+        docs = (
+            sycamore.init(exec_mode=sycamore.EXEC_LOCAL)
+            .read.document(in_docs)
+            .map(inject_metadata)
+            .take_all(include_metadata=True)
+        )
+
+        inject_md = [d for d in docs if "metadata" in d and "index" in d.metadata]
+        assert len(inject_md) == 3
+        assert inject_md[0].metadata["index"] == 1
+        assert inject_md[0].metadata["value"] == 0
+        assert inject_md[1].metadata["index"] == 2
+        assert inject_md[1].metadata["value"] == 0
+        assert inject_md[2].metadata["index"] == 2
+        assert inject_md[2].metadata["value"] == 1
 
     class Empty:
         def __init__(self):

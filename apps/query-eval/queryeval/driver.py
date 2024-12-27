@@ -27,7 +27,6 @@ import asyncio
 from ragas.dataset_schema import SingleTurnSample
 from ragas.metrics import BleuScore, RougeScore, SemanticSimilarity
 from ragas.embeddings.base import (
-    HuggingfaceEmbeddings,
     OpenAIEmbeddings,
     LangchainEmbeddingsWrapper,
 )

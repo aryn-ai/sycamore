@@ -128,8 +128,10 @@ class SycamoreQueryVectorDatabase(SycamoreOperator):
         logical_node: QueryVectorDatabase,
         query_id: str,
         trace_dir: Optional[str] = None,
+        rerank: bool = False,
     ) -> None:
         super().__init__(context=context, logical_node=logical_node, query_id=query_id, trace_dir=trace_dir)
+        self.rerank = rerank
 
     def execute(self) -> Any:
         assert isinstance(self.logical_node, QueryVectorDatabase)
@@ -145,7 +147,9 @@ class SycamoreQueryVectorDatabase(SycamoreOperator):
             os_query["query"]["knn"]["embedding"]["filter"] = self.logical_node.opensearch_filter
         result = self.context.read.opensearch(
             index_name=self.logical_node.index, query=os_query, reconstruct_document=True
-        ).rerank(query=self.logical_node.query_phrase)
+        )
+        if self.rerank:
+            result = result.rerank(query=self.logical_node.query_phrase)
         return result
 
     def script(self, input_var: Optional[str] = None, output_var: Optional[str] = None) -> Tuple[str, List[str]]:

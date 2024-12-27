@@ -6,7 +6,6 @@ import tracemalloc
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from typing import Any, BinaryIO, Literal, Union, Optional
-from pathlib import Path
 from itertools import repeat
 
 import requests
@@ -14,7 +13,6 @@ import json
 from tenacity import retry, retry_if_exception, wait_exponential, stop_after_delay
 import base64
 from PIL import Image
-import fasteners
 from pypdf import PdfReader
 
 from sycamore.data import Element, BoundingBox, ImageElement, TableElement
@@ -34,7 +32,6 @@ from sycamore.transforms.text_extraction import TextExtractor, OcrModel, get_tex
 from sycamore.transforms.text_extraction.pdf_miner import PdfMinerExtractor
 
 logger = logging.getLogger(__name__)
-_DETR_LOCK_FILE = f"{Path.home()}/.cache/Aryn-Detr.lock"
 _VERSION = "0.2024.07.24"
 
 
@@ -176,6 +173,7 @@ class ArynPDFPartitioner:
                 pages_per_call=pages_per_call,
                 output_format=output_format,
                 source=source,
+                output_label_options=output_label_options,
             )
         else:
             if isinstance(threshold, str):
@@ -234,6 +232,7 @@ class ArynPDFPartitioner:
         selected_pages: list = [],
         output_format: Optional[str] = None,
         source: str = "",
+        output_label_options: dict[str, Any] = {},
     ) -> list[Element]:
         file.seek(0)
         options = {
@@ -244,6 +243,7 @@ class ArynPDFPartitioner:
             "extract_images": extract_images,
             "selected_pages": selected_pages,
             "source": f"sycamore-{source}" if source else "sycamore",
+            "output_label_options": output_label_options,
         }
         if output_format:
             options["output_format"] = output_format
@@ -347,6 +347,7 @@ class ArynPDFPartitioner:
         pages_per_call: int = -1,
         output_format: Optional[str] = None,
         source: str = "",
+        output_label_options: dict[str, Any] = {},
     ) -> list[Element]:
         page_count = get_page_count(file)
 
@@ -369,6 +370,7 @@ class ArynPDFPartitioner:
                     selected_pages=[[low, min(high, page_count)]],
                     output_format=output_format,
                     source=source,
+                    output_label_options=output_label_options,
                 )
             )
             low = high + 1
@@ -683,18 +685,11 @@ class DeformableDetr(SycamoreObjectDetection):
         self._model_name_or_path = model_name_or_path
         self.cache = cache
 
-        from sycamore.utils.pytorch_dir import get_pytorch_build_directory
+        from transformers import AutoImageProcessor
+        from sycamore.utils.model_load import load_deformable_detr
 
-        with fasteners.InterProcessLock(_DETR_LOCK_FILE):
-            lockfile = Path(get_pytorch_build_directory("MultiScaleDeformableAttention", False)) / "lock"
-            lockfile.unlink(missing_ok=True)
-
-            from transformers import AutoImageProcessor, DeformableDetrForObjectDetection
-
-            LogTime("loading_model", point=True)
-            with LogTime("load_model", log_start=True):
-                self.processor = AutoImageProcessor.from_pretrained(model_name_or_path)
-                self.model = DeformableDetrForObjectDetection.from_pretrained(model_name_or_path).to(self._get_device())
+        self.processor = AutoImageProcessor.from_pretrained(model_name_or_path)
+        self.model = load_deformable_detr(model_name_or_path, self._get_device())
 
     # Note: We wrap this in a function so that we can execute on both the leader and the workers
     # to account for heterogeneous systems. Currently, if you pass in an explicit device parameter

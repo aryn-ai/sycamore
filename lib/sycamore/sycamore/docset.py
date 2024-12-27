@@ -4,7 +4,6 @@ from pathlib import Path
 import pprint
 import sys
 from typing import Callable, Optional, Any, Iterable, Type, Union, TYPE_CHECKING
-import re
 
 from sycamore.context import Context, context_params, OperationTypes
 from sycamore.data import Document, Element, MetadataDocument
@@ -242,6 +241,19 @@ class DocSet:
                 raise ValueError(f"docset exceeded limit of {limit} docs")
 
         return docs
+
+    def take_stream(self, include_metadata: bool = False, **kwargs) -> Iterable[Document]:
+        """
+        Returns a stream of all rows in this DocSet.
+
+        Args:
+            include_metadata: False [default] will filter out all MetadataDocuments from the result.
+        """
+        from sycamore import Execution
+
+        for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
+            if include_metadata or not isinstance(doc, MetadataDocument):
+                yield doc
 
     def limit(self, limit: int = 20, **kwargs) -> "DocSet":
         """
@@ -685,7 +697,7 @@ class DocSet:
             .. code-block:: python
 
                 openai_llm = OpenAI(OpenAIModels.GPT_3_5_TURBO.value)
-                property_extractor = OpenAIPropertyExtractor(OpenaAIPropertyExtrator(llm=openai_llm))
+                property_extractor = OpenAIPropertyExtractor(OpenAIPropertyExtractor(llm=openai_llm))
 
                 context = sycamore.init()
 
@@ -982,8 +994,11 @@ class DocSet:
         threshold: int = 3,
         keep_none: bool = False,
         use_elements: bool = False,
+        # TODO: merge similarity_query into similarity_scorer object.
         similarity_query: Optional[str] = None,
         similarity_scorer: Optional[SimilarityScorer] = None,
+        max_tokens: int = 512,
+        tokenizer: Optional[Tokenizer] = None,
         **resource_args,
     ) -> "DocSet":
         """
@@ -1012,39 +1027,51 @@ class DocSet:
             entity_name=new_field, llm=llm, use_elements=False, prompt=prompt, field=field
         )
 
-        def threshold_filter(doc: Document, threshold) -> bool:
-            if not use_elements:
-                if doc.field_to_value(field) is None:
-                    return keep_none
-                doc = entity_extractor.extract_entity(doc)
-                # todo: move data extraction and validation to entity extractor
-                return int(re.findall(r"\d+", doc.properties[new_field])[0]) >= threshold
+        if not use_elements:
+            from sycamore.transforms.llm_filter import document_threshold_llm_filter
 
-            if similarity_query is not None:
-                assert similarity_scorer is not None, "Similarity sorting requires a scorer"
-                score_property_name = f"{field}_similarity_score"
-                doc = similarity_scorer.generate_similarity_scores(
-                    doc_batch=[doc], query=similarity_query, score_property_name=score_property_name
-                )[0]
-                doc.elements.sort(key=lambda e: e.properties.get(score_property_name, float("-inf")), reverse=True)
-            evaluated_elements = 0
-            for element in doc.elements:
-                e_doc = Document(element.data)
-                if e_doc.field_to_value(field) is None:
-                    continue
-                e_doc = entity_extractor.extract_entity(e_doc)
-                element.properties[new_field] = e_doc.properties[new_field]
-                # todo: move data extraction and validation to entity extractor
-                if int(re.findall(r"\d+", element.properties[new_field])[0]) >= threshold:
-                    return True
-                evaluated_elements += 1
-            if evaluated_elements == 0:  # no elements found for property
-                return keep_none
-            return False
+            def f(doc):
+                return document_threshold_llm_filter(
+                    doc, field=field, entity_extractor=entity_extractor, threshold=threshold, keep_none=keep_none
+                )
 
-        docset = self.filter(lambda doc: threshold_filter(doc, threshold), **resource_args)
+            return self.filter(f, **resource_args)
 
-        return docset
+        from sycamore.transforms.llm_filter import (
+            tokenized_threshold_llm_filter,
+            untokenized_threshold_llm_filter,
+        )
+        from sycamore.utils.similarity import make_element_sorter_fn
+
+        element_sorter = make_element_sorter_fn(field, similarity_query, similarity_scorer)
+
+        if tokenizer is not None:
+
+            def g(doc):
+                return tokenized_threshold_llm_filter(
+                    doc,
+                    field=field,
+                    entity_extractor=entity_extractor,
+                    threshold=threshold,
+                    keep_none=keep_none,
+                    element_sorter=element_sorter,
+                    max_tokens=max_tokens,
+                    tokenizer=tokenizer,
+                )
+
+            return self.filter(g, **resource_args)
+
+        def h(doc):
+            return untokenized_threshold_llm_filter(
+                doc,
+                field=field,
+                entity_extractor=entity_extractor,
+                threshold=threshold,
+                keep_none=keep_none,
+                element_sorter=element_sorter,
+            )
+
+        return self.filter(h, **resource_args)
 
     def map_batch(
         self,

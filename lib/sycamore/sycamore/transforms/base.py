@@ -8,6 +8,7 @@ from sycamore.utils.lineage_utils import update_lineage
 from sycamore.data.document import split_data_metadata
 from sycamore.plan_nodes import Node, UnaryNode
 from sycamore.utils.ray_utils import check_serializable
+from sycamore.utils.thread_local import ThreadLocal, ADD_METADATA_TO_OUTPUT
 
 if TYPE_CHECKING:
     from ray.data import Dataset, Datasink
@@ -159,11 +160,14 @@ class BaseMapTransform(UnaryNode):
     def local_execute(self, all_docs: list[Document]) -> list[Document]:
         docs = [d for d in all_docs if not isinstance(d, MetadataDocument)]
         metadata = [d for d in all_docs if isinstance(d, MetadataDocument)]
-        outputs = self._local_process(docs)
+        extra_metadata: list[MetadataDocument] = []
+        with ThreadLocal(ADD_METADATA_TO_OUTPUT, extra_metadata):
+            outputs = self._local_process(docs)
         to_docs = [d for d in outputs if not isinstance(d, MetadataDocument)]
         if self._enable_auto_metadata and (len(docs) > 0 or len(to_docs) > 0):
             outputs.extend(update_lineage(docs, to_docs))
         outputs.extend(metadata)
+        outputs.extend(extra_metadata)
         return outputs
 
     def _local_process(self, in_docs: list[Document]) -> list[Document]:
@@ -248,7 +252,9 @@ class BaseMapTransform(UnaryNode):
         all_docs = [Document.deserialize(s) for s in ray_input.get("doc", [])]
         docs = [d for d in all_docs if not isinstance(d, MetadataDocument)]
         metadata = [d for d in all_docs if isinstance(d, MetadataDocument)]
-        outputs = f(docs)
+        extra_metadata: list[MetadataDocument] = []
+        with ThreadLocal(ADD_METADATA_TO_OUTPUT, extra_metadata):
+            outputs = f(docs)
         if outputs is None:
             logging.warn(f"Function {name} returned nothing. If it has no outputs it should return an empty list")
             outputs = []
@@ -264,6 +270,7 @@ class BaseMapTransform(UnaryNode):
         if enable_auto_metadata and (len(docs) > 0 or len(to_docs) > 0):
             outputs.extend(update_lineage(docs, to_docs))
         outputs.extend(metadata)
+        outputs.extend(extra_metadata)
         return {"doc": [d.serialize() for d in outputs]}
 
 

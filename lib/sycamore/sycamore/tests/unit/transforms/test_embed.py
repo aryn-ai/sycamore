@@ -1,10 +1,11 @@
+import pickle
 import pytest
 import ray.data
 
 from sycamore.data import Document
 from sycamore.plan_nodes import Node
 from sycamore.transforms import Embed
-from sycamore.transforms.embed import SentenceTransformerEmbedder
+from sycamore.transforms.embed import OpenAIEmbedder, SentenceTransformerEmbedder
 
 
 class TestEmbedding:
@@ -77,3 +78,10 @@ class TestEmbedding:
         input_dataset.show()
         output_dataset = embedding.execute()
         output_dataset.show()
+
+    def test_openai_embedder_pickle(self):
+        obj = OpenAIEmbedder()
+        obj._client = obj.client_wrapper.get_client()
+
+        pickle.dumps(obj)
+        assert True

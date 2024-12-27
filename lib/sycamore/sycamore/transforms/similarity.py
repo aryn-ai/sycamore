@@ -7,7 +7,7 @@ from sycamore.utils.import_utils import requires_modules
 
 from sycamore.data import Document, Element
 from sycamore.plan_nodes import Node
-from sycamore.transforms import MapBatch
+from sycamore.transforms.map import MapBatch
 from sycamore.utils import choose_device
 from sycamore.utils.time_trace import timetrace
 
@@ -30,11 +30,19 @@ class SimilarityScorer(ABC):
         ignore_doc_structure: Ignore Document model (Document->Elements) in a DocSet
     """
 
-    def __init__(self, ignore_element_sources: Optional[list[str]] = None, ignore_doc_structure: bool = False):
+    def __init__(
+        self,
+        ignore_element_sources: Optional[list[str]] = None,
+        ignore_doc_structure: bool = False,
+        batch_size: Optional[int] = None,
+        device: Optional[str] = None,
+    ):
         if ignore_element_sources is None:
             ignore_element_sources = [DocumentSource.DOCUMENT_RECONSTRUCTION_RETRIEVAL]
         self._ignore_element_sources = ignore_element_sources
         self._ignore_doc_structure = ignore_doc_structure
+        self.batch_size = batch_size
+        self.device = choose_device(device)
 
     def __call__(self, doc_batch: list[Document], query: str, score_property_name: str) -> list[Document]:
         return self.generate_similarity_scores(doc_batch, query, score_property_name)
@@ -135,12 +143,18 @@ class HuggingFaceTransformersSimilarityScorer(SimilarityScorer):
         model_name: str = "BAAI/bge-reranker-large",
         model_batch_size: int = 16,
         max_tokens: int = 512,
+        batch_size: Optional[int] = None,
         device: Optional[str] = None,
         ignore_doc_structure: bool = False,
         ignore_element_sources: Optional[list[str]] = None,
     ):
-        super().__init__(ignore_element_sources=ignore_element_sources, ignore_doc_structure=ignore_doc_structure)
-        self.device = choose_device(device)
+        super().__init__(
+            ignore_element_sources=ignore_element_sources,
+            ignore_doc_structure=ignore_doc_structure,
+            batch_size=batch_size,
+            device=device,
+        )
+        # self.device = choose_device(device)
         self.model_name = model_name
         self.model_batch_size = model_batch_size
         self.max_tokens = max_tokens
@@ -174,15 +188,8 @@ class HuggingFaceTransformersSimilarityScorer(SimilarityScorer):
                 tokenized = self._tokenizer(
                     input_batch, padding=True, truncation=True, return_tensors="pt", max_length=self.max_tokens
                 ).to(self.device)
-                scores.extend(
-                    (
-                        self._model(**tokenized, return_dict=True)
-                        .logits.view(
-                            -1,
-                        )
-                        .float()
-                    )
-                )
+                score = self._model(**tokenized, return_dict=True).logits.view(-1).float()
+                scores.extend([float(f) for f in score])
             return scores
 
 
@@ -216,6 +223,30 @@ class ScoreSimilarity(MapBatch):
         score_property_name: str = "_similarity_score",
         **resource_args,
     ):
+        self.resource_args = resource_args
+
+        if "batch_size" not in self.resource_args:
+            self.resource_args["batch_size"] = similarity_scorer.batch_size
+
+            # Batch size can be an integer, None, or the string "default" per
+            # https://docs.ray.io/en/latest/data/api/doc/ray.data.Dataset.map_batches.html
+            batch_size = self.resource_args["batch_size"]
+            assert (
+                batch_size is None
+                or (isinstance(batch_size, int) and batch_size > 0)
+                or self.resource_args["batch_size"] == "default"
+            )
+
+        if similarity_scorer.device == "cuda":
+            if "num_gpus" not in self.resource_args:
+                self.resource_args["num_gpus"] = 1
+            if self.resource_args["num_gpus"] <= 0:
+                raise RuntimeError("Invalid GPU Nums!")
+            if "parallelism" not in self.resource_args:
+                self.resource_args["parallelism"] = 1
+        elif similarity_scorer.device == "cpu":
+            self.resource_args.pop("num_gpus", None)
+
         super().__init__(
             child,
             f=similarity_scorer,  # type: ignore

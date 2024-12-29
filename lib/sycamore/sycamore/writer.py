@@ -56,8 +56,8 @@ class DocSetWriter:
             index_settings: Settings and mappings to pass when creating a new index. Specified as a Python dict
                 corresponding to the JSON paramters taken by the OpenSearch CreateIndex API:
                 https://opensearch.org/docs/latest/api-reference/index-apis/create-index/
-            insert_settings: Settings to pass when inserting data into the index. Specified as a Python dict. Defaults to
-                {"raise_on_error": False, "raise_on_exception": False, "chunk_size": 100, "thread_count": 3}
+            insert_settings: Settings to pass when inserting data into the index. Specified as a Python dict. Defaults
+                to {"raise_on_error": False, "raise_on_exception": False, "chunk_size": 100, "thread_count": 3}
             execute: Execute the pipeline and write to opensearch on adding this operator. If false,
                 will return a new docset with the write in the plan
             kwargs: Keyword arguments to pass to the underlying execution engine

@@ -43,6 +43,7 @@ class DocSetWriter:
         os_client_args: dict,
         index_name: str,
         index_settings: dict,
+        insert_settings: Optional[dict] = None,
         execute: bool = True,
         **kwargs,
     ) -> Optional["DocSet"]:
@@ -55,6 +56,8 @@ class DocSetWriter:
             index_settings: Settings and mappings to pass when creating a new index. Specified as a Python dict
                 corresponding to the JSON paramters taken by the OpenSearch CreateIndex API:
                 https://opensearch.org/docs/latest/api-reference/index-apis/create-index/
+            insert_settings: Settings to pass when inserting data into the index. Specified as a Python dict. Defaults to
+                {"raise_on_error": False, "raise_on_exception": False, "chunk_size": 100, "thread_count": 3}
             execute: Execute the pipeline and write to opensearch on adding this operator. If false,
                 will return a new docset with the write in the plan
             kwargs: Keyword arguments to pass to the underlying execution engine
@@ -133,14 +136,13 @@ class DocSetWriter:
         client_params = OpenSearchWriterClientParams(**os_client_args)
 
         target_params: OpenSearchWriterTargetParams
-
-        if index_settings is not None:
-            idx_settings = index_settings.get("body", {}).get("settings", {})
-            idx_mappings = index_settings.get("body", {}).get("mappings", {})
-            target_params = OpenSearchWriterTargetParams(index_name, idx_settings, idx_mappings)
-        else:
-            target_params = OpenSearchWriterTargetParams(index_name, {}, {})
-
+        target_params_dict: dict[str, Any] = {"index_name": index_name}
+        if insert_settings:
+            target_params_dict["insert_settings"] = insert_settings
+        if index_settings:
+            target_params_dict["settings"] = index_settings.get("body", {}).get("settings", {})
+            target_params_dict["mappings"] = index_settings.get("body", {}).get("mappings", {})
+        target_params = OpenSearchWriterTargetParams(**target_params_dict)
         os = OpenSearchWriter(
             self.plan, client_params=client_params, target_params=target_params, name="OsrchWrite", **kwargs
         )

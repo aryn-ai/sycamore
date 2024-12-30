@@ -10,6 +10,7 @@ from sycamore.query.schema import OpenSearchSchema
 from sycamore.query.planner import PlannerExample
 from sycamore.schema import Schema
 
+
 class QueryEvalConfig(BaseModel):
     """Represents the configuration for a Query Eval run."""
 

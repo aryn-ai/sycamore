@@ -3,6 +3,8 @@ import typing
 from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple, Type
 
+from sycamore.schema import Schema, SchemaField
+
 from sycamore.llms.llms import LLM
 from sycamore.llms.openai import OpenAI, OpenAIModels
 from sycamore.query.logical_plan import LogicalPlan, Node
@@ -15,7 +17,7 @@ from sycamore.query.operators.math import Math
 from sycamore.query.operators.query_database import QueryDatabase, QueryVectorDatabase
 from sycamore.query.operators.sort import Sort
 from sycamore.query.operators.top_k import TopK
-from sycamore.query.schema import OpenSearchSchema, OpenSearchSchemaField
+from sycamore.query.schema import OpenSearchSchema
 from sycamore.query.strategy import QueryPlanStrategy, ALL_OPERATORS
 from sycamore.utils.extract_json import extract_json
 
@@ -67,46 +69,53 @@ def process_json_plan(json_plan: str) -> LogicalPlan:
 class PlannerExample:
     """Represents an example query and query plan for the planner."""
 
-    schema: OpenSearchSchema
-    plan: LogicalPlan
+    def __init__(self, schema: typing.Union[OpenSearchSchema, Schema], plan: LogicalPlan) -> None:
+        super().__init__()
+        self.plan = plan
+        self.schema: Schema = schema.to_schema() if isinstance(schema, OpenSearchSchema) else schema
 
 
 # Example schema and planner examples for the NTSB and financial datasets.
-EXAMPLE_NTSB_SCHEMA = OpenSearchSchema(
-    fields={
-        "properties.path": OpenSearchSchemaField(
-            field_type="str", examples=["/docs/incident1.pdf", "/docs/incident2.pdf", "/docs/incident3.pdf"]
+EXAMPLE_NTSB_SCHEMA = Schema(
+    fields=[
+        SchemaField(
+            name="properties.path",
+            field_type="str",
+            examples=["/docs/incident1.pdf", "/docs/incident2.pdf", "/docs/incident3.pdf"],
         ),
-        "properties.entity.date": OpenSearchSchemaField(field_type="date", examples=["2023-07-01", "2024-09-01"]),
-        "properties.entity.accidentNumber": OpenSearchSchemaField(field_type="str", examples=["1234", "5678", "91011"]),
-        "properties.entity.location": OpenSearchSchemaField(
-            field_type="str", examples=["Atlanta, Georgia", "Miami, Florida", "San Diego, California"]
+        SchemaField(name="properties.entity.date", field_type="date", examples=["2023-07-01", "2024-09-01"]),
+        SchemaField(name="properties.entity.accidentNumber", field_type="str", examples=["1234", "5678", "91011"]),
+        SchemaField(
+            name="properties.entity.location",
+            field_type="str",
+            examples=["Atlanta, Georgia", "Miami, Florida", "San Diego, California"],
         ),
-        "properties.entity.aircraft": OpenSearchSchemaField(field_type="str", examples=["Cessna", "Boeing", "Airbus"]),
-        "properties.entity.city": OpenSearchSchemaField(field_type="str", examples=["Atlanta", "Savannah", "Augusta"]),
-        "text_representation": OpenSearchSchemaField(
-            field_type="str", examples=["Can be assumed to have all other details"]
+        SchemaField(name="properties.entity.aircraft", field_type="str", examples=["Cessna", "Boeing", "Airbus"]),
+        SchemaField(name="properties.entity.city", field_type="str", examples=["Atlanta", "Savannah", "Augusta"]),
+        SchemaField(
+            name="text_representation", field_type="str", examples=["Can be assumed to have all other details"]
         ),
-    }
+    ]
 )
 
-EXAMPLE_FINANCIAL_SCHEMA = OpenSearchSchema(
-    fields={
-        "properties.path": OpenSearchSchemaField(field_type="str", examples=["doc1.pdf", "doc2.pdf", "doc3.pdf"]),
-        "properties.entity.date": OpenSearchSchemaField(
-            field_type="str", examples=["2022-01-01", "2022-12-31", "2023-01-01"]
+EXAMPLE_FINANCIAL_SCHEMA = Schema(
+    fields=[
+        SchemaField(name="properties.path", field_type="str", examples=["doc1.pdf", "doc2.pdf", "doc3.pdf"]),
+        SchemaField(
+            name="properties.entity.date", field_type="str", examples=["2022-01-01", "2022-12-31", "2023-01-01"]
         ),
-        "properties.entity.revenue": OpenSearchSchemaField(
-            field_type="float", examples=["1000000.0", "2000000.0", "3000000.0"]
+        SchemaField(
+            name="properties.entity.revenue", field_type="float", examples=["1000000.0", "2000000.0", "3000000.0"]
         ),
-        "properties.entity.firmName": OpenSearchSchemaField(
+        SchemaField(
+            name="properties.entity.firmName",
             field_type="str",
             examples=["Dewey, Cheatem, and Howe", "Saul Goodman & Associates", "Wolfram & Hart"],
         ),
-        "text_representation": OpenSearchSchemaField(
-            field_type="str", examples=["Can be assumed to have all other details"]
+        SchemaField(
+            name="text_representation", field_type="str", examples=["Can be assumed to have all other details"]
         ),
-    }
+    ]
 )
 
 PLANNER_EXAMPLES: List[PlannerExample] = [
@@ -379,7 +388,7 @@ class LlmPlanner:
     def __init__(
         self,
         index: str,
-        data_schema: OpenSearchSchema,
+        data_schema: typing.Union[OpenSearchSchema, Schema],
         os_config: dict[str, str],
         os_client: "OpenSearch",
         strategy: QueryPlanStrategy = QueryPlanStrategy(ALL_OPERATORS, []),
@@ -389,7 +398,6 @@ class LlmPlanner:
     ) -> None:
         super().__init__()
         self._index = index
-        self._data_schema = data_schema
         self._strategy = strategy
         self._os_config = os_config
         self._os_client = os_client
@@ -397,7 +405,12 @@ class LlmPlanner:
         self._examples = PLANNER_EXAMPLES if examples is None else examples
         self._natural_language_response = natural_language_response
 
-    def make_operator_prompt(self, operator: Type[Node]) -> str:
+        self._data_schema: Schema = (
+            data_schema.to_schema() if isinstance(data_schema, OpenSearchSchema) else data_schema
+        )
+
+    @staticmethod
+    def make_operator_prompt(operator: Type[Node]) -> str:
         """Generate the prompt fragment for the given Node."""
 
         prompt = operator.usage() + "\n\nInput schema:\n"
@@ -407,7 +420,8 @@ class LlmPlanner:
         prompt += "\n------------\n"
         return prompt
 
-    def make_schema_prompt(self, schema: OpenSearchSchema) -> str:
+    @staticmethod
+    def make_schema_prompt(schema: Schema) -> str:
         """Generate the prompt fragment for the provided schema."""
         return schema.model_dump_json(indent=2)
 

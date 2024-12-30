@@ -1,8 +1,8 @@
 import logging
 import typing
-from typing import Any, Dict, List, Optional
-
+from typing import Dict, Optional
 from pydantic import BaseModel
+from sycamore.schema import Schema, SchemaField
 
 from sycamore.transforms.query import OpenSearchQueryExecutor
 from sycamore.data import OpenSearchQuery
@@ -12,24 +12,23 @@ if typing.TYPE_CHECKING:
     from opensearchpy.client.indices import IndicesClient
 
 
-class OpenSearchSchemaField(BaseModel):
+class OpenSearchSchemaField(SchemaField):
     """DEPRECATED: Migrating to docset.SchemaField."""
 
-    field_type: str
-    """The type of the field."""
-
-    description: Optional[str] = None
-    """A natural language description of the field."""
-
-    examples: Optional[List[Any]] = None
-    """A list of example values for the field."""
+    name: str = "default"
 
 
 class OpenSearchSchema(BaseModel):
     """DEPRECATED: Migrating to docset.Schema."""
 
-    fields: Dict[str, OpenSearchSchemaField]
+    fields: Dict[str, SchemaField]
     """A mapping from field name to field type and example values."""
+
+    def to_schema(self) -> Schema:
+        fields = list()
+        for field_name, field in self.fields.items():
+            fields.append(SchemaField(name=field_name, **field.dict()))
+        return Schema(fields=fields)
 
 
 logger = logging.getLogger(__name__)

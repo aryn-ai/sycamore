@@ -27,7 +27,7 @@ class OpenSearchSchema(BaseModel):
     def to_schema(self) -> Schema:
         fields = list()
         for field_name, field in self.fields.items():
-            fields.append(SchemaField(name=field_name, **field.dict()))
+            fields.append(SchemaField(**{**field.dict(), "name": field_name}))
         return Schema(fields=fields)
 
 

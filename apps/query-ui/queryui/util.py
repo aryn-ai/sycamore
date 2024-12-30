@@ -14,13 +14,13 @@ from sycamore.data import MetadataDocument
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.planner import PlannerExample
-from sycamore.query.schema import OpenSearchSchema
 from sycamore.query.result import SycamoreQueryResult
+from sycamore.schema import Schema
 
 from queryui.configuration import get_sycamore_query_client
 
 
-def get_schema(_client: SycamoreQueryClient, index: str) -> OpenSearchSchema:
+def get_schema(_client: SycamoreQueryClient, index: str) -> Schema:
     """Return the OpenSearch schema for the given index."""
     return _client.get_opensearch_schema(index)
 

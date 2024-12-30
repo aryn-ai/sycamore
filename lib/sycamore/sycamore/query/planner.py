@@ -1,7 +1,7 @@
 import logging
 import typing
 from dataclasses import dataclass
-from typing import Any, List, Optional, Tuple, Type
+from typing import Any, List, Optional, Tuple, Type, Union
 
 from sycamore.schema import Schema, SchemaField
 
@@ -69,7 +69,7 @@ def process_json_plan(json_plan: str) -> LogicalPlan:
 class PlannerExample:
     """Represents an example query and query plan for the planner."""
 
-    def __init__(self, schema: typing.Union[OpenSearchSchema, Schema], plan: LogicalPlan) -> None:
+    def __init__(self, schema: Union[OpenSearchSchema, Schema], plan: LogicalPlan) -> None:
         super().__init__()
         self.plan = plan
         self.schema: Schema = schema.to_schema() if isinstance(schema, OpenSearchSchema) else schema
@@ -388,7 +388,7 @@ class LlmPlanner:
     def __init__(
         self,
         index: str,
-        data_schema: typing.Union[OpenSearchSchema, Schema],
+        data_schema: Union[OpenSearchSchema, Schema],
         os_config: dict[str, str],
         os_client: "OpenSearch",
         strategy: QueryPlanStrategy = QueryPlanStrategy(ALL_OPERATORS, []),

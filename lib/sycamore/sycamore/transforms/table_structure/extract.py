@@ -71,9 +71,9 @@ class TableTransformerStructureExtractor(TableStructureExtractor):
     More information about TableTransformers can be found at https://github.com/microsoft/table-transformer.
     """
 
-    DEFAULT_TTAR_MODEL = "microsoft/table-structure-recognition-v1.1-all"
+    DEFAULT_TATR_MODEL = "microsoft/table-structure-recognition-v1.1-all"
 
-    def __init__(self, model: str = DEFAULT_TTAR_MODEL, device=None):
+    def __init__(self, model: str = DEFAULT_TATR_MODEL, device=None):
         """
         Creates a TableTransformerStructureExtractor
 
@@ -238,7 +238,7 @@ class HybridTableStructureExtractor(TableStructureExtractor):
     def __init__(
         self,
         deformable_model: str,
-        tatr_model: str = TableTransformerStructureExtractor.DEFAULT_TTAR_MODEL,
+        tatr_model: str = TableTransformerStructureExtractor.DEFAULT_TATR_MODEL,
         device=None,
     ):
         self._deformable = DeformableTableStructureExtractor(deformable_model, device)

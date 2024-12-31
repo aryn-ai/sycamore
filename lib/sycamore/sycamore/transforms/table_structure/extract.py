@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any
+from typing import Any, Union
 
 from PIL import Image
 import pdf2image
@@ -229,6 +229,52 @@ class DeformableTableStructureExtractor(TableTransformerStructureExtractor):
         """
         # Literally just call the super but change the default for apply_thresholds
         return super().extract(element, doc_image, union_tokens, apply_thresholds)
+
+
+class HybridTableStructureExtractor(TableStructureExtractor):
+    """A TableStructureExtractor implementation that conditionally uses either Deformable or TATR
+    depending on the size of the table"""
+
+    def __init__(
+        self,
+        deformable_model: str,
+        tatr_model: str = TableTransformerStructureExtractor.DEFAULT_TTAR_MODEL,
+        device=None,
+    ):
+        self._deformable = DeformableTableStructureExtractor(deformable_model, device)
+        self._tatr = TableTransformerStructureExtractor(tatr_model, device)
+
+    def _pick_model(
+        self, element: TableElement, doc_image: Image.Image
+    ) -> Union[TableTransformerStructureExtractor, DeformableTableStructureExtractor]:
+        """If the absolute size of the table is > 500 pixels in any dimension, use deformable.
+        Otherwise, use TATR"""
+        if element.bbox is None:
+            return self._tatr
+        width, height = doc_image.size
+        bb = element.bbox.to_absolute(width, height)
+        padding = 10
+        max_dim = max(bb.width, bb.height) + 2 * padding
+        if max_dim > 500:
+            return self._deformable
+        return self._tatr
+
+    def extract(self, element: TableElement, doc_image: Image.Image, union_tokens=False) -> TableElement:
+        """Extracts the table structure from the specified element using a either a DeformableDETR or
+        TATR model, depending on the size of the table.
+
+        Takes a TableElement containing a bounding box, for example from the SycamorePartitioner,
+        and populates the table property with information about the cells.
+
+        Args:
+          element: A TableElement. The bounding box must be non-null.
+          doc_image: A PIL object containing an image of the Document page containing the element.
+               Used for bounding box calculations.
+          union_tokens: Make sure that ocr/pdfminer tokens are _all_ included in the table.
+          apply_thresholds: Apply class thresholds to the objects output by the model.
+        """
+        model = self._pick_model(element, doc_image)
+        return model.extract(element, doc_image, union_tokens)
 
 
 DEFAULT_TABLE_STRUCTURE_EXTRACTOR = TableTransformerStructureExtractor

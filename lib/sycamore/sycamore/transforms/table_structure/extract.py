@@ -259,6 +259,10 @@ class HybridTableStructureExtractor(TableStructureExtractor):
             return self._deformable
         return self._tatr
 
+    def _init_structure_model(self):
+        self._deformable._init_structure_model()
+        self._tatr._init_structure_model()
+
     def extract(self, element: TableElement, doc_image: Image.Image, union_tokens=False) -> TableElement:
         """Extracts the table structure from the specified element using a either a DeformableDETR or
         TATR model, depending on the size of the table.

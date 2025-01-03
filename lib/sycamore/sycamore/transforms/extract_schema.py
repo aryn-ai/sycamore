@@ -195,21 +195,19 @@ class LLMPropertyExtractor(PropertyExtractor):
         assert isinstance(self._schema, Schema), "Schema object must be provided for property standardization."
         result: dict = {}
 
+        type_cast_functions: dict[str, Callable] = {
+            "int": int,
+            "float": float,
+            "str": str,
+            "string": str,
+            "bool": bool,
+            "date": lambda x: dateparser.parse(x),
+            "datetime": lambda x: dateparser.parse(x),
+        }
+
         for field in self._schema.fields:
             value = fields.get(field.name)
-            if value is None:
-                result[field.name] = value
-                continue
-            if field.field_type:
-                try:
-                    if field.field_type == "date" or field.field_type == "datetime":
-                        value = dateparser.parse(value)
-                    else:
-                        # Dynamically cast the value to the defined type
-                        value = eval(field.field_type)(value)
-                except (ValueError, TypeError):
-                    raise ValueError(f"Unable to cast field '{field.name}' to type '{field.field_type}'")
-            result[field.name] = value
+            result[field.name] = type_cast_functions.get(field.field_type, lambda x: x)(value)
 
         # Include additional fields not defined in the schema
         for key, value in fields.items():

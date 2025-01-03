@@ -15,6 +15,8 @@ from sycamore.transforms.map import Map
 from sycamore.utils.extract_json import extract_json
 from sycamore.utils.time_trace import timetrace
 
+import dateparser
+
 
 def element_list_formatter(elements: list[Element]) -> str:
     query = ""
@@ -178,12 +180,44 @@ class LLMPropertyExtractor(PropertyExtractor):
             answer = entities
         if answer == "None":
             answer = {}
+
+        if isinstance(self._schema, Schema):
+            answer = self.cast_types(answer)
         if "entity" in document.properties:
             document.properties["entity"].update(answer)
         else:
             document.properties.update({"entity": answer})
 
         return document
+
+    def cast_types(self, fields: dict) -> dict:
+        assert self._schema is not None, "Schema must be provided for property standardization."
+        assert isinstance(self._schema, Schema), "Schema object must be provided for property standardization."
+        result: dict = {}
+
+        type_cast_functions: dict[str, Callable] = {
+            "int": int,
+            "float": float,
+            "str": str,
+            "string": str,
+            "bool": bool,
+            "date": lambda x: dateparser.parse(x),
+            "datetime": lambda x: dateparser.parse(x),
+        }
+
+        for field in self._schema.fields:
+            value = fields.get(field.name)
+            if value is None and field.default is None:
+                result[field.name] = None
+            else:
+                result[field.name] = type_cast_functions.get(field.field_type, lambda x: x)(value)
+
+        # Include additional fields not defined in the schema
+        for key, value in fields.items():
+            if key not in result:
+                result[key] = value
+
+        return result
 
     def _handle_zero_shot_prompting(self, document: Document) -> Any:
         if document.text_representation:

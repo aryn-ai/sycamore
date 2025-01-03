@@ -15,6 +15,8 @@ from sycamore.transforms.map import Map
 from sycamore.utils.extract_json import extract_json
 from sycamore.utils.time_trace import timetrace
 
+import dateparser
+
 
 def element_list_formatter(elements: list[Element]) -> str:
     query = ""
@@ -178,12 +180,43 @@ class LLMPropertyExtractor(PropertyExtractor):
             answer = entities
         if answer == "None":
             answer = {}
+
+        if isinstance(self._schema, Schema):
+            answer = self.cast_types(answer)
         if "entity" in document.properties:
             document.properties["entity"].update(answer)
         else:
             document.properties.update({"entity": answer})
 
         return document
+
+    def cast_types(self, fields: dict) -> dict:
+        assert self._schema is not None, "Schema must be provided for property standardization."
+        assert isinstance(self._schema, Schema), "Schema object must be provided for property standardization."
+        result: dict = {}
+
+        for field in self._schema.fields:
+            value = fields.get(field.name)
+            if value is None:
+                result[field.name] = value
+                continue
+            if field.field_type:
+                try:
+                    if field.field_type == "date" or field.field_type == "datetime":
+                        value = dateparser.parse(value)
+                    else:
+                        # Dynamically cast the value to the defined type
+                        value = eval(field.field_type)(value)
+                except (ValueError, TypeError):
+                    raise ValueError(f"Unable to cast field '{field.name}' to type '{field.field_type}'")
+            result[field.name] = value
+
+        # Include additional fields not defined in the schema
+        for key, value in fields.items():
+            if key not in result:
+                result[key] = value
+
+        return result
 
     def _handle_zero_shot_prompting(self, document: Document) -> Any:
         if document.text_representation:

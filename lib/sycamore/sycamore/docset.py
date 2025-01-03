@@ -1533,9 +1533,11 @@ class DocSet:
         # TO:DO assumes last node is materialize, need to add functionality if multiple materialize steps present
         if isinstance(self.plan, Materialize) and self.plan._reliability is not None:
             mrr = getattr(self.plan, "_reliability")
-            while mrr.prev_batch != 0:
+            while True:
                 for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
                     pass
+                if mrr.current_batch == 0:
+                    break
                 mrr.reset_batch()
         else:
             for doc in Execution(self.context).execute_iter(self.plan, **kwargs):

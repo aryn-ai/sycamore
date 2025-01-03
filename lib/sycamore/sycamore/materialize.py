@@ -54,7 +54,6 @@ class MaterializeReadReliability:
         self.path = path
         self.max_batch = max_batch
         self.current_batch = 0
-        self.prev_batch = -1
 
         # Initialize seen files
         self._refresh_seen_files()
@@ -95,7 +94,6 @@ class MaterializeReadReliability:
 
     def reset_batch(self) -> None:
         """Reset the current batch counter and refresh seen files"""
-        self.prev_batch = self.current_batch
         self.current_batch = 0
         self._refresh_seen_files()
 

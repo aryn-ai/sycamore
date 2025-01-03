@@ -207,7 +207,10 @@ class LLMPropertyExtractor(PropertyExtractor):
 
         for field in self._schema.fields:
             value = fields.get(field.name)
-            result[field.name] = type_cast_functions.get(field.field_type, lambda x: x)(value)
+            if value is None and field.default is None:
+                result[field.name] = None
+            else:
+                result[field.name] = type_cast_functions.get(field.field_type, lambda x: x)(value)
 
         # Include additional fields not defined in the schema
         for key, value in fields.items():

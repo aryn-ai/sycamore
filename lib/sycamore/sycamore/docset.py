@@ -31,6 +31,7 @@ from sycamore.transforms.merge_elements import ElementMerger
 from sycamore.utils.extract_json import extract_json
 from sycamore.transforms.query import QueryExecutor, Query
 from sycamore.materialize_config import MaterializeSourceMode
+from sycamore.materialize import MaterializeReadReliability
 
 if TYPE_CHECKING:
     from sycamore.writer import DocSetWriter
@@ -1468,6 +1469,7 @@ class DocSet:
         self,
         path: Optional[Union[Path, str, dict]] = None,
         source_mode: MaterializeSourceMode = MaterializeSourceMode.RECOMPUTE,
+        reliability: Optional[MaterializeReadReliability] = None,
     ) -> "DocSet":
         """
         The `materialize` transform writes out documents up to that point, marks the
@@ -1499,7 +1501,10 @@ class DocSet:
 
         from sycamore.materialize import Materialize
 
-        return DocSet(self.context, Materialize(self.plan, self.context, path=path, source_mode=source_mode))
+        return DocSet(
+            self.context,
+            Materialize(self.plan, self.context, path=path, source_mode=source_mode, reliability=reliability),
+        )
 
     def clear_materialize(self, path: Optional[Union[Path, str]] = None, *, clear_non_local=False) -> None:
         """
@@ -1523,6 +1528,15 @@ class DocSet:
         """
 
         from sycamore.executor import Execution
+        from sycamore.materialize import Materialize
 
-        for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
-            pass
+        # TO:DO assumes last node is materialize, need to add functionality if multiple materialize steps present
+        if isinstance(self.plan, Materialize) and self.plan._reliability is not None:
+            mrr = getattr(self.plan, "_reliability")
+            while mrr.prev_batch != 0:
+                for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
+                    pass
+                mrr.reset_batch()
+        else:
+            for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
+                pass

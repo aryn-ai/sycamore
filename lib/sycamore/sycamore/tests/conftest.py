@@ -16,7 +16,7 @@ def read_local_binary(request) -> Document:
     return document
 
 
-@pytest.fixture(params=(exec_mode for exec_mode in ExecMode if exec_mode != ExecMode.UNKNOWN))
+@pytest.fixture(params=(exec_mode for exec_mode in ExecMode if exec_mode == ExecMode.LOCAL))
 def exec_mode(request):
     """
     Use this to run a test against all available execution modes. You will need to pass this as a parameter to

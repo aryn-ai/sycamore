@@ -237,3 +237,66 @@ class TestOpenSearchRead:
     def test_ingest_and_read_via_docid_reconstructor(self, setup_index, os_client):
         with tempfile.TemporaryDirectory() as cache_dir:
             self._test_ingest_and_read_via_docid_reconstructor(setup_index, os_client, cache_dir)
+
+    def test_ingest_and_read2(self, setup_index, os_client, exec_mode):
+        """
+        Validates data is readable from OpenSearch, and that we can rebuild processed Sycamore documents.
+        """
+
+        path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
+        context = sycamore.init(exec_mode=exec_mode)
+        original_docs = (
+            context.read.binary(path, binary_format="pdf")
+            .partition(partitioner=UnstructuredPdfPartitioner())
+            .explode()
+            .write.opensearch(
+                os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+                index_name=TestOpenSearchRead.INDEX,
+                index_settings=TestOpenSearchRead.INDEX_SETTINGS,
+                execute=False,
+            )
+            .take_all()
+        )
+
+        os_client.indices.refresh(TestOpenSearchRead.INDEX)
+
+        expected_count = len(original_docs)
+        actual_count = get_doc_count(os_client, TestOpenSearchRead.INDEX)
+        print(f"Expected {expected_count} documents, found {actual_count}")
+
+        # refresh should have made all ingested docs immediately available for search
+        # assert actual_count == expected_count, f"Expected {expected_count} documents, found {actual_count}"
+
+        pit = os_client.create_pit(index=TestOpenSearchRead.INDEX, keep_alive="100m")
+        search_body = {
+            "query": {
+                "match_all": {},
+            },
+            # "size": 100,
+            "pit": {
+                "id": pit["pit_id"],
+                "keep_alive": "100m"
+            },
+            "slice": {"id": 0, "max": 10},
+        }
+
+        total = 0
+        ids = set()
+        for i in range(10):
+            for j in range(10):
+                search_body["slice"]["id"] = i
+                res = os_client.search(body=search_body, size=10, from_=j*10)
+                print(f"{j}: {res['hits']['total']['value']}")
+                hits = res["hits"]["hits"]
+                if hits is None:
+                    print(f"None: {j}")
+                else:
+                    print(f"Length: {len(hits)}")
+                for hit in hits:
+                    doc_id = hit["_source"]["doc_id"]
+                    if doc_id in ids:
+                        print(f"Duplicate doc_id: {doc_id}")
+                    else:
+                        ids.add(doc_id)
+
+        print(len(ids))

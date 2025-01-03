@@ -320,10 +320,10 @@ class Materialize(UnaryNode):
             doc_id = hash_id
 
         if isinstance(doc, MetadataDocument):
-            return f"md-{doc_id}:{hash_id}.pickle"
+            return f"md-{doc_id}.{hash_id}.pickle"
 
         assert isinstance(doc, Document)
-        return f"doc-{doc_id}:{hash_id}.pickle"
+        return f"doc-{doc_id}.{hash_id}.pickle"
 
 
 class AutoMaterialize(NodeTraverse):

@@ -1,8 +1,12 @@
 import functools
+import uuid
+from queue import Queue
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, Optional, Union, List
 import inspect
+
+import ray
 
 from sycamore.plan_nodes import Node, NodeTraverse
 
@@ -26,6 +30,80 @@ def _default_rewrite_rules():
     return [o.EnforceResourceUsage(), o.OptimizeResourceArgs()]
 
 
+class State:
+    """
+    Storage for context level data. This can be used to store things like metrics, failed records, etc.
+    """
+
+    def __init__(self):
+        self.records: Queue = Queue()
+
+    def append(self, entry: dict[str, Any]):
+        self.records.put(entry)
+
+    def get(self) -> Optional[list[dict[str, Any]]]:
+        return list(self.records.queue)
+
+
+class StateManager:
+    """
+    Interface to interact with Context level state. Depending on how the state is persistent (local vs distributed etc.)
+    the implementation of this class will vary.
+    """
+
+    def append(self, entry: dict[str, Any]):
+        raise NotImplementedError
+
+    def get(self) -> Optional[list[dict[str, Any]]]:
+        raise NotImplementedError
+
+
+@ray.remote
+class RayStateActor:
+    """
+    A proxy to Context state that can be used in a Ray distributed environment.
+    """
+
+    def __init__(self):
+        self.local_state = State()  # Utilize a local GlobalState for internal operations
+
+    def append(self, entry: dict[str, Any]):
+        self.local_state.append(entry)
+
+    def get(self) -> Optional[list[dict[str, Any]]]:
+        return self.local_state.get()
+
+
+class RayGlobalStateManager(StateManager):
+    """
+    Ray state manager implementation. Interacts with a remote RayStateActor to support distributed state.
+    """
+
+    def __init__(self):
+        self.ray_state = RayStateActor.remote()
+
+    def append(self, entry: dict[str, Any]):
+        self.ray_state.append.remote(entry)
+
+    def get(self) -> Optional[list[dict[str, Any]]]:
+        return ray.get(self.ray_state.get.remote())
+
+
+class InMemoryStateManager(StateManager):
+    """
+    In-memory context state management.
+    """
+
+    def __init__(self):
+        self.local_state = State()
+
+    def append(self, entry: dict[str, Any]):
+        self.local_state.append(entry)
+
+    def get(self) -> Optional[list[dict[str, Any]]]:
+        return self.local_state.get()
+
+
 @dataclass
 class Context:
     """
@@ -46,6 +124,20 @@ class Context:
     Define parameters for global usage
     """
     params: dict[str, Any] = field(default_factory=dict)
+
+    state: Optional[StateManager] = None
+
+    context_id: str = str(uuid.uuid4())
+
+    def add_state_data(self, entry: dict[str, Any]):
+        if self.state:
+            entry["context_id"] = self.context_id
+            self.state.append(entry)
+
+    def get_state_data(self) -> Optional[list[Any]]:
+        if self.state:
+            return self.state.get()
+        return None
 
     @property
     def read(self):

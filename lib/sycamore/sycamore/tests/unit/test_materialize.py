@@ -13,7 +13,14 @@ from pyarrow import fs
 import sycamore
 from sycamore.context import ExecMode
 from sycamore.data import Document, MetadataDocument
-from sycamore.materialize import AutoMaterialize, Materialize
+from sycamore.materialize import (
+    AutoMaterialize,
+    Materialize,
+    MaterializeReadReliability,
+    name_from_docid,
+    docid_from_path,
+    doc_only_to_binary,
+)
 from sycamore.tests.unit.inmempyarrowfs import InMemPyArrowFileSystem
 
 
@@ -38,7 +45,7 @@ class LocalRenameFilesystem(fs.LocalFileSystem):
 def make_docs(num):
     docs = []
     for i in range(num):
-        doc = Document({"doc_id": f"doc_{i}"})
+        doc = Document({"doc_id": f"doc_{i}", "properties": {"path": f"doc_{i}"}})
         docs.append(doc)
 
     docs.append(
@@ -46,7 +53,7 @@ def make_docs(num):
             lineage_links={"from_ids": ["root:" + str(uuid.uuid4())], "to_ids": [d.lineage_id for d in docs]}
         )
     )
-
+    print(docs)
     return docs
 
 
@@ -160,6 +167,15 @@ class TestMaterializeWrite(unittest.TestCase):
             assert len(mds) == 0
 
 
+class NumCalls:
+    def __init__(self):
+        self.x = 0
+
+    def inc_counter(self, doc):
+        self.x += 1
+        return doc
+
+
 class TestAutoMaterialize(unittest.TestCase):
     # Needed until we don't have a global context
     def setUp(self):
@@ -263,32 +279,26 @@ class TestAutoMaterialize(unittest.TestCase):
             assert len([f for f in files if ".test4" in str(f)]) == 3 + 1 + 3 + 2
 
     def test_source_mode(self):
-        class NumCalls:
-            x = 0
 
-        # Note: This only makes sense in local mode, as the count is not thread safe
-        def inc_counter(doc):
-            NumCalls.x += 1
-            return doc
-
-        def check(a, docs):
+        def check(a, docs, counter):
             ctx = sycamore.init(exec_mode=ExecMode.LOCAL, rewrite_rules=[a])
-            ds = ctx.read.document(docs).map(inc_counter)
+            ds = ctx.read.document(docs).map(counter.inc_counter)
             ds.execute()
             ds.filter(lambda d: d.doc_id != "doc_2").execute()
 
+        counter = NumCalls()
         docs = make_docs(3)
         with tempfile.TemporaryDirectory() as tmpdir:
             a = AutoMaterialize(tmpdir, source_mode=sycamore.MATERIALIZE_USE_STORED)
-            check(a, docs)
-            assert NumCalls.x == 3
+            check(a, docs, counter)
+            assert counter.x == 3
 
-        NumCalls.x = 0
+        counter = NumCalls()
 
         with tempfile.TemporaryDirectory() as tmpdir:
             a = AutoMaterialize(tmpdir, source_mode=sycamore.MATERIALIZE_RECOMPUTE)
-            check(a, docs)
-            assert NumCalls.x == 6
+            check(a, docs, counter)
+            assert counter.x == 6
 
 
 def any_id(d):
@@ -528,3 +538,94 @@ def test_s3_infer_filesystem():
     assert isinstance(m._fs, S3FileSystem)
     assert isinstance(m._root, Path)
     assert str(m._root) == "test-example/a/path"
+
+
+class TestMaterializeReadReliability(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.exec_mode = ExecMode.LOCAL
+
+    def test_materialize_read(self):
+        ctx = sycamore.init(exec_mode=self.exec_mode)
+        with tempfile.TemporaryDirectory() as tmpdir1:
+            docs = make_docs(10)
+            ds = (
+                ctx.read.document(docs)
+                .map(docid_from_path)
+                .materialize(
+                    path={"root": tmpdir1, "name": name_from_docid, "tobin": doc_only_to_binary},
+                    source_mode=sycamore.MATERIALIZE_RECOMPUTE,
+                )
+            )
+
+            e1 = ds.take_all()
+            assert e1 is not None
+            with tempfile.TemporaryDirectory() as tmpdir2:
+
+                counter = NumCalls()
+                mrr = MaterializeReadReliability(tmpdir2, max_batch=3)
+
+                original_mrr_reset = mrr.reset_batch
+
+                def mock_mrr_reset():
+                    counter.x += 1
+                    original_mrr_reset()
+
+                mrr.reset_batch = mock_mrr_reset
+
+                ds2 = (
+                    ctx.read.materialize(path={"root": tmpdir1, "filter": mrr.filter})
+                    .map(noop_fn)
+                    .materialize(
+                        path={"root": tmpdir2, "name": name_from_docid, "tobin": doc_only_to_binary, "clean": False},
+                        source_mode=sycamore.MATERIALIZE_RECOMPUTE,
+                        reliability=mrr,
+                    )
+                    .execute()
+                )
+                ds2 = ctx.read.materialize(path=tmpdir2)
+                e2 = ds2.take_all()
+                assert e2 is not None
+                assert ids(e2) == ids(e1)
+
+                # Verify batching works
+                assert counter.x == 4
+
+                # Assertion error when name is not set to name_from_docid
+                with pytest.raises(AssertionError):
+                    with tempfile.TemporaryDirectory() as tmpdir2:
+                        mrr = MaterializeReadReliability(tmpdir2, max_batch=3)
+                        ds2 = (
+                            ctx.read.materialize(path={"root": tmpdir1, "filter": mrr.filter})
+                            .map(noop_fn)
+                            .materialize(
+                                path={"root": tmpdir2, "tobin": doc_only_to_binary, "clean": False},
+                                source_mode=sycamore.MATERIALIZE_RECOMPUTE,
+                                reliability=mrr,
+                            )
+                            .execute()
+                        )
+
+        # Assertion error when doc ids are not set using docid_from_path util
+
+        with tempfile.TemporaryDirectory() as tmpdir1:
+            docs = make_docs(3)
+            ds = ctx.read.document(docs).materialize(
+                path={"root": tmpdir1, "tobin": doc_only_to_binary}, source_mode=sycamore.MATERIALIZE_RECOMPUTE
+            )
+            e1 = ds.take_all()
+            assert e1 is not None
+            with tempfile.TemporaryDirectory() as tmpdir2:
+                counter = NumCalls()
+                mrr = MaterializeReadReliability(tmpdir2, max_batch=3)
+                ds2 = (
+                    ctx.read.materialize(path={"root": tmpdir1, "filter": mrr.filter})
+                    .map(noop_fn)
+                    .materialize(
+                        path={"root": tmpdir2, "name": name_from_docid, "tobin": doc_only_to_binary, "clean": False},
+                        source_mode=sycamore.MATERIALIZE_RECOMPUTE,
+                        reliability=mrr,
+                    )
+                )
+                with pytest.raises(AssertionError):
+                    ds2.execute()

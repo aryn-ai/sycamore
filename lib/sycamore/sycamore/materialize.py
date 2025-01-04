@@ -98,10 +98,13 @@ class MaterializeReadReliability:
         self._refresh_seen_files()
 
 
-def name_from_docid(d, bin):
+def name_from_docid(d: Document, bin: Optional[bytes]) -> str:
     if d.doc_id:
-        print(d.doc_id)
-        assert len(d.doc_id) == 76, "You may want to set tobin to doc_only_to_binary"
+
+        assert (
+            len(d.doc_id) == 76
+        ), """This method expects docids to be 76 characters long and used with reliability.
+              Make sure to have docids set using docid_from_path method, also use params 'name': name_from_docid, 'tobin': doc_only_to_binary in materialize"""
         assert d.doc_id.startswith("path-sha256-")
         if isinstance(d, MetadataDocument):
             return f"md-{d.doc_id}.pickle"
@@ -120,7 +123,7 @@ def docid_from_path(d: Document) -> Document:
     assert False
 
 
-def doc_only_to_binary(d):
+def doc_only_to_binary(d: Document) -> Optional[bytes]:
     if isinstance(d, MetadataDocument):
         return None
     return d.serialize()
@@ -167,6 +170,13 @@ class Materialize(UnaryNode):
             self._doc_to_binary = path.get("tobin", Document.serialize)
             assert callable(self._doc_to_name)
             self._clean_root = path.get("clean", True)
+
+            if self._reliability is not None:
+                assert not self._clean_root, "Using materialize with reliability requires the root flag to be False"
+                assert (
+                    self._doc_to_name is name_from_docid
+                ), "Using materialize with reliability requires using 'name_from_docid' as the name function"
+
             self._path_filter = path.get("filter", None)
         else:
             assert False, f"unsupported type ({type(path)}) for path argument, expected str, Path, or dict"

@@ -332,7 +332,8 @@ class Materialize(UnaryNode):
                 return
 
         raise ValueError(
-            f"Materialize root {self._orig_path} has no .pickle files. If using reliability, make sure to write doc ids using 'docid_from_path'. "
+            f"""Materialize root {self._orig_path} has no .pickle files.
+            If using reliability, make sure to write doc ids using 'docid_from_path'."""
         )
 
     def _ray_to_document(self, dict: dict[str, Any]) -> list[dict[str, bytes]]:

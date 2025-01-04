@@ -545,7 +545,7 @@ class TestMaterializeReadReliability(unittest.TestCase):
         super().__init__(*args, **kwargs)
         self.exec_mode = ExecMode.LOCAL
 
-    def test_materialize_read(self):
+    def test_materialize_read_reliability(self):
         ctx = sycamore.init(exec_mode=self.exec_mode)
         with tempfile.TemporaryDirectory() as tmpdir1:
             docs = make_docs(10)

@@ -104,7 +104,8 @@ def name_from_docid(d: Document, bin: Optional[bytes]) -> str:
         assert (
             len(d.doc_id) == 76
         ), """This method expects docids to be 76 characters long and used with reliability.
-              Make sure to have docids set using docid_from_path method, also use params 'name': name_from_docid, 'tobin': doc_only_to_binary in materialize"""
+              Make sure to have docids set using docid_from_path method,
+              also use params 'name': name_from_docid, 'tobin': doc_only_to_binary in materialize"""
         assert d.doc_id.startswith("path-sha256-")
         if isinstance(d, MetadataDocument):
             return f"md-{d.doc_id}.pickle"

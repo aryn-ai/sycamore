@@ -53,7 +53,6 @@ def make_docs(num):
             lineage_links={"from_ids": ["root:" + str(uuid.uuid4())], "to_ids": [d.lineage_id for d in docs]}
         )
     )
-    print(docs)
     return docs
 
 

@@ -572,7 +572,7 @@ class TestMaterializeReadReliability(unittest.TestCase):
 
                 mrr.reset_batch = mock_mrr_reset
 
-                ds2 = (
+                ds1 = (
                     ctx.read.materialize(path={"root": tmpdir1, "filter": mrr.filter})
                     .map(noop_fn)
                     .materialize(
@@ -582,8 +582,8 @@ class TestMaterializeReadReliability(unittest.TestCase):
                     )
                     .execute()
                 )
-                ds2 = ctx.read.materialize(path=tmpdir2)
-                e2 = ds2.take_all()
+                ds1 = ctx.read.materialize(path=tmpdir2)
+                e2 = ds1.take_all()
                 assert e2 is not None
                 assert ids(e2) == ids(e1)
 
@@ -594,7 +594,7 @@ class TestMaterializeReadReliability(unittest.TestCase):
                 with pytest.raises(AssertionError):
                     with tempfile.TemporaryDirectory() as tmpdir2:
                         mrr = MaterializeReadReliability(tmpdir2, max_batch=3)
-                        ds2 = (
+                        ds1 = (
                             ctx.read.materialize(path={"root": tmpdir1, "filter": mrr.filter})
                             .map(noop_fn)
                             .materialize(
@@ -605,7 +605,7 @@ class TestMaterializeReadReliability(unittest.TestCase):
                             .execute()
                         )
 
-        # Assertion error when doc ids are not set using docid_from_path util
+        # Value error, no pickle files present, since source docids were not written using docid_from_path
 
         with tempfile.TemporaryDirectory() as tmpdir1:
             docs = make_docs(3)
@@ -613,11 +613,10 @@ class TestMaterializeReadReliability(unittest.TestCase):
                 path={"root": tmpdir1, "tobin": doc_only_to_binary}, source_mode=sycamore.MATERIALIZE_RECOMPUTE
             )
             e1 = ds.take_all()
-            assert e1 is not None
             with tempfile.TemporaryDirectory() as tmpdir2:
                 counter = NumCalls()
                 mrr = MaterializeReadReliability(tmpdir2, max_batch=3)
-                ds2 = (
+                ds1 = (
                     ctx.read.materialize(path={"root": tmpdir1, "filter": mrr.filter})
                     .map(noop_fn)
                     .materialize(
@@ -626,5 +625,6 @@ class TestMaterializeReadReliability(unittest.TestCase):
                         reliability=mrr,
                     )
                 )
-                with pytest.raises(AssertionError):
-                    ds2.execute()
+                ds1.execute()
+                with pytest.raises(ValueError):
+                    ds1 = ctx.read.materialize(path=tmpdir2).execute()

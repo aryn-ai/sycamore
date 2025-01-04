@@ -72,7 +72,7 @@ class MaterializeReadReliability:
     def _path_to_id(p: Path) -> Optional[str]:
         if p.suffix != ".pickle":
             return None
-        if not p.name.startswith("doc-"):
+        if not p.name.startswith("doc-path-sha256-"):
             return None
         return str(p.stem[4:])
 
@@ -83,7 +83,7 @@ class MaterializeReadReliability:
 
         id = self._path_to_id(Path(p))
         if id is None:
-            logger.debug(f"Got path {p} with no id")
+            logger.debug(f"Got path {p} not in proper format")
             return False
 
         if id in self.seen:
@@ -331,7 +331,9 @@ class Materialize(UnaryNode):
             if n.path.endswith(".pickle"):
                 return
 
-        raise ValueError(f"Materialize root {self._orig_path} has no .pickle files")
+        raise ValueError(
+            f"Materialize root {self._orig_path} has no .pickle files. If using reliability, make sure to write doc ids using 'docid_from_path'. "
+        )
 
     def _ray_to_document(self, dict: dict[str, Any]) -> list[dict[str, bytes]]:
         b = dict["bytes"]

@@ -6,11 +6,13 @@ from sycamore.connectors.base_reader import BaseDBReader
 from sycamore.data.document import DocumentPropertyTypes, DocumentSource
 from sycamore.utils.import_utils import requires_modules
 from dataclasses import dataclass, field
-import typing
-from typing import Dict, Optional
+from typing import Dict, Optional, Any, List, TYPE_CHECKING
 
-if typing.TYPE_CHECKING:
+from sycamore.utils.time_trace import TimeTrace, timetrace
+
+if TYPE_CHECKING:
     from opensearchpy import OpenSearch
+    from ray.data import Dataset
 
 
 @dataclass
@@ -94,7 +96,7 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
     """
     The client used to implement document reconstruction. Can also be used for lazy loading.
     """
-    client: typing.Optional["OpenSearch"] = None
+    client: Optional["OpenSearch"] = None
 
     def to_docs(self, query_params: "BaseDBReader.QueryParams") -> list[Document]:
         assert isinstance(query_params, OpenSearchReaderQueryParams)
@@ -165,7 +167,7 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
             all_elements_for_docs = self._get_all_elements_for_doc_ids(doc_ids, query_params.index_name)
 
             """
-            Add elements to unique docs. If they were not part of the original result, 
+            Add elements to unique docs. If they were not part of the original result,
             we set properties.DocumentPropertyTypes.SOURCE = DOCUMENT_RECONSTRUCTION_RETRIEVAL
             """
             for element in all_elements_for_docs:
@@ -190,7 +192,7 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
 
         return result
 
-    def _get_all_elements_for_doc_ids(self, doc_ids: list[str], index: str) -> list[typing.Any]:
+    def _get_all_elements_for_doc_ids(self, doc_ids: list[str], index: str) -> list[Any]:
         assert self.client, "_get_all_elements_for_doc_ids requires an OpenSearch client instance in this class"
         """
         Returns all records in OpenSearch belonging to a list of Document ids (element.parent_id)
@@ -217,8 +219,129 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
         return all_elements
 
 
+def get_doc_count(os_client, index_name: str, query: Optional[Dict[str, Any]] = None) -> int:
+    res = os_client.search(index=index_name, body=query, size=0, track_total_hits=True)
+    return res["hits"]["total"]["value"]
+
+
 class OpenSearchReader(BaseDBReader):
     Client = OpenSearchReaderClient
     Record = OpenSearchReaderQueryResponse
     ClientParams = OpenSearchReaderClientParams
     QueryParams = OpenSearchReaderQueryParams
+
+    def read_docs(self) -> list[Document]:
+        client = None
+        try:
+            client = self.Client.from_client_params(self._client_params)
+
+            if not client.check_target_presence(self._query_params):
+                raise ValueError("Target is not present\n" f"Parameters: {self._query_params}\n")
+            records: OpenSearchReaderQueryResponse = client.read_records(query_params=self._query_params)
+            docs = records.to_docs(query_params=self._query_params)
+        except Exception as e:
+            raise ValueError(f"Error reading from target: {e}")
+        finally:
+            if client is not None:
+                client.close()
+        return docs
+
+    @timetrace("OpenSearchReader")
+    def _to_document(self, doc: Dict[str, Any]) -> List[dict[str, Any]]:
+        """
+        Fetch all matching documents belonging to a slice.
+        Since there can be more than 10k documents, we need to use 'search_after' to paginate through the results.
+        We choose 'doc_id' as the sort field to paginate through the results.
+
+        If necessary, we can re-order the results based on the score.
+        """
+
+        client = None
+        try:
+            client = self.Client.from_client_params(self._client_params)
+
+            if not client.check_target_presence(self._query_params):
+                raise ValueError("Target is not present\n" f"Parameters: {self._query_params}\n")
+
+            results = []
+            size = 100
+            page = 0
+            doc["sort"] = ["doc_id"]
+            while True:
+                res = client.search(
+                    body=doc,
+                    size=size,
+                )
+                hits = res["hits"]["hits"]
+                if hits is None or len(hits) == 0:
+                    break
+
+                results.extend(hits)
+                if len(hits) < size:
+                    break
+
+                doc["search_after"] = [hits[-1]["sort"][0]]
+                page += 1
+
+            records = OpenSearchReaderQueryResponse(results, client)
+            docs = records.to_docs(query_params=self._query_params)
+
+        except Exception as e:
+            raise ValueError(f"Error reading from target: {e}")
+        finally:
+            if client is not None:
+                client.close()
+
+        return [{"doc": doc.serialize()} for doc in docs]
+
+    def execute(self, **kwargs) -> "Dataset":
+        """Distribute the work evenly across available workers.
+        We don't want a slice with more than 10k documents as we need to use 'from' to paginate through the results."""
+
+        from sycamore.utils.ray_utils import check_serializable
+
+        check_serializable(self._client_params, self._query_params)
+
+        client = None
+        try:
+            client = self.Client.from_client_params(self._client_params)
+
+            if not client.check_target_presence(self._query_params):
+                raise ValueError("Target is not present\n" f"Parameters: {self._query_params}\n")
+
+            index_name = self.QueryParams.index_name
+
+            doc_count = get_doc_count(client, index_name, self.QueryParams.query)
+            num_slices = doc_count / 10000 if doc_count > 10000 else 1
+            num_workers = self.resource_args.get("parallelism", 1)
+            res = client.create_pit(index=index_name, keep_alive="100m")
+            pit_id = res["pit_id"]
+            docs = []
+            for i in range(num_slices):
+                query = {
+                    "slice": {
+                        "id": i,
+                        "max": num_slices,
+                    },
+                    "pit": {
+                        "id": pit_id,
+                        "keep_alive": "1m",
+                    },
+                }
+                if "query" in self.QueryParams.query:
+                    query["query"] = self.QueryParams.query["query"]
+                docs.append(query)
+        except Exception as e:
+            raise ValueError(f"Error reading from target: {e}")
+        finally:
+            if client is not None:
+                client.close()
+
+        from ray.data import from_items
+
+        with TimeTrace("OpenSearchReader"):
+            from pickle import dumps
+
+            ds = from_items(items=[{"doc": dumps(doc)} for doc in docs])
+
+        return ds.flat_map(self._to_document, **self.resource_args)

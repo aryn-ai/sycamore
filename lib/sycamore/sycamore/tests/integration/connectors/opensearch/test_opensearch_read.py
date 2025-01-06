@@ -1,6 +1,7 @@
 import os
 import tempfile
 import uuid
+from typing import Optional, Dict, Any
 
 import pytest
 from opensearchpy import OpenSearch
@@ -36,7 +37,7 @@ def setup_index(os_client):
     os_client.indices.delete(TestOpenSearchRead.INDEX, ignore_unavailable=True)
 
 
-def get_doc_count(os_client, index_name: str) -> int:
+def get_doc_count(os_client, index_name: str, query: Optional[Dict[str, Any]] = None) -> int:
     res = os_client.cat.indices(format="json", index=index_name)
     return int(res[0]["docs.count"])
 
@@ -273,10 +274,7 @@ class TestOpenSearchRead:
                 "match_all": {},
             },
             # "size": 100,
-            "pit": {
-                "id": pit["pit_id"],
-                "keep_alive": "100m"
-            },
+            "pit": {"id": pit["pit_id"], "keep_alive": "100m"},
             "slice": {"id": 0, "max": 10},
         }
 
@@ -285,7 +283,7 @@ class TestOpenSearchRead:
         for i in range(10):
             for j in range(10):
                 search_body["slice"]["id"] = i
-                res = os_client.search(body=search_body, size=10, from_=j*10)
+                res = os_client.search(body=search_body, size=10, from_=j * 10)
                 print(f"{j}: {res['hits']['total']['value']}")
                 hits = res["hits"]["hits"]
                 if hits is None:

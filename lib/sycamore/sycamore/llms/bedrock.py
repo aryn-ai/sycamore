@@ -3,14 +3,13 @@ import datetime
 from enum import Enum
 import boto3
 import json
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 from PIL import Image
 
 from sycamore.llms.llms import LLM
-from sycamore.llms.prompts.default_prompts import SimplePrompt
+from sycamore.llms.anthropic import format_image, get_generate_kwargs
 from sycamore.utils.cache import Cache
-from sycamore.utils.image_utils import base64_data
 
 DEFAULT_MAX_TOKENS = 1000
 DEFAULT_ANTHROPIC_VERSION = "bedrock-2023-05-31"
@@ -75,62 +74,24 @@ class Bedrock(LLM):
 
     def format_image(self, image: Image.Image) -> dict[str, Any]:
         if self.model.name.startswith("anthropic."):
-            return {
-                "type": "image",
-                "source": {"type": "base64", "media_type": "image/png", "data": base64_data(image)},
-            }
+            return format_image(image)
         raise NotImplementedError("Images not supported for non-Anthropic Bedrock models.")
-
-    def _rewrite_system_messages(self, messages: Optional[List[Dict]]) -> Optional[List[Dict]]:
-        # Anthropic models don't accept messages with "role" set to "system", and
-        # requires alternation between "user" and "assistant" roles. So, we rewrite
-        # the messages to fold all "system" messages into the "user" role.
-        if not messages:
-            return messages
-        orig_messages = messages.copy()
-        cur_system_message = ""
-        for i, message in enumerate(orig_messages):
-            if message.get("role") == "system":
-                cur_system_message += message.get("content", "")
-            else:
-                if cur_system_message:
-                    messages[i]["content"] = cur_system_message + "\n" + message.get("content", "")
-                    cur_system_message = ""
-        return [m for m in messages if m.get("role") != "system"]
-
-    def _get_generate_kwargs(self, prompt_kwargs: Dict, llm_kwargs: Optional[Dict] = None) -> Dict:
-        kwargs = {
-            "temperature": 0,
-            **(llm_kwargs or {}),
-        }
-        if self._model_name.startswith("anthropic."):
-            kwargs["anthropic_version"] = kwargs.get("anthropic_version", DEFAULT_ANTHROPIC_VERSION)
-            kwargs["max_tokens"] = kwargs.get("max_tokens", DEFAULT_MAX_TOKENS)
-
-        if "prompt" in prompt_kwargs:
-            prompt = prompt_kwargs.get("prompt")
-
-            if isinstance(prompt, SimplePrompt):
-                kwargs.update({"messages": prompt.as_messages(prompt_kwargs)})
-            else:
-                kwargs.update({"messages": [{"role": "user", "content": f"{prompt}"}]})
-
-        elif "messages" in prompt_kwargs:
-            kwargs.update({"messages": prompt_kwargs["messages"]})
-        else:
-            raise ValueError("Either prompt or messages must be present in prompt_kwargs.")
-
-        if self._model_name.startswith("anthropic."):
-            kwargs["messages"] = self._rewrite_system_messages(kwargs["messages"])
-
-        return kwargs
 
     def generate_metadata(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> dict:
         key, ret = self._cache_get(prompt_kwargs, llm_kwargs)
         if isinstance(ret, dict):
+            print(f"cache return {ret}")
             return ret
 
-        kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
+        kwargs = get_generate_kwargs(prompt_kwargs, llm_kwargs)
+        if self._model_name.startswith("anthropic."):
+            anthropic_version = (
+                DEFAULT_ANTHROPIC_VERSION
+                if llm_kwargs is None
+                else llm_kwargs.get("anthropic_version", DEFAULT_ANTHROPIC_VERSION)
+            )
+            kwargs["anthropic_version"] = anthropic_version
+
         body = json.dumps(kwargs)
         start = datetime.datetime.now()
         response = self._client.invoke_model(

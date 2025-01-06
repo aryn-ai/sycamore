@@ -43,13 +43,16 @@ class MockLLM(LLM):
 
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
         if (
+            prompt_kwargs == {"messages": [{"role": "user", "content": "Element_index: 1\nText: third element\n"}]}
+            and llm_kwargs == {}
+        ):
+            return "None"
+        elif (
             "first short element" in prompt_kwargs["messages"][0]["content"]
             and "second longer element with more words" in prompt_kwargs["messages"][0]["content"]
             and llm_kwargs == {}
         ):
             return "4"
-        elif "third element" in prompt_kwargs["messages"][0]["content"] and llm_kwargs == {}:
-            return "2"
         elif (
             "very long element with many words that might exceed token limit" in prompt_kwargs["messages"][0]["content"]
             and llm_kwargs == {}
@@ -94,6 +97,11 @@ class TestSimilarityScorer(SimilarityScorer):
         for _, content in inputs:
             results += [1.0 if content == "test2" else 0.0]
         return results
+
+
+class MockTokenizer:
+    def tokenize(self, text):
+        return text.split()
 
 
 class TestDocSet:

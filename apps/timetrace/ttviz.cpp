@@ -14,6 +14,7 @@
 #include <string>
 #include <string_view>
 #include <algorithm>
+#include <cstdint>
 #include <cassert>
 
 using std::pair;

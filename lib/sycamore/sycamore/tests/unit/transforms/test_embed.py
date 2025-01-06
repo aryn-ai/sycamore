@@ -1,14 +1,40 @@
 import pickle
 import pytest
 import ray.data
+import os
 
-from sycamore.data import Document
+from sycamore.data import Document, Element
 from sycamore.plan_nodes import Node
 from sycamore.transforms import Embed
-from sycamore.transforms.embed import OpenAIEmbedder, SentenceTransformerEmbedder
+from sycamore.transforms.embed import OpenAIEmbedder, SentenceTransformerEmbedder, BedrockEmbedder
 
 
 class TestEmbedding:
+
+    def check_sentence_transformer(
+        self, model_name, dimension, texts, use_documents: bool = False, use_elements: bool = False
+    ):
+        input_batch = []
+        for text in texts:
+            doc = Document()
+            if use_documents:
+                doc.text_representation = text
+            if use_elements:
+                element = Element()
+                element.text_representation = text
+                doc.elements = [element]
+            input_batch.append(doc)
+        embedder = SentenceTransformerEmbedder(model_name)
+        output_batch = embedder(doc_batch=input_batch)
+        for doc in output_batch:
+            if use_documents:
+                assert doc.embedding is not None
+                assert len(doc.embedding) == dimension
+            if use_elements:
+                for element in doc.elements:
+                    assert element.embedding is not None
+                    assert len(element.embedding) == dimension
+
     """Test data is sampled from different captions for the same image from
     the Flickr30k dataset"""
 
@@ -52,25 +78,33 @@ class TestEmbedding:
         ],
     )
     def test_sentence_transformer(self, model_name, dimension, texts):
-        input_batch = []
-        for text in texts:
-            doc = Document()
-            doc.text_representation = text
-            input_batch.append(doc)
-        embedder = SentenceTransformerEmbedder(model_name)
-        output_batch = embedder(doc_batch=input_batch)
-        for doc in output_batch:
-            assert len(doc.embedding) == dimension
+        self.check_sentence_transformer(model_name, dimension, texts, use_documents=True, use_elements=True)
+        self.check_sentence_transformer(model_name, dimension, texts, use_elements=True)
+        self.check_sentence_transformer(model_name, dimension, texts, use_documents=True)
 
-    def test_sentence_transformer_embedding(self, mocker):
+    def check_sentence_transformer_embedding(self, mocker, use_documents: bool = False, use_elements: bool = False):
         node = mocker.Mock(spec=Node)
         embedding = Embed(
             node,
             embedder=SentenceTransformerEmbedder(model_name="sentence-transformers/all-MiniLM-L6-v2", batch_size=100),
         )
+        texts = ["Members of a strike at Yale University.", "A woman is speaking at a podium outdoors."]
+        elements = [
+            {"_element_index": 1, "text_representation": texts[0], "embedding": None},
+            {
+                "_element_index": 2,
+                "text_representation": texts[1],
+                "embedding": None,
+            },
+        ]
         dicts = [
-            {"doc_id": 1, "text_representation": "Members of a strike at Yale University.", "embedding": None},
-            {"doc_id": 2, "text_representation": "A woman is speaking at a podium outdoors.", "embedding": None},
+            {
+                "doc_id": 1,
+                "text_representation": texts[0] if use_documents else None,
+                "embedding": None,
+                "elements": elements if use_elements else [],
+            },
+            {"doc_id": 2, "text_representation": texts[1] if use_documents else None, "embedding": None},
         ]
         input_dataset = ray.data.from_items([{"doc": Document(dict).serialize()} for dict in dicts])
         execute = mocker.patch.object(node, "execute")
@@ -79,9 +113,56 @@ class TestEmbedding:
         output_dataset = embedding.execute()
         output_dataset.show()
 
+    def test_sentence_transformer_embedding(self, mocker):
+        self.check_sentence_transformer_embedding(mocker, use_documents=True, use_elements=True)
+        self.check_sentence_transformer_embedding(mocker, use_elements=True)
+        self.check_sentence_transformer_embedding(mocker, use_documents=True)
+
     def test_openai_embedder_pickle(self):
         obj = OpenAIEmbedder()
         obj._client = obj.client_wrapper.get_client()
 
         pickle.dumps(obj)
         assert True
+
+    def test_openai_embedder_no_key(self):
+        oaik = os.environ.pop("OPENAI_API_KEY")
+        obj = OpenAIEmbedder()
+        os.environ.update({"OPENAI_API_KEY": oaik})
+        assert obj
+
+    def test_sentence_transformer_batch_size(self):
+        embedder = SentenceTransformerEmbedder(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        assert embedder._get_model_batch_size() == 100
+
+        embedder = SentenceTransformerEmbedder(model_name="sentence-transformers/all-MiniLM-L6-v2", model_batch_size=50)
+        assert embedder._get_model_batch_size() == 50
+
+        embedder = BedrockEmbedder(model_batch_size=100)
+        assert embedder._get_model_batch_size() == 1
+
+        embedder = BedrockEmbedder(model_batch_size=1)
+        assert embedder._get_model_batch_size() == 1
+
+        embedder = OpenAIEmbedder(model_batch_size=120)
+        assert embedder._get_model_batch_size() == 120
+
+        # Test batching
+        texts = ["text1", "text2", "text3", "text4"]
+        docs = [Document({"text_representation": t}) for t in texts]
+
+        embedders = [
+            SentenceTransformerEmbedder(model_name="sentence-transformers/all-MiniLM-L6-v2", model_batch_size=2),
+            OpenAIEmbedder(model_batch_size=2),
+        ]
+        for embedder in embedders:
+            original_embed_texts = embedder.embed_texts
+
+            def mock_embed_texts(text_batch):
+                assert len(text_batch) == 2, "All batches should be size 2"
+                return original_embed_texts(text_batch)
+
+            embedder.embed_texts = mock_embed_texts
+
+            embedded_docs = embedder(docs)
+            assert len(embedded_docs) == len(texts), "All texts should be processed"

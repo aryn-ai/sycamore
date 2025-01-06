@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from sycamore.query.logical_plan import LogicalPlan
 from sycamore.query.schema import OpenSearchSchema
 from sycamore.query.planner import PlannerExample
+from sycamore.schema import Schema
 
 
 class QueryEvalConfig(BaseModel):
@@ -102,6 +103,6 @@ class QueryEvalResultsFile(BaseModel):
     """Represents the format of the query eval results file."""
 
     config: QueryEvalConfig
-    data_schema: Optional[OpenSearchSchema] = None
+    data_schema: Optional[Union[Schema, OpenSearchSchema]] = None
     examples: Optional[List[PlannerExample]] = None
     results: Optional[List[QueryEvalResult]] = None

@@ -2,6 +2,8 @@ import logging
 from abc import ABC
 from typing import Any, Optional, Type
 
+from sycamore.schema import Schema
+
 logger = logging.getLogger(__name__)
 
 
@@ -71,16 +73,6 @@ class SchemaZeroShotGuidancePrompt(SimplePrompt):
     class {entity} from the document. Using this context, FIND, FORMAT, and RETURN the JSON-LD Schema.
     Return a flat schema, without nested properties. Return at most {max_num_properties} properties.
     Only return JSON Schema as part of your answer.
-    {query}
-    """
-
-
-class PropertiesZeroShotGuidancePrompt(SimplePrompt):
-    system = "You are a helpful property extractor. You only return JSON."
-    user = """You are given a few text elements of a document. Extract JSON representing one entity of
-    class {entity} from the document. The class only has properties {properties}. Using
-    this context, FIND, FORMAT, and RETURN the JSON representing one {entity}.
-    Only return JSON as part of your answer. If no entity is in the text, return "None".
     {query}
     """
 
@@ -170,6 +162,49 @@ class ExtractTablePropertiesPrompt(SimplePrompt):
             return ```{"header1": null, "header2": "value2", "header3": null, "header4": null, "header5": null, "header6": null}```
 
             """
+
+
+class ExtractPropertiesFromSchemaPrompt(SimplePrompt):
+    def __init__(self, schema: Schema, text: str):
+        super().__init__()
+
+        self.system = "You are given text contents from a document."
+        self.user = f"""
+        Extract values for the following fields:
+        {self._format_schema(schema)}
+        
+        Document text:
+        {text}
+        
+        Return your answers as a json dictionary, do not return any extra information.
+        If you cannot find a value, use the provided default or None.
+"""
+
+    @staticmethod
+    def _format_schema(schema: Schema) -> str:
+        text = ""
+        for i, field in enumerate(schema.fields):
+            text += f"""
+            {i} {field.name}: type={field.field_type}: default={field.default}
+                {field.description}\n
+                Examples values: {field.examples}
+                
+"""
+        return text
+
+
+class PropertiesZeroShotGuidancePrompt(SimplePrompt):
+    def __init__(self):
+        super().__init__()
+
+        self.system = "You are a helpful property extractor. You only return JSON."
+
+        self.user = """You are given a few text elements of a document. Extract JSON representing one entity of
+        class {entity} from the document. The class only has properties {properties}. Using
+        this context, FIND, FORMAT, and RETURN the JSON representing one {entity}.
+        Only return JSON as part of your answer. If no entity is in the text, return "None".
+        {text}
+        """
 
 
 class EntityExtractorMessagesPrompt(SimplePrompt):

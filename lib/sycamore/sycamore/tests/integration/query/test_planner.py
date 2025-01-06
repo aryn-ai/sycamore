@@ -26,3 +26,9 @@ def test_simple_llm_planner(query_integration_test_index: str):
     assert type(plan.nodes[1]).__name__ == "Count"
 
     assert [plan.nodes[0]] == plan.nodes[1].input_nodes()
+
+    # Just ensure we can run the planner with a Schema object as well
+    planner = LlmPlanner(
+        query_integration_test_index, data_schema=schema.to_schema(), os_config=OS_CONFIG, os_client=os_client
+    )
+    planner.plan("How many locations did incidents happen in?")

@@ -148,7 +148,7 @@ class OpenSearchWriterClient(BaseDBWriter.Client):
                 log.warning(f"Received 429, backing off for {sleep_time:.2f} seconds")
                 time.sleep(sleep_time)
                 retry_count += 1
-                requests = failed_requests
+            requests = failed_requests
 
     def create_target_idempotent(self, target_params: BaseDBWriter.TargetParams):
         from opensearchpy.exceptions import RequestError

@@ -127,7 +127,7 @@ class OpenSearchWriterClient(BaseDBWriter.Client):
         while requests:
             failed_requests = []
             for success, item in parallel_bulk(
-                self._client, generate_records(records), **target_params.insert_settings
+                self._client, generate_records(requests), **target_params.insert_settings
             ):
                 if not success:
                     if item["index"]["status"] == 429:

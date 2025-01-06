@@ -36,7 +36,7 @@ jobs:
       - name: DF-3
         run: df -h
       - name: Install sycamore
-        run: poetry install --all-extras --no-root --no-root
+        run: poetry install --all-extras --no-root
       - name: DF-4
         run: df -h
       - name: Run mypy
@@ -56,7 +56,7 @@ jobs:
           python-version: '3.9'
           cache: 'poetry'
       - name: Install sycamore
-        run: poetry install --all-extras --no-root --no-root
+        run: poetry install --all-extras --no-root
       - name: Lint with ruff
         run: poetry run ruff check .
       - name: Lint with black

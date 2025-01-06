@@ -74,7 +74,7 @@ class Embedder(ABC):
 
         # Generate embeddings
         all_embeddings = []
-        for text_batch in batched(text_to_embed, self.model_batch_size):
+        for text_batch in batched(text_to_embed, self._get_model_batch_size()):
             batch_embeddings = self.embed_texts(text_batch)
             all_embeddings.extend(batch_embeddings)
 
@@ -101,6 +101,11 @@ class Embedder(ABC):
     @abstractmethod
     def embed_texts(self, texts: List[str]) -> List[List[float]]:
         """Embed a batch of texts. To be implemented by child classes."""
+        pass
+
+    @abstractmethod
+    def _get_model_batch_size(self) -> int:
+        """Get the batch size to use for the embedding model"""
         pass
 
     def generate_text_embedding(self, text: str) -> list[float]:
@@ -147,7 +152,7 @@ class SentenceTransformerEmbedder(Embedder):
         super().__init__(
             model_name=model_name,
             batch_size=batch_size,
-            model_batch_size=self.clamp_batch_size(model_batch_size),
+            model_batch_size=model_batch_size,
             pre_process_document=pre_process_document,
             device=device,
         )
@@ -159,11 +164,14 @@ class SentenceTransformerEmbedder(Embedder):
 
             self._transformer = SentenceTransformer(self.model_name)
 
+    def _get_model_batch_size(self) -> int:
+        return Embedder.clamp_batch_size(self.model_batch_size)
+
     @timetrace("StEmbedder")
     def embed_texts(self, texts: List[str]) -> List[List[float]]:
         self._ensure_model()
         assert self._transformer is not None
-        embeddings = self._transformer.encode(texts, batch_size=self.model_batch_size, device=self.device)
+        embeddings = self._transformer.encode(texts, batch_size=self._get_model_batch_size(), device=self.device)
         return embeddings.tolist()
 
 
@@ -209,15 +217,10 @@ class OpenAIEmbedder(Embedder):
         self._client: Optional[OpenAIClient] = None
         self.model_name = model_name
 
-        client = client_wrapper.get_client()
-        if isinstance(client, AzureOpenAIClient):
-            default_batch_size = 16
-        else:
-            default_batch_size = None
         super().__init__(
             model_name=model_name,
             batch_size=batch_size,
-            model_batch_size=self.clamp_batch_size(model_batch_size, default_batch_size),
+            model_batch_size=model_batch_size,
             pre_process_document=pre_process_document,
             device="cpu",
         )
@@ -233,6 +236,14 @@ class OpenAIEmbedder(Embedder):
     def _ensure_client(self):
         if self._client is None:
             self._client = self.client_wrapper.get_client()
+
+    def _get_model_batch_size(self) -> int:
+        client = self.client_wrapper.get_client()
+        if isinstance(client, AzureOpenAIClient):
+            default_batch_size = 16
+        else:
+            default_batch_size = None
+        return Embedder.clamp_batch_size(self.model_batch_size, default_batch_size)
 
     def embed_texts(self, texts: List[str]) -> List[List[float]]:
         # TODO: Add some input validation here.
@@ -278,7 +289,7 @@ class BedrockEmbedder(Embedder):
         super().__init__(
             model_name=model_name,
             batch_size=batch_size,
-            model_batch_size=self.clamp_batch_size(model_batch_size, 1),
+            model_batch_size=model_batch_size,
             pre_process_document=pre_process_document,
             device="cpu",
         )
@@ -292,6 +303,9 @@ class BedrockEmbedder(Embedder):
 
             boto3.session.Session(*self.boto_session_args, **self.boto_session_kwargs)
             self._client = boto3.client("bedrock-runtime")
+
+    def _get_model_batch_size(self) -> int:
+        return Embedder.clamp_batch_size(self.model_batch_size, 1)
 
     def embed_texts(self, texts: List[str]) -> List[List[float]]:
         assert len(texts) == 1, "Bedrock only supports batch size 1"

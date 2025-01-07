@@ -1,8 +1,9 @@
+import pytest
 import sycamore
 from sycamore import ExecMode
 from sycamore.data import Document
 from sycamore.schema import Schema, SchemaField
-from sycamore.llms import OpenAI, OpenAIModels
+from sycamore.llms import OpenAI, OpenAIModels, Anthropic, AnthropicModels
 from sycamore.transforms.extract_schema import LLMPropertyExtractor
 
 
@@ -26,10 +27,17 @@ def get_docs():
     return docs
 
 
-def test_extract_properties_from_dict_schema():
+llms = [
+    OpenAI(OpenAIModels.GPT_4O),
+    Anthropic(AnthropicModels.CLAUDE_3_5_SONNET),
+]
+
+
+@pytest.mark.parametrize("llm", llms)
+def test_extract_properties_from_dict_schema(llm):
     docs = get_docs()[:1]  # only validate first doc because of technique reliability
     schema = {"name": "str", "age": "int", "date": "str", "from_location": "str"}
-    property_extractor = LLMPropertyExtractor(OpenAI(OpenAIModels.GPT_4O), schema=schema, schema_name="entity")
+    property_extractor = LLMPropertyExtractor(llm, schema=schema, schema_name="entity")
 
     ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
     docs = ctx.read.document(docs)
@@ -42,7 +50,8 @@ def test_extract_properties_from_dict_schema():
     assert "Honolulu" in taken[0].properties["entity"]["from_location"]
 
 
-def test_extract_properties_from_schema():
+@pytest.mark.parametrize("llm", llms)
+def test_extract_properties_from_schema(llm):
     docs = get_docs()
 
     schema = Schema(
@@ -65,7 +74,7 @@ def test_extract_properties_from_schema():
             ),
         ]
     )
-    property_extractor = LLMPropertyExtractor(OpenAI(OpenAIModels.GPT_4O), schema=schema)
+    property_extractor = LLMPropertyExtractor(llm, schema=schema)
 
     ctx = sycamore.init(exec_mode=ExecMode.LOCAL)
     docs = ctx.read.document(docs)

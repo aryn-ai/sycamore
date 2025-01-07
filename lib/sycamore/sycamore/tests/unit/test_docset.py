@@ -273,7 +273,7 @@ class TestDocSet:
         for i in range(num_docs):
             docs.append(Document(text_representation=f"Document {i}", doc_id=i, properties={"document_number": i}))
 
-        context = sycamore.init()
+        context = sycamore.init(exec_mode=sycamore.ExecMode.LOCAL)
         docset = context.read.document(docs)
 
         assert len(docset.take_all()) == num_docs

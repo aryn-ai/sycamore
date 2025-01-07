@@ -273,7 +273,7 @@ class TestDocSet:
         for i in range(num_docs):
             docs.append(Document(text_representation=f"Document {i}", doc_id=i, properties={"document_number": i}))
 
-        context = sycamore.init(exec_mode=sycamore.ExecMode.LOCAL)
+        context = sycamore.init()
         docset = context.read.document(docs)
 
         assert len(docset.take_all()) == num_docs
@@ -306,7 +306,7 @@ class TestDocSet:
         texts = [self.random_string(min_size=20, max_size=100) for _ in range(10)]
         docs = [Document(text_representation=t, doc_id=i, properties={}) for i, t in enumerate(texts)]
 
-        context = sycamore.init()
+        context = sycamore.init(exec_mode=sycamore.ExecMode.LOCAL)
 
         docset = context.read.document(docs).with_property("text_size", self.text_len)
 
@@ -319,7 +319,7 @@ class TestDocSet:
         texts = [self.random_string(min_size=20, max_size=100) for _ in range(10)]
         docs = [Document(text_representation=t, doc_id=i, properties={}) for i, t in enumerate(texts)]
 
-        context = sycamore.init()
+        context = sycamore.init(exec_mode=sycamore.ExecMode.LOCAL)
         docset = context.read.document(docs).with_properties({"text_size": self.text_len, "num_as": self.num_as})
 
         expected_length = [len(t) for t in texts]

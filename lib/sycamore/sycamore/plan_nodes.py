@@ -138,6 +138,20 @@ class Node(ABC):
     def clone(self) -> "Node":
         raise Exception("Unimplemented")
 
+    def last_node_materialize(self) -> bool:
+        from sycamore.materialize import Materialize
+
+        if not self.children or all(c is None for c in self.children):
+            return isinstance(self, Materialize) and self._reliability is None
+        assert not isinstance(
+            self, Materialize
+        ), "For ensuring reliability, only first and last node must be materialize"
+
+        for child in self.children:
+            if child is not None:
+                return child.last_node_materialize()
+        return False
+
 
 class LeafNode(Node):
     def __init__(self, **resource_args):

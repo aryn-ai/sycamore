@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 import pprint
 import sys
+import traceback
 from typing import Callable, Optional, Any, Iterable, Type, Union, TYPE_CHECKING
 
 from sycamore.context import Context, context_params, OperationTypes
@@ -1530,15 +1531,29 @@ class DocSet:
         from sycamore.executor import Execution
         from sycamore.materialize import Materialize
 
-        # TO:DO assumes last node is materialize, need to add functionality if multiple materialize steps present
         if isinstance(self.plan, Materialize) and self.plan._reliability is not None:
             mrr = getattr(self.plan, "_reliability")
+
+            assert self.plan.child().last_node_materialize(), "first step must be materialize step"
+
             while True:
-                for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
-                    pass
-                if mrr.current_batch == 0:
-                    break
+                try:
+                    cycle_error = ""
+                    for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
+                        pass
+                    if mrr.current_batch == 0:
+                        logger.info(f"\nProcessed {mrr.prev_seen} docs.")
+                        break
+                except Exception as e:
+                    logger.info(f"Retrying batch job because of {e}.\n Processed {len(mrr.seen)} docs at present.")
+                    cycle_error = traceback.format_exc()
+                    print(f"Detailed Trace:\n{cycle_error}")
                 mrr.reset_batch()
+                if mrr.retries_count > 20:
+                    logger.info(
+                        f"\nGiving up after retrying {mrr.retries_count} times. Processed {mrr.prev_seen} docs."
+                    )
+                    break
         else:
             for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
                 pass

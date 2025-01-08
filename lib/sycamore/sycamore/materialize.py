@@ -54,7 +54,8 @@ class MaterializeReadReliability:
         self.path = path
         self.max_batch = max_batch
         self.current_batch = 0
-
+        self.retries_count = 0
+        self.prev_seen = 0
         # Initialize seen files
         self._refresh_seen_files()
 
@@ -67,6 +68,10 @@ class MaterializeReadReliability:
             self._path_to_id(Path(f.path)): f.mtime for f in files if self._path_to_id(Path(f.path)) is not None
         }
         logger.info(f"Found {len(self.seen)} already materialized outputs")
+        if len(self.seen) == self.prev_seen:
+            self.retries_count += 1
+        else:
+            self.retries_count = 0
 
     @staticmethod
     def _path_to_id(p: Path) -> Optional[str]:
@@ -95,6 +100,7 @@ class MaterializeReadReliability:
     def reset_batch(self) -> None:
         """Reset the current batch counter and refresh seen files"""
         self.current_batch = 0
+        self.prev_seen = len(self.seen)
         self._refresh_seen_files()
 
 

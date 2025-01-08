@@ -244,13 +244,14 @@ class TestOpenSearchRead:
         with tempfile.TemporaryDirectory() as cache_dir:
             self._test_ingest_and_read_via_docid_reconstructor(setup_index, os_client, cache_dir)
 
-    def test_ingest_and_read2(self, setup_index, os_client, exec_mode):
+    def test_slice_and_shards(self, setup_index_large, os_client):
         """
         Validates data is readable from OpenSearch, and that we can rebuild processed Sycamore documents.
         """
 
+        """
         path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
-        context = sycamore.init(exec_mode=exec_mode)
+        context = sycamore.init(exec_mode=ExecMode.RAY)
         original_docs = (
             context.read.binary(path, binary_format="pdf")
             .partition(partitioner=UnstructuredPdfPartitioner())
@@ -267,27 +268,31 @@ class TestOpenSearchRead:
         os_client.indices.refresh(TestOpenSearchRead.INDEX)
 
         expected_count = len(original_docs)
-        actual_count = get_doc_count(os_client, TestOpenSearchRead.INDEX)
-        print(f"Expected {expected_count} documents, found {actual_count}")
+        """
+        actual_count = get_doc_count(os_client, setup_index_large)
+        # print(f"Expected {expected_count} documents, found {actual_count}")
 
         # refresh should have made all ingested docs immediately available for search
         # assert actual_count == expected_count, f"Expected {expected_count} documents, found {actual_count}"
 
-        pit = os_client.create_pit(index=TestOpenSearchRead.INDEX, keep_alive="100m")
+        pit = os_client.create_pit(index=setup_index_large, keep_alive="100m")
+        num_slices = 20
         search_body = {
             "query": {
                 "match_all": {},
             },
             # "size": 100,
             "pit": {"id": pit["pit_id"], "keep_alive": "100m"},
-            "slice": {"id": 0, "max": 10},
+            "slice": {"id": 0, "max": num_slices},
         }
 
         ids = set()
-        for i in range(10):
+        page_size = 1000
+        for i in range(num_slices):
+            slice_count = 0
             for j in range(10):
                 search_body["slice"]["id"] = i
-                res = os_client.search(body=search_body, size=10, from_=j * 10)
+                res = os_client.search(body=search_body, size=page_size, from_=j * page_size)
                 print(f"{j}: {res['hits']['total']['value']}")
                 hits = res["hits"]["hits"]
                 if hits is None:
@@ -300,6 +305,8 @@ class TestOpenSearchRead:
                         print(f"Duplicate doc_id: {doc_id}")
                     else:
                         ids.add(doc_id)
+                        slice_count += 1
+            print(f"Slice {i} count: {slice_count}")
 
         print(len(ids))
 
@@ -465,3 +472,13 @@ class TestOpenSearchRead:
             print(f"Current count: {doc_count}")
 
         print(f"Current count: {doc_count}")
+
+    def test_cat(self, setup_index_large, os_client):
+        response = os_client.cat.shards(index=setup_index_large, format="json")
+        print(response)
+        doc_count = 0
+        for item in response:
+            if item["prirep"] == "p":
+                print(item)
+                doc_count += int(item["docs"])
+        print(f"Total docs: {doc_count}")

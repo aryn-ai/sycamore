@@ -452,12 +452,12 @@ class OpenSearchReader(BaseDBReader):
 
         if self._query_params.reconstruct_document:
             return ds.groupby("parent_id").map_groups(self.map_reduce_parent_id).map(self.reconstruct)
-
-        return (
-            ds.groupby("slice")
-            .map_groups(self.map_reduce_docs_by_slice)
-            .map(lambda d: {"doc": Document(**d).serialize()})
-        )
+        else:
+            return (
+                ds.groupby("slice")
+                .map_groups(self.map_reduce_docs_by_slice)
+                .map(lambda d: {"doc": Document(**d).serialize()})
+            )
 
     def _execute_pit(self, **kwargs) -> "Dataset":
         """Distribute the work evenly across available workers.
@@ -512,17 +512,21 @@ class OpenSearchReader(BaseDBReader):
             from ray.data import from_items
 
             ds = from_items(items=docs)
-            if not self._query_params.reconstruct_document:
-                return ds.flat_map(  # Step 1: Construct slices (pages)
-                    self._to_doc, **self.resource_args
-                )  # Step 2: For each page, get all documents
-
-            return (
-                ds  # Step 1: Construct slices (pages)
+            if self._query_params.reconstruct_document:
+                # Step 1: Construct slices (pages)
                 # Step 2: For each page, get all parent documents
-                .flat_map(self._to_parent_doc, **self.resource_args)
-                .groupby("parent_id")  # Step 3: Group by parent_id
-                .map_groups(self.map_reduce_parent_id)  # Step 4: Deduplicate parent documents by ID
-                .map(self.reconstruct)  # Step 5: Reconstruct parent documents using
-                #         'parent_id'
-            )
+                # Step 3: Group by parent_id
+                # Step 4: Deduplicate parent documents by ID
+                # Step 5: Reconstruct parent documents using 'parent_id'
+
+                return (
+                    ds
+                    .flat_map(self._to_parent_doc, **self.resource_args)
+                    .groupby("parent_id")
+                    .map_groups(self.map_reduce_parent_id)
+                    .map(self.reconstruct)
+                )
+            else:
+                # Step 1: Construct slices (pages)
+                # Step 2: For each page, get all documents
+                return ds.flat_map(self._to_doc, **self.resource_args)

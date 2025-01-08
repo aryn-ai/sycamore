@@ -37,7 +37,7 @@ def test_cached_bedrock(tmp_path: Path):
     prompt_kwargs = {"prompt": "Write a limerick about large language models."}
 
     # pylint: disable=protected-access
-    key = llm._get_cache_key(prompt_kwargs, {})
+    key = llm._llm_cache_key(prompt_kwargs, {})
 
     res = llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
 
@@ -67,10 +67,10 @@ def test_cached_bedrock_different_prompts(tmp_path: Path):
     prompt_kwargs_3 = {"prompt": "Write a poem about large language models."}
     prompt_kwargs_4 = {"prompt": "Write a short poem about large language models."}
 
-    key_1 = llm._get_cache_key(prompt_kwargs_1, {})
-    key_2 = llm._get_cache_key(prompt_kwargs_2, {})
-    key_3 = llm._get_cache_key(prompt_kwargs_3, {})
-    key_4 = llm._get_cache_key(prompt_kwargs_4, {})
+    key_1 = llm._llm_cache_key(prompt_kwargs_1, {})
+    key_2 = llm._llm_cache_key(prompt_kwargs_2, {})
+    key_3 = llm._llm_cache_key(prompt_kwargs_3, {})
+    key_4 = llm._llm_cache_key(prompt_kwargs_4, {})
     keys = [key_1, key_2, key_3, key_4]
 
     assert len(keys) == len(
@@ -92,9 +92,9 @@ def test_cached_bedrock_different_models(tmp_path: Path):
     prompt_kwargs = {"prompt": "Write a limerick about large language models."}
 
     # populate cache
-    key_HAIKU = llm_HAIKU._get_cache_key(prompt_kwargs, {})
+    key_HAIKU = llm_HAIKU._llm_cache_key(prompt_kwargs, {})
     res_HAIKU = llm_HAIKU.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
-    key_SONNET = llm_SONNET._get_cache_key(prompt_kwargs, {})
+    key_SONNET = llm_SONNET._llm_cache_key(prompt_kwargs, {})
     res_SONNET = llm_SONNET.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
 
     # check proper cached results

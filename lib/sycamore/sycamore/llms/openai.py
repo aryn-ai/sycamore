@@ -1,3 +1,4 @@
+import copy
 import functools
 import inspect
 import logging
@@ -408,7 +409,7 @@ class OpenAI(LLM):
 
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
         llm_kwargs = self._convert_response_format(llm_kwargs)
-        key, ret = self._cache_get(prompt_kwargs, llm_kwargs)
+        ret = self._llm_cache_get(prompt_kwargs, llm_kwargs)
         if ret is not None:
             return ret
 
@@ -421,13 +422,7 @@ class OpenAI(LLM):
         else:
             ret = self._generate_using_guidance(prompt_kwargs)
 
-        value = {
-            "result": ret,
-            "prompt_kwargs": prompt_kwargs,
-            "llm_kwargs": llm_kwargs,
-            "model_name": self.model.name,
-        }
-        self._cache_set(key, value)
+        self._llm_cache_set(prompt_kwargs, llm_kwargs, ret)
         return ret
 
     def _generate_using_openai(self, prompt_kwargs, llm_kwargs) -> str:
@@ -450,7 +445,7 @@ class OpenAI(LLM):
             raise e
 
     async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
-        key, ret = self._cache_get(prompt_kwargs, llm_kwargs)
+        ret = self._llm_cache_get(prompt_kwargs, llm_kwargs)
         if ret is not None:
             return ret
 
@@ -461,13 +456,7 @@ class OpenAI(LLM):
         else:
             ret = await self._generate_awaitable_using_openai(prompt_kwargs, llm_kwargs)
 
-        value = {
-            "result": ret,
-            "prompt_kwargs": prompt_kwargs,
-            "llm_kwargs": llm_kwargs,
-            "model_name": self.model.name,
-        }
-        self._cache_set(key, value)
+        self._llm_cache_set(prompt_kwargs, llm_kwargs, ret)
         return ret
 
     async def _generate_awaitable_using_openai(self, prompt_kwargs, llm_kwargs) -> str:
@@ -491,8 +480,9 @@ class OpenAI(LLM):
             # 2.) The LLM refused to respond to the request because it did not meet guidelines
             raise e
 
-    def _generate_using_guidance(self, prompt_kwargs) -> str:
+    def _generate_using_guidance(self, in_prompt_kwargs) -> str:
         guidance_model = self.client_wrapper.get_guidance_model(self.model)
+        prompt_kwargs = copy.deepcopy(in_prompt_kwargs)
         prompt: SimplePrompt = prompt_kwargs.pop("prompt")
         prediction = execute_with_guidance(prompt, guidance_model, **prompt_kwargs)
         return prediction

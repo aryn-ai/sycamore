@@ -47,7 +47,7 @@ def test_cached_openai(tmp_path: Path):
     llm = OpenAI(OpenAIModels.GPT_3_5_TURBO, cache=cache)
     prompt_kwargs = {"prompt": "Write a limerick about large language models."}
 
-    key = llm._get_cache_key(prompt_kwargs, {})
+    key = llm._llm_cache_key(prompt_kwargs, {})
 
     res = llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
 
@@ -74,11 +74,12 @@ def test_cached_guidance(tmp_path: Path):
     llm = OpenAI(OpenAIModels.GPT_3_5_TURBO, cache=cache)
     prompt_kwargs = {"prompt": TestPrompt()}
 
-    key = llm._get_cache_key(prompt_kwargs, None)
+    key = llm._llm_cache_key(prompt_kwargs, None)
 
     res = llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs=None)
 
     # assert result is cached
+    assert isinstance(cache.get(key), dict)
     assert cache.get(key).get("result") == res
     assert cache.get(key).get("prompt_kwargs") == prompt_kwargs
     assert cache.get(key).get("llm_kwargs") is None
@@ -104,10 +105,10 @@ def test_cached_openai_different_prompts(tmp_path: Path):
     prompt_kwargs_3 = {"prompt": "Write a poem about large language models."}
     prompt_kwargs_4 = {"prompt": "Write a short poem about large language models."}
 
-    key_1 = llm._get_cache_key(prompt_kwargs_1, {})
-    key_2 = llm._get_cache_key(prompt_kwargs_2, {})
-    key_3 = llm._get_cache_key(prompt_kwargs_3, {})
-    key_4 = llm._get_cache_key(prompt_kwargs_4, {})
+    key_1 = llm._llm_cache_key(prompt_kwargs_1, {})
+    key_2 = llm._llm_cache_key(prompt_kwargs_2, {})
+    key_3 = llm._llm_cache_key(prompt_kwargs_3, {})
+    key_4 = llm._llm_cache_key(prompt_kwargs_4, {})
     keys = [key_1, key_2, key_3, key_4]
 
     assert len(keys) == len(
@@ -129,9 +130,9 @@ def test_cached_openai_different_models(tmp_path: Path):
     prompt_kwargs = {"prompt": "Write a limerick about large language models."}
 
     # populate cache
-    key_GPT_3_5_TURBO = llm_GPT_3_5_TURBO._get_cache_key(prompt_kwargs, {})
+    key_GPT_3_5_TURBO = llm_GPT_3_5_TURBO._llm_cache_key(prompt_kwargs, {})
     res_GPT_3_5_TURBO = llm_GPT_3_5_TURBO.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
-    key_GPT_4O_MINI = llm_GPT_4O_MINI._get_cache_key(prompt_kwargs, {})
+    key_GPT_4O_MINI = llm_GPT_4O_MINI._llm_cache_key(prompt_kwargs, {})
     res_GPT_4O_MINI = llm_GPT_4O_MINI.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
 
     # check proper cached results
@@ -162,7 +163,7 @@ def test_cached_openai_pydantic_model(tmp_path: Path):
 
     # populate cache
     # pylint: disable=protected-access
-    key_GPT_4O_MINI, _ = llm_GPT_4O_MINI._cache_get(prompt_kwargs, llm_kwargs_cached)
+    key_GPT_4O_MINI = llm_GPT_4O_MINI._llm_cache_key(prompt_kwargs, llm_kwargs_cached)
     res_GPT_4O_MINI = llm_GPT_4O_MINI.generate(prompt_kwargs=prompt_kwargs, llm_kwargs=llm_kwargs)
     assert key_GPT_4O_MINI is not None
     # check cache

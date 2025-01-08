@@ -21,6 +21,12 @@ _logger.setLevel(logging.INFO)
 _logger.addHandler(logging.StreamHandler(sys.stderr))
 
 
+class PartitionError(Exception):
+    def __init__(self, message: str, status_code: int) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+
+
 def partition_file(
     file: Union[BinaryIO, str, PathLike],
     aryn_api_key: Optional[str] = None,
@@ -204,13 +210,16 @@ def partition_file(
     data = json.loads(body)
     assert isinstance(data, dict)
     status = data.get("status", [])
-    if "error" in data:
-        error_msg = (
-            "Limit Exceeded:"
-            if "Please try again in a little while" in data["error"]
-            else "Error partway through processing:"
-        )
-        raise ValueError(f"{error_msg} {data['error']}\nPartial Status:\n{status}")
+    if error := data.get("error"):
+        code = data.get("status_code")
+        if code is None:
+            code = 429 if error.startswith("429: ") else 500
+        if code == 429:
+            prefix = "Limit exceeded"
+        else:
+            prefix = "Error partway through processing"
+        _logger.info(f"Error from ArynPartitioner: {error}")
+        raise PartitionError(f"{prefix}: {error}\nPartial Status:\n{status}", code)
     return data
 
 

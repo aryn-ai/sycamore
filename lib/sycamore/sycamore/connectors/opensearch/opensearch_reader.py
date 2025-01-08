@@ -169,7 +169,29 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
 
             # Batched retrieval of all elements belong to unique docs
             doc_ids = list(unique_docs.keys())
-            all_elements_for_docs = self._get_all_elements_for_doc_ids(doc_ids, query_params.index_name)
+            def get_batches(doc_ids) -> list[list[str]]:
+                batches = []
+                batch_doc_count = 0
+                cur_batch = []
+                for i in range(len(doc_ids)):
+                    query = {
+                        "query": {"terms": {"parent_id.keyword": [doc_ids[i]]}},
+                    }
+                    doc_count = get_doc_count(self.client, query_params.index_name, query)
+                    if batch_doc_count + doc_count > 10000:
+                        batches.append(cur_batch)
+                        cur_batch = [doc_ids[i]]
+                        batch_doc_count = 0
+                    else:
+                        batch_doc_count += doc_count
+                        cur_batch.append(doc_ids[i])
+                return batches
+
+            batches = get_batches(doc_ids)
+
+            all_elements_for_docs = []
+            for batch in batches:
+                all_elements_for_docs += self._get_all_elements_for_doc_ids(batch, query_params.index_name)
 
             """
             Add elements to unique docs. If they were not part of the original result,
@@ -330,9 +352,8 @@ class OpenSearchReader(BaseDBReader):
                 raise ValueError("Target is not present\n" f"Parameters: {self._query_params}\n")
 
             os_client = client._client
-            assert (
-                get_doc_count_for_slice(os_client, slice_query) <= 10000
-            ), "Slice query should return <= 10,000 documents"
+            slice_count = get_doc_count_for_slice(os_client, slice_query)
+            assert slice_count <= 10000, f"Slice count ({slice_count}) should return <= 10,000 documents"
 
             results = []
             size = 1000
@@ -393,6 +414,10 @@ class OpenSearchReader(BaseDBReader):
 
     def execute(self, **kwargs) -> "Dataset":
         if "query" in self._query_params.query and "knn" in self._query_params.query["query"]:
+            return super().execute(**kwargs)
+
+        if self.parallelism and self.parallelism == 1:
+            logger.info("Parallelism is 1, executing in single process")
             return super().execute(**kwargs)
 
         if self.use_pit:
@@ -479,7 +504,8 @@ class OpenSearchReader(BaseDBReader):
 
             os_client = client._client
             doc_count = get_doc_count(os_client, index_name, query)
-            num_slices = doc_count // 5000 if doc_count > 5000 else 1
+            page_size = 2500
+            num_slices = max(1 + doc_count // page_size, 2)
             # num_workers = self.resource_args.get("parallelism", 2)  # 2 is the minimum number of slices.
             # num_slices = num_workers
             logger.info(f"Reading {doc_count} documents from {index_name} in {num_slices} slices")

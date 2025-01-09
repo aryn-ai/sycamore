@@ -9,7 +9,7 @@ from sycamore.connectors.base_reader import BaseDBReader
 from sycamore.data.document import DocumentPropertyTypes, DocumentSource
 from sycamore.utils.import_utils import requires_modules
 from dataclasses import dataclass, field
-from typing import Dict, Optional, Any, List, TYPE_CHECKING
+from typing import Optional, Any, List, TYPE_CHECKING
 
 from sycamore.utils.time_trace import TimeTrace, timetrace
 
@@ -19,7 +19,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class OpenSearchReaderClientParams(BaseDBReader.ClientParams):
     os_client_args: dict = field(default_factory=lambda: {})
@@ -28,8 +27,8 @@ class OpenSearchReaderClientParams(BaseDBReader.ClientParams):
 @dataclass
 class OpenSearchReaderQueryParams(BaseDBReader.QueryParams):
     index_name: str
-    query: Dict
-    kwargs: Dict = field(default_factory=lambda: {})
+    query: dict
+    kwargs: dict = field(default_factory=lambda: {})
     reconstruct_document: bool = False
     doc_reconstructor: Optional[DocumentReconstructor] = None
 
@@ -172,7 +171,7 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
             def get_batches(doc_ids) -> list[list[str]]:
                 batches = []
                 batch_doc_count = 0
-                cur_batch = []
+                cur_batch: list[str] = []
                 for i in range(len(doc_ids)):
                     query = {
                         "query": {"terms": {"parent_id.keyword": [doc_ids[i]]}},
@@ -246,12 +245,12 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
         return all_elements
 
 
-def get_doc_count(os_client, index_name: str, query: Optional[Dict[str, Any]] = None) -> int:
+def get_doc_count(os_client, index_name: str, query: Optional[dict[str, Any]] = None) -> int:
     res = os_client.search(index=index_name, body=query, size=0, track_total_hits=True)
     return res["hits"]["total"]["value"]
 
 
-def get_doc_count_for_slice(os_client, slice_query: Dict[str, Any]) -> int:
+def get_doc_count_for_slice(os_client, slice_query: dict[str, Any]) -> int:
     res = os_client.search(body=slice_query, size=0, track_total_hits=True)
     return res["hits"]["total"]["value"]
 
@@ -264,10 +263,14 @@ class OpenSearchReader(BaseDBReader):
 
     def __init__(
         self,
-        client_params: ClientParams,
-        query_params: QueryParams,
+        client_params: OpenSearchReaderClientParams,
+        query_params: BaseDBReader.QueryParams,
         **kwargs,
     ):
+        assert isinstance(
+            query_params, OpenSearchReaderQueryParams
+        ), f"Wrong kind of query parameters found: {self._query_params}"
+
         super().__init__(client_params, query_params, **kwargs)
         self._client_params = client_params
         self._query_params = query_params
@@ -276,10 +279,13 @@ class OpenSearchReader(BaseDBReader):
         logger.info(f"OpenSearchReader using PIT: {self.use_pit}")
 
     @timetrace("OpenSearchReader")
-    def _to_parent_doc(self, slice_query: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _to_parent_doc(self, slice_query: dict[str, Any]) -> List[dict[str, Any]]:
         """
         Get all parent documents from a given slice.
         """
+        assert isinstance(
+            self._query_params, OpenSearchReaderQueryParams
+        ), f"Wrong kind of query parameters found: {self._query_params}"
 
         client = None
         try:
@@ -337,10 +343,13 @@ class OpenSearchReader(BaseDBReader):
         return ret
 
     @timetrace("OpenSearchReader")
-    def _to_doc(self, slice_query: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _to_doc(self, slice_query: dict[str, Any]) -> List[dict[str, Any]]:
         """
         Get all documents from a given slice.
         """
+        assert isinstance(
+            self._query_params, OpenSearchReaderQueryParams
+        ), f"Wrong kind of query parameters found: {self._query_params}"
 
         assert self._query_params.reconstruct_document is False, "Reconstruct document is not supported in this method"
 
@@ -358,7 +367,6 @@ class OpenSearchReader(BaseDBReader):
             results = []
             size = 1000
             page = 0
-            logger.info(f"Executing {slice_query} against {self._query_params.index_name}")
 
             query_params = {"_source_includes": ["doc_id", "parent_id", "properties"]}
             while True:
@@ -376,8 +384,6 @@ class OpenSearchReader(BaseDBReader):
                     hit["_source"]["slice"] = slice_query
                     results += [hit]
                 page += 1
-
-            logger.info(f"Read {len(results)} documents from {self._query_params.index_name}")
 
         except Exception as e:
             raise ValueError(f"Error reading from target: {e}")
@@ -400,7 +406,7 @@ class OpenSearchReader(BaseDBReader):
         logger.info(f"Parent IDs: {parent_ids}")
         return pd.DataFrame([{"_source": {"doc_id": parent_id, "parent_id": parent_id}} for parent_id in parent_ids])
 
-    def reconstruct(self, doc: dict[str, Any]) -> Dict[str, Any]:
+    def reconstruct(self, doc: dict[str, Any]) -> dict[str, Any]:
         # logging.info(f"Applying on {doc} ({type(doc)}) ...")
         client = self.Client.from_client_params(self._client_params)
 
@@ -413,11 +419,11 @@ class OpenSearchReader(BaseDBReader):
         return {"doc": docs[0].serialize()}
 
     def execute(self, **kwargs) -> "Dataset":
-        if "query" in self._query_params.query and "knn" in self._query_params.query["query"]:
-            return super().execute(**kwargs)
+        assert isinstance(
+            self._query_params, OpenSearchReaderQueryParams
+        ), f"Wrong kind of query parameters found: {self._query_params}"
 
-        if self.parallelism and self.parallelism == 1:
-            logger.info("Parallelism is 1, executing in single process")
+        if "query" in self._query_params.query and "knn" in self._query_params.query["query"]:
             return super().execute(**kwargs)
 
         if self.use_pit:
@@ -426,6 +432,10 @@ class OpenSearchReader(BaseDBReader):
             return self._execute(**kwargs)
 
     def map_reduce_docs_by_slice(self, group: pd.DataFrame) -> pd.DataFrame:
+        assert isinstance(
+            self._query_params, OpenSearchReaderQueryParams
+        ), f"Wrong kind of query parameters found: {self._query_params}"
+
         doc_ids = set()
         # logger.info(f"Applying on {group} ({type(group)}) ...")
         for row in group["doc_id"]:
@@ -446,6 +456,9 @@ class OpenSearchReader(BaseDBReader):
         return pd.DataFrame(fetched_docs)
 
     def _execute(self, **kwargs) -> "Dataset":
+        assert isinstance(
+            self._query_params, OpenSearchReaderQueryParams
+        ), f"Wrong kind of query parameters found: {self._query_params}"
         # docs = None
         import hashlib
 
@@ -474,7 +487,6 @@ class OpenSearchReader(BaseDBReader):
 
         # logger.info(f"Sample docs: {docs[:5]}")
         ds = from_items(items=[doc["_source"] for doc in docs])
-
         if self._query_params.reconstruct_document:
             return ds.groupby("parent_id").map_groups(self.map_reduce_parent_id).map(self.reconstruct)
         else:
@@ -487,6 +499,9 @@ class OpenSearchReader(BaseDBReader):
     def _execute_pit(self, **kwargs) -> "Dataset":
         """Distribute the work evenly across available workers.
         We don't want a slice with more than 10k documents as we need to use 'from' to paginate through the results."""
+        assert isinstance(
+            self._query_params, OpenSearchReaderQueryParams
+        ), f"Wrong kind of query parameters found: {self._query_params}"
 
         from sycamore.utils.ray_utils import check_serializable
 
@@ -504,11 +519,11 @@ class OpenSearchReader(BaseDBReader):
 
             os_client = client._client
             doc_count = get_doc_count(os_client, index_name, query)
-            page_size = 2500
-            num_slices = max(1 + doc_count // page_size, 2)
+            # We want the document count to be well below 10k in each slice.
+            slice_size = 2500
+            num_slices = max(1 + doc_count // slice_size, 2)
             # num_workers = self.resource_args.get("parallelism", 2)  # 2 is the minimum number of slices.
             # num_slices = num_workers
-            logger.info(f"Reading {doc_count} documents from {index_name} in {num_slices} slices")
 
             res = os_client.create_pit(index=index_name, keep_alive="100m")
             pit_id = res["pit_id"]
@@ -527,7 +542,7 @@ class OpenSearchReader(BaseDBReader):
                 if "query" in query:
                     _query["query"] = query["query"]
                 docs.append(_query)
-                logger.info(f"Added slice {i} to the query {_query}")
+                logger.debug(f"Added slice {i} to the query {_query}")
         except Exception as e:
             raise ValueError(f"Error reading from target: {e}")
         finally:
@@ -538,6 +553,7 @@ class OpenSearchReader(BaseDBReader):
             from ray.data import from_items
 
             ds = from_items(items=docs)
+
             if self._query_params.reconstruct_document:
                 # Step 1: Construct slices (pages)
                 # Step 2: For each page, get all parent documents

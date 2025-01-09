@@ -1,5 +1,6 @@
 import os
 import tempfile
+import time
 import uuid
 from typing import Optional, Dict, Any
 
@@ -310,18 +311,21 @@ class TestOpenSearchRead:
 
         print(len(ids))
 
+    @staticmethod
     def doc_to_name(doc: Document, bin: bytes) -> str:
         return f"{TestOpenSearchRead.INDEX}-{doc.doc_id}"
 
     def test_parallel_read_reconstruct(self, setup_index_large, os_client):
         context = sycamore.init(exec_mode=ExecMode.RAY)
+        t0 = time.time()
         retrieved_docs_reconstructed = context.read.opensearch(
             os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
             index_name=setup_index_large,
             reconstruct_document=True,
+            # parallelism=1,
         ).take_all()
-
-        print(f"Retrieved {len(retrieved_docs_reconstructed)} documents")
+        t1 = time.time()
+        print(f"Retrieved {len(retrieved_docs_reconstructed)} documents in {t1 - t0} seconds")
         expected_docs = self.get_ids(os_client, setup_index_large, parents_only=True)
         assert len(retrieved_docs_reconstructed) == len(expected_docs)
         for doc in retrieved_docs_reconstructed:
@@ -331,13 +335,17 @@ class TestOpenSearchRead:
 
     def test_parallel_read(self, setup_index_large, os_client):
         context = sycamore.init(exec_mode=ExecMode.RAY)
+
+        t0 = time.time()
         retrieved_docs = context.read.opensearch(
             os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
             index_name=setup_index_large,
             reconstruct_document=False,
+            parallelism=1,
         ).take_all()
+        t1 = time.time()
 
-        print(f"Retrieved {len(retrieved_docs)} documents")
+        print(f"Retrieved {len(retrieved_docs)} documents in {t1 - t0} seconds")
         expected_docs = self.get_ids(os_client, setup_index_large)
         assert len(retrieved_docs) == len(expected_docs)
         for doc in retrieved_docs:
@@ -347,14 +355,15 @@ class TestOpenSearchRead:
 
     def test_parallel_read_reconstruct_with_pit(self, setup_index_large, os_client):
         context = sycamore.init(exec_mode=ExecMode.RAY)
+        t0 = time.time()
         retrieved_docs_reconstructed = context.read.opensearch(
             os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
             index_name=setup_index_large,
             reconstruct_document=True,
             query_kwargs={"use_pit": True},
         ).take_all()
-
-        print(f"Retrieved {len(retrieved_docs_reconstructed)} documents")
+        t1 = time.time()
+        print(f"Retrieved {len(retrieved_docs_reconstructed)} documents in {t1 - t0} seconds")
         expected_docs = self.get_ids(os_client, setup_index_large, parents_only=True)
         assert len(retrieved_docs_reconstructed) == len(expected_docs)
         for doc in retrieved_docs_reconstructed:
@@ -364,15 +373,45 @@ class TestOpenSearchRead:
 
     def test_parallel_read_with_pit(self, setup_index_large, os_client):
         context = sycamore.init(exec_mode=ExecMode.RAY)
+
+        t0 = time.time()
         retrieved_docs = context.read.opensearch(
             os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
             index_name=setup_index_large,
             reconstruct_document=False,
             query_kwargs={"use_pit": True},
+            num_cpus=2,
+            concurrency=5,
         ).take_all()
+        t1 = time.time()
 
-        print(f"Retrieved {len(retrieved_docs)} documents")
+        print(f"Retrieved {len(retrieved_docs)} documents in {t1 - t0} seconds")
         expected_docs = self.get_ids(os_client, setup_index_large)
+        assert len(retrieved_docs) == len(expected_docs)
+        for doc in retrieved_docs:
+            assert doc.doc_id in expected_docs
+            if doc.parent_id is not None:
+                assert doc.parent_id == expected_docs[doc.doc_id]["parent_id"]
+
+    def test_parallel_query_with_pit(self, setup_index_large, os_client):
+        context = sycamore.init(exec_mode=ExecMode.RAY)
+
+        query = {"query": {"match": {"text_representation": "ray"}}}
+
+        t0 = time.time()
+        retrieved_docs = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+            index_name=setup_index_large,
+            query=query,
+            reconstruct_document=False,
+            query_kwargs={"use_pit": True},
+            num_cpus=2,
+            concurrency=5,
+        ).take_all()
+        t1 = time.time()
+
+        print(f"Retrieved {len(retrieved_docs)} documents in {t1 - t0} seconds")
+        expected_docs = self.get_ids(os_client, setup_index_large, False, query)
         assert len(retrieved_docs) == len(expected_docs)
         for doc in retrieved_docs:
             assert doc.doc_id in expected_docs
@@ -387,9 +426,7 @@ class TestOpenSearchRead:
         if query is None:
             query = {"query": {"match_all": {}}}
 
-        query_params = {"_source_includes": ["doc_id", "parent_id"]}
-        if "scroll" not in query_params:
-            query_params["scroll"] = "10m"
+        query_params = {"_source_includes": ["doc_id", "parent_id"], "scroll": "10m"}
         response = os_client.search(index=index_name, body=query, **query_params)
         scroll_id = response["_scroll_id"]
         # no_parent_ids = 0
@@ -433,6 +470,54 @@ class TestOpenSearchRead:
         # print(no_parents)
 
         return docs
+
+    def test_pagination(self, setup_index_large, os_client):
+        res = os_client.create_pit(index=setup_index_large, keep_alive="10m")
+        pit_id = res["pit_id"]
+        bodies = []
+        query = {"query": {"match_all": {}}}
+        num_slices = 5
+        for i in range(num_slices):
+            _query = {
+                "slice": {
+                    "id": i,
+                    "max": num_slices,
+                },
+                "pit": {
+                    "id": pit_id,
+                    "keep_alive": "1m",
+                },
+                "sort": [{"_seq_no": "asc"}],
+            }
+            if "query" in query:
+                _query["query"] = query["query"]
+            bodies.append(_query)
+
+        def search_slice(body, os_client) -> list[dict]:
+            hits = []
+            page = 0
+            page_size = 10
+            while True:
+                # res = os_client.search(body=body, size=page_size, from_=page * page_size)
+                res = os_client.search(body=body, size=page_size)
+                _hits = res["hits"]["hits"]
+                # if len(res["hits"]["hits"]) < page_size:
+                if _hits is None or len(_hits) == 0:
+                    break
+                hits.extend(_hits)
+                page += 1
+                body["search_after"] = _hits[-1]["sort"]
+
+            print(f"Slice hits: {len(hits)}")
+            return hits
+
+        all_hits = []
+        for body in bodies:
+            all_hits.extend(search_slice(body, os_client))
+
+        print(f"Total hits: {len(all_hits)}")
+        expected_docs = self.get_ids(os_client, setup_index_large)
+        assert len(all_hits) == len(expected_docs)
 
     def test_bulk_load(self, setup_index_large, os_client):
 

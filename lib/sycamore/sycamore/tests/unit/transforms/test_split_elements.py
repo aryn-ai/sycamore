@@ -1,8 +1,8 @@
 import ray.data
 
-from sycamore.data import Document
+from sycamore.data import Document, TableElement, Table
 from sycamore.transforms.split_elements import SplitElements
-from sycamore.functions.tokenizer import HuggingFaceTokenizer
+from sycamore.functions.tokenizer import HuggingFaceTokenizer, CharacterTokenizer
 from sycamore.plan_nodes import Node
 
 
@@ -29,6 +29,29 @@ class TestSplitElements:
                     "text_representation": "One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone twentytwo twentythree twentyfour; twentyfive, twentysix. twentyseven twentyeight, twentynine; thirty thirtyone thirtytwo thirtythree thirtyfour thirtyfive thirtysix thirtyseven thirtyeight thirtynine forty fortyone fortytwo fortythree fortyfour fortyfive fortysix fortyseven fortyeight fortynine",  # noqa: E501
                 },
             ],
+        }
+    )
+
+    bigtable = """
+    <table>
+    <tr><th rowspan="2">headerA</th><th colspan="2">headerB</th><th>headerC</th></tr>
+    <tr><th>headerD</th><th>headerE</th><th>headerF</th></tr>
+    <tr><td>data1a</td><td>data2a</td><td>data3a</td><td>data4a</td></tr>
+    <tr><td>data1b</td><td>data2b</td><td>data3b</td><td>data4b</td></tr>
+    <tr><td>data1c</td><td>data2c</td><td>data3c</td><td>data4c</td></tr>
+    <tr><td>data1d</td><td>data2d</td><td>data3d</td><td>data4d</td></tr>
+    </table>
+    """
+
+    tabledoc = Document(
+        {
+            "doc_id": "id",
+            "type": "pdf",
+            "text_representation": "lkqwrg",
+            "binary_representation": None,
+            "parent_id": None,
+            "properties": {"path": "/filename.yolo", "title": "lkqwrg"},
+            "elements": [TableElement(table=Table.from_html(bigtable))],
         }
     )
 
@@ -62,3 +85,17 @@ class TestSplitElements:
         assert elems[7].text_representation == "thirtyeight thirtynine forty fortyone fortytwo fortythree "
         assert elems[8].text_representation == "fortyfour fortyfive fortysix "
         assert elems[9].text_representation == "fortyseven fortyeight fortynine"
+
+    def test_split_table(self):
+        tk = CharacterTokenizer()
+        doc = SplitElements(None, tk, 35).run(self.tabledoc)
+        answers = {
+            '<table><tr><th rowspan="2">headerA</th></tr><tr><td>data1a</td></tr><tr><td>data1b</td></tr><tr><td>data1c</td></tr><tr><td>data1d</td></tr></table>',
+            "<table><tr><th>headerB</th></tr><tr><th>headerD</th></tr><tr><td>data2a</td></tr><tr><td>data2b</td></tr></table>",
+            "<table><tr><th>headerB</th></tr><tr><th>headerD</th></tr><tr><td>data2c</td></tr><tr><td>data2d</td></tr></table>",
+            "<table><tr><th>headerB</th></tr><tr><th>headerE</th></tr><tr><td>data3a</td></tr><tr><td>data3b</td></tr></table>",
+            "<table><tr><th>headerB</th></tr><tr><th>headerE</th></tr><tr><td>data3c</td></tr><tr><td>data3d</td></tr></table>",
+            "<table><tr><th>headerC</th></tr><tr><th>headerF</th></tr><tr><td>data4a</td></tr><tr><td>data4b</td></tr></table>",
+            "<table><tr><th>headerC</th></tr><tr><th>headerF</th></tr><tr><td>data4c</td></tr><tr><td>data4d</td></tr></table>",
+        }
+        assert {e.table.to_html() for e in doc.elements} == answers

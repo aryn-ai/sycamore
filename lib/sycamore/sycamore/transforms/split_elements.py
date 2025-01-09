@@ -250,7 +250,7 @@ class SplitElements(SingleThreadUser, NonGPUUser, Map):
             elm.table = sbt
             _reset_table_bbox(elm, ignore_header=not first)
             first = False
-        return elms
+        return elms  # type: ignore
 
 
 def _reset_table_bbox(te: TableElement, ignore_header: bool = False):

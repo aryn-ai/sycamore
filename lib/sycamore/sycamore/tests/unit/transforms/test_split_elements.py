@@ -90,7 +90,7 @@ class TestSplitElements:
         tk = CharacterTokenizer()
         doc = SplitElements(None, tk, 35).run(self.tabledoc)
         answers = {
-            '<table><tr><th rowspan="2">headerA</th></tr><tr><td>data1a</td></tr><tr><td>data1b</td></tr><tr><td>data1c</td></tr><tr><td>data1d</td></tr></table>',
+            '<table><tr><th rowspan="2">headerA</th></tr><tr><td>data1a</td></tr><tr><td>data1b</td></tr><tr><td>data1c</td></tr><tr><td>data1d</td></tr></table>',  # noqa: E501
             "<table><tr><th>headerB</th></tr><tr><th>headerD</th></tr><tr><td>data2a</td></tr><tr><td>data2b</td></tr></table>",
             "<table><tr><th>headerB</th></tr><tr><th>headerD</th></tr><tr><td>data2c</td></tr><tr><td>data2d</td></tr></table>",
             "<table><tr><th>headerB</th></tr><tr><th>headerE</th></tr><tr><td>data3a</td></tr><tr><td>data3b</td></tr></table>",

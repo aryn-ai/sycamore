@@ -1,6 +1,7 @@
 import pickle
 import pytest
 import ray.data
+import os
 
 from sycamore.data import Document, Element
 from sycamore.plan_nodes import Node
@@ -124,21 +125,27 @@ class TestEmbedding:
         pickle.dumps(obj)
         assert True
 
+    def test_openai_embedder_no_key(self):
+        oaik = os.environ.pop("OPENAI_API_KEY")
+        obj = OpenAIEmbedder()
+        os.environ.update({"OPENAI_API_KEY": oaik})
+        assert obj
+
     def test_sentence_transformer_batch_size(self):
         embedder = SentenceTransformerEmbedder(model_name="sentence-transformers/all-MiniLM-L6-v2")
-        assert embedder.model_batch_size == 100
+        assert embedder._get_model_batch_size() == 100
 
         embedder = SentenceTransformerEmbedder(model_name="sentence-transformers/all-MiniLM-L6-v2", model_batch_size=50)
-        assert embedder.model_batch_size == 50
+        assert embedder._get_model_batch_size() == 50
 
         embedder = BedrockEmbedder(model_batch_size=100)
-        assert embedder.model_batch_size == 1
+        assert embedder._get_model_batch_size() == 1
 
         embedder = BedrockEmbedder(model_batch_size=1)
-        assert embedder.model_batch_size == 1
+        assert embedder._get_model_batch_size() == 1
 
         embedder = OpenAIEmbedder(model_batch_size=120)
-        assert embedder.model_batch_size == 120
+        assert embedder._get_model_batch_size() == 120
 
         # Test batching
         texts = ["text1", "text2", "text3", "text4"]

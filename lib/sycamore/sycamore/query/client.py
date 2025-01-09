@@ -18,6 +18,7 @@ from typing import List, Optional, Union
 import structlog
 import yaml
 from rich.console import Console
+from sycamore.schema import Schema
 
 import sycamore
 from sycamore import Context, ExecMode
@@ -163,7 +164,7 @@ class SycamoreQueryClient:
         return indices
 
     @requires_modules("opensearchpy.client.indices", extra="opensearch")
-    def get_opensearch_schema(self, index: str) -> OpenSearchSchema:
+    def get_opensearch_schema(self, index: str) -> Schema:
         """Get the schema for the provided OpenSearch index.
 
         To debug:
@@ -172,13 +173,13 @@ class SycamoreQueryClient:
         from opensearchpy.client.indices import IndicesClient
 
         schema_provider = OpenSearchSchemaFetcher(IndicesClient(self._os_client), index, self._os_query_executor)
-        return schema_provider.get_schema()
+        return schema_provider.get_schema().to_schema()
 
     def generate_plan(
         self,
         query: str,
         index: str,
-        schema: OpenSearchSchema,
+        schema: Union[Schema, OpenSearchSchema],
         examples: Optional[List[PlannerExample]] = None,
         natural_language_response: bool = False,
     ) -> LogicalPlan:

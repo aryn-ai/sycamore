@@ -557,7 +557,7 @@ class TestMaterializeReadReliability(unittest.TestCase):
 
     def test_materialize_read_reliability(self):
         ctx = sycamore.init(exec_mode=self.exec_mode)
-        with tempfile.TemporaryDirectory() as tmpdir1:
+        with tempfile.TemporaryDirectory() as tmpdir1, tempfile.TemporaryDirectory() as tmpdir2:
             docs = make_docs(10)
             ds = (
                 ctx.read.document(docs)
@@ -570,45 +570,44 @@ class TestMaterializeReadReliability(unittest.TestCase):
 
             e1 = ds.take_all()
             assert e1 is not None
-            with tempfile.TemporaryDirectory() as tmpdir2:
 
-                counter = NumCalls()
-                mrr = MaterializeReadReliability(tmpdir2, max_batch=3)
+            counter = NumCalls()
+            mrr = MaterializeReadReliability(tmpdir2, max_batch=3)
 
-                mrr = self.mock_mrr_reset_fn(mrr, counter)
+            mrr = self.mock_mrr_reset_fn(mrr, counter)
 
-                ds1 = (
-                    ctx.read.materialize(path={"root": tmpdir1, "filter": mrr.filter})
-                    .map(noop_fn)
-                    .materialize(
-                        path={"root": tmpdir2, "name": name_from_docid, "tobin": doc_only_to_binary, "clean": False},
-                        source_mode=sycamore.MATERIALIZE_RECOMPUTE,
-                        reliability=mrr,
-                    )
-                    .execute()
+            ds1 = (
+                ctx.read.materialize(path={"root": tmpdir1, "filter": mrr.filter})
+                .map(noop_fn)
+                .materialize(
+                    path={"root": tmpdir2, "name": name_from_docid, "tobin": doc_only_to_binary, "clean": False},
+                    source_mode=sycamore.MATERIALIZE_RECOMPUTE,
+                    reliability=mrr,
                 )
-                ds1 = ctx.read.materialize(path=tmpdir2)
-                e2 = ds1.take_all()
-                assert e2 is not None
-                assert ids(e2) == ids(e1)
+                .execute()
+            )
+            ds1 = ctx.read.materialize(path=tmpdir2)
+            e2 = ds1.take_all()
+            assert e2 is not None
+            assert ids(e2) == ids(e1)
 
-                # Verify batching works
-                assert counter.x == 4
+            # Verify batching works
+            assert counter.x == 4
 
-                # Assertion error when name is not set to name_from_docid
-                with pytest.raises(AssertionError):
-                    with tempfile.TemporaryDirectory() as tmpdir2:
-                        mrr = MaterializeReadReliability(tmpdir2, max_batch=3)
-                        ds1 = (
-                            ctx.read.materialize(path={"root": tmpdir1, "filter": mrr.filter})
-                            .map(noop_fn)
-                            .materialize(
-                                path={"root": tmpdir2, "tobin": doc_only_to_binary, "clean": False},
-                                source_mode=sycamore.MATERIALIZE_RECOMPUTE,
-                                reliability=mrr,
-                            )
-                            .execute()
+            # Assertion error when name is not set to name_from_docid
+            with pytest.raises(AssertionError):
+                with tempfile.TemporaryDirectory() as tmpdir2:
+                    mrr = MaterializeReadReliability(tmpdir2, max_batch=3)
+                    ds1 = (
+                        ctx.read.materialize(path={"root": tmpdir1, "filter": mrr.filter})
+                        .map(noop_fn)
+                        .materialize(
+                            path={"root": tmpdir2, "tobin": doc_only_to_binary, "clean": False},
+                            source_mode=sycamore.MATERIALIZE_RECOMPUTE,
+                            reliability=mrr,
                         )
+                        .execute()
+                    )
 
     def test_materialize_read_reliability_no_source_doc_ids(self):
         ctx = sycamore.init(exec_mode=self.exec_mode)
@@ -716,7 +715,7 @@ class TestMaterializeReadReliability(unittest.TestCase):
                 # Create a function that fails for specific documents
                 def failing_map(doc):
                     failure_counter.x += 1
-                    if failure_counter.x >= 9:  # Fail batch with every 4th document
+                    if failure_counter.x >= 9:  # Perpetual fail after 9th document
                         raise ValueError("Simulated failure")
                     return doc
 

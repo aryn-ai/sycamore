@@ -1531,9 +1531,7 @@ class DocSet:
         from sycamore.materialize import Materialize
 
         if isinstance(self.plan, Materialize) and self.plan._reliability is not None:
-            # assert self.plan.child().last_node_materialize(), "first step must be materialize step"
-
-            mrr = getattr(self.plan, "_reliability")
+            mrr = self.plan._reliability
 
             assert self.plan.child().last_node_reliability_assertor(), "first node must be read node"
 
@@ -1556,7 +1554,7 @@ class DocSet:
                     print(f"Detailed Trace:\n{cycle_error}")
                 # logger.info(f"3prev_seen, curbatch{mrr.prev_seen}, {mrr.current_batch}, {list(mrr.seen.keys())}")
                 mrr.reset_batch()
-                if mrr.retries_count > 20:
+                if mrr.retries_count > mrr.max_retries:
                     logger.info(
                         f"\nGiving up after retrying {mrr.retries_count} times. Processed {mrr.prev_seen} docs."
                     )

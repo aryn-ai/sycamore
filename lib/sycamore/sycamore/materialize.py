@@ -44,7 +44,7 @@ class _PyArrowFsHelper:
 
 
 class MaterializeReadReliability:
-    def __init__(self, out_mat_path: Union[str, Path], max_batch: int = 200):
+    def __init__(self, out_mat_path: Union[str, Path], max_batch: int = 200, max_retries: int = 20):
         from sycamore.utils.pyarrow import infer_fs
 
         (fs, path) = infer_fs(str(out_mat_path))
@@ -55,9 +55,12 @@ class MaterializeReadReliability:
         self.max_batch = max_batch
         self.current_batch = 0
         self.retries_count = 0
-        self.prev_seen = 0
+        # Need for refresh_seen_files
+        self.prev_seen = -1
         # Initialize seen files
         self._refresh_seen_files()
+        self.prev_seen = len(self.seen)
+        self.max_retries = max_retries
 
     def _refresh_seen_files(self):
         """Refresh the list of already processed files"""
@@ -147,7 +150,7 @@ class Materialize(UnaryNode):
         context: Context,
         path: Optional[Union[Path, str, dict]] = None,
         source_mode: MaterializeSourceMode = MaterializeSourceMode.RECOMPUTE,
-        tolerate_input_errors=False,
+        tolerate_input_errors: bool = False,
         reliability: Optional[MaterializeReadReliability] = None,
         **kwargs,
     ):

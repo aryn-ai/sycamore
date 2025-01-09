@@ -1533,26 +1533,21 @@ class DocSet:
         if isinstance(self.plan, Materialize) and self.plan._reliability is not None:
             mrr = self.plan._reliability
 
-            assert self.plan.child().last_node_reliability_assertor(), "first node must be read node"
+            assert self.plan.child().last_node_reliability_assertor(), "First node must be read node along with filter"
 
             while True:
-                # print(mrr.seen)
                 try:
                     cycle_error = ""
-                    # logger.info(f"1prev_seen, curbatch{mrr.prev_seen}, {mrr.current_batch}, {list(mrr.seen.keys())}")
                     for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
                         pass
-                    # logger.info(f"2prev_seen, curbatch{mrr.prev_seen}, {mrr.current_batch}, {list(mrr.seen.keys())}")
                     if mrr.current_batch == 0:
-                        # print(mrr.seen)
 
-                        logger.info(f"\nProcessed {mrr.prev_seen}, {mrr.current_batch} docs.")
+                        logger.info(f"\nProcessed {mrr.prev_seen} docs.")
                         break
                 except Exception as e:
                     logger.info(f"Retrying batch job because of {e}.\n Processed {len(mrr.seen)} docs at present.")
                     cycle_error = traceback.format_exc()
                     print(f"Detailed Trace:\n{cycle_error}")
-                # logger.info(f"3prev_seen, curbatch{mrr.prev_seen}, {mrr.current_batch}, {list(mrr.seen.keys())}")
                 mrr.reset_batch()
                 if mrr.retries_count > mrr.max_retries:
                     logger.info(

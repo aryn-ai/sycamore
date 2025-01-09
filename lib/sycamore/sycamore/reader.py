@@ -13,10 +13,6 @@ from sycamore.data import Document
 from sycamore.connectors.file import ArrowScan, BinaryScan, DocScan, PandasScan, JsonScan, JsonDocumentScan
 from sycamore.connectors.file.file_scan import FileMetadataProvider
 from sycamore.utils.import_utils import requires_modules
-from sycamore.materialize import MaterializeReadReliability
-import logging
-
-logger = logging.getLogger(__name__)
 
 
 class DocSetReader:
@@ -27,13 +23,9 @@ class DocSetReader:
     :meth:`sycamore.context.read`
     """
 
-    def __init__(
-        self, context: Context, plan: Optional[Node] = None, reliability: Optional[MaterializeReadReliability] = None
-    ):
+    def __init__(self, context: Context, plan: Optional[Node] = None):
         self._context = context
         self.plan = plan
-        self.reliability = reliability
-        print(type(self.plan))
 
     def materialize(self, path: Union[Path, str], **kwargs) -> DocSet:
         """Read a docset via materialization.

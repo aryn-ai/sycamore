@@ -1,13 +1,10 @@
 import functools
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Optional, Union, List, TYPE_CHECKING
+from typing import Any, Callable, Optional, Union, List
 import inspect
 
 from sycamore.plan_nodes import Node, NodeTraverse
-
-if TYPE_CHECKING:
-    from sycamore.materialize import MaterializeReadReliability
 
 
 class ExecMode(Enum):
@@ -50,13 +47,11 @@ class Context:
     """
     params: dict[str, Any] = field(default_factory=dict)
 
-    reliability: Optional["MaterializeReadReliability"] = None
-
     @property
     def read(self):
         from sycamore.reader import DocSetReader
 
-        return DocSetReader(self, reliability=self.reliability)
+        return DocSetReader(self)
 
 
 def get_val_from_context(
@@ -160,12 +155,7 @@ def context_params(*names):
         return decorator
 
 
-def init(
-    exec_mode=ExecMode.RAY,
-    ray_args: Optional[dict[str, Any]] = None,
-    reliability: Optional["MaterializeReadReliability"] = None,
-    **kwargs
-) -> Context:
+def init(exec_mode=ExecMode.RAY, ray_args: Optional[dict[str, Any]] = None, **kwargs) -> Context:
     """
     Initialize a new Context.
     """
@@ -178,14 +168,7 @@ def init(
 
     sycamore_logger.setup_logger()
 
-    context_kwargs = {
-        "exec_mode": exec_mode,
-        "ray_args": ray_args,
-        "reliability": reliability,
-        **kwargs,  # Include any additional kwargs
-    }
-
-    return Context(**context_kwargs)
+    return Context(exec_mode=exec_mode, ray_args=ray_args, **kwargs)
 
 
 def shutdown() -> None:

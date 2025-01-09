@@ -131,12 +131,9 @@ class MaterializeReadReliability:
 
     def reset_batch(self) -> None:
         """Reset the current batch counter and refresh seen files"""
-        # logger.info(f"prev_seen, curbatch{self.prev_seen}, {self.current_batch}")
-
         self.current_batch = 0
         self.prev_seen = len(self.seen)
         self._refresh_seen_files()
-        # logger.info(f"4prev_seen, curbatch{self.prev_seen}, {self.current_batch}, {self.seen}")
 
 
 def name_from_docid(d: Document, bin: Optional[bytes]) -> str:

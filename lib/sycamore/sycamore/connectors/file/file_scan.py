@@ -156,12 +156,6 @@ class FileScan(Scan):
         if not self.filter_paths:
             return self._paths
         return self.filter_paths(self._paths)
-        #     if self.reliability is not None:
-        #         paths =  self.reliability.filter_paths(self._paths)
-
-        #     logger.info(f"1paths: {self._paths}\n\n\n")
-        #     logging.info(f"paths: {self._paths}\n\n\n")
-        #     return paths
 
 
 class BinaryScan(FileScan):

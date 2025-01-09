@@ -76,21 +76,6 @@ class MaterializeReadReliability:
         else:
             self.retries_count = 0
 
-    # def get_unhandled_paths(self, source, allowed_extensions = None):
-    #     """Get the paths that have not been processed yet"""
-    #     from pyarrow.fs import FileSelector
-    #     logging.info(f"Fetching existing files from {source}")
-    #     files = self.fs.get_file_info(FileSelector(source, allow_not_found=True))
-    #     unhandled_paths = []
-    #     for f in files:
-    #         if f.type == "file"
-    #             if allowed_extensions and not f.path.endswith(allowed_extensions):
-    #                 continue
-    #             id = self._path_to_id(Path(f.path))
-    #             if id is not None and id not in self.seen:
-    #                 unhandled_paths.append(f.path)
-    #     return unhandled_paths
-
     @staticmethod
     def _path_to_id(p: Path) -> Optional[str]:
         if p.suffix != ".pickle":
@@ -141,7 +126,6 @@ class MaterializeReadReliability:
 
             self.current_batch += 1
             unhandled_paths.append(path)
-        logger.info(f"in here: {unhandled_paths} \n\n\n")
         random.shuffle(unhandled_paths)
         return unhandled_paths
 

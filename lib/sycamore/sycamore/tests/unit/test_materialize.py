@@ -149,7 +149,7 @@ class TestMaterializeWrite(unittest.TestCase):
             for d in docs:
                 if isinstance(d, MetadataDocument):
                     continue
-                files = glob.glob(tmpdir + f"/doc-{d.doc_id}:*.pickle")
+                files = glob.glob(tmpdir + f"/doc-{d.doc_id}.*.pickle")
                 assert len(files) == 1
                 with open(files[0], "r") as f:
                     bits = f.read()

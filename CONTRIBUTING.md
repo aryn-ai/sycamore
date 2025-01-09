@@ -33,7 +33,7 @@ Sycamore targets Python 3.9+ and runs primarily on Mac and Linux. The following 
 We use poetry to manage Python dependencies in Sycamore. You can install poetry using the instructions [here](https://python-poetry.org/docs/#installing-with-the-official-installer). Once you have poetry installed, you can install all dependencies by running
 
 ```bash
-poetry install --all-extras
+poetry install --all-extras --no-root
 
 ```
 

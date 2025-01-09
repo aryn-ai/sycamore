@@ -27,8 +27,8 @@ def mock_llm_client():
 def mock_schema() -> OpenSearchSchema:
     return OpenSearchSchema(
         fields={
-            "incidentId": OpenSearchSchemaField(field_type="string", examples=["A1234, B1234, C1234"]),
-            "date": OpenSearchSchemaField(field_type="string", examples=["2022-01-01", "2024-02-10"]),
+            "incidentId": OpenSearchSchemaField(field_type="str", examples=["A1234, B1234, C1234"]),
+            "date": OpenSearchSchemaField(field_type="str", examples=["2022-01-01", "2024-02-10"]),
         }
     )
 

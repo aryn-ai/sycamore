@@ -73,6 +73,21 @@ class MaterializeReadReliability:
         else:
             self.retries_count = 0
 
+    # def get_unhandled_paths(self, source, allowed_extensions = None):
+    #     """Get the paths that have not been processed yet"""
+    #     from pyarrow.fs import FileSelector
+    #     logging.info(f"Fetching existing files from {source}")
+    #     files = self.fs.get_file_info(FileSelector(source, allow_not_found=True))
+    #     unhandled_paths = []
+    #     for f in files:
+    #         if f.type == "file"
+    #             if allowed_extensions and not f.path.endswith(allowed_extensions):
+    #                 continue
+    #             id = self._path_to_id(Path(f.path))
+    #             if id is not None and id not in self.seen:
+    #                 unhandled_paths.append(f.path)
+    #     return unhandled_paths
+
     @staticmethod
     def _path_to_id(p: Path) -> Optional[str]:
         if p.suffix != ".pickle":
@@ -97,11 +112,44 @@ class MaterializeReadReliability:
         self.current_batch += 1
         return True
 
+    def filter_paths(
+        self, paths: Union[str, list[str]], allowed_extensions: Optional[Union[list, None]] = None
+    ) -> list:
+        """Filter files for processing, respecting batch size"""
+        import random
+
+        if isinstance(paths, str):
+            paths = [paths]
+        unhandled_paths = []
+        for path in paths:
+            logger.info(f"filter_path: {path}")
+            if self.current_batch >= self.max_batch:
+                break
+            if allowed_extensions:
+                if not any(path.endswith(ext) for ext in allowed_extensions):
+                    continue
+            id = sha256_conversion(path)
+            if id is None:
+                logger.debug(f"Got path {path} not in proper format")
+                continue
+
+            if id in self.seen:
+                continue
+
+            self.current_batch += 1
+            unhandled_paths.append(path)
+        logger.info(f"in here: {unhandled_paths} \n\n\n")
+        random.shuffle(unhandled_paths)
+        return unhandled_paths
+
     def reset_batch(self) -> None:
         """Reset the current batch counter and refresh seen files"""
+        # logger.info(f"prev_seen, curbatch{self.prev_seen}, {self.current_batch}")
+
         self.current_batch = 0
         self.prev_seen = len(self.seen)
         self._refresh_seen_files()
+        # logger.info(f"4prev_seen, curbatch{self.prev_seen}, {self.current_batch}, {self.seen}")
 
 
 def name_from_docid(d: Document, bin: Optional[bytes]) -> str:
@@ -120,12 +168,18 @@ def name_from_docid(d: Document, bin: Optional[bytes]) -> str:
     assert False
 
 
-def docid_from_path(d: Document) -> Document:
+def sha256_conversion(path: str) -> str:
     from hashlib import sha256
 
+    path_hash = sha256(path.encode("utf-8")).hexdigest()
+    doc_id = f"path-sha256-{path_hash}"
+    return doc_id
+
+
+def docid_from_path(d: Document) -> Document:
+
     if "path" in d.properties:
-        path_hash = sha256(d.properties["path"].encode("utf-8")).hexdigest()
-        d.doc_id = f"path-sha256-{path_hash}"
+        d.doc_id = sha256_conversion(d.properties["path"])
         return d
     assert False
 
@@ -268,6 +322,7 @@ class Materialize(UnaryNode):
             success = self._fshelper.file_exists(self._success_path())
             if success or len(self.children) == 0:
                 logger.info(f"Using {self._orig_path} as the cached source of data")
+
                 self._executed_child = False
                 if not success:
                     self._verify_has_files()

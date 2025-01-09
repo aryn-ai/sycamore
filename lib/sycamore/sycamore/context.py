@@ -1,10 +1,13 @@
 import functools
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Optional, Union, List
+from typing import Any, Callable, Optional, Union, List, TYPE_CHECKING
 import inspect
 
 from sycamore.plan_nodes import Node, NodeTraverse
+
+if TYPE_CHECKING:
+    from sycamore.materialize import MaterializeReadReliability
 
 
 class ExecMode(Enum):
@@ -47,11 +50,13 @@ class Context:
     """
     params: dict[str, Any] = field(default_factory=dict)
 
+    reliability: Optional["MaterializeReadReliability"] = None
+
     @property
     def read(self):
         from sycamore.reader import DocSetReader
 
-        return DocSetReader(self)
+        return DocSetReader(self, reliability=self.reliability)
 
 
 def get_val_from_context(
@@ -117,7 +122,7 @@ def context_params(*names):
                     candidate_kwargs.pop(param, None)
 
                 """
-                If the function doesn't accept arbitrary kwargs, we don't want to use candidate_kwargs that aren't in 
+                If the function doesn't accept arbitrary kwargs, we don't want to use candidate_kwargs that aren't in
                 the function signature.
                 """
                 new_kwargs = {}
@@ -145,8 +150,8 @@ def context_params(*names):
     """
         this let's you handle decorator usage like:
         @context_params OR
-        @context_params() OR 
-        @context_params("template") OR 
+        @context_params() OR
+        @context_params("template") OR
         @context_params("template1", "template2")
     """
     if len(names) == 1 and callable(names[0]):
@@ -155,7 +160,12 @@ def context_params(*names):
         return decorator
 
 
-def init(exec_mode=ExecMode.RAY, ray_args: Optional[dict[str, Any]] = None, **kwargs) -> Context:
+def init(
+    exec_mode=ExecMode.RAY,
+    ray_args: Optional[dict[str, Any]] = None,
+    reliability: Optional["MaterializeReadReliability"] = None,
+    **kwargs
+) -> Context:
     """
     Initialize a new Context.
     """
@@ -168,7 +178,14 @@ def init(exec_mode=ExecMode.RAY, ray_args: Optional[dict[str, Any]] = None, **kw
 
     sycamore_logger.setup_logger()
 
-    return Context(exec_mode=exec_mode, ray_args=ray_args, **kwargs)
+    context_kwargs = {
+        "exec_mode": exec_mode,
+        "ray_args": ray_args,
+        "reliability": reliability,
+        **kwargs,  # Include any additional kwargs
+    }
+
+    return Context(**context_kwargs)
 
 
 def shutdown() -> None:

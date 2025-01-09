@@ -1527,27 +1527,34 @@ class DocSet:
         """
         Execute the pipeline, discard the results. Useful for side effects.
         """
-
         from sycamore.executor import Execution
         from sycamore.materialize import Materialize
 
         if isinstance(self.plan, Materialize) and self.plan._reliability is not None:
+            # assert self.plan.child().last_node_materialize(), "first step must be materialize step"
+
             mrr = getattr(self.plan, "_reliability")
 
-            assert self.plan.child().last_node_materialize(), "first step must be materialize step"
+            assert self.plan.child().last_node_reliability_assertor(), "first node must be read node"
 
             while True:
+                # print(mrr.seen)
                 try:
                     cycle_error = ""
+                    # logger.info(f"1prev_seen, curbatch{mrr.prev_seen}, {mrr.current_batch}, {list(mrr.seen.keys())}")
                     for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
                         pass
+                    # logger.info(f"2prev_seen, curbatch{mrr.prev_seen}, {mrr.current_batch}, {list(mrr.seen.keys())}")
                     if mrr.current_batch == 0:
-                        logger.info(f"\nProcessed {mrr.prev_seen} docs.")
+                        # print(mrr.seen)
+
+                        logger.info(f"\nProcessed {mrr.prev_seen}, {mrr.current_batch} docs.")
                         break
                 except Exception as e:
                     logger.info(f"Retrying batch job because of {e}.\n Processed {len(mrr.seen)} docs at present.")
                     cycle_error = traceback.format_exc()
                     print(f"Detailed Trace:\n{cycle_error}")
+                # logger.info(f"3prev_seen, curbatch{mrr.prev_seen}, {mrr.current_batch}, {list(mrr.seen.keys())}")
                 mrr.reset_batch()
                 if mrr.retries_count > 20:
                     logger.info(

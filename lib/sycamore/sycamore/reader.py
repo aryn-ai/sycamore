@@ -13,6 +13,10 @@ from sycamore.data import Document
 from sycamore.connectors.file import ArrowScan, BinaryScan, DocScan, PandasScan, JsonScan, JsonDocumentScan
 from sycamore.connectors.file.file_scan import FileMetadataProvider
 from sycamore.utils.import_utils import requires_modules
+from sycamore.materialize import MaterializeReadReliability
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class DocSetReader:
@@ -23,9 +27,13 @@ class DocSetReader:
     :meth:`sycamore.context.read`
     """
 
-    def __init__(self, context: Context, plan: Optional[Node] = None):
+    def __init__(
+        self, context: Context, plan: Optional[Node] = None, reliability: Optional[MaterializeReadReliability] = None
+    ):
         self._context = context
         self.plan = plan
+        self.reliability = reliability
+        print(type(self.plan))
 
     def materialize(self, path: Union[Path, str], **kwargs) -> DocSet:
         """Read a docset via materialization.
@@ -50,6 +58,7 @@ class DocSetReader:
         override_num_blocks: Optional[int] = None,
         filesystem: Optional[FileSystem] = None,
         metadata_provider: Optional[FileMetadataProvider] = None,
+        filter_paths: Optional[Callable] = None,
         **kwargs,
     ) -> DocSet:
         """
@@ -82,6 +91,7 @@ class DocSetReader:
             override_num_blocks=override_num_blocks,
             filesystem=filesystem,
             metadata_provider=metadata_provider,
+            filter_paths=filter_paths,
             **kwargs,
         )
         return DocSet(self._context, scan)
@@ -94,6 +104,7 @@ class DocSetReader:
         parallelism: Optional[str] = None,
         override_num_blocks: Optional[int] = None,
         filesystem: Optional[FileSystem] = None,
+        filter_paths: Optional[Callable] = None,
         **kwargs,
     ) -> DocSet:
         """
@@ -145,6 +156,7 @@ class DocSetReader:
         metadata_provider: Optional[FileMetadataProvider] = None,
         document_body_field: Optional[str] = None,
         doc_extractor: Optional[Callable] = None,
+        filter_paths: Optional[Callable] = None,
         **kwargs,
     ) -> DocSet:
         """

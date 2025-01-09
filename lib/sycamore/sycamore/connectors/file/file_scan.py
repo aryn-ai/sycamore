@@ -80,6 +80,7 @@ class FileScan(Scan):
         filesystem: Optional[FileSystem] = None,
         parallelism: Optional[str] = None,
         override_num_blocks: Optional[int] = None,
+        filter_paths: Optional[Callable] = None,
         **resource_args,
     ):
         super().__init__(**resource_args)
@@ -94,6 +95,7 @@ class FileScan(Scan):
 
         assert parallelism is None, "Use override_num_blocks; remove parameter after 2025-03-01"
         self.override_num_blocks = override_num_blocks
+        self.filter_paths = filter_paths
 
     def _is_s3_scheme(self) -> bool:
         if isinstance(self._paths, str):
@@ -131,7 +133,7 @@ class FileScan(Scan):
         if isinstance(self._paths, str):
             paths = [self._paths]
         else:
-            paths = self._paths
+            paths = self.get_paths()
 
         documents = []
 
@@ -149,6 +151,17 @@ class FileScan(Scan):
                 for info in filesystem.get_file_info(FileSelector(path, recursive=True)):
                     documents.extend(self.process_file(info))
         return documents
+
+    def get_paths(self) -> list[str]:
+        if not self.filter_paths:
+            return self._paths
+        return self.filter_paths(self._paths)
+        #     if self.reliability is not None:
+        #         paths =  self.reliability.filter_paths(self._paths)
+
+        #     logger.info(f"1paths: {self._paths}\n\n\n")
+        #     logging.info(f"paths: {self._paths}\n\n\n")
+        #     return paths
 
 
 class BinaryScan(FileScan):
@@ -174,6 +187,7 @@ class BinaryScan(FileScan):
         filesystem: Optional[FileSystem] = None,
         metadata_provider: Optional[FileMetadataProvider] = None,
         filter_paths_by_extension: bool = True,
+        filter_paths: Optional[Callable] = None,
         **resource_args,
     ):
         super().__init__(
@@ -181,11 +195,13 @@ class BinaryScan(FileScan):
             parallelism=parallelism,
             override_num_blocks=override_num_blocks,
             filesystem=filesystem,
+            filter_paths=filter_paths,
             **resource_args,
         )
         self._binary_format = binary_format
         self._metadata_provider = metadata_provider
         self._filter_paths_by_extension = filter_paths_by_extension
+        self.filter_paths = filter_paths
 
     @timetrace("readBinary")
     def _to_document(self, dict: dict[str, Any]) -> dict[str, bytes]:
@@ -220,7 +236,7 @@ class BinaryScan(FileScan):
         from ray.data import read_binary_files
 
         files = read_binary_files(
-            self._paths,
+            self.get_paths(),
             include_paths=True,
             filesystem=self._filesystem,
             override_num_blocks=self.override_num_blocks,
@@ -269,6 +285,7 @@ class JsonScan(FileScan):
         metadata_provider: Optional[FileMetadataProvider] = None,
         document_body_field: Optional[str] = None,
         doc_extractor: Optional[Callable] = None,
+        filter_paths: Optional[Callable] = None,
         **resource_args,
     ):
         super().__init__(
@@ -276,12 +293,14 @@ class JsonScan(FileScan):
             parallelism=parallelism,
             override_num_blocks=override_num_blocks,
             filesystem=filesystem,
+            filter_paths=filter_paths,
             **resource_args,
         )
         self._properties = properties
         self._metadata_provider = metadata_provider
         self._document_body_field = document_body_field
         self._doc_extractor = doc_extractor
+        self.filter_paths = filter_paths
 
     def _to_document(self, json_dict: dict[str, Any]) -> list[dict[str, Any]]:
         document = Document()
@@ -328,7 +347,7 @@ class JsonScan(FileScan):
         from ray.data import read_json
 
         json_dataset = read_json(
-            self._paths,
+            self.get_paths(),
             include_paths=True,
             filesystem=self._filesystem,
             override_num_blocks=self.override_num_blocks,

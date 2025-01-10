@@ -415,10 +415,6 @@ class TestOpenSearchRecord:
         assert record._index == tp.index_name
 
 
-class TestOpenSearchReader:
-    def test_opensearchreader_knn_query(self):
-        pass
-
 class TestOpenSearchUtils:
 
     def test_get_knn_query(self):

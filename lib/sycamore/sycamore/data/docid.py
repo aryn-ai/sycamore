@@ -44,6 +44,18 @@ def uuid_to_docid(uu: Optional[str], code: Optional[str] = None) -> Optional[str
     return f"aryn:{code}-{id}"
 
 
+def docid_to_typed_nanoid(id: Optional[str]) -> Optional[str]:
+    if not id or not id.startswith("aryn:"):
+        return id
+    return id[len("aryn:") :]
+
+
+def typed_nanoid_to_docid(tnid: str) -> str:
+    if tnid[1] != "-":
+        return f"aryn:d-{tnid}"
+    return f"aryn:{tnid}"
+
+
 def nanoid36_to_uuid(id: str, extra: int = 0) -> str:
     """
     Invertable conversion of docid to UUID for application that need UUID.

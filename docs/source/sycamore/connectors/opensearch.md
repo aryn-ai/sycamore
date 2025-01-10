@@ -38,6 +38,7 @@ To write a DocSet to a OpenSearch index from Sycamore, use the `docset.write.ope
 - `os_client_args`: Keyword parameters that are passed to the opensearch-py OpenSearch client constructor.
 - `index_name`: The name of the OpenSearch index into which to load this DocSet.
 - `index_settings`: Settings and mappings to pass when creating a new index. Specified as a Python dict corresponding to the JSON paramters taken by the OpenSearch CreateIndex API, more information is given [here](https://opensearch.org/docs/latest/api-reference/index-apis/create-index/).
+- `insert_settings`: (optional) Settings to pass when inserting documents into the index. Specified as a Python dict corresponding to the JSON parameters taken by the OpenSearch Index API, more information is given [here](https://opensearch.org/docs/latest/api-reference/document-apis/index-document/).
 - `execute`: (optional, default=`True`) Whether to execute this sycamore pipeline now, or return a docset to add more transforms.
 
 To write a docset to the OpenSearch index run by the Docker compose above, we can write the following:

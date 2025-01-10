@@ -270,7 +270,7 @@ class TestOpenSearchRead:
 
         expected_count = len(original_docs)
         """
-        actual_count = get_doc_count(os_client, setup_index_large)
+        # actual_count = get_doc_count(os_client, setup_index_large)
         # print(f"Expected {expected_count} documents, found {actual_count}")
 
         # refresh should have made all ingested docs immediately available for search

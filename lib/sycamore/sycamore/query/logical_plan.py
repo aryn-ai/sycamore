@@ -56,7 +56,7 @@ class Node(BaseModel):
             raise ValueError(f"Duplicate node type: {cls.__name__}")
         _NODE_SUBCLASSES[cls.__name__] = cls
 
-    node_type: str = Field(default=None)
+    node_type: str | None = Field(default=None)
     """The type of this node."""
 
     @field_serializer("node_type")
@@ -281,7 +281,7 @@ class LogicalPlan(BaseModel):
         assert node_id > 0, f"Node ID must be greater than 0, got {node_id}"
         assert (
             len(self.nodes) == node_id or len(self.nodes[node_id].inputs) == 1
-        ), f"""Current node at {node_id} 
+        ), f"""Current node at {node_id}
                                                 must have exactly one input, or there should be only one operator"""
 
         if len(self.nodes) == node_id:

@@ -85,6 +85,7 @@ transformers = { version = "^4.43.1", optional = true }
 unstructured = { version = "0.10.20", optional = true }
 python-pptx = {version = "^0.6.22", optional = true }
 nanoid = "^2.0.0"
+nltk = { version = "3.8.1", optional = true }
 
 # LLM Dependencies
 anthropic = { version = "^0.42.0", optional = true }
@@ -139,7 +140,7 @@ local-inference = [
   "torchvision",
   "transformers"
  ]
-legacy-partitioners = ["unstructured", "python-pptx"]
+legacy-partitioners = ["unstructured", "python-pptx", "nltk"]
 
 # LLM extras
 anthropic = ["anthropic"]

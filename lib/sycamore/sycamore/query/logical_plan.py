@@ -56,7 +56,7 @@ class Node(BaseModel):
             raise ValueError(f"Duplicate node type: {cls.__name__}")
         _NODE_SUBCLASSES[cls.__name__] = cls
 
-    node_type: str | None = Field(default=None)
+    node_type: Optional[str] = Field(default=None)
     """The type of this node."""
 
     @field_serializer("node_type")

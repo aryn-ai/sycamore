@@ -2,6 +2,7 @@
 
 root="$(pwd)"
 fail() {
+    echo FAILED
     echo "$@"
     exit 1
 }
@@ -25,19 +26,19 @@ for i in ${tomls}; do
         (
             echo "--------------------- special casing in $i"
             cd $(dirname "$i")
-            poetry lock --no-update || exit 1
+            poetry lock --no-update || fail
             # Do not apply the consistency logic, it can't do anything useful.
-        ) || exit 1
+        ) || fail
         continue
     fi
     (
         echo "--------------------- processing in $i"
         cd $(dirname "$i")
-        poetry lock --no-update || exit 1
-        poetry install 2>&1 | tee /tmp/poetry-install.out || exit 1
+        poetry lock --no-update || fail
+        poetry install 2>&1 | tee /tmp/poetry-install.out || fail
         perl -ne 'print qq{$1 = "$2"\n} if /Downgrading (\S+) \((\S+) ->/o;' </tmp/poetry-install.out >/tmp/downgraded
         cat /tmp/downgraded
-        [[ $(wc -l </tmp/downgraded) -eq 0 ]] || exit 1
-    ) || exit 1
+        [[ $(wc -l </tmp/downgraded) -eq 0 ]] || fail
+    ) || fail
 done
 echo "SUCCESS"

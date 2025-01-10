@@ -85,12 +85,14 @@ class MaterializeReadReliability:
             return None
         return str(p.stem[4:])
 
-    def filter(self, p: str) -> bool:
+    def filter(self, p: str, read: Optional[bool] = False) -> bool:
         """Filter files for processing, respecting batch size"""
         if self.current_batch >= self.max_batch:
             return False
-
-        id = self._path_to_id(Path(p))
+        if not read:
+            id = self._path_to_id(Path(p))
+        else:
+            id = sha256_conversion(str(p))
         if id is None:
             logger.debug(f"Got path {p} not in proper format")
             return False
@@ -100,32 +102,6 @@ class MaterializeReadReliability:
 
         self.current_batch += 1
         return True
-
-    def filter_paths(self, paths: Union[list[str]], allowed_extensions: Optional[Union[list, None]] = None) -> list:
-        """Filter files for processing, respecting batch size"""
-        import random
-
-        unhandled_paths = []
-        for path in paths:
-            logger.info(f"filter_path: {path}")
-            if self.current_batch >= self.max_batch:
-                break
-            if allowed_extensions:
-                if not any(path.endswith(ext) for ext in allowed_extensions):
-                    continue
-            id = sha256_conversion(path)
-            if id is None:
-                logger.debug(f"Got path {path} not in proper format")
-                continue
-
-            if id in self.seen:
-                continue
-
-            self.current_batch += 1
-            unhandled_paths.append(path)
-        random.shuffle(unhandled_paths)
-        logger.info(f"Processing files: {unhandled_paths} in current batch.")
-        return unhandled_paths
 
     def reset_batch(self) -> None:
         """Reset the current batch counter and refresh seen files"""
@@ -313,6 +289,7 @@ class Materialize(UnaryNode):
                 from ray.data import read_binary_files
                 from ray.data.datasource import PathPartitionFilter, PathPartitionParser
 
+                logger.info(f"\n\n\ninside MATERIALIZE: {self._root}, {self._fs}\n\n\n")
                 partition_filter = (
                     None
                     if self._path_filter is None

@@ -4,14 +4,16 @@ from io import BytesIO
 
 import boto3
 import mimetypes
-from typing import Any, Optional, Union, Tuple, Callable, TYPE_CHECKING
+from typing import Any, Optional, Union, Tuple, Callable, TYPE_CHECKING, cast
 import logging
 
+from functools import partial
 from pyarrow._fs import FileInfo
 from pyarrow.fs import FileSystem, FileSelector
 from sycamore.data import Document, mkdocid
 from sycamore.plan_nodes import Scan
 from sycamore.utils.time_trace import timetrace
+from sycamore.materialize import RayPathParser
 
 if TYPE_CHECKING:
     from ray.data import Dataset
@@ -133,7 +135,7 @@ class FileScan(Scan):
         if isinstance(self._paths, str):
             paths = [self._paths]
         else:
-            paths = self.get_paths()
+            paths = self._paths
 
         documents = []
 
@@ -151,11 +153,6 @@ class FileScan(Scan):
                 for info in filesystem.get_file_info(FileSelector(path, recursive=True)):
                     documents.extend(self.process_file(info))
         return documents
-
-    def get_paths(self) -> list[str]:
-        if not self.filter_paths:
-            return self._paths
-        return self.filter_paths(self._paths)
 
 
 class BinaryScan(FileScan):
@@ -228,20 +225,31 @@ class BinaryScan(FileScan):
         file_extensions = [self.format()] if self._filter_paths_by_extension else None
 
         from ray.data import read_binary_files
+        from ray.data.datasource import PathPartitionFilter, PathPartitionParser
+
+        partition_filter = (
+            None
+            if self.filter_paths is None
+            else PathPartitionFilter(cast(PathPartitionParser, RayPathParser()), partial(self.filter_paths, read=True))
+        )
+        shuffle = None if partition_filter is None else "files"
 
         try:
             files = read_binary_files(
-                self.get_paths(),
+                self._paths,
                 include_paths=True,
                 filesystem=self._filesystem,
                 override_num_blocks=self.override_num_blocks,
                 ray_remote_args=self.resource_args,
                 file_extensions=file_extensions,
+                partition_filter=partition_filter,
+                shuffle=shuffle,
             )
         except ValueError as e:
+
             from ray.data import from_items
 
-            if self.filter_paths is not None and "Must provide at least one path" in str(e):
+            if self.filter_paths is not None and "No input files found to read." in str(e):
                 return from_items(items=[])
             raise
         return files.map(self._to_document, **self.resource_args)
@@ -250,6 +258,8 @@ class BinaryScan(FileScan):
         if not info.is_file:
             return []
         if self._filter_paths_by_extension and not info.path.endswith(self.format()):
+            return []
+        if self.filter_paths is not None and not self.filter_paths(info.path, True):
             return []
 
         assert self._filesystem

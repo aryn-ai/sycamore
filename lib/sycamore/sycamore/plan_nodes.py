@@ -140,16 +140,21 @@ class Node(ABC):
 
     def last_node_reliability_assertor(self) -> bool:
         from sycamore.materialize import Materialize
-        from sycamore.connectors.file import BinaryScan, JsonScan
+        from sycamore.connectors.file import BinaryScan
 
         if not self.children or all(c is None for c in self.children):
             return (isinstance(self, Materialize) and self._reliability is None) or (
-                (isinstance(self, JsonScan) or isinstance(self, BinaryScan)) and self.filter_paths is not None
+                isinstance(self, BinaryScan) and self.filter_paths is not None
             )
         assert not isinstance(
             self, Materialize
         ), """For ensuring reliability,
-        either only first node must be materialize or first node must be binary scan with filter_paths set"""
+        only first node must be materialize"""
+
+        assert not isinstance(
+            self, BinaryScan
+        ), """For ensuring reliability,
+        only first node must be binary scan with filter_paths set"""
 
         for child in self.children:
             if child is not None:

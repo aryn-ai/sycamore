@@ -26,19 +26,19 @@ for i in ${tomls}; do
         (
             echo "--------------------- special casing in $i"
             cd $(dirname "$i")
-            poetry lock --no-update || fail
+            poetry lock --no-update || fail "broke on special case 'poetry lock --no-update' for $i"
             # Do not apply the consistency logic, it can't do anything useful.
-        ) || fail
+        ) || fail "broke on special case for $i"
         continue
     fi
     (
         echo "--------------------- processing in $i"
         cd $(dirname "$i")
-        poetry lock --no-update || fail
-        poetry install 2>&1 | tee /tmp/poetry-install.out || fail
+        poetry lock --no-update || fail "broke on regular case 'poetry lock --no-update' $i"
+        poetry install 2>&1 | tee /tmp/poetry-install.out || fail "broke on 'poetry install' for $i"
         perl -ne 'print qq{$1 = "$2"\n} if /Downgrading (\S+) \((\S+) ->/o;' </tmp/poetry-install.out >/tmp/downgraded
         cat /tmp/downgraded
-        [[ $(wc -l </tmp/downgraded) -eq 0 ]] || fail
-    ) || fail
+        [[ $(wc -l </tmp/downgraded) -eq 0 ]] || fail "broke on downgrading $i it seems these packages are incompatible"
+    ) || fail "broke on regular case $i"
 done
 echo "SUCCESS"

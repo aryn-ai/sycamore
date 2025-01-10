@@ -50,6 +50,7 @@ class OpenSearchReaderClient(BaseDBReader.Client):
         assert isinstance(
             query_params, OpenSearchReaderQueryParams
         ), f"Wrong kind of query parameters found: {query_params}"
+
         assert "index" not in query_params.kwargs and "body" not in query_params.kwargs
         logger.debug(f"OpenSearch query on {query_params.index_name}: {query_params.query}")
         if "size" not in query_params.query and "size" not in query_params.kwargs:
@@ -184,6 +185,9 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
                     else:
                         batch_doc_count += doc_count
                         cur_batch.append(doc_ids[i])
+
+                if len(cur_batch) > 0:
+                    batches.append(cur_batch)
                 return batches
 
             batches = get_batches(doc_ids)
@@ -265,6 +269,7 @@ class OpenSearchReader(BaseDBReader):
         self,
         client_params: OpenSearchReaderClientParams,
         query_params: BaseDBReader.QueryParams,
+        use_pit: bool = True,
         **kwargs,
     ):
         assert isinstance(
@@ -275,7 +280,7 @@ class OpenSearchReader(BaseDBReader):
         self._client_params = client_params
         self._query_params = query_params
         # TODO add support for 'search_after' pagination if a sort field is provided.
-        self.use_pit = query_params.kwargs.get("use_pit", False)
+        self.use_pit = use_pit
         logger.info(f"OpenSearchReader using PIT: {self.use_pit}")
 
     @timetrace("OpenSearchReader")

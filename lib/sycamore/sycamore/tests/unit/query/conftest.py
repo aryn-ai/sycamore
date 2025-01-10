@@ -1,5 +1,8 @@
 import pytest
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ray.data import Dataset
 
 from sycamore import DocSet, Context
 from sycamore.connectors.opensearch.opensearch_reader import (
@@ -21,6 +24,9 @@ class MockOpenSearchReader(OpenSearchReader):
     def read_docs(self) -> List[Document]:
         return get_mock_docs()
 
+    def execute(self, **kwargs) -> "Dataset":
+        from ray.data import from_items
+        return from_items(items=[{"doc": doc.serialize()} for doc in self.read_docs()])
 
 class MockDocSetReader(DocSetReader):
     """Mock out DocSetReader for tests."""

@@ -246,6 +246,9 @@ class TestOpenSearchReaderQueryResponse:
                 }
             },
         ]
+
+        total = len(return_val["hits"]["hits"])
+        return_val["hits"]["total"] = {"value": total}
         client.search.return_value = return_val
         query_response = OpenSearchReaderQueryResponse(hits, client=client)
         query_params = OpenSearchReaderQueryParams(
@@ -318,7 +321,10 @@ class TestOpenSearchReaderQueryResponse:
 
         # no elements match
         hits = [{"_source": record} for record in records]
-        client.search.return_value = {"hits": {"hits": [hit for hit in hits if hit["_source"].get("parent_id")]}}
+        return_val = {"hits": {"hits": [hit for hit in hits if hit["_source"].get("parent_id")]}}
+        total = len(return_val["hits"]["hits"])
+        return_val["hits"]["total"] = {"value": total}
+        client.search.return_value = return_val
         query_response = OpenSearchReaderQueryResponse(hits, client=client)
         query_params = OpenSearchReaderQueryParams(
             index_name="some index", query=MATCH_ALL_QUERY, reconstruct_document=True
@@ -408,6 +414,10 @@ class TestOpenSearchRecord:
         assert record._id == document.doc_id
         assert record._index == tp.index_name
 
+
+class TestOpenSearchReader:
+    def test_opensearchreader_knn_query(self):
+        pass
 
 class TestOpenSearchUtils:
 

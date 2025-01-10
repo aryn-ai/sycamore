@@ -322,7 +322,7 @@ class TestOpenSearchRead:
             os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
             index_name=setup_index_large,
             reconstruct_document=True,
-            # parallelism=1,
+            use_pit=False,
         ).take_all()
         t1 = time.time()
         print(f"Retrieved {len(retrieved_docs_reconstructed)} documents in {t1 - t0} seconds")
@@ -341,7 +341,7 @@ class TestOpenSearchRead:
             os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
             index_name=setup_index_large,
             reconstruct_document=False,
-            parallelism=1,
+            use_pit=False,
         ).take_all()
         t1 = time.time()
 
@@ -360,7 +360,6 @@ class TestOpenSearchRead:
             os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
             index_name=setup_index_large,
             reconstruct_document=True,
-            query_kwargs={"use_pit": True},
         ).take_all()
         t1 = time.time()
         print(f"Retrieved {len(retrieved_docs_reconstructed)} documents in {t1 - t0} seconds")
@@ -379,9 +378,7 @@ class TestOpenSearchRead:
             os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
             index_name=setup_index_large,
             reconstruct_document=False,
-            query_kwargs={"use_pit": True},
-            num_cpus=2,
-            concurrency=5,
+            concurrency=2,
         ).take_all()
         t1 = time.time()
 
@@ -404,9 +401,7 @@ class TestOpenSearchRead:
             index_name=setup_index_large,
             query=query,
             reconstruct_document=False,
-            query_kwargs={"use_pit": True},
-            num_cpus=2,
-            concurrency=5,
+            concurrency=2,
         ).take_all()
         t1 = time.time()
 

@@ -1,3 +1,4 @@
+import datetime
 import random
 import string
 
@@ -6,6 +7,7 @@ from ray.util import inspect_serializability
 from sycamore.llms.prompts import SchemaZeroShotGuidancePrompt
 from sycamore.data import Document, Element
 from sycamore.llms.llms import LLM, FakeLLM
+from sycamore.schema import Schema, SchemaField
 from sycamore.transforms.extract_schema import ExtractBatchSchema, SchemaExtractor
 from sycamore.transforms.extract_schema import LLMSchemaExtractor, LLMPropertyExtractor
 from sycamore.utils.ray_utils import check_serializable
@@ -161,3 +163,41 @@ class TestSchema:
         doc = property_extractor.extract_properties(doc)
 
         assert doc.properties["entity"]["accidentNumber"] == "FTW95FA129"
+
+    def test_extract_properties_with_schema(self, mocker):
+        llm = mocker.Mock(spec=LLM)
+        generate = mocker.patch.object(llm, "generate")
+        generate.return_value = (
+            '{"startDate": "2022-01-22 00:01:31", '
+            '"endDate": "2022-01-24 00:01:59", '
+            '"someOtherDate": "2024-01--1 00:01:01", '
+            '"accidentNumber": "FTW95FA129", '
+            '"latitude": "10.00353", '
+            '"injuryCount": "5"}'
+        )
+
+        doc = Document()
+        element1 = Element()
+        element1.text_representation = "".join(random.choices(string.ascii_letters, k=10))
+        element2 = Element()
+        element2.text_representation = "".join(random.choices(string.ascii_letters, k=20))
+        doc.elements = [element1, element2]
+
+        schema = Schema(
+            fields=[
+                SchemaField(name="startDate", field_type="datetime"),
+                SchemaField(name="endDate", field_type="date"),
+                SchemaField(name="accidentNumber", field_type="str"),
+                SchemaField(name="injuryCount", field_type="int"),
+                SchemaField(name="latitude", field_type="float"),
+            ]
+        )
+        property_extractor = LLMPropertyExtractor(llm, schema=schema)
+        doc = property_extractor.extract_properties(doc)
+
+        assert doc.properties["entity"]["accidentNumber"] == "FTW95FA129"
+        assert doc.properties["entity"]["startDate"] == datetime.datetime(2022, 1, 22, 0, 1, 31)
+        assert doc.properties["entity"]["endDate"] == datetime.datetime(2022, 1, 24, 0, 1, 59)
+        assert doc.properties["entity"]["someOtherDate"] == "2024-01--1 00:01:01"
+        assert doc.properties["entity"]["injuryCount"] == 5
+        assert doc.properties["entity"]["latitude"] == 10.00353

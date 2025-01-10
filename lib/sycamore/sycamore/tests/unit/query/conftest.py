@@ -26,7 +26,9 @@ class MockOpenSearchReader(OpenSearchReader):
 
     def execute(self, **kwargs) -> "Dataset":
         from ray.data import from_items
+
         return from_items(items=[{"doc": doc.serialize()} for doc in self.read_docs()])
+
 
 class MockDocSetReader(DocSetReader):
     """Mock out DocSetReader for tests."""

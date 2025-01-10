@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class OpenSearchReaderClientParams(BaseDBReader.ClientParams):
     os_client_args: dict = field(default_factory=lambda: {})
@@ -169,6 +170,7 @@ class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
 
             # Batched retrieval of all elements belong to unique docs
             doc_ids = list(unique_docs.keys())
+
             def get_batches(doc_ids) -> list[list[str]]:
                 batches = []
                 batch_doc_count = 0
@@ -567,8 +569,7 @@ class OpenSearchReader(BaseDBReader):
                 # Step 5: Reconstruct parent documents using 'parent_id'
 
                 return (
-                    ds
-                    .flat_map(self._to_parent_doc, **self.resource_args)
+                    ds.flat_map(self._to_parent_doc, **self.resource_args)
                     .groupby("parent_id")
                     .map_groups(self.map_reduce_parent_id)
                     .map(self.reconstruct)

@@ -101,14 +101,10 @@ class MaterializeReadReliability:
         self.current_batch += 1
         return True
 
-    def filter_paths(
-        self, paths: Union[str, list[str]], allowed_extensions: Optional[Union[list, None]] = None
-    ) -> list:
+    def filter_paths(self, paths: Union[list[str]], allowed_extensions: Optional[Union[list, None]] = None) -> list:
         """Filter files for processing, respecting batch size"""
         import random
 
-        if isinstance(paths, str):
-            paths = [paths]
         unhandled_paths = []
         for path in paths:
             logger.info(f"filter_path: {path}")
@@ -128,6 +124,7 @@ class MaterializeReadReliability:
             self.current_batch += 1
             unhandled_paths.append(path)
         random.shuffle(unhandled_paths)
+        logger.info(f"Processing files: {unhandled_paths} in current batch.")
         return unhandled_paths
 
     def reset_batch(self) -> None:

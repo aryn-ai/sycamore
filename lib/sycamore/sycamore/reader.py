@@ -96,7 +96,6 @@ class DocSetReader:
         parallelism: Optional[str] = None,
         override_num_blocks: Optional[int] = None,
         filesystem: Optional[FileSystem] = None,
-        filter_paths: Optional[Callable] = None,
         **kwargs,
     ) -> DocSet:
         """
@@ -148,7 +147,6 @@ class DocSetReader:
         metadata_provider: Optional[FileMetadataProvider] = None,
         document_body_field: Optional[str] = None,
         doc_extractor: Optional[Callable] = None,
-        filter_paths: Optional[Callable] = None,
         **kwargs,
     ) -> DocSet:
         """

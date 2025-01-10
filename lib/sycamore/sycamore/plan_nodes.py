@@ -148,7 +148,8 @@ class Node(ABC):
             )
         assert not isinstance(
             self, Materialize
-        ), "For ensuring reliability, only first node must be materialize or first node must be binary scan with filter_paths set"
+        ), """For ensuring reliability,
+        either only first node must be materialize or first node must be binary scan with filter_paths set"""
 
         for child in self.children:
             if child is not None:

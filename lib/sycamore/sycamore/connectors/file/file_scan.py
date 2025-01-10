@@ -229,15 +229,21 @@ class BinaryScan(FileScan):
 
         from ray.data import read_binary_files
 
-        files = read_binary_files(
-            self.get_paths(),
-            include_paths=True,
-            filesystem=self._filesystem,
-            override_num_blocks=self.override_num_blocks,
-            ray_remote_args=self.resource_args,
-            file_extensions=file_extensions,
-        )
+        try:
+            files = read_binary_files(
+                self.get_paths(),
+                include_paths=True,
+                filesystem=self._filesystem,
+                override_num_blocks=self.override_num_blocks,
+                ray_remote_args=self.resource_args,
+                file_extensions=file_extensions,
+            )
+        except ValueError as e:
+            from ray.data import from_items
 
+            if self.filter_paths is not None and "Must provide at least one path" in str(e):
+                return from_items(items=[])
+            raise
         return files.map(self._to_document, **self.resource_args)
 
     def process_file(self, info) -> list[Document]:
@@ -279,7 +285,6 @@ class JsonScan(FileScan):
         metadata_provider: Optional[FileMetadataProvider] = None,
         document_body_field: Optional[str] = None,
         doc_extractor: Optional[Callable] = None,
-        filter_paths: Optional[Callable] = None,
         **resource_args,
     ):
         super().__init__(
@@ -287,14 +292,12 @@ class JsonScan(FileScan):
             parallelism=parallelism,
             override_num_blocks=override_num_blocks,
             filesystem=filesystem,
-            filter_paths=filter_paths,
             **resource_args,
         )
         self._properties = properties
         self._metadata_provider = metadata_provider
         self._document_body_field = document_body_field
         self._doc_extractor = doc_extractor
-        self.filter_paths = filter_paths
 
     def _to_document(self, json_dict: dict[str, Any]) -> list[dict[str, Any]]:
         document = Document()
@@ -341,7 +344,7 @@ class JsonScan(FileScan):
         from ray.data import read_json
 
         json_dataset = read_json(
-            self.get_paths(),
+            self._paths,
             include_paths=True,
             filesystem=self._filesystem,
             override_num_blocks=self.override_num_blocks,

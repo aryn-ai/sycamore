@@ -289,7 +289,6 @@ class Materialize(UnaryNode):
                 from ray.data import read_binary_files
                 from ray.data.datasource import PathPartitionFilter, PathPartitionParser
 
-                logger.info(f"\n\n\ninside MATERIALIZE: {self._root}, {self._fs}\n\n\n")
                 partition_filter = (
                     None
                     if self._path_filter is None

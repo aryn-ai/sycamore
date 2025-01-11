@@ -591,8 +591,8 @@ class TestMaterializeReadReliability(unittest.TestCase):
             assert e2 is not None
             assert ids(e2) == ids(e1)
 
-            # Verify batching works
-            assert counter.x == 4
+            # Verify batching works (4 + 1 (mrr.reset at the end))
+            assert counter.x == 5
 
             # Assertion error when name is not set to name_from_docid
             with pytest.raises(AssertionError):
@@ -686,7 +686,7 @@ class TestMaterializeReadReliability(unittest.TestCase):
 
                 assert e2 is not None
                 assert ids(e2) == ids(e1)  # All documents should be processed
-                assert retry_counter.x == 7  # 3 extra retries for 3 failures
+                assert retry_counter.x == 8  # 4 success +3 extra retries for 3 failures + 1 for mrr.reset()
 
     def test_materialize_read_reliability_retries_failure(self):
         ctx = sycamore.init(exec_mode=self.exec_mode)

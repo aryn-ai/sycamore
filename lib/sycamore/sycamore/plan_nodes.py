@@ -143,9 +143,11 @@ class Node(ABC):
         from sycamore.connectors.file import BinaryScan
 
         if not self.children or all(c is None for c in self.children):
-            return (isinstance(self, Materialize) and self._reliability is None) or (
-                isinstance(self, BinaryScan) and self.filter_paths is not None
-            )
+            return (
+                isinstance(self, Materialize)
+                and isinstance(self._orig_path, dict)
+                and self._orig_path["filter"] is not None
+            ) or (isinstance(self, BinaryScan) and self.filter_paths is not None)
         assert not isinstance(
             self, Materialize
         ), """For ensuring reliability,

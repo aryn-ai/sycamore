@@ -3,7 +3,6 @@ from pathlib import Path
 import tempfile
 import unittest
 
-
 import sycamore
 from sycamore.docset import DocSet
 from sycamore.connectors.file.file_scan import JsonManifestMetadataProvider
@@ -85,7 +84,7 @@ class TestFileReadReliability(unittest.TestCase):
 
     def test_binary_file_read_reliability_list_of_paths(self):
         ctx = sycamore.init(exec_mode=self.exec_mode)
-        with tempfile.TemporaryDirectory() as tmpdir1, tempfile.TemporaryDirectory() as tmpdir2:
+        with tempfile.TemporaryDirectory() as tmpdir1, tempfile.TemporaryDirectory() as tmpdir2, tempfile.TemporaryDirectory() as tmpdir3:
             counter = NumCalls()
             docs = make_docs(10)
             docs.pop()
@@ -106,27 +105,30 @@ class TestFileReadReliability(unittest.TestCase):
                 )
             )
             ds.execute()
-            # Verify batching works
-            assert counter.x == 4
+            # Verify batching works (4 + 1 (mrr.reset at the end))
+            assert counter.x == 5
 
+            counter = NumCalls()
+            mrr = MaterializeReadReliability(tmpdir3, max_batch=3)
+            mrr = mock_mrr_reset_fn(mrr, counter)
             # Check with dir as well
             ds = (
                 ctx.read.binary(tmpdir1, binary_format="pdf", filter_paths=mrr.filter)
                 .map(docid_from_path)
                 .materialize(
-                    path={"root": tmpdir2, "name": name_from_docid, "tobin": doc_only_to_binary, "clean": False},
+                    path={"root": tmpdir3, "name": name_from_docid, "tobin": doc_only_to_binary, "clean": False},
                     source_mode=sycamore.MATERIALIZE_RECOMPUTE,
                     reliability=mrr,
                 )
             )
             ds.execute()
-            # Verify batching works
-            assert counter.x == 4
+            # Verify batching works (4 + 1 (mrr.reset at the end))
+            assert counter.x == 5
 
     def test_binary_file_read_reliability_list_of_paths_retries_successful(self):
         ctx = sycamore.init(exec_mode=self.exec_mode)
 
-        with tempfile.TemporaryDirectory() as tmpdir1, tempfile.TemporaryDirectory() as tmpdir2:
+        with tempfile.TemporaryDirectory() as tmpdir1, tempfile.TemporaryDirectory() as tmpdir2, tempfile.TemporaryDirectory() as tmpdir3:
 
             failure_counter = NumCalls()
             retry_counter = NumCalls()
@@ -157,26 +159,29 @@ class TestFileReadReliability(unittest.TestCase):
                 )
             )
             ds.execute()
-            assert retry_counter.x == 7  # 3 extra retries for 3 failures
+            assert retry_counter.x == 8  # 4 success +3 extra retries for 3 failures + 1 for mrr.reset()
 
+            counter = NumCalls()
+            mrr = MaterializeReadReliability(tmpdir3, max_batch=3)
+            mrr = mock_mrr_reset_fn(mrr, counter)
             # Check with dir
             ds = (
                 ctx.read.binary(tmpdir1, binary_format="pdf", filter_paths=mrr.filter)
                 .map(docid_from_path)
                 .map(failing_map)
                 .materialize(
-                    path={"root": tmpdir2, "name": name_from_docid, "tobin": doc_only_to_binary, "clean": False},
+                    path={"root": tmpdir3, "name": name_from_docid, "tobin": doc_only_to_binary, "clean": False},
                     source_mode=sycamore.MATERIALIZE_RECOMPUTE,
                     reliability=mrr,
                 )
             )
             ds.execute()
-            assert retry_counter.x == 7  # 3 extra retries for 3 failures
+            assert retry_counter.x == 8  # 4 success +3 extra retries for 3 failures + 1 for mrr.reset()
 
     def test_binary_file_read_reliability_list_of_paths_retries_failure(self):
         ctx = sycamore.init(exec_mode=self.exec_mode)
 
-        with tempfile.TemporaryDirectory() as tmpdir1, tempfile.TemporaryDirectory() as tmpdir2:
+        with tempfile.TemporaryDirectory() as tmpdir1, tempfile.TemporaryDirectory() as tmpdir2, tempfile.TemporaryDirectory() as tmpdir3:
 
             failure_counter = NumCalls()
             retry_counter = NumCalls()
@@ -212,17 +217,20 @@ class TestFileReadReliability(unittest.TestCase):
             assert retry_counter.x == 23  # 2 successful, 21 unsuccessful
 
             # Test with dir
-
+            failure_counter = NumCalls()
+            retry_counter = NumCalls()
+            mrr = MaterializeReadReliability(tmpdir3, max_batch=3)
+            mrr = mock_mrr_reset_fn(mrr, retry_counter)
             ds = (
                 ctx.read.binary(tmpdir1, binary_format="pdf", filter_paths=mrr.filter)
                 .map(docid_from_path)
                 .map(failing_map)
                 .materialize(
-                    path={"root": tmpdir2, "name": name_from_docid, "tobin": doc_only_to_binary, "clean": False},
+                    path={"root": tmpdir3, "name": name_from_docid, "tobin": doc_only_to_binary, "clean": False},
                     source_mode=sycamore.MATERIALIZE_RECOMPUTE,
                     reliability=mrr,
                 )
             )
             ds.execute()
 
-            assert retry_counter.x == 24  # 2 successful, 21 unsuccessful
+            assert retry_counter.x == 23  # 2 successful, 21 unsuccessful

@@ -1541,8 +1541,8 @@ class DocSet:
                     for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
                         pass
                     if mrr.current_batch == 0:
-
-                        logger.info(f"\nProcessed {mrr.prev_seen} docs.")
+                        mrr.reset_batch()
+                        logger.info(f"\nProcessed {len(mrr.seen)} docs.")
                         break
                 except Exception as e:
                     logger.info(f"Retrying batch job because of {e}.\n Processed {len(mrr.seen)} docs at present.")

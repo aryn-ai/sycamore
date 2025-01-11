@@ -84,7 +84,11 @@ class TestFileReadReliability(unittest.TestCase):
 
     def test_binary_file_read_reliability_list_of_paths(self):
         ctx = sycamore.init(exec_mode=self.exec_mode)
-        with tempfile.TemporaryDirectory() as tmpdir1, tempfile.TemporaryDirectory() as tmpdir2, tempfile.TemporaryDirectory() as tmpdir3:
+        with (
+            tempfile.TemporaryDirectory() as tmpdir1,
+            tempfile.TemporaryDirectory() as tmpdir2,
+            tempfile.TemporaryDirectory() as tmpdir3,
+        ):
             counter = NumCalls()
             docs = make_docs(10)
             docs.pop()
@@ -128,7 +132,11 @@ class TestFileReadReliability(unittest.TestCase):
     def test_binary_file_read_reliability_list_of_paths_retries_successful(self):
         ctx = sycamore.init(exec_mode=self.exec_mode)
 
-        with tempfile.TemporaryDirectory() as tmpdir1, tempfile.TemporaryDirectory() as tmpdir2, tempfile.TemporaryDirectory() as tmpdir3:
+        with (
+            tempfile.TemporaryDirectory() as tmpdir1,
+            tempfile.TemporaryDirectory() as tmpdir2,
+            tempfile.TemporaryDirectory() as tmpdir3,
+        ):
 
             failure_counter = NumCalls()
             retry_counter = NumCalls()
@@ -181,7 +189,11 @@ class TestFileReadReliability(unittest.TestCase):
     def test_binary_file_read_reliability_list_of_paths_retries_failure(self):
         ctx = sycamore.init(exec_mode=self.exec_mode)
 
-        with tempfile.TemporaryDirectory() as tmpdir1, tempfile.TemporaryDirectory() as tmpdir2, tempfile.TemporaryDirectory() as tmpdir3:
+        with (
+            tempfile.TemporaryDirectory() as tmpdir1,
+            tempfile.TemporaryDirectory() as tmpdir2,
+            tempfile.TemporaryDirectory() as tmpdir3,
+        ):
 
             failure_counter = NumCalls()
             retry_counter = NumCalls()

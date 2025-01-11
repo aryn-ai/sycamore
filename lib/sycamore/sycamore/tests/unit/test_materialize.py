@@ -637,7 +637,7 @@ class TestMaterializeReadReliability(unittest.TestCase):
     def test_materialize_read_reliability_retries_successful(self):
         ctx = sycamore.init(exec_mode=self.exec_mode)
 
-        with tempfile.TemporaryDirectory() as tmpdir1:
+        with tempfile.TemporaryDirectory() as tmpdir1, tempfile.TemporaryDirectory() as tmpdir2:
             docs = make_docs(10)
             ds = (
                 ctx.read.document(docs)
@@ -650,48 +650,47 @@ class TestMaterializeReadReliability(unittest.TestCase):
             e1 = ds.take_all()
             assert e1 is not None
 
-            with tempfile.TemporaryDirectory() as tmpdir2:
-                # Track number of retries
-                retry_counter = NumCalls()
-                failure_counter = NumCalls()
+            # Track number of retries
+            retry_counter = NumCalls()
+            failure_counter = NumCalls()
 
-                # Create MaterializeReadReliability with small batch size to trigger more retries
-                mrr = MaterializeReadReliability(tmpdir2, max_batch=3)
+            # Create MaterializeReadReliability with small batch size to trigger more retries
+            mrr = MaterializeReadReliability(tmpdir2, max_batch=3)
 
-                # Mock the reset_batch to count retries
-                mrr = mock_mrr_reset_fn(mrr, retry_counter)
+            # Mock the reset_batch to count retries
+            mrr = mock_mrr_reset_fn(mrr, retry_counter)
 
-                # Create a function that fails for specific documents
-                def failing_map(doc):
-                    failure_counter.x += 1
-                    if failure_counter.x % 4 == 0:  # Fail batch with every 4th document
-                        raise ValueError("Simulated failure")
-                    return doc
+            # Create a function that fails for specific documents
+            def failing_map(doc):
+                failure_counter.x += 1
+                if failure_counter.x % 4 == 0:  # Fail batch with every 4th document
+                    raise ValueError("Simulated failure")
+                return doc
 
-                ds1 = (
-                    ctx.read.materialize(path={"root": tmpdir1, "filter": mrr.filter})
-                    .map(failing_map)
-                    .materialize(
-                        path={"root": tmpdir2, "name": name_from_docid, "tobin": doc_only_to_binary, "clean": False},
-                        source_mode=sycamore.MATERIALIZE_RECOMPUTE,
-                        reliability=mrr,
-                    )
+            ds1 = (
+                ctx.read.materialize(path={"root": tmpdir1, "filter": mrr.filter})
+                .map(failing_map)
+                .materialize(
+                    path={"root": tmpdir2, "name": name_from_docid, "tobin": doc_only_to_binary, "clean": False},
+                    source_mode=sycamore.MATERIALIZE_RECOMPUTE,
+                    reliability=mrr,
                 )
+            )
 
-                ds1.execute()
+            ds1.execute()
 
-                # Verify results after retries
-                final_ds = ctx.read.materialize(path=tmpdir2)
-                e2 = final_ds.take_all()
+            # Verify results after retries
+            final_ds = ctx.read.materialize(path=tmpdir2)
+            e2 = final_ds.take_all()
 
-                assert e2 is not None
-                assert ids(e2) == ids(e1)  # All documents should be processed
-                assert retry_counter.x == 8  # 4 success +3 extra retries for 3 failures + 1 for mrr.reset()
+            assert e2 is not None
+            assert ids(e2) == ids(e1)  # All documents should be processed
+            assert retry_counter.x == 8  # 4 success +3 extra retries for 3 failures + 1 for mrr.reset()
 
     def test_materialize_read_reliability_retries_failure(self):
         ctx = sycamore.init(exec_mode=self.exec_mode)
 
-        with tempfile.TemporaryDirectory() as tmpdir1:
+        with tempfile.TemporaryDirectory() as tmpdir1, tempfile.TemporaryDirectory() as tmpdir2:
             docs = make_docs(10)
             ds = (
                 ctx.read.document(docs)
@@ -704,38 +703,37 @@ class TestMaterializeReadReliability(unittest.TestCase):
             e1 = ds.take_all()
             assert e1 is not None
 
-            with tempfile.TemporaryDirectory() as tmpdir2:
-                retry_counter = NumCalls()
-                failure_counter = NumCalls()
+            retry_counter = NumCalls()
+            failure_counter = NumCalls()
 
-                mrr = MaterializeReadReliability(tmpdir2, max_batch=3)
+            mrr = MaterializeReadReliability(tmpdir2, max_batch=3)
 
-                mrr = mock_mrr_reset_fn(mrr, retry_counter)
+            mrr = mock_mrr_reset_fn(mrr, retry_counter)
 
-                # Create a function that fails for specific documents
-                def failing_map(doc):
-                    failure_counter.x += 1
-                    if failure_counter.x >= 9:  # Perpetual fail after 9th document
-                        raise ValueError("Simulated failure")
-                    return doc
+            # Create a function that fails for specific documents
+            def failing_map(doc):
+                failure_counter.x += 1
+                if failure_counter.x >= 9:  # Perpetual fail after 9th document
+                    raise ValueError("Simulated failure")
+                return doc
 
-                ds1 = (
-                    ctx.read.materialize(path={"root": tmpdir1, "filter": mrr.filter})
-                    .map(failing_map)
-                    .materialize(
-                        path={"root": tmpdir2, "name": name_from_docid, "tobin": doc_only_to_binary, "clean": False},
-                        source_mode=sycamore.MATERIALIZE_RECOMPUTE,
-                        reliability=mrr,
-                    )
+            ds1 = (
+                ctx.read.materialize(path={"root": tmpdir1, "filter": mrr.filter})
+                .map(failing_map)
+                .materialize(
+                    path={"root": tmpdir2, "name": name_from_docid, "tobin": doc_only_to_binary, "clean": False},
+                    source_mode=sycamore.MATERIALIZE_RECOMPUTE,
+                    reliability=mrr,
                 )
+            )
 
-                ds1.execute()
+            ds1.execute()
 
-                # Verify results after retries
-                final_ds = ctx.read.materialize(path=tmpdir2)
-                e2 = final_ds.take_all()
-                assert e2 is not None
-                with pytest.raises(AssertionError):
-                    assert ids(e2) == ids(e1)  # Only 6 documents processed
-                assert len(e2) == 6
-                assert retry_counter.x == 23  # 2 successful, 21 unsuccessful
+            # Verify results after retries
+            final_ds = ctx.read.materialize(path=tmpdir2)
+            e2 = final_ds.take_all()
+            assert e2 is not None
+            with pytest.raises(AssertionError):
+                assert ids(e2) == ids(e1)  # Only 6 documents processed
+            assert len(e2) == 6
+            assert retry_counter.x == 23  # 2 successful, 21 unsuccessful

@@ -4,6 +4,8 @@ from copy import deepcopy
 import pandas as pd
 
 from sycamore.connectors.doc_reconstruct import DocumentReconstructor
+from sycamore.connectors.opensearch.opensearch_datasource import OpenSearchDatasource, OpenSearchReaderClientParams, \
+    OpenSearchReaderQueryParams, OpenSearchReaderQueryResponse
 from sycamore.data import Document, Element
 from sycamore.connectors.base_reader import BaseDBReader
 from sycamore.data.document import DocumentPropertyTypes, DocumentSource
@@ -15,23 +17,9 @@ from sycamore.utils.time_trace import TimeTrace, timetrace
 
 if TYPE_CHECKING:
     from opensearchpy import OpenSearch
-    from ray.data import Dataset
+    from ray.data import Dataset, read_datasource
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class OpenSearchReaderClientParams(BaseDBReader.ClientParams):
-    os_client_args: dict = field(default_factory=lambda: {})
-
-
-@dataclass
-class OpenSearchReaderQueryParams(BaseDBReader.QueryParams):
-    index_name: str
-    query: dict
-    kwargs: dict = field(default_factory=lambda: {})
-    reconstruct_document: bool = False
-    doc_reconstructor: Optional[DocumentReconstructor] = None
 
 
 class OpenSearchReaderClient(BaseDBReader.Client):
@@ -95,162 +83,6 @@ class OpenSearchReaderClient(BaseDBReader.Client):
         return self._client.indices.exists(index=query_params.index_name)
 
 
-@dataclass
-class OpenSearchReaderQueryResponse(BaseDBReader.QueryResponse):
-    output: list
-
-    """
-    The client used to implement document reconstruction. Can also be used for lazy loading.
-    """
-    client: Optional["OpenSearch"] = None
-
-    def to_docs(self, query_params: "BaseDBReader.QueryParams") -> list[Document]:
-        assert isinstance(query_params, OpenSearchReaderQueryParams)
-        result: list[Document] = []
-        if query_params.doc_reconstructor is not None:
-            logger.info("Using DocID to Document reconstructor")
-            unique = set()
-            for data in self.output:
-                doc_id = query_params.doc_reconstructor.get_doc_id(data)
-                if doc_id not in unique:
-                    result.append(query_params.doc_reconstructor.reconstruct(data))
-                    unique.add(doc_id)
-        elif not query_params.reconstruct_document:
-            for data in self.output:
-                doc = Document(
-                    {
-                        **data.get("_source", {}),
-                    }
-                )
-                doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
-                doc.properties["score"] = data["_score"]
-                result.append(doc)
-        else:
-            assert (
-                self.client is not None
-            ), "Document reconstruction requires an OpenSearch client in OpenSearchReaderQueryResponse"
-            """
-            Document reconstruction:
-            1. Construct a map of all unique parent Documents (i.e. no parent_id field)
-                1.1 If we find doc_ids without parent documents, we create empty parent Documents
-            2. Perform a terms query to retrieve all (including non-matched) other records for that parent_id
-            3. Add elements to unique parent Documents
-            """
-            # Get unique documents
-            unique_docs: dict[str, Document] = {}
-            query_result_elements_per_doc: dict[str, set[str]] = {}
-            for data in self.output:
-                doc = Document(
-                    {
-                        **data.get("_source", {}),
-                    }
-                )
-                doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
-                assert doc.doc_id, "Retrieved invalid doc with missing doc_id"
-                if not doc.parent_id:
-                    # Always use retrieved doc as the unique parent doc - override any empty parent doc created below
-                    unique_docs[doc.doc_id] = doc
-                else:
-                    # Create empty parent documents if no parent document was in result set
-                    unique_docs[doc.parent_id] = unique_docs.get(
-                        doc.parent_id,
-                        Document(
-                            {
-                                "doc_id": doc.parent_id,
-                                "properties": {
-                                    **doc.properties,
-                                    DocumentPropertyTypes.SOURCE: DocumentSource.DOCUMENT_RECONSTRUCTION_PARENT,
-                                },
-                            }
-                        ),
-                    )
-                    elements = query_result_elements_per_doc.get(doc.parent_id, set())
-                    elements.add(doc.doc_id)
-                    query_result_elements_per_doc[doc.parent_id] = elements
-
-            # Batched retrieval of all elements belong to unique docs
-            doc_ids = list(unique_docs.keys())
-
-            def get_batches(doc_ids) -> list[list[str]]:
-                batches = []
-                batch_doc_count = 0
-                cur_batch: list[str] = []
-                for i in range(len(doc_ids)):
-                    query = {
-                        "query": {"terms": {"parent_id.keyword": [doc_ids[i]]}},
-                    }
-                    doc_count = get_doc_count(self.client, query_params.index_name, query)
-                    if batch_doc_count + doc_count > 10000:
-                        batches.append(cur_batch)
-                        cur_batch = [doc_ids[i]]
-                        batch_doc_count = 0
-                    else:
-                        batch_doc_count += doc_count
-                        cur_batch.append(doc_ids[i])
-
-                if len(cur_batch) > 0:
-                    batches.append(cur_batch)
-                return batches
-
-            batches = get_batches(doc_ids)
-
-            all_elements_for_docs = []
-            for batch in batches:
-                all_elements_for_docs += self._get_all_elements_for_doc_ids(batch, query_params.index_name)
-
-            """
-            Add elements to unique docs. If they were not part of the original result,
-            we set properties.DocumentPropertyTypes.SOURCE = DOCUMENT_RECONSTRUCTION_RETRIEVAL
-            """
-            for element in all_elements_for_docs:
-                doc = Document(
-                    {
-                        **element.get("_source", {}),
-                    }
-                )
-                assert doc.parent_id, "Got non-element record from OpenSearch reconstruction query"
-                if doc.doc_id not in query_result_elements_per_doc.get(doc.parent_id, {}):
-                    doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DOCUMENT_RECONSTRUCTION_RETRIEVAL
-                else:
-                    doc.properties[DocumentPropertyTypes.SOURCE] = DocumentSource.DB_QUERY
-                parent = unique_docs[doc.parent_id]
-                parent.elements.append(Element(doc.data))
-
-            result = list(unique_docs.values())
-
-            # sort elements per doc
-            for doc in result:
-                doc.elements.sort(key=lambda e: e.element_index if e.element_index is not None else float("inf"))
-
-        return result
-
-    def _get_all_elements_for_doc_ids(self, doc_ids: list[str], index: str) -> list[Any]:
-        assert self.client, "_get_all_elements_for_doc_ids requires an OpenSearch client instance in this class"
-        """
-        Returns all records in OpenSearch belonging to a list of Document ids (element.parent_id)
-        """
-        batch_size = 100
-        page_size = 500
-
-        all_elements = []
-        for i in range(0, len(doc_ids), batch_size):
-            doc_ids_batch = doc_ids[i : i + batch_size]
-            from_offset = 0
-            while True:
-                query = {
-                    "query": {"terms": {"parent_id.keyword": doc_ids_batch}},
-                    "size": page_size,
-                    "from": from_offset,
-                }
-                response = self.client.search(index=index, body=query)
-                hits = response["hits"]["hits"]
-                all_elements.extend(hits)
-                if len(hits) < page_size:
-                    break
-                from_offset += page_size
-        return all_elements
-
-
 def get_doc_count(os_client, index_name: str, query: Optional[dict[str, Any]] = None) -> int:
     res = os_client.search(index=index_name, body=query, size=0, track_total_hits=True)
     return res["hits"]["total"]["value"]
@@ -271,7 +103,8 @@ class OpenSearchReader(BaseDBReader):
         self,
         client_params: OpenSearchReaderClientParams,
         query_params: BaseDBReader.QueryParams,
-        use_pit: bool = True,
+        use_pit: bool = False,
+        use_custom_datasource: bool = False,
         **kwargs,
     ):
         assert isinstance(
@@ -283,7 +116,8 @@ class OpenSearchReader(BaseDBReader):
         self._query_params = query_params
         # TODO add support for 'search_after' pagination if a sort field is provided.
         self.use_pit = use_pit
-        logger.info(f"OpenSearchReader using PIT: {self.use_pit}")
+        # logger.info(f"OpenSearchReader using PIT: {self.use_pit}")
+        self.use_custom_datasource = use_custom_datasource
 
     @timetrace("OpenSearchReader")
     def _to_parent_doc(self, slice_query: dict[str, Any]) -> List[dict[str, Any]]:
@@ -432,6 +266,14 @@ class OpenSearchReader(BaseDBReader):
 
         if "query" in self._query_params.query and "knn" in self._query_params.query["query"]:
             return super().execute(**kwargs)
+
+        if self.use_custom_datasource:
+            from ray.data import read_datasource
+            os_datasource = OpenSearchDatasource(self._client_params.os_client_args, self._query_params.index_name, self._query_params.query,
+                                                 doc_reconstruct=self._query_params.reconstruct_document)
+            # self.resource_args["num_cpus"] = 2
+            # self.resource_args["concurrency"] = 10
+            return read_datasource(os_datasource).map(lambda d: {"doc": Document(**d).serialize()}, **self.resource_args)
 
         if self.use_pit:
             return self._execute_pit(**kwargs)

@@ -6,10 +6,12 @@ from typing import Optional, Dict, Any
 
 import pytest
 from opensearchpy import OpenSearch
+from ray.data import read_datasource
 
 import sycamore
 from sycamore import EXEC_LOCAL, ExecMode
 from sycamore.connectors.doc_reconstruct import DocumentReconstructor
+from sycamore.connectors.opensearch.opensearch_datasource import OpenSearchDatasource
 from sycamore.data import Document
 from sycamore.tests.integration.connectors.common import compare_connector_docs
 from sycamore.tests.config import TEST_DIR
@@ -26,7 +28,7 @@ def os_client():
 
 
 @pytest.fixture(scope="class")
-def setup_index(os_client):
+def setup_index_old(os_client):
     # Recreate before
     os_client.indices.delete(TestOpenSearchRead.INDEX, ignore_unavailable=True)
     os_client.indices.create(TestOpenSearchRead.INDEX, **TestOpenSearchRead.INDEX_SETTINGS)
@@ -39,9 +41,20 @@ def setup_index(os_client):
 
 @pytest.fixture(scope="class")
 def setup_index_large(os_client):
-
     yield "test_opensearch_read_large"
 
+
+@pytest.fixture(scope="class")
+def setup_index_xlarge(os_client):
+    yield "test_opensearch_read_xlarge"
+
+@pytest.fixture(scope="class")
+def setup_index_1m(os_client):
+    yield "test_opensearch_read_1m"
+
+@pytest.fixture(scope="class")
+def setup_index(os_client):
+    yield "test_opensearch_read_1m"
 
 def get_doc_count(os_client, index_name: str, query: Optional[Dict[str, Any]] = None) -> int:
     res = os_client.count(index=index_name)
@@ -353,37 +366,42 @@ class TestOpenSearchRead:
             if doc.parent_id is not None:
                 assert doc.parent_id == expected_docs[doc.doc_id]["parent_id"]
 
-    def test_parallel_read_reconstruct_with_pit(self, setup_index_large, os_client):
+    def test_parallel_read_reconstruct_with_pit(self, setup_index_1m, os_client):
+        index = setup_index_1m
         context = sycamore.init(exec_mode=ExecMode.RAY)
         t0 = time.time()
         retrieved_docs_reconstructed = context.read.opensearch(
             os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
-            index_name=setup_index_large,
+            index_name=index,
             reconstruct_document=True,
+            use_pit=True,
+            concurrency=10,
         ).take_all()
         t1 = time.time()
         print(f"Retrieved {len(retrieved_docs_reconstructed)} documents in {t1 - t0} seconds")
-        expected_docs = self.get_ids(os_client, setup_index_large, parents_only=True)
+        expected_docs = self.get_ids(os_client, index, parents_only=True)
         assert len(retrieved_docs_reconstructed) == len(expected_docs)
         for doc in retrieved_docs_reconstructed:
             assert doc.doc_id in expected_docs
             if doc.parent_id is not None:
                 assert doc.parent_id == expected_docs[doc.doc_id]["parent_id"]
 
-    def test_parallel_read_with_pit(self, setup_index_large, os_client):
+    def test_parallel_read_with_pit(self, setup_index, os_client):
+        index = setup_index
         context = sycamore.init(exec_mode=ExecMode.RAY)
 
         t0 = time.time()
         retrieved_docs = context.read.opensearch(
             os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
-            index_name=setup_index_large,
+            index_name=index,
             reconstruct_document=False,
-            concurrency=2,
+            use_pit=True,
+            concurrency=20,
         ).take_all()
         t1 = time.time()
 
         print(f"Retrieved {len(retrieved_docs)} documents in {t1 - t0} seconds")
-        expected_docs = self.get_ids(os_client, setup_index_large)
+        expected_docs = self.get_ids(os_client, index)
         assert len(retrieved_docs) == len(expected_docs)
         for doc in retrieved_docs:
             assert doc.doc_id in expected_docs
@@ -401,6 +419,7 @@ class TestOpenSearchRead:
             index_name=setup_index_large,
             query=query,
             reconstruct_document=False,
+            use_pit=True,
             concurrency=2,
         ).take_all()
         t1 = time.time()
@@ -421,7 +440,7 @@ class TestOpenSearchRead:
         if query is None:
             query = {"query": {"match_all": {}}}
 
-        query_params = {"_source_includes": ["doc_id", "parent_id"], "scroll": "10m"}
+        query_params = {"_source_includes": ["doc_id", "parent_id"], "scroll": "10m", "size": 1000}
         response = os_client.search(index=index_name, body=query, **query_params)
         scroll_id = response["_scroll_id"]
         # no_parent_ids = 0
@@ -434,6 +453,7 @@ class TestOpenSearchRead:
                 hits = response["hits"]["hits"]
                 if not hits:
                     break
+                # print(f"Total hits: {len(hits)}")
                 for hit in hits:
                     all_hits += 1
                     # result.append(hit)
@@ -514,43 +534,60 @@ class TestOpenSearchRead:
         expected_docs = self.get_ids(os_client, setup_index_large)
         assert len(all_hits) == len(expected_docs)
 
-    def test_bulk_load(self, setup_index_large, os_client):
+    def test_bulk_load(self, setup_index_1m, os_client):
 
         # Only run this to populate a test index.
-        return
+        # return
 
-        if not os_client.indices.exists(setup_index_large):
-            os_client.indices.create(setup_index_large, **TestOpenSearchRead.INDEX_SETTINGS)
+        index_name = setup_index_1m
+        max = 1000000
+        if not os_client.indices.exists(index_name):
+            os_client.indices.create(index_name, **TestOpenSearchRead.INDEX_SETTINGS)
         """
         Used for generating a large number of documents in OpenSearch for testing purposes.
         """
-        os_client.indices.refresh(setup_index_large)
-        doc_count = get_doc_count(os_client, setup_index_large)
+        os_client.indices.refresh(index_name)
+        doc_count = get_doc_count(os_client, index_name)
         print(f"Current count: {doc_count}")
 
         path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
         context = sycamore.init(exec_mode=ExecMode.RAY)
-        while doc_count < 20000:
-            (
-                context.read.binary(path, binary_format="pdf")
-                .partition(partitioner=UnstructuredPdfPartitioner())
-                # .materialize(path={"root": TEST_CACHE_DIR, "name": self.doc_to_name})
-                .explode()
-                .write.opensearch(
-                    os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
-                    index_name=setup_index_large,
-                    index_settings=TestOpenSearchRead.INDEX_SETTINGS,
-                    execute=False,
+        def load(max: int, global_max: int):
+            doc_count = 0
+            all_doc_count = get_doc_count(os_client, index_name)
+            while doc_count < max and all_doc_count < global_max:
+                ds = (
+                    context.read.binary(path, binary_format="pdf")
+                    .partition(partitioner=UnstructuredPdfPartitioner())
+                    # .materialize(path={"root": TEST_CACHE_DIR, "name": self.doc_to_name})
+                    .explode()
+                    .write.opensearch(
+                        os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+                        index_name=index_name,
+                        index_settings=TestOpenSearchRead.INDEX_SETTINGS,
+                        execute=False,
+                    )
+                    .take_all()
                 )
-                .take_all()
-            )
+                doc_count += len(ds)
+                os_client.indices.refresh(index_name)
 
-            os_client.indices.refresh(setup_index_large)
+                # expected_count = len(original_docs)
+                all_doc_count = get_doc_count(os_client, index_name)
+                print(f"Current count: {doc_count} and {all_doc_count}")
+            return doc_count
 
-            # expected_count = len(original_docs)
-            doc_count = get_doc_count(os_client, setup_index_large)
-            print(f"Current count: {doc_count}")
+        max_workers = 50
+        import concurrent.futures
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
+        futures = []
+        for i in range(max_workers):
+            futures.append(executor.submit(load, max // max_workers, max))
 
+        for future in concurrent.futures.as_completed(futures):
+            print(future.result())
+
+        doc_count = get_doc_count(os_client, index_name)
         print(f"Current count: {doc_count}")
 
     def test_cat(self, setup_index_large, os_client):
@@ -562,3 +599,120 @@ class TestOpenSearchRead:
                 print(item)
                 doc_count += int(item["docs"])
         print(f"Total docs: {doc_count}")
+
+    def test_opensearch_datasource_reconstruct(self, setup_index_large, os_client):
+        query = {"query": {"match_all": {}}}
+        os_datasource = OpenSearchDatasource(TestOpenSearchRead.OS_CLIENT_ARGS, setup_index_large, query)
+        reader = read_datasource(os_datasource)
+        t0 = time.time()
+        ds = reader.take_all()
+        t1 = time.time()
+
+        ds2 = reader.map(lambda d: {"doc": Document(**d).serialize()}, concurrency=10).take_all()
+        t2 = time.time()
+
+        retrieved_docs = ds
+        # for doc in ds:
+        #    print(doc)
+
+        print(f"Retrieved {len(retrieved_docs)} documents in {t1 - t0} seconds")
+        print(f"Converted {len(ds2)} documents in {t2 - t1} seconds")
+        expected_docs = self.get_ids(os_client, setup_index_large, True, query)
+        # assert len(retrieved_docs) == len(expected_docs)
+        for doc in retrieved_docs:
+            assert doc['doc_id'] in expected_docs, f"Doc id {doc['doc_id']} not found"
+            if "parent_id" in doc and doc['parent_id'] is not None:
+                assert doc['parent_id'] == expected_docs[doc['doc_id']]["parent_id"]
+
+    def test_opensearch_datasource(self, setup_index_large, os_client):
+        query = {"query": {"match_all": {}}}
+        os_datasource = OpenSearchDatasource(TestOpenSearchRead.OS_CLIENT_ARGS, setup_index_large, query, doc_reconstruct=False)
+        reader = read_datasource(os_datasource)
+        t0 = time.time()
+        # retrieved_docs = reader.take_all()
+        t1 = time.time()
+
+        reader2 = read_datasource(os_datasource)
+        retrieved_docs = ds2 = reader2.map(lambda d: {"doc": Document(**d).serialize()}, concurrency=10).take_all()
+        t2 = time.time()
+        # retrieved_docs = [doc for doc in ds]
+        # for doc in ds:
+        #    print(doc)
+
+        print(f"Retrieved {len(retrieved_docs)} documents in {t1 - t0} seconds")
+        print(f"Converted {len(ds2)} documents in {t2 - t1} seconds")
+        expected_docs = self.get_ids(os_client, setup_index_large, False, query)
+        # assert len(retrieved_docs) == len(expected_docs)
+        for doc in retrieved_docs:
+            assert doc['doc_id'] in expected_docs, f"Doc id {doc['doc_id']} not found"
+            if "parent_id" in doc and doc['parent_id'] is not None:
+                assert doc['parent_id'] == expected_docs[doc['doc_id']]["parent_id"]
+
+    def test_opensearch_custom_datasource(self, setup_index, os_client):
+        context = sycamore.init(exec_mode=ExecMode.RAY)
+        from ray.data import DataContext
+        ray_context = DataContext.get_current()
+        ray_context.verbose_stats_logs = True
+
+        t0 = time.time()
+        retrieved_docs_reconstructed = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+            index_name=setup_index,
+            reconstruct_document=False,
+            use_custom_datasource=True,
+            num_cpus=2,
+            # concurrency=10,
+        ).take_all()
+        t1 = time.time()
+        print(f"Retrieved {len(retrieved_docs_reconstructed)} documents in {t1 - t0} seconds")
+        expected_docs = self.get_ids(os_client, setup_index, parents_only=False)
+        assert len(retrieved_docs_reconstructed) == len(expected_docs)
+        for doc in retrieved_docs_reconstructed:
+            assert doc.doc_id in expected_docs
+            if doc.parent_id is not None:
+                assert doc.parent_id == expected_docs[doc.doc_id]["parent_id"]
+
+    def test_opensearch_custom_datasource_reconstruct(self, setup_index_1m, os_client):
+        index = setup_index_1m
+        context = sycamore.init(exec_mode=ExecMode.RAY)
+
+        t0 = time.time()
+        retrieved_docs = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+            index_name=index,
+            reconstruct_document=True,
+            use_custom_datasource=True,
+            concurrency=10,
+        ).take_all()
+        t1 = time.time()
+
+        print(f"Retrieved {len(retrieved_docs)} documents in {t1 - t0} seconds")
+        expected_docs = self.get_ids(os_client, index, parents_only=True)
+        assert len(retrieved_docs) == len(expected_docs)
+        for doc in retrieved_docs:
+            assert doc.doc_id in expected_docs
+            if doc.parent_id is not None:
+                assert doc.parent_id == expected_docs[doc.doc_id]["parent_id"]
+
+    def test_opensearch_custom_datasource_with_query(self, setup_index_large, os_client):
+        context = sycamore.init(exec_mode=ExecMode.RAY)
+
+        query = {"query": {"match": {"text_representation": "ray"}}}
+
+        t0 = time.time()
+        retrieved_docs = context.read.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+            index_name=setup_index_large,
+            query=query,
+            reconstruct_document=True,
+            use_custom_datasource=True,
+        ).take_all()
+        t1 = time.time()
+
+        print(f"Retrieved {len(retrieved_docs)} documents in {t1 - t0} seconds")
+        expected_docs = self.get_ids(os_client, setup_index_large, False, query)
+        assert len(retrieved_docs) == len(expected_docs)
+        for doc in retrieved_docs:
+            assert doc.doc_id in expected_docs
+            if doc.parent_id is not None:
+                assert doc.parent_id == expected_docs[doc.doc_id]["parent_id"]

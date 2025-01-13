@@ -34,7 +34,7 @@ class BaseDBReader(Scan):
     # Type param for the objects that are read from the db
     class QueryResponse(ABC):
         @abstractmethod
-        def to_docs(self, query_params: "BaseDBReader.QueryParams") -> list[Document]:
+        def to_docs(self, query_params: "BaseDBReader.QueryParams", **kwargs) -> list[Document]:
             pass
 
     # Type param for the object used to estabilish the read target

@@ -16,8 +16,8 @@ from sycamore.query.execution.operations import (
     summarize_data,
     math_operation,
     _get_text_for_summarize_data,
-    NUM_DOCS_GENERATE,
 )
+from sycamore.transforms.summarize import NUM_DOCS_GENERATE
 
 
 class MockLLM(LLM):
@@ -179,11 +179,11 @@ class TestOperations:
         response = _get_text_for_summarize_data(
             result_description="Count of unique cities", result_data=[20], use_elements=False, num_elements=5
         )
-        assert response == "Data description: Count of unique cities\nInput 1:\n[20]\n"
+        assert response == "Data description: Count of unique cities\nInput 1:\n20\n"
         response = _get_text_for_summarize_data(
             result_description="Count of unique cities", result_data=[20], use_elements=True, num_elements=5
         )
-        assert response == "Data description: Count of unique cities\nInput 1:\n[20]\n"
+        assert response == "Data description: Count of unique cities\nInput 1:\n20\n"
 
     # Math
     def test_math(self):

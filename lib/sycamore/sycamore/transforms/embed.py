@@ -2,12 +2,12 @@ import json
 import logging
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Optional, Callable, Union
+from typing import Any, Optional, Callable, Union, List
 
 from openai import OpenAI as OpenAIClient
 from openai import AzureOpenAI as AzureOpenAIClient
 
-from sycamore.data import Document
+from sycamore.data import Document, Element
 from sycamore.llms import OpenAIClientParameters
 from sycamore.utils import choose_device
 
@@ -19,14 +19,15 @@ from sycamore.utils import batched
 from sycamore.utils.import_utils import requires_modules
 from sycamore.utils.time_trace import timetrace
 
+
 logger = logging.getLogger(__name__)
 
 
-def _pre_process_document(document: Document) -> str:
-    return document.text_representation if document.text_representation is not None else ""
+def _pre_process_document(document: Union[Document, Element]) -> str:
+    return document.text_representation or ""
 
 
-def _text_representation_is_empty(doc: Document) -> bool:
+def _text_representation_is_empty(doc: Union[Document, Element]) -> bool:
     return doc.text_representation is None or doc.text_representation.strip() == ""
 
 
@@ -35,27 +36,81 @@ class Embedder(ABC):
         self,
         model_name: str,
         batch_size: Optional[int] = None,
-        model_batch_size: int = 100,
-        pre_process_document: Optional[Callable[[Document], str]] = None,
+        model_batch_size: Optional[int] = None,
+        pre_process_document: Optional[Callable[[Union[Document, Element]], str]] = None,
         device: Optional[str] = None,
     ):
         self.model_name = model_name
         self.batch_size = batch_size
-        self.model_batch_size = model_batch_size
         self.pre_process_document = pre_process_document if pre_process_document else _pre_process_document
-
         self.device = choose_device(device)
+        self.model_batch_size = model_batch_size
 
     def __call__(self, doc_batch: list[Document]) -> list[Document]:
         return self.generate_embeddings(doc_batch)
 
-    @abstractmethod
     def generate_embeddings(self, doc_batch: list[Document]) -> list[Document]:
+        """Handle batching and document processing logic in parent class"""
+
+        # Collect objects to embed
+        obj_for_embedding: list[Union[Document, Element]] = []
+        text_to_embed = []
+
+        # First pass: collect all texts that need embedding
+        for doc in doc_batch:
+            if not _text_representation_is_empty(doc):
+                text_to_embed.append(self.pre_process_document(doc))
+                obj_for_embedding.append(doc)
+
+            if isinstance(doc, Document) and doc.get("elements"):
+                for element in doc.elements:
+                    if not _text_representation_is_empty(element):
+                        text_to_embed.append(self.pre_process_document(element))
+                        obj_for_embedding.append(element)
+
+        # Return early if nothing to embed
+        if not text_to_embed:
+            return doc_batch
+
+        # Generate embeddings
+        all_embeddings = []
+        for text_batch in batched(text_to_embed, self._get_model_batch_size()):
+            batch_embeddings = self.embed_texts(text_batch)
+            all_embeddings.extend(batch_embeddings)
+
+        # Assign embeddings
+        for i, embedding in enumerate(all_embeddings):
+            obj_for_embedding[i].embedding = embedding
+        # assert embed_count == len(all_embeddings)
+        return doc_batch
+
+    @staticmethod
+    def clamp_batch_size(batch_size, max_and_default=None):
+        if batch_size < 1:
+            raise ValueError(f"Batch size must be at least 1, got {batch_size}")
+        if max_and_default is None:
+            return batch_size
+        if batch_size > max_and_default:
+            logging.warning(
+                f"Requested batch size {batch_size} exceeds maximum {max_and_default}. "
+                f"Reducing to {max_and_default}."
+            )
+            return max_and_default
+        return batch_size
+
+    @abstractmethod
+    def embed_texts(self, texts: List[str]) -> List[List[float]]:
+        """Embed a batch of texts. To be implemented by child classes."""
         pass
 
     @abstractmethod
-    def generate_text_embedding(self, text: str) -> list[float]:
+    def _get_model_batch_size(self) -> int:
+        """Get the batch size to use for the embedding model"""
         pass
+
+    def generate_text_embedding(self, text: str) -> list[float]:
+        """Single text embedding wrapper"""
+        return self.embed_texts([text])[0]
 
 
 class SentenceTransformerEmbedder(Embedder):
@@ -91,43 +146,33 @@ class SentenceTransformerEmbedder(Embedder):
         model_name: str,
         batch_size: Optional[int] = None,
         model_batch_size: int = 100,
-        pre_process_document: Optional[Callable[[Document], str]] = None,
+        pre_process_document: Optional[Callable[[Union[Document, Element]], str]] = None,
         device: Optional[str] = None,
     ):
-        super().__init__(model_name, batch_size, model_batch_size, pre_process_document, device)
-        self.type = type
+        super().__init__(
+            model_name=model_name,
+            batch_size=batch_size,
+            model_batch_size=model_batch_size,
+            pre_process_document=pre_process_document,
+            device=device,
+        )
         self._transformer = None
 
+    def _ensure_model(self):
+        if not self._transformer:
+            from sentence_transformers import SentenceTransformer
+
+            self._transformer = SentenceTransformer(self.model_name)
+
+    def _get_model_batch_size(self) -> int:
+        return Embedder.clamp_batch_size(self.model_batch_size)
+
     @timetrace("StEmbedder")
-    def generate_embeddings(self, doc_batch: list[Document]) -> list[Document]:
-        if not self._transformer:
-            from sentence_transformers import SentenceTransformer
-
-            self._transformer = SentenceTransformer(self.model_name)  # type: ignore[assignment]
-
+    def embed_texts(self, texts: List[str]) -> List[List[float]]:
+        self._ensure_model()
         assert self._transformer is not None
-
-        text_batch = [self.pre_process_document(doc) for doc in doc_batch if doc.text_representation is not None]
-        if len(text_batch) == 0:
-            return doc_batch
-        embeddings = self._transformer.encode(text_batch, batch_size=self.model_batch_size, device=self.device)
-        i = 0
-        for doc in doc_batch:
-            if doc.text_representation is not None:
-                doc.embedding = embeddings[i].tolist()
-                i += 1
-
-        return doc_batch
-
-    def generate_text_embedding(self, text: str) -> list[float]:
-        if not self._transformer:
-            from sentence_transformers import SentenceTransformer
-
-            self._transformer = SentenceTransformer(self.model_name)  # type: ignore[assignment]
-
-        assert self._transformer is not None
-
-        return self._transformer.encode(text).tolist()
+        embeddings = self._transformer.encode(texts, batch_size=self._get_model_batch_size(), device=self.device)
+        return embeddings.tolist()
 
 
 class OpenAIEmbeddingModels(Enum):
@@ -148,27 +193,22 @@ class OpenAIEmbedder(Embedder):
         model_name: Union[str, OpenAIEmbeddingModels] = OpenAIEmbeddingModels.TEXT_EMBEDDING_ADA_002.value,
         batch_size: Optional[int] = None,
         model_batch_size: int = 100,
-        pre_process_document: Optional[Callable[[Document], str]] = None,
+        pre_process_document: Optional[Callable[[Union[Document, Element]], str]] = None,
         api_key: Optional[str] = None,
         client_wrapper: Optional[OpenAIClientWrapper] = None,
         params: Optional[OpenAIClientParameters] = None,
-        **kwargs
+        **kwargs,
     ):
         if isinstance(model_name, OpenAIEmbeddingModels):
             model_name = model_name.value
 
-        super().__init__(model_name, batch_size, model_batch_size, pre_process_document, device="cpu")
-
-        # TODO Standardize with OpenAI LLM
         if client_wrapper is None:
             if params is not None:
                 client_wrapper = params
             else:
                 if api_key is not None:
                     kwargs.update({"api_key": api_key})
-
                 client_wrapper = OpenAIClientWrapper(**kwargs)
-
         else:
             if api_key is not None:
                 client_wrapper.api_key = api_key
@@ -176,6 +216,14 @@ class OpenAIEmbedder(Embedder):
         self.client_wrapper = client_wrapper
         self._client: Optional[OpenAIClient] = None
         self.model_name = model_name
+
+        super().__init__(
+            model_name=model_name,
+            batch_size=batch_size,
+            model_batch_size=model_batch_size,
+            pre_process_document=pre_process_document,
+            device="cpu",
+        )
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -185,45 +233,25 @@ class OpenAIEmbedder(Embedder):
     def __setstate__(self, state):
         self.__dict__.update(state)
 
-    def generate_embeddings(self, doc_batch: list[Document]) -> list[Document]:
+    def _ensure_client(self):
+        if self._client is None:
+            self._client = self.client_wrapper.get_client()
+
+    def _get_model_batch_size(self) -> int:
+        client = self.client_wrapper.get_client()
+        if isinstance(client, AzureOpenAIClient):
+            default_batch_size = 16
+        else:
+            default_batch_size = None
+        return Embedder.clamp_batch_size(self.model_batch_size, default_batch_size)
+
+    def embed_texts(self, texts: List[str]) -> List[List[float]]:
         # TODO: Add some input validation here.
         # The OpenAI docs are quite vague on acceptable values for model_batch_size.
-
-        if self._client is None:
-            self._client = self.client_wrapper.get_client()
-
-        if isinstance(self._client, AzureOpenAIClient) and self.model_batch_size > 16:
-            logger.warn("The maximum batch size for emeddings on Azure Open AI is 16.")
-            self.model_batch_size = 16
-
-        for batch in batched(doc_batch, self.model_batch_size):
-            text_to_embed = [
-                self.pre_process_document(doc).replace("\n", " ")
-                for doc in batch
-                if not _text_representation_is_empty(doc)
-            ]
-
-            embeddings = self._client.embeddings.create(model=self.model_name, input=text_to_embed).data
-
-            i = 0
-            for doc in batch:
-                if not _text_representation_is_empty(doc):
-                    doc.embedding = embeddings[i].embedding
-                    i += 1
-
-        return doc_batch
-
-    def generate_text_embedding(self, text: str) -> list[float]:
-        if self._client is None:
-            self._client = self.client_wrapper.get_client()
-
-        if isinstance(self._client, AzureOpenAIClient) and self.model_batch_size > 16:
-            logger.warn("The maximum batch size for emeddings on Azure Open AI is 16.")
-            self.model_batch_size = 16
-
-        embedding = self._client.embeddings.create(model=self.model_name, input=text).data[0].embedding
-
-        return embedding
+        self._ensure_client()
+        assert self._client is not None
+        response = self._client.embeddings.create(model=self.model_name, input=texts)
+        return [data.embedding for data in response.data]
 
 
 class BedrockEmbeddingModels(Enum):
@@ -252,7 +280,8 @@ class BedrockEmbedder(Embedder):
         self,
         model_name: str = BedrockEmbeddingModels.TITAN_EMBED_TEXT_V1.value,
         batch_size: Optional[int] = None,
-        pre_process_document: Optional[Callable[[Document], str]] = None,
+        pre_process_document: Optional[Callable[[Union[Document, Element]], str]] = None,
+        model_batch_size: int = 1,
         boto_session_args: list[Any] = [],
         boto_session_kwargs: dict[str, Any] = {},
     ):
@@ -260,41 +289,38 @@ class BedrockEmbedder(Embedder):
         super().__init__(
             model_name=model_name,
             batch_size=batch_size,
-            model_batch_size=1,
+            model_batch_size=model_batch_size,
             pre_process_document=pre_process_document,
             device="cpu",
         )
         self.boto_session_args = boto_session_args
         self.boto_session_kwargs = boto_session_kwargs
+        self._client = None
 
-    def _generate_embedding(self, client, text: str) -> list[float]:
-        response = client.invoke_model(
-            body=json.dumps({"inputText": text.replace("\n", " ")}),
+    def _ensure_client(self):
+        if self._client is None:
+            import boto3
+
+            boto3.session.Session(*self.boto_session_args, **self.boto_session_kwargs)
+            self._client = boto3.client("bedrock-runtime")
+
+    def _get_model_batch_size(self) -> int:
+        return Embedder.clamp_batch_size(self.model_batch_size, 1)
+
+    def embed_texts(self, texts: List[str]) -> List[List[float]]:
+        assert len(texts) == 1, "Bedrock only supports batch size 1"
+        self._ensure_client()
+        assert self._client is not None
+        embeddings = []
+        response = self._client.invoke_model(
+            body=json.dumps({"inputText": texts[0].replace("\n", " ")}),
             modelId=self.model_name,
             accept="application/json",
             contentType="application/json",
         )
         body_dict = json.loads(response.get("body").read())
-        return body_dict["embedding"]
-
-    def generate_embeddings(self, doc_batch: list[Document]) -> list[Document]:
-        import boto3
-
-        boto3.session.Session(*self.boto_session_args, **self.boto_session_kwargs)
-        client = boto3.client("bedrock-runtime")
-
-        for doc in doc_batch:
-            if not _text_representation_is_empty(doc):
-                doc.embedding = self._generate_embedding(client, self.pre_process_document(doc))
-        return doc_batch
-
-    def generate_text_embedding(self, text: str) -> list[float]:
-        import boto3
-
-        boto3.session.Session(*self.boto_session_args, **self.boto_session_kwargs)
-        client = boto3.client("bedrock-runtime")
-
-        return self._generate_embedding(client, text)
+        embeddings.append(body_dict["embedding"])
+        return embeddings
 
 
 class Embed(MapBatch):

@@ -7,12 +7,14 @@ from sycamore.data.docid import (
     bignum_to_nybbles,
     bignum_to_str,
     docid_nanoid_chars,
+    docid_to_typed_nanoid,
     docid_to_uuid,
     mkdocid,
     nanoid36,
     nybbles_to_bignum,
     nybbles_to_uuid,
     str_to_bignum,
+    typed_nanoid_to_docid,
     uuid_to_docid,
 )
 
@@ -35,6 +37,10 @@ def test_convert():
         fwd = docid_to_uuid(id)
         rev = uuid_to_docid(fwd)
         assert id == rev
+        fwtnid = docid_to_typed_nanoid(id)
+        assert fwtnid is not None
+        rvtnid = typed_nanoid_to_docid(fwtnid)
+        assert id == rvtnid
 
 
 def test_zero():

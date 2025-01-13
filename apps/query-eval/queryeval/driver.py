@@ -26,7 +26,10 @@ from queryeval.queryeval_types import (
 import asyncio
 from ragas.dataset_schema import SingleTurnSample
 from ragas.metrics import BleuScore, RougeScore, SemanticSimilarity
-from ragas.embeddings.base import HuggingfaceEmbeddings, LangchainEmbeddingsWrapper
+from ragas.embeddings.base import (
+    OpenAIEmbeddings,
+    LangchainEmbeddingsWrapper,
+)
 from ragas.metrics._factual_correctness import FactualCorrectness
 from langchain_openai.chat_models import ChatOpenAI
 from ragas.llms import LangchainLLMWrapper
@@ -195,7 +198,7 @@ class QueryEvalDriver:
         self.rouge_scorer = RougeScore()
         self.semantic_similarity_scorer = SemanticSimilarity()
         self.semantic_similarity_scorer.embeddings = LangchainEmbeddingsWrapper(
-            HuggingfaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+            OpenAIEmbeddings(model="text-embedding-3-small")
         )
         self.correctness_scorer = FactualCorrectness()
         self.correctness_scorer.llm = LangchainLLMWrapper(ChatOpenAI(model="gpt-4o"))

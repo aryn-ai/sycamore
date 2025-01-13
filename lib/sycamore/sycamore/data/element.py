@@ -76,6 +76,16 @@ class Element(UserDict):
     def properties(self) -> None:
         self.data["properties"] = {}
 
+    @property
+    def embedding(self) -> Optional[list[float]]:
+        """Get the embedding for this element."""
+        return self.data.get("embedding")
+
+    @embedding.setter
+    def embedding(self, embedding: list[float]) -> None:
+        """Set the embedding for this element."""
+        self.data["embedding"] = embedding
+
     def __str__(self) -> str:
         """Return a pretty-printed string representing this Element."""
         d = {
@@ -84,6 +94,7 @@ class Element(UserDict):
             "binary_representation": (
                 f"<{len(self.binary_representation)} bytes>" if self.binary_representation else None
             ),
+            "embedding": (str(self.embedding[0:4]) + f"... <{len(self.embedding)} total>") if self.embedding else None,
             "bbox": str(self.bbox),
             "properties": {k: str(v) for k, v in self.properties.items()},
         }

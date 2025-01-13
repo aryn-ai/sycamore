@@ -60,8 +60,8 @@ def apply_class_thresholds_or_take_best(bboxes, labels, scores, class_names, cla
     is written in the class_thresholds dict and the highest score for the class minus epsilon
     """
     new_class_thresholds = {k: v for k, v in class_thresholds.items()}
-    max_row_score = max(sc for (sc, lbl) in zip(scores, labels) if class_names[lbl] == "table row")
-    max_col_score = max(sc for (sc, lbl) in zip(scores, labels) if class_names[lbl] == "table column")
+    max_row_score = max([0, *[sc for (sc, lbl) in zip(scores, labels) if class_names[lbl] == "table row"]])
+    max_col_score = max([0, *[sc for (sc, lbl) in zip(scores, labels) if class_names[lbl] == "table column"]])
     if max_row_score - epsilon < class_thresholds["table row"]:
         new_class_thresholds["table row"] = max_row_score - epsilon
     if max_col_score - epsilon < class_thresholds["table column"]:

@@ -3,6 +3,7 @@ from typing import Callable, Dict
 from sycamore.llms.llms import LLM
 from sycamore.llms.openai import OpenAI, OpenAIClientType, OpenAIModels, OpenAIClientParameters, OpenAIClientWrapper
 from sycamore.llms.bedrock import Bedrock, BedrockModels
+from sycamore.llms.anthropic import Anthropic, AnthropicModels
 
 # Register the model constructors.
 MODELS: Dict[str, Callable[..., LLM]] = {}
@@ -11,6 +12,9 @@ MODELS.update(
 )
 MODELS.update(
     {f"bedrock.{model.value.name}": lambda **kwargs: Bedrock(model.value.name, **kwargs) for model in BedrockModels}
+)
+MODELS.update(
+    {f"anthropic.{model.value}": lambda **kwargs: Anthropic(model.value, **kwargs) for model in AnthropicModels}
 )
 
 
@@ -32,4 +36,6 @@ __all__ = [
     "OpenAIClientWrapper",
     "Bedrock",
     "BedrockModels",
+    "Anthropic",
+    "AnthropicModels",
 ]

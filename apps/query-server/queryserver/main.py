@@ -17,7 +17,7 @@ from sycamore import DocSet
 from sycamore.data import Document, MetadataDocument
 from sycamore.query.client import SycamoreQueryClient
 from sycamore.query.logical_plan import LogicalPlan
-from sycamore.query.schema import OpenSearchSchema
+from sycamore.schema import Schema
 
 # This is the uvicorn general logger, the error name is misleading.
 # https://github.com/encode/uvicorn/issues/562
@@ -42,7 +42,7 @@ class Index(BaseModel):
     description: Optional[str] = None
     """Description of the index."""
 
-    index_schema: OpenSearchSchema
+    index_schema: Schema
     """The schema for this index."""
 
 

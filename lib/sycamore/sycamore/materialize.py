@@ -4,6 +4,7 @@ from typing import Any, Optional, Tuple, Union, TYPE_CHECKING
 
 from sycamore.context import Context
 from sycamore.data import Document, MetadataDocument
+from sycamore.data.docid import docid_to_typed_nanoid
 from sycamore.materialize_config import MaterializeSourceMode
 from sycamore.plan_nodes import Node, UnaryNode, NodeTraverse
 from sycamore.transforms.base import rename
@@ -320,10 +321,10 @@ class Materialize(UnaryNode):
             doc_id = hash_id
 
         if isinstance(doc, MetadataDocument):
-            return f"md-{doc_id}:{hash_id}.pickle"
+            return f"md-{docid_to_typed_nanoid(doc_id)}.{hash_id}.pickle"
 
         assert isinstance(doc, Document)
-        return f"doc-{doc_id}:{hash_id}.pickle"
+        return f"doc-{docid_to_typed_nanoid(doc_id)}.{hash_id}.pickle"
 
 
 class AutoMaterialize(NodeTraverse):

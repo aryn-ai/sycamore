@@ -46,7 +46,7 @@ def setup_index_large(os_client):
     path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
     context = sycamore.init(exec_mode=ExecMode.RAY)
 
-    ds = (
+    (
         context.read.binary(path, binary_format="pdf")
             .partition(partitioner=UnstructuredPdfPartitioner())
             .explode()

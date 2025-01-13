@@ -48,15 +48,15 @@ def setup_index_large(os_client):
 
     (
         context.read.binary(path, binary_format="pdf")
-            .partition(partitioner=UnstructuredPdfPartitioner())
-            .explode()
-            .write.opensearch(
-                os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
-                index_name=index_name,
-                index_settings=TestOpenSearchRead.INDEX_SETTINGS,
-                execute=False,
-            )
-            .take_all()
+        .partition(partitioner=UnstructuredPdfPartitioner())
+        .explode()
+        .write.opensearch(
+            os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+            index_name=index_name,
+            index_settings=TestOpenSearchRead.INDEX_SETTINGS,
+            execute=False,
+        )
+        .take_all()
     )
 
     os_client.indices.refresh(index_name)
@@ -65,6 +65,7 @@ def setup_index_large(os_client):
 
     # Delete after
     os_client.indices.delete(index_name, ignore_unavailable=True)
+
 
 def get_doc_count(os_client, index_name: str, query: Optional[Dict[str, Any]] = None) -> int:
     res = os_client.count(index=index_name)

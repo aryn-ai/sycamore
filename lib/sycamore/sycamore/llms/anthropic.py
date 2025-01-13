@@ -129,7 +129,7 @@ class Anthropic(LLM):
         return format_image(image)
 
     def generate_metadata(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> dict:
-        key, ret = self._cache_get(prompt_kwargs, llm_kwargs)
+        ret = self._llm_cache_get(prompt_kwargs, llm_kwargs)
         if isinstance(ret, dict):
             return ret
 
@@ -154,13 +154,7 @@ class Anthropic(LLM):
 
         logging.debug(f"Generated response from Anthropic model: {ret}")
 
-        value = {
-            "result": ret,
-            "prompt_kwargs": prompt_kwargs,
-            "llm_kwargs": llm_kwargs,
-            "model_name": self.model.value,
-        }
-        self._cache_set(key, value)
+        self._llm_cache_set(prompt_kwargs, llm_kwargs, ret)
         return ret
 
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:

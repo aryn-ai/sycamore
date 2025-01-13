@@ -78,10 +78,11 @@ class Bedrock(LLM):
         raise NotImplementedError("Images not supported for non-Anthropic Bedrock models.")
 
     def generate_metadata(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> dict:
-        key, ret = self._cache_get(prompt_kwargs, llm_kwargs)
+        ret = self._llm_cache_get(prompt_kwargs, llm_kwargs)
         if isinstance(ret, dict):
             print(f"cache return {ret}")
             return ret
+        assert ret is None
 
         kwargs = get_generate_kwargs(prompt_kwargs, llm_kwargs)
         if self._model_name.startswith("anthropic."):
@@ -113,13 +114,7 @@ class Bedrock(LLM):
             "in_tokens": in_tokens,
             "out_tokens": out_tokens,
         }
-        value = {
-            "result": ret,
-            "prompt_kwargs": prompt_kwargs,
-            "llm_kwargs": llm_kwargs,
-            "model_name": self.model.name,
-        }
-        self._cache_set(key, value)
+        self._llm_cache_set(prompt_kwargs, llm_kwargs, ret)
         return ret
 
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:

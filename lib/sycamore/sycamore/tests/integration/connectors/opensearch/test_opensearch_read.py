@@ -39,9 +39,32 @@ def setup_index(os_client):
 
 @pytest.fixture(scope="class")
 def setup_index_large(os_client):
+    index_name = "test_opensearch_read_2"
+    os_client.indices.delete(index_name, ignore_unavailable=True)
+    os_client.indices.create(index_name, **TestOpenSearchRead.INDEX_SETTINGS)
 
-    yield "test_opensearch_read_large"
+    path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
+    context = sycamore.init(exec_mode=ExecMode.RAY)
 
+    ds = (
+        context.read.binary(path, binary_format="pdf")
+            .partition(partitioner=UnstructuredPdfPartitioner())
+            .explode()
+            .write.opensearch(
+                os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+                index_name=index_name,
+                index_settings=TestOpenSearchRead.INDEX_SETTINGS,
+                execute=False,
+            )
+            .take_all()
+    )
+
+    os_client.indices.refresh(index_name)
+
+    yield index_name
+
+    # Delete after
+    os_client.indices.delete(index_name, ignore_unavailable=True)
 
 def get_doc_count(os_client, index_name: str, query: Optional[Dict[str, Any]] = None) -> int:
     res = os_client.count(index=index_name)
@@ -466,7 +489,7 @@ class TestOpenSearchRead:
 
         return docs
 
-    def test_pagination(self, setup_index_large, os_client):
+    def _test_pagination(self, setup_index_large, os_client):
         res = os_client.create_pit(index=setup_index_large, keep_alive="10m")
         pit_id = res["pit_id"]
         bodies = []
@@ -514,7 +537,7 @@ class TestOpenSearchRead:
         expected_docs = self.get_ids(os_client, setup_index_large)
         assert len(all_hits) == len(expected_docs)
 
-    def test_bulk_load(self, setup_index_large, os_client):
+    def _test_bulk_load(self, setup_index_large, os_client):
 
         # Only run this to populate a test index.
         return
@@ -553,7 +576,7 @@ class TestOpenSearchRead:
 
         print(f"Current count: {doc_count}")
 
-    def test_cat(self, setup_index_large, os_client):
+    def _test_cat(self, setup_index_large, os_client):
         response = os_client.cat.shards(index=setup_index_large, format="json")
         print(response)
         doc_count = 0

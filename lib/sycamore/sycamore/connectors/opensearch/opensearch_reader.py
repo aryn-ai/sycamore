@@ -375,13 +375,11 @@ class OpenSearchReader(BaseDBReader):
             size = 1000
             page = 0
 
-            query_params = {"_source_includes": ["doc_id", "parent_id", "properties"]}
             while True:
                 res = os_client.search(
                     body=slice_query,
                     size=size,
                     from_=page * size,
-                    **query_params,
                 )
                 hits = res["hits"]["hits"]
                 if hits is None or len(hits) == 0:

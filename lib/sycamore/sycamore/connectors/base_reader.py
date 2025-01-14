@@ -42,7 +42,15 @@ class BaseDBReader(Scan):
     # will also include the Query, and filters for the read
     @dataclass
     class QueryParams(ABC):
-        pass
+        def compatible_with(self, other: "BaseDBReader.QueryParams") -> bool:
+            if self == other:
+                return True
+            else:
+                raise ValueError(
+                    f"Incompatible query parameters:\n"
+                    f"Expected: {self}\n"
+                    f"Found: {other}\n"
+                )
 
     # Type param for the object used to create a client
     @dataclass

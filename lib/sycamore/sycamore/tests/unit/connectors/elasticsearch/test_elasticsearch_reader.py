@@ -107,3 +107,25 @@ def test_elasticsearch_reader_query_response_to_docs_empty():
     docs = response.to_docs(query_params)
 
     assert len(docs) == 0
+
+
+def test_elasticsearch_reader_query_params_compatible_with():
+    params1 = ElasticsearchReaderQueryParams(index_name="test_index")
+    params2 = ElasticsearchReaderQueryParams(index_name="test_index")
+    assert params1.compatible_with(params2)
+
+    params3 = ElasticsearchReaderQueryParams(index_name="different_index")
+    with pytest.raises(ValueError, match="Incompatible index names: Expected test_index, found different_index"):
+        params1.compatible_with(params3)
+
+    params4 = ElasticsearchReaderQueryParams(index_name="test_index", query={"match": {"field": "value"}})
+    with pytest.raises(ValueError, match="Incompatible queries: Expected {'match_all': {}}, found {'match': {'field': 'value'}}"):
+        params1.compatible_with(params4)
+
+    params5 = ElasticsearchReaderQueryParams(index_name="test_index", keep_alive="2m")
+    with pytest.raises(ValueError, match="Incompatible keep_alive values: Expected 1m, found 2m"):
+        params1.compatible_with(params5)
+
+    params6 = ElasticsearchReaderQueryParams(index_name="test_index", kwargs={"key": "value"})
+    with pytest.raises(ValueError, match="Incompatible kwargs: Expected {}, found {'key': 'value'}"):
+        params1.compatible_with(params6)

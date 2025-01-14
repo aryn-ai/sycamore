@@ -19,6 +19,17 @@ class PineconeReaderQueryParams(BaseDBReader.QueryParams):
     namespace: str
     query: Optional[Dict]
 
+    def compatible_with(self, other: BaseDBReader.QueryParams) -> bool:
+        if not isinstance(other, PineconeReaderQueryParams):
+            raise ValueError(f"Incompatible query parameters: Expected PineconeReaderQueryParams, found {type(other)}")
+        if self.index_name != other.index_name:
+            raise ValueError(f"Incompatible index names: {self.index_name} != {other.index_name}")
+        if self.namespace != other.namespace:
+            raise ValueError(f"Incompatible namespaces: {self.namespace} != {other.namespace}")
+        if self.query != other.query:
+            raise ValueError(f"Incompatible queries: {self.query} != {other.query}")
+        return True
+
 
 class PineconeReaderClient(BaseDBReader.Client):
     @requires_modules("pinecone", extra="pinecone")

@@ -72,9 +72,9 @@ class OpenSearchWriterTargetParams(BaseDBWriter.TargetParams):
         demand equality. We also flatten for consistency.
         """
         if not isinstance(other, OpenSearchWriterTargetParams):
-            return False
+            raise ValueError(f"Incompatible target parameters: Expected OpenSearchWriterTargetParams, found {type(other)}")
         if self.index_name != other.index_name:
-            return False
+            raise ValueError(f"Incompatible index names: Expected {self.index_name}, found {other.index_name}")
         my_flat_settings = dict(flatten_data(self.settings))
         other_flat_settings = dict(flatten_data(other.settings))
         for k in my_flat_settings:
@@ -85,12 +85,14 @@ class OpenSearchWriterTargetParams(BaseDBWriter.TargetParams):
                     # they'll come back with the "index" part
                     other_k = "index." + k
                 else:
-                    return False
+                    raise ValueError(f"Incompatible settings: Key {k} not found in other settings")
             if my_flat_settings[k] != other_flat_settings[other_k]:
-                return False
+                raise ValueError(f"Incompatible settings: Key {k} has different values: {my_flat_settings[k]} != {other_flat_settings[other_k]}")
         my_flat_mappings = dict(flatten_data(self.mappings))
         other_flat_mappings = dict(flatten_data(other.mappings))
-        return check_dictionary_compatibility(my_flat_mappings, other_flat_mappings)
+        if not check_dictionary_compatibility(my_flat_mappings, other_flat_mappings, ["type"]):
+            raise ValueError(f"Incompatible mappings: {my_flat_mappings} != {other_flat_mappings}")
+        return True
 
 
 class OpenSearchWriterClient(BaseDBWriter.Client):

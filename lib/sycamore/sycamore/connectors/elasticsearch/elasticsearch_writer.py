@@ -40,27 +40,27 @@ class ElasticsearchWriterTargetParams(BaseDBWriter.TargetParams):
 
     def compatible_with(self, other: BaseDBWriter.TargetParams) -> bool:
         if not isinstance(other, ElasticsearchWriterTargetParams):
-            return False
+            raise ValueError(f"Incompatible target parameters: Expected ElasticsearchWriterTargetParams, found {type(other)}")
         if self.index_name != other.index_name:
-            return False
+            raise ValueError(f"Incompatible index names: Expected {self.index_name}, found {other.index_name}")
         if self.wait_for_completion != other.wait_for_completion:
-            return False
+            raise ValueError(f"Incompatible wait_for_completion values: Expected {self.wait_for_completion}, found {other.wait_for_completion}")
         my_flat_settings = dict(flatten_data(self.settings))
         other_flat_settings = dict(flatten_data(other.settings))
         for k in my_flat_settings:
             other_k = k
             if k not in other_flat_settings:
                 if "index." + k in other_flat_settings:
-                    # You can specify index params without the "index" part and
-                    # they'll come back with the "index" part
                     other_k = "index." + k
                 else:
-                    return False
+                    raise ValueError(f"Incompatible settings: Key {k} not found in other settings")
             if my_flat_settings[k] != other_flat_settings[other_k]:
-                return False
+                raise ValueError(f"Incompatible settings: Key {k} has different values: {my_flat_settings[k]} != {other_flat_settings[other_k]}")
         my_flat_mappings = dict(flatten_data(self.mappings))
         other_flat_mappings = dict(flatten_data(other.mappings))
-        return check_dictionary_compatibility(my_flat_mappings, other_flat_mappings, ["type"])
+        if not check_dictionary_compatibility(my_flat_mappings, other_flat_mappings, ["type"]):
+            raise ValueError(f"Incompatible mappings: {my_flat_mappings} != {other_flat_mappings}")
+        return True
 
 
 class ElasticsearchWriterClient(BaseDBWriter.Client):

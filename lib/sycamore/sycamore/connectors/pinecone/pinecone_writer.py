@@ -25,16 +25,20 @@ class PineconeWriterTargetParams(BaseDBWriter.TargetParams):
 
     def compatible_with(self, other: BaseDBWriter.TargetParams) -> bool:
         if not isinstance(other, PineconeWriterTargetParams):
-            return False
+            raise ValueError(f"Incompatible target parameters: Expected PineconeWriterTargetParams, found {type(other)}")
         if self.index_spec is not None and other.index_spec is not None:
             my_is = self.index_spec if isinstance(self.index_spec, dict) else self.index_spec.asdict()
             ot_is = other.index_spec if isinstance(other.index_spec, dict) else other.index_spec.asdict()
             if my_is != ot_is:
-                return False
+                raise ValueError(f"Incompatible index specifications: {my_is} != {ot_is}")
         if self.dimensions is not None and other.dimensions is not None:
             if self.dimensions != other.dimensions:
-                return False
-        return self.index_name == other.index_name and self.distance_metric == other.distance_metric
+                raise ValueError(f"Incompatible dimensions: {self.dimensions} != {other.dimensions}")
+        if self.index_name != other.index_name:
+            raise ValueError(f"Incompatible index names: {self.index_name} != {other.index_name}")
+        if self.distance_metric != other.distance_metric:
+            raise ValueError(f"Incompatible distance metrics: {self.distance_metric} != {other.distance_metric}")
+        return True
 
 
 @dataclass

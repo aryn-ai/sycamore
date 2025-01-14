@@ -31,6 +31,13 @@ class QdrantReaderQueryParams(BaseDBReader.QueryParams):
     query_params: Dict
     "Arguments to pass to the `QdrantClient.query_points` method."
 
+    def compatible_with(self, other: BaseDBReader.QueryParams) -> bool:
+        if not isinstance(other, QdrantReaderQueryParams):
+            raise ValueError(f"Incompatible query parameters: Expected QdrantReaderQueryParams, found {type(other)}")
+        if self.query_params != other.query_params:
+            raise ValueError(f"Incompatible query parameters: Expected {self.query_params}, found {other.query_params}")
+        return True
+
 
 class QdrantReaderClient(BaseDBReader.Client):
     def __init__(self, client: "QdrantClient"):

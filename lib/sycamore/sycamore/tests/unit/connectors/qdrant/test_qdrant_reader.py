@@ -7,6 +7,7 @@ from sycamore.connectors.qdrant.qdrant_reader import (
 )
 from sycamore.data.docid import uuid_to_docid
 from sycamore.data.document import Document, DocumentSource
+import pytest
 
 
 class QdrantReturnObject(object):
@@ -94,3 +95,18 @@ class TestQdrantQueryResponse:
             }
         )
         assert compare_docs(doc, returned_doc)
+
+
+class TestQdrantReaderQueryParams:
+    def test_compatible_with(self):
+        params1 = QdrantReaderQueryParams(query_params={"collection_name": "test_collection"})
+        params2 = QdrantReaderQueryParams(query_params={"collection_name": "test_collection"})
+        assert params1.compatible_with(params2)
+
+        params3 = QdrantReaderQueryParams(query_params={"collection_name": "different_collection"})
+        with pytest.raises(ValueError, match="Incompatible query parameters: Expected {'collection_name': 'test_collection'}, found {'collection_name': 'different_collection'}"):
+            params1.compatible_with(params3)
+
+        params4 = QdrantReaderQueryParams(query_params={"collection_name": "test_collection", "limit": 10})
+        with pytest.raises(ValueError, match="Incompatible query parameters: Expected {'collection_name': 'test_collection'}, found {'collection_name': 'test_collection', 'limit': 10}"):
+            params1.compatible_with(params4)

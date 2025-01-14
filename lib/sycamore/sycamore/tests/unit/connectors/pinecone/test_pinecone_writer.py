@@ -42,6 +42,28 @@ def test_pinecone_writer_target_params_compatible_with():
     assert not params1.compatible_with(params4)
 
 
+def test_pinecone_writer_target_params_compatible_with_error_messages():
+    params1 = PineconeWriterTargetParams(index_name="index1", dimensions=128)
+    params2 = PineconeWriterTargetParams(index_name="index2", dimensions=128)
+    with pytest.raises(ValueError, match="Incompatible index names: index1 != index2"):
+        params1.compatible_with(params2)
+
+    params3 = PineconeWriterTargetParams(index_name="index1", dimensions=128)
+    params4 = PineconeWriterTargetParams(index_name="index1", dimensions=64)
+    with pytest.raises(ValueError, match="Incompatible dimensions: 128 != 64"):
+        params1.compatible_with(params4)
+
+    params5 = PineconeWriterTargetParams(index_name="index1", dimensions=128, distance_metric="cosine")
+    params6 = PineconeWriterTargetParams(index_name="index1", dimensions=128, distance_metric="euclidean")
+    with pytest.raises(ValueError, match="Incompatible distance metrics: cosine != euclidean"):
+        params5.compatible_with(params6)
+
+    params7 = PineconeWriterTargetParams(index_name="index1", dimensions=128, index_spec={"spec": "value1"})
+    params8 = PineconeWriterTargetParams(index_name="index1", dimensions=128, index_spec={"spec": "value2"})
+    with pytest.raises(ValueError, match="Incompatible index specifications: {'spec': 'value1'} != {'spec': 'value2'}"):
+        params7.compatible_with(params8)
+
+
 def test_pinecone_writer_client_init(mock_pinecone_grpc):
     client = PineconeWriterClient(api_key="test_key", batch_size=100)
     mock_pinecone_grpc.assert_called_once_with(api_key="test_key", source_tag="Aryn")

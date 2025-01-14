@@ -557,7 +557,11 @@ class TestMaterializeReadReliability(unittest.TestCase):
 
     def test_materialize_read_reliability(self):
         ctx = sycamore.init(exec_mode=self.exec_mode)
-        with tempfile.TemporaryDirectory() as tmpdir1, tempfile.TemporaryDirectory() as tmpdir2, tempfile.TemporaryDirectory() as tmpdir3:
+        with(
+                tempfile.TemporaryDirectory() as tmpdir1,
+                tempfile.TemporaryDirectory() as tmpdir2,
+                tempfile.TemporaryDirectory() as tmpdir3
+            ):
             docs = make_docs(10)
             ds = (
                 ctx.read.document(docs)

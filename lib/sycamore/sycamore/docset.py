@@ -32,7 +32,6 @@ from sycamore.transforms.merge_elements import ElementMerger
 from sycamore.utils.extract_json import extract_json
 from sycamore.transforms.query import QueryExecutor, Query
 from sycamore.materialize_config import MaterializeSourceMode
-from sycamore.materialize import MaterializeReadReliability
 
 if TYPE_CHECKING:
     from sycamore.writer import DocSetWriter
@@ -1470,7 +1469,6 @@ class DocSet:
         self,
         path: Optional[Union[Path, str, dict]] = None,
         source_mode: MaterializeSourceMode = MaterializeSourceMode.RECOMPUTE,
-        reliability: Optional[MaterializeReadReliability] = None,
     ) -> "DocSet":
         """
         The `materialize` transform writes out documents up to that point, marks the
@@ -1504,7 +1502,7 @@ class DocSet:
 
         return DocSet(
             self.context,
-            Materialize(self.plan, self.context, path=path, source_mode=source_mode, reliability=reliability),
+            Materialize(self.plan, self.context, path=path, source_mode=source_mode),
         )
 
     def clear_materialize(self, path: Optional[Union[Path, str]] = None, *, clear_non_local=False) -> None:

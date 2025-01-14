@@ -54,7 +54,6 @@ class MaterializeReadReliability(NodeTraverse):
         self.retries_count = 0
         # Need for refresh_seen_files
         self.prev_seen = -1
-        # Initialize seen files
         self.max_retries = max_retries
         self.cycle_error: Optional[Union[str, Exception]] = ""
         self.iteration = 0
@@ -67,6 +66,8 @@ class MaterializeReadReliability(NodeTraverse):
         self.fs = fs
         self.path = path
         self.__init__(max_batch=max_batch, max_retries=max_retries)
+                
+        # Initialize seen files
         self._refresh_seen_files()
         self.prev_seen = len(self.seen)
 
@@ -84,7 +85,8 @@ class MaterializeReadReliability(NodeTraverse):
             if self.count == 0:
                 assert isinstance(
                     node, Materialize
-                ), "The first node should be a materialize node to ensure reliability"
+                ), "The last node should be a materialize node to ensure reliability"
+                logger.info(f"Overriding doc_to_name, doc_to_binary, clean_root for reliability pipeline")
                 node._doc_to_name = name_from_docid
                 node._doc_to_binary = doc_only_to_binary
                 node._clean_root = False

@@ -11,9 +11,7 @@ from sycamore.tests.unit.test_materialize import make_docs, NumCalls, mock_mrr_r
 from sycamore.context import ExecMode
 from sycamore.materialize import (
     MaterializeReadReliability,
-    name_from_docid,
     docid_from_path,
-    doc_only_to_binary,
 )
 
 
@@ -92,39 +90,33 @@ class TestFileReadReliability(unittest.TestCase):
             counter = NumCalls()
             docs = make_docs(10)
             docs.pop()
-            mrr = MaterializeReadReliability(tmpdir2, max_batch=3)
+            mrr = MaterializeReadReliability(max_batch=3)
             mrr = mock_mrr_reset_fn(mrr, counter)
+
+            ctx.rewrite_rules.append(mrr)
             paths = []
             for doc in docs:
                 path = Path(tmpdir1) / f"{doc.doc_id}.{doc.properties.get('extension', 'pdf')}"
                 path.write_bytes(b"test content")
                 paths.append(str(path))
             ds = (
-                ctx.read.binary(paths, binary_format="pdf", filter_paths=mrr.filter)
+                ctx.read.binary(paths, binary_format="pdf")
                 .map(docid_from_path)
                 .materialize(
-                    path={"root": tmpdir2, "name": name_from_docid, "tobin": doc_only_to_binary, "clean": False},
-                    source_mode=sycamore.MATERIALIZE_RECOMPUTE,
-                    reliability=mrr,
+                    path={"root": tmpdir2},
                 )
             )
             ds.execute()
             # Verify batching works (4 + 1 (mrr.reset at the end))
             assert counter.x == 5
 
+            ctx = sycamore.init(exec_mode=self.exec_mode)
             counter = NumCalls()
-            mrr = MaterializeReadReliability(tmpdir3, max_batch=3)
+            mrr = MaterializeReadReliability(max_batch=3)
             mrr = mock_mrr_reset_fn(mrr, counter)
+            ctx.rewrite_rules.append(mrr)
             # Check with dir as well
-            ds = (
-                ctx.read.binary(tmpdir1, binary_format="pdf", filter_paths=mrr.filter)
-                .map(docid_from_path)
-                .materialize(
-                    path={"root": tmpdir3, "name": name_from_docid, "tobin": doc_only_to_binary, "clean": False},
-                    source_mode=sycamore.MATERIALIZE_RECOMPUTE,
-                    reliability=mrr,
-                )
-            )
+            ds = ctx.read.binary(tmpdir1, binary_format="pdf").map(docid_from_path).materialize(path={"root": tmpdir3})
             ds.execute()
             # Verify batching works (4 + 1 (mrr.reset at the end))
             assert counter.x == 5
@@ -142,8 +134,10 @@ class TestFileReadReliability(unittest.TestCase):
             retry_counter = NumCalls()
             docs = make_docs(10)
             docs.pop()
-            mrr = MaterializeReadReliability(tmpdir2, max_batch=3)
+            mrr = MaterializeReadReliability(max_batch=3)
             mrr = mock_mrr_reset_fn(mrr, retry_counter)
+
+            ctx.rewrite_rules.append(mrr)
             paths = []
             for doc in docs:
                 path = Path(tmpdir1) / f"{doc.doc_id}.{doc.properties.get('extension', 'pdf')}"
@@ -157,31 +151,28 @@ class TestFileReadReliability(unittest.TestCase):
                 return doc
 
             ds = (
-                ctx.read.binary(paths, binary_format="pdf", filter_paths=mrr.filter)
+                ctx.read.binary(paths, binary_format="pdf")
                 .map(docid_from_path)
                 .map(failing_map)
                 .materialize(
-                    path={"root": tmpdir2, "name": name_from_docid, "tobin": doc_only_to_binary, "clean": False},
-                    source_mode=sycamore.MATERIALIZE_RECOMPUTE,
-                    reliability=mrr,
+                    path=tmpdir2,
                 )
             )
             ds.execute()
             assert retry_counter.x == 8  # 4 success +3 extra retries for 3 failures + 1 for mrr.reset()
 
+            ctx = sycamore.init(exec_mode=self.exec_mode)
+
             counter = NumCalls()
-            mrr = MaterializeReadReliability(tmpdir3, max_batch=3)
+            mrr = MaterializeReadReliability(max_batch=3)
             mrr = mock_mrr_reset_fn(mrr, counter)
+            ctx.rewrite_rules.append(mrr)
             # Check with dir
             ds = (
-                ctx.read.binary(tmpdir1, binary_format="pdf", filter_paths=mrr.filter)
+                ctx.read.binary(tmpdir1, binary_format="pdf")
                 .map(docid_from_path)
                 .map(failing_map)
-                .materialize(
-                    path={"root": tmpdir3, "name": name_from_docid, "tobin": doc_only_to_binary, "clean": False},
-                    source_mode=sycamore.MATERIALIZE_RECOMPUTE,
-                    reliability=mrr,
-                )
+                .materialize(path=tmpdir3)
             )
             ds.execute()
             assert retry_counter.x == 8  # 4 success +3 extra retries for 3 failures + 1 for mrr.reset()
@@ -199,8 +190,10 @@ class TestFileReadReliability(unittest.TestCase):
             retry_counter = NumCalls()
             docs = make_docs(10)
             docs.pop()
-            mrr = MaterializeReadReliability(tmpdir2, max_batch=3)
+            mrr = MaterializeReadReliability(max_batch=3)
             mrr = mock_mrr_reset_fn(mrr, retry_counter)
+
+            ctx.rewrite_rules.append(mrr)
             paths = []
             for doc in docs:
                 path = Path(tmpdir1) / f"{doc.doc_id}.{doc.properties.get('extension', 'pdf')}"
@@ -215,13 +208,11 @@ class TestFileReadReliability(unittest.TestCase):
                 return doc
 
             ds = (
-                ctx.read.binary(paths, binary_format="pdf", filter_paths=mrr.filter)
+                ctx.read.binary(paths, binary_format="pdf")
                 .map(docid_from_path)
                 .map(failing_map)
                 .materialize(
-                    path={"root": tmpdir2, "name": name_from_docid, "tobin": doc_only_to_binary, "clean": False},
-                    source_mode=sycamore.MATERIALIZE_RECOMPUTE,
-                    reliability=mrr,
+                    path={"root": tmpdir2},
                 )
             )
             ds.execute()
@@ -229,18 +220,20 @@ class TestFileReadReliability(unittest.TestCase):
             assert retry_counter.x == 23  # 2 successful, 21 unsuccessful
 
             # Test with dir
+
+            ctx = sycamore.init(exec_mode=self.exec_mode)
             failure_counter = NumCalls()
             retry_counter = NumCalls()
-            mrr = MaterializeReadReliability(tmpdir3, max_batch=3)
+            mrr = MaterializeReadReliability(max_batch=3)
             mrr = mock_mrr_reset_fn(mrr, retry_counter)
+
+            ctx.rewrite_rules.append(mrr)
             ds = (
-                ctx.read.binary(tmpdir1, binary_format="pdf", filter_paths=mrr.filter)
+                ctx.read.binary(tmpdir1, binary_format="pdf")
                 .map(docid_from_path)
                 .map(failing_map)
                 .materialize(
-                    path={"root": tmpdir3, "name": name_from_docid, "tobin": doc_only_to_binary, "clean": False},
-                    source_mode=sycamore.MATERIALIZE_RECOMPUTE,
-                    reliability=mrr,
+                    path={"root": tmpdir3},
                 )
             )
             ds.execute()

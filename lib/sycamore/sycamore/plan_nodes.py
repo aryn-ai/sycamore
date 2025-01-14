@@ -138,31 +138,6 @@ class Node(ABC):
     def clone(self) -> "Node":
         raise Exception("Unimplemented")
 
-    def last_node_reliability_assertor(self) -> bool:
-        from sycamore.materialize import Materialize
-        from sycamore.connectors.file import BinaryScan
-
-        if not self.children or all(c is None for c in self.children):
-            return (
-                isinstance(self, Materialize)
-                and isinstance(self._orig_path, dict)
-                and self._orig_path["filter"] is not None
-            ) or (isinstance(self, BinaryScan) and self.filter_paths is not None)
-        assert not isinstance(
-            self, Materialize
-        ), """For ensuring reliability,
-        only first node must be materialize"""
-
-        assert not isinstance(
-            self, BinaryScan
-        ), """For ensuring reliability,
-        only first node must be binary scan with filter_paths set"""
-
-        for child in self.children:
-            if child is not None:
-                return child.last_node_reliability_assertor()
-        return False
-
 
 class LeafNode(Node):
     def __init__(self, **resource_args):

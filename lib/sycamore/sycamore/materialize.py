@@ -84,8 +84,9 @@ class MaterializeReadReliability(NodeTraverse):
         from sycamore.connectors.file.file_scan import BinaryScan
 
         def visit(node):
-
+            print(type(node))
             if self.count == 0:
+                assert len(node.children) != 0, "Reliability pipeline cannot have only 1 node, try running without reliability"
                 assert isinstance(node, Materialize), "The last node should be a materialize node to ensure reliability"
                 logger.info("Overriding doc_to_name, doc_to_binary, clean_root for reliability pipeline")
                 node._doc_to_name = name_from_docid
@@ -103,7 +104,8 @@ class MaterializeReadReliability(NodeTraverse):
             else:
                 assert (
                     len(node.children) != 0
-                ), f"Reliability pipeline cannot have node {type(node)} as first node. Only BinaryScan and Materialize nodes are allowed."
+                ), f"""Reliability pipeline cannot have node {type(node)} as first node.\
+                Only BinaryScan and Materialize nodes are allowed."""
 
             assert len(node.children) < 2, "Reliablity pipeline should only have one/zero child"
 

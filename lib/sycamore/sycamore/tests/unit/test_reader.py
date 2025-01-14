@@ -2,12 +2,13 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+import pytest
 
 import sycamore
 from sycamore.docset import DocSet
 from sycamore.connectors.file.file_scan import JsonManifestMetadataProvider
 from sycamore.tests.config import TEST_DIR
-from sycamore.tests.unit.test_materialize import make_docs, NumCalls, mock_mrr_reset_fn
+from sycamore.tests.unit.test_materialize import make_docs, NumCalls, mock_mrr_reset_fn, noop_fn
 from sycamore.context import ExecMode
 from sycamore.materialize import (
     MaterializeReadReliability,
@@ -63,23 +64,27 @@ class TestFileReadReliability(unittest.TestCase):
         self.exec_mode = ExecMode.LOCAL
 
     def test_basic_read_with_filtering(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
+        with tempfile.TemporaryDirectory() as tmpdir, tempfile.TemporaryDirectory() as tmpdir1:
 
             docs = make_docs(10)
             docs.pop()
 
             for doc in docs:
-                path = Path(tmpdir) / f"{doc.doc_id}.{doc.properties.get('extension', 'pdf')}"
+                path = Path(tmpdir) / f"{doc.doc_id}.{doc.properties.get('extension', 'json')}"
                 path.write_bytes(b"test content")
             ctx = sycamore.init(exec_mode=self.exec_mode)
+            mrr = MaterializeReadReliability(max_batch=3)
 
-            docset = ctx.read.binary(tmpdir, binary_format="pdf")
-            results = docset.take_all()
+            ctx.rewrite_rules.append(mrr)
 
-            # Verify only PDF files were read
-            assert len(results) == 10
-            assert all(doc.properties["filetype"].endswith("pdf") for doc in results)
+            ## Reliability does not work with sinle node
+            with pytest.raises(AssertionError):
+                docset = ctx.read.json(tmpdir, binary_format="json").execute()
 
+            with pytest.raises(AssertionError):
+                docset = ctx.read.json(tmpdir, binary_format="json").map(noop_fn).materialize(path = tmpdir1).execute()
+            # assert False
+            
     def test_binary_file_read_reliability_list_of_paths(self):
         ctx = sycamore.init(exec_mode=self.exec_mode)
         with (

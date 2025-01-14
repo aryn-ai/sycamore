@@ -32,6 +32,7 @@ from sycamore.transforms.merge_elements import ElementMerger
 from sycamore.utils.extract_json import extract_json
 from sycamore.transforms.query import QueryExecutor, Query
 from sycamore.materialize_config import MaterializeSourceMode
+from sycamore.materialize import MaterializeReadReliability
 
 if TYPE_CHECKING:
     from sycamore.writer import DocSetWriter

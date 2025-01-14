@@ -66,7 +66,7 @@ class MaterializeReadReliability(NodeTraverse):
         self.fs = fs
         self.path = path
         self.__init__(max_batch=max_batch, max_retries=max_retries)
-                
+
         # Initialize seen files
         self._refresh_seen_files()
         self.prev_seen = len(self.seen)
@@ -83,10 +83,8 @@ class MaterializeReadReliability(NodeTraverse):
         def visit(node):
 
             if self.count == 0:
-                assert isinstance(
-                    node, Materialize
-                ), "The last node should be a materialize node to ensure reliability"
-                logger.info(f"Overriding doc_to_name, doc_to_binary, clean_root for reliability pipeline")
+                assert isinstance(node, Materialize), "The last node should be a materialize node to ensure reliability"
+                logger.info("Overriding doc_to_name, doc_to_binary, clean_root for reliability pipeline")
                 node._doc_to_name = name_from_docid
                 node._doc_to_binary = doc_only_to_binary
                 node._clean_root = False

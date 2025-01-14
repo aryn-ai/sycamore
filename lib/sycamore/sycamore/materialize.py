@@ -1,10 +1,10 @@
 import logging
 from pathlib import Path
-from typing import Any, Optional, Tuple, Union, TYPE_CHECKING, cast
+from typing import Any, Optional, Tuple, Union, TYPE_CHECKING, cast, Callable
 
 from sycamore.context import Context
 from sycamore.data import Document, MetadataDocument
-from sycamore.data.docid import docid_to_typed_nanoid
+from sycamore.data.docid import docid_to_typed_nanoid, sha256_conversion
 from sycamore.materialize_config import MaterializeSourceMode
 from sycamore.plan_nodes import Node, UnaryNode, NodeTraverse
 from sycamore.transforms.base import rename
@@ -44,24 +44,63 @@ class _PyArrowFsHelper:
         self._fs.create_dir(str(path))
 
 
-class MaterializeReadReliability:
-    def __init__(self, out_mat_path: Union[str, Path], max_batch: int = 200, max_retries: int = 20):
-        from sycamore.utils.pyarrow import infer_fs
+class MaterializeReadReliability(NodeTraverse):
+    def __init__(self, max_batch: int = 200, max_retries: int = 20):
 
-        (fs, path) = infer_fs(str(out_mat_path))
-        logger.info(f"Fetching files from {out_mat_path}")
+        super().__init__()
 
-        self.fs = fs
-        self.path = path
         self.max_batch = max_batch
         self.current_batch = 0
         self.retries_count = 0
         # Need for refresh_seen_files
         self.prev_seen = -1
         # Initialize seen files
+        self.max_retries = max_retries
+        self.cycle_error: Optional[Union[str, Exception]] = ""
+        self.iteration = 0
+
+    def reinit(self, out_mat_path, max_batch, max_retries):
+        from sycamore.utils.pyarrow import infer_fs
+
+        (fs, path) = infer_fs(str(out_mat_path))
+        logger.info(f"Fetching files from {out_mat_path}")
+        self.fs = fs
+        self.path = path
+        self.__init__(max_batch=max_batch, max_retries=max_retries)
         self._refresh_seen_files()
         self.prev_seen = len(self.seen)
-        self.max_retries = max_retries
+
+    def once(self, context, node):
+        for rule in context.rewrite_rules:
+            if isinstance(rule, MaterializeReadReliability):
+                mrr = rule
+        self.count = 0
+        node = node.traverse(visit=self.propagate_mrr(mrr))
+        return node
+
+    def propagate_mrr(self, mrr):
+        def visit(node):
+
+            if self.count == 0:
+                assert isinstance(
+                    node, Materialize
+                ), "The first node should be a materialize node to ensure reliability"
+                node._doc_to_name = name_from_docid
+                node._doc_to_binary = doc_only_to_binary
+                node._clean_root = False
+                node._source_mode = MaterializeSourceMode.RECOMPUTE
+
+            elif isinstance(node, Materialize):
+                assert (
+                    len(node.children) == 0
+                ), "Only first and last node should be materialize nodes to maintain reliability."
+                node._path_filter = mrr.filter
+
+            assert len(node.children) < 2, "Reliablity pipeline should only have one/zero child"
+
+            self.count += 1
+
+        return visit
 
     def _refresh_seen_files(self):
         """Refresh the list of already processed files"""
@@ -82,6 +121,7 @@ class MaterializeReadReliability:
         if p.suffix != ".pickle":
             return None
         if not p.name.startswith("doc-path-sha256-"):
+            logger.info("Got pickle file which is not in 'doc-path-sha256-' format with reliability pipeline")
             return None
         return str(p.stem[4:])
 
@@ -107,6 +147,19 @@ class MaterializeReadReliability:
         self.prev_seen = len(self.seen)
         self._refresh_seen_files()
 
+    def clear_console(self) -> None:
+        """Hook to clear output and print status before each iteration."""
+        from IPython.display import clear_output
+
+        clear_output(wait=True)
+        self.iteration += 1
+        print(f"Starting iteration: {self.iteration}")
+        if self.cycle_error != "":
+            print(f"Previous batch error: {self.cycle_error}. \nProcessed {len(self.seen)} docs until now.")
+            self.cycle_error = ""
+        else:
+            print(f"No errors in previous batch. \nProcessed {len(self.seen)} docs at present.")
+
 
 def name_from_docid(d: Document, bin: Optional[bytes]) -> str:
     if d.doc_id:
@@ -125,11 +178,9 @@ def name_from_docid(d: Document, bin: Optional[bytes]) -> str:
 
 
 def docid_from_path(d: Document) -> Document:
-    from hashlib import sha256
 
     if "path" in d.properties:
-        path_hash = sha256(d.properties["path"].encode("utf-8")).hexdigest()
-        d.doc_id = f"path-sha256-{path_hash}"
+        d.doc_id = sha256_conversion(d.properties["path"])
         return d
     assert False
 
@@ -152,11 +203,9 @@ class Materialize(UnaryNode):
         path: Optional[Union[Path, str, dict]] = None,
         source_mode: MaterializeSourceMode = MaterializeSourceMode.RECOMPUTE,
         tolerate_input_errors: bool = False,
-        reliability: Optional[MaterializeReadReliability] = None,
         **kwargs,
     ):
         assert child is None or isinstance(child, Node)
-        self._reliability = reliability
         self._orig_path = path
         self._root = None
         self._path_filter = None
@@ -181,14 +230,6 @@ class Materialize(UnaryNode):
             self._doc_to_binary = path.get("tobin", Document.serialize)
             assert callable(self._doc_to_name)
             self._clean_root = path.get("clean", True)
-
-            if self._reliability is not None:
-                assert not self._clean_root, "Using materialize with reliability requires the root flag to be False"
-                assert (
-                    self._doc_to_name is name_from_docid
-                ), "Using materialize with reliability requires using 'name_from_docid' as the name function"
-
-            self._path_filter = path.get("filter", None)
         else:
             assert False, f"unsupported type ({type(path)}) for path argument, expected str, Path, or dict"
 
@@ -280,11 +321,11 @@ class Materialize(UnaryNode):
                 from ray.data import read_binary_files
                 from ray.data.datasource import PathPartitionFilter, PathPartitionParser
 
-                partition_filter = (
-                    None
-                    if self._path_filter is None
-                    else PathPartitionFilter(cast(PathPartitionParser, RayPathParser()), self._path_filter)
-                )
+                partition_filter: Optional[Callable[[dict[str, str]], bool]] = None
+                if self._path_filter is not None:
+                    partition_filter = PathPartitionFilter(
+                        cast(PathPartitionParser, RayPathParser()), self._path_filter
+                    )
                 shuffle = None if partition_filter is None else "files"
 
                 try:

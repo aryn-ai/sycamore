@@ -1531,29 +1531,43 @@ class DocSet:
         from sycamore.executor import Execution
         from sycamore.materialize import Materialize
 
-        if isinstance(self.plan, Materialize) and self.plan._reliability is not None:
-            mrr = self.plan._reliability
-
-            assert self.plan.child().last_node_materialize(), "first step must be materialize step"
-
-            while True:
-                try:
-                    cycle_error = ""
-                    for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
-                        pass
-                    if mrr.current_batch == 0:
-                        logger.info(f"\nProcessed {mrr.prev_seen} docs.")
-                        break
-                except Exception as e:
-                    logger.info(f"Retrying batch job because of {e}.\n Processed {len(mrr.seen)} docs at present.")
-                    cycle_error = traceback.format_exc()
-                    print(f"Detailed Trace:\n{cycle_error}")
-                mrr.reset_batch()
-                if mrr.retries_count > mrr.max_retries:
-                    logger.info(
-                        f"\nGiving up after retrying {mrr.retries_count} times. Processed {mrr.prev_seen} docs."
-                    )
+        if isinstance(self.plan, Materialize):
+            mrr = None
+            for rule in self.context.rewrite_rules:
+                if isinstance(rule, MaterializeReadReliability):
+                    mrr = rule
+                    if isinstance(self.plan._orig_path, str):
+                        destinationPath = Path(self.plan._orig_path)
+                    elif isinstance(self.plan._orig_path, dict):
+                        destinationPath = Path(self.plan._orig_path["root"])
+                    mrr.reinit(out_mat_path=destinationPath, max_batch=mrr.max_batch, max_retries=mrr.max_retries)
                     break
+            if mrr is None:
+                for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
+                    pass
+            else:
+
+                while True:
+                    mrr.clear_console()
+                    try:
+                        detailed_cycle_error = ""
+                        for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
+                            pass
+                        if mrr.current_batch == 0:
+                            mrr.reset_batch()
+                            logger.info(f"\nProcessed {len(mrr.seen)} docs.")
+                            break
+                    except Exception as e:
+                        mrr.cycle_error = e
+                        logger.info(f"Retrying batch job because of {e}.\nProcessed {len(mrr.seen)} docs at present.")
+                        detailed_cycle_error = traceback.format_exc()
+                        print(f"Detailed Trace:\n{detailed_cycle_error}")
+                    mrr.reset_batch()
+                    if mrr.retries_count > mrr.max_retries:
+                        logger.info(
+                            f"\nGiving up after retrying {mrr.retries_count} times. Processed {len(mrr.seen)} docs."
+                        )
+                        break
         else:
             for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
                 pass

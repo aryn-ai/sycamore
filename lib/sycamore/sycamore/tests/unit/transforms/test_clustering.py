@@ -61,5 +61,5 @@ class TestKMeans:
         centroids = docset.kmeans(3, 4)
 
         clustered_docs = docset.clustering(centroids, "cluster").take_all()
-        ids = [doc.properties["cluster"] for doc in clustered_docs]
+        ids = [doc["cluster"] for doc in clustered_docs]
         assert all(0 <= idx < 3 for idx in ids)

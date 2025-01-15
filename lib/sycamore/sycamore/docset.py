@@ -37,6 +37,7 @@ from sycamore.materialize_config import MaterializeSourceMode
 
 if TYPE_CHECKING:
     from sycamore.writer import DocSetWriter
+    from sycamore.grouped_data import GroupedData
 
 logger = logging.getLogger(__name__)
 
@@ -946,13 +947,12 @@ class DocSet:
     def clustering(self, centroids, cluster_field_name, **resource_args) -> "DocSet":
         def cluster(doc: Document) -> Document:
             idx = KMeans.closest(doc.embedding, centroids)
-            properties = doc.properties
-            properties[cluster_field_name] = idx
-            doc.properties = properties
+            doc[cluster_field_name] = idx
             return doc
 
         from sycamore.transforms import Map
 
+        resource_args["enable_auto_metadata"] = False
         mapping = Map(self.plan, f=cluster, **resource_args)
         return DocSet(self.context, mapping)
 
@@ -1350,6 +1350,11 @@ class DocSet:
 
         queries = LLMQuery(self.plan, query_agent=query_agent, **kwargs)
         return DocSet(self.context, queries)
+
+    def groupby(self, key: Union[str, list[str]]) -> "GroupedData":
+        from sycamore.grouped_data import GroupedData
+
+        return GroupedData(self, key)
 
     @context_params(OperationTypes.INFORMATION_EXTRACTOR)
     def top_k(

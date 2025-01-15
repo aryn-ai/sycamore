@@ -1,12 +1,12 @@
 import random
 
-import torch
-
 
 class KMeans:
 
     @staticmethod
     def closest(row, centroids):
+        import torch
+
         row = torch.Tensor([row])
         centroids = torch.Tensor(centroids)
         distance = torch.cdist(row, centroids)
@@ -15,6 +15,8 @@ class KMeans:
 
     @staticmethod
     def converged(last_ones, next_ones, epsilon):
+        import torch
+
         distance = torch.cdist(torch.Tensor(last_ones), torch.Tensor(next_ones))
         return len(last_ones) == torch.sum(distance < epsilon)
 
@@ -47,6 +49,7 @@ class KMeans:
         d = len(centroids[0])
 
         from ray.data.aggregate import AggregateFn
+
         update_centroids = AggregateFn(
             init=lambda v: ([0] * d, 0),
             accumulate_row=lambda a, row: ([x + y for x, y in zip(a[0], row["vector"])], a[1] + 1),

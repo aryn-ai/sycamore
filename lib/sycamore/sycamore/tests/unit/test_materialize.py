@@ -539,21 +539,21 @@ def test_s3_infer_filesystem():
     assert str(m._root) == "test-example/a/path"
 
 
+def mock_mrr_reset_fn(mrr, counter):
+    original_mrr_reset = mrr.reset_batch
+
+    def mock_mrr_reset():
+        counter.x += 1
+        original_mrr_reset()
+
+    mrr.reset_batch = mock_mrr_reset
+    return mrr
+
+
 class TestMaterializeReadReliability(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.exec_mode = ExecMode.LOCAL
-
-    @staticmethod
-    def mock_mrr_reset_fn(mrr, counter):
-        original_mrr_reset = mrr.reset_batch
-
-        def mock_mrr_reset():
-            counter.x += 1
-            original_mrr_reset()
-
-        mrr.reset_batch = mock_mrr_reset
-        return mrr
 
     def test_materialize_read_reliability(self):
         ctx = sycamore.init(exec_mode=self.exec_mode)
@@ -578,7 +578,7 @@ class TestMaterializeReadReliability(unittest.TestCase):
             counter = NumCalls()
             mrr = MaterializeReadReliability(max_batch=3)
 
-            mrr = self.mock_mrr_reset_fn(mrr, counter)
+            mrr = mock_mrr_reset_fn(mrr, counter)
             ctx.rewrite_rules.append(mrr)
             ds1 = (
                 ctx.read.materialize(path={"root": tmpdir1})
@@ -636,7 +636,7 @@ class TestMaterializeReadReliability(unittest.TestCase):
             mrr = MaterializeReadReliability(max_batch=3)
 
             # Mock the reset_batch to count retries
-            mrr = self.mock_mrr_reset_fn(mrr, retry_counter)
+            mrr = mock_mrr_reset_fn(mrr, retry_counter)
             ctx.rewrite_rules.append(mrr)
 
             # Create a function that fails for specific documents
@@ -679,7 +679,7 @@ class TestMaterializeReadReliability(unittest.TestCase):
 
             mrr = MaterializeReadReliability(max_batch=3)
 
-            mrr = self.mock_mrr_reset_fn(mrr, retry_counter)
+            mrr = mock_mrr_reset_fn(mrr, retry_counter)
             ctx.rewrite_rules.append(mrr)
 
             # Create a function that fails for specific documents

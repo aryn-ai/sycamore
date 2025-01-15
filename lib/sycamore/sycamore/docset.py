@@ -1526,7 +1526,6 @@ class DocSet:
         """
         Execute the pipeline, discard the results. Useful for side effects.
         """
-
         from sycamore.executor import Execution
         from sycamore.materialize import Materialize
 

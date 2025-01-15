@@ -80,21 +80,33 @@ class MaterializeReadReliability(NodeTraverse):
         return node
 
     def propagate_mrr(self, mrr):
+
+        from sycamore.connectors.file.file_scan import BinaryScan
+
         def visit(node):
-
             if self.count == 0:
-                assert isinstance(node, Materialize), "The last node should be a materialize node to ensure reliability"
-                logger.info("Overriding doc_to_name, doc_to_binary, clean_root for reliability pipeline")
-                node._doc_to_name = name_from_docid
-                node._doc_to_binary = doc_only_to_binary
-                node._clean_root = False
-                node._source_mode = MaterializeSourceMode.RECOMPUTE
-
+                if len(node.children) > 0:
+                    assert isinstance(
+                        node, Materialize
+                    ), "The last node should be a materialize node to ensure reliability"
+                    logger.info("Overriding doc_to_name, doc_to_binary, clean_root for reliability pipeline")
+                    node._doc_to_name = name_from_docid
+                    node._doc_to_binary = doc_only_to_binary
+                    node._clean_root = False
+                    node._source_mode = MaterializeSourceMode.RECOMPUTE
+            elif isinstance(node, BinaryScan):
+                assert len(node.children) == 0, "Binary Scan should be the first node in the reliability pipeline"
+                node._path_filter = mrr.filter
             elif isinstance(node, Materialize):
                 assert (
                     len(node.children) == 0
                 ), "Only first and last node should be materialize nodes to maintain reliability."
                 node._path_filter = mrr.filter
+            else:
+                assert (
+                    len(node.children) != 0
+                ), f"""Reliability pipeline cannot have node {type(node)} as first node.\
+                Only BinaryScan and Materialize nodes are allowed."""
 
             assert len(node.children) < 2, "Reliablity pipeline should only have one/zero child"
 
@@ -125,12 +137,14 @@ class MaterializeReadReliability(NodeTraverse):
             return None
         return str(p.stem[4:])
 
-    def filter(self, p: str) -> bool:
+    def filter(self, p: str, read: Optional[bool] = False) -> bool:
         """Filter files for processing, respecting batch size"""
         if self.current_batch >= self.max_batch:
             return False
-
-        id = self._path_to_id(Path(p))
+        if not read:
+            id = self._path_to_id(Path(p))
+        else:
+            id = sha256_conversion(str(p))
         if id is None:
             logger.debug(f"Got path {p} not in proper format")
             return False
@@ -313,6 +327,7 @@ class Materialize(UnaryNode):
             success = self._fshelper.file_exists(self._success_path())
             if success or len(self.children) == 0:
                 logger.info(f"Using {self._orig_path} as the cached source of data")
+
                 self._executed_child = False
                 if not success:
                     self._verify_has_files()

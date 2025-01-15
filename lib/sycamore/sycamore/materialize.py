@@ -86,13 +86,15 @@ class MaterializeReadReliability(NodeTraverse):
         def visit(node):
             print(type(node))
             if self.count == 0:
-                assert len(node.children) != 0, "Reliability pipeline cannot have only 1 node, try running without reliability"
-                assert isinstance(node, Materialize), "The last node should be a materialize node to ensure reliability"
-                logger.info("Overriding doc_to_name, doc_to_binary, clean_root for reliability pipeline")
-                node._doc_to_name = name_from_docid
-                node._doc_to_binary = doc_only_to_binary
-                node._clean_root = False
-                node._source_mode = MaterializeSourceMode.RECOMPUTE
+                if len(node.children) > 0:
+                    assert isinstance(
+                        node, Materialize
+                    ), "The last node should be a materialize node to ensure reliability"
+                    logger.info("Overriding doc_to_name, doc_to_binary, clean_root for reliability pipeline")
+                    node._doc_to_name = name_from_docid
+                    node._doc_to_binary = doc_only_to_binary
+                    node._clean_root = False
+                    node._source_mode = MaterializeSourceMode.RECOMPUTE
             elif isinstance(node, BinaryScan):
                 assert len(node.children) == 0, "Binary Scan should be the first node in the reliability pipeline"
                 node.filter_paths = mrr.filter

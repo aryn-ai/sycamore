@@ -1555,8 +1555,8 @@ class DocSet:
                             mrr.reset_batch()
                             logger.info(f"\nProcessed {len(mrr.seen)} docs.")
                             break
-                    except AssertionError as e:
-                        raise 
+                    except AssertionError:
+                        raise
                     except Exception as e:
                         mrr.cycle_error = e
                         logger.info(f"Retrying batch job because of {e}.\nProcessed {len(mrr.seen)} docs at present.")

@@ -8,7 +8,7 @@ import sycamore
 from sycamore.docset import DocSet
 from sycamore.connectors.file.file_scan import JsonManifestMetadataProvider
 from sycamore.tests.config import TEST_DIR
-from sycamore.tests.unit.test_materialize import make_docs, NumCalls, mock_mrr_reset_fn, noop_fn
+from sycamore.tests.unit.test_materialize import make_docs, NumCalls, mock_mrr_reset_fn, noop_fn, ids
 from sycamore.context import ExecMode
 from sycamore.materialize import (
     MaterializeReadReliability,
@@ -63,7 +63,7 @@ class TestFileReadReliability(unittest.TestCase):
         super().__init__(*args, **kwargs)
         self.exec_mode = ExecMode.LOCAL
 
-    def test_basic_read_with_filtering(self):
+    def test_read_with_wrong_nodes(self):
         with tempfile.TemporaryDirectory() as tmpdir, tempfile.TemporaryDirectory() as tmpdir1:
 
             docs = make_docs(10)
@@ -77,20 +77,17 @@ class TestFileReadReliability(unittest.TestCase):
 
             ctx.rewrite_rules.append(mrr)
 
-            ## Reliability does not work with sinle node
+            ## Reliability does not work if first node is not binaryScan, Materialize
             with pytest.raises(AssertionError):
-                docset = ctx.read.json(tmpdir, binary_format="json").execute()
+                ctx.read.json(tmpdir, binary_format="json").map(noop_fn).materialize(path=tmpdir1).execute()
 
-            with pytest.raises(AssertionError):
-                docset = ctx.read.json(tmpdir, binary_format="json").map(noop_fn).materialize(path = tmpdir1).execute()
-            # assert False
-            
     def test_binary_file_read_reliability_list_of_paths(self):
         ctx = sycamore.init(exec_mode=self.exec_mode)
         with (
             tempfile.TemporaryDirectory() as tmpdir1,
             tempfile.TemporaryDirectory() as tmpdir2,
             tempfile.TemporaryDirectory() as tmpdir3,
+            tempfile.TemporaryDirectory() as tmpdir4,
         ):
             counter = NumCalls()
             docs = make_docs(10)
@@ -104,27 +101,52 @@ class TestFileReadReliability(unittest.TestCase):
                 path = Path(tmpdir1) / f"{doc.doc_id}.{doc.properties.get('extension', 'pdf')}"
                 path.write_bytes(b"test content")
                 paths.append(str(path))
-            ds = (
+            (
                 ctx.read.binary(paths, binary_format="pdf")
                 .map(docid_from_path)
                 .materialize(
                     path={"root": tmpdir2},
                 )
+                .execute()
             )
-            ds.execute()
+
+            e1 = ctx.read.materialize(path=tmpdir2).take_all()
             # Verify batching works (4 + 1 (mrr.reset at the end))
             assert counter.x == 5
 
+            # reinitialize context to reset counters
             ctx = sycamore.init(exec_mode=self.exec_mode)
             counter = NumCalls()
             mrr = MaterializeReadReliability(max_batch=3)
             mrr = mock_mrr_reset_fn(mrr, counter)
             ctx.rewrite_rules.append(mrr)
+
             # Check with dir as well
-            ds = ctx.read.binary(tmpdir1, binary_format="pdf").map(docid_from_path).materialize(path={"root": tmpdir3})
-            ds.execute()
+            (
+                ctx.read.binary(tmpdir1, binary_format="pdf")
+                .map(docid_from_path)
+                .materialize(path={"root": tmpdir3})
+                .execute()
+            )
+            e2 = ctx.read.materialize(path=tmpdir3).take_all()
+
             # Verify batching works (4 + 1 (mrr.reset at the end))
             assert counter.x == 5
+
+            assert ids(e1) == ids(e2)
+
+            # Use same context for second pipelines
+            (
+                ctx.read.materialize(path={"root": tmpdir3})
+                .map(noop_fn)
+                .map(noop_fn)
+                .materialize(
+                    path={"root": tmpdir4},
+                )
+                .execute()
+            )
+            e3 = ctx.read.materialize(path=tmpdir4).take_all()
+            assert ids(e3) == ids(e2)
 
     def test_binary_file_read_reliability_list_of_paths_retries_successful(self):
         ctx = sycamore.init(exec_mode=self.exec_mode)

@@ -84,7 +84,6 @@ class MaterializeReadReliability(NodeTraverse):
         from sycamore.connectors.file.file_scan import BinaryScan
 
         def visit(node):
-            print(type(node))
             if self.count == 0:
                 if len(node.children) > 0:
                     assert isinstance(

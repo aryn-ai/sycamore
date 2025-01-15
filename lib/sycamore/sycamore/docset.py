@@ -1274,6 +1274,10 @@ class DocSet:
         queries = LLMQuery(self.plan, query_agent=query_agent, **kwargs)
         return DocSet(self.context, queries)
 
+    def groupby(self, key) -> "GroupedData":
+        from sycamore.transforms.group import GroupedData
+        return GroupedData(self, key)
+
     @context_params(OperationTypes.INFORMATION_EXTRACTOR)
     def top_k(
         self,

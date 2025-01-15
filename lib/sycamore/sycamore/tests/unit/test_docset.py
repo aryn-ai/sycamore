@@ -457,6 +457,29 @@ class TestDocSet:
         assert top_k_list[1].properties["key"] == "banana"
         assert top_k_list[1].properties["count"] == 2
 
+    @pytest.fixture
+    def fruits_embedding_docset(self) -> DocSet:
+        doc_list = [
+            Document(text_representation="apple", parent_id=8, embedding=[1]),
+            Document(text_representation="banana", parent_id=7, embedding=[2]),
+            Document(text_representation="apple", parent_id=8, embedding=[1]),
+            Document(text_representation="banana", parent_id=7, embedding=[2]),
+            Document(text_representation="cherry", parent_id=6, embedding=[3]),
+            Document(text_representation="apple", parent_id=9, embedding=[1]),
+        ]
+        context = sycamore.init()
+        return context.read.document(doc_list)
+
+    def test_top_k_with_clustering_groupby(self, fruits_embedding_docset):
+        centroids = fruits_embedding_docset.kmeans(K=3)
+        clustered = fruits_embedding_docset.clustering(centroids, "centroids")
+        aggregated = clustered.groupby("centroids").count()
+        top_k_docset = aggregated.sort(True, "properties.count", 0).limit(2)
+
+        top_k_list = top_k_docset.take()
+        assert top_k_list[0].properties["count"] == 3
+        assert top_k_list[1].properties["count"] == 2
+
     def test_top_k_unique_field(self, fruits_docset):
 
         top_k_docset = fruits_docset.top_k(

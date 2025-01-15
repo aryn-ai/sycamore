@@ -50,7 +50,6 @@ class DocSetReader:
         override_num_blocks: Optional[int] = None,
         filesystem: Optional[FileSystem] = None,
         metadata_provider: Optional[FileMetadataProvider] = None,
-        filter_paths: Optional[Callable] = None,
         **kwargs,
     ) -> DocSet:
         """
@@ -83,7 +82,6 @@ class DocSetReader:
             override_num_blocks=override_num_blocks,
             filesystem=filesystem,
             metadata_provider=metadata_provider,
-            filter_paths=filter_paths,
             **kwargs,
         )
         return DocSet(self._context, scan)

@@ -82,7 +82,6 @@ class FileScan(Scan):
         filesystem: Optional[FileSystem] = None,
         parallelism: Optional[str] = None,
         override_num_blocks: Optional[int] = None,
-        filter_paths: Optional[Callable] = None,
         **resource_args,
     ):
         super().__init__(**resource_args)
@@ -97,7 +96,6 @@ class FileScan(Scan):
 
         assert parallelism is None, "Use override_num_blocks; remove parameter after 2025-03-01"
         self.override_num_blocks = override_num_blocks
-        self.filter_paths = filter_paths
 
     def _is_s3_scheme(self) -> bool:
         if isinstance(self._paths, str):
@@ -178,7 +176,6 @@ class BinaryScan(FileScan):
         filesystem: Optional[FileSystem] = None,
         metadata_provider: Optional[FileMetadataProvider] = None,
         filter_paths_by_extension: bool = True,
-        filter_paths: Optional[Callable] = None,
         **resource_args,
     ):
         super().__init__(
@@ -186,13 +183,12 @@ class BinaryScan(FileScan):
             parallelism=parallelism,
             override_num_blocks=override_num_blocks,
             filesystem=filesystem,
-            filter_paths=filter_paths,
             **resource_args,
         )
         self._binary_format = binary_format
         self._metadata_provider = metadata_provider
         self._filter_paths_by_extension = filter_paths_by_extension
-        self.filter_paths = filter_paths
+        self._path_filter = None
 
     @timetrace("readBinary")
     def _to_document(self, dict: dict[str, Any]) -> dict[str, bytes]:
@@ -227,11 +223,11 @@ class BinaryScan(FileScan):
         from ray.data import read_binary_files
         from ray.data.datasource import PathPartitionFilter, PathPartitionParser
 
-        partition_filter = (
-            None
-            if self.filter_paths is None
-            else PathPartitionFilter(cast(PathPartitionParser, RayPathParser()), partial(self.filter_paths, read=True))
-        )
+        partition_filter: Optional[Callable[[dict[str, str]], bool]] = None
+        if self._path_filter is not None:
+            partition_filter = PathPartitionFilter(
+                cast(PathPartitionParser, RayPathParser()), partial(self._path_filter, read=True)
+            )
         shuffle = None if partition_filter is None else "files"
 
         try:
@@ -249,7 +245,7 @@ class BinaryScan(FileScan):
 
             from ray.data import from_items
 
-            if self.filter_paths is not None and "No input files found to read." in str(e):
+            if self._path_filter is not None and "No input files found to read." in str(e):
                 return from_items(items=[])
             raise
         return files.map(self._to_document, **self.resource_args)
@@ -259,7 +255,7 @@ class BinaryScan(FileScan):
             return []
         if self._filter_paths_by_extension and not info.path.endswith(self.format()):
             return []
-        if self.filter_paths is not None and not self.filter_paths(info.path, True):
+        if self._path_filter is not None and not self._path_filter(info.path, True):
             return []
 
         assert self._filesystem

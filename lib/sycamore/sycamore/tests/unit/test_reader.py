@@ -114,14 +114,10 @@ class TestFileReadReliability(unittest.TestCase):
             # Verify batching works (4 + 1 (mrr.reset at the end))
             assert counter.x == 5
 
-            # reinitialize context to reset counters
-            ctx = sycamore.init(exec_mode=self.exec_mode)
-            counter = NumCalls()
-            mrr = MaterializeReadReliability(max_batch=3)
-            mrr = mock_mrr_reset_fn(mrr, counter)
-            ctx.rewrite_rules.append(mrr)
+            # Check with directory as well
 
-            # Check with dir as well
+            counter.x = 0
+
             (
                 ctx.read.binary(tmpdir1, binary_format="pdf")
                 .map(docid_from_path)
@@ -188,13 +184,11 @@ class TestFileReadReliability(unittest.TestCase):
             ds.execute()
             assert retry_counter.x == 8  # 4 success +3 extra retries for 3 failures + 1 for mrr.reset()
 
-            ctx = sycamore.init(exec_mode=self.exec_mode)
+            # Check with directory as well
 
-            counter = NumCalls()
-            mrr = MaterializeReadReliability(max_batch=3)
-            mrr = mock_mrr_reset_fn(mrr, counter)
-            ctx.rewrite_rules.append(mrr)
-            # Check with dir
+            retry_counter.x = 0
+            failure_counter.x = 0
+
             ds = (
                 ctx.read.binary(tmpdir1, binary_format="pdf")
                 .map(docid_from_path)
@@ -246,15 +240,11 @@ class TestFileReadReliability(unittest.TestCase):
 
             assert retry_counter.x == 23  # 2 successful, 21 unsuccessful
 
-            # Test with dir
+            # Check with directory as well
 
-            ctx = sycamore.init(exec_mode=self.exec_mode)
-            failure_counter = NumCalls()
-            retry_counter = NumCalls()
-            mrr = MaterializeReadReliability(max_batch=3)
-            mrr = mock_mrr_reset_fn(mrr, retry_counter)
+            failure_counter.x = 0
+            retry_counter.x = 0
 
-            ctx.rewrite_rules.append(mrr)
             ds = (
                 ctx.read.binary(tmpdir1, binary_format="pdf")
                 .map(docid_from_path)

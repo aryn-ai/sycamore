@@ -97,7 +97,7 @@ class MaterializeReadReliability(NodeTraverse):
                     node._source_mode = MaterializeSourceMode.RECOMPUTE
             elif isinstance(node, BinaryScan):
                 assert len(node.children) == 0, "Binary Scan should be the first node in the reliability pipeline"
-                node.filter_paths = mrr.filter
+                node._path_filter = mrr.filter
             elif isinstance(node, Materialize):
                 assert (
                     len(node.children) == 0

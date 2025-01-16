@@ -1,4 +1,3 @@
-import copy
 import functools
 import inspect
 import logging
@@ -6,7 +5,7 @@ import os
 from dataclasses import dataclass
 from enum import Enum
 from PIL import Image
-from typing import Any, Dict, Optional, TypedDict, Union, cast, TYPE_CHECKING
+from typing import Any, Dict, Optional, Union
 
 from openai import AzureOpenAI as AzureOpenAIClient
 from openai import AsyncAzureOpenAI as AsyncAzureOpenAIClient
@@ -19,14 +18,13 @@ from openai.lib._parsing import type_to_response_format_param
 
 import pydantic
 
-from sycamore.llms.guidance import execute_with_guidance
+# from sycamore.llms.guidance import execute_with_guidance
 from sycamore.llms.llms import LLM
-from sycamore.llms.prompts import SimplePrompt
 from sycamore.utils.cache import Cache
 from sycamore.utils.image_utils import base64_data_url
 
-if TYPE_CHECKING:
-    from guidance.models import Model
+# if TYPE_CHECKING:
+#     from guidance.models import Model
 
 logger = logging.getLogger(__name__)
 
@@ -221,6 +219,7 @@ class OpenAIClientWrapper:
         else:
             raise ValueError(f"Invalid client_type {self.client_type}")
 
+    """
     def get_guidance_model(self, model) -> "Model":
         if self.client_type == OpenAIClientType.OPENAI:
             from guidance.models import OpenAI as GuidanceOpenAI
@@ -290,6 +289,7 @@ class OpenAIClientWrapper:
 
         else:
             raise ValueError(f"Invalid client_type {self.client_type}")
+    """
 
 
 # Allow rough backwards compatibility
@@ -335,7 +335,7 @@ class OpenAI(LLM):
             raise TypeError("model_name must be an instance of str, OpenAIModel, or OpenAIModels")
 
         if self.model.name == OpenAIModels.TEXT_DAVINCI.value.name:
-            logger.warn("text-davinci-003 is deprecated. Falling back to gpt-3.5-turbo-instruct")
+            logger.warning("text-davinci-003 is deprecated. Falling back to gpt-3.5-turbo-instruct")
             self.model = OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value
         super().__init__(self.model.name, cache)
 
@@ -411,7 +411,7 @@ class OpenAI(LLM):
         prompt = prompt_kwargs.pop("prompt")
         result1 = prompt.system.format(**prompt_kwargs)
         result2 = prompt.user.format(**prompt_kwargs)
-        return {"messages": [{"role":"system", "content" : result1}, {"role":"user", "content": result2}]}
+        return {"messages": [{"role": "system", "content": result1}, {"role": "user", "content": result2}]}
 
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
         llm_kwargs = self._convert_response_format(llm_kwargs)
@@ -436,7 +436,7 @@ class OpenAI(LLM):
         logging.debug("OpenAI prompt: %s", kwargs)
         completion = self.client_wrapper.get_client().chat.completions.create(model=self._model_name, **kwargs)
         logging.debug("OpenAI completion: %s", completion)
-        return completion # .choices[0].message.content
+        return completion.choices[0].message.content
 
     def _generate_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:
         try:
@@ -449,11 +449,6 @@ class OpenAI(LLM):
             # 1.) The LLM ran out of output context length(usually do to hallucination of repeating the same phrase)
             # 2.) The LLM refused to respond to the request because it did not meet guidelines
             raise e
-    
-    # def generate_prompt(self, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
-    #     messages= []
-
-
 
     async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
         ret = self._llm_cache_get(prompt_kwargs, llm_kwargs)
@@ -491,9 +486,11 @@ class OpenAI(LLM):
             # 2.) The LLM refused to respond to the request because it did not meet guidelines
             raise e
 
+    """
     def _generate_using_guidance(self, in_prompt_kwargs) -> str:
         guidance_model = self.client_wrapper.get_guidance_model(self.model)
         prompt_kwargs = copy.deepcopy(in_prompt_kwargs)
         prompt: SimplePrompt = prompt_kwargs.pop("prompt")
         prediction = execute_with_guidance(prompt, guidance_model, **prompt_kwargs)
         return prediction
+    """

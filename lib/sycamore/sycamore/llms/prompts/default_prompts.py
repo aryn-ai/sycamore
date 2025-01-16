@@ -307,7 +307,7 @@ _deprecated_prompts: dict[str, Type[SimplePrompt]] = {
 
 def _deprecated_prompt(name: str) -> SimplePrompt:
     cls = _deprecated_prompts[name]
-    logger.warn(f"The prompt {name} is deprecated. Switch to {cls.__name__}()")
+    logger.warning(f"The prompt {name} is deprecated. Switch to {cls.__name__}()")
     return cls()
 
 

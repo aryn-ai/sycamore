@@ -272,6 +272,35 @@ def partition_file_submit_async(**kwargs):
     return partition_file(**kwargs)
 
 
+def partition_file_result_async(
+    job_id: str,
+    aryn_async_url: str = f"{ARYN_DOCPARSE_URL.split('/v1/',1)[0]}/v1/async/result",
+    aryn_api_key: Optional[str] = None,
+    aryn_config: Optional[ArynConfig] = None,
+    ssl_verify: bool = True,
+):
+    if aryn_api_key is not None:
+        if aryn_config is not None:
+            _logger.warning("Both aryn_api_key and aryn_config were provided. Using aryn_api_key")
+        aryn_config = ArynConfig(aryn_api_key=aryn_api_key)
+    if aryn_config is None:
+        aryn_config = ArynConfig()
+
+    # Workaround for vcr.  See https://github.com/aryn-ai/sycamore/issues/958
+    stream = True
+    if "vcr" in sys.modules:
+        ul3 = sys.modules.get("urllib3")
+        if ul3:
+            # Look for tell-tale patched method...
+            mod = ul3.connectionpool.is_connection_dropped.__module__
+            if "mock" in mod:
+                stream = False
+
+    specific_job_url = f"{aryn_async_url}/{job_id}"
+    http_header = {"Authorization": f"Bearer {aryn_config.api_key()}"}
+    return requests.get(specific_job_url, headers=http_header, stream=stream, verify=ssl_verify)
+
+
 # Heavily adapted from lib/sycamore/data/table.py::Table.to_csv()
 def table_elem_to_dataframe(elem: dict) -> Optional[pd.DataFrame]:
     """

@@ -304,6 +304,21 @@ def partition_file_result_async(
     aryn_config: Optional[ArynConfig] = None,
     ssl_verify: bool = True,
 ) -> Optional[dict]:
+    """
+    Get the results of an asynchronous partitioning job by job_id. Meant to be used with `partition_file_submit_async`.
+
+    Returns:
+        If the specified job is done and the call is successful, then this function returns the same output as a call
+        to `partition_file`. That would be a dictionary containing "status", "elements", and possibly "error". However,
+        if the `output_format` option of the original request was "markdown" then it returns a dictionary of "status",
+        "markdown", and possibly "error".
+
+        Returns None if the job is still in progress.
+
+        Raises a NoSuchAsyncPartitionerJob exception if the job_id is not found.
+
+    If this job is still in progress, the response will be a 202 status code with a "status" field of "processing".
+    """
     if aryn_api_key is not None:
         if aryn_config is not None:
             _logger.warning("Both aryn_api_key and aryn_config were provided. Using aryn_api_key")

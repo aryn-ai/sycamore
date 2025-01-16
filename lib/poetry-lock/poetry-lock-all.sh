@@ -2,8 +2,9 @@
 
 root="$(pwd)"
 fail() {
-    echo FAILED
+    echo FAILED FAILED FAILED FAILED
     echo "$@"
+    echo FAILED FAILED FAILED FAILED
     exit 1
 }
 [[ -f "${root}/lib/sycamore/pyproject.toml" ]] || fail "run in root git directory"

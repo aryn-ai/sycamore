@@ -17,5 +17,5 @@ __all__ = [
     "convert_image_element",
     "PartitionError",
     "partition_file_submit_async",
-    "partition_file_result_async"
+    "partition_file_result_async",
 ]

@@ -356,7 +356,6 @@ class OpenAI(LLM):
     def __reduce__(self):
 
         kwargs = {"client_wrapper": self.client_wrapper, "model_name": self.model, "cache": self._cache}
-
         return openai_deserializer, (kwargs,)
 
     def is_chat_mode(self):
@@ -429,18 +428,18 @@ class OpenAI(LLM):
 
     def _generate_using_openai(self, prompt_kwargs, llm_kwargs) -> str:
         kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
-        result = ""
         logging.debug("OpenAI prompt: %s", kwargs)
         if self._model_name=="gpt-3.5-turbo-instruct":
             prompt = ". ".join([message["content"] for message in kwargs["messages"]])
             completion = self.client_wrapper.get_client().completions.create(model=self._model_name, prompt = prompt)
+            logging.debug("OpenAI completion: %s", completion)
             result = completion.choices[0].text
         else:
-            completion = self.client_wrapper.get_client().chat.completions.create(model=self._model_name, **kwargs)
-            result = completion.choices[0].message.content
-        logging.debug("OpenAI completion: %s", completion)
+            chat_completion = self.client_wrapper.get_client().chat.completions.create(model=self._model_name, **kwargs)
+            logging.debug("OpenAI completion: %s", chat_completion)
+            result = chat_completion.choices[0].message.content
 
-        return result # completion.choices[0].message.content
+        return result 
 
     def _generate_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:
         try:
@@ -490,11 +489,3 @@ class OpenAI(LLM):
             # 2.) The LLM refused to respond to the request because it did not meet guidelines
             raise e
 
-    """
-    def _generate_using_guidance(self, in_prompt_kwargs) -> str:
-        guidance_model = self.client_wrapper.get_guidance_model(self.model)
-        prompt_kwargs = copy.deepcopy(in_prompt_kwargs)
-        prompt: SimplePrompt = prompt_kwargs.pop("prompt")
-        prediction = execute_with_guidance(prompt, guidance_model, **prompt_kwargs)
-        return prediction
-    """

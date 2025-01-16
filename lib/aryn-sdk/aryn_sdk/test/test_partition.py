@@ -1,9 +1,15 @@
 from aryn_sdk.partition.partition import convert_image_element, tables_to_pandas
 import pytest
 import json
+import time
 from pathlib import Path
 
-from aryn_sdk.partition import partition_file
+from aryn_sdk.partition import (
+    partition_file,
+    partition_file_submit_async,
+    partition_file_result_async,
+    NoSuchAsyncPartitionerJob,
+)
 from requests.exceptions import HTTPError
 
 RESOURCE_DIR = Path(__file__).parent / "resources"
@@ -140,6 +146,9 @@ def test_data_to_pandas():
     assert df.columns.to_list() == ["(Millions)", "2018", "2017", "2016"]
     assert df["2018"][13] == "134"
 
+def test_invalid_job_id():
+    with pytest.raises(NoSuchAsyncPartitionerJob):
+        partition_file_result_async("INVALID_JOB_ID")
 
 def test_convert_img():
     with open(RESOURCE_DIR / "image" / "partitioning_output.json", "r") as f:
@@ -155,3 +164,18 @@ def test_convert_img():
     with open(RESOURCE_DIR / "image" / "pngb64str.txt", "r") as f:
         real_str = f.read().strip()
     assert png_str == real_str
+
+def test_partition_file_async():
+    with open(RESOURCE_DIR / "pdfs" / "3m_table.pdf", "rb") as f:
+        job_id = partition_file_submit_async(f)["job_id"]
+
+    start = time.time()
+    actual_result = None
+    while not actual_result and time.time() - start < 60 * 5:
+        actual_result = partition_file_result_async(job_id)
+        time.sleep(5)
+
+    with open(RESOURCE_DIR / "json" / "3m_output.json", "rb") as f:
+        expected_result = json.load(f)
+
+    assert expected_result["elements"] == actual_result["elements"]

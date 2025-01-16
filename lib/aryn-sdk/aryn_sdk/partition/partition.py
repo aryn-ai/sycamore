@@ -26,6 +26,9 @@ class PartitionError(Exception):
         super().__init__(message)
         self.status_code = status_code
 
+class NoSuchAsyncPartitionerJob(Exception):
+    pass
+
 
 def partition_file(
     file: Union[BinaryIO, str, PathLike],
@@ -300,7 +303,7 @@ def partition_file_result_async(
     aryn_api_key: Optional[str] = None,
     aryn_config: Optional[ArynConfig] = None,
     ssl_verify: bool = True,
-):
+) -> Optional[dict]:
     if aryn_api_key is not None:
         if aryn_config is not None:
             _logger.warning("Both aryn_api_key and aryn_config were provided. Using aryn_api_key")
@@ -320,7 +323,14 @@ def partition_file_result_async(
 
     specific_job_url = f"{aryn_async_url}/{job_id}"
     http_header = {"Authorization": f"Bearer {aryn_config.api_key()}"}
-    return requests.get(specific_job_url, headers=http_header, stream=stream, verify=ssl_verify)
+    response = requests.get(specific_job_url, headers=http_header, stream=stream, verify=ssl_verify)
+    
+    if response.status_code == 200:
+        return response.json()
+    elif response.status_code == 202:
+        return None
+    elif response.status_code == 404:
+        raise NoSuchAsyncPartitionerJob()
 
 
 # Heavily adapted from lib/sycamore/data/table.py::Table.to_csv()

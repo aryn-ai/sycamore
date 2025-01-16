@@ -406,6 +406,12 @@ class OpenAI(LLM):
         else:
             return False
 
+    def create_prompt(self, prompt_kwargs):
+        prompt = prompt_kwargs.pop("prompt")
+        result1 = prompt.system.format(**prompt_kwargs)
+        result2 = prompt.user.format(**prompt_kwargs)
+        return {"messages": [{"role":"system", "content" : result1}, {"role":"user", "content": result2}]}
+
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
         llm_kwargs = self._convert_response_format(llm_kwargs)
         key, ret = self._cache_get(prompt_kwargs, llm_kwargs)
@@ -419,13 +425,15 @@ class OpenAI(LLM):
                 ret = self._generate_using_openai(prompt_kwargs, llm_kwargs)
 
         else:
-            ret = self._generate_using_guidance(prompt_kwargs)
+            ret = self._generate_using_openai(self.create_prompt(prompt_kwargs), llm_kwargs={})
 
         value = {
-            "result": ret,
+            "result": ret.choices[0].message.content,
             "prompt_kwargs": prompt_kwargs,
             "llm_kwargs": llm_kwargs,
             "model_name": self.model.name,
+            "prompt_token": ret.usage.total_tokens,
+            "completition_token": ret.usage.total_tokens,
         }
         self._cache_set(key, value)
         return ret
@@ -435,7 +443,7 @@ class OpenAI(LLM):
         logging.debug("OpenAI prompt: %s", kwargs)
         completion = self.client_wrapper.get_client().chat.completions.create(model=self._model_name, **kwargs)
         logging.debug("OpenAI completion: %s", completion)
-        return completion.choices[0].message.content
+        return completion # .choices[0].message.content
 
     def _generate_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:
         try:
@@ -448,6 +456,11 @@ class OpenAI(LLM):
             # 1.) The LLM ran out of output context length(usually do to hallucination of repeating the same phrase)
             # 2.) The LLM refused to respond to the request because it did not meet guidelines
             raise e
+    
+    # def generate_prompt(self, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
+    #     messages= []
+
+
 
     async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
         key, ret = self._cache_get(prompt_kwargs, llm_kwargs)

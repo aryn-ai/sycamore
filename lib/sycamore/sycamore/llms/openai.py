@@ -18,13 +18,9 @@ from openai.lib._parsing import type_to_response_format_param
 
 import pydantic
 
-# from sycamore.llms.guidance import execute_with_guidance
 from sycamore.llms.llms import LLM
 from sycamore.utils.cache import Cache
 from sycamore.utils.image_utils import base64_data_url
-
-# if TYPE_CHECKING:
-#     from guidance.models import Model
 
 logger = logging.getLogger(__name__)
 
@@ -433,10 +429,18 @@ class OpenAI(LLM):
 
     def _generate_using_openai(self, prompt_kwargs, llm_kwargs) -> str:
         kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
+        result = ""
         logging.debug("OpenAI prompt: %s", kwargs)
-        completion = self.client_wrapper.get_client().chat.completions.create(model=self._model_name, **kwargs)
+        if self._model_name=="gpt-3.5-turbo-instruct":
+            prompt = ". ".join([message["content"] for message in kwargs["messages"]])
+            completion = self.client_wrapper.get_client().completions.create(model=self._model_name, prompt = prompt)
+            result = completion.choices[0].text
+        else:
+            completion = self.client_wrapper.get_client().chat.completions.create(model=self._model_name, **kwargs)
+            result = completion.choices[0].message.content
         logging.debug("OpenAI completion: %s", completion)
-        return completion.choices[0].message.content
+
+        return result # completion.choices[0].message.content
 
     def _generate_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:
         try:

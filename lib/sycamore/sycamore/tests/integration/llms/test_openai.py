@@ -15,7 +15,7 @@ from openai.lib._parsing import type_to_response_format_param
 
 
 def test_openai_defaults():
-    llm = OpenAI(OpenAIModels.GPT_3_5_TURBO)
+    llm = OpenAI(OpenAIModels.GPT_4O)
     prompt_kwargs = {"prompt": "Write a limerick about large language models."}
 
     res = llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
@@ -69,7 +69,9 @@ def test_cached_openai(tmp_path: Path):
     assert llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={}) == custom_output["result"]
 
 
-def test_cached_guidance(tmp_path: Path):
+def test_cached_guidance(tmp_path: Path = "/private/var/folders/94/tmw9jk3x16x07b63vsjbhc0c0000gp/T/pytest-of-sheb/pytest-10/test_cached_guidance0"):
+    print('++++++++++++')
+    print(tmp_path)
     cache = DiskCache(str(tmp_path))
     llm = OpenAI(OpenAIModels.GPT_3_5_TURBO, cache=cache)
     prompt_kwargs = {"prompt": TestPrompt()}
@@ -186,6 +188,7 @@ def test_openai_defaults_guidance_chat():
     assert len(res) > 0
 
 
+
 def test_openai_defaults_guidance_instruct():
     llm = OpenAI(OpenAIModels.GPT_3_5_TURBO_INSTRUCT)
     prompt_kwargs = {"prompt": TestPrompt()}
@@ -223,3 +226,6 @@ def test_azure_pickle(azure_llm):
     pickled = pickle.dumps(azure_llm)
     _ = pickle.loads(pickled)
     assert True
+
+
+test_cached_guidance()

@@ -267,7 +267,9 @@ def partition_file_submit_async(**kwargs) -> dict:
     """
     Submits a file to be partitioned asynchronously. Takes same arguments as partition_file.
 
-    Returns: A dictionary containing "job_id" which can be used with the `partition_file_result_async` function to get the results.
+    Returns:
+        A dictionary containing "job_id" which can be used with the `partition_file_result_async`
+        function to get the results.
 
     Example:
         .. code-block:: python
@@ -283,7 +285,6 @@ def partition_file_submit_async(**kwargs) -> dict:
             )
         job_id = job["job_id"]
     """
-
 
     async_url = kwargs.get("docparse_url", ARYN_DOCPARSE_URL)
     if "/v1/async/submit" not in async_url:

@@ -26,6 +26,7 @@ class PartitionError(Exception):
         super().__init__(message)
         self.status_code = status_code
 
+
 class NoSuchAsyncPartitionerJob(Exception):
     pass
 
@@ -339,7 +340,7 @@ def partition_file_result_async(
     specific_job_url = f"{aryn_async_url}/{job_id}"
     http_header = {"Authorization": f"Bearer {aryn_config.api_key()}"}
     response = requests.get(specific_job_url, headers=http_header, stream=stream, verify=ssl_verify)
-    
+
     if response.status_code == 200:
         return response.json()
     elif response.status_code == 202:

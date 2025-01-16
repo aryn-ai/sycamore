@@ -1,7 +1,16 @@
+import uuid
 from typing import Optional
 
 import sycamore
-from sycamore.context import context_params, Context, get_val_from_context, ExecMode
+from sycamore.context import (
+    context_params,
+    Context,
+    get_val_from_context,
+    ExecMode,
+    RayGlobalStateManager,
+    InMemoryStateManager,
+)
+from sycamore.data import Document
 
 
 def test_init():
@@ -124,3 +133,44 @@ def test_positional_args_and_context_args_f_with_kwargs():
 
     # Combine positional and kwarg
     assert "a b" == two_positional_args_method_with_kwargs("a", some_other_arg="b", context=context)
+
+
+def test_global_state_ray():
+    context_id = "query_id_123"
+    ray_state = RayGlobalStateManager()
+    ctx = sycamore.init(state=ray_state, context_id=context_id)
+    helper_test_global_state(ctx)
+
+
+def test_global_state_local():
+    context_id = "query_id_123"
+    local_state = InMemoryStateManager()
+    ctx = sycamore.init(state=local_state, context_id=context_id, exec_mode=ExecMode.LOCAL)
+    helper_test_global_state(ctx)
+
+
+# type: ignore [attr-defined, union-attr]
+def helper_test_global_state(context: Context):
+    doc_count = 20
+    docs = [Document(properties={"num": i}) for i in range(doc_count)]
+
+    @context_params
+    def unique_task(doc, context: Optional[Context] = None):
+        assert context is not None
+        unique_id = uuid.uuid4()
+        doc.properties["unique_id"] = unique_id
+        if context:
+            context.add_state_data({"unique_id": unique_id})
+        return doc
+
+    # force execution
+    context.read.document(docs).map(unique_task, kwargs={"context": context}).take_all()
+
+    records = context.get_state_data()
+    assert records, "Received empty global records"
+    assert len(records) == doc_count
+    for record in records:
+        assert record.get("context_id") == context.context_id
+
+    # proxy to ensure all records are being collected
+    assert len(records) == len(set([record["unique_id"] for record in records]))

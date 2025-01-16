@@ -174,7 +174,7 @@ def partition_file(
     http_header = {"Authorization": "Bearer {}".format(aryn_config.api_key())}
     resp = requests.post(docparse_url, files=files, headers=http_header, stream=stream, verify=ssl_verify)
 
-    if resp.status_code != 200:
+    if resp.status_code not in (200, 202):
         raise requests.exceptions.HTTPError(
             f"Error: status_code: {resp.status_code}, reason: {resp.text}", response=resp
         )
@@ -261,6 +261,15 @@ def _json_options(
     options["source"] = "aryn-sdk"
 
     return json.dumps(options)
+
+
+def partition_file_submit_async(**kwargs):
+    async_url = kwargs.get("docparse_url", ARYN_DOCPARSE_URL)
+    if "/v1/async/submit" not in async_url:
+        async_url = async_url.replace("/v1/", "/v1/async/submit/")
+    kwargs["docparse_url"] = async_url
+    # raise Exception(kwargs["docparse_url"])
+    return partition_file(**kwargs)
 
 
 # Heavily adapted from lib/sycamore/data/table.py::Table.to_csv()

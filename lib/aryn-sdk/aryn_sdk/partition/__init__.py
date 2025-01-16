@@ -1,4 +1,11 @@
-from .partition import partition_file, tables_to_pandas, table_elem_to_dataframe, convert_image_element, PartitionError
+from .partition import (
+    partition_file,
+    partition_file_submit_async,
+    tables_to_pandas,
+    table_elem_to_dataframe,
+    convert_image_element,
+    PartitionError,
+)
 from .art import draw_with_boxes
 
 __all__ = [
@@ -8,4 +15,5 @@ __all__ = [
     "draw_with_boxes",
     "convert_image_element",
     "PartitionError",
+    "partition_file_submit_async",
 ]

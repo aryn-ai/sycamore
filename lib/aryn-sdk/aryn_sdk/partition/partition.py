@@ -263,7 +263,28 @@ def _json_options(
     return json.dumps(options)
 
 
-def partition_file_submit_async(**kwargs):
+def partition_file_submit_async(**kwargs) -> dict:
+    """
+    Submits a file to be partitioned asynchronously. Takes same arguments as partition_file.
+
+    Returns: A dictionary containing "job_id" which can be used with the `partition_file_result_async` function to get the results.
+
+    Example:
+        .. code-block:: python
+
+        from aryn_sdk.partition import partition_file_submit_async
+
+        with open("my-favorite-pdf.pdf", "rb") as f:
+            job = partition_file_submit_async(
+                f,
+                ary_api_key="MY-ARYN-API-KEY",
+                use_ocr=True,
+                extract_table_structure=True,
+            )
+        job_id = job["job_id"]
+    """
+
+
     async_url = kwargs.get("docparse_url", ARYN_DOCPARSE_URL)
     if "/v1/async/submit" not in async_url:
         async_url = async_url.replace("/v1/", "/v1/async/submit/")

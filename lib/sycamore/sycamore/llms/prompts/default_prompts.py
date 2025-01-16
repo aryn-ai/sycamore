@@ -176,8 +176,9 @@ class ExtractPropertiesFromSchemaPrompt(SimplePrompt):
         Document text:
         {text}
         
-        Return your answers as a json dictionary, do not return any extra information.
-        If you cannot find a value, use the provided default or None.
+        Don't return extra information.
+        If you cannot find a value for a requested property, use the provided default or the value 'None'.
+        Return your answers as a valid json dictionary that will be parsed in python. 
 """
 
     @staticmethod

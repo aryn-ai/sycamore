@@ -59,7 +59,7 @@ jobs:
       - name: DF-3
         run: df
       - name: Install sycamore
-        run: poetry install --all-extras --no-root
+        run: poetry install --all-extras
         working-directory: lib/sycamore
       - name: Download nltk packages
         run: poetry run python -m nltk.downloader punkt_tab averaged_perceptron_tagger_eng
@@ -182,8 +182,8 @@ jobs:
           NEO4J_apoc_import_file_use__neo4j__config: true
           NEO4JLABS_PLUGINS: '["apoc"]'
         options: >-
-           --name neo4j
-           --volume /neo4j/import:/var/lib/neo4j/import
+          --name neo4j
+          --volume /neo4j/import:/var/lib/neo4j/import
         ports:
           - 7474:7474
           - 7687:7687

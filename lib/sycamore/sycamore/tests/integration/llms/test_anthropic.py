@@ -1,15 +1,12 @@
 from pathlib import Path
 from typing import Any
 
-from sycamore.llms import Bedrock, BedrockModels
+from sycamore.llms import Anthropic, AnthropicModels
 from sycamore.utils.cache import DiskCache
 
 
-# Note: These tests assume your environment has been configured to access Amazon Bedrock.
-
-
-def test_bedrock_defaults():
-    llm = Bedrock(BedrockModels.CLAUDE_3_HAIKU)
+def test_anthropic_defaults():
+    llm = Anthropic(AnthropicModels.CLAUDE_3_HAIKU)
     prompt_kwargs = {"prompt": "Write a limerick about large language models."}
 
     res = llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
@@ -17,8 +14,8 @@ def test_bedrock_defaults():
     assert len(res) > 0
 
 
-def test_bedrock_messages_defaults():
-    llm = Bedrock(BedrockModels.CLAUDE_3_HAIKU)
+def test_anthropic_messages_defaults():
+    llm = Anthropic(AnthropicModels.CLAUDE_3_HAIKU)
     messages = [
         {
             "role": "user",
@@ -32,9 +29,9 @@ def test_bedrock_messages_defaults():
     assert len(res) > 0
 
 
-def test_cached_bedrock(tmp_path: Path):
+def test_cached_anthropic(tmp_path: Path):
     cache = DiskCache(str(tmp_path))
-    llm = Bedrock(BedrockModels.CLAUDE_3_HAIKU, cache=cache)
+    llm = Anthropic(AnthropicModels.CLAUDE_3_HAIKU, cache=cache)
     prompt_kwargs = {"prompt": "Write a limerick about large language models."}
 
     # pylint: disable=protected-access
@@ -46,14 +43,14 @@ def test_cached_bedrock(tmp_path: Path):
     assert cache.get(key).get("result")["output"] == res
     assert cache.get(key).get("prompt_kwargs") == prompt_kwargs
     assert cache.get(key).get("llm_kwargs") == {}
-    assert cache.get(key).get("model_name") == BedrockModels.CLAUDE_3_HAIKU.value.name
+    assert cache.get(key).get("model_name") == AnthropicModels.CLAUDE_3_HAIKU.value
 
     # assert llm.generate is using cached result
     custom_output: dict[str, Any] = {
         "result": {"output": "This is a custom response"},
         "prompt_kwargs": prompt_kwargs,
         "llm_kwargs": {},
-        "model_name": BedrockModels.CLAUDE_3_HAIKU.value.name,
+        "model_name": AnthropicModels.CLAUDE_3_HAIKU.value,
     }
     cache.set(key, custom_output)
 
@@ -62,7 +59,7 @@ def test_cached_bedrock(tmp_path: Path):
 
 def test_cached_bedrock_different_prompts(tmp_path: Path):
     cache = DiskCache(str(tmp_path))
-    llm = Bedrock(BedrockModels.CLAUDE_3_HAIKU, cache=cache)
+    llm = Anthropic(AnthropicModels.CLAUDE_3_HAIKU, cache=cache)
     prompt_kwargs_1 = {"prompt": "Write a limerick about large language models."}
     prompt_kwargs_2 = {"prompt": "Write a short limerick about large language models."}
     prompt_kwargs_3 = {"prompt": "Write a poem about large language models."}
@@ -85,10 +82,10 @@ def test_cached_bedrock_different_prompts(tmp_path: Path):
     """
 
 
-def test_cached_bedrock_different_models(tmp_path: Path):
+def test_cached_anthropic_different_models(tmp_path: Path):
     cache = DiskCache(str(tmp_path))
-    llm_HAIKU = Bedrock(BedrockModels.CLAUDE_3_HAIKU, cache=cache)
-    llm_SONNET = Bedrock(BedrockModels.CLAUDE_3_SONNET, cache=cache)
+    llm_HAIKU = Anthropic(AnthropicModels.CLAUDE_3_HAIKU, cache=cache)
+    llm_SONNET = Anthropic(AnthropicModels.CLAUDE_3_SONNET, cache=cache)
 
     prompt_kwargs = {"prompt": "Write a limerick about large language models."}
 
@@ -102,11 +99,11 @@ def test_cached_bedrock_different_models(tmp_path: Path):
     assert cache.get(key_HAIKU).get("result")["output"] == res_HAIKU
     assert cache.get(key_HAIKU).get("prompt_kwargs") == prompt_kwargs
     assert cache.get(key_HAIKU).get("llm_kwargs") == {}
-    assert cache.get(key_HAIKU).get("model_name") == BedrockModels.CLAUDE_3_HAIKU.value.name
+    assert cache.get(key_HAIKU).get("model_name") == AnthropicModels.CLAUDE_3_HAIKU.value
     assert cache.get(key_SONNET).get("result")["output"] == res_SONNET
     assert cache.get(key_SONNET).get("prompt_kwargs") == prompt_kwargs
     assert cache.get(key_SONNET).get("llm_kwargs") == {}
-    assert cache.get(key_SONNET).get("model_name") == BedrockModels.CLAUDE_3_SONNET.value.name
+    assert cache.get(key_SONNET).get("model_name") == AnthropicModels.CLAUDE_3_SONNET.value
 
     # check for difference with model change
     assert key_HAIKU != key_SONNET
@@ -114,13 +111,12 @@ def test_cached_bedrock_different_models(tmp_path: Path):
 
 
 def test_metadata():
-    llm = Bedrock(BedrockModels.CLAUDE_3_HAIKU)
+    llm = Anthropic(AnthropicModels.CLAUDE_3_HAIKU)
     prompt_kwargs = {"prompt": "Write a limerick about large language models."}
 
     res = llm.generate_metadata(prompt_kwargs=prompt_kwargs, llm_kwargs={})
 
     assert "output" in res
     assert "wall_latency" in res
-    assert "server_latency" in res
     assert "in_tokens" in res
     assert "out_tokens" in res

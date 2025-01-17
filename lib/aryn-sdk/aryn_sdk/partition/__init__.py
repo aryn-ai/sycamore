@@ -7,6 +7,7 @@ from .partition import (
     convert_image_element,
     PartitionError,
     NoSuchAsyncPartitionerJob,
+    AsyncPartitionerError,
 )
 from .art import draw_with_boxes
 
@@ -20,4 +21,5 @@ __all__ = [
     "partition_file_submit_async",
     "partition_file_result_async",
     "NoSuchAsyncPartitionerJob",
+    "AsyncPartitionerError",
 ]

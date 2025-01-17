@@ -27,6 +27,12 @@ class PartitionError(Exception):
         self.status_code = status_code
 
 
+class AsyncPartitionerError(Exception):
+    def __init__(self, message: str, status_code: int) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+
+
 class NoSuchAsyncPartitionerJob(Exception):
     pass
 
@@ -347,6 +353,8 @@ def partition_file_result_async(
         return None
     elif response.status_code == 404:
         raise NoSuchAsyncPartitionerJob()
+    else:
+        raise AsyncPartitionerError(f"Failed to get results of async partition job {job_id}", response.status_code)
 
 
 # Heavily adapted from lib/sycamore/data/table.py::Table.to_csv()

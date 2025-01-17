@@ -209,3 +209,12 @@ class ElementListPrompt(SycamorePrompt):
         if self.user is not None:
             result.messages.append(RenderedMessage(role="user", content=self.user.format(**format_args)))
         return result
+
+    def instead(self, **kwargs) -> "SycamorePrompt":
+        new = copy.deepcopy(self)
+        for k in kwargs:
+            if k in new.__dict__:
+                new.__dict__[k] = kwargs[k]
+            else:
+                new.kwargs[k] = kwargs[k]
+        return new

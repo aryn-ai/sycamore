@@ -33,7 +33,7 @@ class AsyncPartitionerError(Exception):
         self.status_code = status_code
 
 
-class NoSuchAsyncPartitionerJob(Exception):
+class NoSuchAsyncPartitionerJobError(Exception):
     pass
 
 
@@ -322,7 +322,7 @@ def partition_file_result_async(
 
         Returns None if the job is still in progress.
 
-        Raises a NoSuchAsyncPartitionerJob exception if the job_id is not found.
+        Raises a NoSuchAsyncPartitionerJobError if the job_id is not found.
 
     If this job is still in progress, the response will be a 202 status code with a "status" field of "processing".
     """
@@ -352,7 +352,7 @@ def partition_file_result_async(
     elif response.status_code == 202:
         return None
     elif response.status_code == 404:
-        raise NoSuchAsyncPartitionerJob()
+        raise NoSuchAsyncPartitionerJobError()
     else:
         raise AsyncPartitionerError(f"Failed to get results of async partition job {job_id}", response.status_code)
 

@@ -8,7 +8,7 @@ from aryn_sdk.partition import (
     partition_file,
     partition_file_submit_async,
     partition_file_result_async,
-    NoSuchAsyncPartitionerJob,
+    NoSuchAsyncPartitionerJobError,
 )
 from requests.exceptions import HTTPError
 
@@ -148,7 +148,7 @@ def test_data_to_pandas():
 
 
 def test_invalid_job_id():
-    with pytest.raises(NoSuchAsyncPartitionerJob):
+    with pytest.raises(NoSuchAsyncPartitionerJobError):
         partition_file_result_async("INVALID_JOB_ID")
 
 

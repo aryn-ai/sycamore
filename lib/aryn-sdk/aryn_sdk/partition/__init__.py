@@ -6,7 +6,7 @@ from .partition import (
     table_elem_to_dataframe,
     convert_image_element,
     PartitionError,
-    NoSuchAsyncPartitionerJob,
+    NoSuchAsyncPartitionerJobError,
     AsyncPartitionerError,
 )
 from .art import draw_with_boxes
@@ -20,6 +20,6 @@ __all__ = [
     "PartitionError",
     "partition_file_submit_async",
     "partition_file_result_async",
-    "NoSuchAsyncPartitionerJob",
+    "NoSuchAsyncPartitionerJobError",
     "AsyncPartitionerError",
 ]

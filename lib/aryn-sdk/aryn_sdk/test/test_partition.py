@@ -9,6 +9,7 @@ from aryn_sdk.partition import (
     partition_file_submit_async,
     partition_file_result_async,
     NoSuchAsyncPartitionerJobError,
+    PartitionError,
 )
 from requests.exceptions import HTTPError
 
@@ -77,7 +78,7 @@ def test_partition(pdf, kwargs, response, mocker):
 
     with open(pdf, "rb") as f:
         if kwargs.get("selected_pages") == [0]:
-            with pytest.raises(ValueError) as einfo:
+            with pytest.raises(PartitionError) as einfo:
                 new_response = partition_file(f, **kwargs)
             assert "Invalid page number (0)" in str(einfo.value)
         else:

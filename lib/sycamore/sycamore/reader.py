@@ -6,6 +6,7 @@ from pyarrow import Table
 from pyarrow.filesystem import FileSystem
 
 from sycamore.connectors.doc_reconstruct import DocumentReconstructor
+from sycamore.connectors.docstore.DocStoreReader import DocStoreClientParams, DocStoreQueryParams
 from sycamore.context import context_params
 from sycamore.plan_nodes import Node
 from sycamore import Context, DocSet
@@ -632,3 +633,20 @@ class DocSetReader:
             **kwargs,
         )
         return DocSet(self._context, wr)
+
+    @context_params
+    def docstore(self, docset_id: str, **kwargs) -> DocSet:
+        """
+        Reads the contents of a DocStore collection into a DocSet.
+
+        Args:
+            kwargs: Keyword arguments to pass to the underlying execution engine.
+        """
+        from sycamore.connectors.docstore.DocStoreReader import (
+            DocStoreReader,
+            DocStoreClientParams,
+            DocStoreQueryParams,
+        )
+
+        dr = DocStoreReader(client_params=DocStoreClientParams(), query_params=DocStoreQueryParams(docset_id), **kwargs)
+        return DocSet(self._context, dr)

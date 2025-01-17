@@ -3,6 +3,8 @@ from typing import Any, Callable, Optional, Union, TYPE_CHECKING
 
 from pyarrow.fs import FileSystem
 
+from sycamore.connectors.docstore.DocStoreReader import DocStoreClientParams
+from sycamore.connectors.docstore.DocStoreWriter import DocStoreWriterTargetParams
 from sycamore.context import Context, ExecMode, context_params
 from sycamore.connectors.common import HostAndPort
 from sycamore.connectors.file.file_writer import default_doc_to_bytes, default_filename, FileWriter, JsonWriter
@@ -799,6 +801,29 @@ class DocSetWriter:
         node: Node = JsonWriter(self.plan, path, filesystem=filesystem, **resource_args)
 
         self._maybe_execute(node, True)
+
+    def docstore(
+            self,
+            docset_id: Optional[str] = None,
+            **kwargs,
+    ) -> Optional["DocSet"]:
+        """
+
+        Returns:
+
+        """
+
+        from sycamore.connectors.docstore.DocStoreWriter import (
+            DocStoreWriter,
+            DocStoreWriterClientParams,
+            DocStoreWriterTargetParams,
+        )
+
+        client_params = DocStoreWriterClientParams()
+        target_params = DocStoreWriterTargetParams(docset_id)
+        ds = DocStoreWriter(self.plan, client_params=client_params, target_params=target_params, **kwargs)
+
+        return self._maybe_execute(ds, True)
 
     def _maybe_execute(self, node: Node, execute: bool) -> Optional[DocSet]:
         ds = DocSet(self.context, node)

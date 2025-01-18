@@ -122,7 +122,7 @@ def test_partition_it(pdf, kwargs, response):
 
 def test_partition_it_zero_page():
 
-    with pytest.raises(ValueError) as einfo:
+    with pytest.raises(PartitionError) as einfo:
         with open(RESOURCE_DIR / "pdfs" / "SPsort.pdf", "rb") as f:
             partition_file(f, selected_pages=[0])
 

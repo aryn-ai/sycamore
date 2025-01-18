@@ -297,8 +297,10 @@ def partition_file_submit_async(*args, **kwargs) -> dict:
         job_id = job["job_id"]
     """
 
+    # Check that the docparse_url is set to the async endpoint. If it's not, then it changes it to the async endpoint
+    # assuming it was given the correct synchronous endpoint. Uses the default async endpoint if none was provided.
     docparse_url_position = inspect.getfullargspec(partition_file)[0].index("docparse_url")
-    if len(args) > docparse_url_position:
+    if len(args) > docparse_url_position: # Checks if the docparse_url is specified as a positional argument
         if "/v1/async/submit" not in args[docparse_url_position]:
             args = list(args)
             args[docparse_url_position] = args[docparse_url_position].replace("/v1/", "/v1/async/submit/")

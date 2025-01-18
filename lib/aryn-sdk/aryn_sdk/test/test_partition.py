@@ -148,11 +148,6 @@ def test_data_to_pandas():
     assert df["2018"][13] == "134"
 
 
-def test_invalid_job_id():
-    with pytest.raises(NoSuchAsyncPartitionerJobError):
-        partition_file_result_async("INVALID_JOB_ID")
-
-
 def test_convert_img():
     with open(RESOURCE_DIR / "image" / "partitioning_output.json", "r") as f:
         data = json.load(f)
@@ -167,6 +162,11 @@ def test_convert_img():
     with open(RESOURCE_DIR / "image" / "pngb64str.txt", "r") as f:
         real_str = f.read().strip()
     assert png_str == real_str
+
+
+def test_invalid_job_id():
+    with pytest.raises(NoSuchAsyncPartitionerJobError):
+        partition_file_result_async("INVALID_JOB_ID")
 
 
 def test_partition_file_async():

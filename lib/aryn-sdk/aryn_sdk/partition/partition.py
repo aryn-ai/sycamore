@@ -309,7 +309,7 @@ def partition_file_submit_async(*args, force_async_url: bool = False, **kwargs) 
 
         import logging
         import time
-        from aryn_sdk.partition import partition_file_submit_async, partition_file_result_async
+        from aryn_sdk.partition import partition_file_submit_async, partition_file_result_async, PartitionError
 
         files = [open("file1.pdf", "rb"), open("file2.docx", "rb")]
         job_ids = {}
@@ -321,11 +321,14 @@ def partition_file_submit_async(*args, force_async_url: bool = False, **kwargs) 
 
         results = {}
         for i, job_id in job_ids.items():
-            result = partition_file_result_async(job_id)
-            while not result:
-                time.sleep(5)
+            try:
                 result = partition_file_result_async(job_id)
-            results[i] = result
+                while not result:
+                    time.sleep(5)
+                    result = partition_file_result_async(job_id)
+                results[i] = result
+            except PartitionError as e:
+                logging.warning(f"Partitioning failed for document {i}")
     """
 
     partition_file_full_arg_spec = inspect.getfullargspec(partition_file)

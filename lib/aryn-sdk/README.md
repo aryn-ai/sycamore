@@ -96,3 +96,50 @@ pil_img = convert_image_element(image_elts[0])
 jpg_bytes = convert_image_element(image_elts[1], format='JPEG')
 png_str = convert_image_element(image_elts[2], format="PNG", b64encode=True)
 ```
+
+### Async Aryn DocParse
+
+#### Single Job Example
+```python
+import time
+from aryn_sdk.partition import partition_file_submit_async, partition_file_result_async
+
+with open("my-favorite-pdf.pdf", "rb") as f:
+    job = partition_file_submit_async(
+        f,
+        use_ocr=True,
+        extract_table_structure=True,
+    )
+
+job_id = job["job_id"]
+
+# Poll for the results
+result = partition_file_result_async(job_id)
+while not result:
+    time.sleep(5)
+    result = partition_file_result_async(job_id)
+```
+
+#### Multi-Job Example
+
+```python
+import logging
+import time
+from aryn_sdk.partition import partition_file_submit_async, partition_file_result_async
+
+files = [open("file1.pdf", "rb"), open("file2.docx", "rb")]
+job_ids = {}
+for i, f in enumerate(files):
+    try:
+        job_ids[i] = partition_file_submit_async(f))
+    except Exception as e:
+        logging.warning(f"Failed to submit {f}: {e}")
+
+results = {}
+for i, job_id in job_ids.items():
+    result = partition_file_result_async(job_id)
+    while not result:
+        time.sleep(5)
+        result = partition_file_result_async(job_id)
+    results[i] = result
+```

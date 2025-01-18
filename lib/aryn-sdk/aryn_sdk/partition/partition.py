@@ -283,19 +283,49 @@ def partition_file_submit_async(*args, force_async_url: bool = False, **kwargs) 
         A dictionary containing "job_id" which can be used with the `partition_file_result_async`
         function to get the results.
 
-    Example:
+    Single Job Example:
         .. code-block:: python
 
-        from aryn_sdk.partition import partition_file_submit_async
+        import time
+        from aryn_sdk.partition import partition_file_submit_async, partition_file_result_async
 
         with open("my-favorite-pdf.pdf", "rb") as f:
             job = partition_file_submit_async(
                 f,
-                ary_api_key="MY-ARYN-API-KEY",
                 use_ocr=True,
                 extract_table_structure=True,
             )
+
         job_id = job["job_id"]
+
+        # Poll for the results
+        result = partition_file_result_async(job_id)
+        while not result:
+            time.sleep(5)
+            result = partition_file_result_async(job_id)
+
+    Multi-Job Example:
+        .. code-block:: python
+
+        import logging
+        import time
+        from aryn_sdk.partition import partition_file_submit_async, partition_file_result_async
+
+        files = [open("file1.pdf", "rb"), open("file2.docx", "rb")]
+        job_ids = {}
+        for i, f in enumerate(files):
+            try:
+                job_ids[i] = partition_file_submit_async(f))
+            except Exception as e:
+                logging.warning(f"Failed to submit {f}: {e}")
+
+        results = {}
+        for i, job_id in job_ids.items():
+            result = partition_file_result_async(job_id)
+            while not result:
+                time.sleep(5)
+                result = partition_file_result_async(job_id)
+            results[i] = result
     """
 
     partition_file_full_arg_spec = inspect.getfullargspec(partition_file)
@@ -361,7 +391,8 @@ def partition_file_result_async(
 
         Raises a NoSuchAsyncPartitionerJobError if the job_id is not found.
 
-    If this job is still in progress, the response will be a 202 status code with a "status" field of "processing".
+    Example:
+        See the examples in `partition_file_submit_async` for a full example of how to use this function.
     """
     if aryn_api_key is not None:
         if aryn_config is not None:

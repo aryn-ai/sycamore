@@ -173,6 +173,22 @@ def test_invalid_job_id():
         partition_file_result_async("INVALID_JOB_ID")
 
 
+def test_partition_file_submit_async(mocker):
+    data = b'{"job_id": "1234"}'
+    expected_response = json.loads(data.decode("utf-8"))
+
+    mocked_response = mocker.Mock()
+    mocked_response.status_code = 202
+    mocked_response.iter_content.return_value = data.split(sep=b"\n")
+
+    mocker.patch("requests.post").return_value = mocked_response
+
+    with open(RESOURCE_DIR / "pdfs" / "3m_table.pdf", "rb") as f:
+        response = partition_file_submit_async(f)
+
+    assert response == expected_response
+
+
 def test_partition_file_async():
     with open(RESOURCE_DIR / "pdfs" / "3m_table.pdf", "rb") as f:
         job_id = partition_file_submit_async(f)["job_id"]

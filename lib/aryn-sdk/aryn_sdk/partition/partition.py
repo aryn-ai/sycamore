@@ -306,15 +306,16 @@ def partition_file_submit_async(*args, force_async_url: bool = False, **kwargs) 
         aps_url_position < docparse_url_position
     ), "partition_file_submit_async assumes that aps_url comes before docparse_url"
 
+    args_list = list(args)
+
     if not force_async_url:  # If force_async_url is set to True, then this function will not change the endpoint
         # Check if docparse_url was provided as a positional argument. If it was, then this checks to make sure that
         # docparse_url is set to the async endpoint. If docparse_url is specified and it's not set to the async
         # endpoint, then this changes it to the async endpoint assuming it was given the correct synchronous endpoint.
-        if len(args) > docparse_url_position:
+        if len(args_list) > docparse_url_position:
             if "/v1/async/submit" not in args[docparse_url_position]:
-                args = list(args)
-                assert isinstance(args[docparse_url_position], str)
-                args[docparse_url_position] = args[docparse_url_position].replace("/v1/", "/v1/async/submit/")
+                assert isinstance(args_list[docparse_url_position], str)
+                args_list[docparse_url_position] = args_list[docparse_url_position].replace("/v1/", "/v1/async/submit/")
         else:
             # Since docparse_url take precedence over aps_url, check if docparse_url was provided as a keyword argument
             if "docparse_url" in kwargs:
@@ -326,10 +327,9 @@ def partition_file_submit_async(*args, force_async_url: bool = False, **kwargs) 
                 # Check if aps_url was provided as a positional argument. If it was, then this checks to make sure that
                 # aps_url is set to the async endpoint. If aps_url is specified and it's not set to the async endpoint,
                 # then this changes it to the async endpoint assuming it was given the correct synchronous endpoint.
-                if len(args) > aps_url_position:  # Checks if the aps_url is specified as a positional argument
+                if len(args_list) > aps_url_position:  # Checks if the aps_url is specified as a positional argument
                     if "/v1/async/submit" not in args[aps_url_position]:  # Detect if the aps_url is set to async
-                        args = list(args)
-                        args[aps_url_position] = args[aps_url_position].replace("/v1/", "/v1/async/submit/")
+                        args_list[aps_url_position] = args_list[aps_url_position].replace("/v1/", "/v1/async/submit/")
                 else:  # docparse was not provided as an argument at all and aps_url was not provided positionally
                     if "aps_url" in kwargs:
                         aps_url = kwargs["aps_url"]
@@ -338,7 +338,7 @@ def partition_file_submit_async(*args, force_async_url: bool = False, **kwargs) 
                             kwargs["aps_url"] = aps_url.replace("/v1/", "/v1/async/submit/")
                     else:
                         kwargs["docparse_url"] = ARYN_DOCPARSE_URL.replace("/v1/", "/v1/async/submit/")
-    return partition_file(*args, **kwargs)
+    return partition_file(*args_list, **kwargs)
 
 
 def partition_file_result_async(

@@ -1,8 +1,11 @@
-from aryn_sdk.partition.partition import convert_image_element, tables_to_pandas
+from os import PathLike
+from typing import Any, BinaryIO, Literal, Optional, Union
+from aryn_sdk.partition.partition import convert_image_element, tables_to_pandas, ARYN_DOCPARSE_URL
 import pytest
 import json
 import time
 from pathlib import Path
+import inspect
 
 from aryn_sdk.partition import (
     partition_file,
@@ -11,6 +14,7 @@ from aryn_sdk.partition import (
     NoSuchAsyncPartitionerJobError,
     PartitionError,
 )
+from aryn_sdk.config import ArynConfig
 from requests.exceptions import HTTPError
 
 RESOURCE_DIR = Path(__file__).parent / "resources"
@@ -183,3 +187,70 @@ def test_partition_file_async():
         expected_result = json.load(f)
 
     assert expected_result["elements"] == actual_result["elements"]
+
+
+def test_partiton_file_async_url_forwarding(mocker):
+    def call_partition_file(base_url: str):
+        partition_file_submit_async("", docparse_url=base_url)
+        partition_file_submit_async("", aps_url=base_url)
+        partition_file_submit_async(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, base_url)
+        partition_file_submit_async(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "wrong", base_url)
+        partition_file_submit_async(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "wrong", docparse_url=base_url)
+        partition_file_submit_async("", aps_url=base_url, docparse_url=base_url)
+
+    standard_async_url = ARYN_DOCPARSE_URL.replace("/v1/", "/v1/async/submit/")
+
+    def check_standard_url(
+        file: Union[BinaryIO, str, PathLike],
+        aryn_api_key: Optional[str] = None,
+        aryn_config: Optional[ArynConfig] = None,
+        threshold: Optional[Union[float, Literal["auto"]]] = None,
+        use_ocr: bool = False,
+        ocr_images: bool = False,
+        extract_table_structure: bool = False,
+        table_extraction_options: dict[str, Any] = {},
+        extract_images: bool = False,
+        selected_pages: Optional[list[Union[list[int], int]]] = None,
+        chunking_options: Optional[dict[str, Any]] = None,
+        aps_url: Optional[str] = None,  # deprecated in favor of docparse_url
+        docparse_url: Optional[str] = None,
+        ssl_verify: bool = True,
+        output_format: Optional[str] = None,
+        output_label_options: dict[str, Any] = {},
+    ):
+        url = docparse_url or aps_url
+        assert url == standard_async_url
+
+    mocker.patch("inspect.getfullargspec").return_value = inspect.getfullargspec(partition_file)
+    mocker.patch("aryn_sdk.partition.partition.partition_file", side_effect=check_standard_url)
+    partition_file_submit_async("")
+    call_partition_file(ARYN_DOCPARSE_URL)
+    call_partition_file(standard_async_url)
+
+    nonstandard_url_example = "http://localhost:8000/v1/document/partition"
+    nonstandard_async_url_example = nonstandard_url_example.replace("/v1/", "/v1/async/submit/")
+
+    def check_nonstandard_url(
+        file: Union[BinaryIO, str, PathLike],
+        aryn_api_key: Optional[str] = None,
+        aryn_config: Optional[ArynConfig] = None,
+        threshold: Optional[Union[float, Literal["auto"]]] = None,
+        use_ocr: bool = False,
+        ocr_images: bool = False,
+        extract_table_structure: bool = False,
+        table_extraction_options: dict[str, Any] = {},
+        extract_images: bool = False,
+        selected_pages: Optional[list[Union[list[int], int]]] = None,
+        chunking_options: Optional[dict[str, Any]] = None,
+        aps_url: Optional[str] = None,  # deprecated in favor of docparse_url
+        docparse_url: Optional[str] = None,
+        ssl_verify: bool = True,
+        output_format: Optional[str] = None,
+        output_label_options: dict[str, Any] = {},
+    ):
+        url = docparse_url or aps_url
+        assert url == nonstandard_async_url_example
+
+    mocker.patch("aryn_sdk.partition.partition.partition_file", side_effect=check_nonstandard_url)
+    call_partition_file(nonstandard_url_example)
+    call_partition_file(nonstandard_async_url_example)

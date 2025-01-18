@@ -12,6 +12,7 @@ from collections import OrderedDict
 from PIL import Image
 import base64
 import io
+import inspect
 
 # URL for Aryn DocParse
 ARYN_DOCPARSE_URL = "https://api.aryn.cloud/v1/document/partition"
@@ -273,7 +274,7 @@ def _json_options(
     return json.dumps(options)
 
 
-def partition_file_submit_async(**kwargs) -> dict:
+def partition_file_submit_async(*args, **kwargs) -> dict:
     """
     Submits a file to be partitioned asynchronously. Takes same arguments as partition_file.
 
@@ -296,12 +297,17 @@ def partition_file_submit_async(**kwargs) -> dict:
         job_id = job["job_id"]
     """
 
-    async_url = kwargs.get("docparse_url", ARYN_DOCPARSE_URL)
-    if "/v1/async/submit" not in async_url:
-        async_url = async_url.replace("/v1/", "/v1/async/submit/")
-    kwargs["docparse_url"] = async_url
-    # raise Exception(kwargs["docparse_url"])
-    return partition_file(**kwargs)
+    docparse_url_position = inspect.getfullargspec(partition_file)[0].index("docparse_url")
+    if len(args) > docparse_url_position:
+        if "/v1/async/submit" not in args[docparse_url_position]:
+            args = list(args)
+            args[docparse_url_position] = args[docparse_url_position].replace("/v1/", "/v1/async/submit/")
+    else:
+        async_url = kwargs.get("docparse_url", ARYN_DOCPARSE_URL)
+        if "/v1/async/submit" not in async_url:
+            async_url = async_url.replace("/v1/", "/v1/async/submit/")
+        kwargs["docparse_url"] = async_url
+    return partition_file(*args, **kwargs)
 
 
 def partition_file_result_async(

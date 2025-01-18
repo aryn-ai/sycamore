@@ -274,9 +274,10 @@ def _json_options(
     return json.dumps(options)
 
 
-def partition_file_submit_async(*args, **kwargs) -> dict:
+def partition_file_submit_async(*args, force_async_url: bool = False, **kwargs) -> dict:
     """
     Submits a file to be partitioned asynchronously. Takes same arguments as partition_file.
+    Automatically changes the endpoint to the async endpoint, unless force_async_url is set to True.
 
     Returns:
         A dictionary containing "job_id" which can be used with the `partition_file_result_async`
@@ -297,18 +298,39 @@ def partition_file_submit_async(*args, **kwargs) -> dict:
         job_id = job["job_id"]
     """
 
-    # Check that the docparse_url is set to the async endpoint. If it's not, then it changes it to the async endpoint
-    # assuming it was given the correct synchronous endpoint. Uses the default async endpoint if none was provided.
-    docparse_url_position = inspect.getfullargspec(partition_file)[0].index("docparse_url")
-    if len(args) > docparse_url_position: # Checks if the docparse_url is specified as a positional argument
-        if "/v1/async/submit" not in args[docparse_url_position]:
-            args = list(args)
-            args[docparse_url_position] = args[docparse_url_position].replace("/v1/", "/v1/async/submit/")
-    else:
-        async_url = kwargs.get("docparse_url", ARYN_DOCPARSE_URL)
-        if "/v1/async/submit" not in async_url:
-            async_url = async_url.replace("/v1/", "/v1/async/submit/")
-        kwargs["docparse_url"] = async_url
+    partition_file_full_arg_spec = inspect.getfullargspec(partition_file)
+    ordered_partition_file_parameter_names = partition_file_full_arg_spec[0]
+    docparse_url_position = ordered_partition_file_parameter_names.index("docparse_url")
+    aps_url_position = ordered_partition_file_parameter_names.index("aps_url")
+    assert aps_url_position < docparse_url_position, "partition_file_submit_async assumes that aps_url comes before docparse_url"
+
+    if not force_async_url: # If force_async_url is set to True, then this function will not change the endpoint
+        # Check if docparse_url was provided as a positional argument. If it was, then this checks to make sure that
+        # docparse_url is set to the async endpoint. If docparse_url is specified and it's not set to the async
+        # endpoint, then this changes it to the async endpoint assuming it was given the correct synchronous endpoint.
+        if len(args) > docparse_url_position:
+            if "/v1/async/submit" not in args[docparse_url_position]:
+                args = list(args)
+                args[docparse_url_position] = args[docparse_url_position].replace("/v1/", "/v1/async/submit/")
+        else:
+            # Check if aps_url was provided as a positional argument. If it was, then this checks to make sure that
+            # aps_url is set to the async endpoint. If aps_url is specified and it's not set to the async endpoint,
+            # then this changes it to the async endpoint assuming it was given the correct synchronous endpoint.
+            if len(args) > aps_url_position: # Checks if the aps_url is specified as a positional argument
+                if "/v1/async/submit" not in args[aps_url_position]: # Detect if the aps_url is set to the async endpoint
+                    args = list(args)
+                    args[aps_url_position] = args[aps_url_position].replace("/v1/", "/v1/async/submit/")
+            else: # Neither docparse_url nor aps_url were provided as a positional argument
+                if "aps_url" in kwargs:
+                    aps_url = kwargs["aps_url"]
+                    assert type(aps_url) == str
+                    if "/v1/async/submit" not in aps_url:
+                        kwargs["aps_url"] = aps_url.replace("/v1/", "/v1/async/submit/")
+                else:
+                    async_url = kwargs.get("docparse_url", ARYN_DOCPARSE_URL)
+                    if "/v1/async/submit" not in async_url:
+                        async_url = async_url.replace("/v1/", "/v1/async/submit/")
+                    kwargs["docparse_url"] = async_url
     return partition_file(*args, **kwargs)
 
 

@@ -10,7 +10,7 @@ import os
 import sys
 import time
 import openai
-from flask import Flask, request, jsonify, Response, send_file, stream_with_context
+from flask import Flask, request, jsonify, Response, send_file, stream_with_context, abort
 from flask_cors import CORS
 from werkzeug.datastructures import Headers
 import io
@@ -20,8 +20,9 @@ import warnings
 import mimetypes
 import anthropic
 from functools import lru_cache
+from urllib.parse import urlparse, urljoin
 
-
+# Suppress only specific warnings
 warnings.filterwarnings("ignore", category=urllib3.exceptions.InsecureRequestWarning)
 
 logger = logging.getLogger("proxy")
@@ -65,13 +66,6 @@ badHeaders = [
     "connection",
 ]
 
-# qa_logger = logging.getLogger("qa_log")
-# qa_logger.setLevel(logging.WARNING)
-# qalfh = logging.FileHandler("qa.log")
-# qalfh.setLevel(logging.INFO)
-# qalfh.setFormatter(logging.Formatter('[%(asctime)s]\t[%(levelname)s]\t%(message)s'))
-# qa_logger.addHandler(qalfh)
-
 
 def optionsResp(methods: str):
     # Respond to CORS preflight request
@@ -80,6 +74,12 @@ def optionsResp(methods: str):
     resp.headers["Access-Control-Allow-Methods"] = methods
     resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
     return resp
+
+
+def is_safe_url(target):
+    ref_url = urlparse(request.host_url)
+    test_url = urlparse(urljoin(request.host_url, target))
+    return test_url.scheme in ("http", "https") and ref_url.netloc == test_url.netloc
 
 
 @app.route("/v1/completions", methods=["POST", "OPTIONS"])
@@ -98,10 +98,10 @@ def proxy_stream_request():
         headers=headers,
         json=request.json,
         stream=True,  # Enable streaming
-        verify=False,
+        verify=True,  # Enable SSL verification
     )
 
-    print(f"Outgoing Request - URL: {response.url}, Status Code: {response.status_code}")
+    logger.info(f"Outgoing Request - URL: {response.url}, Status Code: {response.status_code}")
 
     # Check if the response is a streaming response
     is_streaming_response = (
@@ -109,7 +109,7 @@ def proxy_stream_request():
     )
 
     if is_streaming_response:
-        print("Streaming response detected")
+        logger.info("Streaming response detected")
 
         # Stream the OpenAI API response back to the client
         def stream_response():
@@ -127,6 +127,8 @@ def proxy_stream_request():
 
 @lru_cache(maxsize=10)
 def fetch_pdf(url):
+    if not is_safe_url(url):
+        abort(400, "Unsafe URL detected")
     if url.startswith("/"):
         with open(url, "rb") as f:
             pdf_data = f.read()
@@ -137,7 +139,7 @@ def fetch_pdf(url):
         response = s3.get_object(Bucket=bucket_name, Key=file_key)
         pdf_data = response["Body"].read()
     else:
-        response = requests.get(url=url, verify=False)
+        response = requests.get(url=url, verify=True)  # Enable SSL verification
         pdf_data = response.content
     return pdf_data
 
@@ -148,6 +150,8 @@ def proxy():
         return optionsResp("POST")
 
     url = request.json.get("url")
+    if not is_safe_url(url):
+        abort(400, "Unsafe URL detected")
 
     pdf_data = fetch_pdf(url)
 
@@ -164,8 +168,8 @@ def proxy_local(arg):
     if request.method == "OPTIONS":
         return optionsResp("GET")
     path = "/" + arg
-    if "/../" in path:  # Prevent filesystem snooping
-        return "invalid path"
+    if "/../" in path or not os.path.isfile(path):  # Prevent filesystem snooping and ensure file exists
+        return "invalid path", 400
     type, enc = mimetypes.guess_type(path)
     if not type:
         type = "text/html"
@@ -301,7 +305,7 @@ the doc_count field.
         open_ai_result = make_openai_call(messages)
         cleaned_answer = open_ai_result.choices[0].message.content
     except openai.error.InvalidRequestError as e:
-        print(e)
+        logger.error(e)
         if "This model's maximum context length is" in e.args[0]:
             return "Unable to summarize result from OpenSearch due to content size."
 
@@ -316,11 +320,6 @@ def proxy_opensearch(os_path):
     if request.method == "OPTIONS":
         return optionsResp("GET, POST, PUT, DELETE, HEAD")
 
-    # log = request.method + " " + OPENSEARCH_URL + os_path
-    # if request.is_json and request.content_length is not None:
-    #     print(request.json)
-    #     log += " " + str(request.json)
-
     url = OPENSEARCH_URL + os_path
     data = None if request.content_length is None else request.get_data()
     response = requests.request(
@@ -329,10 +328,8 @@ def proxy_opensearch(os_path):
         url=url,
         data=data,
         headers=request.headers,
-        verify=False,
+        verify=True,  # Enable SSL verification
     )
-    # qa_logger.info(log)
-    # qa_logger.info(str(response.json()))
 
     return response.json()
 
@@ -372,7 +369,8 @@ def anthropic_rag_streaming():
                     yield text
 
         except Exception as e:
-            return jsonify({"error": "Error in calling Anthropic: " + str(e)}), 503
+            logger.error(f"Error in calling Anthropic: {str(e)}")
+            return jsonify({"error": "Error in calling Anthropic"}), 503
 
     return Response(stream_with_context(generate()), mimetype="text/event-stream")
 
@@ -409,7 +407,8 @@ def anthropic_rag():
         )
         return result.content[0].text
     except Exception as e:
-        return jsonify({"error": "Error in calling Anthropic: " + e.message}), 503
+        logger.error(f"Error in calling Anthropic: {str(e)}")
+        return jsonify({"error": "Error in calling Anthropic"}), 503
 
 
 @app.route("/opensearch-version", methods=["GET", "OPTIONS"])
@@ -420,7 +419,7 @@ def opensearch_version(retries=3):
         response = requests.request(
             method="GET",
             url=OPENSEARCH_URL,
-            verify=False,
+            verify=True,  # Enable SSL verification
         )
         return response.json()["version"]["number"], 200
     except Exception as e:
@@ -467,7 +466,7 @@ def proxy_ui(arg=None):
         params=request.args,
         url=UI_BASE + request.path,
         headers=request.headers,
-        verify=False,
+        verify=True,  # Enable SSL verification
     )
 
     headers = [(k, v) for k, v in resp.headers.items() if k.lower() not in badHeaders]

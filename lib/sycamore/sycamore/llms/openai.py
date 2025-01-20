@@ -88,24 +88,20 @@ class OpenAIClientWrapper:
                 client_type = OpenAIClientType.AZURE
             else:
                 client_type = OpenAIClientType.OPENAI
-
         if api_base is not None:
             logger.warning(
                 "WARNING: The api_base parameter is deprecated. Please use base_url or azure_endpoint instead."
             )
-
             if azure_endpoint is None:
                 azure_endpoint = api_base
             else:
                 raise ValueError("Can't set both api_base and azure_endpoint")
-
         # TODO: Add some parameter validation so we can fail fast. The openai library has a bunch of validation,
         # but that may not happen until much later in the job execution.
 
         if client_type == OpenAIClientType.AZURE:
             if azure_endpoint is None:
                 raise ValueError("azure_endpoint must be specified for Azure clients.")
-
             if api_version is None:
                 raise ValueError("api_version must be specified for Azure clients.")
 
@@ -319,14 +315,14 @@ class OpenAI(LLM):
         if "prompt" in prompt_kwargs:
             prompt = prompt_kwargs.get("prompt")
             if self.is_chat_mode():
-                kwargs.update(
-                    {
-                        "messages": [
-                            {"role": "system", "content": prompt_kwargs["prompt"].system.format(**prompt_kwargs)},
-                            {"role": "user", "content": prompt_kwargs["prompt"].user.format(**prompt_kwargs)},
-                        ]
-                    }
-                )
+                if isinstance(prompt, SimplePrompt):
+                    kwargs.update(
+                        {
+                            "messages": prompt.as_messages(),
+                        }
+                    )
+                else:
+                    kwargs.update({"messages": [{"role": "user", "content": prompt}]})
             else:
                 if isinstance(prompt, SimplePrompt):
                     prompt = f"{prompt.system}\n{prompt.user}"
@@ -428,7 +424,7 @@ class OpenAI(LLM):
                     model=self._model_name, **kwargs
                 )
             else:
-                raise ValueError("This method doesn't support instruct models. Please use a chat model.")               
+                raise ValueError("This method doesn't support instruct models. Please use a chat model.")
                 # completion = await self.client_wrapper.get_async_client().beta.completions.parse(
                 #     model=self._model_name, **kwargs
                 # )

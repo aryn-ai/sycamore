@@ -19,7 +19,6 @@ class SimplePrompt(ABC):
             if prompt_kwargs is not None:
                 system = self.system.format(**prompt_kwargs)
             messages.append({"role": "system", "content": system})
-
         if self.user is not None:
             user = self.user
             if prompt_kwargs is not None:

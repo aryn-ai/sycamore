@@ -15,7 +15,7 @@ from openai.lib._parsing import type_to_response_format_param
 
 
 def test_openai_defaults():
-    llm = OpenAI(OpenAIModels.GPT_4O)
+    llm = OpenAI(OpenAIModels.GPT_3_5_TURBO)
     prompt_kwargs = {"prompt": "Write a limerick about large language models."}
 
     res = llm.generate(prompt_kwargs=prompt_kwargs, llm_kwargs={})
@@ -70,7 +70,6 @@ def test_cached_openai(tmp_path: Path):
 
 
 def test_cached_guidance(tmp_path: Path):
-    print(tmp_path)
     cache = DiskCache(str(tmp_path))
     llm = OpenAI(OpenAIModels.GPT_3_5_TURBO, cache=cache)
     prompt_kwargs = {"prompt": TestPrompt()}
@@ -224,4 +223,3 @@ def test_azure_pickle(azure_llm):
     pickled = pickle.dumps(azure_llm)
     _ = pickle.loads(pickled)
     assert True
-

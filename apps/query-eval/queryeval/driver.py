@@ -201,7 +201,7 @@ class QueryEvalDriver:
             OpenAIEmbeddings(model="text-embedding-3-small")
         )
         self.correctness_scorer = FactualCorrectness()
-        self.correctness_scorer.llm = LangchainLLMWrapper(ChatOpenAI(model="gpt-4o"))
+        self.correctness_scorer.llm = LangchainLLMWrapper(ChatOpenAI(model_name="gpt-4o"))
 
     @staticmethod
     def read_input_file(input_file_path: str) -> QueryEvalInputFile:

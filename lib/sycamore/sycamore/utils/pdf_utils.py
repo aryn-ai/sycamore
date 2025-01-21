@@ -5,10 +5,11 @@ from typing import Any, BinaryIO, Callable, cast, Union
 from PIL import Image
 
 from pypdf import PdfReader, PdfWriter
+import pdf2image
 
 from sycamore import DocSet
 from sycamore.functions.document import DrawBoxes, split_and_convert_to_image
-from sycamore.utils.image_utils import show_images
+from sycamore.utils.image_utils import show_images, crop_to_bbox
 from sycamore.data import Document, Element
 import json
 
@@ -180,3 +181,18 @@ def promote_title(elements: list[Element], title_candidate_elements=["Section-he
     if section_header:
         section_header.type = "Title"
     return elements
+
+
+def get_element_image(element: Element, document: Document) -> Image.Image:
+    assert document.type == "pdf", "Cannot get picture of element from non-pdf"
+    assert document.binary_representation is not None, "Cannot get image since there is not binary representation"
+    assert element.bbox is not None, "Cannot get picture of element if it has no BBox"
+    assert element.properties.get("page_number") is not None and isinstance(
+        element.properties["page_number"], int
+    ), "Cannot get picture of element without known page number"
+    bits = BytesIO(document.binary_representation)
+    pagebits = BytesIO()
+    select_pdf_pages(bits, pagebits, [element.properties["page_number"]])
+    images = pdf2image.convert_from_bytes(pagebits.getvalue())
+    im = crop_to_bbox(images[0], element.bbox)
+    return im

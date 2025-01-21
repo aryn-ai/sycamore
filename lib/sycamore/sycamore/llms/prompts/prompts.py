@@ -5,7 +5,6 @@ import copy
 import pydantic
 from PIL import Image
 from sycamore.data.document import Document, Element
-from sycamore.utils.pdf_utils import get_element_image
 
 
 @dataclass
@@ -22,9 +21,6 @@ class RenderedMessage:
     content: str
     images: Optional[list[Image.Image]] = None
 
-    def to_dict(self):
-        return {"role": self.role, "content": self.content}
-
 
 @dataclass
 class RenderedPrompt:
@@ -38,12 +34,6 @@ class RenderedPrompt:
 
     messages: list[RenderedMessage]
     response_format: Union[None, dict[str, Any], pydantic.BaseModel] = None
-
-    def to_dict(self):
-        res = {"messages": [m.to_dict() for m in self.messages]}
-        if self.response_format is not None:
-            res["response_format"] = self.output_structure  # type: ignore
-        return res
 
 
 class SycamorePrompt:
@@ -307,6 +297,8 @@ class ElementPrompt(SycamorePrompt):
         if self.user is not None:
             result.messages.append(RenderedMessage(role="user", content=self.user.format(**format_args)))
         if self.include_element_image and len(result.messages) > 0:
+            from sycamore.utils.pdf_utils import get_element_image
+
             result.messages[-1].images = [get_element_image(elt, doc)]
         return result
 

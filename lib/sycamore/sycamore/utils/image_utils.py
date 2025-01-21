@@ -6,6 +6,7 @@ from typing import Any, Callable, Optional, TypeVar, Union
 import logging
 import PIL
 from PIL import Image, ImageDraw, ImageFont
+from PIL.ImageFont import FreeTypeFont, ImageFont as ImageFontType
 from sycamore.data import Document
 from sycamore.data.bbox import BoundingBox
 from sycamore.data.document import DocumentPropertyTypes
@@ -190,7 +191,7 @@ def try_draw_boxes(
     elif isinstance(target, Image.Image):
         canvas = ImageDraw.Draw(target)
         width, height = target.size
-
+    font: FreeTypeFont | ImageFontType
     if font_path is not None:
         font = ImageFont.truetype(font_path, 20)
     elif _supports_font_size():
@@ -231,7 +232,9 @@ def try_draw_boxes(
     return target
 
 
-def show_images(images: Union[Image.Image, list[Image.Image]], width: int = 600) -> None:
+def show_images(
+    images: Union[Image.Image, list[Image.Image], list[Image.ImageFile.ImageFile]], width: int = 600
+) -> None:
     """Displays a list of images for debugging.
 
     In a Jupyter notebook this uses the display method so that it displays inline.

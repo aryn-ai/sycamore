@@ -30,6 +30,7 @@ class ExtractOCRFromImage:
             doc = OCREvalDocument(doc.data)
             assert isinstance(doc, OCREvalDocument), f"Wrong kind of doc: {type(doc)}, {doc}"
             image = doc.image
+            assert image is not None, f"Image does not exist: {doc}"
             doc.pred_text = self._model.get_text(image)
             ans_docs.append(cast(Document, doc))
         return ans_docs

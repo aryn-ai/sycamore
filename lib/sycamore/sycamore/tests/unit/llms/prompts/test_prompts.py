@@ -208,7 +208,7 @@ class TestElementListPrompt:
         assert prompt.render_document(dummy_document) == expected
 
     def test_order_elements(self, dummy_document):
-        prompt = ElementListPrompt(system="sys", user="usr: {elements}", element_order=lambda e: list(reversed(e)))
+        prompt = ElementListPrompt(system="sys", user="usr: {elements}", element_select=lambda e: list(reversed(e)))
         expected = RenderedPrompt(
             messages=[
                 RenderedMessage(role="system", content="sys"),
@@ -236,3 +236,11 @@ class TestElementListPrompt:
             ]
         )
         assert prompt.render_document(dummy_document) == expected
+
+    def test_flattened_properties(self, dummy_document):
+        doc = dummy_document.copy()
+        doc.properties["entity"] = {"key": "value"}
+
+        prompt = ElementListPrompt(system="sys {doc_property_entity_key}")
+        expected = RenderedPrompt(messages=[RenderedMessage(role="system", content="sys value")])
+        assert prompt.render_document(doc) == expected

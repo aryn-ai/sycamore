@@ -5,6 +5,7 @@ import copy
 import pydantic
 from PIL import Image
 from sycamore.data.document import Document, Element
+from sycamore.connectors.common import flatten_data
 
 
 @dataclass
@@ -12,8 +13,8 @@ class RenderedMessage:
     """Represents a message per the LLM messages interface - i.e. a role and a content string
 
     Args:
-        role: the role of this message. Should be one of "user", "system", "assistant"
-        content: the content of this message, either a python string or a PIL image.
+        role: the role of this message. e.g. for OpenAI should be one of "user", "system", "assistant"
+        content: the content of this message
         images: optional list of images to include in this message.
     """
 
@@ -29,7 +30,7 @@ class RenderedPrompt:
     Args:
         messages: the list of messages to be sent to the LLM
         response_format: optional output schema, speicified as pydict/json or
-            a pydantic model. Can only be used (iirc) with modern OpenAI models.
+            a pydantic model. Can only be used with modern OpenAI models.
     """
 
     messages: list[RenderedMessage]
@@ -123,10 +124,8 @@ class ElementListPrompt(SycamorePrompt):
             be interpolated. Defaults to None
         user: The user prompt string. Use {} to reference names that should be
             interpolated. Defaults to None
-        element_select: Function to choose which set of elements to include in
-            the prompt. If None, defaults to the first ``num_elements`` elements.
-        element_order: Function to reorder the selected elements. Defaults to
-            a noop.
+        element_select: Function to choose the elements (and their order) to include
+            in the prompt. If None, defaults to the first ``num_elements`` elements.
         element_list_constructor: Function to turn a list of elements into a
             string that can be accessed with the interpolation key "{elements}".
             Defaults to "ELEMENT 0: {elts[0].text_representation}\\n
@@ -142,8 +141,7 @@ class ElementListPrompt(SycamorePrompt):
             prompt = ElementListPrompt(
                 system = "Hello {name}. This is a prompt about {doc_property_path}"
                 user = "What do you make of these tables?\\nTables:\\n{elements}"
-                element_select = lambda elts: [e for e in elts if e.type == "table"]
-                element_order = reversed
+                element_select = lambda elts: list(reversed(e for e in elts if e.type == "table"))
                 name = "David Rothschild"
             )
             prompt.render_document(doc)
@@ -160,7 +158,6 @@ class ElementListPrompt(SycamorePrompt):
         system: Optional[str] = None,
         user: Optional[str] = None,
         element_select: Optional[Callable[[list[Element]], list[Element]]] = None,
-        element_order: Optional[Callable[[list[Element]], list[Element]]] = None,
         element_list_constructor: Optional[Callable[[list[Element]], str]] = None,
         num_elements: int = 35,
         **kwargs,
@@ -169,7 +166,6 @@ class ElementListPrompt(SycamorePrompt):
         self.system = system
         self.user = user
         self.element_select = element_select or (lambda elts: elts[:num_elements])
-        self.element_order = element_order or (lambda elts: elts)
         self.element_list_constructor = element_list_constructor or (
             lambda elts: "\n".join(f"ELEMENT {i}: {elts[i].text_representation}" for i in range(len(elts)))
         )
@@ -177,7 +173,6 @@ class ElementListPrompt(SycamorePrompt):
 
     def _render_element_list_to_string(self, doc: Document):
         elts = self.element_select(doc.elements)
-        elts = self.element_order(elts)
         return self.element_list_constructor(elts)
 
     def render_document(self, doc: Document) -> RenderedPrompt:
@@ -201,7 +196,8 @@ class ElementListPrompt(SycamorePrompt):
         """
         format_args = self.kwargs
         format_args["doc_text"] = doc.text_representation
-        format_args.update({"doc_property_" + k: v for k, v in doc.properties.items()})
+        flat_props = flatten_data(doc.properties, prefix="doc_property", separator="_")
+        format_args.update(flat_props)
         format_args["elements"] = self._render_element_list_to_string(doc)
 
         result = RenderedPrompt(messages=[])
@@ -289,7 +285,8 @@ class ElementPrompt(SycamorePrompt):
         format_args = self.kwargs
         format_args.update(self.capture_parent_context(doc, elt))
         format_args["elt_text"] = elt.text_representation
-        format_args.update({"elt_property_" + k: v for k, v in elt.properties.items()})
+        flat_props = flatten_data(elt.properties, prefix="elt_property", separator="_")
+        format_args.update(flat_props)
 
         result = RenderedPrompt(messages=[])
         if self.system is not None:

@@ -114,6 +114,19 @@ class SycamorePrompt:
         return new
 
 
+def _build_format_str(
+    system: Optional[str], user: Union[None, str, list[str]], format_args: dict[str, Any]
+) -> list[RenderedMessage]:
+    messages = []
+    if system is not None:
+        messages.append(RenderedMessage(role="system", content=system.format(**format_args)))
+    if isinstance(user, list):
+        messages.extend([RenderedMessage(role="user", content=u.format(**format_args)) for u in user])
+    elif isinstance(user, str):
+        messages.append(RenderedMessage(role="user", content=user.format(**format_args)))
+    return messages
+
+
 class ElementListPrompt(SycamorePrompt):
     """A prompt with utilities for constructing a list of elements to include
     in the rendered prompt.
@@ -156,7 +169,7 @@ class ElementListPrompt(SycamorePrompt):
         self,
         *,
         system: Optional[str] = None,
-        user: Optional[str] = None,
+        user: Union[None, str, list[str]] = None,
         element_select: Optional[Callable[[list[Element]], list[Element]]] = None,
         element_list_constructor: Optional[Callable[[list[Element]], str]] = None,
         num_elements: int = 35,
@@ -200,11 +213,8 @@ class ElementListPrompt(SycamorePrompt):
         format_args.update(flat_props)
         format_args["elements"] = self._render_element_list_to_string(doc)
 
-        result = RenderedPrompt(messages=[])
-        if self.system is not None:
-            result.messages.append(RenderedMessage(role="system", content=self.system.format(**format_args)))
-        if self.user is not None:
-            result.messages.append(RenderedMessage(role="user", content=self.user.format(**format_args)))
+        messages = _build_format_str(self.system, self.user, format_args)
+        result = RenderedPrompt(messages=messages)
         return result
 
 
@@ -245,7 +255,7 @@ class ElementPrompt(SycamorePrompt):
         self,
         *,
         system: Optional[str] = None,
-        user: Optional[str] = None,
+        user: Union[None, str, list[str]] = None,
         include_element_image: bool = False,
         capture_parent_context: Optional[Callable[[Document, Element], dict[str, Any]]] = None,
         **kwargs,
@@ -288,11 +298,8 @@ class ElementPrompt(SycamorePrompt):
         flat_props = flatten_data(elt.properties, prefix="elt_property", separator="_")
         format_args.update(flat_props)
 
-        result = RenderedPrompt(messages=[])
-        if self.system is not None:
-            result.messages.append(RenderedMessage(role="system", content=self.system.format(**format_args)))
-        if self.user is not None:
-            result.messages.append(RenderedMessage(role="user", content=self.user.format(**format_args)))
+        messages = _build_format_str(self.system, self.user, format_args)
+        result = RenderedPrompt(messages=messages)
         if self.include_element_image and len(result.messages) > 0:
             from sycamore.utils.pdf_utils import get_element_image
 
@@ -323,18 +330,15 @@ class StaticPrompt(SycamorePrompt):
             # ]
     """
 
-    def __init__(self, *, system: Optional[str] = None, user: Optional[str] = None, **kwargs):
+    def __init__(self, *, system: Optional[str] = None, user: Union[None, str, list[str]] = None, **kwargs):
         super().__init__()
         self.system = system
         self.user = user
         self.kwargs = kwargs
 
     def render_generic(self) -> RenderedPrompt:
-        result = RenderedPrompt(messages=[])
-        if self.system is not None:
-            result.messages.append(RenderedMessage(role="system", content=self.system.format(**self.kwargs)))
-        if self.user is not None:
-            result.messages.append(RenderedMessage(role="user", content=self.user.format(**self.kwargs)))
+        messages = _build_format_str(self.system, self.user, self.kwargs)
+        result = RenderedPrompt(messages=messages)
         return result
 
     def render_element(self, elt: Element, doc: Document) -> RenderedPrompt:

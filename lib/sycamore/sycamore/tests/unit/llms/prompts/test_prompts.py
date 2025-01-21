@@ -104,6 +104,17 @@ class TestStaticPrompt:
         assert prompt.render_element(dummy_document.elements[0], dummy_document) == expected
         assert prompt.render_multiple_documents([dummy_document]) == expected
 
+    def test_static_with_multiple_user_prompts(self, dummy_document):
+        prompt = StaticPrompt(system="system {x}", user=["{x} user {y}", "{x} user {z}"], x=1, y=2, z=3)
+        expected = RenderedPrompt(
+            messages=[
+                RenderedMessage(role="system", content="system 1"),
+                RenderedMessage(role="user", content="1 user 2"),
+                RenderedMessage(role="user", content="1 user 3"),
+            ]
+        )
+        assert prompt.render_document(dummy_document) == expected
+
 
 class TestElementPrompt:
     def test_basic(self, dummy_document):

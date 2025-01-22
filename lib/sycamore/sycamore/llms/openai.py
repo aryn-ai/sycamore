@@ -1,4 +1,3 @@
-import copy
 import functools
 import inspect
 import logging
@@ -6,7 +5,7 @@ import os
 from dataclasses import dataclass
 from enum import Enum
 from PIL import Image
-from typing import Any, Dict, Optional, TypedDict, Union, cast, TYPE_CHECKING
+from typing import Any, Dict, Optional, Union
 
 from openai import AzureOpenAI as AzureOpenAIClient
 from openai import AsyncAzureOpenAI as AsyncAzureOpenAIClient
@@ -19,14 +18,11 @@ from openai.lib._parsing import type_to_response_format_param
 
 import pydantic
 
-from sycamore.llms.guidance import execute_with_guidance
 from sycamore.llms.llms import LLM
 from sycamore.llms.prompts import SimplePrompt
 from sycamore.utils.cache import Cache
 from sycamore.utils.image_utils import base64_data_url
 
-if TYPE_CHECKING:
-    from guidance.models import Model
 
 logger = logging.getLogger(__name__)
 
@@ -92,24 +88,20 @@ class OpenAIClientWrapper:
                 client_type = OpenAIClientType.AZURE
             else:
                 client_type = OpenAIClientType.OPENAI
-
         if api_base is not None:
             logger.warning(
                 "WARNING: The api_base parameter is deprecated. Please use base_url or azure_endpoint instead."
             )
-
             if azure_endpoint is None:
                 azure_endpoint = api_base
             else:
                 raise ValueError("Can't set both api_base and azure_endpoint")
-
         # TODO: Add some parameter validation so we can fail fast. The openai library has a bunch of validation,
         # but that may not happen until much later in the job execution.
 
         if client_type == OpenAIClientType.AZURE:
             if azure_endpoint is None:
                 raise ValueError("azure_endpoint must be specified for Azure clients.")
-
             if api_version is None:
                 raise ValueError("api_version must be specified for Azure clients.")
 
@@ -221,76 +213,6 @@ class OpenAIClientWrapper:
         else:
             raise ValueError(f"Invalid client_type {self.client_type}")
 
-    def get_guidance_model(self, model) -> "Model":
-        if self.client_type == OpenAIClientType.OPENAI:
-            from guidance.models import OpenAI as GuidanceOpenAI
-
-            return GuidanceOpenAI(
-                model=model.name,
-                api_key=self.api_key,
-                organization=self.organization,
-                base_url=self.base_url,
-                max_retries=self.max_retries,
-                echo=self.echo,
-                **self.extra_kwargs,
-            )
-        elif self.client_type == OpenAIClientType.AZURE:
-            from guidance.models import AzureOpenAIChat, AzureOpenAICompletion
-
-            # Note: Theoretically the Guidance library automatically determines which
-            # subclass to use, but this appears to be buggy and relies on a bunch of
-            # specific assumptions about how deployed models are named that don't work
-            # well with Azure. This is the only way I was able to get it to work
-            # reliably.
-            # p.s. mypy seems to get mad if cls is not defined as being either, hence
-            # the union expression
-            if model.is_chat:
-                cls: Union[type[AzureOpenAIChat], type[AzureOpenAICompletion]] = AzureOpenAIChat
-            else:
-                cls = AzureOpenAICompletion
-
-            # Shenanigans to defeat typechecking. AzureOpenAI
-            # has params of type str that default to None, so
-            # we create a typed dict and use it as a variadic
-            # argument.
-            class AzureOpenAIParams(TypedDict, total=False):
-                model: str
-                azure_endpoint: str
-                azure_deployment: str
-                azure_ad_token_provider: Optional[AzureADTokenProvider]
-                api_key: str
-                version: str
-                azure_ad_token: Optional[str]
-                organization: Optional[str]
-                max_retries: int
-                echo: bool
-
-            # azure_endpoint and api_key are not None if we're
-            # in this branch, so we can safely cast strings to
-            # strings. mypy thing.
-            params: AzureOpenAIParams = {
-                "model": model.name,
-                "azure_endpoint": str(self.azure_endpoint),
-                "azure_ad_token_provider": self.azure_ad_token_provider,
-                "api_key": str(self.api_key),
-                "azure_ad_token": self.azure_ad_token,
-                "organization": self.organization,
-                "max_retries": self.max_retries,
-                "echo": self.echo,
-            }
-            # Add these guys in if not None. The defaults are
-            # None, but only strings are allowed as params.
-            if self.api_version:
-                params["version"] = self.api_version
-            if self.azure_deployment:
-                params["azure_deployment"] = self.azure_deployment
-            # Tack on any extra args. need to do this untyped-ly
-            cast(dict, params).update(self.extra_kwargs)
-            return cls(**params)
-
-        else:
-            raise ValueError(f"Invalid client_type {self.client_type}")
-
 
 # Allow rough backwards compatibility
 OpenAIClientParameters = OpenAIClientWrapper
@@ -335,7 +257,7 @@ class OpenAI(LLM):
             raise TypeError("model_name must be an instance of str, OpenAIModel, or OpenAIModels")
 
         if self.model.name == OpenAIModels.TEXT_DAVINCI.value.name:
-            logger.warn("text-davinci-003 is deprecated. Falling back to gpt-3.5-turbo-instruct")
+            logger.warning("text-davinci-003 is deprecated. Falling back to gpt-3.5-turbo-instruct")
             self.model = OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value
         super().__init__(self.model.name, cache)
 
@@ -392,7 +314,22 @@ class OpenAI(LLM):
 
         if "prompt" in prompt_kwargs:
             prompt = prompt_kwargs.get("prompt")
-            kwargs.update({"messages": [{"role": "user", "content": f"{prompt}"}]})
+            if self.is_chat_mode():
+                if isinstance(prompt, SimplePrompt):
+                    prompt = prompt.as_messages()
+                    for idx, prompt_message in enumerate(prompt):
+                        prompt[idx]["content"] = prompt_message["content"].format(**prompt_kwargs)
+                    kwargs.update(
+                        {
+                            "messages": prompt,
+                        }
+                    )
+                else:
+                    kwargs.update({"messages": [{"role": "user", "content": prompt}]})
+            else:
+                if isinstance(prompt, SimplePrompt):
+                    prompt = f"{prompt.system}\n{prompt.user}"
+                kwargs.update({"prompt": prompt})
         elif "messages" in prompt_kwargs:
             kwargs.update({"messages": prompt_kwargs["messages"]})
         else:
@@ -418,9 +355,8 @@ class OpenAI(LLM):
                 ret = self._generate_using_openai_structured(prompt_kwargs, llm_kwargs)
             else:
                 ret = self._generate_using_openai(prompt_kwargs, llm_kwargs)
-
         else:
-            ret = self._generate_using_guidance(prompt_kwargs)
+            ret = self._generate_using_openai(prompt_kwargs, llm_kwargs)
 
         self._llm_cache_set(prompt_kwargs, llm_kwargs, ret)
         return ret
@@ -428,14 +364,25 @@ class OpenAI(LLM):
     def _generate_using_openai(self, prompt_kwargs, llm_kwargs) -> str:
         kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
         logging.debug("OpenAI prompt: %s", kwargs)
-        completion = self.client_wrapper.get_client().chat.completions.create(model=self._model_name, **kwargs)
-        logging.debug("OpenAI completion: %s", completion)
-        return completion.choices[0].message.content
+        if self.is_chat_mode():
+            completion = self.client_wrapper.get_client().chat.completions.create(model=self._model_name, **kwargs)
+            logging.debug("OpenAI completion: %s", completion)
+            return completion.choices[0].message.content
+        else:
+            completion = self.client_wrapper.get_client().completions.create(model=self._model_name, **kwargs)
+            logging.debug("OpenAI completion: %s", completion)
+            return completion.choices[0].text
 
     def _generate_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:
         try:
             kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
-            completion = self.client_wrapper.get_client().beta.chat.completions.parse(model=self._model_name, **kwargs)
+            if self.is_chat_mode():
+                completion = self.client_wrapper.get_client().beta.chat.completions.parse(
+                    model=self._model_name, **kwargs
+                )
+            else:
+                raise ValueError("This method doesn't support instruct models. Please use a chat model.")
+                # completion = self.client_wrapper.get_client().beta.completions.parse(model=self._model_name, **kwargs)
             assert completion.choices[0].message.content is not None, "OpenAI refused to respond to the query"
             return completion.choices[0].message.content
         except Exception as e:
@@ -461,17 +408,29 @@ class OpenAI(LLM):
 
     async def _generate_awaitable_using_openai(self, prompt_kwargs, llm_kwargs) -> str:
         kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
-        completion = await self.client_wrapper.get_async_client().chat.completions.create(
-            model=self._model_name, **kwargs
-        )
-        return completion.choices[0].message.content
+        if self.is_chat_mode():
+            completion = await self.client_wrapper.get_async_client().chat.completions.create(
+                model=self._model_name, **kwargs
+            )
+            return completion.choices[0].message.content
+        else:
+            completion = await self.client_wrapper.get_async_client().completions.create(
+                model=self._model_name, **kwargs
+            )
+            return completion.choices[0].text
 
     async def _generate_awaitable_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:
         try:
             kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
-            completion = await self.client_wrapper.get_async_client().beta.chat.completions.parse(
-                model=self._model_name, **kwargs
-            )
+            if self.is_chat_mode():
+                completion = await self.client_wrapper.get_async_client().beta.chat.completions.parse(
+                    model=self._model_name, **kwargs
+                )
+            else:
+                raise ValueError("This method doesn't support instruct models. Please use a chat model.")
+                # completion = await self.client_wrapper.get_async_client().beta.completions.parse(
+                #     model=self._model_name, **kwargs
+                # )
             assert completion.choices[0].message.content is not None, "OpenAI refused to respond to the query"
             return completion.choices[0].message.content
         except Exception as e:
@@ -479,10 +438,3 @@ class OpenAI(LLM):
             # 1.) The LLM ran out of output context length(usually do to hallucination of repeating the same phrase)
             # 2.) The LLM refused to respond to the request because it did not meet guidelines
             raise e
-
-    def _generate_using_guidance(self, in_prompt_kwargs) -> str:
-        guidance_model = self.client_wrapper.get_guidance_model(self.model)
-        prompt_kwargs = copy.deepcopy(in_prompt_kwargs)
-        prompt: SimplePrompt = prompt_kwargs.pop("prompt")
-        prediction = execute_with_guidance(prompt, guidance_model, **prompt_kwargs)
-        return prediction

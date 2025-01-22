@@ -19,7 +19,6 @@ class SimplePrompt(ABC):
             if prompt_kwargs is not None:
                 system = self.system.format(**prompt_kwargs)
             messages.append({"role": "system", "content": system})
-
         if self.user is not None:
             user = self.user
             if prompt_kwargs is not None:
@@ -307,7 +306,7 @@ _deprecated_prompts: dict[str, Type[SimplePrompt]] = {
 
 def _deprecated_prompt(name: str) -> SimplePrompt:
     cls = _deprecated_prompts[name]
-    logger.warn(f"The prompt {name} is deprecated. Switch to {cls.__name__}()")
+    logger.warning(f"The prompt {name} is deprecated. Switch to {cls.__name__}()")
     return cls()
 
 

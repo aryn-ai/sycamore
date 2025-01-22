@@ -115,7 +115,7 @@ job_id = job["job_id"]
 
 # Poll for the results
 result = partition_file_result_async(job_id)
-while not result:
+while result.status == JobStatus.IN_PROGRESS:
     time.sleep(5)
     result = partition_file_result_async(job_id)
 ```
@@ -137,12 +137,9 @@ for i, f in enumerate(files):
 
 results = {}
 for i, job_id in job_ids.items():
-    try:
+    result = partition_file_result_async(job_id)
+    while result.status == JobStatus.IN_PROGRESS:
+        time.sleep(5)
         result = partition_file_result_async(job_id)
-        while not result:
-            time.sleep(5)
-            result = partition_file_result_async(job_id)
-        results[i] = result
-    except PartitionError as e:
-        logging.warning(f"Partitioning failed for document {i}")
+    results[i] = result
 ```

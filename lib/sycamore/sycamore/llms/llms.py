@@ -108,7 +108,7 @@ class FakeLLM(LLM):
         super().__init__("trivial", cache=cache)
         self._return_value = return_value
 
-    def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
+    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         return self._return_value
 
     def is_chat_mode(self) -> bool:

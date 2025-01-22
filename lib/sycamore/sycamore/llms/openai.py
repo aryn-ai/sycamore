@@ -316,9 +316,12 @@ class OpenAI(LLM):
             prompt = prompt_kwargs.get("prompt")
             if self.is_chat_mode():
                 if isinstance(prompt, SimplePrompt):
+                    prompt = prompt.as_messages()
+                    for idx, prompt_message in enumerate(prompt):
+                        prompt[idx]["content"] = prompt_message["content"].format(**prompt_kwargs)
                     kwargs.update(
                         {
-                            "messages": prompt.as_messages(),
+                            "messages": prompt,
                         }
                     )
                 else:

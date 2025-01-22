@@ -77,7 +77,7 @@ class SycamorePrompt:
             A fully rendered prompt that can be sent to an LLM for inference"""
         raise NotImplementedError(f"render_multiple_documents is not implemented for {self.__class__.__name__}")
 
-    def instead(self, **kwargs) -> "SycamorePrompt":
+    def set(self, **kwargs) -> "SycamorePrompt":
         """Create a new prompt with some fields changed.
 
         Args:
@@ -98,7 +98,7 @@ class SycamorePrompt:
                 #     {"role": "system", "content": "hello"},
                 #     {"role": "user", "content": "world"}
                 # ]
-                p2 = p.instead(user="bob")
+                p2 = p.set(user="bob")
                 p2.render_document(Document())
                 # [
                 #     {"role": "system", "content": "hello"},

@@ -79,10 +79,10 @@ class TestRenderedPrompt:
 
 
 class TestSycamorePrompt:
-    def test_instead_is_cow(self):
+    def test_set_is_cow(self):
         sp = SycamorePrompt()
         sp.__dict__["key"] = "value"
-        sp2 = sp.instead(key="other value")
+        sp2 = sp.set(key="other value")
         assert sp.key == "value"
         assert sp2.key == "other value"
 
@@ -93,7 +93,7 @@ class TestStaticPrompt:
         with pytest.raises(KeyError):
             prompt.render_document(dummy_document)
 
-        prompt = prompt.instead(x=76)
+        prompt = prompt.set(x=76)
         expected = RenderedPrompt(
             messages=[
                 RenderedMessage(role="system", content="system 76"),
@@ -165,7 +165,7 @@ class TestElementPrompt:
         assert rp.messages[1].role == "user"
         assert rp.messages[0].images is None
 
-        prompt = prompt.instead(user=None)
+        prompt = prompt.set(user=None)
         rp2 = prompt.render_element(dummy_document.elements[1], dummy_document)
         assert len(rp2.messages) == 1
         assert rp2.messages[0].role == "system"

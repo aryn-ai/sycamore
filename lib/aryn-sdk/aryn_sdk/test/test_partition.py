@@ -124,6 +124,12 @@ def test_partition_it(pdf, kwargs, response):
     assert response_data["elements"] == new_response["elements"]
 
 
+def test_partition_with_unsupported_file_format():
+    with pytest.raises(PartitionError):
+        with open(RESOURCE_DIR / "image" / "unsupported-format-test-document-image.heic", "rb") as f:
+            partition_file(f)
+
+
 def test_partition_it_zero_page():
 
     with pytest.raises(PartitionError) as einfo:
@@ -187,22 +193,6 @@ def test_partition_file_submit_async(mocker):
         response = partition_file_submit_async(f)
 
     assert response == expected_response
-
-
-def test_partition_file_async():
-    with open(RESOURCE_DIR / "pdfs" / "3m_table.pdf", "rb") as f:
-        job_id = partition_file_submit_async(f)["job_id"]
-
-    start = time.time()
-    actual_result = None
-    while not actual_result and time.time() - start < 60 * 5:
-        actual_result = partition_file_result_async(job_id)
-        time.sleep(5)
-
-    with open(RESOURCE_DIR / "json" / "3m_output.json", "rb") as f:
-        expected_result = json.load(f)
-
-    assert expected_result["elements"] == actual_result["elements"]
 
 
 def test_partiton_file_async_url_forwarding(mocker):
@@ -270,3 +260,19 @@ def test_partiton_file_async_url_forwarding(mocker):
     mocker.patch("aryn_sdk.partition.partition.partition_file", side_effect=check_nonstandard_url)
     call_partition_file(nonstandard_url_example)
     call_partition_file(nonstandard_async_url_example)
+
+
+def test_partition_file_async():
+    with open(RESOURCE_DIR / "pdfs" / "3m_table.pdf", "rb") as f:
+        job_id = partition_file_submit_async(f)["job_id"]
+
+    start = time.time()
+    actual_result = None
+    while not actual_result and time.time() - start < 60 * 5:
+        actual_result = partition_file_result_async(job_id)
+        time.sleep(5)
+
+    with open(RESOURCE_DIR / "json" / "3m_output.json", "rb") as f:
+        expected_result = json.load(f)
+
+    assert expected_result["elements"] == actual_result["elements"]

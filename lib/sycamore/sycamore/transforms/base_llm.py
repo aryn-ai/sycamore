@@ -9,7 +9,7 @@ from sycamore.data import Document, Element
 
 def _infer_prompts(prompts: list[RenderedPrompt], llm: LLM, llm_mode: LLMMode) -> list[str]:
     if llm_mode == LLMMode.SYNC:
-        return [llm.generate(p) for p in prompts]
+        return [llm.generate(prompt=p) for p in prompts]
     elif llm_mode == LLMMode.ASYNC:
         raise NotImplementedError("Haven't done async yet")
     elif llm_mode == LLMMode.BATCH:

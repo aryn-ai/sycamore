@@ -6,6 +6,7 @@ from typing import Any, Optional, Union
 from PIL import Image
 
 from sycamore.llms.llms import LLM
+from sycamore.llms.prompts import RenderedPrompt
 from sycamore.llms.prompts.default_prompts import SimplePrompt
 from sycamore.utils.cache import Cache
 from sycamore.utils.image_utils import base64_data
@@ -49,29 +50,54 @@ def rewrite_system_messages(messages: Optional[list[dict]]) -> Optional[list[dic
     return [m for m in messages if m.get("role") != "system"]
 
 
-def get_generate_kwargs(prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> dict:
+def get_generate_kwargs(prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
     kwargs = {
         "temperature": 0,
         **(llm_kwargs or {}),
     }
-
     kwargs["max_tokens"] = kwargs.get("max_tokens", DEFAULT_MAX_TOKENS)
 
-    if "prompt" in prompt_kwargs:
-        prompt = prompt_kwargs.get("prompt")
+    # Anthropic models require _exactly_ alternation between "user" and "assistant"
+    # roles, so we break the messages into groups of consecutive user/assistant
+    # messages, treating "system" as "user". Then crunch each group down to a single
+    # message to ensure alternation.
+    message_groups = []
+    last_role = None
 
-        if isinstance(prompt, SimplePrompt):
-            kwargs.update({"messages": prompt.as_messages(prompt_kwargs)})
+    for m in prompt.messages:
+        r = m.role
+        if r == "system":
+            r = "user"
+        if r != last_role:
+            message_groups.append([])
+        message_groups[-1].append(m)
+        last_role = r
+
+    messages = []
+    for group in message_groups:
+        role = group[0].role
+        if role == "system":
+            role = "user"
+        content = "\n".join(m.content for m in group)
+        if any(m.images is not None for m in group):
+            images = [im for m in group for im in m.images]
+            contents = [{"type": "text", "text": content}]
+            for im in images:
+                contents.append(
+                    {  # type: ignore
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "image/png",
+                            "data": base64_data(im),
+                        },
+                    }
+                )
+            messages.append({"role": role, "content": contents})
         else:
-            kwargs.update({"messages": [{"role": "user", "content": f"{prompt}"}]})
+            messages.append({"role": role, "content": content})
 
-    elif "messages" in prompt_kwargs:
-        kwargs.update({"messages": prompt_kwargs["messages"]})
-    else:
-        raise ValueError("Either prompt or messages must be present in prompt_kwargs.")
-
-    kwargs["messages"] = rewrite_system_messages(kwargs["messages"])
-
+    kwargs["messages"] = messages
     return kwargs
 
 
@@ -128,12 +154,12 @@ class Anthropic(LLM):
     def format_image(self, image: Image.Image) -> dict[str, Any]:
         return format_image(image)
 
-    def generate_metadata(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> dict:
-        ret = self._llm_cache_get(prompt_kwargs, llm_kwargs)
+    def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
+        ret = self._llm_cache_get(prompt, llm_kwargs)
         if isinstance(ret, dict):
             return ret
 
-        kwargs = get_generate_kwargs(prompt_kwargs, llm_kwargs)
+        kwargs = get_generate_kwargs(prompt, llm_kwargs)
 
         start = datetime.now()
 
@@ -154,9 +180,9 @@ class Anthropic(LLM):
 
         logging.debug(f"Generated response from Anthropic model: {ret}")
 
-        self._llm_cache_set(prompt_kwargs, llm_kwargs, ret)
+        self._llm_cache_set(prompt, llm_kwargs, ret)
         return ret
 
-    def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
-        d = self.generate_metadata(prompt_kwargs=prompt_kwargs, llm_kwargs=llm_kwargs)
+    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        d = self.generate_metadata(prompt=prompt, llm_kwargs=llm_kwargs)
         return d["output"]

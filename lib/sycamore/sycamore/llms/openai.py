@@ -19,7 +19,7 @@ from openai.lib._parsing import type_to_response_format_param
 import pydantic
 
 from sycamore.llms.llms import LLM
-from sycamore.llms.prompts import SimplePrompt
+from sycamore.llms.prompts import SimplePrompt, RenderedPrompt
 from sycamore.utils.cache import Cache
 from sycamore.utils.image_utils import base64_data_url
 
@@ -304,7 +304,7 @@ class OpenAI(LLM):
             return retval
         return llm_kwargs
 
-    def _get_generate_kwargs(self, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> dict:
+    def _get_generate_kwargs(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
         kwargs = {
             "temperature": 0,
             **(llm_kwargs or {}),
@@ -312,28 +312,29 @@ class OpenAI(LLM):
         if "SYCAMORE_OPENAI_USER" in os.environ:
             kwargs.update({"user": os.environ.get("SYCAMORE_OPENAI_USER")})
 
-        if "prompt" in prompt_kwargs:
-            prompt = prompt_kwargs.get("prompt")
-            if self.is_chat_mode():
-                if isinstance(prompt, SimplePrompt):
-                    prompt = prompt.as_messages()
-                    for idx, prompt_message in enumerate(prompt):
-                        prompt[idx]["content"] = prompt_message["content"].format(**prompt_kwargs)
-                    kwargs.update(
-                        {
-                            "messages": prompt,
-                        }
-                    )
-                else:
-                    kwargs.update({"messages": [{"role": "user", "content": prompt}]})
+        if not self.is_chat_mode():
+            # If plain completions model, we want a 'prompt' arg with a
+            # single string in it, not a list of messages. Make it by
+            # concatenating the messages.
+            pstring = "\n".join(m.content for m in prompt.messages)
+            kwargs.update({"prompt": pstring})
+            return kwargs
+
+        messages_list = []
+        for m in prompt.messages:
+            if m.role == "system":
+                role = "developer"
             else:
-                if isinstance(prompt, SimplePrompt):
-                    prompt = f"{prompt.system}\n{prompt.user}"
-                kwargs.update({"prompt": prompt})
-        elif "messages" in prompt_kwargs:
-            kwargs.update({"messages": prompt_kwargs["messages"]})
-        else:
-            raise ValueError("Either prompt or messages must be present in prompt_kwargs.")
+                role = m.role
+            if m.images is None:
+                content = m.content
+            else:
+                content = [{"type": "text", "text": m.content}]
+                for im in m.images:
+                    content.append({"type": "image_url", "image_url": base64_data_url(im)})
+            messages_list.append({"role": role, "content": content})
+
+        kwargs.update({"messages": messages_list})
         return kwargs
 
     def _determine_using_beta(self, response_format: Any) -> bool:
@@ -344,25 +345,22 @@ class OpenAI(LLM):
         else:
             return False
 
-    def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
+    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         llm_kwargs = self._convert_response_format(llm_kwargs)
-        ret = self._llm_cache_get(prompt_kwargs, llm_kwargs)
+        ret = self._llm_cache_get(prompt, llm_kwargs)
         if ret is not None:
             return ret
 
-        if llm_kwargs is not None:
-            if self._determine_using_beta(llm_kwargs.get("response_format", None)):
-                ret = self._generate_using_openai_structured(prompt_kwargs, llm_kwargs)
-            else:
-                ret = self._generate_using_openai(prompt_kwargs, llm_kwargs)
+        if prompt.response_format is not None:
+            ret = self._generate_using_openai_structured(prompt, llm_kwargs)
         else:
-            ret = self._generate_using_openai(prompt_kwargs, llm_kwargs)
+            ret = self._generate_using_openai(prompt, llm_kwargs)
 
-        self._llm_cache_set(prompt_kwargs, llm_kwargs, ret)
+        self._llm_cache_set(prompt, llm_kwargs, ret)
         return ret
 
-    def _generate_using_openai(self, prompt_kwargs, llm_kwargs) -> str:
-        kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
+    def _generate_using_openai(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict]) -> str:
+        kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
         logging.debug("OpenAI prompt: %s", kwargs)
         if self.is_chat_mode():
             completion = self.client_wrapper.get_client().chat.completions.create(model=self._model_name, **kwargs)
@@ -373,9 +371,9 @@ class OpenAI(LLM):
             logging.debug("OpenAI completion: %s", completion)
             return completion.choices[0].text
 
-    def _generate_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:
+    def _generate_using_openai_structured(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict]) -> str:
         try:
-            kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
+            kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
             if self.is_chat_mode():
                 completion = self.client_wrapper.get_client().beta.chat.completions.parse(
                     model=self._model_name, **kwargs
@@ -391,23 +389,24 @@ class OpenAI(LLM):
             # 2.) The LLM refused to respond to the request because it did not meet guidelines
             raise e
 
-    async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
-        ret = self._llm_cache_get(prompt_kwargs, llm_kwargs)
+    async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        ret = self._llm_cache_get(prompt, llm_kwargs)
         if ret is not None:
             return ret
 
         if llm_kwargs is None:
             raise ValueError("Must include llm_kwargs to generate future call")
-        if self._determine_using_beta(llm_kwargs.get("response_format", None)):
-            ret = await self._generate_awaitable_using_openai_structured(prompt_kwargs, llm_kwargs)
-        else:
-            ret = await self._generate_awaitable_using_openai(prompt_kwargs, llm_kwargs)
 
-        self._llm_cache_set(prompt_kwargs, llm_kwargs, ret)
+        if prompt.response_format is not None:
+            ret = await self._generate_awaitable_using_openai_structured(prompt, llm_kwargs)
+        else:
+            ret = await self._generate_awaitable_using_openai(prompt, llm_kwargs)
+
+        self._llm_cache_set(prompt, llm_kwargs, ret)
         return ret
 
-    async def _generate_awaitable_using_openai(self, prompt_kwargs, llm_kwargs) -> str:
-        kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
+    async def _generate_awaitable_using_openai(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict]) -> str:
+        kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
         if self.is_chat_mode():
             completion = await self.client_wrapper.get_async_client().chat.completions.create(
                 model=self._model_name, **kwargs
@@ -419,9 +418,11 @@ class OpenAI(LLM):
             )
             return completion.choices[0].text
 
-    async def _generate_awaitable_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:
+    async def _generate_awaitable_using_openai_structured(
+        self, prompt: RenderedPrompt, llm_kwargs: Optional[dict]
+    ) -> str:
         try:
-            kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
+            kwargs = self._get_generate_kwargs(prompt, llm_kwargs)
             if self.is_chat_mode():
                 completion = await self.client_wrapper.get_async_client().beta.chat.completions.parse(
                     model=self._model_name, **kwargs

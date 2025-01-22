@@ -9,6 +9,7 @@ from PIL import Image
 
 from sycamore.llms.llms import LLM
 from sycamore.llms.anthropic import format_image, get_generate_kwargs
+from sycamore.llms.prompts.prompts import RenderedPrompt
 from sycamore.utils.cache import Cache
 
 DEFAULT_MAX_TOKENS = 1000
@@ -77,14 +78,14 @@ class Bedrock(LLM):
             return format_image(image)
         raise NotImplementedError("Images not supported for non-Anthropic Bedrock models.")
 
-    def generate_metadata(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> dict:
-        ret = self._llm_cache_get(prompt_kwargs, llm_kwargs)
+    def generate_metadata(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> dict:
+        ret = self._llm_cache_get(prompt, llm_kwargs)
         if isinstance(ret, dict):
             print(f"cache return {ret}")
             return ret
         assert ret is None
 
-        kwargs = get_generate_kwargs(prompt_kwargs, llm_kwargs)
+        kwargs = get_generate_kwargs(prompt, llm_kwargs)
         if self._model_name.startswith("anthropic."):
             anthropic_version = (
                 DEFAULT_ANTHROPIC_VERSION
@@ -114,9 +115,9 @@ class Bedrock(LLM):
             "in_tokens": in_tokens,
             "out_tokens": out_tokens,
         }
-        self._llm_cache_set(prompt_kwargs, llm_kwargs, ret)
+        self._llm_cache_set(prompt, llm_kwargs, ret)
         return ret
 
-    def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
-        d = self.generate_metadata(prompt_kwargs=prompt_kwargs, llm_kwargs=llm_kwargs)
+    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+        d = self.generate_metadata(prompt=prompt, llm_kwargs=llm_kwargs)
         return d["output"]

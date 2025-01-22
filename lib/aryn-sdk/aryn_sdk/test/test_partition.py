@@ -11,8 +11,8 @@ from aryn_sdk.partition import (
     partition_file,
     partition_file_submit_async,
     partition_file_result_async,
-    NoSuchAsyncPartitionerJobError,
     PartitionError,
+    JobStatus,
 )
 from aryn_sdk.config import ArynConfig
 from requests.exceptions import HTTPError
@@ -175,8 +175,8 @@ def test_convert_img():
 
 
 def test_invalid_job_id():
-    with pytest.raises(NoSuchAsyncPartitionerJobError):
-        partition_file_result_async("INVALID_JOB_ID")
+    response = partition_file_result_async("INVALID_JOB_ID")
+    assert response.status == JobStatus.NO_SUCH_JOB
 
 
 def test_partition_file_submit_async(mocker):
@@ -267,12 +267,28 @@ def test_partition_file_async():
         job_id = partition_file_submit_async(f)["job_id"]
 
     start = time.time()
-    actual_result = None
-    while not actual_result and time.time() - start < 60 * 5:
+    actual_result = partition_file_result_async(job_id)
+    while actual_result.status == JobStatus.IN_PROGRESS and time.time() - start < 60 * 5:
         actual_result = partition_file_result_async(job_id)
         time.sleep(5)
+    assert actual_result.status == JobStatus.DONE
 
     with open(RESOURCE_DIR / "json" / "3m_output.json", "rb") as f:
         expected_result = json.load(f)
 
-    assert expected_result["elements"] == actual_result["elements"]
+    assert expected_result["elements"] == actual_result.result["elements"]
+
+
+def test_async_partition_with_unsupported_file_format():
+    with open(RESOURCE_DIR / "image" / "unsupported-format-test-document-image.heic", "rb") as f:
+        job_id = partition_file_submit_async(f)["job_id"]
+
+    start = time.time()
+    actual_result = partition_file_result_async(job_id)
+    while actual_result.status == JobStatus.IN_PROGRESS and time.time() - start < 60 * 5:
+        actual_result = partition_file_result_async(job_id)
+        time.sleep(5)
+    assert actual_result.status == JobStatus.DONE
+    assert actual_result.result is not None
+    assert actual_result.result["status_code"] == 500
+    assert actual_result.result["error"] == "500: Failed to convert file to pdf"

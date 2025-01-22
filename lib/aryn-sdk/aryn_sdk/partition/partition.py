@@ -1,7 +1,9 @@
 from os import PathLike
 from typing import BinaryIO, Literal, Optional, Union, Any
+from enum import Enum
 from collections.abc import Mapping
 from aryn_sdk.config import ArynConfig
+from pydantic import BaseModel
 import requests
 import sys
 import json
@@ -26,16 +28,6 @@ class PartitionError(Exception):
     def __init__(self, message: str, status_code: int) -> None:
         super().__init__(message)
         self.status_code = status_code
-
-
-class AsyncPartitionerError(Exception):
-    def __init__(self, message: str, status_code: int) -> None:
-        super().__init__(message)
-        self.status_code = status_code
-
-
-class NoSuchAsyncPartitionerJobError(Exception):
-    pass
 
 
 def partition_file(
@@ -300,7 +292,7 @@ def partition_file_submit_async(*args, force_async_url: bool = False, **kwargs) 
 
         # Poll for the results
         result = partition_file_result_async(job_id)
-        while not result:
+        while result.status == JobStatus.IN_PROGRESS:
             time.sleep(5)
             result = partition_file_result_async(job_id)
 
@@ -321,14 +313,11 @@ def partition_file_submit_async(*args, force_async_url: bool = False, **kwargs) 
 
         results = {}
         for i, job_id in job_ids.items():
-            try:
+            result = partition_file_result_async(job_id)
+            while result.status == JobStatus.IN_PROGRESS:
+                time.sleep(5)
                 result = partition_file_result_async(job_id)
-                while not result:
-                    time.sleep(5)
-                    result = partition_file_result_async(job_id)
-                results[i] = result
-            except PartitionError as e:
-                logging.warning(f"Partitioning failed for document {i}")
+            results[i] = result
     """
 
     partition_file_full_arg_spec = inspect.getfullargspec(partition_file)
@@ -374,28 +363,40 @@ def partition_file_submit_async(*args, force_async_url: bool = False, **kwargs) 
     return partition_file(*args_list, **kwargs)
 
 
+class JobStatus(str, Enum):
+    IN_PROGRESS = "in_progress"
+    DONE = "done"
+    ERROR = "error"
+    NO_SUCH_JOB = "no_such_job"
+
+
+class JobResult(BaseModel):
+    status: JobStatus
+    status_code: int
+    result: Optional[dict]
+
+
 def partition_file_result_async(
     job_id: str,
     aryn_async_url: str = f"{ARYN_DOCPARSE_URL.split('/v1/',1)[0]}/v1/async/result",
     aryn_api_key: Optional[str] = None,
     aryn_config: Optional[ArynConfig] = None,
     ssl_verify: bool = True,
-) -> Optional[dict]:
+) -> JobResult:
     """
     Get the results of an asynchronous partitioning job by job_id. Meant to be used with `partition_file_submit_async`.
 
     Returns:
-        If the specified job is done and the call is successful, then this function returns the same output as a call
-        to `partition_file`. That would be a dictionary containing "status", "elements", and possibly "error". However,
-        if the `output_format` option of the original request was "markdown" then it returns a dictionary of "status",
-        "markdown", and possibly "error".
+        A JobResult object containing "status", "status_code", and also "result" which is non-None when "status" is
+        JobStatus.DONE.
 
-        Returns None if the job is still in progress.
-
-        Raises a NoSuchAsyncPartitionerJobError if the job_id is not found.
+        Unlike `partition_file`, this function does not raise an Exception if the partitioning failed. Note the
+        "result" attribute of the returned JobResult contains what would have been the return value of `partition_file`
+        had the partitioning been done synchronously.
 
     Example:
-        See the examples in `partition_file_submit_async` for a full example of how to use this function.
+        See the examples in the docstring for `partition_file_submit_async` for a full example of how to use this
+        function.
     """
     if aryn_api_key is not None:
         if aryn_config is not None:
@@ -419,13 +420,13 @@ def partition_file_result_async(
     response = requests.get(specific_job_url, headers=http_header, stream=stream, verify=ssl_verify)
 
     if response.status_code == 200:
-        return response.json()
+        return JobResult(status=JobStatus.DONE, result=response.json(), status_code=response.status_code)
     elif response.status_code == 202:
-        return None
+        return JobResult(status=JobStatus.IN_PROGRESS, status_code=response.status_code, result=None)
     elif response.status_code == 404:
-        raise NoSuchAsyncPartitionerJobError()
+        return JobResult(status=JobStatus.NO_SUCH_JOB, status_code=response.status_code, result=None)
     else:
-        raise AsyncPartitionerError(f"Failed to get results of async partition job {job_id}", response.status_code)
+        return JobResult(status=JobStatus.ERROR, status_code=response.status_code, result=None)
 
 
 # Heavily adapted from lib/sycamore/data/table.py::Table.to_csv()

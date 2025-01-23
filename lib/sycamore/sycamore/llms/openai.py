@@ -328,7 +328,9 @@ class OpenAI(LLM):
                     kwargs.update({"messages": [{"role": "user", "content": prompt}]})
             else:
                 if isinstance(prompt, SimplePrompt):
-                    prompt = f"{prompt.system.format(**prompt_kwargs)}\n{prompt.user.format(**prompt_kwargs)}"
+                    system_msg = prompt.system.format(**prompt_kwargs) if prompt.system else ""
+                    user_msg = prompt.user.format(**prompt_kwargs) if prompt.user else ""
+                    prompt = f"{system_msg}\n{user_msg}" if system_msg else user_msg
                 kwargs.update({"prompt": prompt})
         elif "messages" in prompt_kwargs:
             kwargs.update({"messages": prompt_kwargs["messages"]})
@@ -363,42 +365,42 @@ class OpenAI(LLM):
 
     def _generate_using_openai(self, prompt_kwargs, llm_kwargs) -> str:
         kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
-        logging.debug("OpenAI prompt: %s", kwargs)
-        if self.is_chat_mode():
-            completion = self.client_wrapper.get_client().chat.completions.create(model=self._model_name, **kwargs)
-            logging.debug("OpenAI completion: %s", completion)
-            add_metadata(
-                **{
-                    "model": self._model_name,
-                    "temperature": kwargs.get("temperature",None),
-                    "usage": {
-                        "completion_tokens": completion.usage.completion_tokens,
-                        "prompt_tokens": completion.usage.prompt_tokens,
-                        "total_tokens": completion.usage.total_tokens
-                    },
-                    "prompt": kwargs.get("messages"),
-                    "output": completion.choices[0].message.content,
-                    "finish_reason": completion.choices[0].finish_reason
-                })
-            
-            
-            return completion.choices[0].message.content
-        else:
-            completion = self.client_wrapper.get_client().completions.create(model=self._model_name, **kwargs)
-            logging.debug("OpenAI completion: %s", completion)
-            add_metadata(
-                **{
-                    "model": self._model_name,
-                    "temperature": kwargs.get("temperature", None),
-                    "usage": {
-                        "completion_tokens": completion.usage.completion_tokens,
-                        "prompt_tokens": completion.usage.prompt_tokens,
-                        "total_tokens": completion.usage.total_tokens
-                    },
-                    "prompt": kwargs.get("prompt"),
-                    "output": completion.choices[0].text
-                })
-            return completion.choices[0].text
+        logging.debug("OpenAI request parameters: %s", kwargs)
+
+        try:
+            if self.is_chat_mode():
+                completion = self.client_wrapper.get_client().chat.completions.create(model=self._model_name, **kwargs)
+                response_text = completion.choices[0].message.content
+            else:
+                completion = self.client_wrapper.get_client().completions.create(model=self._model_name, **kwargs)
+                response_text = completion.choices[0].text
+            metadata = self.generate_metadata(kwargs, completion, response_text)
+            logging.debug("OpenAI completion response: %s", completion)
+            add_metadata(**metadata)
+
+            if not response_text:
+                raise ValueError("OpenAI returned empty response")
+
+            return response_text
+
+        except Exception as e:
+            logging.error("Error in OpenAI API call: %s", str(e))
+            raise
+
+    def generate_metadata(self, kwargs, completion, response_text):
+        metadata = {
+            "model": self._model_name,
+            "temperature": kwargs.get("temperature", None),
+            "usage": {
+                "completion_tokens": completion.usage.completion_tokens,
+                "prompt_tokens": completion.usage.prompt_tokens,
+                "total_tokens": completion.usage.total_tokens,
+            },
+            "prompt": kwargs.get("prompt"),
+            "output": response_text,
+        }
+
+        return metadata
 
     def _generate_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:
         try:
@@ -407,11 +409,14 @@ class OpenAI(LLM):
                 completion = self.client_wrapper.get_client().beta.chat.completions.parse(
                     model=self._model_name, **kwargs
                 )
+                response_text = completion.choices[0].message.content
+                metadata = self.generate_metadata(kwargs, completion, response_text)
+                add_metadata(**metadata)
             else:
                 raise ValueError("This method doesn't support instruct models. Please use a chat model.")
                 # completion = self.client_wrapper.get_client().beta.completions.parse(model=self._model_name, **kwargs)
-            assert completion.choices[0].message.content is not None, "OpenAI refused to respond to the query"
-            return completion.choices[0].message.content
+            assert response_text is not None, "OpenAI refused to respond to the query"
+            return response_text
         except Exception as e:
             # OpenAI will not respond in two scenarios:
             # 1.) The LLM ran out of output context length(usually do to hallucination of repeating the same phrase)
@@ -439,12 +444,18 @@ class OpenAI(LLM):
             completion = await self.client_wrapper.get_async_client().chat.completions.create(
                 model=self._model_name, **kwargs
             )
-            return completion.choices[0].message.content
+            response_text = completion.choices[0].message.content
+            metadata = self.generate_metadata(kwargs, completion, response_text)
+            add_metadata(**metadata)
+            return response_text
         else:
             completion = await self.client_wrapper.get_async_client().completions.create(
                 model=self._model_name, **kwargs
             )
-            return completion.choices[0].text
+            response_text = completion.choices[0].text
+            metadata = self.generate_metadata(kwargs, completion, response_text)
+            add_metadata(**metadata)
+            return response_text
 
     async def _generate_awaitable_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:
         try:
@@ -455,9 +466,6 @@ class OpenAI(LLM):
                 )
             else:
                 raise ValueError("This method doesn't support instruct models. Please use a chat model.")
-                # completion = await self.client_wrapper.get_async_client().beta.completions.parse(
-                #     model=self._model_name, **kwargs
-                # )
             assert completion.choices[0].message.content is not None, "OpenAI refused to respond to the query"
             return completion.choices[0].message.content
         except Exception as e:

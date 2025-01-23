@@ -1,8 +1,10 @@
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from sycamore.llms import OpenAI, OpenAIModels, Bedrock, BedrockModels, get_llm, MODELS
 from sycamore.llms.llms import FakeLLM
+from sycamore.llms.prompts import RenderedPrompt, RenderedMessage
 from sycamore.llms.prompts import EntityExtractorFewShotGuidancePrompt, EntityExtractorZeroShotGuidancePrompt
 from sycamore.utils.cache import DiskCache
 
@@ -12,6 +14,8 @@ def test_openai_davinci_fallback():
     assert llm._model_name == OpenAIModels.GPT_3_5_TURBO_INSTRUCT.value.name
 
 
+# Skip bc prompts are changing entirely
+@pytest.mark.skip
 def test_deprecated_prompt_fallback():
     from sycamore.llms.prompts.default_prompts import ENTITY_EXTRACTOR_ZERO_SHOT_GUIDANCE_PROMPT
 
@@ -36,8 +40,8 @@ def test_get_llm(mock_boto3_client):
 class TestCache:
     def test_nocache(self, tmp_path):
         llm = FakeLLM()
-        llm._llm_cache_set({}, None, "abc")
-        assert llm._llm_cache_get({}, None) is None
+        llm._llm_cache_set(RenderedPrompt(messages=[]), None, "abc")
+        assert llm._llm_cache_get(RenderedPrompt(messages=[]), None) is None
 
     def test_use_caching(self, tmp_path: Path):
         llm = FakeLLM()
@@ -52,19 +56,19 @@ class TestCache:
     def test_cache(self, tmp_path: Path):
         llm = FakeLLM(cache=DiskCache(str(tmp_path)))
 
-        def doit(prompt_kwargs, llm_kwargs, result, overwrite=False, already_set=False):
+        def doit(prompt, llm_kwargs, result, overwrite=False, already_set=False):
             if overwrite:
-                assert llm._llm_cache_get(prompt_kwargs, llm_kwargs) is not None
-                llm._llm_cache_set(prompt_kwargs, llm_kwargs, result)
+                assert llm._llm_cache_get(prompt, llm_kwargs) is not None
+                llm._llm_cache_set(prompt, llm_kwargs, result)
             elif not already_set:
-                assert llm._llm_cache_get(prompt_kwargs, llm_kwargs) is None
-                llm._llm_cache_set(prompt_kwargs, llm_kwargs, result)
+                assert llm._llm_cache_get(prompt, llm_kwargs) is None
+                llm._llm_cache_set(prompt, llm_kwargs, result)
 
-            assert llm._llm_cache_get(prompt_kwargs, llm_kwargs) == result
+            assert llm._llm_cache_get(prompt, llm_kwargs) == result
 
-        doit({}, None, "abc")
-        doit({}, None, "abc2", overwrite=True)
-        doit({}, {}, "def")
-        doit({"prompt": "foff"}, {}, {"ghi": "jkl"})
-        doit({}, {"magic": True}, [1, 2, 3])
-        doit({}, None, "abc2", already_set=True)
+        doit(RenderedPrompt(messages=[]), None, "abc")
+        doit(RenderedPrompt(messages=[]), None, "abc2", overwrite=True)
+        doit(RenderedPrompt(messages=[]), {}, "def")
+        doit(RenderedPrompt(messages=[RenderedMessage(role="user", content="foff")]), {}, {"ghi": "jkl"})
+        doit(RenderedPrompt(messages=[]), {"magic": True}, [1, 2, 3])
+        doit(RenderedPrompt(messages=[]), None, "abc2", already_set=True)

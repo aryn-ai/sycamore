@@ -93,7 +93,7 @@ class SycamorePrompt:
              .. code-block:: python
 
                 p = StaticPrompt(system="hello", user="world")
-                    p.render_document(Document())
+                p.render_document(Document())
                 # [
                 #     {"role": "system", "content": "hello"},
                 #     {"role": "user", "content": "world"}

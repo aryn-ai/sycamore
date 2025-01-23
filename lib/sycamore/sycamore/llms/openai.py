@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from enum import Enum
 from PIL import Image
 from typing import Any, Dict, Optional, Union
+from datetime import datetime
 
 from openai import AzureOpenAI as AzureOpenAIClient
 from openai import AsyncAzureOpenAI as AsyncAzureOpenAIClient
@@ -368,13 +369,15 @@ class OpenAI(LLM):
         logging.debug("OpenAI request parameters: %s", kwargs)
 
         try:
+            starttime = datetime.now()
             if self.is_chat_mode():
                 completion = self.client_wrapper.get_client().chat.completions.create(model=self._model_name, **kwargs)
                 response_text = completion.choices[0].message.content
             else:
                 completion = self.client_wrapper.get_client().completions.create(model=self._model_name, **kwargs)
                 response_text = completion.choices[0].text
-            metadata = self.generate_metadata(kwargs, completion, response_text)
+            wall_latency = datetime.now() - starttime
+            metadata = self.generate_metadata(kwargs, completion, response_text,wall_latency)
             logging.debug("OpenAI completion response: %s", completion)
             add_metadata(**metadata)
 
@@ -387,7 +390,7 @@ class OpenAI(LLM):
             logging.error("Error in OpenAI API call: %s", str(e))
             raise
 
-    def generate_metadata(self, kwargs, completion, response_text):
+    def generate_metadata(self, kwargs, completion, response_text, wall_latency) -> dict:
         metadata = {
             "model": self._model_name,
             "temperature": kwargs.get("temperature", None),
@@ -396,6 +399,7 @@ class OpenAI(LLM):
                 "prompt_tokens": completion.usage.prompt_tokens,
                 "total_tokens": completion.usage.total_tokens,
             },
+            "wall_latency": wall_latency,
             "prompt": kwargs.get("prompt"),
             "output": response_text,
         }
@@ -406,11 +410,13 @@ class OpenAI(LLM):
         try:
             kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
             if self.is_chat_mode():
+                starttime = datetime.now()
                 completion = self.client_wrapper.get_client().beta.chat.completions.parse(
                     model=self._model_name, **kwargs
                 )
+                wall_latency = datetime.now() - starttime
                 response_text = completion.choices[0].message.content
-                metadata = self.generate_metadata(kwargs, completion, response_text)
+                metadata = self.generate_metadata(kwargs, completion, response_text, wall_latency)
                 add_metadata(**metadata)
             else:
                 raise ValueError("This method doesn't support instruct models. Please use a chat model.")
@@ -440,34 +446,38 @@ class OpenAI(LLM):
 
     async def _generate_awaitable_using_openai(self, prompt_kwargs, llm_kwargs) -> str:
         kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
+        starttime = datetime.now()
         if self.is_chat_mode():
             completion = await self.client_wrapper.get_async_client().chat.completions.create(
                 model=self._model_name, **kwargs
             )
             response_text = completion.choices[0].message.content
-            metadata = self.generate_metadata(kwargs, completion, response_text)
-            add_metadata(**metadata)
-            return response_text
         else:
             completion = await self.client_wrapper.get_async_client().completions.create(
                 model=self._model_name, **kwargs
             )
             response_text = completion.choices[0].text
-            metadata = self.generate_metadata(kwargs, completion, response_text)
-            add_metadata(**metadata)
-            return response_text
+        wall_latency = datetime.now() - starttime
+        metadata = self.generate_metadata(kwargs, completion, response_text, wall_latency)
+        add_metadata(**metadata)
+        return response_text
 
     async def _generate_awaitable_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:
         try:
             kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
             if self.is_chat_mode():
+                starttime = datetime.now()
                 completion = await self.client_wrapper.get_async_client().beta.chat.completions.parse(
                     model=self._model_name, **kwargs
                 )
+                wall_latency = datetime.now() - starttime
             else:
                 raise ValueError("This method doesn't support instruct models. Please use a chat model.")
-            assert completion.choices[0].message.content is not None, "OpenAI refused to respond to the query"
-            return completion.choices[0].message.content
+            response_text = completion.choices[0].message.content
+            assert response_text is not None, "OpenAI refused to respond to the query"
+            metadata = self.generate_metadata(kwargs, completion, response_text, wall_latency)
+            add_metadata(**metadata)
+            return response_text
         except Exception as e:
             # OpenAI will not respond in two scenarios:
             # 1.) The LLM ran out of output context length(usually do to hallucination of repeating the same phrase)

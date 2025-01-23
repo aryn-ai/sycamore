@@ -4,6 +4,7 @@ import sycamore
 from sycamore.data.document import Document, HierarchicalDocument
 from sycamore.data.element import Element
 from sycamore.llms.llms import LLM
+from sycamore.llms.prompts import RenderedPrompt
 from sycamore.reader import DocSetReader
 from sycamore.transforms.extract_document_structure import StructureBySection
 from sycamore.transforms.extract_graph_entities import EntityExtractor
@@ -60,13 +61,13 @@ class TestGraphRelationshipExtractor:
         def __init__(self):
             super().__init__(model_name="mock_model")
 
-        def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
-            pass
+        def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
+            return ""
 
         def is_chat_mode(self):
             return True
 
-        async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
+        async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None):
             return """{
                 "Company": [
                     {"name": "Microsoft"},
@@ -80,13 +81,13 @@ class TestGraphRelationshipExtractor:
         def __init__(self):
             super().__init__(model_name="mock_model")
 
-        def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
+        def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
             return ""
 
         def is_chat_mode(self):
             return True
 
-        async def generate_async(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
+        async def generate_async(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None):
             return """{
                 "Competes": [
                 {"start": {"name": "Microsoft"}, "end": {"name": "Google"}}

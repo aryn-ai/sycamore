@@ -8,6 +8,7 @@ from sycamore.data import Document, Element
 from sycamore.transforms import ExtractEntity
 from sycamore.transforms.extract_entity import OpenAIEntityExtractor
 from sycamore.llms import LLM
+from sycamore.llms.prompts import RenderedPrompt
 from sycamore.llms.prompts.default_prompts import (
     EntityExtractorFewShotGuidancePrompt,
     EntityExtractorZeroShotGuidancePrompt,
@@ -21,7 +22,7 @@ class MockLLM(LLM):
     def __init__(self):
         super().__init__(model_name="mock_model")
 
-    def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
+    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         if prompt_kwargs == {"messages": [{"role": "user", "content": "s3://path"}]} and llm_kwargs == {}:
             return "alt_title"
         if prompt_kwargs == {"prompt": "s3://path"} and llm_kwargs == {}:

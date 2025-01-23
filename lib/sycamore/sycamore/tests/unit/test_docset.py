@@ -8,6 +8,7 @@ import sycamore
 from sycamore import DocSet, Context
 from sycamore.data import Document, Element
 from sycamore.llms import LLM
+from sycamore.llms.prompts import RenderedPrompt
 from sycamore.llms.prompts.default_prompts import (
     LlmClusterEntityAssignGroupsMessagesPrompt,
     LlmClusterEntityFormGroupsMessagesPrompt,
@@ -41,7 +42,7 @@ class MockLLM(LLM):
     def __init__(self):
         super().__init__(model_name="mock_model")
 
-    def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
+    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         if (
             prompt_kwargs == {"messages": [{"role": "user", "content": "Element_index: 1\nText: third element\n"}]}
             and llm_kwargs == {}

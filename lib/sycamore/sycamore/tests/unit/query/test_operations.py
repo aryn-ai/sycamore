@@ -8,6 +8,7 @@ from sycamore.docset import DocSet
 from sycamore.functions import CharacterTokenizer
 from sycamore.functions.basic_filters import MatchFilter, RangeFilter
 from sycamore.llms import LLM
+from sycamore.llms.prompts import RenderedPrompt
 from sycamore.llms.prompts.default_prompts import (
     LlmClusterEntityAssignGroupsMessagesPrompt,
     LlmClusterEntityFormGroupsMessagesPrompt,
@@ -24,7 +25,7 @@ class MockLLM(LLM):
     def __init__(self):
         super().__init__(model_name="mock_model")
 
-    def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None):
+    def generate(self, *, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         if (
             prompt_kwargs["messages"]
             == LlmClusterEntityFormGroupsMessagesPrompt(

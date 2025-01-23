@@ -335,7 +335,7 @@ def partition_file_submit_async(
         .. code-block:: python
 
         import time
-        from aryn_sdk.partition import partition_file_submit_async, partition_file_result_async
+        from aryn_sdk.partition import partition_file_submit_async, partition_file_result_async, JobStatus
 
         with open("my-favorite-pdf.pdf", "rb") as f:
             job = partition_file_submit_async(
@@ -357,7 +357,7 @@ def partition_file_submit_async(
 
         import logging
         import time
-        from aryn_sdk.partition import partition_file_submit_async, partition_file_result_async, PartitionError
+        from aryn_sdk.partition import partition_file_submit_async, partition_file_result_async, JobStatus
 
         files = [open("file1.pdf", "rb"), open("file2.docx", "rb")]
         job_ids = {}

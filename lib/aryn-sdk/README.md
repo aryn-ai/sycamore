@@ -102,7 +102,7 @@ png_str = convert_image_element(image_elts[2], format="PNG", b64encode=True)
 #### Single Job Example
 ```python
 import time
-from aryn_sdk.partition import partition_file_submit_async, partition_file_result_async
+from aryn_sdk.partition import partition_file_submit_async, partition_file_result_async, JobStatus
 
 with open("my-favorite-pdf.pdf", "rb") as f:
     job = partition_file_submit_async(
@@ -136,7 +136,7 @@ Aryn will POST a request containing a body like the below:
 ```python
 import logging
 import time
-from aryn_sdk.partition import partition_file_submit_async, partition_file_result_async, PartitionError
+from aryn_sdk.partition import partition_file_submit_async, partition_file_result_async, JobStatus
 
 files = [open("file1.pdf", "rb"), open("file2.docx", "rb")]
 job_ids = {}

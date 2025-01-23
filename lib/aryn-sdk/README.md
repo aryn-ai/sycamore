@@ -143,3 +143,17 @@ for i, job_id in job_ids.items():
         result = partition_file_result_async(job_id)
     results[i] = result
 ```
+
+#### Cancelling an async job
+
+```python
+from aryn_sdk.partition import partition_file_submit_async, cancel_async_partition_job
+        job_id = partition_file_submit_async(
+                    "path/to/file.pdf",
+                    use_ocr=True,
+                    extract_table_structure=True,
+                    extract_images=True,
+                )["job_id"]
+
+        cancel_async_partition_job(job_id)
+```

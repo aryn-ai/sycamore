@@ -12,6 +12,7 @@ from aryn_sdk.partition import (
     partition_file,
     partition_file_submit_async,
     partition_file_result_async,
+    cancel_async_partition_job,
     PartitionError,
     JobStatus,
 )
@@ -133,12 +134,10 @@ def test_partition_with_unsupported_file_format():
 
 
 def test_partition_it_zero_page():
-
     with pytest.raises(PartitionError) as einfo:
         with open(RESOURCE_DIR / "pdfs" / "SPsort.pdf", "rb") as f:
             partition_file(f, selected_pages=[0])
-
-    assert "Invalid page number (0)" in str(einfo.value)
+    assert "selected_pages must not have empty or zero terms" in str(einfo.value)
 
 
 def test_partition_it_no_api_key():
@@ -289,7 +288,7 @@ def test_async_partition_with_unsupported_file_format():
     actual_result = partition_file_result_async(job_id)
     while actual_result.status == JobStatus.IN_PROGRESS and time.time() - start < ASYNC_TIMEOUT:
         actual_result = partition_file_result_async(job_id)
-        time.sleep(5)
+        time.sleep(1)
     assert actual_result.status == JobStatus.DONE
     assert actual_result.result is not None
     assert actual_result.result["status_code"] == 500
@@ -316,3 +315,21 @@ def test_multiple_partition_file_async():
             logging.info(f"\tPolling Job {job_id} ({i + 1}/{num_jobs})")
         assert actual_result.status == JobStatus.DONE
         assert len(actual_result.result["elements"]) > 1000
+
+
+def test_cancel_async_partition_job():
+    with open(RESOURCE_DIR / "pdfs" / "FR-2002-05-03-TRUNCATED-40.pdf", "rb") as f:
+        job_id = partition_file_submit_async(f)["job_id"]
+
+    before_cancel_result = partition_file_result_async(job_id)
+    assert before_cancel_result.status == JobStatus.IN_PROGRESS
+    assert cancel_async_partition_job(job_id)
+
+    # Cancellation is not reflected in the result immediately
+    for _ in range(10):
+        time.sleep(0.1)
+        after_cancel_result = partition_file_result_async(job_id)
+        if after_cancel_result.status == JobStatus.NO_SUCH_JOB:
+            break
+        assert after_cancel_result.status == JobStatus.IN_PROGRESS
+    assert after_cancel_result.status == JobStatus.NO_SUCH_JOB

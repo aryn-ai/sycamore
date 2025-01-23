@@ -429,6 +429,60 @@ def partition_file_result_async(
         return JobResult(status=JobStatus.ERROR, status_code=response.status_code, result=None)
 
 
+def cancel_async_partition_job(
+    job_id: str,
+    aryn_async_url: str = f"{ARYN_DOCPARSE_URL.split('/v1/',1)[0]}/v1/async/cancel",
+    aryn_api_key: Optional[str] = None,
+    aryn_config: Optional[ArynConfig] = None,
+    ssl_verify: bool = True,
+) -> bool:
+    """
+    Cancel an asynchronous partitioning job by job_id. Meant to be used with `partition_file_submit_async`.
+
+    Returns:
+        A bool indicating whether the job was successfully cancelled by this request.
+
+    Example:
+        .. code-block:: python
+
+        from aryn_sdk.partition import partition_file_submit_async, cancel_async_partition_job
+        job_id = partition_file_submit_async(
+                    "path/to/file.pdf",
+                    use_ocr=True,
+                    extract_table_structure=True,
+                    extract_images=True,
+                )["job_id"]
+
+        cancel_async_partition_job(job_id)
+    """
+    if aryn_api_key is not None:
+        if aryn_config is not None:
+            _logger.warning("Both aryn_api_key and aryn_config were provided. Using aryn_api_key")
+        aryn_config = ArynConfig(aryn_api_key=aryn_api_key)
+    if aryn_config is None:
+        aryn_config = ArynConfig()
+
+    # Workaround for vcr.  See https://github.com/aryn-ai/sycamore/issues/958
+    stream = True
+    if "vcr" in sys.modules:
+        ul3 = sys.modules.get("urllib3")
+        if ul3:
+            # Look for tell-tale patched method...
+            mod = ul3.connectionpool.is_connection_dropped.__module__
+            if "mock" in mod:
+                stream = False
+
+    specific_job_url = f"{aryn_async_url}/{job_id}"
+    http_header = {"Authorization": f"Bearer {aryn_config.api_key()}"}
+    response = requests.post(specific_job_url, headers=http_header, stream=stream, verify=ssl_verify)
+    if response.status_code == 200:
+        return True
+    elif response.status_code == 404:
+        return False
+    else:
+        raise Exception("Unexpected response code.")
+
+
 # Heavily adapted from lib/sycamore/data/table.py::Table.to_csv()
 def table_elem_to_dataframe(elem: dict) -> Optional[pd.DataFrame]:
     """

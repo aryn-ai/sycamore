@@ -34,7 +34,7 @@ class RenderedPrompt:
     """
 
     messages: list[RenderedMessage]
-    response_format: Union[None, dict[str, Any], pydantic.BaseModel] = None
+    response_format: Union[None, dict[str, Any], type[pydantic.BaseModel]] = None
 
 
 class SycamorePrompt:

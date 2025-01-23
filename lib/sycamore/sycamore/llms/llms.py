@@ -1,8 +1,11 @@
+import inspect
+from urllib import response
 from abc import ABC, abstractmethod
 from enum import Enum
 import pickle
 from PIL import Image
 from typing import Any, Optional
+import pydantic
 from sycamore.utils.cache import Cache
 from sycamore.llms.prompts import RenderedPrompt
 
@@ -42,10 +45,24 @@ class LLM(ABC):
     def __str__(self):
         return f"{self.__class__.__name__}({self._model_name})"
 
+    @staticmethod
+    def _pickleable_response_format(prompt: RenderedPrompt) -> Any:
+        if inspect.isclass(prompt.response_format) and issubclass(prompt.response_format, pydantic.BaseModel):
+            return prompt.response_format.model_json_schema()
+        else:
+            return prompt.response_format
+
     def _llm_cache_key(self, prompt: RenderedPrompt, llm_kwargs: Optional[dict] = None) -> str:
         """Return a cache key for the given prompt and LLM parameters."""
         assert self._cache
-        combined = {"prompt": prompt, "llm_kwargs": llm_kwargs, "model_name": self._model_name}
+        rf = self._pickleable_response_format(prompt)
+        ms = prompt.messages
+        combined = {
+            "prompt": RenderedPrompt(messages=ms),
+            "prompt.response_format": rf,
+            "llm_kwargs": llm_kwargs,
+            "model_name": self._model_name,
+        }
         data = pickle.dumps(combined)
         return self._cache.get_hash_context(data).hexdigest()
 
@@ -68,15 +85,17 @@ class LLM(ABC):
         hit = self._cache.get(key)
         if hit:
             assert (
-                len(hit) == 4
-                and hit.get("prompt") == prompt
+                len(hit) == 5
+                and hit.get("prompt") == RenderedPrompt(messages=prompt.messages)
+                and hit.get("prompt.response_format") == self._pickleable_response_format(prompt)
                 and hit.get("llm_kwargs") == llm_kwargs
                 and hit.get("model_name") == self._model_name
                 and "result" in hit
             ), f"""
             Found LLM cache content mismatch:
             key={key}
-            prompt_kwargs={prompt}, cached={hit.get("prompt")}
+            prompt={prompt}, cached={hit.get("prompt")}
+                             cached_response_format={hit.get("prompt.response_format")}
             llm_kwargs={llm_kwargs}, cached={hit.get("llm_kwargs")}
             model_name={self._model_name}, cached={hit.get("model_name")}
             Complete hit: {hit}"""
@@ -93,7 +112,8 @@ class LLM(ABC):
         self._cache.set(
             key,
             {
-                "prompt": prompt,
+                "prompt": RenderedPrompt(messages=prompt.messages),
+                "prompt.response_format": self._pickleable_response_format(prompt),
                 "llm_kwargs": llm_kwargs,
                 "model_name": self._model_name,
                 "result": result,

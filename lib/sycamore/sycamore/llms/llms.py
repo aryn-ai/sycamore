@@ -93,7 +93,7 @@ class LLM(ABC):
         self._cache.set(
             key,
             {
-                "prompt_kwargs": prompt,
+                "prompt": prompt,
                 "llm_kwargs": llm_kwargs,
                 "model_name": self._model_name,
                 "result": result,

@@ -124,18 +124,53 @@ def partition_file(
                 )
             elements = data['elements']
     """
+    return _inner_partition_file(
+        file=file,
+        aryn_api_key=aryn_api_key,
+        aryn_config=aryn_config,
+        threshold=threshold,
+        use_ocr=use_ocr,
+        ocr_images=ocr_images,
+        extract_table_structure=extract_table_structure,
+        table_extraction_options=table_extraction_options,
+        extract_images=extract_images,
+        selected_pages=selected_pages,
+        chunking_options=chunking_options,
+        aps_url=aps_url,
+        docparse_url=docparse_url,
+        ssl_verify=ssl_verify,
+        output_format=output_format,
+        output_label_options=output_label_options,
+    )
+
+
+def _inner_partition_file(
+    file: Union[BinaryIO, str, PathLike],
+    aryn_api_key: Optional[str] = None,
+    aryn_config: Optional[ArynConfig] = None,
+    threshold: Optional[Union[float, Literal["auto"]]] = None,
+    use_ocr: bool = False,
+    ocr_images: bool = False,
+    extract_table_structure: bool = False,
+    table_extraction_options: dict[str, Any] = {},
+    extract_images: bool = False,
+    selected_pages: Optional[list[Union[list[int], int]]] = None,
+    chunking_options: Optional[dict[str, Any]] = None,
+    aps_url: Optional[str] = None,  # deprecated in favor of docparse_url
+    docparse_url: Optional[str] = None,
+    ssl_verify: bool = True,
+    output_format: Optional[str] = None,
+    output_label_options: dict[str, Any] = {},
+    _webhook_dest_url: Optional[str] = None,
+):
+    """Do not call this function. Use partition_file instead."""
 
     # If you hand me a path for the file, read it in instead of trying to send the path
     if isinstance(file, (str, PathLike)):
         with open(file, "rb") as f:
             file = io.BytesIO(f.read())
 
-    if aryn_api_key is not None:
-        if aryn_config is not None:
-            _logger.warning("Both aryn_api_key and aryn_config were provided. Using aryn_api_key")
-        aryn_config = ArynConfig(aryn_api_key=aryn_api_key)
-    if aryn_config is None:
-        aryn_config = ArynConfig()
+    aryn_config = _process_config(aryn_api_key, aryn_config)
 
     if aps_url is not None:
         if docparse_url is not None:
@@ -174,8 +209,10 @@ def partition_file(
                 stream = False
 
     files: Mapping = {"options": options_str.encode("utf-8"), "pdf": file}
-    http_header = {"Authorization": "Bearer {}".format(aryn_config.api_key())}
-    resp = requests.post(docparse_url, files=files, headers=http_header, stream=stream, verify=ssl_verify)
+    headers = {"Authorization": "Bearer {}".format(aryn_config.api_key())}
+    if _webhook_dest_url:
+        headers["X-Aryn-Webhook"] = _webhook_dest_url
+    resp = requests.post(docparse_url, files=files, headers=headers, stream=stream, verify=ssl_verify)
 
     if resp.status_code not in (200, 202):
         raise requests.exceptions.HTTPError(
@@ -226,6 +263,16 @@ def partition_file(
     return data
 
 
+def _process_config(aryn_api_key: Optional[str] = None, aryn_config: Optional[ArynConfig] = None) -> ArynConfig:
+    if aryn_api_key is not None:
+        if aryn_config is not None:
+            _logger.warning("Both aryn_api_key and aryn_config were provided. Using aryn_api_key")
+        aryn_config = ArynConfig(aryn_api_key=aryn_api_key)
+    if aryn_config is None:
+        aryn_config = ArynConfig()
+    return aryn_config
+
+
 def _json_options(
     threshold: Optional[Union[float, Literal["auto"]]] = None,
     use_ocr: bool = False,
@@ -266,10 +313,19 @@ def _json_options(
     return json.dumps(options)
 
 
-def partition_file_submit_async(*args, force_async_url: bool = False, **kwargs) -> dict:
+def partition_file_submit_async(
+    *args, webhook_url: Optional[str] = None, force_async_url: bool = False, **kwargs
+) -> dict:
     """
     Submits a file to be partitioned asynchronously. Takes same arguments as partition_file.
     Automatically changes the endpoint to the async endpoint, unless force_async_url is set to True.
+
+    Args:
+        Includes All Arguments `partition_file` accepts
+        ...
+        webhook_url: A URL to send a POST request to when the job is done. The resulting POST request will have a
+            body like: {"done": [{"job_id": "aryn:j-47gpd3604e5tz79z1jro5fc"}]}
+        force_async_url: If set to True, then this function will not change the endpoint url automatically
 
     Returns:
         A dictionary containing "job_id" which can be used with the `partition_file_result_async`
@@ -330,6 +386,9 @@ def partition_file_submit_async(*args, force_async_url: bool = False, **kwargs) 
 
     args_list = list(args)
 
+    if webhook_url:
+        kwargs["_webhook_dest_url"] = webhook_url
+
     if not force_async_url:  # If force_async_url is set to True, then this function will not change the endpoint
         # Check if docparse_url was provided as a positional argument. If it was, then this checks to make sure that
         # docparse_url is set to the async endpoint. If docparse_url is specified and it's not set to the async
@@ -360,7 +419,7 @@ def partition_file_submit_async(*args, force_async_url: bool = False, **kwargs) 
                             kwargs["aps_url"] = aps_url.replace("/v1/", "/v1/async/submit/")
                     else:
                         kwargs["docparse_url"] = ARYN_DOCPARSE_URL.replace("/v1/", "/v1/async/submit/")
-    return partition_file(*args_list, **kwargs)
+    return _inner_partition_file(*args_list, **kwargs)
 
 
 class JobStatus(str, Enum):
@@ -398,12 +457,7 @@ def partition_file_result_async(
         See the examples in the docstring for `partition_file_submit_async` for a full example of how to use this
         function.
     """
-    if aryn_api_key is not None:
-        if aryn_config is not None:
-            _logger.warning("Both aryn_api_key and aryn_config were provided. Using aryn_api_key")
-        aryn_config = ArynConfig(aryn_api_key=aryn_api_key)
-    if aryn_config is None:
-        aryn_config = ArynConfig()
+    aryn_config = _process_config(aryn_api_key, aryn_config)
 
     # Workaround for vcr.  See https://github.com/aryn-ai/sycamore/issues/958
     stream = True
@@ -455,12 +509,7 @@ def cancel_async_partition_job(
 
         cancel_async_partition_job(job_id)
     """
-    if aryn_api_key is not None:
-        if aryn_config is not None:
-            _logger.warning("Both aryn_api_key and aryn_config were provided. Using aryn_api_key")
-        aryn_config = ArynConfig(aryn_api_key=aryn_api_key)
-    if aryn_config is None:
-        aryn_config = ArynConfig()
+    aryn_config = _process_config(aryn_api_key, aryn_config)
 
     # Workaround for vcr.  See https://github.com/aryn-ai/sycamore/issues/958
     stream = True

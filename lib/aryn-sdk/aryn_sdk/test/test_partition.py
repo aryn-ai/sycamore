@@ -229,7 +229,7 @@ def test_partiton_file_async_url_forwarding(mocker):
         assert url == standard_async_url
 
     mocker.patch("inspect.getfullargspec").return_value = inspect.getfullargspec(partition_file)
-    mocker.patch("aryn_sdk.partition.partition.partition_file", side_effect=check_standard_url)
+    mocker.patch("aryn_sdk.partition.partition._inner_partition_file", side_effect=check_standard_url)
     partition_file_submit_async("")
     call_partition_file(ARYN_DOCPARSE_URL)
     call_partition_file(standard_async_url)
@@ -258,7 +258,7 @@ def test_partiton_file_async_url_forwarding(mocker):
         url = docparse_url or aps_url
         assert url == nonstandard_async_url_example
 
-    mocker.patch("aryn_sdk.partition.partition.partition_file", side_effect=check_nonstandard_url)
+    mocker.patch("aryn_sdk.partition.partition._inner_partition_file", side_effect=check_nonstandard_url)
     call_partition_file(nonstandard_url_example)
     call_partition_file(nonstandard_async_url_example)
 
@@ -333,3 +333,14 @@ def test_cancel_async_partition_job():
             break
         assert after_cancel_result.status == JobStatus.IN_PROGRESS
     assert after_cancel_result.status == JobStatus.NO_SUCH_JOB
+
+
+def test_smoke_webhook(mocker):
+    data = b'{"job_id": "1234"}'
+
+    mocked_response = mocker.Mock()
+    mocked_response.status_code = 202
+    mocked_response.iter_content.return_value = data.split(sep=b"\n")
+
+    mocker.patch("requests.post").return_value = mocked_response
+    partition_file_submit_async(RESOURCE_DIR / "pdfs" / "3m_table.pdf", webhook_url="TEST")

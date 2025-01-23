@@ -19,6 +19,32 @@ def _infer_prompts(prompts: list[RenderedPrompt], llm: LLM, llm_mode: LLMMode) -
 
 
 class LLMMap(MapBatch):
+    """The LLMMap transform renders each Document in a docset into
+    a prompt for an LLM, calls the LLM, and attaches the output to
+    the document.
+
+    Args:
+        child: Child node in the sycamore execution graph
+        prompt: The SycamorePrompt to use to render each document.
+            Must implement the ``render_document`` method.
+        output_field: The name of the field in doc.properties in which
+            to store the llm output
+        llm: The llm to use for inference.
+        llm_mode: How to call the llm - sync/async/batch. All LLMs do not
+            necessarily implement all options.
+
+    Example:
+         .. code-block:: python
+
+            prompt = EntityExtractorZeroShotGuidancePrompt.set(entity="title")
+
+            docset.llm_map(
+                prompt=prompt,
+                output_field="title",
+                llm=OpenAI(OpenAIModels.GPT_4O_MINI)
+            )
+    """
+
     def __init__(
         self,
         child: Optional[Node],
@@ -53,6 +79,31 @@ class LLMMap(MapBatch):
 
 
 class LLMMapElements(MapBatch):
+    """The LLMMapElements transform renders each Element for each
+    Document in a docset into a prompt for an LLM, calls the LLM,
+    and attaches the output to the document.
+
+    Args:
+        child: Child node in the sycamore execution graph
+        prompt: The SycamorePrompt to use to render each element.
+            Must implement the ``render_element`` method.
+        output_field: The name of the field in elt.properties in which
+            to store the llm output.
+        llm: The llm to use for inference.
+        llm_mode: How to call the llm - sync/async/batch. All LLMs do not
+            necessarily implement all options.
+
+    Example:
+         .. code-block:: python
+
+            prompt = TextSummarizerGuidancePrompt
+
+            docset.llm_map_elements(
+                prompt = prompt,
+                output_field = "summary",
+                llm = OpenAI(OpenAIModels.GPT_4O)
+    """
+
     def __init__(
         self,
         child: Optional[Node],

@@ -622,7 +622,7 @@ def tables_to_pandas(data: dict) -> list[tuple[dict, Optional[pd.DataFrame]]]:
             with open("my-favorite-pdf.pdf", "rb") as f:
                 data = partition_file(
                     f,
-                    aryn_api_key="MY-ARYN-TOKEN",
+                    aryn_api_key="MY-ARYN-API-KEY",
                     use_ocr=True,
                     extract_table_structure=True,
                     extract_images=True

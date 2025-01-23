@@ -10,7 +10,7 @@ from sycamore.llms.prompts.default_prompts import SimplePrompt
 from sycamore.utils.cache import Cache
 from sycamore.utils.image_utils import base64_data
 from sycamore.utils.import_utils import requires_modules
-
+from sycamore.data.metadata import add_metadata 
 DEFAULT_MAX_TOKENS = 1000
 
 
@@ -140,18 +140,18 @@ class Anthropic(LLM):
         response = self._client.messages.create(model=self.model.value, **kwargs)
 
         wall_latency = datetime.now() - start
-
         in_tokens = response.usage.input_tokens
         out_tokens = response.usage.output_tokens
         output = response.content[0].text
 
+        metadata = self.get_metadata(kwargs, response, output, wall_latency)
         ret = {
             "output": output,
             "wall_latency": wall_latency,
             "in_tokens": in_tokens,
             "out_tokens": out_tokens,
         }
-
+        add_metadata(**metadata)
         logging.debug(f"Generated response from Anthropic model: {ret}")
 
         self._llm_cache_set(prompt_kwargs, llm_kwargs, ret)
@@ -160,3 +160,18 @@ class Anthropic(LLM):
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
         d = self.generate_metadata(prompt_kwargs=prompt_kwargs, llm_kwargs=llm_kwargs)
         return d["output"]
+    
+    def get_metadata(self, kwargs, response, response_text, wall_latency) -> dict:
+        metadata = {
+            "model": self._model_name,
+            "temperature": kwargs.get("temperature", None),
+            "usage": {
+                "completion_tokens": response.usage.input_tokens,
+                "prompt_tokens": response.usage.output_tokens,
+                "total_tokens":response.usage.input_tokens + response.usage.output_tokens,
+            },
+            "wall_latency": wall_latency,
+            "prompt": kwargs.get("prompt"),
+            "output": response_text,
+        }
+        return metadata

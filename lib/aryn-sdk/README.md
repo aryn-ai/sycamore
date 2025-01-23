@@ -120,6 +120,17 @@ while result.status == JobStatus.IN_PROGRESS:
     result = partition_file_result_async(job_id)
 ```
 
+Optionally, you can also set a webhook for Aryn to call when your job is completed:
+
+```python
+partition_file_submit_async("path/to/my/file.docx", webhook_url="https://example.com/alert")
+```
+
+Aryn will POST a request containing a body like the below:
+```json
+{"done": [{"job_id": "aryn:j-47gpd3604e5tz79z1jro5fc"}]}
+```
+
 #### Multi-Job Example
 
 ```python

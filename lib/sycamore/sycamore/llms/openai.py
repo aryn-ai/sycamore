@@ -22,7 +22,7 @@ from sycamore.llms.llms import LLM
 from sycamore.llms.prompts import SimplePrompt
 from sycamore.utils.cache import Cache
 from sycamore.utils.image_utils import base64_data_url
-
+from sycamore.data.metadata import add_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -328,7 +328,7 @@ class OpenAI(LLM):
                     kwargs.update({"messages": [{"role": "user", "content": prompt}]})
             else:
                 if isinstance(prompt, SimplePrompt):
-                    prompt = f"{prompt.system}\n{prompt.user}"
+                    prompt = f"{prompt.system.format(**prompt_kwargs)}\n{prompt.user.format(**prompt_kwargs)}"
                 kwargs.update({"prompt": prompt})
         elif "messages" in prompt_kwargs:
             kwargs.update({"messages": prompt_kwargs["messages"]})
@@ -367,10 +367,37 @@ class OpenAI(LLM):
         if self.is_chat_mode():
             completion = self.client_wrapper.get_client().chat.completions.create(model=self._model_name, **kwargs)
             logging.debug("OpenAI completion: %s", completion)
+            add_metadata(
+                **{
+                    "model": self._model_name,
+                    "temperature": kwargs.get("temperature",None),
+                    "usage": {
+                        "completion_tokens": completion.usage.completion_tokens,
+                        "prompt_tokens": completion.usage.prompt_tokens,
+                        "total_tokens": completion.usage.total_tokens
+                    },
+                    "prompt": kwargs.get("messages"),
+                    "output": completion.choices[0].message.content,
+                    "finish_reason": completion.choices[0].finish_reason
+                })
+            
+            
             return completion.choices[0].message.content
         else:
             completion = self.client_wrapper.get_client().completions.create(model=self._model_name, **kwargs)
             logging.debug("OpenAI completion: %s", completion)
+            add_metadata(
+                **{
+                    "model": self._model_name,
+                    "temperature": kwargs.get("temperature", None),
+                    "usage": {
+                        "completion_tokens": completion.usage.completion_tokens,
+                        "prompt_tokens": completion.usage.prompt_tokens,
+                        "total_tokens": completion.usage.total_tokens
+                    },
+                    "prompt": kwargs.get("prompt"),
+                    "output": completion.choices[0].text
+                })
             return completion.choices[0].text
 
     def _generate_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:

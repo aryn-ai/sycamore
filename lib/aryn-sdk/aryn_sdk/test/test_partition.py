@@ -6,6 +6,7 @@ import json
 import time
 from pathlib import Path
 import inspect
+import logging
 
 from aryn_sdk.partition import (
     partition_file,
@@ -18,6 +19,7 @@ from aryn_sdk.config import ArynConfig
 from requests.exceptions import HTTPError
 
 RESOURCE_DIR = Path(__file__).parent / "resources"
+ASYNC_TIMEOUT = 60 * 5  # 5 minutes in seconds
 
 
 # Unit tests
@@ -268,9 +270,9 @@ def test_partition_file_async():
 
     start = time.time()
     actual_result = partition_file_result_async(job_id)
-    while actual_result.status == JobStatus.IN_PROGRESS and time.time() - start < 60 * 5:
+    while actual_result.status == JobStatus.IN_PROGRESS and time.time() - start < ASYNC_TIMEOUT:
         actual_result = partition_file_result_async(job_id)
-        time.sleep(5)
+        time.sleep(1)
     assert actual_result.status == JobStatus.DONE
 
     with open(RESOURCE_DIR / "json" / "3m_output.json", "rb") as f:
@@ -285,10 +287,32 @@ def test_async_partition_with_unsupported_file_format():
 
     start = time.time()
     actual_result = partition_file_result_async(job_id)
-    while actual_result.status == JobStatus.IN_PROGRESS and time.time() - start < 60 * 5:
+    while actual_result.status == JobStatus.IN_PROGRESS and time.time() - start < ASYNC_TIMEOUT:
         actual_result = partition_file_result_async(job_id)
         time.sleep(5)
     assert actual_result.status == JobStatus.DONE
     assert actual_result.result is not None
     assert actual_result.result["status_code"] == 500
     assert actual_result.result["error"] == "500: Failed to convert file to pdf"
+
+
+def test_multiple_partition_file_async():
+    num_jobs = 4
+    job_ids = []
+
+    for i in range(num_jobs):
+        logging.info(f"Submitting job {i + 1}/{num_jobs}")
+        job_id = partition_file_submit_async(RESOURCE_DIR / "pdfs" / "FR-2002-05-03-TRUNCATED-40.pdf")["job_id"]
+        logging.info(f"\tJob ID: {job_id}")
+        job_ids.append(job_id)
+
+    for i, job_id in enumerate(job_ids):
+        logging.info(f"Checking job ({job_id}) {i + 1}/{num_jobs}")
+        start = time.time()
+        actual_result = partition_file_result_async(job_id)
+        while actual_result.status == JobStatus.IN_PROGRESS and time.time() - start < ASYNC_TIMEOUT:
+            actual_result = partition_file_result_async(job_id)
+            time.sleep(1)
+            logging.info(f"\tPolling Job {job_id} ({i + 1}/{num_jobs})")
+        assert actual_result.status == JobStatus.DONE
+        assert len(actual_result.result["elements"]) > 1000

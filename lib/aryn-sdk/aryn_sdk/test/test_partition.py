@@ -204,26 +204,9 @@ def test_partiton_file_async_url_forwarding(mocker):
     standard_async_url = ARYN_DOCPARSE_URL.replace("/v1/", "/v1/async/submit/")
 
     def check_standard_url(
-        file: Union[BinaryIO, str, PathLike],
-        *,
-        aryn_api_key: Optional[str] = None,
-        aryn_config: Optional[ArynConfig] = None,
-        threshold: Optional[Union[float, Literal["auto"]]] = None,
-        use_ocr: bool = False,
-        ocr_images: bool = False,
-        extract_table_structure: bool = False,
-        table_extraction_options: dict[str, Any] = {},
-        extract_images: bool = False,
-        selected_pages: Optional[list[Union[list[int], int]]] = None,
-        chunking_options: Optional[dict[str, Any]] = None,
-        aps_url: Optional[str] = None,  # deprecated in favor of docparse_url
-        docparse_url: Optional[str] = None,
-        ssl_verify: bool = True,
-        output_format: Optional[str] = None,
-        output_label_options: dict[str, Any] = {},
-        webhook_url: Optional[str] = None,
-    ):
-        url = docparse_url or aps_url
+        file: Union[BinaryIO, str, PathLike], **kwargs,
+    ) -> None:
+        url = kwargs.get("docparse_url") or kwargs.get("aps_url")
         assert url == standard_async_url
 
     mocker.patch("aryn_sdk.partition.partition._partition_file_inner", side_effect=check_standard_url)
@@ -235,26 +218,9 @@ def test_partiton_file_async_url_forwarding(mocker):
     nonstandard_async_url_example = nonstandard_url_example.replace("/v1/", "/v1/async/submit/")
 
     def check_nonstandard_url(
-        file: Union[BinaryIO, str, PathLike],
-        *,
-        aryn_api_key: Optional[str] = None,
-        aryn_config: Optional[ArynConfig] = None,
-        threshold: Optional[Union[float, Literal["auto"]]] = None,
-        use_ocr: bool = False,
-        ocr_images: bool = False,
-        extract_table_structure: bool = False,
-        table_extraction_options: dict[str, Any] = {},
-        extract_images: bool = False,
-        selected_pages: Optional[list[Union[list[int], int]]] = None,
-        chunking_options: Optional[dict[str, Any]] = None,
-        aps_url: Optional[str] = None,  # deprecated in favor of docparse_url
-        docparse_url: Optional[str] = None,
-        ssl_verify: bool = True,
-        output_format: Optional[str] = None,
-        output_label_options: dict[str, Any] = {},
-        webhook_url: Optional[str] = None,
-    ):
-        url = docparse_url or aps_url
+        file: Union[BinaryIO, str, PathLike], **kwargs,
+    ) -> None:
+        url = kwargs.get("docparse_url") or kwargs.get("aps_url")
         assert url == nonstandard_async_url_example
 
     mocker.patch("aryn_sdk.partition.partition._partition_file_inner", side_effect=check_nonstandard_url)

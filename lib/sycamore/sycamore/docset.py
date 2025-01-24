@@ -18,7 +18,6 @@ from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.augment_text import TextAugmentor
 from sycamore.transforms.embed import Embedder
 from sycamore.transforms import DocumentStructure, Sort
-from sycamore.transforms.extract_entity import EntityExtractor, OpenAIEntityExtractor
 from sycamore.transforms.extract_graph_entities import GraphEntityExtractor
 from sycamore.transforms.extract_graph_relationships import GraphRelationshipExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
@@ -962,6 +961,7 @@ class DocSet:
         flat_map = FlatMap(self.plan, f=f, **resource_args)
         return DocSet(self.context, flat_map)
 
+    @context_params
     def llm_map(
         self, prompt: SycamorePrompt, output_field: str, llm: LLM, llm_mode: LLMMode = LLMMode.SYNC, **kwargs
     ) -> "DocSet":
@@ -979,6 +979,7 @@ class DocSet:
         llm_map = LLMMap(self.plan, prompt=prompt, output_field=output_field, llm=llm, llm_mode=llm_mode, **kwargs)
         return DocSet(self.context, llm_map)
 
+    @context_params
     def llm_map_elements(
         self, prompt: SycamorePrompt, output_field: str, llm: LLM, llm_mode: LLMMode = LLMMode.SYNC, **kwargs
     ) -> "DocSet":

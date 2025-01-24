@@ -211,7 +211,7 @@ def _partition_file_inner(
         headers["X-Aryn-Webhook"] = webhook_url
     resp = requests.post(docparse_url, files=files, headers=headers, stream=_set_stream(), verify=ssl_verify)
 
-    if resp.status_code < 200 or resp.status_code >= 300:
+    if resp.status_code < 200 or resp.status_code > 299:
         raise requests.exceptions.HTTPError(
             f"Error: status_code: {resp.status_code}, reason: {resp.text}", response=resp
         )

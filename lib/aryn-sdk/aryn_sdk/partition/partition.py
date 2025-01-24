@@ -198,21 +198,11 @@ def _inner_partition_file(
 
     _logger.debug(f"{options_str}")
 
-    # Workaround for vcr.  See https://github.com/aryn-ai/sycamore/issues/958
-    stream = True
-    if "vcr" in sys.modules:
-        ul3 = sys.modules.get("urllib3")
-        if ul3:
-            # Look for tell-tale patched method...
-            mod = ul3.connectionpool.is_connection_dropped.__module__
-            if "mock" in mod:
-                stream = False
-
     files: Mapping = {"options": options_str.encode("utf-8"), "pdf": file}
     headers = {"Authorization": "Bearer {}".format(aryn_config.api_key())}
     if _webhook_dest_url:
         headers["X-Aryn-Webhook"] = _webhook_dest_url
-    resp = requests.post(docparse_url, files=files, headers=headers, stream=stream, verify=ssl_verify)
+    resp = requests.post(docparse_url, files=files, headers=headers, stream=_set_stream(), verify=ssl_verify)
 
     if resp.status_code not in (200, 202):
         raise requests.exceptions.HTTPError(
@@ -271,6 +261,19 @@ def _process_config(aryn_api_key: Optional[str] = None, aryn_config: Optional[Ar
     if aryn_config is None:
         aryn_config = ArynConfig()
     return aryn_config
+
+
+def _set_stream() -> bool:
+    # Workaround for vcr.  See https://github.com/aryn-ai/sycamore/issues/958
+    stream = True
+    if "vcr" in sys.modules:
+        ul3 = sys.modules.get("urllib3")
+        if ul3:
+            # Look for tell-tale patched method...
+            mod = ul3.connectionpool.is_connection_dropped.__module__
+            if "mock" in mod:
+                stream = False
+    return stream
 
 
 def _json_options(
@@ -460,19 +463,9 @@ def partition_file_result_async(
     """
     aryn_config = _process_config(aryn_api_key, aryn_config)
 
-    # Workaround for vcr.  See https://github.com/aryn-ai/sycamore/issues/958
-    stream = True
-    if "vcr" in sys.modules:
-        ul3 = sys.modules.get("urllib3")
-        if ul3:
-            # Look for tell-tale patched method...
-            mod = ul3.connectionpool.is_connection_dropped.__module__
-            if "mock" in mod:
-                stream = False
-
     specific_job_url = f"{aryn_async_url}/{job_id}"
     http_header = {"Authorization": f"Bearer {aryn_config.api_key()}"}
-    response = requests.get(specific_job_url, headers=http_header, stream=stream, verify=ssl_verify)
+    response = requests.get(specific_job_url, headers=http_header, stream=_set_stream(), verify=ssl_verify)
 
     if response.status_code == 200:
         return JobResult(status=JobStatus.DONE, result=response.json(), status_code=response.status_code)
@@ -512,19 +505,9 @@ def cancel_async_partition_job(
     """
     aryn_config = _process_config(aryn_api_key, aryn_config)
 
-    # Workaround for vcr.  See https://github.com/aryn-ai/sycamore/issues/958
-    stream = True
-    if "vcr" in sys.modules:
-        ul3 = sys.modules.get("urllib3")
-        if ul3:
-            # Look for tell-tale patched method...
-            mod = ul3.connectionpool.is_connection_dropped.__module__
-            if "mock" in mod:
-                stream = False
-
     specific_job_url = f"{aryn_async_url}/{job_id}"
     http_header = {"Authorization": f"Bearer {aryn_config.api_key()}"}
-    response = requests.post(specific_job_url, headers=http_header, stream=stream, verify=ssl_verify)
+    response = requests.post(specific_job_url, headers=http_header, stream=_set_stream(), verify=ssl_verify)
     if response.status_code == 200:
         return True
     elif response.status_code == 404:

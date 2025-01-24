@@ -569,10 +569,6 @@ def partition_file_async_list(
                     "path": "/v1/document/partition",
                     "state": "run"
                 },
-                "aryn:j-0eorfmvhaf9skaxm0sagrrl": {
-                    "path": "/v1/document/partition",
-                    "state": "run"
-                },
                 "aryn:j-b9xp7ny0eejvqvbazjhg8rn": {
                     "path": "/v1/document/partition",
                     "state": "run"

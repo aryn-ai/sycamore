@@ -120,26 +120,9 @@ class Bedrock(LLM):
         if tls.present():
             metadata = self.get_metadata(kwargs, output, wall_latency, in_tokens, out_tokens)
             add_metadata(**metadata)
-
-        # add_metadata(**metadata)
         self._llm_cache_set(prompt_kwargs, llm_kwargs, ret)
         return ret
 
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
         d = self.generate_metadata(prompt_kwargs=prompt_kwargs, llm_kwargs=llm_kwargs)
         return d["output"]
-
-    # def get_metadata(self, kwargs, response_text, in_tokens, out_tokens, output, wall_latency) -> dict:
-    #     metadata = {
-    #         "model": self._model_name,
-    #         "temperature": kwargs.get("temperature", None),
-    #         "usage": {
-    #             "completion_tokens": in_tokens,
-    #             "prompt_tokens": out_tokens,
-    #             "total_tokens": in_tokens + out_tokens,
-    #         },
-    #         "wall_latency": wall_latency,
-    #         "prompt": kwargs.get("prompt"),
-    #         "output": response_text,
-    #     }
-    #     return metadata

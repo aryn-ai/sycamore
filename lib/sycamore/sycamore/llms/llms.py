@@ -91,6 +91,21 @@ class LLM(ABC):
             },
         )
 
+    def get_metadata(self, kwargs, response_text, wall_latency, in_tokens, out_tokens) -> dict:
+        """Generate metadata for the LLM response."""
+        return {
+            "model": self._model_name,
+            "temperature": kwargs.get("temperature", None),
+            "usage": {
+                "completion_tokens": in_tokens,
+                "prompt_tokens": out_tokens,
+                "total_tokens": in_tokens + out_tokens,
+            },
+            "wall_latency": wall_latency,
+            "prompt": kwargs.get("prompt"),
+            "output": response_text,
+        }
+
 
 class FakeLLM(LLM):
     """Useful for tests where the fake LLM needs to run in a ray function because mocks are not serializable"""

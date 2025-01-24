@@ -24,6 +24,7 @@ from sycamore.llms.prompts import SimplePrompt
 from sycamore.utils.cache import Cache
 from sycamore.utils.image_utils import base64_data_url
 from sycamore.data.metadata import add_metadata
+from sycamore.utils.thread_local import ThreadLocalAccess, ADD_METADATA_TO_OUTPUT
 
 logger = logging.getLogger(__name__)
 
@@ -377,34 +378,33 @@ class OpenAI(LLM):
                 completion = self.client_wrapper.get_client().completions.create(model=self._model_name, **kwargs)
                 response_text = completion.choices[0].text
             wall_latency = datetime.now() - starttime
-            metadata = self.generate_metadata(kwargs, completion, response_text,wall_latency)
+
+            if completion.usage is not None:
+                completion_tokens = completion.usage.completion_tokens or 0
+                prompt_tokens = completion.usage.prompt_tokens or 0
+            else:
+                completion_tokens = 0
+                prompt_tokens = 0
+            metadata = self.get_metadata(kwargs, response_text, wall_latency, completion_tokens, prompt_tokens)
             logging.debug("OpenAI completion response: %s", completion)
-            add_metadata(**metadata)
+            tls = ThreadLocalAccess(ADD_METADATA_TO_OUTPUT)
+            if tls.present():
+                metadata = self.get_metadata(
+                    kwargs,
+                    response_text,
+                    wall_latency,
+                    completion_tokens,
+                    prompt_tokens,
+                )
+                add_metadata(**metadata)
 
             if not response_text:
                 raise ValueError("OpenAI returned empty response")
 
             return response_text
-
         except Exception as e:
             logging.error("Error in OpenAI API call: %s", str(e))
             raise
-
-    def generate_metadata(self, kwargs, completion, response_text, wall_latency) -> dict:
-        metadata = {
-            "model": self._model_name,
-            "temperature": kwargs.get("temperature", None),
-            "usage": {
-                "completion_tokens": completion.usage.completion_tokens,
-                "prompt_tokens": completion.usage.prompt_tokens,
-                "total_tokens": completion.usage.total_tokens,
-            },
-            "wall_latency": wall_latency,
-            "prompt": kwargs.get("prompt"),
-            "output": response_text,
-        }
-
-        return metadata
 
     def _generate_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:
         try:
@@ -414,10 +414,24 @@ class OpenAI(LLM):
                 completion = self.client_wrapper.get_client().beta.chat.completions.parse(
                     model=self._model_name, **kwargs
                 )
+                if completion.usage is not None:
+                    completion_tokens = completion.usage.completion_tokens or 0
+                    prompt_tokens = completion.usage.prompt_tokens or 0
+                else:
+                    completion_tokens = 0
+                    prompt_tokens = 0
                 wall_latency = datetime.now() - starttime
                 response_text = completion.choices[0].message.content
-                metadata = self.generate_metadata(kwargs, completion, response_text, wall_latency)
-                add_metadata(**metadata)
+                tls = ThreadLocalAccess(ADD_METADATA_TO_OUTPUT)
+                if tls.present():
+                    metadata = self.get_metadata(
+                        kwargs,
+                        response_text,
+                        wall_latency,
+                        completion_tokens,
+                        prompt_tokens,
+                    )
+                    add_metadata(**metadata)
             else:
                 raise ValueError("This method doesn't support instruct models. Please use a chat model.")
                 # completion = self.client_wrapper.get_client().beta.completions.parse(model=self._model_name, **kwargs)
@@ -457,9 +471,26 @@ class OpenAI(LLM):
                 model=self._model_name, **kwargs
             )
             response_text = completion.choices[0].text
-        wall_latency = datetime.now() - starttime
-        metadata = self.generate_metadata(kwargs, completion, response_text, wall_latency)
-        add_metadata(**metadata)
+            wall_latency = datetime.now() - starttime
+            response_text = completion.choices[0].message.content
+
+        if completion.usage is not None:
+            completion_tokens = completion.usage.completion_tokens or 0
+            prompt_tokens = completion.usage.prompt_tokens or 0
+        else:
+            completion_tokens = 0
+            prompt_tokens = 0
+
+        tls = ThreadLocalAccess(ADD_METADATA_TO_OUTPUT)
+        if tls.present():
+            metadata = self.get_metadata(
+                kwargs,
+                response_text,
+                wall_latency,
+                completion_tokens,
+                prompt_tokens,
+            )
+            add_metadata(**metadata)
         return response_text
 
     async def _generate_awaitable_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:
@@ -475,8 +506,23 @@ class OpenAI(LLM):
                 raise ValueError("This method doesn't support instruct models. Please use a chat model.")
             response_text = completion.choices[0].message.content
             assert response_text is not None, "OpenAI refused to respond to the query"
-            metadata = self.generate_metadata(kwargs, completion, response_text, wall_latency)
-            add_metadata(**metadata)
+            if completion.usage is not None:
+                completion_tokens = completion.usage.completion_tokens or 0
+                prompt_tokens = completion.usage.prompt_tokens or 0
+            else:
+                completion_tokens = 0
+                prompt_tokens = 0
+
+            tls = ThreadLocalAccess(ADD_METADATA_TO_OUTPUT)
+            if tls.present():
+                metadata = self.get_metadata(
+                    kwargs,
+                    response_text,
+                    wall_latency,
+                    completion_tokens,
+                    prompt_tokens,
+                )
+                add_metadata(**metadata)
             return response_text
         except Exception as e:
             # OpenAI will not respond in two scenarios:

@@ -10,6 +10,8 @@ from PIL import Image
 from sycamore.llms.llms import LLM
 from sycamore.llms.anthropic import format_image, get_generate_kwargs
 from sycamore.utils.cache import Cache
+from sycamore.data.metadata import add_metadata
+from sycamore.utils.thread_local import ThreadLocalAccess, ADD_METADATA_TO_OUTPUT
 
 DEFAULT_MAX_TOKENS = 1000
 DEFAULT_ANTHROPIC_VERSION = "bedrock-2023-05-31"
@@ -114,9 +116,30 @@ class Bedrock(LLM):
             "in_tokens": in_tokens,
             "out_tokens": out_tokens,
         }
+        tls = ThreadLocalAccess(ADD_METADATA_TO_OUTPUT)
+        if tls.present():
+            metadata = self.get_metadata(kwargs, output, wall_latency, in_tokens, out_tokens)
+            add_metadata(**metadata)
+
+        # add_metadata(**metadata)
         self._llm_cache_set(prompt_kwargs, llm_kwargs, ret)
         return ret
 
     def generate(self, *, prompt_kwargs: dict, llm_kwargs: Optional[dict] = None) -> str:
         d = self.generate_metadata(prompt_kwargs=prompt_kwargs, llm_kwargs=llm_kwargs)
         return d["output"]
+
+    # def get_metadata(self, kwargs, response_text, in_tokens, out_tokens, output, wall_latency) -> dict:
+    #     metadata = {
+    #         "model": self._model_name,
+    #         "temperature": kwargs.get("temperature", None),
+    #         "usage": {
+    #             "completion_tokens": in_tokens,
+    #             "prompt_tokens": out_tokens,
+    #             "total_tokens": in_tokens + out_tokens,
+    #         },
+    #         "wall_latency": wall_latency,
+    #         "prompt": kwargs.get("prompt"),
+    #         "output": response_text,
+    #     }
+    #     return metadata

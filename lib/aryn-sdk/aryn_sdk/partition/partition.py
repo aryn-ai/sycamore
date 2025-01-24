@@ -546,6 +546,54 @@ def partition_file_async_cancel(
         raise Exception("Unexpected response code.")
 
 
+def partition_file_async_list(
+    *,
+    aryn_api_key: Optional[str] = None,
+    aryn_config: Optional[ArynConfig] = None,
+    ssl_verify: bool = True,
+    async_list_url: Optional[str] = None,
+) -> dict:
+    """
+    List pending async jobs.
+
+    Returns:
+        A dict containing "jobs" which is a dict containing jobs with their job_id as their key and their value is a
+        dict containing the keys "path" and "state".
+
+        {
+            "jobs": {
+                "aryn:j-sc0v0lglkauo774pioflp4l": {
+                    "path": "/v1/document/partition",
+                    "state": "run"
+                },
+                "aryn:j-0eorfmvhaf9skaxm0sagrrl": {
+                    "path": "/v1/document/partition",
+                    "state": "run"
+                },
+                "aryn:j-b9xp7ny0eejvqvbazjhg8rn": {
+                    "path": "/v1/document/partition",
+                    "state": "run"
+                }
+            }
+        }
+
+    Example:
+        .. code-block:: python
+
+        from aryn_sdk.partition import partition_file_async_list
+        partition_file_async_list()
+    """
+    if not async_list_url:
+        async_list_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, "/list")
+
+    aryn_config = _process_config(aryn_api_key, aryn_config)
+
+    http_header = {"Authorization": f"Bearer {aryn_config.api_key()}"}
+    response = requests.get(async_list_url, headers=http_header, stream=_set_stream(), verify=ssl_verify)
+
+    return response.json()
+
+
 # Heavily adapted from lib/sycamore/data/table.py::Table.to_csv()
 def table_elem_to_dataframe(elem: dict) -> Optional[pd.DataFrame]:
     """

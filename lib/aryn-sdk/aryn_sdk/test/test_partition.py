@@ -12,6 +12,7 @@ from aryn_sdk.partition import (
     partition_file_async_submit,
     partition_file_async_result,
     partition_file_async_cancel,
+    partition_file_async_list,
     PartitionError,
 )
 from requests.exceptions import HTTPError
@@ -275,11 +276,19 @@ def test_multiple_partition_file_async():
     num_jobs = 4
     job_ids = []
 
+    before = partition_file_async_list()
+    logging.info(f"List before:\n{json.dumps(before, indent=4)}")
+    assert len(before["jobs"]) == 0
+
     for i in range(num_jobs):
         logging.info(f"Submitting job {i + 1}/{num_jobs}")
         job_id = partition_file_async_submit(RESOURCE_DIR / "pdfs" / "FR-2002-05-03-TRUNCATED-40.pdf")["job_id"]
         logging.info(f"\tJob ID: {job_id}")
         job_ids.append(job_id)
+
+    after = partition_file_async_list()
+    logging.info(f"List after:\n{json.dumps(after, indent=4)}")
+    assert len(after["jobs"]) == num_jobs
 
     for i, job_id in enumerate(job_ids):
         logging.info(f"Polling job ({job_id}) {i + 1}/{num_jobs}")

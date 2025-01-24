@@ -3,6 +3,7 @@ from .partition import (
     partition_file_async_submit,
     partition_file_async_result,
     partition_file_async_cancel,
+    partition_file_async_list,
     tables_to_pandas,
     table_elem_to_dataframe,
     convert_image_element,
@@ -20,4 +21,5 @@ __all__ = [
     "partition_file_async_submit",
     "partition_file_async_result",
     "partition_file_async_cancel",
+    "partition_file_async_list",
 ]

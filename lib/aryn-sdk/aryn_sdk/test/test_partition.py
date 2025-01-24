@@ -14,7 +14,6 @@ from aryn_sdk.partition import (
     partition_file_async_result,
     partition_file_async_cancel,
     PartitionError,
-    JobStatus,
 )
 from aryn_sdk.config import ArynConfig
 from requests.exceptions import HTTPError
@@ -177,7 +176,7 @@ def test_convert_img():
 
 def test_invalid_job_id():
     response = partition_file_async_result("INVALID_JOB_ID")
-    assert response.status == JobStatus.NO_SUCH_JOB
+    assert response["status"] == "no_such_job"
 
 
 def test_partition_file_async_submit(mocker):
@@ -270,30 +269,30 @@ def test_partition_file_async():
     start = time.time()
     while True:
         actual_result = partition_file_async_result(job_id)
-        if actual_result.status != JobStatus.IN_PROGRESS or time.time() - start >= ASYNC_TIMEOUT:
+        if actual_result["status"] != "pending" or time.time() - start >= ASYNC_TIMEOUT:
             break
         time.sleep(1)
-    assert actual_result.status == JobStatus.DONE
+    assert actual_result["status"] == "done"
 
     with open(RESOURCE_DIR / "json" / "3m_output.json", "rb") as f:
         expected_result = json.load(f)
 
-    assert expected_result["elements"] == actual_result.result["elements"]
+    assert expected_result["elements"] == actual_result["result"]["elements"]
 
 
-def test_async_partition_with_unsupported_file_format():
+def test_partition_file_async_with_unsupported_file_format():
     with open(RESOURCE_DIR / "image" / "unsupported-format-test-document-image.heic", "rb") as f:
         job_id = partition_file_async_submit(f)["job_id"]
 
     start = time.time()
     actual_result = partition_file_async_result(job_id)
-    while actual_result.status == JobStatus.IN_PROGRESS and time.time() - start < ASYNC_TIMEOUT:
+    while actual_result["status"] == "pending" and time.time() - start < ASYNC_TIMEOUT:
         actual_result = partition_file_async_result(job_id)
         time.sleep(1)
-    assert actual_result.status == JobStatus.DONE
-    assert actual_result.result is not None
-    assert actual_result.result["status_code"] == 500
-    assert actual_result.result["error"] == "500: Failed to convert file to pdf"
+    assert actual_result["status"] == "done"
+    assert actual_result["result"] is not None
+    assert actual_result["result"]["status_code"] == 500
+    assert actual_result["result"]["error"] == "500: Failed to convert file to pdf"
 
 
 def test_multiple_partition_file_async():
@@ -310,12 +309,12 @@ def test_multiple_partition_file_async():
         logging.info(f"Checking job ({job_id}) {i + 1}/{num_jobs}")
         start = time.time()
         actual_result = partition_file_async_result(job_id)
-        while actual_result.status == JobStatus.IN_PROGRESS and time.time() - start < ASYNC_TIMEOUT:
+        while actual_result["status"] == "pending" and time.time() - start < ASYNC_TIMEOUT:
             actual_result = partition_file_async_result(job_id)
             time.sleep(1)
             logging.info(f"\tPolling Job {job_id} ({i + 1}/{num_jobs})")
-        assert actual_result.status == JobStatus.DONE
-        assert len(actual_result.result["elements"]) > 1000
+        assert actual_result["status"] == "done"
+        assert len(actual_result["result"]["elements"]) > 1000
 
 
 def test_partition_file_async_cancel():
@@ -323,17 +322,17 @@ def test_partition_file_async_cancel():
         job_id = partition_file_async_submit(f)["job_id"]
 
     before_cancel_result = partition_file_async_result(job_id)
-    assert before_cancel_result.status == JobStatus.IN_PROGRESS
+    assert before_cancel_result["status"] == "pending"
     assert partition_file_async_cancel(job_id)
 
     # Cancellation is not reflected in the result immediately
     for _ in range(10):
         time.sleep(0.1)
         after_cancel_result = partition_file_async_result(job_id)
-        if after_cancel_result.status == JobStatus.NO_SUCH_JOB:
+        if after_cancel_result["status"] != "pending":
             break
-        assert after_cancel_result.status == JobStatus.IN_PROGRESS
-    assert after_cancel_result.status == JobStatus.NO_SUCH_JOB
+        assert after_cancel_result["status"] == "pending"
+    assert after_cancel_result["status"] == "no_such_job"
 
 
 def test_smoke_webhook(mocker):

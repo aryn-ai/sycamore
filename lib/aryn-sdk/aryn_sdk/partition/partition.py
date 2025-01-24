@@ -3,7 +3,6 @@ from typing import BinaryIO, Literal, Optional, Union, Any
 from enum import Enum
 from collections.abc import Mapping
 from aryn_sdk.config import ArynConfig
-from pydantic import BaseModel
 import requests
 import sys
 import json
@@ -338,7 +337,7 @@ def partition_file_async_submit(
         .. code-block:: python
 
         import time
-        from aryn_sdk.partition import partition_file_async_submit, partition_file_async_result, JobStatus
+        from aryn_sdk.partition import partition_file_async_submit, partition_file_async_result
 
         with open("my-favorite-pdf.pdf", "rb") as f:
             response = partition_file_async_submit(
@@ -352,7 +351,7 @@ def partition_file_async_submit(
         # Poll for the results
         while True:
             result = partition_file_async_result(job_id)
-            if result.status != JobStatus.IN_PROGRESS:
+            if result.status != "pending":
                 break
             time.sleep(5)
 
@@ -361,7 +360,7 @@ def partition_file_async_submit(
 
         import logging
         import time
-        from aryn_sdk.partition import partition_file_async_submit, partition_file_async_result, JobStatus
+        from aryn_sdk.partition import partition_file_async_submit, partition_file_async_result
 
         files = [open("file1.pdf", "rb"), open("file2.docx", "rb")]
         job_ids = {}
@@ -375,7 +374,7 @@ def partition_file_async_submit(
         for i, job_id in job_ids.items():
             while True:
                 result = partition_file_async_result(job_id)
-                if result.status != JobStatus.In_PROGRESS:
+                if result.status != "pending":
                     break
                 time.sleep(5)
             results[i] = result
@@ -427,32 +426,19 @@ def partition_file_async_submit(
     return _partition_file_inner(*args_list, **kwargs)
 
 
-class JobStatus(str, Enum):
-    IN_PROGRESS = "in_progress"
-    DONE = "done"
-    ERROR = "error"
-    NO_SUCH_JOB = "no_such_job"
-
-
-class JobResult(BaseModel):
-    status: JobStatus
-    status_code: int
-    result: Optional[dict]
-
-
 def partition_file_async_result(
     job_id: str,
     aryn_async_url: str = f"{ARYN_DOCPARSE_URL.split('/v1/',1)[0]}/v1/async/result",
     aryn_api_key: Optional[str] = None,
     aryn_config: Optional[ArynConfig] = None,
     ssl_verify: bool = True,
-) -> JobResult:
+) -> dict:
     """
     Get the results of an asynchronous partitioning job by job_id. Meant to be used with `partition_file_async_submit`.
 
     Returns:
-        A JobResult object containing "status", "status_code", and also "result" which is non-None when "status" is
-        JobStatus.DONE.
+        A dict containing "status", "status_code", and also "result" which is "status" is "done". "status" can be
+        "done", "pending", "error", or "no_such_job".
 
         Unlike `partition_file`, this function does not raise an Exception if the partitioning failed. Note the
         "result" attribute of the returned JobResult contains what would have been the return value of `partition_file`
@@ -469,13 +455,14 @@ def partition_file_async_result(
     response = requests.get(specific_job_url, headers=http_header, stream=_set_stream(), verify=ssl_verify)
 
     if response.status_code == 200:
-        return JobResult(status=JobStatus.DONE, result=response.json(), status_code=response.status_code)
+        return {"status": "done", "status_code": response.status_code, "result": response.json()}
     elif response.status_code == 202:
-        return JobResult(status=JobStatus.IN_PROGRESS, status_code=response.status_code, result=None)
+        return {"status": "pending", "status_code": response.status_code}
     elif response.status_code == 404:
-        return JobResult(status=JobStatus.NO_SUCH_JOB, status_code=response.status_code, result=None)
+        return {"status": "no_such_job", "status_code": response.status_code}
     else:
-        return JobResult(status=JobStatus.ERROR, status_code=response.status_code, result=None)
+        return {"status": "error", "status_code": response.status_code}
+
 
 def partition_file_async_cancel(
     job_id: str,

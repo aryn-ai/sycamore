@@ -7,7 +7,6 @@ from .partition import (
     table_elem_to_dataframe,
     convert_image_element,
     PartitionError,
-    JobStatus,
 )
 from .art import draw_with_boxes
 
@@ -20,6 +19,5 @@ __all__ = [
     "PartitionError",
     "partition_file_async_submit",
     "partition_file_async_result",
-    "JobStatus",
     "partition_file_async_cancel",
 ]

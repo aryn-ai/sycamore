@@ -307,13 +307,14 @@ def test_multiple_partition_file_async():
         job_ids.append(job_id)
 
     for i, job_id in enumerate(job_ids):
-        logging.info(f"Checking job ({job_id}) {i + 1}/{num_jobs}")
+        logging.info(f"Polling job ({job_id}) {i + 1}/{num_jobs}")
         start = time.time()
-        actual_result = partition_file_async_result(job_id)
-        while actual_result["status"] == "pending" and time.time() - start < ASYNC_TIMEOUT:
+        while True:
             actual_result = partition_file_async_result(job_id)
+            if actual_result["status"] != "pending" or time.time() - start >= ASYNC_TIMEOUT:
+                break
             time.sleep(1)
-            logging.info(f"\tPolling Job {job_id} ({i + 1}/{num_jobs})")
+            logging.info(f"\tContinuing to Poll Job {job_id} ({i + 1}/{num_jobs})")
         assert actual_result["status"] == "done"
         assert len(actual_result["result"]["elements"]) > 1000
 

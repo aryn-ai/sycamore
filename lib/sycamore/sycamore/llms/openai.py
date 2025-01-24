@@ -330,9 +330,7 @@ class OpenAI(LLM):
                     kwargs.update({"messages": [{"role": "user", "content": prompt}]})
             else:
                 if isinstance(prompt, SimplePrompt):
-                    system_msg = prompt.system.format(**prompt_kwargs) if prompt.system else ""
-                    user_msg = prompt.user.format(**prompt_kwargs) if prompt.user else ""
-                    prompt = f"{system_msg}\n{user_msg}" if system_msg else user_msg
+                    prompt = f"{prompt.system}\n{prompt.user}"
                 kwargs.update({"prompt": prompt})
         elif "messages" in prompt_kwargs:
             kwargs.update({"messages": prompt_kwargs["messages"]})
@@ -367,44 +365,40 @@ class OpenAI(LLM):
 
     def _generate_using_openai(self, prompt_kwargs, llm_kwargs) -> str:
         kwargs = self._get_generate_kwargs(prompt_kwargs, llm_kwargs)
-        logging.debug("OpenAI request parameters: %s", kwargs)
-
-        try:
+        logging.debug("OpenAI prompt: %s", kwargs)
+        if self.is_chat_mode():
             starttime = datetime.now()
-            if self.is_chat_mode():
-                completion = self.client_wrapper.get_client().chat.completions.create(model=self._model_name, **kwargs)
-                response_text = completion.choices[0].message.content
-            else:
-                completion = self.client_wrapper.get_client().completions.create(model=self._model_name, **kwargs)
-                response_text = completion.choices[0].text
+            completion = self.client_wrapper.get_client().chat.completions.create(model=self._model_name, **kwargs)
+            logging.debug("OpenAI completion: %s", completion)
             wall_latency = datetime.now() - starttime
-
-            if completion.usage is not None:
-                completion_tokens = completion.usage.completion_tokens or 0
-                prompt_tokens = completion.usage.prompt_tokens or 0
-            else:
-                completion_tokens = 0
-                prompt_tokens = 0
-            metadata = self.get_metadata(kwargs, response_text, wall_latency, completion_tokens, prompt_tokens)
-            logging.debug("OpenAI completion response: %s", completion)
-            tls = ThreadLocalAccess(ADD_METADATA_TO_OUTPUT)
-            if tls.present():
-                metadata = self.get_metadata(
-                    kwargs,
-                    response_text,
-                    wall_latency,
-                    completion_tokens,
-                    prompt_tokens,
-                )
-                add_metadata(**metadata)
-
-            if not response_text:
-                raise ValueError("OpenAI returned empty response")
-
-            return response_text
-        except Exception as e:
-            logging.error("Error in OpenAI API call: %s", str(e))
-            raise
+            response_text = completion.choices[0].message.content
+        else:
+            starttime = datetime.now()
+            completion = self.client_wrapper.get_client().completions.create(model=self._model_name, **kwargs)
+            logging.debug("OpenAI completion: %s", completion)
+            wall_latency = datetime.now() - starttime
+            response_text = completion.choices[0].text
+        if completion.usage is not None:
+            completion_tokens = completion.usage.completion_tokens or 0
+            prompt_tokens = completion.usage.prompt_tokens or 0
+        else:
+            completion_tokens = 0
+            prompt_tokens = 0
+        metadata = self.get_metadata(kwargs, response_text, wall_latency, completion_tokens, prompt_tokens)
+        logging.debug("OpenAI completion response: %s", completion)
+        tls = ThreadLocalAccess(ADD_METADATA_TO_OUTPUT)
+        if tls.present():
+            metadata = self.get_metadata(
+                kwargs,
+                response_text,
+                wall_latency,
+                completion_tokens,
+                prompt_tokens,
+            )
+            add_metadata(**metadata)
+        if not response_text:
+            raise ValueError("OpenAI returned empty response")
+        return response_text
 
     def _generate_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:
         try:

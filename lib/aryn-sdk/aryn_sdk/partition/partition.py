@@ -517,6 +517,9 @@ def partition_file_async_cancel(
     Returns:
         A bool indicating whether the job was successfully cancelled by this request.
 
+        A job can only be successfully cancelled once. A return value of false can mean the job was already cancelled,
+        the job is already done, or there was no job with the given job_id.
+
     Example:
         .. code-block:: python
 

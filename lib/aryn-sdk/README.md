@@ -116,7 +116,7 @@ job_id = response["job_id"]
 # Poll for the results
 while True:
     result = partition_file_async_result(job_id)
-    if result.status != "pending":
+    if result["status"] != "pending":
         break
     time.sleep(5)
 ```
@@ -140,18 +140,18 @@ import time
 from aryn_sdk.partition import partition_file_async_submit, partition_file_async_result
 
 files = [open("file1.pdf", "rb"), open("file2.docx", "rb")]
-job_ids = {}
+job_ids = [None] * len(files)
 for i, f in enumerate(files):
     try:
         job_ids[i] = partition_file_async_submit(f)["job_id"]
     except Exception as e:
         logging.warning(f"Failed to submit {f}: {e}")
 
-results = {}
-for i, job_id in job_ids.items():
+results = [None] * len(files)
+for i, job_id in enumerate(job_ids):
     while True:
         result = partition_file_async_result(job_id)
-        if result.status != "pending":
+        if result["status"] != "pending":
             break
         time.sleep(5)
     results[i] = result

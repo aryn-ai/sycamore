@@ -209,7 +209,7 @@ def _partition_file_inner(
     headers = {"Authorization": "Bearer {}".format(aryn_config.api_key())}
     if webhook_url:
         headers["X-Aryn-Webhook"] = webhook_url
-    resp = requests.post(docparse_url, files=files, headers=headers, stream=_set_stream(), verify=ssl_verify)
+    resp = requests.post(docparse_url, files=files, headers=headers, stream=_should_stream(), verify=ssl_verify)
 
     if resp.status_code < 200 or resp.status_code > 299:
         raise requests.exceptions.HTTPError(
@@ -270,7 +270,7 @@ def _process_config(aryn_api_key: Optional[str] = None, aryn_config: Optional[Ar
     return aryn_config
 
 
-def _set_stream() -> bool:
+def _should_stream() -> bool:
     # Workaround for vcr.  See https://github.com/aryn-ai/sycamore/issues/958
     stream = True
     if "vcr" in sys.modules:
@@ -483,7 +483,7 @@ def partition_file_async_result(
 
     specific_job_url = f"{async_result_url.rstrip('/')}/{job_id}"
     http_header = {"Authorization": f"Bearer {aryn_config.api_key()}"}
-    response = requests.get(specific_job_url, headers=http_header, stream=_set_stream(), verify=ssl_verify)
+    response = requests.get(specific_job_url, headers=http_header, stream=_should_stream(), verify=ssl_verify)
 
     if response.status_code == 200:
         return {"status": "done", "status_code": response.status_code, "result": response.json()}
@@ -537,7 +537,7 @@ def partition_file_async_cancel(
 
     specific_job_url = f"{async_cancel_url.rstrip('/')}/{job_id}"
     http_header = {"Authorization": f"Bearer {aryn_config.api_key()}"}
-    response = requests.post(specific_job_url, headers=http_header, stream=_set_stream(), verify=ssl_verify)
+    response = requests.post(specific_job_url, headers=http_header, stream=_should_stream(), verify=ssl_verify)
     if response.status_code == 200:
         return True
     elif response.status_code == 404:
@@ -589,7 +589,7 @@ def partition_file_async_list(
     aryn_config = _process_config(aryn_api_key, aryn_config)
 
     http_header = {"Authorization": f"Bearer {aryn_config.api_key()}"}
-    response = requests.get(async_list_url, headers=http_header, stream=_set_stream(), verify=ssl_verify)
+    response = requests.get(async_list_url, headers=http_header, stream=_should_stream(), verify=ssl_verify)
 
     return response.json()
 

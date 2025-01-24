@@ -182,7 +182,7 @@ def test_invalid_job_id():
 
 def test_partition_file_submit_async(mocker):
     data = b'{"job_id": "1234"}'
-    expected_response = json.loads(data.decode("utf-8"))
+    expected_response = json.loads(data.decode())
 
     mocked_response = mocker.Mock()
     mocked_response.status_code = 202

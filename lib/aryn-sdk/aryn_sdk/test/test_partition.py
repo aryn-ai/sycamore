@@ -5,7 +5,6 @@ import pytest
 import json
 import time
 from pathlib import Path
-import inspect
 import logging
 
 from aryn_sdk.partition import (
@@ -199,15 +198,14 @@ def test_partiton_file_async_url_forwarding(mocker):
     def call_partition_file(base_url: str):
         partition_file_async_submit("", docparse_url=base_url)
         partition_file_async_submit("", aps_url=base_url)
-        partition_file_async_submit(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, base_url)
-        partition_file_async_submit(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "wrong", base_url)
-        partition_file_async_submit(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "wrong", docparse_url=base_url)
+        partition_file_async_submit("", aps_url="https://example.com/v1/document/partition", docparse_url=base_url)
         partition_file_async_submit("", aps_url=base_url, docparse_url=base_url)
 
     standard_async_url = ARYN_DOCPARSE_URL.replace("/v1/", "/v1/async/submit/")
 
     def check_standard_url(
         file: Union[BinaryIO, str, PathLike],
+        *,
         aryn_api_key: Optional[str] = None,
         aryn_config: Optional[ArynConfig] = None,
         threshold: Optional[Union[float, Literal["auto"]]] = None,
@@ -223,11 +221,11 @@ def test_partiton_file_async_url_forwarding(mocker):
         ssl_verify: bool = True,
         output_format: Optional[str] = None,
         output_label_options: dict[str, Any] = {},
+        webhook_url: Optional[str] = None,
     ):
         url = docparse_url or aps_url
         assert url == standard_async_url
 
-    mocker.patch("inspect.getfullargspec").return_value = inspect.getfullargspec(partition_file)
     mocker.patch("aryn_sdk.partition.partition._partition_file_inner", side_effect=check_standard_url)
     partition_file_async_submit("")
     call_partition_file(ARYN_DOCPARSE_URL)
@@ -238,6 +236,7 @@ def test_partiton_file_async_url_forwarding(mocker):
 
     def check_nonstandard_url(
         file: Union[BinaryIO, str, PathLike],
+        *,
         aryn_api_key: Optional[str] = None,
         aryn_config: Optional[ArynConfig] = None,
         threshold: Optional[Union[float, Literal["auto"]]] = None,
@@ -253,6 +252,7 @@ def test_partiton_file_async_url_forwarding(mocker):
         ssl_verify: bool = True,
         output_format: Optional[str] = None,
         output_label_options: dict[str, Any] = {},
+        webhook_url: Optional[str] = None,
     ):
         url = docparse_url or aps_url
         assert url == nonstandard_async_url_example

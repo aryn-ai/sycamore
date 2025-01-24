@@ -1,6 +1,6 @@
 from os import PathLike
 from typing import BinaryIO, Literal, Optional, Union, Any
-from enum import Enum
+from urllib.parse import urlparse, urlunparse
 from collections.abc import Mapping
 from aryn_sdk.config import ArynConfig
 import requests
@@ -13,7 +13,6 @@ from collections import OrderedDict
 from PIL import Image
 import base64
 import io
-import inspect
 
 # URL for Aryn DocParse
 ARYN_DOCPARSE_URL = "https://api.aryn.cloud/v1/document/partition"
@@ -31,6 +30,7 @@ class PartitionError(Exception):
 
 def partition_file(
     file: Union[BinaryIO, str, PathLike],
+    *,
     aryn_api_key: Optional[str] = None,
     aryn_config: Optional[ArynConfig] = None,
     threshold: Optional[Union[float, Literal["auto"]]] = None,
@@ -145,6 +145,7 @@ def partition_file(
 
 def _partition_file_inner(
     file: Union[BinaryIO, str, PathLike],
+    *,
     aryn_api_key: Optional[str] = None,
     aryn_config: Optional[ArynConfig] = None,
     threshold: Optional[Union[float, Literal["auto"]]] = None,
@@ -316,22 +317,47 @@ def _json_options(
 
 
 def partition_file_async_submit(
-    *args, webhook_url: Optional[str] = None, force_async_url: bool = False, **kwargs
+    file: Union[BinaryIO, str, PathLike],
+    *,
+    aryn_api_key: Optional[str] = None,
+    aryn_config: Optional[ArynConfig] = None,
+    threshold: Optional[Union[float, Literal["auto"]]] = None,
+    use_ocr: bool = False,
+    ocr_images: bool = False,
+    extract_table_structure: bool = False,
+    table_extraction_options: dict[str, Any] = {},
+    extract_images: bool = False,
+    selected_pages: Optional[list[Union[list[int], int]]] = None,
+    chunking_options: Optional[dict[str, Any]] = None,
+    aps_url: Optional[str] = None,  # deprecated in favor of docparse_url
+    docparse_url: Optional[str] = None,
+    ssl_verify: bool = True,
+    output_format: Optional[str] = None,
+    output_label_options: dict[str, Any] = {},
+    webhook_url: Optional[str] = None,
+    async_submit_url: Optional[str] = None,
 ) -> dict[str, Any]:
     """
-    Submits a file to be partitioned asynchronously. Takes same arguments as partition_file.
-    Automatically changes the endpoint to the async endpoint, unless force_async_url is set to True.
+    Submits a file to be partitioned asynchronously. Meant to be used in tandem with `partition_file_async_result`.
+
+    `partition_file_async_submit` takes the same arguments as `partition_file`, and in addition it accepts a str
+    `webhook_url` argument which is a URL Aryn will send a POST request to when the job stops and an str
+    `async_submit_url` argument that can be used to override where the job is submitted to.
+
+    Set the `docparse_url` argument to the url of the synchronous endpoint, and this function will automatically
+    change it to the async endpoint as long as `async_submit_url` is not set.
+
 
     Args:
-        Includes All Arguments `partition_file` accepts
+        Includes All Arguments `partition_file` accepts plus those below:
         ...
         webhook_url: A URL to send a POST request to when the job is done. The resulting POST request will have a
             body like: {"done": [{"job_id": "aryn:j-47gpd3604e5tz79z1jro5fc"}]}
-        force_async_url: If set to True, then this function will not change the endpoint url automatically
+        async_submit_url: When set, this will override the endpoint the job is submitted to.
 
     Returns:
-        A dictionary containing "job_id" which can be used with the `partition_file_async_result`
-        function to get the results.
+        A dictionary containing the key "job_id" the value of which can be used with the `partition_file_async_result`
+        function to get the results and check the status of the async job.
 
     Single Job Example:
         .. code-block:: python
@@ -380,58 +406,52 @@ def partition_file_async_submit(
             results[i] = result
     """
 
-    partition_file_full_arg_spec = inspect.getfullargspec(partition_file)
-    ordered_partition_file_parameter_names = partition_file_full_arg_spec[0]
-    docparse_url_position = ordered_partition_file_parameter_names.index("docparse_url")
-    aps_url_position = ordered_partition_file_parameter_names.index("aps_url")
-    assert (
-        aps_url_position < docparse_url_position
-    ), "partition_file_async_submit assumes that aps_url comes before docparse_url"
+    if async_submit_url:
+        docparse_url = async_submit_url
+    elif not aps_url and not docparse_url:
+        docparse_url = _convert_sync_to_async_submit_url(ARYN_DOCPARSE_URL)
+    else:
+        if aps_url:
+            aps_url = _convert_sync_to_async_submit_url(aps_url)
+        if docparse_url:
+            docparse_url = _convert_sync_to_async_submit_url(docparse_url)
 
-    args_list = list(args)
+    return _partition_file_inner(
+        file=file,
+        aryn_api_key=aryn_api_key,
+        aryn_config=aryn_config,
+        threshold=threshold,
+        use_ocr=use_ocr,
+        ocr_images=ocr_images,
+        extract_table_structure=extract_table_structure,
+        table_extraction_options=table_extraction_options,
+        extract_images=extract_images,
+        selected_pages=selected_pages,
+        chunking_options=chunking_options,
+        aps_url=aps_url,
+        docparse_url=docparse_url,
+        ssl_verify=ssl_verify,
+        output_format=output_format,
+        output_label_options=output_label_options,
+        webhook_url=webhook_url,
+    )
 
-    if webhook_url:
-        kwargs["webhook_url"] = webhook_url
 
-    if not force_async_url:  # If force_async_url is set to True, then this function will not change the endpoint
-        # Check if docparse_url was provided as a positional argument. If it was, then this checks to make sure that
-        # docparse_url is set to the async endpoint. If docparse_url is specified and it's not set to the async
-        # endpoint, then this changes it to the async endpoint assuming it was given the correct synchronous endpoint.
-        if len(args_list) > docparse_url_position:
-            if "/v1/async/submit" not in args[docparse_url_position]:
-                assert isinstance(args_list[docparse_url_position], str)
-                args_list[docparse_url_position] = args_list[docparse_url_position].replace("/v1/", "/v1/async/submit/")
-        else:
-            # Since docparse_url take precedence over aps_url, check if docparse_url was provided as a keyword argument
-            if "docparse_url" in kwargs:
-                docparse_url = kwargs["docparse_url"]
-                assert isinstance(docparse_url, str)
-                if "/v1/async/submit" not in docparse_url:
-                    kwargs["docparse_url"] = docparse_url.replace("/v1/", "/v1/async/submit/")
-            else:
-                # Check if aps_url was provided as a positional argument. If it was, then this checks to make sure that
-                # aps_url is set to the async endpoint. If aps_url is specified and it's not set to the async endpoint,
-                # then this changes it to the async endpoint assuming it was given the correct synchronous endpoint.
-                if len(args_list) > aps_url_position:  # Checks if the aps_url is specified as a positional argument
-                    if "/v1/async/submit" not in args[aps_url_position]:  # Detect if the aps_url is set to async
-                        args_list[aps_url_position] = args_list[aps_url_position].replace("/v1/", "/v1/async/submit/")
-                else:  # docparse was not provided as an argument at all and aps_url was not provided positionally
-                    if "aps_url" in kwargs:
-                        aps_url = kwargs["aps_url"]
-                        assert isinstance(aps_url, str)
-                        if "/v1/async/submit" not in aps_url:
-                            kwargs["aps_url"] = aps_url.replace("/v1/", "/v1/async/submit/")
-                    else:
-                        kwargs["docparse_url"] = ARYN_DOCPARSE_URL.replace("/v1/", "/v1/async/submit/")
-    return _partition_file_inner(*args_list, **kwargs)
+def _convert_sync_to_async_submit_url(url: str) -> str:
+    parsed_url = urlparse(url)
+    assert parsed_url.path.startswith("/v1/")
+    if parsed_url.path.startswith("/v1/async/submit"):
+        return url
+    return urlunparse((*parsed_url[:2], f"/v1/async/submit{parsed_url.path[3:]}", *parsed_url[3:]))
 
 
 def partition_file_async_result(
     job_id: str,
-    aryn_async_url: str = f"{ARYN_DOCPARSE_URL.split('/v1/',1)[0]}/v1/async/result",
+    *,
     aryn_api_key: Optional[str] = None,
     aryn_config: Optional[ArynConfig] = None,
     ssl_verify: bool = True,
+    async_result_url: Optional[str] = None,
 ) -> dict:
     """
     Get the results of an asynchronous partitioning job by job_id. Meant to be used with `partition_file_async_submit`.
@@ -441,16 +461,19 @@ def partition_file_async_result(
         "done", "pending", "error", or "no_such_job".
 
         Unlike `partition_file`, this function does not raise an Exception if the partitioning failed. Note the
-        "result" attribute of the returned JobResult contains what would have been the return value of `partition_file`
-        had the partitioning been done synchronously.
+        value corresponding to the "result" key of the returned dict contains what would have been the return value of
+        `partition_file` had the partitioning been done synchronously.
 
     Example:
         See the examples in the docstring for `partition_file_async_submit` for a full example of how to use this
         function.
     """
+    if not async_result_url:
+        async_result_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL)
+
     aryn_config = _process_config(aryn_api_key, aryn_config)
 
-    specific_job_url = f"{aryn_async_url}/{job_id}"
+    specific_job_url = f"{async_result_url.rstrip('/')}/{job_id}"
     http_header = {"Authorization": f"Bearer {aryn_config.api_key()}"}
     response = requests.get(specific_job_url, headers=http_header, stream=_set_stream(), verify=ssl_verify)
 
@@ -464,12 +487,21 @@ def partition_file_async_result(
         return {"status": "error", "status_code": response.status_code}
 
 
+def _convert_sync_to_async_url(url: str, prefix: str = "/result") -> str:
+    parsed_url = urlparse(url)
+    assert parsed_url.path.startswith("/v1/")
+    if parsed_url.path.startswith(f"/v1/async{prefix}"):
+        return url
+    return urlunparse((*parsed_url[:2], f"/v1/async{prefix}", *parsed_url[3:]))
+
+
 def partition_file_async_cancel(
     job_id: str,
-    aryn_async_url: str = f"{ARYN_DOCPARSE_URL.split('/v1/',1)[0]}/v1/async/cancel",
+    *,
     aryn_api_key: Optional[str] = None,
     aryn_config: Optional[ArynConfig] = None,
     ssl_verify: bool = True,
+    async_cancel_url: Optional[str] = None,
 ) -> bool:
     """
     Cancel an asynchronous partitioning job by job_id. Meant to be used with `partition_file_async_submit`.
@@ -490,9 +522,12 @@ def partition_file_async_cancel(
 
         partition_file_async_cancel(job_id)
     """
+    if not async_cancel_url:
+        async_cancel_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, "/cancel")
+
     aryn_config = _process_config(aryn_api_key, aryn_config)
 
-    specific_job_url = f"{aryn_async_url}/{job_id}"
+    specific_job_url = f"{async_cancel_url.rstrip('/')}/{job_id}"
     http_header = {"Authorization": f"Bearer {aryn_config.api_key()}"}
     response = requests.post(specific_job_url, headers=http_header, stream=_set_stream(), verify=ssl_verify)
     if response.status_code == 200:

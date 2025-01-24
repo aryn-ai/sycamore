@@ -163,7 +163,7 @@ def _partition_file_inner(
     output_label_options: dict[str, Any] = {},
     webhook_url: Optional[str] = None,
 ):
-    """Do not call this function. Use partition_file instead."""
+    """Do not call this function directly. Use partition_file or partition_file_async_submit instead."""
 
     # If you hand me a path for the file, read it in instead of trying to send the path
     if isinstance(file, (str, PathLike)):

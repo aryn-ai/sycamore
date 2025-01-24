@@ -285,9 +285,10 @@ def test_partition_file_async_with_unsupported_file_format():
         job_id = partition_file_async_submit(f)["job_id"]
 
     start = time.time()
-    actual_result = partition_file_async_result(job_id)
-    while actual_result["status"] == "pending" and time.time() - start < ASYNC_TIMEOUT:
+    while True:
         actual_result = partition_file_async_result(job_id)
+        if actual_result["status"] != "pending" or time.time() - start >= ASYNC_TIMEOUT:
+            break
         time.sleep(1)
     assert actual_result["status"] == "done"
     assert actual_result["result"] is not None

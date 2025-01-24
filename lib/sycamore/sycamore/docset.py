@@ -18,6 +18,7 @@ from sycamore.plan_nodes import Node, Transform
 from sycamore.transforms.augment_text import TextAugmentor
 from sycamore.transforms.embed import Embedder
 from sycamore.transforms import DocumentStructure, Sort
+from sycamore.transforms.extract_entity import EntityExtractor, OpenAIEntityExtractor
 from sycamore.transforms.extract_graph_entities import GraphEntityExtractor
 from sycamore.transforms.extract_graph_relationships import GraphRelationshipExtractor
 from sycamore.transforms.extract_schema import SchemaExtractor, PropertyExtractor
@@ -467,9 +468,7 @@ class DocSet:
         return DocSet(self.context, document_structure)
 
     @deprecated(version="0.1.31", reason="Use llm_map instead")
-    def extract_entity(
-        self, entity_name: str, llm: LLM, examples: Optional[str] = None, llm_mode: LLMMode = LLMMode.SYNC, **kwargs
-    ) -> "DocSet":
+    def extract_entity(self, entity_extractor: EntityExtractor, **kwargs) -> "DocSet":
         """
         Applies the ExtractEntity transform on the Docset.
 
@@ -493,19 +492,10 @@ class DocSet:
                      .extract_entity(entity_extractor=entity_extractor)
 
         """
-        if examples is None:
-            from sycamore.llms.prompts.default_prompts import EntityExtractorZeroShotGuidancePrompt as zero_shot
+        from sycamore.transforms import ExtractEntity
 
-            prompt = zero_shot.set(entity=entity_name)
-        else:
-            from sycamore.llms.prompts.default_prompts import EntityExtractorFewShotGuidancePrompt as few_shot
-
-            prompt = few_shot.set(entity=entity_name, examples=examples)
-
-        from sycamore.transforms.base_llm import LLMMap
-
-        llm_map = LLMMap(self.plan, prompt=prompt, output_field=entity_name, llm=llm, llm_mode=llm_mode, **kwargs)
-        return DocSet(self.context, llm_map)
+        entities = ExtractEntity(self.plan, context=self.context, entity_extractor=entity_extractor, **kwargs)
+        return DocSet(self.context, entities)
 
     def extract_schema(self, schema_extractor: SchemaExtractor, **kwargs) -> "DocSet":
         """
@@ -961,7 +951,6 @@ class DocSet:
         flat_map = FlatMap(self.plan, f=f, **resource_args)
         return DocSet(self.context, flat_map)
 
-    @context_params
     def llm_map(
         self, prompt: SycamorePrompt, output_field: str, llm: LLM, llm_mode: LLMMode = LLMMode.SYNC, **kwargs
     ) -> "DocSet":
@@ -979,7 +968,6 @@ class DocSet:
         llm_map = LLMMap(self.plan, prompt=prompt, output_field=output_field, llm=llm, llm_mode=llm_mode, **kwargs)
         return DocSet(self.context, llm_map)
 
-    @context_params
     def llm_map_elements(
         self, prompt: SycamorePrompt, output_field: str, llm: LLM, llm_mode: LLMMode = LLMMode.SYNC, **kwargs
     ) -> "DocSet":

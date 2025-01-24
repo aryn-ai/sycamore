@@ -1,5 +1,5 @@
 from os import PathLike
-from typing import Any, BinaryIO, Literal, Optional, Union
+from typing import BinaryIO, Union
 from aryn_sdk.partition.partition import convert_image_element, tables_to_pandas, ARYN_DOCPARSE_URL
 import pytest
 import json
@@ -14,7 +14,6 @@ from aryn_sdk.partition import (
     partition_file_async_cancel,
     PartitionError,
 )
-from aryn_sdk.config import ArynConfig
 from requests.exceptions import HTTPError
 
 RESOURCE_DIR = Path(__file__).parent / "resources"
@@ -146,6 +145,14 @@ def test_partition_it_no_api_key():
     assert einfo.value.response.json().get("detail") == "Not authenticated"
 
 
+def test_partition_file_auto_rotation():
+    expected = json.loads(open(RESOURCE_DIR / "json" / "rotated.json", "r").read())
+    actual = partition_file(
+        RESOURCE_DIR / "pdfs" / "rotated.pdf", output_label_options={"orientation_correction": True}
+    )
+    assert actual["elements"] == expected["elements"]
+
+
 def test_data_to_pandas():
     with open(RESOURCE_DIR / "json" / "3m_output_ocr_table.json", "r") as f:
         data = json.load(f)
@@ -204,7 +211,8 @@ def test_partiton_file_async_url_forwarding(mocker):
     standard_async_url = ARYN_DOCPARSE_URL.replace("/v1/", "/v1/async/submit/")
 
     def check_standard_url(
-        file: Union[BinaryIO, str, PathLike], **kwargs,
+        file: Union[BinaryIO, str, PathLike],
+        **kwargs,
     ) -> None:
         url = kwargs.get("docparse_url") or kwargs.get("aps_url")
         assert url == standard_async_url
@@ -218,7 +226,8 @@ def test_partiton_file_async_url_forwarding(mocker):
     nonstandard_async_url_example = nonstandard_url_example.replace("/v1/", "/v1/async/submit/")
 
     def check_nonstandard_url(
-        file: Union[BinaryIO, str, PathLike], **kwargs,
+        file: Union[BinaryIO, str, PathLike],
+        **kwargs,
     ) -> None:
         url = kwargs.get("docparse_url") or kwargs.get("aps_url")
         assert url == nonstandard_async_url_example

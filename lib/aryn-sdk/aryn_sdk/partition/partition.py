@@ -373,10 +373,11 @@ def partition_file_async_submit(
 
         results = {}
         for i, job_id in job_ids.items():
-            result = partition_file_async_result(job_id)
-            while result.status == JobStatus.IN_PROGRESS:
-                time.sleep(5)
+            while True:
                 result = partition_file_async_result(job_id)
+                if result.status != JobStatus.In_PROGRESS:
+                    break
+                time.sleep(5)
             results[i] = result
     """
 

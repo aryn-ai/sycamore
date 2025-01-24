@@ -338,9 +338,17 @@ def test_cancel_async_partition_job():
 def test_smoke_webhook(mocker):
     data = b'{"job_id": "1234"}'
 
+    webhook_url = "TEST"
+
     mocked_response = mocker.Mock()
     mocked_response.status_code = 202
     mocked_response.iter_content.return_value = data.split(sep=b"\n")
 
-    mocker.patch("requests.post").return_value = mocked_response
-    partition_file_submit_async(RESOURCE_DIR / "pdfs" / "3m_table.pdf", webhook_url="TEST")
+    def check_webhook(*args, headers, **kwargs):
+        assert "X-Aryn-Webhook" in headers
+        assert headers.get("X-Aryn-Webhook") == webhook_url
+        return mocked_response
+
+    fake_post = mocker.patch("requests.post", side_effect=check_webhook)
+    partition_file_submit_async(RESOURCE_DIR / "pdfs" / "3m_table.pdf", webhook_url=webhook_url)
+    fake_post.assert_called()

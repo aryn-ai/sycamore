@@ -268,9 +268,10 @@ def test_partition_file_async():
         job_id = partition_file_submit_async(f)["job_id"]
 
     start = time.time()
-    actual_result = partition_file_result_async(job_id)
-    while actual_result.status == JobStatus.IN_PROGRESS and time.time() - start < ASYNC_TIMEOUT:
+    while True:
         actual_result = partition_file_result_async(job_id)
+        if actual_result.status != JobStatus.IN_PROGRESS or time.time() - start >= ASYNC_TIMEOUT:
+            break
         time.sleep(1)
     assert actual_result.status == JobStatus.DONE
 

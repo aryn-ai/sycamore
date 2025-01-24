@@ -347,10 +347,11 @@ def partition_file_submit_async(
         job_id = response["job_id"]
 
         # Poll for the results
-        result = partition_file_result_async(job_id)
-        while result.status == JobStatus.IN_PROGRESS:
-            time.sleep(5)
+        while True:
             result = partition_file_result_async(job_id)
+            if result.status != JobStatus.IN_PROGRESS:
+                break
+            time.sleep(5)
 
     Multi-Job Example:
         .. code-block:: python

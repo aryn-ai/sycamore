@@ -161,7 +161,7 @@ def _partition_file_inner(
     ssl_verify: bool = True,
     output_format: Optional[str] = None,
     output_label_options: dict[str, Any] = {},
-    _webhook_dest_url: Optional[str] = None,
+    webhook_url: Optional[str] = None,
 ):
     """Do not call this function. Use partition_file instead."""
 
@@ -200,8 +200,8 @@ def _partition_file_inner(
 
     files: Mapping = {"options": options_str.encode("utf-8"), "pdf": file}
     headers = {"Authorization": "Bearer {}".format(aryn_config.api_key())}
-    if _webhook_dest_url:
-        headers["X-Aryn-Webhook"] = _webhook_dest_url
+    if webhook_url:
+        headers["X-Aryn-Webhook"] = webhook_url
     resp = requests.post(docparse_url, files=files, headers=headers, stream=_set_stream(), verify=ssl_verify)
 
     if resp.status_code not in (200, 202):
@@ -391,7 +391,7 @@ def partition_file_async_submit(
     args_list = list(args)
 
     if webhook_url:
-        kwargs["_webhook_dest_url"] = webhook_url
+        kwargs["webhook_url"] = webhook_url
 
     if not force_async_url:  # If force_async_url is set to True, then this function will not change the endpoint
         # Check if docparse_url was provided as a positional argument. If it was, then this checks to make sure that

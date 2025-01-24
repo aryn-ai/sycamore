@@ -318,7 +318,7 @@ def _json_options(
 
 def partition_file_async_submit(
     *args, webhook_url: Optional[str] = None, force_async_url: bool = False, **kwargs
-) -> dict:
+) -> dict[str, Any]:
     """
     Submits a file to be partitioned asynchronously. Takes same arguments as partition_file.
     Automatically changes the endpoint to the async endpoint, unless force_async_url is set to True.

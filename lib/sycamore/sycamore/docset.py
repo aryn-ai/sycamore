@@ -30,6 +30,7 @@ from sycamore.transforms.llm_query import LLMTextQueryAgent
 from sycamore.transforms.extract_table import TableExtractor
 from sycamore.transforms.merge_elements import ElementMerger
 from sycamore.utils.extract_json import extract_json
+from sycamore.utils.deprecate import deprecated
 from sycamore.transforms.query import QueryExecutor, Query
 from sycamore.materialize_config import MaterializeSourceMode
 
@@ -466,7 +467,10 @@ class DocSet:
         document_structure = ExtractDocumentStructure(self.plan, structure=structure, **kwargs)
         return DocSet(self.context, document_structure)
 
-    def extract_entity(self, entity_extractor: EntityExtractor, **kwargs) -> "DocSet":
+    @deprecated(version="0.1.31", reason="Use llm_map instead")
+    def extract_entity(
+        self, entity_name: str, llm: LLM, examples: Optional[str] = None, llm_mode: LLMMode = LLMMode.SYNC, **kwargs
+    ) -> "DocSet":
         """
         Applies the ExtractEntity transform on the Docset.
 
@@ -490,10 +494,19 @@ class DocSet:
                      .extract_entity(entity_extractor=entity_extractor)
 
         """
-        from sycamore.transforms import ExtractEntity
+        if examples is None:
+            from sycamore.llms.prompts.default_prompts import EntityExtractorZeroShotGuidancePrompt as zero_shot
 
-        entities = ExtractEntity(self.plan, context=self.context, entity_extractor=entity_extractor, **kwargs)
-        return DocSet(self.context, entities)
+            prompt = zero_shot.set(entity=entity_name)
+        else:
+            from sycamore.llms.prompts.default_prompts import EntityExtractorFewShotGuidancePrompt as few_shot
+
+            prompt = few_shot.set(entity=entity_name, examples=examples)
+
+        from sycamore.transforms.base_llm import LLMMap
+
+        llm_map = LLMMap(self.plan, prompt=prompt, output_field=entity_name, llm=llm, llm_mode=llm_mode, **kwargs)
+        return DocSet(self.context, llm_map)
 
     def extract_schema(self, schema_extractor: SchemaExtractor, **kwargs) -> "DocSet":
         """

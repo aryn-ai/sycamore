@@ -552,7 +552,7 @@ def partition_file_async_list(
     aryn_config: Optional[ArynConfig] = None,
     ssl_verify: bool = True,
     async_list_url: Optional[str] = None,
-) -> dict:
+) -> dict[str, Any]:
     """
     List pending async jobs.
 

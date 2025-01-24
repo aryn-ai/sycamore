@@ -10,9 +10,9 @@ import logging
 
 from aryn_sdk.partition import (
     partition_file,
-    partition_file_submit_async,
-    partition_file_result_async,
-    cancel_async_partition_job,
+    partition_file_async_submit,
+    partition_file_async_result,
+    partition_file_async_cancel,
     PartitionError,
     JobStatus,
 )
@@ -176,11 +176,11 @@ def test_convert_img():
 
 
 def test_invalid_job_id():
-    response = partition_file_result_async("INVALID_JOB_ID")
+    response = partition_file_async_result("INVALID_JOB_ID")
     assert response.status == JobStatus.NO_SUCH_JOB
 
 
-def test_partition_file_submit_async(mocker):
+def test_partition_file_async_submit(mocker):
     data = b'{"job_id": "1234"}'
     expected_response = json.loads(data.decode())
 
@@ -191,19 +191,19 @@ def test_partition_file_submit_async(mocker):
     mocker.patch("requests.post").return_value = mocked_response
 
     with open(RESOURCE_DIR / "pdfs" / "3m_table.pdf", "rb") as f:
-        response = partition_file_submit_async(f)
+        response = partition_file_async_submit(f)
 
     assert response == expected_response
 
 
 def test_partiton_file_async_url_forwarding(mocker):
     def call_partition_file(base_url: str):
-        partition_file_submit_async("", docparse_url=base_url)
-        partition_file_submit_async("", aps_url=base_url)
-        partition_file_submit_async(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, base_url)
-        partition_file_submit_async(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "wrong", base_url)
-        partition_file_submit_async(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "wrong", docparse_url=base_url)
-        partition_file_submit_async("", aps_url=base_url, docparse_url=base_url)
+        partition_file_async_submit("", docparse_url=base_url)
+        partition_file_async_submit("", aps_url=base_url)
+        partition_file_async_submit(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, base_url)
+        partition_file_async_submit(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "wrong", base_url)
+        partition_file_async_submit(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "wrong", docparse_url=base_url)
+        partition_file_async_submit("", aps_url=base_url, docparse_url=base_url)
 
     standard_async_url = ARYN_DOCPARSE_URL.replace("/v1/", "/v1/async/submit/")
 
@@ -229,8 +229,8 @@ def test_partiton_file_async_url_forwarding(mocker):
         assert url == standard_async_url
 
     mocker.patch("inspect.getfullargspec").return_value = inspect.getfullargspec(partition_file)
-    mocker.patch("aryn_sdk.partition.partition._inner_partition_file", side_effect=check_standard_url)
-    partition_file_submit_async("")
+    mocker.patch("aryn_sdk.partition.partition._partition_file_inner", side_effect=check_standard_url)
+    partition_file_async_submit("")
     call_partition_file(ARYN_DOCPARSE_URL)
     call_partition_file(standard_async_url)
 
@@ -258,18 +258,18 @@ def test_partiton_file_async_url_forwarding(mocker):
         url = docparse_url or aps_url
         assert url == nonstandard_async_url_example
 
-    mocker.patch("aryn_sdk.partition.partition._inner_partition_file", side_effect=check_nonstandard_url)
+    mocker.patch("aryn_sdk.partition.partition._partition_file_inner", side_effect=check_nonstandard_url)
     call_partition_file(nonstandard_url_example)
     call_partition_file(nonstandard_async_url_example)
 
 
 def test_partition_file_async():
     with open(RESOURCE_DIR / "pdfs" / "3m_table.pdf", "rb") as f:
-        job_id = partition_file_submit_async(f)["job_id"]
+        job_id = partition_file_async_submit(f)["job_id"]
 
     start = time.time()
     while True:
-        actual_result = partition_file_result_async(job_id)
+        actual_result = partition_file_async_result(job_id)
         if actual_result.status != JobStatus.IN_PROGRESS or time.time() - start >= ASYNC_TIMEOUT:
             break
         time.sleep(1)
@@ -283,12 +283,12 @@ def test_partition_file_async():
 
 def test_async_partition_with_unsupported_file_format():
     with open(RESOURCE_DIR / "image" / "unsupported-format-test-document-image.heic", "rb") as f:
-        job_id = partition_file_submit_async(f)["job_id"]
+        job_id = partition_file_async_submit(f)["job_id"]
 
     start = time.time()
-    actual_result = partition_file_result_async(job_id)
+    actual_result = partition_file_async_result(job_id)
     while actual_result.status == JobStatus.IN_PROGRESS and time.time() - start < ASYNC_TIMEOUT:
-        actual_result = partition_file_result_async(job_id)
+        actual_result = partition_file_async_result(job_id)
         time.sleep(1)
     assert actual_result.status == JobStatus.DONE
     assert actual_result.result is not None
@@ -302,34 +302,34 @@ def test_multiple_partition_file_async():
 
     for i in range(num_jobs):
         logging.info(f"Submitting job {i + 1}/{num_jobs}")
-        job_id = partition_file_submit_async(RESOURCE_DIR / "pdfs" / "FR-2002-05-03-TRUNCATED-40.pdf")["job_id"]
+        job_id = partition_file_async_submit(RESOURCE_DIR / "pdfs" / "FR-2002-05-03-TRUNCATED-40.pdf")["job_id"]
         logging.info(f"\tJob ID: {job_id}")
         job_ids.append(job_id)
 
     for i, job_id in enumerate(job_ids):
         logging.info(f"Checking job ({job_id}) {i + 1}/{num_jobs}")
         start = time.time()
-        actual_result = partition_file_result_async(job_id)
+        actual_result = partition_file_async_result(job_id)
         while actual_result.status == JobStatus.IN_PROGRESS and time.time() - start < ASYNC_TIMEOUT:
-            actual_result = partition_file_result_async(job_id)
+            actual_result = partition_file_async_result(job_id)
             time.sleep(1)
             logging.info(f"\tPolling Job {job_id} ({i + 1}/{num_jobs})")
         assert actual_result.status == JobStatus.DONE
         assert len(actual_result.result["elements"]) > 1000
 
 
-def test_cancel_async_partition_job():
+def test_partition_file_async_cancel():
     with open(RESOURCE_DIR / "pdfs" / "FR-2002-05-03-TRUNCATED-40.pdf", "rb") as f:
-        job_id = partition_file_submit_async(f)["job_id"]
+        job_id = partition_file_async_submit(f)["job_id"]
 
-    before_cancel_result = partition_file_result_async(job_id)
+    before_cancel_result = partition_file_async_result(job_id)
     assert before_cancel_result.status == JobStatus.IN_PROGRESS
-    assert cancel_async_partition_job(job_id)
+    assert partition_file_async_cancel(job_id)
 
     # Cancellation is not reflected in the result immediately
     for _ in range(10):
         time.sleep(0.1)
-        after_cancel_result = partition_file_result_async(job_id)
+        after_cancel_result = partition_file_async_result(job_id)
         if after_cancel_result.status == JobStatus.NO_SUCH_JOB:
             break
         assert after_cancel_result.status == JobStatus.IN_PROGRESS
@@ -351,5 +351,5 @@ def test_smoke_webhook(mocker):
         return mocked_response
 
     fake_post = mocker.patch("requests.post", side_effect=check_webhook)
-    partition_file_submit_async(RESOURCE_DIR / "pdfs" / "3m_table.pdf", webhook_url=webhook_url)
+    partition_file_async_submit(RESOURCE_DIR / "pdfs" / "3m_table.pdf", webhook_url=webhook_url)
     fake_post.assert_called()

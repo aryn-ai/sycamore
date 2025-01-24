@@ -1,8 +1,8 @@
 from .partition import (
     partition_file,
-    partition_file_submit_async,
-    partition_file_result_async,
-    cancel_async_partition_job,
+    partition_file_async_submit,
+    partition_file_async_result,
+    partition_file_async_cancel,
     tables_to_pandas,
     table_elem_to_dataframe,
     convert_image_element,
@@ -18,8 +18,8 @@ __all__ = [
     "draw_with_boxes",
     "convert_image_element",
     "PartitionError",
-    "partition_file_submit_async",
-    "partition_file_result_async",
+    "partition_file_async_submit",
+    "partition_file_async_result",
     "JobStatus",
-    "cancel_async_partition_job",
+    "partition_file_async_cancel",
 ]

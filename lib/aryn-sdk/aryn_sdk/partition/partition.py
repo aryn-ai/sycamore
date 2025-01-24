@@ -124,7 +124,7 @@ def partition_file(
                 )
             elements = data['elements']
     """
-    return _inner_partition_file(
+    return _partition_file_inner(
         file=file,
         aryn_api_key=aryn_api_key,
         aryn_config=aryn_config,
@@ -144,7 +144,7 @@ def partition_file(
     )
 
 
-def _inner_partition_file(
+def _partition_file_inner(
     file: Union[BinaryIO, str, PathLike],
     aryn_api_key: Optional[str] = None,
     aryn_config: Optional[ArynConfig] = None,
@@ -316,7 +316,7 @@ def _json_options(
     return json.dumps(options)
 
 
-def partition_file_submit_async(
+def partition_file_async_submit(
     *args, webhook_url: Optional[str] = None, force_async_url: bool = False, **kwargs
 ) -> dict:
     """
@@ -331,17 +331,17 @@ def partition_file_submit_async(
         force_async_url: If set to True, then this function will not change the endpoint url automatically
 
     Returns:
-        A dictionary containing "job_id" which can be used with the `partition_file_result_async`
+        A dictionary containing "job_id" which can be used with the `partition_file_async_result`
         function to get the results.
 
     Single Job Example:
         .. code-block:: python
 
         import time
-        from aryn_sdk.partition import partition_file_submit_async, partition_file_result_async, JobStatus
+        from aryn_sdk.partition import partition_file_async_submit, partition_file_async_result, JobStatus
 
         with open("my-favorite-pdf.pdf", "rb") as f:
-            response = partition_file_submit_async(
+            response = partition_file_async_submit(
                 f,
                 use_ocr=True,
                 extract_table_structure=True,
@@ -351,7 +351,7 @@ def partition_file_submit_async(
 
         # Poll for the results
         while True:
-            result = partition_file_result_async(job_id)
+            result = partition_file_async_result(job_id)
             if result.status != JobStatus.IN_PROGRESS:
                 break
             time.sleep(5)
@@ -361,22 +361,22 @@ def partition_file_submit_async(
 
         import logging
         import time
-        from aryn_sdk.partition import partition_file_submit_async, partition_file_result_async, JobStatus
+        from aryn_sdk.partition import partition_file_async_submit, partition_file_async_result, JobStatus
 
         files = [open("file1.pdf", "rb"), open("file2.docx", "rb")]
         job_ids = {}
         for i, f in enumerate(files):
             try:
-                job_ids[i] = partition_file_submit_async(f)["job_id"]
+                job_ids[i] = partition_file_async_submit(f)["job_id"]
             except Exception as e:
                 logging.warning(f"Failed to submit {f}: {e}")
 
         results = {}
         for i, job_id in job_ids.items():
-            result = partition_file_result_async(job_id)
+            result = partition_file_async_result(job_id)
             while result.status == JobStatus.IN_PROGRESS:
                 time.sleep(5)
-                result = partition_file_result_async(job_id)
+                result = partition_file_async_result(job_id)
             results[i] = result
     """
 
@@ -386,7 +386,7 @@ def partition_file_submit_async(
     aps_url_position = ordered_partition_file_parameter_names.index("aps_url")
     assert (
         aps_url_position < docparse_url_position
-    ), "partition_file_submit_async assumes that aps_url comes before docparse_url"
+    ), "partition_file_async_submit assumes that aps_url comes before docparse_url"
 
     args_list = list(args)
 
@@ -423,7 +423,7 @@ def partition_file_submit_async(
                             kwargs["aps_url"] = aps_url.replace("/v1/", "/v1/async/submit/")
                     else:
                         kwargs["docparse_url"] = ARYN_DOCPARSE_URL.replace("/v1/", "/v1/async/submit/")
-    return _inner_partition_file(*args_list, **kwargs)
+    return _partition_file_inner(*args_list, **kwargs)
 
 
 class JobStatus(str, Enum):
@@ -439,7 +439,7 @@ class JobResult(BaseModel):
     result: Optional[dict]
 
 
-def partition_file_result_async(
+def partition_file_async_result(
     job_id: str,
     aryn_async_url: str = f"{ARYN_DOCPARSE_URL.split('/v1/',1)[0]}/v1/async/result",
     aryn_api_key: Optional[str] = None,
@@ -447,7 +447,7 @@ def partition_file_result_async(
     ssl_verify: bool = True,
 ) -> JobResult:
     """
-    Get the results of an asynchronous partitioning job by job_id. Meant to be used with `partition_file_submit_async`.
+    Get the results of an asynchronous partitioning job by job_id. Meant to be used with `partition_file_async_submit`.
 
     Returns:
         A JobResult object containing "status", "status_code", and also "result" which is non-None when "status" is
@@ -458,7 +458,7 @@ def partition_file_result_async(
         had the partitioning been done synchronously.
 
     Example:
-        See the examples in the docstring for `partition_file_submit_async` for a full example of how to use this
+        See the examples in the docstring for `partition_file_async_submit` for a full example of how to use this
         function.
     """
     aryn_config = _process_config(aryn_api_key, aryn_config)
@@ -476,8 +476,7 @@ def partition_file_result_async(
     else:
         return JobResult(status=JobStatus.ERROR, status_code=response.status_code, result=None)
 
-
-def cancel_async_partition_job(
+def partition_file_async_cancel(
     job_id: str,
     aryn_async_url: str = f"{ARYN_DOCPARSE_URL.split('/v1/',1)[0]}/v1/async/cancel",
     aryn_api_key: Optional[str] = None,
@@ -485,7 +484,7 @@ def cancel_async_partition_job(
     ssl_verify: bool = True,
 ) -> bool:
     """
-    Cancel an asynchronous partitioning job by job_id. Meant to be used with `partition_file_submit_async`.
+    Cancel an asynchronous partitioning job by job_id. Meant to be used with `partition_file_async_submit`.
 
     Returns:
         A bool indicating whether the job was successfully cancelled by this request.
@@ -493,15 +492,15 @@ def cancel_async_partition_job(
     Example:
         .. code-block:: python
 
-        from aryn_sdk.partition import partition_file_submit_async, cancel_async_partition_job
-        job_id = partition_file_submit_async(
+        from aryn_sdk.partition import partition_file_async_submit, partition_file_async_cancel
+        job_id = partition_file_async_submit(
                     "path/to/file.pdf",
                     use_ocr=True,
                     extract_table_structure=True,
                     extract_images=True,
                 )["job_id"]
 
-        cancel_async_partition_job(job_id)
+        partition_file_async_cancel(job_id)
     """
     aryn_config = _process_config(aryn_api_key, aryn_config)
 

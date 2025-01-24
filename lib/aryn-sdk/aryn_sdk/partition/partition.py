@@ -338,13 +338,13 @@ def partition_file_submit_async(
         from aryn_sdk.partition import partition_file_submit_async, partition_file_result_async, JobStatus
 
         with open("my-favorite-pdf.pdf", "rb") as f:
-            job = partition_file_submit_async(
+            response = partition_file_submit_async(
                 f,
                 use_ocr=True,
                 extract_table_structure=True,
             )
 
-        job_id = job["job_id"]
+        job_id = response["job_id"]
 
         # Poll for the results
         result = partition_file_result_async(job_id)
@@ -363,7 +363,7 @@ def partition_file_submit_async(
         job_ids = {}
         for i, f in enumerate(files):
             try:
-                job_ids[i] = partition_file_submit_async(f))
+                job_ids[i] = partition_file_submit_async(f)["job_id"]
             except Exception as e:
                 logging.warning(f"Failed to submit {f}: {e}")
 

@@ -186,7 +186,7 @@ def test_partition_file_submit_async(mocker):
 
     mocked_response = mocker.Mock()
     mocked_response.status_code = 202
-    mocked_response.iter_content.return_value = data.split(sep=b"\n")
+    mocked_response.iter_content.return_value = (data,)
 
     mocker.patch("requests.post").return_value = mocked_response
 

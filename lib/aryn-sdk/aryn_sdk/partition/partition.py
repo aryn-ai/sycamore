@@ -460,7 +460,7 @@ def partition_file_async_result(
     aryn_config: Optional[ArynConfig] = None,
     ssl_verify: bool = True,
     async_result_url: Optional[str] = None,
-) -> dict:
+) -> dict[str, Any]:
     """
     Get the results of an asynchronous partitioning job by job_id. Meant to be used with `partition_file_async_submit`.
 

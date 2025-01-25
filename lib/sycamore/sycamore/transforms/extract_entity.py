@@ -9,6 +9,7 @@ from sycamore.llms.prompts import (
     EntityExtractorFewShotGuidancePrompt,
 )
 from sycamore.plan_nodes import Node
+from sycamore.transforms.base_llm import LLMMap
 from sycamore.transforms.map import Map
 from sycamore.utils.time_trace import timetrace
 from sycamore.functions.tokenizer import Tokenizer
@@ -28,6 +29,12 @@ def element_list_formatter(elements: list[Element], field: str = "text_represent
 class EntityExtractor(ABC):
     def __init__(self, entity_name: str):
         self._entity_name = entity_name
+
+    @abstractmethod
+    def as_llm_map(
+        self, child: Optional[Node], context: Optional[Context] = None, llm: Optional[LLM] = None, **kwargs
+    ) -> LLMMap:
+        pass
 
     @abstractmethod
     def extract_entity(
@@ -99,6 +106,32 @@ class OpenAIEntityExtractor(EntityExtractor):
         self._tokenizer = tokenizer
         self._similarity_query = similarity_query
         self._similarity_scorer = similarity_scorer
+
+    @context_params(OperationTypes.INFORMATION_EXTRACTOR)
+    def as_llm_map(
+        self, child: Optional[Node], context: Optional[Context] = None, llm: Optional[LLM] = None, **kwargs
+    ) -> LLMMap:
+        if llm is None:
+            llm = self._llm
+        assert llm is not None, "Could not find an LLM to use"
+        if self._prompt_template is not None:
+            prompt = EntityExtractorFewShotGuidancePrompt
+            prompt = prompt.set(examples=self._prompt_template)
+        else:
+            prompt = EntityExtractorZeroShotGuidancePrompt
+
+        def elt_sorter(elts: list[Element]) -> list[Element]:
+            sorter_inner = make_element_sorter_fn(self._field, self._similarity_query, self._similarity_scorer)
+            dummy_doc = Document(elements=elts)
+            sorter_inner(dummy_doc)
+            return dummy_doc.elements
+
+        prompt = prompt.set(element_select=lambda e: elt_sorter(e)[: self._num_of_elements])
+        prompt = prompt.set(element_list_constructor=lambda e: self._prompt_formatter(e, self._field))
+        prompt = prompt.set(entity=self._entity_name)
+
+        llm_map = LLMMap(child, prompt, self._entity_name, llm, **kwargs)
+        return llm_map
 
     @context_params(OperationTypes.INFORMATION_EXTRACTOR)
     @timetrace("OaExtract")

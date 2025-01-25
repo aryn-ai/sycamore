@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Sequence, Callable, Union
 
 from sycamore.llms.llms import LLM, LLMMode
 from sycamore.llms.prompts.prompts import SycamorePrompt, RenderedPrompt
@@ -7,9 +7,22 @@ from sycamore.transforms.map import MapBatch
 from sycamore.data import Document, Element
 
 
-def _infer_prompts(prompts: list[RenderedPrompt], llm: LLM, llm_mode: LLMMode) -> list[str]:
+def _infer_prompts(
+    prompts: list[Sequence[RenderedPrompt]],
+    llm: LLM,
+    llm_mode: LLMMode,
+    is_done: Callable[[str], bool] = lambda s: True,
+) -> list[str]:
     if llm_mode == LLMMode.SYNC:
-        return [llm.generate(prompt=p) for p in prompts]
+        res = []
+        for piter in prompts:
+            s = ""
+            for p in piter:
+                s = llm.generate(prompt=p)
+                if is_done(s):
+                    break
+            res.append(s)
+        return res
     elif llm_mode == LLMMode.ASYNC:
         raise NotImplementedError("Haven't done async yet")
     elif llm_mode == LLMMode.BATCH:
@@ -63,7 +76,8 @@ class LLMMap(MapBatch):
 
     def llm_map(self, documents: list[Document]) -> list[Document]:
         rendered = [self._prompt.render_document(d) for d in documents]
-        results = _infer_prompts(rendered, self._llm, self._llm_mode)
+        rendered = _as_sequences(rendered)
+        results = _infer_prompts(rendered, self._llm, self._llm_mode, self._prompt.is_done)
         for d, r in zip(documents, results):
             d.properties[self._output_field] = r
         return documents
@@ -122,7 +136,9 @@ class LLMMapElements(MapBatch):
 
     def llm_map_elements(self, documents: list[Document]) -> list[Document]:
         rendered = [(e, self._prompt.render_element(e, d)) for d in documents for e in d.elements]
-        results = _infer_prompts([p for _, p in rendered], self._llm, self._llm_mode)
+        results = _infer_prompts(
+            _as_sequences([p for _, p in rendered]), self._llm, self._llm_mode, self._prompt.is_done
+        )
         for r, (e, _) in zip(results, rendered):
             e.properties[self._output_field] = r
         return documents
@@ -136,3 +152,7 @@ class LLMMapElements(MapBatch):
             raise e
         except Exception:
             pass
+
+
+def _as_sequences(l: list[Union[RenderedPrompt, Sequence[RenderedPrompt]]]) -> list[Sequence[RenderedPrompt]]:
+    return [[p] if isinstance(p, RenderedPrompt) else p for p in l]

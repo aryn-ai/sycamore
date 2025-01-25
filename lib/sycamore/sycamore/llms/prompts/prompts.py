@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Union, Optional, Callable
+from typing import Any, Union, Optional, Callable, Sequence
 import copy
 
 import pydantic
@@ -42,7 +42,7 @@ class SycamorePrompt:
     convert sycamore objects (``Document``s, ``Element``s) into ``RenderedPrompts``
     """
 
-    def render_document(self, doc: Document) -> RenderedPrompt:
+    def render_document(self, doc: Document) -> Union[RenderedPrompt, Sequence[RenderedPrompt]]:
         """Render this prompt, given this document as context.
         Used in llm_map
 
@@ -54,7 +54,7 @@ class SycamorePrompt:
         """
         raise NotImplementedError(f"render_document is not implemented for {self.__class__.__name__}")
 
-    def render_element(self, elt: Element, doc: Document) -> RenderedPrompt:
+    def render_element(self, elt: Element, doc: Document) -> Union[RenderedPrompt, Sequence[RenderedPrompt]]:
         """Render this prompt, given this element and its parent document as context.
         Used in llm_map_elements
 
@@ -66,7 +66,7 @@ class SycamorePrompt:
         """
         raise NotImplementedError(f"render_element is not implemented for {self.__class__.__name__}")
 
-    def render_multiple_documents(self, docs: list[Document]) -> RenderedPrompt:
+    def render_multiple_documents(self, docs: list[Document]) -> Union[RenderedPrompt, Sequence[RenderedPrompt]]:
         """Render this prompt, given a list of documents as context.
         Used in llm_reduce
 
@@ -112,6 +112,19 @@ class SycamorePrompt:
             else:
                 new.__dict__[k] = v
         return new
+
+    def is_done(self, s: str) -> bool:
+        """Decide whether a given response is sufficient. Used when rendering
+        the prompt generates a sequence of prompts rather than a single prompt.
+        The default implementation always returns True
+
+        Args:
+            s: a string response from the LLM
+
+        Returns:
+            Whether to continue making LLM calls
+        """
+        return True
 
 
 def _build_format_str(
@@ -188,7 +201,7 @@ class ElementListPrompt(SycamorePrompt):
         elts = self.element_select(doc.elements)
         return self.element_list_constructor(elts)
 
-    def render_document(self, doc: Document) -> RenderedPrompt:
+    def render_document(self, doc: Document) -> Union[RenderedPrompt, Sequence[RenderedPrompt]]:
         """Render this prompt, given this document as context, using python's
         ``str.format()`` method. The keys passed into ``format()`` are as follows:
 
@@ -216,6 +229,92 @@ class ElementListPrompt(SycamorePrompt):
         messages = _build_format_str(self.system, self.user, format_args)
         result = RenderedPrompt(messages=messages)
         return result
+
+
+class ElementListIterPrompt(ElementListPrompt):
+    """A prompt with utilities for constructing a lists of elements to include
+    in a sequence of rendered prompts. Functions almost identically to ElementListPrompt,
+    but renders into a series of prompts.
+
+    Args:
+
+        system: The system prompt string. Use {} to reference names that should
+            be interpolated. Defaults to None
+        user: The user prompt string. Use {} to reference names that should be
+            interpolated. Defaults to None
+        element_select: Function to choose the elements (and their order) to include
+            in the prompt. If None, defaults to the first ``num_elements`` elements.
+        element_list_constructor: Function to turn a list of elements into a
+            string that can be accessed with the interpolation key "{elements}".
+            Defaults to "ELEMENT 0: {elts[0].text_representation}\\n
+                         ELEMENT 1: {elts[1].text_representation}\\n
+                         ..."
+        num_elements: Sets the number of elements to take if ``element_select`` is
+            unset. Default is 35.
+        element_batcher: Constructs batches of elements to render in sequence to generate
+            several rendered prompts. Defaults to one batch with all elements.
+        **kwargs: other keyword arguments are stored and can be used as interpolation keys.
+
+    Example:
+         .. code-block:: python
+
+            prompt = ElementListIterPrompt(
+                system = "You are a program that returns 'None' if you don't know the answer to my question"
+                user = "What is the capital of the country described?\\nElements:\\n{elements}"
+                element_batcher = lambda elts: [elts[i:i+2] for i in range(0, len(elts), 2)]
+            ).set(is_done=lambda s: s != 'None')
+            prompt.render_document(doc)
+            # [
+            #   [
+            #       {"role": "system", "content": "You are a program that returns 'None' if you don't know the answer to my question"},
+            #       {"role": "user", "content": "What is the capital of the country described?\\nElements:\\n
+            #               ELEMENT 0: <elt 0 text>\\nELEMENT 1: <elt 1 text>"}
+            #   ],
+            #   [
+            #       {"role": "system", "content": "You are a program that returns 'None' if you don't know the answer to my question"},
+            #       {"role": "user", "content": "What is the capital of the country described?\\nElements:\\n
+            #               ELEMENT 0: <elt 2 text>\\nELEMENT 1: <elt 3 text>"}
+            #   ]
+            # ]
+    """
+
+    def __init__(self, *, element_batcher: Optional[Callable[[list[Element]], list[list[Element]]]] = None, **kwargs):
+        self.element_batcher = element_batcher or (lambda e: [e])
+        super().__init__(**kwargs)
+
+    def render_document(self, doc: Document) -> Sequence[RenderedPrompt]:
+        """Render this prompt, given this document as context, using python's
+        ``str.format()`` method. The keys passed into ``format()`` are as follows:
+
+            - self.kwargs: the additional kwargs specified when creating this prompt.
+            - doc_text: doc.text_representation
+            - doc_property_<property_name>: each property name in doc.properties is
+                prefixed with 'doc_property_'. So if ``doc.properties = {'k1': 0, 'k2': 3}``,
+                you get ``doc_property_k1 = 0, doc_property_k2 = 3``.
+            - elements: the element list constructed from doc.elements using ``self.element_select``,
+                ``self.element_order``, and ``self.element_list_constructor``.
+
+        Args:
+            doc: The document to use as context for rendering this prompt
+
+        Returns:
+            A list of two-message RenderedPrompts containing ``self.system.format()`` and
+            ``self.user.format()`` using the format keys as specified above. Each instance
+            is rendered from a batch of elements generated by ``self.element_batcher``
+        """
+
+        format_args = self.kwargs
+        format_args["doc_text"] = doc.text_representation
+        flat_props = flatten_data(doc.properties, prefix="doc_property", separator="_")
+        format_args.update(flat_props)
+
+        prompts = []
+        for elt_batch in self.element_batcher(doc.elements):
+            elements = self.element_select(elt_batch)
+            elementstr = self.element_list_constructor(elements)
+            messages = _build_format_str(self.system, self.user, {"elements": elementstr, **format_args})
+            prompts.append(RenderedPrompt(messages=messages))
+        return prompts
 
 
 class ElementPrompt(SycamorePrompt):

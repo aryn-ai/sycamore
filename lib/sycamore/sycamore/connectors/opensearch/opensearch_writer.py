@@ -42,6 +42,7 @@ class OpenSearchWriterClientParams(BaseDBWriter.ClientParams):
 @dataclass
 class OpenSearchWriterTargetParams(BaseDBWriter.TargetParams):
     index_name: str
+    reliability_rewriter: dict[str, Any] = field(default_factory=lambda: {"enabled": False, "num_chunks": 0})
     settings: dict[str, Any] = field(default_factory=lambda: {"index.knn": True})
     mappings: dict[str, Any] = field(
         default_factory=lambda: {
@@ -196,7 +197,28 @@ class OpenSearchWriterClient(BaseDBWriter.Client):
         assert isinstance(mappings, dict)
         settings = _string_values_to_python_types(response.get(index_name, {}).get("settings", {}))
         assert isinstance(settings, dict)
-        return OpenSearchWriterTargetParams(index_name=index_name, mappings=mappings, settings=settings)
+        reliability_rewriter = target_params.reliability_rewriter
+        assert isinstance(reliability_rewriter, dict)
+        return OpenSearchWriterTargetParams(
+            index_name=index_name, mappings=mappings, settings=settings, reliability_rewriter=reliability_rewriter
+        )
+
+    def reliability_assertor(self, target_params: BaseDBWriter.TargetParams):
+        assert isinstance(
+            target_params, OpenSearchWriterTargetParams
+        ), f"Provided target_params was not of type OpenSearchWriterTargetParams:\n{target_params}"
+        if not target_params.reliability_rewriter["enabled"]:
+            return
+        log.info("Flushing index...")
+        self._client.indices.flush(index=target_params.index_name)
+        log.info("Done flushing index.")
+        indices = self._client.cat.indices(index=target_params.index_name, format="json")
+        assert len(indices) == 1, f"Expected 1 index, found {len(indices)}"
+        num_docs = int(indices[0]["docs.count"])
+        assert (
+            num_docs == target_params.reliability_rewriter["num_chunks"]
+        ), f"Expected {target_params.reliability_rewriter['num_chunks']} docs, found {num_docs}"
+        log.info(f"{num_docs} chunks written in index {target_params.index_name}")
 
 
 @dataclass

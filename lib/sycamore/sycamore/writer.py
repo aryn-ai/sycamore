@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from neo4j import Auth
     from neo4j.auth_management import AuthManager
 
+from sycamore.connectors.opensearch import OpenSearchWriterClient, OpenSearchWriter
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,7 @@ class DocSetWriter:
         index_settings: dict,
         insert_settings: Optional[dict] = None,
         execute: bool = True,
+        reliability_rewriter: bool = False,
         **kwargs,
     ) -> Optional["DocSet"]:
         """Writes the content of the DocSet into the specified OpenSearch index.
@@ -101,7 +103,6 @@ class DocSetWriter:
         """
 
         from sycamore.connectors.opensearch import (
-            OpenSearchWriter,
             OpenSearchWriterClientParams,
             OpenSearchWriterTargetParams,
         )
@@ -136,7 +137,22 @@ class DocSetWriter:
         client_params = OpenSearchWriterClientParams(**os_client_args)
 
         target_params: OpenSearchWriterTargetParams
-        target_params_dict: dict[str, Any] = {"index_name": index_name}
+        target_params_dict: dict[str, Any] = {
+            "index_name": index_name,
+            "reliability_rewriter": {"num_chunks": 0, "enabled": reliability_rewriter},
+        }
+        if reliability_rewriter:
+            from sycamore.materialize import Materialize
+
+            assert (
+                type(self.plan) == Materialize
+            ), "The first node must be a materialize node for reliability rewriter to work"
+            logger.info(f"Reliability rewriter enabled {self.plan.children}")
+            assert not self.plan.children[
+                0
+            ], "Pipeline should only have read materialize and write nodes for reliability rewriter to work"
+            target_params_dict["reliability_rewriter"]["num_chunks"] = DocSet(self.context, self.plan).count()
+
         if insert_settings:
             target_params_dict["insert_settings"] = insert_settings
         if index_settings:
@@ -146,12 +162,18 @@ class DocSetWriter:
         os = OpenSearchWriter(
             self.plan, client_params=client_params, target_params=target_params, name="OsrchWrite", **kwargs
         )
+        client = None
+        if reliability_rewriter:
+            client = os.Client.from_client_params(client_params)
+            if client._client.indices.exists(index=index_name):
+                logger.info(f"\nWARNING: Deleting existing index {index_name}\n")
+                client._client.indices.delete(index=index_name)
 
         # We will probably want to break this at some point so that write
         # doesn't execute automatically, and instead you need to say something
         # like docset.write.opensearch().execute(), allowing sensible writes
         # to multiple locations and post-write operations.
-        return self._maybe_execute(os, execute)
+        return self._maybe_execute(os, execute, client)
 
     @requires_modules(["weaviate", "weaviate.collections.classes.config"], extra="weaviate")
     def weaviate(
@@ -800,10 +822,17 @@ class DocSetWriter:
 
         self._maybe_execute(node, True)
 
-    def _maybe_execute(self, node: Node, execute: bool) -> Optional[DocSet]:
+    def _maybe_execute(
+        self, node: Node, execute: bool, client: Optional[OpenSearchWriterClient] = None
+    ) -> Optional[DocSet]:
         ds = DocSet(self.context, node)
         if not execute:
             return ds
 
         ds.execute()
+        if client is not None:
+            assert (
+                type(node) == OpenSearchWriter
+            ), "The first node must be an opensearch writer node for reliability rewriter to work"
+            client.reliability_assertor(node._target_params)
         return None

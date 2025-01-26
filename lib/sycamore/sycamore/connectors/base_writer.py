@@ -33,6 +33,10 @@ class BaseDBWriter(MapBatch, Write):
         def get_existing_target_params(self, target_params: "BaseDBWriter.TargetParams") -> "BaseDBWriter.TargetParams":
             pass
 
+        @abstractmethod
+        def reliability_assertor(self, target_params: "BaseDBWriter.TargetParams"):
+            pass
+
         def close(self):
             pass
 

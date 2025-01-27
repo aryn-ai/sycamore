@@ -1,9 +1,13 @@
+import logging
+import os
 import subprocess
 from pathlib import Path
 from urllib.parse import urlparse
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 
 from sycamore.data import Document
+
+logger = logging.getLogger(__name__)
 
 
 def binary_representation_to_pdf(doc: Document) -> Document:
@@ -29,7 +33,8 @@ def binary_representation_to_pdf(doc: Document) -> Document:
             )
 
     assert doc.binary_representation is not None
-    extension = get_file_extension(doc.properties.get("path", "unknown"))
+    origpath = doc.properties.get("path", "unknown")
+    extension = get_file_extension(origpath)
 
     with NamedTemporaryFile(suffix=f"{extension}") as temp_file:
         temp_file.write(doc.binary_representation)
@@ -37,11 +42,18 @@ def binary_representation_to_pdf(doc: Document) -> Document:
 
         temp_path = Path(temp_file.name)
 
+        pdffile = f"{temp_path.parent}/{temp_path.stem}.pdf"
+        logger.info(f"Processing {origpath} to {pdffile}")
+        with open(pdffile + "-path", "w") as pathfile:
+            pathfile.write(origpath)
+
         run_libreoffice(temp_path, temp_path.parent)
 
-        with open(f"{temp_path.parent}/{temp_path.stem}.pdf", "rb") as processed_file:
+        with open(pdffile, "rb") as processed_file:
             doc.binary_representation = processed_file.read()
             doc.properties["filetype"] = "application/pdf"
+        os.unlink(pdffile)
+        os.unlink(pdffile + "-path")
 
     return doc
 

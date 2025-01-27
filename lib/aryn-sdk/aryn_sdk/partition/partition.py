@@ -581,12 +581,6 @@ def partition_file_async_list(
                 }
             }
         }
-
-    Example:
-        .. code-block:: python
-
-        from aryn_sdk.partition import partition_file_async_list
-        partition_file_async_list()
     """
     if not async_list_url:
         async_list_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, "/list")

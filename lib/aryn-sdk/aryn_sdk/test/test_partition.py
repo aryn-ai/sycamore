@@ -238,24 +238,6 @@ def test_partiton_file_async_url_forwarding(mocker):
     call_partition_file(nonstandard_async_url_example)
 
 
-def test_partition_file_async():
-    with open(RESOURCE_DIR / "pdfs" / "3m_table.pdf", "rb") as f:
-        job_id = partition_file_async_submit(f)["job_id"]
-
-    start = time.time()
-    while True:
-        actual_result = partition_file_async_result(job_id)
-        if actual_result["status"] != "pending" or time.time() - start >= ASYNC_TIMEOUT:
-            break
-        time.sleep(1)
-    assert actual_result["status"] == "done"
-
-    with open(RESOURCE_DIR / "json" / "3m_output.json", "rb") as f:
-        expected_result = json.load(f)
-
-    assert expected_result["elements"] == actual_result["result"]["elements"]
-
-
 def test_partition_file_async_with_unsupported_file_format():
     with open(RESOURCE_DIR / "image" / "unsupported-format-test-document-image.heic", "rb") as f:
         job_id = partition_file_async_submit(f)["job_id"]

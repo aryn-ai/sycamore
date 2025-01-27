@@ -83,11 +83,11 @@ jobs:
       - name: DF-6
         run: df
       - name: Show Report
-        run: ls .
+        run: ls lib/sycamore/
       - name: Publish Test Report
         uses: ctrf-io/github-test-reporter@v1
         with:
-          report-path: 'unit_test_report.json'
+          report-path: 'lib/sycamore/unit_test_report.json'
         if: always()
 
   rps-unit-test:

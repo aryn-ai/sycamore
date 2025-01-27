@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 import pprint
 import sys
+import traceback
 from typing import Callable, Optional, Any, Iterable, Type, Union, TYPE_CHECKING
 
 from sycamore.context import Context, context_params, OperationTypes
@@ -31,6 +32,7 @@ from sycamore.transforms.merge_elements import ElementMerger
 from sycamore.utils.extract_json import extract_json
 from sycamore.transforms.query import QueryExecutor, Query
 from sycamore.materialize_config import MaterializeSourceMode
+from sycamore.materialize import MaterializeReadReliability
 
 if TYPE_CHECKING:
     from sycamore.writer import DocSetWriter
@@ -1499,7 +1501,10 @@ class DocSet:
 
         from sycamore.materialize import Materialize
 
-        return DocSet(self.context, Materialize(self.plan, self.context, path=path, source_mode=source_mode))
+        return DocSet(
+            self.context,
+            Materialize(self.plan, self.context, path=path, source_mode=source_mode),
+        )
 
     def clear_materialize(self, path: Optional[Union[Path, str]] = None, *, clear_non_local=False) -> None:
         """
@@ -1523,6 +1528,47 @@ class DocSet:
         """
 
         from sycamore.executor import Execution
+        from sycamore.materialize import Materialize
 
-        for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
-            pass
+        if isinstance(self.plan, Materialize):
+            mrr = None
+            for rule in self.context.rewrite_rules:
+                if isinstance(rule, MaterializeReadReliability):
+                    mrr = rule
+                    if isinstance(self.plan._orig_path, str):
+                        destinationPath = Path(self.plan._orig_path)
+                    elif isinstance(self.plan._orig_path, dict):
+                        destinationPath = Path(self.plan._orig_path["root"])
+                    mrr.reinit(out_mat_path=destinationPath, max_batch=mrr.max_batch, max_retries=mrr.max_retries)
+                    break
+            if mrr is None:
+                for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
+                    pass
+            else:
+
+                while True:
+                    mrr.clear_console()
+                    try:
+                        detailed_cycle_error = ""
+                        for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
+                            pass
+                        if mrr.current_batch == 0:
+                            mrr.reset_batch()
+                            logger.info(f"\nProcessed {len(mrr.seen)} docs.")
+                            break
+                    except AssertionError:
+                        raise
+                    except Exception as e:
+                        mrr.cycle_error = e
+                        logger.info(f"Retrying batch job because of {e}.\nProcessed {len(mrr.seen)} docs at present.")
+                        detailed_cycle_error = traceback.format_exc()
+                        print(f"Detailed Trace:\n{detailed_cycle_error}")
+                    mrr.reset_batch()
+                    if mrr.retries_count > mrr.max_retries:
+                        logger.info(
+                            f"\nGiving up after retrying {mrr.retries_count} times. Processed {len(mrr.seen)} docs."
+                        )
+                        break
+        else:
+            for doc in Execution(self.context).execute_iter(self.plan, **kwargs):
+                pass

@@ -117,7 +117,7 @@ def context_params(*names):
                     candidate_kwargs.pop(param, None)
 
                 """
-                If the function doesn't accept arbitrary kwargs, we don't want to use candidate_kwargs that aren't in 
+                If the function doesn't accept arbitrary kwargs, we don't want to use candidate_kwargs that aren't in
                 the function signature.
                 """
                 new_kwargs = {}
@@ -145,8 +145,8 @@ def context_params(*names):
     """
         this let's you handle decorator usage like:
         @context_params OR
-        @context_params() OR 
-        @context_params("template") OR 
+        @context_params() OR
+        @context_params("template") OR
         @context_params("template1", "template2")
     """
     if len(names) == 1 and callable(names[0]):

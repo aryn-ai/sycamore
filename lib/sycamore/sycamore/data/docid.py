@@ -131,3 +131,11 @@ def nybbles_to_uuid(nybbles: list[int]) -> str:
             rv += "-"
         rv += alpha16[nybble]
     return rv
+
+
+def sha256_conversion(path: str) -> str:
+    from hashlib import sha256
+
+    path_hash = sha256(path.encode("utf-8")).hexdigest()
+    doc_id = f"path-sha256-{path_hash}"
+    return doc_id

@@ -411,7 +411,7 @@ def _convert_sync_to_async_url(url: str, *, prefix: str, include_rest_of_url: bo
     if parsed_url.path.startswith("/v1/async/submit"):
         return url
     ary = list(parsed_url)
-    ary[2] = f"/v1/async{prefix}{parsed_url.path[3:] if include_rest_of_url else ''}"
+    ary[2] = f"/v1/async{prefix}{parsed_url.path[3:] if include_rest_of_url else ''}"  # path
     return urlunparse(ary)
 
 

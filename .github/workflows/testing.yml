@@ -33,7 +33,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.10"]
+        #python-version: ["3.9", "3.10", "3.11", "3.12"]
 
     steps:
       - name: DF-1
@@ -81,6 +82,8 @@ jobs:
         working-directory: lib/sycamore
       - name: DF-6
         run: df
+      - name: Show Report
+        run: ls ./ctrf
       - name: Publish Test Report
         uses: ctrf-io/github-test-reporter@v1
         with:

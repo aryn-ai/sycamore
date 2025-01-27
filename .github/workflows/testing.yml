@@ -75,7 +75,7 @@ jobs:
       - name: DF-5
         run: df
       - name: Run tests
-        run: poetry run pytest -n auto --ctrf unit_test_report.json sycamore/tests/unit/
+        run: poetry run pytest -n auto --ctrf unit_test_report.json sycamore/tests/unit/ && ls .
         working-directory: lib/sycamore
       - name: Run more tests
         run: poetry run python sycamore/tests/manual/test_fast_sycamore_import.py

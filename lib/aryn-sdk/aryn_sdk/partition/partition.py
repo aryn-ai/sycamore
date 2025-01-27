@@ -360,6 +360,7 @@ def partition_file_async_submit(
     Set the `docparse_url` argument to the url of the synchronous endpoint, and this function will automatically
     change it to the async endpoint as long as `async_submit_url` is not set.
 
+    For examples of usage see README.md
 
     Args:
         Includes All Arguments `partition_file` accepts plus those below:
@@ -371,53 +372,6 @@ def partition_file_async_submit(
     Returns:
         A dictionary containing the key "job_id" the value of which can be used with the `partition_file_async_result`
         function to get the results and check the status of the async job.
-
-    Single Job Example:
-        .. code-block:: python
-
-        import time
-        from aryn_sdk.partition import partition_file_async_submit, partition_file_async_result
-
-        with open("my-favorite-pdf.pdf", "rb") as f:
-            response = partition_file_async_submit(
-                f,
-                use_ocr=True,
-                extract_table_structure=True,
-            )
-
-        job_id = response["job_id"]
-
-        # Poll for the results
-        while True:
-            result = partition_file_async_result(job_id)
-            if result["status"] != "pending":
-                break
-            time.sleep(5)
-
-    Multi-Job Example:
-        .. code-block:: python
-
-        import logging
-        import time
-        from aryn_sdk.partition import partition_file_async_submit, partition_file_async_result
-
-        files = [open("file1.pdf", "rb"), open("file2.docx", "rb")]
-        job_ids = [None] * len(files)
-        for i, f in enumerate(files):
-            try:
-                job_ids[i] = partition_file_async_submit(f)["job_id"]
-            except Exception as e:
-                logging.warning(f"Failed to submit {f}: {e}")
-
-        results = [None] * len(files)
-        for i, job_id in enumerate(job_ids):
-            while True:
-                result = partition_file_async_result(job_id)
-                if result["status"] != "pending":
-                    break
-                time.sleep(5)
-            results[i] = result
-
     """
 
     if async_submit_url:
@@ -470,6 +424,8 @@ def partition_file_async_result(
     """
     Get the results of an asynchronous partitioning job by job_id. Meant to be used with `partition_file_async_submit`.
 
+    For examples of usage see README.md
+
     Returns:
         A dict containing "status", "status_code", and also "result" which is "status" is "done". "status" can be
         "done", "pending", "error", or "no_such_job".
@@ -477,10 +433,6 @@ def partition_file_async_result(
         Unlike `partition_file`, this function does not raise an Exception if the partitioning failed. Note the
         value corresponding to the "result" key of the returned dict contains what would have been the return value of
         `partition_file` had the partitioning been done synchronously.
-
-    Example:
-        See the examples in the docstring for `partition_file_async_submit` for a full example of how to use this
-        function.
     """
     if not async_result_url:
         async_result_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL)
@@ -526,18 +478,7 @@ def partition_file_async_cancel(
         A job can only be successfully cancelled once. A return value of false can mean the job was already cancelled,
         the job is already done, or there was no job with the given job_id.
 
-    Example:
-        .. code-block:: python
-
-        from aryn_sdk.partition import partition_file_async_submit, partition_file_async_cancel
-        job_id = partition_file_async_submit(
-                    "path/to/file.pdf",
-                    use_ocr=True,
-                    extract_table_structure=True,
-                    extract_images=True,
-                )["job_id"]
-
-        partition_file_async_cancel(job_id)
+        For an example of usage see README.md
     """
     if not async_cancel_url:
         async_cancel_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, "/cancel")
@@ -563,11 +504,11 @@ def partition_file_async_list(
     async_list_url: Optional[str] = None,
 ) -> dict[str, Any]:
     """
-    List pending async jobs.
+    List pending async jobs. For an example of usage see README.md
 
     Returns:
-        A dict containing "jobs" which is a dict containing jobs with their job_id as their key and their value is a
-        dict containing the keys "path" and "state".
+        A dict like the one below containing "jobs" which is itself a dict that maps job ids to dicts containing the
+        respective job's "path" and "state".
 
         {
             "jobs": {

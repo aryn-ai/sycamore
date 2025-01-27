@@ -3,6 +3,8 @@ import pickle
 from PIL import Image
 from typing import Any, Optional
 from sycamore.utils.cache import Cache
+from sycamore.utils.thread_local import ThreadLocalAccess, ADD_METADATA_TO_OUTPUT
+from sycamore.data.metadata import add_metadata
 
 
 class LLM(ABC):
@@ -105,6 +107,12 @@ class LLM(ABC):
             "prompt": kwargs.get("prompt"),
             "output": response_text,
         }
+
+    def add_llm_metadata(self, kwargs, output, wall_latency, in_tokens, out_tokens):
+        tls = ThreadLocalAccess(ADD_METADATA_TO_OUTPUT)
+        if tls.present():
+            metadata = self.get_metadata(kwargs, output, wall_latency, in_tokens, out_tokens)
+            add_metadata(**metadata)
 
 
 class FakeLLM(LLM):

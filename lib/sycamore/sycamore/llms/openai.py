@@ -23,8 +23,6 @@ from sycamore.llms.llms import LLM
 from sycamore.llms.prompts import SimplePrompt
 from sycamore.utils.cache import Cache
 from sycamore.utils.image_utils import base64_data_url
-from sycamore.data.metadata import add_metadata
-from sycamore.utils.thread_local import ThreadLocalAccess, ADD_METADATA_TO_OUTPUT
 
 logger = logging.getLogger(__name__)
 
@@ -384,18 +382,8 @@ class OpenAI(LLM):
         else:
             completion_tokens = 0
             prompt_tokens = 0
-        metadata = self.get_metadata(kwargs, response_text, wall_latency, completion_tokens, prompt_tokens)
-        logging.debug("OpenAI completion response: %s", completion)
-        tls = ThreadLocalAccess(ADD_METADATA_TO_OUTPUT)
-        if tls.present():
-            metadata = self.get_metadata(
-                kwargs,
-                response_text,
-                wall_latency,
-                completion_tokens,
-                prompt_tokens,
-            )
-            add_metadata(**metadata)
+
+        self.add_llm_metadata(kwargs, response_text, wall_latency, completion_tokens, prompt_tokens)
         if not response_text:
             raise ValueError("OpenAI returned empty response")
         return response_text
@@ -416,16 +404,7 @@ class OpenAI(LLM):
                     prompt_tokens = 0
                 wall_latency = datetime.now() - starttime
                 response_text = completion.choices[0].message.content
-                tls = ThreadLocalAccess(ADD_METADATA_TO_OUTPUT)
-                if tls.present():
-                    metadata = self.get_metadata(
-                        kwargs,
-                        response_text,
-                        wall_latency,
-                        completion_tokens,
-                        prompt_tokens,
-                    )
-                    add_metadata(**metadata)
+                self.add_llm_metadata(kwargs, response_text, wall_latency, completion_tokens, prompt_tokens)
             else:
                 raise ValueError("This method doesn't support instruct models. Please use a chat model.")
                 # completion = self.client_wrapper.get_client().beta.completions.parse(model=self._model_name, **kwargs)
@@ -475,16 +454,7 @@ class OpenAI(LLM):
             completion_tokens = 0
             prompt_tokens = 0
 
-        tls = ThreadLocalAccess(ADD_METADATA_TO_OUTPUT)
-        if tls.present():
-            metadata = self.get_metadata(
-                kwargs,
-                response_text,
-                wall_latency,
-                completion_tokens,
-                prompt_tokens,
-            )
-            add_metadata(**metadata)
+        self.add_llm_metadata(kwargs, response_text, wall_latency, completion_tokens, prompt_tokens)
         return response_text
 
     async def _generate_awaitable_using_openai_structured(self, prompt_kwargs, llm_kwargs) -> str:
@@ -507,16 +477,7 @@ class OpenAI(LLM):
                 completion_tokens = 0
                 prompt_tokens = 0
 
-            tls = ThreadLocalAccess(ADD_METADATA_TO_OUTPUT)
-            if tls.present():
-                metadata = self.get_metadata(
-                    kwargs,
-                    response_text,
-                    wall_latency,
-                    completion_tokens,
-                    prompt_tokens,
-                )
-                add_metadata(**metadata)
+            self.add_llm_metadata(kwargs, response_text, wall_latency, completion_tokens, prompt_tokens)
             return response_text
         except Exception as e:
             # OpenAI will not respond in two scenarios:

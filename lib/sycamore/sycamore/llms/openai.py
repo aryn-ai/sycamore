@@ -5,7 +5,7 @@ import os
 from dataclasses import dataclass
 from enum import Enum
 from PIL import Image
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Tuple, Union
 from datetime import datetime
 
 from openai import AzureOpenAI as AzureOpenAIClient
@@ -291,6 +291,15 @@ class OpenAI(LLM):
     def format_image(self, image: Image.Image) -> dict[str, Any]:
         return {"type": "image_url", "image_url": {"url": base64_data_url(image)}}
 
+    def validate_tokens(self, completion) -> Tuple[int, int]:
+        if completion.usage is not None:
+            completion_tokens = completion.usage.completion_tokens or 0
+            prompt_tokens = completion.usage.prompt_tokens or 0
+        else:
+            completion_tokens = 0
+            prompt_tokens = 0
+        return completion_tokens, prompt_tokens
+
     def _convert_response_format(self, llm_kwargs: Optional[Dict]) -> Optional[Dict]:
         """Convert the response_format parameter to the appropriate OpenAI format."""
         if llm_kwargs is None:
@@ -376,13 +385,8 @@ class OpenAI(LLM):
             logging.debug("OpenAI completion: %s", completion)
             wall_latency = datetime.now() - starttime
             response_text = completion.choices[0].text
-        if completion.usage is not None:
-            completion_tokens = completion.usage.completion_tokens or 0
-            prompt_tokens = completion.usage.prompt_tokens or 0
-        else:
-            completion_tokens = 0
-            prompt_tokens = 0
 
+        completion_tokens, prompt_tokens = self.validate_tokens(completion)
         self.add_llm_metadata(kwargs, response_text, wall_latency, completion_tokens, prompt_tokens)
         if not response_text:
             raise ValueError("OpenAI returned empty response")
@@ -396,12 +400,7 @@ class OpenAI(LLM):
                 completion = self.client_wrapper.get_client().beta.chat.completions.parse(
                     model=self._model_name, **kwargs
                 )
-                if completion.usage is not None:
-                    completion_tokens = completion.usage.completion_tokens or 0
-                    prompt_tokens = completion.usage.prompt_tokens or 0
-                else:
-                    completion_tokens = 0
-                    prompt_tokens = 0
+                completion_tokens, prompt_tokens = self.validate_tokens(completion)
                 wall_latency = datetime.now() - starttime
                 response_text = completion.choices[0].message.content
                 self.add_llm_metadata(kwargs, response_text, wall_latency, completion_tokens, prompt_tokens)
@@ -470,13 +469,7 @@ class OpenAI(LLM):
                 raise ValueError("This method doesn't support instruct models. Please use a chat model.")
             response_text = completion.choices[0].message.content
             assert response_text is not None, "OpenAI refused to respond to the query"
-            if completion.usage is not None:
-                completion_tokens = completion.usage.completion_tokens or 0
-                prompt_tokens = completion.usage.prompt_tokens or 0
-            else:
-                completion_tokens = 0
-                prompt_tokens = 0
-
+            completion_tokens, prompt_tokens = self.validate_tokens(completion)
             self.add_llm_metadata(kwargs, response_text, wall_latency, completion_tokens, prompt_tokens)
             return response_text
         except Exception as e:

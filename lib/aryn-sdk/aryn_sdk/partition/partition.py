@@ -13,6 +13,7 @@ from collections import OrderedDict
 from PIL import Image
 import base64
 import io
+from importlib.metadata import version
 
 # URL for Aryn DocParse
 ARYN_DOCPARSE_URL = "https://api.aryn.cloud/v1/document/partition"
@@ -206,9 +207,7 @@ def _partition_file_inner(
     _logger.debug(f"{options_str}")
 
     files: Mapping = {"options": options_str.encode("utf-8"), "pdf": file}
-    headers = {"Authorization": "Bearer {}".format(aryn_config.api_key())}
-    if webhook_url:
-        headers["X-Aryn-Webhook"] = webhook_url
+    headers = _generate_headers(aryn_config.api_key(), webhook_url)
     resp = requests.post(docparse_url, files=files, headers=headers, stream=_should_stream(), verify=ssl_verify)
 
     if resp.status_code < 200 or resp.status_code > 299:
@@ -268,6 +267,13 @@ def _process_config(aryn_api_key: Optional[str] = None, aryn_config: Optional[Ar
     if aryn_config is None:
         aryn_config = ArynConfig()
     return aryn_config
+
+
+def _generate_headers(aryn_api_key: str, webhook_url: Optional[str] = None) -> dict[str, str]:
+    headers = {"Authorization": f"Bearer {aryn_api_key}", "User-Agent": f"aryn-sdk/{version('aryn_sdk')}"}
+    if webhook_url:
+        headers["X-Aryn-Webhook"] = webhook_url
+    return headers
 
 
 def _should_stream() -> bool:
@@ -482,8 +488,8 @@ def partition_file_async_result(
     aryn_config = _process_config(aryn_api_key, aryn_config)
 
     specific_job_url = f"{async_result_url.rstrip('/')}/{job_id}"
-    http_header = {"Authorization": f"Bearer {aryn_config.api_key()}"}
-    response = requests.get(specific_job_url, headers=http_header, stream=_should_stream(), verify=ssl_verify)
+    headers = _generate_headers(aryn_config.api_key())
+    response = requests.get(specific_job_url, headers=headers, stream=_should_stream(), verify=ssl_verify)
 
     if response.status_code == 200:
         return {"status": "done", "status_code": response.status_code, "result": response.json()}
@@ -539,8 +545,8 @@ def partition_file_async_cancel(
     aryn_config = _process_config(aryn_api_key, aryn_config)
 
     specific_job_url = f"{async_cancel_url.rstrip('/')}/{job_id}"
-    http_header = {"Authorization": f"Bearer {aryn_config.api_key()}"}
-    response = requests.post(specific_job_url, headers=http_header, stream=_should_stream(), verify=ssl_verify)
+    headers = _generate_headers(aryn_config.api_key())
+    response = requests.post(specific_job_url, headers=headers, stream=_should_stream(), verify=ssl_verify)
     if response.status_code == 200:
         return True
     elif response.status_code == 404:
@@ -587,8 +593,8 @@ def partition_file_async_list(
 
     aryn_config = _process_config(aryn_api_key, aryn_config)
 
-    http_header = {"Authorization": f"Bearer {aryn_config.api_key()}"}
-    response = requests.get(async_list_url, headers=http_header, stream=_should_stream(), verify=ssl_verify)
+    headers = _generate_headers(aryn_config.api_key())
+    response = requests.get(async_list_url, headers=headers, stream=_should_stream(), verify=ssl_verify)
 
     return response.json()
 

@@ -377,12 +377,12 @@ def partition_file_async_submit(
     if async_submit_url:
         docparse_url = async_submit_url
     elif not aps_url and not docparse_url:
-        docparse_url = _convert_sync_to_async_submit_url(ARYN_DOCPARSE_URL)
+        docparse_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, prefix="/submit", include_rest_of_url=True)
     else:
         if aps_url:
-            aps_url = _convert_sync_to_async_submit_url(aps_url)
+            aps_url = _convert_sync_to_async_url(aps_url, prefix="/submit", include_rest_of_url=True)
         if docparse_url:
-            docparse_url = _convert_sync_to_async_submit_url(docparse_url)
+            docparse_url = _convert_sync_to_async_url(docparse_url, prefix="/submit", include_rest_of_url=True)
 
     return _partition_file_inner(
         file=file,
@@ -405,12 +405,14 @@ def partition_file_async_submit(
     )
 
 
-def _convert_sync_to_async_submit_url(url: str) -> str:
+def _convert_sync_to_async_url(url: str, *, prefix: str, include_rest_of_url: bool = False) -> str:
     parsed_url = urlparse(url)
     assert parsed_url.path.startswith("/v1/")
     if parsed_url.path.startswith("/v1/async/submit"):
         return url
-    return urlunparse((*parsed_url[:2], f"/v1/async/submit{parsed_url.path[3:]}", *parsed_url[3:]))
+    ary = list(parsed_url)
+    ary[2] = f"/v1/async{prefix}{parsed_url.path[3:] if include_rest_of_url else ''}"
+    return urlunparse(ary)
 
 
 def partition_file_async_result(
@@ -435,7 +437,7 @@ def partition_file_async_result(
         `partition_file` had the partitioning been done synchronously.
     """
     if not async_result_url:
-        async_result_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL)
+        async_result_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, prefix="/result")
 
     aryn_config = _process_config(aryn_api_key, aryn_config)
 
@@ -451,14 +453,6 @@ def partition_file_async_result(
         return {"status": "no_such_job", "status_code": response.status_code}
     else:
         return {"status": "error", "status_code": response.status_code}
-
-
-def _convert_sync_to_async_url(url: str, prefix: str = "/result") -> str:
-    parsed_url = urlparse(url)
-    assert parsed_url.path.startswith("/v1/")
-    if parsed_url.path.startswith(f"/v1/async{prefix}"):
-        return url
-    return urlunparse((*parsed_url[:2], f"/v1/async{prefix}", *parsed_url[3:]))
 
 
 def partition_file_async_cancel(
@@ -481,7 +475,7 @@ def partition_file_async_cancel(
         For an example of usage see README.md
     """
     if not async_cancel_url:
-        async_cancel_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, "/cancel")
+        async_cancel_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, prefix="/cancel")
 
     aryn_config = _process_config(aryn_api_key, aryn_config)
 
@@ -524,7 +518,7 @@ def partition_file_async_list(
         }
     """
     if not async_list_url:
-        async_list_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, "/list")
+        async_list_url = _convert_sync_to_async_url(ARYN_DOCPARSE_URL, prefix="/list")
 
     aryn_config = _process_config(aryn_api_key, aryn_config)
 

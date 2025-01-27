@@ -42,7 +42,7 @@ class OpenSearchWriterClientParams(BaseDBWriter.ClientParams):
 @dataclass
 class OpenSearchWriterTargetParams(BaseDBWriter.TargetParams):
     index_name: str
-    reliability_rewriter: dict[str, Any] = field(default_factory=lambda: {"enabled": False, "num_chunks": 0})
+    reliability_rewriter_chunks_count: int = 0
     settings: dict[str, Any] = field(default_factory=lambda: {"index.knn": True})
     mappings: dict[str, Any] = field(
         default_factory=lambda: {
@@ -197,18 +197,20 @@ class OpenSearchWriterClient(BaseDBWriter.Client):
         assert isinstance(mappings, dict)
         settings = _string_values_to_python_types(response.get(index_name, {}).get("settings", {}))
         assert isinstance(settings, dict)
-        reliability_rewriter = target_params.reliability_rewriter
-        assert isinstance(reliability_rewriter, dict)
+        reliability_rewriter_chunks_count = target_params.reliability_rewriter_chunks_count
+        assert isinstance(reliability_rewriter_chunks_count, int)
         return OpenSearchWriterTargetParams(
-            index_name=index_name, mappings=mappings, settings=settings, reliability_rewriter=reliability_rewriter
+            index_name=index_name,
+            mappings=mappings,
+            settings=settings,
+            reliability_rewriter_chunks_count=reliability_rewriter_chunks_count,
         )
 
+    # TODO: Implement this as an abstract method in the base class and remove the NotImplementedError in writer.py
     def reliability_assertor(self, target_params: BaseDBWriter.TargetParams):
         assert isinstance(
             target_params, OpenSearchWriterTargetParams
         ), f"Provided target_params was not of type OpenSearchWriterTargetParams:\n{target_params}"
-        if not target_params.reliability_rewriter["enabled"]:
-            return
         log.info("Flushing index...")
         self._client.indices.flush(index=target_params.index_name)
         log.info("Done flushing index.")
@@ -216,8 +218,8 @@ class OpenSearchWriterClient(BaseDBWriter.Client):
         assert len(indices) == 1, f"Expected 1 index, found {len(indices)}"
         num_docs = int(indices[0]["docs.count"])
         assert (
-            num_docs == target_params.reliability_rewriter["num_chunks"]
-        ), f"Expected {target_params.reliability_rewriter['num_chunks']} docs, found {num_docs}"
+            num_docs == target_params.reliability_rewriter_chunks_count
+        ), f"Expected {target_params.reliability_rewriter_chunks_count} docs, found {num_docs}"
         log.info(f"{num_docs} chunks written in index {target_params.index_name}")
 
 

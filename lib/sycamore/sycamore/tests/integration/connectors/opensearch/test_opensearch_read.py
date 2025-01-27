@@ -161,6 +161,47 @@ class TestOpenSearchRead:
 
         os_client.indices.delete(setup_index, ignore_unavailable=True)
 
+    def test_write_with_reliability(self, setup_index, os_client, exec_mode):
+        """
+        Validates data is readable from OpenSearch, and that we can rebuild processed Sycamore documents.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir1:
+            path = str(TEST_DIR / "resources/data/pdfs/Ray.pdf")
+            context = sycamore.init(exec_mode=exec_mode)
+
+            # 2 docs for ray execution
+            (
+                context.read.binary([path, path], binary_format="pdf")
+                .partition(partitioner=UnstructuredPdfPartitioner())
+                .explode()
+                .materialize(path=tmpdir1)
+                .execute()
+            )
+
+            (
+                context.read.materialize(tmpdir1).write.opensearch(
+                    os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+                    index_name=setup_index,
+                    index_settings=TestOpenSearchRead.INDEX_SETTINGS,
+                    reliability_rewriter=True,
+                )
+            )
+            count = get_doc_count(os_client, setup_index)
+
+            # Delete and recreate the index
+            (
+                context.read.materialize(tmpdir1).write.opensearch(
+                    os_client_args=TestOpenSearchRead.OS_CLIENT_ARGS,
+                    index_name=setup_index,
+                    index_settings=TestOpenSearchRead.INDEX_SETTINGS,
+                    reliability_rewriter=True,
+                )
+            )
+            re_count = get_doc_count(os_client, setup_index)
+
+        assert count == re_count, f"Expected {count} documents, found {re_count}"
+        os_client.indices.delete(setup_index, ignore_unavailable=True)
+
     def _test_ingest_and_read_via_docid_reconstructor(self, setup_index, os_client, cache_dir):
         """
         Validates data is readable from OpenSearch, and that we can rebuild processed Sycamore documents.

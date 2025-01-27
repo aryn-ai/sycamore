@@ -139,19 +139,19 @@ class DocSetWriter:
         target_params: OpenSearchWriterTargetParams
         target_params_dict: dict[str, Any] = {
             "index_name": index_name,
-            "reliability_rewriter": {"num_chunks": 0, "enabled": reliability_rewriter},
+            "reliability_rewriter_chunks_count": 0,
         }
         if reliability_rewriter:
             from sycamore.materialize import Materialize
 
+            assert execute, "Reliability rewriter requires execute to be True"
             assert (
                 type(self.plan) == Materialize
             ), "The first node must be a materialize node for reliability rewriter to work"
-            logger.info(f"Reliability rewriter enabled {self.plan.children}")
             assert not self.plan.children[
                 0
             ], "Pipeline should only have read materialize and write nodes for reliability rewriter to work"
-            target_params_dict["reliability_rewriter"]["num_chunks"] = DocSet(self.context, self.plan).count()
+            target_params_dict["reliability_rewriter_chunks_count"] = DocSet(self.context, self.plan).count()
 
         if insert_settings:
             target_params_dict["insert_settings"] = insert_settings
@@ -166,7 +166,7 @@ class DocSetWriter:
         if reliability_rewriter:
             client = os.Client.from_client_params(client_params)
             if client._client.indices.exists(index=index_name):
-                logger.info(f"\nWARNING: Deleting existing index {index_name}\n")
+                logger.info(f"\n\nWARNING WARNING WARNING: Deleting existing index {index_name}\n\n")
                 client._client.indices.delete(index=index_name)
 
         # We will probably want to break this at some point so that write
@@ -831,8 +831,8 @@ class DocSetWriter:
 
         ds.execute()
         if client is not None:
-            assert (
-                type(node) == OpenSearchWriter
-            ), "The first node must be an opensearch writer node for reliability rewriter to work"
-            client.reliability_assertor(node._target_params)
+            if type(node) == OpenSearchWriter:
+                client.reliability_assertor(node._target_params)
+            else:
+                raise NotImplementedError
         return None

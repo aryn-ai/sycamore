@@ -104,7 +104,7 @@ class LLM(ABC):
                 "total_tokens": in_tokens + out_tokens,
             },
             "wall_latency": wall_latency,
-            "prompt": kwargs.get("prompt"),
+            "prompt": kwargs.get("prompt") or kwargs.get("messages"),
             "output": response_text,
         }
 

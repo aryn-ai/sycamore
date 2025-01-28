@@ -119,6 +119,11 @@ class LLMMapElements(MapBatch):
         llm: The llm to use for inference.
         llm_mode: How to call the llm - sync/async/batch. All LLMs do not
             necessarily implement all options.
+        postprocess_fn: function to call on documents after performing the
+            llm inference. If the prompt rendered into multiple RenderedPrompts,
+            ``i`` is the index of the RenderedPrompt that succeeded; if the
+            prompt rendered into an empty list, ``i`` is -1; and otherwise
+            ``i`` is 0
 
     Example:
          .. code-block:: python
@@ -138,6 +143,7 @@ class LLMMapElements(MapBatch):
         output_field: str,
         llm: LLM,
         llm_mode: LLMMode = LLMMode.SYNC,
+        postprocess_fn: Callable[[Element, int], Element] = lambda e, i: e,
         **kwargs,
     ):
         self._prompt = prompt
@@ -145,15 +151,25 @@ class LLMMapElements(MapBatch):
         self._output_field = output_field
         self._llm = llm
         self._llm_mode = llm_mode
+        self._postprocess_fn = postprocess_fn
         super().__init__(child, f=self.llm_map_elements, **kwargs)
 
     def llm_map_elements(self, documents: list[Document]) -> list[Document]:
-        rendered = [(e, self._prompt.render_element(e, d)) for d in documents for e in d.elements]
+        rendered = [(d, e, self._prompt.render_element(e, d)) for d in documents for e in d.elements]
         results = _infer_prompts(
-            _as_sequences([p for _, p in rendered]), self._llm, self._llm_mode, self._prompt.is_done
+            _as_sequences([p for _, _, p in rendered]), self._llm, self._llm_mode, self._prompt.is_done
         )
-        for (r, i), (e, _) in zip(results, rendered):
+        new_elts = []
+        last_doc = None
+        for (r, i), (d, e, _) in zip(results, rendered):
+            if last_doc is not None and last_doc.doc_id != d.doc_id:
+                last_doc.elements = new_elts
+                new_elts = []
             e.properties[self._output_field] = r
+            new_elts.append(self._postprocess_fn(e, i))
+            last_doc = d
+        if last_doc is not None:
+            last_doc.elements = new_elts
         return documents
 
     def _validate_prompt(self):

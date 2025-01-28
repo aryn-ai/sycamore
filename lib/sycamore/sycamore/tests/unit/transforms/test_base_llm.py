@@ -54,6 +54,23 @@ class TestLLMMap:
         assert outdocs[1].text_representation == "booga"
         assert outdocs[1].properties["out"] == "booga"
 
+    def test_postprocess(self):
+        prompt = FakeDocPrompt()
+        llm = FakeLLM()
+        doc1 = Document({"text_representation": "ooga"})
+        doc2 = Document({"text_representation": "booga"})
+        count = 0
+
+        def ppfn(d: Document, i: int) -> Document:
+            nonlocal count
+            count += 1
+            return d
+
+        map = LLMMap(None, prompt, "out", llm, postprocess_fn=ppfn)
+        _ = map.llm_map([doc1, doc2])
+
+        assert count == 2
+
 
 class TestLLMMapElements:
     def test_wrong_prompt_fails_fast(self):
@@ -67,9 +84,13 @@ class TestLLMMapElements:
         prompt = FakeEltPrompt()
         llm = FakeLLM()
         doc1 = Document(
-            {"text_representation": "ooga", "elements": [{"text_representation": "yo"}, {"text_representation": "ho"}]}
+            {
+                "doc_id": "1",
+                "text_representation": "ooga",
+                "elements": [{"text_representation": "yo"}, {"text_representation": "ho"}],
+            }
         )
-        doc2 = Document({"elements": [{"text_representation": "booga"}, {}]})
+        doc2 = Document({"doc_id": "2", "elements": [{"text_representation": "booga"}, {}]})
         map = LLMMapElements(None, prompt, "out", llm)
         outdocs = map.llm_map_elements([doc1, doc2])
 
@@ -77,3 +98,26 @@ class TestLLMMapElements:
         assert outdocs[0].elements[1].properties["out"] == "oogaho"
         assert outdocs[1].elements[0].properties["out"] == "Nonebooga"
         assert outdocs[1].elements[1].properties["out"] == "NoneNone"
+
+    def test_postprocess(self):
+        prompt = FakeEltPrompt()
+        llm = FakeLLM()
+        doc1 = Document(
+            {
+                "doc_id": "1",
+                "text_representation": "ooga",
+                "elements": [{"text_representation": "yo"}, {"text_representation": "ho"}],
+            }
+        )
+        doc2 = Document({"doc_id": "2", "elements": [{"text_representation": "booga"}, {}]})
+        count = 0
+
+        def ppfn(e: Element, i: int) -> Element:
+            nonlocal count
+            count += 1
+            return e
+
+        map = LLMMapElements(None, prompt, "out", llm, postprocess_fn=ppfn)
+        _ = map.llm_map_elements([doc1, doc2])
+
+        assert count == 4
